@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,7 +19,8 @@ vi.mock('@/lib/indexer', () => ({
   },
 }))
 
-const { getSubnames } = await import('./useSubnames')
+const { getSubnames, getSubnamesCountQueryOptions, getSubnamesQueryOptions } =
+  await import('./useSubnames')
 
 describe('getSubnames', () => {
   beforeEach(() => {
@@ -219,5 +221,68 @@ describe('getSubnames', () => {
     })
 
     expect(result._unsafeUnwrap()).toEqual([])
+  })
+})
+
+describe('getSubnamesCountQueryOptions', () => {
+  beforeEach(() => {
+    mockEnsjsGetSubnames.mockReset()
+    mockGraphqlRequest.mockReset()
+  })
+
+  it('reads the V2 count in one request, without listing the subnames', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [{ subdomainsCount: 137 }],
+    })
+
+    const count = await new QueryClient().fetchQuery(
+      getSubnamesCountQueryOptions({
+        name: 'test.eth',
+        protocolVersion: 'ENSv2',
+      }),
+    )
+
+    expect(count).toBe(137)
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(expect.anything(), {
+      name: 'test.eth',
+    })
+  })
+
+  it('counts the V1 list, which has no count of its own', async () => {
+    mockEnsjsGetSubnames.mockResolvedValue([
+      { name: 'a.test.eth', labelName: 'a', labelhash: '0x01', owner: '0x1' },
+      { name: 'b.test.eth', labelName: 'b', labelhash: '0x02', owner: '0x1' },
+    ])
+
+    const count = await new QueryClient().fetchQuery(
+      getSubnamesCountQueryOptions({
+        name: 'test.eth',
+        protocolVersion: 'ENSv1',
+      }),
+    )
+
+    expect(count).toBe(2)
+  })
+
+  // Creating, deleting and transferring a subname all invalidate the list's
+  // key; the count must go stale with it.
+  it('is invalidated by the list’s query key', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [{ subdomainsCount: 3 }],
+    })
+    const params = { name: 'test.eth', protocolVersion: 'ENSv2' } as const
+    const queryClient = new QueryClient()
+    const countOptions = getSubnamesCountQueryOptions(params)
+    await queryClient.fetchQuery(countOptions)
+
+    await queryClient.invalidateQueries({
+      queryKey: getSubnamesQueryOptions(params).queryKey,
+      refetchType: 'none',
+    })
+
+    expect(
+      queryClient.getQueryState(countOptions.queryKey)?.isInvalidated,
+    ).toBe(true)
   })
 })

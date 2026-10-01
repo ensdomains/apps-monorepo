@@ -1,16 +1,23 @@
 import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { normalize } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 class GetRegistryOccupantsError extends TaggedError(
   'GetRegistryOccupantsError',
 )<{
   cause: GraphqlRequestError
+}> {}
+
+class RegistryNameNotNormalizableError extends TaggedError(
+  'RegistryNameNotNormalizableError',
+)<{
+  cause: unknown
 }> {}
 
 type GetRegistryOccupantsParameters = {
@@ -65,6 +72,11 @@ const getRegistryOccupants = ResultFn(async function* ({
   name,
   account,
 }: GetRegistryOccupantsParameters) {
+  const normalizedName = yield* fromSync(
+    () => normalize(name),
+    (e) => new RegistryNameNotNormalizableError({ cause: e }),
+  )
+
   const { registry, domains, total, own } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: { labelCount: number } | null
@@ -97,7 +109,7 @@ const getRegistryOccupants = ResultFn(async function* ({
       `,
       {
         registry: address.toLowerCase(),
-        name,
+        name: normalizedName,
         account: account.toLowerCase(),
       },
     ),

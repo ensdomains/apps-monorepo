@@ -15,11 +15,13 @@ const { getRegistryOccupantsQueryOptions } = await import(
 const REGISTRY = '0x6fdec1496fe8ff0c07b815d72a53a014d6072ff6'
 const OWNER = '0xB8194BD8F2f76bBd18aA762D376fAD31d01303Da'
 
-const fetchOccupants = () =>
-  new QueryClient().fetchQuery(
+const fetchOccupants = (name = 'gomigo.eth') =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  }).fetchQuery(
     getRegistryOccupantsQueryOptions({
       address: REGISTRY,
-      name: 'gomigo.eth',
+      name,
       account: OWNER,
     }),
   )
@@ -73,5 +75,28 @@ describe('getRegistryOccupants', () => {
     })
 
     await expect(fetchOccupants()).resolves.toBeNull()
+  })
+
+  it('looks the name up under its normalized spelling', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      registry: { labelCount: 17 },
+      domains: [{ subdomainsCount: 17 }],
+      total: { totalCount: 34 },
+      own: { totalCount: 34 },
+    })
+
+    await fetchOccupants('GomiGo.eth')
+
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: 'gomigo.eth' }),
+    )
+  })
+
+  it('fails without querying for a name that cannot be normalized', async () => {
+    await expect(fetchOccupants('gomi go.eth')).rejects.toMatchObject({
+      _tag: 'RegistryNameNotNormalizableError',
+    })
+    expect(mockGraphqlRequest).not.toHaveBeenCalled()
   })
 })

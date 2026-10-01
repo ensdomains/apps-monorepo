@@ -9,60 +9,55 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as NameRouteImport } from './routes/$name'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RegisterIndexRouteImport } from './routes/register/index'
+import { Route as NameRouteImport } from './routes/$name'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
-import { Route as TldTldRouteImport } from './routes/tld/$tld'
-import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
-import { Route as RegistryAddressRouteImport } from './routes/registry/$address'
-import { Route as ImportNameRouteImport } from './routes/import/$name'
-import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
-import { Route as NameTokenRouteImport } from './routes/$name/token'
-import { Route as NameSubnamesRouteImport } from './routes/$name/subnames'
-import { Route as NameResolverRouteImport } from './routes/$name/resolver'
-import { Route as NameRegistryRouteImport } from './routes/$name/registry'
-import { Route as NameRecordsRouteImport } from './routes/$name/records'
-import { Route as NameHistoryRouteImport } from './routes/$name/history'
-import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
-import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
-import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
 import { Route as NameAddressRouteImport } from './routes/$name/address'
-import { Route as TldTldIndexRouteImport } from './routes/tld/$tld/index'
-import { Route as ResolverAddressIndexRouteImport } from './routes/resolver/$address/index'
-import { Route as RegistryAddressIndexRouteImport } from './routes/registry/$address/index'
-import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
-import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
-import { Route as NameOwnershipIndexRouteImport } from './routes/$name/ownership/index'
+import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
+import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
+import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
+import { Route as NameHistoryRouteImport } from './routes/$name/history'
+import { Route as NameRecordsRouteImport } from './routes/$name/records'
+import { Route as NameRegistryRouteImport } from './routes/$name/registry'
+import { Route as NameResolverRouteImport } from './routes/$name/resolver'
+import { Route as NameSubnamesRouteImport } from './routes/$name/subnames'
+import { Route as NameTokenRouteImport } from './routes/$name/token'
+import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
+import { Route as ImportNameRouteImport } from './routes/import/$name'
+import { Route as RegisterIndexRouteImport } from './routes/register/index'
+import { Route as RegistryAddressRouteImport } from './routes/registry/$address'
+import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
+import { Route as TldTldRouteImport } from './routes/tld/$tld'
 import { Route as NameFusesIndexRouteImport } from './routes/$name/fuses/index'
-import { Route as ResolverAddressNodesRouteImport } from './routes/resolver/$address/nodes'
-import { Route as ResolverAddressLinksRouteImport } from './routes/resolver/$address/links'
-import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$address/history'
-import { Route as ResolverAddressCreateLinkRouteImport } from './routes/resolver/$address/create-link'
-import { Route as RegistryAddressRolesRouteImport } from './routes/registry/$address/roles'
-import { Route as RegistryAddressLabelsRouteImport } from './routes/registry/$address/labels'
-import { Route as RegistryAddressHistoryRouteImport } from './routes/registry/$address/history'
-import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
-import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
-import { Route as AddrAddrNamesRouteImport } from './routes/addr/$addr/names'
-import { Route as AddrAddrHistoryRouteImport } from './routes/addr/$addr/history'
-import { Route as NameOwnershipTransferRouteImport } from './routes/$name/ownership/transfer'
 import { Route as NameFusesBurnRouteImport } from './routes/$name/fuses/burn'
+import { Route as NameOwnershipIndexRouteImport } from './routes/$name/ownership/index'
+import { Route as NameOwnershipTransferRouteImport } from './routes/$name/ownership/transfer'
+import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
+import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
+import { Route as AddrAddrHistoryRouteImport } from './routes/addr/$addr/history'
+import { Route as AddrAddrNamesRouteImport } from './routes/addr/$addr/names'
+import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
+import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
+import { Route as RegistryAddressIndexRouteImport } from './routes/registry/$address/index'
+import { Route as RegistryAddressHistoryRouteImport } from './routes/registry/$address/history'
+import { Route as RegistryAddressLabelsRouteImport } from './routes/registry/$address/labels'
+import { Route as RegistryAddressRolesRouteImport } from './routes/registry/$address/roles'
+import { Route as ResolverAddressIndexRouteImport } from './routes/resolver/$address/index'
+import { Route as ResolverAddressCreateLinkRouteImport } from './routes/resolver/$address/create-link'
+import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$address/history'
+import { Route as ResolverAddressLinksRouteImport } from './routes/resolver/$address/links'
+import { Route as ResolverAddressNodesRouteImport } from './routes/resolver/$address/nodes'
+import { Route as TldTldIndexRouteImport } from './routes/tld/$tld/index'
 import { Route as ResolverAddressRolesIndexRouteImport } from './routes/resolver/$address/roles/index'
 
-const NameRoute = NameRouteImport.update({
-  id: '/$name',
-  path: '/$name',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegisterIndexRoute = RegisterIndexRouteImport.update({
-  id: '/register/',
-  path: '/register/',
+const NameRoute = NameRouteImport.update({
+  id: '/$name',
+  path: '/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NameIndexRoute = NameIndexRouteImport.update({
@@ -70,69 +65,9 @@ const NameIndexRoute = NameIndexRouteImport.update({
   path: '/',
   getParentRoute: () => NameRoute,
 } as any)
-const TldTldRoute = TldTldRouteImport.update({
-  id: '/tld/$tld',
-  path: '/tld/$tld',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResolverAddressRoute = ResolverAddressRouteImport.update({
-  id: '/resolver/$address',
-  path: '/resolver/$address',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegistryAddressRoute = RegistryAddressRouteImport.update({
-  id: '/registry/$address',
-  path: '/registry/$address',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportNameRoute = ImportNameRouteImport.update({
-  id: '/import/$name',
-  path: '/import/$name',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AddrAddrRoute = AddrAddrRouteImport.update({
-  id: '/addr/$addr',
-  path: '/addr/$addr',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NameTokenRoute = NameTokenRouteImport.update({
-  id: '/token',
-  path: '/token',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameSubnamesRoute = NameSubnamesRouteImport.update({
-  id: '/subnames',
-  path: '/subnames',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameResolverRoute = NameResolverRouteImport.update({
-  id: '/resolver',
-  path: '/resolver',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameRegistryRoute = NameRegistryRouteImport.update({
-  id: '/registry',
-  path: '/registry',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameRecordsRoute = NameRecordsRouteImport.update({
-  id: '/records',
-  path: '/records',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameHistoryRoute = NameHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameEditRecordsRoute = NameEditRecordsRouteImport.update({
-  id: '/edit-records',
-  path: '/edit-records',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameCreateSubnameRoute = NameCreateSubnameRouteImport.update({
-  id: '/create-subname',
-  path: '/create-subname',
+const NameAddressRoute = NameAddressRouteImport.update({
+  id: '/address',
+  path: '/address',
   getParentRoute: () => NameRoute,
 } as any)
 const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
@@ -140,34 +75,84 @@ const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
   path: '/change-resolver',
   getParentRoute: () => NameRoute,
 } as any)
-const NameAddressRoute = NameAddressRouteImport.update({
-  id: '/address',
-  path: '/address',
+const NameCreateSubnameRoute = NameCreateSubnameRouteImport.update({
+  id: '/create-subname',
+  path: '/create-subname',
   getParentRoute: () => NameRoute,
 } as any)
-const TldTldIndexRoute = TldTldIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => TldTldRoute,
+const NameEditRecordsRoute = NameEditRecordsRouteImport.update({
+  id: '/edit-records',
+  path: '/edit-records',
+  getParentRoute: () => NameRoute,
 } as any)
-const ResolverAddressIndexRoute = ResolverAddressIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ResolverAddressRoute,
+const NameHistoryRoute = NameHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => NameRoute,
 } as any)
-const RegistryAddressIndexRoute = RegistryAddressIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => RegistryAddressRoute,
+const NameRecordsRoute = NameRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => NameRoute,
 } as any)
-const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AddrAddrRoute,
+const NameRegistryRoute = NameRegistryRouteImport.update({
+  id: '/registry',
+  path: '/registry',
+  getParentRoute: () => NameRoute,
 } as any)
-const NameRolesIndexRoute = NameRolesIndexRouteImport.update({
-  id: '/roles/',
-  path: '/roles/',
+const NameResolverRoute = NameResolverRouteImport.update({
+  id: '/resolver',
+  path: '/resolver',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameSubnamesRoute = NameSubnamesRouteImport.update({
+  id: '/subnames',
+  path: '/subnames',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameTokenRoute = NameTokenRouteImport.update({
+  id: '/token',
+  path: '/token',
+  getParentRoute: () => NameRoute,
+} as any)
+const AddrAddrRoute = AddrAddrRouteImport.update({
+  id: '/addr/$addr',
+  path: '/addr/$addr',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportNameRoute = ImportNameRouteImport.update({
+  id: '/import/$name',
+  path: '/import/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistryAddressRoute = RegistryAddressRouteImport.update({
+  id: '/registry/$address',
+  path: '/registry/$address',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResolverAddressRoute = ResolverAddressRouteImport.update({
+  id: '/resolver/$address',
+  path: '/resolver/$address',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TldTldRoute = TldTldRouteImport.update({
+  id: '/tld/$tld',
+  path: '/tld/$tld',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NameFusesIndexRoute = NameFusesIndexRouteImport.update({
+  id: '/fuses/',
+  path: '/fuses/',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameFusesBurnRoute = NameFusesBurnRouteImport.update({
+  id: '/fuses/burn',
+  path: '/fuses/burn',
   getParentRoute: () => NameRoute,
 } as any)
 const NameOwnershipIndexRoute = NameOwnershipIndexRouteImport.update({
@@ -175,24 +160,65 @@ const NameOwnershipIndexRoute = NameOwnershipIndexRouteImport.update({
   path: '/ownership/',
   getParentRoute: () => NameRoute,
 } as any)
-const NameFusesIndexRoute = NameFusesIndexRouteImport.update({
-  id: '/fuses/',
-  path: '/fuses/',
+const NameOwnershipTransferRoute = NameOwnershipTransferRouteImport.update({
+  id: '/ownership/transfer',
+  path: '/ownership/transfer',
   getParentRoute: () => NameRoute,
 } as any)
-const ResolverAddressNodesRoute = ResolverAddressNodesRouteImport.update({
-  id: '/nodes',
-  path: '/nodes',
-  getParentRoute: () => ResolverAddressRoute,
+const NameRolesIndexRoute = NameRolesIndexRouteImport.update({
+  id: '/roles/',
+  path: '/roles/',
+  getParentRoute: () => NameRoute,
 } as any)
-const ResolverAddressLinksRoute = ResolverAddressLinksRouteImport.update({
-  id: '/links',
-  path: '/links',
-  getParentRoute: () => ResolverAddressRoute,
+const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AddrAddrRoute,
 } as any)
-const ResolverAddressHistoryRoute = ResolverAddressHistoryRouteImport.update({
+const AddrAddrHistoryRoute = AddrAddrHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => AddrAddrRoute,
+} as any)
+const AddrAddrNamesRoute = AddrAddrNamesRouteImport.update({
+  id: '/names',
+  path: '/names',
+  getParentRoute: () => AddrAddrRoute,
+} as any)
+const AddrAddrResolutionRoute = AddrAddrResolutionRouteImport.update({
+  id: '/resolution',
+  path: '/resolution',
+  getParentRoute: () => AddrAddrRoute,
+} as any)
+const AddrAddrReverseResolutionRoute =
+  AddrAddrReverseResolutionRouteImport.update({
+    id: '/reverse-resolution',
+    path: '/reverse-resolution',
+    getParentRoute: () => AddrAddrRoute,
+  } as any)
+const RegistryAddressIndexRoute = RegistryAddressIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RegistryAddressRoute,
+} as any)
+const RegistryAddressHistoryRoute = RegistryAddressHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => RegistryAddressRoute,
+} as any)
+const RegistryAddressLabelsRoute = RegistryAddressLabelsRouteImport.update({
+  id: '/labels',
+  path: '/labels',
+  getParentRoute: () => RegistryAddressRoute,
+} as any)
+const RegistryAddressRolesRoute = RegistryAddressRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => RegistryAddressRoute,
+} as any)
+const ResolverAddressIndexRoute = ResolverAddressIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => ResolverAddressRoute,
 } as any)
 const ResolverAddressCreateLinkRoute =
@@ -201,51 +227,25 @@ const ResolverAddressCreateLinkRoute =
     path: '/create-link',
     getParentRoute: () => ResolverAddressRoute,
   } as any)
-const RegistryAddressRolesRoute = RegistryAddressRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
-  getParentRoute: () => RegistryAddressRoute,
-} as any)
-const RegistryAddressLabelsRoute = RegistryAddressLabelsRouteImport.update({
-  id: '/labels',
-  path: '/labels',
-  getParentRoute: () => RegistryAddressRoute,
-} as any)
-const RegistryAddressHistoryRoute = RegistryAddressHistoryRouteImport.update({
+const ResolverAddressHistoryRoute = ResolverAddressHistoryRouteImport.update({
   id: '/history',
   path: '/history',
-  getParentRoute: () => RegistryAddressRoute,
+  getParentRoute: () => ResolverAddressRoute,
 } as any)
-const AddrAddrReverseResolutionRoute =
-  AddrAddrReverseResolutionRouteImport.update({
-    id: '/reverse-resolution',
-    path: '/reverse-resolution',
-    getParentRoute: () => AddrAddrRoute,
-  } as any)
-const AddrAddrResolutionRoute = AddrAddrResolutionRouteImport.update({
-  id: '/resolution',
-  path: '/resolution',
-  getParentRoute: () => AddrAddrRoute,
+const ResolverAddressLinksRoute = ResolverAddressLinksRouteImport.update({
+  id: '/links',
+  path: '/links',
+  getParentRoute: () => ResolverAddressRoute,
 } as any)
-const AddrAddrNamesRoute = AddrAddrNamesRouteImport.update({
-  id: '/names',
-  path: '/names',
-  getParentRoute: () => AddrAddrRoute,
+const ResolverAddressNodesRoute = ResolverAddressNodesRouteImport.update({
+  id: '/nodes',
+  path: '/nodes',
+  getParentRoute: () => ResolverAddressRoute,
 } as any)
-const AddrAddrHistoryRoute = AddrAddrHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => AddrAddrRoute,
-} as any)
-const NameOwnershipTransferRoute = NameOwnershipTransferRouteImport.update({
-  id: '/ownership/transfer',
-  path: '/ownership/transfer',
-  getParentRoute: () => NameRoute,
-} as any)
-const NameFusesBurnRoute = NameFusesBurnRouteImport.update({
-  id: '/fuses/burn',
-  path: '/fuses/burn',
-  getParentRoute: () => NameRoute,
+const TldTldIndexRoute = TldTldIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TldTldRoute,
 } as any)
 const ResolverAddressRolesIndexRoute =
   ResolverAddressRolesIndexRouteImport.update({
@@ -513,13 +513,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/$name': {
-      id: '/$name'
-      path: '/$name'
-      fullPath: '/$name'
-      preLoaderRoute: typeof NameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -527,11 +520,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/register/': {
-      id: '/register/'
-      path: '/register'
-      fullPath: '/register/'
-      preLoaderRoute: typeof RegisterIndexRouteImport
+    '/$name': {
+      id: '/$name'
+      path: '/$name'
+      fullPath: '/$name'
+      preLoaderRoute: typeof NameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$name/': {
@@ -541,95 +534,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameIndexRouteImport
       parentRoute: typeof NameRoute
     }
-    '/tld/$tld': {
-      id: '/tld/$tld'
-      path: '/tld/$tld'
-      fullPath: '/tld/$tld'
-      preLoaderRoute: typeof TldTldRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/resolver/$address': {
-      id: '/resolver/$address'
-      path: '/resolver/$address'
-      fullPath: '/resolver/$address'
-      preLoaderRoute: typeof ResolverAddressRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/registry/$address': {
-      id: '/registry/$address'
-      path: '/registry/$address'
-      fullPath: '/registry/$address'
-      preLoaderRoute: typeof RegistryAddressRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import/$name': {
-      id: '/import/$name'
-      path: '/import/$name'
-      fullPath: '/import/$name'
-      preLoaderRoute: typeof ImportNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/addr/$addr': {
-      id: '/addr/$addr'
-      path: '/addr/$addr'
-      fullPath: '/addr/$addr'
-      preLoaderRoute: typeof AddrAddrRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/$name/token': {
-      id: '/$name/token'
-      path: '/token'
-      fullPath: '/$name/token'
-      preLoaderRoute: typeof NameTokenRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/subnames': {
-      id: '/$name/subnames'
-      path: '/subnames'
-      fullPath: '/$name/subnames'
-      preLoaderRoute: typeof NameSubnamesRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/resolver': {
-      id: '/$name/resolver'
-      path: '/resolver'
-      fullPath: '/$name/resolver'
-      preLoaderRoute: typeof NameResolverRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/registry': {
-      id: '/$name/registry'
-      path: '/registry'
-      fullPath: '/$name/registry'
-      preLoaderRoute: typeof NameRegistryRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/records': {
-      id: '/$name/records'
-      path: '/records'
-      fullPath: '/$name/records'
-      preLoaderRoute: typeof NameRecordsRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/history': {
-      id: '/$name/history'
-      path: '/history'
-      fullPath: '/$name/history'
-      preLoaderRoute: typeof NameHistoryRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/edit-records': {
-      id: '/$name/edit-records'
-      path: '/edit-records'
-      fullPath: '/$name/edit-records'
-      preLoaderRoute: typeof NameEditRecordsRouteImport
-      parentRoute: typeof NameRoute
-    }
-    '/$name/create-subname': {
-      id: '/$name/create-subname'
-      path: '/create-subname'
-      fullPath: '/$name/create-subname'
-      preLoaderRoute: typeof NameCreateSubnameRouteImport
+    '/$name/address': {
+      id: '/$name/address'
+      path: '/address'
+      fullPath: '/$name/address'
+      preLoaderRoute: typeof NameAddressRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/change-resolver': {
@@ -639,46 +548,116 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameChangeResolverRouteImport
       parentRoute: typeof NameRoute
     }
-    '/$name/address': {
-      id: '/$name/address'
-      path: '/address'
-      fullPath: '/$name/address'
-      preLoaderRoute: typeof NameAddressRouteImport
+    '/$name/create-subname': {
+      id: '/$name/create-subname'
+      path: '/create-subname'
+      fullPath: '/$name/create-subname'
+      preLoaderRoute: typeof NameCreateSubnameRouteImport
       parentRoute: typeof NameRoute
     }
-    '/tld/$tld/': {
-      id: '/tld/$tld/'
-      path: '/'
-      fullPath: '/tld/$tld/'
-      preLoaderRoute: typeof TldTldIndexRouteImport
-      parentRoute: typeof TldTldRoute
+    '/$name/edit-records': {
+      id: '/$name/edit-records'
+      path: '/edit-records'
+      fullPath: '/$name/edit-records'
+      preLoaderRoute: typeof NameEditRecordsRouteImport
+      parentRoute: typeof NameRoute
     }
-    '/resolver/$address/': {
-      id: '/resolver/$address/'
-      path: '/'
-      fullPath: '/resolver/$address/'
-      preLoaderRoute: typeof ResolverAddressIndexRouteImport
-      parentRoute: typeof ResolverAddressRoute
+    '/$name/history': {
+      id: '/$name/history'
+      path: '/history'
+      fullPath: '/$name/history'
+      preLoaderRoute: typeof NameHistoryRouteImport
+      parentRoute: typeof NameRoute
     }
-    '/registry/$address/': {
-      id: '/registry/$address/'
-      path: '/'
-      fullPath: '/registry/$address/'
-      preLoaderRoute: typeof RegistryAddressIndexRouteImport
-      parentRoute: typeof RegistryAddressRoute
+    '/$name/records': {
+      id: '/$name/records'
+      path: '/records'
+      fullPath: '/$name/records'
+      preLoaderRoute: typeof NameRecordsRouteImport
+      parentRoute: typeof NameRoute
     }
-    '/addr/$addr/': {
-      id: '/addr/$addr/'
-      path: '/'
-      fullPath: '/addr/$addr/'
-      preLoaderRoute: typeof AddrAddrIndexRouteImport
-      parentRoute: typeof AddrAddrRoute
+    '/$name/registry': {
+      id: '/$name/registry'
+      path: '/registry'
+      fullPath: '/$name/registry'
+      preLoaderRoute: typeof NameRegistryRouteImport
+      parentRoute: typeof NameRoute
     }
-    '/$name/roles/': {
-      id: '/$name/roles/'
-      path: '/roles'
-      fullPath: '/$name/roles/'
-      preLoaderRoute: typeof NameRolesIndexRouteImport
+    '/$name/resolver': {
+      id: '/$name/resolver'
+      path: '/resolver'
+      fullPath: '/$name/resolver'
+      preLoaderRoute: typeof NameResolverRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/subnames': {
+      id: '/$name/subnames'
+      path: '/subnames'
+      fullPath: '/$name/subnames'
+      preLoaderRoute: typeof NameSubnamesRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/token': {
+      id: '/$name/token'
+      path: '/token'
+      fullPath: '/$name/token'
+      preLoaderRoute: typeof NameTokenRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/addr/$addr': {
+      id: '/addr/$addr'
+      path: '/addr/$addr'
+      fullPath: '/addr/$addr'
+      preLoaderRoute: typeof AddrAddrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import/$name': {
+      id: '/import/$name'
+      path: '/import/$name'
+      fullPath: '/import/$name'
+      preLoaderRoute: typeof ImportNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register/'
+      preLoaderRoute: typeof RegisterIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registry/$address': {
+      id: '/registry/$address'
+      path: '/registry/$address'
+      fullPath: '/registry/$address'
+      preLoaderRoute: typeof RegistryAddressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resolver/$address': {
+      id: '/resolver/$address'
+      path: '/resolver/$address'
+      fullPath: '/resolver/$address'
+      preLoaderRoute: typeof ResolverAddressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tld/$tld': {
+      id: '/tld/$tld'
+      path: '/tld/$tld'
+      fullPath: '/tld/$tld'
+      preLoaderRoute: typeof TldTldRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$name/fuses/': {
+      id: '/$name/fuses/'
+      path: '/fuses'
+      fullPath: '/$name/fuses/'
+      preLoaderRoute: typeof NameFusesIndexRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/fuses/burn': {
+      id: '/$name/fuses/burn'
+      path: '/fuses/burn'
+      fullPath: '/$name/fuses/burn'
+      preLoaderRoute: typeof NameFusesBurnRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/ownership/': {
@@ -688,81 +667,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameOwnershipIndexRouteImport
       parentRoute: typeof NameRoute
     }
-    '/$name/fuses/': {
-      id: '/$name/fuses/'
-      path: '/fuses'
-      fullPath: '/$name/fuses/'
-      preLoaderRoute: typeof NameFusesIndexRouteImport
+    '/$name/ownership/transfer': {
+      id: '/$name/ownership/transfer'
+      path: '/ownership/transfer'
+      fullPath: '/$name/ownership/transfer'
+      preLoaderRoute: typeof NameOwnershipTransferRouteImport
       parentRoute: typeof NameRoute
     }
-    '/resolver/$address/nodes': {
-      id: '/resolver/$address/nodes'
-      path: '/nodes'
-      fullPath: '/resolver/$address/nodes'
-      preLoaderRoute: typeof ResolverAddressNodesRouteImport
-      parentRoute: typeof ResolverAddressRoute
-    }
-    '/resolver/$address/links': {
-      id: '/resolver/$address/links'
-      path: '/links'
-      fullPath: '/resolver/$address/links'
-      preLoaderRoute: typeof ResolverAddressLinksRouteImport
-      parentRoute: typeof ResolverAddressRoute
-    }
-    '/resolver/$address/history': {
-      id: '/resolver/$address/history'
-      path: '/history'
-      fullPath: '/resolver/$address/history'
-      preLoaderRoute: typeof ResolverAddressHistoryRouteImport
-      parentRoute: typeof ResolverAddressRoute
-    }
-    '/resolver/$address/create-link': {
-      id: '/resolver/$address/create-link'
-      path: '/create-link'
-      fullPath: '/resolver/$address/create-link'
-      preLoaderRoute: typeof ResolverAddressCreateLinkRouteImport
-      parentRoute: typeof ResolverAddressRoute
-    }
-    '/registry/$address/roles': {
-      id: '/registry/$address/roles'
+    '/$name/roles/': {
+      id: '/$name/roles/'
       path: '/roles'
-      fullPath: '/registry/$address/roles'
-      preLoaderRoute: typeof RegistryAddressRolesRouteImport
-      parentRoute: typeof RegistryAddressRoute
+      fullPath: '/$name/roles/'
+      preLoaderRoute: typeof NameRolesIndexRouteImport
+      parentRoute: typeof NameRoute
     }
-    '/registry/$address/labels': {
-      id: '/registry/$address/labels'
-      path: '/labels'
-      fullPath: '/registry/$address/labels'
-      preLoaderRoute: typeof RegistryAddressLabelsRouteImport
-      parentRoute: typeof RegistryAddressRoute
-    }
-    '/registry/$address/history': {
-      id: '/registry/$address/history'
-      path: '/history'
-      fullPath: '/registry/$address/history'
-      preLoaderRoute: typeof RegistryAddressHistoryRouteImport
-      parentRoute: typeof RegistryAddressRoute
-    }
-    '/addr/$addr/reverse-resolution': {
-      id: '/addr/$addr/reverse-resolution'
-      path: '/reverse-resolution'
-      fullPath: '/addr/$addr/reverse-resolution'
-      preLoaderRoute: typeof AddrAddrReverseResolutionRouteImport
-      parentRoute: typeof AddrAddrRoute
-    }
-    '/addr/$addr/resolution': {
-      id: '/addr/$addr/resolution'
-      path: '/resolution'
-      fullPath: '/addr/$addr/resolution'
-      preLoaderRoute: typeof AddrAddrResolutionRouteImport
-      parentRoute: typeof AddrAddrRoute
-    }
-    '/addr/$addr/names': {
-      id: '/addr/$addr/names'
-      path: '/names'
-      fullPath: '/addr/$addr/names'
-      preLoaderRoute: typeof AddrAddrNamesRouteImport
+    '/addr/$addr/': {
+      id: '/addr/$addr/'
+      path: '/'
+      fullPath: '/addr/$addr/'
+      preLoaderRoute: typeof AddrAddrIndexRouteImport
       parentRoute: typeof AddrAddrRoute
     }
     '/addr/$addr/history': {
@@ -772,19 +695,96 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AddrAddrHistoryRouteImport
       parentRoute: typeof AddrAddrRoute
     }
-    '/$name/ownership/transfer': {
-      id: '/$name/ownership/transfer'
-      path: '/ownership/transfer'
-      fullPath: '/$name/ownership/transfer'
-      preLoaderRoute: typeof NameOwnershipTransferRouteImport
-      parentRoute: typeof NameRoute
+    '/addr/$addr/names': {
+      id: '/addr/$addr/names'
+      path: '/names'
+      fullPath: '/addr/$addr/names'
+      preLoaderRoute: typeof AddrAddrNamesRouteImport
+      parentRoute: typeof AddrAddrRoute
     }
-    '/$name/fuses/burn': {
-      id: '/$name/fuses/burn'
-      path: '/fuses/burn'
-      fullPath: '/$name/fuses/burn'
-      preLoaderRoute: typeof NameFusesBurnRouteImport
-      parentRoute: typeof NameRoute
+    '/addr/$addr/resolution': {
+      id: '/addr/$addr/resolution'
+      path: '/resolution'
+      fullPath: '/addr/$addr/resolution'
+      preLoaderRoute: typeof AddrAddrResolutionRouteImport
+      parentRoute: typeof AddrAddrRoute
+    }
+    '/addr/$addr/reverse-resolution': {
+      id: '/addr/$addr/reverse-resolution'
+      path: '/reverse-resolution'
+      fullPath: '/addr/$addr/reverse-resolution'
+      preLoaderRoute: typeof AddrAddrReverseResolutionRouteImport
+      parentRoute: typeof AddrAddrRoute
+    }
+    '/registry/$address/': {
+      id: '/registry/$address/'
+      path: '/'
+      fullPath: '/registry/$address/'
+      preLoaderRoute: typeof RegistryAddressIndexRouteImport
+      parentRoute: typeof RegistryAddressRoute
+    }
+    '/registry/$address/history': {
+      id: '/registry/$address/history'
+      path: '/history'
+      fullPath: '/registry/$address/history'
+      preLoaderRoute: typeof RegistryAddressHistoryRouteImport
+      parentRoute: typeof RegistryAddressRoute
+    }
+    '/registry/$address/labels': {
+      id: '/registry/$address/labels'
+      path: '/labels'
+      fullPath: '/registry/$address/labels'
+      preLoaderRoute: typeof RegistryAddressLabelsRouteImport
+      parentRoute: typeof RegistryAddressRoute
+    }
+    '/registry/$address/roles': {
+      id: '/registry/$address/roles'
+      path: '/roles'
+      fullPath: '/registry/$address/roles'
+      preLoaderRoute: typeof RegistryAddressRolesRouteImport
+      parentRoute: typeof RegistryAddressRoute
+    }
+    '/resolver/$address/': {
+      id: '/resolver/$address/'
+      path: '/'
+      fullPath: '/resolver/$address/'
+      preLoaderRoute: typeof ResolverAddressIndexRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/resolver/$address/create-link': {
+      id: '/resolver/$address/create-link'
+      path: '/create-link'
+      fullPath: '/resolver/$address/create-link'
+      preLoaderRoute: typeof ResolverAddressCreateLinkRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/resolver/$address/history': {
+      id: '/resolver/$address/history'
+      path: '/history'
+      fullPath: '/resolver/$address/history'
+      preLoaderRoute: typeof ResolverAddressHistoryRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/resolver/$address/links': {
+      id: '/resolver/$address/links'
+      path: '/links'
+      fullPath: '/resolver/$address/links'
+      preLoaderRoute: typeof ResolverAddressLinksRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/resolver/$address/nodes': {
+      id: '/resolver/$address/nodes'
+      path: '/nodes'
+      fullPath: '/resolver/$address/nodes'
+      preLoaderRoute: typeof ResolverAddressNodesRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/tld/$tld/': {
+      id: '/tld/$tld/'
+      path: '/'
+      fullPath: '/tld/$tld/'
+      preLoaderRoute: typeof TldTldIndexRouteImport
+      parentRoute: typeof TldTldRoute
     }
     '/resolver/$address/roles/': {
       id: '/resolver/$address/roles/'
