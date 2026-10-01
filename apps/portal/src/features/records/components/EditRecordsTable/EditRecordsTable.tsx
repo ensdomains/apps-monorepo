@@ -60,6 +60,11 @@ function getRecordDisplayName(record: EditableRecord): string {
   return record.key
 }
 
+// The table primitives drop the outer gutter (`first:pl-0 last:pr-0`) for
+// tables whose container pads them; this one sits flush in its card.
+const CELL_PADDING =
+  'px-4 sm:px-6 first:pl-4 sm:first:pl-6 last:pr-4 sm:last:pr-6'
+
 /**
  * Editable input cell that manages its own state to prevent losing focus.
  * Uses uncontrolled input with ref to preserve cursor position during re-renders.
@@ -305,7 +310,7 @@ export const EditRecordsTable = ({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
+                <TableHead key={header.id} className={CELL_PADDING}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -329,7 +334,7 @@ export const EditRecordsTable = ({
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={cn('px-4 sm:px-6', 'h-10 py-0')}
+                        className={cn(CELL_PADDING, 'h-10 py-0')}
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
