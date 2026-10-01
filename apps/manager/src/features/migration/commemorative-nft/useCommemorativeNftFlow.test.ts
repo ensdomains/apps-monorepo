@@ -116,6 +116,11 @@ const eligibility: CommemorativeNftEligibility = {
     metadataUrl: 'https://assets.example/art.json',
   },
 }
+
+const eligible: Awaited<ReturnType<typeof fetchCommemorativeNftEligibility>> = {
+  status: 'eligible',
+  eligibility,
+}
 const readClaimed = vi.mocked(readCommemorativeNftClaimed)
 const getContractAddress = vi.mocked(getCommemorativeNftContractAddress)
 const claim = vi.mocked(claimCommemorativeNft)
@@ -243,7 +248,7 @@ describe('commemorative NFT flow session', () => {
     const client = createClient()
     client.setQueryData(
       commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
-      { status: 'eligible', eligibility },
+      eligible,
     )
     client.setQueryData(claimQueryKey, false)
     const { result } = mountFlow(client)
@@ -614,7 +619,7 @@ describe('commemorative NFT flow session', () => {
     const client = createClient()
     client.setQueryData(
       commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
-      { status: 'eligible', eligibility },
+      eligible,
     )
     const { result } = mountFlow(client)
     await waitFor(() => expect(client.getQueryData(claimQueryKey)).toBe(false))
