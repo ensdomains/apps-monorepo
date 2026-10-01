@@ -473,6 +473,10 @@ msgstr ""
 msgid "Check status"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Check your wallet activity first. Only discard if the previous renewal was never sent or was cancelled. If it is still pending and you renew again, you could pay twice. Discarding does not cancel a wallet transaction."
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Checking"
 msgstr ""
@@ -774,6 +778,14 @@ msgstr ""
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Did You Know?"
 msgstr "Visste du att?"
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Discard renewal"
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Discard unresolved renewal?"
+msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -1191,6 +1203,10 @@ msgstr ""
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Keep renewal"
+msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Keep the same managers on your names after the upgrade."
