@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { getQueueForChannel } from '#config/queues.js'
 import type { Database } from '#core/database/index.js'
 import { getDatabase, TABLE } from '#core/database/index.js'
+import { isTerminalDeliveryStatus } from '#services/delivery/channel.js'
 import type { ClassificationResult } from '#services/delivery/classifier.js'
 import { classifyDeliveryError } from '#services/delivery/classifier.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
@@ -44,7 +45,8 @@ async function processDlqMessage(
     columns: {
       id: true,
       channel: true,
-      target: true,
+      channel_id: true,
+      status: true,
       error: true,
       dlq_attempts: true,
     },
@@ -53,6 +55,15 @@ async function processDlqMessage(
   if (!delivery) {
     logger.warn('DLQ: delivery record not found, skipping', {
       deliveryId: job.id,
+    })
+    return
+  }
+
+  // A duplicate message may already have completed or cancelled the delivery
+  if (isTerminalDeliveryStatus(delivery.status)) {
+    logger.debug('DLQ: delivery already terminal, skipping', {
+      deliveryId: job.id,
+      status: delivery.status,
     })
     return
   }
@@ -113,7 +124,7 @@ async function processDlqMessage(
       logger.error('DLQ_ACCOUNT_ERROR', {
         deliveryId: job.id,
         channel: delivery.channel,
-        target: delivery.target,
+        channelId: delivery.channel_id,
         error: errorString,
       })
       break
@@ -133,7 +144,7 @@ async function processDlqMessage(
       logger.error('DLQ_MANUAL_REVIEW', {
         deliveryId: job.id,
         channel: delivery.channel,
-        target: delivery.target,
+        channelId: delivery.channel_id,
         error: errorString,
       })
       break
@@ -145,7 +156,7 @@ async function requeue(
   db: Database,
   env: CloudflareBindings,
   job: BaseDeliveryJob,
-  delivery: { id: string; channel: string; target: string },
+  delivery: { id: string; channel: string },
   classification: ClassificationResult,
   dlqAttempts: number,
 ): Promise<void> {
@@ -186,7 +197,7 @@ async function requeue(
 async function handleHardBounce(
   db: Database,
   job: BaseDeliveryJob,
-  delivery: { id: string; channel: string; target: string },
+  delivery: { id: string; channel: string; channel_id: string | null },
   classification: ClassificationResult,
 ): Promise<void> {
   await db
@@ -198,7 +209,18 @@ async function handleHardBounce(
     })
     .where(eq(TABLE.notificationDeliveries.id, job.id))
 
-  // mark channel as bounced, prevents future sends. only status='verified' channels are queried
+  // A removed source channel has nothing left to mark, and no other channel
+  // sharing its destination is the source of this delivery.
+  if (!delivery.channel_id) {
+    logger.warn('DLQ: hard bounce for a removed channel', {
+      deliveryId: job.id,
+      channel: delivery.channel,
+    })
+    return
+  }
+
+  // mark the exact source channel as bounced, prevents future sends. only
+  // status='verified' channels are used
   await db
     .update(TABLE.userChannels)
     .set({
@@ -206,11 +228,11 @@ async function handleHardBounce(
       status_reason: `Hard bounce: ${delivery.channel}`,
       last_bounce_at: new Date(),
     })
-    .where(eq(TABLE.userChannels.target, delivery.target))
+    .where(eq(TABLE.userChannels.id, delivery.channel_id))
 
   logger.warn('DLQ: hard bounce — channel marked as bounced', {
     deliveryId: job.id,
     channel: delivery.channel,
-    target: delivery.target,
+    channelId: delivery.channel_id,
   })
 }

@@ -29,6 +29,7 @@ const notification = {
   idempotency_key: buildIdempotencyKey(event, 'owner'),
 }
 const channels = ['email', 'push', 'telegram'].map((channel) => ({
+  id: `${channel}-channel`,
   user_id: 'owner',
   channel,
   target: `${channel}-target`,
@@ -37,8 +38,8 @@ const channels = ['email', 'push', 'telegram'].map((channel) => ({
 const deliveries = channels.map((channel) => ({
   id: `persisted-${channel.channel}`,
   notification_id: notification.id,
+  channel_id: channel.id,
   channel: channel.channel,
-  target: channel.target,
   status: 'queued',
 }))
 

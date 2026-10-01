@@ -182,8 +182,8 @@ export const createNotification = ResultFn(async function* <
         .insert(TABLE.notificationDeliveries)
         .values({
           notification_id: notification.id,
+          channel_id: channel.id,
           channel: channel.channel,
-          target: channel.target,
           status: 'queued',
           attempts: 0,
         })
@@ -312,6 +312,7 @@ export const createBatchNotifications = ResultFn(async function* <
         eq(TABLE.userChannels.status, 'verified'),
       ),
       columns: {
+        id: true,
         user_id: true,
         channel: true,
         target: true,
@@ -410,8 +411,8 @@ export const createBatchNotifications = ResultFn(async function* <
       deliveriesToCreate.push({
         id: deliveryId,
         notification_id: notification.id,
+        channel_id: channel.id,
         channel: channel.channel,
-        target: channel.target,
         status: 'queued',
         attempts: 0,
       })

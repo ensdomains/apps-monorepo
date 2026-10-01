@@ -1,5 +1,4 @@
 import { buildPushPayload } from '@block65/webcrypto-web-push'
-import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -7,18 +6,12 @@ import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import type { PushDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
+import { resolveDeliveryChannel } from './channel.js'
 import {
-  NotificationDeliveryNotFoundError,
   PushDeliveryError,
   UnsupportedNotificationTypeError,
 } from './errors.js'
 import { type PushTemplate, pushTemplates } from './templates/push.js'
-
-type PushChannelData = {
-  auth: string
-  p256dh: string
-  expirationTime?: number | null
-}
 
 export const deliverPushNotification = ResultFn(async function* (
   env: {
@@ -29,57 +22,13 @@ export const deliverPushNotification = ResultFn(async function* (
   db: Database,
   job: PushDeliveryJob,
 ) {
-  // 1. get delivery record with notification payload
-  const deliveryJob = await db.query.notificationDeliveries.findFirst({
-    where: eq(TABLE.notificationDeliveries.id, job.id),
-    columns: {
-      status: true,
-      target: true,
-    },
-    with: {
-      notification: {
-        columns: {
-          payload: true,
-        },
-      },
-    },
-  })
+  // 1. resolve the exact source subscription: endpoint and encryption keys
+  const delivery = yield* resolveDeliveryChannel(db, job, 'push')
+  if (!delivery) return ok(undefined)
 
-  if (!deliveryJob) {
-    return yield* new NotificationDeliveryNotFoundError({
-      message: `Delivery job not found: ${job.id}`,
-    })
-  }
+  const { channel } = delivery
 
-  if (
-    deliveryJob.status === 'delivered' ||
-    deliveryJob.status === 'permanently_failed'
-  ) {
-    logger.debug('Skipping terminal push delivery', {
-      jobId: job.id,
-      kind: job.kind,
-      status: deliveryJob.status,
-    })
-    return ok(undefined)
-  }
-
-  // 2. get channel data (which are encryption keys)
-  const channel = await db.query.userChannels.findFirst({
-    where: eq(TABLE.userChannels.target, deliveryJob.target),
-    columns: {
-      data: true,
-    },
-  })
-
-  if (!channel?.data) {
-    return yield* new NotificationDeliveryNotFoundError({
-      message: `Push channel not found for target: ${deliveryJob.target}`,
-    })
-  }
-
-  const channelData = channel.data as PushChannelData
-
-  // 3. get the template
+  // 2. get the template
   const template = pushTemplates[job.kind] as PushTemplate<typeof job.kind>
   if (!template) {
     return yield* new UnsupportedNotificationTypeError({
@@ -87,22 +36,20 @@ export const deliverPushNotification = ResultFn(async function* (
     })
   }
 
-  // 4. generate notification content
-  const notificationData = template(
-    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
-  )
+  // 3. generate notification content
+  const notificationData = template(delivery.payload)
 
-  // 5. build the Web Push subscription object
+  // 4. build the Web Push subscription object
   const subscription = {
-    endpoint: deliveryJob.target,
-    expirationTime: channelData.expirationTime ?? null,
+    endpoint: channel.target,
+    expirationTime: channel.data.expirationTime ?? null,
     keys: {
-      auth: channelData.auth,
-      p256dh: channelData.p256dh,
+      auth: channel.data.auth,
+      p256dh: channel.data.p256dh,
     },
   }
 
-  // 6. build encrypted payload
+  // 5. build encrypted payload
   const payload = await buildPushPayload(
     {
       data: notificationData,
@@ -120,13 +67,14 @@ export const deliverPushNotification = ResultFn(async function* (
     },
   )
 
-  // 7. send to push service
+  // 6. send to push service
   const response = await fetch(subscription.endpoint, payload)
 
   if (!response.ok) {
     const errorText = await response.text()
 
-    // handle expired subscriptions (410 Gone)
+    // handle expired subscriptions (410 Gone): only the source subscription is
+    // gone, and retrying cannot succeed, so the delivery fails permanently
     if (response.status === 410) {
       await db
         .update(TABLE.userChannels)
@@ -134,12 +82,24 @@ export const deliverPushNotification = ResultFn(async function* (
           status: 'unsubscribed',
           status_reason: 'Push subscription expired',
         })
-        .where(eq(TABLE.userChannels.target, deliveryJob.target))
+        .where(eq(TABLE.userChannels.id, channel.id))
+
+      await db
+        .update(TABLE.notificationDeliveries)
+        .set({
+          status: 'permanently_failed',
+          failure_category: 'hard_bounce',
+          error: `Push delivery failed: ${response.status} ${errorText}`,
+          updated_at: new Date(),
+        })
+        .where(eq(TABLE.notificationDeliveries.id, job.id))
 
       logger.warn('Push subscription expired, marked as unsubscribed', {
         jobId: job.id,
-        endpoint: `${deliveryJob.target.substring(0, 50)}...`,
+        channelId: channel.id,
       })
+
+      return ok(undefined)
     }
 
     return yield* new PushDeliveryError({
@@ -147,7 +107,7 @@ export const deliverPushNotification = ResultFn(async function* (
     })
   }
 
-  // 8. update delivery record
+  // 7. update delivery record
   await db
     .update(TABLE.notificationDeliveries)
     .set({
@@ -160,7 +120,7 @@ export const deliverPushNotification = ResultFn(async function* (
   logger.debug('Push notification delivered', {
     jobId: job.id,
     kind: job.kind,
-    endpoint: `${deliveryJob.target.substring(0, 50)}...`,
+    channelId: channel.id,
   })
 
   return ok(undefined)

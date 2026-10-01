@@ -184,7 +184,16 @@ export const notificationRelations = relations(
 // ===============================
 
 type DeliveryChannel = 'email' | 'push' | 'telegram'
-type DeliveryStatus = 'queued' | 'delivered' | 'failed' | 'permanently_failed'
+/**
+ * `cancelled`: no provider request was made because the source channel was
+ * removed or became unusable before submission.
+ */
+export type DeliveryStatus =
+  | 'queued'
+  | 'delivered'
+  | 'failed'
+  | 'permanently_failed'
+  | 'cancelled'
 
 export const notificationDeliveries = pgTable(
   'notification_deliveries',
@@ -195,8 +204,18 @@ export const notificationDeliveries = pgTable(
       .references(() => notifications.id, {
         onDelete: 'cascade',
       }),
+    /**
+     * The exact channel this delivery was fanned out to. Destinations are not
+     * channel identity: mutable channel state is only reached through this ID.
+     * Removing the channel keeps the delivery as history, bound to nothing.
+     */
+    channel_id: uuid('channel_id').references(() => userChannels.id, {
+      onDelete: 'set null',
+    }),
+    /**
+     * Channel type at fanout, kept as history after the channel is removed
+     */
     channel: text('channel').$type<DeliveryChannel>().notNull(),
-    target: text('target').notNull(),
     status: text('status').$type<DeliveryStatus>().notNull(),
     attempts: integer('attempts').default(0),
 
@@ -211,10 +230,11 @@ export const notificationDeliveries = pgTable(
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [
+    // One delivery per notification per exact channel. NULLs stay distinct,
+    // so deliveries of removed channels never conflict.
     unique('notification_delivery_unique').on(
       table.notification_id,
-      table.channel,
-      table.target,
+      table.channel_id,
     ),
   ],
 )
@@ -225,6 +245,10 @@ export const notificationDeliveryRelations = relations(
     notification: one(notifications, {
       fields: [notificationDeliveries.notification_id],
       references: [notifications.id],
+    }),
+    sourceChannel: one(userChannels, {
+      fields: [notificationDeliveries.channel_id],
+      references: [userChannels.id],
     }),
   }),
 )
