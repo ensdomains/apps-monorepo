@@ -58,16 +58,10 @@ describe('/register/$name loader', () => {
     expect(outcome).toEqual({ fallback: undefined, label: 'vitalik' })
   })
 
-  it('prices and registers the normalised label for an upper-case name', async () => {
-    const { outcome, ensureQueryData } = await runLoader('VITALIK.ETH')
-
-    expect(ensureQueryData).toHaveBeenCalledWith({
-      queryKey: [{ name: 'vitalik.eth' }],
-    })
-    expect(outcome).toEqual({ fallback: undefined, label: 'vitalik' })
-  })
-
   it.each([
+    ['an upper-case name', 'VITALIK.ETH', 'vitalik.eth'],
+    ['a mixed-case label', 'Vitalik.eth', 'vitalik.eth'],
+    ['a bare label', 'vitalik', 'vitalik.eth'],
     ['a fullwidth look-alike', 'ｖｉｔａｌｉｋ.eth', 'vitalik.eth'],
     ['a soft hyphen', 'vi­talik.eth', 'vitalik.eth'],
     ['a zero-width space', 'vitalik​.eth', 'vitalik.eth'],

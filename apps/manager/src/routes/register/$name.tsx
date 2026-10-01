@@ -29,18 +29,13 @@ export const Route = createFileRoute('/register/$name')({
       throw parsedName.error
     }
 
-    const {
-      label,
-      name: normalizedName,
-      subLabels,
-      tld,
-      wasRewritten,
-    } = parsedName.value
+    const { label, name: normalizedName, subLabels, tld } = parsedName.value
 
-    // Nothing is owned yet, so a rewritten name has an unambiguous canonical
-    // spelling to send the buyer to. Redirecting here is what makes
-    // availability, price, display and calldata read the one normalised name.
-    if (wasRewritten) {
+    // Nothing is owned yet, so any other spelling, a case difference included,
+    // has an unambiguous canonical one to send the buyer to. Redirecting here
+    // is what makes the URL, availability, price, display and calldata read
+    // the one normalised name.
+    if (normalizedName !== name) {
       throw redirect({
         params: { name: normalizedName },
         to: '/register/$name',
