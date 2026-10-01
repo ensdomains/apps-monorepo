@@ -8,12 +8,14 @@ type CopyableButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   value: string
   iconClassName?: string
   iconStrokeWidth?: number
+  variant?: React.ComponentProps<typeof Button>['variant']
 }
 
 export const CopyableButton = ({
   value,
   iconClassName,
   iconStrokeWidth,
+  variant = 'outline',
   className,
   disabled,
   onClick,
@@ -46,7 +48,7 @@ export const CopyableButton = ({
       size="sm"
       title={title ?? value}
       type="button"
-      variant="outline"
+      variant={variant}
       {...props}
     >
       {children}
