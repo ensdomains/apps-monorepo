@@ -86,6 +86,7 @@ const deferred = <T>() => {
 describe('commemorative NFT availability observer', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.stubEnv('VITE_ENS_NETWORK', 'mainnet')
     vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     onlineManager.setOnline(true)
     vi.mocked(useChainId).mockReturnValue(sepolia.id)
@@ -104,9 +105,25 @@ describe('commemorative NFT availability observer', () => {
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllEnvs()
     for (const client of clients.splice(0)) client.clear()
     onlineManager.setOnline(true)
     vi.restoreAllMocks()
+  })
+
+  it('disables Sepolia reads even with both flags enabled and cached NFT data', async () => {
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    const client = createClient()
+    client.setQueryData(claimQueryKey(), true)
+    const { result } = mountAvailability(client, { pollClaimed: true })
+
+    await act(async () => client.invalidateQueries())
+
+    expect(result.current.featureEnabled).toBe(false)
+    expect(result.current.hasResolvedEligibility).toBe(false)
+    expect(result.current.hasFreshClaimedResult).toBe(false)
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
   })
 
   it.each([

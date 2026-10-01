@@ -163,6 +163,7 @@ const deferred = <T>() => {
 describe('commemorative NFT flow session', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.stubEnv('VITE_ENS_NETWORK', 'mainnet')
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubGlobal('localStorage', new Storage())
     vi.stubGlobal('navigator', {
@@ -191,20 +192,24 @@ describe('commemorative NFT flow session', () => {
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllEnvs()
     for (const client of clients.splice(0)) client.clear()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
   it.each([
+    { migration: true, nft: true, network: 'sepolia' },
     { migration: false, nft: true },
     { migration: true, nft: false },
     { migration: undefined, nft: true },
     { migration: true, nft: undefined },
-  ])('keeps cached NFTs and callbacks disabled with flags $migration/$nft', async ({
+  ])('keeps cached NFTs and callbacks disabled with flags $migration/$nft on $network', async ({
     migration,
     nft,
+    network = 'mainnet',
   }) => {
+    vi.stubEnv('VITE_ENS_NETWORK', network)
     featureFlag.mockImplementation(
       (flag, defaultValue) =>
         (flag === 'migration' ? migration : nft) ?? defaultValue,

@@ -11,5 +11,9 @@ export const useMigrationNftEnabled = (): boolean => {
     false,
   )
 
-  return isMigrationNftEnabled({ migrationEnabled, migrationNftEnabled })
+  return isMigrationNftEnabled({
+    network: import.meta.env.VITE_ENS_NETWORK,
+    migrationEnabled,
+    migrationNftEnabled,
+  })
 }

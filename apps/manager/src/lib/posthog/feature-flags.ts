@@ -5,7 +5,10 @@ export const POSTHOG_FEATURE_FLAGS = {
 } as const
 
 export const isMigrationNftEnabled = (params: {
+  readonly network: string | undefined
   readonly migrationEnabled: boolean | null | undefined
   readonly migrationNftEnabled: boolean | null | undefined
 }): boolean =>
-  params.migrationEnabled === true && params.migrationNftEnabled === true
+  params.network === 'mainnet' &&
+  params.migrationEnabled === true &&
+  params.migrationNftEnabled === true
