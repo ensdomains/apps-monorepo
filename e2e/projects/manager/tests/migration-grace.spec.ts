@@ -28,7 +28,7 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
-import { type Address, erc20Abi, parseAbi, parseUnits } from 'viem'
+import { type Address, erc20Abi, labelhash, parseAbi, parseUnits } from 'viem'
 import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import {
   type GraceV1Name,
@@ -42,7 +42,11 @@ import {
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
-import { assertUnlockedMigration } from '../../../helpers/migration-assertions.js'
+import {
+  assertLockedMigration,
+  assertUnlockedMigration,
+  assertV2Reserved,
+} from '../../../helpers/migration-assertions.js'
 import {
   type MockV1Name,
   mockV1Subgraph,
@@ -56,6 +60,13 @@ const RENEWER = ensjsSepolia.ensEthRenewerV1.address as Address
 const BASE_REGISTRAR = ensjsSepolia.ensBaseRegistrarImplementation
   .address as Address
 const USDC_DECIMALS = 6
+
+/**
+ * Set to a directory to save QA screenshots at each test's key states
+ * (1440×900, router devtools hidden). Unset, `qaShot` is a no-op.
+ */
+const QA_SHOTS_DIR = process.env.QA_SHOTS_DIR
+if (QA_SHOTS_DIR) test.use({ viewport: { width: 1440, height: 900 } })
 
 const RENEWER_ABI = parseAbi([
   'function getRenewPrice(string label, uint64 duration, address paymentToken) view returns (uint256)',
@@ -123,6 +134,36 @@ async function openMigration(page: Page, names: MockV1Name[]) {
   await page.goto(`${MANAGER_APP_URL}/migration`)
 }
 
+async function qaShot(page: Page, name: string) {
+  if (!QA_SHOTS_DIR) return
+  await page.addStyleTag({
+    content: 'footer.TanStackRouterDevtools { display: none !important; }',
+  })
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: `${QA_SHOTS_DIR}/${name}.png` })
+}
+
+/** Subgraph entry for an active V1 name, with its real on-chain expiry. */
+async function activeMock(
+  name: string,
+  owner: Address,
+  type: MockV1Name['type'] = 'unwrapped',
+): Promise<MockV1Name> {
+  const expiry = await nameExpires(
+    BigInt(labelhash(name.replace(/\.eth$/, ''))),
+  )
+  return { name, ownerAddress: owner, type, expiryDate: Number(expiry) }
+}
+
+/** Tick or untick a name on /migration (the input itself is visually hidden). */
+async function setNameSelected(page: Page, name: string, selected: boolean) {
+  const checkbox = nameCheckbox(page, name)
+  if ((await checkbox.isChecked()) !== selected) {
+    await checkbox.locator('xpath=..').click()
+  }
+  await expect(checkbox).toBeChecked({ checked: selected })
+}
+
 /** The checkbox for a name on /migration, once the list has rendered. */
 const nameCheckbox = (page: Page, name: string) =>
   page.getByRole('checkbox', { name, exact: true })
@@ -131,26 +172,36 @@ const nameCheckbox = (page: Page, name: string) =>
  * Open "What you'll approve", return the ordered step titles and the renewal
  * cost it quotes, then close it.
  */
-async function readRequestsDialog(page: Page) {
+async function readRequestsDialog(page: Page, shot?: string) {
   const trigger = page.getByRole('button', { name: /^\d+ requests?$/ })
   await expect(trigger).toBeVisible({ timeout: 60_000 })
   await trigger.click()
   const dialog = page.getByRole('dialog', { name: "What you'll approve" })
   await expect(dialog).toBeVisible()
   const steps = await dialog.locator('ol > li h3').allInnerTexts()
-  const costText = await dialog
+  const cost = dialog
     .locator('div', { has: page.getByText('Estimated renewal cost') })
     .locator('dd')
-    .first()
-    .innerText()
-  const quotedUsdc = parseUnits(costText.replace(/\s*USDC$/, ''), USDC_DECIMALS)
+  // Absent when nothing selected needs renewal.
+  const quotedUsdc =
+    (await cost.count()) > 0
+      ? parseUnits(
+          (await cost.first().innerText()).replace(/\s*USDC$/, ''),
+          USDC_DECIMALS,
+        )
+      : null
+  if (shot) await qaShot(page, shot)
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
   return { steps, quotedUsdc }
 }
 
 /** Click "Upgrade N names" and authorize every wallet request until success. */
-async function runUpgrade(page: Page, wallet: Web3ProviderBackend) {
+async function runUpgrade(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  shot?: string,
+) {
   const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/i })
   await expect(upgrade).toBeEnabled({ timeout: 60_000 })
   let done = false
@@ -163,6 +214,7 @@ async function runUpgrade(page: Page, wallet: Web3ProviderBackend) {
   ).toBeVisible({ timeout: 180_000 })
   done = true
   await authorizeAll
+  if (shot) await qaShot(page, shot)
 }
 
 /**
@@ -232,6 +284,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     ).toBeVisible({ timeout: 30_000 })
     const renew = main.getByRole('button', { name: 'Renew Names' })
     await expect(renew).toBeVisible()
+    await qaShot(page, 'list-1-dashboard')
     await renew.click()
 
     // ── /migration: the grace name is listed, selected, and badged ──
@@ -248,6 +301,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await expect(
       main.getByRole('button', { name: 'Upgrade 1 name' }),
     ).toBeVisible()
+    await qaShot(page, 'list-2-migration')
   })
 
   test('renews then upgrades a grace-period name, charging the USDC the dialog quoted', async ({
@@ -264,7 +318,11 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     })
 
     // The renewal steps come before every migration step.
-    const { steps, quotedUsdc } = await readRequestsDialog(page)
+    const { steps, quotedUsdc } = await readRequestsDialog(
+      page,
+      'renew-1-dialog',
+    )
+    if (quotedUsdc === null) throw new Error('no renewal cost quoted')
     const renewAt = steps.indexOf('Renew 1 name')
     expect(renewAt, `steps: ${steps.join(' | ')}`).toBeGreaterThanOrEqual(0)
     expect(steps.at(-1)).toBe('Upgrade 1 name')
@@ -275,7 +333,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
 
     const usdcBefore = await usdcBalance(owner.address)
     const blockBefore = await publicClient.getBlockNumber()
-    await runUpgrade(page, wallet)
+    await runUpgrade(page, wallet, 'renew-2-success')
 
     // ── Chain: the registrar expiry moved past now … ──
     const newExpiry = await nameExpires(grace.tokenId)
@@ -320,6 +378,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       ).toBeVisible({ timeout: 60_000 })
       const blocked = page.getByRole('button', { name: 'Insufficient USDC' })
       await expect(blocked).toBeDisabled()
+      await qaShot(page, 'nousdc-1-blocked')
 
       // Nothing reached the wallet, and the name is still in grace.
       await page.waitForTimeout(3_000)
@@ -345,7 +404,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       wrapped: true,
     })
     const names: MockV1Name[] = [
-      { name: active, ownerAddress: owner.address },
+      await activeMock(active, owner.address),
       graceMock(grace, owner.address, 'wrapped'),
     ]
     await mockV1Subgraph(page, names)
@@ -364,6 +423,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await expect(
       main.getByRole('button', { name: 'Upgrade Names' }),
     ).toBeVisible()
+    await qaShot(page, 'mixed-1-dashboard')
 
     // ── /migration: both selected; only the grace name carries the badge ──
     await page.goto(`${MANAGER_APP_URL}/migration`)
@@ -382,7 +442,8 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       /Renew before upgrade/,
     )
 
-    const { steps } = await readRequestsDialog(page)
+    await qaShot(page, 'mixed-2-migration')
+    const { steps } = await readRequestsDialog(page, 'mixed-3-dialog')
     const renewAt = steps.indexOf('Renew 1 name')
     expect(renewAt, `steps: ${steps.join(' | ')}`).toBeGreaterThanOrEqual(0)
     expect(steps.at(-1)).toBe('Upgrade 2 names')
@@ -390,7 +451,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       steps.slice(0, renewAt).every((s) => s === 'Approve renewal payment'),
     ).toBe(true)
 
-    await runUpgrade(page, wallet)
+    await runUpgrade(page, wallet, 'mixed-4-success')
 
     // Only the grace name was renewed; both landed in V2. A stale NameWrapper
     // (renewed but not synced) makes the wrapped transfer revert, so this
@@ -398,5 +459,196 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     expect(await nameExpires(grace.tokenId)).toBeGreaterThan(grace.expiry)
     await assertUnlockedMigration(grace.label)
     await assertUnlockedMigration(active.replace(/\.eth$/, ''))
+  })
+
+  test('bulk: two active and three grace-period names (unwrapped, wrapped, locked) upgrade together', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const activeU = await makeV1Name({ label: 'mg-bulk-au' })
+    const activeW = await makeV1Name({ label: 'mg-bulk-aw', type: 'wrapped' })
+    const graceU = await makeGraceV1Name({ label: 'mg-bulk-gu', owner })
+    const graceW = await makeGraceV1Name({
+      label: 'mg-bulk-gw',
+      owner,
+      wrapped: true,
+    })
+    const graceL = await makeGraceV1Name({
+      label: 'mg-bulk-gl',
+      owner,
+      locked: true,
+    })
+    const graces = [graceU, graceW, graceL]
+    const actives = [activeU, activeW]
+    await openMigration(page, [
+      await activeMock(activeU, owner.address),
+      await activeMock(activeW, owner.address, 'wrapped'),
+      graceMock(graceU, owner.address),
+      graceMock(graceW, owner.address, 'wrapped'),
+      graceMock(graceL, owner.address, 'locked'),
+    ])
+
+    // Loaded: the active names are listed (pre-fix, only these two appear) …
+    const main = page.locator('main')
+    for (const name of actives) {
+      await expect(nameCheckbox(page, name)).toBeChecked({ timeout: 60_000 })
+    }
+    await qaShot(page, 'bulk-1-migration')
+    // … and all five are selectable, with the badge on exactly the grace three.
+    await expect(
+      main.getByRole('heading', {
+        level: 1,
+        name: 'Your names are ready to upgrade',
+      }),
+    ).toBeVisible()
+    for (const { name } of graces) {
+      await expect(nameCheckbox(page, name)).toBeChecked()
+      await expect(nameCheckbox(page, name)).toHaveAccessibleDescription(
+        /Renew before upgrade/,
+      )
+    }
+    for (const name of actives) {
+      await expect(nameCheckbox(page, name)).not.toHaveAccessibleDescription(
+        /Renew before upgrade/,
+      )
+    }
+
+    // One batched renewal for the three grace names, before any migration.
+    const { steps, quotedUsdc } = await readRequestsDialog(
+      page,
+      'bulk-2-dialog',
+    )
+    if (quotedUsdc === null) throw new Error('no renewal cost quoted')
+    const renewAt = steps.indexOf('Renew 3 names')
+    expect(renewAt, `steps: ${steps.join(' | ')}`).toBeGreaterThanOrEqual(0)
+    expect(
+      steps.slice(0, renewAt).every((s) => s === 'Approve renewal payment'),
+    ).toBe(true)
+    expect(steps.at(-1)).toBe('Upgrade 5 names')
+
+    const usdcBefore = await usdcBalance(owner.address)
+    const blockBefore = await publicClient.getBlockNumber()
+    await runUpgrade(page, wallet, 'bulk-3-success')
+
+    // Every grace name renewed, and the USDC spent is the sum of their prices.
+    let owed = 0n
+    for (const grace of graces) {
+      const newExpiry = await nameExpires(grace.tokenId)
+      expect(newExpiry, grace.name).toBeGreaterThan(await chainNow())
+      owed += await chargedForRenewal(grace, newExpiry, blockBefore)
+    }
+    const spent = usdcBefore - (await usdcBalance(owner.address))
+    expect(spent).toBe(owed)
+    const drift = spent > quotedUsdc ? spent - quotedUsdc : quotedUsdc - spent
+    expect(drift * 100n).toBeLessThanOrEqual(quotedUsdc)
+
+    // All five landed in V2; the locked one under a WrapperRegistry.
+    for (const name of actives) {
+      await assertUnlockedMigration(name.replace(/\.eth$/, ''))
+    }
+    await assertUnlockedMigration(graceU.label)
+    await assertUnlockedMigration(graceW.label)
+    await assertLockedMigration(graceL.label)
+  })
+
+  test('deselecting the grace-period name upgrades only the active name, with no renewal', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const active = await createMakeV1Name({ userAccount: owner })({
+      label: 'mg-desel-a',
+    })
+    const grace = await makeGraceV1Name({ label: 'mg-desel-g', owner })
+    await openMigration(page, [
+      await activeMock(active, owner.address),
+      graceMock(grace, owner.address),
+    ])
+
+    await expect(nameCheckbox(page, active)).toBeChecked({ timeout: 60_000 })
+    // Positive control: the grace name is offered and selected by default.
+    await expect(nameCheckbox(page, grace.name)).toBeChecked()
+    await setNameSelected(page, grace.name, false)
+
+    // No renewal in the plan once the grace name is out of the selection.
+    const { steps, quotedUsdc } = await readRequestsDialog(
+      page,
+      'desel-1-dialog',
+    )
+    expect(quotedUsdc).toBeNull()
+    expect(steps, steps.join(' | ')).not.toContain('Approve renewal payment')
+    expect(steps.some((s) => s.startsWith('Renew'))).toBe(false)
+    expect(steps.at(-1)).toBe('Upgrade 1 name')
+
+    const usdcBefore = await usdcBalance(owner.address)
+    await runUpgrade(page, wallet)
+
+    // Active migrated; grace untouched (no charge, no renewal, still RESERVED).
+    await assertUnlockedMigration(active.replace(/\.eth$/, ''))
+    expect(await usdcBalance(owner.address)).toBe(usdcBefore)
+    expect(await nameExpires(grace.tokenId)).toBe(grace.expiry)
+    await assertV2Reserved(grace.label)
+
+    // Back on /migration the grace name is still offered, now on its own.
+    await page.goto(`${MANAGER_APP_URL}/migration`)
+    await expect(
+      page.locator('main').getByRole('heading', {
+        level: 1,
+        name: 'Renew your names before upgrading',
+      }),
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(nameCheckbox(page, grace.name)).toBeChecked()
+    await qaShot(page, 'desel-2-after')
+  })
+
+  test('several grace-period names on their own: plural banner and one batched renewal', async ({
+    migrationConnectedPage: page,
+    accounts,
+  }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const first = await makeGraceV1Name({ label: 'mg-multi-1', owner })
+    const second = await makeGraceV1Name({
+      label: 'mg-multi-2',
+      owner,
+      wrapped: true,
+    })
+    await mockV1Subgraph(page, [
+      graceMock(first, owner.address),
+      graceMock(second, owner.address, 'wrapped'),
+    ])
+    await syncBrowserToChain(page)
+
+    await page.goto(`${MANAGER_APP_URL}/dashboard`)
+    const main = page.locator('main')
+    await expect(main.getByText(first.name).first()).toBeVisible({
+      timeout: 60_000,
+    })
+    await expect(
+      main.getByText(
+        'Renew your 2 grace-period names before upgrading to your new ENS profile.',
+      ),
+    ).toBeVisible({ timeout: 30_000 })
+    await qaShot(page, 'multi-1-dashboard')
+    await main.getByRole('button', { name: 'Renew Names' }).click()
+
+    await expect(
+      main.getByRole('heading', {
+        level: 1,
+        name: 'Renew your names before upgrading',
+      }),
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(nameCheckbox(page, first.name)).toBeChecked()
+    await expect(nameCheckbox(page, second.name)).toBeChecked()
+    const { steps, quotedUsdc } = await readRequestsDialog(
+      page,
+      'multi-2-dialog',
+    )
+    expect(steps, steps.join(' | ')).toContain('Renew 2 names')
+    expect(steps.at(-1)).toBe('Upgrade 2 names')
+    expect(quotedUsdc).toBeGreaterThan(0n)
   })
 })

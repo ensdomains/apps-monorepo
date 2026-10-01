@@ -29,7 +29,7 @@ days of expiry.
 | State | `migrationUi.machine` | `select → migrate.renewing → migrate.preparing → migrate.running`, with retry targeting whichever stage failed |
 | Cache writer | `useSyncRenewedV1Names` | Patches the renewed domains into the `v1_names` query so the plan is built from post-renewal data |
 
-**What must still work:** migrating active names with no grace name selected
+**What must still work:** bulk upgrades mixing active and grace names in one run; migrating active names with no grace name selected
 (no renewal steps, unchanged fee path); mixed selections; wrapped names, whose
 NameWrapper expiry must be synced by the renewal or the transfer reverts.
 
@@ -55,6 +55,9 @@ from `Date.now()`.
 | `renews then upgrades a grace-period name, charging the USDC the dialog quoted` | The dialog orders the renewal steps before every migration step. After the upgrade: `nameExpires` > old expiry and > chain now; USDC spent **equals** `getRenewPrice(label, newExpiry − oldExpiry)` at the pre-upgrade block and is within 1% of the dialog quote; `assertUnlockedMigration` (V2 REGISTERED, no subregistry) | ✘ name not listed | ✓ |
 | `blocks the upgrade when the wallet cannot pay for the renewal` | With 0 USDC: an alert reads "Not enough USDC…", **Insufficient USDC** is disabled, the wallet queue stays empty, and `nameExpires` is unchanged. Positive control: the test above | ✘ name not listed | ✓ |
 | `upgrades an active name and a wrapped grace-period name together, renewing only the grace one` | The banner adds "1 name needs renewal before it can be upgraded."; both names ticked; the badge is only on the grace name; the dialog ends "Upgrade 2 names" after the renewal steps; the grace name's expiry is extended and both are REGISTERED in V2. A stale NameWrapper would make the wrapped transfer revert, so success is the wrapper-sync oracle | ✘ renewal note absent | ✓ |
+| `bulk: two active and three grace-period names (unwrapped, wrapped, locked) upgrade together` | All 5 listed and ticked, the badge on exactly the 3 grace names. The dialog shows **one** "Renew 3 names" step before every migration step and ends "Upgrade 5 names". After one run: every grace expiry > chain now; USDC spent **equals the sum** of the three on-chain renewal prices, within 1% of the quote; both active and the unwrapped/wrapped grace names REGISTERED in V2; the locked grace name REGISTERED under a WrapperRegistry (`assertLockedMigration`) | ✘ only the 2 active names listed | ✓ |
+| `deselecting the grace-period name upgrades only the active name, with no renewal` | Positive control: the grace name is offered and ticked by default. Unticked: no renewal cost and no renewal steps in the dialog (ends "Upgrade 1 name"). After the upgrade: active REGISTERED in V2, USDC unchanged, grace expiry unchanged and the slot still RESERVED; back on /migration the grace name is still offered, titled "Renew your names before upgrading" | ✘ grace name not offered (positive control) | ✓ |
+| `several grace-period names on their own: plural banner and one batched renewal` | Dashboard "Renew your 2 grace-period names before upgrading…" + **Renew Names** → /migration; both ticked; the dialog shows one "Renew 2 names" step and ends "Upgrade 2 names" with a USDC cost | ✘ banner absent | ✓ |
 | Unit: `useSyncRenewedV1Names.test.ts` (3 cases) | Writer → reader round trip through the real `useV1Names` query: the renewed domain replaces the stale one in place, without a refetch; a checksummed owner hits the lowercased key; another owner's cache is untouched; nothing is written before renewal completes | — (new file, stays green) | ✓ |
 
 Runner: `playwright.migration.config.ts` now matches
@@ -65,11 +68,12 @@ config, which is why these tests live in their own file.
 
 | Check | Result |
 |---|---|
-| `migration-grace.spec.ts`, PR build | 4/4 pass (1.0m) |
-| `migration-grace.spec.ts`, 16 PR app files reverted to `e2e-tests-coverage` | 4/4 fail, each on the bug assertion (banner or note absent, name checkbox absent). The page shows "No eligible names found for this wallet" / "Upgrade 0 names" |
+| `migration-grace.spec.ts`, PR build | 7/7 pass (2.8m) |
+| `migration-grace.spec.ts`, 16 PR app files reverted to `e2e-tests-coverage` | 7/7 fail, each on the bug assertion (banner, plural banner or renewal note absent; grace name checkbox absent; in the bulk case only the 2 active names listed). The page shows "No eligible names found for this wallet" / "Upgrade 0 names" |
 | Manager migration unit tests | 1167/1167 pass (85 files) |
 | `pnpm typecheck` (manager, e2e) | pass |
 | `pnpm test:manager-smoke` | 4/4 pass (2.0m); the new `@smoke` test takes 12.8s |
+| Screenshots | `QA_SHOTS_DIR=<dir>` saves 1440×900 screenshots at each test's key states; unset, the hook is a no-op |
 | Chain state after the run | `mg-renew-*` and `mg-wrapped-*`: REGISTERED in V2, V1 expiry about 6 days ahead. `mg-nousdc-*` and `mg-list-*`: not migrated, still expired |
 
 ## 4. Manual test plan
@@ -110,14 +114,14 @@ Do these in order. Each upgrade removes the names it migrated.
 4. **Active only.** Untick the grace names. *Pass:* no renewal steps in "N requests"; Upgrade migrates the active name.
 5. **One grace name** (unwrapped). *Pass:* the dialog shows "Estimated renewal cost" in USDC and *Renew 1 name* before the migration steps. After Upgrade, USDC drops by about the quote and the name opens as a migrated profile.
 6. **Grace-only dashboard** (2 left). *Pass:* "Renew your 2 grace-period names before upgrading…", **Renew Names**, /migration titled "Renew your names before upgrading".
-7. **Wrapped + locked together.** *Pass:* *Renew 2 names*, one renewal transaction, both migrate. The locked path (WrapperRegistry) has no automated coverage.
+7. **Wrapped + locked together.** *Pass:* *Renew 2 names*, one renewal transaction, both migrate (the locked one under a WrapperRegistry; automated in the bulk test).
 8. **Recovery (exploratory).** Reload while the renewal transaction is pending (*pass:* resumes, no second charge). Reject the renewal, then retry (check the "Discard unresolved renewal?" copy). Open /migration in two tabs (*pass:* "A renewal is already running in another tab").
 
 ## 5. Findings
 
 | # | Severity | Finding |
 |---|---|---|
-| 1 | — | **No app defects found** on the paths covered: unwrapped, wrapped and locked fee estimates; renew + migrate for unwrapped and wrapped; the insufficient-USDC block; mixed selections. Quote, charge and on-chain price agree |
+| 1 | — | **No app defects found** on the paths covered: renew + migrate for unwrapped, wrapped and **locked** grace names; a 5-name bulk run mixing 2 active and 3 grace names (one batched renewal, one migration); deselecting a grace name; several grace names alone; the insufficient-USDC block. Quote, charge and on-chain price agree |
 | 2 | Low (UX) | The onboarding "Welcome to the new ENS app!" modal counts only eligible names ("You have 1 names…"). It ignores grace names and doesn't open for an owner whose names are all in grace. May be intended |
 | 3 | Low (UX) | With too little USDC, the footer shows "Not enough USDC to renew these names…" **and** "Couldn't estimate the network fee" beneath it. The fee simulation fails for the same reason (no USDC to approve and spend), so the second line is noise that suggests a separate problem. Suggest suppressing the fee error while `balance < totalAmount` |
 | 4 | Low (dev tooling, not this PR) | `packages/dev-migration-tool` reports a resolver for every wrapped name but answers `getProfilesForDomains` only for record-bearing presets. Migration preflight then fails with `ProfileFetchError: Profile key inventory omitted 1 requested resolver-backed node`, shown as "Couldn't estimate the network fee". This likely affects the panel's own Wrapped/Locked presets too |
