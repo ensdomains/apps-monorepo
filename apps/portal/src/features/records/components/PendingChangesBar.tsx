@@ -60,9 +60,9 @@ export const PendingChangesBar = ({
   if (errorMessage) {
     return (
       <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
-        <div className="bg-red-50 border border-red-200 rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
-          <AlertCircle className="size-4 text-red-600 shrink-0" />
-          <span className="text-sm text-red-700">{errorMessage}</span>
+        <div className="bg-danger-fill border border-destructive/40 rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
+          <AlertCircle className="size-4 text-destructive shrink-0" />
+          <span className="text-sm text-danger-text">{errorMessage}</span>
           {onDismissError && (
             <Button
               variant="outline"
@@ -89,7 +89,7 @@ export const PendingChangesBar = ({
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>
         {hasValidationErrors && (
-          <span className="text-sm text-red-600 flex items-center gap-1">
+          <span className="text-sm text-danger-text flex items-center gap-1">
             <AlertCircle className="size-3" />
             Fix validation errors to save
           </span>

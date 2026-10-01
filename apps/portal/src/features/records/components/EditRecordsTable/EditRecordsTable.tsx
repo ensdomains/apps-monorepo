@@ -87,14 +87,14 @@ const EditableValueCell = memo(function EditableValueCell({
         defaultValue={record.value}
         className={`font-mono bg-muted ${
           error
-            ? 'border-red-500 focus-visible:ring-red-500/50'
+            ? 'border-destructive focus-visible:ring-destructive/50'
             : 'border-border'
         }`}
         onChange={(e) => {
           onUpdate?.(record, e.target.value)
         }}
       />
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-danger-text">{error}</span>}
     </div>
   )
 })
