@@ -5,32 +5,22 @@ import {
   scopeTransactionId,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import {
-  type Address,
-  encodeFunctionData,
-  type PublicClient,
-  zeroHash,
-} from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import {
-  buildApproveIntent,
-  toEoaCustomIntent,
-} from '@/features/transaction-manager/helpers/intents'
+import { buildApproveIntent } from '@/features/transaction-manager/helpers/intents'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { getLabel } from '@/utils/token/getLabel'
-import { isCanonicalName } from '@/utils/token/isNormalized'
+import { buildRenewIntent, type RenewParams } from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
 import { getIsRenewableQueryOptions } from './useIsRenewable'
@@ -131,16 +121,6 @@ type ApproveParams = {
   readonly renewer: Address
 }
 
-type RenewParams = {
-  readonly name: string
-  readonly duration: number
-  readonly tokenAddress: Address
-  readonly from: Address
-  readonly publicClient: PublicClient
-  /** Selects the renewer address — v2 ETHRegistrar vs v1 ETHRenewerV1. */
-  readonly isV2: boolean
-}
-
 type BuildMultiTransactionsParams = {
   readonly multiFlow: MultiFlow
   readonly from: Address
@@ -201,48 +181,6 @@ function buildApproveTransaction(
       description: approveLabel(params.tokenSymbol, params.renewer),
     },
   )
-}
-
-// Shared builder: the renew intent used by BOTH the pre-start gas estimate and
-// the submit path. `renewNameWriteParameters` is a pure encode (no network I/O);
-// the client only supplies chain contract addresses. Exported so its refusals
-// can be tested directly — every renew in the app is built here.
-export function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
-  // The same gate `isExtendable2LD` applies to the UI, repeated at the point of
-  // signing so no path into the flow can substitute the canonical twin: the
-  // label below comes from `getLabel`, which normalises, so renewing
-  // `ALICE.eth` would push `alice.eth`'s expiry instead. Throwing here stops
-  // both the modal's gas estimate and the submit.
-  if (!isCanonicalName(params.name))
-    throw new Error(
-      `Refusing to renew "${params.name}": the name isn't written in its normalized form, so renewing it would extend a different name.`,
-    )
-  // ensjs splits the label without normalizing, so pass a normalized 2LD name.
-  const writeParams = renewNameWriteParameters(
-    params.publicClient as unknown as Parameters<
-      typeof renewNameWriteParameters
-    >[0],
-    {
-      name: `${getLabel(params.name)}.eth`,
-      duration: BigInt(params.duration),
-      paymentToken: params.tokenAddress,
-      referrer: zeroHash,
-      contract: params.isV2 ? 'ensEthRegistrar' : 'ensEthRenewerV1',
-    },
-  )
-
-  const renewData = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
-
-  return toEoaCustomIntent({
-    from: params.from,
-    to: writeParams.address,
-    data: renewData,
-    chainId: sepoliaWithEns.id,
-  })
 }
 
 function buildRenewTransaction(

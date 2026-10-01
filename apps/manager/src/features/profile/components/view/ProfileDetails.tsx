@@ -1,5 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useHydrated } from '@tanstack/react-router'
+import { Link, useHydrated } from '@tanstack/react-router'
 import { Check, Copy } from 'lucide-react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -118,7 +118,15 @@ export const ProfileDetails = ({
           }
           label={<Trans>Owner</Trans>}
           labelPaddingClassName="pl-[22px]"
-          value={ownerReverseName || truncateAddress(owner)}
+          value={
+            <Link
+              className="text-inherit hover:underline focus-visible:underline focus-visible:outline-none"
+              params={{ address: owner }}
+              to="/$address"
+            >
+              {ownerReverseName || truncateAddress(owner)}
+            </Link>
+          }
         />
       ) : null}
       {formattedRegistrationDate ? (

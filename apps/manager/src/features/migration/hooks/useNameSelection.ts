@@ -6,18 +6,23 @@ import {
   filterOrphansBySearch,
   toggleRootSubtree,
 } from '../components/selectNames.helpers'
-import type { ClassifiedName } from '../service/classifyNames'
+import type { ClassifiedName, IneligibleName } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
+import { hasManagerRestorationAfterRenewal } from './useNameSelection.helpers'
 
 type Params = {
   readonly eligible: readonly ClassifiedName[]
+  readonly gracePeriodNames?: readonly IneligibleName[]
   readonly isPending: boolean
   readonly isRecovery?: boolean
   readonly onNamesChange: (names: string[]) => void
 }
 
+const EMPTY_GRACE_PERIOD_NAMES: readonly IneligibleName[] = []
+
 export const useNameSelection = ({
   eligible,
+  gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
   isPending,
   isRecovery = false,
   onNamesChange,
@@ -26,37 +31,62 @@ export const useNameSelection = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { groups, orphans } = useMemo(() => groupByParent(eligible), [eligible])
-  const rootSubtrees = useMemo(
-    () => buildRootSubtreeIndex(groups, orphans),
-    [groups, orphans],
-  )
-  const allSelectable = useMemo(
+  const rootSubtrees = useMemo(() => {
+    const subtrees = new Map(buildRootSubtreeIndex(groups, orphans))
+    for (const { domain } of gracePeriodNames) {
+      subtrees.set(domain.name, new Set([domain.name]))
+    }
+    return subtrees
+  }, [groups, orphans, gracePeriodNames])
+  const eligibleSelectable = useMemo(
     () => collectAllSelectable(groups, orphans),
     [groups, orphans],
   )
+  const allSelectable = useMemo(
+    () =>
+      new Set([
+        ...eligibleSelectable,
+        ...gracePeriodNames.map(({ domain }) => domain.name),
+      ]),
+    [eligibleSelectable, gracePeriodNames],
+  )
   const initiallySelected = useMemo(() => {
-    if (isRecovery) return allSelectable
-    const namesNeedingManagerRestoration = new Set(
-      eligible
+    if (isRecovery) return eligibleSelectable
+    const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+    const namesNeedingManagerRestoration = new Set([
+      ...eligible
         .filter(({ managerAddress }) => managerAddress !== null)
         .flatMap(({ domain }) => [
           ...(rootSubtrees.get(domain.name) ?? [domain.name]),
         ]),
-    )
+      // Grace names have no classification yet, so check the unwrapped
+      // ownership that will require manager restoration after renewal.
+      ...gracePeriodNames
+        .filter(({ domain }) =>
+          hasManagerRestorationAfterRenewal(domain, nowSeconds),
+        )
+        .map(({ domain }) => domain.name),
+    ])
     return new Set(
       [...allSelectable].filter(
         (name) => !namesNeedingManagerRestoration.has(name),
       ),
     )
-  }, [allSelectable, eligible, isRecovery, rootSubtrees])
-
+  }, [
+    allSelectable,
+    eligible,
+    eligibleSelectable,
+    gracePeriodNames,
+    isRecovery,
+    rootSubtrees,
+  ])
   const didSeed = useRef(false)
   useEffect(() => {
-    if (didSeed.current || isPending || eligible.length === 0) return
+    if (didSeed.current || isPending || allSelectable.size === 0) return
     didSeed.current = true
     setSelected(initiallySelected)
     onNamesChange([...initiallySelected])
-  }, [isPending, eligible.length, initiallySelected, onNamesChange])
+  }, [isPending, allSelectable.size, initiallySelected, onNamesChange])
 
   useEffect(() => {
     if (!didSeed.current || isPending) return
@@ -76,6 +106,13 @@ export const useNameSelection = ({
   const filteredOrphans = useMemo(
     () => filterOrphansBySearch(orphans, searchLower),
     [orphans, searchLower],
+  )
+  const filteredGracePeriodNames = useMemo(
+    () =>
+      gracePeriodNames.filter(({ domain }) =>
+        domain.name.toLowerCase().includes(searchLower),
+      ),
+    [gracePeriodNames, searchLower],
   )
 
   const toggleName = useCallback(
@@ -114,9 +151,11 @@ export const useNameSelection = ({
     selected: currentSelected,
     totalSelected: currentSelected.size,
     visibleCount: allSelectable.size,
+    displayedCount: allSelectable.size,
     allSelected,
     filteredGroups,
     filteredOrphans,
+    filteredGracePeriodNames,
     toggleName,
     toggleAll,
   }

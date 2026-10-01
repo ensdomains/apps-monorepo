@@ -7,6 +7,8 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
+import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -23,6 +25,24 @@ type SelectNamesStepProps = {
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
+  readonly renewal?: GraceRenewalQuoteState
+  readonly renewalGasEstimate?: GraceRenewalGasEstimateState
+}
+
+const SelectionTitle = ({
+  eligibleCount,
+  graceCount,
+  isRecoveryStale,
+}: {
+  readonly eligibleCount: number
+  readonly graceCount: number
+  readonly isRecoveryStale: boolean
+}) => {
+  if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
+  if (eligibleCount === 0 && graceCount > 0) {
+    return <Trans>Renew your names before upgrading</Trans>
+  }
+  return <Trans>Your names are ready to upgrade</Trans>
 }
 
 export const SelectNamesStep = ({
@@ -31,8 +51,11 @@ export const SelectNamesStep = ({
   gasFundingStatus,
   onNamesChange,
   onNext,
+  renewal = { status: 'idle' },
+  renewalGasEstimate = { status: 'idle' },
 }: SelectNamesStepProps) => {
-  const { eligible, isPending, recoveryState } = useEligibleV1Names()
+  const { eligible, gracePeriodNames, isPending, recoveryState } =
+    useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const hasNamesNeedingManagerRestoration = eligible.some(
@@ -45,21 +68,32 @@ export const SelectNamesStep = ({
     selected,
     totalSelected,
     visibleCount,
+    displayedCount,
     allSelected,
     filteredGroups,
     filteredOrphans,
+    filteredGracePeriodNames,
     toggleName,
     toggleAll,
   } = useNameSelection({
     eligible,
+    gracePeriodNames,
     isPending,
     isRecovery: recoveryState.status === 'recovering',
     onNamesChange,
   })
 
-  const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
+  const needsRenewal = renewal.status !== 'idle'
+  const isEstimatingGas = needsRenewal
+    ? renewalGasEstimate.status === 'loading'
+    : gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
-    totalSelected > 0 && gasEstimate.status !== 'ready'
+    totalSelected > 0 &&
+    (needsRenewal
+      ? renewal.status !== 'ready' ||
+        renewalGasEstimate.status !== 'ready' ||
+        renewal.quote.balance < renewal.quote.totalAmount
+      : gasEstimate.status !== 'ready')
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain, so block "Upgrade" until then — otherwise the owner can start a
   // migration that fails for lack of gas before the ETH has landed.
@@ -73,13 +107,13 @@ export const SelectNamesStep = ({
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
-  const showNameSearch = shouldShowNameSearch(visibleCount)
-  const isCompactLayout = shouldUseCompactSelectionLayout(visibleCount)
+  const showNameSearch = shouldShowNameSearch(displayedCount)
+  const isCompactLayout = shouldUseCompactSelectionLayout(displayedCount)
   const isSmallSelectionCard =
-    !isPending && shouldUseSmallSelectionCard(visibleCount)
+    !isPending && shouldUseSmallSelectionCard(displayedCount)
   const isContentHeightCard = isPending || isSmallSelectionCard
   const isCompactOuterSpacing =
-    isCompactLayout || isPending || visibleCount === 0
+    isCompactLayout || isPending || displayedCount === 0
 
   useEffect(() => {
     if (!showNameSearch && search !== '') setSearch('')
@@ -109,19 +143,19 @@ export const SelectNamesStep = ({
           )}
         >
           <h1 className="w-full shrink-0 text-left text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px] md:text-center md:text-[36px] md:tracking-[-0.72px]">
-            {isRecoveryStale ? (
-              <Trans>Your saved upgrade needs attention</Trans>
-            ) : (
-              <Trans>Your names are ready to upgrade</Trans>
-            )}
+            <SelectionTitle
+              eligibleCount={eligible.length}
+              graceCount={gracePeriodNames.length}
+              isRecoveryStale={isRecoveryStale}
+            />
           </h1>
 
           {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
             <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
               <Trans>
-                Names with a different manager start unselected. Selecting one
-                requires temporary permission for your smart account to manage
-                your names. We remove that permission after the upgrade.
+                Upgrading names with a different manager requires temporary
+                permission for your smart account to manage your names. We
+                remove that permission after the upgrade.
               </Trans>
             </p>
           )}
@@ -153,6 +187,7 @@ export const SelectNamesStep = ({
           ) : (
             <SelectNamesStepSelectionOptions
               allSelected={allSelected}
+              filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
               isCompactLayout={isCompactLayout}
@@ -180,6 +215,8 @@ export const SelectNamesStep = ({
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
+        renewal={renewal}
+        renewalGasEstimate={renewalGasEstimate}
         totalSelected={totalSelected}
         visibleCount={visibleCount}
       />

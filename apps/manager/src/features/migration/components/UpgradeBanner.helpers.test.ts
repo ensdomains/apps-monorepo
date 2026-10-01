@@ -6,6 +6,47 @@ const name = (value: string) =>
   makeClassified({ id: value, name: value, label: value.split('.')[0] })
 
 describe('shouldShowUpgradeBanner', () => {
+  it('shows the account-level banner when only grace-period names remain before migration', () => {
+    expect(
+      shouldShowUpgradeBanner({
+        eligibleV1Names: [],
+        gracePeriodNameCount: 1,
+        migratedCount: 0,
+      }),
+    ).toBe(true)
+  })
+
+  it('leaves grace-period names to the progress banner after migration has started', () => {
+    expect(
+      shouldShowUpgradeBanner({
+        eligibleV1Names: [],
+        gracePeriodNameCount: 1,
+        migratedCount: 1,
+      }),
+    ).toBe(false)
+  })
+
+  it('hides the account-level banner when there are no eligible or grace-period names', () => {
+    expect(
+      shouldShowUpgradeBanner({
+        eligibleV1Names: [],
+        gracePeriodNameCount: 0,
+        migratedCount: 0,
+      }),
+    ).toBe(false)
+  })
+
+  it('does not show a profile upgrade prompt for a name that needs renewal first', () => {
+    expect(
+      shouldShowUpgradeBanner({
+        eligibleV1Names: [],
+        gracePeriodNameCount: 1,
+        migratedCount: 0,
+        profileName: 'alice.eth',
+      }),
+    ).toBe(false)
+  })
+
   it('shows the account-level banner when there are eligible names and migration has not started', () => {
     expect(
       shouldShowUpgradeBanner({

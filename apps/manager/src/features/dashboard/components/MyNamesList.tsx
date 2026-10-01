@@ -166,7 +166,6 @@ const AnimatedNameRow = ({
         isSelected={selectedLabels.has(label)}
         label={label}
         nameRoles={nameRoles}
-        nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
         renewalProtocol={isV1 ? 'v1' : 'v2'}

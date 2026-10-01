@@ -204,7 +204,6 @@ export default createApp()
             c.env.SENDGRID_API_KEY,
             c.env.EMAIL_FROM_ADDRESS,
             channel.email,
-            c.env.MANAGER_APP_URL,
           ),
         ).then((result) => {
           if (result.isErr()) {

@@ -5,6 +5,7 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import {
   NameFallbackCard,
   type NameFallbackReason,
@@ -12,6 +13,7 @@ import {
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/view/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
+import { ReverseNameView } from '@/features/profile/components/view/ReverseNameView'
 import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { normalizeProfileName } from '@/features/profile/service/profileName'
@@ -19,6 +21,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getReverseNameAddress } from '@/features/profile/service/reverseNameAddress'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 import { getSearchNameKind } from '@/features/search/getSearchNameKind'
@@ -53,6 +56,20 @@ const classifyMissingName = (
 const isEthName = (parsed: ReturnType<typeof parseName>): boolean =>
   parsed.isOk() && parsed.value.tld === 'eth'
 
+const requiresDnssecCheck = (
+  parsed: ReturnType<typeof parseName>,
+  name: string,
+): boolean => !isEthName(parsed) && !isDebugProfileName(name)
+
+const prefetchOwnerReverseName = async (
+  queryClient: QueryClient,
+  owner?: Address,
+): Promise<void> => {
+  if (owner) {
+    await queryClient.prefetchQuery(profileReverseNameQuery(owner))
+  }
+}
+
 const getCanonicalProfileName = (name: string): string => {
   const normalizedName = normalizeProfileName(name)
 
@@ -75,6 +92,14 @@ export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     const normalizedName = getCanonicalProfileName(name)
 
+    if (getReverseNameAddress(normalizedName)) {
+      return {
+        fallback: undefined,
+        description: undefined,
+        name: normalizedName,
+      }
+    }
+
     const [profileRecords, ownerData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(normalizedName)),
       // Fetch, not ensure: `ensureQueryData` serves invalidated data, so a name
@@ -83,12 +108,11 @@ export const Route = createFileRoute('/$name/')({
     ])
 
     const parsed = parseName(normalizedName)
-    const isEth = isEthName(parsed)
 
     // Validate the TLD before showing any profile data: a TLD is supported
     // if it's .eth or has DNSSEC enabled. On DoH failure, prefer the profile
     // fallback over a false "unsupported"
-    if (!isEth && !isDebugProfileName(name)) {
+    if (requiresDnssecCheck(parsed, name)) {
       const dnsSecEnabled = parsed.isOk()
         ? await queryClient
             .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
@@ -154,9 +178,7 @@ export const Route = createFileRoute('/$name/')({
       })
     }
 
-    if (ownerData?.owner) {
-      await queryClient.prefetchQuery(profileReverseNameQuery(ownerData.owner))
-    }
+    await prefetchOwnerReverseName(queryClient, ownerData?.owner)
 
     const description = profileRecords.texts.find(
       (r) => r.key === 'description',
@@ -223,6 +245,11 @@ function RouteComponent() {
   })
 
   if (fallback) return <NameFallbackCard name={name} reason={fallback} />
+
+  const reverseAddress = getReverseNameAddress(name)
+  if (reverseAddress) {
+    return <ReverseNameView address={reverseAddress} name={name} />
+  }
 
   return <ProfileView name={name} />
 }
