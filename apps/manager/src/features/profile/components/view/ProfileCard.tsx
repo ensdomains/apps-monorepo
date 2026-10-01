@@ -5,9 +5,6 @@ export const profileCardCopyIconClassName =
 
 export const profileCardTrailingIconStrokeWidth = 1.33
 
-export const cardSurfaceClassName =
-  'rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300'
-
 export const valueClassName =
   'font-mono text-sm text-ens-quartz-500 leading-normal'
 

@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { ArrowUpRight } from 'lucide-react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
+import { Card } from '@/components/ui/card'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
@@ -11,8 +12,7 @@ import {
 } from './ProfileCard'
 import { getContactItems, type ProfileContactItem } from './ProfileView.helpers'
 
-const contactCardSurfaceClassName =
-  'rounded-xl border-[0.25px] border-ens-quartz-300 bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50'
+const contactCardSurfaceClassName = 'transition hover:bg-ens-quartz-50'
 const contactLabelClassName =
   'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] lg:landscape:text-xs lg:landscape:leading-4.5 lg:landscape:tracking-[-0.132px]'
 const contactValueClassName =
@@ -53,30 +53,29 @@ export const ProfileContactCard = ({
 
   if (item.href) {
     return (
-      <a
-        className={className}
-        href={item.href}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        {content}
-        <ArrowUpRight
-          className={contactTrailingIconClassName}
-          strokeWidth={1.33}
-        />
-      </a>
+      <Card asChild className={className}>
+        <a href={item.href} rel="noopener noreferrer" target="_blank">
+          {content}
+          <ArrowUpRight
+            className={contactTrailingIconClassName}
+            strokeWidth={1.33}
+          />
+        </a>
+      </Card>
     )
   }
 
   return (
-    <CopyableButton
-      className={`${className} h-auto items-start`}
-      iconClassName={contactCopyIconClassName}
-      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-      value={item.displayValue}
-    >
-      {content}
-    </CopyableButton>
+    <Card asChild className={`${className} h-auto items-start`}>
+      <CopyableButton
+        iconClassName={contactCopyIconClassName}
+        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        value={item.displayValue}
+        variant="ghost"
+      >
+        {content}
+      </CopyableButton>
+    </Card>
   )
 }
 
