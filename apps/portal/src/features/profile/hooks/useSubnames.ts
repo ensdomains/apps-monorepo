@@ -42,7 +42,13 @@ type IndexerSubname = Omit<Subname, 'owner'> & {
 
 const SUBNAMES_PAGE_SIZE = 40
 
-const getSubnamesPage = ({ name, skip }: { name: string; skip: number }) =>
+const getSubnamesPage = ({
+  name,
+  skip,
+}: {
+  readonly name: string
+  readonly skip: number
+}) =>
   fromPromise(
     graphqlIndexerClient.request<
       { domains: { subdomains: IndexerSubname[] }[] },
@@ -125,4 +131,46 @@ export const getSubnamesQueryOptions = (params: GetSubnamesParameters) =>
   resultQueryOptions({
     queryKey: getSubnamesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getSubnames(params),
+  })
+
+const getSubnamesCount = ResultFn(async function* ({
+  name,
+  protocolVersion,
+}: GetSubnamesParameters) {
+  // The V1 subgraph action returns the list only.
+  if (protocolVersion === 'ENSv1') {
+    const subnames = yield* getSubnames({ name, protocolVersion })
+    return ok(subnames.length)
+  }
+
+  const { domains } = yield* fromPromise(
+    graphqlIndexerClient.request<
+      { domains: { subdomainsCount: number }[] },
+      { name: string }
+    >(
+      gql`
+      query getSubnamesCount($name: String!) {
+        domains(where: { name: $name }) {
+          subdomainsCount
+        }
+      }`,
+      { name },
+    ),
+    (e) => new GetSubnamesError({ cause: e as GraphqlRequestError }),
+  )
+
+  return ok(domains[0]?.subdomainsCount ?? 0)
+})
+
+// Keyed as the list's key plus one field, so whatever invalidates a name's
+// subnames refreshes its count too.
+const getSubnamesCountQueryKey = createQueryKey<
+  'get-subnames',
+  GetSubnamesParameters & { readonly only: 'count' }
+>('get-subnames')
+
+export const getSubnamesCountQueryOptions = (params: GetSubnamesParameters) =>
+  resultQueryOptions({
+    queryKey: getSubnamesCountQueryKey({ ...params, only: 'count' }),
+    queryFn: ({ queryKey: [, params] }) => getSubnamesCount(params),
   })
