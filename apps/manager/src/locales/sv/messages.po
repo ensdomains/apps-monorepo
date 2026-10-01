@@ -2851,12 +2851,13 @@ msgstr ""
 msgid "Verifying registration on-chain"
 msgstr ""
 
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "View address"
+msgstr ""
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "View in Explorer"
-
-#: src/features/profile/components/view/ReverseNameView.tsx
-msgid "View address"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
