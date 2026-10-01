@@ -23,6 +23,7 @@
     "seed:transfer-names": "tsx scripts/seed-transfer-names.ts",
     "seed:subname-transfer": "tsx scripts/seed-subname-transfer.ts",
     "seed:v1-transfer": "tsx scripts/seed-v1-transfer.ts",
+    "seed:grace-v1": "tsx scripts/seed-grace-v1-name.ts",
     "clear-own-resolver": "tsx scripts/clear-own-resolver.ts",
     "probe:subname-transfer": "tsx scripts/probe-subname-transfer.ts",
     "lint": "biome check",
