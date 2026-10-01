@@ -8,14 +8,38 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type { MigrationStepDescriptor } from '@/features/migration/service/buildStepDescriptors'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 
 type StepCopyProps = {
-  readonly step: MigrationStepDescriptor
+  readonly step: MigrationWalletRequestDescriptor
 }
 
 const StepCopy = ({ step }: StepCopyProps) =>
   match(step)
+    .with({ type: 'renewal-approval' }, () => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Trans>Approve renewal payment</Trans>
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Allow the renewal contract to use USDC for your renewals.
+          </Trans>
+        </p>
+      </>
+    ))
+    .with({ type: 'renew-grace' }, ({ count }) => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Plural one="Renew # name" other="Renew # names" value={count} />
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Renew your grace-period names together before upgrading.
+          </Trans>
+        </p>
+      </>
+    ))
     .with({ type: 'deploy-hca' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
@@ -118,8 +142,10 @@ const StepCopy = ({ step }: StepCopyProps) =>
     ))
     .exhaustive()
 
-const stepKey = (step: MigrationStepDescriptor): string =>
+const stepKey = (step: MigrationWalletRequestDescriptor): string =>
   match(step)
+    .with({ type: 'renewal-approval' }, () => 'renewal-approval')
+    .with({ type: 'renew-grace' }, () => 'renew-grace')
     .with({ type: 'deploy-hca' }, () => 'deploy-hca')
     .with(
       { type: 'approval', approvalId: 'base-registrar:hca-token' },
@@ -131,12 +157,22 @@ const stepKey = (step: MigrationStepDescriptor): string =>
     .exhaustive()
 
 type WalletConfirmationStepsDialogProps = {
-  readonly steps: readonly MigrationStepDescriptor[]
+  readonly steps: readonly MigrationWalletRequestDescriptor[]
+  readonly networkFeeEth?: string
+  readonly renewalCostUsdc?: string
+  readonly requestCount?: number
 }
 
 export const WalletConfirmationStepsDialog = ({
   steps,
+  networkFeeEth,
+  renewalCostUsdc,
+  requestCount,
 }: WalletConfirmationStepsDialogProps) => {
+  const includesRenewal = steps.some(({ type }) => type === 'renew-grace')
+  const hasExactRequestCount = requestCount !== undefined || !includesRenewal
+  const count = requestCount ?? steps.length
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -144,7 +180,11 @@ export const WalletConfirmationStepsDialog = ({
           className="cursor-pointer rounded-xs font-semibold underline decoration-ens-garnet-900/35 decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-ens-garnet-900 hover:decoration-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-garnet-200 motion-reduce:duration-0"
           type="button"
         >
-          <Plural one="# request" other="# requests" value={steps.length} />
+          {hasExactRequestCount ? (
+            <Plural one="# request" other="# requests" value={count} />
+          ) : (
+            <Plural one="# step" other="# steps" value={steps.length} />
+          )}
         </button>
       </DialogTrigger>
 
@@ -157,13 +197,45 @@ export const WalletConfirmationStepsDialog = ({
             <Trans>What you&apos;ll approve</Trans>
           </DialogTitle>
           <DialogDescription className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Plural
-              one="Your wallet will show one request."
-              other="Your wallet will show # requests in this order."
-              value={steps.length}
-            />
+            {hasExactRequestCount ? (
+              <Plural
+                one="Your wallet will show one request."
+                other="Your wallet will show # requests in this order."
+                value={count}
+              />
+            ) : (
+              <Trans>
+                Follow these steps in your wallet. Renewal may need an extra
+                payment approval.
+              </Trans>
+            )}
           </DialogDescription>
         </DialogHeader>
+
+        {(networkFeeEth !== undefined || renewalCostUsdc !== undefined) && (
+          <dl className="mx-5 flex flex-col gap-2 border-ens-garnet-900/10 border-y py-3 text-sm sm:mx-6">
+            {renewalCostUsdc !== undefined && (
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-ens-garnet-800/75">
+                  <Trans>Estimated renewal cost</Trans>
+                </dt>
+                <dd className="font-semibold text-ens-garnet-900 tabular-nums">
+                  {renewalCostUsdc} USDC
+                </dd>
+              </div>
+            )}
+            {networkFeeEth !== undefined && (
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-ens-garnet-800/75">
+                  <Trans>Estimated network fee</Trans>
+                </dt>
+                <dd className="font-semibold text-ens-garnet-900 tabular-nums">
+                  ~{networkFeeEth} ETH
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
 
         <ol className="max-h-96 overflow-y-auto px-5 py-1 sm:px-6">
           {steps.map((step, index) => (
