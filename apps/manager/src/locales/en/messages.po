@@ -2763,6 +2763,11 @@ msgstr "Verify your wallet"
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
 
+#: src/features/landing/check-availability/CheckAvailability.tsx
+#: src/features/navigation/Header/search/SuggestionItem.tsx
+msgid "View in Explorer"
+msgstr "View in Explorer"
+
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
 msgstr "View address"

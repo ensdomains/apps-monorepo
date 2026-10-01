@@ -1,8 +1,11 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { EXPLORER_URL } from '@/constants'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { render, stubImagePreload } from '@/utils/test-utils'
+
+const dnsSecLookups = vi.hoisted(() => [] as string[])
 
 const fixtures = vi.hoisted(() => ({
   expiry: null as {
@@ -82,6 +85,18 @@ vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
   getDomainsQuery: () => ({
     queryKey: ['test-domains'],
     queryFn: async () => ({ domains: [] }),
+  }),
+}))
+
+vi.mock('@/features/profile/service/dnsSecEnabled', () => ({
+  dnsSecEnabledQuery: (tld: string) => ({
+    queryKey: ['test-dnssec', tld],
+    queryFn: async () => {
+      dnsSecLookups.push(tld)
+      if (tld === 'fail') throw new Error('DoH lookup failed')
+      return tld !== 'ethh'
+    },
+    retry: false,
   }),
 }))
 
@@ -166,5 +181,40 @@ describe('CheckAvailability', () => {
     await waitFor(() => {
       expect(screen.getByText('Name not found')).toBeInTheDocument()
     })
+  })
+
+  it('links an unimported DNS 2LD to Explorer instead of not found', async () => {
+    render(<CheckAvailability />)
+
+    searchFor('vitalik.xyz')
+
+    const cta = await screen.findByText('View in Explorer')
+    expect(screen.queryByText('Name not found')).not.toBeInTheDocument()
+    const link = cta.closest('a')
+    expect(link).toHaveAttribute('href', `${EXPLORER_URL}/vitalik.xyz`)
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('keeps the not-found state for a typo TLD', async () => {
+    render(<CheckAvailability />)
+
+    searchFor('vitalik.ethh')
+
+    await waitFor(() => {
+      expect(screen.getByText('Name not found')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('View in Explorer')).not.toBeInTheDocument()
+  })
+
+  it('keeps the not-found state for an unowned DNS subname', async () => {
+    render(<CheckAvailability />)
+
+    searchFor('sub.vitalik.xyz')
+
+    await waitFor(() => {
+      expect(screen.getByText('Name not found')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('View in Explorer')).not.toBeInTheDocument()
   })
 })
