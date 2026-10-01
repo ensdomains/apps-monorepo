@@ -1,6 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useMemo } from 'react'
+import { Card } from '@/components/ui/card'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
 import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
 import { getComputedDurationPresets } from '@/features/register-v2/workflow/pricing/components/durationPresets'
@@ -65,7 +66,7 @@ export const DurationSelector = () => {
   )
 
   return (
-    <div className="flex h-full flex-col justify-between gap-3 rounded-xl border border-[#DDDDDE] bg-white p-3 shadow-temp-card">
+    <Card className="h-full justify-between gap-3 p-3">
       {presetDurations.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
@@ -101,6 +102,6 @@ export const DurationSelector = () => {
         selectedDuration={Number(selectedDuration)}
         type="renew"
       />
-    </div>
+    </Card>
   )
 }

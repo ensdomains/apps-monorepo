@@ -70,7 +70,7 @@ const TransactionDetails = ({
   if (error) {
     return (
       <div className="p-6 flex flex-col gap-4">
-        <div className="text-red-500">
+        <div className="text-destructive">
           Error loading transaction: {error.message}
         </div>
       </div>

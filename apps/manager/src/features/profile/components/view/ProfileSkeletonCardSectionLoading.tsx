@@ -1,6 +1,6 @@
+import { Card } from '@/components/ui/card'
 import { tw } from '@/utils/tailwind'
 import {
-  loadingCardSurfaceClassName,
   ProfileSectionLoading,
   SkeletonBlock,
 } from './ProfileLoadingPrimitives'
@@ -20,9 +20,7 @@ const SkeletonCardLoading = ({
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
-  <div
-    className={`${loadingCardSurfaceClassName} relative flex min-h-28 w-full flex-col items-start gap-2 p-4 text-left lg:landscape:min-h-33.5 lg:landscape:p-[24.25px]`}
-  >
+  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-4 text-left lg:landscape:min-h-33.5 lg:landscape:rounded-xl lg:landscape:p-[24.25px]">
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
@@ -46,7 +44,7 @@ const SkeletonCardLoading = ({
       )}
       shouldReduceMotion={shouldReduceMotion}
     />
-  </div>
+  </Card>
 )
 
 const cardPlaceholders = [

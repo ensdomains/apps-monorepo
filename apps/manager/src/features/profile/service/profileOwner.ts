@@ -108,7 +108,10 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
       (e) => new GetOwnerError({ cause: e }),
     )
 
-    if (v2Domain) {
+    // V1 reservations are also indexed, but have no V2 owner. Only a record
+    // with a retained owner identifies an expired V2 registration; otherwise
+    // check V1 ownership before choosing the renewal protocol.
+    if (v2Domain && v2Domain.owner.id !== zeroAddress) {
       // Active ownership disappears at expiry. The registry retains the latest
       // owner, who can still renew their name during the grace period.
       const state = yield* fromPromise(

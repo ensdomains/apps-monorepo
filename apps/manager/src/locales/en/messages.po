@@ -253,6 +253,10 @@ msgstr "Allow this temporary account to move this name."
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr "Approve"
@@ -1332,6 +1336,10 @@ msgstr "Name"
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Name No Longer Available"
+msgstr "Name No Longer Available"
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Name not found"
@@ -1998,6 +2006,11 @@ msgstr "Retrying will attempt the renewal again from where it left off."
 msgid "Return to Dashboard"
 msgstr "Return to Dashboard"
 
+#. placeholder {0}: truncateAddress(address)
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "Reverse record for {0}"
+msgstr "Reverse record for {0}"
+
 #: src/features/migration/pages/MigrationPermissionsPage.tsx
 msgid "Review access granted during ENS name upgrades."
 msgstr "Review access granted during ENS name upgrades."
@@ -2067,9 +2080,7 @@ msgstr "Search notifications"
 msgid "See all"
 msgstr "See all"
 
-#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr "Select {0}"
@@ -2084,7 +2095,6 @@ msgstr "Select {label} as primary name"
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr "Select all"
 
@@ -2752,6 +2762,15 @@ msgstr "Verify your wallet"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
+
+#: src/features/landing/check-availability/CheckAvailability.tsx
+#: src/features/navigation/Header/search/SuggestionItem.tsx
+msgid "View in Explorer"
+msgstr "View in Explorer"
+
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "View address"
+msgstr "View address"
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "View NFT traits"

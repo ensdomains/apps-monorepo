@@ -16,9 +16,6 @@ type ProfileSectionLoadingProps = {
   readonly titleWidth: string
 }
 
-export const loadingCardSurfaceClassName =
-  'rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300'
-
 export const getMotionProps = (_shouldReduceMotion: boolean, _delay = 0) => ({})
 
 export const SkeletonBlock = ({
