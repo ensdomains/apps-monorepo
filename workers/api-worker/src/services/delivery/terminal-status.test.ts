@@ -25,10 +25,10 @@ vi.mock('#services/telegram/utils.js', () => ({
 
 vi.mock('./templates/email.js', () => ({
   emailTemplates: {
-    'name-expiry': () => ({
-      templateId: 'template-id',
-      dynamicData: {},
+    'name-expiry': async () => ({
       subject: 'Expiry reminder',
+      html: '<p>alpha.eth</p>',
+      text: 'alpha.eth',
     }),
   },
 }))
