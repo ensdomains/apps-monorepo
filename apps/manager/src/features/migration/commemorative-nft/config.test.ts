@@ -3,13 +3,33 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
+  getCommemorativeNftContractAddress,
 } from './config'
+import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import { commemorativeNftEligibilityQueryOptions } from './queries'
 
 describe('commemorative NFT config', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+  })
+
+  it('resolves the configured mainnet contract on chain 1', () => {
+    vi.stubEnv(
+      'VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS',
+      MAINNET_NFT_TEST_ADDRESS,
+    )
+    expect(getCommemorativeNftContractAddress(1)).toBe(MAINNET_NFT_TEST_ADDRESS)
+    expect(getCommemorativeNftContractAddress(10)).toBeUndefined()
+  })
+
+  it.each([
+    '',
+    'invalid',
+    '0x0000000000000000000000000000000000000000',
+  ])('disables mainnet reads and claims for an invalid contract address: %s', (address) => {
+    vi.stubEnv('VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS', address)
+    expect(getCommemorativeNftContractAddress(1)).toBeUndefined()
   })
 
   it('uses the configured renderer origin', () => {

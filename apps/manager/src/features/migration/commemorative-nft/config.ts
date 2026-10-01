@@ -1,5 +1,11 @@
-import { type Address, getAddress, keccak256 } from 'viem'
-import { sepolia } from 'viem/chains'
+import {
+  type Address,
+  getAddress,
+  isAddress,
+  keccak256,
+  zeroAddress,
+} from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import type {
   CommemorativeNftAssets,
   CommemorativeNftEligibility,
@@ -70,8 +76,16 @@ export const getCommemorativeNftConfig = (): NftConfig => {
 
 export const getCommemorativeNftContractAddress = (
   chainId: number,
-): Address | undefined =>
-  chainId === sepolia.id ? COMMEMORATIVE_NFT_SEPOLIA_ADDRESS : undefined
+): Address | undefined => {
+  if (chainId === sepolia.id) return COMMEMORATIVE_NFT_SEPOLIA_ADDRESS
+  if (chainId !== mainnet.id) return undefined
+
+  // Mainnet has a separate deployment; never use the Sepolia address as a fallback.
+  const address = import.meta.env.VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS?.trim()
+  if (!address || !isAddress(address) || address === zeroAddress)
+    return undefined
+  return getAddress(address)
+}
 
 export const getCommemorativeNftTokenId = (ownerAddress: Address): bigint =>
   BigInt(keccak256(ownerAddress))

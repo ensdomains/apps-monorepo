@@ -6,8 +6,9 @@ import {
 } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCommemorativeNftContractAddress } from './config'
+import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import {
   CommemorativeNftClaimError,
   claimCommemorativeNft,
@@ -79,7 +80,47 @@ beforeEach(() => {
   readContractMock.mockResolvedValue(true)
 })
 
+afterEach(() => vi.unstubAllEnvs())
+
 describe('commemorative NFT contract', () => {
+  it('reads and submits claims to the configured contract on mainnet', async () => {
+    vi.stubEnv(
+      'VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS',
+      MAINNET_NFT_TEST_ADDRESS,
+    )
+    writeContractMock.mockResolvedValue(hash)
+    await expect(
+      readCommemorativeNftClaimed({ wagmiConfig, chainId: 1, ownerAddress }),
+    ).resolves.toBe(true)
+    expect(readContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: MAINNET_NFT_TEST_ADDRESS,
+        chainId: 1,
+        functionName: 'hasClaimed',
+        args: [ownerAddress],
+      }),
+    )
+    await expect(
+      claimCommemorativeNft({
+        wagmiConfig,
+        chainId: 1,
+        ownerAddress,
+        walletAddress: ownerAddress,
+        proof,
+      }),
+    ).resolves.toBe(hash)
+    expect(writeContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: MAINNET_NFT_TEST_ADDRESS,
+        chainId: 1,
+        account: ownerAddress,
+        functionName: 'claim',
+        args: [proof],
+      }),
+    )
+  })
   it('submits a plain EOA claim', async () => {
     writeContractMock.mockResolvedValue(hash)
     await expect(

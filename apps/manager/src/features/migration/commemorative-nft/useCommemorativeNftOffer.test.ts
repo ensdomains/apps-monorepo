@@ -16,6 +16,7 @@ import type { Address } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommemorativeNftDashboard } from '../components/success/CommemorativeNftDashboard'
 import { CommemorativeNftProfileSection } from '../components/success/CommemorativeNftProfileSection'
+import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import {
   commemorativeNftClaimedQueryOptions,
@@ -127,9 +128,13 @@ const createContext = () => {
 describe('shared commemorative NFT offers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv(
+      'VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS',
+      MAINNET_NFT_TEST_ADDRESS,
+    )
     vi.stubGlobal('navigator', { locks: { request: vi.fn() } })
     mocks.owner.mockReturnValue(ownerAddress)
-    mocks.chain.mockReturnValue(11155111)
+    mocks.chain.mockReturnValue(1)
     mocks.metadata.mockResolvedValue(published)
     mocks.claimed.mockResolvedValue(false)
     mocks.pending.mockReturnValue({ status: 'empty' })
@@ -144,6 +149,7 @@ describe('shared commemorative NFT offers', () => {
     cleanup()
     for (const client of clients.splice(0)) client.clear()
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
   })
 
   it.each([
@@ -193,7 +199,7 @@ describe('shared commemorative NFT offers', () => {
     client.setQueryData(
       commemorativeNftClaimedQueryOptions({
         ownerAddress,
-        chainId: 11155111,
+        chainId: 1,
         wagmiConfig: {} as WagmiConfig,
       }).queryKey,
       true,
