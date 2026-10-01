@@ -1,7 +1,7 @@
 import type { Address, PublicClient } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { buildRenewIntent } from './useRenewalTransactions'
+import { buildRenewIntent } from '../utils/buildRenewIntent'
 
 const FROM = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const USDC = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
