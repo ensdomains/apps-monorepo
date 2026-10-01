@@ -1,8 +1,10 @@
 import { screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EXPLORER_URL } from '@/constants'
 import { render } from '@/utils/test-utils'
 import { NameSuggestionItem } from './SuggestionItem'
+
+const dnsSecLookups = vi.hoisted(() => [] as string[])
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -58,7 +60,23 @@ vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
   }),
 }))
 
+vi.mock('@/features/profile/service/dnsSecEnabled', () => ({
+  dnsSecEnabledQuery: (tld: string) => ({
+    queryKey: ['test-dnssec', tld],
+    queryFn: async () => {
+      dnsSecLookups.push(tld)
+      if (tld === 'fail') throw new Error('DoH lookup failed')
+      return tld !== 'ethh'
+    },
+    retry: false,
+  }),
+}))
+
 describe('NameSuggestionItem', () => {
+  beforeEach(() => {
+    dnsSecLookups.length = 0
+  })
+
   it('links an unimported DNS 2LD to Explorer instead of not found', async () => {
     render(<NameSuggestionItem name="vitalik.xyz" />)
 
@@ -68,6 +86,24 @@ describe('NameSuggestionItem', () => {
     expect(link).toHaveAttribute('href', `${EXPLORER_URL}/vitalik.xyz`)
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(dnsSecLookups).toEqual(['xyz'])
+  })
+
+  it('keeps an unowned name under an unsupported TLD as not found', async () => {
+    render(<NameSuggestionItem name="vitalik.ethh" />)
+
+    expect(await screen.findByText('Name not found')).toBeInTheDocument()
+    expect(screen.queryByText('View in Explorer')).not.toBeInTheDocument()
+  })
+
+  it('still links to Explorer when the TLD support lookup fails', async () => {
+    render(<NameSuggestionItem name="vitalik.fail" />)
+
+    const cta = await screen.findByText('View in Explorer')
+    expect(cta.closest('a')).toHaveAttribute(
+      'href',
+      `${EXPLORER_URL}/vitalik.fail`,
+    )
   })
 
   it('keeps an unowned DNS subname as not found', async () => {
@@ -75,6 +111,7 @@ describe('NameSuggestionItem', () => {
 
     expect(await screen.findByText('Name not found')).toBeInTheDocument()
     expect(screen.queryByText('View in Explorer')).not.toBeInTheDocument()
+    expect(dnsSecLookups).toEqual([])
   })
 
   it('keeps an unowned .eth subname as not found', async () => {
@@ -88,5 +125,6 @@ describe('NameSuggestionItem', () => {
 
     const badge = await screen.findByText('Registered')
     expect(badge.closest('a')).toHaveAttribute('href', '/owned.xyz')
+    expect(dnsSecLookups).toEqual([])
   })
 })

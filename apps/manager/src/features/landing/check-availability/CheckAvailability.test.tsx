@@ -5,6 +5,8 @@ import { CheckAvailability } from '@/features/landing/check-availability/CheckAv
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { render, stubImagePreload } from '@/utils/test-utils'
 
+const dnsSecLookups = vi.hoisted(() => [] as string[])
+
 const fixtures = vi.hoisted(() => ({
   expiry: null as {
     expiry: bigint
@@ -83,6 +85,18 @@ vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
   getDomainsQuery: () => ({
     queryKey: ['test-domains'],
     queryFn: async () => ({ domains: [] }),
+  }),
+}))
+
+vi.mock('@/features/profile/service/dnsSecEnabled', () => ({
+  dnsSecEnabledQuery: (tld: string) => ({
+    queryKey: ['test-dnssec', tld],
+    queryFn: async () => {
+      dnsSecLookups.push(tld)
+      if (tld === 'fail') throw new Error('DoH lookup failed')
+      return tld !== 'ethh'
+    },
+    retry: false,
   }),
 }))
 
@@ -180,6 +194,17 @@ describe('CheckAvailability', () => {
     expect(link).toHaveAttribute('href', `${EXPLORER_URL}/vitalik.xyz`)
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('keeps the not-found state for a typo TLD', async () => {
+    render(<CheckAvailability />)
+
+    searchFor('vitalik.ethh')
+
+    await waitFor(() => {
+      expect(screen.getByText('Name not found')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('View in Explorer')).not.toBeInTheDocument()
   })
 
   it('keeps the not-found state for an unowned DNS subname', async () => {

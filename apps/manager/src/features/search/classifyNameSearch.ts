@@ -4,12 +4,15 @@ import type {
   ExistenceSignal,
   NameSearchOutcome,
   SearchNameKind,
+  TldSupportSignal,
 } from './search.types'
 
 export type ClassifyNameSearchParams = {
   readonly kind: SearchNameKind
   readonly existence: ExistenceSignal
   readonly availability: AvailabilitySignal
+  /** Only consulted for unowned DNS 2LDs */
+  readonly tldSupport: TldSupportSignal
 }
 
 const classifyProfileName = (
@@ -39,6 +42,7 @@ export const classifyNameSearch = ({
   kind,
   existence,
   availability,
+  tldSupport,
 }: ClassifyNameSearchParams): NameSearchOutcome =>
   match(kind)
     .with({ type: 'invalid' }, (invalid) => ({
@@ -75,11 +79,24 @@ export const classifyNameSearch = ({
     )
     .with({ type: 'dns-name', isSubname: false }, (dnsName) => {
       const outcome = classifyProfileName(dnsName.name, existence)
-      // An unowned DNS 2LD may just not be imported yet, so don't report it
-      // as missing. DNS subnames keep the generic not-found outcome.
-      return outcome.type === 'not-found'
-        ? { type: 'not-imported' as const, name: dnsName.name }
-        : outcome
+      if (outcome.type !== 'not-found') return outcome
+
+      // An unowned DNS 2LD may just not be imported yet, unless its TLD has
+      // no DNSSEC (e.g. a typo like `vitalik.ethh`). Like the profile route,
+      // a failed lookup isn't proof the TLD is unsupported. DNS subnames
+      // keep the generic not-found outcome.
+      return match(tldSupport)
+        .with({ status: 'pending' }, () => ({
+          type: 'loading' as const,
+          name: dnsName.name,
+        }))
+        .with({ status: 'unsupported' }, () => outcome)
+        .with({ status: 'supported' }, { status: 'error' }, () => ({
+          type: 'not-imported' as const,
+          name: dnsName.name,
+        }))
+        .with({ status: 'skipped' }, () => outcome)
+        .exhaustive()
     })
     .with({ type: 'dns-name' }, (dnsName) =>
       classifyProfileName(dnsName.name, existence),

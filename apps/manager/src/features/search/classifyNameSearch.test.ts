@@ -26,6 +26,7 @@ describe('classifyNameSearch', () => {
         kind: { type: 'invalid', name: 'ab.eth', reason: 'too-short' },
         existence: { status: 'pending' },
         availability: { status: 'pending' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'invalid', name: 'ab.eth', reason: 'too-short' })
   })
@@ -36,6 +37,7 @@ describe('classifyNameSearch', () => {
         kind: eth2ld,
         existence: { status: 'unowned' },
         availability: { status: 'available' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'available', name: 'alice.eth' })
   })
@@ -46,6 +48,7 @@ describe('classifyNameSearch', () => {
         kind: eth2ld,
         existence: { status: 'unowned' },
         availability: { status: 'unavailable' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'owned', name: 'alice.eth' })
   })
@@ -56,6 +59,7 @@ describe('classifyNameSearch', () => {
         kind: eth2ld,
         existence: { status: 'unowned' },
         availability: { status: 'error' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'error', name: 'alice.eth' })
   })
@@ -66,6 +70,7 @@ describe('classifyNameSearch', () => {
         kind: eth2ld,
         existence: { status: 'owned' },
         availability: { status: 'pending' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'loading', name: 'alice.eth' })
   })
@@ -76,6 +81,7 @@ describe('classifyNameSearch', () => {
         kind: subname,
         existence: { status: 'owned' },
         availability: { status: 'skipped' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'owned', name: '1.1.sugh004.eth' })
   })
@@ -86,6 +92,7 @@ describe('classifyNameSearch', () => {
         kind: subname,
         existence: { status: 'unowned' },
         availability: { status: 'skipped' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'not-found', name: '1.1.sugh004.eth' })
   })
@@ -96,6 +103,7 @@ describe('classifyNameSearch', () => {
         kind: subname,
         existence: { status: 'unknown' },
         availability: { status: 'skipped' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'error', name: '1.1.sugh004.eth' })
   })
@@ -106,18 +114,53 @@ describe('classifyNameSearch', () => {
         kind: subname,
         existence: { status: 'pending' },
         availability: { status: 'skipped' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'loading', name: '1.1.sugh004.eth' })
   })
 
-  it('treats an unowned DNS 2LD as not imported', () => {
+  it('treats an unowned DNS 2LD under a supported TLD as not imported', () => {
     expect(
       classifyNameSearch({
         kind: dnsName,
         existence: { status: 'unowned' },
         availability: { status: 'skipped' },
+        tldSupport: { status: 'supported' },
       }),
     ).toEqual({ type: 'not-imported', name: 'vitalik.xyz' })
+  })
+
+  it('treats an unowned DNS 2LD under an unsupported TLD as not found', () => {
+    expect(
+      classifyNameSearch({
+        kind: { type: 'dns-name', name: 'vitalik.ethh', isSubname: false },
+        existence: { status: 'unowned' },
+        availability: { status: 'skipped' },
+        tldSupport: { status: 'unsupported' },
+      }),
+    ).toEqual({ type: 'not-found', name: 'vitalik.ethh' })
+  })
+
+  it('does not treat a failed TLD support lookup as unsupported', () => {
+    expect(
+      classifyNameSearch({
+        kind: dnsName,
+        existence: { status: 'unowned' },
+        availability: { status: 'skipped' },
+        tldSupport: { status: 'error' },
+      }),
+    ).toEqual({ type: 'not-imported', name: 'vitalik.xyz' })
+  })
+
+  it('waits for TLD support before classifying an unowned DNS 2LD', () => {
+    expect(
+      classifyNameSearch({
+        kind: dnsName,
+        existence: { status: 'unowned' },
+        availability: { status: 'skipped' },
+        tldSupport: { status: 'pending' },
+      }),
+    ).toEqual({ type: 'loading', name: 'vitalik.xyz' })
   })
 
   it('treats an unowned DNS subname as not found', () => {
@@ -126,6 +169,7 @@ describe('classifyNameSearch', () => {
         kind: { type: 'dns-name', name: 'sub.vitalik.xyz', isSubname: true },
         existence: { status: 'unowned' },
         availability: { status: 'skipped' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type: 'not-found', name: 'sub.vitalik.xyz' })
   })
@@ -140,6 +184,7 @@ describe('classifyNameSearch', () => {
         kind: dnsName,
         existence,
         availability: { status: 'skipped' },
+        tldSupport: { status: 'skipped' },
       }),
     ).toEqual({ type, name: 'vitalik.xyz' })
   })
