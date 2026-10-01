@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { ArrowUpRight } from 'lucide-react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
+import { Card } from '@/components/ui/card'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import {
   getRecordDef,
@@ -9,7 +10,6 @@ import {
 } from '@/features/profile/data/records'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import {
-  cardSurfaceClassName,
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
@@ -46,34 +46,33 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `${cardSurfaceClassName} ${socialCardPaddingClassName} flex min-h-17 w-full items-center gap-1 font-sans text-left lg:landscape:min-h-22.75 lg:landscape:gap-2`
+  const className = `flex-row rounded-[14px] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl ${socialCardPaddingClassName} min-h-17 w-full items-center gap-1 font-sans text-left lg:landscape:min-h-22.75 lg:landscape:gap-2`
 
   if (href) {
     return (
-      <a
-        className={className}
-        href={href}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        {content}
-        <ArrowUpRight
-          className={socialTrailingIconClassName}
-          strokeWidth={1.33}
-        />
-      </a>
+      <Card asChild className={className}>
+        <a href={href} rel="noopener noreferrer" target="_blank">
+          {content}
+          <ArrowUpRight
+            className={socialTrailingIconClassName}
+            strokeWidth={1.33}
+          />
+        </a>
+      </Card>
     )
   }
 
   return (
-    <CopyableButton
-      className={`${className} h-auto justify-start`}
-      iconClassName={profileCardCopyIconClassName}
-      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-      value={displayValue}
-    >
-      {content}
-    </CopyableButton>
+    <Card asChild className={`${className} h-auto justify-start`}>
+      <CopyableButton
+        iconClassName={profileCardCopyIconClassName}
+        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        value={displayValue}
+        variant="ghost"
+      >
+        {content}
+      </CopyableButton>
+    </Card>
   )
 }
 
