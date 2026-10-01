@@ -76,7 +76,7 @@ export function CoinSelect({
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
