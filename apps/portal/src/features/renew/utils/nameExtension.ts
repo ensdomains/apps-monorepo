@@ -1,7 +1,7 @@
 import type { RowSelectionState } from '@tanstack/react-table'
 import type { NameRow } from '@/features/names/components/NamesTable/columns'
 import type { SelectedName } from '@/features/renew/hooks/useRenewalTransactions'
-import { isCanonicalName } from '@/utils/token/isNormalized'
+import { isCanonicalName, isNormalizedLabel } from '@/utils/token/isNormalized'
 
 export const MS_PER_SECOND = 1000
 export const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
@@ -55,6 +55,13 @@ export const getNameLength = (name: string | null): string => {
   return '5+'
 }
 
+const ETH_2LD_RE = /^[^.]+\.eth$/
+
+// A stored label that is not its own normalised form is a different
+// registration from its twin; `getLabel` would renew the twin.
+export const isNonCanonicalEthName = (name: string): boolean =>
+  ETH_2LD_RE.test(name) && !isNormalizedLabel(name.split('.')[0] ?? '')
+
 // Coarse client-side pre-filter for the Extend flow: a `.eth` 2LD still within
 // its grace window (v2: 28d, v1: 90d after expiry). NOT the authoritative gate —
 // v1 renewability is decided by the renewer's on-chain `isRenewable` in
@@ -74,7 +81,7 @@ export const isExtendable2LD = ({
   // so this isn't a display quirk. Refused here rather than silently renewing
   // the canonical twin; `buildRenewIntent` repeats the check at signing time.
   if (!isCanonicalName(name)) return false
-  if (!/^[^.]+\.eth$/.test(name)) return false
+  if (!ETH_2LD_RE.test(name)) return false
   // When expiry isn't known yet (indexer loading/error), gate v2 conservatively
   // so we never price a past-grace name. v1 stays permissive here because
   // useCanExtend additionally gates it on the renewer's on-chain `isRenewable`.

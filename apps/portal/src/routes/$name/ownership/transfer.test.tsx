@@ -94,6 +94,19 @@ const TransferRoute = (
 
 const NOW_SECONDS = 1_800_000_000
 
+describe('transfer route — canonical name gate (Immunefi #91224)', () => {
+  it('refuses a name whose label is not its normalised form', () => {
+    currentName = 'ALICE.eth'
+
+    render(<TransferRoute />)
+
+    expect(
+      screen.getByText('This name can’t be transferred'),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('send-name-form')).not.toBeInTheDocument()
+  })
+})
+
 describe('transfer route — subname expiry gate', () => {
   beforeEach(() => {
     vi.useFakeTimers()
