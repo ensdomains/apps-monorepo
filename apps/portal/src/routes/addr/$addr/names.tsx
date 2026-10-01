@@ -45,6 +45,7 @@ import {
   getNameStatus,
   getSelectedNames,
   isExtendable2LD,
+  isNonCanonicalEthName,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
@@ -245,9 +246,11 @@ function RouteComponent() {
 
   // Coarse grace-window pre-filter, then narrow to names that are actually
   // renewable now (drops non-renewable v1 names — see useRenewableNames).
-  const coarseExtendable = getSelectedNames(rowSelection, filteredData).filter(
-    isExtendable2LD,
-  )
+  const selectedNames = getSelectedNames(rowSelection, filteredData)
+  const coarseExtendable = selectedNames.filter(isExtendable2LD)
+  const nonCanonicalCount = selectedNames.filter((selected) =>
+    isNonCanonicalEthName(selected.name),
+  ).length
   const { names: extendableNames, isLoading: renewabilityLoading } =
     useRenewableNames(coarseExtendable)
 
@@ -325,6 +328,13 @@ function RouteComponent() {
               </button>
               {rowCount} selected
             </div>
+            {nonCanonicalCount > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {nonCanonicalCount} selected name(s) have a non-normalized label
+                and can’t be extended here: a renewal would go to a different
+                name.
+              </p>
+            )}
             <Button
               variant="default"
               size="sm"
