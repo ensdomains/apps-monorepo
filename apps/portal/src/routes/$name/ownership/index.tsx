@@ -151,13 +151,7 @@ function RouteComponent() {
           label={ownerLabel}
           owner={data.owner}
           protocolVersion={data.protocolVersion}
-          badge={
-            // A lapsed name can't be transferred until it's renewed, whatever
-            // its roles say.
-            grace.isInGrace ? null : (
-              <TransferPrivilegeWarning name={name} ownerData={data} />
-            )
-          }
+          badge={<TransferPrivilegeWarning name={name} ownerData={data} />}
         />
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />

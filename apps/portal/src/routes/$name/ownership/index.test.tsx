@@ -43,10 +43,9 @@ vi.mock('@tanstack/react-query', async () => {
           { data: null, isLoading: false, error: null },
   }
 })
-let isInGrace = false
 vi.mock('@/features/profile/hooks/useGraceStatus', () => ({
   useGraceStatus: () => ({
-    isInGrace,
+    isInGrace: false,
     isExpired: false,
     graceEndDate: null,
     isLoading: false,
@@ -120,7 +119,6 @@ const OwnershipRoute = (
 
 beforeEach(() => {
   routeName = 'jobintime.xyz'
-  isInGrace = false
   ownerQuery = { data: null, isLoading: false, error: null }
 })
 
@@ -197,14 +195,5 @@ describe('ownership route — Owner row', () => {
     const warning = screen.getByTestId('transfer-warning')
     expect(warning).toHaveAttribute('data-name', 'alice.eth')
     expect(warning).toHaveAttribute('data-owner', CONTROLLER)
-  })
-
-  it('leaves the warning off a name in grace', () => {
-    resolveAs('ENSv2')
-    isInGrace = true
-
-    render(<OwnershipRoute />)
-
-    expect(screen.queryByTestId('transfer-warning')).not.toBeInTheDocument()
   })
 })

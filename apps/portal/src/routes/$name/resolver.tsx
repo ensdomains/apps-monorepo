@@ -144,8 +144,8 @@ const ResolverWarning = ({
   name,
   ownerData,
 }: {
-  name: string
-  ownerData: GetEnsOwnerReturnType | undefined
+  readonly name: string
+  readonly ownerData: GetEnsOwnerReturnType | undefined
 }) =>
   ownerData ? (
     <ResolverPrivilegeWarning name={name} ownerData={ownerData} />
@@ -160,7 +160,7 @@ const ResolverInfoList = ({
 }: {
   resolverAddress: Address
   name: string
-  ownerData: GetEnsOwnerReturnType | undefined
+  readonly ownerData: GetEnsOwnerReturnType | undefined
   type: string
   /** Official-resolver docs link — renders the audited notice in the Type row. */
   docsHref?: string
@@ -226,7 +226,7 @@ const RESOLVER_HISTORY_EVENT_TYPES = [
 interface ResolverViewProps {
   name: string
   resolverAddress: Address
-  ownerData: GetEnsOwnerReturnType | undefined
+  readonly ownerData: GetEnsOwnerReturnType | undefined
 }
 
 const ResolverView = ({
@@ -327,8 +327,8 @@ const NoResolverSet = ({
   name,
   ownerData,
 }: {
-  name: string
-  ownerData: GetEnsOwnerReturnType | undefined
+  readonly name: string
+  readonly ownerData: GetEnsOwnerReturnType | undefined
 }) => {
   return (
     <div className="flex flex-col gap-8">

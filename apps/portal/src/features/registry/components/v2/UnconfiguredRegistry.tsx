@@ -1,11 +1,11 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useQuery } from '@tanstack/react-query'
 import { zeroAddress } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { useHasSetSubregistryRole } from '@/features/registry/hooks/useHasSetSubregistryRole'
 import { RoleNames } from '@/features/roles/components/PrivilegeWarningBadge'
-import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { useTokenRoleWarning } from '@/features/roles/hooks/useTokenRoleWarning'
 import { getSubregistryWarning } from '@/features/roles/utils/missingPrivileges'
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
 import { RegistryPanel } from './RegistryPanel'
@@ -29,8 +29,9 @@ const LockedRegistryNotice = ({
 
 /**
  * A v2 name whose subregistry slot has always been empty. If its owner holds
- * neither subregistry role, nobody can ever configure one, so the configure
- * form gives way to a notice saying so.
+ * neither subregistry role, the configure form gives way to a notice saying the
+ * slot is locked — unless the connected wallet can set it anyway (a delegate,
+ * or a registry-root holder), in which case the form it can use stays.
  */
 export const UnconfiguredRegistry = ({
   name,
@@ -39,25 +40,25 @@ export const UnconfiguredRegistry = ({
   readonly name: string
   readonly ownerData: NonNullable<GetEnsOwnerReturnType>
 }) => {
-  const { data: warning, isLoading } = useQuery({
-    ...getNameRolesAccountsQueryOptions({
-      name,
-      registryAddress: ownerData.registryAddress,
-    }),
-    select: (holders) =>
+  const { hasRole: canConfigure, isLoading: isRoleLoading } =
+    useHasSetSubregistryRole(name)
+  const { warning, isLoading } = useTokenRoleWarning(
+    { name, ownerData },
+    (holders) =>
       getSubregistryWarning({
         owner: ownerData.owner,
         holders,
         subregistry: zeroAddress,
         wrapperRegistry: null,
       }),
-  })
+  )
 
-  if (isLoading) return <LoadingSpinner title="Checking permissions..." />
+  if (isLoading || isRoleLoading)
+    return <LoadingSpinner title="Checking permissions..." />
 
   // A failed read falls through to the form, which checks the connected
   // wallet's own role before offering anything.
-  if (warning?.kind === 'locked')
+  if (warning?.kind === 'locked' && canConfigure !== true)
     return <LockedRegistryNotice missing={warning.missing} />
 
   return <ConfigureRegistryForm name={name} />

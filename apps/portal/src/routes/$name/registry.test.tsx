@@ -480,6 +480,20 @@ describe('V2RegistryInfo', () => {
       ).not.toBeInTheDocument()
     })
 
+    it('keeps the configure form for a connected wallet that can set it anyway', () => {
+      // A delegate, or a registry-root holder: the owner's lock doesn't bind them.
+      ownerHoldsAllBut('ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN')
+      mockHasSetSubregistryRole.hasRole = true
+      unconfiguredLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByTestId('configure-registry-form')).toBeInTheDocument()
+      expect(
+        screen.queryByText(/subregistry is locked/i),
+      ).not.toBeInTheDocument()
+    })
+
     it('keeps the configure form when the owner can still set it', () => {
       ownerHoldsAllBut('ROLE_SET_SUBREGISTRY_ADMIN')
       unconfiguredLeaf()

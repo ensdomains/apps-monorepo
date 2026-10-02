@@ -1,42 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { getExpectedWrapperRegistry } from '@/features/registry/utils/wrapperRegistry'
-import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import {
+  type TokenRoleWarningParams,
+  useTokenRoleWarning,
+} from '@/features/roles/hooks/useTokenRoleWarning'
 import {
   getResolverWarning,
   getSubregistryWarning,
   getTransferWarning,
   type SetterWarning,
-  type TokenRoleHolders,
 } from '@/features/roles/utils/missingPrivileges'
 import { PrivilegeWarningBadge, RoleNames } from './PrivilegeWarningBadge'
 
-type PrivilegeWarningProps = {
-  readonly name: string
-  readonly ownerData: NonNullable<GetEnsOwnerReturnType>
-}
-
-/**
- * The token's role holders, shaped by `select`. Shares its cache entry with the
- * Roles tab. Only ENSv2 names have token roles.
- *
- * The badges are advisory, so a failed or pending read renders nothing rather
- * than an error in the middle of a details row.
- */
-const useTokenRoleWarning = <T,>(
-  { name, ownerData }: PrivilegeWarningProps,
-  select: (holders: TokenRoleHolders) => T,
-) =>
-  useQuery({
-    ...getNameRolesAccountsQueryOptions({
-      name,
-      registryAddress: ownerData.registryAddress,
-    }),
-    select,
-    enabled: ownerData.protocolVersion === 'ENSv2',
-  }).data
+// The badges are advisory, so a pending or failed read renders nothing rather
+// than an error in the middle of a details row.
 
 const SetterWarningBadge = ({
   label,
@@ -56,8 +34,8 @@ const SetterWarningBadge = ({
     />
   ) : null
 
-export const TransferPrivilegeWarning = (props: PrivilegeWarningProps) => {
-  const warning = useTokenRoleWarning(props, (holders) =>
+export const TransferPrivilegeWarning = (props: TokenRoleWarningParams) => {
+  const { warning } = useTokenRoleWarning(props, (holders) =>
     getTransferWarning({ owner: props.ownerData.owner, holders }),
   )
 
@@ -81,8 +59,8 @@ export const TransferPrivilegeWarning = (props: PrivilegeWarningProps) => {
     .otherwise(() => null)
 }
 
-export const ResolverPrivilegeWarning = (props: PrivilegeWarningProps) => {
-  const warning = useTokenRoleWarning(props, (holders) =>
+export const ResolverPrivilegeWarning = (props: TokenRoleWarningParams) => {
+  const { warning } = useTokenRoleWarning(props, (holders) =>
     getResolverWarning({ owner: props.ownerData.owner, holders }),
   )
 
@@ -93,11 +71,11 @@ export const SubregistryPrivilegeWarning = ({
   subregistry,
   chainId,
   ...props
-}: PrivilegeWarningProps & {
+}: TokenRoleWarningParams & {
   readonly subregistry: Address
   readonly chainId: number
 }) => {
-  const warning = useTokenRoleWarning(props, (holders) =>
+  const { warning } = useTokenRoleWarning(props, (holders) =>
     getSubregistryWarning({
       owner: props.ownerData.owner,
       holders,

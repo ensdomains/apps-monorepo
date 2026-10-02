@@ -31,6 +31,11 @@ vi.mock('@/features/roles/hooks/useNameRoleAccounts', () => ({
   }),
 }))
 
+const grace = { isInGrace: false, isLoading: false }
+vi.mock('@/features/profile/hooks/useGraceStatus', () => ({
+  useGraceStatus: () => grace,
+}))
+
 const {
   ResolverPrivilegeWarning,
   SubregistryPrivilegeWarning,
@@ -71,6 +76,7 @@ const openTooltip = async () => {
 
 beforeEach(() => {
   holders = new Map([[OWNER, ALL_TOKEN_ROLES]])
+  Object.assign(grace, { isInGrace: false, isLoading: false })
   fetchHolders.mockClear()
 })
 
@@ -112,6 +118,19 @@ describe('TransferPrivilegeWarning', () => {
     )
 
     await settled()
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  // A lapsed name can't be transferred until it's renewed, whatever its roles say.
+  it('stays quiet while the name is in grace', () => {
+    holders = ownerWithout('ROLE_CAN_TRANSFER_ADMIN')
+    grace.isInGrace = true
+
+    const { container } = renderWarning(
+      <TransferPrivilegeWarning name="alice.eth" ownerData={ownerData()} />,
+    )
+
+    expect(fetchHolders).not.toHaveBeenCalled()
     expect(container).toBeEmptyDOMElement()
   })
 

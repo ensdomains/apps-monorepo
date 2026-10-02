@@ -182,7 +182,7 @@ const RegistryContractRow = ({
   isDeployedRegistry: boolean
   tld: string | undefined
   showInlineMeta: boolean
-  privilegeWarning: ReactNode
+  readonly privilegeWarning: ReactNode
   onReconfigure?: () => void
 }) => (
   <Fragment>
