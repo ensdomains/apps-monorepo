@@ -257,8 +257,9 @@ export const VerifyOwnership = ({
           title="Domain not supported"
           description={
             <>
-              The <strong>.{getTLD(name)}</strong> domain ending is not
-              supported by the DNS registrar for onchain import.
+              The <strong className="font-medium">.{getTLD(name)}</strong>{' '}
+              domain ending is not supported by the DNS registrar for onchain
+              import.
             </>
           }
         />

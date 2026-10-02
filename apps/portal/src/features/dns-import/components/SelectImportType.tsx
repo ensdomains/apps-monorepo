@@ -40,8 +40,9 @@ export const SelectImportType = ({
   <div className="flex flex-col gap-6">
     <div className="rounded-xl border p-6 flex flex-col gap-5">
       <p className="text-p">
-        Choose how to import {name}. Both routes involve turning on DNSSEC and
-        adding a TXT record at your DNS provider.
+        Choose how to import <strong className="font-medium">{name}</strong>.
+        Both routes involve turning on DNSSEC and adding a TXT record at your
+        DNS provider.
       </p>
       <RadioGroup
         value={type}
