@@ -11,6 +11,7 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { SECONDS_PER_YEAR } from '@/features/shared/registration/pricing'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -358,6 +359,7 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
+      durationYears={duration / SECONDS_PER_YEAR}
       errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
@@ -448,6 +450,7 @@ export const TokenPickerContentBase = ({
   nextMessage = <Trans>Register name</Trans>,
   footer,
   funding,
+  durationYears,
   hasFundingBudget = false,
   isFundingUnavailable = false,
 }: {
@@ -480,6 +483,8 @@ export const TokenPickerContentBase = ({
    * not `pricingData` — is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
+  /** The registration term, for the annual figure on the registration line. */
+  durationYears?: number
   /**
    * This route charges a network fee on top of the name, so the breakdown is
    * mounted whether or not the quote has landed. Holding its space is what
@@ -580,6 +585,7 @@ export const TokenPickerContentBase = ({
 
           {(funding || hasFundingBudget) && (
             <PaymentBreakdown
+              durationYears={durationYears}
               isFeeUnavailable={!funding && isFundingUnavailable}
               leftover={leftover}
               networkFee={figures?.networkFee}

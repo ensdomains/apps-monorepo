@@ -1,5 +1,9 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { PaymentBreakdownRow } from './PaymentBreakdownRow'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import {
+  PaymentBreakdownRow,
+  type PaymentBreakdownRowTooltip,
+} from './PaymentBreakdownRow'
 
 /**
  * What the registration costs, line by line, and what the last attempt left
@@ -14,6 +18,7 @@ export const PaymentBreakdown = ({
   registration,
   networkFee,
   leftover,
+  durationYears,
   isFeeUnavailable = false,
 }: {
   /** Undefined while the price is still loading. */
@@ -22,16 +27,41 @@ export const PaymentBreakdown = ({
   readonly networkFee: number | undefined
   /** Zero hides the deduction line. */
   readonly leftover: number
+  /**
+   * How long the name is being registered for. Undefined drops the annual
+   * breakdown from the registration line rather than guessing a term.
+   */
+  readonly durationYears?: number
   /** The quote failed: the line stays, with the reason in its tooltip. */
   readonly isFeeUnavailable?: boolean
 }) => {
   const { t } = useLingui()
+
+  // Derived from the figure on the line itself, so the tooltip can never
+  // disagree with it. Matches the per-year badge on the duration step.
+  const annualFee =
+    registration !== undefined && durationYears
+      ? registration / durationYears
+      : undefined
+  const registrationTooltip: PaymentBreakdownRowTooltip =
+    annualFee !== undefined && durationYears
+      ? {
+          tooltip: (
+            <Trans>
+              Annual fee {formatUsd(annualFee)} ×{' '}
+              <Plural one="# year" other="# years" value={durationYears} />
+            </Trans>
+          ),
+          tooltipLabel: t`What is the registration fee?`,
+        }
+      : {}
 
   return (
     <div className="flex w-full flex-col gap-2">
       <PaymentBreakdownRow
         amount={registration}
         label={<Trans>Registration fee</Trans>}
+        {...registrationTooltip}
       />
       <PaymentBreakdownRow
         amount={networkFee}

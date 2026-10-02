@@ -274,6 +274,11 @@ msgstr "Allow this temporary account to move this name."
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the registration fee, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the registration fee, in the same approval."
 
+#. placeholder {0}: formatUsd(annualFee)
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Annual fee {0} × {durationYears, plural, one {# year} other {# years}}"
+msgstr "Annual fee {0} × {durationYears, plural, one {# year} other {# years}}"
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
 msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
@@ -3028,6 +3033,10 @@ msgstr "What is a primary name?"
 #: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
 msgid "What is the network fee?"
 msgstr "What is the network fee?"
+
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "What is the registration fee?"
+msgstr "What is the registration fee?"
 
 #. placeholder {0}: f.total.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

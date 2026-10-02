@@ -23,6 +23,7 @@ const dai = {
 } as unknown as StablecoinBalance
 
 const BASE_PROPS = {
+  durationYears: 1,
   isConnected: true,
   isLoadingBalances: false,
   label: 'jeff',
@@ -145,6 +146,10 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Registration fee')).toBeInTheDocument()
     expect(screen.getByText('$160.00')).toBeInTheDocument()
+    // Every line carries a tooltip, so the three amounts share a column.
+    expect(
+      screen.getByRole('button', { name: 'What is the registration fee?' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Network fee')).toBeInTheDocument()
     expect(screen.getByText('Left from your last attempt')).toBeInTheDocument()
     expect(screen.getByText('-$1.82')).toBeInTheDocument()

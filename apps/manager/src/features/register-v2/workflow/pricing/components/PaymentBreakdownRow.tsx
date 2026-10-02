@@ -25,14 +25,16 @@ type PaymentBreakdownRowProps = {
    * another thing being charged.
    */
   readonly isDeduction?: boolean
-} & (
+} & PaymentBreakdownRowTooltip
+
+/** A tooltip always travels with the accessible name for its trigger. */
+export type PaymentBreakdownRowTooltip =
   | {
       readonly tooltip: ReactNode
       /** Accessible name for the tooltip trigger. */
       readonly tooltipLabel: string
     }
   | { readonly tooltip?: never; readonly tooltipLabel?: never }
-)
 
 export const PaymentBreakdownRow = ({
   label,
@@ -50,9 +52,8 @@ export const PaymentBreakdownRow = ({
     <div
       className={tw(
         'flex w-full items-start justify-between gap-2',
-        isDeduction
-          ? 'text-ens-quartz-500 text-sm'
-          : 'text-base text-ens-quartz-900',
+        isDeduction ? 'text-ens-quartz-500' : 'text-ens-quartz-900',
+        'text-base',
       )}
     >
       <span>{label}</span>
