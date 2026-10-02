@@ -95,7 +95,6 @@ describe('TokenPickerContentBase', () => {
         total: 330.196054,
         walletDebit: 0,
         hcaCredit: 330.196054,
-        isLoading: false,
       },
       selectedToken: 'USDC',
     })
@@ -140,7 +139,6 @@ describe('TokenPickerContentBase', () => {
         total: 164.32,
         walletDebit: 162.5,
         hcaCredit: 1.82,
-        isLoading: false,
       },
       selectedToken: 'USDC',
     })
@@ -163,7 +161,6 @@ describe('TokenPickerContentBase', () => {
         total: 164.32,
         walletDebit: 164.32,
         hcaCredit: 0,
-        isLoading: false,
       },
       selectedToken: 'USDC',
     })
@@ -185,7 +182,6 @@ describe('TokenPickerContentBase', () => {
         total: 9.988,
         walletDebit: 9.988,
         hcaCredit: 0,
-        isLoading: false,
       },
       selectedToken: 'USDC',
     })
@@ -246,7 +242,6 @@ describe('TokenPickerContentBase', () => {
             total: 334.32,
             walletDebit: 334.32,
             hcaCredit: 0,
-            isLoading: false,
           }}
         />
       </I18nProvider>,
@@ -274,7 +269,6 @@ describe('TokenPickerContentBase', () => {
         total: 2_000,
         walletDebit: 2_000,
         hcaCredit: 0,
-        isLoading: false,
       },
       selectedToken: 'USDC',
     })

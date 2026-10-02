@@ -14,7 +14,6 @@ export const PaymentBreakdown = ({
   registration,
   networkFee,
   leftover,
-  isLoading,
   isFeeUnavailable = false,
 }: {
   /** Undefined while the price is still loading. */
@@ -23,7 +22,6 @@ export const PaymentBreakdown = ({
   readonly networkFee: number | undefined
   /** Zero hides the deduction line. */
   readonly leftover: number
-  readonly isLoading: boolean
   /** The quote failed: the line stays, with the reason in its tooltip. */
   readonly isFeeUnavailable?: boolean
 }) => {
@@ -33,12 +31,10 @@ export const PaymentBreakdown = ({
     <div className="flex w-full flex-col gap-2">
       <PaymentBreakdownRow
         amount={registration}
-        isLoading={isLoading}
         label={<Trans>Name price</Trans>}
       />
       <PaymentBreakdownRow
         amount={networkFee}
-        isLoading={isLoading}
         label={<Trans>Network fee</Trans>}
         tooltip={
           isFeeUnavailable ? (
@@ -62,7 +58,6 @@ export const PaymentBreakdown = ({
         <PaymentBreakdownRow
           amount={leftover}
           isDeduction
-          isLoading={isLoading}
           label={<Trans>Left from your last attempt</Trans>}
           tooltip={
             <Trans>

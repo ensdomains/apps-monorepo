@@ -69,7 +69,6 @@ export type RegistrationFundingSummary = {
    * This, not `total`, is what the affordability gates compare against.
    */
   readonly walletDebit: number
-  readonly isLoading: boolean
 }
 
 const getDomainSizeClasses = (domainName: string): string => {
@@ -390,7 +389,6 @@ export const TokenPickerContent = () => {
               total: funding.total,
               walletDebit: funding.walletDebit,
               hcaCredit: funding.hcaCredit,
-              isLoading: budgetQuery.isLoading,
             }
           : undefined
       }
@@ -583,7 +581,6 @@ export const TokenPickerContentBase = ({
           {(funding || hasFundingBudget) && (
             <PaymentBreakdown
               isFeeUnavailable={!funding && isFundingUnavailable}
-              isLoading={funding?.isLoading ?? !isFundingUnavailable}
               leftover={leftover}
               networkFee={figures?.networkFee}
               registration={figures?.registration ?? pricingData}

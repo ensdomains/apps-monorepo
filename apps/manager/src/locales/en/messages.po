@@ -2968,6 +2968,10 @@ msgstr "Wallet funded successfully"
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
 
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "We could not estimate the network fee. It covers the two on-chain transactions that register your name, is collected together with the name price in the same approval, and is quoted again before you sign."
+msgstr "We could not estimate the network fee. It covers the two on-chain transactions that register your name, is collected together with the name price in the same approval, and is quoted again before you sign."
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "We couldn't check your migration access."
 msgstr "We couldn't check your migration access."

@@ -191,7 +191,6 @@ export const WithLeftoverFromLastAttempt: Story = {
       total: 164.32,
       walletDebit: 162.5,
       hcaCredit: 1.82,
-      isLoading: false,
     },
   },
 }

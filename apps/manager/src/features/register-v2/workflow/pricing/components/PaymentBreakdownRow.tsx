@@ -14,9 +14,11 @@ import { tw } from '@/utils/tailwind'
  */
 type PaymentBreakdownRowProps = {
   readonly label: ReactNode
-  /** Undefined renders an em dash, for a figure still being quoted. */
+  /**
+   * Undefined renders an em dash. That IS the pending state: the quote is
+   * re-run often enough that animating the line reads as the sheet flickering.
+   */
   readonly amount: number | undefined
-  readonly isLoading: boolean
   /**
    * Renders the line as a deduction: money already paid in, set against the
    * charges above it. Muted and off the white card so it does not read as
@@ -35,7 +37,6 @@ type PaymentBreakdownRowProps = {
 export const PaymentBreakdownRow = ({
   label,
   amount,
-  isLoading,
   isDeduction = false,
   tooltip,
   tooltipLabel,
@@ -52,7 +53,6 @@ export const PaymentBreakdownRow = ({
         isDeduction
           ? 'text-ens-quartz-500 text-sm'
           : 'text-base text-ens-quartz-900',
-        isLoading && 'animate-pulse',
       )}
     >
       <span>{label}</span>
