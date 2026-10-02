@@ -317,8 +317,10 @@ test.describe('DNS import flow', () => {
     ).toBeVisible()
 
     // The record name is real and copyable; the sample value is not, so the
-    // placeholder cannot be pasted into a DNS manager as-is.
-    await expect(page.getByRole('button', { name: 'Copy @' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Copy ENS1' })).toBeHidden()
+    // placeholder cannot be pasted into a DNS manager as-is — the name's is
+    // the only copy action on the page.
+    await expect(
+      page.getByRole('main').getByRole('button', { name: 'Copy' }),
+    ).toHaveCount(1)
   })
 })
