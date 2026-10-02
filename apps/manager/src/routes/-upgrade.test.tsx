@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { Route } from './migration'
+import { Route } from './upgrade'
 
 const navigateMock = vi.hoisted(() => vi.fn())
 const getFeatureFlagMock = vi.hoisted(() => vi.fn())
@@ -73,12 +73,12 @@ const renderRoute = () => {
 const runBeforeLoad = () => {
   const beforeLoad = Route.options.beforeLoad
 
-  if (!beforeLoad) throw new Error('Expected migration beforeLoad guard')
+  if (!beforeLoad) throw new Error('Expected upgrade beforeLoad guard')
 
   return beforeLoad({} as never)
 }
 
-describe('/migration route auth', () => {
+describe('/upgrade route auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useHydrated).mockReturnValue(true)

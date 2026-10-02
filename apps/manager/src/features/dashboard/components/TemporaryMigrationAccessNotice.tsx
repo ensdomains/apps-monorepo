@@ -24,12 +24,12 @@ export const TemporaryMigrationAccessNotice = () => {
     >
       <p className="text-sm">
         <Trans>
-          Temporary migration access is still active for your smart account.
+          Temporary upgrade access is still active for your smart account.
         </Trans>
       </p>
       <Link
         className="w-fit shrink-0 rounded-full border border-ens-garnet-900/20 px-4 py-2 font-medium text-sm transition-colors hover:bg-white/60"
-        to="/migration-permissions"
+        to="/upgrade-permissions"
       >
         <Trans>Review permissions</Trans>
       </Link>

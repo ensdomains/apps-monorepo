@@ -9,8 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MigrationPermissionsRouteImport } from './routes/migration-permissions'
-import { Route as MigrationRouteImport } from './routes/migration'
+import { Route as UpgradePermissionsRouteImport } from './routes/upgrade-permissions'
+import { Route as UpgradeRouteImport } from './routes/upgrade'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
 import { Route as AddressRouteRouteImport } from './routes/$address/route'
@@ -33,14 +33,14 @@ import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
-const MigrationPermissionsRoute = MigrationPermissionsRouteImport.update({
-  id: '/migration-permissions',
-  path: '/migration-permissions',
+const UpgradePermissionsRoute = UpgradePermissionsRouteImport.update({
+  id: '/upgrade-permissions',
+  path: '/upgrade-permissions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MigrationRoute = MigrationRouteImport.update({
-  id: '/migration',
-  path: '/migration',
+const UpgradeRoute = UpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -159,8 +159,8 @@ export interface FileRoutesByFullPath {
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/migration': typeof MigrationRoute
-  '/migration-permissions': typeof MigrationPermissionsRoute
+  '/upgrade': typeof UpgradeRoute
+  '/upgrade-permissions': typeof UpgradePermissionsRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -182,8 +182,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/migration': typeof MigrationRoute
-  '/migration-permissions': typeof MigrationPermissionsRoute
+  '/upgrade': typeof UpgradeRoute
+  '/upgrade-permissions': typeof UpgradePermissionsRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
@@ -207,8 +207,8 @@ export interface FileRoutesById {
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/migration': typeof MigrationRoute
-  '/migration-permissions': typeof MigrationPermissionsRoute
+  '/upgrade': typeof UpgradeRoute
+  '/upgrade-permissions': typeof UpgradePermissionsRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -234,8 +234,8 @@ export interface FileRouteTypes {
     | '/$address'
     | '/$name'
     | '/dashboard'
-    | '/migration'
-    | '/migration-permissions'
+    | '/upgrade'
+    | '/upgrade-permissions'
     | '/notifications'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -257,8 +257,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
-    | '/migration'
-    | '/migration-permissions'
+    | '/upgrade'
+    | '/upgrade-permissions'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
@@ -281,8 +281,8 @@ export interface FileRouteTypes {
     | '/$address'
     | '/$name'
     | '/dashboard'
-    | '/migration'
-    | '/migration-permissions'
+    | '/upgrade'
+    | '/upgrade-permissions'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -307,8 +307,8 @@ export interface RootRouteChildren {
   AddressRouteRoute: typeof AddressRouteRouteWithChildren
   NameRouteRoute: typeof NameRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
-  MigrationRoute: typeof MigrationRoute
-  MigrationPermissionsRoute: typeof MigrationPermissionsRoute
+  UpgradeRoute: typeof UpgradeRoute
+  UpgradePermissionsRoute: typeof UpgradePermissionsRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
@@ -326,18 +326,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/migration-permissions': {
-      id: '/migration-permissions'
-      path: '/migration-permissions'
-      fullPath: '/migration-permissions'
-      preLoaderRoute: typeof MigrationPermissionsRouteImport
+    '/upgrade-permissions': {
+      id: '/upgrade-permissions'
+      path: '/upgrade-permissions'
+      fullPath: '/upgrade-permissions'
+      preLoaderRoute: typeof UpgradePermissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/migration': {
-      id: '/migration'
-      path: '/migration'
-      fullPath: '/migration'
-      preLoaderRoute: typeof MigrationRouteImport
+    '/upgrade': {
+      id: '/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof UpgradeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -536,8 +536,8 @@ const rootRouteChildren: RootRouteChildren = {
   AddressRouteRoute: AddressRouteRouteWithChildren,
   NameRouteRoute: NameRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
-  MigrationRoute: MigrationRoute,
-  MigrationPermissionsRoute: MigrationPermissionsRoute,
+  UpgradeRoute: UpgradeRoute,
+  UpgradePermissionsRoute: UpgradePermissionsRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,

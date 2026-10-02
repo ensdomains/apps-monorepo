@@ -5,7 +5,7 @@ import { MigrationPermissionsPage } from '@/features/migration/pages/MigrationPe
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-export const Route = createFileRoute('/migration-permissions')({
+export const Route = createFileRoute('/upgrade-permissions')({
   component: RouteComponent,
 })
 

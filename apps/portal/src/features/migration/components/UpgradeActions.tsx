@@ -2,7 +2,7 @@ import { ArrowUpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ENSV2_LEARN_MORE_URL,
-  MANAGER_MIGRATE_URL,
+  MANAGER_UPGRADE_URL,
 } from '@/lib/constants/domain'
 
 /**
@@ -27,14 +27,14 @@ export const UpgradeActions = ({
           href={ENSV2_LEARN_MORE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Learn more about migrating ${name} to ENS v2`}
+          aria-label={`Learn more about upgrading ${name} to ENS v2`}
         >
           Learn more
         </a>
       </Button>
     )}
     <Button className="rounded-xs" asChild variant="entity" size="xs">
-      <a href={MANAGER_MIGRATE_URL} target="_blank" rel="noopener noreferrer">
+      <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
         <ArrowUpCircle className="size-4 shrink-0" />
         {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
       </a>

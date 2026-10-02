@@ -13,7 +13,7 @@ import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { getFeatureFlag } from '@/lib/posthog/get-feature-flag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-export const Route = createFileRoute('/migration')({
+export const Route = createFileRoute('/upgrade')({
   beforeLoad: async () => {
     const migrationAccess = await getFeatureFlag({
       data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
@@ -39,7 +39,7 @@ function RouteComponent() {
 const MigrationRouteLoading = () => {
   return (
     <div
-      aria-label="Loading migration"
+      aria-label="Loading upgrade"
       className="flex min-h-0 w-full flex-1 items-center justify-center"
       role="status"
     >

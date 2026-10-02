@@ -120,7 +120,7 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            Temporary migration access is still active. Retry to remove it and
+            Temporary upgrade access is still active. Retry to remove it and
             continue any unfinished upgrade.
           </Trans>
         </div>

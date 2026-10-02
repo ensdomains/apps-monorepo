@@ -491,8 +491,8 @@ msgid "Checking for an unfinished registration"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
-msgid "Checking migration access..."
-msgstr ""
+#~ msgid "Checking migration access..."
+#~ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Checking renewal costs..."
@@ -504,6 +504,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Checking upgrade access..."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -1250,11 +1254,19 @@ msgid "Let this temporary account move your wrapped names."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
-msgid "Lets the migration contract move any unwrapped .eth name you own."
+#~ msgid "Lets the migration contract move any unwrapped .eth name you own."
+#~ msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+#~ msgid "Lets the migration contract move any wrapped name you own."
+#~ msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Lets the upgrade contract move any unwrapped .eth name you own."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
-msgid "Lets the migration contract move any wrapped name you own."
+msgid "Lets the upgrade contract move any wrapped name you own."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -1364,12 +1376,12 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPermissionsPage.tsx
 #: src/features/navigation/Header/account/NavSection.tsx
-msgid "Migration permissions"
-msgstr ""
+#~ msgid "Migration permissions"
+#~ msgstr ""
 
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
-msgid "Migration value propositions"
-msgstr ""
+#~ msgid "Migration value propositions"
+#~ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
@@ -1501,8 +1513,8 @@ msgid "No favorites to display"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
-msgid "No migration access to remove"
-msgstr ""
+#~ msgid "No migration access to remove"
+#~ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "No names found"
@@ -1528,6 +1540,10 @@ msgstr ""
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "No upgrade access to remove"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -2529,11 +2545,19 @@ msgid "Temporary"
 msgstr ""
 
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
-msgid "Temporary migration access is still active for your smart account."
+#~ msgid "Temporary migration access is still active for your smart account."
+#~ msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+#~ msgid "Temporary migration access is still active. Retry to remove it and continue any unfinished upgrade."
+#~ msgstr ""
+
+#: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
+msgid "Temporary upgrade access is still active for your smart account."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "Temporary migration access is still active. Retry to remove it and continue any unfinished upgrade."
+msgid "Temporary upgrade access is still active. Retry to remove it and continue any unfinished upgrade."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -2804,6 +2828,10 @@ msgstr ""
 msgid "Upgrade batch {0} of {total}"
 msgstr ""
 
+#: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
+msgid "Upgrade benefits"
+msgstr ""
+
 #. placeholder {0}: error.message
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Upgrade details: {0}"
@@ -2824,6 +2852,11 @@ msgstr ""
 #: src/features/migration/components/UpgradeBanner.tsx
 #: src/features/migration/components/UpgradeNamesButton.tsx
 msgid "Upgrade Names"
+msgstr ""
+
+#: src/features/migration/pages/MigrationPermissionsPage.tsx
+#: src/features/navigation/Header/account/NavSection.tsx
+msgid "Upgrade permissions"
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
@@ -3025,7 +3058,11 @@ msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
-msgid "We couldn't check your migration access."
+#~ msgid "We couldn't check your migration access."
+#~ msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "We couldn't check your upgrade access."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
@@ -3224,8 +3261,8 @@ msgid "Your journey with ENS has given you these <0>traits</0>"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
-msgid "Your migration account doesn't match this wallet. Reconnect the owner wallet."
-msgstr ""
+#~ msgid "Your migration account doesn't match this wallet. Reconnect the owner wallet."
+#~ msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your mint was submitted. Check its status before trying another mint."
@@ -3298,6 +3335,10 @@ msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts

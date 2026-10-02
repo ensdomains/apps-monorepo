@@ -38,11 +38,11 @@ const getNavItems = (
     }),
   },
   {
-    id: 'migration-permissions',
+    id: 'upgrade-permissions',
     icon: <MSymbol className="ms-opsz-20" symbol="key_vertical" />,
-    label: <Trans>Migration permissions</Trans>,
+    label: <Trans>Upgrade permissions</Trans>,
     link: linkOptions({
-      to: '/migration-permissions',
+      to: '/upgrade-permissions',
     }),
   },
 ]
