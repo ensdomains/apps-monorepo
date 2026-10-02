@@ -258,6 +258,29 @@ const resolveOptions = ({
   }
 }
 
+/**
+ * What the plan does about the name's other role holders. Split out to keep
+ * the form under the complexity limit, like `resolveOptions`.
+ */
+const resolveRolePlan = (
+  revocations: TransferRoleRevocations,
+  shouldRevoke: boolean,
+) => {
+  if (revocations.status !== 'ready')
+    return { roleGrants: [], hasRemainingRoleHolders: false }
+
+  return {
+    // Only the grants the sender holds the admin role for; the rest can't be
+    // revoked by this wallet and are called out separately instead.
+    roleGrants: shouldRevoke ? revocations.revocable : [],
+    // Whoever is left once those revokes land: everyone when the option is
+    // off, the grants this wallet can't revoke when it is on. The registry
+    // refuses a plain transfer while any remain, so the plan has to know.
+    hasRemainingRoleHolders:
+      (shouldRevoke ? revocations.unrevocable : revocations.holders).length > 0,
+  }
+}
+
 export const SendNameForm = ({
   owner,
   detachTargets,
@@ -315,12 +338,10 @@ export const SendNameForm = ({
     hasRoleHolders,
   })
 
-  // Only the grants the sender holds the admin role for; the rest can't be
-  // revoked by this wallet and are called out separately instead.
-  const roleGrants =
-    effectiveOptions.revokeRoles && roleRevocations.status === 'ready'
-      ? roleRevocations.revocable
-      : []
+  const { roleGrants, hasRemainingRoleHolders } = resolveRolePlan(
+    roleRevocations,
+    effectiveOptions.revokeRoles,
+  )
 
   const { needsConsent: needsDetachConsent, isBlocked: isDetachBlocked } =
     getDetachConsentState(
@@ -355,6 +376,7 @@ export const SendNameForm = ({
       recipient,
       options: effectiveOptions,
       roleGrants,
+      hasRemainingRoleHolders,
     })
   }
 

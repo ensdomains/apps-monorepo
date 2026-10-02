@@ -75,6 +75,7 @@ const call = (intent: CustomTransactionIntent) => {
         'function setSubnodeOwner(bytes32 parentNode, string label, address owner, uint32 fuses, uint64 expiry)',
         'function setSubnodeOwner(bytes32 node, bytes32 label, address owner)',
         'function revokeRoles(uint256 resource, uint256 roleBitmap, address account)',
+        'function unsafeTransfer(address to, uint256 tokenId, bytes data)',
       ]),
       data: intent.request.data ?? '0x',
     }),
@@ -346,6 +347,25 @@ describe('buildTransferStepIntent (role revocations)', () => {
     expect(args?.[0]).toBe(labelToCanonicalId('alice'))
     expect(args?.[1]).toBe(encodeRoleBitmap(['ROLE_SET_RESOLVER']))
     expect(args?.[2]).toBe(DELEGATE)
+  })
+
+  it('moves a name with grants left on it through unsafeTransfer', () => {
+    const { to, functionName, args } = call(
+      buildTransferStepIntent(
+        { kind: 'transfer-token-unsafe' },
+        { ...v2ctx, tokenId: 7n },
+      ),
+    )
+
+    expect(to).toBe(REGISTRY)
+    expect(functionName).toBe('unsafeTransfer')
+    expect(args).toEqual([RECIPIENT, 7n, '0x'])
+  })
+
+  it('refuses the unsafe move for a v1 subject', () => {
+    expect(() =>
+      buildTransferStepIntent({ kind: 'transfer-token-unsafe' }, ctx),
+    ).toThrow(/does not apply to a v1-registrar name/)
   })
 
   // A V1 name has no EAC resource, so there is nothing the call could name.

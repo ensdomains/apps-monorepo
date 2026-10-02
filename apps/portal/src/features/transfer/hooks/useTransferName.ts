@@ -87,6 +87,13 @@ export type StartTransferParams = {
    * but the two are kept in step here so a stale list can't outlive the toggle.
    */
   readonly roleGrants: readonly NameRoleGrant[]
+  /**
+   * Whether anyone but the sender still holds a role on the name once
+   * `roleGrants` are revoked — the option is off, or some grants aren't the
+   * sender's to revoke. The registry only moves such a name through
+   * `unsafeTransfer`.
+   */
+  readonly hasRemainingRoleHolders: boolean
 }
 
 type NameReads = StartTransferParams & {
@@ -146,6 +153,7 @@ const CARRIES_RECIPIENT: Record<TransferStepKind, boolean> = {
   'detach-registry': false,
   'revoke-roles': false,
   'transfer-token': true,
+  'transfer-token-unsafe': true,
   reclaim: true,
   'transfer-erc721': true,
   'transfer-erc1155': true,
@@ -239,6 +247,42 @@ const recordPointsAt = (
   address: Address | undefined,
 ): boolean =>
   !!record && !!address && isAddress(record) && isAddressEqual(record, address)
+
+/**
+ * The token id a step should act on. Granting or revoking a role re-mints the
+ * token under a bumped version, so the id read when the flow was prepared stops
+ * naming it once a revoke step has landed; the step that moves a V2 token
+ * re-reads it. Every other step keeps the prepared one.
+ *
+ * Split out only to keep the step runner under the complexity limit.
+ */
+const getStepTokenId = async (
+  step: TransferStep,
+  {
+    name,
+    subject,
+    tokenId,
+  }: {
+    readonly name: string
+    readonly subject: TransferSubject
+    readonly tokenId: bigint | null
+  },
+): Promise<bigint | null> => {
+  if (
+    subject.kind !== 'v2' ||
+    (step.kind !== 'transfer-token' && step.kind !== 'transfer-token-unsafe')
+  )
+    return tokenId
+  return getEnsTokenId({
+    label: getLabel(name),
+    registryAddress: subject.registryAddress,
+  }).match(
+    (fresh) => fresh,
+    (error) => {
+      throw error
+    },
+  )
+}
 
 /**
  * Runs a transfer plan through the transaction modal, one step per transaction.
@@ -440,6 +484,7 @@ export const useTransferName = ({
       subject.kind,
       actor,
       reads.roleGrants,
+      reads.hasRemainingRoleHolders,
     ).some((step) => step.kind === 'set-eth-addr')
     if (!resolverAddress || !writesResolver)
       return okAsync({
@@ -480,14 +525,26 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const move = buildTransferPlan(
+        const plan = buildTransferPlan(
           params.options,
           subject.kind,
           actor,
           params.roleGrants,
-        ).at(-1)
+          params.hasRemainingRoleHolders,
+        )
+        const move = plan.at(-1)
         if (!move) throw new Error('Transfer plan has no move step')
-        const { request } = buildTransferStepIntent(move, {
+        // The revokes haven't been sent yet, so `safeTransferFrom` would revert
+        // here on the very grants the plan is about to remove. `unsafeTransfer`
+        // runs the same move without the registry's safe-transfer checks, so
+        // the receiver hook and the sender's right to transfer are still
+        // exercised.
+        const simulated: TransferStep =
+          move.kind === 'transfer-token' &&
+          plan.some((step) => step.kind === 'revoke-roles')
+            ? { kind: 'transfer-token-unsafe' }
+            : move
+        const { request } = buildTransferStepIntent(simulated, {
           ...params,
           name,
           subject,
@@ -617,6 +674,7 @@ export const useTransferName = ({
           subject.kind,
           actor,
           savedParams.roleGrants,
+          savedParams.hasRemainingRoleHolders,
         )
     const stepContext = { ...savedParams, name, subject }
 
@@ -638,9 +696,11 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
+        const tokenId = await getStepTokenId(step, stepContext)
         txId = transactionManager.startTransaction(
           buildTransferStepIntent(step, {
             ...stepContext,
+            tokenId,
             walletClient: walletClient as WalletClientWithAccount,
             chainId,
           }),
@@ -675,8 +735,10 @@ export const useTransferName = ({
       details: CARRIES_RECIPIENT[step.kind]
         ? [{ label: 'To', value: savedParams.recipient }]
         : undefined,
-      // Same builder as the submit path, so the gas estimate is for exactly
-      // the call that gets sent.
+      // Same builder as the submit path, so the modal's live gas estimate is
+      // for the call that will be sent. The one difference is the move after a
+      // revoke: the submit path re-reads the token id (see `getStepTokenId`),
+      // which a synchronous estimate built before the revoke can't know yet.
       intent: {
         prepare: (ctx) =>
           buildTransferStepIntent(step, { ...stepContext, ...ctx }),
@@ -696,6 +758,7 @@ export const useTransferName = ({
         subject.kind,
         actor,
         savedParams.roleGrants,
+        savedParams.hasRemainingRoleHolders,
       )
     : []
   const move = plan.at(-1)
