@@ -4,7 +4,7 @@ import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TransferSubject } from '../types'
-import type { TransferOptions } from '../utils/buildTransferPlan'
+import type { TransferOptions, TransferStep } from '../utils/buildTransferPlan'
 import { NonCanonicalNameError, useTransferName } from './useTransferName'
 
 const ACCOUNT = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
@@ -64,8 +64,15 @@ vi.mock(
   }),
 )
 
+const buildTransferStepIntent = vi.fn(
+  (_step: TransferStep, _ctx: { readonly tokenId: bigint | null }) => ({
+    request: { type: 'eoa' },
+  }),
+)
 vi.mock('../utils/buildTransferStepIntent', () => ({
-  buildTransferStepIntent: () => ({ request: { type: 'eoa' } }),
+  buildTransferStepIntent: (
+    ...args: Parameters<typeof buildTransferStepIntent>
+  ) => buildTransferStepIntent(...args),
 }))
 
 // The V2 read: both lookups succeed, so a name that reaches them prepares.
@@ -131,6 +138,7 @@ describe('useTransferName — non-canonical name gate', () => {
       result.current.startTransfer({
         recipient: RECIPIENT,
         roleGrants: [],
+        hasRemainingRoleHolders: false,
         options,
       })
     })
@@ -153,6 +161,7 @@ describe('useTransferName — non-canonical name gate', () => {
       result.current.startTransfer({
         recipient: RECIPIENT,
         roleGrants: [],
+        hasRemainingRoleHolders: false,
         options,
       })
     })
@@ -161,5 +170,88 @@ describe('useTransferName — non-canonical name gate', () => {
       expect(openModal).toHaveBeenCalled()
     })
     expect(result.current.prepError).toBeNull()
+  })
+})
+
+// The preflight runs before any step is sent, so the grants the plan is about
+// to revoke are still on the name: `safeTransferFrom` would revert on them with
+// `TransferUnsafeWithMultipleAssignees` and every transfer that revokes a
+// delegate would be refused before it started.
+describe('useTransferName — move preflight', () => {
+  const DELEGATE = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each([
+    [
+      'the unsafe move while the plan’s revokes are still pending',
+      {
+        options: { ...options, revokeRoles: true },
+        roleGrants: [{ account: DELEGATE, roles: ['ROLE_SET_RESOLVER'] }],
+        hasRemainingRoleHolders: false,
+      },
+      'transfer-token-unsafe',
+    ],
+    [
+      'the unsafe move when grants are left on the name',
+      { options, roleGrants: [], hasRemainingRoleHolders: true },
+      'transfer-token-unsafe',
+    ],
+    [
+      'the safe move when nobody else holds a role',
+      { options, roleGrants: [], hasRemainingRoleHolders: false },
+      'transfer-token',
+    ],
+  ] as const)('simulates %s', async (_case, params, kind) => {
+    const { result } = renderTransfer('alice.eth')
+
+    act(() => {
+      result.current.startTransfer({ recipient: RECIPIENT, ...params })
+    })
+
+    await waitFor(() => {
+      expect(openModal).toHaveBeenCalled()
+    })
+    expect(buildTransferStepIntent).toHaveBeenCalledWith(
+      { kind },
+      expect.anything(),
+    )
+  })
+})
+
+// `revokeRoles` re-mints the token under a bumped version, so the id read when
+// the flow was prepared names a token that no longer exists by the time the
+// move runs: the transfer would revert with `ERC1155InsufficientBalance`.
+describe('useTransferName — token id at the move step', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('re-reads the token id when the move step starts', async () => {
+    getEnsTokenId.mockReturnValueOnce(ok(1n)).mockReturnValueOnce(ok(2n))
+    const { result } = renderTransfer('alice.eth')
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
+        options,
+      })
+    })
+    await waitFor(() => {
+      expect(result.current.transactions).toHaveLength(1)
+    })
+
+    await act(async () => {
+      await result.current.transactions[0].onStart?.()
+    })
+
+    expect(buildTransferStepIntent).toHaveBeenLastCalledWith(
+      { kind: 'transfer-token' },
+      expect.objectContaining({ tokenId: 2n }),
+    )
   })
 })

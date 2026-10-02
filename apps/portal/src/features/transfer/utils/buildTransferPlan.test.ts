@@ -173,6 +173,33 @@ describe('buildTransferPlan (role revocations)', () => {
     ])
   })
 
+  // The registry's `safeTransferFrom` reverts with
+  // `TransferUnsafeWithMultipleAssignees` while anyone but the sender holds a
+  // role on the name, so a plan that leaves grants behind can't end in it.
+  it('moves the token with unsafeTransfer when grants are left behind', () => {
+    expect(planKinds(NO_OPTIONS, 'v2', 'owner', [], true)).toEqual([
+      'transfer-token-unsafe',
+    ])
+  })
+
+  it('still revokes what it can before an unsafe move', () => {
+    expect(
+      planKinds(
+        { ...NO_OPTIONS, revokeRoles: true },
+        'v2',
+        'owner',
+        [grants[0]],
+        true,
+      ),
+    ).toEqual(['revoke-roles', 'transfer-token-unsafe'])
+  })
+
+  it('never uses the unsafe move for a v1 name', () => {
+    expect(planKinds(NO_OPTIONS, 'v1-wrapped', 'owner', [], true)).toEqual([
+      'transfer-erc1155',
+    ])
+  })
+
   it('runs the revokes after the detaches, still before the move', () => {
     expect(
       planKinds(

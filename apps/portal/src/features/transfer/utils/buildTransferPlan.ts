@@ -31,6 +31,11 @@ export type TransferStepKind =
   | 'revoke-roles'
   /** V2: `PermissionedRegistry.safeTransferFrom`. */
   | 'transfer-token'
+  /**
+   * V2: `PermissionedRegistry.unsafeTransfer` — the move for a name other
+   * accounts will still hold roles on, which `safeTransferFrom` refuses.
+   */
+  | 'transfer-token-unsafe'
   /** V1 unwrapped 2LD: `BaseRegistrar.reclaim` — hands the recipient the controller slot. */
   | 'reclaim'
   /** V1 unwrapped 2LD: `BaseRegistrar.safeTransferFrom` — hands over the registrant. */
@@ -70,6 +75,11 @@ export const buildTransferPlan = (
   actor: V1TransferActor = 'owner',
   /** Third-party grants to revoke. Only ever non-empty for a V2 name. */
   roleGrants: readonly NameRoleGrant[] = [],
+  /**
+   * Whether anyone but the sender still holds a role on the name once the
+   * revokes above have landed. Only ever true for a V2 name.
+   */
+  hasRemainingRoleHolders = false,
 ): TransferStep[] => {
   // A parent holds neither the subname's registry slot nor its wrapper token,
   // so it can't write the subname's records; the form never offers the config
@@ -100,12 +110,21 @@ export const buildTransferPlan = (
           .map((grant) => ({ kind: 'revoke-roles', grant }) as const)
       : []
 
+  // `safeTransferFrom` reverts with `TransferUnsafeWithMultipleAssignees` while
+  // anyone but the sender holds a role on the name. `unsafeTransfer` is the
+  // registry's entrypoint for moving it with those grants left in place, so it
+  // is used only when the sender has chosen (or has no way not) to leave them.
+  const moveSteps: readonly TransferStep[] =
+    kind === 'v2' && hasRemainingRoleHolders
+      ? [{ kind: 'transfer-token-unsafe' }]
+      : MOVE_STEPS[kind]
+
   return [
     ...addressSteps,
     ...resolverSteps,
     ...registrySteps,
     ...revokeSteps,
-    ...MOVE_STEPS[kind],
+    ...moveSteps,
   ]
 }
 
@@ -115,6 +134,7 @@ export const STEP_LABELS: Record<TransferStepKind, string> = {
   'detach-registry': 'Detach registry',
   'revoke-roles': 'Revoke permissions',
   'transfer-token': 'Transfer name',
+  'transfer-token-unsafe': 'Transfer name',
   reclaim: 'Hand over manager role',
   'transfer-erc721': 'Transfer name',
   'transfer-erc1155': 'Transfer name',

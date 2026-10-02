@@ -303,6 +303,7 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
       expect.objectContaining({
         options: expect.objectContaining({ revokeRoles: true }),
         roleGrants: [{ account: DELEGATE, roles: ['ROLE_SET_RESOLVER'] }],
+        hasRemainingRoleHolders: false,
       }),
     )
   })
@@ -330,6 +331,9 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
       expect.objectContaining({
         options: expect.objectContaining({ revokeRoles: false }),
         roleGrants: [],
+        // The registry refuses a plain transfer with the delegate still on
+        // the name, so the plan needs to know it is staying.
+        hasRemainingRoleHolders: true,
       }),
     )
   })
@@ -373,7 +377,10 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
 
     await user.click(screen.getByRole('button', { name: /transfer name/i }))
     expect(startTransfer).toHaveBeenCalledWith(
-      expect.objectContaining({ roleGrants: [] }),
+      expect.objectContaining({
+        roleGrants: [],
+        hasRemainingRoleHolders: true,
+      }),
     )
   })
 

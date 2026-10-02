@@ -1,7 +1,13 @@
 import { createSetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { match, P } from 'ts-pattern'
-import { type Address, encodeFunctionData, erc1155Abi, zeroAddress } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  erc1155Abi,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { normalize } from 'viem/ens'
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
@@ -19,6 +25,11 @@ import {
   prepareTransferV1NameTransaction,
 } from '../v1/writes'
 import type { TransferStep } from './buildTransferPlan'
+
+// `IUnsafeTransferable.unsafeTransfer`, which ensjs-abi doesn't export yet.
+const unsafeTransferAbi = parseAbi([
+  'function unsafeTransfer(address to, uint256 tokenId, bytes data)',
+])
 
 export type TransferStepContext = IntentContext & {
   readonly name: string
@@ -147,6 +158,26 @@ export const buildTransferStepIntent = (
           chainId,
         })
       })
+      // The same move without the registry's safe-transfer checks (the sender
+      // is the only role holder, the registry is emancipated), for a name whose
+      // other grants are staying behind. The receiver hook and the sender's
+      // `ROLE_CAN_TRANSFER_ADMIN` are still enforced.
+      .with(
+        ['transfer-token-unsafe', { kind: 'v2' }],
+        ([, { registryAddress }]) => {
+          if (tokenId === null) throw new Error(`${name} has no token id`)
+          return toEoaCustomIntent({
+            from: walletClient.account.address,
+            to: registryAddress,
+            data: encodeFunctionData({
+              abi: unsafeTransferAbi,
+              functionName: 'unsafeTransfer',
+              args: [recipient, tokenId, '0x'],
+            }),
+            chainId,
+          })
+        },
+      )
       .with(['reclaim', { kind: 'v1-registrar' }], () =>
         prepareTransferV1NameTransaction({
           ...ctx,
