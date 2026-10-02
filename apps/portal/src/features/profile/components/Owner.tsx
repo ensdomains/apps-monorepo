@@ -22,7 +22,7 @@ export const Owner = ({
   className?: string
   asRow?: boolean
   /** Rendered after the owner in row mode, e.g. a privilege warning. */
-  badge?: ReactNode
+  readonly badge?: ReactNode
 }) => {
   const {
     data: ownerName,
