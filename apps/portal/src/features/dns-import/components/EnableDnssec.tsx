@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { DnssecDebugLink } from '@/features/dnssec-debug/components/DnssecDebugLink'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { DNSSEC_HELP_LINKS } from '../constants'
 import { SupportLinkList } from './SupportLinkList'
@@ -48,10 +49,15 @@ export const EnableDnssec = ({ name }: { readonly name: string }) => {
         />
       </div>
       {!isEnabled && (
-        <SupportLinkList
-          title="Registrar guides for enabling DNSSEC:"
-          items={DNSSEC_HELP_LINKS}
-        />
+        <>
+          {!dnssecQuery.isLoading && (
+            <DnssecDebugLink name={name} source="import" />
+          )}
+          <SupportLinkList
+            title="Registrar guides for enabling DNSSEC:"
+            items={DNSSEC_HELP_LINKS}
+          />
+        </>
       )}
     </div>
   )
