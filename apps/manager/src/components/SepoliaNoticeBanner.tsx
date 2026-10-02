@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { tw } from '@/utils/tailwind'
 
-const LAST_SEPOLIA_DEPLOYMENT_DATE = 'September 15, 2026'
+const LAST_SEPOLIA_DEPLOYMENT_DATE = 'October 1, 2026'
 
 export const SepoliaNoticeBanner = ({
   className,
