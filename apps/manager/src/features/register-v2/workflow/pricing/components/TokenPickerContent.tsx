@@ -553,8 +553,8 @@ export const TokenPickerContentBase = ({
     // below never scrolls. Inside the dialog's `max-h-[90vh]` that clipped the
     // total and the Register button out of reach on a short viewport.
     <div className="flex h-full min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-5 overflow-y-auto">
+        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6 pb-4">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               {premiumLabel && (

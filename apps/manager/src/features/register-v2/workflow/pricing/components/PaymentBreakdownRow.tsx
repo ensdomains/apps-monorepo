@@ -44,7 +44,7 @@ export const PaymentBreakdownRow = ({
   <div
     className={tw(
       'w-full rounded-xl',
-      isDeduction ? 'px-4 pt-1 pb-2' : 'bg-ens-quartz-0 p-4',
+      isDeduction ? 'px-4 pt-1 pb-1.5' : 'bg-ens-quartz-0 px-4 py-3',
     )}
   >
     <div
