@@ -2,7 +2,7 @@
 # Fund accounts for the STANDALONE-HCA registration flow on the local Anvil
 # Sepolia fork.
 #
-# The standalone-HCA route is user-paid in Circle USDC (no gas sponsorship):
+# The standalone-HCA route is user-paid in MockUSDC (no gas sponsorship):
 #   - the WALLET (EOA) signs an EIP-2612 permit letting the HCA pull USDC, so
 #     the EOA must hold USDC;
 #   - the mockestrator impersonates the HCA to fill intents, so the HCA needs
@@ -37,7 +37,7 @@ ETH_AMOUNT_HEX=$(cast to-hex 10000000000000000000)
 # + userSalt(0), so it MOVES with every implementation redeploy. Recompute with:
 #   cast call <StandaloneHCAFactory> 'deploy(address,address,uint256)(address)' <owner> <impl> 0
 KNOWN_ADDRESSES=(
-  "0x44c793a91362ca416E5d18dECe728D82883e8696"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
+  "0xF1554d7361E0663896F57A121C83638856f0ED91"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
   "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"  # Anvil account 0 (E2E headless wallet EOA — USDC permit source)
   "0xc9eec1b174a646d7c282820afe94acfba6c00a12"  # EOA for test1@test.getpara.com
 )
@@ -68,9 +68,9 @@ fund_address() {
     --rpc-url "$RPC_URL" >/dev/null
   echo "  ✅ 10 ETH set (gas)"
 
-  # 10,000 Circle USDC via direct storage write (no open mint).
+  # 10,000 MockUSDC via direct storage write.
   set_usdc_balance "$addr"
-  echo "  ✅ 10,000 USDC set (Circle USDC slot $USDC_BALANCE_SLOT)"
+  echo "  ✅ 10,000 USDC set (MockUSDC slot $USDC_BALANCE_SLOT)"
 }
 
 echo "=== Funding standalone-HCA accounts on fork at $RPC_URL ==="

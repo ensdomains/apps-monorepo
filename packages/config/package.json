@@ -5,7 +5,8 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./ensContracts": "./src/ensContracts.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

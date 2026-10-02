@@ -16,6 +16,7 @@
     "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/config": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",

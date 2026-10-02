@@ -1,6 +1,7 @@
 // Pure helpers and domain logic for MigrationTestPanel — no React, fully testable.
 
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { registrySetApprovalForAllSnippet } from '@ensdomains/ensjs-abi/registry'
 import {
   baseRegistrarAddControllerSnippet,
@@ -25,14 +26,14 @@ import {
   toHex,
 } from 'viem'
 
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const sepoliaContracts = ensContracts[supportedL1Chains.sepolia]
 
 // --- V1 contract addresses --------------------------------------------------
 // V1 contracts sourced from the ensjs Sepolia chain config (same source as
 // preflightChecks.ts) so they can't drift from the canonical deployment.
 export const V1_BASE_REGISTRAR =
-  ensjsSepolia.ensBaseRegistrarImplementation.address
-export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
+  sepoliaContracts.ensBaseRegistrarImplementation.address
+export const V1_NAME_WRAPPER = sepoliaContracts.ensNameWrapper.address
 // Fallback owner of the official Sepolia BaseRegistrar — impersonated to
 // re-authorize DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers
 // at ~block 10927919 as part of the V2 migration cutover.
@@ -49,14 +50,14 @@ export const V1_BASE_REGISTRAR_OWNER =
 export const V1_PUBLIC_RESOLVER =
   '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
 
-// V2 contracts — sourced from the same ensjs Sepolia manifest as Manager's
+// V2 contracts — sourced from the same shared Sepolia deployment table as Manager's
 // destination contract table so fixture reservations cannot drift to a retired
 // deployment while the migration flow targets the active one.
-export const V2_ETH_REGISTRY_ADDR = ensjsSepolia.ensRegistry.address
-export const V2_ETH_REGISTRAR_ADDR = ensjsSepolia.ensEthRegistrar.address
+export const V2_ETH_REGISTRY_ADDR = sepoliaContracts.ensRegistry.address
+export const V2_ETH_REGISTRAR_ADDR = sepoliaContracts.ensEthRegistrar.address
 const V2_MIGRATION_CONTROLLERS = [
-  ensjsSepolia.ensUnlockedMigrationController.address,
-  ensjsSepolia.ensLockedMigrationController.address,
+  sepoliaContracts.ensUnlockedMigrationController.address,
+  sepoliaContracts.ensLockedMigrationController.address,
 ] as const
 
 /** Anvil account #0 — always has 10 000 ETH on a fresh fork. */

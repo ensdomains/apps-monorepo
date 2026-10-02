@@ -7,6 +7,7 @@ export {
   NetworkConfigError,
   orderedRpcUrls,
 } from './buildConfig'
+export { ensContracts } from './ensContracts'
 export {
   ENS_NETWORKS,
   type EnsNetwork,

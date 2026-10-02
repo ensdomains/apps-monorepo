@@ -18,7 +18,8 @@
  *   4. getRegisterPrice → approve USDC → register (signed by EOA)
  */
 
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { setRecords } from '@ensdomains/ensjs/wallet/v2'
 
 import {
@@ -52,15 +53,15 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses (sourced from ensjs Sepolia chain config)
+// Contract addresses (sourced from the shared Sepolia deployment config)
 // ---------------------------------------------------------------------------
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
-const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
-const MOCK_USDC = ensjsSepolia.usdc.address
+const sepoliaContracts = ensContracts[supportedL1Chains.sepolia]
+const ETH_REGISTRAR = sepoliaContracts.ensEthRegistrar.address
+const ETH_REGISTRY = sepoliaContracts.ensRegistry.address
+const MOCK_USDC = sepoliaContracts.usdc.address
 const PERMISSIONED_RESOLVER_IMPL =
-  ensjsSepolia.ensPermissionedResolverImpl.address
-const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+  sepoliaContracts.ensPermissionedResolverImpl.address
+const VERIFIABLE_FACTORY = sepoliaContracts.ensVerifiableFactory.address
 
 const REFERRER = zeroHash
 
@@ -100,16 +101,14 @@ const FULL_ROLE_BITMAP = BigInt(
  * A VerifiableFactory CREATE2 proxy, so it is derived from the whole account
  * config — factory, implementation, verifiable factory, proxy logic and
  * userSalt(0). It therefore MOVES whenever any of those change in the manifest;
- * it last changed with the 2026-09-15 redeploy, and matches what
+ * it last changed with the 2026-10-01 redeploy, and matches what
  * `StandaloneHCAFactory.deploy(owner, impl, 0)` returns on Sepolia.
  *
- * Hardcoded for the same reason as the addresses in
- * `infra/scripts/print-standalone-hca-addresses.mjs`: the derivation lives in
- * `@ens-apps/smart-account`, which ships un-built `.ts` and is not an e2e
+ * The derivation lives in `@ens-apps/smart-account`, which is not an e2e
  * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
  * address for mockestrator impersonation gas — keep the two in sync.
  */
-const STANDALONE_HCA = '0x44c793a91362ca416E5d18dECe728D82883e8696' as Address
+const STANDALONE_HCA = '0xF1554d7361E0663896F57A121C83638856f0ED91' as Address
 
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(

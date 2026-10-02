@@ -17,6 +17,7 @@
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
+    "@ens-apps/config": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/headless-web3-provider": "^1.0.8",

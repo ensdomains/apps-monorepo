@@ -14,7 +14,8 @@
  *   5. (If negative duration) increaseTime to push past expiry
  */
 
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { setRecords } from '@ensdomains/ensjs/wallet/v1'
 
 import {
@@ -46,17 +47,17 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses (sourced from ensjs Sepolia chain config)
+// Contract addresses (sourced from the shared Sepolia deployment config)
 // ---------------------------------------------------------------------------
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
-const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
-const MOCK_USDC = ensjsSepolia.usdc.address
+const sepoliaContracts = ensContracts[supportedL1Chains.sepolia]
+const ETH_REGISTRAR = sepoliaContracts.ensEthRegistrar.address
+const ETH_REGISTRY = sepoliaContracts.ensRegistry.address
+const MOCK_USDC = sepoliaContracts.usdc.address
 // Shared dedicated resolver for names that don't need custom records
 const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
 const PERMISSIONED_RESOLVER_IMPL =
-  ensjsSepolia.ensPermissionedResolverImpl.address
-const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+  sepoliaContracts.ensPermissionedResolverImpl.address
+const VERIFIABLE_FACTORY = sepoliaContracts.ensVerifiableFactory.address
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------

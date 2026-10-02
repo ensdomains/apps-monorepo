@@ -1,4 +1,6 @@
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { zeroAddress } from 'viem'
+import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import { buildConfig, NetworkConfigError } from './buildConfig'
 import { ENS_NETWORKS, NETWORKS } from './networks'
@@ -68,6 +70,25 @@ describe('buildConfig', () => {
       expect(config.chain.contracts.ensEthRegistrar.address).not.toBe(
         zeroAddress,
       )
+    })
+
+    it('routes Sepolia clients to the October deployment while retaining V1 and multicall contracts', () => {
+      const { contracts } = buildSepolia().chain
+
+      expect(contracts).toMatchObject({
+        ensRegistry: {
+          address: '0xD4eBcbBdF463C9c45784603Db0dDD499BC44A8B4',
+        },
+        ensEthRenewerV1: {
+          address: '0xf2ece44980778966b8a0FccB3A9E339440f6e045',
+        },
+        usdc: {
+          address: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
+        },
+        ensBaseRegistrarImplementation:
+          extendChainWithEns(sepolia).contracts.ensBaseRegistrarImplementation,
+        multicall3: sepolia.contracts.multicall3,
+      })
     })
   })
 

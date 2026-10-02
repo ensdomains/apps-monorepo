@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   injectHeadlessWeb3Provider,
   type Web3ProviderBackend,
@@ -61,13 +62,13 @@ if (existsSync(envPath)) {
 // ---------------------------------------------------------------------------
 const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
-// Resolve payment-token addresses from the ensjs Sepolia chain config — the
+// Resolve payment-token addresses from the shared Sepolia deployment config — the
 // SAME source as `@ens-apps/transaction-manager`'s `SUPPORTED_TOKENS` (which
 // the portal's payment-token picker reads) and the other e2e fixtures
 // (see makeName.ts / makeV2Name.ts). Hardcoding drifts from the app's tokens.
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-const MOCK_USDC = ensjsSepolia.usdc.address
-const MOCK_DAI = ensjsSepolia.dai.address
+const sepoliaContracts = ensContracts[supportedL1Chains.sepolia]
+const MOCK_USDC = sepoliaContracts.usdc.address
+const MOCK_DAI = sepoliaContracts.dai.address
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
 )

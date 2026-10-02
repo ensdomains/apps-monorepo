@@ -4,6 +4,7 @@
  * Provides publicClient (read), testClient (anvil manipulation),
  * and walletClient (write) all pointing at the same RPC endpoint.
  */
+import { ensContracts } from '@ens-apps/config'
 import {
   createPublicClient,
   createTestClient,
@@ -22,6 +23,10 @@ const transport = http(ANVIL_RPC_URL)
  */
 const localSepolia = {
   ...sepolia,
+  contracts: {
+    ...sepolia.contracts,
+    ...ensContracts[sepolia.id],
+  },
   rpcUrls: {
     default: { http: [ANVIL_RPC_URL] },
   },

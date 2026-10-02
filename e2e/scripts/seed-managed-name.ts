@@ -30,7 +30,8 @@
  *   ROLES='ROLE_RENEW' pnpm --filter @ens-apps/e2e seed:managed-name    # semicolon/comma list of ensjs role names
  */
 import { pathToFileURL } from 'node:url'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
 import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { type Address, encodeFunctionData } from 'viem'
@@ -49,7 +50,7 @@ const DEFAULT_MNEMONIC =
  * standalone ETH registry 0x796fff2e — the owner holds no roles there.)
  */
 const ETH_REGISTRY = (process.env.REGISTRY_ADDRESS ??
-  ensL1Contracts[supportedL1Chains.sepolia].ensRegistry.address) as Address
+  ensContracts[supportedL1Chains.sepolia].ensRegistry.address) as Address
 
 const INDEXER_URL =
   process.env.INDEXER_GRAPHQL_URL ?? 'http://127.0.0.1:5655/graphql'

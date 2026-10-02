@@ -1,5 +1,5 @@
+import { ensContracts } from '@ens-apps/config'
 import {
-  ensL1Contracts,
   type SupportedL1Contract,
   supportedL1Chains,
   supportedL1Contracts,
@@ -60,7 +60,7 @@ const contractNames = new Map<string, string>()
 const contractPills = new Map<string, string>()
 
 for (const chainId of Object.values(supportedL1Chains)) {
-  const contracts = ensL1Contracts[chainId]
+  const contracts = ensContracts[chainId]
   for (const key of supportedL1Contracts) {
     const { address } = contracts[key]
     if (address === zeroAddress) continue

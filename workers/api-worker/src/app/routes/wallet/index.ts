@@ -1,4 +1,5 @@
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { vValidator } from '@hono/valibot-validator'
 import { HTTPException } from 'hono/http-exception'
 import * as v from 'valibot'
@@ -23,12 +24,12 @@ import { ethAddress } from '#utils/validation.js'
 
 const TOKENS = {
   USDC: {
-    address: ensL1Contracts[supportedL1Chains.sepolia].usdc.address,
+    address: ensContracts[supportedL1Chains.sepolia].usdc.address,
     decimals: 6,
     mintAmount: parseUnits('1000', 6),
   },
   DAI: {
-    address: ensL1Contracts[supportedL1Chains.sepolia].dai.address,
+    address: ensContracts[supportedL1Chains.sepolia].dai.address,
     decimals: 18,
     mintAmount: parseUnits('1000', 18),
   },

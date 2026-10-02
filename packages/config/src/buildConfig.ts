@@ -1,6 +1,7 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { zeroAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
+import { ensContracts } from './ensContracts'
 import { NetworkConfigError } from './errors'
 import {
   ENS_NETWORKS,
@@ -28,7 +29,13 @@ const REQUIRED_ENSV2_CONTRACTS = [
 const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => ({
   ...(network === 'mainnet'
     ? extendChainWithEns(mainnet)
-    : extendChainWithEns(sepolia)),
+    : {
+        ...extendChainWithEns(sepolia),
+        contracts: {
+          ...extendChainWithEns(sepolia).contracts,
+          ...ensContracts[sepolia.id],
+        },
+      }),
   rpcUrls: {
     default: { http: rpcUrls },
     public: { http: rpcUrls },

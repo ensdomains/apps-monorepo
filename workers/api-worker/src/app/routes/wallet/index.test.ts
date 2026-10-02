@@ -1,4 +1,5 @@
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { describe, expect, it } from 'vitest'
 import walletApp from './index'
 
@@ -16,10 +17,10 @@ describe('GET /wallet/tokens', () => {
       >
     }
 
-    const sepoliaContracts = ensL1Contracts[supportedL1Chains.sepolia]
+    const sepoliaContracts = ensContracts[supportedL1Chains.sepolia]
 
     expect(body.chainId).toBe(11155111)
-    // Source of truth: the addresses must equal what /fund mints (ensjs config),
+    // Source of truth: the addresses must equal what /fund mints (shared config),
     // so the manager reads balances against exactly the minted tokens.
     expect(body.tokens.USDC).toEqual({
       address: sepoliaContracts.usdc.address,

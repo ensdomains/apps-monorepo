@@ -867,6 +867,9 @@ importers:
 
   e2e:
     dependencies:
+      '@ens-apps/config':
+        specifier: workspace:*
+        version: link:../packages/config
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4fc0c2a4(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
@@ -926,6 +929,9 @@ importers:
 
   packages/dev-migration-tool:
     dependencies:
+      '@ens-apps/config':
+        specifier: workspace:*
+        version: link:../config
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4fc0c2a4(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
@@ -1144,6 +1150,9 @@ importers:
 
   packages/smart-account:
     dependencies:
+      '@ens-apps/config':
+        specifier: workspace:*
+        version: link:../config
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../utils

@@ -1,10 +1,10 @@
-import { ensL1Contracts } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ens-apps/config'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { getContractLabel, getEnsContractName } from './ensContractNames'
 
 const SEPOLIA = 11155111
-const sepoliaContracts = ensL1Contracts[SEPOLIA]
+const sepoliaContracts = ensContracts[SEPOLIA]
 
 describe('getEnsContractName', () => {
   it('returns undefined for an unrecognised address', () => {
