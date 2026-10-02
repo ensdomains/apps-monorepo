@@ -16,9 +16,10 @@ export const CustomTldMessage = ({ tld }: { readonly tld: string }) => (
     title={`.${tld} names can't be imported here`}
     description={
       <p>
-        The <strong>.{tld}</strong> registry runs its own ENS integration
-        instead of the standard DNS import, so names under it are claimed
-        through the <strong>.{tld}</strong> registry directly.
+        The <strong className="font-medium">.{tld}</strong> registry runs its
+        own ENS integration instead of the standard DNS import, so names under
+        it are claimed through the{' '}
+        <strong className="font-medium">.{tld}</strong> registry directly.
       </p>
     }
     actionButton={{

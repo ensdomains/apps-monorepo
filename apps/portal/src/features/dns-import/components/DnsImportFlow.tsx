@@ -46,8 +46,9 @@ export const DnsImportFlow = ({
         title="Not importable"
         description={
           <p>
-            Only second-level DNS names (like <strong>example.com</strong>) can
-            be imported to ENS.
+            Only second-level DNS names (like{' '}
+            <strong className="font-medium">example.com</strong>) can be
+            imported to ENS.
           </p>
         }
       />
@@ -71,7 +72,8 @@ export const DnsImportFlow = ({
         title="Already imported"
         description={
           <p>
-            <strong>{name}</strong> has already been imported to ENS.
+            <strong className="font-medium">{name}</strong> has already been
+            imported to ENS.
           </p>
         }
         actionButton={{ label: 'View name', href: `/${name}` }}
