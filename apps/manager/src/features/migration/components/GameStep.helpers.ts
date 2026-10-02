@@ -1,6 +1,6 @@
 import { match, P } from 'ts-pattern'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import type { MigrationApprovalId } from '@/features/migration/service/migrationApprovals'
-import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 
 export const PLANK_PARTY_PADDING = 24
 export const TREADMILL_THRESHOLD = 5
@@ -103,6 +103,11 @@ export const computeBridgeLayout = (params: {
 export type StepDescription =
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
+  | {
+      readonly kind: 'renewal-approval'
+      readonly isAwaitingConfirmation: boolean
+    }
+  | { readonly kind: 'renew-grace'; readonly count: number }
   | { readonly kind: 'deploy-hca' }
   | { readonly kind: 'approval'; readonly approvalId: MigrationApprovalId }
   | {
@@ -115,15 +120,27 @@ export type StepDescription =
 
 export const describeNextStep = (params: {
   readonly progressDescription?: string
-  readonly descriptor: MigrationStepDescriptor | undefined
+  readonly descriptor: MigrationWalletRequestDescriptor | undefined
+  readonly isAwaitingConfirmation?: boolean
 }): StepDescription =>
   match(params)
     .with(
-      { progressDescription: P.string },
+      { progressDescription: P.string.minLength(1) },
       ({ progressDescription }) =>
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
+    .with(
+      { descriptor: { type: 'renewal-approval' } },
+      ({ isAwaitingConfirmation }) => ({
+        kind: 'renewal-approval' as const,
+        isAwaitingConfirmation: isAwaitingConfirmation === true,
+      }),
+    )
+    .with({ descriptor: { type: 'renew-grace' } }, ({ descriptor }) => ({
+      kind: 'renew-grace' as const,
+      count: descriptor.count,
+    }))
     .with({ descriptor: { type: 'deploy-hca' } }, () => ({
       kind: 'deploy-hca' as const,
     }))
