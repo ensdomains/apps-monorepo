@@ -552,9 +552,9 @@ export const TokenPickerContentBase = ({
     // it neither column shrinks below its content and the `overflow-y-auto`
     // below never scrolls. Inside the dialog's `max-h-[90vh]` that clipped the
     // total and the Register button out of reach on a short viewport.
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 px-4 pt-2 pb-4">
       <div className="flex min-h-0 flex-1 flex-col items-center gap-5 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6 pb-4">
+        <div className="flex w-full min-w-0 flex-col items-center gap-3 rounded-2xl bg-ens-quartz-50 p-6 pb-4">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               {premiumLabel && (
@@ -588,7 +588,7 @@ export const TokenPickerContentBase = ({
           )}
         </div>
 
-        <div className="flex w-full flex-col gap-6">
+        <div className="flex w-full flex-col gap-4">
           <h2 className="text-center font-medium text-[18px] leading-ens-none">
             <Trans>Select payment</Trans>
           </h2>
