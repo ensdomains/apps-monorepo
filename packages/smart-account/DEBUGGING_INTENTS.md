@@ -92,7 +92,7 @@ recovered and it is the very first check,
 
 `HCAResolverPolicyLib.checkDeployment` decodes `deployProxy`'s arguments,
 checks them, then **re-encodes the call around its own constants and compares
-keccak hashes** (validator `0x6a62af42`, the 2026-09-15 Sepolia deployment):
+keccak hashes** (validator `0x4bf64159`, the 2026-10-01 Sepolia deployment):
 
 ```solidity
 (address impl, uint256 salt, bytes memory initData) = abi.decode(args, ...);
@@ -195,7 +195,7 @@ before comparing it against anything.
 
 ## 7. Every session signature carries the owner's authorization
 
-The 2026-09-15 validator (`0x6a62af42`, contracts-v2 #426) is **stateless**.
+The deployed validator (`0x4bf64159`, contracts-v2 #426) is **stateless**.
 There is no `enableSessionWithRefund`, no `revokeSessions()`, and
 `isPermissionEnabled` always returns `false`. The only session envelopes it
 accepts carry the owner's multi-chain authorization inline:

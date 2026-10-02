@@ -12,6 +12,7 @@ type RegistrationApprovalTarget = {
 }
 
 export type MigrationStepDescriptor =
+  | { readonly type: 'renew-grace'; readonly count: number }
   | { readonly type: 'deploy-hca' }
   | {
       readonly type: 'approval'
@@ -40,6 +41,10 @@ export type BuildStepDescriptorsParams = {
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
 }
+
+export type MigrationWalletRequestDescriptor =
+  | MigrationStepDescriptor
+  | { readonly type: 'renewal-approval' }
 
 export const buildStepDescriptors = (
   params: BuildStepDescriptorsParams,

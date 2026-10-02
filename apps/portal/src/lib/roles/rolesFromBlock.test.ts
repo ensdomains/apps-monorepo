@@ -6,8 +6,8 @@ import { ROLES_FROM_BLOCK } from './rolesFromBlock'
  * before, code at it). The root registry is the earliest v2 contract and the
  * ancestor of every registry, so no role event can predate it.
  */
-const ROOT_REGISTRY_DEPLOYMENT = 11_708_988n
-const ETH_REGISTRY_DEPLOYMENT = 11_709_066n
+const ROOT_REGISTRY_DEPLOYMENT = 11_820_291n
+const ETH_REGISTRY_DEPLOYMENT = 11_820_399n
 
 describe('ROLES_FROM_BLOCK', () => {
   // Raising this past the root registry silently empties its role table:
@@ -17,7 +17,7 @@ describe('ROLES_FROM_BLOCK', () => {
     expect(ROLES_FROM_BLOCK).toBeLessThanOrEqual(ROOT_REGISTRY_DEPLOYMENT)
   })
 
-  // The .eth registry is 78 blocks later, which is why anchoring on it was
+  // The .eth registry is 108 blocks later, which is why anchoring on it was
   // wrong. Kept as a guard so that mistake cannot come back quietly.
   it('is not anchored on the .eth registry instead', () => {
     expect(ROLES_FROM_BLOCK).toBeLessThan(ETH_REGISTRY_DEPLOYMENT)

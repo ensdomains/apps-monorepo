@@ -6,7 +6,7 @@
         "decimals": 18
       },
       "USDC": {
-        "address": "0x16f95D91DBa7dA3Aca778Ec053dF0FF6C6A8aA8e",
+        "address": "0x240b0316Df57887DBBE58b586508b19e633a14aa",
         "decimals": 6,
         "balanceSlot": 0,
         "approvalSlot": 1

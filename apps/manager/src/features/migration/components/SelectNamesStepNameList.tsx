@@ -12,7 +12,12 @@ type NameSelectionState = ReturnType<typeof useNameSelection>
 
 type SelectNamesStepNameListProps = Pick<
   NameSelectionState,
-  'filteredGroups' | 'filteredOrphans' | 'search' | 'selected' | 'toggleName'
+  | 'filteredGroups'
+  | 'filteredOrphans'
+  | 'filteredGracePeriodNames'
+  | 'search'
+  | 'selected'
+  | 'toggleName'
 > & {
   readonly isPending: boolean
 }
@@ -113,6 +118,7 @@ const NameTreeRows = ({
 const SelectNamesStepNameListComponent = ({
   filteredGroups,
   filteredOrphans,
+  filteredGracePeriodNames,
   isPending,
   search,
   selected,
@@ -122,7 +128,10 @@ const SelectNamesStepNameListComponent = ({
 
   return match({
     isPending,
-    hasResults: filteredGroups.length > 0 || filteredOrphans.length > 0,
+    hasResults:
+      filteredGroups.length > 0 ||
+      filteredOrphans.length > 0 ||
+      filteredGracePeriodNames.length > 0,
   })
     .with({ isPending: true }, () => <NameListSkeleton />)
     .with({ hasResults: false }, () => (
@@ -140,13 +149,31 @@ const SelectNamesStepNameListComponent = ({
       </div>
     ))
     .otherwise(() => (
-      <NameTreeRows
-        depth={0}
-        nodes={[...filteredGroups, ...filteredOrphans]}
-        primaryName={primaryName}
-        selected={selected}
-        toggleName={toggleName}
-      />
+      <>
+        <NameTreeRows
+          depth={0}
+          nodes={[...filteredGroups, ...filteredOrphans]}
+          primaryName={primaryName}
+          selected={selected}
+          toggleName={toggleName}
+        />
+        {filteredGracePeriodNames.length > 0 && (
+          <ul className="flex min-w-0 flex-col gap-4">
+            {filteredGracePeriodNames.map((item) => (
+              <li className="min-w-0" key={item.domain.id}>
+                <NameRow
+                  depth={0}
+                  isInGrace
+                  isPrimary={item.domain.name === primaryName}
+                  isSelected={selected.has(item.domain.name)}
+                  item={item}
+                  onToggle={toggleName}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
     ))
 }
 

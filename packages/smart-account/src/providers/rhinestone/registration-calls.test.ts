@@ -41,7 +41,7 @@ const EXPECTED_ROLES_ALL =
 describe('computeResolverAddress', () => {
   it('uses the pinned proxy logic to derive the exact CREATE2 address', () => {
     expect(computeResolverAddress({ chainId: sepolia.id, hca: HCA })).toBe(
-      '0x5eAfCf4a3Dcd46E477fFB7CDe15B32AC14c7a436',
+      '0x3f30117Db553fc15aB3FFBD1287f4E8838D53C14',
     )
   })
 })
@@ -82,8 +82,8 @@ describe('buildRevealBatch ordering', () => {
     // HCAResolverPolicyLib.checkDeployment requires grants of exactly
     // [(hca, ALL_ROLES), (owner, ALL_ROLES)], re-encodes the call around its
     // own PERMITTED_RESOLVER_IMPL and compares keccak hashes. Reproduced here
-    // from the deployed validator's source (0x6a62af42, the build-info in
-    // contracts-v2 `deployments/sepolia` @ 71a3b733), so drift in the grants,
+    // from the deployed validator's source (0x4bf64159, the build-info in
+    // contracts-v2 `deployments/sepolia` @ 95de2ee0), so drift in the grants,
     // the encoding or the impl address fails here rather than on chain as an
     // opaque PolicyRuleFailed()/InvalidSignature().
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
