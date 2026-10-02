@@ -15,6 +15,7 @@ import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { CommemorativeNftDashboard } from '@/features/migration/components/success/CommemorativeNftDashboard'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -61,7 +62,11 @@ export const DashboardPage = () => {
   )?.value
 
   const defaultName = reverseName ?? null
-  const avatarUrl = reverseName ? buildNameAvatarUrl(reverseName) : null
+  const avatarUrl = useNameImageUrl({
+    name: reverseName ?? undefined,
+    kind: 'avatar',
+    fallbackUrl: reverseName ? buildNameAvatarUrl(reverseName) : undefined,
+  })
   const hasProfile = Boolean(defaultName)
 
   return (

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog'
 import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
@@ -104,7 +105,11 @@ const PrimaryNameOption = ({
   const { t } = useLingui()
   const label = resolveDomainLabel(domain)
   const isSelected = selectedName === label
-  const avatarUrl = buildNameAvatarUrl(label)
+  const avatarUrl = useNameImageUrl({
+    name: label,
+    kind: 'avatar',
+    fallbackUrl: buildNameAvatarUrl(label),
+  })
 
   return (
     <button

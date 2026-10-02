@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
@@ -86,7 +87,12 @@ const useAddressProfileAvatarUrl = ({
       ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1').isInGrace
       : getProfileExpiryResultStatus(expiryData).isInGrace
 
-  return primaryName && !isInGrace ? buildNameAvatarUrl(primaryName) : undefined
+  return useNameImageUrl({
+    name: isInGrace ? undefined : primaryName,
+    kind: 'avatar',
+    fallbackUrl:
+      primaryName && !isInGrace ? buildNameAvatarUrl(primaryName) : undefined,
+  })
 }
 
 export const AddressProfileHeader = ({

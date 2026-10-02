@@ -17,6 +17,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { EXPLORER_URL } from '@/constants'
 import { useCheckAvailability } from '@/features/landing/check-availability/useCheckAvailability'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
@@ -136,9 +137,11 @@ export const CheckAvailability = ({
     (text) => text.key === 'theme',
   )?.value
 
-  const profileAvatar = profileName
-    ? buildNameAvatarUrl(profileName)
-    : undefined
+  const profileAvatar = useNameImageUrl({
+    name: profileName ?? undefined,
+    kind: 'avatar',
+    fallbackUrl: profileName ? buildNameAvatarUrl(profileName) : undefined,
+  })
 
   const { data: profileExpiry } = useQuery({
     ...profileExpiryQuery(profileName ?? ''),

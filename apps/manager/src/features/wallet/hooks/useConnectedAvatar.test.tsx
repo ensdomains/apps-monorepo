@@ -8,6 +8,10 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(),
 }))
 
+vi.mock('@/features/profile/hooks/useNameImageUrl', () => ({
+  useNameImageUrl: ({ fallbackUrl }: { fallbackUrl?: string }) => fallbackUrl,
+}))
+
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
   useConnectedReverseName: vi.fn(),
 }))

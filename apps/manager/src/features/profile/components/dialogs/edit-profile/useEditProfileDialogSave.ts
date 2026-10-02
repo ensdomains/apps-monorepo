@@ -22,6 +22,7 @@ import {
   type SaveRecordsParams,
   saveRecords,
 } from '@/features/profile/service/profileRecordTransactions'
+import { cacheSavedProfileImages } from '@/features/profile/service/profileSavedImages'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
 import {
   OwnedResolverNotReadyError,
@@ -51,6 +52,7 @@ interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly ethAddressChanged: boolean
   readonly form: EditProfileForm
   readonly isSuccess: boolean
+  readonly name: string
   readonly onPreparedImageUploadsSaved: () => void
   readonly onUpdated?: () => undefined | Promise<unknown>
   readonly queryClient: QueryClient
@@ -133,6 +135,7 @@ const useCloseProfileDialogOnSuccessfulSave = ({
   ethAddressChanged,
   form,
   isSuccess,
+  name,
   onPreparedImageUploadsSaved,
   onUpdated,
   queryClient,
@@ -146,6 +149,14 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     let cancelled = false
 
     const finalizeSave = async () => {
+      cacheSavedProfileImages({
+        name,
+        images: {
+          avatar: savedRecords.base.avatar ?? '',
+          header: savedRecords.base.header ?? '',
+        },
+        queryClient,
+      })
       form.reset(savedRecords)
       await onUpdated?.()
       onPreparedImageUploadsSaved()
@@ -178,6 +189,7 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     ethAddressChanged,
     form,
     isSuccess,
+    name,
     onPreparedImageUploadsSaved,
     onUpdated,
     queryClient,
@@ -321,10 +333,23 @@ export const useEditProfileDialogSave = ({
         })
         // The hosted image has now changed, even if a later upload or record
         // transaction fails. Refresh only this successfully published image.
-        await refreshProfileImageCaches({ images: [upload], queryClient })
+        await refreshProfileImageCaches({
+          images: [
+            {
+              ...upload,
+              // A new upload URL is only active after its record is saved.
+              name:
+                savedRecords.base[upload.kind]?.trim() ===
+                upload.imageUrl.trim()
+                  ? name
+                  : undefined,
+            },
+          ],
+          queryClient,
+        })
       }
     },
-    [address, isConnected, queryClient, signTypedDataAsync],
+    [address, isConnected, name, queryClient, savedRecords, signTypedDataAsync],
   )
 
   const finalizeImageOnlySave = useCallback(
@@ -332,6 +357,14 @@ export const useEditProfileDialogSave = ({
       setIsFinalizingImageSave(true)
 
       try {
+        cacheSavedProfileImages({
+          name,
+          images: {
+            avatar: currentRecords.base.avatar ?? '',
+            header: currentRecords.base.header ?? '',
+          },
+          queryClient,
+        })
         form.reset(currentRecords)
         await onUpdated?.()
         setPreparedImageUploads([])
@@ -342,7 +375,7 @@ export const useEditProfileDialogSave = ({
         setIsFinalizingImageSave(false)
       }
     },
-    [dialogActor, form, onUpdated],
+    [dialogActor, form, name, onUpdated, queryClient],
   )
 
   const getPendingRecordSave = useCallback(
@@ -532,6 +565,7 @@ export const useEditProfileDialogSave = ({
     ethAddressChanged,
     form,
     isSuccess,
+    name,
     onPreparedImageUploadsSaved: handlePreparedImageUploadsSaved,
     onUpdated,
     queryClient,

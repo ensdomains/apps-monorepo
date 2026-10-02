@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { CSSProperties } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import { profileAddressNamesQuery } from '@/features/profile/service/profileAddressNames'
 import { buildNameHeaderUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -48,10 +49,14 @@ export const AddressProfileView = ({
     ? transformProfileRecords(profileRecords)
     : null
   const themeVars = getThemeVars(records?.base.theme)
-  const headerUrl =
-    primaryName && records?.base.header?.trim()
-      ? buildNameHeaderUrl(primaryName)
-      : undefined
+  const headerUrl = useNameImageUrl({
+    name: primaryName,
+    kind: 'header',
+    fallbackUrl:
+      primaryName && records?.base.header?.trim()
+        ? buildNameHeaderUrl(primaryName)
+        : undefined,
+  })
   const defaultHeaderUrl = getDefaultHeaderCover({
     themeColor: records?.base.theme,
   })

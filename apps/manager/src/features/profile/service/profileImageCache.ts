@@ -8,10 +8,12 @@ import {
   isUploadedProfileImageUrl,
   profileImageVersionQuery,
 } from './profileImageVersion'
+import { cacheSavedProfileImages } from './profileSavedImages'
 
 export interface SignedProfileImageUpload {
   readonly kind: ImageType
   readonly imageUrl: string
+  readonly name?: string
 }
 
 interface RefreshProfileImageCachesParams {
@@ -61,7 +63,7 @@ export const refreshProfileImageCaches = async ({
   await Promise.all(
     images
       .filter(({ imageUrl }) => isUploadedProfileImageUrl(imageUrl))
-      .map(async ({ imageUrl }) => {
+      .map(async ({ imageUrl, kind, name }) => {
         const record = normalizeImageUrl(imageUrl)
         const filters = {
           queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
@@ -83,6 +85,13 @@ export const refreshProfileImageCaches = async ({
         // Seed the default query even when the editor has only shown a local
         // preview and no image-record observer has mounted yet.
         queryClient.setQueryData(imageRecordQuery(record).queryKey, url)
+        if (name) {
+          cacheSavedProfileImages({
+            name,
+            images: { [kind]: record },
+            queryClient,
+          })
+        }
       }),
   )
 }

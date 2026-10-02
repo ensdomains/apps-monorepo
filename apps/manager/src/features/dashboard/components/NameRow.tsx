@@ -28,6 +28,7 @@ import {
   getFavoriteActionDisabled,
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import {
   getRenewalRoute,
@@ -501,6 +502,11 @@ export const NameRow = ({
   onToggleSelect,
   renewalProtocol = 'v2',
 }: NameRowProps) => {
+  const resolvedAvatarUrl = useNameImageUrl({
+    name: isInGrace || renewalProtocol === 'v1' ? undefined : label,
+    kind: 'avatar',
+    fallbackUrl: isInGrace ? undefined : avatarUrl,
+  })
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
   const resolvedThemeColor = themeVars?.['--theme-color']
@@ -526,7 +532,7 @@ export const NameRow = ({
             showFavoriteButton={showFavoriteButton}
           />
           <NameAvatar
-            avatarUrl={avatarUrl}
+            avatarUrl={resolvedAvatarUrl}
             isPending={avatarPending}
             label={label}
             onToggleSelect={onToggleSelect}

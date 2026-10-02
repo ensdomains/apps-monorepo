@@ -9,6 +9,7 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { EXPLORER_URL } from '@/constants'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import { useNameImageUrl } from '@/features/profile/hooks/useNameImageUrl'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
@@ -43,6 +44,11 @@ export const NameSuggestionItem = ({
   avatarUrl,
   onNavigate,
 }: NameSuggestionItemProps) => {
+  const resolvedAvatarUrl = useNameImageUrl({
+    name,
+    kind: 'avatar',
+    fallbackUrl: avatarUrl,
+  })
   const { kind, outcome } = useNameClassification(name)
   const isEth2ld = kind.type === 'eth-2ld'
   const isAvailable = outcome.type === 'available'
@@ -84,7 +90,7 @@ export const NameSuggestionItem = ({
           <ImageFallback.Image
             alt={`${name} avatar`}
             className="size-full object-cover"
-            src={avatarUrl}
+            src={resolvedAvatarUrl}
           />
           <ImageFallback.Fallback>
             <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />

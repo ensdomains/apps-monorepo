@@ -34,7 +34,11 @@ export const NamesBreakdown = ({
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <NameAvatar name={row.label} preview={row.preview} />
+              <NameAvatar
+                imageName={row.key}
+                name={row.label}
+                preview={row.preview}
+              />
               <div className="flex min-w-0 flex-col">
                 <span className="truncate font-medium font-semi-mono text-base text-ens-quartz-900">
                   {row.displayName}
