@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, ArrowUpRight, TriangleAlert } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment, type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { SubregistryPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -21,10 +22,10 @@ import {
   type SubregistrySlot,
   useSubregistrySlot,
 } from '../../hooks/useSubregistrySlot'
-import { ConfigureRegistryForm } from './ConfigureRegistryForm'
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
 import { RegistryPanel } from './RegistryPanel'
+import { UnconfiguredRegistry } from './UnconfiguredRegistry'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -99,6 +100,20 @@ export const RegistryTreeItem = ({
     <RegistryEmptyState name={name} ownerData={ownerData} slot={slot} />
   ) : null
 
+  const privilegeWarning = isLastConfigured ? (
+    <SubregistryPrivilegeWarning
+      name={name}
+      ownerData={ownerData}
+      subregistry={address}
+      chainId={chainId}
+    />
+  ) : null
+
+  const onReconfigure =
+    isLastConfigured && canReconfigure === true
+      ? () => setIsReconfiguring(true)
+      : undefined
+
   return (
     <Fragment>
       <div
@@ -124,11 +139,8 @@ export const RegistryTreeItem = ({
               isDeployedRegistry={isDeployedRegistry}
               tld={isEthRegistry ? levelName : undefined}
               showInlineMeta={!isLastConfigured}
-              onReconfigure={
-                isLastConfigured && canReconfigure === true
-                  ? () => setIsReconfiguring(true)
-                  : undefined
-              }
+              privilegeWarning={privilegeWarning}
+              onReconfigure={onReconfigure}
             />
           ) : null}
         </div>
@@ -160,6 +172,7 @@ const RegistryContractRow = ({
   isDeployedRegistry,
   tld,
   showInlineMeta,
+  privilegeWarning,
   onReconfigure,
 }: {
   address: Address
@@ -169,6 +182,7 @@ const RegistryContractRow = ({
   isDeployedRegistry: boolean
   tld: string | undefined
   showInlineMeta: boolean
+  privilegeWarning: ReactNode
   onReconfigure?: () => void
 }) => (
   <Fragment>
@@ -182,6 +196,7 @@ const RegistryContractRow = ({
     >
       {truncateAddress(address, 6, 4)}
     </EntityBadge>
+    {privilegeWarning}
     {showInlineMeta ? (
       <div className="flex flex-row items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
         <span className="text-sm text-muted-foreground font-mono">
@@ -328,7 +343,7 @@ const RegistryEmptyState = ({
         <LoadingSpinner title="Checking registry history..." />
       ))
       .with({ status: 'never-configured' }, () => (
-        <ConfigureRegistryForm name={name} />
+        <UnconfiguredRegistry name={name} ownerData={ownerData} />
       ))
       .exhaustive()
   )
