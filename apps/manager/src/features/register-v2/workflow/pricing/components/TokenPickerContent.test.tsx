@@ -22,6 +22,18 @@ const dai = {
   balance: '1000000000000000000000',
 } as unknown as StablecoinBalance
 
+const BASE_PROPS = {
+  isConnected: true,
+  isLoadingBalances: false,
+  label: 'jeff',
+  onNext: () => {},
+  onSelectCoin: () => {},
+  pricingData: 330,
+  pricingLoading: false,
+  selectedToken: undefined,
+  stablecoinBalances: [usdc],
+} as const satisfies Parameters<typeof TokenPickerContentBase>[0]
+
 const renderPicker = (
   props: Partial<Parameters<typeof TokenPickerContentBase>[0]> = {},
 ) => {
@@ -29,15 +41,8 @@ const renderPicker = (
   render(
     <I18nProvider i18n={i18n}>
       <TokenPickerContentBase
-        isConnected
-        isLoadingBalances={false}
-        label="jeff"
-        onNext={() => {}}
+        {...BASE_PROPS}
         onSelectCoin={onSelectCoin}
-        pricingData={330}
-        pricingLoading={false}
-        selectedToken={undefined}
-        stablecoinBalances={[usdc]}
         {...props}
       />
     </I18nProvider>,
@@ -191,14 +196,65 @@ describe('TokenPickerContentBase', () => {
   })
 
   // A failed quote used to take the whole card with it, so the sheet changed
-  // shape under the user. The price it does know stays put.
-  it('keeps the price on screen when the fee could not be quoted', () => {
-    renderPicker({ isFundingUnavailable: true, selectedToken: 'USDC' })
+  // shape under the user. Both lines stay; only the fee reads as unknown.
+  it('keeps the breakdown when the fee could not be quoted', () => {
+    renderPicker({
+      hasFundingBudget: true,
+      isFundingUnavailable: true,
+      selectedToken: 'USDC',
+    })
 
     expect(screen.getByText('Name price')).toBeInTheDocument()
-    expect(screen.getAllByText('$330.00')).toHaveLength(2)
-    expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
-    expect(screen.queryByText('—')).not.toBeInTheDocument()
+    expect(screen.getByText('Network fee')).toBeInTheDocument()
+    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'What is the network fee?' }),
+    ).toBeInTheDocument()
+  })
+
+  // The reported bug: a quote that lands, is refetched, or is refused made the
+  // sheet change shape under the user. The lines are mounted once and stay.
+  it('holds the breakdown through a quote that fails and then lands', () => {
+    const props = {
+      hasFundingBudget: true,
+      selectedToken: 'USDC',
+    } as const
+    const { rerender } = render(
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContentBase {...BASE_PROPS} {...props} />
+      </I18nProvider>,
+    )
+    const quotingRow = screen.getByText('Name price')
+
+    rerender(
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContentBase
+          {...BASE_PROPS}
+          {...props}
+          isFundingUnavailable
+        />
+      </I18nProvider>,
+    )
+    rerender(
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContentBase
+          {...BASE_PROPS}
+          {...props}
+          funding={{
+            registration: 330,
+            networkFee: 4.32,
+            total: 334.32,
+            walletDebit: 334.32,
+            hcaCredit: 0,
+            isLoading: false,
+          }}
+        />
+      </I18nProvider>,
+    )
+
+    expect(screen.getByText('Name price')).toBe(quotingRow)
+    expect(screen.getByText('Network fee')).toBeInTheDocument()
+    expect(screen.getByText('$4.32')).toBeInTheDocument()
   })
 
   it('names where the balance sits, once', () => {

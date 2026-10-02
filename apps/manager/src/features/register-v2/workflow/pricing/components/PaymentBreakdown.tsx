@@ -6,9 +6,9 @@ import { PaymentBreakdownRow } from './PaymentBreakdownRow'
  * behind to set against it. The two charges sit on white cards; the deduction
  * sits beneath them, muted, so cost and funding read as different things.
  *
- * A fee that could not be quoted drops its line instead of showing nothing:
- * the name price then matches the headline, where "price + ? = price" would
- * read as a fee of zero.
+ * Every line it can show is mounted for as long as the sheet is open. A quote
+ * that is slow, refetched or refused changes the figures, never the shape: the
+ * sheet re-flowing under the user is what the old render read as.
  */
 export const PaymentBreakdown = ({
   registration,
@@ -24,7 +24,7 @@ export const PaymentBreakdown = ({
   /** Zero hides the deduction line. */
   readonly leftover: number
   readonly isLoading: boolean
-  /** The quote failed: the fee line is dropped rather than shown as nothing. */
+  /** The quote failed: the line stays, with the reason in its tooltip. */
   readonly isFeeUnavailable?: boolean
 }) => {
   const { t } = useLingui()
@@ -36,21 +36,28 @@ export const PaymentBreakdown = ({
         isLoading={isLoading}
         label={<Trans>Name price</Trans>}
       />
-      {!isFeeUnavailable && (
-        <PaymentBreakdownRow
-          amount={networkFee}
-          isLoading={isLoading}
-          label={<Trans>Network fee</Trans>}
-          tooltip={
+      <PaymentBreakdownRow
+        amount={networkFee}
+        isLoading={isLoading}
+        label={<Trans>Network fee</Trans>}
+        tooltip={
+          isFeeUnavailable ? (
+            <Trans>
+              We could not estimate the network fee. It covers the two on-chain
+              transactions that register your name, is collected together with
+              the name price in the same approval, and is quoted again before
+              you sign.
+            </Trans>
+          ) : (
             <Trans>
               An estimate of what the two on-chain transactions that register
               your name will cost. It is collected together with the name price,
               in the same approval.
             </Trans>
-          }
-          tooltipLabel={t`What is the network fee?`}
-        />
-      )}
+          )
+        }
+        tooltipLabel={t`What is the network fee?`}
+      />
       {leftover > 0 && (
         <PaymentBreakdownRow
           amount={leftover}

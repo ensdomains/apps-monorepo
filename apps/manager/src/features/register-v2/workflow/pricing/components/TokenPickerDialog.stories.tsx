@@ -76,6 +76,7 @@ interface TokenPickerDialogShellProps {
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
   funding?: RegistrationFundingSummary
+  hasFundingBudget?: boolean
   isFundingUnavailable?: boolean
   initialSelectedToken?: SUPPORTED_TOKEN
 }
@@ -91,6 +92,7 @@ const TokenPickerDialogShell = ({
   stablecoinBalances = MOCK_BALANCES,
   errorMessage = null,
   funding,
+  hasFundingBudget,
   isFundingUnavailable,
   initialSelectedToken,
 }: TokenPickerDialogShellProps) => {
@@ -108,6 +110,7 @@ const TokenPickerDialogShell = ({
       <TokenPickerContentBase
         errorMessage={errorMessage}
         funding={funding}
+        hasFundingBudget={hasFundingBudget}
         isConnected={isConnected}
         isFundingUnavailable={isFundingUnavailable}
         isInPriceCooldown={isInPriceCooldown}
@@ -201,6 +204,7 @@ export const WithFeeUnavailable: Story = {
   args: {
     pricingData: 160,
     initialSelectedToken: 'USDC',
+    hasFundingBudget: true,
     isFundingUnavailable: true,
   },
 }

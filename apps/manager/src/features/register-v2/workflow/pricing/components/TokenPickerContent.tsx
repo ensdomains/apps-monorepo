@@ -169,7 +169,12 @@ export const TokenPickerContent = () => {
   })
   const budgetQuery = useQuery(budgetQueryOptions)
 
-  // A failed quote is otherwise invisible: the fee row just reads as unknown.
+  // The sheet's shape follows the route, not how far the quote has got: on the
+  // HCA route both lines are mounted from the first frame and stay there, so a
+  // slow, refetched or refused quote only ever changes the figures.
+  const isHcaRoute = account.signer?.type === 'rhinestone'
+
+  // A failed quote is otherwise invisible: the fee line just reads as unknown.
   useEffect(() => {
     if (budgetQuery.error) {
       logger.warn('HCA budget quote failed', budgetQuery.error)
@@ -385,16 +390,16 @@ export const TokenPickerContent = () => {
               total: funding.total,
               walletDebit: funding.walletDebit,
               hcaCredit: funding.hcaCredit,
-              isLoading: budgetQuery.isFetching,
+              isLoading: budgetQuery.isLoading,
             }
           : undefined
       }
+      hasFundingBudget={isHcaRoute}
       infoMessage={infoMessage}
       isConnected={isConnected}
-      isFundingUnavailable={budgetQuery.isError}
+      isFundingUnavailable={budgetQuery.isError && !funding}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
-      isQuotingFunding={budgetQuery.isLoading}
       label={label}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
@@ -445,7 +450,7 @@ export const TokenPickerContentBase = ({
   nextMessage = <Trans>Register name</Trans>,
   footer,
   funding,
-  isQuotingFunding = false,
+  hasFundingBudget = false,
   isFundingUnavailable = false,
 }: {
   label: string
@@ -478,14 +483,15 @@ export const TokenPickerContentBase = ({
    */
   funding?: RegistrationFundingSummary
   /**
-   * The budget quote is still in flight. Reserves the network-cost row's space
-   * so the token list below it does not jump once the quote lands — two
-   * orchestrator round-trips is long enough for that shift to be felt.
+   * This route charges a network fee on top of the name, so the breakdown is
+   * mounted whether or not the quote has landed. Holding its space is what
+   * stops the sheet re-flowing under the user: two orchestrator round-trips
+   * is long enough for that shift to be felt, and the toggle re-quotes.
    */
-  isQuotingFunding?: boolean
+  hasFundingBudget?: boolean
   /**
-   * The budget quote failed. The breakdown stays, with the fee unknown, rather
-   * than the card disappearing out from under the user.
+   * The budget quote failed and there is nothing cached to fall back on. Only
+   * changes how the fee line reads; the breakdown is mounted either way.
    */
   isFundingUnavailable?: boolean
 }) => {
@@ -574,7 +580,7 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          {(funding || isQuotingFunding || isFundingUnavailable) && (
+          {(funding || hasFundingBudget) && (
             <PaymentBreakdown
               isFeeUnavailable={!funding && isFundingUnavailable}
               isLoading={funding?.isLoading ?? !isFundingUnavailable}
