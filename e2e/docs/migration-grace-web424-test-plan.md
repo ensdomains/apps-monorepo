@@ -76,6 +76,10 @@ config, which is why these tests live in their own file.
 | Screenshots | `QA_SHOTS_DIR=<dir>` saves 1440×900 screenshots at each test's key states; unset, the hook is a no-op |
 | Chain state after the run | `mg-renew-*` and `mg-wrapped-*`: REGISTERED in V2, V1 expiry about 6 days ahead. `mg-nousdc-*` and `mg-list-*`: not migrated, still expired |
 
+### Status after merge (2026-10-02)
+
+At 11:53 UTC on 2026-10-01, live Sepolia removed `ETHRenewerV1` as a BaseRegistrar controller. Every fork since inherits it, and `renewBatch` can't renew. The 4 tests that renew or estimate a renewal are marked as expected failures while the role is missing; each test checks the role on chain at start-up. See "Live Sepolia removed two controllers on 2026-10-01" in [`e2e-defects.md`](./e2e-defects.md). The listing (`@smoke`), insufficient-USDC and deselect tests are unaffected. The results above were measured on a fork from before the change.
+
 ## 4. Manual test plan
 
 ### Setup

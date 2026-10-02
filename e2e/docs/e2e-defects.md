@@ -143,6 +143,25 @@ table is the durable record.
 Not defects — the app behaves as designed — but they stop scenarios reaching a
 terminal state, so they are tracked here until fixed.
 
+### Live Sepolia removed two controllers on 2026-10-01, breaking V1 renewal and HCA primary names
+
+The e2e stack forks live Sepolia at its current head, so it inherits these.
+Both came from the BaseRegistrar / DefaultReverseRegistrar owner
+`0x0F32b753aFc8ABad9Ca6fE589F707755f4df2353`, within a minute:
+
+| Block | Time (UTC) | Tx | Call | Effect |
+|---|---|---|---|---|
+| 11821651 | 11:53:48 | [`0x8e740ce7…834254`](https://sepolia.etherscan.io/tx/0x8e740ce7f542538c78cb403fb4b16291ff227b2efca491a0295b2e03d0834254) | `BaseRegistrar.removeController(ETHRenewerV1 0xd06e…6a36)` | `ETHRenewerV1.renewBatch` / `renew` can't extend any V1 name. The bare `require` reverts with no data, which the app shows as "Couldn't estimate the network fee" |
+| 11821655 | 11:54:36 | [`0xb820b730…26b7f1`](https://sepolia.etherscan.io/tx/0xb820b7306b31e9919bc22daa7d3004fc651e78f866d69a617236a4c8db26b7f1) | `DefaultReverseRegistrar.setController(ensDefaultReverseRegistrarAdapter 0x4F32…a6f5, false)` | The HCA's `setNameWithHCA` reverts `Controllable: Caller is not a controller`, so post-registration auto-setup never sets the primary name |
+
+**Blocked:**
+- `migration-grace.spec.ts`: the 4 tests that renew or estimate a renewal (`renews then upgrades…`, `upgrades an active name and a wrapped…`, `bulk: …`, `several grace-period names…`). They call `expectFailureWhileRenewerDeauthorised()`, which reads `BaseRegistrar.controllers(ETHRenewerV1)` on the fork and marks the test `test.fail()` only while the role is missing. Assertions unchanged.
+- `primaryName.spec.ts` (post-registration auto-setup) and `profile.spec.ts` (add/remove records, agent-registration card; these hit "Set up this name's resolver?") — not marked.
+
+**Proof it's the chain, not the code:** on a fresh fork, `main` (`89caa2429`) and #1274's head give identical manager shard 1 results (4 failed, 1 flaky, 2 passed). On a fork taken before 11:53 UTC, the same #1274 head passes (6 passed, 1 flaky).
+
+**Unblock:** either Sepolia's owner restores both controllers, or the app moves to whatever replaced them. `--fork-block-number 11821650` pins the fork from just before the change; that's a stopgap that hides the next live change.
+
 ### A chain-snapshot revert permanently breaks Panoptes for every later run
 
 `withChainSnapshot` (`fixtures/chain-snapshot.ts`) wraps a test in

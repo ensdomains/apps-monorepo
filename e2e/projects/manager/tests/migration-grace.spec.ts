@@ -73,6 +73,7 @@ const RENEWER_ABI = parseAbi([
 ])
 const BASE_REGISTRAR_ABI = parseAbi([
   'function nameExpires(uint256 id) view returns (uint256)',
+  'function controllers(address) view returns (bool)',
 ])
 
 // ---------------------------------------------------------------------------
@@ -141,6 +142,31 @@ async function qaShot(page: Page, name: string) {
   })
   await page.waitForTimeout(800)
   await page.screenshot({ path: `${QA_SHOTS_DIR}/${name}.png` })
+}
+
+/**
+ * Environment blocker, not an app defect (`e2e/docs/e2e-defects.md`,
+ * "ETHRenewerV1 is no longer a BaseRegistrar controller on live Sepolia").
+ * On 2026-10-01 the Sepolia BaseRegistrar owner called
+ * `removeController(ETHRenewerV1)` (tx 0x8e740ce7…834254, block 11821651), so
+ * `renewBatch` cannot renew and the app reports "Couldn't estimate the network
+ * fee". The fork inherits that from live Sepolia.
+ *
+ * Checked on chain per test: while the role is missing, the test is expected
+ * to fail with its assertions unchanged; once Sepolia restores the role, the
+ * mark switches off by itself and the test must pass again.
+ */
+async function expectFailureWhileRenewerDeauthorised() {
+  const authorised = await publicClient.readContract({
+    address: BASE_REGISTRAR,
+    abi: BASE_REGISTRAR_ABI,
+    functionName: 'controllers',
+    args: [RENEWER],
+  })
+  test.fail(
+    !authorised,
+    'Environment blocker: live Sepolia removed ETHRenewerV1 as a BaseRegistrar controller (2026-10-01), so renewBatch cannot renew. See e2e-defects.md.',
+  )
 }
 
 /** Subgraph entry for an active V1 name, with its real on-chain expiry. */
@@ -309,6 +335,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     wallet,
     accounts,
   }) => {
+    await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const grace = await makeGraceV1Name({ label: 'mg-renew', owner })
     await openMigration(page, [graceMock(grace, owner.address)])
@@ -394,6 +421,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     wallet,
     accounts,
   }) => {
+    await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const active = await createMakeV1Name({ userAccount: owner })({
       label: 'mg-active',
@@ -466,6 +494,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     wallet,
     accounts,
   }) => {
+    await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: owner })
     const activeU = await makeV1Name({ label: 'mg-bulk-au' })
@@ -609,6 +638,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     migrationConnectedPage: page,
     accounts,
   }) => {
+    await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const first = await makeGraceV1Name({ label: 'mg-multi-1', owner })
     const second = await makeGraceV1Name({
