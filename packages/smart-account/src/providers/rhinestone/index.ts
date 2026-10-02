@@ -94,6 +94,12 @@ export {
   readRegisterPrice,
 } from './registration-calls'
 export {
+  buildRevokeSessionsCall,
+  type RevokeSessionsParams,
+  type RevokeSessionsResult,
+  revokeSessionsOnChain,
+} from './revoke-sessions'
+export {
   buildHcaSessionConfig,
   type ChainDigest,
   computeDestinationSessionSalt,

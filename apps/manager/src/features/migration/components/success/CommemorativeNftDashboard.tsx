@@ -18,7 +18,6 @@ export const CommemorativeNftDashboard = () => {
   const card =
     eligibility && offer.minted
       ? buildCommemorativeNftCardData({
-          chainId: offer.availability.chainId,
           eligibility,
           minted: true,
           ownerAddress: eligibility.ownerAddress,

@@ -24,6 +24,8 @@ export {
   AccountVerificationError,
   SessionEnableError,
   SessionRestoreError,
+  SessionRevokeError,
+  type SessionRevokeReason,
 } from './errors'
 export {
   type BuildHcaDeploymentCallParams,
@@ -34,6 +36,7 @@ export {
   buildHcaSessionConfig,
   buildHcaSessionEnablePayload,
   buildRevealBatch,
+  buildRevokeSessionsCall,
   buildStandaloneAccountConfig,
   buildUsdcApproveCall,
   type Call,
@@ -91,6 +94,8 @@ export {
   type RegisterLegShape,
   type ResolverRecord,
   type RevealBatchParams,
+  type RevokeSessionsParams,
+  type RevokeSessionsResult,
   type RhinestoneInitConfig,
   type RhinestoneInitError,
   type RhinestoneInitResult,
@@ -103,6 +108,7 @@ export {
   registerLegGasLimit,
   removeSession,
   removeSessionsByOwner,
+  revokeSessionsOnChain,
   SESSION_REGISTRATION_HEADROOM_SECONDS,
   type SessionEnableData,
   type SessionScope,
