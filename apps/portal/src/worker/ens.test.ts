@@ -26,8 +26,12 @@ vi.mock('./clients', () => ({
   createClient: () => ({ chain: envConfig.chain }),
 }))
 
-const { resolveOwner, resolveAvatarDataUri, fetchIsPermissionedResolver } =
-  await import('./ens')
+const {
+  resolveOwner,
+  resolveAvatarDataUri,
+  fetchIsPermissionedResolver,
+  fetchEnsData,
+} = await import('./ens')
 
 const OWNER = '0x1111111111111111111111111111111111111111'
 const client = {} as never
@@ -742,5 +746,40 @@ describe('fetchIsPermissionedResolver (worker)', () => {
     mockReadContract.mockRejectedValue(new Error('execution reverted'))
 
     await expect(fetchIsPermissionedResolver(env, proxy)).resolves.toBe(false)
+  })
+})
+
+describe('fetchEnsData (worker) — description size', () => {
+  const env = {} as Env
+
+  beforeEach(() => {
+    mockResolveEnsOwner.mockReset()
+    mockResolveEnsOwner.mockResolvedValue({ owner: OWNER })
+  })
+
+  const mockDescription = async (description: string) => {
+    const { getRecords } = await import('@ensdomains/ensjs/public')
+    vi.mocked(getRecords).mockResolvedValue({
+      texts: [{ key: 'description', value: description }],
+      coins: [],
+      contentHash: null,
+      resolverAddress: OWNER,
+    } as unknown as Awaited<ReturnType<typeof getRecords>>)
+  }
+
+  it('truncates a 1 MiB description record', async () => {
+    await mockDescription('"'.repeat(1024 * 1024))
+
+    const { description } = await fetchEnsData(env, 'alice.eth')
+
+    expect(description).toHaveLength(300)
+  })
+
+  it('leaves a normal description untouched', async () => {
+    await mockDescription('Just a regular ENS profile description.')
+
+    const { description } = await fetchEnsData(env, 'alice.eth')
+
+    expect(description).toBe('Just a regular ENS profile description.')
   })
 })

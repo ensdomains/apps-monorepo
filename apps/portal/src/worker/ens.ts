@@ -18,6 +18,13 @@ export interface EnsData {
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
 /**
+ * Cap the attacker-controlled description at the source: the meta block escapes
+ * it into two tags, so an uncapped record sits in memory at ~12x its size.
+ * Generous next to the ~200 chars OG readers show.
+ */
+const DESCRIPTION_MAX_CHARS = 300
+
+/**
  * Base64-encode bytes via the runtime's native `btoa`.
  *
  * `btoa` takes a binary string, so we build one in chunks with
@@ -191,7 +198,9 @@ export async function fetchEnsData(
     return {
       avatar,
       description:
-        records.texts.find((r) => r.key === 'description')?.value ?? null,
+        records.texts
+          .find((r) => r.key === 'description')
+          ?.value?.slice(0, DESCRIPTION_MAX_CHARS) ?? null,
       owner,
     }
   } catch {
