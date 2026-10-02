@@ -182,12 +182,16 @@ describe('getSubnames', () => {
     mockGraphqlRequest
       .mockResolvedValueOnce({
         domains: [
-          { subdomains: Array.from({ length: 40 }, (_, i) => subdomain(i)) },
+          {
+            subdomainsCount: 51,
+            subdomains: Array.from({ length: 40 }, (_, i) => subdomain(i)),
+          },
         ],
       })
       .mockResolvedValueOnce({
         domains: [
           {
+            subdomainsCount: 51,
             subdomains: Array.from({ length: 11 }, (_, i) => subdomain(40 + i)),
           },
         ],
@@ -207,6 +211,30 @@ describe('getSubnames', () => {
       { name: 'test.eth', skip: 0 },
       { name: 'test.eth', skip: 40 },
     ])
+  })
+
+  it('makes one request when the V2 subnames exactly fill a page', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [
+        {
+          subdomainsCount: 40,
+          subdomains: Array.from({ length: 40 }, (_, i) => ({
+            name: `sub${i}.test.eth`,
+            labelName: `sub${i}`,
+            labelhash: '0xabcd',
+            owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
+          })),
+        },
+      ],
+    })
+
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv2',
+    })
+
+    expect(result._unsafeUnwrap()).toHaveLength(40)
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
   })
 
   it('returns empty array when domain has no subdomains', async () => {
