@@ -9,7 +9,7 @@ export { useRegistrationStep } from './state/registrationUi.selectors'
 // consumer is the root route, which must deep-import it to keep this barrel —
 // and the whole register workflow behind it — out of the every-page chunk.
 export type { RegistrationResumeState } from './state/useRegistrationResume'
-export { parseName } from './utils/name-parser'
+export { parseCanonicalName, parseName } from './utils/name-parser'
 
 export { ResumeCheckPlaceholder } from './workflow/pricing/components/ResumeCheckPlaceholder'
 export { PricingStep } from './workflow/pricing/PricingStep'

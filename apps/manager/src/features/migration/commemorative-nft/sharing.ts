@@ -63,10 +63,9 @@ export const buildCommemorativeNftShareUrls = (
 }
 
 export const buildCommemorativeNftMarketplaceUrl = (params: {
-  readonly chainId: number
   readonly ownerAddress: Address
 }): string | undefined => {
-  const contractAddress = getCommemorativeNftContractAddress(params.chainId)
+  const contractAddress = getCommemorativeNftContractAddress()
   if (!contractAddress) return undefined
 
   const tokenId = getCommemorativeNftTokenId(params.ownerAddress).toString()

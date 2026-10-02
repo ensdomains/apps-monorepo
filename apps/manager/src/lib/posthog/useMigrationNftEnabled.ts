@@ -1,4 +1,5 @@
 import { useFeatureFlagEnabled } from '@posthog/react'
+import { envConfig } from '@/config'
 import { isMigrationNftEnabled, POSTHOG_FEATURE_FLAGS } from './feature-flags'
 
 export const useMigrationNftEnabled = (): boolean => {
@@ -11,5 +12,9 @@ export const useMigrationNftEnabled = (): boolean => {
     false,
   )
 
-  return isMigrationNftEnabled({ migrationEnabled, migrationNftEnabled })
+  return isMigrationNftEnabled({
+    network: envConfig.network,
+    migrationEnabled,
+    migrationNftEnabled,
+  })
 }

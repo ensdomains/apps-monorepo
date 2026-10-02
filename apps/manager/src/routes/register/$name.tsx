@@ -10,7 +10,7 @@ import {
   FailureStep,
   getRegistrationV2AvailabilityQueryOptions,
   PricingStep,
-  parseName,
+  parseCanonicalName,
   RegisteringStep,
   RegistrationV2UiProvider,
   ResumeCheckPlaceholder,
@@ -23,23 +23,33 @@ export const Route = createFileRoute('/register/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     // Validate the name shape first: the availability query can throw on
     // names the registrar doesn't understand
-    const parsedName = parseName(name)
+    const parsedName = parseCanonicalName(name)
 
     if (parsedName.isErr()) {
       throw parsedName.error
     }
 
-    if (parsedName.value.tld !== 'eth') {
+    const { label, name: normalizedName, subLabels, tld } = parsedName.value
+
+    // Nothing is owned yet, so any other spelling, a case difference included,
+    // has an unambiguous canonical one to send the buyer to. Redirecting here
+    // is what makes the URL, availability, price, display and calldata read
+    // the one normalised name.
+    if (normalizedName !== name) {
+      throw redirect({
+        params: { name: normalizedName },
+        to: '/register/$name',
+        replace: true,
+      })
+    }
+
+    if (tld !== 'eth') {
       return { fallback: 'unsupported-tld' as const, label: '' }
     }
 
-    if (parsedName.value.subLabels.length > 0) {
+    if (subLabels.length > 0) {
       throw new Error('Subnames are not supported')
     }
-
-    // Availability, display and commit/reveal calldata all read this one
-    // normalised name, so the label hashed is the label checked as available.
-    const { label, name: normalizedName } = parsedName.value
 
     // Labels under 3 code points can't be registered; send them to the
     // profile fallback instead of surfacing the availability error
@@ -89,7 +99,8 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     <div className="mx-auto max-w-md space-y-4">
       <div className="flex items-center justify-center py-8">
         <div className="wrap-anywhere text-destructive">
-          Error loading name: {error.message}
+          Error loading name:{' '}
+          {error instanceof Error ? error.message : String(error)}
         </div>
       </div>
       <button onClick={reset} type="button">

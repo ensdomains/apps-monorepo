@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import {
+  type GetEnsOwnerReturnType,
+  getEnsOwnerQueryOptions,
+} from '@/features/profile/hooks/useEnsOwner'
 import { createTestQueryClient, createTestWrapper } from '@/test-utils'
 
 const getDnsOwnerMock = vi.fn()
@@ -96,11 +99,12 @@ describe('useDnsSyncStatus', () => {
     const managerQueryKey = getEnsOwnerQueryOptions({
       name: 'example.xyz',
     }).queryKey
-    queryClient.setQueryData(managerQueryKey, {
+    const manager: GetEnsOwnerReturnType = {
       owner: MANAGER,
       registryAddress: REGISTRY,
       protocolVersion: 'ENSv1',
-    })
+    }
+    queryClient.setQueryData(managerQueryKey, manager)
 
     const { result } = renderStatus({ connectedAddress: VIEWER }, queryClient)
 

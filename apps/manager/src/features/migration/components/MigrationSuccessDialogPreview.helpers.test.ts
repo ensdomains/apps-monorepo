@@ -34,7 +34,7 @@ const publishedQuery: PublishedPreviewQuery = {
   fetchStatus: 'idle',
   isFetchedAfterMount: true,
 }
-const input = { ownerAddress, chainId: 11155111 } as const
+const input = { ownerAddress } as const
 
 describe('published NFT preview state', () => {
   it('builds an unminted preview from published names, traits and assets', () => {

@@ -23,7 +23,7 @@ export const useCommemorativeNftAvailability = (params: {
   const wagmiConfig = useConfig()
   const supported =
     getCommemorativeNftConfig().isValid &&
-    !!getCommemorativeNftContractAddress(chainId)
+    !!getCommemorativeNftContractAddress()
   const ownerAddress = params.ownerAddress
   const enabled =
     featureEnabled && params.enabled && supported && !!ownerAddress

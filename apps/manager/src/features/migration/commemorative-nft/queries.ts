@@ -56,7 +56,7 @@ export const commemorativeNftClaimedQueryOptions = (params: {
   queryOptions({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
-      contractAddress: getCommemorativeNftContractAddress(params.chainId),
+      contractAddress: getCommemorativeNftContractAddress(),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
     queryFn: ({ signal }) => readCommemorativeNftClaimed({ ...params, signal }),
@@ -79,7 +79,7 @@ export const invalidateCommemorativeNftStatus = async (params: {
   await params.queryClient.invalidateQueries({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
-      contractAddress: getCommemorativeNftContractAddress(params.chainId),
+      contractAddress: getCommemorativeNftContractAddress(),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
   })

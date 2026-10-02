@@ -89,7 +89,7 @@ const checkMigrationCompletion = async (
   ) {
     throw new Error('The migration account could not be checked.')
   }
-  if (!getCommemorativeNftContractAddress(params.chainId)) {
+  if (!getCommemorativeNftContractAddress()) {
     throw new Error('Migration completion is unavailable on this network.')
   }
   const publicClient = getPublicClient(params.wagmiConfig, {
@@ -199,7 +199,7 @@ export const commemorativeNftMigrationCompletionQueryOptions = (
       ownerAddress: params.ownerAddress.toLowerCase(),
       hcaAddress: params.hcaAddress.toLowerCase(),
       chainId: params.chainId,
-      contractAddress: getCommemorativeNftContractAddress(params.chainId),
+      contractAddress: getCommemorativeNftContractAddress(),
       deployment: getMigrationCompletionDeploymentIdentity(params.chainId),
       journalRevision: params.journalRevision ?? 0,
       evidenceRevision: params.verifiedMigration?.revision ?? 0,

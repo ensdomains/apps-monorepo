@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ComponentProps, useEffect, useState } from 'react'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { buildCommemorativeNftCardData } from '../commemorative-nft/cardData'
 import { MigrationSuccessDialog } from './MigrationSuccessDialog'
 import { PublishedNftStory, publishedNftStoryOwner } from './PublishedNftStory'
@@ -51,7 +50,6 @@ const PreviewDialog = ({
       ? {
           status: mintStatus,
           card: buildCommemorativeNftCardData({
-            chainId: sepolia.id,
             eligibility: state.card.eligibility,
             minted: mintStatus === 'minted',
             ownerAddress: state.card.eligibility.ownerAddress,

@@ -45,7 +45,12 @@ import {
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Transaction } from '@rhinestone/sdk'
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromPromise,
+  fromThrowable,
+  type ResultAsync,
+} from 'neverthrow'
 import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
@@ -59,6 +64,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
+import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -328,7 +334,15 @@ export function estimateHcaBudgetActor(input: {
    */
   primaryName?: string
 }): ResultAsync<HcaBudgetBreakdown, Error> {
-  const label = cleanLabel(input.name)
+  // This label prices the registration and sizes the funding permit, so a
+  // non-canonical one funds a different name than the reveal batch registers.
+  // Wrapped because the refusal must be an `err`, not a throw.
+  const labelResult = fromThrowable(canonicalLabel, (error) =>
+    error instanceof Error ? error : new Error(String(error)),
+  )(input.name)
+  if (labelResult.isErr()) return errAsync(labelResult.error)
+  const label = labelResult.value
+
   const chainId = input.chainId
 
   // Build a best-effort per-leg quoter whenever we have a Rhinestone account.
@@ -486,6 +500,30 @@ const toCalls = (calls: readonly HcaCall[]): Call[] =>
   calls.map((c) => ({ to: c.to, data: c.data, value: c.value }))
 
 const cleanLabel = (name: string): string => name.replace(/\.eth$/, '')
+
+/**
+ * The label for a call that will be signed, hashed or registered.
+ *
+ * `keccak256(label)` is the name's identity, so a non-canonical label buys a
+ * different name than the confirm step displayed and priced. The app
+ * canonicalises at the entry of the flow; this is the last line before the
+ * wallet, and it refuses rather than signs.
+ */
+const canonicalLabel = (name: string): string => {
+  const label = cleanLabel(name)
+
+  // `normalize` throws on a label ENS can never issue; its own error says
+  // which, so let it through.
+  const normalized = normalize(label)
+
+  if (normalized !== label) {
+    throw new Error(
+      `Refusing to register "${label}": its canonical form is "${normalized}", so it would register a different name than the one shown.`,
+    )
+  }
+
+  return label
+}
 
 /** User-paid request shape shared by both legs. */
 function buildUserPaidRequest(params: {
@@ -824,7 +862,7 @@ export function submitFundingAndCommitActor(input: {
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
@@ -966,7 +1004,7 @@ export function verifyHcaRegistrationActor(
   }> => {
     const chainId = requireChainId(input.publicClient, 'HCA registration')
     const contracts = getDestinationContracts(chainId)
-    const label = cleanLabel(input.name)
+    const label = canonicalLabel(input.name)
     const expectedResolver = computeResolverAddress({
       chainId,
       hca: input.hca,
@@ -1091,7 +1129,7 @@ export function submitRevealBatchActor(input: {
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
