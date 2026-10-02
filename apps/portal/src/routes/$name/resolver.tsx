@@ -19,11 +19,15 @@ import { Button } from '@/components/ui/button'
 import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import {
+  type GetEnsOwnerReturnType,
+  getEnsOwnerQueryOptions,
+} from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { ResolverPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURES,
@@ -131,14 +135,32 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   )
 }
 
+/**
+ * Flags an owner who can't change the name's own resolver slot. Shown even when
+ * the resolver above is inherited from an ancestor: a locked, empty slot means
+ * the name is stuck with that inherited one.
+ */
+const ResolverWarning = ({
+  name,
+  ownerData,
+}: {
+  name: string
+  ownerData: GetEnsOwnerReturnType | undefined
+}) =>
+  ownerData ? (
+    <ResolverPrivilegeWarning name={name} ownerData={ownerData} />
+  ) : null
+
 const ResolverInfoList = ({
   resolverAddress,
   name,
+  ownerData,
   type,
   docsHref,
 }: {
   resolverAddress: Address
   name: string
+  ownerData: GetEnsOwnerReturnType | undefined
   type: string
   /** Official-resolver docs link — renders the audited notice in the Type row. */
   docsHref?: string
@@ -165,7 +187,10 @@ const ResolverInfoList = ({
         )}
       </InfoRow>
       <InfoRow label="Contract">
-        <ResolverAddressValue address={resolverAddress} />
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <ResolverAddressValue address={resolverAddress} />
+          <ResolverWarning name={name} ownerData={ownerData} />
+        </div>
       </InfoRow>
       <InfoRow label="Node">
         <div className="flex items-center gap-2">
@@ -201,9 +226,14 @@ const RESOLVER_HISTORY_EVENT_TYPES = [
 interface ResolverViewProps {
   name: string
   resolverAddress: Address
+  ownerData: GetEnsOwnerReturnType | undefined
 }
 
-const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
+const ResolverView = ({
+  name,
+  resolverAddress,
+  ownerData,
+}: ResolverViewProps) => {
   const permissionedResolverQuery = useQuery(
     getIsPermissionedResolverQueryOptions({ resolverAddress }),
   )
@@ -237,6 +267,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          ownerData={ownerData}
           type="ENS Permissioned Resolver"
           docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
         />
@@ -244,6 +275,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          ownerData={ownerData}
           type="ENS Public Resolver"
           docsHref="https://docs.ens.domains/resolvers/public/"
         />
@@ -251,6 +283,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          ownerData={ownerData}
           type="Custom Resolver"
         />
       )}
@@ -290,7 +323,13 @@ const SetResolverButton = ({ name }: { name: string }) => {
   )
 }
 
-const NoResolverSet = ({ name }: { name: string }) => {
+const NoResolverSet = ({
+  name,
+  ownerData,
+}: {
+  name: string
+  ownerData: GetEnsOwnerReturnType | undefined
+}) => {
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
@@ -298,6 +337,7 @@ const NoResolverSet = ({ name }: { name: string }) => {
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.
         </p>
+        <ResolverWarning name={name} ownerData={ownerData} />
         <SetResolverButton name={name} />
       </div>
     </div>
@@ -399,9 +439,15 @@ function RouteComponent() {
 
   if (resolverAddress) {
     if (resolverAddress === zeroAddress) {
-      return <NoResolverSet name={name} />
+      return <NoResolverSet name={name} ownerData={ownerQuery.data} />
     }
-    return <ResolverView name={name} resolverAddress={resolverAddress} />
+    return (
+      <ResolverView
+        name={name}
+        resolverAddress={resolverAddress}
+        ownerData={ownerQuery.data}
+      />
+    )
   }
 
   return (

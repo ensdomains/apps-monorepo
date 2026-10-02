@@ -14,12 +14,15 @@ export const Owner = ({
   label = 'Owner',
   className,
   asRow,
+  badge,
 }: {
   owner?: Address
   /** A node, not just a string: a role label can carry its own explanation. */
   label?: ReactNode
   className?: string
   asRow?: boolean
+  /** Rendered after the owner in row mode, e.g. a privilege warning. */
+  badge?: ReactNode
 }) => {
   const {
     data: ownerName,
@@ -69,13 +72,16 @@ export const Owner = ({
   if (asRow) {
     return (
       <InfoRow icon={ShieldPersonIcon} label={label} className={className}>
-        <EntityBadge
-          variant={variant}
-          name={ownerName ?? undefined}
-          address={owner}
-        >
-          {ownerName || shortenedAddress}
-        </EntityBadge>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <EntityBadge
+            variant={variant}
+            name={ownerName ?? undefined}
+            address={owner}
+          >
+            {ownerName || shortenedAddress}
+          </EntityBadge>
+          {badge}
+        </div>
       </InfoRow>
     )
   }

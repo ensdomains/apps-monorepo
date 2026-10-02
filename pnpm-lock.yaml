@@ -623,6 +623,9 @@ importers:
       '@ens-apps/og':
         specifier: workspace:*
         version: link:../../packages/og
+      '@ens-apps/smart-account':
+        specifier: workspace:*
+        version: link:../../packages/smart-account
       '@ens-apps/transaction-manager':
         specifier: workspace:*
         version: link:../../packages/transaction-manager

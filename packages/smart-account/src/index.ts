@@ -128,3 +128,7 @@ export {
   type ComputeVerifiableProxyAddressParams,
   computeVerifiableProxyAddress,
 } from './verifiable-factory'
+export {
+  computeWrapperRegistryAddress,
+  type WrapperRegistryDeployers,
+} from './wrapper-registry'
