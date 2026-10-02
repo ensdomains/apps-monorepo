@@ -29,6 +29,9 @@ const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const pending = () => new Promise<never>(() => {})
 const publicClient = { chain: { id: 11155111 }, request: vi.fn(pending) }
 const stableConfig = {}
+// Code at the wallet's resolver address: set once an earlier registration
+// deployed it.
+const walletResolver = vi.hoisted(() => ({ code: null as string | null }))
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
@@ -36,6 +39,7 @@ vi.mock('wagmi', async (importOriginal) => ({
   useConnection: () => ({ address: OWNER }),
   usePublicClient: () => publicClient,
   useReadContract: () => ({ data: undefined }),
+  useBytecode: () => ({ data: walletResolver.code }),
 }))
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   useTransactionModal: () => ({
@@ -226,5 +230,36 @@ describe('useRegistrationTransactions retry after a failed step', () => {
       commitTx,
     )
     vi.restoreAllMocks()
+  })
+})
+
+describe('useRegistrationTransactions before a run', () => {
+  const render = () =>
+    renderHook(() =>
+      useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
+    ).result
+
+  it("lists the deploy step for the wallet's first registration", () => {
+    walletResolver.code = null
+    const result = render()
+
+    expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.deployResolver,
+      REGISTRATION_TX_IDS.commit,
+      REGISTRATION_TX_IDS.approve,
+      REGISTRATION_TX_IDS.register,
+    ])
+  })
+
+  it('drops the deploy step once the wallet has a resolver', () => {
+    walletResolver.code = '0x6080'
+    const result = render()
+
+    expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.commit,
+      REGISTRATION_TX_IDS.approve,
+      REGISTRATION_TX_IDS.register,
+    ])
+    walletResolver.code = null
   })
 })

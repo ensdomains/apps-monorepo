@@ -48,6 +48,7 @@ export {
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
 export {
+  computeDedicatedResolverAddress,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   type TOKEN_SYMBOL,
