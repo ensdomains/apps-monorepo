@@ -120,16 +120,13 @@ describe('commemorative NFT sharing', () => {
     )
   })
 
-  it.each([
-    1, 11155111,
-  ])('builds the Ethereum OpenSea link on configured chain %s', (chainId) => {
+  it('builds the Ethereum OpenSea link for the configured contract', () => {
     vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
       '0x0000000000000000000000000000000000000001',
     )
 
     expect(
       buildCommemorativeNftMarketplaceUrl({
-        chainId,
         ownerAddress,
       }),
     ).toBe(
@@ -137,12 +134,9 @@ describe('commemorative NFT sharing', () => {
     )
   })
 
-  it.each([
-    1, 11155111,
-  ])('does not expose OpenSea for undeployed mainnet with request chain %s', (chainId) => {
+  it('does not expose OpenSea for undeployed mainnet', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
-        chainId,
         ownerAddress,
       }),
     ).toBeUndefined()

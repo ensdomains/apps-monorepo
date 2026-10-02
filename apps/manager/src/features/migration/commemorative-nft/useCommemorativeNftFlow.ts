@@ -398,13 +398,12 @@ export const useCommemorativeNftFlow = ({
     () =>
       eligibility
         ? buildCommemorativeNftCardData({
-            chainId,
             eligibility,
             minted: claimedStatus === true,
             ownerAddress: eligibility.ownerAddress,
           })
         : undefined,
-    [chainId, eligibility, claimedStatus],
+    [eligibility, claimedStatus],
   )
   const checkingClaim = claimMutation.isPending || hasPendingMutation
   const canCheckStatus =
