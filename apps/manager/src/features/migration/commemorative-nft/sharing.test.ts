@@ -8,6 +8,8 @@ import {
 } from './sharing'
 import type { RendererTraits } from './types'
 
+vi.mock('@/config', () => ({ envConfig: { network: 'mainnet' } }))
+
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const traits: RendererTraits = {
   Era: 'Surge',
@@ -136,8 +138,8 @@ describe('commemorative NFT sharing', () => {
   })
 
   it.each([
-    1, 10,
-  ])('does not expose OpenSea without a configured contract on chain %s', (chainId) => {
+    1, 11155111,
+  ])('does not expose OpenSea for undeployed mainnet with request chain %s', (chainId) => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId,

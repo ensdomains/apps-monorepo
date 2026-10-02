@@ -1,35 +1,40 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { QueryClient } from '@tanstack/react-query'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
   getCommemorativeNftContractAddress,
 } from './config'
-import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import { commemorativeNftEligibilityQueryOptions } from './queries'
 
+const { config } = vi.hoisted(() => ({
+  config: { network: 'sepolia' as EnsNetwork },
+}))
+
+vi.mock('@/config', () => ({ envConfig: config }))
+
 describe('commemorative NFT config', () => {
+  beforeEach(() => {
+    config.network = 'sepolia'
+  })
+
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   })
 
-  it('resolves the configured mainnet contract on chain 1', () => {
-    vi.stubEnv(
-      'VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS',
-      MAINNET_NFT_TEST_ADDRESS,
+  it('uses the resolved ENS network for the deployed Sepolia contract', () => {
+    vi.stubEnv('VITE_ENS_NETWORK', 'mainnet')
+    expect(getCommemorativeNftContractAddress()).toBe(
+      '0xa55605c6242CbFc27117b63466B423fbc092a2A9',
     )
-    expect(getCommemorativeNftContractAddress(1)).toBe(MAINNET_NFT_TEST_ADDRESS)
-    expect(getCommemorativeNftContractAddress(10)).toBeUndefined()
   })
 
-  it.each([
-    '',
-    'invalid',
-    '0x0000000000000000000000000000000000000000',
-  ])('disables mainnet reads and claims for an invalid contract address: %s', (address) => {
-    vi.stubEnv('VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS', address)
-    expect(getCommemorativeNftContractAddress(1)).toBeUndefined()
+  it('keeps undeployed mainnet unavailable without a Sepolia fallback', () => {
+    config.network = 'mainnet'
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    expect(getCommemorativeNftContractAddress()).toBeUndefined()
   })
 
   it('uses the configured renderer origin', () => {

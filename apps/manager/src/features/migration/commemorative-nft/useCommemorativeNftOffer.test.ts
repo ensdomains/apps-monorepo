@@ -1,3 +1,4 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { setupI18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -16,6 +17,7 @@ import type { Address } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommemorativeNftDashboard } from '../components/success/CommemorativeNftDashboard'
 import { CommemorativeNftProfileSection } from '../components/success/CommemorativeNftProfileSection'
+import { getCommemorativeNftContractAddress } from './config'
 import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import {
@@ -25,6 +27,9 @@ import {
 import type { CommemorativeNftEligibilityResult } from './types'
 import { useCommemorativeNftOffer } from './useCommemorativeNftOffer'
 
+const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
+  network: 'mainnet',
+}))
 const mocks = vi.hoisted(() => ({
   metadata: vi.fn(),
   claimed: vi.fn(),
@@ -36,6 +41,7 @@ const mocks = vi.hoisted(() => ({
   mounted: vi.fn(),
   unmounted: vi.fn(),
 }))
+vi.mock('@/config', () => ({ envConfig: mockEnvConfig }))
 vi.mock('wagmi', () => ({ useChainId: mocks.chain, useConfig: () => ({}) }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => true,
@@ -46,6 +52,10 @@ vi.mock('./useVerifiedCommemorativeNftOwner', () => ({
 vi.mock('./contract', () => ({ readCommemorativeNftClaimed: mocks.claimed }))
 vi.mock('./eligibility', () => ({
   fetchCommemorativeNftEligibility: mocks.metadata,
+}))
+vi.mock('./config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./config')>()),
+  getCommemorativeNftContractAddress: vi.fn(),
 }))
 vi.mock('./usePendingCommemorativeNftClaim', () => ({
   usePendingCommemorativeNftClaim: mocks.pending,
@@ -110,6 +120,7 @@ const ObservedDialog = ({
   )
 }
 const clients: QueryClient[] = []
+const getContractAddress = vi.mocked(getCommemorativeNftContractAddress)
 const createContext = () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -128,10 +139,8 @@ const createContext = () => {
 describe('shared commemorative NFT offers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv(
-      'VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS',
-      MAINNET_NFT_TEST_ADDRESS,
-    )
+    mockEnvConfig.network = 'mainnet'
+    getContractAddress.mockReturnValue(MAINNET_NFT_TEST_ADDRESS)
     vi.stubGlobal('navigator', { locks: { request: vi.fn() } })
     mocks.owner.mockReturnValue(ownerAddress)
     mocks.chain.mockReturnValue(1)
@@ -149,7 +158,30 @@ describe('shared commemorative NFT offers', () => {
     cleanup()
     for (const client of clients.splice(0)) client.clear()
     vi.unstubAllGlobals()
-    vi.unstubAllEnvs()
+  })
+
+  it('hides cached offers and recovery without a configured deployment', () => {
+    const { client, wrapper } = createContext()
+    client.setQueryData(
+      commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
+      published,
+    )
+    getContractAddress.mockReturnValue(undefined)
+    mocks.pending.mockReturnValue({ status: 'unavailable' })
+    const { result } = renderHook(
+      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+      { wrapper },
+    )
+
+    expect(result.current.visibleEligibility).toBeUndefined()
+    expect(result.current.canRecoverClaim).toBe(false)
+    expect(result.current.canOpenMint).toBe(false)
+    expect(result.current.canSubmitMint).toBe(false)
+    expect(mocks.metadata).not.toHaveBeenCalled()
+    expect(mocks.claimed).not.toHaveBeenCalled()
+    expect(
+      mocks.completion.mock.calls.every(([params]) => !params.enabled),
+    ).toBe(true)
   })
 
   it.each([
@@ -336,7 +368,8 @@ describe('shared commemorative NFT offers', () => {
     rerender({ owner: '0x1111111111111111111111111111111111111111' })
     expect(result.current.visibleEligibility).toBeUndefined()
     expect(result.current.canSubmitMint).toBe(false)
-    mocks.chain.mockReturnValue(1)
+    mockEnvConfig.network = 'sepolia'
+    mocks.chain.mockReturnValue(11155111)
     rerender({ owner: ownerAddress })
     expect(result.current.visibleEligibility).toBeUndefined()
     expect(result.current.canSubmitMint).toBe(false)

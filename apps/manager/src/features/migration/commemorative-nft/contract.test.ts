@@ -6,9 +6,7 @@ import {
 } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getCommemorativeNftContractAddress } from './config'
-import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CommemorativeNftClaimError,
   claimCommemorativeNft,
@@ -19,6 +17,12 @@ import {
 } from './contract'
 import type { PendingNftClaim } from './pendingClaim'
 import { getCommemorativeNftClaimedRefetchInterval } from './queries'
+
+const { config } = vi.hoisted(() => ({
+  config: { network: 'sepolia' as EnsNetwork },
+}))
+
+vi.mock('@/config', () => ({ envConfig: config }))
 
 vi.mock('@wagmi/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wagmi/core')>()),
@@ -45,8 +49,7 @@ const replacementHash: Hex = `0x${'b'.repeat(64)}`
 const wagmiConfig = {} as Parameters<
   typeof claimCommemorativeNft
 >[0]['wagmiConfig']
-const contractAddress = getCommemorativeNftContractAddress(11155111)
-if (!contractAddress) throw new Error('Missing test NFT contract')
+const contractAddress: Address = '0xa55605c6242CbFc27117b63466B423fbc092a2A9'
 const pendingClaim: PendingNftClaim = {
   version: 1,
   ownerAddress,
@@ -73,6 +76,7 @@ const transaction = (
   }) as Awaited<ReturnType<typeof getTransaction>>
 
 beforeEach(() => {
+  config.network = 'sepolia'
   vi.resetAllMocks()
   vi.mocked(getPublicClient).mockReturnValue(publicClient)
   waitForTransactionReceiptMock.mockResolvedValue(receipt())
@@ -80,46 +84,27 @@ beforeEach(() => {
   readContractMock.mockResolvedValue(true)
 })
 
-afterEach(() => vi.unstubAllEnvs())
-
 describe('commemorative NFT contract', () => {
-  it('reads and submits claims to the configured contract on mainnet', async () => {
-    vi.stubEnv(
-      'VITE_COMMEMORATIVE_NFT_MAINNET_ADDRESS',
-      MAINNET_NFT_TEST_ADDRESS,
-    )
-    writeContractMock.mockResolvedValue(hash)
+  it('blocks reads and claims for undeployed mainnet even with a Sepolia chain ID', async () => {
+    config.network = 'mainnet'
     await expect(
-      readCommemorativeNftClaimed({ wagmiConfig, chainId: 1, ownerAddress }),
-    ).resolves.toBe(true)
-    expect(readContractMock).toHaveBeenCalledWith(
-      wagmiConfig,
-      expect.objectContaining({
-        address: MAINNET_NFT_TEST_ADDRESS,
-        chainId: 1,
-        functionName: 'hasClaimed',
-        args: [ownerAddress],
+      readCommemorativeNftClaimed({
+        wagmiConfig,
+        chainId: 11155111,
+        ownerAddress,
       }),
-    )
+    ).rejects.toMatchObject({ reason: 'unsupported-network' })
     await expect(
       claimCommemorativeNft({
         wagmiConfig,
-        chainId: 1,
+        chainId: 11155111,
         ownerAddress,
         walletAddress: ownerAddress,
         proof,
       }),
-    ).resolves.toBe(hash)
-    expect(writeContractMock).toHaveBeenCalledWith(
-      wagmiConfig,
-      expect.objectContaining({
-        address: MAINNET_NFT_TEST_ADDRESS,
-        chainId: 1,
-        account: ownerAddress,
-        functionName: 'claim',
-        args: [proof],
-      }),
-    )
+    ).rejects.toMatchObject({ reason: 'unsupported-network' })
+    expect(readContractMock).not.toHaveBeenCalled()
+    expect(writeContractMock).not.toHaveBeenCalled()
   })
   it('submits a plain EOA claim', async () => {
     writeContractMock.mockResolvedValue(hash)
@@ -135,13 +120,15 @@ describe('commemorative NFT contract', () => {
     expect(writeContractMock).toHaveBeenCalledWith(
       wagmiConfig,
       expect.objectContaining({
+        address: contractAddress,
+        chainId: 11155111,
         account: ownerAddress,
         functionName: 'claim',
         args: [proof],
       }),
     )
   })
-  it('refuses a different wallet or an unsupported chain', async () => {
+  it('refuses a different wallet', async () => {
     await expect(
       claimCommemorativeNft({
         wagmiConfig,
@@ -151,15 +138,6 @@ describe('commemorative NFT contract', () => {
         proof,
       }),
     ).rejects.toMatchObject({ reason: 'wallet-mismatch' })
-    await expect(
-      claimCommemorativeNft({
-        wagmiConfig,
-        chainId: 10,
-        ownerAddress,
-        walletAddress: ownerAddress,
-        proof,
-      }),
-    ).rejects.toMatchObject({ reason: 'unsupported-network' })
     expect(writeContractMock).not.toHaveBeenCalled()
   })
   it('reads claimed state directly from the contract', async () => {
@@ -170,6 +148,15 @@ describe('commemorative NFT contract', () => {
         ownerAddress,
       }),
     ).resolves.toBe(true)
+    expect(readContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: contractAddress,
+        chainId: 11155111,
+        functionName: 'hasClaimed',
+        args: [ownerAddress],
+      }),
+    )
   })
   it('classifies rejection and contract errors', () => {
     expect(
@@ -316,3 +303,5 @@ describe('commemorative NFT contract', () => {
     ).toBe(false)
   })
 })
+
+import type { EnsNetwork } from '@ens-apps/config'

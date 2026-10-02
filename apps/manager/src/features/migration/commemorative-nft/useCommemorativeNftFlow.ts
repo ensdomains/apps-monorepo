@@ -219,7 +219,7 @@ export const useCommemorativeNftFlow = ({
   const wagmiConfig = useConfig()
   const chainId = useChainId()
   const queryClient = useQueryClient()
-  const contractAddress = getCommemorativeNftContractAddress(chainId)
+  const contractAddress = getCommemorativeNftContractAddress()
   const mutationKey = qk('commemorative_nft', 'claim', {
     chainId,
     contractAddress: contractAddress?.toLowerCase(),

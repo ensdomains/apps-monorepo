@@ -2,14 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { isMigrationNftEnabled } from './feature-flags'
 
 describe('isMigrationNftEnabled', () => {
-  it.each([
-    'sepolia',
-    undefined,
-    'unknown',
-  ])('disables NFTs outside mainnet: %s', (network) => {
+  it('disables NFTs on Sepolia even with both flags enabled', () => {
     expect(
       isMigrationNftEnabled({
-        network,
+        network: 'sepolia',
         migrationEnabled: true,
         migrationNftEnabled: true,
       }),
