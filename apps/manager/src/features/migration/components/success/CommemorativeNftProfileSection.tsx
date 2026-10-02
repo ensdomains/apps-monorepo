@@ -120,12 +120,7 @@ export const CommemorativeNftProfileSection = ({
     ownerAddress: verifiedOwner,
     enabled: isOwner,
   })
-  const {
-    availability,
-    migrationCompletion,
-    minted,
-    visibleEligibility: eligibility,
-  } = offer
+  const { migrationCompletion, minted, visibleEligibility: eligibility } = offer
   const isCanonical = eligibility
     ? isCommemorativeNftCanonicalProfile(name, eligibility.profileName)
     : false
@@ -140,13 +135,12 @@ export const CommemorativeNftProfileSection = ({
     () =>
       eligibility && minted
         ? buildCommemorativeNftCardData({
-            chainId: availability.chainId,
             eligibility,
             minted: true,
             ownerAddress: eligibility.ownerAddress,
           })
         : undefined,
-    [availability.chainId, eligibility, minted],
+    [eligibility, minted],
   )
 
   return (
