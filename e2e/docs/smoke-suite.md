@@ -35,7 +35,7 @@ applies across **all** of that config's projects — including the harness
 dependency — so the harness project itself is thinned down to just the
 fixture checks the smoke tests actually rely on, not all of it.
 
-## The curated list (16 tests, ~4.9 minutes measured)
+## The curated list (17 tests, ~4.4 minutes measured)
 
 ### Portal — 12 tests, ~162s measured (`playwright.smoke.config.ts`)
 
@@ -52,13 +52,14 @@ fixture checks the smoke tests actually rely on, not all of it.
 | 11 | `a second grant after dismissing the first asks the wallet again and lands on-chain` | `roles.spec.ts` | Regression coverage for PR #1214 (WEB-1418): a finished transaction actor stays in the manager so the modal can re-render it, and the roles flows used a fixed step id, so a second role change in the same session opened as the *first* change's receipt ("Done", with its actual cost) and pressing Done sent nothing. Chain-oracled (`assertRoleBitmap` on the second grantee), no indexer dependency, ~9s. It also guards the scoped-id console matcher in `helpers/transaction-modal.ts`, which every modal-driven test depends on. |
 | 12 | `does not ask a wallet on another network to send, and says why` | `transfer.spec.ts` | Regression coverage for PR #1108 (WEB-281): the portal declares Sepolia alone and never re-checks the chain after connect, so a wallet switched to another network got `walletClient.chain === undefined`, which the EOA transport passed to viem as `chain: null` — switching off viem's own chain check — and the wallet was asked to send Sepolia calldata on the other chain. Oracle is the headless wallet's `eth_sendTransaction` queue (must stay empty) plus a chain read of the name; it also pins the non-retryable branch (exactly one attempt). One seeded name, no indexer dependency, 11.8s. The recovery and Extend (USDC) tests for the same fix stay in the nightly run; see [`chain-mismatch-web281-test-plan.md`](./chain-mismatch-web281-test-plan.md). |
 
-### Manager — 4 tests, 120s measured (`playwright.smoke.config.ts`)
+### Manager — 5 tests, 102s measured (`playwright.smoke.config.ts`)
 
 | # | Test | File | Why it's here |
 |---|---|---|---|
 | 1–2 | `makeV2Name: rule 5 — the name it reports is registered…`; `makeV2Name: rule 6 — the manager renders the name it made` | `specs/harness-manager.spec.ts` | The two fixture checks for the V2 name path the registration test below shares infrastructure with (same registry, same render path). Manager's other four harness tests (`makeV1Name` ×2, `v1-controller-auth`, `makeV1Name`-vs-app-registrar) exist for the migration suite, which is out of scope here (see below). |
 | 3 | `registers a name after connecting from the pricing page` (`@scenario:A16`) | `registration.spec.ts` | Manager's own R0/R1 registration happy path. Manager's presence in this suite is deliberately thin (see "Why manager is thin" below) — this is the *only* manager-side area verified both fast (~70–100s) and fully reliable in a fresh, same-day run. It is worth the ~2 minutes because it is a structurally different codebase/UI/payment path from the portal registration test, exercising the same protocol-critical flow. |
 | 4 | `a grace-period name is offered for renewal from the dashboard and listed on /migration` | `migration-grace.spec.ts` | Regression coverage for PR #1274 (WEB-424): a V1 name in its 90-day grace period is classified `expired-registration`, and before the fix that made it invisible to migration — no upgrade banner and "No eligible names found" on /migration — so an owner whose only names were in grace had no path to upgrade. Seeds one real in-grace name with `makeGraceV1Name` (moves the shared clock ~90s), no wallet transactions, 12.8s. The renew-and-migrate, insufficient-USDC and mixed/wrapped tests stay in the nightly migration run; see [`migration-grace-web424-test-plan.md`](./migration-grace-web424-test-plan.md). |
+| 5 | `revoking a deployed account bumps the nonce, kills a copied session, and clears this browser` | `hca-session-revoke.spec.ts` | Regression coverage for PR #1113 (WEB-674): HCA sessions could only be forgotten from localStorage, but the validator is stateless, so a copied record stayed usable until `validUntil`. The test signs a real session, revokes from the wallet menu, and checks the chain: exactly one owner transaction calling `revokeSessions()` on the HCA, `ownerAndSessionNonce` bumped by one, the HCA's own `SessionsRevoked` log, the copied record's nonce now stale, local storage cleared, and the gate re-prompting with a session on the new nonce. The mockestrator never runs the validator, so the nonce, not a UI registration, is the oracle. One owner transaction, no indexer dependency, 9.5s. The rejection, chain-switch and undeployed-account tests stay in the nightly run; see [`session-revoke-web674-test-plan.md`](./session-revoke-web674-test-plan.md). |
 
 ## Why manager is thin
 
@@ -161,8 +162,8 @@ Full, clean, all-green run (2026-09-24, this session, fresh infra):
 | Suite | Tests | Time |
 |---|---|---|
 | Portal (`pnpm e2e:smoke:portal`) | 11 (3 harness + 8) | 150s (2m30s) — re-measured 2026-09-30 after adding #11 |
-| Manager (`pnpm e2e:smoke:manager`) | 3 (2 harness + 1) | 121s (2m01s) |
-| **Total (`pnpm e2e:smoke`, sequential)** | **14** | **271s (4m31s)** |
+| Manager (`pnpm e2e:smoke:manager`) | 5 (2 harness + 3) | 102s (1m42s) — re-measured 2026-10-02 after adding #5 |
+| **Total (`pnpm e2e:smoke`, sequential)** | **16** | **252s (4m12s)** |
 
 This is comfortably under the ~10 minute target, with every test in the
 final set passing. The gap was **not** filled by padding: the D-tier and
