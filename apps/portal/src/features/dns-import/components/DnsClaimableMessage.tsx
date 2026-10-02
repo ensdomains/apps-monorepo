@@ -12,6 +12,12 @@ import { useDnsOffchainName } from '../hooks/useDnsOffchainName'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import { CustomTldMessage } from './CustomTldMessage'
 
+/**
+ * Matches the import form these cards lead into (`DnsImportFlow`): same
+ * 576px column, same top offset, so the hand-off doesn't shift the content.
+ */
+const IMPORT_COLUMN_CLASS = 'max-w-xl mt-6'
+
 /** The record's parts, highlighted the way the design calls them out. */
 const InlineCode = ({ children }: { readonly children: ReactNode }) => (
   <code className="rounded-sm bg-current/10 px-1 font-mono text-sm">
@@ -54,6 +60,7 @@ const DnsOffchainNameMessage = ({
             search: { type: 'onchain', step: 'start' },
           }),
       }}
+      className={IMPORT_COLUMN_CLASS}
     />
   )
 }
@@ -120,6 +127,7 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
             search: { type: 'onchain', step: 'start' },
           }),
       }}
+      className={IMPORT_COLUMN_CLASS}
     />
   )
 }
