@@ -5,6 +5,7 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { DnssecDebugLink } from '@/features/dnssec-debug/components/DnssecDebugLink'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { EstimatedGasCost } from '@/features/transaction-manager/components/EstimatedGasCost'
@@ -134,11 +135,13 @@ const buildRecord = (
 
 /** Record table + found chip + per-state messages while ownership is unverified. */
 const VerificationDetails = ({
+  name,
   found,
   record,
   onRefresh,
   isRefreshing,
 }: {
+  readonly name: string
   readonly found: FoundState
   readonly record: DnsRecordSpec
   readonly onRefresh: () => void
@@ -176,9 +179,12 @@ const VerificationDetails = ({
       }
     />
     {found.kind === 'invalid' && (
-      <p className="text-sm text-message-danger-text">
-        {DNS_ERROR_MESSAGES[found.reason]}
-      </p>
+      <>
+        <p className="text-sm text-message-danger-text">
+          {DNS_ERROR_MESSAGES[found.reason]}
+        </p>
+        <DnssecDebugLink name={name} source="import" />
+      </>
     )}
     {found.kind === 'mismatch' && found.unofficialResolver && (
       <p className="text-sm text-message-warning-text">
@@ -281,6 +287,7 @@ export const VerifyOwnership = ({
         <>
           {found.kind !== 'verified' && record && (
             <VerificationDetails
+              name={name}
               found={found}
               record={record}
               onRefresh={() => void activeQuery.refetch()}
@@ -369,11 +376,12 @@ const OnchainImportActions = ({
   const isActionable = found.kind === 'verified' || found.kind === 'mismatch'
   const mode = found.kind === 'verified' ? 'claim' : 'importWithoutOwnership'
 
-  const { transactions, startImport, isReady } = useDnsImportTransactions({
-    name,
-    mode,
-    enabled: isActionable,
-  })
+  const { transactions, startImport, isReady, isProofError } =
+    useDnsImportTransactions({
+      name,
+      mode,
+      enabled: isActionable,
+    })
 
   const ownerQuery = useQuery(getPrimaryNameQueryOptions(dnsOwner ?? undefined))
   const claimStep = transactions[transactions.length - 1]
@@ -398,6 +406,14 @@ const OnchainImportActions = ({
               {dnsOwner ? (ownerQuery.data ?? truncateAddress(dnsOwner)) : '—'}
             </span>
           </div>
+        </div>
+      )}
+      {isActionable && isProofError && (
+        <div className="flex flex-col gap-2">
+          <StatusChip tone="danger">
+            Could not build a DNSSEC proof the ENS oracle accepts.
+          </StatusChip>
+          <DnssecDebugLink name={name} source="import" />
         </div>
       )}
       <StepActions

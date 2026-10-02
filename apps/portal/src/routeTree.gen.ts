@@ -15,6 +15,7 @@ import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as NameAddressRouteImport } from './routes/$name/address'
 import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
+import { Route as NameDnssecRouteImport } from './routes/$name/dnssec'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as NameRecordsRouteImport } from './routes/$name/records'
@@ -78,6 +79,11 @@ const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
 const NameCreateSubnameRoute = NameCreateSubnameRouteImport.update({
   id: '/create-subname',
   path: '/create-subname',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameDnssecRoute = NameDnssecRouteImport.update({
+  id: '/dnssec',
+  path: '/dnssec',
   getParentRoute: () => NameRoute,
 } as any)
 const NameEditRecordsRoute = NameEditRecordsRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
+  '/$name/dnssec': typeof NameDnssecRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/records': typeof NameRecordsRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
+  '/$name/dnssec': typeof NameDnssecRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/records': typeof NameRecordsRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
+  '/$name/dnssec': typeof NameDnssecRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/records': typeof NameRecordsRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
+    | '/$name/dnssec'
     | '/$name/edit-records'
     | '/$name/history'
     | '/$name/records'
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
     | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
+    | '/$name/dnssec'
     | '/$name/edit-records'
     | '/$name/history'
     | '/$name/records'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
+    | '/$name/dnssec'
     | '/$name/edit-records'
     | '/$name/history'
     | '/$name/records'
@@ -553,6 +565,13 @@ declare module '@tanstack/react-router' {
       path: '/create-subname'
       fullPath: '/$name/create-subname'
       preLoaderRoute: typeof NameCreateSubnameRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/dnssec': {
+      id: '/$name/dnssec'
+      path: '/dnssec'
+      fullPath: '/$name/dnssec'
+      preLoaderRoute: typeof NameDnssecRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/edit-records': {
@@ -800,6 +819,7 @@ interface NameRouteChildren {
   NameAddressRoute: typeof NameAddressRoute
   NameChangeResolverRoute: typeof NameChangeResolverRoute
   NameCreateSubnameRoute: typeof NameCreateSubnameRoute
+  NameDnssecRoute: typeof NameDnssecRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
   NameHistoryRoute: typeof NameHistoryRoute
   NameRecordsRoute: typeof NameRecordsRoute
@@ -819,6 +839,7 @@ const NameRouteChildren: NameRouteChildren = {
   NameAddressRoute: NameAddressRoute,
   NameChangeResolverRoute: NameChangeResolverRoute,
   NameCreateSubnameRoute: NameCreateSubnameRoute,
+  NameDnssecRoute: NameDnssecRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
   NameHistoryRoute: NameHistoryRoute,
   NameRecordsRoute: NameRecordsRoute,
