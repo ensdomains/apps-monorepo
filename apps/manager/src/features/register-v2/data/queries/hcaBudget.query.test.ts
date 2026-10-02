@@ -1,3 +1,4 @@
+import { keepPreviousData } from '@tanstack/react-query'
 import { okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -102,9 +103,8 @@ describe('getHcaBudgetQueryOptions', () => {
 
     expect(quote).toEqual({ ...BUDGET, hcaBalance: 20_000_000n })
   })
-  // `resultQueryOptions` drops `staleTime` on the way through, and the app
-  // default is 0: without it on the outside, every mount and every window
-  // focus re-runs two orchestrator round trips under the open sheet.
+  // The app default is 0, under which every mount and every window focus
+  // re-runs two orchestrator round trips while the sheet is open.
   it('keeps a quote fresh for a minute', () => {
     expect(getHcaBudgetQueryOptions(baseParams).staleTime).toBe(60_000)
   })
@@ -112,9 +112,8 @@ describe('getHcaBudgetQueryOptions', () => {
   // Toggling the opt-in starts a fresh query. Without a placeholder the
   // breakdown empties out and refills while the new quote runs.
   it('carries the last quote into the next one', () => {
-    const { placeholderData } = getHcaBudgetQueryOptions(baseParams)
-    const previous = { ...BUDGET, hcaBalance: 0n }
-
-    expect(placeholderData(previous)).toBe(previous)
+    expect(getHcaBudgetQueryOptions(baseParams).placeholderData).toBe(
+      keepPreviousData,
+    )
   })
 })

@@ -23,6 +23,7 @@ const dai = {
 } as unknown as StablecoinBalance
 
 const BASE_PROPS = {
+  annualFee: 330,
   durationYears: 1,
   isConnected: true,
   isLoadingBalances: false,
@@ -255,6 +256,26 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByText('Registration fee')).toBe(quotingRow)
     expect(screen.getByText('Network fee')).toBeInTheDocument()
     expect(screen.getByText('$4.32')).toBeInTheDocument()
+  })
+
+  // The figures belong to the previous toggle state until the re-quote lands,
+  // and the machine refuses a permit that exceeds what was on screen.
+  it('holds checkout while a stale quote is on screen', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 164.32,
+        hcaCredit: 0,
+      },
+      isQuoteStale: true,
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    // The sheet keeps its shape; only the button waits.
+    expect(screen.getByText('$160.00')).toBeInTheDocument()
   })
 
   it('names where the balance sits, once', () => {

@@ -131,8 +131,8 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
   return ok({ ...budget, hcaBalance } satisfies HcaBudgetQuote)
 })
 
-export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) => ({
-  ...resultQueryOptions({
+export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
+  resultQueryOptions({
     queryKey: $qk({
       $scope: 'registration',
       $action: 'hca-budget',
@@ -155,13 +155,10 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) => ({
     // callers treat "no budget" as "show the price alone and let the machine
     // surface any failure", never as a hard block.
     retry: 1,
-  }),
-  // Both of these sit outside `resultQueryOptions`, which drops `staleTime`
-  // and `gcTime` on the way through. Without them the app default of 0 applies
-  // and every mount and window focus re-runs two orchestrator round trips.
-  staleTime: HCA_BUDGET_STALE_TIME_MS,
-  // The primary-name toggle is part of the key, so flipping it starts a fresh
-  // query. Carrying the last quote through keeps the figures on screen instead
-  // of the breakdown emptying out and refilling.
-  placeholderData: keepPreviousData,
-})
+    staleTime: HCA_BUDGET_STALE_TIME_MS,
+    // The primary-name toggle is part of the key, so flipping it starts a
+    // fresh query. Carrying the last quote through keeps the figures on screen
+    // instead of the breakdown emptying out and refilling. Callers must treat
+    // placeholder data as not-yet-quoted: it belongs to the other toggle state.
+    placeholderData: keepPreviousData,
+  })

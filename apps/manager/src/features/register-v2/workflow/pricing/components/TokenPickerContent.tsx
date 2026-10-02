@@ -11,7 +11,10 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { SECONDS_PER_YEAR } from '@/features/shared/registration/pricing'
+import {
+  formatYears,
+  SECONDS_PER_YEAR,
+} from '@/features/shared/registration/pricing'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -25,6 +28,7 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import { basePricePerYearFromDurationTotal } from '../lib/buildPriceCooldownBannerProps'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
@@ -242,7 +246,9 @@ export const TokenPickerContent = () => {
       // never diverge from what was on screen. `undefined` when the quote
       // failed and only the rent was shown; the machine's independent ceiling
       // still applies.
-      ...(funding ? { displayedWalletDebit: funding.walletDebitRaw } : {}),
+      ...(funding && !budgetQuery.isPlaceholderData
+        ? { displayedWalletDebit: funding.walletDebitRaw }
+        : {}),
     })
   }
 
@@ -359,7 +365,15 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
-      durationYears={duration / SECONDS_PER_YEAR}
+      annualFee={
+        pricingQuery.data
+          ? basePricePerYearFromDurationTotal(
+              pricingQuery.data.basePriceNumber,
+              duration,
+            )
+          : undefined
+      }
+      durationYears={Number(formatYears(duration / SECONDS_PER_YEAR))}
       errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
@@ -400,9 +414,11 @@ export const TokenPickerContent = () => {
       isFundingUnavailable={budgetQuery.isError && !funding}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
+      isQuoteStale={budgetQuery.isPlaceholderData}
       label={label}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
+      premium={pricingQuery.data?.premiumPriceNumber}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
@@ -450,7 +466,10 @@ export const TokenPickerContentBase = ({
   nextMessage = <Trans>Register name</Trans>,
   footer,
   funding,
+  annualFee,
   durationYears,
+  premium,
+  isQuoteStale = false,
   hasFundingBudget = false,
   isFundingUnavailable = false,
 }: {
@@ -483,8 +502,18 @@ export const TokenPickerContentBase = ({
    * not `pricingData` — is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
-  /** The registration term, for the annual figure on the registration line. */
+  /** The yearly rent, for the annual figure on the registration line. */
+  annualFee?: number
+  /** The registration term that rent is multiplied by. */
   durationYears?: number
+  /** A temporary premium, charged once on top of the rent. */
+  premium?: number
+  /**
+   * The figures on screen belong to an earlier quote (the primary-name opt-in
+   * changed). Checkout waits: the amount the machine is handed has to be the
+   * one the user was shown, for the options they picked.
+   */
+  isQuoteStale?: boolean
   /**
    * This route charges a network fee on top of the name, so the breakdown is
    * mounted whether or not the quote has landed. Holding its space is what
@@ -549,6 +578,7 @@ export const TokenPickerContentBase = ({
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
+    !isQuoteStale &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin
 
@@ -585,10 +615,12 @@ export const TokenPickerContentBase = ({
 
           {(funding || hasFundingBudget) && (
             <PaymentBreakdown
+              annualFee={annualFee}
               durationYears={durationYears}
               isFeeUnavailable={!funding && isFundingUnavailable}
               leftover={leftover}
               networkFee={figures?.networkFee}
+              premium={premium}
               registration={figures?.registration ?? pricingData}
             />
           )}

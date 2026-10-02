@@ -76,7 +76,9 @@ interface TokenPickerDialogShellProps {
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
   funding?: RegistrationFundingSummary
+  annualFee?: number
   durationYears?: number
+  premium?: number
   hasFundingBudget?: boolean
   isFundingUnavailable?: boolean
   initialSelectedToken?: SUPPORTED_TOKEN
@@ -93,7 +95,9 @@ const TokenPickerDialogShell = ({
   stablecoinBalances = MOCK_BALANCES,
   errorMessage = null,
   funding,
+  annualFee = 160,
   durationYears = 1,
+  premium,
   hasFundingBudget,
   isFundingUnavailable,
   initialSelectedToken,
@@ -110,6 +114,7 @@ const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        annualFee={annualFee}
         durationYears={durationYears}
         errorMessage={errorMessage}
         funding={funding}
@@ -123,6 +128,7 @@ const TokenPickerDialogShell = ({
           console.log('Buy Name clicked', { label, selectedToken, pricingData })
         }}
         onSelectCoin={setSelectedToken}
+        premium={premium}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -187,6 +193,7 @@ export const WithTokenSelected: Story = {
 export const WithLeftoverFromLastAttempt: Story = {
   args: {
     pricingData: 160,
+    annualFee: 53.333333,
     durationYears: 3,
     initialSelectedToken: 'USDC',
     funding: {

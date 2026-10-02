@@ -18,7 +18,9 @@ export const PaymentBreakdown = ({
   registration,
   networkFee,
   leftover,
+  annualFee,
   durationYears,
+  premium = 0,
   isFeeUnavailable = false,
 }: {
   /** Undefined while the price is still loading. */
@@ -28,30 +30,37 @@ export const PaymentBreakdown = ({
   /** Zero hides the deduction line. */
   readonly leftover: number
   /**
-   * How long the name is being registered for. Undefined drops the annual
-   * breakdown from the registration line rather than guessing a term.
+   * The yearly rent, excluding any temporary premium. Undefined drops the
+   * annual breakdown from the registration line rather than guessing at it.
    */
+  readonly annualFee?: number
+  /** The term the rent is multiplied by. Fractional for a custom end date. */
   readonly durationYears?: number
+  /** A temporary premium, which is charged once rather than per year. */
+  readonly premium?: number
   /** The quote failed: the line stays, with the reason in its tooltip. */
   readonly isFeeUnavailable?: boolean
 }) => {
   const { t } = useLingui()
 
-  // Derived from the figure on the line itself, so the tooltip can never
-  // disagree with it. Matches the per-year badge on the duration step.
-  const annualFee =
-    registration !== undefined && durationYears
-      ? registration / durationYears
-      : undefined
+  // The premium is charged once, so it is named separately rather than folded
+  // into a per-year figure that would then be wrong for a name in cooldown.
   const registrationTooltip: PaymentBreakdownRowTooltip =
     annualFee !== undefined && durationYears
       ? {
-          tooltip: (
-            <Trans>
-              Annual fee {formatUsd(annualFee)} ×{' '}
-              <Plural one="# year" other="# years" value={durationYears} />
-            </Trans>
-          ),
+          tooltip:
+            premium > 0 ? (
+              <Trans>
+                Annual fee {formatUsd(annualFee)} ×{' '}
+                <Plural one="# year" other="# years" value={durationYears} />,
+                plus a one-off premium of {formatUsd(premium)}.
+              </Trans>
+            ) : (
+              <Trans>
+                Annual fee {formatUsd(annualFee)} ×{' '}
+                <Plural one="# year" other="# years" value={durationYears} />
+              </Trans>
+            ),
           tooltipLabel: t`What is the registration fee?`,
         }
       : {}

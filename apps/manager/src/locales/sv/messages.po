@@ -284,6 +284,12 @@ msgstr ""
 msgid "Annual fee {0} × {durationYears, plural, one {# year} other {# years}}"
 msgstr ""
 
+#. placeholder {0}: formatUsd(annualFee)
+#. placeholder {1}: formatUsd(premium)
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Annual fee {0} × {durationYears, plural, one {# year} other {# years}}, plus a one-off premium of {1}."
+msgstr ""
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
 msgstr ""
