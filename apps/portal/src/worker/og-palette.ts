@@ -31,11 +31,10 @@ const CHIP_BACKGROUND = '#ffffff'
 const TEXT = '#191919'
 
 const OG_PALETTES = {
-  // --success-fill / --success-text. The Figma set draws the address in
-  // message/success/text (#105c23) rather than the entity token the app's own
-  // address badges use; the app token wins so a preview and the page it links
-  // to don't disagree.
-  address: { background: '#e8f6ef', chipText: '#007c20' },
+  // --success-fill, with the address in message/success/text (#105c23) as the
+  // Figma set draws it — a shade darker than the --success-text the app's own
+  // address badges use.
+  address: { background: '#e8f6ef', chipText: '#105c23' },
   // --danger-fill / --danger-text: resolvers and registries.
   contract: { background: '#fef0f6', chipText: '#e72a96' },
   // --accent-fill / --accent-text.
