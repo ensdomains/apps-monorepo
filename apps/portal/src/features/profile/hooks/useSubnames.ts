@@ -8,7 +8,7 @@ import {
 } from '@ensdomains/ensjs/subgraph'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok, ResultAsync } from 'neverthrow'
 import { type Address, checksumAddress, type Hex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -32,6 +32,9 @@ const toSubnameName = (
 ) => `${labelName ?? encodeLabelhash(labelhash)}.${parentName}`
 
 type GetSubnamesParameters = {
+  // Passed to the indexer as the route validated it (`isValidEnsName`), not
+  // through `normalize`: a parent may carry an encoded labelhash, which
+  // `normalize` rejects.
   name: string
   protocolVersion: ProtocolVersion
 }
@@ -51,12 +54,15 @@ const getSubnamesPage = ({
 }) =>
   fromPromise(
     graphqlIndexerClient.request<
-      { domains: { subdomains: IndexerSubname[] }[] },
+      {
+        domains: { subdomainsCount: number; subdomains: IndexerSubname[] }[]
+      },
       { name: string; skip: number }
     >(
       gql`
       query getSubnames($name: String!, $skip: Int!) {
         domains(where: { name: $name }) {
+          subdomainsCount
           subdomains(first: ${String(SUBNAMES_PAGE_SIZE)}, skip: $skip) {
             name
             labelName
@@ -102,22 +108,29 @@ export const getSubnames = ResultFn(async function* ({
       ),
     )
   } else {
-    let subdomains: readonly IndexerSubname[] = []
-    let page: readonly IndexerSubname[]
-    do {
-      const { domains } = yield* getSubnamesPage({
-        name,
-        skip: subdomains.length,
-      })
-      page = domains[0]?.subdomains ?? []
-      subdomains = [...subdomains, ...page]
-    } while (page.length === SUBNAMES_PAGE_SIZE)
+    const firstPage = yield* getSubnamesPage({ name, skip: 0 })
 
-    const subnames = subdomains.map(({ owner, ...subname }) => ({
-      ...subname,
-      name: toSubnameName(name, subname),
-      owner: checksumAddress(owner.id),
-    }))
+    // The first page's count sizes the rest, so the remaining pages load
+    // together and the paging can't run past what the indexer reports.
+    const remainingPageCount = Math.max(
+      0,
+      Math.ceil(
+        (firstPage.domains[0]?.subdomainsCount ?? 0) / SUBNAMES_PAGE_SIZE,
+      ) - 1,
+    )
+    const remainingPages = yield* ResultAsync.combine(
+      Array.from({ length: remainingPageCount }, (_, i) =>
+        getSubnamesPage({ name, skip: (i + 1) * SUBNAMES_PAGE_SIZE }),
+      ),
+    )
+
+    const subnames = [firstPage, ...remainingPages]
+      .flatMap(({ domains }) => domains[0]?.subdomains ?? [])
+      .map(({ owner, ...subname }) => ({
+        ...subname,
+        name: toSubnameName(name, subname),
+        owner: checksumAddress(owner.id),
+      }))
     return ok(subnames)
   }
 })
