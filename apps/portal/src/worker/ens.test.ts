@@ -782,4 +782,13 @@ describe('fetchEnsData (worker) — description size', () => {
 
     expect(description).toBe('Just a regular ENS profile description.')
   })
+
+  it('drops an emoji the cap would split mid-surrogate', async () => {
+    await mockDescription(`${'a'.repeat(299)}😀`)
+
+    const { description } = await fetchEnsData(env, 'alice.eth')
+
+    expect(description).toBe('a'.repeat(299))
+    expect(description).not.toContain('�')
+  })
 })

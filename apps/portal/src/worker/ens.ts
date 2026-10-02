@@ -200,7 +200,10 @@ export async function fetchEnsData(
       description:
         records.texts
           .find((r) => r.key === 'description')
-          ?.value?.slice(0, DESCRIPTION_MAX_CHARS) ?? null,
+          // Drop a trailing lone high surrogate the cap may have split off an
+          // emoji, which would otherwise render as a replacement character.
+          ?.value?.slice(0, DESCRIPTION_MAX_CHARS)
+          .replace(/[\uD800-\uDBFF]$/, '') ?? null,
       owner,
     }
   } catch {
