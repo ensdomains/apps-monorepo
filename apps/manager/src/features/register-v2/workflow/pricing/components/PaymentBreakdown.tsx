@@ -5,12 +5,17 @@ import { PaymentBreakdownRow } from './PaymentBreakdownRow'
  * What the registration costs, line by line, and what the last attempt left
  * behind to set against it. The two charges sit on white cards; the deduction
  * sits beneath them, muted, so cost and funding read as different things.
+ *
+ * A fee that could not be quoted drops its line instead of showing nothing:
+ * the name price then matches the headline, where "price + ? = price" would
+ * read as a fee of zero.
  */
 export const PaymentBreakdown = ({
   registration,
   networkFee,
   leftover,
   isLoading,
+  isFeeUnavailable = false,
 }: {
   /** Undefined while the price is still loading. */
   readonly registration: number | undefined
@@ -19,6 +24,8 @@ export const PaymentBreakdown = ({
   /** Zero hides the deduction line. */
   readonly leftover: number
   readonly isLoading: boolean
+  /** The quote failed: the fee line is dropped rather than shown as nothing. */
+  readonly isFeeUnavailable?: boolean
 }) => {
   const { t } = useLingui()
 
@@ -29,19 +36,21 @@ export const PaymentBreakdown = ({
         isLoading={isLoading}
         label={<Trans>Name price</Trans>}
       />
-      <PaymentBreakdownRow
-        amount={networkFee}
-        isLoading={isLoading}
-        label={<Trans>Network fee</Trans>}
-        tooltip={
-          <Trans>
-            An estimate of what the two on-chain transactions that register your
-            name will cost. It is collected together with the name price, in the
-            same approval.
-          </Trans>
-        }
-        tooltipLabel={t`What is the network fee?`}
-      />
+      {!isFeeUnavailable && (
+        <PaymentBreakdownRow
+          amount={networkFee}
+          isLoading={isLoading}
+          label={<Trans>Network fee</Trans>}
+          tooltip={
+            <Trans>
+              An estimate of what the two on-chain transactions that register
+              your name will cost. It is collected together with the name price,
+              in the same approval.
+            </Trans>
+          }
+          tooltipLabel={t`What is the network fee?`}
+        />
+      )}
       {leftover > 0 && (
         <PaymentBreakdownRow
           amount={leftover}

@@ -1,8 +1,9 @@
+import { logger } from '@ens-apps/utils/logger'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
@@ -167,6 +168,13 @@ export const TokenPickerContent = () => {
     getSessionEnablePayload: account.getSessionEnablePayload,
   })
   const budgetQuery = useQuery(budgetQueryOptions)
+
+  // A failed quote is otherwise invisible: the fee row just reads as unknown.
+  useEffect(() => {
+    if (budgetQuery.error) {
+      logger.warn('HCA budget quote failed', budgetQuery.error)
+    }
+  }, [budgetQuery.error])
 
   // Absent until the quote lands, and permanently absent if it fails — in which
   // case the screen falls back to showing the rent alone rather than blocking
@@ -383,6 +391,7 @@ export const TokenPickerContent = () => {
       }
       infoMessage={infoMessage}
       isConnected={isConnected}
+      isFundingUnavailable={budgetQuery.isError}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuotingFunding={budgetQuery.isLoading}
@@ -437,6 +446,7 @@ export const TokenPickerContentBase = ({
   footer,
   funding,
   isQuotingFunding = false,
+  isFundingUnavailable = false,
 }: {
   label: string
   pricingLoading: boolean
@@ -473,6 +483,11 @@ export const TokenPickerContentBase = ({
    * orchestrator round-trips is long enough for that shift to be felt.
    */
   isQuotingFunding?: boolean
+  /**
+   * The budget quote failed. The breakdown stays, with the fee unknown, rather
+   * than the card disappearing out from under the user.
+   */
+  isFundingUnavailable?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -559,9 +574,10 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          {(funding || isQuotingFunding) && (
+          {(funding || isQuotingFunding || isFundingUnavailable) && (
             <PaymentBreakdown
-              isLoading={funding?.isLoading ?? true}
+              isFeeUnavailable={!funding && isFundingUnavailable}
+              isLoading={funding?.isLoading ?? !isFundingUnavailable}
               leftover={leftover}
               networkFee={figures?.networkFee}
               registration={figures?.registration ?? pricingData}

@@ -76,6 +76,7 @@ interface TokenPickerDialogShellProps {
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
   funding?: RegistrationFundingSummary
+  isFundingUnavailable?: boolean
   initialSelectedToken?: SUPPORTED_TOKEN
 }
 
@@ -90,6 +91,7 @@ const TokenPickerDialogShell = ({
   stablecoinBalances = MOCK_BALANCES,
   errorMessage = null,
   funding,
+  isFundingUnavailable,
   initialSelectedToken,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -107,6 +109,7 @@ const TokenPickerDialogShell = ({
         errorMessage={errorMessage}
         funding={funding}
         isConnected={isConnected}
+        isFundingUnavailable={isFundingUnavailable}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         label={label}
@@ -187,6 +190,18 @@ export const WithLeftoverFromLastAttempt: Story = {
       hcaCredit: 1.82,
       isLoading: false,
     },
+  },
+}
+
+/**
+ * The budget quote failed. The card stays with the price it does know, instead
+ * of the sheet changing shape under the user.
+ */
+export const WithFeeUnavailable: Story = {
+  args: {
+    pricingData: 160,
+    initialSelectedToken: 'USDC',
+    isFundingUnavailable: true,
   },
 }
 

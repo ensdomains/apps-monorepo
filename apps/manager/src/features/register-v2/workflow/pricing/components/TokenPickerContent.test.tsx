@@ -190,6 +190,17 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('$9.99')).not.toBeInTheDocument()
   })
 
+  // A failed quote used to take the whole card with it, so the sheet changed
+  // shape under the user. The price it does know stays put.
+  it('keeps the price on screen when the fee could not be quoted', () => {
+    renderPicker({ isFundingUnavailable: true, selectedToken: 'USDC' })
+
+    expect(screen.getByText('Name price')).toBeInTheDocument()
+    expect(screen.getAllByText('$330.00')).toHaveLength(2)
+    expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
+    expect(screen.queryByText('—')).not.toBeInTheDocument()
+  })
+
   it('names where the balance sits, once', () => {
     renderPicker({ selectedToken: 'USDC' })
 
