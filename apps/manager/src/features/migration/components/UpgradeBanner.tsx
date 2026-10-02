@@ -114,6 +114,15 @@ export const UpgradeBanner = ({
                 .exhaustive()}
             </p>
           </div>
+          {!isProfileBanner && !shouldRenewNames && gracePeriodNameCount > 0 ? (
+            <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
+              <Plural
+                one="# name needs renewal before it can be upgraded."
+                other="# names need renewal before they can be upgraded."
+                value={gracePeriodNameCount}
+              />
+            </p>
+          ) : null}
         </div>
         <MigrationUpgradeButton
           className="w-full shrink-0 md:w-75"
