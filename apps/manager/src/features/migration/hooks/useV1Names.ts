@@ -20,6 +20,8 @@ const v1NamesQueryOptions = (
     queryFn:
       enabled && address ? () => getV1NamesForAddress(address) : skipToken,
     staleTime: 5 * 60 * 1000,
+    // Renewal runs in another tab, so refresh when the user returns here.
+    refetchOnWindowFocus: 'always',
   })
 
 export const useV1Names = (options: UseV1NamesOptions = {}) => {

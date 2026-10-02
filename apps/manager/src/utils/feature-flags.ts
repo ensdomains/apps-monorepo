@@ -17,13 +17,23 @@ type FeatureFlagConfig = {
 }
 
 const FEATURE_FLAGS_INTERNAL = {
-  /** Bulk name selection UI on the address profile names list (actions TBD). */
-  PROFILE_ADDRESS_NAMES_SELECTION: {
-    enabled: import.meta.env.VITE_FF_PROFILE_ADDRESS_NAMES_SELECTION === 'true',
-  },
   /** Favorite/search demand stats in the temp premium price cooldown banner. */
   TEMP_PREMIUM_NAME_STATS: {
     enabled: import.meta.env.VITE_FF_TEMP_PREMIUM_NAME_STATS === 'true',
+  },
+  /**
+   * Persist and resume an interrupted registration (WEB-147).
+   *
+   * A KILL SWITCH, not an opt-in — `!== 'false'` where every other flag is
+   * `=== 'true'`. Resume guards paid commitments and is covered by e2e, so it
+   * must not silently switch off in any environment that forgets to set the
+   * var; the flag exists to turn it OFF in one redeploy if it misbehaves.
+   * Disabling stops both the localStorage writes and the resume itself;
+   * orphan cleanup stays active so records written before the flip still get
+   * resolved and cleared.
+   */
+  REGISTRATION_RESUME: {
+    enabled: import.meta.env.VITE_FF_REGISTRATION_RESUME !== 'false',
   },
   /**
    * Force the transaction manager to use plain EOA signing only — bypasses

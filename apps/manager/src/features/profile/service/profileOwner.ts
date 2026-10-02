@@ -1,12 +1,17 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getOwner as ensjsv1_getOwner } from '@ensdomains/ensjs/public/v1'
 import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
+import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, namehash, zeroAddress } from 'viem'
+import { type Address, labelhash, namehash, zeroAddress } from 'viem'
+import { readContract } from 'viem/actions'
+import { isInGracePeriod } from '@/features/grace/utils/gracePeriod'
+import { indexerClient } from '@/lib/indexer-client'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
 import { DEBUG_PROFILE_OWNER } from '../MOCK'
@@ -16,11 +21,27 @@ class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: unknown
 }> {}
 
+const ENS_REGISTRY = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
+
 export type ProfileProtocol = 'v1' | 'v2'
 
 export type ProfileOwnerResult = {
   readonly owner: Address | undefined
   readonly protocol: ProfileProtocol
+}
+
+const getV2GraceOwner = (state: {
+  readonly expiry: bigint
+  readonly latestOwner: Address
+}): Address | undefined => {
+  const isInGrace = isInGracePeriod(new Date(Number(state.expiry) * 1000), 'v2')
+
+  return isInGrace && state.latestOwner !== zeroAddress
+    ? state.latestOwner
+    : undefined
 }
 
 export const getOwner = ResultFn(async function* (params: { name: string }) {
@@ -87,9 +108,23 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
       (e) => new GetOwnerError({ cause: e }),
     )
 
-    if (v2Domain) {
+    // V1 reservations are also indexed, but have no V2 owner. Only a record
+    // with a retained owner identifies an expired V2 registration; otherwise
+    // check V1 ownership before choosing the renewal protocol.
+    if (v2Domain && v2Domain.owner.id !== zeroAddress) {
+      // Active ownership disappears at expiry. The registry retains the latest
+      // owner, who can still renew their name during the grace period.
+      const state = yield* fromPromise(
+        readContract(client, {
+          address: ENS_REGISTRY,
+          abi: permissionedRegistryGetStateSnippet,
+          functionName: 'getState',
+          args: [BigInt(labelhash(ethName.leafLabel))],
+        }),
+        (e) => new GetOwnerError({ cause: e }),
+      )
       return ok({
-        owner: undefined,
+        owner: getV2GraceOwner(state),
         protocol: 'v2',
       } satisfies ProfileOwnerResult)
     }

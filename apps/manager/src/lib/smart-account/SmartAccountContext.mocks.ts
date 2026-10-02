@@ -29,7 +29,6 @@ vi.mock('viem/actions', () => ({
 }))
 
 vi.mock('@/lib/wagmi', () => ({
-  customSepolia: { id: 11155111, name: 'Sepolia' },
   publicClient: { chain: { id: 11155111 } },
   SEPOLIA_RPC_URL: 'https://sepolia.example.com',
 }))

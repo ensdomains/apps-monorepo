@@ -1,11 +1,14 @@
 import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
+import { envConfig } from '@/config'
 import { withRequestDeadline } from './requestDeadline'
 
 export type { V1Domain }
 
-const V1_SUBGRAPH_URL = 'https://v1-graphql.ens.dev/subgraph'
+// ensjs keys the v1 subgraph per chain, so this follows the build's network
+// instead of pinning one deployment.
+const V1_SUBGRAPH_URL = envConfig.chain.subgraphs.ens.url
 
 type V1SubgraphResponse = {
   data: {

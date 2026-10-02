@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +15,7 @@ import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedName
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
@@ -358,6 +355,20 @@ export const TokenPickerContent = () => {
     )
     .otherwise(() => null)
 
+  // Positive counterpart to the underfunded copy, for the one thing no amount
+  // in the breakdown can show. Full coverage takes the no-permit branch in
+  // `computingHcaBudget`, so the approval step they saw last time simply will
+  // not appear; saying so up front is the difference between "it skipped a
+  // step" and "something went wrong". A partial credit is only an amount, and
+  // belongs in the breakdown rather than in a sentence repeating it.
+  const infoMessage = match(funding)
+    .with(
+      { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
+      (f) =>
+        t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
+    )
+    .otherwise(() => null)
+
   return (
     <TokenPickerContentBase
       errorMessage={errorMessage}
@@ -394,6 +405,7 @@ export const TokenPickerContent = () => {
           : undefined
       }
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
+      infoMessage={infoMessage}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
@@ -409,6 +421,29 @@ export const TokenPickerContent = () => {
   )
 }
 
+/**
+ * The single message slot under the token list. The error wins when there is
+ * one — a "you are already funded" note printed beneath a funding failure is a
+ * contradiction, and the error is the half the user can act on.
+ */
+const PickerMessage = ({
+  errorMessage,
+  infoMessage,
+}: {
+  errorMessage?: string | null
+  infoMessage?: string | null
+}) => {
+  if (errorMessage) {
+    return <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+  }
+  if (infoMessage) {
+    return (
+      <p className="text-center text-ens-blue-dark text-sm">{infoMessage}</p>
+    )
+  }
+  return null
+}
+
 export const TokenPickerContentBase = ({
   label,
   pricingLoading,
@@ -416,6 +451,7 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown = false,
   selectedToken,
   errorMessage,
+  infoMessage,
   onSelectCoin,
   onNext,
   stablecoinBalances,
@@ -433,6 +469,13 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
   errorMessage?: string | null
+  /**
+   * Reassurance shown in the error slot when there is no error — currently the
+   * standing-HCA-balance note. Suppressed whenever `errorMessage` is set: a
+   * "you are already funded" line under a funding failure reads as a
+   * contradiction.
+   */
+  infoMessage?: string | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]
@@ -513,8 +556,12 @@ export const TokenPickerContentBase = ({
     !hasBudgetQuoteFailed
 
   return (
-    <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
-      <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
+    // `min-h-0` on both: a flex item defaults to `min-height: auto`, so without
+    // it neither column shrinks below its content and the `overflow-y-auto`
+    // below never scrolls. Inside the dialog's `max-h-[90vh]` that clipped the
+    // total and the Register button out of reach on a short viewport.
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
@@ -606,11 +653,10 @@ export const TokenPickerContentBase = ({
             ))
             .otherwise(() => undefined)}
 
-          {errorMessage && (
-            <p className="wrap-anywhere text-center text-ens-error text-sm">
-              {errorMessage}
-            </p>
-          )}
+          <PickerMessage
+            errorMessage={errorMessage}
+            infoMessage={infoMessage}
+          />
 
           <div className="flex flex-col items-center gap-1.5">
             <p className="text-center font-normal text-ens-gray text-xs tracking-tight">

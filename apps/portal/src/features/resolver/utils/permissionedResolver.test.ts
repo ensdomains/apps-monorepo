@@ -130,9 +130,9 @@ describe('filterPermissionedResolverAddresses', () => {
 })
 
 describe('getVerifiedProxyImplementation', () => {
-  const FACTORY = '0x9e726eb570beb6bceb495ab8cda7df517d4e841c' as Address
-  const PROXY = '0x907ccb4f76ea54976c8a857ee7fbab2624058f56' as Address
-  const IMPLEMENTATION = '0x14f09fd05d4585759e54844dc9b00147131cf243' as Address
+  const FACTORY = '0xda70306c98e97ece36f997a21368e53298572991'
+  const PROXY = '0x907ccb4f76ea54976c8a857ee7fbab2624058f56'
+  const IMPLEMENTATION = '0x115eb53f0c60696633855f90b138178fb40b2b2c'
 
   const clientAnswering = (
     respond: (calldata: Hex) => Promise<Hex>,

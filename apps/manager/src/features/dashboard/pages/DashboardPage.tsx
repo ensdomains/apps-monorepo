@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
+import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
@@ -87,47 +88,53 @@ export const DashboardPage = () => {
             />
           </motion.div>
         ) : (
-          <motion.div
-            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
-            {...stagger(2, shouldReduceMotion)}
+          <Card
+            asChild
+            className="flex flex-col items-start gap-3 rounded-none px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
           >
-            <span className="font-sans text-[16px] text-foreground">
-              <Trans>You haven't set a primary name yet.</Trans>
-            </span>
-            <ChoosePrimaryNameDialog>
-              <button
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
-                type="button"
-              >
-                <MSymbol
-                  className="ms-opsz-20 ms-wght-500 text-sm"
-                  symbol="badge"
-                />
-                <span className="whitespace-nowrap font-medium font-sans text-xs">
-                  <Trans>Set primary name</Trans>
-                </span>
-              </button>
-            </ChoosePrimaryNameDialog>
-          </motion.div>
+            <motion.div {...stagger(2, shouldReduceMotion)}>
+              <span className="font-sans text-[16px] text-foreground">
+                <Trans>You haven't set a primary name yet.</Trans>
+              </span>
+              <ChoosePrimaryNameDialog>
+                <button
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
+                  type="button"
+                >
+                  <MSymbol
+                    className="ms-opsz-20 ms-wght-500 text-sm"
+                    symbol="badge"
+                  />
+                  <span className="whitespace-nowrap font-medium font-sans text-xs">
+                    <Trans>Set primary name</Trans>
+                  </span>
+                </button>
+              </ChoosePrimaryNameDialog>
+            </motion.div>
+          </Card>
         )}
-        <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
-          {...stagger(3, shouldReduceMotion)}
+        <Card
+          asChild
+          className="block rounded-none px-4 py-6 md:rounded-xl md:px-6 md:py-8"
         >
-          <NamesTable
-            migrationEnabled={migrationEnabled}
-            primaryLabel={defaultName}
-          />
-        </motion.div>
+          <motion.div {...stagger(3, shouldReduceMotion)}>
+            <NamesTable
+              migrationEnabled={migrationEnabled}
+              primaryLabel={defaultName}
+            />
+          </motion.div>
+        </Card>
         {migrationEnabled && <MigrationProgressBanner />}
         <TemporaryMigrationAccessNotice />
         {commemorativeNftEnabled ? <CommemorativeNftDashboard /> : null}
-        <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
-          {...stagger(4, shouldReduceMotion)}
+        <Card
+          asChild
+          className="block rounded-none px-4 py-6 md:rounded-xl md:px-6 md:py-8"
         >
-          <EducationCarousel />
-        </motion.div>
+          <motion.div {...stagger(4, shouldReduceMotion)}>
+            <EducationCarousel />
+          </motion.div>
+        </Card>
         <motion.div {...stagger(5, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>

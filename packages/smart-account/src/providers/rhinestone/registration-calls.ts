@@ -28,6 +28,7 @@ import {
   type PublicClient,
   parseAbi,
   toHex,
+  zeroAddress,
 } from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
@@ -37,7 +38,6 @@ import {
   getDestinationContracts,
   REFERER,
   ROLES_ALL,
-  ZERO_ADDRESS,
 } from './manifest'
 
 export interface Call {
@@ -102,7 +102,9 @@ export async function readCommitment(params: {
       params.label,
       params.wallet,
       params.secret,
-      ZERO_ADDRESS,
+      // No subregistry: nothing can mint under the name. Verification asserts
+      // this same value back (see `verifyHcaRegistrationActor`).
+      zeroAddress,
       params.resolver,
       params.duration,
       REFERER,
@@ -118,16 +120,23 @@ export async function readCommitment(params: {
 export async function readCommitmentAges(params: {
   readonly publicClient: PublicClient
   readonly chainId: number
+  /**
+   * Read a specific registrar deployment — the windows are per-deployment
+   * immutables, so a commitment made on the EOA-path registrar must be judged
+   * by that registrar's ages. Defaults to the standalone-HCA deployment.
+   */
+  readonly registrar?: Address
 }): Promise<{ minCommitmentAge: bigint; maxCommitmentAge: bigint }> {
-  const c = getDestinationContracts(params.chainId)
+  const registrar =
+    params.registrar ?? getDestinationContracts(params.chainId).ethRegistrar
   const [minCommitmentAge, maxCommitmentAge] = await Promise.all([
     params.publicClient.readContract({
-      address: c.ethRegistrar,
+      address: registrar,
       abi: ethRegistrarAbi,
       functionName: 'MIN_COMMITMENT_AGE',
     }),
     params.publicClient.readContract({
-      address: c.ethRegistrar,
+      address: registrar,
       abi: ethRegistrarAbi,
       functionName: 'MAX_COMMITMENT_AGE',
     }),
@@ -303,7 +312,8 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
         params.label,
         params.wallet,
         params.secret,
-        ZERO_ADDRESS,
+        // Must match the commitment's subregistry (see `readCommitment`).
+        zeroAddress,
         params.resolver,
         params.duration,
         c.usdc,

@@ -1,4 +1,5 @@
 import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQueryClient } from '@tanstack/react-query'
@@ -32,6 +33,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { envConfig } from '@/config'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -41,6 +43,7 @@ import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution
 import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -447,7 +450,11 @@ const useAddressRecordEditor = (
 ) => {
   const { address: connectedAddress, isConnected } = useConnection()
   const queryClient = useQueryClient()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names the attempt the modal is showing. Both flows here reuse one fixed id
+  // per action, so without this an edit abandoned mid-flight leaves a settled
+  // actor behind and the next attempt shows the step as already done.
+  const attempt = useFlowAttempt()
   const {
     saveRecords,
     isWriting,
@@ -458,9 +465,10 @@ const useAddressRecordEditor = (
     switchToRequiredNetwork,
   } = useSaveRecords()
 
+  const setPrimaryTxId = scopeTransactionId(SET_PRIMARY_TX_ID, attempt.scope)
   const { setReverseResolution } = useSetReverseResolution({
     chainId: sepoliaWithEns.id,
-    id: SET_PRIMARY_TX_ID,
+    id: setPrimaryTxId,
   })
   const { setL2ReverseNameAsync, isPending: isSettingL2PrimaryName } =
     useSetL2ReverseName()
@@ -523,10 +531,16 @@ const useAddressRecordEditor = (
     isAddress(data.address, { strict: false }) &&
     isAddressEqual(connectedAddress, data.address)
 
-  const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
+  // The set-addr id is derived from the coin type rather than hard-coded, but
+  // it is still stable across attempts, so it needs the same scoping.
+  const txId = scopeTransactionId(
+    data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr',
+    attempt.scope,
+  )
   const onTransactionDone = () => {
     closeModal()
     clearTransaction()
+    attempt.end()
   }
   const onPrimaryNameDone = () => {
     // The resolved addresses didn't change — only the reverse record did — so
@@ -565,7 +579,7 @@ const useAddressRecordEditor = (
     // `addr.reverse` via the ENSv1 `ReverseRegistrar`; the Default row writes
     // `default.reverse`. Both are `setName(string)` on Sepolia L1.
     if (data?.coinType === MAINNET_COIN_TYPE) {
-      const registrarAddress = getRegistrarAddress(60, 'sepolia')
+      const registrarAddress = getRegistrarAddress(60, envConfig.network)
       if (!registrarAddress) return
       setReverseResolution({
         name,
@@ -622,15 +636,16 @@ const useAddressRecordEditor = (
 
   const openFlow = (flow: 'addr' | 'primary') => {
     if (isWrongChain) return switchToRequiredNetwork()
+    if (!connectedAddress) return
     setActiveFlow(flow)
-    openModal()
+    attempt.start(connectedAddress)
   }
 
   const transactions =
     activeFlow === 'primary'
       ? [
           {
-            id: SET_PRIMARY_TX_ID,
+            id: setPrimaryTxId,
             title: 'Set primary name',
             transactionName: `Set ${name} as the primary name`,
             estimatedGasCost: 0.0001,

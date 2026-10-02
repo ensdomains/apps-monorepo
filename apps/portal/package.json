@@ -1,5 +1,6 @@
 {
   "name": "portal",
+  "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,11 +19,13 @@
     "deploy": "wrangler deploy",
     "deploy:version": "wrangler versions upload",
     "knip": "knip",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "prebuild": "tsx scripts/check-network-config.ts"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@base-ui/react": "^1.1.0",
+    "@ens-apps/config": "workspace:^",
     "@ens-apps/dev-dqa-overlay": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
@@ -90,7 +93,8 @@
     "use-local-storage-state": "^20.0.0",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "xstate": "catalog:"
+    "xstate": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",
@@ -107,6 +111,7 @@
     "@vitest/coverage-v8": "catalog:",
     "happy-dom": "catalog:",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",

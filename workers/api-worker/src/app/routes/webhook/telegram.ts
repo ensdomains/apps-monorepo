@@ -36,6 +36,7 @@ const onMessage = ResultFn(async function* ({
           id: true,
           user_id: true,
           status: true,
+          status_reason: true,
         },
       }),
     )
@@ -57,19 +58,26 @@ const onMessage = ResultFn(async function* ({
       return ok(undefined)
     }
 
-    // If any pending channels then mark them as verified and send a message to the user
-    if (telegramChannels.some((channel) => channel.status === 'pending')) {
+    // Telegram Login already proved association; /start restores bot reachability.
+    if (
+      telegramChannels.some(
+        (channel) =>
+          channel.status === 'disabled' &&
+          channel.status_reason === 'FORBIDDEN_BY_TELEGRAM',
+      )
+    ) {
       yield* intoDbResult(
         db
           .update(TABLE.userChannels)
-          .set({ status: 'verified' })
+          .set({ status: 'verified', status_reason: null })
           .where(
             and(
               inArray(
                 TABLE.userChannels.id,
                 telegramChannels.map((channel) => channel.id),
               ),
-              eq(TABLE.userChannels.status, 'pending'),
+              eq(TABLE.userChannels.status, 'disabled'),
+              eq(TABLE.userChannels.status_reason, 'FORBIDDEN_BY_TELEGRAM'),
               eq(TABLE.userChannels.channel, 'telegram'),
               eq(TABLE.userChannels.target, telegramUserId.toString()),
             ),
@@ -78,13 +86,13 @@ const onMessage = ResultFn(async function* ({
 
       yield* makeTelegramRequest(env.TELEGRAM_BOT_TOKEN, 'sendMessage', {
         chat_id: telegramUserId,
-        text: 'Your channels have been verified, you will now receive notifications from ENS.',
+        text: 'The ENS Notifications bot can message you again. Notifications are enabled.',
       })
 
       return ok(undefined)
     }
 
-    // If no pending channels then send a message to the user
+    // Already reachable: acknowledge without changing established association.
     yield* makeTelegramRequest(env.TELEGRAM_BOT_TOKEN, 'sendMessage', {
       chat_id: telegramUserId,
       text: "You've already verified your Telegram for notifications.",

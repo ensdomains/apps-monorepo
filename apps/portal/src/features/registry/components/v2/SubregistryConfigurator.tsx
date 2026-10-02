@@ -1,9 +1,11 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
+import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
@@ -19,6 +21,7 @@ import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregi
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
@@ -109,11 +112,20 @@ export const SubregistryConfigurator = ({
 
   const useCustomRegistry = registryOption === 'use-existing'
 
-  const {
-    openModal: openTransactionModal,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
+  const { closeModal: closeTransactionModal, clearTransaction } =
+    useTransactionModal()
+  // Names the attempt the modal is showing. The deploy path chains deploy →
+  // set, so without this an abandoned run leaves its deploy actor behind and
+  // the next attempt's set step targets a subregistry that was never deployed.
+  const attempt = useFlowAttempt()
+  const deploySubregistryTxId = scopeTransactionId(
+    DEPLOY_SUBREGISTRY_TX_ID,
+    attempt.scope,
+  )
+  const setSubregistryTxId = scopeTransactionId(
+    SET_SUBREGISTRY_TX_ID,
+    attempt.scope,
+  )
 
   const {
     data: registries,
@@ -128,6 +140,7 @@ export const SubregistryConfigurator = ({
     useCustomRegistry && isAddress(contractAddress) ? contractAddress : null
 
   const isDeployPath = !customSubregistryAddress
+  const { address: connectedAddress } = useConnection()
 
   const {
     deploySubregistryAsync,
@@ -148,7 +161,7 @@ export const SubregistryConfigurator = ({
     name,
     label,
     parentRegistry: parentRegistry ?? zeroAddress,
-    id: SET_SUBREGISTRY_TX_ID,
+    id: setSubregistryTxId,
   })
 
   const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
@@ -156,7 +169,7 @@ export const SubregistryConfigurator = ({
   const handleDeploySubregistryStart = async () => {
     await ResultAsync.fromPromise(
       deploySubregistryAsync({
-        id: DEPLOY_SUBREGISTRY_TX_ID,
+        id: deploySubregistryTxId,
         salt: deploySalt,
       }),
       () => undefined,
@@ -189,6 +202,7 @@ export const SubregistryConfigurator = ({
   const handleSetSubregistryDone = () => {
     closeTransactionModal()
     clearTransaction()
+    attempt.end()
     setContractAddress('')
     setRegistryOption('deploy')
     deployedSubregistryAddressRef.current = null
@@ -210,8 +224,9 @@ export const SubregistryConfigurator = ({
     // Gates the deploy too, not just the set: there is no reason to pay for a
     // registry that may not legally be pointed at anything.
     if (assertWritable && !(await assertWritable())) return
+    if (!connectedAddress) return
     setDeploySalt(generateSubregistrySalt())
-    openTransactionModal()
+    attempt.start(connectedAddress)
   }
 
   const isSubmitDisabled =
@@ -312,7 +327,7 @@ export const SubregistryConfigurator = ({
           isDeployPath
             ? [
                 {
-                  id: DEPLOY_SUBREGISTRY_TX_ID,
+                  id: deploySubregistryTxId,
                   title: 'Deploy subregistry',
                   transactionName: `Deploy subregistry for ${name}`,
                   intent: {
@@ -329,7 +344,7 @@ export const SubregistryConfigurator = ({
                   onDone: handleSetSubregistryAfterDeployStart,
                 },
                 {
-                  id: SET_SUBREGISTRY_TX_ID,
+                  id: setSubregistryTxId,
                   title: 'Set subregistry',
                   transactionName: `Set subregistry for ${name}`,
                   onStart: handleSetSubregistryAfterDeployStart,
@@ -338,7 +353,7 @@ export const SubregistryConfigurator = ({
               ]
             : [
                 {
-                  id: SET_SUBREGISTRY_TX_ID,
+                  id: setSubregistryTxId,
                   title: 'Set subregistry',
                   transactionName: `Set custom subregistry for ${name}`,
                   intent: {

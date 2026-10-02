@@ -7,14 +7,17 @@ import {
 
 /**
  * Learn more plus Upgrade to v2, the pair every migration prompt offers.
- * `learnMore` drops the first button where there is only room for one.
+ * `learnMore` drops the first button where there is only room for one;
+ * `isWrapped` relabels the upgrade for a name that is unwrapped on the way.
  */
 export const UpgradeActions = ({
   name,
   learnMore = true,
+  isWrapped = false,
 }: {
   readonly name: string
   readonly learnMore?: boolean
+  readonly isWrapped?: boolean
 }) => (
   <div className="flex shrink-0 items-center gap-4">
     {learnMore && (
@@ -33,7 +36,7 @@ export const UpgradeActions = ({
     <Button className="rounded-xs" asChild variant="entity" size="xs">
       <a href={MANAGER_MIGRATE_URL} target="_blank" rel="noopener noreferrer">
         <ArrowUpCircle className="size-4 shrink-0" />
-        Upgrade to v2
+        {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
       </a>
     </Button>
   </div>

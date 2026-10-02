@@ -1,7 +1,9 @@
 import { REGISTRATION_STAGE_PROGRESS } from '@/features/register-v2/state/registration.stages'
 
 const COOLDOWN_MACHINE = REGISTRATION_STAGE_PROGRESS.commitmentCooldown
-const POST_COOLDOWN_MACHINE = REGISTRATION_STAGE_PROGRESS.validatingCommitment
+// The cooldown span ends here on the machine scale. No stage sits at this
+// value: every stage after the cooldown ranks higher.
+const POST_COOLDOWN_MACHINE = COOLDOWN_MACHINE + 2
 const PRE_COOLDOWN_DISPLAY = 20
 const POST_COOLDOWN_DISPLAY = 80
 

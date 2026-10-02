@@ -10,7 +10,7 @@ export const requireJWT = createMiddleware<BaseEnv>(async (c, next) => {
     alg: 'HS256',
   })
 
-  return jwtMiddleware(c, next)
+  return await jwtMiddleware(c, next)
 })
 
 export const verifyJWT = createMiddleware<

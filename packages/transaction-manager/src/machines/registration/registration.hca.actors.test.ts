@@ -6,7 +6,7 @@ import {
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, isAddressEqual, parseAbi } from 'viem'
+import { decodeFunctionData, isAddressEqual, parseAbi, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EOASigner, Signer } from '../../types/signer.types'
@@ -180,6 +180,28 @@ describe('submitFundingAndCommitActor', () => {
     // A fresh 32-byte secret per attempt.
     expect(result._unsafeUnwrap().commitment.secret).toMatch(/^0x[0-9a-f]{64}$/)
   })
+
+  it.each([
+    ['a fullwidth look-alike', 'ｍｙｎａｍｅ.eth', /Refusing to register/],
+    ['a soft hyphen', 'my­name.eth', /Refusing to register/],
+    [
+      'a stray variation selector',
+      'thumbs\u{1f44d}️.eth',
+      /Refusing to register/,
+    ],
+    ['an upper-case label', 'MYNAME.eth', /Refusing to register/],
+    ['an xn-- extension', 'xn--ls8h.eth', /invalid label extension/],
+  ])('refuses to commit to %s rather than sign a different name', async (_case, name, message) => {
+    // The commitment binds `keccak256(label)`, so a label that is not already
+    // canonical buys a name no ENSIP-15 client can resolve — and one the app's
+    // own read path cannot address. The flow canonicalises at its entry; this
+    // is the last check before the wallet.
+    const result = await submitFundingAndCommitActor({ ...input, name })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toMatch(message)
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
 })
 
 describe('submitRevealBatchActor', () => {
@@ -214,34 +236,77 @@ describe('submitRevealBatchActor', () => {
 describe('verifyHcaRegistrationActor', () => {
   const publicClient = { chain: sepolia } as unknown as PublicClient
   const hcaResolver = computeResolverAddress({ chainId: sepolia.id, hca: HCA })
+  const DURATION = 31_536_000n
+  const ATTACKER_REGISTRY =
+    '0xbadbad0000000000000000000000000000000001' as Address
 
-  const registeredState = (latestOwner: Address) => ({
+  const registeredState = (latestOwner: Address, expiry?: bigint) => ({
     status: 2, // IPermissionedRegistry.Status.REGISTERED
-    expiry: 0n,
+    expiry: expiry ?? BigInt(Math.floor(Date.now() / 1000)) + DURATION,
     latestOwner,
     tokenId: 0n,
     resource: 0n,
   })
 
-  /** `getState` then `getResolver`, in the order the actor reads them. */
-  const mockRegistry = (state: unknown, resolver: Address) => {
+  /**
+   * `getState`, `getResolver`, `getSubregistry`, `commitmentAt` — the order the
+   * actor reads them. `commitTime` 0 means our commitment was consumed.
+   */
+  const mockRegistry = (
+    state: unknown,
+    resolver: Address,
+    subregistry: Address = zeroAddress,
+    commitTime: bigint = 0n,
+  ) => {
     readContract
       .mockResolvedValueOnce(state)
       .mockResolvedValueOnce(resolver as unknown)
+      .mockResolvedValueOnce(subregistry as unknown)
+      .mockResolvedValueOnce(commitTime as unknown)
   }
 
+  // `graceWindowMs: 0` pins these to ONE read: they are about how a registry
+  // response is interpreted, not about the grace-poll (covered separately in
+  // registration.verify-poll.test.ts). Without it, every negative case would
+  // re-read for the default 30s.
   const verify = () =>
     verifyHcaRegistrationActor({
       name: 'myname.eth',
       wallet: WALLET,
       hca: HCA,
       publicClient,
+      commitment: COMMITMENT,
+      duration: DURATION,
+      graceWindowMs: 0,
     })
 
   it('verifies a name owned by the wallet and resolved by the HCA resolver', async () => {
     mockRegistry(registeredState(WALLET), hcaResolver)
 
     expect((await verify())._unsafeUnwrap().verified).toBe(true)
+  })
+
+  it('re-reads until the reveal lands, rather than failing on the first look', async () => {
+    // A resumed run reaches verification while the intent is still filling
+    // server-side. One read would report a false failure and push the user
+    // into a retry for a name they are about to own.
+    mockRegistry(registeredState(WALLET), zeroAddress)
+    mockRegistry(registeredState(WALLET), hcaResolver)
+
+    const result = await verifyHcaRegistrationActor({
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      publicClient,
+      commitment: COMMITMENT,
+      duration: DURATION,
+      graceWindowMs: 500,
+      pollIntervalMs: 10,
+    })
+
+    expect(result._unsafeUnwrap().verified).toBe(true)
+    // Four registry reads per poll iteration, two iterations.
+    expect(readContract).toHaveBeenCalledTimes(8)
   })
 
   it('rejects a name whose owner is the HCA instead of the wallet', async () => {
@@ -256,6 +321,53 @@ describe('verifyHcaRegistrationActor', () => {
     mockRegistry(registeredState(WALLET), WALLET)
 
     expect((await verify())._unsafeUnwrap().verified).toBe(false)
+  })
+
+  it('rejects a registration carrying a subregistry we never set', async () => {
+    // An attacker's registration: our wallet as owner, our resolver, but their
+    // subregistry — so they own the namespace beneath the name.
+    mockRegistry(registeredState(WALLET), hcaResolver, ATTACKER_REGISTRY)
+
+    const { verified, reason } = (await verify())._unsafeUnwrap()
+    expect(verified).toBe(false)
+    expect(reason).toMatch(/subregistry/i)
+  })
+
+  it('rejects a registration that left our commitment unconsumed', async () => {
+    // Only we can consume it, so a recorded commitment means somebody else's
+    // reveal registered this name — even with every other field matching.
+    mockRegistry(registeredState(WALLET), hcaResolver, zeroAddress, 1_700_000n)
+
+    const { verified, reason } = (await verify())._unsafeUnwrap()
+    expect(verified).toBe(false)
+    expect(reason).toMatch(/commitment/i)
+  })
+
+  it('rejects a registration expiring sooner than the duration we paid for', async () => {
+    const oneMonth = BigInt(Math.floor(Date.now() / 1000)) + 28n * 86_400n
+    mockRegistry(registeredState(WALLET, oneMonth), hcaResolver)
+
+    const { verified, reason } = (await verify())._unsafeUnwrap()
+    expect(verified).toBe(false)
+    expect(reason).toMatch(/expiry/i)
+  })
+
+  it('reports a name registered to another wallet as lost, not merely unverified', async () => {
+    // Two people registered the same name; this one lost. Resubmitting the
+    // reveal can only fail the same way, so the caller must be able to tell
+    // this apart from "not registered yet".
+    const rival = '0xbbbb000000000000000000000000000000000002' as Address
+    mockRegistry(registeredState(rival), hcaResolver)
+
+    const output = (await verify())._unsafeUnwrap()
+    expect(output.verified).toBe(false)
+    expect(output.registeredToOther).toBe(true)
+  })
+
+  it('does not report an unregistered name as lost', async () => {
+    mockRegistry({ ...registeredState(WALLET), status: 0 }, hcaResolver)
+
+    expect((await verify())._unsafeUnwrap().registeredToOther).toBe(false)
   })
 })
 
@@ -670,5 +782,17 @@ describe('estimateHcaBudgetActor', () => {
         isAddressEqual(call.to, C.defaultReverseRegistrarHcaAdapter),
       ),
     ).toBe(false)
+  })
+
+  it('refuses a non-canonical label instead of pricing the twin', async () => {
+    const result = await estimateHcaBudgetActor({
+      ...input,
+      name: 'MyName.eth',
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toMatch(/canonical form/)
+    // The refusal lands before any leg is priced.
+    expect(prepareTransaction).not.toHaveBeenCalled()
   })
 })

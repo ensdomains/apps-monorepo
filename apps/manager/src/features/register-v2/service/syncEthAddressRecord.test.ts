@@ -1,4 +1,5 @@
 import type { Address, PublicClient } from 'viem'
+import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/features/profile/service/resolverRecordCalls', () => ({
@@ -112,7 +113,11 @@ describe('syncEthAddressRecord', () => {
       signer: {
         type: 'rhinestone',
         account: {} as never,
-        config: { accountAddress: SMART_ACCOUNT, rhinestoneApiKey: 'k' },
+        config: {
+          accountAddress: SMART_ACCOUNT,
+          rhinestoneApiKey: 'k',
+          chain: sepolia,
+        },
       },
       accountAddress: ACCOUNT,
       publicClient,

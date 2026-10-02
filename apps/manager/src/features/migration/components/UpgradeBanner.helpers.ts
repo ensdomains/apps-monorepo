@@ -2,6 +2,7 @@ import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 
 type ShouldShowUpgradeBannerParams = {
   readonly eligibleV1Names: readonly ClassifiedName[]
+  readonly gracePeriodNameCount?: number
   readonly migratedCount: number | null | undefined
   readonly profileName?: string
 }
@@ -20,13 +21,14 @@ export const isEligibleProfileName = (
 
 export const shouldShowUpgradeBanner = ({
   eligibleV1Names,
+  gracePeriodNameCount = 0,
   migratedCount,
   profileName,
 }: ShouldShowUpgradeBannerParams): boolean => {
-  if (!eligibleV1Names.length) return false
   if (profileName !== undefined) {
     return isEligibleProfileName(eligibleV1Names, profileName)
   }
+  if (eligibleV1Names.length + gracePeriodNameCount === 0) return false
   if ((migratedCount ?? 0) >= 1) return false
   return true
 }

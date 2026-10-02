@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
 import { format } from 'date-fns'
+import { Card } from '@/components/ui/card'
 import {
   getDurationExpiryDateForDisplay,
   getStartOfDay,
@@ -24,7 +25,7 @@ export const PricingSummaryCard = () => {
   )
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-6 py-8 text-center font-[350] text-neutral-800 text-xl leading-ens-none shadow-temp-card md:py-6 md:text-2xl">
+    <Card className="items-center justify-center gap-1 px-6 py-8 text-center font-[350] text-neutral-800 text-xl leading-ens-none md:py-6 md:text-2xl">
       <div className="flex flex-wrap items-baseline justify-center gap-x-1 text-center">
         <span>
           <Trans>Registering for</Trans>
@@ -41,6 +42,6 @@ export const PricingSummaryCard = () => {
           {format(expirationDate, 'MMMM d, yyyy')}
         </span>
       </div>
-    </div>
+    </Card>
   )
 }

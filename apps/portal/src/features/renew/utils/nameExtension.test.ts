@@ -4,6 +4,7 @@ import {
   GRACE_PERIOD_DAYS,
   getSelectedNames,
   isExtendable2LD,
+  isNonCanonicalEthName,
   MS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
 } from './nameExtension'
@@ -17,7 +18,74 @@ const beyondV2Grace = new Date(
   Date.now() - (V2_GRACE_PERIOD_DAYS + 1) * MS_PER_DAY,
 )
 
+describe('isNonCanonicalEthName', () => {
+  it('is false for a canonical .eth 2LD', () => {
+    expect(isNonCanonicalEthName('alice.eth')).toBe(false)
+  })
+
+  it('is true when the stored label differs from its normalised form', () => {
+    expect(isNonCanonicalEthName('ALICE.eth')).toBe(true)
+    // fullwidth letters normalise to ascii
+    expect(isNonCanonicalEthName('ｆｏｏ.eth')).toBe(true)
+    // zero-width space is stripped by normalisation
+    expect(isNonCanonicalEthName('foo\u200bbar.eth')).toBe(true)
+    // decomposed e + U+0301 renders like the precomposed é twin
+    expect(isNonCanonicalEthName('e\u0301bf.eth')).toBe(true)
+  })
+
+  it('is true for an encoded-labelhash 2LD (label unknown, cannot be renewed by label)', () => {
+    expect(isNonCanonicalEthName(`[${'a'.repeat(64)}].eth`)).toBe(true)
+  })
+
+  it('only judges .eth 2LDs — other shapes are rejected elsewhere', () => {
+    expect(isNonCanonicalEthName('SUB.alice.eth')).toBe(false)
+    expect(isNonCanonicalEthName('ALICE.com')).toBe(false)
+  })
+})
+
 describe('isExtendable2LD', () => {
+  // Every renew step derives the label with `getLabel`, which normalises, so an
+  // Extend offered on a non-canonical spelling would push the *canonical*
+  // twin's expiry — a different, separately registrable name. Both entry points
+  // into the flow (the name page's Extend button via useCanExtend, and the
+  // names table's multi-select) run through this pre-filter.
+  describe('non-canonical rejection', () => {
+    it.each([
+      ['an uppercase label', 'ALICE.eth'],
+      ['a fullwidth homoglyph label', 'ａlice.eth'],
+      ['an uppercase TLD', 'alice.ETH'],
+      ['an encoded labelhash label', `[${'a'.repeat(64)}].eth`],
+    ])('rejects %s', (_case, name) => {
+      expect(isExtendable2LD({ name, isV2: true, expiryDate: future })).toBe(
+        false,
+      )
+      expect(isExtendable2LD({ name, isV2: false, expiryDate: future })).toBe(
+        false,
+      )
+    })
+
+    it('still accepts the canonical spelling', () => {
+      expect(
+        isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: future }),
+      ).toBe(true)
+    })
+  })
+
+  describe('non-canonical label rejection (Immunefi #90094)', () => {
+    it('rejects a 2LD whose stored label is not its normalised form', () => {
+      for (const name of ['ALICE.eth', 'ｆｏｏ.eth', 'foo\u200bbar.eth']) {
+        expect(
+          isExtendable2LD({ name, isV2: true, expiryDate: future }),
+          name,
+        ).toBe(false)
+        expect(
+          isExtendable2LD({ name, isV2: false, expiryDate: future }),
+          name,
+        ).toBe(false)
+      }
+    })
+  })
+
   describe('subname rejection', () => {
     it('rejects a subname', () => {
       expect(

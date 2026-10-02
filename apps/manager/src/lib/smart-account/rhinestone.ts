@@ -8,7 +8,7 @@
  *     (wagmi).
  *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
  *     `VITE_RHINESTONE_ENDPOINT_URL`, `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
- *   - Injecting the manager's chain (`customSepolia`) and public client.
+ *   - Injecting the manager's chain (`appChain`) and public client.
  *
  * The account is the standalone ENS HCA (single ECDSA owner + scoped
  * SmartSession validator). It is created in-memory with a deterministic address
@@ -18,15 +18,16 @@
 
 import {
   type RhinestoneInitResult as CoreRhinestoneInitResult,
+  fetchIntentOperationStatus,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
 import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
 import type { Account, Address, PublicClient, WalletClient } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
+import { chain as appChain } from '@/config'
 
 export interface RhinestoneConfig {
-  chain: typeof customSepolia
+  chain: typeof appChain
   rhinestoneApiKey: string
 }
 
@@ -108,6 +109,34 @@ function resolveSdkEnv(): {
 }
 
 /**
+ * Build the orchestrator status lookup registration verification uses — on
+ * live and resumed runs alike — to tell a still-filling reveal intent from a
+ * definitively dead one, so it can fail fast instead of sitting out the
+ * on-chain grace poll.
+ *
+ * Honors the same env resolution as the SDK init (`VITE_RHINESTONE_API_KEY`,
+ * `VITE_RHINESTONE_ENDPOINT_URL` for the e2e mockestrator). Returns undefined
+ * when no key resolves — the machine then falls back to the blind poll, which
+ * is always safe.
+ */
+export function buildIntentStatusFetcher():
+  | ((intentId: bigint, signal?: AbortSignal) => Promise<string | null>)
+  | undefined {
+  try {
+    const { rhinestoneApiKey, rhinestoneEndpointUrl } = resolveSdkEnv()
+    return (intentId, signal) =>
+      fetchIntentOperationStatus({
+        intentId,
+        apiKey: rhinestoneApiKey,
+        endpointUrl: rhinestoneEndpointUrl,
+        signal,
+      })
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Initialize the standalone HCA smart account (in-memory; lazy on-chain
  * deploy). Adopts an already-deployed HCA after verification.
  *
@@ -124,7 +153,7 @@ export async function initializeRhinestoneAccount(
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
     eoaAddress,
-    chain: customSepolia,
+    chain: appChain,
     publicClient,
     rhinestoneApiKey: env.rhinestoneApiKey,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
@@ -146,7 +175,7 @@ export async function initializeRhinestoneAccount(
     ownerAddress: result.ownerAddress,
     alreadyDeployed: result.alreadyDeployed,
     config: {
-      chain: customSepolia,
+      chain: appChain,
       rhinestoneApiKey: result.config.rhinestoneApiKey,
     },
   }

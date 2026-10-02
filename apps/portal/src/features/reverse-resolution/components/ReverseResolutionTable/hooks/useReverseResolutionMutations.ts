@@ -14,6 +14,7 @@ import { useCallback, useMemo } from 'react'
 import { type Address, isAddressEqual } from 'viem'
 import { normalize } from 'viem/ens'
 import { useConnection, useWalletClient } from 'wagmi'
+import { envConfig } from '@/config'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -50,7 +51,7 @@ export function useReverseResolutionMutations({
   displayName,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
-  const { chain, address: connectedAddress } = useConnection()
+  const { address: connectedAddress } = useConnection()
 
   const isL1 = useMemo(
     () => isL1ReverseRegistrarChainId(reverseRegistrarChainId),
@@ -114,8 +115,8 @@ export function useReverseResolutionMutations({
         return {
           kind: 'l1-v1-direct',
           request: {
-            // biome-ignore lint/style/noNonNullAssertion: coinType 60 always has a sepolia address
-            address: getRegistrarAddress(60)!,
+            // biome-ignore lint/style/noNonNullAssertion: coinType 60 always has an L1 registrar
+            address: getRegistrarAddress(60, envConfig.network)!,
             abi: reverseRegistrarSetNameSnippet,
             functionName: 'setName',
             args: [normalizedName] as const,
@@ -132,11 +133,13 @@ export function useReverseResolutionMutations({
         request: createSetReverseNameRequest({
           name: normalizedName,
           reverseRegistrarChainId,
-          chain,
+          // The network is a property of the build, not of whichever L2 the
+          // wallet happens to be connected to.
+          network: envConfig.network,
         }),
       }
     },
-    [chain, isL1, l1WalletClient, reverseRegistrarChainId],
+    [isL1, l1WalletClient, reverseRegistrarChainId],
   )
 
   // Builds the forward address-record request against the name's L1 resolver

@@ -9,11 +9,14 @@
  *   2. summarized into `error.message` (single-line logs / DX).
  */
 
+import { BaseError, UserRejectedRequestError } from 'viem'
 import { describe, expect, it } from 'vitest'
 import type { TransactionRequest } from '../types/transaction.types'
 import {
   extractOrchestratorErrorContext,
+  isUserRejectionError,
   TransactionSubmissionError,
+  TransactionUserRejectedError,
 } from './transaction.errors'
 
 const dummyRequest = {
@@ -144,5 +147,72 @@ describe('TransactionSubmissionError', () => {
     const err = new TransactionSubmissionError(dummyRequest)
     expect(err.message).toBe('Failed to submit transaction')
     expect(err.orchestrator).toEqual({})
+  })
+})
+
+describe('isUserRejectionError', () => {
+  const declined = () =>
+    new UserRejectedRequestError(new Error('User rejected the request.'))
+
+  /**
+   * What a rejection looks like when it was thrown by ANOTHER viem copy, as the
+   * app's wallet client's are whenever pnpm splits viem: the same `name`, but
+   * no instance of any class this package imports.
+   */
+  const declinedByOtherViemCopy = () =>
+    Object.assign(new Error('User rejected the request.'), {
+      name: 'UserRejectedRequestError',
+      code: 4001,
+    })
+
+  it('recognises a transaction declined in the EOA transport', () => {
+    expect(
+      isUserRejectionError(
+        new TransactionUserRejectedError(dummyRequest, declined()),
+      ),
+    ).toBe(true)
+  })
+
+  it('recognises a declined signature, however deep viem wrapped it', () => {
+    expect(isUserRejectionError(declined())).toBe(true)
+    expect(
+      isUserRejectionError(
+        new BaseError('Signing failed', { cause: declined() }),
+      ),
+    ).toBe(true)
+  })
+
+  it('recognises a rejection thrown by another viem copy', () => {
+    // An `instanceof` check misses exactly these.
+    expect(isUserRejectionError(declinedByOtherViemCopy())).toBe(true)
+    expect(
+      isUserRejectionError(
+        Object.assign(new Error('Transaction execution error'), {
+          name: 'TransactionExecutionError',
+          cause: declinedByOtherViemCopy(),
+        }),
+      ),
+    ).toBe(true)
+  })
+
+  it('reaches a rejection through our own wrappers', () => {
+    expect(
+      isUserRejectionError(
+        new TransactionSubmissionError(dummyRequest, declinedByOtherViemCopy()),
+      ),
+    ).toBe(true)
+  })
+
+  it('does not mistake other failures for a rejection', () => {
+    expect(isUserRejectionError(new Error('rpc down'))).toBe(false)
+    expect(isUserRejectionError(new BaseError('execution reverted'))).toBe(
+      false,
+    )
+    expect(
+      isUserRejectionError(
+        new TransactionSubmissionError(dummyRequest, new Error('sim failed')),
+      ),
+    ).toBe(false)
+    expect(isUserRejectionError(undefined)).toBe(false)
   })
 })

@@ -58,6 +58,16 @@ vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
   }),
 }))
 
+// Without this the availability query hits a live RPC, never settles under the
+// test's `waitFor`, and `SearchResultsList` keeps rendering a description
+// skeleton instead of the suggestion text.
+vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
+  getNameAvailabilityQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['check-name-availability', { name }],
+    queryFn: async () => ({ isAvailable: false, name }),
+  }),
+}))
+
 const { useIsMobile } = await import('@/hooks/use-mobile')
 
 function createWrapper() {
@@ -355,5 +365,20 @@ describe('HomeSearchInput', () => {
         ).not.toBeInTheDocument()
       })
     })
+  })
+
+  it('names the hero search for screen readers, since its hint is decorative', () => {
+    render(
+      <HomeSearchInput
+        isHero
+        ariaLabel="Search for a name, wallet, or contract"
+      />,
+      { wrapper: createWrapper() },
+    )
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Search for a name, wallet, or contract',
+      }),
+    ).toBeInTheDocument()
   })
 })

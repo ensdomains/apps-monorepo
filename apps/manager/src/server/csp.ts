@@ -9,26 +9,11 @@
  * PostHog via `report-to` / `report-uri` + `Reporting-Endpoints`.
  */
 
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+import { originFromEnvUrl } from '@ens-apps/config'
 import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
-import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
+import { envConfig } from '@/config'
 
-/**
- * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
- * be allowlisted in `connect-src` / `frame-src`.
- *
- * Returns `null` for unset, relative (`/rpc` — already covered by `'self'`), or
- * unparseable values, so only real absolute http(s) overrides are added.
- */
-export function originFromEnvUrl(value: string | undefined): string | null {
-  if (!value || value.startsWith('/')) return null
-  try {
-    const { protocol, origin } = new URL(value)
-    return protocol === 'https:' || protocol === 'http:' ? origin : null
-  } catch {
-    return null
-  }
-}
+import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -41,11 +26,10 @@ const DQA_ORIGIN =
 const COMMEMORATIVE_RENDERER_ORIGIN = getCommemorativeNftConfig().rendererOrigin
 const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 
-// Deployment-specific override origins, derived from the same build-time envs
-// the RPC / indexer / Rhinestone / NFT clients read.
+// Deployment-specific override origins for the endpoints config does not own.
+// The RPC and indexer overrides are already folded into `config`, so they are
+// covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
-  originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
-  originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
   originFromEnvUrl(import.meta.env?.VITE_API_URL),
   originFromEnvUrl(import.meta.env?.VITE_RHINESTONE_ENDPOINT_URL),
@@ -63,11 +47,18 @@ const SUBGRAPH_ORIGINS = Object.values(ensL1Subgraphs).map(
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
 const DEFAULT_CONNECT_HOSTS = [
-  // Manager Sepolia RPC primary — src/lib/wagmi.ts
-  'https://lb.drpc.live',
-  // Public RPC failover endpoints — same source as viem transports
-  // (@ens-apps/indexer/chain SEPOLIA_FALLBACK_RPC_URLS).
-  ...SEPOLIA_FALLBACK_RPC_URLS.map((url) => new URL(url).origin),
+  // Every RPC endpoint the viem transports may use: the app's attributed
+  // primary plus the network's shared fallbacks. Derived from the same config
+  // the transports read, so an endpoint change can never be silently blocked.
+  // Relative primaries (`/rpc` in e2e) yield null and are covered by 'self'.
+  ...envConfig.rpcUrls
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
+  // The indexers, resolved in `@/config`.
+  ...[
+    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
+    originFromEnvUrl(envConfig.endpoints.bignameApi),
+  ].filter((origin): origin is string => origin !== null),
   // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
   // app-api.ens.dev), v1 subgraph (v1-graphql.ens.dev). Wildcarded so
   // per-deployment / per-env *.ens.dev hosts don't silently break a flow.
@@ -172,7 +163,10 @@ export function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     // Images are host-agnostic (ENS avatar records are arbitrary URLs).
     "img-src 'self' data: blob: https:",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    // fonts.ens.dev serves the ABC/Dinamo faces: the font license forbids
+    // redistributing them in this repo, so they are fetched at runtime rather
+    // than vendored under src/assets/fonts.
+    "font-src 'self' data: https://fonts.gstatic.com https://fonts.ens.dev",
     `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
     `frame-src 'self' ${FRAME_HOSTS.join(' ')}`,
     "worker-src 'self' blob:",

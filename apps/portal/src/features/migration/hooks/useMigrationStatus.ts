@@ -1,4 +1,5 @@
 import {
+  type ClassifiedName,
   classifyName,
   runEligibilityChecks,
   type V1Domain,
@@ -16,15 +17,21 @@ import {
   type PublicClient,
 } from 'viem'
 import { useConnection } from 'wagmi'
+import { envConfig } from '@/config'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { gql } from '@/utils/subgraph/gql'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
- * migrate and, if so, which address holds the v1 token.
+ * migrate and, if so, which address holds the v1 token and which kind of token
+ * it is (`unlocked` is a wrapped .eth name that is unwrapped on the way to v2).
  */
 export type MigrationStatus =
-  | { readonly migratable: true; readonly tokenHolder: Address }
+  | {
+      readonly migratable: true
+      readonly tokenHolder: Address
+      readonly tokenType: ClassifiedName['tokenType']
+    }
   | { readonly migratable: false }
 
 type V1DomainResponse = { domains: V1Domain[] }
@@ -90,7 +97,7 @@ const getMigrationStatus = ResultFn(async function* ({
     return ok<MigrationStatus>({ migratable: false })
   const evaluationAddress = holderCandidate
 
-  const classified = classifyName(domain, evaluationAddress)
+  const classified = classifyName(domain, evaluationAddress, envConfig.chain.id)
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
 
@@ -112,7 +119,11 @@ const getMigrationStatus = ResultFn(async function* ({
 
   return ok<MigrationStatus>(
     eligible.length > 0
-      ? { migratable: true, tokenHolder: classified.name.tokenHolder }
+      ? {
+          migratable: true,
+          tokenHolder: classified.name.tokenHolder,
+          tokenType: classified.name.tokenType,
+        }
       : { migratable: false },
   )
 })
@@ -137,7 +148,8 @@ export const getMigrationStatusQueryOptions = (
  *
  * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
  * the name is migratable *and* this wallet holds the v1 token. A non-owner
- * cannot migrate, so nothing should offer them the action.
+ * cannot migrate, so nothing should offer them the action. `isWrapped` marks
+ * an unlocked NameWrapper token, which is unwrapped as part of the upgrade.
  *
  * `enabled` exists because the read is not cheap: a subgraph request plus
  * on-chain eligibility checks. Callers pass false for anything that is not a
@@ -162,5 +174,6 @@ export const useMigrationStatus = (
       data?.migratable === true &&
       !!address &&
       isAddressEqual(address, data.tokenHolder),
+    isWrapped: data?.migratable === true && data.tokenType === 'unlocked',
   }
 }

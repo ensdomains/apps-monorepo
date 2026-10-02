@@ -40,14 +40,24 @@ export type L2ReverseRegistrarChainId =
 
 export type NetworkKey = 'mainnet' | 'sepolia'
 
-export function resolveNetworkFromChain(chain?: Chain): NetworkKey {
-  switch (chain?.id) {
+/**
+ * Map an L1 chain to its network key.
+ *
+ * Throws on anything else rather than defaulting. A default would resolve
+ * reverse-registrar addresses for the wrong network, which reads as "no
+ * primary name set" at best and writes a record to the wrong contract at
+ * worst.
+ */
+export function resolveNetworkFromChain(chain: Chain): NetworkKey {
+  switch (chain.id) {
     case 1:
       return 'mainnet'
     case 11155111:
       return 'sepolia'
     default:
-      return 'sepolia'
+      throw new Error(
+        `Chain ${chain.id} (${chain.name}) has no ENS reverse-registrar network mapping.`,
+      )
   }
 }
 
@@ -111,18 +121,16 @@ export const L2_REVERSE_REGISTRARS: Record<
 
 export function getRegistrarAddress<
   CT extends ReverseRegistrarChainId,
-  N extends NetworkKey = 'sepolia',
->(coinType: CT, network?: N): (typeof L2_REVERSE_REGISTRARS)[CT][N] {
-  const net = (network ?? 'sepolia') as N
-  return L2_REVERSE_REGISTRARS[coinType][net]
+  N extends NetworkKey,
+>(coinType: CT, network: N): (typeof L2_REVERSE_REGISTRARS)[CT][N] {
+  return L2_REVERSE_REGISTRARS[coinType][network]
 }
 
 export function getChainIdForReverseRegistrarChainId<
   CT extends ReverseRegistrarChainId,
-  N extends NetworkKey = 'sepolia',
->(coinType: CT, network?: N): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][N] {
-  const net = (network ?? 'sepolia') as N
-  return REVERSE_REGISTRAR_CHAIN_IDS[coinType][net]
+  N extends NetworkKey,
+>(coinType: CT, network: N): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][N] {
+  return REVERSE_REGISTRAR_CHAIN_IDS[coinType][network]
 }
 
 /**
@@ -140,12 +148,12 @@ export function getChainIdForReverseRegistrarChainId<
  */
 export function getCoinTypeForReverseRegistrarChainId(
   reverseRegistrarChainId: ReverseRegistrarChainId,
-  network?: NetworkKey,
+  network: NetworkKey,
 ): number {
   if (reverseRegistrarChainId === 1 || reverseRegistrarChainId === 60) return 60
   const chainId = getChainIdForReverseRegistrarChainId(
     reverseRegistrarChainId,
-    network ?? 'sepolia',
+    network,
   )
   // ENSIP-11: coinType = 0x80000000 | chainId. `>>> 0` keeps it an unsigned
   // 32-bit number (bitwise OR would otherwise produce a negative int32).
