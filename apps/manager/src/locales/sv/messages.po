@@ -498,6 +498,10 @@ msgstr ""
 msgid "Checking renewal costs..."
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking resolver"
+msgstr ""
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
 msgstr ""
@@ -512,6 +516,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking whether your resolver is already deployed"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx

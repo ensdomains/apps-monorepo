@@ -1,5 +1,6 @@
 import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
 import {
+  computeDedicatedResolverAddress,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   REGISTRATION_TX_IDS,
@@ -11,14 +12,9 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type Address, erc20Abi } from 'viem'
 import {
-  type Address,
-  erc20Abi,
-  hexToBigInt,
-  keccak256,
-  stringToBytes,
-} from 'viem'
-import {
+  useBytecode,
   useConfig,
   useConnection,
   usePublicClient,
@@ -73,6 +69,69 @@ function isInProgressState(
   )
 }
 
+/**
+ * The steps before payment: deploying the wallet's resolver (its first
+ * registration only) and the commit. Whichever is listed first starts the run,
+ * unless a resumed run is already under way.
+ */
+function buildSetupSteps({
+  name,
+  owner,
+  deploy,
+  commit,
+  resumed,
+  onStart,
+  onProceed,
+}: {
+  readonly name: string
+  readonly owner: Address | undefined
+  readonly deploy: boolean
+  readonly commit: boolean
+  readonly resumed: boolean
+  readonly onStart: () => void
+  readonly onProceed: () => void
+}): Transaction[] {
+  const steps: Transaction[] = []
+
+  if (deploy) {
+    steps.push({
+      id: REGISTRATION_TX_IDS.deployResolver,
+      title: 'Deploy resolver',
+      transactionName: `Deploy resolver for ${name}`,
+      // Deploys the wallet's resolver via the shared package builder, so the
+      // estimate is byte-identical to what the machine submits. The step is
+      // only listed while nothing is deployed there, so it doesn't revert.
+      intent: {
+        prepare: owner
+          ? ({ walletClient }) =>
+              toEoaCustomIntent({
+                from: walletClient.account.address,
+                ...encodeDeployDedicatedResolverCall({
+                  owner,
+                  chain: sepoliaWithEns,
+                }),
+                chainId: sepoliaWithEns.id,
+              })
+          : undefined,
+      },
+      onStart,
+      onDone: onProceed,
+    })
+  }
+
+  if (commit) {
+    steps.push({
+      id: REGISTRATION_TX_IDS.commit,
+      title: 'Submit commitment',
+      transactionName: `Commit to register ${name}`,
+      onStart: resumed || deploy ? onProceed : onStart,
+      onDone: onProceed,
+    })
+  }
+
+  return steps
+}
+
 export const useRegistrationTransactions = ({
   name,
   duration,
@@ -98,6 +157,12 @@ export const useRegistrationTransactions = ({
   // changes under a running flow misleads either way.
   const [approvalPlanned, setApprovalPlanned] = useState<boolean | null>(null)
 
+  // Whether this run deploys the wallet's resolver, fixed when it starts for
+  // the same reason. Only a wallet's first registration does.
+  const [resolverDeployPlanned, setResolverDeployPlanned] = useState<
+    boolean | null
+  >(null)
+
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
@@ -117,9 +182,10 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.selectedToken,
   )
-  // The registration flow deploys a dedicated resolver proxy (step 1). Once its
-  // address is known, ask Etherscan to link it to the already source-verified
-  // implementation (Read/Write-as-Proxy). Fire-and-forget, latched per address.
+  // The registration flow points the name at the wallet's resolver proxy,
+  // deploying it first if needed. Once its address is known, ask Etherscan to
+  // link it to the already source-verified implementation
+  // (Read/Write-as-Proxy). Fire-and-forget, latched per address.
   const resolverAddress = useSelector(
     actor,
     (state) => state.context.resolverAddress,
@@ -187,6 +253,26 @@ export const useRegistrationTransactions = ({
   const { refetch: refetchAllowance } = allowanceQuery
   const showApprovalStep = approvalPlanned ?? needsApproval
 
+  // The wallet's resolver lives at a fixed address. Code there means an earlier
+  // registration deployed it, and this one reuses it.
+  const walletResolverAddress = connection.address
+    ? computeDedicatedResolverAddress({
+        chainId,
+        deployer: connection.address,
+        owner: connection.address,
+      })
+    : undefined
+  const walletResolverQuery = useBytecode({
+    address: walletResolverAddress,
+    chainId,
+    // Deployed by the previous registration on this page, so a cached "no
+    // code" would list the deploy step again.
+    query: { staleTime: 0 },
+  })
+  const needsResolverDeploy = !walletResolverQuery.data
+  const { refetch: refetchWalletResolver } = walletResolverQuery
+  const showResolverDeployStep = resolverDeployPlanned ?? needsResolverDeploy
+
   const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
       throw new Error(
@@ -216,10 +302,12 @@ export const useRegistrationTransactions = ({
 
     // Read now, not from the cache: an approve from an earlier run on this page
     // may have landed since.
-    const { data: allowance } = await refetchAllowance()
+    const [{ data: allowance }, { data: walletResolverCode }] =
+      await Promise.all([refetchAllowance(), refetchWalletResolver()])
     setApprovalPlanned(
       allowance === undefined || allowance < savedParams.tokenPrice,
     )
+    setResolverDeployPlanned(!walletResolverCode)
 
     transactionManager.clear()
 
@@ -244,6 +332,7 @@ export const useRegistrationTransactions = ({
     config,
     savedParams,
     refetchAllowance,
+    refetchWalletResolver,
   ])
 
   const handleProceed = useCallback(async () => {
@@ -284,48 +373,15 @@ export const useRegistrationTransactions = ({
     // The record holds a commitment from before the commit prompt opens, so a
     // run interrupted at that prompt never sent it (see
     // `assessRegistrationResume`).
-    const setupSteps: Transaction[] = [
-      {
-        id: REGISTRATION_TX_IDS.deployResolver,
-        title: 'Deploy resolver',
-        transactionName: `Deploy resolver for ${name}`,
-        // Deploys the name's dedicated resolver via the shared package builder,
-        // so the estimate is byte-identical to what the machine submits. Uses a
-        // stable throwaway salt: deploy gas is salt-independent, and a
-        // name-derived salt never collides with a real (random-salt) deploy, so
-        // estimateGas won't revert on an already-deployed address.
-        intent: {
-          prepare: connection.address
-            ? ({ walletClient }) =>
-                toEoaCustomIntent({
-                  from: walletClient.account.address,
-                  ...encodeDeployDedicatedResolverCall({
-                    owner: connection.address as Address,
-                    salt: hexToBigInt(
-                      keccak256(stringToBytes(`estimate:${name}`)),
-                    ),
-                    chain: sepoliaWithEns,
-                  }),
-                  chainId,
-                })
-            : undefined,
-        },
-        onStart: handleStart,
-        onDone: handleProceed,
-      },
-      {
-        id: REGISTRATION_TX_IDS.commit,
-        title: 'Submit commitment',
-        transactionName: `Commit to register ${name}`,
-        onStart: handleProceed,
-        onDone: handleProceed,
-      },
-    ]
-    const steps: Transaction[] = setupSteps.filter(
-      (step) =>
-        !resumed ||
-        (step.id === REGISTRATION_TX_IDS.commit && !resumed.commitmentOnChain),
-    )
+    const steps: Transaction[] = buildSetupSteps({
+      name,
+      owner: connection.address as Address | undefined,
+      deploy: !resumed && showResolverDeployStep,
+      commit: !resumed?.commitmentOnChain,
+      resumed: Boolean(resumed),
+      onStart: handleStart,
+      onProceed: handleProceed,
+    })
 
     if (showApprovalStep) {
       steps.push({
@@ -391,6 +447,7 @@ export const useRegistrationTransactions = ({
     connection.address,
     savedParams,
     resumed,
+    showResolverDeployStep,
     showApprovalStep,
     commitment,
     resolverAddress,
@@ -413,6 +470,8 @@ export const useRegistrationTransactions = ({
     if (savedParams?.tokenAddress === selectedTokenAddress) {
       void refetchAllowance()
     }
+    // An earlier run on this page may have deployed the resolver.
+    void refetchWalletResolver()
   }
 
   /**
@@ -462,6 +521,7 @@ export const useRegistrationTransactions = ({
     actor.send({ type: 'SUSPEND' })
     setResumed(null)
     setApprovalPlanned(null)
+    setResolverDeployPlanned(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
@@ -470,6 +530,7 @@ export const useRegistrationTransactions = ({
     actor.send({ type: 'CANCEL' })
     setResumed(null)
     setApprovalPlanned(null)
+    setResolverDeployPlanned(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
