@@ -2,7 +2,10 @@ import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
-import { TokenPickerContentBase } from './TokenPickerContent'
+import {
+  type RegistrationFundingSummary,
+  TokenPickerContentBase,
+} from './TokenPickerContent'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 /**
@@ -72,6 +75,12 @@ interface TokenPickerDialogShellProps {
   isLoadingBalances?: boolean
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
+  funding?: RegistrationFundingSummary
+  annualFee?: number
+  durationYears?: number
+  premium?: number
+  hasFundingBudget?: boolean
+  isFundingUnavailable?: boolean
   initialSelectedToken?: SUPPORTED_TOKEN
 }
 
@@ -85,6 +94,12 @@ const TokenPickerDialogShell = ({
   isLoadingBalances = false,
   stablecoinBalances = MOCK_BALANCES,
   errorMessage = null,
+  funding,
+  annualFee = 160,
+  durationYears = 1,
+  premium,
+  hasFundingBudget,
+  isFundingUnavailable,
   initialSelectedToken,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -99,8 +114,13 @@ const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        annualFee={annualFee}
+        durationYears={durationYears}
         errorMessage={errorMessage}
+        funding={funding}
+        hasFundingBudget={hasFundingBudget}
         isConnected={isConnected}
+        isFundingUnavailable={isFundingUnavailable}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         label={label}
@@ -108,6 +128,7 @@ const TokenPickerDialogShell = ({
           console.log('Buy Name clicked', { label, selectedToken, pricingData })
         }}
         onSelectCoin={setSelectedToken}
+        premium={premium}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -161,6 +182,40 @@ export const Default: Story = {}
 export const WithTokenSelected: Story = {
   args: {
     initialSelectedToken: 'USDC',
+  },
+}
+
+/**
+ * An earlier attempt funded the HCA but never finished, so part of this
+ * registration is already paid for: the deduction line shows and the headline
+ * becomes what the wallet pays now.
+ */
+export const WithLeftoverFromLastAttempt: Story = {
+  args: {
+    pricingData: 160,
+    annualFee: 53.333333,
+    durationYears: 3,
+    initialSelectedToken: 'USDC',
+    funding: {
+      registration: 160,
+      networkFee: 4.32,
+      total: 164.32,
+      walletDebit: 162.5,
+      hcaCredit: 1.82,
+    },
+  },
+}
+
+/**
+ * The budget quote failed. The card stays with the price it does know, instead
+ * of the sheet changing shape under the user.
+ */
+export const WithFeeUnavailable: Story = {
+  args: {
+    pricingData: 160,
+    initialSelectedToken: 'USDC',
+    hasFundingBudget: true,
+    isFundingUnavailable: true,
   },
 }
 

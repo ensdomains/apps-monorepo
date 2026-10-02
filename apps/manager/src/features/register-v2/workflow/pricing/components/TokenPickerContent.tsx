@@ -1,8 +1,9 @@
+import { logger } from '@ens-apps/utils/logger'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
@@ -10,6 +11,10 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import {
+  formatYears,
+  SECONDS_PER_YEAR,
+} from '@/features/shared/registration/pricing'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -23,9 +28,11 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import { basePricePerYearFromDurationTotal } from '../lib/buildPriceCooldownBannerProps'
+import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
-import { NetworkCostRow } from './NetworkCostRow'
+import { PaymentBreakdown } from './PaymentBreakdown'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -51,15 +58,22 @@ class InsufficientFundingError extends Error {
  * standalone-HCA route. See {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
-  networkFee: number
+  /** The registrar's charge for the name, the first line of the breakdown. */
+  readonly registration: number
+  readonly networkFee: number
   /** What the registration costs — the figure shown on the total row. */
-  total: number
+  readonly total: number
+  /**
+   * What the HCA still holds from an earlier attempt and applies to this one.
+   * Zero in the common case; above zero it is shown as a deduction and the
+   * headline becomes what the wallet pays now.
+   */
+  readonly hcaCredit: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
    * This, not `total`, is what the affordability gates compare against.
    */
-  walletDebit: number
-  isLoading: boolean
+  readonly walletDebit: number
 }
 
 const getDomainSizeClasses = (domainName: string): string => {
@@ -159,6 +173,18 @@ export const TokenPickerContent = () => {
   })
   const budgetQuery = useQuery(budgetQueryOptions)
 
+  // The sheet's shape follows the route, not how far the quote has got: on the
+  // HCA route both lines are mounted from the first frame and stay there, so a
+  // slow, refetched or refused quote only ever changes the figures.
+  const isHcaRoute = account.signer?.type === 'rhinestone'
+
+  // A failed quote is otherwise invisible: the fee line just reads as unknown.
+  useEffect(() => {
+    if (budgetQuery.error) {
+      logger.warn('HCA budget quote failed', budgetQuery.error)
+    }
+  }, [budgetQuery.error])
+
   // Absent until the quote lands, and permanently absent if it fails — in which
   // case the screen falls back to showing the rent alone rather than blocking
   // on a flaky quote.
@@ -220,7 +246,9 @@ export const TokenPickerContent = () => {
       // never diverge from what was on screen. `undefined` when the quote
       // failed and only the rent was shown; the machine's independent ceiling
       // still applies.
-      ...(funding ? { displayedWalletDebit: funding.walletDebitRaw } : {}),
+      ...(funding && !budgetQuery.isPlaceholderData
+        ? { displayedWalletDebit: funding.walletDebitRaw }
+        : {}),
     })
   }
 
@@ -302,7 +330,7 @@ export const TokenPickerContent = () => {
     .with(
       { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
       ({ funding: f }) =>
-        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and your account already holds ${f.hcaCredit.toFixed(2)}, so you need ${f.walletDebit.toFixed(2)} more — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and ${f.hcaCredit.toFixed(2)} is left from your last attempt, so you need ${f.walletDebit.toFixed(2)} more, but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
     )
     .with(
       { funding: { isUnderfunded: true } },
@@ -331,12 +359,21 @@ export const TokenPickerContent = () => {
     .with(
       { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
       (f) =>
-        t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
+        t`What was left from your last attempt covers the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
     )
     .otherwise(() => null)
 
   return (
     <TokenPickerContentBase
+      annualFee={
+        pricingQuery.data
+          ? basePricePerYearFromDurationTotal(
+              pricingQuery.data.basePriceNumber,
+              duration,
+            )
+          : undefined
+      }
+      durationYears={Number(formatYears(duration / SECONDS_PER_YEAR))}
       errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
@@ -363,21 +400,25 @@ export const TokenPickerContent = () => {
       funding={
         funding
           ? {
+              registration: funding.registration,
               networkFee: funding.networkFee,
               total: funding.total,
               walletDebit: funding.walletDebit,
-              isLoading: budgetQuery.isFetching,
+              hcaCredit: funding.hcaCredit,
             }
           : undefined
       }
+      hasFundingBudget={isHcaRoute}
       infoMessage={infoMessage}
       isConnected={isConnected}
+      isFundingUnavailable={budgetQuery.isError && !funding}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
-      isQuotingFunding={budgetQuery.isLoading}
+      isQuoteStale={budgetQuery.isPlaceholderData}
       label={label}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
+      premium={pricingQuery.data?.premiumPriceNumber}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
@@ -425,7 +466,12 @@ export const TokenPickerContentBase = ({
   nextMessage = <Trans>Register name</Trans>,
   footer,
   funding,
-  isQuotingFunding = false,
+  annualFee,
+  durationYears,
+  premium,
+  isQuoteStale = false,
+  hasFundingBudget = false,
+  isFundingUnavailable = false,
 }: {
   label: string
   pricingLoading: boolean
@@ -456,12 +502,30 @@ export const TokenPickerContentBase = ({
    * not `pricingData` — is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
+  /** The yearly rent, for the annual figure on the registration line. */
+  annualFee?: number
+  /** The registration term that rent is multiplied by. */
+  durationYears?: number
+  /** A temporary premium, charged once on top of the rent. */
+  premium?: number
   /**
-   * The budget quote is still in flight. Reserves the network-cost row's space
-   * so the token list below it does not jump once the quote lands — two
-   * orchestrator round-trips is long enough for that shift to be felt.
+   * The figures on screen belong to an earlier quote (the primary-name opt-in
+   * changed). Checkout waits: the amount the machine is handed has to be the
+   * one the user was shown, for the options they picked.
    */
-  isQuotingFunding?: boolean
+  isQuoteStale?: boolean
+  /**
+   * This route charges a network fee on top of the name, so the breakdown is
+   * mounted whether or not the quote has landed. Holding its space is what
+   * stops the sheet re-flowing under the user: two orchestrator round-trips
+   * is long enough for that shift to be felt, and the toggle re-quotes.
+   */
+  hasFundingBudget?: boolean
+  /**
+   * The budget quote failed and there is nothing cached to fall back on. Only
+   * changes how the fee line reads; the breakdown is mounted either way.
+   */
+  isFundingUnavailable?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -483,9 +547,15 @@ export const TokenPickerContentBase = ({
   // owes the shortfall.
   const requiredAmount = funding?.walletDebit ?? pricingData
 
-  // What the registration costs, shown on the total row. Diverges from
-  // `requiredAmount` only when the HCA is already carrying USDC.
-  const displayTotal = funding?.total ?? pricingData
+  // The lines as shown, rounded so the subtraction on screen is checkable.
+  const figures = funding ? getPaymentBreakdownFigures(funding) : undefined
+  const leftover = figures?.leftover ?? 0
+
+  // With something left from the last attempt the headline is what the wallet
+  // pays now, and the lines above it show how that was arrived at. Otherwise
+  // it is the plain total and nothing is deducted.
+  const displayTotal =
+    leftover > 0 ? figures?.walletDebit : (figures?.total ?? pricingData)
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -508,6 +578,7 @@ export const TokenPickerContentBase = ({
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
+    !isQuoteStale &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin
 
@@ -516,9 +587,9 @@ export const TokenPickerContentBase = ({
     // it neither column shrinks below its content and the `overflow-y-auto`
     // below never scrolls. Inside the dialog's `max-h-[90vh]` that clipped the
     // total and the Register button out of reach on a short viewport.
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 px-4 pt-2 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-5 overflow-y-auto">
+        <div className="flex w-full min-w-0 flex-col items-center gap-3 rounded-2xl bg-ens-quartz-50 p-6 pb-4">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               {premiumLabel && (
@@ -542,15 +613,20 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          {(funding || isQuotingFunding) && (
-            <NetworkCostRow
-              isLoading={funding?.isLoading ?? true}
-              networkFee={funding?.networkFee}
+          {(funding || hasFundingBudget) && (
+            <PaymentBreakdown
+              annualFee={annualFee}
+              durationYears={durationYears}
+              isFeeUnavailable={!funding && isFundingUnavailable}
+              leftover={leftover}
+              networkFee={figures?.networkFee}
+              premium={premium}
+              registration={figures?.registration ?? pricingData}
             />
           )}
         </div>
 
-        <div className="flex w-full flex-col gap-6">
+        <div className="flex w-full flex-col gap-4">
           <h2 className="text-center font-medium text-[18px] leading-ens-none">
             <Trans>Select payment</Trans>
           </h2>
@@ -627,7 +703,11 @@ export const TokenPickerContentBase = ({
         </div>
       </div>
 
-      <PaymentTotalRow isEstimate={!!funding} total={displayTotal} />
+      <PaymentTotalRow
+        isEstimate={!!funding}
+        label={leftover > 0 ? <Trans>You pay now</Trans> : undefined}
+        total={displayTotal}
+      />
 
       <Button
         className={cn(

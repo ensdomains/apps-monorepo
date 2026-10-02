@@ -8,6 +8,7 @@ import {
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { keepPreviousData } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { chain } from '@/config'
@@ -150,9 +151,14 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       params.signer?.type === 'rhinestone' &&
       params.label.length > 0 &&
       params.durationInSeconds > 0,
-    staleTime: HCA_BUDGET_STALE_TIME_MS,
     // A flaky orchestrator must not strand the user on the confirm screen:
     // callers treat "no budget" as "show the price alone and let the machine
     // surface any failure", never as a hard block.
     retry: 1,
+    staleTime: HCA_BUDGET_STALE_TIME_MS,
+    // The primary-name toggle is part of the key, so flipping it starts a
+    // fresh query. Carrying the last quote through keeps the figures on screen
+    // instead of the breakdown emptying out and refilling. Callers must treat
+    // placeholder data as not-yet-quoted: it belongs to the other toggle state.
+    placeholderData: keepPreviousData,
   })
