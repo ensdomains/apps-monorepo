@@ -20,10 +20,10 @@ export const PaymentTotalRow = ({
   isEstimate,
   label = <Trans>Total</Trans>,
 }: {
-  total: number | undefined
-  isEstimate: boolean
+  readonly total: number | undefined
+  readonly isEstimate: boolean
   /** "Total" unless something already paid in makes the figure a remainder. */
-  label?: ReactNode
+  readonly label?: ReactNode
 }) => (
   <div className="flex w-full items-baseline justify-between">
     <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">

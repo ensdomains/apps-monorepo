@@ -53,22 +53,22 @@ class InsufficientFundingError extends Error {
  */
 export type RegistrationFundingSummary = {
   /** The registrar's charge for the name, the first line of the breakdown. */
-  registration: number
-  networkFee: number
+  readonly registration: number
+  readonly networkFee: number
   /** What the registration costs — the figure shown on the total row. */
-  total: number
+  readonly total: number
   /**
    * What the HCA still holds from an earlier attempt and applies to this one.
    * Zero in the common case; above zero it is shown as a deduction and the
    * headline becomes what the wallet pays now.
    */
-  hcaCredit: number
+  readonly hcaCredit: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
    * This, not `total`, is what the affordability gates compare against.
    */
-  walletDebit: number
-  isLoading: boolean
+  readonly walletDebit: number
+  readonly isLoading: boolean
 }
 
 const getDomainSizeClasses = (domainName: string): string => {
@@ -502,7 +502,7 @@ export const TokenPickerContentBase = ({
   // pays now, and the lines above it show how that was arrived at. Otherwise
   // it is the plain total and nothing is deducted.
   const displayTotal =
-    leftover > 0 ? figures?.walletDebit : (funding?.total ?? pricingData)
+    leftover > 0 ? figures?.walletDebit : (figures?.total ?? pricingData)
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,

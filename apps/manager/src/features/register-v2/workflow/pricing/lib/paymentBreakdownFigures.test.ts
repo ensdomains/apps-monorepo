@@ -14,8 +14,23 @@ describe('getPaymentBreakdownFigures', () => {
       registration: 160,
       networkFee: 4.32,
       walletDebit: 162.5,
+      total: 164.32,
       leftover: 1.82,
     })
+  })
+
+  // Without a leftover the headline is the total, so it has to be the sum of
+  // the rows as they are shown, not the raw figure rounded on its own.
+  it('totals the rounded rows rather than rounding the raw total', () => {
+    const figures = getPaymentBreakdownFigures({
+      registration: 4.994,
+      networkFee: 4.994,
+      walletDebit: 9.988,
+      hcaCredit: 0,
+    })
+
+    expect(figures.total).toBe(9.98)
+    expect(figures.total).toBe(figures.registration + figures.networkFee)
   })
 
   // Six-decimal USDC rounded line by line can land a cent off the headline;

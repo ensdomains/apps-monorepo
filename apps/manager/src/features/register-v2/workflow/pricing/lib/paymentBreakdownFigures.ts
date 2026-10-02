@@ -6,6 +6,12 @@ export type PaymentBreakdownFigures = {
   readonly networkFee: number
   readonly walletDebit: number
   /**
+   * The sum of the two rows as shown. The headline uses this rather than the
+   * raw total so the rows always add up to it: 4.994 + 4.994 renders as
+   * 4.99 + 4.99 = 9.98, where rounding the raw 9.988 alone would say 9.99.
+   */
+  readonly total: number
+  /**
    * What the last attempt left behind, as the displayed lines imply it. Zero
    * when nothing is left or it is under a cent, neither of which has an honest
    * line to render: callers show the plain total in that case.
@@ -45,6 +51,7 @@ export const getPaymentBreakdownFigures = (funding: {
     registration,
     networkFee,
     walletDebit,
+    total: toCents(registration + networkFee),
     leftover:
       funding.hcaCredit > 0
         ? Math.max(0, toCents(registration + networkFee - walletDebit))

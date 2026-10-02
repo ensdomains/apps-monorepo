@@ -170,6 +170,26 @@ describe('TokenPickerContentBase', () => {
     ).not.toBeInTheDocument()
   })
 
+  // The rows are rounded to cents; the headline must be their sum, not the
+  // raw total rounded on its own, or the sheet contradicts itself.
+  it('shows a headline the rows add up to', () => {
+    renderPicker({
+      funding: {
+        registration: 4.994,
+        networkFee: 4.994,
+        total: 9.988,
+        walletDebit: 9.988,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getAllByText('$4.99')).toHaveLength(2)
+    expect(screen.getByText('$9.98')).toBeInTheDocument()
+    expect(screen.queryByText('$9.99')).not.toBeInTheDocument()
+  })
+
   it('names where the balance sits, once', () => {
     renderPicker({ selectedToken: 'USDC' })
 
