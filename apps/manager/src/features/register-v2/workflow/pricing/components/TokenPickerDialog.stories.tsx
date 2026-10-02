@@ -2,7 +2,10 @@ import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
-import { TokenPickerContentBase } from './TokenPickerContent'
+import {
+  type RegistrationFundingSummary,
+  TokenPickerContentBase,
+} from './TokenPickerContent'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 /**
@@ -72,6 +75,7 @@ interface TokenPickerDialogShellProps {
   isLoadingBalances?: boolean
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
+  funding?: RegistrationFundingSummary
   initialSelectedToken?: SUPPORTED_TOKEN
 }
 
@@ -85,6 +89,7 @@ const TokenPickerDialogShell = ({
   isLoadingBalances = false,
   stablecoinBalances = MOCK_BALANCES,
   errorMessage = null,
+  funding,
   initialSelectedToken,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -100,6 +105,7 @@ const TokenPickerDialogShell = ({
     >
       <TokenPickerContentBase
         errorMessage={errorMessage}
+        funding={funding}
         isConnected={isConnected}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
@@ -161,6 +167,26 @@ export const Default: Story = {}
 export const WithTokenSelected: Story = {
   args: {
     initialSelectedToken: 'USDC',
+  },
+}
+
+/**
+ * An earlier attempt funded the HCA but never finished, so part of this
+ * registration is already paid for: the deduction line shows and the headline
+ * becomes what the wallet pays now.
+ */
+export const WithLeftoverFromLastAttempt: Story = {
+  args: {
+    pricingData: 160,
+    initialSelectedToken: 'USDC',
+    funding: {
+      registration: 160,
+      networkFee: 4.32,
+      total: 164.32,
+      walletDebit: 162.5,
+      hcaCredit: 1.82,
+      isLoading: false,
+    },
   },
 }
 

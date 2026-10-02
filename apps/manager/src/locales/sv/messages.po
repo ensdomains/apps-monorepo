@@ -275,8 +275,8 @@ msgstr ""
 msgid "Allow this temporary account to move this name."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -358,10 +358,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Authorizing payment and registering your name"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "available"
 msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
@@ -1176,6 +1172,10 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "in your wallet"
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr ""
@@ -1230,6 +1230,10 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "Learn More<0> about NFT traits</0>"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Left from your last attempt"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -1418,6 +1422,10 @@ msgstr ""
 msgid "Name owner is not available yet. Try again in a moment."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Name price"
+msgstr ""
+
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
 msgstr ""
@@ -1435,11 +1443,8 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "Network cost"
-msgstr ""
-
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
 msgid "Network fee"
 msgstr ""
 
@@ -1530,7 +1535,7 @@ msgstr ""
 #. placeholder {2}: f.walletDebit.toFixed(2)
 #. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
+msgid "Not enough USDC. This registration costs {0} USDC and {1} is left from your last attempt, so you need {2} more, but your wallet holds {3} USDC."
 msgstr ""
 
 #. placeholder {0}: f.walletDebit.toFixed(2)
@@ -1865,6 +1870,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 msgid "Registration Period"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Registrations are funded for their quoted maximum cost and only the actual cost is spent, so an earlier attempt can leave a little behind. It is applied to this one."
 msgstr ""
 
 #: src/features/profile/components/view/AgentRecordCard.tsx
@@ -3017,8 +3026,13 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "What is the network cost?"
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "What is the network fee?"
+msgstr ""
+
+#. placeholder {0}: f.total.toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "What was left from your last attempt covers the {0} USDC this registration needs, so you won't be asked to approve a payment."
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -3032,6 +3046,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Why is there money left from your last attempt?"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -3090,6 +3108,10 @@ msgstr ""
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "You pay now"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You'll always see important notifications in the app."
 msgstr ""
@@ -3112,11 +3134,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account"
-msgstr ""
-
-#. placeholder {0}: f.total.toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx

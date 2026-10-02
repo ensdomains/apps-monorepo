@@ -23,9 +23,10 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
-import { NetworkCostRow } from './NetworkCostRow'
+import { PaymentBreakdown } from './PaymentBreakdown'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -51,9 +52,17 @@ class InsufficientFundingError extends Error {
  * standalone-HCA route. See {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
+  /** The registrar's charge for the name, the first line of the breakdown. */
+  registration: number
   networkFee: number
   /** What the registration costs — the figure shown on the total row. */
   total: number
+  /**
+   * What the HCA still holds from an earlier attempt and applies to this one.
+   * Zero in the common case; above zero it is shown as a deduction and the
+   * headline becomes what the wallet pays now.
+   */
+  hcaCredit: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
    * This, not `total`, is what the affordability gates compare against.
@@ -302,7 +311,7 @@ export const TokenPickerContent = () => {
     .with(
       { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
       ({ funding: f }) =>
-        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and your account already holds ${f.hcaCredit.toFixed(2)}, so you need ${f.walletDebit.toFixed(2)} more — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and ${f.hcaCredit.toFixed(2)} is left from your last attempt, so you need ${f.walletDebit.toFixed(2)} more, but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
     )
     .with(
       { funding: { isUnderfunded: true } },
@@ -331,7 +340,7 @@ export const TokenPickerContent = () => {
     .with(
       { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
       (f) =>
-        t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
+        t`What was left from your last attempt covers the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
     )
     .otherwise(() => null)
 
@@ -363,9 +372,11 @@ export const TokenPickerContent = () => {
       funding={
         funding
           ? {
+              registration: funding.registration,
               networkFee: funding.networkFee,
               total: funding.total,
               walletDebit: funding.walletDebit,
+              hcaCredit: funding.hcaCredit,
               isLoading: budgetQuery.isFetching,
             }
           : undefined
@@ -483,9 +494,15 @@ export const TokenPickerContentBase = ({
   // owes the shortfall.
   const requiredAmount = funding?.walletDebit ?? pricingData
 
-  // What the registration costs, shown on the total row. Diverges from
-  // `requiredAmount` only when the HCA is already carrying USDC.
-  const displayTotal = funding?.total ?? pricingData
+  // The lines as shown, rounded so the subtraction on screen is checkable.
+  const figures = funding ? getPaymentBreakdownFigures(funding) : undefined
+  const leftover = figures?.leftover ?? 0
+
+  // With something left from the last attempt the headline is what the wallet
+  // pays now, and the lines above it show how that was arrived at. Otherwise
+  // it is the plain total and nothing is deducted.
+  const displayTotal =
+    leftover > 0 ? figures?.walletDebit : (funding?.total ?? pricingData)
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -543,9 +560,11 @@ export const TokenPickerContentBase = ({
           </span>
 
           {(funding || isQuotingFunding) && (
-            <NetworkCostRow
+            <PaymentBreakdown
               isLoading={funding?.isLoading ?? true}
-              networkFee={funding?.networkFee}
+              leftover={leftover}
+              networkFee={figures?.networkFee}
+              registration={figures?.registration ?? pricingData}
             />
           )}
         </div>
@@ -627,7 +646,11 @@ export const TokenPickerContentBase = ({
         </div>
       </div>
 
-      <PaymentTotalRow isEstimate={!!funding} total={displayTotal} />
+      <PaymentTotalRow
+        isEstimate={!!funding}
+        label={leftover > 0 ? <Trans>You pay now</Trans> : undefined}
+        total={displayTotal}
+      />
 
       <Button
         className={cn(

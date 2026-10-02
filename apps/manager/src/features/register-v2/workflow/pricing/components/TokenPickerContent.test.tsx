@@ -85,9 +85,11 @@ describe('TokenPickerContentBase', () => {
     // holding the budget, and the retry owes the wallet nothing.
     renderPicker({
       funding: {
+        registration: 330,
         networkFee: 0.196054,
         total: 330.196054,
         walletDebit: 0,
+        hcaCredit: 330.196054,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -96,17 +98,17 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })
 
-  it('tells the user when their account already covers the registration', () => {
+  it('tells the user when their last attempt already covers the registration', () => {
     // Otherwise a fully-funded HCA silently skips the approval prompt they saw
     // on the previous attempt, which reads as a step going missing.
     renderPicker({
       infoMessage:
-        'Your account already holds the 330.20 USDC this registration needs.',
+        'What was left from your last attempt covers the 330.20 USDC this registration needs.',
       selectedToken: 'USDC',
     })
 
     expect(
-      screen.getByText(/your account already holds the 330\.20 usdc/i),
+      screen.getByText(/left from your last attempt covers the 330\.20 usdc/i),
     ).toBeInTheDocument()
   })
 
@@ -115,14 +117,64 @@ describe('TokenPickerContentBase', () => {
     // contradiction, and the error is the actionable half.
     renderPicker({
       errorMessage: 'Not enough USDC.',
-      infoMessage: 'Your account already holds 100.00 USDC.',
+      infoMessage: 'What was left from your last attempt covers 100.00 USDC.',
       selectedToken: 'USDC',
     })
 
     expect(screen.getByText('Not enough USDC.')).toBeInTheDocument()
     expect(
-      screen.queryByText(/your account already holds/i),
+      screen.queryByText(/left from your last attempt covers/i),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows the leftover as a deduction and what the wallet pays now', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 162.5,
+        hcaCredit: 1.82,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Name price')).toBeInTheDocument()
+    expect(screen.getByText('$160.00')).toBeInTheDocument()
+    expect(screen.getByText('Network fee')).toBeInTheDocument()
+    expect(screen.getByText('Left from your last attempt')).toBeInTheDocument()
+    expect(screen.getByText('-$1.82')).toBeInTheDocument()
+    expect(screen.getByText('You pay now')).toBeInTheDocument()
+    expect(screen.getByText('$162.50')).toBeInTheDocument()
+    expect(screen.queryByText('Total')).not.toBeInTheDocument()
+  })
+
+  it('keeps the plain total when nothing is left from an earlier attempt', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 164.32,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Total')).toBeInTheDocument()
+    expect(screen.getByText('$164.32')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Left from your last attempt'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('names where the balance sits, once', () => {
+    renderPicker({ selectedToken: 'USDC' })
+
+    expect(screen.getAllByText('in your wallet')).toHaveLength(1)
+    expect(screen.queryByText('available')).not.toBeInTheDocument()
   })
 
   it('blocks checkout when the wallet cannot cover the debit', () => {
@@ -130,9 +182,11 @@ describe('TokenPickerContentBase', () => {
     // gating on the debit is what makes this fail.
     renderPicker({
       funding: {
+        registration: 1_999.803946,
         networkFee: 0.196054,
         total: 2_000,
         walletDebit: 2_000,
+        hcaCredit: 0,
         isLoading: false,
       },
       selectedToken: 'USDC',
