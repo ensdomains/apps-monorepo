@@ -143,7 +143,7 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Name price')).toBeInTheDocument()
+    expect(screen.getByText('Registration fee')).toBeInTheDocument()
     expect(screen.getByText('$160.00')).toBeInTheDocument()
     expect(screen.getByText('Network fee')).toBeInTheDocument()
     expect(screen.getByText('Left from your last attempt')).toBeInTheDocument()
@@ -200,7 +200,7 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Name price')).toBeInTheDocument()
+    expect(screen.getByText('Registration fee')).toBeInTheDocument()
     expect(screen.getByText('Network fee')).toBeInTheDocument()
     expect(screen.getByText('—')).toBeInTheDocument()
     expect(
@@ -220,7 +220,7 @@ describe('TokenPickerContentBase', () => {
         <TokenPickerContentBase {...BASE_PROPS} {...props} />
       </I18nProvider>,
     )
-    const quotingRow = screen.getByText('Name price')
+    const quotingRow = screen.getByText('Registration fee')
 
     rerender(
       <I18nProvider i18n={i18n}>
@@ -247,7 +247,7 @@ describe('TokenPickerContentBase', () => {
       </I18nProvider>,
     )
 
-    expect(screen.getByText('Name price')).toBe(quotingRow)
+    expect(screen.getByText('Registration fee')).toBe(quotingRow)
     expect(screen.getByText('Network fee')).toBeInTheDocument()
     expect(screen.getByText('$4.32')).toBeInTheDocument()
   })

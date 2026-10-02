@@ -31,7 +31,7 @@ export const PaymentBreakdown = ({
     <div className="flex w-full flex-col gap-2">
       <PaymentBreakdownRow
         amount={registration}
-        label={<Trans>Name price</Trans>}
+        label={<Trans>Registration fee</Trans>}
       />
       <PaymentBreakdownRow
         amount={networkFee}
@@ -41,14 +41,14 @@ export const PaymentBreakdown = ({
             <Trans>
               We could not estimate the network fee. It covers the two on-chain
               transactions that register your name, is collected together with
-              the name price in the same approval, and is quoted again before
-              you sign.
+              the registration fee in the same approval, and is quoted again
+              before you sign.
             </Trans>
           ) : (
             <Trans>
               An estimate of what the two on-chain transactions that register
-              your name will cost. It is collected together with the name price,
-              in the same approval.
+              your name will cost. It is collected together with the
+              registration fee, in the same approval.
             </Trans>
           )
         }

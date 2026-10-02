@@ -276,7 +276,7 @@ msgid "Allow this temporary account to move this name."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
-msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
+msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the registration fee, in the same approval."
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -1422,10 +1422,6 @@ msgstr ""
 msgid "Name owner is not available yet. Try again in a moment."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
-msgid "Name price"
-msgstr ""
-
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
 msgstr ""
@@ -1858,6 +1854,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Registration Failed"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Registration fee"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
@@ -2974,7 +2974,7 @@ msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
-msgid "We could not estimate the network fee. It covers the two on-chain transactions that register your name, is collected together with the name price in the same approval, and is quoted again before you sign."
+msgid "We could not estimate the network fee. It covers the two on-chain transactions that register your name, is collected together with the registration fee in the same approval, and is quoted again before you sign."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
