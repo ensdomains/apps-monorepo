@@ -784,6 +784,31 @@ describe('estimateHcaBudgetActor', () => {
     ).toBe(false)
   })
 
+  it('funds the resolver deploy in the register gas limit exactly when the batch carries it', async () => {
+    // WEB-1506 / Immunefi #89462: the batch prepended `deployProxy` on a first
+    // registration but the limit stayed flat, and the rail prices the leg on
+    // the limit alone — so the deploy was quoted, and funded, at nothing.
+    const hasDeploy = () =>
+      registerLegParams().calls.some((call) =>
+        isAddressEqual(call.to, C.verifiableFactory),
+      )
+
+    await estimateHcaBudgetActor(input)
+    const firstRegistration = registerLegParams().gasLimit
+    expect(hasDeploy()).toBe(true)
+
+    prepareTransaction.mockClear()
+    vi.mocked(budgetClient.getCode).mockResolvedValueOnce('0xfe')
+    await estimateHcaBudgetActor(input)
+    const existingResolver = registerLegParams().gasLimit
+    expect(hasDeploy()).toBe(false)
+
+    // At least the deploy's measured execution gas on Sepolia.
+    expect(firstRegistration - existingResolver).toBeGreaterThanOrEqual(
+      185_904n,
+    )
+  })
+
   it('refuses a non-canonical label instead of pricing the twin', async () => {
     const result = await estimateHcaBudgetActor({
       ...input,
