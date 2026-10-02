@@ -45,7 +45,7 @@ const RoleCount = ({ name }: { name: string }) => {
       params={{ name }}
       icon={ShieldIcon}
       label="Role holders"
-      value={(data || { size: 0 }).size}
+      value={data?.isVerified === false ? '?' : (data?.holders.size ?? 0)}
     />
   )
 }
