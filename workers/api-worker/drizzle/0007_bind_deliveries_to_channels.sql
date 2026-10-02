@@ -22,4 +22,5 @@ FROM (
 ) AS "source"
 WHERE "delivery"."id" = "source"."delivery_id";--> statement-breakpoint
 ALTER TABLE "notification_deliveries" DROP COLUMN "target";--> statement-breakpoint
-ALTER TABLE "notification_deliveries" ADD CONSTRAINT "notification_delivery_unique" UNIQUE("notification_id","channel_id");
+ALTER TABLE "notification_deliveries" ADD CONSTRAINT "notification_delivery_unique" UNIQUE("notification_id","channel_id");--> statement-breakpoint
+CREATE INDEX "notification_deliveries_channel_id_index" ON "notification_deliveries" USING btree ("channel_id");

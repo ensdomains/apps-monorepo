@@ -3,7 +3,7 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
-import { TABLE } from '#core/database/index.js'
+import { intoDbResult, TABLE } from '#core/database/index.js'
 import type { PushDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
 import { resolveDeliveryChannel } from './channel.js'
@@ -74,25 +74,30 @@ export const deliverPushNotification = ResultFn(async function* (
     const errorText = await response.text()
 
     // handle expired subscriptions (410 Gone): only the source subscription is
-    // gone, and retrying cannot succeed, so the delivery fails permanently
+    // gone, and retrying cannot succeed, so the delivery fails permanently.
+    // Both writes commit together: a retry after a partial write would see the
+    // unsubscribed channel and record the attempted send as cancelled.
     if (response.status === 410) {
-      await db
-        .update(TABLE.userChannels)
-        .set({
-          status: 'unsubscribed',
-          status_reason: 'Push subscription expired',
-        })
-        .where(eq(TABLE.userChannels.id, channel.id))
-
-      await db
-        .update(TABLE.notificationDeliveries)
-        .set({
-          status: 'permanently_failed',
-          failure_category: 'hard_bounce',
-          error: `Push delivery failed: ${response.status} ${errorText}`,
-          updated_at: new Date(),
-        })
-        .where(eq(TABLE.notificationDeliveries.id, job.id))
+      yield* intoDbResult(
+        db.batch([
+          db
+            .update(TABLE.userChannels)
+            .set({
+              status: 'unsubscribed',
+              status_reason: 'Push subscription expired',
+            })
+            .where(eq(TABLE.userChannels.id, channel.id)),
+          db
+            .update(TABLE.notificationDeliveries)
+            .set({
+              status: 'permanently_failed',
+              failure_category: 'hard_bounce',
+              error: `Push delivery failed: ${response.status} ${errorText}`,
+              updated_at: new Date(),
+            })
+            .where(eq(TABLE.notificationDeliveries.id, job.id)),
+        ]),
+      )
 
       logger.warn('Push subscription expired, marked as unsubscribed', {
         jobId: job.id,

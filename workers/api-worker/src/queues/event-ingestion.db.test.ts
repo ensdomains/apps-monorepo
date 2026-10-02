@@ -21,6 +21,7 @@ import type { ExpiryEvent } from '#types/events/index.js'
 import {
   buildIdempotencyKey,
   DATABASE_WRITE_BATCH_SIZE,
+  processRecipientPage,
   QUEUE_BATCH_SIZE,
   RECIPIENT_PAGE_SIZE,
 } from './event-ingestion.js'
@@ -380,6 +381,73 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         .flatMap(([batch]) => batch.map((message) => message.body.id))
       expect(replayJobs).toEqual([bound?.id])
       await assertNoDuplicateGroups()
+    })
+
+    it('skips a channel removed between fanout and delivery insert without failing the page', async () => {
+      await seedRecipients(2)
+      const [kept, removed] = users
+      if (!kept || !removed) throw new Error('Missing fixtures')
+      const [removedChannel] = await db.query.userChannels.findMany({
+        where: eq(TABLE.userChannels.user_id, removed.id),
+      })
+      if (!removedChannel) throw new Error('Missing channel fixture')
+
+      // The account unlinks its channel right after fanout has read it.
+      let channelsQuery: unknown
+      const racingDb = new Proxy(db, {
+        get(target, property, receiver) {
+          if (property === 'query')
+            return {
+              ...target.query,
+              userChannels: {
+                ...target.query.userChannels,
+                findMany: (
+                  ...args: Parameters<
+                    Database['query']['userChannels']['findMany']
+                  >
+                ) => {
+                  const query = target.query.userChannels.findMany(...args)
+                  channelsQuery ??= query
+                  return query
+                },
+              },
+            }
+          if (property === 'batch')
+            return async (queries: Parameters<Database['batch']>[0]) => {
+              const results = await target.batch(queries)
+              if (queries[0] === channelsQuery)
+                await target
+                  .delete(TABLE.userChannels)
+                  .where(eq(TABLE.userChannels.id, removedChannel.id))
+              return results
+            }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+
+      const result = await processRecipientPage({
+        db: racingDb,
+        env: bindings,
+        event,
+        recipients: users.map((user) => ({
+          userId: user.id,
+          watchReason: 'owned' as const,
+        })),
+      })
+      expect(result.isOk()).toBe(true)
+
+      const { notifications, deliveries } = await state()
+      expect(notifications).toHaveLength(2)
+      const keptNotification = notifications.find(
+        (row) => row.user_id === kept.id,
+      )
+      expect(deliveries).toHaveLength(1)
+      expect(deliveries[0]?.notification_id).toBe(keptNotification?.id)
+      expect(
+        email.sendBatch.mock.calls.flatMap(([batch]) =>
+          batch.map((message) => message.body.id),
+        ),
+      ).toEqual([deliveries[0]?.id])
     })
 
     it('counts real JSONB push expirations when admitting the tenth and rejecting the eleventh endpoint', async () => {

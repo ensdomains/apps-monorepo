@@ -14,7 +14,10 @@ import {
   TABLE,
 } from '#core/database/index.js'
 import type { DeliveryStatus } from '#core/database/schema/notifications.js'
-import { isPushSubscriptionActive } from '#services/delivery/channel.js'
+import {
+  insertQueuedDeliveries,
+  isPushSubscriptionActive,
+} from '#services/delivery/channel.js'
 import { getExpiryStageRank } from '#services/expiry-discovery/stages.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
@@ -458,25 +461,7 @@ const reconcileDeliveries = ResultFn(async function* (ctx: {
     [...ctx.desiredDeliveries],
     DATABASE_WRITE_BATCH_SIZE,
   )) {
-    yield* intoDbResult(
-      ctx.db
-        .insert(TABLE.notificationDeliveries)
-        .values(
-          deliveryChunk.map((delivery) => ({
-            notification_id: delivery.notificationId,
-            channel_id: delivery.channelId,
-            channel: delivery.channel,
-            status: 'queued' as const,
-            attempts: 0,
-          })),
-        )
-        .onConflictDoNothing({
-          target: [
-            TABLE.notificationDeliveries.notification_id,
-            TABLE.notificationDeliveries.channel_id,
-          ],
-        }),
-    )
+    yield* insertQueuedDeliveries(ctx.db, deliveryChunk)
   }
 
   if (ctx.desiredDeliveries.length === 0) {
@@ -521,9 +506,36 @@ const reconcileDeliveries = ResultFn(async function* (ctx: {
   const reconciledIdentities = new Set(
     reconciledDeliveries.map(deliveryIdentity),
   )
-  const missingDeliveries = ctx.desiredDeliveries.filter(
+  const unreconciledDeliveries = ctx.desiredDeliveries.filter(
     (delivery) => !reconciledIdentities.has(deliveryIdentity(delivery)),
   )
+  // A channel removed since fanout read it no longer wants a delivery; only
+  // deliveries whose channel still exists must be reconciled.
+  const remainingChannels =
+    unreconciledDeliveries.length > 0
+      ? yield* intoDbResult(
+          ctx.db.query.userChannels.findMany({
+            where: inArray(
+              TABLE.userChannels.id,
+              unreconciledDeliveries.map((delivery) => delivery.channelId),
+            ),
+            columns: { id: true },
+          }),
+        )
+      : []
+  const remainingChannelIds = new Set(
+    remainingChannels.map((channel) => channel.id),
+  )
+  const missingDeliveries = unreconciledDeliveries.filter((delivery) =>
+    remainingChannelIds.has(delivery.channelId),
+  )
+  const removedChannelCount =
+    unreconciledDeliveries.length - missingDeliveries.length
+  if (removedChannelCount > 0) {
+    logger.info('Skipped deliveries for channels removed during fanout', {
+      removedChannelCount,
+    })
+  }
 
   if (missingDeliveries.length > 0) {
     yield* new EventIngestionReconciliationError({

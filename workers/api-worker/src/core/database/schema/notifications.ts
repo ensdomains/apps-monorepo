@@ -9,6 +9,7 @@ import type {
 import { relations } from 'drizzle-orm'
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -236,6 +237,8 @@ export const notificationDeliveries = pgTable(
       table.notification_id,
       table.channel_id,
     ),
+    // Channel removal sets channel_id to NULL on that channel's deliveries.
+    index('notification_deliveries_channel_id_index').on(table.channel_id),
   ],
 )
 

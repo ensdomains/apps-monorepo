@@ -58,7 +58,9 @@ const controlledDb = () => ({
   },
   insert: vi.fn(() => ({
     values: vi.fn(() => ({
-      onConflictDoNothing: vi.fn().mockResolvedValue([]),
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([]),
+      })),
     })),
   })),
   batch: vi

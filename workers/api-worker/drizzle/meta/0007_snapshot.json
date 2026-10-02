@@ -439,7 +439,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "notification_deliveries_channel_id_index": {
+          "name": "notification_deliveries_channel_id_index",
+          "columns": [
+            {
+              "expression": "channel_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "notification_deliveries_notification_id_notifications_id_fk": {
           "name": "notification_deliveries_notification_id_notifications_id_fk",

@@ -14,6 +14,7 @@ import {
 } from 'vitest'
 import channelApp from '#app/routes/notifications/channels/$id.js'
 import { type Database, getDatabase, TABLE } from '#core/database/index.js'
+import { resolveDeliveryChannel } from '#services/delivery/channel.js'
 import { createNotification } from '#services/notifications/create.js'
 import { makeMockEnv, makeMockQueue } from '#test-utils/env.js'
 import { runQueue } from '#test-utils/queue.js'
@@ -249,6 +250,106 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
           status: 'cancelled',
           error: 'SOURCE_CHANNEL_REMOVED',
         })
+    })
+
+    it('does not cancel a delivery that another copy of the job completed meanwhile', async () => {
+      const user = await seedUser()
+      const source = await addChannel(user.id, 'email', `${user.id}@x.com`)
+      const [job] = await notify(user.id)
+      if (!job) throw new Error('Missing delivery job')
+      await deleteChannel(user, source.id)
+
+      // This copy loads the delivery still queued; the other copy, which
+      // passed the channel check before the removal, then records its send.
+      const racingDb = new Proxy(db, {
+        get(target, property, receiver) {
+          if (property !== 'query')
+            return Reflect.get(target, property, receiver)
+          return {
+            ...target.query,
+            notificationDeliveries: {
+              ...target.query.notificationDeliveries,
+              findFirst: async (
+                ...args: Parameters<
+                  Database['query']['notificationDeliveries']['findFirst']
+                >
+              ) => {
+                const loaded =
+                  await target.query.notificationDeliveries.findFirst(...args)
+                await target
+                  .update(TABLE.notificationDeliveries)
+                  .set({ status: 'delivered' })
+                  .where(eq(TABLE.notificationDeliveries.id, job.id))
+                return loaded
+              },
+            },
+          }
+        },
+      })
+
+      const resolved = await resolveDeliveryChannel(racingDb, job, 'email')
+      expect(resolved._unsafeUnwrap()).toBeNull()
+      expect(await delivery(job.id)).toMatchObject({
+        status: 'delivered',
+        error: null,
+      })
+    })
+
+    it('skips a channel removed between reading it and creating its delivery', async () => {
+      const user = await seedUser()
+      const kept = await addChannel(user.id, 'email', `a-${user.id}@x.com`)
+      const removed = await addChannel(user.id, 'email', `b-${user.id}@x.com`)
+
+      // The account unlinks a channel right after creation has read it.
+      const racingDb = new Proxy(db, {
+        get(target, property, receiver) {
+          if (property !== 'query')
+            return Reflect.get(target, property, receiver)
+          return {
+            ...target.query,
+            userChannels: {
+              ...target.query.userChannels,
+              findMany: async (
+                ...args: Parameters<
+                  Database['query']['userChannels']['findMany']
+                >
+              ) => {
+                const channels = await target.query.userChannels.findMany(
+                  ...args,
+                )
+                await target
+                  .delete(TABLE.userChannels)
+                  .where(eq(TABLE.userChannels.id, removed.id))
+                return channels
+              },
+            },
+          }
+        },
+      })
+
+      const result = await createNotification({
+        env: bindings,
+        db: racingDb,
+        userId: user.id,
+        kind: 'name-expiry',
+        payload: {
+          name: 'alpha.eth',
+          expiryDate: 1700000000000,
+          stage: 'grace-7d',
+          isOwner: true,
+          watchReason: 'owned',
+        },
+        idempotencyKey: crypto.randomUUID(),
+      })
+      const notification = result._unsafeUnwrap()
+      const deliveries = await db.query.notificationDeliveries.findMany({
+        where: eq(
+          TABLE.notificationDeliveries.notification_id,
+          notification.id,
+        ),
+      })
+      expect(deliveries.map((row) => row.channel_id)).toEqual([kept.id])
+      expect(queues.email.send).toHaveBeenCalledOnce()
     })
 
     it('never moves a queued delivery onto a re-created channel with the same target', async () => {

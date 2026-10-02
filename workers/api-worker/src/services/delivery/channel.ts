@@ -3,9 +3,14 @@ import type {
   ChannelData,
 } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray, notInArray } from 'drizzle-orm'
 import { ok } from 'neverthrow'
-import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
+import {
+  type Database,
+  type DatabaseError,
+  intoDbResult,
+  TABLE,
+} from '#core/database/index.js'
 import type { DeliveryStatus } from '#core/database/schema/notifications.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
@@ -44,6 +49,78 @@ export const isPushSubscriptionActive = (
   const expirationTime = data?.expirationTime ?? null
   return expirationTime === null || expirationTime > now
 }
+
+type QueuedDeliveryInput = {
+  readonly notificationId: string
+  readonly channelId: string
+  readonly channel: DeliveryChannelType
+}
+
+const isForeignKeyViolation = (error: DatabaseError) =>
+  (error.cause.cause as { code?: string } | undefined)?.code === '23503'
+
+const insertDeliveries = (
+  db: Database,
+  deliveries: readonly QueuedDeliveryInput[],
+) =>
+  intoDbResult(
+    db
+      .insert(TABLE.notificationDeliveries)
+      .values(
+        deliveries.map((delivery) => ({
+          notification_id: delivery.notificationId,
+          channel_id: delivery.channelId,
+          channel: delivery.channel,
+          status: 'queued' as const,
+          attempts: 0,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [
+          TABLE.notificationDeliveries.notification_id,
+          TABLE.notificationDeliveries.channel_id,
+        ],
+      })
+      .returning({
+        id: TABLE.notificationDeliveries.id,
+        notification_id: TABLE.notificationDeliveries.notification_id,
+        channel_id: TABLE.notificationDeliveries.channel_id,
+      }),
+  )
+
+/**
+ * Inserts queued deliveries, leaving existing deliveries for the same
+ * notification and channel untouched. A channel removed after it was read
+ * fails the foreign key; the insert is then repeated for the channels that
+ * remain, so one removal does not fail the whole batch. Returns inserted rows.
+ */
+export const insertQueuedDeliveries = ResultFn(async function* (
+  db: Database,
+  deliveries: readonly QueuedDeliveryInput[],
+) {
+  if (deliveries.length === 0) return ok([])
+
+  const inserted = await insertDeliveries(db, deliveries)
+  if (inserted.isOk() || !isForeignKeyViolation(inserted.error)) return inserted
+
+  const remainingChannels = yield* intoDbResult(
+    db.query.userChannels.findMany({
+      where: inArray(
+        TABLE.userChannels.id,
+        deliveries.map((delivery) => delivery.channelId),
+      ),
+      columns: { id: true },
+    }),
+  )
+  const remainingChannelIds = new Set(
+    remainingChannels.map((channel) => channel.id),
+  )
+  const remaining = deliveries.filter((delivery) =>
+    remainingChannelIds.has(delivery.channelId),
+  )
+  if (remaining.length === 0) return ok([])
+  return insertDeliveries(db, remaining)
+})
 
 /**
  * Why the delivery's exact source channel cannot be used now, or null. Only
@@ -131,8 +208,9 @@ export const resolveDeliveryChannel = ResultFn(async function* <
 
   if (unavailableReason) {
     // Once submitted, a send cannot be recalled; this only prevents a send that
-    // has not started. A duplicate queue message re-evaluates the same state.
-    yield* intoDbResult(
+    // has not started. Only a non-terminal delivery is cancelled, so a copy of
+    // the job that already completed its send keeps its outcome.
+    const cancelled = yield* intoDbResult(
       db
         .update(TABLE.notificationDeliveries)
         .set({
@@ -140,16 +218,29 @@ export const resolveDeliveryChannel = ResultFn(async function* <
           error: unavailableReason,
           updated_at: new Date(),
         })
-        .where(eq(TABLE.notificationDeliveries.id, job.id)),
+        .where(
+          and(
+            eq(TABLE.notificationDeliveries.id, job.id),
+            notInArray(TABLE.notificationDeliveries.status, [
+              ...TERMINAL_DELIVERY_STATUSES,
+            ]),
+          ),
+        )
+        .returning({ id: TABLE.notificationDeliveries.id }),
     )
 
-    logger.info('Delivery cancelled, source channel unavailable', {
-      jobId: job.id,
-      channel: channelType,
-      kind: job.kind,
-      channelId: delivery.sourceChannel?.id ?? null,
-      reason: unavailableReason,
-    })
+    logger.info(
+      cancelled.length > 0
+        ? 'Delivery cancelled, source channel unavailable'
+        : 'Delivery already terminal, not cancelled',
+      {
+        jobId: job.id,
+        channel: channelType,
+        kind: job.kind,
+        channelId: delivery.sourceChannel?.id ?? null,
+        reason: unavailableReason,
+      },
+    )
     return ok(null)
   }
 
