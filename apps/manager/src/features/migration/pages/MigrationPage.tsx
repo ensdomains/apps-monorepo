@@ -5,10 +5,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
-import type { Address, WalletClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance, useWalletClient } from 'wagmi'
+import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -17,8 +18,15 @@ import { MigrationPrimaryButton } from '@/features/migration/components/Migratio
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import { useGraceRenewalGasEstimate } from '@/features/migration/hooks/useGraceRenewalGasEstimate'
+import {
+  useGraceRenewalQuote,
+  withRenewalAccountReadiness,
+} from '@/features/migration/hooks/useGraceRenewalQuote'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
+import { useSyncRenewedV1Names } from '@/features/migration/hooks/useSyncRenewedV1Names'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   decodeMigrationError,
@@ -75,10 +83,7 @@ const PlainMigrationSuccessDialog = ({
   />
 )
 
-const formatMigrationError = (
-  error: MigrationError,
-  completedNameCount: number,
-): ReactNode => {
+const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
@@ -114,11 +119,10 @@ const formatMigrationError = (
     case 'cleanup-failed':
       return (
         <div>
-          <Plural
-            one="Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed."
-            other="Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
-            value={completedNameCount}
-          />
+          <Trans>
+            Temporary migration access is still active. Retry to remove it and
+            continue any unfinished upgrade.
+          </Trans>
         </div>
       )
     case 'profile-fetch-failed':
@@ -202,6 +206,10 @@ export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
+  const discardConfirmation = useSelector(
+    uiActor,
+    (snapshot) => snapshot.context.renewalDiscardConfirmation,
+  )
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
@@ -222,14 +230,46 @@ export const MigrationPage = () => {
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
+  const { gracePeriodNames } = useEligibleV1Names()
+  const graceDomains = useMemo(() => {
+    const selected = new Set(selectedNames)
+    return gracePeriodNames
+      .filter(({ domain }) => selected.has(domain.name))
+      .map(({ domain }) => domain)
+  }, [gracePeriodNames, selectedNames])
+  const renewalQuote = useGraceRenewalQuote({
+    domains: graceDomains,
+    ownerAddress: ownerAddress as Address | undefined,
+    publicClient: migrationExecutionClient as PublicClient,
+    enabled: step === 'select',
+  })
+  const renewal = withRenewalAccountReadiness(
+    renewalQuote,
+    !!hcaAddress && !!hcaClient && !!wagmiWalletClient?.account,
+    hcaError,
+  )
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     hcaAddress: hcaAddress as Address | undefined,
     accountError: hcaError,
     selectedNames,
     v1Names,
-    enabled: step === 'select',
+    enabled: step === 'select' && graceDomains.length === 0,
   })
+  const renewalGasEstimate = useGraceRenewalGasEstimate({
+    renewal,
+    selectedNames,
+    v1Names,
+    hcaAddress: hcaAddress as Address | undefined,
+    publicClient: migrationExecutionClient as PublicClient,
+    isEnabled: step === 'select' && graceDomains.length > 0,
+  })
+  const networkEstimate =
+    graceDomains.length > 0 ? renewalGasEstimate : gasEstimate
+  const renewalCanStart =
+    renewal.status === 'ready' &&
+    renewalGasEstimate.status === 'ready' &&
+    renewal.quote.balance >= renewal.quote.totalAmount
 
   // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
   // partway. Checked against the same estimate the footer quotes.
@@ -239,7 +279,8 @@ export const MigrationPage = () => {
   })
   const gasAffordability = assessGasAffordability({
     balanceWei: ownerBalance?.value ?? null,
-    estimatedFeeWei: gasEstimate.status === 'ready' ? gasEstimate.feeWei : null,
+    estimatedFeeWei:
+      networkEstimate.status === 'ready' ? networkEstimate.feeWei : null,
   })
 
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
@@ -248,6 +289,8 @@ export const MigrationPage = () => {
   // resolve until any drip is confirmed on-chain, so we gate the upgrade
   // button on `gasFundingStatus` to stop owners starting before the ETH lands.
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
+
+  useSyncRenewedV1Names()
 
   useEffect(() => {
     if (step === 'success') {
@@ -295,7 +338,6 @@ export const MigrationPage = () => {
       !wagmiWalletClient?.account
     )
       return false
-    if (gasEstimate.status !== 'ready') return false
     // Don't let the owner start before their gas drip is confirmed on-chain.
     if (gasFundingStatus === 'funding') return false
     const signer: Signer = {
@@ -304,6 +346,25 @@ export const MigrationPage = () => {
     }
 
     try {
+      if (graceDomains.length > 0) {
+        // Selected grace-period names must renew before any migration starts.
+        if (!renewalCanStart) return false
+        const selected = new Set(selectedNames)
+        uiActor.send({
+          type: 'migration.renewAndStart',
+          renewal: {
+            quote: renewal.quote,
+            domains: v1Names.filter(({ name }) => selected.has(name)),
+            hcaAddress: hcaAddress as Address,
+            requestSteps: renewalGasEstimate.stepDescriptors,
+          },
+          signer,
+          hcaClient,
+          refreshAccount,
+        })
+        return true
+      }
+      if (gasEstimate.status !== 'ready') return false
       uiActor.send({
         type: 'migration.start',
         plan: gasEstimate.plan,
@@ -327,6 +388,12 @@ export const MigrationPage = () => {
     wagmiWalletClient,
     gasEstimate,
     gasFundingStatus,
+    graceDomains,
+    renewal,
+    renewalCanStart,
+    renewalGasEstimate,
+    selectedNames,
+    v1Names,
     uiActor,
   ])
 
@@ -356,6 +423,8 @@ export const MigrationPage = () => {
             gasFundingStatus={gasFundingStatus}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
+            renewal={renewal}
+            renewalGasEstimate={renewalGasEstimate}
           />
         ))
         .with('migrate', () => <GameStep />)
@@ -382,8 +451,7 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
-                {lastError &&
-                  formatMigrationError(lastError, completedOperations.length)}
+                {lastError && formatMigrationError(lastError)}
               </div>
             </motion.div>
 
@@ -405,7 +473,7 @@ export const MigrationPage = () => {
                 type="button"
               >
                 {lastError?.type === 'cleanup-failed' ? (
-                  <Trans>Remove temporary access</Trans>
+                  <Trans>Retry upgrade and cleanup</Trans>
                 ) : (
                   <Trans>Try again</Trans>
                 )}
@@ -422,6 +490,41 @@ export const MigrationPage = () => {
           ),
         )
         .exhaustive()}
+
+      <AlertDialog.Root open={!!discardConfirmation}>
+        <AlertDialog.Content>
+          <AlertDialog.Header>
+            <AlertDialog.Title>
+              <Trans>Discard unresolved renewal?</Trans>
+            </AlertDialog.Title>
+            <AlertDialog.Description>
+              <Trans>
+                Check your wallet activity first. Only discard if the previous
+                renewal was never sent or was cancelled. If it is still pending
+                and you renew again, you could pay twice. Discarding does not
+                cancel a wallet transaction.
+              </Trans>
+            </AlertDialog.Description>
+          </AlertDialog.Header>
+          <ul>
+            {discardConfirmation?.pending.items.map((item) => (
+              <li key={item.id}>{item.name}</li>
+            ))}
+          </ul>
+          <AlertDialog.Footer>
+            <AlertDialog.Cancel
+              onClick={() => discardConfirmation?.resolve(false)}
+            >
+              <Trans>Keep renewal</Trans>
+            </AlertDialog.Cancel>
+            <AlertDialog.Action
+              onClick={() => discardConfirmation?.resolve(true)}
+            >
+              <Trans>Discard renewal</Trans>
+            </AlertDialog.Action>
+          </AlertDialog.Footer>
+        </AlertDialog.Content>
+      </AlertDialog.Root>
 
       {migrationNftEnabled ? (
         <CommemorativeNftClaimDialog

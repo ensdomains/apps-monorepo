@@ -12,11 +12,8 @@ import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
-import {
-  getActiveSignedProfileImageUploads,
-  refreshProfileImageCaches,
-  type SignedProfileImageUpload,
-} from '@/features/profile/service/profileImageCache'
+import { NameRegistryNotFoundError } from '@/features/profile/service/changeResolver'
+import { refreshProfileImageCaches } from '@/features/profile/service/profileImageCache'
 import {
   type PreparedProfileImageUpload,
   submitPreparedProfileImageUpload,
@@ -54,10 +51,8 @@ interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly ethAddressChanged: boolean
   readonly form: EditProfileForm
   readonly isSuccess: boolean
-  readonly name: string
   readonly onPreparedImageUploadsSaved: () => void
   readonly onUpdated?: () => undefined | Promise<unknown>
-  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly queryClient: QueryClient
   readonly savedRecords: ProfileRecords
 }
@@ -112,6 +107,11 @@ const toastSaveError = (error: unknown) => {
   toast.error(t`Cannot save profile`, {
     description: match(error)
       .with(
+        P.instanceOf(NameRegistryNotFoundError),
+        () =>
+          t`No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS.`,
+      )
+      .with(
         P.instanceOf(ResolverChangeNotAuthorizedError),
         () =>
           t`Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this.`,
@@ -133,10 +133,8 @@ const useCloseProfileDialogOnSuccessfulSave = ({
   ethAddressChanged,
   form,
   isSuccess,
-  name,
   onPreparedImageUploadsSaved,
   onUpdated,
-  preparedImageUploads,
   queryClient,
   savedRecords,
 }: UseCloseProfileDialogOnSuccessfulSaveParams) => {
@@ -150,14 +148,6 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     const finalizeSave = async () => {
       form.reset(savedRecords)
       await onUpdated?.()
-      await refreshProfileImageCaches({
-        images: getActiveSignedProfileImageUploads({
-          images: preparedImageUploads,
-          records: savedRecords,
-        }),
-        name,
-        queryClient,
-      })
       onPreparedImageUploadsSaved()
 
       if (ethAddressChanged) {
@@ -188,10 +178,8 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     ethAddressChanged,
     form,
     isSuccess,
-    name,
     onPreparedImageUploadsSaved,
     onUpdated,
-    preparedImageUploads,
     queryClient,
     savedRecords,
   ])
@@ -331,26 +319,21 @@ export const useEditProfileDialogSave = ({
           signTypedDataAsync,
           upload,
         })
+        // The hosted image has now changed, even if a later upload or record
+        // transaction fails. Refresh only this successfully published image.
+        await refreshProfileImageCaches({ images: [upload], queryClient })
       }
     },
-    [address, isConnected, signTypedDataAsync],
+    [address, isConnected, queryClient, signTypedDataAsync],
   )
 
   const finalizeImageOnlySave = useCallback(
-    async (
-      currentRecords: ProfileRecords,
-      images: readonly SignedProfileImageUpload[],
-    ) => {
+    async (currentRecords: ProfileRecords) => {
       setIsFinalizingImageSave(true)
 
       try {
         form.reset(currentRecords)
         await onUpdated?.()
-        await refreshProfileImageCaches({
-          images,
-          name,
-          queryClient,
-        })
         setPreparedImageUploads([])
         dialogActor.send({ type: 'CLOSE' })
       } catch {
@@ -359,7 +342,7 @@ export const useEditProfileDialogSave = ({
         setIsFinalizingImageSave(false)
       }
     },
-    [dialogActor, form, name, onUpdated, queryClient],
+    [dialogActor, form, onUpdated],
   )
 
   const getPendingRecordSave = useCallback(
@@ -444,7 +427,7 @@ export const useEditProfileDialogSave = ({
     }) => {
       if (hasRecordChanges || uploads.length === 0) return false
 
-      await finalizeImageOnlySave(currentRecords, uploads)
+      await finalizeImageOnlySave(currentRecords)
       return true
     },
     [finalizeImageOnlySave],
@@ -549,10 +532,8 @@ export const useEditProfileDialogSave = ({
     ethAddressChanged,
     form,
     isSuccess,
-    name,
     onPreparedImageUploadsSaved: handlePreparedImageUploadsSaved,
     onUpdated,
-    preparedImageUploads,
     queryClient,
     savedRecords,
   })

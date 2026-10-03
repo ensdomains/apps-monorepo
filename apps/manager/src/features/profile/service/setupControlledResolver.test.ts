@@ -19,6 +19,7 @@ vi.mock('@/features/migration/service/migrationInvariants', () => ({
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
   resolveNameRegistry: vi.fn(async () => LOCATION),
+  NameRegistryNotFoundError: class NameRegistryNotFoundError extends Error {},
 }))
 vi.mock('./profileRecordTransactions', () => ({
   saveRecords: vi.fn(async () => ({ hash: '0xrecords' })),
@@ -37,7 +38,11 @@ import {
   findExistingPermRes,
 } from '@/features/migration/service/ensureOwnedPermRes'
 import { checkMigrationResolverReadiness } from '@/features/migration/service/migrationInvariants'
-import { buildSetResolverCall, resolveNameRegistry } from './changeResolver'
+import {
+  buildSetResolverCall,
+  NameRegistryNotFoundError,
+  resolveNameRegistry,
+} from './changeResolver'
 import { saveRecords } from './profileRecordTransactions'
 import { canSetNameResolver } from './setResolverAccess'
 import {
@@ -350,6 +355,41 @@ describe('setupControlledResolver', () => {
       registryAddress: PARENT_REGISTRY,
       newResolver: RESOLVER,
     })
+  })
+
+  it('qualifies a bare label with .eth', async () => {
+    await setupControlledResolver({
+      name: 'leon',
+      signer,
+      ownerAddress: OWNER,
+      publicClient,
+      chainId: CHAIN_ID,
+      ...snapshots,
+    })
+
+    expect(locateRegistry).toHaveBeenCalledWith('leon.eth')
+  })
+
+  it('leaves a name that already carries a TLD alone', async () => {
+    // An imported DNS name reached here as `jobintime.xyz.eth`, which no
+    // registry holds, so the setup failed naming a name never typed.
+    locateRegistry.mockRejectedValue(
+      new NameRegistryNotFoundError('jobintime.xyz'),
+    )
+
+    await expect(
+      setupControlledResolver({
+        name: 'jobintime.xyz',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toBeInstanceOf(NameRegistryNotFoundError)
+
+    expect(locateRegistry).toHaveBeenCalledWith('jobintime.xyz')
+    expect(startTransaction).not.toHaveBeenCalled()
   })
 
   it('fails before any on-chain work when no registry holds the name', async () => {

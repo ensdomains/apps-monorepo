@@ -1,5 +1,5 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -10,6 +10,7 @@ import {
 } from '@ensdomains/ensjs/utils'
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
+import { indexerClient } from '@/lib/indexer-client'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
 import {
@@ -20,6 +21,7 @@ import {
   textRecords,
 } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
+import { getProfileCoinRecords } from './profileCoinRecords'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -106,6 +108,8 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...textRecords.map((record) => record.key),
     ...forceFetchRecords.always,
     ...forceFetchRecords.whenNotIndexed,
+    // Newly saved links must be readable before the indexer discovers the key.
+    'links',
     ...indexerRecords.texts,
   ])
   const coins = unique([
@@ -114,21 +118,22 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...indexerRecords.coins,
   ]).filter(isSupportedCoinType)
 
-  const records = yield* fromPromise(
-    getRecords(client, {
-      name,
-      texts,
-      coins,
-      contentHash: true,
-      abi: true,
-      ignoreInvalidCoinTypes: true,
-    }),
+  const [records, coinRecords] = yield* fromPromise(
+    Promise.all([
+      getRecords(client, {
+        name,
+        texts,
+        contentHash: true,
+        abi: true,
+      }),
+      getProfileCoinRecords(client, name, coins),
+    ]),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
 
   const result: ProfileRecordsResult = {
     texts: records.texts,
-    coins: records.coins,
+    coins: coinRecords,
     resolverAddress: normalizeResolverAddress(records.resolverAddress),
     _rawSubgraphRecords: indexerRecords,
   }

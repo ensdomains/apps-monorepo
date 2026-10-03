@@ -1,9 +1,9 @@
 /**
  * Standalone-HCA contract manifest.
  *
- * Provenance: the 2026-09-15 Sepolia v2 redeploy, contracts-v2
- * `contracts/deployments/sepolia` @ `71a3b733`. The ENS-side addresses come
- * from ensjs (ensdomains/ensjs#380, which targets the same deployment); the
+ * Provenance: the 2026-10-01 Sepolia v2 redeploy, contracts-v2
+ * `contracts/deployments/sepolia` @ `95de2ee0`. The ENS-side addresses come
+ * from ensjs (ensdomains/ensjs#389, which targets the same deployment); the
  * rest are pinned below because ensjs does not expose them yet.
  *
  * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
@@ -12,7 +12,7 @@
  * single-block edit and adding a source chain is additive.
  *
  * SDK patch SHA-256: 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf
- * (byte-identical to contracts-v2 `patches/@rhinestone%2Fsdk@1.8.0.patch` @ 71a3b733,
+ * (byte-identical to contracts-v2 `patches/@rhinestone%2Fsdk@1.8.0.patch` @ 95de2ee0,
  * the patch built for this deployment's validator).
  */
 
@@ -96,32 +96,32 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     lockedMigrationController:
       ensjsSepolia.ensLockedMigrationController.address,
     userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
+    defaultReverseRegistrarHcaAdapter:
+      ensjsSepolia.ensDefaultReverseRegistrarAdapter.address,
 
-    // Not in ensjs yet — contracts-v2 `deployments/sepolia` @ 71a3b733.
+    // Not in ensjs yet — contracts-v2 `deployments/sepolia` @ 95de2ee0.
     //
     // The validator pins the whole registration batch: it rebuilds the
     // expected `deployProxy` calldata and compares keccak hashes, and only
     // accepts known selectors on known targets. Its `VERIFIABLE_PROXY_LOGIC()`,
     // `PERMITTED_RESOLVER_IMPL()`, `VERIFIABLE_FACTORY()`, `ETH_REGISTRY()` and
     // `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()` getters all agree with the
-    // values here. Re-read them after any redeploy.
+    // values in this table. Re-read them after any redeploy.
     //
     // The implementation is the one the factory approves
     // (`approvedImplementations`), and was constructed with this validator.
-    standaloneHcaImplementation: '0xdF4a24c42921810fed9363b07292E9152578D706',
-    hcaOwnerAndSessionValidator: '0x6A62Af42D4241a02547b096C7DB43ca6411AF813',
-    defaultReverseRegistrarHcaAdapter:
-      '0x4F32A1c62E202922d4d6307126F43218DB9dA6f5',
+    standaloneHcaImplementation: '0xC940e5C5bF263C0e097054AECf73826769A72CEE',
+    hcaOwnerAndSessionValidator: '0x4bF641590ab18E31B9F8789A3417A2620f860466',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
     // constructor and exposes it as the immutable `proxyLogic`, so this is read
     // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
-    verifiableFactoryProxyLogic: '0xC6dbA04e7c6264e85A459Dd592a6CBC2D2a6Ad8E',
-    verifiableFactoryDeployBlock: 11_708_995n,
-    rootRegistry: '0x9703DBD26dAB89504490994138cF2c575251a9cE',
-    publicResolverSet: '0xd12aF6aC82648056Fe7D6B2a9dB97235Aa509021',
-    wrapperRegistryImpl: '0x2741543c3B14640b97bC70a233318032f7E35bAC',
-    publicResolverV2: '0xd7e590Ad0E92A6aC1d81f4483A9B951D3585a50F',
+    verifiableFactoryProxyLogic: '0xC41576B4B809B99CF0fF2e5B41b4F147cd9b6BDd',
+    verifiableFactoryDeployBlock: 11_820_318n,
+    rootRegistry: '0xB458D6a3a77919449d03e7A6903C26827c1eC43f',
+    publicResolverSet: '0x5B2bd5208dac31905106d8e5a4973Ae1Cd7414F2',
+    wrapperRegistryImpl: '0xBe768b63E5fBBFBB0Ae97E9064E0002dF8001880',
+    publicResolverV2: '0xdC4a563d00F5c3012b699794eB9e13A561Be386F',
 
     // MockUSDC — the ETHRegistrar payment token, mintable via the api-worker
     // faucet (`POST /wallet/fund`).
@@ -197,9 +197,6 @@ export const DEFAULT_REGISTRATION_DURATION = 31536000n
 /** `referrer` is a bytes32 arg on makeCommitment/register (NOT an address). */
 export const REFERER =
   '0x0000000000000000000000000000000000000000000000000000000000000000' as const
-/** `subregistry` is an address arg (address(0) = default). */
-export const ZERO_ADDRESS =
-  '0x0000000000000000000000000000000000000000' as const
 
 export const DEFAULT_SESSION_VALIDITY_SECONDS = 24 * 60 * 60
 

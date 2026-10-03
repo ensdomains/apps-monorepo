@@ -1,4 +1,7 @@
-import { transactionManager } from '@ens-apps/transaction-manager'
+import {
+  scopeTransactionId,
+  transactionManager,
+} from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { ShieldPersonIcon } from '@/assets/icons'
@@ -12,6 +15,7 @@ import {
   isTransactionInFlight,
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { canReclaimV1Manager } from '@/features/transfer/v1/rules'
@@ -40,11 +44,12 @@ export const ReclaimManagerButton = ({
     enabled: !!account && protocolVersion === 'ENSv1',
   })
 
-  const id = `reclaim-manager-${name}`
+  const { closeModal, clearTransaction } = useTransactionModal()
+  const attempt = useFlowAttempt()
+  const id = scopeTransactionId(`reclaim-manager-${name}`, attempt.scope)
   // Scoped to this flow's own id: the cancel below must never reach another
   // flow's entry in the manager.
   const reclaimTxState = useActiveTransactionState(id)
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { mutate: reclaimManager } = useReclaimManagerMutation({ name, id })
 
   if (!account || !canReclaimV1Manager(v1State, account)) return null
@@ -60,7 +65,7 @@ export const ReclaimManagerButton = ({
           // ExtendNameButton).
           if (reclaimTxState && !isTransactionInFlight(reclaimTxState))
             transactionManager.cancelTransaction(reclaimTxState.txId)
-          openModal()
+          attempt.start(account)
         }}
       >
         <ShieldPersonIcon className="size-4" />
@@ -82,6 +87,7 @@ export const ReclaimManagerButton = ({
             onDone: () => {
               closeModal()
               clearTransaction()
+              attempt.end()
             },
           },
         ]}

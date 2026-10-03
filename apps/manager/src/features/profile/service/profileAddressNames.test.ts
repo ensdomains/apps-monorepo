@@ -52,6 +52,7 @@ beforeEach(() => {
           normalizedName: 'henlo.eth',
           tokenId: null,
           createdAt: 1_700_000_300,
+          registrationDate: null,
           expiryDate: 1_891_036_800,
           owner: {
             __typename: 'Account',
@@ -66,6 +67,7 @@ beforeEach(() => {
           normalizedName: 'claude.eth',
           tokenId: null,
           createdAt: 1_700_000_200,
+          registrationDate: null,
           expiryDate: 1_891_036_800,
           owner: {
             __typename: 'Account',
@@ -80,6 +82,7 @@ beforeEach(() => {
           normalizedName: 'alaska.eth',
           tokenId: null,
           createdAt: 1_700_000_100,
+          registrationDate: null,
           expiryDate: 1_891_036_800,
           owner: {
             __typename: 'Account',
@@ -144,6 +147,7 @@ describe('getProfileAddressNames', () => {
               normalizedName: 'henlo.eth',
               tokenId: null,
               createdAt: 1_700_000_300,
+              registrationDate: null,
               expiryDate: 1_891_036_800,
               owner: {
                 __typename: 'Account',
@@ -164,6 +168,7 @@ describe('getProfileAddressNames', () => {
               normalizedName: 'dom.eth',
               tokenId: null,
               createdAt: 1_700_000_050,
+              registrationDate: null,
               expiryDate: 1_891_036_800,
               owner: {
                 __typename: 'Account',
@@ -190,5 +195,44 @@ describe('getProfileAddressNames', () => {
         roleCategory: 'managed',
       },
     )
+  })
+
+  it('never lists a third-party name that differs only in case from a role name', async () => {
+    vi.mocked(getDashboardRoleAssignments).mockResolvedValue([
+      { name: 'cryptO.eth', roleBitmap: '1' },
+    ])
+    vi.mocked(getDomains)
+      .mockReturnValueOnce(okAsync({ domains: [] }))
+      .mockReturnValueOnce(
+        okAsync({
+          domains: [
+            {
+              __typename: 'Domain',
+              id: 'v2-crypto.eth',
+              name: 'crypto.eth',
+              normalizedName: 'crypto.eth',
+              tokenId: null,
+              createdAt: 1_700_000_050,
+              registrationDate: null,
+              expiryDate: 1_891_036_800,
+              owner: {
+                __typename: 'Account',
+                id: '0xthirdparty',
+              },
+              resolver: null,
+            },
+          ],
+        }),
+      )
+
+    const result = await getProfileAddressNames(fixtureAddress)
+
+    assert(result.isOk())
+    expect(getDomains).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { name_in: ['cryptO.eth'] },
+      }),
+    )
+    expect(result.value.map((item) => item.label)).not.toContain('crypto.eth')
   })
 })

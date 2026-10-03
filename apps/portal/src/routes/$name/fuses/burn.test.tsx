@@ -106,7 +106,8 @@ const BurnRoute = (Route as unknown as { component: () => React.ReactElement })
 // filed, minus the expiry.
 const wrapperData = {
   owner: OWNER,
-  expiry: 1787852628n,
+  // Milliseconds, as ensjs returns it: 2026-08-27T17:43:48Z.
+  expiry: 1787852628000n,
   fuses: {
     parent: { PARENT_CANNOT_CONTROL: true, IS_DOT_ETH: true },
     child: {
@@ -135,6 +136,8 @@ describe('fuses/burn route', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Cannot Unwrap')).toBeInTheDocument()
     expect(screen.queryByText('Fuses cannot be burned')).not.toBeInTheDocument()
+    // WEB-1330: same millisecond expiry as the read-only route.
+    expect(screen.getByText(/Aug \d+, 2026/)).toBeInTheDocument()
   })
 
   // The bug in WEB-1259: the wrapper reverts `setFuses` with `Unauthorised`

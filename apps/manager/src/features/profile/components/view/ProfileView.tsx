@@ -4,15 +4,14 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
+import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
-import {
-  buildNameAvatarUrl,
-  buildNameHeaderUrl,
-} from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
@@ -81,6 +80,19 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     false,
   )
   const commemorativeNftEnabled = useMigrationNftEnabled()
+  const { isConnected } = useSmartAccountContext()
+  const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
+    useEligibleV1Names({
+      enabled: migrationEnabled,
+      fallbackToClassified: false,
+    })
+  // Use the banner's verified eligibility even when indexed V2 data masks the
+  // current V1 owner. This only exposes the upgrade prompt, never the editor.
+  const isUpgradeRequired =
+    isConnected &&
+    migrationEnabled &&
+    !isV1NamesPending &&
+    isEligibleProfileName(eligibleV1Names, name)
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -103,6 +115,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)
+  const imageRecords = expiry.isInGrace ? {} : records.base
+  const avatar = useQuery(imageRecordQuery(imageRecords.avatar?.trim()))
+  const header = useQuery(imageRecordQuery(imageRecords.header?.trim()))
   const owner = ownerData?.owner as Address | undefined
   const ownerReverseName = useQuery({
     ...profileReverseNameQuery(owner),
@@ -127,11 +142,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     )
   }
 
-  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
-  const headerUrl =
-    expiry.isInGrace || !records.base.header?.trim()
-      ? undefined
-      : buildNameHeaderUrl(name)
+  const avatarUrl = avatar.data ?? undefined
+  const headerUrl = header.data ?? undefined
   const defaultHeaderUrl = getDefaultHeaderCover({
     isInGrace: expiry.isInGrace,
     themeColor: records.base.theme,
@@ -150,7 +162,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       <ProfileThemeColorProvider value={profileThemeColor}>
         <ProfileBanner
           defaultHeaderUrl={defaultHeaderUrl}
-          headerLoading={false}
+          headerLoading={header.isLoading}
           headerUrl={headerUrl}
           name={name}
         />
@@ -181,7 +193,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               protocol={ownerData?.protocol}
             />
             <ProfileHeader
-              avatarLoading={false}
+              avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
               displayExpiryDate={expiry.displayExpiryDate}
               hasMobileStatusBanner={hasMobileStatusBanner}
@@ -219,6 +231,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           hasMobileStatusBanner={hasMobileStatusBanner}
           isInGrace={expiry.isInGrace}
           isOwner={resolvedIsOwner}
+          isUpgradeRequired={isUpgradeRequired}
           name={name}
           onUpdated={refetchRecords}
           owner={owner}

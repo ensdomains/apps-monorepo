@@ -43,7 +43,7 @@ type PendingChanges = {
  *   editedValues: new Map([['text-name', 'New Name']]),
  *   deletedIds: new Set(['text-description']),
  * })
- * // { texts: [{ key: 'twitter', value: '@ens' }, { key: 'name', value: 'New Name' }, { key: 'description', value: '' }] }
+ * // { texts: [{ key: 'description', value: '' }, { key: 'name', value: 'New Name' }, { key: 'twitter', value: '@ens' }] }
  */
 export function transformPendingChangesToSetRecords(
   originalRecords: NameRecord[],
@@ -51,8 +51,10 @@ export function transformPendingChangesToSetRecords(
 ): SetRecordsInput {
   const { newRecords, editedValues, deletedIds } = pendingChanges
 
-  const texts: Array<{ key: string; value: string }> = []
-  const coins: Array<{ coin: number; value: string }> = []
+  // One entry per key, so a delete and an add on the same key coalesce into a
+  // single write instead of a set followed by a clear that erases it.
+  const texts = new Map<string, string>()
+  const coins = new Map<number, string>()
   let contentHash: string | null | undefined
   let abi: AbiInput | undefined
 
@@ -76,75 +78,63 @@ export function transformPendingChangesToSetRecords(
     }
   }
 
-  // Process new records
-  for (const record of newRecords) {
-    switch (record.type) {
+  const findOriginalRecord = (id: string) =>
+    originalRecords.find((r) => getRecordId(r) === id)
+
+  // Deletions first, then edits, then additions: a later change on the same
+  // key replaces an earlier one, so a replacement always wins over its delete.
+  // `null` marks a deletion.
+  const changes: Array<{
+    record: NameRecord | EditableRecord | undefined
+    value: string | null
+  }> = [
+    ...[...deletedIds].map((id) => ({
+      record: findOriginalRecord(id),
+      value: null,
+    })),
+    ...[...editedValues].map(([id, value]) => ({
+      record: findOriginalRecord(id),
+      value,
+    })),
+    ...newRecords.map((record) => ({ record, value: record.value })),
+  ]
+
+  for (const { record, value } of changes) {
+    switch (record?.type) {
       case 'text':
-        texts.push({ key: record.key, value: record.value })
+        texts.set(record.key, value ?? '')
         break
       case 'address':
-        coins.push({ coin: record.id, value: record.value })
+        coins.set(record.id, value ?? '')
         break
       case 'contentHash':
-        contentHash = record.value
+        contentHash = value
         break
       case 'abi':
-        abi = parseAbiValue(record.value)
-        break
-    }
-  }
-
-  // Process edited records
-  for (const [id, newValue] of editedValues) {
-    // Find the original record to get its type and key
-    const originalRecord = originalRecords.find((r) => getRecordId(r) === id)
-    if (!originalRecord) continue
-
-    switch (originalRecord.type) {
-      case 'text':
-        texts.push({ key: originalRecord.key, value: newValue })
-        break
-      case 'address':
-        coins.push({ coin: originalRecord.id, value: newValue })
-        break
-      case 'contentHash':
-        contentHash = newValue
-        break
-      case 'abi':
-        abi = parseAbiValue(newValue)
-        break
-    }
-  }
-
-  // Process deleted records (set to empty string to delete)
-  for (const id of deletedIds) {
-    const originalRecord = originalRecords.find((r) => getRecordId(r) === id)
-    if (!originalRecord) continue
-
-    switch (originalRecord.type) {
-      case 'text':
-        texts.push({ key: originalRecord.key, value: '' })
-        break
-      case 'address':
-        coins.push({ coin: originalRecord.id, value: '' })
-        break
-      case 'contentHash':
-        contentHash = null
-        break
-      case 'abi':
-        abi = { encodeAs: 'json', data: null }
+        abi =
+          value === null
+            ? { encodeAs: 'json', data: null }
+            : parseAbiValue(value)
         break
     }
   }
 
   const result: SetRecordsInput = {}
 
-  if (texts.length > 0) {
-    result.texts = texts
+  // Clears before sets, so no clear can land after a set in the multicall.
+  const clearsFirst = <T extends { value: string }>(items: T[]) =>
+    items.sort((a, b) => Number(!!a.value) - Number(!!b.value))
+
+  if (texts.size > 0) {
+    result.texts = clearsFirst(
+      [...texts].map(([key, value]) => ({ key, value })),
+    )
   }
 
-  if (coins.length > 0) {
-    result.coins = coins
+  if (coins.size > 0) {
+    result.coins = clearsFirst(
+      [...coins].map(([coin, value]) => ({ coin, value })),
+    )
   }
 
   if (contentHash !== undefined) {

@@ -56,7 +56,7 @@ export const commemorativeNftClaimedQueryOptions = (params: {
   queryOptions({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
-      contractAddress: getCommemorativeNftContractAddress(params.chainId),
+      contractAddress: getCommemorativeNftContractAddress(),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
     queryFn: ({ signal }) => readCommemorativeNftClaimed({ ...params, signal }),
@@ -65,7 +65,10 @@ export const commemorativeNftClaimedQueryOptions = (params: {
         poll: params.poll === true,
         claimed: query.state.data,
       }),
-    staleTime: 0,
+    // Keep receipt-verified claims stable in this owner/contract cache entry;
+    // a lagging latest-block read must not undo the mint on navigation.
+    staleTime: (query) =>
+      query.state.data === true ? Number.POSITIVE_INFINITY : 0,
   })
 
 export const invalidateCommemorativeNftStatus = async (params: {
@@ -76,7 +79,7 @@ export const invalidateCommemorativeNftStatus = async (params: {
   await params.queryClient.invalidateQueries({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
-      contractAddress: getCommemorativeNftContractAddress(params.chainId),
+      contractAddress: getCommemorativeNftContractAddress(),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
   })

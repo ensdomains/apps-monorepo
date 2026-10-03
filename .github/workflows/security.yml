@@ -21,17 +21,14 @@ jobs:
           # Fetch all history for change detection
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
+        env:
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          runtime: node@lts
+          cache: true
 
       - name: Show changed packages (for reference)
         run: |

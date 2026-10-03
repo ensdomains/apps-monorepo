@@ -274,4 +274,51 @@ describe('run telemetry service v2', () => {
     expect((payload?.truncation.droppedEvents || 0) > 0).toBe(true)
     expect(estimateTelemetryBytes(payload)).toBeLessThanOrEqual(900 * 1024)
   })
+
+  // Regression: two oversized important events used to pin the trim loop at a
+  // fixed point (halving one removable event keeps it), spinning forever on the
+  // main thread inside the XState subscriber and freezing the tab.
+  it('terminates when two important events alone exceed the size limit', () => {
+    const service = createRunTelemetryService()
+    service.startRun({
+      txId: 'tx-6',
+      request: {
+        type: 'eoa',
+        chainId: 11155111,
+        from: '0xfrom',
+        to: '0xto',
+      },
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      useSmartAccount: true,
+    })
+
+    // Mirrors TransactionSubmissionError, which JSON.stringifies the
+    // orchestrator's context/simulations blobs into Error.message. That
+    // message is kept on both the retrying and the terminal error event.
+    const orchestratorBlob = new Error(
+      `TransactionSubmissionError: ${'x'.repeat(500_000)}`,
+    )
+
+    service.recordSnapshot(
+      'tx-6',
+      createSnapshot('retrying', { error: orchestratorBlob }),
+    )
+    service.recordSnapshot(
+      'tx-6',
+      createSnapshot({ error: 'submission' }, { error: orchestratorBlob }),
+    )
+
+    const payload = service.completeRun('tx-6', 'error')
+
+    // The assertion that matters most is that we get here at all.
+    expect(payload).not.toBeNull()
+    expect(payload?.timeline.length).toBeGreaterThan(0)
+
+    // Trimming the timeline cannot shrink two individually oversized events,
+    // so the error text itself has to be clamped to stay under the limit.
+    expect(estimateTelemetryBytes(payload)).toBeLessThanOrEqual(900 * 1024)
+    expect(payload?.summary.finalError?.message).toContain(
+      'TransactionSubmissionError',
+    )
+  }, 10_000)
 })

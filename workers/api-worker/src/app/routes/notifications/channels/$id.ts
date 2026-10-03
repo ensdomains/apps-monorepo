@@ -1,16 +1,10 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { okAsync } from 'neverthrow'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
-import { sendVerificationEmail } from '#services/email/verification.js'
 import {
-  checkAndConsumeEmailVerificationRateLimit,
-  formatEmailVerificationRateLimitError,
-} from '#services/notifications/email-verification-rate-limit.js'
-import {
-  generateToken,
   type PublicChannel,
   toPublicChannel,
 } from '#services/notifications/helpers.js'
@@ -34,7 +28,6 @@ export default createApp()
         verified_at: true,
         last_sent_at: true,
         last_bounce_at: true,
-        last_verification_sent_at: true,
       },
       where: and(
         eq(TABLE.userChannels.user_id, userId),
@@ -78,12 +71,23 @@ export default createApp()
       .delete(TABLE.userChannels)
       .where(eq(TABLE.userChannels.id, channelId))
 
-    // broadcast list cleanup via waitUntil
+    // SendGrid marketing contacts are keyed by email, so another account may
+    // still need this contact after this channel is removed.
     if (
       channel.channel === 'email' &&
       channel.target &&
       c.env.SENDGRID_BROADCAST_LIST_ID
     ) {
+      const remaining = await c.var.db.query.userChannels.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(TABLE.userChannels.channel, 'email'),
+          eq(TABLE.userChannels.status, 'verified'),
+          sql`lower(${TABLE.userChannels.target}) = lower(${channel.target})`,
+        ),
+      })
+      if (remaining) return c.json({ message: 'Channel deleted successfully' })
+
       const env = {
         SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
         SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
@@ -142,104 +146,4 @@ export default createApp()
       .where(eq(TABLE.userChannels.id, channelId))
 
     return c.json({ message: 'Test notification sent successfully' })
-  })
-  .post('/resend', ...requireAuth, injectDb, async (c) => {
-    const userId = c.var.user_id
-    const channelId = c.req.param('id')
-
-    const channel = await c.var.db.query.userChannels.findFirst({
-      where: and(
-        eq(TABLE.userChannels.id, channelId),
-        eq(TABLE.userChannels.user_id, userId),
-      ),
-    })
-
-    if (!channel) {
-      return c.json({ error: 'Channel not found' }, 404)
-    }
-
-    if (channel.status !== 'pending') {
-      return c.json({ error: 'Channel is not pending verification' }, 400)
-    }
-
-    if (!channel.target) {
-      return c.json({ error: 'Channel has no target address' }, 400)
-    }
-
-    if (channel.channel !== 'email') {
-      return c.json({ error: 'Only email channels can be resend' }, 400)
-    }
-
-    const rateLimit = await checkAndConsumeEmailVerificationRateLimit(
-      c.env.KV,
-      channel.target,
-    )
-
-    if (!rateLimit.isAllowed) {
-      return c.json(
-        {
-          error: formatEmailVerificationRateLimitError(
-            rateLimit.retryAfterSeconds,
-          ),
-        },
-        429,
-      )
-    }
-
-    // Create new verification token
-    const verification = await c.var.db
-      .insert(TABLE.channelVerifications)
-      .values({
-        user_id: userId,
-        channel_id: channelId,
-        channel: channel.channel,
-        purpose: 'verify',
-        token: generateToken(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-        attempts: 0,
-      })
-      .returning({
-        id: TABLE.channelVerifications.id,
-        token: TABLE.channelVerifications.token,
-      })
-      .then((verifications) => verifications.at(0))
-
-    if (!verification) {
-      return c.json({ error: 'Failed to create verification' }, 500)
-    }
-
-    // Update last verification sent timestamp
-    await c.var.db
-      .update(TABLE.userChannels)
-      .set({
-        last_verification_sent_at: new Date(),
-      })
-      .where(eq(TABLE.userChannels.id, channelId))
-
-    // Send verification email
-    const emailResult = await sendVerificationEmail(
-      c.env.SENDGRID_API_KEY,
-      c.env.EMAIL_FROM_ADDRESS,
-      channel.target,
-      verification.token,
-      c.env.MANAGER_APP_URL,
-    )
-
-    if (emailResult.isErr()) {
-      // Log error but don't fail the request - user can resend
-      logger.error('Failed to send verification email', {
-        channelId,
-        email: channel.target,
-        error: emailResult.error,
-      })
-
-      return c.json({ error: 'Failed to send verification email' }, 500)
-    } else {
-      logger.info('Verification email resent', {
-        channelId,
-        email: channel.target,
-      })
-    }
-
-    return c.json({ message: 'Verification sent successfully' })
   })

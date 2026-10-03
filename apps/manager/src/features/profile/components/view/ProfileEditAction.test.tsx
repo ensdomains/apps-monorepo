@@ -36,8 +36,8 @@ describe('ProfileEditAction', () => {
     expect(editButton()).not.toBeNull()
   })
 
-  it('hides editing on an unmigrated v1 .eth name, whose records cannot be written', () => {
-    renderAction({ protocol: 'v1' })
+  it('hides editing for an unmigrated v1 .eth name without upgrade eligibility', () => {
+    renderAction({ protocol: 'v1', isUpgradeRequired: false })
     expect(editButton()).toBeNull()
   })
 

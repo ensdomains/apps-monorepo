@@ -1,4 +1,5 @@
 import { computeResolverAddress } from '@ens-apps/smart-account'
+import { Storage } from 'happy-dom'
 import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -67,7 +68,11 @@ const publicClientWithProfileResults = (
   }[] = [],
 ): PublicClient =>
   ({
+    // The recovery plan resolves its chain from the client and refuses a
+    // client without one.
+    chain: { id: 11155111 },
     multicall: vi.fn(() => Promise.resolve(results)),
+    readContract: vi.fn().mockResolvedValue(false),
   }) as unknown as PublicClient
 
 const lockedKnownResolver = () =>
@@ -127,7 +132,7 @@ const makeRecoveryTree = () => {
 }
 
 beforeEach(() => {
-  localStorage.clear()
+  vi.stubGlobal('localStorage', new Storage())
   getV1ProfileKeysMock.mockReset()
   buildAtomicMigrationBatchesMock.mockReset()
   buildAtomicMigrationBatchesMock.mockResolvedValue({
@@ -299,6 +304,33 @@ describe('buildMigrationPlan resolver preservation', () => {
 })
 
 describe('buildMigrationRecoveryPlan', () => {
+  it('converts a saved collection-wide registration grant to token approvals', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+    const recoverySnapshot: MigrationRecoverySnapshot = {
+      ...snapshot,
+      remainingOperations: [
+        { name: root.name, action: 'migrate' },
+        { name: copy.name, action: 'copy' },
+      ],
+      completedOperations: [],
+      plannedApprovals: [{ id: 'base-registrar:hca' }],
+    }
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: recoverySnapshot,
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+
+    expect(plan.preflight.migrationApprovals).toEqual([
+      expect.objectContaining({
+        kind: 'erc721-token',
+        id: 'base-registrar:hca-token',
+      }),
+    ])
+  })
+
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
 

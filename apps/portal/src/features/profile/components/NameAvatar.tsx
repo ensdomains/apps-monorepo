@@ -37,7 +37,7 @@ export const NameAvatar = ({
         className={cn(
           'bg-muted animate-pulse',
           rounded,
-          'w-(--width) h-(--height)',
+          'shrink-0 w-(--width) h-(--height)',
         )}
       />
     )
@@ -48,7 +48,7 @@ export const NameAvatar = ({
       <img
         src={avatar}
         alt="avatar"
-        className={rounded}
+        className={cn('shrink-0', rounded)}
         height={height}
         width={width}
       />
@@ -63,7 +63,7 @@ export const NameAvatar = ({
       className={cn(
         '[background:var(--avatar-placeholder-gradient)]',
         rounded,
-        'relative overflow-hidden w-(--width) h-(--height)',
+        'relative overflow-hidden shrink-0 w-(--width) h-(--height)',
       )}
     >
       {isLarge && (

@@ -5,7 +5,6 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantResolverRoles } from '@/features/resolver/helpers/grantResolverRoles'
 import type { ResolverRolesSaveAction } from '@/features/resolver/helpers/prepareResolverRolesIntent'
 import { revokeResolverRoles } from '@/features/resolver/helpers/revokeResolverRoles'
-import { SAVE_RESOLVER_ROLES_TX_ID } from '@/features/resolver/utils/buildResolverRolesTransactions'
 import {
   type ResolverRevocation,
   ROOT_RESOURCE,
@@ -58,7 +57,8 @@ export const useResolverRolesMutations = (resolverAddress: Address) => {
       account,
       rolesToGrant,
       rolesToRevoke,
-    }: ResolverRolesSaveAction) => {
+      id,
+    }: ResolverRolesSaveAction & { readonly id: string }) => {
       const clients = getWriteClients()
 
       if (rolesToGrant.length > 0) {
@@ -72,7 +72,7 @@ export const useResolverRolesMutations = (resolverAddress: Address) => {
           resolverAddress,
           account,
           scope: { type: 'root', roles: rolesToGrant },
-          id: SAVE_RESOLVER_ROLES_TX_ID,
+          id,
         })
       }
 
@@ -83,7 +83,7 @@ export const useResolverRolesMutations = (resolverAddress: Address) => {
           resource,
           account,
           roles: rolesToRevoke,
-          id: SAVE_RESOLVER_ROLES_TX_ID,
+          id,
         })
       }
     },

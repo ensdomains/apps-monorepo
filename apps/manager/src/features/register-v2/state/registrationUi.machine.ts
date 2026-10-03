@@ -1,11 +1,11 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type PersistedRegistrationRecord,
   type RegistrationEvent,
   registrationMachine,
   type Signer,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import {
@@ -26,7 +26,9 @@ import {
 } from 'xstate'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
@@ -35,6 +37,11 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import {
+  acquireRegistrationLock,
+  getBlockingRegistration,
+  releaseRegistrationLock,
+} from '../service/registrationLock'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
 import {
@@ -71,20 +78,37 @@ type PostRegistrationProgress = {
   addrReverseClearAttempted: boolean
 }
 
+/**
+ * What the user confirmed at the pricing step, carried through the registering
+ * screen. Named because the resume path has to persist and restore it — the
+ * price breakdown is display state the machine context cannot reproduce.
+ */
+export type RegistrationConfirmedData = {
+  label: string
+  duration: bigint
+  ownerAddress: Address
+  token: SUPPORTED_TOKEN
+  totalPrice: bigint
+  basePriceNumber: number
+  premiumPriceNumber: number
+}
+
 type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
-  confirmedData?: {
-    label: string
-    duration: bigint
-    ownerAddress: Address
-    token: SUPPORTED_TOKEN
-    totalPrice: bigint
-    basePriceNumber: number
-    premiumPriceNumber: number
-  }
+  /**
+   * The registration failed because another address registered the name first.
+   * Nothing to retry — the failure screen offers only a way back.
+   */
+  nameUnavailable: boolean
+  /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
+  pendingStart?: Extract<
+    Events,
+    { type: 'registration.start' | 'registration.resume' }
+  >
+  confirmedData?: RegistrationConfirmedData
   postRegistrationSetup?: RegistrationPostRegistrationSetup
   postRegistrationData?: PostRegistrationData
   postRegistrationProgress: PostRegistrationProgress
@@ -124,11 +148,42 @@ type Events =
       basePriceNumber: number
       premiumPriceNumber: number
       postRegistrationSetup?: RegistrationPostRegistrationSetup
+      /**
+       * Standalone-HCA: the USDC (6dp) wallet debit the confirm screen showed.
+       * Passed straight to the registration machine, which refuses to request a
+       * funding-permit signature for materially more than this. Absent when the
+       * budget quote failed and only the rent was displayed.
+       */
+      displayedWalletDebit?: bigint
+    }
+  | {
+      /**
+       * Re-enter a registration that was interrupted by a reload.
+       *
+       * Carries what was persisted plus a freshly rebuilt account, and is
+       * accepted from ANY state — a reload lands the UI machine in `pricing`,
+       * which is where the resume has to be caught.
+       */
+      type: 'registration.resume'
+      label: string
+      confirmedData: RegistrationConfirmedData
+      /** The machine-context half, as restored by the preflight. */
+      record: PersistedRegistrationRecord
+      postRegistrationSetup?: RegistrationPostRegistrationSetup
+      account: SmartAccountContextValue
+      hcaSessionEnable?: HcaSessionEnablePayload
+    }
+  | {
+      /**
+       * A different wallet connected while a run is live. Back to pricing,
+       * with the run suspended rather than cancelled so its owner can resume it.
+       */
+      type: 'registration.suspend'
     }
   | { type: 'registration.completed' }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
-  | { type: 'transaction.failed'; message?: string }
+  | { type: 'transaction.failed'; message?: string; nameUnavailable?: boolean }
   | { type: 'retry' }
   | { type: 'cancel' }
   | { type: 'label.changed' }
@@ -265,6 +320,18 @@ const machineSetup = setup({
     ),
   },
   guards: {
+    hasPendingStart: ({ context }) => context.pendingStart !== undefined,
+    isWalletRegisteringAnotherName: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return false
+
+      return (
+        getBlockingRegistration(
+          confirmed.ownerAddress,
+          asEthName(confirmed.label),
+        ) !== null
+      )
+    },
     isDurationValid: ({ context }) =>
       context.duration >= MIN_REGISTER_DURATION_SECONDS,
     hasEthRecordSyncRemaining: ({ context }) =>
@@ -305,6 +372,7 @@ const machineSetup = setup({
     }),
     clearError: assign({
       lastErrorMessage: () => undefined,
+      nameUnavailable: () => false,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -315,6 +383,13 @@ const machineSetup = setup({
           .with({ type: 'transaction.failed' }, ({ message }) => message)
           .with({ type: '$error' }, ({ error }) => error.message)
           .otherwise(() => undefined),
+      nameUnavailable: ({ event }) =>
+        match(event)
+          .with(
+            { type: 'transaction.failed' },
+            ({ nameUnavailable }) => nameUnavailable === true,
+          )
+          .otherwise(() => false),
     }),
     setInvokeError: assign({
       lastErrorMessage: ({ event }) => {
@@ -324,7 +399,42 @@ const machineSetup = setup({
     }),
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
+    forwardSuspend: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'SUSPEND' }),
+    // The child never received START_REGISTRATION for a refused start, so a
+    // RETRY would be dropped in its idle state. Re-run the start instead.
+    raisePendingStart: enqueueActions(({ enqueue, context }) => {
+      if (context.pendingStart) enqueue.raise(context.pendingStart)
+    }),
+    setRegistrationLockError: assign({
+      lastErrorMessage: ({ context }) => {
+        const confirmed = context.confirmedData
+        const blocking = confirmed
+          ? getBlockingRegistration(
+              confirmed.ownerAddress,
+              asEthName(confirmed.label),
+            )
+          : null
+
+        return registrationLockMessage(blocking)
+      },
+    }),
+    acquireRegistrationLock: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return
+
+      acquireRegistrationLock(
+        confirmed.ownerAddress,
+        asEthName(confirmed.label),
+      )
+    },
+    releaseRegistrationLock: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return
+
+      releaseRegistrationLock(confirmed.ownerAddress)
+    },
     clearRegistrationData: assign({
+      pendingStart: () => undefined,
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
       postRegistrationData: () => undefined,
@@ -379,6 +489,11 @@ const machineSetup = setup({
     }),
     captureChildSuccess: enqueueActions(({ enqueue, context, event }) => {
       if (!isRegistrationSnapshotEvent(event)) return
+
+      const confirmed = context.confirmedData
+      if (confirmed) {
+        releaseRegistrationLock(confirmed.ownerAddress)
+      }
 
       enqueue.assign({
         registrationCompleted: true,
@@ -462,6 +577,10 @@ const machineSetup = setup({
   },
 })
 
+/** Names the registration holding this wallet, so the user knows what to finish. */
+const registrationLockMessage = (blockingName: string | null): string =>
+  `Cannot register: ${blockingName ?? 'another name'} is already being registered with this wallet, possibly in another tab. Finish or cancel it first.`
+
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, event }) => {
     if (event.type !== 'registration.start') {
@@ -540,6 +659,25 @@ const startRegistrationAction = machineSetup.createAction(
       addrReverseClearTxId: undefined,
     })
 
+    // One registration at a time per wallet, across tabs. The commit batch
+    // funds the HCA with an EIP-2612 permit whose nonce is sequential per
+    // wallet, so a concurrent run reverts `TransferFromFailed()` and never
+    // records its commitment. Claimed after the assign above: `confirmedData`
+    // is what `retry` reads to re-run this check.
+    if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
+      enqueue.assign({ pendingStart: event })
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          registrationLockMessage(
+            getBlockingRegistration(ownerAddress, asEthName(event.label)),
+          ),
+        ),
+      })
+    }
+
+    enqueue.assign({ pendingStart: undefined })
+
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
@@ -557,6 +695,128 @@ const startRegistrationAction = machineSetup.createAction(
         // Standalone-HCA session-enable payload (omitted once enabled).
         hcaSessionEnable: event.hcaSessionEnable,
         primaryName: bundlePrimaryName,
+        // Consent bound on the funding permit: what the confirm screen showed.
+        displayedWalletDebit: event.displayedWalletDebit,
+        // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
+        // so a dead intent fails verification in one orchestrator read instead
+        // of sitting out the full grace poll before the retry screen.
+        fetchIntentStatus: buildIntentStatusFetcher(),
+      } satisfies RegistrationEvent),
+    )
+  }),
+)
+
+/**
+ * Resume counterpart to `startRegistrationAction`.
+ *
+ * The two differ in exactly one way that matters: this one hands the child a
+ * `RESUME` (restored context + fresh deps, routed to a read-before-write state)
+ * rather than a `START_REGISTRATION`, so nothing already in flight is
+ * re-submitted. Everything else — the account checks, the approval signer, the
+ * post-registration bookkeeping — is deliberately identical, because a resumed
+ * run has to behave like the run it is continuing.
+ */
+const resumeRegistrationAction = machineSetup.createAction(
+  enqueueActions(({ enqueue, event }) => {
+    if (event.type !== 'registration.resume') {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error('registration.resume event required'),
+      })
+    }
+
+    if (!event.account.signer || !event.account.accountAddress) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error('Account not ready'),
+      })
+    }
+
+    const ownerAddress =
+      event.account.ownerAddress ?? event.account.accountAddress
+
+    const approvalSigner: Signer | undefined = event.account.walletClient
+      ? { type: 'eoa', walletClient: event.account.walletClient }
+      : undefined
+
+    const isHcaRegistration =
+      event.account.signer.type === 'rhinestone' &&
+      ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
+
+    if (isHcaRegistration && !approvalSigner) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot resume: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
+        ),
+      })
+    }
+
+    enqueue.assign({
+      confirmedData: event.confirmedData,
+      postRegistrationSetup: isHcaRegistration
+        ? undefined
+        : event.postRegistrationSetup,
+      postRegistrationData: {
+        label: event.label,
+        signer: event.account.signer,
+        walletClient: event.account.walletClient,
+        accountAddress: event.account.accountAddress,
+        ownerAddress,
+        publicClient: defaultPublicClient,
+        chainId: defaultPublicClient.chain.id,
+        // Restoring this lets the post-registration eth-record sync target the
+        // resolver the original run deployed, instead of deploying a second one.
+        resolverAddress: event.record.context.resolverAddress,
+      },
+      postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
+      registrationCompleted: false,
+      postRegistrationSetupFailed: false,
+      ethRecordSyncTxId: undefined,
+      primaryNameTxId: undefined,
+      // The reveal batch bundles the primary name, so this is whatever the
+      // ORIGINAL run committed to — re-deriving it from current UI state could
+      // disagree with the batch that is already in flight.
+      hcaPrimaryName: event.record.context.primaryName,
+      addrReverseClearTxId: undefined,
+    })
+
+    // A resumed run has no claim on the wallet yet (a reload dropped this
+    // tab's), and it is about to continue a commit on that wallet's nonce.
+    if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
+      enqueue.assign({ pendingStart: event })
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          registrationLockMessage(
+            getBlockingRegistration(ownerAddress, asEthName(event.label)),
+          ),
+        ),
+      })
+    }
+
+    enqueue.assign({ pendingStart: undefined })
+
+    enqueue(
+      machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
+        type: 'RESUME',
+        stage: event.record.stage,
+        context: {
+          ...event.record.context,
+          // The preflight re-quoted; the stored price is from before the user
+          // left and the temporary premium has decayed since.
+          tokenPrice: event.confirmedData.totalPrice,
+        },
+        deps: {
+          signer: event.account.signer,
+          approvalSigner,
+          publicClient: defaultPublicClient,
+          hcaSessionEnable: event.hcaSessionEnable,
+          // Lets a resumed verification ask the orchestrator whether the
+          // persisted reveal intent is still filling or dead, instead of
+          // sitting out the full grace poll before showing the retry screen.
+          fetchIntentStatus: buildIntentStatusFetcher(),
+        },
       } satisfies RegistrationEvent),
     )
   }),
@@ -649,6 +909,9 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
             message: snapshot.context.error?.message,
+            // Lost a same-name race: the child refuses RETRY, so the failure
+            // screen must not offer one either.
+            nameUnavailable: snapshot.context.nameUnavailable === true,
           })),
         ],
       },
@@ -665,6 +928,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    nameUnavailable: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,
@@ -673,6 +937,19 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   states: {
     pricing: {
       initial: 'duration',
+      // On `pricing` (all substates), NOT the root: a reload lands in
+      // `pricing.duration`, which is where a resume arrives. Scoping it here
+      // is the guard — a resume that dispatches late (e.g. delayed behind a
+      // wallet prompt the user ignored while starting a fresh registration)
+      // is dropped instead of re-entering `registering`, resetting its
+      // parallel regions and clobbering the live run's confirmedData. The
+      // child ignores RESUME outside idle for the same reason.
+      on: {
+        'registration.resume': {
+          target: '#registrationV2Ui.registering',
+          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
+        },
+      },
       states: {
         duration: {
           on: {
@@ -712,6 +989,20 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     registering: {
       type: 'parallel',
+      on: {
+        // Only until the name is registered: after that the run has nothing
+        // left to lose, and post-registration setup finishes on its own.
+        'registration.suspend': {
+          guard: ({ context }) => !context.registrationCompleted,
+          target: '#registrationV2Ui.pricing',
+          actions: [
+            'clearRegistrationData',
+            'clearError',
+            'clearMaxProgress',
+            'forwardSuspend',
+          ],
+        },
+      },
       states: {
         transaction: {
           initial: 'pendingRegistration',
@@ -983,13 +1274,47 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     success: {},
     failure: {
       on: {
-        retry: {
+        retry: [
+          {
+            // Retry re-enters `registering` directly, so it needs the same
+            // wallet guard the initial start has.
+            guard: 'isWalletRegisteringAnotherName',
+            actions: 'setRegistrationLockError',
+          },
+          {
+            guard: 'hasPendingStart',
+            actions: ['clearError', 'raisePendingStart'],
+          },
+          {
+            // Retrying a name someone else now owns would park the UI back on
+            // the pending screen while the child refuses the RETRY it forwards.
+            guard: ({ context }) => !context.nameUnavailable,
+            target: 'registering',
+            actions: ['clearError', 'acquireRegistrationLock', 'forwardRetry'],
+          },
+        ],
+        'registration.start': {
           target: 'registering',
-          actions: ['clearError', 'forwardRetry'],
+          guard: ({ event }) => event.duration >= MIN_REGISTER_DURATION_SECONDS,
+          actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
+        },
+        'registration.resume': {
+          target: 'registering',
+          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
         },
         cancel: {
           target: 'pricing',
-          actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
+          actions: [
+            'releaseRegistrationLock',
+            'clearRegistrationData',
+            'clearError',
+            'forwardCancel',
+          ],
+        },
+        // "Try Again" would carry on with the previous wallet's signer.
+        'registration.suspend': {
+          target: 'pricing',
+          actions: ['clearRegistrationData', 'clearError', 'forwardSuspend'],
         },
       },
     },
@@ -1001,12 +1326,32 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     'label.changed': {
       target: '.pricing',
-      actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
+      actions: [
+        'releaseRegistrationLock',
+        'clearRegistrationData',
+        'clearError',
+        'forwardCancel',
+      ],
     },
   },
 })
 
 export type RegistrationV2UiActor = ActorRefFrom<typeof registrationV2UiMachine>
+
+/**
+ * The owner of the run the machine is driving, while `registration.suspend`
+ * can still stop it: registering until the name is registered, or failed.
+ */
+export const getSuspendableRunOwner = (
+  snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
+): Address | undefined => {
+  const suspendable =
+    (snapshot.matches('registering') &&
+      !snapshot.context.registrationCompleted) ||
+    snapshot.matches('failure')
+
+  return suspendable ? snapshot.context.confirmedData?.ownerAddress : undefined
+}
 
 export const getRegistrationV2ChildActor = (
   snapshot: SnapshotFrom<typeof registrationV2UiMachine>,

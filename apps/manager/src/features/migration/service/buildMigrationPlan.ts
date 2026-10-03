@@ -1,3 +1,4 @@
+import { requireChainId } from '@ens-apps/config'
 import {
   buildHcaOwnerExecutionCall,
   computeResolverAddress,
@@ -10,6 +11,7 @@ import {
   namehash,
   type PublicClient,
 } from 'viem'
+import { envConfig } from '@/config'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -51,7 +53,12 @@ import {
 } from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import { migrationApprovalForId } from './migrationApprovals'
+import {
+  hasTemporaryMigrationHcaApproval,
+  migrationApprovalForId,
+  requiresMigrationApprovalCleanup,
+  temporaryMigrationHcaApproval,
+} from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
@@ -409,7 +416,11 @@ export const buildMigrationPlan = async (params: {
   } = params
   signal?.throwIfAborted()
 
-  const classifiedNamesResult = classifyNames([...domains], migrationOwner)
+  const classifiedNamesResult = classifyNames(
+    [...domains],
+    migrationOwner,
+    envConfig.chain.id,
+  )
   const classified = classifiedNamesResult.classified
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -446,7 +457,7 @@ export const buildMigrationPlan = async (params: {
     ownedPermRes =
       preflight.hcaResolverAddress ??
       computeResolverAddress({
-        chainId: publicClient.chain?.id ?? 11155111,
+        chainId: requireChainId(publicClient, 'migration'),
         hca: hcaAddress,
       })
   }
@@ -467,7 +478,7 @@ export const buildMigrationPlan = async (params: {
     preflight.hcaResolverReadiness?.status === 'verified' &&
     preflight.hcaResolverReadiness.walletHasWildcardRoles
   const atomicPlan = await buildAtomicMigrationBatches({
-    chainId: publicClient.chain?.id ?? 11155111,
+    chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
     wallet: migrationOwner,
     classified,
@@ -498,6 +509,7 @@ export const buildMigrationPlan = async (params: {
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals,
+    cleanupApprovals: preflight.migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets,
   })
@@ -576,6 +588,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
   const result = classifyNames(
     [...params.snapshot.registryDomains],
     params.migrationOwner,
+    envConfig.chain.id,
   )
   if (
     result.ineligible.length > 0 ||
@@ -630,7 +643,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     migrationOwner,
   })
 
-  const chainId = publicClient.chain?.id ?? 11155111
+  const chainId = requireChainId(publicClient, 'migration')
   const needsOwnedPermRes = registryContext.some(
     (name) => name.resolverStrategy === 'to-owned-permres',
   )
@@ -752,17 +765,46 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
   const groups = groupClassifiedNames([...classified])
-  const plannedApprovals = snapshot.plannedApprovals.map((approval) =>
-    migrationApprovalForId({
-      id: approval.id,
-      hcaAddress,
-      ...(approval.tokenId === undefined ? {} : { tokenId: approval.tokenId }),
-    }),
+  const plannedApprovals = snapshot.plannedApprovals.flatMap((approval) => {
+    // Older recovery snapshots may contain the collection-wide strategy. A
+    // resumed run must use the current token-scoped strategy instead.
+    if (approval.id === 'base-registrar:hca') {
+      return groups.unwrapped.map(({ domain }) =>
+        migrationApprovalForId({
+          id: 'base-registrar:hca-token',
+          hcaAddress,
+          tokenId: BigInt(domain.labelhash),
+        }),
+      )
+    }
+    return [
+      migrationApprovalForId({
+        id: approval.id,
+        hcaAddress,
+        ...(approval.tokenId === undefined
+          ? {}
+          : { tokenId: approval.tokenId }),
+      }),
+    ]
+  })
+  const willGrantHcaApproval = plannedApprovals.some(
+    requiresMigrationApprovalCleanup,
   )
+  const needsHcaCleanup =
+    willGrantHcaApproval ||
+    (await hasTemporaryMigrationHcaApproval({
+      publicClient,
+      eoa: migrationOwner,
+      hcaAddress,
+    }))
+  const migrationCleanupApprovals = needsHcaCleanup
+    ? [temporaryMigrationHcaApproval(hcaAddress)]
+    : []
   const hcaDeploymentRequired = hcaReadiness.status === 'deployment-required'
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals: plannedApprovals,
+    cleanupApprovals: migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
       name: domain.name,
@@ -781,6 +823,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     preflight: {
       skipFetchProfilesPhase: true,
       migrationApprovals: plannedApprovals,
+      migrationCleanupApprovals,
       hcaResolverReadiness: resolverReadiness,
       ...(expectedOwnedPermRes
         ? { hcaResolverAddress: expectedOwnedPermRes }
@@ -851,6 +894,7 @@ export const adjustPlanForRetry = (
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired: plan.hcaDeploymentRequired,
     approvals: plan.preflight.migrationApprovals ?? [],
+    cleanupApprovals: plan.preflight.migrationCleanupApprovals,
     atomicBatches: remainingAtomicBatches,
     registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
       name: domain.name,

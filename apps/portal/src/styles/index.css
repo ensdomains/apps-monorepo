@@ -321,7 +321,9 @@
   --success: var(--peridot-400);
   --warning: var(--citrine-400);
   --border: #4a4a4a;
-  --input: #222222;
+  /* Translucent, as shadcn ships it: a visible edge as `border-input` and a
+     faint fill as `bg-input/30`. An opaque #222222 vanished on #1e1e1e. */
+  --input: rgba(255, 255, 255, 0.15);
   --ring: var(--lapis-400);
   --sidebar: #222222;
   --sidebar-foreground: #e1e1e0;
@@ -398,10 +400,10 @@
 }
 
 @theme {
-  --font-sans: "ABCMonumentGrotesk";
-  --font-mono: "ABCMonumentGroteskMono";
-  --font-semi-mono: "ABCMonumentGroteskSemiMono";
-  --font-serif: "ABCMarist";
+  --font-sans: "ABCMonumentGrotesk", sans-serif;
+  --font-mono: "ABCMonumentGroteskMono", monospace;
+  --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
+  --font-serif: "ABCMarist", serif;
   --text-heading: 1.75rem;
 
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).

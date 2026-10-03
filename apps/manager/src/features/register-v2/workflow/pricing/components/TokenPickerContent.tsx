@@ -1,7 +1,4 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -18,10 +15,14 @@ import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedName
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
+import {
+  getHcaBudgetQueryOptions,
+  isHcaBudgetQuoteRequired,
+} from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
@@ -48,6 +49,17 @@ class InsufficientFundingError extends Error {
     this.name = 'InsufficientFundingError'
   }
 }
+
+/**
+ * The funding budget could not be quoted. Not a funding failure, but still a
+ * hard stop: the only figure left is the rent, which is less than the permit
+ * must cover, so proceeding strands a paid-for commitment (Immunefi #93021).
+ */
+class BudgetQuoteUnavailableError extends TaggedError(
+  'BudgetQuoteUnavailableError',
+)<{
+  cause: unknown
+}> {}
 
 /**
  * What the wallet is actually debited, itemised — `rent + networkFee` on the
@@ -152,19 +164,24 @@ export const TokenPickerContent = () => {
   // the figure on this screen is the one the permit is sized from. Quoting
   // without it under-funds and the permit preflight then rejects a wallet this
   // screen just told the user was sufficient.
-  const budgetQueryOptions = getHcaBudgetQueryOptions({
+  const budgetQueryParams = {
     label,
     durationInSeconds: duration,
     hca: account.accountAddress,
     signer: account.signer,
     primaryName: setAsPrimary ? domainName : undefined,
     getSessionEnablePayload: account.getSessionEnablePayload,
-  })
+  }
+  const budgetQueryOptions = getHcaBudgetQueryOptions(budgetQueryParams)
   const budgetQuery = useQuery(budgetQueryOptions)
 
-  // Absent until the quote lands, and permanently absent if it fails — in which
-  // case the screen falls back to showing the rent alone rather than blocking
-  // on a flaky quote.
+  // The EOA route needs no budget and must not be gated on a quote it never
+  // takes; on the HCA route a missing quote blocks rather than falling back to
+  // the rent, which is not what the wallet pays.
+  const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
+  const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
+
+  // Absent until the quote lands, and permanently absent if it fails.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     walletBalanceRaw: usdcBalanceRaw,
@@ -217,6 +234,13 @@ export const TokenPickerContent = () => {
       postRegistrationSetup: resolvedSetAsPrimary
         ? { primaryName: { enabled: true, syncEthRecord: true } }
         : undefined,
+      // The USDC figure this screen actually rendered. The machine re-quotes
+      // before sizing the permit, and refuses to prompt if that re-quote lands
+      // materially above this — so what the wallet is asked to approve can
+      // never diverge from what was on screen. `undefined` when the quote
+      // failed and only the rent was shown; the machine's independent ceiling
+      // still applies.
+      ...(funding ? { displayedWalletDebit: funding.walletDebitRaw } : {}),
     })
   }
 
@@ -226,11 +250,14 @@ export const TokenPickerContent = () => {
       // still have been in flight when the screen painted, and a stale budget
       // would let through exactly the registration this gate exists to stop.
       // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
-      const budget = await queryClient
-        .fetchQuery(budgetQueryOptions)
-        // A quote failure is not a funding failure. Fall through and let the
-        // machine (and its own pre-permit balance check) surface the problem.
-        .catch(() => null)
+      // Surfaced, not swallowed: the rent cannot fund the batch, so there is
+      // nothing to fall through to. Gated because `fetchQuery` ignores
+      // `enabled` and the EOA route has no signer to quote with.
+      const budget = isBudgetRequired
+        ? await queryClient.fetchQuery(budgetQueryOptions).catch((cause) => {
+            throw new BudgetQuoteUnavailableError({ cause })
+          })
+        : undefined
 
       // Against the shortfall, not the budget: the permit tops the HCA up to
       // the budget, so an HCA still holding USDC from a prior registration
@@ -292,9 +319,20 @@ export const TokenPickerContent = () => {
   // is what reconciles the two.
   const errorMessage = match({
     funding,
+    hasBudgetQuoteFailed,
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
   })
+    // Ahead of the funding arms: with no budget there is nothing to itemise.
+    // Covers a failure on render and on the click path.
+    .with(
+      P.union(
+        { hasBudgetQuoteFailed: true },
+        { mutationError: P.instanceOf(BudgetQuoteUnavailableError) },
+      ),
+      () =>
+        t`We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment.`,
+    )
     .with(
       { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
       ({ funding: f }) =>
@@ -314,6 +352,20 @@ export const TokenPickerContent = () => {
       { isAvailabilityError: true },
       () =>
         t`We couldn't confirm that ${domainName} is still available. Please try again.`,
+    )
+    .otherwise(() => null)
+
+  // Positive counterpart to the underfunded copy, for the one thing no amount
+  // in the breakdown can show. Full coverage takes the no-permit branch in
+  // `computingHcaBudget`, so the approval step they saw last time simply will
+  // not appear; saying so up front is the difference between "it skipped a
+  // step" and "something went wrong". A partial credit is only an amount, and
+  // belongs in the breakdown rather than in a sentence repeating it.
+  const infoMessage = match(funding)
+    .with(
+      { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
+      (f) =>
+        t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
     )
     .otherwise(() => null)
 
@@ -352,6 +404,8 @@ export const TokenPickerContent = () => {
             }
           : undefined
       }
+      hasBudgetQuoteFailed={hasBudgetQuoteFailed}
+      infoMessage={infoMessage}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
@@ -367,6 +421,29 @@ export const TokenPickerContent = () => {
   )
 }
 
+/**
+ * The single message slot under the token list. The error wins when there is
+ * one — a "you are already funded" note printed beneath a funding failure is a
+ * contradiction, and the error is the half the user can act on.
+ */
+const PickerMessage = ({
+  errorMessage,
+  infoMessage,
+}: {
+  errorMessage?: string | null
+  infoMessage?: string | null
+}) => {
+  if (errorMessage) {
+    return <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+  }
+  if (infoMessage) {
+    return (
+      <p className="text-center text-ens-blue-dark text-sm">{infoMessage}</p>
+    )
+  }
+  return null
+}
+
 export const TokenPickerContentBase = ({
   label,
   pricingLoading,
@@ -374,6 +451,7 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown = false,
   selectedToken,
   errorMessage,
+  infoMessage,
   onSelectCoin,
   onNext,
   stablecoinBalances,
@@ -383,6 +461,7 @@ export const TokenPickerContentBase = ({
   footer,
   funding,
   isQuotingFunding = false,
+  hasBudgetQuoteFailed = false,
 }: {
   label: string
   pricingLoading: boolean
@@ -390,6 +469,13 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
   errorMessage?: string | null
+  /**
+   * Reassurance shown in the error slot when there is no error — currently the
+   * standing-HCA-balance note. Suppressed whenever `errorMessage` is set: a
+   * "you are already funded" line under a funding failure reads as a
+   * contradiction.
+   */
+  infoMessage?: string | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]
@@ -412,6 +498,12 @@ export const TokenPickerContentBase = ({
    * orchestrator round-trips is long enough for that shift to be felt.
    */
   isQuotingFunding?: boolean
+  /**
+   * The budget quote was required for this route and failed, so the screen has
+   * only the rent — less than the registration costs. Blocks checkout. Routes
+   * with no budget to quote (a pure-EOA signer) never set this.
+   */
+  hasBudgetQuoteFailed?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -459,11 +551,17 @@ export const TokenPickerContentBase = ({
     !!selectedToken &&
     !pricingLoading &&
     hasBalances &&
-    hasSufficientBalanceForSelectedCoin
+    hasSufficientBalanceForSelectedCoin &&
+    // Refuse rather than proceed on a figure that cannot fund the batch.
+    !hasBudgetQuoteFailed
 
   return (
-    <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
-      <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
+    // `min-h-0` on both: a flex item defaults to `min-height: auto`, so without
+    // it neither column shrinks below its content and the `overflow-y-auto`
+    // below never scrolls. Inside the dialog's `max-h-[90vh]` that clipped the
+    // total and the Register button out of reach on a short viewport.
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
@@ -555,11 +653,10 @@ export const TokenPickerContentBase = ({
             ))
             .otherwise(() => undefined)}
 
-          {errorMessage && (
-            <p className="wrap-anywhere text-center text-ens-error text-sm">
-              {errorMessage}
-            </p>
-          )}
+          <PickerMessage
+            errorMessage={errorMessage}
+            infoMessage={infoMessage}
+          />
 
           <div className="flex flex-col items-center gap-1.5">
             <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
@@ -574,7 +671,15 @@ export const TokenPickerContentBase = ({
         </div>
       </div>
 
-      <PaymentTotalRow isEstimate={!!funding} total={displayTotal} />
+      {/*
+        Hedged whenever the figure is not the exact quoted total: with a budget
+        the fee half is an estimate, and with a failed quote only the rent is
+        left, which the registration is guaranteed to exceed.
+      */}
+      <PaymentTotalRow
+        isEstimate={!!funding || hasBudgetQuoteFailed}
+        total={displayTotal}
+      />
 
       <Button
         className={cn(

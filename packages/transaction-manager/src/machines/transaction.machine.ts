@@ -8,6 +8,7 @@ import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
+  type ChainIdMismatchError,
   EthCallFallbackError,
   type SignerAddressMismatchError,
   TransactionRevertedError,
@@ -127,6 +128,7 @@ export const transactionMachine = setup({
         | TransactionSubmissionError
         | TransactionUserRejectedError
         | SignerAddressMismatchError
+        | ChainIdMismatchError
       > => {
         if (!request) {
           return errAsync(
@@ -438,6 +440,8 @@ export const transactionMachine = setup({
           target: 'pending',
           actions: assign({
             hash: ({ event }) => event.output,
+            // A retried submission leaves the earlier attempt's error behind.
+            error: undefined,
           }),
         },
         onError: [

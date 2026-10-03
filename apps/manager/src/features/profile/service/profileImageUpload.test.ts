@@ -22,7 +22,6 @@ describe('profile image upload helpers', () => {
     const upload = await prepareProfileImageUpload({
       type: 'avatar',
       name: 'vitalik.eth',
-      chainId: 11155111,
       file,
     })
 

@@ -11,9 +11,10 @@ import {
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
-import type { Address } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
 import { normalize } from 'viem/ens'
 import { useConnection, useWalletClient } from 'wagmi'
+import { envConfig } from '@/config'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -50,7 +51,7 @@ export function useReverseResolutionMutations({
   displayName,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
-  const { chain } = useConnection()
+  const { address: connectedAddress } = useConnection()
 
   const isL1 = useMemo(
     () => isL1ReverseRegistrarChainId(reverseRegistrarChainId),
@@ -114,8 +115,8 @@ export function useReverseResolutionMutations({
         return {
           kind: 'l1-v1-direct',
           request: {
-            // biome-ignore lint/style/noNonNullAssertion: coinType 60 always has a sepolia address
-            address: getRegistrarAddress(60)!,
+            // biome-ignore lint/style/noNonNullAssertion: coinType 60 always has an L1 registrar
+            address: getRegistrarAddress(60, envConfig.network)!,
             abi: reverseRegistrarSetNameSnippet,
             functionName: 'setName',
             args: [normalizedName] as const,
@@ -123,16 +124,22 @@ export function useReverseResolutionMutations({
         }
       }
 
+      // No `targetAddress`: that would select `setNameForAddr`. Both branches
+      // deliberately use `setName(string)`, which writes the signer's own
+      // reverse record, so there is no target here to point at the wrong
+      // address in the first place.
       return {
         kind: 'l2',
         request: createSetReverseNameRequest({
           name: normalizedName,
           reverseRegistrarChainId,
-          chain,
+          // The network is a property of the build, not of whichever L2 the
+          // wallet happens to be connected to.
+          network: envConfig.network,
         }),
       }
     },
-    [chain, isL1, l1WalletClient, reverseRegistrarChainId],
+    [isL1, l1WalletClient, reverseRegistrarChainId],
   )
 
   // Builds the forward address-record request against the name's L1 resolver
@@ -140,8 +147,23 @@ export function useReverseResolutionMutations({
   // post-audit-2 PermissionedResolver). Valid for L1 and L2 rows alike — the
   // coin type keys which chain's address record is written (ENSIP-19), the tx
   // itself is always an L1 transaction.
+  //
+  // The record is always written for the connected account. Callers pass the
+  // account they believe they are acting for and the builder refuses anything
+  // else, so the rule holds here rather than in whichever component happens to
+  // render the trigger: `setAddr` decides which address the name resolves to,
+  // and pointing it at an address that is not the signer hands the name to a
+  // third party.
   const getForwardResolutionRequest = useCallback(
-    (address: Address): SetForwardResolutionRequest => {
+    (targetAddress: Address): SetForwardResolutionRequest => {
+      if (!connectedAddress) {
+        throw new Error('Connect a wallet to set a primary name.')
+      }
+      if (!isAddressEqual(targetAddress, connectedAddress)) {
+        throw new Error(
+          'A primary name can only be set for the connected wallet.',
+        )
+      }
       if (isResolverKindError) {
         throw new Error(
           'Could not determine the resolver type. Refresh and try again.',
@@ -155,11 +177,12 @@ export function useReverseResolutionMutations({
         name: displayName,
         coinType,
         resolverAddress,
-        targetAddress: address,
+        targetAddress: connectedAddress,
         permissioned: isPermissionedResolver === true,
       })
     },
     [
+      connectedAddress,
       displayName,
       coinType,
       resolverAddress,

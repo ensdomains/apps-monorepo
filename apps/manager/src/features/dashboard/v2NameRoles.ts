@@ -16,9 +16,6 @@ const OWNER_MANAGER_ROLES = [
   'manager',
 ] as const satisfies readonly DashboardNameRole[]
 
-const normalizeName = (name: string | null | undefined): string | null =>
-  name ? name.toLowerCase() : null
-
 const bitmapToBigInt = (bitmap: string | undefined): bigint | null => {
   if (!bitmap) return null
   try {
@@ -33,12 +30,12 @@ const getRoleBitmapByName = (
 ): ReadonlyMap<string, string> => {
   const roleBitmapByName = new Map<string, string>()
 
-  for (const assignment of assignments) {
-    const name = normalizeName(assignment.name)
+  // Key on the name as registered: case-folding would merge distinct
+  // on-chain names (cryptO.eth vs crypto.eth) into one lookup key.
+  for (const { name, roleBitmap: next } of assignments) {
     if (!name) continue
 
     const existing = roleBitmapByName.get(name)
-    const next = assignment.roleBitmap
     const nextValue = bitmapToBigInt(next)
     const existingValue = bitmapToBigInt(existing)
 
@@ -62,9 +59,9 @@ const hasRoleAssignment = (
   domain: DomainFragment,
   roleBitmapByName: ReadonlyMap<string, string>,
 ): boolean => {
-  const names = [domain.normalizedName, domain.name]
-    .map(normalizeName)
-    .filter((name): name is string => !!name)
+  const names = [domain.normalizedName, domain.name].filter(
+    (name): name is string => !!name,
+  )
 
   return names.some((name) => hasNonZeroRoleBitmap(roleBitmapByName.get(name)))
 }
@@ -84,9 +81,9 @@ export const applyV2RoleAssignments = (
 }
 
 const getDomainNameKeys = (domain: DomainFragment): readonly string[] =>
-  [resolveDomainLabel(domain), domain.normalizedName, domain.name]
-    .map(normalizeName)
-    .filter((name): name is string => !!name)
+  [resolveDomainLabel(domain), domain.normalizedName, domain.name].filter(
+    (name): name is string => !!name,
+  )
 
 const getOwnedDomainNameSet = (
   ownedDomains: readonly DomainFragment[],
@@ -134,13 +131,14 @@ export const applyProfileV2RoleAssignments = ({
 
   const ownedNames = getOwnedDomainNameSet(ownedDomains)
   const managed = managedDomains
-    .filter((domain) => {
-      const label = normalizeName(resolveDomainLabel(domain))
-      if (!label) return false
-      // Check every name key (label, normalizedName, name) so a managed
-      // domain that overlaps an owned domain under any key is deduped.
-      return !getDomainNameKeys(domain).some((key) => ownedNames.has(key))
-    })
+    .filter(
+      (domain) =>
+        // Check every name key (label, normalizedName, name) so a managed
+        // domain that overlaps an owned domain under any key is deduped.
+        !getDomainNameKeys(domain).some((key) => ownedNames.has(key)) &&
+        // Only list names the address holds a role on under that exact name.
+        hasRoleAssignment(domain, roleBitmapByName),
+    )
     .map((domain) => ({
       ...domain,
       nameRoles: MANAGER_ONLY_ROLES,

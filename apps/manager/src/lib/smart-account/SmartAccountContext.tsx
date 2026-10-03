@@ -2,20 +2,28 @@
 
 import { anvilSetupOwner, isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import {
+  type BuildHcaDeploymentCallParams,
+  buildHcaDeploymentCall,
   buildHcaSessionEnablePayload,
+  type Call,
   getValidSessionForAccount,
+  HcaDeploymentCallValidationError,
   type HcaSessionEnablePayload,
   isRhinestoneSession,
   type RhinestoneStoredSession,
+  removeSession,
   removeSessionsByOwner,
+  revokeSessionsOnChain,
+  SessionRevokeError,
+  type SessionRevokeReason,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
-import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
+import { err, ok, type Result } from 'neverthrow'
 import {
   createContext,
   type ReactNode,
@@ -35,7 +43,8 @@ import {
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
-import { customSepolia } from '@/lib/wagmi'
+import { chain as appChain } from '@/config'
+import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
@@ -52,15 +61,28 @@ import type {
 } from './types'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
+export interface RevokeSessionOptions {
+  /**
+   * Deploy the HCA first if it has no code — a second owner transaction.
+   * Needed for an undeployed account: its signed sessions become usable as
+   * soon as anyone deploys it, and `revokeSessions()` needs code to call.
+   */
+  readonly deployFirst?: boolean
+}
+
 export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
   readonly isReady: boolean
   readonly walletClient: WalletClient | null
   readonly infrastructure: 'warp'
   /**
-   * Whether a valid time-boxed-owner session is active (registration runs
-   * prompt-free). NOT SmartSessions — an ephemeral key added as a temporary HCA
-   * owner.
+   * Whether a valid scoped session is active (registration runs prompt-free).
+   *
+   * A session is an ERC-7579 SmartSession on `HCAOwnerAndSessionValidator`, NOT
+   * an owner of the HCA. The ephemeral key can only drive the registration
+   * shapes that validator hardcodes (commit/register, token approve/permit,
+   * resolver deploy + setters, primary-name setup), presented by the fixed
+   * IntentExecutor, until `validUntil`.
    */
   readonly hasActiveSession: boolean
   /** True while the one-time ENABLE signature is in flight. */
@@ -68,13 +90,37 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   /** Last session-enable error message, if any. */
   readonly sessionError: string | null
   /**
-   * Ensure a valid time-boxed-owner session exists for the current owner,
-   * creating one (the single ENABLE wallet signature that adds the ephemeral
-   * key as a temporary HCA owner) if needed. Resolves with the session-attached
-   * signer to use IMMEDIATELY (avoids waiting for a React re-render of
-   * `signer`), or null on failure / the EOA-only path.
+   * Ensure a valid scoped session exists for the current owner, creating one if
+   * needed. That costs the single ENABLE wallet signature: the owner authorizes
+   * the session off-chain, and nothing is written on-chain — every
+   * session-signed intent carries that authorization inline, and the validator
+   * checks it against the account's session nonce each time. Resolves with the
+   * session-attached signer to use IMMEDIATELY (avoids waiting for a React
+   * re-render of `signer`), or null on failure / the EOA-only path.
    */
   readonly enableSession: () => Promise<Signer | null>
+  /** True while the owner's on-chain revoke transaction is in flight. */
+  readonly isRevokingSession: boolean
+  /** Last revocation error, already localized for display. */
+  readonly revokeError: string | null
+  /**
+   * Revoke every session for this HCA on-chain and drop the local record.
+   *
+   * This is the only real revocation: it bumps the account session nonce that
+   * every session authorization is checked against, so it also kills
+   * authorizations copied off this device. It is a DIRECT owner transaction
+   * and therefore costs the owner gas — it cannot be sponsored. Resolves true
+   * only once the receipt confirms and carries the HCA's `SessionsRevoked`.
+   */
+  readonly revokeSession: (options?: RevokeSessionOptions) => Promise<boolean>
+  /** Why the last revocation failed, for UI that branches on the cause. */
+  readonly revokeErrorReason: SessionRevokeReason | null
+  /**
+   * Forget the saved session for this HCA locally. NOT revocation — it clears
+   * this browser's copy only. Offered for an undeployed account as the
+   * gas-free alternative to deploy-and-revoke.
+   */
+  readonly forgetLocalSession: () => void
   /**
    * The active persisted session record for the current HCA, if any. Carries
    * the fields needed to rebuild the session-enable payload for registration.
@@ -125,6 +171,58 @@ function resolveRhinestoneApiKey(): string | undefined {
   )
 }
 
+/**
+ * The factory deployment to send before `revokeSessions()`, when the owner
+ * chose to deploy an undeployed HCA in order to revoke it.
+ *
+ * Built for the CONNECTED wallet as owner: `buildHcaDeploymentCall` re-derives
+ * the HCA from that owner and refuses a mismatch, so a wallet that does not own
+ * this account fails here — before paying for a deployment — instead of at the
+ * revoke's `onlyOwner` check afterwards.
+ */
+function buildRevokeDeploymentCall(params: {
+  readonly deployFirst: boolean
+  readonly client: unknown
+  readonly hca: Address
+  readonly owner: Address
+}): Result<Call | undefined, SessionRevokeError> {
+  if (!params.deployFirst) return ok(undefined)
+  if (!params.client) {
+    return err(
+      new SessionRevokeError({
+        message: 'Smart account client is not ready',
+        reason: 'unknown',
+      }),
+    )
+  }
+  try {
+    return ok(
+      buildHcaDeploymentCall({
+        client: params.client as BuildHcaDeploymentCallParams['client'],
+        chainId: appChain.id,
+        expectedHca: params.hca,
+        expectedOwner: params.owner,
+      }),
+    )
+  } catch (error) {
+    const isOwnerMismatch =
+      error instanceof HcaDeploymentCallValidationError &&
+      (error.field === 'owner' ||
+        error.field === 'derivedHca' ||
+        error.field === 'clientHca')
+    return err(
+      new SessionRevokeError({
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to build the deployment call',
+        reason: isOwnerMismatch ? 'not-owner' : 'unknown',
+        cause: error,
+      }),
+    )
+  }
+}
+
 interface BuildRhinestoneSignerParams {
   readonly baseClient: unknown
   readonly accountAddress: Address
@@ -138,8 +236,8 @@ interface BuildRhinestoneSignerParams {
 }
 
 /**
- * Build the HCA (rhinestone) signer, attaching the time-boxed-owner session
- * ONLY when the owner is verified (WEB-287). A session present without a
+ * Build the HCA (rhinestone) signer, attaching the scoped session ONLY when the
+ * owner is verified (WEB-287). A session present without a
  * verified owner means the connected wallet diverged from the HCA owner mid-
  * flight — we drop the session (fall back to the owner-signed path) rather than
  * risk a wrong-owner Intent, and log it.
@@ -162,7 +260,7 @@ function buildRhinestoneSigner(
     type: 'rhinestone' as const,
     account: params.baseClient as unknown as RhinestoneSigner['account'],
     config: {
-      chain: customSepolia,
+      chain: appChain,
       accountAddress: params.accountAddress,
       rhinestoneApiKey: params.rhinestoneApiKey,
       defaultInfra: 'warp',
@@ -264,7 +362,7 @@ export const SmartAccountContextProvider = ({
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
   const { data: wagmiWalletClient } = useWalletClient()
-  const wagmiPublicClient = usePublicClient({ chainId: customSepolia.id })
+  const wagmiPublicClient = usePublicClient({ chainId: appChain.id })
 
   // True while the connector is still establishing/restoring a session, so
   // we don't report the account as "initialized" mid-reconnect.
@@ -275,11 +373,12 @@ export const SmartAccountContextProvider = ({
   const isLoading = useSelector(actorRef, selectIsLoading)
   const isReady = useSelector(actorRef, selectIsReady)
 
-  // ── Time-boxed-owner session state ──────────────────────────────────────
-  // NOT SmartSessions: the active session is an ephemeral key added as a
-  // temporary OWNER of the HCA (the ENABLE signature), for the current owner.
-  // Attached to the rhinestone signer so registration Intents are signed by the
-  // ephemeral owner key (prompt-free) instead of the connected owner.
+  // ── Scoped session state ────────────────────────────────────────────────
+  // The active session is an ERC-7579 SmartSession on
+  // `HCAOwnerAndSessionValidator` for the current owner — a policy-scoped
+  // signer, NOT an HCA owner. Attached to the rhinestone signer so registration
+  // Intents are signed by the ephemeral session key (prompt-free) instead of
+  // the connected owner.
   // Declared up here (above the wallet-sync hook) so the disconnect handler can
   // clear it when the owner changes.
   const [activeSession, setActiveSession] =
@@ -326,7 +425,7 @@ export const SmartAccountContextProvider = ({
   // WEB-287 / EXP-RHN-003: the HCA owner has two independent sources — the
   // state machine (set at HCA init / enable time) and wagmi's connected wallet.
   // For the SESSION/SIGNER path we do NOT fall back to `eoaAddress`: a silent
-  // fallback can diverge from the owner that enabled the on-chain session
+  // fallback can diverge from the owner that signed the session authorization
   // (cross-EOA reconnect / shared device / a transitional snapshot where the
   // machine reset to `disconnected` while wagmi reports a new EOA), and the
   // session machinery is keyed on this address — a divergence would enable /
@@ -372,7 +471,7 @@ export const SmartAccountContextProvider = ({
     if (anvilSetupDoneRef.current.has(ownerAddress)) return
 
     anvilSetupDoneRef.current.add(ownerAddress)
-    anvilSetupOwner(ownerAddress, customSepolia, {
+    anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
@@ -495,12 +594,24 @@ export const SmartAccountContextProvider = ({
 
   const [isEnablingSession, setIsEnablingSession] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
+  // Mirrors `accountAddress` for async callbacks that must know the CURRENT
+  // account rather than the one captured when they started.
+  const accountAddressRef = useRef<Address | null>(null)
+  useEffect(() => {
+    accountAddressRef.current = accountAddress
+  }, [accountAddress])
+
+  const [isRevokingSession, setIsRevokingSession] = useState(false)
+  const [revokeError, setRevokeError] = useState<string | null>(null)
+  const [revokeErrorReason, setRevokeErrorReason] =
+    useState<SessionRevokeReason | null>(null)
 
   // When the owner changes (incl. initial mount / reconnect), hydrate the
   // active session from localStorage: a valid, non-expired stored session for
-  // this owner is reused WITHOUT prompting (the ephemeral key is already an
-  // HCA owner on-chain). This makes a 2nd registration within the session's
-  // lifetime skip the enable modal entirely. EOA-only mode keeps no session.
+  // this owner is reused WITHOUT prompting, because its owner-signed
+  // authorization is replayable until `validUntil` or a session-nonce bump.
+  // This makes a 2nd registration within the session's lifetime skip the enable
+  // modal entirely. EOA-only mode keeps no session.
   // Key the guard on BOTH addresses. On a page reload mid-registration the
   // owner resolves a tick BEFORE the HCA `accountAddress` does; keying only on
   // the owner would run this effect once (while `accountAddress` is still null,
@@ -534,7 +645,7 @@ export const SmartAccountContextProvider = ({
     const stored = getValidSessionForAccount({
       accountAddress,
       ownerAddress: sessionOwnerAddress,
-      chainId: customSepolia.id,
+      chainId: appChain.id,
     })
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
@@ -545,9 +656,8 @@ export const SmartAccountContextProvider = ({
     // WEB-287: `sessionOwnerAddress` is the VERIFIED owner (machine + wagmi
     // agree). If it is null while the machine still reports an owner, the
     // connected wallet diverges from the HCA's owner — refuse to enable a
-    // session for the wrong owner (it would add the ephemeral key as an owner of
-    // the wrong HCA / register to the wrong owner) rather than silently
-    // proceeding.
+    // session for the wrong owner (it would scope the session to the wrong HCA
+    // / register to the wrong owner) rather than silently proceeding.
     if (!baseClient || !accountAddress || !sessionOwnerAddress) {
       if (snapshot.context.ownerAddress && eoaAddress && !sessionOwnerAddress) {
         logger.error(
@@ -574,11 +684,11 @@ export const SmartAccountContextProvider = ({
     setIsEnablingSession(true)
     setSessionError(null)
     // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
-    const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
+    const alreadyDeployed = await rhinestoneAccount.isDeployed(appChain)
     const result = await resolveSessionActor({
       ownerAddress: sessionOwnerAddress,
       accountAddress,
-      chain: customSepolia,
+      chain: appChain,
       rhinestoneAccount,
       publicClient: wagmiPublicClient as unknown as PublicClient,
       alreadyDeployed,
@@ -606,7 +716,7 @@ export const SmartAccountContextProvider = ({
       rhinestoneApiKey,
       sessionContext: buildSessionContext({
         session: result.value.session,
-        chain: customSepolia,
+        chain: appChain,
         hca: accountAddress,
       }),
       sessionOwnerAddress,
@@ -621,6 +731,99 @@ export const SmartAccountContextProvider = ({
     eoaAddress,
     wagmiPublicClient,
   ])
+
+  // Revoke every session for this HCA on-chain.
+  //
+  // Unlike enable, this is NOT sponsored: `revokeSessions()` is `onlyOwner` and
+  // unreachable from the account's own execution paths, so it is a direct owner
+  // transaction that costs gas. That is what makes it authoritative — the
+  // validator keeps no session state and checks every session's owner-signed
+  // authorization against the account session nonce, so bumping that nonce
+  // kills copies that already left this device. Clearing localStorage alone
+  // would not.
+  const revokeSession = useCallback(
+    async (options?: RevokeSessionOptions): Promise<boolean> => {
+      if (isFeatureEnabled('USE_EOA')) return false
+      const walletAccount = wagmiWalletClient?.account
+      if (!accountAddress || !walletAccount || !wagmiPublicClient) {
+        setRevokeError(t`Connect your wallet to revoke sessions.`)
+        return false
+      }
+      // The transaction can outlive the account it was started for: an owner
+      // switch mid-flight tears down this HCA and hydrates the next owner's
+      // session. Applying this result then would clear a valid session
+      // belonging to someone else and force a needless re-authorization, so
+      // every state update below is gated on the account still being the one
+      // we revoked for.
+      const revokedAccount = accountAddress
+      const isStillCurrent = () => accountAddressRef.current === revokedAccount
+
+      setIsRevokingSession(true)
+      setRevokeError(null)
+      setRevokeErrorReason(null)
+      const result = await buildRevokeDeploymentCall({
+        deployFirst: options?.deployFirst ?? false,
+        client: baseClient,
+        hca: revokedAccount,
+        owner: walletAccount.address,
+      }).asyncAndThen((deploymentCall) =>
+        revokeSessionsOnChain({
+          walletClient: wagmiWalletClient as WalletClient,
+          publicClient: wagmiPublicClient as PublicClient,
+          chain: appChain,
+          hca: revokedAccount,
+          ...(deploymentCall ? { deploymentCall } : {}),
+        }),
+      )
+      // The spinner is global, so always clear it — no revoke is in flight for
+      // whatever account is current now. Only the session/error state below is
+      // account-specific and therefore gated.
+      setIsRevokingSession(false)
+      if (!isStillCurrent()) return result.isOk()
+      return result.match(
+        ({ deploymentTransactionHash }) => {
+          // `revokeSessionsOnChain` already dropped the stored row; clear the
+          // in-memory one so the gate re-prompts on the next action.
+          setActiveSession(null)
+          // The account machine still believes the HCA is counterfactual.
+          if (deploymentTransactionHash) send({ type: 'REFRESH' })
+          return true
+        },
+        (error) => {
+          logger.error('Session revocation failed', {
+            reason: error.reason,
+            message: error.message,
+          })
+          setRevokeErrorReason(error.reason)
+          setRevokeError(
+            error.reason === 'not-deployed'
+              ? t`Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first.`
+              : error.reason === 'not-owner'
+                ? t`The connected wallet doesn't own this smart account.`
+                : error.reason === 'wrong-chain'
+                  ? t`Switch your wallet to ${appChain.name} to revoke sessions.`
+                  : t`Couldn't revoke sessions. Please try again.`,
+          )
+          return false
+        },
+      )
+    },
+    [accountAddress, baseClient, wagmiWalletClient, wagmiPublicClient, send, t],
+  )
+
+  // Drop the saved session from THIS browser without touching the chain.
+  //
+  // Offered next to deploy-and-revoke for an undeployed HCA, for an owner who
+  // would rather not pay for two transactions. It is NOT revocation — a copy
+  // taken off this device stays usable once anyone deploys the account — so the
+  // UI must say so rather than presenting it as a kill.
+  const forgetLocalSession = useCallback((): void => {
+    if (!accountAddress) return
+    removeSession(accountAddress)
+    setActiveSession(null)
+    setRevokeError(null)
+    setRevokeErrorReason(null)
+  }, [accountAddress])
 
   // Resolve the START_REGISTRATION session-enable payload.
   //
@@ -642,7 +845,7 @@ export const SmartAccountContextProvider = ({
       activeSession && accountAddress
         ? buildSessionContext({
             session: activeSession,
-            chain: customSepolia,
+            chain: appChain,
             hca: accountAddress,
           })
         : undefined,
@@ -669,10 +872,10 @@ export const SmartAccountContextProvider = ({
       return null
     }
 
-    // HCA signer. A time-boxed-owner session, if active, is attached so
-    // registration Intents are signed by the ephemeral session key
-    // (prompt-free) via the HCA's preinstalled OwnableValidator — NOT
-    // SmartSessions, just an extra owner. `buildRhinestoneSigner` enforces the
+    // HCA signer. A scoped session, if active, is attached so registration
+    // Intents are signed by the ephemeral session key (prompt-free) via the
+    // HCA's `HCAOwnerAndSessionValidator` — a policy-scoped SmartSession, not
+    // an account owner. `buildRhinestoneSigner` enforces the
     // WEB-287 verified-owner guard before attaching it.
     return buildRhinestoneSigner({
       baseClient,
@@ -758,6 +961,11 @@ export const SmartAccountContextProvider = ({
             isEnablingSession: false,
             sessionError: null,
             enableSession,
+            isRevokingSession: false,
+            revokeError: null,
+            revokeErrorReason: null,
+            revokeSession,
+            forgetLocalSession,
             activeStoredSession: null,
             getSessionEnablePayload,
             refreshAccount,
@@ -792,6 +1000,11 @@ export const SmartAccountContextProvider = ({
             isEnablingSession,
             sessionError,
             enableSession,
+            isRevokingSession,
+            revokeError,
+            revokeErrorReason,
+            revokeSession,
+            forgetLocalSession,
             activeStoredSession: activeSession,
             getSessionEnablePayload,
             refreshAccount,
@@ -822,6 +1035,11 @@ export const SmartAccountContextProvider = ({
       isEnablingSession,
       sessionError,
       enableSession,
+      isRevokingSession,
+      revokeError,
+      revokeErrorReason,
+      revokeSession,
+      forgetLocalSession,
       getSessionEnablePayload,
       refreshAccount,
     ],

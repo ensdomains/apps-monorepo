@@ -2,8 +2,13 @@ import { vi } from 'vitest'
 
 export function makeMockQueue<T = unknown>() {
   return {
-    send: vi.fn(async (_message: T) => undefined),
-    sendBatch: vi.fn(async (_messages: Array<{ body: T }>) => undefined),
+    metrics: vi.fn(async () => ({ backlogCount: 0, backlogBytes: 0 })),
+    send: vi.fn(async (_message: T) => ({
+      metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } },
+    })),
+    sendBatch: vi.fn(async (_messages: Array<{ body: T }>) => ({
+      metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } },
+    })),
   }
 }
 
@@ -24,7 +29,8 @@ export function makeMockEnv(
     TELEGRAM_QUEUE: telegramQueue as unknown as Queue,
     EMAIL_QUEUE: emailQueue as unknown as Queue,
     PUSH_QUEUE: pushQueue as unknown as Queue,
-    ENS_INDEXER_GRAPHQL_URL: 'https://graphql.ens.dev/',
+    // The deployed worker always sets this; config resolution requires it.
+    CHAIN: 'sepolia',
     ...overrides,
   } as unknown as CloudflareBindings
 }

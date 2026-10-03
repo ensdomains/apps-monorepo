@@ -121,7 +121,8 @@ export const ManualInputStep = ({
       Enter manually
     </p>
     <p className="max-w-72.5 text-center text-ens-quartz-400 text-xs leading-ens-normal">
-      Paste an image URL. Supported formats include JPG, PNG, GIF, and WebP.
+      Paste an image URL. Supported formats include JPG, PNG, GIF, WebP, and
+      SVG.
     </p>
     <input
       aria-label="Image URL"

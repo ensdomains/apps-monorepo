@@ -5,15 +5,47 @@ vi.mock('#services/expiry-discovery/index.js', () => ({
   runExpiryDiscoveryCron: vi.fn(),
 }))
 
+vi.mock('#core/database/index.js', () => ({
+  getDatabase: vi.fn(() => ({})),
+}))
+
+vi.mock('#services/auth/cleanup.js', () => ({
+  cleanupExpiredAuthAttempts: vi.fn(),
+}))
+
+import { cleanupExpiredAuthAttempts } from '#services/auth/cleanup.js'
 import { runExpiryDiscoveryCron } from '#services/expiry-discovery/index.js'
 import { logger } from '#utils/logger.js'
-import { handleScheduled } from './index.js'
+import { AUTH_CLEANUP_CRON, handleScheduled } from './index.js'
 
 const mockRunExpiryDiscoveryCron = vi.mocked(runExpiryDiscoveryCron)
+const mockCleanupExpiredAuthAttempts = vi.mocked(cleanupExpiredAuthAttempts)
 
 describe('handleScheduled', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('dispatches the daily auth cleanup cron separately', async () => {
+    mockCleanupExpiredAuthAttempts.mockReturnValue(okAsync(3))
+
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined)
+
+    await handleScheduled(
+      {
+        cron: AUTH_CLEANUP_CRON,
+        scheduledTime: new Date('2026-02-11T03:17:00Z').getTime(),
+      } as ScheduledController,
+      {} as CloudflareBindings,
+      {} as ExecutionContext,
+    )
+
+    expect(mockCleanupExpiredAuthAttempts).toHaveBeenCalledTimes(1)
+    expect(mockRunExpiryDiscoveryCron).not.toHaveBeenCalled()
+    expect(infoSpy).toHaveBeenCalledWith('Scheduled auth cleanup completed', {
+      cron: AUTH_CLEANUP_CRON,
+      deletedAttempts: 3,
+    })
   })
 
   it('logs completion on success', async () => {

@@ -11,14 +11,22 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { changeResolver } from '../helpers/changeResolver'
+import {
+  changeResolver,
+  type ResolverWriteTarget,
+} from '../helpers/changeResolver'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
+/**
+ * Only a fallback. `ChangeResolverForm` passes a per-attempt id; a caller that
+ * omits one gets this fixed string and reintroduces the stale-actor problem
+ * this default exists to avoid silently.
+ */
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
 type UseChangeResolverParams = {
   readonly name: string
-  readonly registryAddress: Address
+  readonly target: ResolverWriteTarget
   readonly id?: string
 }
 
@@ -31,7 +39,7 @@ type UseChangeResolverParams = {
  */
 export const useChangeResolver = ({
   name,
-  registryAddress,
+  target,
   id = CHANGE_RESOLVER_TX_ID,
 }: UseChangeResolverParams) => {
   const chainId = sepoliaWithEns.id
@@ -51,7 +59,7 @@ export const useChangeResolver = ({
 
       return changeResolver({
         name,
-        registryAddress,
+        target,
         resolverAddress,
         walletClient,
         publicClient,

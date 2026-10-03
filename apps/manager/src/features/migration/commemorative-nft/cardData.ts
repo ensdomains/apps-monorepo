@@ -9,7 +9,6 @@ import {
 import type { CommemorativeNftEligibility } from './types'
 
 export const buildCommemorativeNftCardData = (params: {
-  readonly chainId: number
   readonly eligibility: CommemorativeNftEligibility
   readonly minted: boolean
   readonly ownerAddress: Address
@@ -22,11 +21,15 @@ export const buildCommemorativeNftCardData = (params: {
   return {
     assets: params.eligibility.assets,
     eligibility: params.eligibility,
-    marketplaceUrl: buildCommemorativeNftMarketplaceUrl({
-      chainId: params.chainId,
-      ownerAddress: params.ownerAddress,
-      minted: params.minted,
-    }),
-    shareUrls: buildCommemorativeNftShareUrls(shareTarget, params.minted),
+    marketplaceUrl: params.minted
+      ? buildCommemorativeNftMarketplaceUrl({
+          ownerAddress: params.ownerAddress,
+        })
+      : undefined,
+    shareUrls: buildCommemorativeNftShareUrls(
+      shareTarget,
+      params.minted,
+      params.eligibility.traits,
+    ),
   }
 }

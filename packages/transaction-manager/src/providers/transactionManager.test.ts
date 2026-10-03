@@ -1,7 +1,22 @@
-import type { Hash, Hex } from 'viem'
-import { describe, expect, it } from 'vitest'
+import {
+  createWalletClient,
+  custom,
+  type Hash,
+  type Hex,
+  type PublicClient,
+  type TransactionReceipt,
+  toHex,
+} from 'viem'
+import { sepolia } from 'viem/chains'
+import { afterEach, describe, expect, it } from 'vitest'
+import { waitForTransaction } from '../helpers/waitForTransaction'
+import type { EOASigner } from '../types/signer.types'
 import type { TransactionRequest } from '../types/transaction.types'
-import { buildArchivedTransaction } from './transactionManager'
+import {
+  type ArchivedTransaction,
+  buildArchivedTransaction,
+  transactionManager,
+} from './transactionManager'
 
 const TIMESTAMP = 1_700_000_000_000
 const HASH = '0xabc' as Hash
@@ -148,5 +163,128 @@ describe('buildArchivedTransaction', () => {
 
       expect(archived.request).toBe(customRequest)
     })
+  })
+})
+
+describe('retrying under the same transaction id', () => {
+  const TX_HASH = `0x${'ab'.repeat(32)}` as Hash
+
+  const signer: EOASigner = {
+    type: 'eoa',
+    walletClient: createWalletClient({
+      account: FROM,
+      chain: sepolia,
+      transport: custom({
+        request: async ({ method }) => {
+          if (method === 'eth_chainId') return toHex(sepolia.id)
+          if (method === 'eth_sendTransaction') return TX_HASH
+          throw new Error(`unexpected RPC call: ${method}`)
+        },
+      }),
+    }),
+  }
+
+  // A chain whose receipts come back with each of `statuses` in turn.
+  const publicClientWith = (statuses: TransactionReceipt['status'][]) =>
+    ({
+      waitForTransactionReceipt: async () => ({
+        status: statuses.shift(),
+        transactionHash: TX_HASH,
+        blockNumber: 1n,
+      }),
+    }) as unknown as PublicClient
+
+  afterEach(() => transactionManager.clear())
+
+  // The transaction modal's "Try again" re-runs a failed step under the same
+  // id, so the successful retry must still be archived and reported.
+  it('archives the retry of a failed run as well as the failure', async () => {
+    const archived: ArchivedTransaction[] = []
+    const unsubscribe = transactionManager.onTransactionArchived((tx) => {
+      archived.push(tx)
+    })
+    const publicClient = publicClientWith(['reverted', 'success'])
+    const start = () =>
+      transactionManager.startTransaction(customRequest, signer, {
+        id: 'tx-retry',
+        publicClient,
+      })
+
+    await expect(waitForTransaction(start())).rejects.toBeDefined()
+    await expect(waitForTransaction(start())).resolves.toMatchObject({
+      hash: TX_HASH,
+    })
+    unsubscribe()
+
+    expect(archived.map(({ txId, status }) => [txId, status])).toEqual([
+      ['tx-retry', 'error'],
+      ['tx-retry', 'success'],
+    ])
+  })
+})
+
+describe('automatic submission retry', () => {
+  const TX_HASH = `0x${'cd'.repeat(32)}` as Hash
+
+  // A wallet whose first eth_sendTransaction fails transiently.
+  const flakySigner = (): EOASigner => {
+    let sends = 0
+    return {
+      type: 'eoa',
+      walletClient: createWalletClient({
+        account: FROM,
+        chain: sepolia,
+        transport: custom(
+          {
+            request: async ({ method }) => {
+              if (method === 'eth_chainId') return toHex(sepolia.id)
+              if (method === 'eth_sendTransaction') {
+                sends += 1
+                if (sends === 1) throw new Error('socket hang up')
+                return TX_HASH
+              }
+              throw new Error(`unexpected RPC call: ${method}`)
+            },
+          },
+          { retryCount: 0 },
+        ),
+      }),
+    }
+  }
+
+  const publicClient = {
+    waitForTransactionReceipt: async () => ({
+      status: 'success',
+      transactionHash: TX_HASH,
+      blockNumber: 1n,
+    }),
+  } as unknown as PublicClient
+
+  afterEach(() => transactionManager.clear())
+
+  it('does not carry the failed attempt error into a successful run', async () => {
+    const archived: ArchivedTransaction[] = []
+    const unsubscribe = transactionManager.onTransactionArchived((tx) => {
+      archived.push(tx)
+    })
+
+    const txId = transactionManager.startTransaction(
+      customRequest,
+      flakySigner(),
+      { id: 'tx-auto-retry', publicClient, retryDelay: 0 },
+    )
+    await expect(waitForTransaction(txId)).resolves.toMatchObject({
+      hash: TX_HASH,
+    })
+    unsubscribe()
+
+    const snapshot = transactionManager.getTransaction(txId)?.getSnapshot()
+    expect(snapshot?.value).toBe('success')
+    expect(snapshot?.context.retryCount).toBe(1)
+    expect(snapshot?.context.error).toBeUndefined()
+
+    expect(archived).toHaveLength(1)
+    expect(archived[0]).toMatchObject({ txId, status: 'success' })
+    expect(archived[0].error).toBeUndefined()
   })
 })

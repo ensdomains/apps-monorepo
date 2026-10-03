@@ -2,6 +2,7 @@ import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
   MigrationApprovalId,
+  MigrationCleanupApproval,
 } from './migrationApprovals'
 import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
@@ -11,6 +12,7 @@ type RegistrationApprovalTarget = {
 }
 
 export type MigrationStepDescriptor =
+  | { readonly type: 'renew-grace'; readonly count: number }
   | { readonly type: 'deploy-hca' }
   | {
       readonly type: 'approval'
@@ -35,9 +37,14 @@ export type MigrationStepDescriptor =
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
   readonly approvals: readonly MigrationApproval[]
+  readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
 }
+
+export type MigrationWalletRequestDescriptor =
+  | MigrationStepDescriptor
+  | { readonly type: 'renewal-approval' }
 
 export const buildStepDescriptors = (
   params: BuildStepDescriptorsParams,
@@ -90,7 +97,7 @@ export const buildStepDescriptors = (
     })
   }
 
-  for (const approval of params.approvals) {
+  for (const approval of params.cleanupApprovals ?? params.approvals) {
     if (!requiresMigrationApprovalCleanup(approval)) continue
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }

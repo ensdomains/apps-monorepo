@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  useParams,
+  useRouterState,
+} from '@tanstack/react-router'
 import type { Address } from 'viem'
-import { useEnsResolver } from 'wagmi'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
@@ -10,15 +14,22 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
+import { DnsOutOfSyncBanner } from '@/features/dns-import/components/DnsOutOfSyncBanner'
+import { SyncManagerBanner } from '@/features/dns-import/components/SyncManagerBanner'
+import { useDnsSyncStatus } from '@/features/dns-import/hooks/useDnsSyncStatus'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
+import { DnsManagerRow } from '@/features/ownership/components/DnsManagerRow'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { ParentName } from '@/features/profile/components/ParentName'
-import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
+import {
+  ProtocolRow,
+  V1ProtocolRow,
+} from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
@@ -30,6 +41,7 @@ import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RegistrationSuccessBanner } from '@/features/register/components/RegistrationSuccessBanner'
+import { readRegistrationSuccessState } from '@/features/register/types/registrationSuccessState'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
@@ -45,26 +57,9 @@ import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
-type NameSearch = {
-  readonly registered?: boolean
-  readonly duration?: number
-  readonly paid?: string
-}
-
-const validateNameSearch = (search: Record<string, unknown>): NameSearch => {
-  if (search.registered !== true && search.registered !== 'true') return {}
-  const duration = Number(search.duration)
-  return {
-    registered: true,
-    duration: Number.isFinite(duration) ? duration : undefined,
-    paid: typeof search.paid === 'string' ? search.paid : undefined,
-  }
-}
-
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  validateSearch: validateNameSearch,
   loader: ({ params }) => {
     const tld = getTLD(params.name)
     return Promise.all([
@@ -83,11 +78,13 @@ const Profile = ({
   name: string
   resolverAddress?: Address
 }) => {
-  const { registered, duration, paid } = Route.useSearch()
-  const registrationBanner =
-    registered === true && duration !== undefined && paid !== undefined
-      ? { durationSeconds: duration, paid }
-      : null
+  // Read from history state, never the URL: a link is attacker-controlled, so
+  // search params here let anyone send a victim a page claiming they own a name
+  // they don't, with an arbitrary "Paid" figure. History state is only set by
+  // the in-app redirect that runs after a registration this session completed.
+  const registrationBanner = useRouterState({
+    select: (state) => readRegistrationSuccessState(state.location.state),
+  })
   const tld = getTLD(name)
   const isEthTld = tld === 'eth'
 
@@ -136,6 +133,17 @@ const Profile = ({
     protocolVersion: isEthTld
       ? (ownerQuery.data?.protocolVersion ?? 'ENSv2')
       : undefined,
+  })
+
+  const { address: connectedAddress } = useConnection()
+
+  // Sync state between an imported DNS name's `_ens` TXT record and its v1
+  // manager. Internally gated to onchain-imported DNS 2LDs.
+  const dnsSync = useDnsSyncStatus({
+    name,
+    manager: ownerQuery.data?.owner,
+    protocolVersion: ownerQuery.data?.protocolVersion,
+    connectedAddress,
   })
 
   const migrationQuery = useMigrationStatus(name, {
@@ -344,8 +352,7 @@ const Profile = ({
   // owner query hasn't resolved, and 'ENSv2' is the safe conservative choice.
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
-  const migration = migrationQuery.data
-  const { isMigratableByConnectedOwner } = migrationQuery
+  const { isMigratableByConnectedOwner, isWrapped } = migrationQuery
 
   // Suppress the upgrade prompt whenever the name is expired (grace period or
   // fully expired past grace) — the user must extend/renew first. The upgrade
@@ -368,7 +375,17 @@ const Profile = ({
         />
       )}
 
-      {showUpgradeBanner && <UpgradeBanner name={name} />}
+      {showUpgradeBanner && <UpgradeBanner name={name} isWrapped={isWrapped} />}
+
+      {dnsSync.status === 'syncable' && <SyncManagerBanner name={name} />}
+
+      {dnsSync.status === 'out-of-sync' && (
+        <DnsOutOfSyncBanner
+          name={name}
+          onRefresh={dnsSync.refresh}
+          isRefreshing={dnsSync.isRefreshing}
+        />
+      )}
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
@@ -398,6 +415,11 @@ const Profile = ({
             protocolVersion={resolvedProtocolVersion}
             label={grace.isInGrace ? 'Previous owner' : 'Owner'}
           />
+          <DnsManagerRow
+            name={name}
+            manager={ownerQuery.data.owner}
+            protocolVersion={resolvedProtocolVersion}
+          />
           <ParentName name={name} asRow />
           {resolverAddress && (
             <ResolverCard name={name} resolverAddress={resolverAddress} asRow />
@@ -408,11 +430,11 @@ const Profile = ({
             asRow
             protocolVersion={resolvedProtocolVersion}
           />
-          <ProtocolRow
-            protocolVersion={resolvedProtocolVersion}
-            migration={isMigratableByConnectedOwner ? migration : undefined}
-            isLoading={migrationQuery.isLoading}
-          />
+          {resolvedProtocolVersion === 'ENSv1' ? (
+            <V1ProtocolRow name={name} />
+          ) : (
+            <ProtocolRow protocolVersion={resolvedProtocolVersion} />
+          )}
         </div>
 
         {/* Counter cards */}

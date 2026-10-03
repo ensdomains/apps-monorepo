@@ -1,4 +1,5 @@
 import {
+  ChainIdMismatchError,
   SignerAddressMismatchError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
@@ -16,6 +17,10 @@ export const isRetryableSubmissionError = (error: unknown): boolean => {
 
   // The same signer and request fail this check every time.
   if (error instanceof SignerAddressMismatchError) return false
+
+  // The signer captured for this run is pinned to one chain, so every retry
+  // re-runs the identical comparison. The user has to switch networks first.
+  if (error instanceof ChainIdMismatchError) return false
 
   // A desynced nonce re-submits into the same conflict.
   const message = error instanceof Error ? error.message : ''

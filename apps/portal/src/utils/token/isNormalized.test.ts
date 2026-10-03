@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getLabelRegistrationError,
+  isCanonicalName,
   isNormalized,
   isValidEnsName,
 } from './isNormalized'
@@ -108,5 +109,37 @@ describe('getLabelRegistrationError', () => {
     expect(getLabelRegistrationError('bad name')).toMatch(
       /invalid or non-normalized/,
     )
+  })
+})
+
+describe('isCanonicalName', () => {
+  it('accepts a name that is already its own normalized form', () => {
+    expect(isCanonicalName('alice.eth')).toBe(true)
+    expect(isCanonicalName('sub.alice.eth')).toBe(true)
+    expect(isCanonicalName('ñ.eth')).toBe(true)
+  })
+
+  // These are the spellings that make a write sign for a different token than
+  // the one on screen: they normalize to a *different*, separately-owned label.
+  it('rejects spellings that normalize to a different label', () => {
+    expect(isCanonicalName('ALICE.eth')).toBe(false)
+    expect(isCanonicalName('ａlice.eth')).toBe(false)
+    expect(isCanonicalName('alice.ETH')).toBe(false)
+  })
+
+  it('rejects names that cannot be normalized at all', () => {
+    expect(isCanonicalName('')).toBe(false)
+    expect(isCanonicalName('alice..eth')).toBe(false)
+    expect(isCanonicalName('bad name.eth')).toBe(false)
+  })
+
+  // Stricter than `isValidEnsName`, which accepts these for display: a label
+  // known only by its hash can't be hashed back, so `getLabel` would throw or
+  // name something else.
+  it('rejects encoded labelhashes that isValidEnsName allows', () => {
+    const name =
+      '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f939773].eth'
+    expect(isValidEnsName(name)).toBe(true)
+    expect(isCanonicalName(name)).toBe(false)
   })
 })

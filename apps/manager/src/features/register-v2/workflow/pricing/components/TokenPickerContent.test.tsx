@@ -96,6 +96,35 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })
 
+  it('tells the user when their account already covers the registration', () => {
+    // Otherwise a fully-funded HCA silently skips the approval prompt they saw
+    // on the previous attempt, which reads as a step going missing.
+    renderPicker({
+      infoMessage:
+        'Your account already holds the 330.20 USDC this registration needs.',
+      selectedToken: 'USDC',
+    })
+
+    expect(
+      screen.getByText(/your account already holds the 330\.20 usdc/i),
+    ).toBeInTheDocument()
+  })
+
+  it('suppresses the funded note when there is an error to show', () => {
+    // "You are already funded" printed under a funding failure is a
+    // contradiction, and the error is the actionable half.
+    renderPicker({
+      errorMessage: 'Not enough USDC.',
+      infoMessage: 'Your account already holds 100.00 USDC.',
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Not enough USDC.')).toBeInTheDocument()
+    expect(
+      screen.queryByText(/your account already holds/i),
+    ).not.toBeInTheDocument()
+  })
+
   it('blocks checkout when the wallet cannot cover the debit', () => {
     // The 1,000 USDC balance covers the 330 rent but not the 2,000 debit —
     // gating on the debit is what makes this fail.
@@ -110,5 +139,27 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('blocks checkout when the budget quote failed', () => {
+    // Immunefi #93021: the wallet affords the 330 rent, but the rent is not
+    // what the registration costs, so proceeding strands the commitment.
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps the "up to" hedge when the budget quote failed', () => {
+    // The total falls back to the rent — a lower bound, not an exact price.
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
+
+    expect(screen.getByText('up to')).toBeInTheDocument()
+  })
+
+  it('leaves the EOA route alone, which has no budget to quote', () => {
+    renderPicker({ selectedToken: 'USDC' })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(screen.queryByText('up to')).not.toBeInTheDocument()
   })
 })

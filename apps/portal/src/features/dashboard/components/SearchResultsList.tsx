@@ -89,7 +89,7 @@ const SectionLegend = ({
 )
 
 type SearchResultsListData = {
-  suggestions: Suggestion[]
+  suggestions: readonly Suggestion[]
   ownerBySuggestionId: Map<
     string,
     | {

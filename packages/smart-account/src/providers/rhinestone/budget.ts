@@ -8,9 +8,10 @@
  *     budget = commitLegCost           (commit intent, USDC the orchestrator
  *                                       actually pulls)
  *            + registerLegCost         (register intent, USDC)
- *            + 3% buffer of registerLegCost  (gas-spike headroom in the ~60s
- *                                             commit→reveal cooldown)
  *            + registrationPrice       (the .eth rent, USDC)
+ *
+ * There is NO percentage buffer — see the `total` computation for why one would
+ * be a guess layered on a derived number.
  *
  * PREFERRED sizing (`quoteLegCostUsdc`): each leg's USDC cost comes straight
  * from Rhinestone's own quote — `account.prepareTransaction(...)` returns
@@ -18,6 +19,10 @@
  * orchestrator will pull for that intent. This is immune to the caller's local
  * gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei even when the
  * tx settles at ~1-2 gwei, which massively over-sizes a gas×price model).
+ *
+ * A quote is only as good as the gas LIMIT it is taken at, since the rail never
+ * inspects the calls — so {@link HCA_LEG_GAS_LIMITS} and
+ * {@link registerLegGasLimit} are the real budget.
  *
  * FALLBACK sizing (no quoter, or the quote throws): price the leg from its gas
  * LIMIT × gas price × ETH/USDC — a rough upper bound, used only when the
@@ -35,6 +40,7 @@
  */
 
 import type { PublicClient } from 'viem'
+import { formatUnits } from 'viem'
 import { getDestinationContracts } from './manifest'
 import { readRegisterPrice } from './registration-calls'
 
@@ -49,8 +55,21 @@ export const HCA_LEG_GAS_LIMITS = {
   // rail prices the quote on this LIMIT, so it must cover the full bundle or a
   // successful quote could underfund the HCA and revert the first commit.
   commit: 450_000n,
+  // Approve + register + record setters, WITHOUT the conditional resolver
+  // deploy — `registerLegGasLimit` adds that on top.
   register: 450_000n,
 } as const
+
+/**
+ * Gas for the conditional `deployProxy` that `buildRevealBatch` prepends when
+ * the HCA has no `PermissionedResolver` — i.e. on every FIRST registration.
+ *
+ * Measured at ~185_900 execution gas, flat, via `eth_estimateGas` against the
+ * deployed Sepolia `VerifiableFactory` (`0x9e726Eb5…`); rounded up for headroom.
+ * Leaving it unpriced under-sized the permit by ~41% of the leg (Immunefi
+ * #89462) — see {@link registerLegGasLimit} for why the quote cannot see it.
+ */
+export const HCA_RESOLVER_DEPLOY_GAS = 210_000n
 
 /**
  * Gas for the first storage word of the primary name, plus the fixed overhead
@@ -105,22 +124,32 @@ export function primaryNameGas(name: string): bigint {
   )
 }
 
+/** What varies in the reveal batch, and therefore in what the leg costs. */
+export interface RegisterLegShape {
+  /**
+   * Whether the HCA's `PermissionedResolver` already has code. Required, not
+   * defaulted: `false` is both the common case and the expensive one, and
+   * defaulting either way is what let the deploy go unpriced.
+   */
+  readonly isResolverDeployed: boolean
+  /** The primary name the batch will set, or `undefined` when opted out. */
+  readonly primaryName?: string
+}
+
 /**
- * The `register` leg's gas limit, widened when the batch sets a primary name.
+ * The `register` leg's gas limit — the ONLY thing that funds the leg, since
+ * `/intents/route` prices purely on `destinationGasUnits` and never inspects
+ * the calls (verified live: 450k costs the same at 5 or 6 executions). So every
+ * conditional call in `buildRevealBatch` must be added here or it is unfunded.
  *
- * This bump is what actually funds the extra call. Verified against the live
- * orchestrator: `/intents/route` prices purely on `destinationGasUnits` — the
- * same request at 450k costs an identical 3277666 (6dp) whether the batch
- * carries 5 executions or 6, while 450k → 510k moves it to ~3539296. So the
- * quote never sees the call; it only ever sees this number. An under-sized
- * limit under-funds the permit and the fill then fails for insufficient USDC.
- * Over-sizing only leaves spare USDC in the HCA, which the next registration
- * reuses.
+ * Under-sizing strands a paid-for commitment; over-sizing only leaves spare
+ * USDC in the HCA for the next registration.
  */
-export function registerLegGasLimit(primaryName?: string): bigint {
+export function registerLegGasLimit(shape: RegisterLegShape): bigint {
   return (
     HCA_LEG_GAS_LIMITS.register +
-    (primaryName ? primaryNameGas(primaryName) : 0n)
+    (shape.isResolverDeployed ? 0n : HCA_RESOLVER_DEPLOY_GAS) +
+    (shape.primaryName ? primaryNameGas(shape.primaryName) : 0n)
   )
 }
 
@@ -138,6 +167,99 @@ const FALLBACK_MAX_GAS_PRICE_WEI = 5_000_000_000n
 
 /** Last-resort flat fallback per leg (USDC 6dp) when even the quote metadata is absent. */
 const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
+
+/**
+ * Ceiling (USDC, 6dp) on the COMBINED execution cost of the commit + register
+ * legs — the margin the orchestrator's own figures are allowed to occupy on top
+ * of the registration price.
+ *
+ * WHY A CEILING AT ALL. `commitCost` and `registerCost` are parsed straight out
+ * of an HTTP response from the orchestrator and summed into the value of an
+ * EIP-2612 permit the user is then asked to sign. Without a bound, a defect or
+ * compromise on that side reaches the wallet unfiltered: the response names the
+ * number and we sign for it. The price half of the budget is read on-chain by
+ * us, so it needs no bounding — only the fee half does.
+ *
+ * WHY 25 USDC. Live Sepolia fills price the commit leg at ~0.9 USDC and the
+ * 450k-gas register leg at ~3.3 USDC, so a healthy route uses ~4.2 of this. The
+ * bound is set at roughly 6x that, which is also just above what the clamped
+ * fallback model can produce at its own 5 gwei cap (~950k gas × 5 gwei ≈ 0.0048
+ * ETH, ~19 USDC at $4000/ETH) — so a legitimate gas regime, even a spiky one,
+ * never trips it. It is a sanity bound on a fund-moving figure, not a budget
+ * target.
+ *
+ * REVISIT ON MAINNET. The manifest is testnet-only today (sepolia +
+ * baseSepolia). A mainnet deployment prices legs in real gas and must re-derive
+ * this from that chain's own fills rather than inherit the testnet number.
+ */
+export const HCA_MAX_LEG_FEES_USDC = 25_000_000n
+
+/**
+ * The largest funding budget (USDC, 6dp) this route will ever ask a wallet to
+ * permit for `registrationPrice`, computed WITHOUT reference to the
+ * orchestrator's figures: the price comes from our own `getRegisterPrice` read
+ * and the margin is {@link HCA_MAX_LEG_FEES_USDC}.
+ */
+export function hcaBudgetMaximum(registrationPrice: bigint): bigint {
+  return registrationPrice + HCA_MAX_LEG_FEES_USDC
+}
+
+/**
+ * Drift (basis points) allowed between a USDC figure shown to the user and the
+ * one a later re-quote produces for the same action.
+ *
+ * Checkout and the registration machine each take their own quote, up to
+ * `HCA_BUDGET_STALE_TIME_MS` apart, so the two legitimately disagree whenever
+ * the destination gas price moves in between. 25% of the TOTAL is a generous
+ * allowance on the fee component (the price dominates the total and is read
+ * on-chain), while still bounding how far above the displayed figure a permit
+ * may be signed. Divergence DOWNWARD is never checked: a user shown more than
+ * they are asked to approve has not been misled.
+ */
+const HCA_BUDGET_DRIFT_BPS = 2_500n
+
+/** `value` widened by {@link HCA_BUDGET_DRIFT_BPS}. */
+export function withBudgetDrift(value: bigint): bigint {
+  return value + (value * HCA_BUDGET_DRIFT_BPS) / 10_000n
+}
+
+/**
+ * The orchestrator quoted a budget above {@link hcaBudgetMaximum}.
+ *
+ * Thrown rather than clamped: a figure this far out means the quote is wrong or
+ * the response was tampered with, and either way the safe move is to stop
+ * before a signature is requested, not to sign for a capped amount.
+ */
+export class HcaBudgetExceedsMaximumError extends Error {
+  readonly total: bigint
+  readonly expectedMaximum: bigint
+  readonly registrationPrice: bigint
+
+  constructor(params: {
+    total: bigint
+    expectedMaximum: bigint
+    registrationPrice: bigint
+    commitCost: bigint
+    registerCost: bigint
+  }) {
+    super(
+      `Refusing to size a funding permit from this quote: the orchestrator ` +
+        `priced the registration at ${usdc(params.total)} USDC, above the ` +
+        `expected maximum of ${usdc(params.expectedMaximum)} USDC ` +
+        `(on-chain price ${usdc(params.registrationPrice)} USDC + ` +
+        `${usdc(HCA_MAX_LEG_FEES_USDC)} USDC of execution costs). ` +
+        `Quoted legs: commit ${usdc(params.commitCost)} USDC, register ` +
+        `${usdc(params.registerCost)} USDC.`,
+    )
+    this.name = 'HcaBudgetExceedsMaximumError'
+    this.total = params.total
+    this.expectedMaximum = params.expectedMaximum
+    this.registrationPrice = params.registrationPrice
+  }
+}
+
+/** Format a 6dp USDC amount for an error message. */
+const usdc = (amount: bigint): string => formatUnits(amount, 6)
 
 /**
  * Market data the orchestrator returns alongside a quote
@@ -220,6 +342,11 @@ export interface HcaBudgetParams {
    * the cost scales with its storage words.
    */
   readonly primaryName?: string
+  /**
+   * See {@link RegisterLegShape}. Must be the same value the caller hands
+   * `buildRevealBatch`, so the budget and the batch cannot disagree.
+   */
+  readonly isResolverDeployed: boolean
 }
 
 export interface HcaBudgetBreakdown {
@@ -228,6 +355,14 @@ export interface HcaBudgetBreakdown {
   readonly commitCost: bigint
   readonly registerCost: bigint
   readonly registrationPrice: bigint
+  /**
+   * The independent ceiling {@link total} was checked against — on-chain price
+   * plus {@link HCA_MAX_LEG_FEES_USDC}, derived without the orchestrator's
+   * figures. Carried on the breakdown so the permit can be bounded by the same
+   * number the estimate was accepted under, rather than re-deriving it from a
+   * price read a second time.
+   */
+  readonly expectedMaximum: bigint
   /** Which source produced the leg costs. */
   readonly source: 'quote' | 'fallback' | 'mixed'
   /**
@@ -270,6 +405,12 @@ export async function estimateHcaBudget(
     0n,
   )
 
+  // What the reveal batch will contain, and so what the leg must be funded for.
+  const registerGasLimit = registerLegGasLimit({
+    isResolverDeployed: params.isResolverDeployed,
+    ...(params.primaryName ? { primaryName: params.primaryName } : {}),
+  })
+
   // Best-effort quote per leg.
   const quotedCommit = await tryQuote(
     params.quoteLegCostUsdc,
@@ -311,23 +452,29 @@ export async function estimateHcaBudget(
         : FALLBACK_LEG_FEE_6DP
     fallbackRegister =
       prices && market
-        ? fallbackLegFee6dp(
-            registerLegGasLimit(params.primaryName),
-            market.gasPriceWei,
-            prices,
-          )
+        ? fallbackLegFee6dp(registerGasLimit, market.gasPriceWei, prices)
         : FALLBACK_LEG_FEE_6DP
   }
 
   const commitCost = quotedCommit.value ?? (fallbackCommit as bigint)
   const registerCost = quotedRegister.value ?? (fallbackRegister as bigint)
 
-  // No percentage buffer: both quotes price the REAL batches — HCA deploy via
-  // the SDK's setup ops, commit, the conditional resolver `deployProxy`,
-  // `authorizeNameRoles`, and register — so every cost component is already
-  // summed here rather than approximated. A buffer on top only papered over
-  // quotes that failed, which is now surfaced instead (see `source`).
+  // No percentage buffer: each leg is priced from a gas limit already derived
+  // from the batch that will be submitted. A multiplier on a limit that misses
+  // a call still misses the call — the fix is to add it to the limit. It also
+  // only ever papered over failed quotes, which `source` surfaces instead.
   const total = commitCost + registerCost + registrationPrice
+
+  // Bound the figures that came from the orchestrator against one we derived
+  // ourselves. `registrationPrice` is our own on-chain read, so the only
+  // externally-supplied part of `total` is the leg costs — and this is the last
+  // point before that sum becomes the value of a permit the user signs.
+  const expectedMaximum = assertBudgetWithinMaximum({
+    total,
+    registrationPrice,
+    commitCost,
+    registerCost,
+  })
 
   const source: HcaBudgetBreakdown['source'] =
     quotedCommit.value !== null && quotedRegister.value !== null
@@ -341,9 +488,31 @@ export async function estimateHcaBudget(
     commitCost,
     registerCost,
     registrationPrice,
+    expectedMaximum,
     source,
     ...(fallbackReasons.length > 0 ? { fallbackReasons } : {}),
   }
+}
+
+/**
+ * Check a quoted budget against {@link hcaBudgetMaximum} and return the ceiling
+ * it passed, so callers can carry it forward to bound the permit itself.
+ *
+ * Throws rather than returning a flag: there is no sensible way to continue
+ * with a budget this code does not believe, and the whole point is that no
+ * signature is requested.
+ */
+function assertBudgetWithinMaximum(params: {
+  total: bigint
+  registrationPrice: bigint
+  commitCost: bigint
+  registerCost: bigint
+}): bigint {
+  const expectedMaximum = hcaBudgetMaximum(params.registrationPrice)
+  if (params.total > expectedMaximum) {
+    throw new HcaBudgetExceedsMaximumError({ ...params, expectedMaximum })
+  }
+  return expectedMaximum
 }
 
 /**

@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/migration",
   "version": "1.0.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "exports": {
@@ -9,9 +10,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/config": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "viem": "catalog:"

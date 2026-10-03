@@ -13,7 +13,8 @@ const ENCODED_LABELHASH_RE = /^\[[0-9a-f]{64}\]$/
 export const isEncodedLabelhash = (label: string) =>
   ENCODED_LABELHASH_RE.test(label)
 
-const isNormalizedLabel = (label: string) => {
+/** `label` is already its own ENSIP-15 form (so it names the token its hash names). */
+export const isNormalizedLabel = (label: string) => {
   try {
     return ens_normalize(label) === label
   } catch {
@@ -25,6 +26,25 @@ export const isNormalized = (name: string) =>
   name
     .split('.')
     .every((label) => isEncodedLabelhash(label) || isNormalizedLabel(label))
+
+/**
+ * The name is spelled exactly as ENSIP-15 normalises it, so the label on screen
+ * is the label every hash is taken over.
+ *
+ * Stricter than {@link isValidEnsName}, which also accepts encoded labelhashes:
+ * a `[…]` label is displayable but can't be hashed back to a label, so a flow
+ * that re-derives a token id from it (via `getLabel`) would key off a different
+ * name than the one shown. Gate *writes* on this; `isValidEnsName` stays the
+ * gate for display.
+ */
+export const isCanonicalName = (name: string) => {
+  if (!name) return false
+  try {
+    return ens_normalize(name) === name
+  } catch {
+    return false
+  }
+}
 
 /**
  * Check if a name is a valid ENS name.

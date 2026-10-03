@@ -2,7 +2,7 @@
  * Standalone-HCA registration actors (user-paid USDC route).
  *
  * These target the STANDALONE-HCA deployment (via `@ens-apps/smart-account`'s
- * manifest) — a different contract set from `ENS_SEPOLIA_CONTRACTS`, which the
+ * manifest) — a different contract set from the chain's ENS contracts, which the
  * pure-EOA path (portal) keeps using untouched.
  *
  * Route shape (per the "HCA: New" handoff doc; NO gas sponsorship):
@@ -21,6 +21,7 @@
  *       setters → setNameWithHCA?).
  */
 
+import { requireChainId } from '@ens-apps/config'
 import {
   buildCommitCall,
   buildRevealBatch,
@@ -35,9 +36,21 @@ import {
   readCommitment,
   readRegisterPrice,
   registerLegGasLimit,
+  withBudgetDrift,
 } from '@ens-apps/smart-account'
+import { ethRegistrarCommitmentsSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import {
+  permissionedRegistryGetResolverSnippet,
+  permissionedRegistryGetStateSnippet,
+  permissionedRegistryGetSubregistrySnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Transaction } from '@rhinestone/sdk'
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromPromise,
+  fromThrowable,
+  type ResultAsync,
+} from 'neverthrow'
 import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
@@ -48,9 +61,10 @@ import {
   parseAbi,
   parseSignature,
   stringToHex,
+  zeroAddress,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
-import { sepolia } from 'viem/chains'
+import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -58,7 +72,11 @@ import type {
   RhinestoneTransactionRequest,
   SessionEnableData,
 } from '../../types/transaction.types'
-import type { PermitSignature } from './registration.actors'
+import {
+  type PermitSignature,
+  pollUntilVerified,
+  type VerifyPollOptions,
+} from './registration.actors'
 
 type CommitmentData = {
   commitment: Hash
@@ -82,14 +100,13 @@ const erc2612Abi = parseAbi([
   'function balanceOf(address account) view returns (uint256)',
 ])
 
-const permissionedRegistryAbi = parseAbi([
-  'struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
-  'function getState(uint256 anyId) view returns (State state)',
-  'function getResolver(string label) view returns (address)',
-])
-
 /** `IPermissionedRegistry.Status.REGISTERED` */
 const STATUS_REGISTERED = 2
+
+// `expiry` is `registerTime + duration`, so this only has to cover reveal →
+// check latency. Far below any registerable duration, so a hostile
+// minimum-duration registration can't hide inside it.
+const EXPIRY_SLACK_SECONDS = 60n * 60n
 
 // Comfortably covers the commitment cooldown plus relayer latency. Permits are
 // single-use (nonce-bound), so a generous deadline is not a replay risk.
@@ -303,6 +320,25 @@ function sessionSigners(
   }
 }
 
+/**
+ * Decides whether `buildRevealBatch` prepends `deployProxy`, and therefore
+ * whether `registerLegGasLimit` funds it. Shared so the budget and the
+ * submitted batch cannot disagree.
+ */
+async function isResolverDeployed(params: {
+  publicClient: PublicClient
+  chainId: number
+  hca: Address
+}): Promise<boolean> {
+  const code = await params.publicClient.getCode({
+    address: computeResolverAddress({
+      chainId: params.chainId,
+      hca: params.hca,
+    }),
+  })
+  return Boolean(code && code !== '0x')
+}
+
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
@@ -317,7 +353,15 @@ export function estimateHcaBudgetActor(input: {
    */
   primaryName?: string
 }): ResultAsync<HcaBudgetBreakdown, Error> {
-  const label = cleanLabel(input.name)
+  // This label prices the registration and sizes the funding permit, so a
+  // non-canonical one funds a different name than the reveal batch registers.
+  // Wrapped because the refusal must be an `err`, not a throw.
+  const labelResult = fromThrowable(canonicalLabel, (error) =>
+    error instanceof Error ? error : new Error(String(error)),
+  )(input.name)
+  if (labelResult.isErr()) return errAsync(labelResult.error)
+  const label = labelResult.value
+
   const chainId = input.chainId
 
   // Build a best-effort per-leg quoter whenever we have a Rhinestone account.
@@ -334,7 +378,9 @@ export function estimateHcaBudgetActor(input: {
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
-  const quoteLegCostUsdc =
+  // Takes `resolverDeployed` rather than reading it per call, so the batch and
+  // the gas limit that funds it are built from one value.
+  const makeQuoter = (resolverDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
@@ -375,14 +421,11 @@ export function estimateHcaBudgetActor(input: {
             label,
             duration: input.duration,
           })
-          const resolverCode = await input.publicClient.getCode({
-            address: resolver,
-          })
           const revealCalls = buildRevealBatch({
             chainId,
             hca,
             resolver,
-            resolverDeployed: Boolean(resolverCode && resolverCode !== '0x'),
+            resolverDeployed,
             label,
             // The name recipient (wallet). A placeholder is fine for a gas/cost
             // quote — the orchestrator prices the intent by size, not by owner.
@@ -396,15 +439,18 @@ export function estimateHcaBudgetActor(input: {
             // orchestrator: an identical request differing only in this call
             // prices to the same USDC unit (450k gas limit, 5 vs 6 executions
             // → 3277666 both times). The rail prices `/intents/route` purely
-            // on `destinationGasUnits`, so what actually funds this call is
-            // `registerLegGasLimit` below.
+            // on `destinationGasUnits`, so what actually funds these calls is
+            // `registerLegGasLimit` below, built from the same inputs.
             ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
             chain,
             toCalls(revealCalls),
-            registerLegGasLimit(input.primaryName),
+            registerLegGasLimit({
+              isResolverDeployed: resolverDeployed,
+              ...(input.primaryName ? { primaryName: input.primaryName } : {}),
+            }),
             signers,
             incomingUsdc,
           )
@@ -413,16 +459,32 @@ export function estimateHcaBudgetActor(input: {
 
   return fromPromise(
     (async () => {
+      const hca = rhinestone
+        ? (rhinestone.account.getAddress() as Address)
+        : undefined
+
       // Read the HCA balance here rather than relying on `checkingHcaFunding`,
       // which runs AFTER this state — the auxiliary-funds declaration must not
       // include funds the HCA already holds.
-      const hcaBalanceUsdc = rhinestone
+      const hcaBalanceUsdc = hca
         ? await readHcaUsdcBalanceActor({
-            hca: rhinestone.account.getAddress() as Address,
+            hca,
             publicClient: input.publicClient,
             chainId,
           }).unwrapOr(0n)
         : 0n
+
+      // One read, feeding both the batch and the limit that funds it. Not
+      // caught: an unsized leg must fail loudly, not fund the permit short.
+      const resolverDeployed = hca
+        ? await isResolverDeployed({
+            publicClient: input.publicClient,
+            chainId,
+            hca,
+          })
+        : false
+
+      const quoteLegCostUsdc = makeQuoter(resolverDeployed)
 
       const breakdown = await estimateHcaBudget({
         publicClient: input.publicClient,
@@ -430,6 +492,7 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
+        isResolverDeployed: resolverDeployed,
         ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
@@ -475,6 +538,30 @@ const toCalls = (calls: readonly HcaCall[]): Call[] =>
   calls.map((c) => ({ to: c.to, data: c.data, value: c.value }))
 
 const cleanLabel = (name: string): string => name.replace(/\.eth$/, '')
+
+/**
+ * The label for a call that will be signed, hashed or registered.
+ *
+ * `keccak256(label)` is the name's identity, so a non-canonical label buys a
+ * different name than the confirm step displayed and priced. The app
+ * canonicalises at the entry of the flow; this is the last line before the
+ * wallet, and it refuses rather than signs.
+ */
+const canonicalLabel = (name: string): string => {
+  const label = cleanLabel(name)
+
+  // `normalize` throws on a label ENS can never issue; its own error says
+  // which, so let it through.
+  const normalized = normalize(label)
+
+  if (normalized !== label) {
+    throw new Error(
+      `Refusing to register "${label}": its canonical form is "${normalized}", so it would register a different name than the one shown.`,
+    )
+  }
+
+  return label
+}
 
 /** User-paid request shape shared by both legs. */
 function buildUserPaidRequest(params: {
@@ -534,11 +621,76 @@ export function readHcaUsdcBalanceActor(input: {
 }
 
 /**
+ * Bounds a funding permit's value must satisfy before the wallet is asked to
+ * sign it. Both are optional and independent — each rules out a different way
+ * the value could be wrong.
+ */
+export interface PermitValueBounds {
+  /**
+   * Ceiling (USDC 6dp) derived WITHOUT the orchestrator's figures — the
+   * on-chain registration price plus a fixed execution-cost margin
+   * (`hcaBudgetMaximum`). Catches a quote that is simply too large, whatever
+   * the user was or was not shown.
+   */
+  readonly expectedMaximum?: bigint
+  /**
+   * The USDC (6dp) figure the user was shown for THIS debit before the prompt.
+   * Catches a value that is plausible on its own but is not the one consented
+   * to. Only an upward divergence beyond `withBudgetDrift` refuses: being asked
+   * to approve less than was displayed has not misled anyone, and the two
+   * figures come from separate quotes that legitimately drift with gas.
+   */
+  readonly displayedValue?: bigint
+}
+
+/**
+ * Why this permit value must not be signed, or `null` when it is in bounds.
+ *
+ * Pure and exported so the refusal is testable without a wallet: the whole
+ * point of the check is that it happens BEFORE any signature is requested.
+ */
+export function rejectPermitValue(
+  value: bigint,
+  bounds: PermitValueBounds,
+): string | null {
+  if (bounds.expectedMaximum !== undefined && value > bounds.expectedMaximum) {
+    return (
+      `Refusing to request a signature: the funding permit would authorize ` +
+      `${formatUnits(value, 6)} USDC, above the expected maximum of ` +
+      `${formatUnits(bounds.expectedMaximum, 6)} USDC for this registration. ` +
+      `The amount is quoted by the payment relayer and this bound is computed ` +
+      `independently from the on-chain price, so a value above it means the ` +
+      `quote cannot be trusted.`
+    )
+  }
+
+  if (bounds.displayedValue !== undefined) {
+    const allowed = withBudgetDrift(bounds.displayedValue)
+    if (value > allowed) {
+      return (
+        `Refusing to request a signature: the funding permit would authorize ` +
+        `${formatUnits(value, 6)} USDC, but ` +
+        `${formatUnits(bounds.displayedValue, 6)} USDC was shown at checkout. ` +
+        `Please start the registration again so the amount you approve is the ` +
+        `amount you were quoted.`
+      )
+    }
+  }
+
+  return null
+}
+
+/**
  * Sign the HCA funding permit — the SECOND (and last) wallet prompt:
  * EIP-2612 permit with `owner = wallet`, `spender = HCA`, `value = budget`.
  *
  * NOT a registrar allowance: the registrar is paid by the HCA itself inside
  * the reveal batch (`approve(price)` from the HCA's own balance).
+ *
+ * `value` ultimately traces back to figures the orchestrator returned over
+ * HTTP, so callers pass {@link PermitValueBounds} and this refuses outright
+ * rather than prompting. Both are optional because one caller (a `hcaBudget`
+ * override supplied by the app itself) has no orchestrator figure to bound.
  */
 export function signFundingPermitActor(input: {
   wallet: Address
@@ -547,7 +699,15 @@ export function signFundingPermitActor(input: {
   approvalSigner: Signer
   publicClient: PublicClient
   chainId: number
+  bounds?: PermitValueBounds
 }): ResultAsync<PermitSignature, Error> {
+  // Before anything else, including the RPC reads: a refusal must never reach
+  // the wallet, and must not depend on a network round-trip succeeding first.
+  const refusal = input.bounds
+    ? rejectPermitValue(input.value, input.bounds)
+    : null
+  if (refusal) return errAsync(new Error(refusal))
+
   if (input.approvalSigner.type !== 'eoa') {
     return errAsync(
       new Error('Funding permit requires an EOA signer (the wallet).'),
@@ -665,6 +825,19 @@ export function signFundingPermitActor(input: {
         Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
       )
 
+      // Observability contract — do not remove. The resume e2e counts wallet
+      // prompts by matching this exact line, because the whole cost of a
+      // resumed registration is meant to be ONE permit re-signature: the
+      // permit is deliberately not persisted (1h deadline, untracked nonce),
+      // so `checkingAllowance → signingPermit` re-signs it. A second prompt
+      // means the flow restarted rather than resumed. Values are interpolated
+      // into the string, not passed as an object arg — Playwright's
+      // `msg.text()` renders object args as `JSHandle@object`, which is
+      // unmatchable.
+      console.log(
+        `📊 [TRANSACTION MANAGER] Funding permit signing: wallet=${input.wallet} value=${input.value.toString()}`,
+      )
+
       const signature = await signTypedData(walletClient, {
         account,
         domain,
@@ -725,9 +898,9 @@ export function submitFundingAndCommitActor(input: {
 > {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
@@ -825,51 +998,151 @@ export function submitFundingAndCommitActor(input: {
 }
 
 /**
- * Verify a standalone-HCA registration on the NEW registry: the label must be
- * REGISTERED, `latestOwner` must be the WALLET (the registrar always assigns
- * the name to the wallet, never the HCA), and the registry resolver must be
- * the HCA's PermissionedResolver proxy.
+ * Verify that THIS flow's reveal registered the name — a pass sends the machine
+ * to `success`, so "some registration exists" is not enough. Status, owner and
+ * resolver are all caller-supplied `register` args, and registration is
+ * permissionless in the owner, so an attacker can match all three.
+ *
+ * `commitmentAt == 0` is the unforgeable check: the preimage holds our secret,
+ * `register` deletes what it consumes and `commit` only writes. Every path into
+ * `commitmentCooldown` confirms the commitment first, so zero means consumed.
  */
-export function verifyHcaRegistrationActor(input: {
-  name: string
-  wallet: Address
-  hca: Address
-  publicClient: PublicClient
-}): ResultAsync<{ verified: boolean }, Error> {
-  return fromPromise(
-    (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
-      const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
-      const expectedResolver = computeResolverAddress({
-        chainId,
-        hca: input.hca,
-      })
+export function verifyHcaRegistrationActor(
+  input: {
+    name: string
+    wallet: Address
+    hca: Address
+    publicClient: PublicClient
+    /** The commitment this flow's reveal consumed. */
+    commitment: Hash
+    /** Duration the commitment bound, to check the expiry we paid for. */
+    duration: bigint
+    /** The reveal intent's orchestrator id, when a resumed run persisted one. */
+    intentId?: bigint
+    /**
+     * Orchestrator status lookup. `'FAILED'`/`'EXPIRED'` short-circuits the
+     * grace poll — that intent will never fill, so polling the registry is
+     * waiting for a state that cannot appear. Anything else (PENDING, null,
+     * a thrown fetch) is inconclusive and falls back to the poll. Receives the
+     * actor's abort signal so CANCEL interrupts the underlying request.
+     */
+    fetchIntentStatus?: (
+      intentId: bigint,
+      signal?: AbortSignal,
+    ) => Promise<string | null>
+  } & VerifyPollOptions,
+): ResultAsync<
+  { verified: boolean; registeredToOther: boolean; reason?: string },
+  Error
+> {
+  const readRegistryState = async (): Promise<{
+    verified: boolean
+    registeredToOther: boolean
+    reason?: string
+  }> => {
+    const chainId = requireChainId(input.publicClient, 'HCA registration')
+    const contracts = getDestinationContracts(chainId)
+    const label = canonicalLabel(input.name)
+    const expectedResolver = computeResolverAddress({
+      chainId,
+      hca: input.hca,
+    })
 
-      const [state, registryResolver] = await Promise.all([
+    const [state, registryResolver, registrySubregistry, commitTime] =
+      await Promise.all([
         readContract(input.publicClient, {
           address: contracts.ethRegistry,
-          abi: permissionedRegistryAbi,
+          abi: permissionedRegistryGetStateSnippet,
           functionName: 'getState',
           args: [BigInt(keccak256(stringToHex(label)))],
         }),
         readContract(input.publicClient, {
           address: contracts.ethRegistry,
-          abi: permissionedRegistryAbi,
+          abi: permissionedRegistryGetResolverSnippet,
           functionName: 'getResolver',
           args: [label],
         }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistry,
+          abi: permissionedRegistryGetSubregistrySnippet,
+          functionName: 'getSubregistry',
+          args: [label],
+        }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistrar,
+          abi: ethRegistrarCommitmentsSnippet,
+          functionName: 'commitmentAt',
+          args: [input.commitment],
+        }),
       ])
 
-      const verified =
-        Number(state.status) === STATUS_REGISTERED &&
-        isAddressEqual(state.latestOwner, input.wallet) &&
-        isAddressEqual(registryResolver, expectedResolver)
+    // Lost the race: registered, but to another wallet. No retry can win it
+    // back, so the caller must stop rather than resubmit the reveal.
+    const registeredToOther =
+      Number(state.status) === STATUS_REGISTERED &&
+      !isAddressEqual(state.latestOwner, input.wallet)
 
-      return { verified }
-    })(),
+    const reason = firstFailure([
+      [
+        Number(state.status) === STATUS_REGISTERED,
+        `label is not REGISTERED (status ${Number(state.status)})`,
+      ],
+      [
+        isAddressEqual(state.latestOwner, input.wallet),
+        `owner is ${state.latestOwner}, expected the wallet ${input.wallet}`,
+      ],
+      [
+        isAddressEqual(registryResolver, expectedResolver),
+        `resolver is ${registryResolver}, expected the HCA resolver ${expectedResolver}`,
+      ],
+      [
+        // Our reveal sets none, and whoever did set it owns every name
+        // beneath this one.
+        isAddressEqual(registrySubregistry, zeroAddress),
+        `subregistry is ${registrySubregistry}, expected none — this registration is not ours`,
+      ],
+      [
+        BigInt(commitTime) === 0n,
+        `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
+      ],
+      [
+        BigInt(state.expiry) + EXPIRY_SLACK_SECONDS >=
+          BigInt(Math.floor(Date.now() / 1000)) + input.duration,
+        `expiry ${state.expiry} is shorter than the ${input.duration}s registered`,
+      ],
+    ])
+
+    return reason
+      ? { verified: false, registeredToOther, reason }
+      : { verified: true, registeredToOther: false }
+  }
+
+  // A definitive FAILED / EXPIRED from the orchestrator means the fill can
+  // never land — the only thing the grace window would add is 30 seconds of
+  // false hope in front of the retry screen. Anything else (PENDING, no id,
+  // an unreachable orchestrator) is inconclusive and keeps the poll.
+  const isRevealIntentDead = async (): Promise<boolean> => {
+    if (input.intentId === undefined || !input.fetchIntentStatus) return false
+    const status = await input.fetchIntentStatus(input.intentId, input.signal)
+    return status === 'FAILED' || status === 'EXPIRED'
+  }
+
+  // Grace-polls: a Rhinestone intent keeps filling server-side after the tab
+  // closes, so a resumed run reaches here before the reveal has confirmed.
+  return fromPromise(
+    pollUntilVerified(readRegistryState, {
+      ...input,
+      isDefinitivelyDead: isRevealIntentDead,
+    }),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
+}
+
+/** The first unmet condition's message, or `undefined` when all hold. */
+function firstFailure(
+  checks: readonly [boolean, string][],
+): string | undefined {
+  return checks.find(([held]) => !held)?.[1]
 }
 
 /**
@@ -888,11 +1161,13 @@ export function submitRevealBatchActor(input: {
   publicClient: PublicClient
   primaryName?: string
   id?: string
+  /** Receives the orchestrator's intent id the moment the intent is accepted. */
+  onIntentSubmitted?: (intentId: bigint) => void
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
-      const label = cleanLabel(input.name)
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
@@ -907,10 +1182,11 @@ export function submitRevealBatchActor(input: {
         duration: input.duration,
       })
 
-      const resolverCode = await input.publicClient.getCode({
-        address: resolverAddress,
+      const resolverDeployed = await isResolverDeployed({
+        publicClient: input.publicClient,
+        chainId,
+        hca: input.hca,
       })
-      const resolverDeployed = Boolean(resolverCode && resolverCode !== '0x')
 
       const revealCalls = buildRevealBatch({
         chainId,
@@ -933,7 +1209,18 @@ export function submitRevealBatchActor(input: {
       })
 
       const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
+        {
+          type: 'custom',
+          request: input.onIntentSubmitted
+            ? {
+                ...request,
+                rhinestoneParams: {
+                  ...request.rhinestoneParams,
+                  onIntentSubmitted: input.onIntentSubmitted,
+                },
+              }
+            : request,
+        },
         input.signer,
         {
           id: input.id,

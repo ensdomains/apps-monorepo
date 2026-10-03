@@ -37,7 +37,7 @@ const RegisterPage = () => {
               }
             />
           ) : (
-            <RegisterName name={name} />
+            <RegisterName key={name} name={name} />
           )}
         </PageContainer>
       </SidebarInset>

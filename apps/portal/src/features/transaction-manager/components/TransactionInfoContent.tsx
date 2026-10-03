@@ -42,6 +42,11 @@ export const TransactionInfoContent = ({
             <h3 className="text-base font-medium whitespace-normal leading-snug">
               {transaction.transactionName}
             </h3>
+            {transaction.details?.map(({ label, value }) => (
+              <p key={label} className="text-xs font-mono break-all">
+                {label}: {value}
+              </p>
+            ))}
             <p className="text-xs font-mono">
               {actor?.getSnapshot().value === 'success'
                 ? 'Actual cost'

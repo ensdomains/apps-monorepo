@@ -33,6 +33,16 @@ export type Transaction = {
   readonly onStart: () => void
   readonly steps?: readonly string[]
   /**
+   * Key facts the user is committing to with this step (e.g. the recipient of a
+   * transfer), shown next to the cost. Derive them from the same values the
+   * calldata is built from, never from live form state, so what the modal shows
+   * is what gets sent.
+   */
+  readonly details?: readonly {
+    readonly label: string
+    readonly value: string
+  }[]
+  /**
    * How this step's cost is estimated ahead of time. Omit the whole object for
    * steps whose calldata is only known at runtime (e.g. the registration
    * commit/register steps, or a deploy-then-set step whose target address is only

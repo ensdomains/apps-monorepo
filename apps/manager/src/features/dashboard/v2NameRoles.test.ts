@@ -14,6 +14,7 @@ const makeDomain = (overrides: Partial<DomainFragment> = {}): DomainFragment =>
     normalizedName: overrides.normalizedName ?? overrides.name ?? 'alaska.eth',
     tokenId: overrides.tokenId ?? null,
     createdAt: overrides.createdAt ?? 0,
+    registrationDate: null,
     expiryDate: overrides.expiryDate ?? null,
     owner: overrides.owner ?? {
       __typename: 'Account',
@@ -55,6 +56,15 @@ describe('applyV2RoleAssignments', () => {
 
     expect(domain?.nameRoles).toEqual(['owner'])
   })
+
+  it('does not credit a role on a different-case spelling of an owned name', () => {
+    const [domain] = applyV2RoleAssignments(
+      [makeDomain({ name: 'crypto.eth' })],
+      [{ name: 'cryptO.eth', roleBitmap: '1' }],
+    )
+
+    expect(domain?.nameRoles).toEqual(['owner'])
+  })
 })
 
 describe('getManagedOnlyRoleNames', () => {
@@ -69,6 +79,21 @@ describe('getManagedOnlyRoleNames', () => {
         ],
       ),
     ).toEqual(['dom.eth'])
+  })
+
+  it('returns role names as registered rather than case-folded', () => {
+    expect(
+      getManagedOnlyRoleNames([], [{ name: 'cryptO.eth', roleBitmap: '1' }]),
+    ).toEqual(['cryptO.eth'])
+  })
+
+  it('does not treat a different-case spelling of an owned name as owned', () => {
+    expect(
+      getManagedOnlyRoleNames(
+        [makeDomain({ name: 'crypto.eth' })],
+        [{ name: 'cryptO.eth', roleBitmap: '1' }],
+      ),
+    ).toEqual(['cryptO.eth'])
   })
 })
 
@@ -114,5 +139,21 @@ describe('applyProfileV2RoleAssignments', () => {
 
     expect(names).toHaveLength(1)
     expect(names[0]?.nameRoles).toEqual(['owner', 'manager'])
+  })
+
+  it('drops managed domains the address holds no role on under that exact name', () => {
+    const names = applyProfileV2RoleAssignments({
+      ownedDomains: [],
+      managedDomains: [
+        makeDomain({
+          name: 'crypto.eth',
+          id: 'third-party',
+          owner: { id: '0xother' },
+        }),
+      ],
+      assignments: [{ name: 'cryptO.eth', roleBitmap: '1' }],
+    })
+
+    expect(names).toEqual([])
   })
 })

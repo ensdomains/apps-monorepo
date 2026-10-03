@@ -5,6 +5,7 @@ import { useAtom } from '@xstate/store-react'
 import { toast } from 'sonner'
 import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   preferencesQueryOptions,
@@ -102,7 +103,8 @@ export const NotificationPreferencesFields = ({
               checked={field.state.value}
               description={
                 <Trans>
-                  You'll be notified 30, 7, and 1 day before expiry.
+                  Get notified as owned names approach expiry and move through
+                  their grace period.
                 </Trans>
               }
               disabled={preferences.isRefetching}
@@ -134,7 +136,10 @@ export const NotificationPreferencesFields = ({
             <PreferenceCard
               checked={field.state.value}
               description={
-                <Trans>Get notified when names you favorited expire.</Trans>
+                <Trans>
+                  Get notified as favourited names approach expiry and move
+                  through their grace period.
+                </Trans>
               }
               disabled={preferences.isRefetching}
               icon={<MSymbol className="ms-wght-300" symbol="favorite" />}
@@ -157,9 +162,9 @@ export const NotificationPreferences = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+      <Card className="gap-4 p-6">
         <NotificationPreferencesFields form={form} preferences={preferences} />
-      </div>
+      </Card>
       <div className="ml-auto w-full max-w-md">
         <form.Subscribe
           selector={(state) => [

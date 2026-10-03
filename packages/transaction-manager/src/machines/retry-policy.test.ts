@@ -1,5 +1,7 @@
+import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
+  ChainIdMismatchError,
   SignerAddressMismatchError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
@@ -36,8 +38,14 @@ describe('isRetryableSubmissionError', () => {
   it('does not retry a signer mismatch', () => {
     expect(
       isRetryableSubmissionError(
-        new SignerAddressMismatchError(request, '0x1', '0x2'),
+        new SignerAddressMismatchError(request.from, '0x2'),
       ),
+    ).toBe(false)
+  })
+
+  it('does not retry a chain mismatch', () => {
+    expect(
+      isRetryableSubmissionError(new ChainIdMismatchError(mainnet.id, sepolia)),
     ).toBe(false)
   })
 

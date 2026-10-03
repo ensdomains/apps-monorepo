@@ -1,10 +1,5 @@
-import {
-  SiDiscord,
-  SiOpensea,
-  SiTelegram,
-  SiX,
-} from '@icons-pack/react-simple-icons'
-import { Trans, useLingui } from '@lingui/react/macro'
+import { SiOpensea, SiTelegram, SiX } from '@icons-pack/react-simple-icons'
+import { Trans } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
 import {
   type ReactNode,
@@ -13,10 +8,14 @@ import {
   useReducer,
   useState,
 } from 'react'
-import { toast } from 'sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
-import { copyToClipboard } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 import {
   buildCommemorativeNftRendererUrl,
@@ -34,12 +33,12 @@ import { useNftArtworkLoading } from './useNftArtworkLoading'
 import { useNftArtworkVisibility } from './useNftArtworkVisibility'
 import { useNftAssetDownload } from './useNftAssetDownload'
 import { useNftReveal } from './useNftReveal'
+import { useNftShareEntrance } from './useNftShareEntrance'
 
 type SocialControlProps = {
   readonly isDisabled: boolean
   readonly href?: string
   readonly icon: ReactNode
-  readonly onClick?: () => void
   readonly children: ReactNode
 }
 
@@ -58,13 +57,13 @@ const SocialControl = ({
   isDisabled,
   href,
   icon,
-  onClick,
   children,
 }: SocialControlProps) => {
   if (href && !isDisabled) {
     return (
       <a
         className={socialControlClassName}
+        data-nft-share-action
         href={href}
         rel="noreferrer"
         target="_blank"
@@ -78,8 +77,8 @@ const SocialControl = ({
   return (
     <button
       className={socialControlClassName}
-      disabled={isDisabled || !onClick}
-      onClick={onClick}
+      data-nft-share-action
+      disabled
       type="button"
     >
       {icon}
@@ -91,113 +90,130 @@ const SocialControl = ({
 const SharingRail = ({
   isDisabled,
   state,
+  variant,
 }: {
   readonly isDisabled: boolean
   readonly state: CardDialogState
+  readonly variant: CardVariant
 }) => {
-  const { t } = useLingui()
   const { copy } = useCopyFeedback()
   const externalUrl = state.card.shareUrls.external
-  const discordMessage = state.card.shareUrls.message
   const hasDownload = !!state.card.assets.imageUrl
   const { download, pending } = useNftAssetDownload(state.card.assets.imageUrl)
-
-  const shareOnDiscord = () => {
-    if (!discordMessage) return
-    void copyToClipboard(discordMessage)
-      .then(() => toast.success(t`Message copied. Paste it into Discord.`))
-      .catch(() => toast.error(t`Could not copy the message.`))
-    window.open(
-      'https://discord.com/channels/@me',
-      '_blank',
-      'noopener,noreferrer',
-    )
-  }
+  const stackedActionClassName =
+    variant === 'dialog'
+      ? 'relative z-10 flex basis-full justify-center md:basis-auto md:justify-start'
+      : 'relative z-10'
 
   return (
-    <fieldset className="relative z-10 flex shrink-0 flex-col border-0 p-0">
-      <legend className="sr-only">
-        <Trans>NFT actions</Trans>
-      </legend>
-      <SocialControl
-        href={state.card.shareUrls.x}
-        icon={<SiX aria-hidden className="size-4.5" />}
-        isDisabled={isDisabled}
+    <div
+      className={
+        variant === 'dialog'
+          ? 'contents md:flex md:flex-col md:gap-2'
+          : 'flex flex-col'
+      }
+    >
+      <fieldset
+        className={cn(
+          'relative z-10 flex shrink-0 border-0 p-0',
+          variant === 'dialog'
+            ? 'flex-row items-center gap-2 md:flex-col'
+            : 'flex-col',
+        )}
       >
-        <Trans>Share on X</Trans>
-      </SocialControl>
-      <SocialControl
-        href={state.card.shareUrls.telegram}
-        icon={<SiTelegram aria-hidden className="size-4.5" />}
-        isDisabled={isDisabled}
-      >
-        <Trans>Share on Telegram</Trans>
-      </SocialControl>
-      <SocialControl
-        icon={<SiDiscord aria-hidden className="size-4.5" />}
-        isDisabled={isDisabled}
-        onClick={discordMessage ? shareOnDiscord : undefined}
-      >
-        <Trans>Copy message and open Discord</Trans>
-      </SocialControl>
-      {state.card.marketplaceUrl ? (
-        <SocialControl
-          href={state.card.marketplaceUrl}
-          icon={<SiOpensea aria-hidden className="size-4.5" />}
-          isDisabled={isDisabled}
-        >
-          <Trans>View on OpenSea</Trans>
-        </SocialControl>
+        <legend className="sr-only">
+          <Trans>NFT actions</Trans>
+        </legend>
+        {state.status === 'minted' ? (
+          <>
+            <SocialControl
+              href={state.card.shareUrls.x}
+              icon={<SiX aria-hidden className="size-4.5" />}
+              isDisabled={isDisabled}
+            >
+              <Trans>Share on X</Trans>
+            </SocialControl>
+            <SocialControl
+              href={state.card.shareUrls.telegram}
+              icon={<SiTelegram aria-hidden className="size-4.5" />}
+              isDisabled={isDisabled}
+            >
+              <Trans>Share on Telegram</Trans>
+            </SocialControl>
+          </>
+        ) : null}
+      </fieldset>
+      {state.status === 'minted' && state.card.marketplaceUrl ? (
+        <div className={stackedActionClassName}>
+          <SocialControl
+            href={state.card.marketplaceUrl}
+            icon={<SiOpensea aria-hidden className="size-4.5" />}
+            isDisabled={isDisabled}
+          >
+            <Trans>View on OpenSea</Trans>
+          </SocialControl>
+        </div>
       ) : null}
-      <SocialControl
-        href={externalUrl}
-        icon={
-          <MSymbol
-            aria-hidden
-            className="ms-wght-500 text-xl/none"
-            symbol="arrow_outward"
-          />
-        }
-        isDisabled={isDisabled}
-      >
-        <Trans>Open NFT in a new tab</Trans>
-      </SocialControl>
-      <button
-        className={socialControlClassName}
-        disabled={isDisabled || !externalUrl}
-        onClick={() => externalUrl && void copy(externalUrl)}
-        type="button"
-      >
-        <MSymbol
-          aria-hidden
-          className="ms-wght-500 text-xl/none"
-          symbol="content_copy"
-        />
-        <span className="sr-only">
-          <Trans>Copy link</Trans>
-        </span>
-      </button>
-      <button
-        aria-busy={pending}
-        className={socialControlClassName}
-        disabled={!hasDownload || pending}
-        onClick={download}
-        type="button"
-      >
-        <MSymbol
-          aria-hidden
-          className="ms-wght-500 text-xl/none"
-          symbol={pending ? 'hourglass' : 'download'}
-        />
-        <span className="sr-only">
-          {pending ? (
-            <Trans>Downloading artwork…</Trans>
-          ) : (
-            <Trans>Download WebP</Trans>
-          )}
-        </span>
-      </button>
-    </fieldset>
+      {state.status === 'minted' ? (
+        <div className={stackedActionClassName}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={socialControlClassName}
+                data-nft-share-action
+                disabled={isDisabled || (!externalUrl && !hasDownload)}
+                type="button"
+              >
+                <MSymbol
+                  aria-hidden
+                  className="ms-wght-500 text-xl/none"
+                  symbol="more_horiz"
+                />
+                <span className="sr-only">
+                  <Trans>More NFT actions</Trans>
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44" side="left">
+              <DropdownMenuItem
+                aria-busy={pending}
+                disabled={!hasDownload || pending}
+                onSelect={() => void download()}
+              >
+                <MSymbol aria-hidden className="text-lg" symbol="download" />
+                {pending ? (
+                  <Trans>Downloading artwork…</Trans>
+                ) : (
+                  <Trans>Download WebP</Trans>
+                )}
+              </DropdownMenuItem>
+              {externalUrl ? (
+                <>
+                  <DropdownMenuItem asChild>
+                    <a href={externalUrl} rel="noreferrer" target="_blank">
+                      <MSymbol
+                        aria-hidden
+                        className="text-lg"
+                        symbol="arrow_outward"
+                      />
+                      <Trans>Open NFT in a new tab</Trans>
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void copy(externalUrl)}>
+                    <MSymbol
+                      aria-hidden
+                      className="text-lg"
+                      symbol="content_copy"
+                    />
+                    <Trans>Copy link</Trans>
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -215,20 +231,33 @@ const ArtworkActions = ({
   readonly state: CardDialogState
   readonly variant: CardVariant
 }) => {
+  const actionsRef = useNftShareEntrance(state.status)
+
   return (
     <div
       className={cn(
-        'absolute left-full ml-3 flex flex-col',
+        variant === 'dialog'
+          ? 'flex w-full flex-wrap items-center justify-center gap-2 md:col-start-3 md:ml-3 md:w-auto md:flex-col md:flex-nowrap md:self-stretch md:justify-self-start'
+          : 'absolute left-full ml-3 flex flex-col',
+        variant === 'dialog' &&
+          (state.status === 'minted' ? 'md:justify-between' : 'md:justify-end'),
         variant === 'profile'
           ? 'top-1/2 -translate-y-1/2'
-          : 'bottom-0 min-h-full justify-between gap-3',
+          : variant === 'dashboard'
+            ? 'bottom-0 min-h-full justify-between gap-3'
+            : undefined,
       )}
+      ref={actionsRef}
     >
-      <SharingRail isDisabled={isDisabled} state={state} />
+      {state.status === 'minted' ? (
+        <SharingRail isDisabled={isDisabled} state={state} variant={variant} />
+      ) : null}
       {variant === 'profile' ? null : (
         <CommemorativeNftTraitsTooltip
           learnMoreUrl={state.card.learnMoreUrl}
-          marketplaceUrl={state.card.marketplaceUrl}
+          marketplaceUrl={
+            state.status === 'minted' ? state.card.marketplaceUrl : undefined
+          }
           traits={state.card.eligibility.traits}
         />
       )}
@@ -238,8 +267,8 @@ const ArtworkActions = ({
 
 const cardFrameStyles = {
   dialog: {
-    frame: 'h-77.5',
-    artwork: 'aspect-nft-card max-w-nft-card',
+    frame: 'flex-col gap-3 md:grid md:grid-cols-[1fr_240px_1fr] md:gap-0',
+    artwork: 'aspect-nft-card max-w-[240px]',
   },
   profile: {
     frame: 'h-77',
@@ -255,10 +284,12 @@ const CardFrame = ({
   children,
   frameRef,
   variant,
+  actions,
 }: {
   readonly children: ReactNode
   readonly frameRef?: Ref<HTMLDivElement>
   readonly variant: CardVariant
+  readonly actions?: ReactNode
 }) => (
   <div
     className={cn(
@@ -269,14 +300,15 @@ const CardFrame = ({
   >
     <div
       className={cn(
-        // Reserve 3.5rem per side (size-11 sharing rail + ml-3 gap), keeping
-        // the artwork centered while the sharing rail sits outside the frame.
-        'group/nft-card relative w-[calc(100%-7rem)]',
+        'group/nft-card relative',
+        variant === 'dialog' ? 'w-full md:col-start-2' : 'w-[calc(100%-7rem)]',
         cardFrameStyles[variant].artwork,
       )}
     >
       {children}
+      {variant === 'dialog' ? null : actions}
     </div>
+    {variant === 'dialog' ? actions : null}
   </div>
 )
 
@@ -368,7 +400,19 @@ const ArtworkCard = ({
   }, [shouldReduceMotion])
 
   return (
-    <CardFrame frameRef={visibility.ref} variant={variant}>
+    <CardFrame
+      actions={
+        presentationReady ? (
+          <ArtworkActions
+            isDisabled={!artworkReady}
+            state={state}
+            variant={variant}
+          />
+        ) : null
+      }
+      frameRef={visibility.ref}
+      variant={variant}
+    >
       <div
         aria-hidden={showArtwork || artworkFailed}
         className={cn(
@@ -391,12 +435,13 @@ const ArtworkCard = ({
             alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
             aria-hidden={!artworkReady}
             className={cn(
-              'absolute inset-0 h-full w-full rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)] transition-opacity duration-300 ease-out motion-reduce:transition-none',
+              'pointer-events-none absolute inset-0 h-full w-full select-none rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)] transition-opacity duration-300 ease-out motion-reduce:transition-none',
               artworkReady && !artwork.animationReady
                 ? 'opacity-100'
                 : 'opacity-0',
             )}
             decoding="async"
+            draggable={false}
             src={imageUrl}
           />
         ) : null}
@@ -440,13 +485,6 @@ const ArtworkCard = ({
             <Trans>Retry artwork</Trans>
           </button>
         </div>
-      ) : null}
-      {presentationReady ? (
-        <ArtworkActions
-          isDisabled={artwork.animationPending}
-          state={state}
-          variant={variant}
-        />
       ) : null}
     </CardFrame>
   )

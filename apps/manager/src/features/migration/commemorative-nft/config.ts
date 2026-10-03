@@ -1,13 +1,16 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { type Address, getAddress, keccak256 } from 'viem'
-import { sepolia } from 'viem/chains'
+import { envConfig } from '@/config'
 import type {
   CommemorativeNftAssets,
   CommemorativeNftEligibility,
 } from './types'
 
-const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
-  '0x0bc4FB733Ca8BAD5FaDeb1BEc4bE9C93A5aD55D1',
-)
+const COMMEMORATIVE_NFT_ADDRESSES: Record<EnsNetwork, Address | null> = {
+  // No mainnet CommemorativeNFT deployment exists yet.
+  mainnet: null,
+  sepolia: getAddress('0xa55605c6242CbFc27117b63466B423fbc092a2A9'),
+}
 
 const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://nft.ens.dev'
 const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN = 'https://nft-assets.ens.dev'
@@ -68,10 +71,8 @@ export const getCommemorativeNftConfig = (): NftConfig => {
   return value
 }
 
-export const getCommemorativeNftContractAddress = (
-  chainId: number,
-): Address | undefined =>
-  chainId === sepolia.id ? COMMEMORATIVE_NFT_SEPOLIA_ADDRESS : undefined
+export const getCommemorativeNftContractAddress = (): Address | undefined =>
+  COMMEMORATIVE_NFT_ADDRESSES[envConfig.network] ?? undefined
 
 export const getCommemorativeNftTokenId = (ownerAddress: Address): bigint =>
   BigInt(keccak256(ownerAddress))

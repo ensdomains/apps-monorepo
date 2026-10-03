@@ -1,8 +1,7 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
@@ -76,17 +76,6 @@ export const BulkRenewDialog = ({
     )
     .exhaustive()
 
-  // Start every fresh open from a clean slate — otherwise a leftover terminal
-  // phase (success/error) from a previous run would render over a new selection.
-  const { reset } = submit
-  useEffect(() => {
-    if (open) {
-      setStep('summary')
-      setReceipt(null)
-      reset()
-    }
-  }, [open, reset])
-
   const isSubmitting =
     submit.phase === 'preparing' ||
     submit.phase === 'authorizing' ||
@@ -99,11 +88,12 @@ export const BulkRenewDialog = ({
     .with('preparing', 'authorizing', 'renewing', () => 'renewing' as const)
     .otherwise(() => step)
 
+  // Reset on close, not open: a run closed mid-flight resumes (or shows its
+  // outcome) when reopened.
   const handleOpenChange = (next: boolean) => {
-    // Allow closing while renewing (the txs continue), but only reset the flow
-    // when it isn't mid-transaction.
     if (!next && !isSubmitting) {
       setStep('summary')
+      setReceipt(null)
       submit.reset()
     }
     onOpenChange(next)

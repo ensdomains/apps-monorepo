@@ -56,9 +56,14 @@ const eligibleFixture: readonly ClassifiedName[] = [
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
   useEligibleV1Names: () => ({
     eligible: eligibleFixture,
+    gracePeriodNames: [],
     isPending: false,
     recoveryState: { status: 'none' },
   }),
+}))
+
+vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
+  useConnectedReverseName: () => ({ data: 'sub1234.eth' }),
 }))
 
 // eslint-disable-next-line import/first
@@ -112,9 +117,8 @@ describe('SelectNamesStep', () => {
   })
 
   it('unselecting a parent unselects all its subnames', () => {
-    const { onNamesChange, getByText } = renderStep()
-    const parentRow = getByText('sub1234.eth').closest('button')
-    if (!parentRow) throw new Error('parent row not found')
+    const { onNamesChange, getByRole } = renderStep()
+    const parentRow = getByRole('checkbox', { name: 'sub1234.eth' })
     fireEvent.click(parentRow)
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect(lastCall).not.toContain('sub1234.eth')
@@ -123,9 +127,11 @@ describe('SelectNamesStep', () => {
   })
 
   it('subname rows are not individually interactive', () => {
-    const { onNamesChange, getByText } = renderStep()
+    const { onNamesChange, getByText, queryByRole } = renderStep()
     const subnameText = getByText('gm.sub1234.eth')
-    expect(subnameText.closest('button')).toBeNull()
+    expect(
+      queryByRole('checkbox', { name: 'gm.sub1234.eth' }),
+    ).not.toBeInTheDocument()
     const callsBefore = onNamesChange.mock.calls.length
     fireEvent.click(subnameText)
     expect(onNamesChange.mock.calls.length).toBe(callsBefore)
@@ -196,14 +202,17 @@ describe('SelectNamesStep', () => {
     expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
   })
 
-  it('quotes the fee as usual when the balance cannot be read', () => {
+  it('keeps the fee in the requests dialog when the balance cannot be read', () => {
     // An unreadable balance is not evidence the user cannot pay.
-    const { getByText, queryByText } = renderStep({
+    const { getByRole, queryByText } = renderStep({
       gasEstimate: readyGasEstimate,
       gasAffordability: { status: 'unknown' },
     })
 
     expect(queryByText(/Not enough ETH for gas/i)).not.toBeInTheDocument()
-    expect(getByText(/Estimated network fee/i)).toBeInTheDocument()
+    expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
+    fireEvent.click(getByRole('button', { name: '1 request' }))
+    expect(getByRole('dialog')).toHaveTextContent('Estimated network fee')
+    expect(getByRole('dialog')).toHaveTextContent('~0.001 ETH')
   })
 })

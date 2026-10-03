@@ -4,6 +4,7 @@ import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 
 const mocks = vi.hoisted(() => ({
   getPublicClient: vi.fn(),
@@ -40,6 +41,7 @@ import {
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
 } from '../service/migrationBatchJournal'
+import * as nftConfig from './config'
 import {
   type CommemorativeNftMigrationCompletionParams,
   commemorativeNftMigrationCompletionQueryOptions,
@@ -68,7 +70,11 @@ const domain = makeDomain({
   name: 'alice.eth',
   labelName: 'alice',
 })
-const classified = classifyNames([domain], ownerAddress).classified
+const classified = classifyNames(
+  [domain],
+  ownerAddress,
+  envConfig.chain.id,
+).classified
 const emptyEligibility = () => ({
   eligible: [] as ClassifiedName[],
   frozen: [] as ClassifiedName[],
@@ -405,9 +411,13 @@ describe('commemorative NFT migration completion', () => {
     expect(mocks.getV1NamesForAddress).not.toHaveBeenCalled()
   })
 
-  it('rejects unsupported or mismatched networks', async () => {
+  it('rejects undeployed or mismatched networks', async () => {
+    vi.spyOn(
+      nftConfig,
+      'getCommemorativeNftContractAddress',
+    ).mockReturnValueOnce(undefined)
     await expect(
-      fetchCommemorativeNftMigrationCompletion({ ...params, chainId: 1 }),
+      fetchCommemorativeNftMigrationCompletion(params),
     ).rejects.toThrow('unavailable on this network')
     mocks.getPublicClient.mockReturnValue({ chain: { id: 1 } })
     await expect(

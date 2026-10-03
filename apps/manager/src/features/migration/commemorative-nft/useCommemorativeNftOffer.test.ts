@@ -1,3 +1,4 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { setupI18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -10,15 +11,25 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import type { Config as WagmiConfig } from '@wagmi/core'
 import { createElement, type ReactNode, useEffect } from 'react'
 import type { Address } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CommemorativeNftDashboard } from '../components/success/CommemorativeNftDashboard'
 import { CommemorativeNftProfileSection } from '../components/success/CommemorativeNftProfileSection'
+import { getCommemorativeNftContractAddress } from './config'
+import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
-import { commemorativeNftEligibilityQueryOptions } from './queries'
+import {
+  commemorativeNftClaimedQueryOptions,
+  commemorativeNftEligibilityQueryOptions,
+} from './queries'
 import type { CommemorativeNftEligibilityResult } from './types'
 import { useCommemorativeNftOffer } from './useCommemorativeNftOffer'
 
+const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
+  network: 'mainnet',
+}))
 const mocks = vi.hoisted(() => ({
   metadata: vi.fn(),
   claimed: vi.fn(),
@@ -30,6 +41,7 @@ const mocks = vi.hoisted(() => ({
   mounted: vi.fn(),
   unmounted: vi.fn(),
 }))
+vi.mock('@/config', () => ({ envConfig: mockEnvConfig }))
 vi.mock('wagmi', () => ({ useChainId: mocks.chain, useConfig: () => ({}) }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => true,
@@ -40,6 +52,10 @@ vi.mock('./useVerifiedCommemorativeNftOwner', () => ({
 vi.mock('./contract', () => ({ readCommemorativeNftClaimed: mocks.claimed }))
 vi.mock('./eligibility', () => ({
   fetchCommemorativeNftEligibility: mocks.metadata,
+}))
+vi.mock('./config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./config')>()),
+  getCommemorativeNftContractAddress: vi.fn(),
 }))
 vi.mock('./usePendingCommemorativeNftClaim', () => ({
   usePendingCommemorativeNftClaim: mocks.pending,
@@ -104,6 +120,7 @@ const ObservedDialog = ({
   )
 }
 const clients: QueryClient[] = []
+const getContractAddress = vi.mocked(getCommemorativeNftContractAddress)
 const createContext = () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -122,9 +139,11 @@ const createContext = () => {
 describe('shared commemorative NFT offers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockEnvConfig.network = 'mainnet'
+    getContractAddress.mockReturnValue(MAINNET_NFT_TEST_ADDRESS)
     vi.stubGlobal('navigator', { locks: { request: vi.fn() } })
     mocks.owner.mockReturnValue(ownerAddress)
-    mocks.chain.mockReturnValue(11155111)
+    mocks.chain.mockReturnValue(1)
     mocks.metadata.mockResolvedValue(published)
     mocks.claimed.mockResolvedValue(false)
     mocks.pending.mockReturnValue({ status: 'empty' })
@@ -139,6 +158,30 @@ describe('shared commemorative NFT offers', () => {
     cleanup()
     for (const client of clients.splice(0)) client.clear()
     vi.unstubAllGlobals()
+  })
+
+  it('hides cached offers and recovery without a configured deployment', () => {
+    const { client, wrapper } = createContext()
+    client.setQueryData(
+      commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
+      published,
+    )
+    getContractAddress.mockReturnValue(undefined)
+    mocks.pending.mockReturnValue({ status: 'unavailable' })
+    const { result } = renderHook(
+      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+      { wrapper },
+    )
+
+    expect(result.current.visibleEligibility).toBeUndefined()
+    expect(result.current.canRecoverClaim).toBe(false)
+    expect(result.current.canOpenMint).toBe(false)
+    expect(result.current.canSubmitMint).toBe(false)
+    expect(mocks.metadata).not.toHaveBeenCalled()
+    expect(mocks.claimed).not.toHaveBeenCalled()
+    expect(
+      mocks.completion.mock.calls.every(([params]) => !params.enabled),
+    ).toBe(true)
   })
 
   it.each([
@@ -181,6 +224,23 @@ describe('shared commemorative NFT offers', () => {
     )
     expect(result.current.canOpenMint).toBe(false)
     expect(result.current.canSubmitMint).toBe(false)
+  })
+
+  it('shows the revealed dashboard card after a verified mint without reopening mint', async () => {
+    const { client, wrapper } = createContext()
+    client.setQueryData(
+      commemorativeNftClaimedQueryOptions({
+        ownerAddress,
+        chainId: 1,
+        wagmiConfig: {} as WagmiConfig,
+      }).queryKey,
+      true,
+    )
+    render(createElement(CommemorativeNftDashboard), { wrapper })
+
+    expect(await screen.findByText('Welcome to ENSv2')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Mint' })).toBeNull()
+    expect(mocks.claimed).not.toHaveBeenCalled()
   })
 
   it('keeps claim recovery available without browser coordination', async () => {
@@ -308,7 +368,8 @@ describe('shared commemorative NFT offers', () => {
     rerender({ owner: '0x1111111111111111111111111111111111111111' })
     expect(result.current.visibleEligibility).toBeUndefined()
     expect(result.current.canSubmitMint).toBe(false)
-    mocks.chain.mockReturnValue(1)
+    mockEnvConfig.network = 'sepolia'
+    mocks.chain.mockReturnValue(11155111)
     rerender({ owner: ownerAddress })
     expect(result.current.visibleEligibility).toBeUndefined()
     expect(result.current.canSubmitMint).toBe(false)

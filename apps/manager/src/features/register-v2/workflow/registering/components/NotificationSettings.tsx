@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useAtom } from '@xstate/store-react'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import {
   NotificationPreferencesFields,
@@ -48,9 +49,9 @@ export const NotificationSettings = ({
       {isAuthed ? (
         <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-[3fr_2fr]">
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+            <Card className="p-6">
               <ContactMethods />
-            </div>
+            </Card>
             <RegistrationMobileCtaBar>
               <form.Subscribe
                 selector={(state) => [state.canSubmit, state.isSubmitting]}
@@ -88,15 +89,15 @@ export const NotificationSettings = ({
             </RegistrationMobileCtaBar>
           </div>
 
-          <div className="flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+          <Card className="gap-4 p-6">
             <NotificationPreferencesFields
               form={form}
               preferences={preferences}
             />
-          </div>
+          </Card>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+        <Card className="gap-4 p-6">
           <p className="text-base text-slate-600 leading-ens-normal">
             <Trans>
               You need to verify your wallet ownership to manage your
@@ -123,7 +124,7 @@ export const NotificationSettings = ({
               <Trans>Set up later</Trans>
             </Button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )
