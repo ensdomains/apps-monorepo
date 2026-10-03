@@ -130,6 +130,24 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
   return ok({ ...budget, hcaBalance } satisfies HcaBudgetQuote)
 })
 
+/**
+ * Does this registration have a funding budget to quote at all? Only the
+ * standalone-HCA route does; a pure-EOA signer pays the registrar directly.
+ *
+ * Exported because `fetchQuery` ignores `enabled`, so a caller that refuses to
+ * proceed without a budget must ask this first or it blocks the EOA route too.
+ */
+export const isHcaBudgetQuoteRequired = (
+  params: Pick<
+    HcaBudgetQueryParams,
+    'hca' | 'signer' | 'label' | 'durationInSeconds'
+  >,
+): boolean =>
+  Boolean(params.hca) &&
+  params.signer?.type === 'rhinestone' &&
+  params.label.length > 0 &&
+  params.durationInSeconds > 0
+
 export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
   resultQueryOptions({
     queryKey: $qk({
@@ -143,16 +161,10 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       primaryName: params.primaryName ?? null,
     }),
     queryFn: () => getHcaBudget(params),
-    // Only the HCA route has a funding budget; a pure-EOA signer pays the
-    // registrar directly and the estimator has nothing to quote against.
-    enabled:
-      Boolean(params.hca) &&
-      params.signer?.type === 'rhinestone' &&
-      params.label.length > 0 &&
-      params.durationInSeconds > 0,
+    enabled: isHcaBudgetQuoteRequired(params),
     staleTime: HCA_BUDGET_STALE_TIME_MS,
-    // A flaky orchestrator must not strand the user on the confirm screen:
-    // callers treat "no budget" as "show the price alone and let the machine
-    // surface any failure", never as a hard block.
+    // One retry for a flaky orchestrator. If it still fails the caller must
+    // surface that: here "no budget" means "the permit cannot be sized", not
+    // "show the rent alone".
     retry: 1,
   })

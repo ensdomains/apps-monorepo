@@ -3,18 +3,9 @@ import { isAddress } from 'viem'
 
 export const Route = createFileRoute('/$address')({
   params: {
-    parse: (rawParams) => {
-      if (!isAddress(rawParams.address, { strict: false })) {
-        throw new Error('Not an address')
-      }
-
-      return {
-        address: rawParams.address,
-      }
-    },
-  },
-  skipRouteOnParseError: {
-    params: true,
+    // `false` passes the path on to the next candidate route.
+    parse: ({ address }) =>
+      isAddress(address, { strict: false }) ? { address } : false,
     // Prioritize address over names since addresses are more strict.
     priority: 100,
   },

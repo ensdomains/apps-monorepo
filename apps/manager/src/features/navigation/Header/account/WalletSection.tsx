@@ -1,21 +1,35 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
-import { WalletIcon } from 'lucide-react'
+import { ShieldOff, WalletIcon } from 'lucide-react'
+import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { RevokeSessionsModal } from '@/features/wallet/components/RevokeSessionsModal'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { useWalletDisconnect } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 type WalletSectionProps = {
   readonly onAction: () => void
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { accountAddress, ownerAddress, isLoading } = useSmartAccountContext()
+  const {
+    accountAddress,
+    ownerAddress,
+    isLoading,
+    hasActiveSession,
+    isRevokingSession,
+    revokeError,
+    revokeErrorReason,
+    revokeSession,
+    forgetLocalSession,
+  } = useSmartAccountContext()
+  const [isRevokeOpen, setIsRevokeOpen] = useState(false)
   const { address: connectedAddress } = useAccount()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
@@ -89,6 +103,45 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           </span>
         </button>
       )}
+
+      {/* Shown for any HCA, not just one with a session saved HERE: sessions
+          live in the signed authorization, not in this browser, so a fresh
+          browser is exactly where an owner goes to kill a session they think
+          leaked elsewhere. Disconnect deliberately keeps sessions alive for a
+          prompt-free reconnect, so this is the only way to end one early —
+          and unlike the rest of the HCA flow it is a gas-paying owner
+          transaction, hence the confirm step. EOA mode has no HCA. */}
+      {accountAddress && !isFeatureEnabled('USE_EOA') && (
+        <button
+          className="flex w-full items-center gap-2 rounded-lg"
+          onClick={() => setIsRevokeOpen(true)}
+          type="button"
+        >
+          <ShieldOff className="size-5 text-ens-quartz-900" />
+          <span className="text-ens-quartz-900 text-sm">
+            <Trans>Revoke smart sessions</Trans>
+          </span>
+        </button>
+      )}
+
+      <RevokeSessionsModal
+        errorMessage={revokeError}
+        hasLocalSession={hasActiveSession}
+        isRevoking={isRevokingSession}
+        isUndeployed={revokeErrorReason === 'not-deployed'}
+        onForgetLocalSession={() => {
+          forgetLocalSession()
+          onAction()
+        }}
+        onOpenChange={setIsRevokeOpen}
+        onRevokeSessions={async (options) => {
+          const revoked = await revokeSession(options)
+          if (revoked) onAction()
+          return revoked
+        }}
+        open={isRevokeOpen}
+        smartAccountAddress={accountAddress ?? undefined}
+      />
 
       <button
         className="flex w-full items-center gap-2 rounded-lg"

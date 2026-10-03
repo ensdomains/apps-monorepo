@@ -8,6 +8,7 @@ import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { releaseHolderLocks } from '../service/registrationLock'
 import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
@@ -46,6 +47,13 @@ export const RegistrationV2UiProvider = ({
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
     input: { chainId },
   })
+
+  // A fresh flow cannot be mid-registration, so any wallet claim this tab still
+  // holds (a reload, a route change) is stale and would only block the user.
+  useEffect(() => {
+    releaseHolderLocks()
+    return () => releaseHolderLocks()
+  }, [])
   const registrationActor = useSelector(
     registrationV2UiActor,
     getRegistrationV2ChildActor,
