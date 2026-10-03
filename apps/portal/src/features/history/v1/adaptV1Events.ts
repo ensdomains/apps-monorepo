@@ -94,7 +94,7 @@ const big = (value: unknown): bigint | undefined => {
  * flattens these with `id.split('-')[0]`, which yields the chain id — we scan
  * for the address-shaped segment instead.)
  */
-const resolverAddress = (id?: string): string | undefined =>
+export const resolverAddress = (id?: string): string | undefined =>
   id?.split('-').find((part) => isAddress(part, { strict: false }))
 
 const RESERVED_FIELDS = new Set([
