@@ -377,7 +377,12 @@ export async function buildRecordsUpdateCalls(
   const { name, before, after, shouldClearRecords, publicClient } = params
   const { resolverAddress } = params
 
-  const changes = computeRecordChanges(before, after)
+  // Clearing the target removes every existing record. Reapply the entire
+  // final snapshot, including values unchanged from the previous resolver.
+  const changes = computeRecordChanges(
+    shouldClearRecords ? { texts: [], coins: [] } : before,
+    after,
+  )
 
   const hasChanges =
     shouldClearRecords ||

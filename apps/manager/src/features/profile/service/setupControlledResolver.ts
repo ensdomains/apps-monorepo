@@ -88,10 +88,9 @@ export interface SetupControlledResolverParams {
   readonly publicClient: PublicClient
   readonly chainId: number
   /**
-   * Record diff to write to the controlled resolver. The target node is cleared
-   * atomically with the diff so a retry cannot expose records from an earlier
-   * failed attempt. A fresh resolver with empty snapshots skips the redundant
-   * clear, while an existing resolver is always cleared before reuse.
+   * Complete records to publish on the controlled resolver. The target node is
+   * cleared first, so every retained record must be written again, including
+   * values that were unchanged in the form.
    */
   readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot

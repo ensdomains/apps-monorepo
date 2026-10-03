@@ -16,7 +16,8 @@ const clientFor = (supportsNameSetters: boolean) =>
 const publicClient = clientFor(true)
 
 describe('buildRecordsUpdateCalls', () => {
-  it('unlinks the name before applying the current record diff', async () => {
+  it('reapplies unchanged records and the ETH address after clearing', async () => {
+    const ethAddress = '0x1111111111111111111111111111111111111111'
     const { calls } = await buildRecordsUpdateCalls({
       name: 'leon.eth',
       before: {
@@ -24,14 +25,14 @@ describe('buildRecordsUpdateCalls', () => {
           { key: 'description', value: 'old description' },
           { key: 'avatar', value: 'old avatar' },
         ],
-        coins: [],
+        coins: [{ coinType: 60, value: ethAddress }],
       },
       after: {
         texts: [
           { key: 'description', value: 'old description' },
           { key: 'avatar', value: 'new avatar' },
         ],
-        coins: [],
+        coins: [{ coinType: 60, value: ethAddress }],
       },
       shouldClearRecords: true,
       publicClient,
@@ -52,12 +53,22 @@ describe('buildRecordsUpdateCalls', () => {
     // The V2 resolver has no `clearRecords`: unlinking drops the name to the
     // default record, and the setter that follows allocates it a fresh one.
     const nestedCalls = decoded.args[0]
-    expect(nestedCalls).toHaveLength(2)
+    expect(nestedCalls).toHaveLength(4)
     expect(nestedCalls[0]?.slice(0, 10)).toBe(
       toFunctionSelector('linkToRecord(bytes,uint256)'),
     )
-    expect(nestedCalls[1]?.slice(0, 10)).toBe(
-      toFunctionSelector('setText(bytes,string,string)'),
+    const setTextAbi = parseAbi(['function setText(bytes,string,string)'])
+    expect(
+      nestedCalls.slice(1, 3).map((data) => {
+        const call = decodeFunctionData({ abi: setTextAbi, data })
+        return call.args.slice(1)
+      }),
+    ).toEqual([
+      ['description', 'old description'],
+      ['avatar', 'new avatar'],
+    ])
+    expect(nestedCalls[3]?.slice(0, 10)).toBe(
+      toFunctionSelector('setAddress(bytes,uint256,bytes)'),
     )
   })
 

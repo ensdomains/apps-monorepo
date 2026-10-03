@@ -563,6 +563,7 @@ msgid "Complete your profile"
 msgstr "Complete your profile"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
 msgstr "Confirm"
 
@@ -2179,6 +2180,7 @@ msgstr "Search my names"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
@@ -2223,6 +2225,10 @@ msgstr "Select coin"
 msgid "Select payment"
 msgstr "Select payment"
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
+msgid "Selected: {selectedName}"
+msgstr "Selected: {selectedName}"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Send Verification"
 msgstr "Send Verification"
@@ -2251,6 +2257,7 @@ msgstr "Set it as your primary name from the primary name card on your Dashboard
 msgid "Set primary name"
 msgstr "Set primary name"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Set this as your primary name?"
 msgstr "Set this as your primary name?"
@@ -2705,8 +2712,8 @@ msgid "To save these changes, we’ll set a resolver your wallet controls and ke
 msgstr "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
-msgstr "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
+msgid "To use this as your primary name, we’ll set a resolver your wallet controls, point the name to your wallet, and carry over its current records."
+msgstr "To use this as your primary name, we’ll set a resolver your wallet controls, point the name to your wallet, and carry over its current records."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx

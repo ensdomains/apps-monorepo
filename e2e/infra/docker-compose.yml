@@ -10,6 +10,15 @@
 #
 # Optional: override fork URL (e.g. for CI)
 #   SEPOLIA_FORK_URL=https://ethereum-sepolia-rpc.publicnode.com
+#   SEPOLIA_FORK_BLOCK=11821650
+#
+# Keep the fork block paired with the checked-in ENS deployment. Forking the
+# live head let a Sepolia deployment change break otherwise identical runs:
+# the default reverse registrar authorized our HCA adapter at block 11821650,
+# but no longer authorized it at 11821668. Registration then succeeded while
+# its primary-name call reverted with "Caller is not a controller". Bump this
+# block alongside deployment addresses, after verifying the Manager and Portal
+# E2E suites against the new state.
 #
 # Paymaster is optional; host port 3002 to avoid clashing with app.
 #
@@ -70,6 +79,8 @@ services:
     command:
       - --fork-url
       - ${SEPOLIA_FORK_URL:-https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j}
+      - --fork-block-number
+      - ${SEPOLIA_FORK_BLOCK:-11821650}
       - --chain-id
       - "11155111"
       - --port

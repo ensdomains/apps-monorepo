@@ -88,7 +88,7 @@ describe('editProfileDialogMachine', () => {
     })
   })
 
-  it('passes the edited record diff to resolver setup', () => {
+  it('keeps the edited profile values after resolver setup', () => {
     const eth = '0x5555555555555555555555555555555555555555'
     const records = {
       ...defaultProfileRecords,
@@ -129,8 +129,12 @@ describe('editProfileDialogMachine', () => {
       },
     })
     if (pendingSave?.kind === 'setup') {
-      expect(pendingSave.currentRecords.addresses).toEqual([])
-      expect(pendingSave.currentRecords.base).toEqual({})
+      expect(pendingSave.currentRecords.addresses).toEqual([
+        { coinType: 60, value: eth },
+      ])
+      expect(pendingSave.currentRecords.base).toEqual({
+        description: 'edited bio',
+      })
     }
   })
 
