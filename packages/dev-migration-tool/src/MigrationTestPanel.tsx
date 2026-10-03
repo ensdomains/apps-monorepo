@@ -10,15 +10,26 @@
 
 import { ensL1Subgraphs, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { useQueryClient } from '@tanstack/react-query'
-import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import {
+  type CSSProperties,
+  Fragment,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
 import { MIGRATION_TOOL_RPC } from './config'
 import {
   type ActiveName,
-  buildMockDomain,
+  buildMockDomains,
+  buildMockProfileRows,
+  type CopyTargetState,
   createV1NameOnAnvil,
   DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
+  fullNamesFor,
   getOnchainExpiries,
+  ownershipTargetFor,
+  PRESET_FAMILY,
   PRESETS,
   type PresetType,
   readStoredNames,
@@ -26,6 +37,7 @@ import {
 } from './MigrationTestPanel.helpers'
 import {
   useAnvilStatus,
+  useCopyTargetState,
   useDraggablePanel,
   useInvalidateMigrationQueriesOnMount,
 } from './MigrationTestPanel.hooks'
@@ -90,6 +102,99 @@ export function setInjectedNames(names: ActiveName[]): void {
   _injectedNames = names
 }
 
+const jsonDomains = (domains: unknown[]): Response =>
+  new Response(JSON.stringify({ data: { domains } }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+const realDomainsOf = async (
+  response: Promise<Response>,
+): Promise<unknown[]> => {
+  try {
+    const json = (await (await response).json()) as {
+      data?: { domains?: unknown[] }
+    }
+    return json?.data?.domains ?? []
+  } catch {
+    return [] /* subgraph unreachable */
+  }
+}
+
+/**
+ * `getProfilesForDomains` answers "which text/addr keys does this name have".
+ * The values are then read on-chain, so only the KEYS need injecting — but
+ * without them the hosted subgraph is asked about Anvil-only names, returns
+ * nothing, and record replay silently has nothing to replay.
+ */
+const respondWithProfileRows = async (
+  body: string,
+  real: Promise<Response>,
+): Promise<Response> => {
+  let requestedIds: string[] | null = null
+  try {
+    const parsed = JSON.parse(body) as {
+      variables?: { whereFilter?: { id_in?: string[] } }
+    }
+    const ids = parsed.variables?.whereFilter?.id_in
+    if (Array.isArray(ids)) requestedIds = ids.map((id) => id.toLowerCase())
+  } catch {
+    /* inject everything we know about */
+  }
+  const mockRows = _injectedNames
+    .flatMap((name) => buildMockProfileRows(name))
+    .filter(
+      (row) => !requestedIds || requestedIds.includes(row.id.toLowerCase()),
+    )
+  return jsonDomains([...(await realDomainsOf(real)), ...mockRows])
+}
+
+/**
+ * `getNamesForAddress` (the whole list) and `getV1DomainForMigration` (one name).
+ *
+ * The single-name lookup may ask about a CHILD of a `subname*` preset, so match
+ * against every name a preset contributes, then narrow the emitted domains back
+ * down to the one requested.
+ */
+const respondWithNameDomains = async (
+  body: string,
+  isNameList: boolean,
+  real: Promise<Response>,
+): Promise<Response> => {
+  const lookupName = isNameList ? null : migrationLookupName(body)
+  const listInjected = nameListTargetsMockOwner(body) ? _injectedNames : []
+  const injected = isNameList
+    ? listInjected
+    : _injectedNames.filter((n) =>
+        lookupName ? fullNamesFor(n).includes(lookupName) : false,
+      )
+
+  const realDomains = await realDomainsOf(real)
+
+  // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
+  // the value captured at creation — otherwise a renewed grace name still reads
+  // as expired and migration eligibility keeps hiding the upgrade banner.
+  const liveExpiries = await getOnchainExpiries(
+    MIGRATION_TOOL_RPC,
+    injected.map((name) => name.label),
+  )
+  // flatMap: a `subname*` preset contributes its 2LD *and* its child, so the
+  // migration list can show a hierarchy rather than the parent alone.
+  const mockDomains = injected
+    .flatMap((name, index) => {
+      const liveExpiry = liveExpiries[index]
+      return buildMockDomains(
+        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
+      )
+    })
+    .filter(
+      (domain) =>
+        !lookupName || (domain as { name?: string }).name === lookupName,
+    )
+
+  return jsonDomains([...realDomains, ...mockDomains])
+}
+
 ;(function installSubgraphInterceptor() {
   if (typeof window === 'undefined') return
   // HMR guard: store the true original fetch under a well-known key so that
@@ -121,48 +226,18 @@ export function setInjectedNames(names: ActiveName[]): void {
     const body = typeof init?.body === 'string' ? init.body : ''
     const isNameList = body.includes('getNamesForAddress')
     const isMigrationLookup = body.includes('getV1DomainForMigration')
-    if (!isNameList && !isMigrationLookup) return origFetch(input, init)
+    //  - getProfilesForDomains: which text/addr keys a name has. The values are
+    //    then read on-chain, so only the KEYS need injecting — but without them
+    //    record replay has nothing to replay for Anvil-only names.
+    const isProfileLookup = body.includes('getProfilesForDomains')
+    if (!isNameList && !isMigrationLookup && !isProfileLookup)
+      return origFetch(input, init)
 
-    const nameListInjected = nameListTargetsMockOwner(body)
-      ? _injectedNames
-      : []
-    const injected = isNameList
-      ? nameListInjected
-      : _injectedNames.filter(
-          (n) => `${n.label}.eth` === migrationLookupName(body),
-        )
-
-    let realDomains: unknown[] = []
-    try {
-      const real = await origFetch(input, init)
-      const json = (await real.json()) as { data?: { domains?: unknown[] } }
-      realDomains = json?.data?.domains ?? []
-    } catch {
-      /* subgraph unreachable */
+    if (isProfileLookup) {
+      return respondWithProfileRows(body, origFetch(input, init))
     }
 
-    // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
-    // the value captured at creation — otherwise a renewed grace name still reads
-    // as expired and migration eligibility keeps hiding the upgrade banner.
-    const liveExpiries = await getOnchainExpiries(
-      MIGRATION_TOOL_RPC,
-      injected.map((name) => name.label),
-    )
-    const mockDomains = injected.map((name, index) => {
-      const liveExpiry = liveExpiries[index]
-      return buildMockDomain(
-        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
-      )
-    })
-
-    return new Response(
-      JSON.stringify({
-        data: {
-          domains: [...realDomains, ...mockDomains],
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    )
+    return respondWithNameDomains(body, isNameList, origFetch(input, init))
   }
 })()
 
@@ -178,6 +253,142 @@ function useSyncInjectedNames(activeNames: ActiveName[]): void {
     setInjectedNames(activeNames)
     writeStoredNames(activeNames)
   }, [activeNames])
+}
+
+/**
+ * The preset strip, grouped by which migration route each preset exercises.
+ *
+ * With 22 presets a flat row is unreadable, and the three families have
+ * genuinely different expected outcomes: `migrate` moves a token, `copy`
+ * re-creates the name inside a UserRegistry, and `ineligible` should produce
+ * nothing at all — which is only meaningful if you seed something alongside it.
+ */
+function PresetButtons({
+  busy,
+  busyPreset,
+  onCreate,
+}: {
+  readonly busy: boolean
+  readonly busyPreset: PresetType | null
+  readonly onCreate: (type: PresetType) => void
+}) {
+  return (
+    <div style={rowStyle}>
+      {(['migrate', 'copy', 'transfer', 'ineligible'] as const).map(
+        (family, index) => (
+          <Fragment key={family}>
+            {index > 0 && <span style={sepStyle} />}
+            <span style={familyLabelStyle}>{family}</span>
+            {PRESETS.filter((p) => PRESET_FAMILY[p.type] === family).map(
+              (preset) => {
+                const isThisBusy = busy && busyPreset === preset.type
+                return (
+                  <button
+                    key={preset.type}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onCreate(preset.type)}
+                    style={presetChipStyle(busy, isThisBusy)}
+                    title={preset.title}
+                  >
+                    {isThisBusy ? '…' : preset.label}
+                  </button>
+                )
+              },
+            )}
+          </Fragment>
+        ),
+      )}
+    </div>
+  )
+}
+
+/** The name picker plus its per-name actions and copy-target state. */
+function SelectedNameActions({
+  activeNames,
+  busy,
+  copyState,
+  isCopyPreset,
+  onMigrate,
+  onRemove,
+  onOpen,
+  onSelect,
+  selectedName,
+}: {
+  readonly activeNames: readonly ActiveName[]
+  readonly busy: boolean
+  readonly copyState: CopyTargetState
+  readonly isCopyPreset: boolean
+  readonly onMigrate: (name: ActiveName) => void
+  readonly onRemove: (id: string) => void
+  readonly onOpen: (name: ActiveName) => void
+  readonly onSelect: (id: string) => void
+  readonly selectedName: ActiveName | null
+}) {
+  return (
+    <>
+      <select
+        value={selectedName?.id ?? ''}
+        onChange={(e) => onSelect(e.target.value)}
+        style={selectStyle}
+        disabled={busy}
+      >
+        {activeNames.map((n) => (
+          <option key={n.id} value={n.id}>
+            {n.label}.eth ({n.type})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={busy || !selectedName}
+        onClick={() => selectedName && onMigrate(selectedName)}
+        style={smallChipStyle('#0080bc')}
+        title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
+      >
+        Migrate
+      </button>
+      <button
+        type="button"
+        disabled={busy || !selectedName}
+        onClick={() => selectedName && onOpen(selectedName)}
+        style={smallChipStyle('#7c6bd6')}
+        title={
+          selectedName
+            ? `Open ${selectedName.label}.eth's Ownership tab — then use the app's own Transfer link`
+            : ''
+        }
+      >
+        Open
+      </button>
+      {/* A copy lands in a UserRegistry whose address derives from
+          namehash(parentName), so re-migrating the same label hits the same slot
+          and `copyMigrationReadiness` refuses it. The app shows none of that —
+          just a disabled button under "Gas estimate unavailable". */}
+      {isCopyPreset && (
+        <span
+          style={copyStateChipStyle(copyState)}
+          title={
+            copyState === 'pristine'
+              ? 'No subregistry on the 2LD yet — a fresh copy plan will be accepted.'
+              : 'This 2LD already has a subregistry, so a fresh copy plan is refused (subregistry-conflict / v2-name-history). Seed the preset again for a new label.'
+          }
+        >
+          {copyState === 'pristine' ? 'pristine' : 'already migrated'}
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={!selectedName}
+        onClick={() => selectedName && onRemove(selectedName.id)}
+        style={smallChipStyle('#737373')}
+        title="Remove selected"
+      >
+        ×
+      </button>
+      <span style={sepStyle} />
+    </>
+  )
 }
 
 /** Inner UI — preset buttons, name list, migrate actions. No wrapper or positioning. */
@@ -238,7 +449,9 @@ export function MigrationPanelContent() {
         void queryClient.invalidateQueries({
           queryKey: [{ $scope: 'migration' }],
         })
-        const nameParam = refreshed.map((n) => `${n.label}.eth`).join(',')
+        // Include child names, so a `subname*` preset arrives with the whole
+        // hierarchy pre-selected instead of just its 2LD.
+        const nameParam = refreshed.flatMap((n) => fullNamesFor(n)).join(',')
         window.location.href = `/migration?names=${encodeURIComponent(nameParam)}`
       } catch (e) {
         setActionError(`Failed to sync names to Anvil: ${String(e)}`)
@@ -260,6 +473,30 @@ export function MigrationPanelContent() {
     [navigateToMigration],
   )
 
+  /**
+   * Open the selected name's **Ownership** tab — the app's own entry point,
+   * not the transfer route.
+   *
+   * Deliberately one step short of `/ownership/transfer`. Whether that tab
+   * offers a Transfer link at all is part of what manual QA is checking: a
+   * link that leads to a refusal, or a missing link on a transferable name,
+   * is the shape E2E-001 was about. A button that jumped straight to the
+   * route would walk the tester past the check.
+   *
+   * For the refusal shapes the link is *correctly* absent, so there is
+   * nothing to click — append `/transfer` to the URL by hand to read the
+   * card. The absence is itself the assertion; see manual-v1-transfer.md.
+   *
+   * Does NOT sync to the subgraph mock the way `migrate` does: ownership is
+   * read from chain (BaseRegistrar / ENSRegistry / the V2 registry), not from
+   * the indexer, so the injection is irrelevant here.
+   */
+  const openOwnership = useCallback((name: ActiveName) => {
+    // A subname-centred transfer preset (#1144's reassign family) opens the
+    // subname, not the 2LD that exists only to be its parent.
+    window.location.href = `/${ownershipTargetFor(name)}/ownership`
+  }, [])
+
   const removeName = useCallback((id: string) => {
     setActiveNames((prev) => prev.filter((n) => n.id !== id))
   }, [])
@@ -268,63 +505,32 @@ export function MigrationPanelContent() {
   const selectedName =
     activeNames.find((n) => n.id === selectedId) ?? activeNames[0] ?? null
 
+  const isCopyPreset =
+    selectedName != null && PRESET_FAMILY[selectedName.type] === 'copy'
+  const copyState = useCopyTargetState(endpoint, selectedName, isCopyPreset)
+
   return (
     <div style={columnStyle}>
-      {/* Row 1: preset buttons */}
-      <div style={rowStyle}>
-        {PRESETS.map((preset) => {
-          const isThisBusy = busy && busyPreset === preset.type
-          return (
-            <button
-              key={preset.type}
-              type="button"
-              disabled={busy}
-              onClick={() => void createName(preset.type)}
-              style={presetChipStyle(busy, isThisBusy)}
-              title={preset.title}
-            >
-              {isThisBusy ? '…' : preset.label}
-            </button>
-          )
-        })}
-      </div>
+      <PresetButtons
+        busy={busy}
+        busyPreset={busyPreset}
+        onCreate={createName}
+      />
 
       {/* Row 2: name picker + migrate actions + anvil */}
       <div style={rowStyle}>
         {activeNames.length > 0 ? (
-          <>
-            <select
-              value={selectedName?.id ?? ''}
-              onChange={(e) => setSelectedId(e.target.value)}
-              style={selectStyle}
-              disabled={busy}
-            >
-              {activeNames.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.label}.eth ({n.type})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={busy || !selectedName}
-              onClick={() => selectedName && migrateSingle(selectedName)}
-              style={smallChipStyle('#0080bc')}
-              title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
-            >
-              Migrate
-            </button>
-            <button
-              type="button"
-              disabled={!selectedName}
-              onClick={() => selectedName && removeName(selectedName.id)}
-              style={smallChipStyle('#737373')}
-              title="Remove selected"
-            >
-              ×
-            </button>
-            <span style={sepStyle} />
-          </>
+          <SelectedNameActions
+            activeNames={activeNames}
+            busy={busy}
+            copyState={copyState}
+            isCopyPreset={isCopyPreset}
+            onMigrate={migrateSingle}
+            onOpen={openOwnership}
+            onRemove={removeName}
+            onSelect={setSelectedId}
+            selectedName={selectedName}
+          />
         ) : (
           <span style={emptyStyle}>no names</span>
         )}
@@ -493,6 +699,29 @@ const emptyStyle: CSSProperties = {
   color: '#737373',
   fontSize: 11,
   fontStyle: 'italic',
+}
+
+const familyLabelStyle: CSSProperties = {
+  color: '#737373',
+  fontSize: 9,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+  alignSelf: 'center',
+  flexShrink: 0,
+}
+
+function copyStateChipStyle(state: CopyTargetState): CSSProperties {
+  const pristine = state === 'pristine'
+  return {
+    padding: '2px 6px',
+    borderRadius: 4,
+    border: `1px solid ${pristine ? '#99f6e4' : '#fecdd3'}`,
+    background: pristine ? '#f0fdfa' : '#fff1f2',
+    color: pristine ? '#0f766e' : '#9f1239',
+    fontSize: 10,
+    flexShrink: 0,
+    alignSelf: 'center',
+  }
 }
 
 function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {

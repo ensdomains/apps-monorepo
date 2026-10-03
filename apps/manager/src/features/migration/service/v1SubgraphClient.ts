@@ -6,9 +6,19 @@ import { withRequestDeadline } from './requestDeadline'
 
 export type { V1Domain }
 
-// ensjs keys the v1 subgraph per chain, so this follows the build's network
-// instead of pinning one deployment.
-const V1_SUBGRAPH_URL = envConfig.chain.subgraphs.ens.url
+/**
+ * This client does NOT go through ensjs, so the chain-level override in
+ * `lib/wagmi.ts` does not reach it. Repointing the apps at a local V1 subgraph
+ * therefore takes two edits, not one, and missing this one leaves the migration
+ * list reading the public endpoint while everything else reads the fork — which
+ * looks like the migration flow losing names rather than like a split config.
+ *
+ * Falls back to `envConfig.chain.subgraphs.ens.url` (ensjs's per-network v1
+ * subgraph, keyed off the build's network) rather than a pinned public URL,
+ * so a mainnet build reads the mainnet v1 subgraph instead of Sepolia's.
+ */
+const V1_SUBGRAPH_URL =
+  import.meta.env?.VITE_V1_SUBGRAPH_URL || envConfig.chain.subgraphs.ens.url
 
 type V1SubgraphResponse = {
   data: {

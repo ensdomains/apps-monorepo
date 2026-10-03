@@ -27,12 +27,16 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { createIndexerMock } from '../helpers/mock-indexer.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
+import { createMakeMigratedName } from './makeMigratedName.js'
 import { createMakeName } from './makeName.js'
+import { createMakeSubname, type MakeSubname } from './makeSubname.js'
 import { createTime, type Time } from './time.js'
+import { createWallets, type Wallets } from './wallets.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -75,6 +79,11 @@ const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
   'function balanceOf(address owner) view returns (uint256)',
 ])
+
+// Shared indexer mock. Always constructed, but only installed on a page when
+// `E2E_MOCK_INDEXER=true` globally OR the test opts in via
+// `mockIndexerEnabled` (see the `page` fixture override below).
+const indexerMock = createIndexerMock()
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
@@ -191,9 +200,55 @@ type PortalFixtures = {
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
   makeName: ReturnType<typeof createMakeName>
+  /** Register a V1 name and migrate it to V2 (unwrapped / unlocked / locked). */
+  makeMigratedName: ReturnType<typeof createMakeMigratedName>
+  /**
+   * Named participants (owner / manager / stranger) with mid-test switching.
+   * Every authorization negative case needs this — see `fixtures/wallets.ts`.
+   */
+  wallets: Wallets
+  /** Create N-deep V2 subnames through UserRegistry — see `makeSubname.ts`. */
+  makeSubname: MakeSubname
+  /**
+   * Per-test/per-file opt-in for the mock indexer (an "option" fixture — set
+   * with `test.use({ mockIndexerEnabled: true })`, not overridden directly).
+   * Off by default: the portal suite exercises the real local Panoptes
+   * indexer end to end. A test opts in when it needs deterministic control
+   * over an indexer-backed count instead of waiting on real discovery/backfill
+   * — see transfer.spec.ts's registry-detach tests, blocked on a currently
+   * flaky Panoptes CREATE2-discovery path for freshly deployed subregistries.
+   */
+  mockIndexerEnabled: boolean
+  /**
+   * Mock indexer control, for tests running with `mockIndexerEnabled: true`.
+   * Configuring a response with these has no effect if the mock was never
+   * installed on the page.
+   */
+  mockIndexer: {
+    setRegistryOccupants: typeof indexerMock.setRegistryOccupants
+    setSubregistryHistory: typeof indexerMock.setSubregistryHistory
+    enabled: boolean
+  }
 }
 
 export const test = base.extend<PortalFixtures>({
+  mockIndexerEnabled: [false, { option: true }],
+
+  // Install the mock indexer only when a test opted in locally via
+  // `mockIndexerEnabled` — deliberately NOT on the global `E2E_MOCK_INDEXER`
+  // flag the way playwright.manager.fixture.ts does. `e2e/.env` sets that
+  // flag to `true` for manager's own `useMigratedNamesCount` hook (see
+  // a2c56c6a1); reading it here too would silently mock every portal
+  // indexer query in the whole suite instead of just the handful of tests
+  // that ask for it. The portal suite mixes mocked and real-indexer tests
+  // within the same spec file, so the opt-in has to be per-test.
+  page: async ({ page, mockIndexerEnabled }, use) => {
+    if (mockIndexerEnabled) {
+      await indexerMock.install(page)
+    }
+    await use(page)
+  },
+
   accounts: async ({}, use) => {
     await use(createAccounts())
   },
@@ -229,6 +284,26 @@ export const test = base.extend<PortalFixtures>({
 
   makeName: async ({ accounts, time }, use) => {
     await use(createMakeName({ accounts, time }))
+  },
+
+  makeMigratedName: async ({ accounts }, use) => {
+    await use(createMakeMigratedName({ accounts }))
+  },
+
+  wallets: async ({ page, wallet, accounts }, use) => {
+    await use(createWallets({ page, wallet, accounts }))
+  },
+
+  makeSubname: async ({ wallets }, use) => {
+    await use(createMakeSubname({ account: wallets.account('owner') }))
+  },
+
+  mockIndexer: async ({ mockIndexerEnabled }, use) => {
+    await use({
+      setRegistryOccupants: indexerMock.setRegistryOccupants,
+      setSubregistryHistory: indexerMock.setSubregistryHistory,
+      enabled: mockIndexerEnabled,
+    })
   },
 })
 

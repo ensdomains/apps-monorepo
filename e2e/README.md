@@ -134,12 +134,69 @@ pnpm e2e:portal
 pnpm e2e:cross-app
 
 # Infrastructure
-pnpm e2e:infra:up    # Start Anvil + Alto + Paymaster
+pnpm e2e:infra:down && pnpm e2e:infra:up   # Start Anvil + Alto + Paymaster
 pnpm e2e:infra:down  # Stop the stack
 
 # Against a specific app URL
 MANAGER_APP_URL=https://staging.example.com pnpm e2e:manager
 ```
+
+### Smoke vs. nightly
+
+The commands above (`e2e:manager`, `e2e:portal`, `e2e:cross-app`,
+`e2e:metadata`, plus `e2e:manager-premium`/`e2e:manager-migration`) are the
+**full suite** — every spec, including the 347-cell V1 shape matrix. It
+takes multiple hours and is intended to run **nightly**, not on every push.
+
+```bash
+pnpm e2e:smoke            # curated smoke suite: portal, then manager
+pnpm e2e:smoke:portal     # portal half only
+pnpm e2e:smoke:manager    # manager half only
+```
+
+`e2e:smoke` runs a small, hand-picked subset (12 tests, ~5 minutes measured)
+tagged `@smoke` — chosen by "cost of being wrong" (the same risk-tier logic
+as [`docs/e2e-build-goal.md`](./docs/e2e-build-goal.md)), so it's meant to
+run on **every push/PR** as a fast gate alongside the nightly full run, not
+a replacement for it. The full curated list, the justification for each
+test, what's deliberately excluded and why, and the measured runtime are in
+[`docs/smoke-suite.md`](./docs/smoke-suite.md). The `@smoke` tag is purely
+additive — every smoke test keeps whatever `@scenario:`/`@inv:` tag it
+already had, so `pnpm e2e:coverage` is unaffected.
+
+---
+
+## Coverage Ledger
+
+```bash
+pnpm e2e:coverage                              # reconcile and regenerate the report
+pnpm e2e:coverage --results playwright.json    # verify PASS against a real run
+pnpm e2e:coverage --update                     # raise the ratchet after a batch lands
+```
+
+`pnpm e2e:coverage` reconciles the scenario registry in
+[`coverage/scenarios.ts`](./coverage/scenarios.ts) against the committed specs
+and the defect register, and regenerates
+[`docs/e2e-coverage.md`](./docs/e2e-coverage.md). A test claims a scenario with
+a `@scenario:<ID>` tag:
+
+```ts
+test('revokes ROLE_SET_RESOLVER', { tag: ['@scenario:C4'] }, async ({ … }) => {
+```
+
+An invariant *sweep site* is claimed the same way, with an `@inv:` tag from
+[`coverage/invariants.ts`](./coverage/invariants.ts):
+
+```ts
+test('detach is not ordered first', { tag: ['@inv:INV1-resolver-detach'] }, …)
+```
+
+Rules — what counts as terminal, when to tag, and what CI enforces — are in
+[`docs/e2e-build-goal.md`](./docs/e2e-build-goal.md), and the scenario space
+itself is [`docs/e2e-test-catalogue.md`](./docs/e2e-test-catalogue.md). The
+generated report is checked in and CI fails if it is stale.
+[`coverage/handoff.md`](./coverage/handoff.md) says where the last iteration
+stopped.
 
 ---
 

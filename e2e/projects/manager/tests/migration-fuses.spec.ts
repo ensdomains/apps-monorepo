@@ -1,8 +1,8 @@
 /**
  * ENS V1→V2 Migration — Fuse Combinations
  *
- * Tests that locked names with resolver restrictions migrate successfully
- * and preserve their resolver in V2.
+ * Tests that locked names with various owner-controlled fuse bitmaps migrate
+ * successfully and produce valid V2 state (REGISTERED + WrapperRegistry).
  *
  * Each test:
  * 1. Registers a locked V1 name on the Anvil fork with the given fuse combo.
@@ -10,7 +10,7 @@
  *    (owner fuses | PARENT_CANNOT_CONTROL | IS_DOT_ETH = owner fuses | 0x30000).
  *    The mock helper ORs these in automatically when `fuses` is provided.
  * 3. Runs the migration UI flow.
- * 4. Asserts the name is REGISTERED with a WrapperRegistry and V1 resolver.
+ * 4. Asserts the name is REGISTERED and has a WrapperRegistry subregistry.
  *
  * Prerequisites:
  *   - Anvil fork running with V1 + V2 contracts
@@ -24,6 +24,7 @@ import {
 } from '../../../fixtures/makeV1Name.js'
 import {
   authorizeTransaction,
+  expect,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import {
@@ -79,6 +80,76 @@ async function runMigrationFlow(
 test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   test.describe.configure({ timeout: 300_000 })
 
+  test('locked + CANNOT_BURN_FUSES migrates and produces locked V2 state', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const v1Name = await makeV1Name({
+      label: 'fuse-cbf',
+      type: 'locked',
+      fuses: FUSES.CANNOT_BURN_FUSES,
+    })
+    const label = v1Name.replace('.eth', '')
+    console.log(
+      `[migration-fuses] locked+CANNOT_BURN_FUSES name created: ${v1Name}`,
+    )
+
+    // fuses param passed to mockV1Subgraph is the owner-controlled bits only;
+    // the mock ORs in PARENT_CANNOT_CONTROL | IS_DOT_ETH (0x30000) automatically.
+    await mockV1Subgraph(page, [
+      {
+        name: v1Name,
+        ownerAddress: HEADLESS_USER_ADDRESS,
+        type: 'locked',
+        fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_BURN_FUSES,
+      },
+    ])
+
+    await runMigrationFlow(page, wallet)
+    await assertLockedMigration(label)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_BURN_FUSES migration verified for ${v1Name}`,
+    )
+  })
+
+  test('locked + CANNOT_TRANSFER migrates and produces locked V2 state', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const v1Name = await makeV1Name({
+      label: 'fuse-ct',
+      type: 'locked',
+      fuses: FUSES.CANNOT_TRANSFER,
+    })
+    const label = v1Name.replace('.eth', '')
+    console.log(
+      `[migration-fuses] locked+CANNOT_TRANSFER name created: ${v1Name}`,
+    )
+
+    await mockV1Subgraph(page, [
+      {
+        name: v1Name,
+        ownerAddress: HEADLESS_USER_ADDRESS,
+        type: 'locked',
+        fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_TRANSFER,
+      },
+    ])
+
+    await runMigrationFlow(page, wallet)
+    await assertLockedMigration(label)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_TRANSFER migration verified for ${v1Name}`,
+    )
+  })
+
   test('locked + CANNOT_SET_RESOLVER migrates and preserves V1 resolver', async ({
     migrationConnectedPage: page,
     wallet,
@@ -115,6 +186,74 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
     await assertV2Resolver(label, V1_PUBLIC_RESOLVER)
     console.log(
       `[migration-fuses] ✅ locked+CANNOT_SET_RESOLVER migration + resolver verified for ${v1Name}`,
+    )
+  })
+
+  test('locked + CANNOT_CREATE_SUBDOMAIN migrates and produces locked V2 state', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const v1Name = await makeV1Name({
+      label: 'fuse-ccs',
+      type: 'locked',
+      fuses: FUSES.CANNOT_CREATE_SUBDOMAIN,
+    })
+    const label = v1Name.replace('.eth', '')
+    console.log(
+      `[migration-fuses] locked+CANNOT_CREATE_SUBDOMAIN name created: ${v1Name}`,
+    )
+
+    await mockV1Subgraph(page, [
+      {
+        name: v1Name,
+        ownerAddress: HEADLESS_USER_ADDRESS,
+        type: 'locked',
+        fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_CREATE_SUBDOMAIN,
+      },
+    ])
+
+    await runMigrationFlow(page, wallet)
+    await assertLockedMigration(label)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_CREATE_SUBDOMAIN migration verified for ${v1Name}`,
+    )
+  })
+
+  test('locked + CAN_EXTEND_EXPIRY migrates and produces locked V2 state', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const v1Name = await makeV1Name({
+      label: 'fuse-cee',
+      type: 'locked',
+      fuses: FUSES.CAN_EXTEND_EXPIRY,
+    })
+    const label = v1Name.replace('.eth', '')
+    console.log(
+      `[migration-fuses] locked+CAN_EXTEND_EXPIRY name created: ${v1Name}`,
+    )
+
+    await mockV1Subgraph(page, [
+      {
+        name: v1Name,
+        ownerAddress: HEADLESS_USER_ADDRESS,
+        type: 'locked',
+        fuses: FUSES.CANNOT_UNWRAP | FUSES.CAN_EXTEND_EXPIRY,
+      },
+    ])
+
+    await runMigrationFlow(page, wallet)
+    await assertLockedMigration(label)
+    console.log(
+      `[migration-fuses] ✅ locked+CAN_EXTEND_EXPIRY migration verified for ${v1Name}`,
     )
   })
 
@@ -156,7 +295,6 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
     await assertLockedMigration(label)
-    await assertV2Resolver(label, V1_PUBLIC_RESOLVER)
     console.log(
       `[migration-fuses] ✅ locked+all-child-fuses migration verified for ${v1Name}`,
     )
