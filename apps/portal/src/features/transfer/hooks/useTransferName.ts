@@ -17,8 +17,9 @@ import {
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
+import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
@@ -51,6 +52,7 @@ import {
   buildTransferPlan,
   STEP_LABELS,
   type TransferOptions,
+  type TransferStepKind,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
 import { canStartStep } from '../utils/canStartStep'
@@ -63,6 +65,9 @@ import {
 import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
 
 export type StartTransferParams = {
+  /** The raw name-or-address the user typed; re-resolved at submission. */
+  readonly recipientInput: string
+  /** The address the form showed for `recipientInput`. */
   readonly recipient: Address
   readonly options: TransferOptions
 }
@@ -84,12 +89,33 @@ type SavedParams = NameReads & {
 
 export type TransferControls = {
   readonly startTransfer: (params: StartTransferParams) => void
+  /**
+   * Call when the recipient or an option changes: a plan already prepared is
+   * dropped and one still in flight never opens its modal, so the calldata
+   * can't be built from a recipient the form no longer shows.
+   */
+  readonly discardPreparation: () => void
   readonly transactions: Transaction[]
   readonly isPreparing: boolean
   readonly prepError: Error | null
 }
 
 const chainId = sepoliaWithEns.id
+
+// Whether a step's calldata carries the recipient, so the modal shows it. A
+// `Record`, not a set of the true ones: a new step kind then fails to compile
+// until it is classified rather than defaulting to "no recipient".
+const CARRIES_RECIPIENT: Record<TransferStepKind, boolean> = {
+  'set-eth-addr': true,
+  'detach-resolver': false,
+  'detach-registry': false,
+  'transfer-token': true,
+  reclaim: true,
+  'transfer-erc721': true,
+  'transfer-erc1155': true,
+  'set-registry-owner': true,
+  'set-subnode-owner': true,
+}
 
 type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
 
@@ -114,6 +140,14 @@ export class V1TransferRefusedError extends TaggedError(
 export class NonCanonicalNameError extends TaggedError(
   'NonCanonicalNameError',
 ) {}
+
+/** The recipient name no longer resolves to the address the form showed. */
+export class RecipientChangedError extends TaggedError(
+  'RecipientChangedError',
+)<{
+  readonly shown: Address
+  readonly resolved: Address | null
+}> {}
 
 /** Simulating the move step failed, so no config step was sent. */
 export class TransferPreflightError extends TaggedError(
@@ -193,19 +227,21 @@ export const useTransferName = ({
   // actors to the next one.
   const attempt = useFlowAttempt()
 
-  // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
-  // the previous step's auto-fired `onDone` route into it (see
-  // ConfigureRegistryForm for the same pattern).
+  // Makes each step's `onStart` idempotent — both the modal UI and the prior
+  // step's auto-fired `onDone` route into it (as in ConfigureRegistryForm).
   const startedStepsRef = useRef<Set<string>>(new Set())
+
+  // One run per `startTransfer`. The form can move while a run's reads are in
+  // flight, so a stale run must not open the modal (Immunefi #91822).
+  const runIdRef = useRef(0)
 
   const finishFlow = () => {
     closeModal()
     clearTransaction()
     setSavedParams(null)
     attempt.end()
-    // The parent's subname table lists this name's owner, so it goes stale too.
-    // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
-    // subname listing of its own in the app.
+    // The parent's subname table lists this name's owner, so it goes stale
+    // too. Not for a 2LD: its parent is `eth`, which has no listing here.
     const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
@@ -238,9 +274,8 @@ export const useTransferName = ({
   }
 
   // The V1 read that gates the write. `staleTime: 0` bypasses the cache the
-  // ownership page primed: a name that lapsed into grace after that read would
-  // otherwise pass, and the config steps would land before `reclaim` reverts on
-  // the registrar's `live(id)` — leaving the name not resolving and not moved.
+  // ownership page primed: a name that lapsed into grace since would pass, and
+  // the config steps would land before `reclaim` reverts on `live(id)`.
   const readV1 = (params: StartTransferParams) =>
     fromPromise(
       queryClient.fetchQuery({
@@ -270,6 +305,39 @@ export const useTransferName = ({
         resolverAddress: state.resolverAddress,
       })
     })
+
+  // The form's recipient comes from an hour-fresh query, and the name's addr
+  // record can change under it — so re-resolve past the cache and refuse
+  // unless it still points at the address the user confirmed.
+  const freshenRecipient = (params: StartTransferParams) =>
+    isAddress(params.recipientInput, { strict: false })
+      ? okAsync<StartTransferParams, RecipientChangedError>(params)
+      : fromPromise(
+          queryClient.fetchQuery({
+            ...getResolvedAddressQueryOptions({
+              nameOrAddress: params.recipientInput,
+            }),
+            staleTime: 0,
+          }),
+          (cause) =>
+            new RecipientChangedError({
+              shown: params.recipient,
+              resolved: null,
+              message: 'Couldn’t re-check the recipient’s address. Try again.',
+              cause,
+            }),
+        ).andThen((resolved) =>
+          resolved && isAddressEqual(resolved, params.recipient)
+            ? ok(params)
+            : err(
+                new RecipientChangedError({
+                  shown: params.recipient,
+                  resolved,
+                  message:
+                    'The recipient’s address has changed since it was resolved. Check it and try again.',
+                }),
+              ),
+        )
 
   const readV2 = (params: StartTransferParams, registryAddress: Address) =>
     fromPromise(
@@ -309,13 +377,10 @@ export const useTransferName = ({
     ).map((isPermissionedResolver) => ({ ...reads, isPermissionedResolver }))
   }
 
-  // Simulates the step that moves the name before anything is sent. The config
-  // steps run first and can't be undone by the sender once the move has
-  // failed, so a move that would revert — most likely a contract recipient
-  // without the `onERC721Received` / `onERC1155Received` hook — has to be
-  // caught here, not when it is reached. This is the same estimate the modal
-  // runs per step (including its gas-cap fallback), pulled forward to before
-  // the first one, so the two can't disagree about what would revert.
+  // Simulates the move before anything is sent: the config steps run first
+  // and the sender can't undo them once the move fails (most likely a contract
+  // recipient with no `onERC721Received` / `onERC1155Received`). Same estimate
+  // the modal runs per step, so the two can't disagree about what reverts.
   const preflightMove = (params: SavedParams) =>
     fromPromise(
       (async () => {
@@ -347,23 +412,30 @@ export const useTransferName = ({
 
   // Named so the two branches' error unions collapse to one for the mutation.
   type PrepareError =
+    | RecipientChangedError
     | ErrorOf<ReturnType<typeof readV1>>
     | ErrorOf<ReturnType<typeof readV2>>
     | ErrorOf<ReturnType<typeof readResolverKind>>
     | NonCanonicalNameError
     | TransferPreflightError
 
-  // Prepares the flow: re-reads the name's state (V1) or its own resolver and
-  // token id (V2) up front, so a bad name fails before the modal opens and
-  // every step's intent can be built synchronously for the gas estimate. Then
-  // stores the plan and opens the modal. Loading and error state come straight
-  // from the mutation.
+  // Re-reads the name's state (V1) or its resolver and token id (V2) up front,
+  // so a bad name fails before the modal opens and every step's intent can be
+  // built synchronously for the gas estimate.
   const prepareMutation = useMutation(
     resultMutationOptions({
       mutationFn: (
         params: StartTransferParams,
-      ): ResultAsync<SavedParams, PrepareError> =>
-        match({ canonical: isCanonicalName(name), subject })
+      ): ResultAsync<
+        { readonly saved: SavedParams; readonly runId: number },
+        PrepareError
+      > => {
+        runIdRef.current += 1
+        const runId = runIdRef.current
+        const prepared: ResultAsync<SavedParams, PrepareError> = match({
+          canonical: isCanonicalName(name),
+          subject,
+        })
           .with({ canonical: false }, () =>
             errAsync(
               new NonCanonicalNameError({
@@ -373,17 +445,26 @@ export const useTransferName = ({
             ),
           )
           .with({ subject: { kind: 'v2' } }, ({ subject }) =>
-            readV2(params, subject.registryAddress)
-              .andThen(readResolverKind)
-              .andThen(preflightMove),
+            freshenRecipient(params).andThen((fresh) =>
+              readV2(fresh, subject.registryAddress)
+                .andThen(readResolverKind)
+                .andThen(preflightMove),
+            ),
           )
           // Every remaining kind is a V1 subject.
           .otherwise(() =>
-            readV1(params).andThen(readResolverKind).andThen(preflightMove),
-          ),
-      onSuccess: (params) => {
+            freshenRecipient(params).andThen((fresh) =>
+              readV1(fresh).andThen(readResolverKind).andThen(preflightMove),
+            ),
+          )
+        return prepared.map((saved) => ({ saved, runId }))
+      },
+      onSuccess: ({ saved, runId }) => {
+        // Superseded by a newer start or an edit, so the form's values aren't
+        // the ones this plan was built from: it never reaches the modal.
+        if (runId !== runIdRef.current) return
         startedStepsRef.current = new Set()
-        setSavedParams(params)
+        setSavedParams(saved)
         // A fresh scope is what keeps an abandoned attempt's finished step
         // actors from satisfying this one; the manager is deliberately not
         // cleared, since that would also stop unrelated in-flight work.
@@ -392,16 +473,23 @@ export const useTransferName = ({
     }),
   )
 
-  // Built fresh each render (like useRenewalTransactions) — the modal holds the
-  // array in a ref for auto-advance, so referential stability isn't required.
+  const discardPreparation = () => {
+    runIdRef.current += 1
+    setSavedParams(null)
+    // Otherwise a failure message for the old values sits under the form until
+    // the next start. Any in-flight run is dropped by the run id check above.
+    prepareMutation.reset()
+  }
+
+  // Built fresh each render (like useRenewalTransactions): the modal holds the
+  // array in a ref for auto-advance, so referential stability isn't needed.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
     const steps = buildTransferPlan(savedParams.options, subject.kind, actor)
     const stepContext = { ...savedParams, name, subject }
 
-    // Idempotent runner per step: `onStart` may be invoked twice (modal UI +
-    // the prior step's auto-advance `onDone`). Errors clear the guard so the
-    // step can be retried; the tx error surfaces via the modal's machine state.
+    // Idempotent per step: `onStart` may fire twice (modal UI + the prior
+    // step's auto-advance `onDone`). Errors clear the guard to allow a retry.
     const runners = steps.map((step) => async () => {
       const id = transferStepId(name, step, attempt.scope)
       if (
@@ -433,12 +521,11 @@ export const useTransferName = ({
         )
         await waitForTransaction(txId)
       } catch (err) {
-        // Tx reverts surface via the modal's machine state. Non-tx failures
-        // (e.g. the wallet resolving without a connected account, or the step's
-        // actor being stopped) aren't tracked there, so log them rather than
-        // swallow silently. Clearing the guard allows a retry from the modal.
-        // Deliberately not a `finally`: a step that succeeded must stay
-        // guarded, or a stray `onStart` would send it a second time.
+        // Tx reverts surface via the modal's machine state; non-tx failures
+        // (e.g. a wallet with no connected account, or the step's actor being
+        // stopped) don't, so log those. Deliberately not a `finally`: a step
+        // that succeeded must stay guarded, or a stray `onStart` would send it
+        // a second time.
         console.error(`Transfer step "${step}" failed:`, err)
         startedStepsRef.current.delete(id)
       }
@@ -448,8 +535,13 @@ export const useTransferName = ({
       id: transferStepId(name, step, attempt.scope),
       title: STEP_LABELS[step],
       transactionName: `${STEP_LABELS[step]} - ${name}`,
-      // Same builder as the submit path, so the modal's live gas estimate is
-      // for exactly the call that will be sent.
+      // From the same params the calldata is built from, not the form behind
+      // the modal, so what the user confirms is what gets sent.
+      details: CARRIES_RECIPIENT[step]
+        ? [{ label: 'To', value: savedParams.recipient }]
+        : undefined,
+      // Same builder as the submit path, so the gas estimate is for exactly
+      // the call that gets sent.
       intent: {
         prepare: (ctx) =>
           buildTransferStepIntent(step, { ...stepContext, ...ctx }),
@@ -461,6 +553,7 @@ export const useTransferName = ({
 
   return {
     startTransfer: prepareMutation.mutate,
+    discardPreparation,
     transactions: buildTransactions(),
     isPreparing: prepareMutation.isPending,
     prepError: prepareMutation.error,

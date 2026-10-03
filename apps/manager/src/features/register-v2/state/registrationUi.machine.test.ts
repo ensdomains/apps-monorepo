@@ -1,6 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
 import type { Address } from 'viem'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
 /**
@@ -255,6 +255,23 @@ const flush = async (times = 8) => {
   }
 }
 
+beforeEach(() => {
+  localStorage.clear()
+  sessionStorage.clear()
+})
+
+/** Run as a second tab: same storage, its own stable holder id. */
+const asAnotherTab = <T>(run: () => T): T => {
+  const held = sessionStorage.getItem('ens-registration-holder')
+  sessionStorage.setItem('ens-registration-holder', 'other-tab')
+  try {
+    return run()
+  } finally {
+    if (held) sessionStorage.setItem('ens-registration-holder', held)
+    else sessionStorage.removeItem('ens-registration-holder')
+  }
+}
+
 afterEach(() => {
   vi.clearAllMocks()
 })
@@ -275,6 +292,93 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
     expect(snapshot.context.lastErrorMessage).toMatch(/reconnect your wallet/i)
+  })
+
+  it('refuses to start while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+
+    // QA's sequence: the block held, then Try Again went straight through.
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().value).toBe('failure')
+
+    // Only once the other tab is done does the retry proceed, and it must
+    // actually start the child: it never received START_REGISTRATION, so a
+    // RETRY alone would leave it idle and the screen stuck.
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    expect(getChild(actor).getSnapshot().value).toBe('running')
+  })
+
+  // QA hit this: the block held, then Try Again re-entered `registering`
+  // without re-checking, and both names registered at once.
+  it('refuses a retry while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+
+    // Another tab takes the wallet while this one sits on the failure screen.
+    releaseRegistrationLock(EOA_ADDRESS)
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    actor.send({ type: '$error', error: new Error('boom') })
+    expect(actor.getSnapshot().value).toBe('failure')
+
+    actor.send({ type: 'retry' })
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+  })
+
+  it('allows a retry once the wallet is free again', async () => {
+    const { releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+    actor.send({ type: '$error', error: new Error('boom') })
+    releaseRegistrationLock(EOA_ADDRESS)
+
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
   })
 
   it('proceeds when an HCA registration has an owner wallet client', () => {
@@ -760,6 +864,46 @@ describe('registrationV2UiMachine — registration.resume', () => {
     ownerAddress: EOA_ADDRESS,
     walletClient: {},
   } as unknown as SmartAccountContextValue
+
+  // A reload drops this tab's claim, so the resumed run has to take it again
+  // before it continues a commit on the wallet's nonce.
+  it('refuses to resume while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    const refused = actor.getSnapshot()
+    expect(refused.value).toBe('failure')
+    expect(refused.context.lastErrorMessage).toMatch(/othername\.eth/i)
+
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+  })
+
+  it('claims the wallet when it resumes', async () => {
+    const { acquireRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(hcaAccount))
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(EOA_ADDRESS, 'other.eth')).toBe(false)
+    })
+  })
 
   it('resumes from the pricing step a fresh mount lands on', () => {
     // A reload puts the UI machine in `pricing.duration`, not `pricing.tokens`.

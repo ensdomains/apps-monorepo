@@ -9,6 +9,7 @@ import {
   PlayCircle,
   XCircle,
 } from 'lucide-react'
+import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import { useChainId } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
@@ -189,6 +190,12 @@ export const TransactionsOverviewContent = ({
                   </Button>
                 </div>
                 <dl className="grid grid-cols-2 gap-1 place-items-start">
+                  {transaction.details?.map(({ label, value }) => (
+                    <Fragment key={label}>
+                      <dt className="text-base font-medium">{label}</dt>
+                      <dd className="text-base font-mono break-all">{value}</dd>
+                    </Fragment>
+                  ))}
                   <dt className="text-base font-medium">
                     {getStatus(transaction.id, activeTransactionsMap) ===
                     'success'

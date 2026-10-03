@@ -50,6 +50,13 @@
       "when": 1790270011988,
       "tag": "0006_free_peter_quill",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790807476176,
+      "tag": "0007_bind_deliveries_to_channels",
+      "breakpoints": true
     }
   ]
 }

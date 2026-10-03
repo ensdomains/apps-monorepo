@@ -21,6 +21,7 @@ import type { ExpiryEvent } from '#types/events/index.js'
 import {
   buildIdempotencyKey,
   DATABASE_WRITE_BATCH_SIZE,
+  processRecipientPage,
   QUEUE_BATCH_SIZE,
   RECIPIENT_PAGE_SIZE,
 } from './event-ingestion.js'
@@ -158,8 +159,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         .where(inArray(TABLE.notifications.user_id, userIds))
         .groupBy(
           TABLE.notificationDeliveries.notification_id,
-          TABLE.notificationDeliveries.channel,
-          TABLE.notificationDeliveries.target,
+          TABLE.notificationDeliveries.channel_id,
         )
         .having(sql`count(*) > 1`)
       expect(notificationDuplicates).toEqual([])
@@ -264,6 +264,10 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         stage: 'grace-7d',
       })
       expect(before.deliveries).toHaveLength(1)
+      const [channel] = await db.query.userChannels.findMany({
+        where: eq(TABLE.userChannels.user_id, users[0]?.id ?? ''),
+      })
+      expect(before.deliveries[0]?.channel_id).toBe(channel?.id)
       await assertNoDuplicateGroups()
       const jobs = email.sendBatch.mock.calls.flatMap(([batch]) =>
         batch.map((message) => message.body),
@@ -287,6 +291,163 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         id: jobs[0]?.id,
         status: 'delivered',
       })
+    })
+
+    it('binds recipients sharing a target to their own exact channels', async () => {
+      await seedRecipients(2)
+      const shared = `${crypto.randomUUID()}@example.com`
+      await db
+        .update(TABLE.userChannels)
+        .set({ target: shared })
+        .where(
+          inArray(
+            TABLE.userChannels.user_id,
+            users.map((user) => user.id),
+          ),
+        )
+      await db
+        .insert(TABLE.favorites)
+        .values(users.map((user) => ({ user_id: user.id, name: event.name })))
+      const result = await runQueue(
+        'app-api-worker-event-ingestion',
+        [{ ...event, includeFavorites: true }],
+        bindings,
+      )
+      expect(result.explicitAcks).toEqual(['message-0'])
+      const { notifications, deliveries } = await state()
+      const channels = await db.query.userChannels.findMany({
+        where: inArray(
+          TABLE.userChannels.user_id,
+          users.map((user) => user.id),
+        ),
+      })
+      const channelIdByUser = new Map(
+        channels.map((channel) => [channel.user_id, channel.id]),
+      )
+      const userByNotification = new Map(
+        notifications.map((row) => [row.id, row.user_id]),
+      )
+      expect(deliveries).toHaveLength(2)
+      for (const delivery of deliveries)
+        expect(delivery.channel_id).toBe(
+          channelIdByUser.get(
+            userByNotification.get(delivery.notification_id) ?? '',
+          ),
+        )
+      await assertNoDuplicateGroups()
+    })
+
+    it('replays onto a re-created channel as a new delivery, leaving the old one unbound', async () => {
+      await seedRecipients(1)
+      const owner = users[0]
+      if (!owner) throw new Error('Missing fixture owner')
+      await runQueue('app-api-worker-event-ingestion', [event], bindings)
+      const first = await state()
+      const original = first.deliveries[0]
+      if (!original?.channel_id) throw new Error('Missing original delivery')
+
+      // Same account, same target, different channel.
+      await db
+        .delete(TABLE.userChannels)
+        .where(eq(TABLE.userChannels.id, original.channel_id))
+      const [recreated] = await db
+        .insert(TABLE.userChannels)
+        .values({
+          user_id: owner.id,
+          channel: 'email',
+          target: `${owner.id}@example.com`,
+          status: 'verified',
+        })
+        .returning({ id: TABLE.userChannels.id })
+
+      const replay = await runQueue(
+        'app-api-worker-event-ingestion',
+        [event],
+        bindings,
+      )
+      expect(replay.explicitAcks).toEqual(['message-0'])
+      const { deliveries } = await state()
+      expect(deliveries).toHaveLength(2)
+      expect(deliveries.find((row) => row.id === original.id)).toMatchObject({
+        channel_id: null,
+        status: 'queued',
+      })
+      const bound = deliveries.find((row) => row.id !== original.id)
+      expect(bound?.channel_id).toBe(recreated?.id)
+      // The unbound history is never re-enqueued as if it belonged to the new
+      // channel; only the new channel's delivery is handed off.
+      const replayJobs = email.sendBatch.mock.calls
+        .slice(1)
+        .flatMap(([batch]) => batch.map((message) => message.body.id))
+      expect(replayJobs).toEqual([bound?.id])
+      await assertNoDuplicateGroups()
+    })
+
+    it('skips a channel removed between fanout and delivery insert without failing the page', async () => {
+      await seedRecipients(2)
+      const [kept, removed] = users
+      if (!kept || !removed) throw new Error('Missing fixtures')
+      const [removedChannel] = await db.query.userChannels.findMany({
+        where: eq(TABLE.userChannels.user_id, removed.id),
+      })
+      if (!removedChannel) throw new Error('Missing channel fixture')
+
+      // The account unlinks its channel right after fanout has read it.
+      let channelsQuery: unknown
+      const racingDb = new Proxy(db, {
+        get(target, property, receiver) {
+          if (property === 'query')
+            return {
+              ...target.query,
+              userChannels: {
+                ...target.query.userChannels,
+                findMany: (
+                  ...args: Parameters<
+                    Database['query']['userChannels']['findMany']
+                  >
+                ) => {
+                  const query = target.query.userChannels.findMany(...args)
+                  channelsQuery ??= query
+                  return query
+                },
+              },
+            }
+          if (property === 'batch')
+            return async (queries: Parameters<Database['batch']>[0]) => {
+              const results = await target.batch(queries)
+              if (queries[0] === channelsQuery)
+                await target
+                  .delete(TABLE.userChannels)
+                  .where(eq(TABLE.userChannels.id, removedChannel.id))
+              return results
+            }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+
+      const result = await processRecipientPage({
+        db: racingDb,
+        env: bindings,
+        event,
+        recipients: users.map((user) => ({
+          userId: user.id,
+          watchReason: 'owned' as const,
+        })),
+      })
+      expect(result.isOk()).toBe(true)
+
+      const { notifications, deliveries } = await state()
+      expect(notifications).toHaveLength(2)
+      const keptNotification = notifications.find(
+        (row) => row.user_id === kept.id,
+      )
+      expect(deliveries).toHaveLength(1)
+      expect(deliveries[0]?.notification_id).toBe(keptNotification?.id)
+      expect(
+        email.sendBatch.mock.calls.flatMap(([batch]) =>
+          batch.map((message) => message.body.id),
+        ),
+      ).toEqual([deliveries[0]?.id])
     })
 
     it('counts real JSONB push expirations when admitting the tenth and rejecting the eleventh endpoint', async () => {

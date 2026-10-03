@@ -1,4 +1,3 @@
-import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -10,7 +9,7 @@ import {
 } from '#services/telegram/utils.js'
 import type { TelegramDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
-import { NotificationDeliveryNotFoundError } from './errors.js'
+import { resolveDeliveryChannel } from './channel.js'
 import {
   type TelegramTemplate,
   telegramTemplates,
@@ -25,38 +24,8 @@ export const deliverTelegramNotification = ResultFn(async function* (
   db: Database,
   job: TelegramDeliveryJob,
 ) {
-  const deliveryJob = await db.query.notificationDeliveries.findFirst({
-    where: eq(TABLE.notificationDeliveries.id, job.id),
-    columns: {
-      status: true,
-      target: true,
-    },
-    with: {
-      notification: {
-        columns: {
-          payload: true,
-        },
-      },
-    },
-  })
-
-  if (!deliveryJob) {
-    return yield* new NotificationDeliveryNotFoundError({
-      message: `Delivery job not found: ${job.id}`,
-    })
-  }
-
-  if (
-    deliveryJob.status === 'delivered' ||
-    deliveryJob.status === 'permanently_failed'
-  ) {
-    logger.debug('Skipping terminal Telegram delivery', {
-      jobId: job.id,
-      kind: job.kind,
-      status: deliveryJob.status,
-    })
-    return ok(undefined)
-  }
+  const delivery = yield* resolveDeliveryChannel(db, job, 'telegram')
+  if (!delivery) return ok(undefined)
 
   // Get the template function
   const template = telegramTemplates[job.kind] as TelegramTemplate<
@@ -69,9 +38,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
   }
 
   // Generate the message
-  const message = template(
-    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
-  )
+  const message = template(delivery.payload)
 
   // Create keyboard if buttons exist
   const replyMarkup = message.buttons
@@ -80,7 +47,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
 
   // Send via Telegram API
   const result = yield* makeTelegramRequest(botToken, 'sendMessage', {
-    chat_id: deliveryJob.target,
+    chat_id: delivery.channel.target,
     text: message.text,
     parse_mode: message.parseMode,
     reply_markup: replyMarkup,
@@ -99,6 +66,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
   logger.debug('Telegram notification delivered', {
     jobId: job.id,
     kind: job.kind,
+    channelId: delivery.channel.id,
     messageId: result.message_id,
   })
 

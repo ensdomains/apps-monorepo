@@ -17,6 +17,7 @@ import { ok } from 'neverthrow'
 import { v7 as uuidv7 } from 'uuid'
 import { getQueueForChannel } from '#config/queues.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
+import { insertQueuedDeliveries } from '#services/delivery/channel.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { chunk } from '#utils/chunk.js'
 import { logger } from '#utils/logger.js'
@@ -176,25 +177,23 @@ export const createNotification = ResultFn(async function* <
       continue
     }
 
-    // Create delivery record
-    const delivery = yield* intoDbResult(
-      ctx.db
-        .insert(TABLE.notificationDeliveries)
-        .values({
-          notification_id: notification.id,
-          channel: channel.channel,
-          target: channel.target,
-          status: 'queued',
-          attempts: 0,
-        })
-        .returning(),
-    ).andThen(
-      getFirstOrFallback(
-        new NotificationCreationError({
-          message: 'Failed to create delivery',
-        }).toErr(),
-      ),
-    )
+    // Create delivery record; nothing is inserted if the channel was removed
+    // after it was read above
+    const [delivery] = yield* insertQueuedDeliveries(ctx.db, [
+      {
+        notificationId: notification.id,
+        channelId: channel.id,
+        channel: channel.channel,
+      },
+    ])
+    if (!delivery) {
+      logger.info('Channel removed before delivery creation, skipping', {
+        channelId: channel.id,
+        kind: ctx.kind,
+        userId: ctx.userId,
+      })
+      continue
+    }
 
     // Enqueue based on channel type using centralized mapping
     const queueBinding = getQueueForChannel(channel.channel)
@@ -312,6 +311,7 @@ export const createBatchNotifications = ResultFn(async function* <
         eq(TABLE.userChannels.status, 'verified'),
       ),
       columns: {
+        id: true,
         user_id: true,
         channel: true,
         target: true,
@@ -410,8 +410,8 @@ export const createBatchNotifications = ResultFn(async function* <
       deliveriesToCreate.push({
         id: deliveryId,
         notification_id: notification.id,
+        channel_id: channel.id,
         channel: channel.channel,
-        target: channel.target,
         status: 'queued',
         attempts: 0,
       })
