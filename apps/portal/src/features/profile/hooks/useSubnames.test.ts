@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,7 +19,8 @@ vi.mock('@/lib/indexer', () => ({
   },
 }))
 
-const { getSubnames } = await import('./useSubnames')
+const { getSubnames, getSubnamesCountQueryOptions, getSubnamesQueryOptions } =
+  await import('./useSubnames')
 
 describe('getSubnames', () => {
   beforeEach(() => {
@@ -170,6 +172,71 @@ describe('getSubnames', () => {
     ])
   })
 
+  it('pages through every V2 subname, not just the first page', async () => {
+    const subdomain = (i: number) => ({
+      name: `sub${i}.test.eth`,
+      labelName: `sub${i}`,
+      labelhash: '0xabcd',
+      owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
+    })
+    mockGraphqlRequest
+      .mockResolvedValueOnce({
+        domains: [
+          {
+            subdomainsCount: 51,
+            subdomains: Array.from({ length: 40 }, (_, i) => subdomain(i)),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        domains: [
+          {
+            subdomainsCount: 51,
+            subdomains: Array.from({ length: 11 }, (_, i) => subdomain(40 + i)),
+          },
+        ],
+      })
+
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv2',
+    })
+
+    const subnames = result._unsafeUnwrap()
+    expect(subnames).toHaveLength(51)
+    expect(subnames.at(-1)?.name).toBe('sub50.test.eth')
+    expect(
+      mockGraphqlRequest.mock.calls.map(([, variables]) => variables),
+    ).toEqual([
+      { name: 'test.eth', skip: 0 },
+      { name: 'test.eth', skip: 40 },
+    ])
+  })
+
+  it('makes one request when the V2 subnames exactly fill a page', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [
+        {
+          subdomainsCount: 40,
+          subdomains: Array.from({ length: 40 }, (_, i) => ({
+            name: `sub${i}.test.eth`,
+            labelName: `sub${i}`,
+            labelhash: '0xabcd',
+            owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
+          })),
+        },
+      ],
+    })
+
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv2',
+    })
+
+    expect(result._unsafeUnwrap()).toHaveLength(40)
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
+  })
+
   it('returns empty array when domain has no subdomains', async () => {
     const mockGraphqlResponse = {
       domains: [{ subdomains: [] }],
@@ -182,5 +249,68 @@ describe('getSubnames', () => {
     })
 
     expect(result._unsafeUnwrap()).toEqual([])
+  })
+})
+
+describe('getSubnamesCountQueryOptions', () => {
+  beforeEach(() => {
+    mockEnsjsGetSubnames.mockReset()
+    mockGraphqlRequest.mockReset()
+  })
+
+  it('reads the V2 count in one request, without listing the subnames', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [{ subdomainsCount: 137 }],
+    })
+
+    const count = await new QueryClient().fetchQuery(
+      getSubnamesCountQueryOptions({
+        name: 'test.eth',
+        protocolVersion: 'ENSv2',
+      }),
+    )
+
+    expect(count).toBe(137)
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(expect.anything(), {
+      name: 'test.eth',
+    })
+  })
+
+  it('counts the V1 list, which has no count of its own', async () => {
+    mockEnsjsGetSubnames.mockResolvedValue([
+      { name: 'a.test.eth', labelName: 'a', labelhash: '0x01', owner: '0x1' },
+      { name: 'b.test.eth', labelName: 'b', labelhash: '0x02', owner: '0x1' },
+    ])
+
+    const count = await new QueryClient().fetchQuery(
+      getSubnamesCountQueryOptions({
+        name: 'test.eth',
+        protocolVersion: 'ENSv1',
+      }),
+    )
+
+    expect(count).toBe(2)
+  })
+
+  // Creating, deleting and transferring a subname all invalidate the list's
+  // key; the count must go stale with it.
+  it('is invalidated by the list’s query key', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [{ subdomainsCount: 3 }],
+    })
+    const params = { name: 'test.eth', protocolVersion: 'ENSv2' } as const
+    const queryClient = new QueryClient()
+    const countOptions = getSubnamesCountQueryOptions(params)
+    await queryClient.fetchQuery(countOptions)
+
+    await queryClient.invalidateQueries({
+      queryKey: getSubnamesQueryOptions(params).queryKey,
+      refetchType: 'none',
+    })
+
+    expect(
+      queryClient.getQueryState(countOptions.queryKey)?.isInvalidated,
+    ).toBe(true)
   })
 })
