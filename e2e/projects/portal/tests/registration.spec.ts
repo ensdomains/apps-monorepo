@@ -2,19 +2,28 @@ import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAvailable } from '@ensdomains/ensjs/public'
 import { getExpiry, getOwner } from '@ensdomains/ensjs/public/v2'
 import {
+  ethRegistrarGetRegisterPriceSnippet,
+  ethRegistrarGetRenewPriceSnippet,
+} from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
 import type { Locator, Page } from '@playwright/test'
 import {
   type Address,
+  decodeFunctionData,
   erc20Abi,
   formatUnits,
   type Hash,
+  keccak256,
   maxUint256,
   parseAbi,
   toFunctionSelector,
+  toHex,
 } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -27,6 +36,7 @@ import {
 } from '../../../helpers/anvil-client.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
+import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
 import {
   authorizeTransaction,
   switchWalletToSepolia,
@@ -1620,5 +1630,936 @@ test.describe('Portal registration — a step that landed on a resubmission stay
     await expect(
       dialog.getByRole('button', { name: 'Start', exact: true }),
     ).toHaveCount(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-1485 (PR #1221) — a failed token price read must block checkout, never
+// price the name at $0.
+//
+// The bug: `buildTokenData` replaced any price it couldn't read with
+// `DEFAULT_PRICE` (`total: 0n`). A reverted or malformed `getRegisterPrice` /
+// `getRenewPrice` read therefore made every token "available" at $0 — an empty
+// wallet looked sufficient, the approval step was skipped (allowance ≥ 0), and
+// the registrar still pulled its live price. The Extend modal let "Next" through
+// on no price and rendered nothing on the confirm step. Separately, renewals
+// approved 2× the price, and `renew()` takes no amount, so the allowance was the
+// only cap on the charge and half of it was left standing afterwards.
+//
+// The fix: the picker treats a settled price read that errored as a blocking
+// "Couldn't load price" card with a retry and drops any selection it was
+// holding; Extend keeps "Next" disabled until the price resolves and shows the
+// same card on the confirm step; the checkout summaries pass the token so they
+// share one cache entry with the picker; renewals approve the exact price.
+//
+// The PR's unit tests feed the picker rejected queries and check the approve
+// intent's amount. These fail the real price `eth_call`s inside the browser's
+// JSON-RPC batches (every other call reaches the fork untouched), so they reach
+// the real register page, the real Extend modal and the real query cache. The
+// money test renews on the fork: the oracle is the mined approve's calldata,
+// the renewer's allowance afterwards and the USDC balance delta, each checked
+// against the renewer's own `getRenewPrice` for the duration that really landed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PRICE_ABI = [
+  ...ethRegistrarGetRegisterPriceSnippet.filter((f) => f.type === 'function'),
+  ...ethRegistrarGetRenewPriceSnippet.filter((f) => f.type === 'function'),
+]
+const APPROVE_SELECTOR = toFunctionSelector(
+  'approve(address spender, uint256 amount)',
+)
+
+type PriceCall = {
+  readonly fn: 'getRegisterPrice' | 'getRenewPrice'
+  readonly label: string
+  readonly duration: bigint
+  readonly token: Address
+  failed: boolean
+}
+
+type RpcRequest = {
+  readonly id: number
+  readonly method: string
+  readonly params?: readonly [{ readonly data?: string; readonly to?: string }]
+}
+
+function decodePriceCall(request: RpcRequest): PriceCall | null {
+  const data = request.params?.[0]?.data
+  if (request.method !== 'eth_call' || !data) return null
+  try {
+    const { functionName, args } = decodeFunctionData({
+      abi: PRICE_ABI,
+      data: data as Hash,
+    })
+    const [label, duration, token] = args
+    return { fn: functionName, label, duration, token, failed: false }
+  } catch {
+    return null
+  }
+}
+
+type RpcEntry = { readonly id: number }
+
+/** What a node returns for a reverted call — code 3, which viem neither
+ * retries nor fails over on. */
+const revertedEntry = (id: number) => ({
+  jsonrpc: '2.0',
+  id,
+  error: { code: 3, message: 'execution reverted', data: '0x' },
+})
+
+/**
+ * Reverts the price reads `shouldFail` picks, the way a broken oracle or a
+ * flaky node would. Every other request in the batch is forwarded to the fork.
+ * Returns every price call the page made, in order — the evidence that a read
+ * really failed, so the assertions after it can't pass on a page that never
+ * priced anything.
+ */
+async function failPriceReads(
+  page: Page,
+  shouldFail: (call: PriceCall, earlier: readonly PriceCall[]) => boolean,
+) {
+  const calls: PriceCall[] = []
+  const pickFailures = (requests: readonly RpcRequest[]) => {
+    const failIds = new Set<number>()
+    for (const request of requests) {
+      const call = decodePriceCall(request)
+      if (!call) continue
+      call.failed = shouldFail(call, [...calls])
+      calls.push(call)
+      if (call.failed) failIds.add(request.id)
+    }
+    return failIds
+  }
+  await page.route('**/rpc', async (route) => {
+    const body = route.request().postDataJSON() as RpcRequest | RpcRequest[]
+    const failIds = pickFailures(Array.isArray(body) ? body : [body])
+    if (failIds.size === 0) return route.continue()
+    const response = await route.fetch()
+    const json = (await response.json()) as RpcEntry | RpcEntry[]
+    const entries = (Array.isArray(json) ? json : [json]).map((entry) =>
+      failIds.has(entry.id) ? revertedEntry(entry.id) : entry,
+    )
+    return route.fulfill({
+      response,
+      json: Array.isArray(json) ? entries : entries[0],
+    })
+  })
+  return calls
+}
+
+/** The picker's card replaces the "Select payment method" list when prices
+ * fail, so the checkout is scoped to the page content, not that section. */
+const checkoutOf = (page: Page) => content(page)
+
+const tokenRows = (scope: Locator) =>
+  scope.getByRole('button', { name: /^(USDC|DAI)\b/ })
+
+/**
+ * Waits until the picker has settled one way or the other — the error card
+ * (fixed) or token rows (the old fallback) — so the assertions that follow
+ * judge a finished render, not a skeleton.
+ */
+async function waitForPickerSettled(scope: Locator) {
+  await expect(
+    scope.getByText("Couldn't load price").or(tokenRows(scope)).first(),
+  ).toBeVisible({ timeout: 30_000 })
+}
+
+/** `$8.01` — how the summary renders a USDC amount (rounded up to the cent). */
+const usdcDisplay = (amount: bigint) =>
+  `$${(Math.ceil(Number(amount) / 10_000) / 100).toFixed(2)}`
+
+const MOCK_DAI = ensjsSepolia.dai.address
+const V1_RENEWER = ensjsSepolia.ensEthRenewerV1.address
+const V1_BASE_REGISTRAR = ensjsSepolia.ensBaseRegistrarImplementation.address
+const ERC20_READ_ABI = parseAbi([
+  'function balanceOf(address owner) view returns (uint256)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+])
+const NAME_EXPIRES_ABI = parseAbi([
+  'function nameExpires(uint256 id) view returns (uint256)',
+])
+
+const sameAddress = (a: string, b: string) =>
+  a.toLowerCase() === b.toLowerCase()
+
+/** Whether a mined transaction is `owner`'s `approve` on `token`. */
+const isApproveFrom =
+  (owner: Address, token: Address) =>
+  (tx: { from: Address; to: Address | null; input: Hash }) =>
+    sameAddress(tx.from, owner) &&
+    tx.to !== null &&
+    sameAddress(tx.to, token) &&
+    tx.input.startsWith(APPROVE_SELECTOR)
+
+/** Every `approve` on `token` that `owner` mined after `fromBlock`, decoded. */
+async function minedApprovals(
+  owner: Address,
+  fromBlock: bigint,
+  token: Address = MOCK_USDC,
+) {
+  const latest = await publicClient.getBlockNumber({ cacheTime: 0 })
+  const approvals: { spender: Address; amount: bigint }[] = []
+  for (let n = fromBlock + 1n; n <= latest; n++) {
+    const block = await publicClient.getBlock({
+      blockNumber: n,
+      includeTransactions: true,
+    })
+    for (const tx of block.transactions.filter(isApproveFrom(owner, token))) {
+      const { args } = decodeFunctionData({ abi: erc20Abi, data: tx.input })
+      approvals.push({
+        spender: args[0] as Address,
+        amount: args[1] as bigint,
+      })
+    }
+  }
+  return approvals
+}
+
+/** The single USDC approve `owner` mined after `fromBlock`. */
+async function minedApprove(owner: Address, fromBlock: bigint) {
+  const approvals = await minedApprovals(owner, fromBlock)
+  expect(approvals, 'exactly one USDC approval was mined').toHaveLength(1)
+  return approvals[0]
+}
+
+const readTokenBalance = (token: Address, owner: Address) =>
+  publicClient.readContract({
+    address: token,
+    abi: ERC20_READ_ABI,
+    functionName: 'balanceOf',
+    args: [owner],
+  })
+
+const readTokenAllowance = (token: Address, owner: Address, spender: Address) =>
+  publicClient.readContract({
+    address: token,
+    abi: ERC20_READ_ABI,
+    functionName: 'allowance',
+    args: [owner, spender],
+  })
+
+/** Sets `owner`'s `token` allowance to `spender`, so a run must approve. */
+async function setTokenAllowance(
+  owner: Address,
+  token: Address,
+  spender: Address,
+  amount: bigint,
+) {
+  await testClient.impersonateAccount({ address: owner })
+  try {
+    const hash = await walletClient.writeContract({
+      account: owner,
+      chain: undefined,
+      address: token,
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [spender, amount],
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+  } finally {
+    await testClient.stopImpersonatingAccount({ address: owner })
+  }
+}
+
+/** A V1 name's registrar expiry — what `ETHRenewerV1.renew` extends. */
+const readV1Expiry = (label: string) =>
+  publicClient.readContract({
+    address: V1_BASE_REGISTRAR,
+    abi: NAME_EXPIRES_ABI,
+    functionName: 'nameExpires',
+    args: [BigInt(keccak256(toHex(label)))],
+  })
+
+/** The renewer's own price for renewing `label` by `duration` in `token`. */
+const renewerPrice = (
+  renewer: Address,
+  label: string,
+  duration: bigint,
+  token: Address,
+) =>
+  publicClient.readContract({
+    address: renewer,
+    abi: PRICE_ABI,
+    functionName: 'getRenewPrice',
+    args: [label, duration, token],
+  })
+
+/**
+ * Opens the names list with `names` selected and presses Extend. V1 names are
+ * listed through the V1 subgraph, which can't see fork-seeded names (and the
+ * local shim rejects the list's `wrappedOwner` filter), so they are injected;
+ * pricing, approval and renewal all still run against the fork.
+ */
+async function extendFromNamesList(
+  page: Page,
+  owner: Address,
+  names: { readonly v2: readonly string[]; readonly v1: readonly string[] },
+  search: string,
+) {
+  await mockV1Subgraph(
+    page,
+    names.v1.map((name) => ({ name, ownerAddress: owner, type: 'unwrapped' })),
+  )
+  await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
+  await content(page).getByPlaceholder('Search names...').fill(search)
+  for (const name of [...names.v2, ...names.v1]) {
+    const row = page.getByRole('row').filter({ hasText: name })
+    await expect(row).toHaveCount(1, { timeout: 30_000 })
+    await row.getByRole('checkbox').first().click()
+  }
+  const extend = page.getByRole('button', { name: 'Extend', exact: true })
+  await expect(extend).toBeEnabled({ timeout: 30_000 })
+  await extend.click()
+  const dialog = page.getByRole('dialog')
+  // The multi-name modal opens on a disclaimer. The single-name one shows it
+  // only until ownership resolves, then skips it for the owner — so press it
+  // if it is still there, and otherwise carry on from the settings step.
+  const disclaimer = dialog.getByRole('button', { name: 'I Understand' })
+  const next = dialog.getByRole('button', { name: 'Next' })
+  await expect(disclaimer.or(next).first()).toBeVisible({ timeout: 30_000 })
+  await disclaimer.click({ timeout: 5_000 }).catch(() => {})
+  await expect(next).toBeVisible({ timeout: 30_000 })
+  return dialog
+}
+
+/** From an open Extend dialog's settings step to a started USDC/DAI run. */
+async function confirmExtendWith(
+  page: Page,
+  dialog: Locator,
+  token: 'USDC' | 'DAI',
+) {
+  const next = dialog.getByRole('button', { name: 'Next' })
+  await expect(next).toBeEnabled({ timeout: 30_000 })
+  await expect(dialog.getByText(/^\$[\d,.]+$/).first()).toBeVisible({
+    timeout: 30_000,
+  })
+  await next.click()
+  await dialog.getByRole('button', { name: new RegExp(`^${token}\\b`) }).click()
+  await dialog.getByRole('button', { name: /^(Confirm|Next)$/ }).click()
+  // The Extend dialog unmounts as the transaction dialog opens.
+  await expect(page.locator('[data-slot="dialog-content"]')).toHaveCount(1, {
+    timeout: 15_000,
+  })
+}
+
+test.describe('Portal checkout — a failed price read blocks checkout instead of pricing it at $0 (WEB-1485)', () => {
+  test('a register page whose price reads fail offers no token and no Register, then recovers on Try again', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    let failing = true
+    const calls = await failPriceReads(page, () => failing)
+    const name = `web1485-reg-${Date.now().toString(36)}.eth`
+
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    const section = checkoutOf(page)
+    await waitForPickerSettled(section)
+    expect(
+      calls.some((call) => call.fn === 'getRegisterPrice' && call.failed),
+      'a registration price read really failed',
+    ).toBe(true)
+
+    // ── The bug: every token was offered, "available", at a $0 price ──
+    await expect(
+      tokenRows(section),
+      'no token may be offered at a price the app could not read',
+    ).toHaveCount(0)
+    await expect(content(page).getByText('$0.00')).toHaveCount(0)
+    await expect(section.getByText('available', { exact: true })).toHaveCount(0)
+    await expect(section.getByText("Couldn't load price")).toBeVisible()
+    await expect(
+      section.getByText(
+        "We couldn't fetch the registration price for this name. Please try again.",
+      ),
+    ).toBeVisible()
+    await expect(
+      section.getByRole('button', { name: /^Register$/i }),
+    ).toBeDisabled()
+    expect(pendingSends(wallet)).toBe(0)
+
+    // ── Positive control: the same page prices and checks out once reads work ──
+    failing = false
+    await section.getByRole('button', { name: 'Try again' }).click()
+    await expect(tokenRows(section).first()).toBeVisible({ timeout: 30_000 })
+    await expect(section.getByText("Couldn't load price")).toHaveCount(0)
+    const usdcCall = calls.findLast(
+      (call) =>
+        call.fn === 'getRegisterPrice' &&
+        !call.failed &&
+        call.token.toLowerCase() === MOCK_USDC.toLowerCase(),
+    )
+    if (!usdcCall) throw new Error('the retry never re-read the USDC price')
+    const [base, premium] = await publicClient.readContract({
+      address: ETH_REGISTRAR,
+      abi: PRICE_ABI,
+      functionName: 'getRegisterPrice',
+      args: [usdcCall.label, usdcCall.duration, MOCK_USDC],
+    })
+    expect(base + premium).toBeGreaterThan(0n)
+    await expect(
+      content(page)
+        .getByText(usdcDisplay(base + premium))
+        .first(),
+    ).toBeVisible()
+    await section.getByRole('button', { name: /^USDC\b/ }).click()
+    await expect(
+      section.getByRole('button', { name: /^Register$/i }),
+    ).toBeEnabled()
+  })
+
+  // A new duration is the only way the real page re-reads a price it already
+  // has (retry is off and prices stay fresh for an hour), and a new duration
+  // already cleared the pick before the fix — so the Register check below is a
+  // guard here. What goes red on the old code is the token list: the new,
+  // unread price was offered at $0. The PR's unit test covers a held pick
+  // surviving a failed re-read of the *same* price.
+  test('a later price read that fails clears the picked token and offers none at $0', async ({
+    portalPage: page,
+    wallet,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    let failing = false
+    const calls = await failPriceReads(page, () => failing)
+    const name = `web1485-held-${Date.now().toString(36)}.eth`
+
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    const section = checkoutOf(page)
+    await expect(tokenRows(section).first()).toBeVisible({ timeout: 30_000 })
+    await section.getByRole('button', { name: /^USDC\b/ }).click()
+    const register = section.getByRole('button', { name: /^Register$/i })
+    await expect(register).toBeEnabled()
+
+    // A new duration is a new price read — and this one fails.
+    failing = true
+    await content(page).getByText('2 years', { exact: true }).click()
+    await expect
+      .poll(() => calls.some((call) => call.failed), { timeout: 15_000 })
+      .toBe(true)
+    await waitForPickerSettled(section)
+
+    // Guard: the pick made at the old price is gone.
+    await expect(
+      register,
+      'the selection made at the old price must not survive a failed read',
+    ).toBeDisabled()
+    // ── The bug: the unread price was offered at $0 ──
+    await expect(
+      tokenRows(section),
+      'no token may be offered at a price the app could not read',
+    ).toHaveCount(0)
+    await expect(content(page).getByText('$0.00')).toHaveCount(0)
+    await expect(section.getByText("Couldn't load price")).toBeVisible()
+
+    // Recovering does not resurrect the old pick: the visitor chooses again.
+    failing = false
+    await section.getByRole('button', { name: 'Try again' }).click()
+    await expect(tokenRows(section).first()).toBeVisible({ timeout: 30_000 })
+    await expect(register).toBeDisabled()
+    await section.getByRole('button', { name: /^USDC\b/ }).click()
+    await expect(register).toBeEnabled()
+  })
+
+  test('the summary and the token picker read one price, so they cannot disagree', async ({
+    portalPage: page,
+    wallet,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    // Only the very first USDC registration price read fails; any second read
+    // of the same price would succeed and let the two panels diverge.
+    const isUsdc = (call: PriceCall) =>
+      call.fn === 'getRegisterPrice' &&
+      call.token.toLowerCase() === MOCK_USDC.toLowerCase()
+    const calls = await failPriceReads(
+      page,
+      (call, earlier) => isUsdc(call) && !earlier.some(isUsdc),
+    )
+    const name = `web1485-one-${Date.now().toString(36)}.eth`
+
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    const section = checkoutOf(page)
+    await waitForPickerSettled(section)
+    await expect(
+      content(page).getByText('Failed to load price').first(),
+    ).toBeVisible({ timeout: 30_000 })
+
+    // ── The bug: the summary and the picker each fetched the USDC price ──
+    const usdcReads = calls.filter(isUsdc)
+    expect(
+      usdcReads.map((call) => `${call.duration}`),
+      'one USDC price read per duration, shared by the summary and the picker',
+    ).toEqual([...new Set(usdcReads.map((call) => `${call.duration}`))])
+    // Both panels show the one failure — neither prices the name.
+    await expect(section.getByText("Couldn't load price")).toBeVisible()
+    await expect(tokenRows(section)).toHaveCount(0)
+
+    // Positive control: one retry recovers both panels together.
+    await section.getByRole('button', { name: 'Try again' }).click()
+    await expect(tokenRows(section).first()).toBeVisible({ timeout: 30_000 })
+    await expect(content(page).getByText('Failed to load price')).toHaveCount(0)
+  })
+
+  test('Extend keeps Next disabled while the renewal price read fails, and prices it once it loads', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(240_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const name = await makeName({
+      label: `web1485-next-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    await waitForIndexedName(name)
+    let failing = true
+    const calls = await failPriceReads(page, () => failing)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, owner)
+    await content(page)
+      .getByRole('button', { name: 'Extend', exact: true })
+      .click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('Extend name')).toBeVisible()
+    // Wait on the read itself, not on Next: before the fix Next was enabled
+    // with no price at all, so it is no sign the modal has priced anything.
+    await expect
+      .poll(
+        () => calls.some((call) => call.fn === 'getRenewPrice' && call.failed),
+        { message: 'a renewal price read really failed', timeout: 30_000 },
+      )
+      .toBe(true)
+    await expect(dialog.getByText('Failed to load price')).toBeVisible()
+    const next = dialog.getByRole('button', { name: 'Next' })
+
+    // ── The bug: Next led to a confirm step with nothing on it ──
+    await expect(next, 'Next must wait for a price').toBeDisabled()
+    await expect(dialog.getByText(/^\$[\d,.]+$/)).toHaveCount(0)
+
+    // Positive control: reopened with reads working, the modal prices and continues.
+    failing = false
+    await dialog.getByRole('button', { name: 'Close' }).first().click()
+    await expect(dialog).toHaveCount(0)
+    await content(page)
+      .getByRole('button', { name: 'Extend', exact: true })
+      .click()
+    await expect(next).toBeEnabled({ timeout: 30_000 })
+    await expect(dialog.getByText(/^\$[\d,.]+$/).first()).toBeVisible()
+    await next.click()
+    await expect(dialog.getByText('Confirm extension')).toBeVisible()
+    await expect(tokenRows(dialog).first()).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('the Extend confirm step offers no token whose renewal price failed, and says so when the price itself fails', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(240_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const name = await makeName({
+      label: `web1485-conf-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    await waitForIndexedName(name)
+    // First only the non-USDC token's renewal price fails.
+    let fail: 'other-token' | 'all' | 'none' = 'other-token'
+    const calls = await failPriceReads(
+      page,
+      (call) =>
+        call.fn === 'getRenewPrice' &&
+        (fail === 'all' ||
+          (fail === 'other-token' &&
+            call.token.toLowerCase() !== MOCK_USDC.toLowerCase())),
+    )
+
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, owner)
+    await content(page)
+      .getByRole('button', { name: 'Extend', exact: true })
+      .click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('button', { name: 'Next' })).toBeEnabled({
+      timeout: 30_000,
+    })
+    await dialog.getByRole('button', { name: 'Next' }).click()
+    await expect(dialog.getByText('Confirm extension')).toBeVisible()
+    await waitForPickerSettled(dialog)
+    expect(
+      calls.some((call) => call.fn === 'getRenewPrice' && call.failed),
+      'the other token’s renewal price read really failed',
+    ).toBe(true)
+
+    // ── The bug: the unpriced token was offered as "available" at $0 ──
+    await expect(
+      tokenRows(dialog),
+      'no token may be offered at a renewal price the app could not read',
+    ).toHaveCount(0)
+    await expect(dialog.getByText("Couldn't load price")).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Confirm' })).toBeDisabled()
+
+    // The renewal price itself now fails too: the whole step yields to the card.
+    fail = 'all'
+    await dialog.getByRole('button', { name: 'Try again' }).click()
+    await expect(
+      dialog.getByText(
+        "We couldn't fetch the renewal price for this name. Please try again.",
+      ),
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(dialog.getByText('Total cost')).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: 'Confirm' })).toHaveCount(0)
+    expect(pendingSends(wallet)).toBe(0)
+
+    // Positive control: with reads working, Try again restores a confirmable step.
+    fail = 'none'
+    await dialog.getByRole('button', { name: 'Try again' }).click()
+    await expect(dialog.getByText('Total cost')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(tokenRows(dialog).first()).toBeVisible({ timeout: 30_000 })
+    await dialog.getByRole('button', { name: /^USDC\b/ }).click()
+    await expect(dialog.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+  })
+
+  test('Extend approves exactly the renewal price and leaves no allowance behind', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const name = await makeName({
+      label: `web1485-exact-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    // makeName suffixes the label it is given, so read it back from the name.
+    const label = name.replace(/\.eth$/, '')
+    await waitForIndexedName(name)
+    // No standing allowance, so the run must approve.
+    await setRegistrarAllowance(owner, 0n)
+
+    const expiryBefore = await getExpiry(publicClient as never, { name })
+    const usdcBefore = await readUsdcBalance(owner)
+    // Uncached: viem reuses a block number for a few seconds, which can
+    // predate the setup approval above and count it as the app's.
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+    // Nothing fails here: this only records the price reads the modal makes.
+    const calls = await failPriceReads(page, () => false)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, owner)
+    await content(page)
+      .getByRole('button', { name: 'Extend', exact: true })
+      .click()
+    const dialog = page.getByRole('dialog')
+    // Wait for the quote itself — before the fix Next was enabled without one.
+    const isUsdcQuote = (call: PriceCall) =>
+      call.fn === 'getRenewPrice' &&
+      call.token.toLowerCase() === MOCK_USDC.toLowerCase()
+    await expect
+      .poll(() => calls.some(isUsdcQuote), { timeout: 30_000 })
+      .toBe(true)
+    await expect(dialog.getByText(/^\$[\d,.]+$/).first()).toBeVisible({
+      timeout: 30_000,
+    })
+    // The renewer's own price for the duration the modal quoted.
+    const quoted = calls.findLast(isUsdcQuote)
+    if (!quoted) throw new Error('the modal never read the USDC renewal price')
+    const price = await publicClient.readContract({
+      address: V2_RENEWER,
+      abi: PRICE_ABI,
+      functionName: 'getRenewPrice',
+      args: [label, quoted.duration, MOCK_USDC],
+    })
+    expect(price).toBeGreaterThan(0n)
+
+    await dialog.getByRole('button', { name: 'Next' }).click()
+    await dialog.getByRole('button', { name: /^USDC\b/ }).click()
+    await dialog.getByRole('button', { name: 'Confirm' }).click()
+    // The Extend dialog unmounts as the transaction dialog opens.
+    await expect(page.locator('[data-slot="dialog-content"]')).toHaveCount(1, {
+      timeout: 15_000,
+    })
+    await driveTransactionsToSuccess(page, wallet, [
+      `renewal-approve-${V2_RENEWER}`,
+      `renewal-renew-${name}`,
+    ])
+
+    await expect
+      .poll(() => getExpiry(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(expiryBefore)
+    // The extension that landed is the one that was priced.
+    expect(
+      (await getExpiry(publicClient as never, { name })) - expiryBefore,
+    ).toBe(quoted.duration)
+
+    // ── The bug: the approval was 2× the price, and half of it stayed ──
+    const approval = await minedApprove(owner, fromBlock)
+    expect(approval.spender.toLowerCase()).toBe(V2_RENEWER.toLowerCase())
+    expect(approval.amount, 'the approval is exactly the renewal price').toBe(
+      price,
+    )
+    expect(
+      await readRenewerAllowance(owner),
+      'the renewal consumes the whole approval',
+    ).toBe(0n)
+    // Positive control: charged exactly the price, no more and no less.
+    expect(usdcBefore - (await readUsdcBalance(owner))).toBe(price)
+  })
+
+  test('a disconnected visitor whose price reads fail sees no price and no checkout, then the price once reads work', async ({
+    portalPage: page,
+  }) => {
+    // Guard: the old code also showed the summary's error and asked a
+    // disconnected visitor to connect, so this pins the fix's ordering (the
+    // connect prompt comes before the price card) rather than the bug.
+    let failing = true
+    const calls = await failPriceReads(page, () => failing)
+    const name = `web1485-anon-${Date.now().toString(36)}.eth`
+
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    await expect(content(page).getByText('Failed to load price')).toBeVisible({
+      timeout: 30_000,
+    })
+    expect(
+      calls.some((call) => call.fn === 'getRegisterPrice' && call.failed),
+      'a registration price read really failed',
+    ).toBe(true)
+    await expect(content(page).getByText('$0.00')).toHaveCount(0)
+    await expect(content(page).getByText(/^≈? ?\$[\d,.]+$/)).toHaveCount(0)
+    await expect(tokenRows(content(page))).toHaveCount(0)
+    await expect(
+      content(page).getByRole('button', { name: 'Connect to register' }),
+    ).toBeVisible()
+
+    // Positive control: with reads working, the same visitor sees the price.
+    failing = false
+    await page.reload()
+    await expect(
+      content(page)
+        .getByText(/^\$[\d,.]+$/)
+        .first(),
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(content(page).getByText('Failed to load price')).toHaveCount(0)
+  })
+
+  test('Extend paid in DAI approves exactly the DAI renewal price and leaves no allowance', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const name = await makeName({
+      label: `web1485-dai-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    await waitForIndexedName(name)
+    await setTokenAllowance(owner, MOCK_DAI, V2_RENEWER, 0n)
+
+    const expiryBefore = await getExpiry(publicClient as never, { name })
+    const daiBefore = await readTokenBalance(MOCK_DAI, owner)
+    const usdcBefore = await readUsdcBalance(owner)
+    // Uncached: viem reuses a block number for a few seconds, which can
+    // predate the setup approval above and count it as the app's.
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, owner)
+    await content(page)
+      .getByRole('button', { name: 'Extend', exact: true })
+      .click()
+    await confirmExtendWith(page, page.getByRole('dialog'), 'DAI')
+    await driveTransactionsToSuccess(page, wallet, [
+      `renewal-approve-${V2_RENEWER}`,
+      `renewal-renew-${name}`,
+    ])
+
+    await expect
+      .poll(() => getExpiry(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(expiryBefore)
+    const duration =
+      (await getExpiry(publicClient as never, { name })) - expiryBefore
+    const price = await renewerPrice(V2_RENEWER, label, duration, MOCK_DAI)
+    expect(price).toBeGreaterThan(0n)
+
+    // ── The bug: 2× the DAI price was approved, and half of it stayed ──
+    const approvals = await minedApprovals(owner, fromBlock, MOCK_DAI)
+    expect(approvals, 'exactly one DAI approval was mined').toHaveLength(1)
+    expect(sameAddress(approvals[0].spender, V2_RENEWER)).toBe(true)
+    expect(
+      approvals[0].amount,
+      'the approval is exactly the DAI renewal price',
+    ).toBe(price)
+    expect(
+      await readTokenAllowance(MOCK_DAI, owner, V2_RENEWER),
+      'the renewal consumes the whole approval',
+    ).toBe(0n)
+    // Positive control: charged exactly the price, in DAI, and nothing in USDC.
+    expect(daiBefore - (await readTokenBalance(MOCK_DAI, owner))).toBe(price)
+    expect(await readUsdcBalance(owner)).toBe(usdcBefore)
+  })
+
+  test('renewing a V1 name approves ETHRenewerV1 exactly its price and leaves no allowance', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const name = await makeV1Name({
+      label: `web1485-v1-${run}`,
+      type: 'unwrapped',
+    })
+    const label = name.replace(/\.eth$/, '')
+    await setTokenAllowance(owner, MOCK_USDC, V1_RENEWER, 0n)
+
+    const expiryBefore = await readV1Expiry(label)
+    const usdcBefore = await readUsdcBalance(owner)
+    // Uncached: viem reuses a block number for a few seconds, which can
+    // predate the setup approval above and count it as the app's.
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    // An unmigrated V1 name is renewed from the names list (the name page
+    // offers its upgrade instead); one selection opens the single-name flow.
+    const dialog = await extendFromNamesList(
+      page,
+      owner,
+      { v2: [], v1: [name] },
+      `web1485-v1-${run}`,
+    )
+    await confirmExtendWith(page, dialog, 'USDC')
+    await driveTransactionsToSuccess(page, wallet, [
+      `renewal-approve-${V1_RENEWER}`,
+      `renewal-renew-${name}`,
+    ])
+
+    await expect
+      .poll(() => readV1Expiry(label), { timeout: 30_000 })
+      .toBeGreaterThan(expiryBefore)
+    const duration = (await readV1Expiry(label)) - expiryBefore
+    const price = await renewerPrice(V1_RENEWER, label, duration, MOCK_USDC)
+    expect(price).toBeGreaterThan(0n)
+
+    // ── The bug: ETHRenewerV1 was approved 2× and half of it stayed ──
+    const approvals = await minedApprovals(owner, fromBlock)
+    expect(approvals, 'exactly one USDC approval was mined').toHaveLength(1)
+    expect(sameAddress(approvals[0].spender, V1_RENEWER)).toBe(true)
+    expect(
+      approvals[0].amount,
+      'the approval is exactly the V1 renewal price',
+    ).toBe(price)
+    expect(
+      await readTokenAllowance(MOCK_USDC, owner, V1_RENEWER),
+      'the renewal consumes the whole approval',
+    ).toBe(0n)
+    expect(usdcBefore - (await readUsdcBalance(owner))).toBe(price)
+  })
+
+  test('renewing a V1 and a V2 name together approves each renewer exactly its own total', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(360_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const v1Name = await makeV1Name({
+      label: `web1485-mix-${run}-a`,
+      type: 'unwrapped',
+    })
+    const v2Name = await makeName({
+      label: `web1485-mix-${run}-b`,
+      owner: 'user',
+    })
+    await waitForIndexedName(v2Name)
+    const v1Label = v1Name.replace(/\.eth$/, '')
+    const v2Label = v2Name.replace(/\.eth$/, '')
+    await setTokenAllowance(owner, MOCK_USDC, V1_RENEWER, 0n)
+    await setTokenAllowance(owner, MOCK_USDC, V2_RENEWER, 0n)
+
+    const v1Before = await readV1Expiry(v1Label)
+    const v2Before = await getExpiry(publicClient as never, { name: v2Name })
+    const usdcBefore = await readUsdcBalance(owner)
+    // Uncached: viem reuses a block number for a few seconds, which can
+    // predate the setup approval above and count it as the app's.
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    const dialog = await extendFromNamesList(
+      page,
+      owner,
+      { v2: [v2Name], v1: [v1Name] },
+      `web1485-mix-${run}`,
+    )
+    await expect(dialog.getByText('Extend names')).toBeVisible()
+    await confirmExtendWith(page, dialog, 'USDC')
+    await driveTransactionsToSuccess(page, wallet, [
+      `renewal-approve-${V2_RENEWER}`,
+      `renewal-approve-${V1_RENEWER}`,
+      `renewal-renew-${v2Name}`,
+      `renewal-renew-${v1Name}`,
+    ])
+
+    await expect
+      .poll(() => readV1Expiry(v1Label), { timeout: 30_000 })
+      .toBeGreaterThan(v1Before)
+    await expect
+      .poll(() => getExpiry(publicClient as never, { name: v2Name }), {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(v2Before)
+    const v1Price = await renewerPrice(
+      V1_RENEWER,
+      v1Label,
+      (await readV1Expiry(v1Label)) - v1Before,
+      MOCK_USDC,
+    )
+    const v2Price = await renewerPrice(
+      V2_RENEWER,
+      v2Label,
+      (await getExpiry(publicClient as never, { name: v2Name })) - v2Before,
+      MOCK_USDC,
+    )
+
+    // ── The bug: each renewer was approved 2× its total ──
+    const approvals = await minedApprovals(owner, fromBlock)
+    expect(approvals, 'one approval per renewer').toHaveLength(2)
+    const approvalTo = (spender: Address) =>
+      approvals.find((approval) => sameAddress(approval.spender, spender))
+        ?.amount
+    expect(approvalTo(V2_RENEWER), 'the v2 approval is exactly its total').toBe(
+      v2Price,
+    )
+    expect(approvalTo(V1_RENEWER), 'the v1 approval is exactly its total').toBe(
+      v1Price,
+    )
+    expect(await readTokenAllowance(MOCK_USDC, owner, V2_RENEWER)).toBe(0n)
+    expect(await readTokenAllowance(MOCK_USDC, owner, V1_RENEWER)).toBe(0n)
+    // Positive control: charged exactly the two prices.
+    expect(usdcBefore - (await readUsdcBalance(owner))).toBe(v1Price + v2Price)
   })
 })

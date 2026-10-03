@@ -35,9 +35,9 @@ applies across **all** of that config's projects — including the harness
 dependency — so the harness project itself is thinned down to just the
 fixture checks the smoke tests actually rely on, not all of it.
 
-## The curated list (19 tests, ~5.2 minutes measured)
+## The curated list (20 tests, ~5.3 minutes measured)
 
-### Portal — 13 tests, ~174s measured (`playwright.smoke.config.ts`)
+### Portal — 14 tests, ~177s measured (`playwright.smoke.config.ts`)
 
 | # | Test | File | Why it's here |
 |---|---|---|---|
@@ -52,6 +52,7 @@ fixture checks the smoke tests actually rely on, not all of it.
 | 11 | `a second grant after dismissing the first asks the wallet again and lands on-chain` | `roles.spec.ts` | Regression coverage for PR #1214 (WEB-1418): a finished transaction actor stays in the manager so the modal can re-render it, and the roles flows used a fixed step id, so a second role change in the same session opened as the *first* change's receipt ("Done", with its actual cost) and pressing Done sent nothing. Chain-oracled (`assertRoleBitmap` on the second grantee), no indexer dependency, ~9s. It also guards the scoped-id console matcher in `helpers/transaction-modal.ts`, which every modal-driven test depends on. |
 | 12 | `does not ask a wallet on another network to send, and says why` | `transfer.spec.ts` | Regression coverage for PR #1108 (WEB-281): the portal declares Sepolia alone and never re-checks the chain after connect, so a wallet switched to another network got `walletClient.chain === undefined`, which the EOA transport passed to viem as `chain: null` — switching off viem's own chain check — and the wallet was asked to send Sepolia calldata on the other chain. Oracle is the headless wallet's `eth_sendTransaction` queue (must stay empty) plus a chain read of the name; it also pins the non-retryable branch (exactly one attempt). One seeded name, no indexer dependency, 11.8s. The recovery and Extend (USDC) tests for the same fix stay in the nightly run; see [`chain-mismatch-web281-test-plan.md`](./chain-mismatch-web281-test-plan.md). |
 | 13 | `Try again after a failed approve keeps the commitment that landed on its second send` | `registration.spec.ts` | Regression coverage for PR #1284 (WEB-1229): a send that failed and was resubmitted kept its error in `context.error` after it landed, so the registration's Try again retired the landed commitment ("Not Started") along with the step that really failed. The headless wallet fails one real commit send; the oracle is the overview's Done badges, each checked against its mined transaction, plus the commitment's exact state lines. Also the only smoke test on the transaction machine's automatic resubmission path. No indexer dependency, ~15s. The full-path and close-modal tests for the same fix stay in the nightly run; see [`stale-retry-error-web1229-test-plan.md`](./stale-retry-error-web1229-test-plan.md). |
+| 14 | `a register page whose price reads fail offers no token and no Register, then recovers on Try again` | `registration.spec.ts` | Regression coverage for PR #1221 (WEB-1485 / Immunefi #92608): a failed `getRegisterPrice` read was replaced by a zero price, so every token was offered as "available" at $0, an empty wallet looked sufficient and the approval step was skipped while the registrar still pulled its live price. The test reverts only the page's price `eth_call`s inside the real JSON-RPC batches, asserts no token rows, no "available", no `$0.00` and a disabled Register, then lets reads through and checks Try again prices the name at the registrar's own on-chain price (positive control). No transactions, no seeded name, ~2.5s. The held-selection, shared-query, Extend and exact-approval tests for the same PR stay in the nightly run; see [`zero-price-checkout-web1485-test-plan.md`](./zero-price-checkout-web1485-test-plan.md). |
 
 ### Manager — 6 tests, 138s measured (`playwright.smoke.config.ts`)
 
@@ -163,9 +164,9 @@ Full, clean, all-green run (2026-09-24, this session, fresh infra):
 
 | Suite | Tests | Time |
 |---|---|---|
-| Portal (`pnpm e2e:smoke:portal`) | 13 (3 harness + 10) | 174s (2m54s) — re-measured 2026-10-03 after adding #13 |
+| Portal (`pnpm e2e:smoke:portal`) | 14 (3 harness + 11) | ~177s (2m57s) — 174s plus #14's 2.5s; a 2026-10-03 run after adding #14 took 168s, but with #5 failing fast (pre-existing, see [`zero-price-checkout-web1485-test-plan.md`](./zero-price-checkout-web1485-test-plan.md) F2) |
 | Manager (`pnpm e2e:smoke:manager`) | 6 (2 harness + 4) | 138s (2m18s) — re-measured 2026-10-02 after adding #6 |
-| **Total (`pnpm e2e:smoke`, sequential)** | **19** | **312s (5m12s)** |
+| **Total (`pnpm e2e:smoke`, sequential)** | **20** | **~315s (5m15s)** |
 
 This is comfortably under the ~10 minute target, with every test in the
 final set passing. The gap was **not** filled by padding: the D-tier and
