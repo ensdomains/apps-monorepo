@@ -1,18 +1,30 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAvailable } from '@ensdomains/ensjs/public'
-import { getExpiry } from '@ensdomains/ensjs/public/v2'
+import { getExpiry, getOwner } from '@ensdomains/ensjs/public/v2'
 import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
-import type { Page } from '@playwright/test'
-import { type Address, formatUnits, parseAbi } from 'viem'
+import type { Locator, Page } from '@playwright/test'
+import {
+  type Address,
+  erc20Abi,
+  formatUnits,
+  type Hash,
+  maxUint256,
+  parseAbi,
+  toFunctionSelector,
+} from 'viem'
 import {
   connectWithHeadlessWallet,
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
-import { publicClient } from '../../../helpers/anvil-client.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
 import {
@@ -1202,5 +1214,411 @@ test.describe('Portal Extend — wallet on an undeclared chain (WEB-281)', () =>
       })
       .toBeGreaterThan(expiryBefore)
     expect(await readUsdcBalance(owner)).toBeLessThan(usdcBefore)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-1229 (PR #1284) — a step that landed after an automatic resubmission is
+// a step that landed.
+//
+// The bug: when a wallet send failed with a retryable error, the transaction
+// machine resubmitted it, but the failed attempt's error stayed in
+// `context.error` through `pending`, `confirming` and `success`. The portal
+// reads `context.error` as "this step failed" in two places: the registration
+// "Try again" retires every step that has one, and closing the modal clears
+// every transaction when the latest one has one. So a commit that landed on its
+// second send went back to "Not Started" after a later failure, and closing the
+// modal during the commit-reveal wait wiped the whole run's steps — leaving
+// "Start" on a deploy that had already been paid for.
+//
+// The fix: `submitting` clears `error` when it receives a hash.
+//
+// The PR's unit tests stub the wallet transport, the receipt and the
+// registration actor. These run the real registration machine against the
+// fork, with the headless wallet failing one real `eth_sendTransaction`. The
+// oracles are the transaction ids' own state lines, the explorer hash on each
+// "Done" badge checked against the mined transaction, and a scan of every
+// transaction the wallet mined: exactly one deploy and one commitment.
+//
+// Harness note: the headless wallet's `reject` crosses into the page through
+// `exposeFunction`, which keeps only the message, so every rejection reaches
+// the app as a code-less (retryable) error — 4001 included. A step that must
+// fail for good is therefore rejected on every attempt (1 + 3 retries).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
+const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+const COMMIT_SELECTOR = toFunctionSelector('commit(bytes32)')
+/** The transaction machine's default `retryCount`: 1 send + 3 resubmissions. */
+const SUBMISSION_ATTEMPTS = 4
+
+/** Sets the wallet's USDC allowance to the registrar, which decides whether
+ * the run has an approve step. */
+async function setRegistrarAllowance(owner: Address, amount: bigint) {
+  await testClient.impersonateAccount({ address: owner })
+  try {
+    const hash = await walletClient.writeContract({
+      account: owner,
+      chain: undefined,
+      address: MOCK_USDC,
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [ETH_REGISTRAR, amount],
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+  } finally {
+    await testClient.stopImpersonatingAccount({ address: owner })
+  }
+}
+
+/** Every transaction `owner` mined after `fromBlock`, by what it did. */
+async function minedRegistrationSends(owner: Address, fromBlock: bigint) {
+  const latest = await publicClient.getBlockNumber()
+  const sends = { deploy: [] as Hash[], commit: [] as Hash[], other: 0 }
+  for (let n = fromBlock + 1n; n <= latest; n++) {
+    const block = await publicClient.getBlock({
+      blockNumber: n,
+      includeTransactions: true,
+    })
+    for (const tx of block.transactions) {
+      if (tx.from.toLowerCase() !== owner.toLowerCase()) continue
+      const to = tx.to?.toLowerCase()
+      if (to === VERIFIABLE_FACTORY.toLowerCase()) sends.deploy.push(tx.hash)
+      else if (
+        to === ETH_REGISTRAR.toLowerCase() &&
+        tx.input.startsWith(COMMIT_SELECTOR)
+      )
+        sends.commit.push(tx.hash)
+      else sends.other += 1
+    }
+  }
+  return sends
+}
+
+/** Records every `tx-reg-*` state line the page logs, in order. */
+function recordRegistrationTxStates(page: Page) {
+  const lines: string[] = []
+  page.on('console', (msg) => {
+    const match = msg.text().match(/Transaction (tx-reg-[\w-]+) state: (\w+)/)
+    if (match) lines.push(`${match[1]}:${match[2]}`)
+  })
+  return lines
+}
+
+const pendingSends = (wallet: Web3ProviderBackend) =>
+  wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)
+
+async function waitForWalletPrompt(wallet: Web3ProviderBackend) {
+  await expect
+    .poll(() => pendingSends(wallet), { timeout: 60_000 })
+    .toBeGreaterThan(0)
+}
+
+/** Fails the pending send the way a dropped connection would. */
+async function failSendTransiently(wallet: Web3ProviderBackend) {
+  await waitForWalletPrompt(wallet)
+  await wallet.reject(
+    Web3RequestKind.SendTransaction,
+    new Error('socket hang up') as never,
+  )
+}
+
+/** The overview row for one step, by its title. */
+const overviewRow = (dialog: Locator, title: string) =>
+  dialog.getByRole('button').filter({
+    has: dialog.page().getByRole('heading', { name: title, exact: true }),
+  })
+
+/**
+ * Asserts a step's overview row reads "Done" and links the transaction that
+ * really mined, and returns that hash.
+ */
+async function expectStepDone(dialog: Locator, title: string, owner: Address) {
+  const row = overviewRow(dialog, title)
+  await expect(row, `${title} must still read Done`).toContainText('Done')
+  await expect(row).not.toContainText('Not Started')
+  const href = await row.getByRole('link').getAttribute('href')
+  const hash = href?.match(/0x[0-9a-fA-F]{64}/)?.[0] as Hash | undefined
+  expect(hash, `${title}'s Done badge must link its transaction`).toBeTruthy()
+  const receipt = await publicClient.getTransactionReceipt({
+    hash: hash as Hash,
+  })
+  expect(receipt.status).toBe('success')
+  expect(receipt.from.toLowerCase()).toBe(owner.toLowerCase())
+  return hash as Hash
+}
+
+/** From the step-by-step view back to the overview (the icon-only arrow). */
+async function showOverview(dialog: Locator) {
+  if (await dialog.getByText('Transaction overview').isVisible()) return
+  await dialog.getByRole('button').first().click()
+  await expect(dialog.getByText('Transaction overview')).toBeVisible()
+}
+
+/**
+ * Opens the registration modal for `name` with USDC, presses Start and
+ * authorizes the resolver deploy. Then fails the commitment's first send
+ * transiently and authorizes the automatic resubmission, which lands.
+ */
+async function startWithResubmittedCommit(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  name: string,
+  states: string[],
+) {
+  await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+  const paymentSection = page.locator(
+    'section:has-text("Select payment method")',
+  )
+  await expect(paymentSection).toBeVisible({ timeout: 30_000 })
+  await paymentSection.getByRole('button', { name: 'USDC' }).first().click()
+  await paymentSection.getByRole('button', { name: /^Register$/i }).click()
+
+  const dialog = page.locator('[data-slot="dialog-content"]')
+  await dialog.getByRole('button', { name: /^Start$/i }).click()
+  await dialog.getByRole('button', { name: /open wallet/i }).click()
+  await waitForWalletPrompt(wallet)
+  await wallet.authorize(Web3RequestKind.SendTransaction)
+  await expect
+    .poll(() => states.includes('tx-reg-deploy-resolver:success'), {
+      timeout: 60_000,
+    })
+    .toBe(true)
+
+  // The commitment's first send fails; the machine resubmits on its own.
+  await failSendTransiently(wallet)
+  await expect
+    .poll(() => states.includes('tx-reg-commit:retrying'), { timeout: 15_000 })
+    .toBe(true)
+  await waitForWalletPrompt(wallet)
+  await wallet.authorize(Web3RequestKind.SendTransaction)
+  await expect
+    .poll(() => states.includes('tx-reg-commit:success'), { timeout: 60_000 })
+    .toBe(true)
+  return dialog
+}
+
+/** Fails the approve for good: every attempt the machine makes is rejected. */
+async function failApproveForGood(
+  wallet: Web3ProviderBackend,
+  states: string[],
+) {
+  for (let attempt = 0; attempt < SUBMISSION_ATTEMPTS; attempt++) {
+    await waitForWalletPrompt(wallet)
+    await wallet.reject(Web3RequestKind.SendTransaction)
+  }
+  await expect
+    .poll(() => states.includes('tx-reg-approve:error'), { timeout: 30_000 })
+    .toBe(true)
+}
+
+/** Authorizes whatever the run still asks for until the register step lands. */
+async function finishRegistration(
+  dialog: Locator,
+  wallet: Web3ProviderBackend,
+  states: string[],
+) {
+  const deadline = Date.now() + 180_000
+  while (!states.includes('tx-reg-register:success')) {
+    expect(Date.now(), 'the register step never landed').toBeLessThan(deadline)
+    if (pendingSends(wallet) > 0) {
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      continue
+    }
+    const action = dialog.getByRole('button', { name: /^(Open wallet|Next)$/ })
+    if (
+      (await action.isVisible().catch(() => false)) &&
+      (await action.isEnabled().catch(() => false))
+    ) {
+      await action.click({ timeout: 2_000 }).catch(() => {})
+    }
+    await dialog.page().waitForTimeout(1_000)
+  }
+}
+
+test.describe('Portal registration — a step that landed on a resubmission stays landed (WEB-1229)', () => {
+  // These tests pick the allowance to choose whether the run has an approve
+  // step. Other registration tests depend on it too (the name-switch test
+  // fails when the run has one), so put it back as found.
+  let allowanceBefore: bigint
+  test.beforeEach(async ({ accounts }) => {
+    allowanceBefore = await publicClient.readContract({
+      address: MOCK_USDC,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [accounts.getAddress('user'), ETH_REGISTRAR],
+    })
+  })
+  test.afterEach(async ({ accounts }) => {
+    await setRegistrarAllowance(accounts.getAddress('user'), allowanceBefore)
+  })
+
+  test('Try again after a failed approve keeps the commitment that landed on its second send', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(180_000)
+    const owner = accounts.getAddress('user')
+    await setRegistrarAllowance(owner, 0n) // the run must have an approve step
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-web1229-${Date.now().toString(36)}.eth`
+
+    const dialog = await startWithResubmittedCommit(page, wallet, name, states)
+    await failApproveForGood(wallet, states)
+
+    // Positive control: the approve really failed, and the modal says so.
+    await expect(dialog.getByText('Transaction Error')).toBeVisible()
+    const tryAgain = dialog.getByRole('button', { name: 'Try again' })
+    await expect(tryAgain).toBeVisible()
+    await tryAgain.click()
+
+    // Try again re-asks for the failed approve (every earlier prompt was
+    // answered, so this one is new) — the retry is live …
+    await waitForWalletPrompt(wallet)
+
+    // … and only the approve was retired. The bug sent the commitment back to
+    // "Not Started" here.
+    await showOverview(dialog)
+    await expect(overviewRow(dialog, 'Approve payment')).toContainText(
+      'In Progress',
+    )
+    await expectStepDone(dialog, 'Deploy resolver', owner)
+    await expectStepDone(dialog, 'Submit commitment', owner)
+    // One resubmission, one landing: the retry did not send the commitment again.
+    expect(states.filter((s) => s.startsWith('tx-reg-commit:'))).toEqual([
+      'tx-reg-commit:retrying',
+      'tx-reg-commit:submitting',
+      'tx-reg-commit:pending',
+      'tx-reg-commit:success',
+    ])
+  })
+
+  test('the retried run finishes with the one commitment it already paid for', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(300_000)
+    const owner = accounts.getAddress('user')
+    await setRegistrarAllowance(owner, 0n)
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-web1229-${Date.now().toString(36)}.eth`
+    const fromBlock = await publicClient.getBlockNumber()
+
+    const dialog = await startWithResubmittedCommit(page, wallet, name, states)
+    await failApproveForGood(wallet, states)
+    await dialog.getByRole('button', { name: 'Try again' }).click()
+
+    await showOverview(dialog)
+    const commitHash = await expectStepDone(dialog, 'Submit commitment', owner)
+
+    await finishRegistration(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    // The chain agrees: one deploy and one commitment — the one the modal
+    // showed as Done — for the whole run.
+    const sends = await minedRegistrationSends(owner, fromBlock)
+    expect(sends.commit).toEqual([commitHash])
+    expect(sends.deploy).toHaveLength(1)
+  })
+
+  test('closing the modal during the commitment wait keeps the steps that landed', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(300_000)
+    const owner = accounts.getAddress('user')
+    // No approve step: the commitment stays the latest transaction for the
+    // whole commit-reveal wait, which is the window the user closes it in.
+    await setRegistrarAllowance(owner, maxUint256)
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-web1229-${Date.now().toString(36)}.eth`
+    const fromBlock = await publicClient.getBlockNumber()
+
+    const dialog = await startWithResubmittedCommit(page, wallet, name, states)
+    await expect(dialog.getByText(/^Ready in \d+s$/)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+
+    const viewProgress = page.getByRole('button', {
+      name: 'View registration progress',
+    })
+    await viewProgress.click()
+    await showOverview(dialog)
+
+    // The bug cleared every transaction on close: both landed steps read
+    // "Not Started" and the primary action offered to Start the deploy again.
+    await expect(overviewRow(dialog, 'Register name')).toContainText(
+      'Not Started',
+    ) // loaded: the step still ahead is listed
+    const deployHash = await expectStepDone(dialog, 'Deploy resolver', owner)
+    const commitHash = await expectStepDone(dialog, 'Submit commitment', owner)
+    await expect(
+      dialog.getByRole('button', { name: 'Start', exact: true }),
+    ).toHaveCount(0)
+    await expect(
+      dialog.getByRole('button', { name: 'Next', exact: true }),
+    ).toBeVisible()
+
+    await finishRegistration(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+    const sends = await minedRegistrationSends(owner, fromBlock)
+    expect(sends.deploy).toEqual([deployHash])
+    expect(sends.commit).toEqual([commitHash])
+  })
+  // KNOWN DEFECT E2E-018 (docs/e2e-defects.md), found verifying WEB-1229 but
+  // not caused by it. The PR stops a *stale* error from triggering the modal's
+  // close-time `transactionManager.clear()`; a *real* failure still does, and
+  // `clear()` drops every transaction, not just the failed one. The reopened
+  // modal then shows the landed deploy and commitment as "Not Started" with
+  // Start, and pressing Start (not done here) mines a second deploy and a
+  // second commitment for the same registration.
+  //
+  // Expected to fail until E2E-018 is fixed; Playwright errors the day it
+  // passes. The assertions are what a working modal must show, unweakened.
+  test('closing the modal after a step really failed keeps the steps that landed', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.fail()
+    test.setTimeout(180_000)
+    const owner = accounts.getAddress('user')
+    await setRegistrarAllowance(owner, 0n)
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-e2e018-${Date.now().toString(36)}.eth`
+
+    const dialog = await startWithResubmittedCommit(page, wallet, name, states)
+    await failApproveForGood(wallet, states)
+    await expect(dialog.getByText('Transaction Error')).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await page
+      .getByRole('button', { name: 'View registration progress' })
+      .click()
+    await showOverview(dialog)
+    await expect(overviewRow(dialog, 'Register name')).toContainText(
+      'Not Started',
+    ) // loaded
+
+    // The defect: both read "Not Started", and Start is offered.
+    await expectStepDone(dialog, 'Deploy resolver', owner)
+    await expectStepDone(dialog, 'Submit commitment', owner)
+    await expect(
+      dialog.getByRole('button', { name: 'Start', exact: true }),
+    ).toHaveCount(0)
   })
 })

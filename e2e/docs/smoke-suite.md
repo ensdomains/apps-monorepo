@@ -35,9 +35,9 @@ applies across **all** of that config's projects — including the harness
 dependency — so the harness project itself is thinned down to just the
 fixture checks the smoke tests actually rely on, not all of it.
 
-## The curated list (18 tests, ~5.0 minutes measured)
+## The curated list (19 tests, ~5.2 minutes measured)
 
-### Portal — 12 tests, ~162s measured (`playwright.smoke.config.ts`)
+### Portal — 13 tests, ~174s measured (`playwright.smoke.config.ts`)
 
 | # | Test | File | Why it's here |
 |---|---|---|---|
@@ -51,6 +51,7 @@ fixture checks the smoke tests actually rely on, not all of it.
 | 10 | `the reported crafted link does not tell a visitor they own someone else’s name` | `registration.spec.ts` | **Mandated.** Regression coverage for PR #1247 / immunefi #92544 (WEB-1490): `/$name` used to render "Congratulations! You are the owner of {name}" and a `paid` figure straight from the query string, so a link could tell any visitor they owned an attacker's name — with Extend (renewing it from the visitor's wallet) the only call to action. No transactions, one seeded name, ~12s. The other six tests for the same fix (variants, history-state parsing, the real-registration path) stay in the nightly run; see [`registration-banner-web1490-test-plan.md`](./registration-banner-web1490-test-plan.md). |
 | 11 | `a second grant after dismissing the first asks the wallet again and lands on-chain` | `roles.spec.ts` | Regression coverage for PR #1214 (WEB-1418): a finished transaction actor stays in the manager so the modal can re-render it, and the roles flows used a fixed step id, so a second role change in the same session opened as the *first* change's receipt ("Done", with its actual cost) and pressing Done sent nothing. Chain-oracled (`assertRoleBitmap` on the second grantee), no indexer dependency, ~9s. It also guards the scoped-id console matcher in `helpers/transaction-modal.ts`, which every modal-driven test depends on. |
 | 12 | `does not ask a wallet on another network to send, and says why` | `transfer.spec.ts` | Regression coverage for PR #1108 (WEB-281): the portal declares Sepolia alone and never re-checks the chain after connect, so a wallet switched to another network got `walletClient.chain === undefined`, which the EOA transport passed to viem as `chain: null` — switching off viem's own chain check — and the wallet was asked to send Sepolia calldata on the other chain. Oracle is the headless wallet's `eth_sendTransaction` queue (must stay empty) plus a chain read of the name; it also pins the non-retryable branch (exactly one attempt). One seeded name, no indexer dependency, 11.8s. The recovery and Extend (USDC) tests for the same fix stay in the nightly run; see [`chain-mismatch-web281-test-plan.md`](./chain-mismatch-web281-test-plan.md). |
+| 13 | `Try again after a failed approve keeps the commitment that landed on its second send` | `registration.spec.ts` | Regression coverage for PR #1284 (WEB-1229): a send that failed and was resubmitted kept its error in `context.error` after it landed, so the registration's Try again retired the landed commitment ("Not Started") along with the step that really failed. The headless wallet fails one real commit send; the oracle is the overview's Done badges, each checked against its mined transaction, plus the commitment's exact state lines. Also the only smoke test on the transaction machine's automatic resubmission path. No indexer dependency, ~15s. The full-path and close-modal tests for the same fix stay in the nightly run; see [`stale-retry-error-web1229-test-plan.md`](./stale-retry-error-web1229-test-plan.md). |
 
 ### Manager — 6 tests, 138s measured (`playwright.smoke.config.ts`)
 
@@ -162,9 +163,9 @@ Full, clean, all-green run (2026-09-24, this session, fresh infra):
 
 | Suite | Tests | Time |
 |---|---|---|
-| Portal (`pnpm e2e:smoke:portal`) | 11 (3 harness + 8) | 150s (2m30s) — re-measured 2026-09-30 after adding #11 |
+| Portal (`pnpm e2e:smoke:portal`) | 13 (3 harness + 10) | 174s (2m54s) — re-measured 2026-10-03 after adding #13 |
 | Manager (`pnpm e2e:smoke:manager`) | 6 (2 harness + 4) | 138s (2m18s) — re-measured 2026-10-02 after adding #6 |
-| **Total (`pnpm e2e:smoke`, sequential)** | **17** | **288s (4m48s)** |
+| **Total (`pnpm e2e:smoke`, sequential)** | **19** | **312s (5m12s)** |
 
 This is comfortably under the ~10 minute target, with every test in the
 final set passing. The gap was **not** filled by padding: the D-tier and
