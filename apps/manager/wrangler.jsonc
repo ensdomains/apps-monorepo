@@ -6,6 +6,9 @@
   "main": "@tanstack/react-start/server-entry",
   "preview_urls": true,
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "issues": {
+      "enabled": true
+    }
   }
 }
