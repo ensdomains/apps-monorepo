@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
@@ -53,6 +54,7 @@ import {
   isConfirmBlocked,
   shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
+import { PrimaryNameV1Warning } from './PrimaryNameV1Warning'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
@@ -386,6 +388,7 @@ export const ChoosePrimaryNameDialog = ({
   const { data: domainsData, isLoading } = useQuery(
     getDomainsQuery(open ? queryVariables : undefined),
   )
+  const { data: v1Names, isError: isV1Error } = useV1Names({ enabled: open })
   const allDomains = domainsData?.domains ?? []
 
   // Sort domains to always show primary name first
@@ -593,6 +596,10 @@ export const ChoosePrimaryNameDialog = ({
                 )}
             </div>
 
+            <PrimaryNameV1Warning
+              isV1Error={isV1Error}
+              v1NameCount={v1Names?.length ?? 0}
+            />
             {/* Error Message */}
             <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
             {/* ETH Address Mismatch/Missing Info */}

@@ -1615,6 +1615,10 @@ msgstr ""
 msgid "One username everywhere"
 msgstr ""
 
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "Only ENSv2 Names Supported"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr ""
@@ -3152,6 +3156,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
