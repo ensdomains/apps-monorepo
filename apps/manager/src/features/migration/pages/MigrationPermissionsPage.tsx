@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { Card } from '@/components/ui/card'
 import { MigrationApprovalSettings } from '@/features/migration/components/MigrationApprovalSettings'
 
 export const MigrationPermissionsPage = () => (
@@ -11,8 +12,8 @@ export const MigrationPermissionsPage = () => (
         <Trans>Review access granted during ENS name upgrades.</Trans>
       </p>
     </div>
-    <div className="rounded-xl border border-border bg-white p-6 shadow-temp-card">
+    <Card className="block p-6">
       <MigrationApprovalSettings />
-    </div>
+    </Card>
   </div>
 )

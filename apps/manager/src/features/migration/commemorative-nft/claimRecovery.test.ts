@@ -7,13 +7,15 @@ import { claimCommemorativeNft, readCommemorativeNftClaimed } from './contract'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import { readPendingNftClaim } from './pendingClaim'
 
+vi.mock('@/config', () => ({ envConfig: { network: 'sepolia' } }))
+
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   claimCommemorativeNft: vi.fn(),
   readCommemorativeNftClaimed: vi.fn(),
 }))
 const ownerAddress: Address = '0x1111111111111111111111111111111111111111'
-const contractAddress = getCommemorativeNftContractAddress(11155111)
+const contractAddress = getCommemorativeNftContractAddress()
 if (!contractAddress) throw new Error('Missing test contract')
 const hash: Hex = `0x${'a'.repeat(64)}`
 const params: Parameters<typeof submitPendingNftClaim>[0] = {

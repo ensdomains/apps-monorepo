@@ -53,6 +53,12 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
 ])
 
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
+import {
+  awaitTransactionOutcome,
+  isErrorSnapshot,
+  isSuccessSnapshot,
+  type ReadOutcome,
+} from '../../helpers/awaitTransactionOutcome'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type { Call, TransactionRequest } from '../../types/transaction.types'
@@ -730,10 +736,9 @@ function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
  * there reports a false failure and pushes the user into a retry for a name
  * they are about to own.
  */
-export async function pollUntilVerified(
-  check: () => Promise<{ verified: boolean }>,
-  options: VerifyPollOptions = {},
-): Promise<{ verified: boolean }> {
+export async function pollUntilVerified<
+  T extends { verified: boolean; registeredToOther?: boolean },
+>(check: () => Promise<T>, options: VerifyPollOptions = {}): Promise<T> {
   const { signal } = options
   const pollIntervalMs = options.pollIntervalMs ?? VERIFY_POLL_INTERVAL_MS
   const deadline =
@@ -741,7 +746,11 @@ export async function pollUntilVerified(
 
   let result = await check()
 
-  if (!result.verified && options.isDefinitivelyDead) {
+  if (
+    !result.verified &&
+    !result.registeredToOther &&
+    options.isDefinitivelyDead
+  ) {
     try {
       // Race the oracle against one poll interval (or CANCEL): it exists to
       // SHORTEN the grace window, so a hung status endpoint must degrade to
@@ -762,7 +771,9 @@ export async function pollUntilVerified(
     }
   }
 
-  while (!result.verified && !signal?.aborted) {
+  // A name registered to someone else will not become ours by waiting, so a
+  // lost race ends the poll as conclusively as a verified one.
+  while (!result.verified && !result.registeredToOther && !signal?.aborted) {
     const remaining = deadline - Date.now()
     if (remaining <= 0) break
 
@@ -796,7 +807,10 @@ export function verifyRegistrationActor(
     /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
     registrarAddress?: Address
   } & VerifyPollOptions,
-): ResultAsync<{ verified: boolean; reason?: string }, Error> {
+): ResultAsync<
+  { verified: boolean; registeredToOther: boolean; reason?: string },
+  Error
+> {
   const registrarAddress =
     input.registrarAddress ??
     getChainContractAddress({
@@ -807,6 +821,7 @@ export function verifyRegistrationActor(
 
   const readRegistryEntry = async (): Promise<{
     verified: boolean
+    registeredToOther: boolean
     reason?: string
   }> => {
     // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
@@ -853,12 +868,19 @@ export function verifyRegistrationActor(
       }),
     ])
 
+    // Lost the race: the label is owned, but by someone else. Distinct from
+    // "not registered yet" — no retry can win it back, so the caller must stop
+    // rather than resubmit.
+    const registeredToOther =
+      !isAddressEqual(owner, zeroAddress) && !isAddressEqual(owner, input.owner)
+
     if (
       isAddressEqual(resolver, zeroAddress) ||
       !isAddressEqual(resolver, input.resolverAddress)
     ) {
       return {
         verified: false,
+        registeredToOther,
         reason: `resolver is ${resolver}, expected ${input.resolverAddress}`,
       }
     }
@@ -868,6 +890,7 @@ export function verifyRegistrationActor(
     ) {
       return {
         verified: false,
+        registeredToOther,
         reason: `owner is ${owner}, expected ${input.owner}`,
       }
     }
@@ -875,17 +898,19 @@ export function verifyRegistrationActor(
     if (!isAddressEqual(subregistry, zeroAddress)) {
       return {
         verified: false,
+        registeredToOther,
         reason: `subregistry is ${subregistry}, expected none — this registration is not ours`,
       }
     }
     if (BigInt(commitTime) !== 0n) {
       return {
         verified: false,
+        registeredToOther,
         reason: `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
       }
     }
 
-    return { verified: true }
+    return { verified: true, registeredToOther: false }
   }
 
   return fromPromise(pollUntilVerified(readRegistryEntry, input), (error) =>
@@ -1184,32 +1209,34 @@ export function pollTransactionStatusActor(input: {
     return errAsync(new Error(`Transaction ${input.txId} not found`))
   }
 
-  return fromPromise(
-    new Promise<void>((resolve, reject) => {
-      const subscription = txActor.subscribe((snapshot) => {
-        console.log('🔍 [POLL TX STATUS] Transaction state:', {
-          txId: input.txId,
-          state: snapshot.value,
-          hasError: !!snapshot.context.error,
-          error: snapshot.context.error?.message,
-        })
+  const read: ReadOutcome<void> = (snapshot) => {
+    console.log('🔍 [POLL TX STATUS] Transaction state:', {
+      txId: input.txId,
+      state: snapshot.value,
+      hasError: !!snapshot.context.error,
+      error: snapshot.context.error?.message,
+    })
 
-        if (snapshot.matches('success' as unknown as never)) {
-          console.log('✅ [POLL TX STATUS] Transaction succeeded')
-          subscription.unsubscribe()
-          resolve()
-        }
-        // Check if we're in any error state (handles nested states like error.submission, error.reverted, etc.)
-        if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-          console.error('❌ [POLL TX STATUS] Transaction failed:', {
-            errorState: snapshot.value,
-            error: snapshot.context.error,
-          })
-          subscription.unsubscribe()
-          reject(snapshot.context.error || new Error('Transaction failed'))
-        }
+    if (isSuccessSnapshot(snapshot)) {
+      console.log('✅ [POLL TX STATUS] Transaction succeeded')
+      return { settled: true, value: undefined }
+    }
+    // Any error state (handles nested states like error.submission, error.reverted, etc.)
+    if (isErrorSnapshot(snapshot)) {
+      console.error('❌ [POLL TX STATUS] Transaction failed:', {
+        errorState: snapshot.value,
+        error: snapshot.context.error,
       })
-    }),
+      return {
+        settled: false,
+        error: snapshot.context.error || new Error('Transaction failed'),
+      }
+    }
+    return undefined
+  }
+
+  return fromPromise(
+    awaitTransactionOutcome(input.txId, txActor, read),
     (error) => error as Error,
   )
 }

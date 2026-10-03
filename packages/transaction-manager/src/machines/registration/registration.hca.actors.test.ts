@@ -180,6 +180,28 @@ describe('submitFundingAndCommitActor', () => {
     // A fresh 32-byte secret per attempt.
     expect(result._unsafeUnwrap().commitment.secret).toMatch(/^0x[0-9a-f]{64}$/)
   })
+
+  it.each([
+    ['a fullwidth look-alike', 'ｍｙｎａｍｅ.eth', /Refusing to register/],
+    ['a soft hyphen', 'my­name.eth', /Refusing to register/],
+    [
+      'a stray variation selector',
+      'thumbs\u{1f44d}️.eth',
+      /Refusing to register/,
+    ],
+    ['an upper-case label', 'MYNAME.eth', /Refusing to register/],
+    ['an xn-- extension', 'xn--ls8h.eth', /invalid label extension/],
+  ])('refuses to commit to %s rather than sign a different name', async (_case, name, message) => {
+    // The commitment binds `keccak256(label)`, so a label that is not already
+    // canonical buys a name no ENSIP-15 client can resolve — and one the app's
+    // own read path cannot address. The flow canonicalises at its entry; this
+    // is the last check before the wallet.
+    const result = await submitFundingAndCommitActor({ ...input, name })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toMatch(message)
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
 })
 
 describe('submitRevealBatchActor', () => {
@@ -328,6 +350,24 @@ describe('verifyHcaRegistrationActor', () => {
     const { verified, reason } = (await verify())._unsafeUnwrap()
     expect(verified).toBe(false)
     expect(reason).toMatch(/expiry/i)
+  })
+
+  it('reports a name registered to another wallet as lost, not merely unverified', async () => {
+    // Two people registered the same name; this one lost. Resubmitting the
+    // reveal can only fail the same way, so the caller must be able to tell
+    // this apart from "not registered yet".
+    const rival = '0xbbbb000000000000000000000000000000000002' as Address
+    mockRegistry(registeredState(rival), hcaResolver)
+
+    const output = (await verify())._unsafeUnwrap()
+    expect(output.verified).toBe(false)
+    expect(output.registeredToOther).toBe(true)
+  })
+
+  it('does not report an unregistered name as lost', async () => {
+    mockRegistry({ ...registeredState(WALLET), status: 0 }, hcaResolver)
+
+    expect((await verify())._unsafeUnwrap().registeredToOther).toBe(false)
   })
 })
 
@@ -742,5 +782,17 @@ describe('estimateHcaBudgetActor', () => {
         isAddressEqual(call.to, C.defaultReverseRegistrarHcaAdapter),
       ),
     ).toBe(false)
+  })
+
+  it('refuses a non-canonical label instead of pricing the twin', async () => {
+    const result = await estimateHcaBudgetActor({
+      ...input,
+      name: 'MyName.eth',
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toMatch(/canonical form/)
+    // The refusal lands before any leg is priced.
+    expect(prepareTransaction).not.toHaveBeenCalled()
   })
 })

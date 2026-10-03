@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -23,6 +24,7 @@ import {
 } from '@/features/resolver/helpers/grantResolverRoles'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import {
   type ResolverPermissionKey,
@@ -162,7 +164,10 @@ export const ResolverAddUserSheet = ({
   const resolution = useAddressResolution(nameOrAddressInput)
   const { address, isResolving: isResolvingAddress, isInvalid } = resolution
 
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names this attempt, so a second grant in the same session can't be served
+  // by the finished actor the first one left behind.
+  const attempt = useFlowAttempt()
   const {
     mutate: grantResolverRoles,
     isPending,
@@ -173,7 +178,7 @@ export const ResolverAddUserSheet = ({
     walletClient,
     publicClient,
     chainId,
-    id: GRANT_RESOLVER_ROLES_TX_ID,
+    id: scopeTransactionId(GRANT_RESOLVER_ROLES_TX_ID, attempt.scope),
   })
 
   useEffect(() => {
@@ -184,8 +189,9 @@ export const ResolverAddUserSheet = ({
     setSelectedRoles(new Set())
     setPendingGrant(null)
     setFormError(null)
+    attempt.end()
     reset()
-  }, [open, reset])
+  }, [open, reset, attempt.end])
 
   const handleInputChange = (value: string) => {
     setNameOrAddressInput(value)
@@ -257,10 +263,11 @@ export const ResolverAddUserSheet = ({
       scope = { type: 'setter', setter: setterScope }
     }
 
-    if (isResolvingAddress || !address) return
+    const signer = walletClient?.account?.address
+    if (isResolvingAddress || !address || !signer) return
 
     setPendingGrant({ account: address, scope })
-    openModal()
+    attempt.start(signer)
   }
 
   const handleStartTransaction = () => {
@@ -272,6 +279,7 @@ export const ResolverAddUserSheet = ({
     closeModal()
     clearTransaction()
     setPendingGrant(null)
+    attempt.end()
     onOpenChange(false)
   }
 
@@ -392,7 +400,10 @@ export const ResolverAddUserSheet = ({
             <TransactionModal
               transactions={[
                 {
-                  id: GRANT_RESOLVER_ROLES_TX_ID,
+                  id: scopeTransactionId(
+                    GRANT_RESOLVER_ROLES_TX_ID,
+                    attempt.scope,
+                  ),
                   title: 'Grant resolver roles',
                   transactionName: `Grant resolver roles for ${pendingGrant ? describeGrantScope(pendingGrant.scope) : ''}`,
                   // Deterministic once the user has confirmed the grant, so the

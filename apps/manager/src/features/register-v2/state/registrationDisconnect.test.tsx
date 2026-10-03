@@ -51,6 +51,15 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: { reset: vi.fn() },
 }))
 vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
+// Resuming re-quotes the price through the shared public client, which would
+// otherwise read live Sepolia and outlast `waitFor`.
+vi.mock('../data/queries/pricing.query', async (importOriginal) => {
+  const { ok } = await import('neverthrow')
+  return {
+    ...(await importOriginal<typeof import('../data/queries/pricing.query')>()),
+    getRegisterPrice: async () => ok({ basePrice: 5_000_000n, premium: 0n }),
+  }
+})
 vi.mock('@/utils/backend-client', () => ({
   backendAuthStore: {
     get: () => ({ context: {} }),

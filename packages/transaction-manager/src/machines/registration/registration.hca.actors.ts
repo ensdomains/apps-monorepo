@@ -45,7 +45,12 @@ import {
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Transaction } from '@rhinestone/sdk'
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromPromise,
+  fromThrowable,
+  type ResultAsync,
+} from 'neverthrow'
 import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
@@ -59,6 +64,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
+import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -314,6 +320,25 @@ function sessionSigners(
   }
 }
 
+/**
+ * Decides whether `buildRevealBatch` prepends `deployProxy`, and therefore
+ * whether `registerLegGasLimit` funds it. Shared so the budget and the
+ * submitted batch cannot disagree.
+ */
+async function isResolverDeployed(params: {
+  publicClient: PublicClient
+  chainId: number
+  hca: Address
+}): Promise<boolean> {
+  const code = await params.publicClient.getCode({
+    address: computeResolverAddress({
+      chainId: params.chainId,
+      hca: params.hca,
+    }),
+  })
+  return Boolean(code && code !== '0x')
+}
+
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
@@ -328,7 +353,15 @@ export function estimateHcaBudgetActor(input: {
    */
   primaryName?: string
 }): ResultAsync<HcaBudgetBreakdown, Error> {
-  const label = cleanLabel(input.name)
+  // This label prices the registration and sizes the funding permit, so a
+  // non-canonical one funds a different name than the reveal batch registers.
+  // Wrapped because the refusal must be an `err`, not a throw.
+  const labelResult = fromThrowable(canonicalLabel, (error) =>
+    error instanceof Error ? error : new Error(String(error)),
+  )(input.name)
+  if (labelResult.isErr()) return errAsync(labelResult.error)
+  const label = labelResult.value
+
   const chainId = input.chainId
 
   // Build a best-effort per-leg quoter whenever we have a Rhinestone account.
@@ -345,7 +378,9 @@ export function estimateHcaBudgetActor(input: {
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
-  const quoteLegCostUsdc =
+  // Takes `resolverDeployed` rather than reading it per call, so the batch and
+  // the gas limit that funds it are built from one value.
+  const makeQuoter = (resolverDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
@@ -386,14 +421,11 @@ export function estimateHcaBudgetActor(input: {
             label,
             duration: input.duration,
           })
-          const resolverCode = await input.publicClient.getCode({
-            address: resolver,
-          })
           const revealCalls = buildRevealBatch({
             chainId,
             hca,
             resolver,
-            resolverDeployed: Boolean(resolverCode && resolverCode !== '0x'),
+            resolverDeployed,
             label,
             // The name recipient (wallet). A placeholder is fine for a gas/cost
             // quote — the orchestrator prices the intent by size, not by owner.
@@ -407,15 +439,18 @@ export function estimateHcaBudgetActor(input: {
             // orchestrator: an identical request differing only in this call
             // prices to the same USDC unit (450k gas limit, 5 vs 6 executions
             // → 3277666 both times). The rail prices `/intents/route` purely
-            // on `destinationGasUnits`, so what actually funds this call is
-            // `registerLegGasLimit` below.
+            // on `destinationGasUnits`, so what actually funds these calls is
+            // `registerLegGasLimit` below, built from the same inputs.
             ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
             chain,
             toCalls(revealCalls),
-            registerLegGasLimit(input.primaryName),
+            registerLegGasLimit({
+              isResolverDeployed: resolverDeployed,
+              ...(input.primaryName ? { primaryName: input.primaryName } : {}),
+            }),
             signers,
             incomingUsdc,
           )
@@ -424,16 +459,32 @@ export function estimateHcaBudgetActor(input: {
 
   return fromPromise(
     (async () => {
+      const hca = rhinestone
+        ? (rhinestone.account.getAddress() as Address)
+        : undefined
+
       // Read the HCA balance here rather than relying on `checkingHcaFunding`,
       // which runs AFTER this state — the auxiliary-funds declaration must not
       // include funds the HCA already holds.
-      const hcaBalanceUsdc = rhinestone
+      const hcaBalanceUsdc = hca
         ? await readHcaUsdcBalanceActor({
-            hca: rhinestone.account.getAddress() as Address,
+            hca,
             publicClient: input.publicClient,
             chainId,
           }).unwrapOr(0n)
         : 0n
+
+      // One read, feeding both the batch and the limit that funds it. Not
+      // caught: an unsized leg must fail loudly, not fund the permit short.
+      const resolverDeployed = hca
+        ? await isResolverDeployed({
+            publicClient: input.publicClient,
+            chainId,
+            hca,
+          })
+        : false
+
+      const quoteLegCostUsdc = makeQuoter(resolverDeployed)
 
       const breakdown = await estimateHcaBudget({
         publicClient: input.publicClient,
@@ -441,6 +492,7 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
+        isResolverDeployed: resolverDeployed,
         ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
@@ -486,6 +538,30 @@ const toCalls = (calls: readonly HcaCall[]): Call[] =>
   calls.map((c) => ({ to: c.to, data: c.data, value: c.value }))
 
 const cleanLabel = (name: string): string => name.replace(/\.eth$/, '')
+
+/**
+ * The label for a call that will be signed, hashed or registered.
+ *
+ * `keccak256(label)` is the name's identity, so a non-canonical label buys a
+ * different name than the confirm step displayed and priced. The app
+ * canonicalises at the entry of the flow; this is the last line before the
+ * wallet, and it refuses rather than signs.
+ */
+const canonicalLabel = (name: string): string => {
+  const label = cleanLabel(name)
+
+  // `normalize` throws on a label ENS can never issue; its own error says
+  // which, so let it through.
+  const normalized = normalize(label)
+
+  if (normalized !== label) {
+    throw new Error(
+      `Refusing to register "${label}": its canonical form is "${normalized}", so it would register a different name than the one shown.`,
+    )
+  }
+
+  return label
+}
 
 /** User-paid request shape shared by both legs. */
 function buildUserPaidRequest(params: {
@@ -824,7 +900,7 @@ export function submitFundingAndCommitActor(input: {
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
@@ -955,14 +1031,18 @@ export function verifyHcaRegistrationActor(
       signal?: AbortSignal,
     ) => Promise<string | null>
   } & VerifyPollOptions,
-): ResultAsync<{ verified: boolean; reason?: string }, Error> {
+): ResultAsync<
+  { verified: boolean; registeredToOther: boolean; reason?: string },
+  Error
+> {
   const readRegistryState = async (): Promise<{
     verified: boolean
+    registeredToOther: boolean
     reason?: string
   }> => {
     const chainId = requireChainId(input.publicClient, 'HCA registration')
     const contracts = getDestinationContracts(chainId)
-    const label = cleanLabel(input.name)
+    const label = canonicalLabel(input.name)
     const expectedResolver = computeResolverAddress({
       chainId,
       hca: input.hca,
@@ -996,6 +1076,12 @@ export function verifyHcaRegistrationActor(
         }),
       ])
 
+    // Lost the race: registered, but to another wallet. No retry can win it
+    // back, so the caller must stop rather than resubmit the reveal.
+    const registeredToOther =
+      Number(state.status) === STATUS_REGISTERED &&
+      !isAddressEqual(state.latestOwner, input.wallet)
+
     const reason = firstFailure([
       [
         Number(state.status) === STATUS_REGISTERED,
@@ -1026,7 +1112,9 @@ export function verifyHcaRegistrationActor(
       ],
     ])
 
-    return reason ? { verified: false, reason } : { verified: true }
+    return reason
+      ? { verified: false, registeredToOther, reason }
+      : { verified: true, registeredToOther: false }
   }
 
   // A definitive FAILED / EXPIRED from the orchestrator means the fill can
@@ -1079,7 +1167,7 @@ export function submitRevealBatchActor(input: {
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
@@ -1094,10 +1182,11 @@ export function submitRevealBatchActor(input: {
         duration: input.duration,
       })
 
-      const resolverCode = await input.publicClient.getCode({
-        address: resolverAddress,
+      const resolverDeployed = await isResolverDeployed({
+        publicClient: input.publicClient,
+        chainId,
+        hca: input.hca,
       })
-      const resolverDeployed = Boolean(resolverCode && resolverCode !== '0x')
 
       const revealCalls = buildRevealBatch({
         chainId,

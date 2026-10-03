@@ -46,4 +46,21 @@ describe('toDisplayState', () => {
       }),
     ).toEqual({ type: 'unavailable', domainName: 'bob.eth' })
   })
+
+  it('maps a not-imported DNS outcome to not-imported', () => {
+    expect(
+      toDisplayState({
+        trimmedInput: 'vitalik.xyz',
+        parsedInput: { type: 'name', value: 'vitalik.xyz' },
+        instantName: 'vitalik.xyz',
+        instantKind: {
+          type: 'dns-name',
+          name: 'vitalik.xyz',
+          isSubname: false,
+        },
+        isDebouncing: false,
+        outcome: { type: 'not-imported', name: 'vitalik.xyz' },
+      }),
+    ).toEqual({ type: 'not-imported', domainName: 'vitalik.xyz' })
+  })
 })

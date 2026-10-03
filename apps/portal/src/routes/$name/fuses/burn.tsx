@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { ChildFuseKeys, type DecodedFuses } from '@ensdomains/ensjs/utils'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
@@ -30,6 +31,7 @@ import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
@@ -88,10 +90,13 @@ function RouteComponent() {
   >(new Set())
 
   const {
-    openModal: openTransactionModal,
     closeModal: closeTransactionModal,
     clearTransaction: clearTransactionModal,
   } = useTransactionModal()
+  // Names the attempt the modal is showing, so a burn abandoned mid-flight can't
+  // leave a settled actor under the fixed id the next attempt looks up.
+  const attempt = useFlowAttempt()
+  const burnFusesTxId = scopeTransactionId(BURN_FUSES_TX_ID, attempt.scope)
   const txState = useActiveTransactionState()
 
   if (wrapperDataQuery.isLoading || grace.isLoading) {
@@ -186,7 +191,9 @@ function RouteComponent() {
   const handleBurn = () => {
     if (selectedChildFuses.size === 0) return
     if (!walletClient || !publicClient) return
-    openTransactionModal()
+    const signer = walletClient.account?.address
+    if (!signer) return
+    attempt.start(signer)
   }
 
   const handleStartTransaction = async () => {
@@ -203,7 +210,7 @@ function RouteComponent() {
         publicClient,
         signer,
         chainId,
-        id: BURN_FUSES_TX_ID,
+        id: burnFusesTxId,
       })
     } catch (err) {
       console.error('Failed to burn fuses:', err)
@@ -302,7 +309,7 @@ function RouteComponent() {
       <TransactionModal
         transactions={[
           {
-            id: BURN_FUSES_TX_ID,
+            id: burnFusesTxId,
             title: 'Burn Fuses',
             transactionName: `Permanently burn selected fuses on ${name}`,
             // Deterministic from the selected fuses, so the modal can estimate
@@ -327,6 +334,7 @@ function RouteComponent() {
               setSelectedChildFuses(new Set())
               closeTransactionModal()
               clearTransactionModal()
+              attempt.end()
             },
           },
         ]}

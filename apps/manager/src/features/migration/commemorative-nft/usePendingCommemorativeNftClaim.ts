@@ -20,7 +20,7 @@ export const usePendingCommemorativeNftClaim = (params: {
     () => 0,
   )
   const contractAddress =
-    params.contractAddress ?? getCommemorativeNftContractAddress(params.chainId)
+    params.contractAddress ?? getCommemorativeNftContractAddress()
   return useMemo(() => {
     void revision
     return params.ownerAddress && contractAddress

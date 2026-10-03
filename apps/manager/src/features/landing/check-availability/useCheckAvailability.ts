@@ -26,6 +26,7 @@ export type DisplayState =
   | { type: 'available'; domainName: string }
   | { type: 'unavailable'; domainName: string }
   | { type: 'not-found'; domainName: string }
+  | { type: 'not-imported'; domainName: string }
   | { type: 'not-supported'; domainName: string }
   | { type: 'error'; domainName: string }
 
@@ -80,6 +81,10 @@ export const toDisplayState = ({
     }))
     .with({ type: 'not-found' }, ({ name }) => ({
       type: 'not-found' as const,
+      domainName: name,
+    }))
+    .with({ type: 'not-imported' }, ({ name }) => ({
+      type: 'not-imported' as const,
       domainName: name,
     }))
     .with({ type: 'invalid' }, ({ name }) => ({

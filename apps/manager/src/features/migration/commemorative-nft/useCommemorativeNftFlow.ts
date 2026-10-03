@@ -219,7 +219,7 @@ export const useCommemorativeNftFlow = ({
   const wagmiConfig = useConfig()
   const chainId = useChainId()
   const queryClient = useQueryClient()
-  const contractAddress = getCommemorativeNftContractAddress(chainId)
+  const contractAddress = getCommemorativeNftContractAddress()
   const mutationKey = qk('commemorative_nft', 'claim', {
     chainId,
     contractAddress: contractAddress?.toLowerCase(),
@@ -398,13 +398,12 @@ export const useCommemorativeNftFlow = ({
     () =>
       eligibility
         ? buildCommemorativeNftCardData({
-            chainId,
             eligibility,
             minted: claimedStatus === true,
             ownerAddress: eligibility.ownerAddress,
           })
         : undefined,
-    [chainId, eligibility, claimedStatus],
+    [eligibility, claimedStatus],
   )
   const checkingClaim = claimMutation.isPending || hasPendingMutation
   const canCheckStatus =

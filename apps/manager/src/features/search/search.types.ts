@@ -35,6 +35,14 @@ export type AvailabilitySignal =
   | { readonly status: 'skipped' }
   | { readonly status: 'error' }
 
+/** Whether a DNS TLD has DNSSEC enabled, i.e. names under it can be imported */
+export type TldSupportSignal =
+  | { readonly status: 'pending' }
+  | { readonly status: 'supported' }
+  | { readonly status: 'unsupported' }
+  | { readonly status: 'skipped' }
+  | { readonly status: 'error' }
+
 export type NameSearchOutcome =
   | {
       readonly type: 'invalid'
@@ -46,3 +54,8 @@ export type NameSearchOutcome =
   | { readonly type: 'owned'; readonly name: string }
   | { readonly type: 'error'; readonly name: string }
   | { readonly type: 'not-found'; readonly name: string }
+  /**
+   * An unowned DNS 2LD under a TLD that isn't known to be unsupported;
+   * Explorer decides whether/how it can be imported
+   */
+  | { readonly type: 'not-imported'; readonly name: string }

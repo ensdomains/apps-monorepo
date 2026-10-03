@@ -8,6 +8,7 @@ import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
+  type ChainIdMismatchError,
   EthCallFallbackError,
   type SignerAddressMismatchError,
   TransactionRevertedError,
@@ -127,6 +128,7 @@ export const transactionMachine = setup({
         | TransactionSubmissionError
         | TransactionUserRejectedError
         | SignerAddressMismatchError
+        | ChainIdMismatchError
       > => {
         if (!request) {
           return errAsync(
