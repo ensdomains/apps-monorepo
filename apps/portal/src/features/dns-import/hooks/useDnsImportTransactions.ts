@@ -277,5 +277,7 @@ export const useDnsImportTransactions = ({
     startImport,
     isReady:
       !!dnsImportData && (mode !== 'claim' || approvalQuery.data !== undefined),
+    /** Building or pre-verifying the DNSSEC proof failed. */
+    isProofError: importDataQuery.isError,
   }
 }
