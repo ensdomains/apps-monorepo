@@ -19,7 +19,7 @@ export const RegisterNameForm = ({
       <div className="flex items-center gap-2">
         <CopyableRecord
           value={name}
-          textClassName="text-3xl font-serif sm:text-5xl font-medium"
+          textClassName="text-3xl font-serif sm:text-5xl font-normal"
         />
       </div>
 

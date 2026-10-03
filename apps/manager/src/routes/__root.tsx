@@ -32,6 +32,9 @@ type RootRouterContext = {
   queryClient: QueryClient
 }
 
+const GOOGLE_FONTS_URL =
+  'https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&family=Libre+Baskerville:ital,wght@0,400;1,400&display=swap'
+
 const toastIconClassName =
   'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-2xl leading-none'
 
@@ -58,6 +61,16 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'stylesheet',
+        href: GOOGLE_FONTS_URL,
       },
       {
         rel: 'stylesheet',

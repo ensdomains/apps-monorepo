@@ -190,7 +190,7 @@ const BASE_DIRECTIVES = [
     ...INLINE_SCRIPT_HASHES,
   ].join(' '),
   // 'unsafe-inline' styles: required by Tailwind / CSS-in-JS runtime injection.
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // Images are intentionally host-agnostic: an ENS avatar record is an
   // arbitrary user-supplied URL, so any host is valid and we keep no image
   // host allowlist. Only https: (plus data:/blob:) is listed — http: is
@@ -198,10 +198,9 @@ const BASE_DIRECTIVES = [
   // subresources to https:, and browsers block mixed content on https pages
   // regardless, so a plaintext http: image can never actually load.
   "img-src 'self' data: blob: https:",
-  // Intercom Messenger webfonts, plus fonts.ens.dev which serves the ABC/Dinamo
-  // faces (the font license forbids redistributing them in this repo, so they
-  // are fetched at runtime instead of vendored).
-  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com https://fonts.ens.dev",
+  // Intercom Messenger webfonts, plus Google Fonts (Geist, Geist Mono, Libre
+  // Baskerville).
+  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com https://fonts.gstatic.com",
   `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
   // WalletConnect renders its verify/modal in iframes. Intercom sheets/reporting
   // frames are required for the messenger article viewer.
