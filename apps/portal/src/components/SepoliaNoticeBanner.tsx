@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, AlertClose, AlertDescription } from '@/components/ui/alert'
 
-const LAST_SEPOLIA_DEPLOYMENT_DATE = 'September 15, 2026'
+const LAST_SEPOLIA_DEPLOYMENT_DATE = 'October 1, 2026'
 const SEPOLIA_NOTICE_DISMISSED_KEY = `sepolia-notice-dismissed-${LAST_SEPOLIA_DEPLOYMENT_DATE}`
 
 export const SepoliaNoticeBanner = () => {

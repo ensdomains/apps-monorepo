@@ -1,3 +1,4 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { i18n } from '@lingui/core'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -9,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useChainId, useConfig } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { getCommemorativeNftContractAddress } from './config'
+import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import {
   type CommemorativeNftClaimReceiptResult,
   claimCommemorativeNft,
@@ -34,6 +36,23 @@ import {
   type VerifiedNftMigration,
 } from './verifiedMigration'
 
+const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
+  network: 'mainnet',
+}))
+
+vi.mock('@/config', async () => {
+  const { extendChainWithEns } = await import('@ensdomains/ensjs/chain')
+  const { mainnet } = await import('viem/chains')
+  return {
+    envConfig: {
+      get network() {
+        return mockEnvConfig.network
+      },
+      chain: extendChainWithEns(mainnet),
+      endpoints: { indexerGraphql: 'https://indexer.example/graphql' },
+    },
+  }
+})
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
@@ -66,6 +85,10 @@ vi.mock('./eligibility', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./eligibility')>()),
   fetchCommemorativeNftEligibility: vi.fn(),
 }))
+vi.mock('./config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./config')>()),
+  getCommemorativeNftContractAddress: vi.fn(),
+}))
 
 const ownerAddress: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const transactionHash = `0x${'a'.repeat(64)}` as const
@@ -77,7 +100,7 @@ const hcaAddress = '0x1111111111111111111111111111111111111111'
 const verifiedMigration: VerifiedNftMigration = {
   ownerAddress,
   hcaAddress,
-  chainId: 11155111,
+  chainId: 1,
   completedOperations: [{ name: 'yoginth.eth', action: 'migrate' }],
 }
 const wagmiConfig = {} as ReturnType<typeof useConfig>
@@ -93,7 +116,13 @@ const eligibility: CommemorativeNftEligibility = {
     metadataUrl: 'https://assets.example/art.json',
   },
 }
+
+const eligible: Awaited<ReturnType<typeof fetchCommemorativeNftEligibility>> = {
+  status: 'eligible',
+  eligibility,
+}
 const readClaimed = vi.mocked(readCommemorativeNftClaimed)
+const getContractAddress = vi.mocked(getCommemorativeNftContractAddress)
 const claim = vi.mocked(claimCommemorativeNft)
 const waitForReceipt = vi.mocked(waitForCommemorativeNftClaimReceipt)
 const fetchEligibility = vi.mocked(fetchCommemorativeNftEligibility)
@@ -121,15 +150,17 @@ const createClient = () => {
   return client
 }
 
+getContractAddress.mockReturnValue(MAINNET_NFT_TEST_ADDRESS)
+
 const claimQueryKey = commemorativeNftClaimedQueryOptions({
   ownerAddress,
-  chainId: 11155111,
+  chainId: 1,
   wagmiConfig,
 }).queryKey
 const completionQueryKey = commemorativeNftMigrationCompletionQueryOptions({
   ownerAddress,
   hcaAddress,
-  chainId: 11155111,
+  chainId: 1,
   wagmiConfig,
   journalRevision: 0,
 }).queryKey
@@ -163,6 +194,8 @@ const deferred = <T>() => {
 describe('commemorative NFT flow session', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockEnvConfig.network = 'mainnet'
+    getContractAddress.mockReturnValue(MAINNET_NFT_TEST_ADDRESS)
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubGlobal('localStorage', new Storage())
     vi.stubGlobal('navigator', {
@@ -175,7 +208,7 @@ describe('commemorative NFT flow session', () => {
         ) => callback({ name: _name, mode: 'exclusive' }),
       },
     })
-    vi.mocked(useChainId).mockReturnValue(11155111)
+    vi.mocked(useChainId).mockReturnValue(1)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
     featureFlag.mockReturnValue(true)
     vi.mocked(useSmartAccountContext, { partial: true }).mockReturnValue({
@@ -197,14 +230,17 @@ describe('commemorative NFT flow session', () => {
   })
 
   it.each([
-    { migration: false, nft: true },
-    { migration: true, nft: false },
-    { migration: undefined, nft: true },
-    { migration: true, nft: undefined },
-  ])('keeps cached NFTs and callbacks disabled with flags $migration/$nft', async ({
+    { migration: true, nft: true, network: 'sepolia' },
+    { migration: false, nft: true, network: 'mainnet' },
+    { migration: true, nft: false, network: 'mainnet' },
+    { migration: undefined, nft: true, network: 'mainnet' },
+    { migration: true, nft: undefined, network: 'mainnet' },
+  ] as const)('keeps cached NFTs and callbacks disabled with flags $migration/$nft on $network', async ({
     migration,
     nft,
+    network,
   }) => {
+    mockEnvConfig.network = network
     featureFlag.mockImplementation(
       (flag, defaultValue) =>
         (flag === 'migration' ? migration : nft) ?? defaultValue,
@@ -212,7 +248,7 @@ describe('commemorative NFT flow session', () => {
     const client = createClient()
     client.setQueryData(
       commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
-      { status: 'eligible', eligibility },
+      eligible,
     )
     client.setQueryData(claimQueryKey, false)
     const { result } = mountFlow(client)
@@ -245,6 +281,16 @@ describe('commemorative NFT flow session', () => {
     expect(result.current.admission.status).toBe('admitted')
     expect(fetchEligibility).toHaveBeenCalledTimes(1)
     expect(readClaimed).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables mainnet requests and claims without a configured deployment', async () => {
+    getContractAddress.mockReturnValue(undefined)
+    const { result } = mountFlow(createClient())
+    expect(result.current.canMint).toBe(false)
+    await act(async () => result.current.mint())
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
+    expect(claim).not.toHaveBeenCalled()
   })
 
   it('falls back before admitting a fresh mint without browser coordination', async () => {
@@ -310,7 +356,7 @@ describe('commemorative NFT flow session', () => {
         verifiedMigration: expect.objectContaining({
           ownerAddress: ownerAddress.toLowerCase(),
           hcaAddress,
-          chainId: 11155111,
+          chainId: 1,
           completedOperations: verifiedMigration.completedOperations,
         }),
       }),
@@ -573,7 +619,7 @@ describe('commemorative NFT flow session', () => {
     const client = createClient()
     client.setQueryData(
       commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
-      { status: 'eligible', eligibility },
+      eligible,
     )
     const { result } = mountFlow(client)
     await waitFor(() => expect(client.getQueryData(claimQueryKey)).toBe(false))
@@ -851,11 +897,11 @@ describe('commemorative NFT flow session', () => {
     false,
   ])('restores a submitted claim with a fresh query cache when migration indexing is unavailable and browser coordination is %s', async (canCoordinateClaim) => {
     if (!canCoordinateClaim) vi.stubGlobal('navigator', {})
-    const contractAddress = getCommemorativeNftContractAddress(11155111)
+    const contractAddress = getCommemorativeNftContractAddress()
     if (!contractAddress) throw new Error('Missing test contract')
     const saved = {
       version: 1 as const,
-      chainId: 11155111,
+      chainId: 1,
       ownerAddress,
       contractAddress,
       hash: transactionHash,
@@ -945,11 +991,11 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('does not restore a pending claim from another owner or network', async () => {
-    const contractAddress = getCommemorativeNftContractAddress(11155111)
+    const contractAddress = getCommemorativeNftContractAddress()
     if (!contractAddress) throw new Error('Missing test contract')
     savePendingNftClaim({
       version: 1,
-      chainId: 11155111,
+      chainId: 1,
       ownerAddress,
       contractAddress,
       hash: transactionHash,
@@ -965,7 +1011,8 @@ describe('commemorative NFT flow session', () => {
       expect(other.result.current.admission.status).toBe('fallback'),
     )
     other.unmount()
-    vi.mocked(useChainId).mockReturnValue(1)
+    mockEnvConfig.network = 'sepolia'
+    vi.mocked(useChainId).mockReturnValue(11155111)
     const otherNetwork = mountFlow(createClient())
     expect(otherNetwork.result.current.canMint).toBe(false)
     expect(waitForReceipt).not.toHaveBeenCalled()
@@ -1012,11 +1059,11 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('shows recovery storage failure in the admitted shell without sending or polling', async () => {
-    const contractAddress = getCommemorativeNftContractAddress(11155111)
+    const contractAddress = getCommemorativeNftContractAddress()
     if (!contractAddress) throw new Error('Missing test contract')
     savePendingNftClaim({
       version: 1,
-      chainId: 11155111,
+      chainId: 1,
       ownerAddress,
       contractAddress,
       hash: transactionHash,

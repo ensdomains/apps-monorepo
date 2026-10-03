@@ -47,7 +47,8 @@ invoke: {
   onDone: {
     target: 'pending',
     actions: assign({
-      hash: ({ event }) => event.output  // Store transaction hash
+      hash: ({ event }) => event.output,  // Store transaction hash
+      error: undefined,  // Drop the error left by an earlier retried attempt
     })
   },
   onError: [
@@ -125,6 +126,7 @@ onDone → transition to 'pending'
 {
   // ... same as before, plus:
   hash: Hash,  // ✅ Transaction hash received
+  error: undefined,  // Cleared even if an earlier attempt failed and was retried
 }
 ```
 

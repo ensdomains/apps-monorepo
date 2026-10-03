@@ -79,7 +79,7 @@ export const verifiedNftMigrationQueryOptions = (
       ownerAddress: scope.ownerAddress.toLowerCase(),
       hcaAddress: scope.hcaAddress.toLowerCase(),
       chainId: scope.chainId,
-      contractAddress: getCommemorativeNftContractAddress(scope.chainId),
+      contractAddress: getCommemorativeNftContractAddress(),
       deployment: getMigrationCompletionDeploymentIdentity(scope.chainId),
     }),
     queryFn: skipToken,

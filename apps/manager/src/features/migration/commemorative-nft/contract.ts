@@ -112,7 +112,7 @@ export const readCommemorativeNftClaimed = async (params: {
   readonly blockNumber?: bigint
   readonly signal?: AbortSignal
 }): Promise<boolean> => {
-  const contractAddress = getCommemorativeNftContractAddress(params.chainId)
+  const contractAddress = getCommemorativeNftContractAddress()
   if (!contractAddress) {
     throw new CommemorativeNftClaimError(
       'unsupported-network',
@@ -148,7 +148,7 @@ export const claimCommemorativeNft = async (params: {
   readonly walletAddress: Address
   readonly proof: readonly Hex[]
 }): Promise<Hex> => {
-  const contractAddress = getCommemorativeNftContractAddress(params.chainId)
+  const contractAddress = getCommemorativeNftContractAddress()
   if (!contractAddress) {
     throw new CommemorativeNftClaimError(
       'unsupported-network',
@@ -197,9 +197,7 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
   readonly signal?: AbortSignal
 }): Promise<CommemorativeNftClaimReceiptResult> => {
   const { pendingClaim } = params
-  const contractAddress = getCommemorativeNftContractAddress(
-    pendingClaim.chainId,
-  )
+  const contractAddress = getCommemorativeNftContractAddress()
   if (
     contractAddress?.toLowerCase() !==
     pendingClaim.contractAddress.toLowerCase()
