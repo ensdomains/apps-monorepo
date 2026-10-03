@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
+import type { TransferControls } from '../hooks/useTransferName'
 import type { RegistryDetachImpact, TransferDetachTargets } from '../types'
 import { SendNameForm } from './SendNameForm'
 
@@ -43,18 +44,27 @@ const EMPTY_REGISTRY: RegistryDetachImpact = {
   isRevalidating: false,
 }
 
-const formWith = (impact: RegistryDetachImpact) => (
+const controls = (
+  overrides: Partial<TransferControls> = {},
+): TransferControls => ({
+  startTransfer: vi.fn(),
+  discardPreparation: vi.fn(),
+  transactions: [],
+  isPreparing: false,
+  prepError: null,
+  ...overrides,
+})
+
+const formWith = (
+  impact: RegistryDetachImpact,
+  transfer: TransferControls = controls(),
+) => (
   <SendNameForm
     owner={OWNER}
     detachTargets={ALL_TARGETS}
     parentWarning={null}
     registryDetachImpact={impact}
-    transfer={{
-      startTransfer: vi.fn(),
-      transactions: [],
-      isPreparing: false,
-      prepError: null,
-    }}
+    transfer={transfer}
   />
 )
 
@@ -245,5 +255,45 @@ describe('SendNameForm — an unknown blast radius', () => {
     expect(
       screen.getByRole('button', { name: /transfer name/i }),
     ).toBeDisabled()
+  })
+})
+
+describe('SendNameForm while a transfer is being prepared', () => {
+  // Immunefi #91822: the recipient stayed editable while the click-time value
+  // was being turned into a plan, so the form could show one address and send
+  // to another.
+  it('locks the recipient and the options', async () => {
+    const transfer = controls()
+    const { rerender } = render(formWith(EMPTY_REGISTRY, transfer), {
+      wrapper: createTestWrapper(),
+    })
+    await enterRecipient()
+
+    expect(screen.getByRole('textbox')).not.toBeDisabled()
+
+    rerender(formWith(EMPTY_REGISTRY, { ...transfer, isPreparing: true }))
+
+    expect(screen.getByRole('textbox')).toBeDisabled()
+    for (const toggle of await screen.findAllByRole('switch')) {
+      expect(toggle).toBeDisabled()
+    }
+    expect(screen.getByRole('button', { name: 'Preparing…' })).toBeDisabled()
+  })
+
+  it('invalidates the prepared plan on every recipient or option edit', async () => {
+    const transfer = controls()
+    render(formWith(EMPTY_REGISTRY, transfer), { wrapper: createTestWrapper() })
+
+    const user = await enterRecipient()
+    expect(transfer.discardPreparation).toHaveBeenCalled()
+
+    const discardsAfterTyping = vi.mocked(transfer.discardPreparation).mock
+      .calls.length
+    await user.click(
+      await screen.findByRole('switch', { name: /detach the registry/i }),
+    )
+    expect(vi.mocked(transfer.discardPreparation).mock.calls.length).toBe(
+      discardsAfterTyping + 1,
+    )
   })
 })

@@ -31,6 +31,7 @@ import { TransactionErrorAlert } from '@/features/registry/components/Transactio
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
@@ -59,6 +60,7 @@ export const RegisterNameCheckoutSummary = ({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
+      token: SUPPORTED_TOKENS.USDC,
     }),
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })

@@ -12,6 +12,7 @@ import { PrimaryNameSetupNotice } from './components/PrimaryNameSetupNotice'
 import { RegisteringHeader } from './components/RegisteringHeader'
 import { RegistrationDetails } from './components/RegistrationDetails'
 import { useRegisteringCompletion } from './hooks/useRegisteringCompletion'
+import { useRegistrationLockHeartbeat } from './hooks/useRegistrationLockHeartbeat'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 
@@ -27,6 +28,8 @@ const useUiRegistrationState = RegisterV2Context.createSelector((state) => {
     transactionState,
     ethRecordSyncTxId: state.context.ethRecordSyncTxId,
     primaryNameTxId: state.context.primaryNameTxId,
+    lockOwner: state.context.confirmedData?.ownerAddress,
+    lockName: state.context.confirmedData?.label,
   }
 })
 
@@ -69,6 +72,13 @@ const useRegisteringDisplay = () => {
   const { t, i18n } = useLingui()
   const { registrationActor, uiActor } = RegisterV2Context.use()
   const uiRegistrationState = useUiRegistrationState(uiActor)
+
+  useRegistrationLockHeartbeat(
+    uiRegistrationState.lockOwner,
+    uiRegistrationState.lockName
+      ? `${uiRegistrationState.lockName}.eth`
+      : undefined,
+  )
   const childRegistrationState = useChildRegistrationState(registrationActor)
   const maxProgress = useMaxProgress(uiActor)
 

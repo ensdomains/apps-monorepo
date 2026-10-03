@@ -4,6 +4,7 @@ import type { RegistrationPriceResult } from '@/features/register/hooks/useRegis
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
@@ -22,6 +23,7 @@ export type NamePricingResult = {
   readonly isLoading: boolean
   readonly isError: boolean
   readonly error: unknown
+  readonly refetch: () => void
 }
 
 export function useNamePricing(
@@ -35,10 +37,11 @@ export function useNamePricing(
     span,
   )
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     ...getRenewalPriceQueryOptions({
       name: selectedName.name,
       duration: durationSeconds,
+      token: SUPPORTED_TOKENS.USDC,
       renewerAddress: getRenewerAddress(selectedName.isV2),
     }),
     enabled: enabled && durationSeconds > 0,
@@ -51,5 +54,13 @@ export function useNamePricing(
     ? computeNamePricingDisplay(selectedName, price, durationSeconds, baseRate)
     : null
 
-  return { durationSeconds, price, display, isLoading, isError, error }
+  return {
+    durationSeconds,
+    price,
+    display,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  }
 }
