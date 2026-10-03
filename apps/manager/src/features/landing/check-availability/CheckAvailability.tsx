@@ -13,6 +13,8 @@ import {
   domainResultStatusFromGrace,
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
+import { MSymbol } from '@/components/ui/material-symbol'
+import { EXPLORER_URL } from '@/constants'
 import { useCheckAvailability } from '@/features/landing/check-availability/useCheckAvailability'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
@@ -23,6 +25,7 @@ import {
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useDebounce } from '@/hooks/useDebounce'
+import { cn } from '@/lib/utils'
 import { truncateToMaxBytes } from '@/utils/domain'
 
 const dropdownAnimation = {
@@ -35,12 +38,15 @@ const dropdownAnimation = {
 const SearchStatusResult = ({
   domainName,
   badge,
+  href,
 }: {
   readonly domainName: string
   readonly badge: ReactNode
-}) => (
-  <motion.div {...dropdownAnimation}>
-    <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
+  /** External destination; renders the result as a link leaving Manager */
+  readonly href?: string
+}) => {
+  const content = (
+    <>
       <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
         <PatternAvatar
           className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
@@ -50,12 +56,38 @@ const SearchStatusResult = ({
       <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
         {domainName}
       </span>
-      <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
+      <div
+        className={cn(
+          'ml-auto flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-normal text-xs',
+          href
+            ? 'bg-ens-lapis-100 text-ens-lapis-500'
+            : 'bg-red-50 text-red-500',
+        )}
+      >
         {badge}
       </div>
-    </div>
-  </motion.div>
-)
+    </>
+  )
+  const className =
+    'flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg'
+
+  return (
+    <motion.div {...dropdownAnimation}>
+      {href ? (
+        <a
+          className={cn(className, 'hover:bg-slate-50')}
+          href={href}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {content}
+        </a>
+      ) : (
+        <div className={className}>{content}</div>
+      )}
+    </motion.div>
+  )
+}
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -157,6 +189,22 @@ export const CheckAvailability = ({
                 <SearchStatusResult
                   badge={<Trans>Name not found</Trans>}
                   domainName={state.domainName}
+                  key={`result-${state.domainName}`}
+                />
+              ))
+              .with({ type: 'not-imported' }, (state) => (
+                <SearchStatusResult
+                  badge={
+                    <>
+                      <Trans>View in Explorer</Trans>
+                      <MSymbol
+                        className="ms-opsz-14 ms-wght-400"
+                        symbol="arrow_outward"
+                      />
+                    </>
+                  }
+                  domainName={state.domainName}
+                  href={`${EXPLORER_URL}/${state.domainName}`}
                   key={`result-${state.domainName}`}
                 />
               ))

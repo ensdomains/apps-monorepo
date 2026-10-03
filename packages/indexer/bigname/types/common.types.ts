@@ -6,9 +6,9 @@
 // types below list exactly the parameters each route accepts.
 
 /** Lower-cased `0x`-prefixed 20-byte EVM address. */
-export type Address = string
+export type Address = `0x${string}`
 /** Lower-cased `0x`-prefixed hex string (hashes, contenthash, multicoin address bytes). */
-export type Hex = string
+export type Hex = `0x${string}`
 /** RFC 3339 UTC timestamp, e.g. `2026-06-10T00:00:00Z`. */
 export type Timestamp = string
 /** Opaque, versioned pagination cursor. */

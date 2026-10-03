@@ -5,6 +5,7 @@ import { useAtom } from '@xstate/store-react'
 import { toast } from 'sonner'
 import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   preferencesQueryOptions,
@@ -161,9 +162,9 @@ export const NotificationPreferences = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+      <Card className="gap-4 p-6">
         <NotificationPreferencesFields form={form} preferences={preferences} />
-      </div>
+      </Card>
       <div className="ml-auto w-full max-w-md">
         <form.Subscribe
           selector={(state) => [

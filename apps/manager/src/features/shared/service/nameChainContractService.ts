@@ -3,10 +3,15 @@ import { getAvailable, getRegisterPrice } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits } from 'viem'
 import { getChainId } from 'viem/actions'
+import {
+  getLabelLength,
+  parseName,
+} from '@/features/register-v2/utils/name-parser'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
-import { validateENSName } from '../registration/nameUtils'
 import { durationYearsToSeconds } from '../registration/pricing'
+
+const MIN_REGISTRABLE_LABEL_LENGTH = 3
 
 export interface TokenPriceInfo {
   raw: bigint
@@ -28,10 +33,20 @@ export class NameChainContractError extends TaggedError(
 export const checkRealNameAvailability = ResultFn(async function* (
   name: string,
 ) {
-  const validation = validateENSName(name)
+  // `isAvailable` answers about the label it is handed, so a look-alike reads
+  // as available while the canonical spelling it maps to is taken.
+  const parsed = parseName(name)
 
-  if (validation) {
-    return err(new NameChainContractError({ cause: validation.message }))
+  if (parsed.isErr()) {
+    return err(new NameChainContractError({ cause: parsed.error.message }))
+  }
+
+  if (getLabelLength(parsed.value.label) < MIN_REGISTRABLE_LABEL_LENGTH) {
+    return err(
+      new NameChainContractError({
+        cause: 'Names must be 3 characters or more to register.',
+      }),
+    )
   }
 
   yield* fromPromise(getChainId(publicClient), (e) => {
@@ -40,13 +55,12 @@ export const checkRealNameAvailability = ResultFn(async function* (
     })
   })
 
-  // Check availability via the v2 registrar's `isAvailable`. The ensjs
-  // action reads `client.chain.contracts.ensEthRegistrar` and is
-  // eth-2ld-only, which matches what `validateENSName` already guarantees
-  // here. Every caller passes a `.eth` name (normalizeQuery /
-  // normalizeDomainNameFromUrl both append the suffix).
+  // The ensjs action reads `client.chain.contracts.ensEthRegistrar` and is
+  // eth-2ld-only, which is what `parseName` already guarantees here.
+  const normalizedName = parsed.value.name
+
   const availability = yield* fromPromise(
-    getAvailable(publicClient, { name }),
+    getAvailable(publicClient, { name: normalizedName }),
     (e) =>
       new NameChainContractError({
         cause: `Contract call failed: ${e}`,
@@ -55,7 +69,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
 
   return ok({
     isAvailable: availability,
-    name,
+    name: normalizedName,
   })
 })
 

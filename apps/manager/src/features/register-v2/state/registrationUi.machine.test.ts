@@ -1,6 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
 import type { Address } from 'viem'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
 /**
@@ -13,7 +13,7 @@ type RegistrationStubEvent =
   | { type: 'START_REGISTRATION'; primaryName?: string }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
-  | { type: 'FORCE_ERROR'; error: Error }
+  | { type: 'FORCE_ERROR'; error: Error; nameUnavailable?: boolean }
   | { type: 'RETRY' }
   | { type: 'SUSPEND' }
 
@@ -36,6 +36,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       registrationTxId: 'tx-register',
       registerReadyTimestamp: null as number | null,
       error: undefined as Error | undefined,
+      nameUnavailable: undefined as boolean | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
@@ -90,6 +91,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
             actions: assign({
               error: ({ event }) =>
                 event.type === 'FORCE_ERROR' ? event.error : undefined,
+              nameUnavailable: ({ event }) =>
+                event.type === 'FORCE_ERROR'
+                  ? event.nameUnavailable
+                  : undefined,
             }),
           },
           RETRY: {
@@ -100,7 +105,19 @@ vi.mock('@ens-apps/transaction-manager', () => ({
         },
       },
       success: {},
-      error: {},
+      // The real machine leaves `error` on RETRY (except for a name another
+      // address already registered, which the UI is expected to stop before
+      // it ever reaches the child).
+      error: {
+        on: {
+          RETRY: {
+            target: 'running',
+            actions: assign({
+              retryCount: ({ context }) => context.retryCount + 1,
+            }),
+          },
+        },
+      },
     },
   }),
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' })),
@@ -217,6 +234,11 @@ const sendToChild = (
   child.send(event)
 }
 
+/** `retryCount` is the stub's own counter — see `sendToChild` on the cast. */
+const childRetryCount = (actor: ReturnType<typeof startActorInTokens>) =>
+  (getChild(actor).getSnapshot().context as unknown as { retryCount: number })
+    .retryCount
+
 const deferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void
   let reject!: (reason?: unknown) => void
@@ -230,6 +252,23 @@ const deferred = <T>() => {
 const flush = async (times = 8) => {
   for (let i = 0; i < times; i += 1) {
     await Promise.resolve()
+  }
+}
+
+beforeEach(() => {
+  localStorage.clear()
+  sessionStorage.clear()
+})
+
+/** Run as a second tab: same storage, its own stable holder id. */
+const asAnotherTab = <T>(run: () => T): T => {
+  const held = sessionStorage.getItem('ens-registration-holder')
+  sessionStorage.setItem('ens-registration-holder', 'other-tab')
+  try {
+    return run()
+  } finally {
+    if (held) sessionStorage.setItem('ens-registration-holder', held)
+    else sessionStorage.removeItem('ens-registration-holder')
   }
 }
 
@@ -253,6 +292,93 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
     expect(snapshot.context.lastErrorMessage).toMatch(/reconnect your wallet/i)
+  })
+
+  it('refuses to start while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+
+    // QA's sequence: the block held, then Try Again went straight through.
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().value).toBe('failure')
+
+    // Only once the other tab is done does the retry proceed, and it must
+    // actually start the child: it never received START_REGISTRATION, so a
+    // RETRY alone would leave it idle and the screen stuck.
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    expect(getChild(actor).getSnapshot().value).toBe('running')
+  })
+
+  // QA hit this: the block held, then Try Again re-entered `registering`
+  // without re-checking, and both names registered at once.
+  it('refuses a retry while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+
+    // Another tab takes the wallet while this one sits on the failure screen.
+    releaseRegistrationLock(EOA_ADDRESS)
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    actor.send({ type: '$error', error: new Error('boom') })
+    expect(actor.getSnapshot().value).toBe('failure')
+
+    actor.send({ type: 'retry' })
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+  })
+
+  it('allows a retry once the wallet is free again', async () => {
+    const { releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+    actor.send({ type: '$error', error: new Error('boom') })
+    releaseRegistrationLock(EOA_ADDRESS)
+
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
   })
 
   it('proceeds when an HCA registration has an owner wallet client', () => {
@@ -665,6 +791,46 @@ describe('registrationV2UiMachine — registration.resume', () => {
     walletClient: {},
   } as unknown as SmartAccountContextValue
 
+  // A reload drops this tab's claim, so the resumed run has to take it again
+  // before it continues a commit on the wallet's nonce.
+  it('refuses to resume while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    const refused = actor.getSnapshot()
+    expect(refused.value).toBe('failure')
+    expect(refused.context.lastErrorMessage).toMatch(/othername\.eth/i)
+
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+  })
+
+  it('claims the wallet when it resumes', async () => {
+    const { acquireRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(hcaAccount))
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(EOA_ADDRESS, 'other.eth')).toBe(false)
+    })
+  })
+
   it('resumes from the pricing step a fresh mount lands on', () => {
     // A reload puts the UI machine in `pricing.duration`, not `pricing.tokens`.
     // The event is handled on the `pricing` state precisely so both work.
@@ -862,5 +1028,60 @@ describe('registrationV2UiMachine — registration.suspend', () => {
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
     expect(isChildSuspended(actor)).toBe(true)
+  })
+})
+
+describe('registrationV2UiMachine — name lost to another registrant', () => {
+  const eoaAccount = {
+    signer: { type: 'eoa', walletClient: {} as never },
+    accountAddress: EOA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } } as any,
+  } as unknown as SmartAccountContextValue
+
+  const failWithNameTaken = async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('example.eth was registered by another address first.'),
+      nameUnavailable: true,
+    })
+    await flush()
+    return actor
+  }
+
+  it('carries the lost-race flag onto the failure screen', async () => {
+    const actor = await failWithNameTaken()
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.nameUnavailable).toBe(true)
+  })
+
+  it('refuses retry rather than parking on the pending screen', async () => {
+    // The child refuses the forwarded RETRY, so moving back to `registering`
+    // would leave the user watching a spinner that can never resolve.
+    const actor = await failWithNameTaken()
+
+    actor.send({ type: 'retry' })
+    await flush()
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  it('still retries an ordinary failure', async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: new Error('rpc down') })
+    await flush()
+
+    expect(actor.getSnapshot().context.nameUnavailable).toBe(false)
+
+    actor.send({ type: 'retry' })
+    await flush()
+
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    expect(childRetryCount(actor)).toBe(1)
   })
 })

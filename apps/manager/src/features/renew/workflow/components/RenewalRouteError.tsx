@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { RenewPageLayout } from './RenewPageLayout'
 
 export const RenewalRouteError = ({
@@ -8,12 +9,12 @@ export const RenewalRouteError = ({
   name,
   reset,
 }: {
-  readonly error: Error
+  readonly error: unknown
   readonly name: string
   readonly reset: () => void
 }) => (
   <RenewPageLayout>
-    <div className="mx-auto flex max-w-xl flex-col items-center rounded-xl border border-ens-quartz-250 bg-white px-5 py-10 text-center shadow-temp-card sm:px-10 sm:py-12">
+    <Card className="mx-auto max-w-xl items-center gap-0 px-5 py-10 text-center sm:px-10 sm:py-12">
       <span className="flex size-12 items-center justify-center rounded-full bg-ens-garnet-100 text-ens-garnet-500">
         <TriangleAlert aria-hidden="true" className="size-6" />
       </span>
@@ -21,7 +22,7 @@ export const RenewalRouteError = ({
         <Trans>This name can’t be renewed here</Trans>
       </h1>
       <p className="mt-3 max-w-md text-ens-quartz-500 text-sm leading-5">
-        {error.message || (
+        {(error instanceof Error && error.message) || (
           <Trans>We couldn’t confirm that this name is renewable.</Trans>
         )}
       </p>
@@ -47,6 +48,6 @@ export const RenewalRouteError = ({
           <Trans>Try again</Trans>
         </Button>
       </div>
-    </div>
+    </Card>
   </RenewPageLayout>
 )

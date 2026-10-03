@@ -1,6 +1,7 @@
 // Contracts
 // Errors
 export {
+  ChainIdMismatchError,
   SignerAddressMismatchError,
   TransactionStoppedError,
   TransactionSubmissionError,

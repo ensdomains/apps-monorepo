@@ -7,8 +7,8 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4fc0c2a4"
-  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@4fc0c2a4"
+  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@fe19830b"
+  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@fe19830b"
   xstate: ^5.24.0
   typescript: ^7.0.2
   vite: ^8.0.10
@@ -24,7 +24,12 @@ catalog:
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
-  "@walletconnect/ethereum-provider": ~2.21.1
+  # Pinned exactly: 2.21.8 is the last Apache-2.0 release. From 2.21.9 the
+  # WalletConnect packages are under the proprietary WalletConnect Community
+  # License, which is incompatible with the AGPL apps. It pins its own
+  # @walletconnect/* and @reown/appkit deps exactly, so the whole subtree stays
+  # Apache-2.0/MIT. Do not bump without checking the license of the new version.
+  "@walletconnect/ethereum-provider": 2.21.8
   # wagmi pins @wagmi/core and @wagmi/connectors to exact versions, so these
   # three only ever move together — bumping one alone just re-duplicates the
   # tree at wagmi's pinned version.
@@ -97,6 +102,10 @@ overrides:
   which-typed-array: "npm:@socketregistry/which-typed-array@^1"
   es-set-tostringtag: "npm:@socketregistry/es-set-tostringtag@^1"
   "vite@8.0.10>rolldown": "1.0.0-rc.18"
+  # Keep every copy on the last Apache-2.0 release (see the catalog entry),
+  # including ones resolved as a peer outside the apps, e.g. wagmi as a
+  # devDependency of @ens-apps/transaction-manager.
+  "@walletconnect/ethereum-provider": "2.21.8"
 
 patchedDependencies:
   xstate: patches/xstate.patch

@@ -6,9 +6,12 @@
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Hash, Hex } from 'viem'
-import { sepolia } from 'viem/chains'
+import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { TransactionSubmissionError } from '../errors/transaction.errors'
+import {
+  ChainIdMismatchError,
+  TransactionSubmissionError,
+} from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -98,6 +101,41 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrapErr().message).toContain(
       'Warp transport requires rhinestone-intent request',
     )
+  })
+
+  it('returns ChainIdMismatchError when the signer chain is not the request chain', async () => {
+    const signer = createMockSigner()
+    signer.config.chain = mainnet
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result.isErr()).toBe(true)
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(ChainIdMismatchError)
+    expect((error as ChainIdMismatchError).expected).toBe(sepolia.id)
+    expect((error as ChainIdMismatchError).actual).toBe(mainnet.id)
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it('returns ChainIdMismatchError instead of defaulting when the signer has no chain', async () => {
+    // Previously `config.chain || sepolia` silently routed the intent to
+    // Sepolia regardless of what the request asked for.
+    const signer = createMockSigner()
+    signer.config.chain = undefined
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result.isErr()).toBe(true)
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(ChainIdMismatchError)
+    expect((error as ChainIdMismatchError).actual).toBeUndefined()
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
   })
 
   it('returns error for empty calls array', async () => {

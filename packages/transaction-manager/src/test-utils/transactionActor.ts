@@ -17,15 +17,17 @@ import {
   custom,
   type EIP1193Provider,
   type Hash,
+  numberToHex,
   type PublicClient,
   type TransactionReceipt,
 } from 'viem'
+import { sepolia } from 'viem/chains'
 import { waitForTransaction } from '../helpers/waitForTransaction'
 import { transactionManager } from '../providers/transactionManager'
 import type { EOASigner } from '../types/signer.types'
 import type { TransactionIntent } from '../types/transaction.types'
 
-export const TEST_CHAIN_ID = 11155111
+export const TEST_CHAIN_ID = sepolia.id
 
 export const TEST_TX_HASH = `0x${'ab'.repeat(32)}` as Hash
 const TX_TARGET = '0x00000000000000000000000000000000000000ff' as Address
@@ -52,11 +54,16 @@ export function createCountingWallet(address: Address): TestWallet {
   const methods: string[] = []
   let gate: Promise<void> | undefined
 
+  // A connected wagmi wallet always carries the chain it is on, and the EOA
+  // transport refuses to send without one. With a chain set, viem checks it
+  // against a live `eth_chainId` before sending, so the wallet answers that too.
   const walletClient = createWalletClient({
     account: address,
+    chain: sepolia,
     transport: custom({
       request: async ({ method }: { method: string }) => {
         methods.push(method)
+        if (method === 'eth_chainId') return numberToHex(TEST_CHAIN_ID)
         if (method !== 'eth_sendTransaction')
           throw new Error(`Unexpected RPC call in test: ${method}`)
         if (gate) await gate

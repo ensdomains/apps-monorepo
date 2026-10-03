@@ -7,6 +7,7 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { EXPLORER_URL } from '@/constants'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
   getProfileExpiryResultStatus,
@@ -67,23 +68,17 @@ export const NameSuggestionItem = ({
     typeof pricingQuery.data?.usdc?.premium === 'bigint' &&
     pricingQuery.data.usdc.premium > 0n
 
-  return (
-    <Link
-      className={tw(
-        'flex w-full items-center gap-3 p-3 text-left transition-colors',
-        isDisabled ? 'cursor-default opacity-50' : 'hover:bg-slate-50',
-      )}
-      onClick={(event) => {
-        if (isDisabled) {
-          event.preventDefault()
-          return
-        }
-        searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
-        recordNameSearch(name)
-        onNavigate?.()
-      }}
-      {...LINK_OPTIONS[isAvailable ? 'register' : 'profile'](name)}
-    >
+  const className = tw(
+    'flex w-full items-center gap-3 p-3 text-left transition-colors',
+    isDisabled ? 'cursor-default opacity-50' : 'hover:bg-slate-50',
+  )
+  const handleSelect = () => {
+    searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
+    recordNameSearch(name)
+    onNavigate?.()
+  }
+  const content = (
+    <>
       <div className="relative size-8 shrink-0 overflow-hidden rounded bg-slate-100">
         <ImageFallback.Root className="contents">
           <ImageFallback.Image
@@ -133,11 +128,50 @@ export const NameSuggestionItem = ({
               <Trans>Name not found</Trans>
             </div>
           ))
+          .with({ type: 'not-imported' }, () => (
+            <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ens-lapis-100 px-1.5 py-1 font-normal text-ens-lapis-500 text-xs">
+              <Trans>View in Explorer</Trans>
+              <MSymbol
+                className="ms-opsz-14 ms-wght-400"
+                symbol="arrow_outward"
+              />
+            </div>
+          ))
           .with({ type: 'error' }, () => (
             <XIcon className="size-4 text-slate-500" />
           ))
           .exhaustive()}
       </div>
+    </>
+  )
+
+  if (outcome.type === 'not-imported') {
+    return (
+      <a
+        className={className}
+        href={`${EXPLORER_URL}/${outcome.name}`}
+        onClick={handleSelect}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <Link
+      className={className}
+      onClick={(event) => {
+        if (isDisabled) {
+          event.preventDefault()
+          return
+        }
+        handleSelect()
+      }}
+      {...LINK_OPTIONS[isAvailable ? 'register' : 'profile'](name)}
+    >
+      {content}
     </Link>
   )
 }
