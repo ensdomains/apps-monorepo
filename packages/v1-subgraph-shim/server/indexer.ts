@@ -223,7 +223,7 @@ export class Indexer {
       if (domain.createdAt === '0') domain.createdAt = String(at.blockNumber)
       store.domain(parent).subdomainIds.add(node)
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'NewOwner',
         scope: 'domain',
         node,
@@ -239,7 +239,7 @@ export class Indexer {
       const node = String(args.node).toLowerCase()
       store.domain(node).owner = { id: String(args.owner).toLowerCase() }
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'Transfer',
         scope: 'domain',
         node,
@@ -257,7 +257,7 @@ export class Indexer {
           ? null
           : store.resolver(resolverAddress, node).id
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'NewResolver',
         scope: 'domain',
         node,
@@ -270,7 +270,7 @@ export class Indexer {
       const node = String(args.node).toLowerCase()
       store.domain(node).ttl = String(args.ttl)
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'NewTTL',
         scope: 'domain',
         node,
@@ -305,7 +305,7 @@ export class Indexer {
       }
       store.registrations.set(node, registration)
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: eventName,
         scope: 'registration',
         node,
@@ -329,7 +329,7 @@ export class Indexer {
       const registration = store.registrations.get(node)
       if (registration) registration.registrant = { id: to }
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'NameTransferred',
         scope: 'registration',
         node,
@@ -386,7 +386,7 @@ export class Indexer {
       })
       store.domain(node).wrappedOwnerId = String(args.owner).toLowerCase()
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'NameWrapped',
         scope: 'domain',
         node,
@@ -405,7 +405,7 @@ export class Indexer {
       store.wrapped.delete(node)
       store.domain(node).wrappedOwnerId = null
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'NameUnwrapped',
         scope: 'domain',
         node,
@@ -419,7 +419,7 @@ export class Indexer {
       const wrapped = store.wrapped.get(node)
       if (wrapped) wrapped.fuses = Number(args.fuses)
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'FusesSet',
         scope: 'domain',
         node,
@@ -433,7 +433,7 @@ export class Indexer {
       const wrapped = store.wrapped.get(node)
       if (wrapped) wrapped.expiryDate = String(args.expiry)
       store.addEvent({
-        id: `${at.transactionID}-${at.logIndex}`,
+        id: `${at.blockNumber}-${at.logIndex}`,
         kind: 'ExpiryExtended',
         scope: 'domain',
         node,
@@ -454,7 +454,7 @@ export class Indexer {
         if (wrapped) wrapped.owner = { id: to }
         store.domain(node).wrappedOwnerId = to === ZERO_ADDRESS ? null : to
         store.addEvent({
-          id: `${at.transactionID}-${at.logIndex}`,
+          id: `${at.blockNumber}-${at.logIndex}`,
           kind: 'WrappedTransfer',
           scope: 'domain',
           node,
@@ -475,7 +475,7 @@ export class Indexer {
     const store = this.store
     const resolver = store.resolver(address, node)
     const base = {
-      id: `${at.transactionID}-${at.logIndex}`,
+      id: `${at.blockNumber}-${at.logIndex}`,
       scope: 'resolver' as const,
       node,
       resolverId: resolver.id,

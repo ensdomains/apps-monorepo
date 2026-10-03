@@ -85,6 +85,8 @@ export const typeDefs = /* GraphQL */ `
     blockNumber: Int!
     transactionID: Bytes!
     resolver: Resolver
+    # The flattened resolver id, set even when the name was unset to 0x0.
+    resolverId: String!
   }
   type NewTTL implements DomainEvent {
     id: ID!
@@ -164,12 +166,14 @@ export const typeDefs = /* GraphQL */ `
   interface ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
   }
   type AddrChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     addr: Account!
@@ -177,6 +181,7 @@ export const typeDefs = /* GraphQL */ `
   type MulticoinAddrChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     coinType: BigInt!
@@ -185,6 +190,7 @@ export const typeDefs = /* GraphQL */ `
   type NameChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     name: String!
@@ -192,6 +198,7 @@ export const typeDefs = /* GraphQL */ `
   type AbiChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     contentType: BigInt!
@@ -199,6 +206,7 @@ export const typeDefs = /* GraphQL */ `
   type PubkeyChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     x: Bytes!
@@ -207,6 +215,7 @@ export const typeDefs = /* GraphQL */ `
   type TextChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     key: String!
@@ -215,6 +224,7 @@ export const typeDefs = /* GraphQL */ `
   type ContenthashChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     hash: Bytes!
@@ -222,6 +232,7 @@ export const typeDefs = /* GraphQL */ `
   type InterfaceChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     interfaceID: Bytes!
@@ -230,6 +241,7 @@ export const typeDefs = /* GraphQL */ `
   type AuthorisationChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     owner: Bytes!
@@ -239,6 +251,7 @@ export const typeDefs = /* GraphQL */ `
   type VersionChanged implements ResolverEvent {
     id: ID!
     resolver: Resolver!
+    resolverId: String!
     blockNumber: Int!
     transactionID: Bytes!
     version: BigInt!
@@ -334,11 +347,17 @@ export const typeDefs = /* GraphQL */ `
     createdAt_gt: BigInt
   }
 
+  input NewResolver_filter {
+    domain: String
+  }
+
   input Resolver_filter {
     domain: String
     domain_in: [String!]
     address: Bytes
-    id_in: [ID!]
+    # String, not ID: upstream (ENSNode) has no ID scalar, and the portal
+    # declares the ids variable as [String!]!, which GraphQL will not coerce to [ID!].
+    id_in: [String!]
   }
 
   type Query {
@@ -358,6 +377,13 @@ export const typeDefs = /* GraphQL */ `
       orderDirection: OrderDirection
       where: Resolver_filter
     ): [Resolver!]!
+    newResolvers(
+      first: Int
+      skip: Int
+      orderBy: Event_orderBy
+      orderDirection: OrderDirection
+      where: NewResolver_filter
+    ): [NewResolver!]!
     registration(id: String!): Registration
     registrations(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [Registration!]!
     wrappedDomain(id: String!): WrappedDomain

@@ -171,6 +171,12 @@ const shapeEvent = (event: StoredEvent, extra: Record<string, unknown>) => ({
   id: event.id,
   blockNumber: event.blockNumber,
   transactionID: event.transactionID,
+  // The upstream schema flattens the `resolver` reference onto every event that
+  // has one; the portal's history reads this, never the nested object.
+  ...(event.resolverId && { resolverId: event.resolverId }),
+  ...(event.kind === 'NewResolver' && {
+    resolverId: (event.data.resolver as { id: string }).id,
+  }),
   ...event.data,
   ...extra,
 })
@@ -256,6 +262,29 @@ export const makeResolvers = (ctx: Ctx) => {
           return true
         })
         return sortAndSlice(all, (r) => r.id, args)
+      },
+
+      // Registry `NewResolver` events for a name, the authority on which
+      // resolver it pointed at and when.
+      newResolvers: (
+        _: unknown,
+        args: {
+          first?: number
+          skip?: number
+          orderDirection?: string
+          where?: { domain?: string }
+        },
+      ) => {
+        const node = args.where?.domain?.toLowerCase()
+        const all = store.events.filter(
+          (e) =>
+            e.kind === 'NewResolver' &&
+            e.scope === 'domain' &&
+            (!node || e.node === node),
+        )
+        return sortAndSlice(all, (e) => e.blockNumber, eventArgs(args)).map(
+          (e) => shapeEvent(e, { domain: store.domains.get(e.node) ?? null }),
+        )
       },
 
       registration: (_: unknown, { id }: { id: string }) =>
