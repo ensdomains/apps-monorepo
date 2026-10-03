@@ -32,7 +32,8 @@ describe('getDefaultGlobalBackButtonConfig', () => {
     const hiddenRoutes = [
       '/',
       '/dashboard',
-      '/migration',
+      '/upgrade',
+      '/upgrade-permissions',
       '/register',
       '/register/example.eth',
       '/renew/example.eth',

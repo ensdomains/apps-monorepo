@@ -24,7 +24,7 @@ export const UpgradeNamesButton = ({
       className={cn('w-full', className)}
       disabled={!migrationEnabled || props.disabled}
       onClick={() => {
-        if (migrationEnabled) navigate({ to: '/migration' })
+        if (migrationEnabled) navigate({ to: '/upgrade' })
       }}
       showNftPlaceholder={showNftPlaceholder}
       type="button"

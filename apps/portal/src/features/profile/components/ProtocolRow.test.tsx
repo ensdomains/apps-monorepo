@@ -19,7 +19,7 @@ vi.mock('@/features/migration/hooks/useMigrationStatus', () => ({
 }))
 
 describe('ProtocolRow', () => {
-  it('says a migratable v1 name can be migrated', () => {
+  it('says an eligible v1 name can be upgraded', () => {
     render(
       <ProtocolRow
         protocolVersion="ENSv1"
@@ -31,22 +31,22 @@ describe('ProtocolRow', () => {
       />,
     )
 
-    expect(screen.getByText(/ENSv1: Can be migrated/)).toBeInTheDocument()
+    expect(screen.getByText(/ENSv1: Can be upgraded/)).toBeInTheDocument()
   })
 
-  it('says a v1 name the classifier rejects cannot be migrated', () => {
+  it('says a v1 name the classifier rejects cannot be upgraded', () => {
     render(
       <ProtocolRow protocolVersion="ENSv1" migration={{ migratable: false }} />,
     )
 
-    expect(screen.getByText(/ENSv1: Cannot be migrated/)).toBeInTheDocument()
+    expect(screen.getByText(/ENSv1: Cannot be upgraded/)).toBeInTheDocument()
   })
 
   it('shows the version alone when there is no verdict', () => {
     render(<ProtocolRow protocolVersion="ENSv2" />)
 
     expect(screen.getByText('ENSv2')).toBeInTheDocument()
-    expect(screen.queryByText(/migrat/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/upgrad/)).not.toBeInTheDocument()
   })
 })
 
@@ -56,15 +56,15 @@ describe('V1ProtocolRow', () => {
     migration = { data: undefined, isLoading: false, error: null }
   })
 
-  it('tells the owner their name cannot be migrated', () => {
+  it('tells the owner their name cannot be upgraded', () => {
     migration.data = { migratable: false }
 
     render(<V1ProtocolRow name="locked.eth" />)
 
-    expect(screen.getByText(/ENSv1: Cannot be migrated/)).toBeInTheDocument()
+    expect(screen.getByText(/ENSv1: Cannot be upgraded/)).toBeInTheDocument()
   })
 
-  it('tells the owner their name can be migrated', () => {
+  it('tells the owner their name can be upgraded', () => {
     migration.data = {
       migratable: true,
       tokenHolder: HOLDER,
@@ -73,7 +73,7 @@ describe('V1ProtocolRow', () => {
 
     render(<V1ProtocolRow name="plain.eth" />)
 
-    expect(screen.getByText(/ENSv1: Can be migrated/)).toBeInTheDocument()
+    expect(screen.getByText(/ENSv1: Can be upgraded/)).toBeInTheDocument()
   })
 
   // Migratability is the owner's business; a visitor sees only the version.
@@ -84,15 +84,15 @@ describe('V1ProtocolRow', () => {
     render(<V1ProtocolRow name="someone-else.eth" />)
 
     expect(screen.getByText('ENSv1')).toBeInTheDocument()
-    expect(screen.queryByText(/migrat/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/upgrad/)).not.toBeInTheDocument()
   })
 
-  it('says nothing about migration until ownership is known', () => {
+  it('says nothing about upgrade eligibility until ownership is known', () => {
     owner = { isOwner: false, isLoading: true }
 
     render(<V1ProtocolRow name="plain.eth" />)
 
-    expect(screen.queryByText(/migrat/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/upgrad/)).not.toBeInTheDocument()
   })
 
   it('shows the check in progress rather than a bare version', () => {
@@ -100,7 +100,7 @@ describe('V1ProtocolRow', () => {
 
     render(<V1ProtocolRow name="plain.eth" />)
 
-    expect(screen.getByText(/Checking migration/)).toBeInTheDocument()
+    expect(screen.getByText(/Checking upgrade eligibility/)).toBeInTheDocument()
   })
 
   it('says the check failed rather than falling back to a bare version', () => {
@@ -108,7 +108,9 @@ describe('V1ProtocolRow', () => {
 
     render(<V1ProtocolRow name="plain.eth" />)
 
-    expect(screen.getByText(/Failed to check migration/)).toBeInTheDocument()
-    expect(screen.queryByText(/Can be migrated/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/Failed to check upgrade eligibility/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Can be upgraded/)).not.toBeInTheDocument()
   })
 })
