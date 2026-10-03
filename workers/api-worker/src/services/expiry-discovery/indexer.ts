@@ -1,71 +1,26 @@
-import {
-  createPlainClient,
-  EmptyGraphQLResponseError,
-  graphqlRequest,
-} from '@ens-apps/indexer/urql/request'
+import type { BignameError } from '@ens-apps/indexer/bigname'
+import { createBignameClient } from '@ens-apps/indexer/bigname'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { CombinedError, gql } from '@urql/core'
 import { fromPromise, ok, type Result } from 'neverthrow'
-import * as v from 'valibot'
 import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
-export const PROCESS_PAGE_SIZE = 999
+// bigname serves at most 200 rows a page; one is kept back as lookahead.
+export const PROCESS_PAGE_SIZE = 199
 export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
-
-const expiringNamesQuery = gql`
-  query GetExpiringNames($cursor: Int!, $upper_bound: Int!) {
-    domains(
-      where: { expiry_gt: $cursor, expiry_lte: $upper_bound }
-      orderBy: expiryDate
-      orderDirection: asc
-      first: ${String(QUERY_PAGE_SIZE)}
-    ) {
-      name
-      expiryDate
-      owner {
-        id
-      }
-    }
-  }
-`
-
-type ExpiringNamesQueryVariables = {
-  cursor: number
-  upper_bound: number
-}
-
-/**
- * TODO: keep this query contract aligned with the external ENS indexer.
- * Required schema:
- * - domains[].name: string
- * - domains[].expiryDate: Int unix seconds
- * - domains[].owner.id: string | null
- */
-
-const indexerResponseSchema = v.object({
-  domains: v.array(
-    v.object({
-      name: v.string(),
-      expiryDate: v.number(),
-      owner: v.nullable(
-        v.object({
-          id: v.nullable(v.string()),
-        }),
-      ),
-    }),
-  ),
-})
+const MS_PER_SECOND = 1000
 
 class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
   status?: number
   attempt: number
 }> {}
 
-class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
+class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR')<{
+  cause: unknown
+}> {}
 
 class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
   cause: unknown
@@ -76,49 +31,56 @@ class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
  * Result keeps that inside the caller's error channel instead of rejecting the
  * generator, which would bypass the cron's failure handling.
  */
-function getIndexerUrl(
+const getIndexer = (
   env: CloudflareBindings,
-): Result<string, IndexerConfigError> {
-  return fromSync(
-    () => getConfig(env).endpoints.indexerGraphql,
+): Result<
+  { client: ReturnType<typeof createBignameClient>; chainId: number },
+  IndexerConfigError
+> =>
+  fromSync(
+    () => {
+      const config = getConfig(env)
+      return {
+        client: createBignameClient(config.endpoints.bignameApi),
+        chainId: config.chain.id,
+      }
+    },
     (error) => new IndexerConfigError({ cause: error }),
   )
-}
 
-function toRetryDelayMs(attempt: number): number {
+const toRetryDelayMs = (attempt: number): number => {
   const jitter = Math.floor(Math.random() * 100)
   return BASE_RETRY_DELAY_MS * 2 ** (attempt - 1) + jitter
 }
 
-/**
- * `CombinedError.response` is whatever the exchange put there — a `Response`
- * for the fetch exchange we use, but urql neither types nor guarantees it — so
- * read the status defensively and fall back to "retryable" when it's absent.
- */
-function responseStatus(error: unknown): number | undefined {
-  if (!(error instanceof CombinedError)) return undefined
-  const status = (error.response as { status?: unknown } | undefined)?.status
-  return typeof status === 'number' ? status : undefined
-}
+// The client makes one attempt per call by design; the retry policy is the
+// job's. Anything transient, or with no status at all, is worth another try.
+const isRetryable = (error: BignameError): boolean =>
+  error.code === 'network' ||
+  error.status === undefined ||
+  error.status === 429 ||
+  error.status >= 500
 
-function isRetryableRequestError(error: unknown): boolean {
-  // A successful request that carried no `data` returns the same empty payload
-  // however many times it's re-sent.
-  if (error instanceof EmptyGraphQLResponseError) return false
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
-  const status = responseStatus(error)
-  if (status === undefined) return true
-  return status === 429 || status >= 500
-}
+const toIso = (seconds: number): string =>
+  new Date(seconds * MS_PER_SECOND).toISOString()
 
-async function wait(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms))
-}
+const toSeconds = (iso: string): number =>
+  Math.floor(new Date(iso).getTime() / MS_PER_SECOND)
 
 export type ExpiringDomain = {
   name: string
   expiryDate: number
   owner?: string
+}
+
+export type ExpiringNamesPage = {
+  domains: ExpiringDomain[]
+  hasMore: boolean
+  /** The chain time the answer belongs to, so a lagging index is visible. */
+  indexedAtSec: number
 }
 
 const executeIndexerQuery = ResultFn(async function* (ctx: {
@@ -128,56 +90,60 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   upperBound: number
   attempt: number
 }) {
-  const indexerUrl = yield* getIndexerUrl(ctx.env)
+  const { client, chainId } = yield* getIndexer(ctx.env)
 
-  const rawResponse = yield* fromPromise(
-    graphqlRequest(createPlainClient(indexerUrl), expiringNamesQuery, {
-      cursor: ctx.cursor,
-      upper_bound: ctx.upperBound,
-    } satisfies ExpiringNamesQueryVariables),
-    (error) => {
-      const status = responseStatus(error)
-
-      return new IndexerRequestError({
-        message: `Indexer query failed for stage ${ctx.stage.id}`,
-        cause: error,
-        status,
-        attempt: ctx.attempt,
-      })
-    },
-  )
-
-  let parsedResponse: v.InferOutput<typeof indexerResponseSchema>
-
-  try {
-    parsedResponse = v.parse(indexerResponseSchema, rawResponse)
-  } catch (error) {
-    logger.warn('Indexer response validation failed', {
-      stage: ctx.stage.id,
-      error: String(error),
+  // The old query was `expiry_gt cursor, expiry_lte upperBound`. bigname's
+  // window is inclusive below and exclusive above, so both bounds shift by one
+  // second to cover the same names.
+  const response = yield* client
+    .names({
+      namespace: 'ens',
+      expires_after: toIso(ctx.cursor + 1),
+      expires_before: toIso(ctx.upperBound + 1),
+      sort: 'expires_at',
+      order: 'asc',
+      page_size: QUERY_PAGE_SIZE,
     })
+    .mapErr(
+      (error) =>
+        new IndexerRequestError({
+          message: `Indexer query failed for stage ${ctx.stage.id}`,
+          cause: error,
+          status: error.status,
+          attempt: ctx.attempt,
+        }),
+    )
+
+  const indexedAt = response.meta.as_of?.[String(chainId)]?.timestamp
+  if (indexedAt === undefined) {
     return yield* new IndexerValidationError({
-      message: `Indexer response validation failed for stage ${ctx.stage.id}`,
-      cause: error,
+      message: `Indexer response carried no chain position for stage ${ctx.stage.id}`,
+      cause: response.meta,
     })
   }
 
   const domains: ExpiringDomain[] = []
-
-  for (const domain of parsedResponse.domains) {
-    const owner = domain.owner?.id?.toLowerCase() ?? undefined
-
+  for (const row of response.data) {
+    // The expiry window only lists rows with an expiry; a row without one is
+    // a contract change, not a name to skip quietly.
+    if (row.expires_at === undefined) {
+      return yield* new IndexerValidationError({
+        message: `Indexer listed ${row.name} without an expiry for stage ${ctx.stage.id}`,
+        cause: row,
+      })
+    }
     domains.push({
-      name: domain.name,
-      expiryDate: domain.expiryDate,
-      owner,
+      name: row.name,
+      expiryDate: toSeconds(row.expires_at),
+      owner: row.owner?.toLowerCase(),
     })
   }
 
   return ok({
     domains,
-    hasMore: parsedResponse.domains.length === QUERY_PAGE_SIZE,
-  })
+    hasMore: domains.length === QUERY_PAGE_SIZE,
+    indexedAtSec: toSeconds(indexedAt),
+  } satisfies ExpiringNamesPage)
 })
 
 export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
@@ -202,27 +168,25 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     })
 
     if (result.isOk()) {
-      const firstExpiryDate = result.value.domains[0]?.expiryDate
-      const lastExpiryDate =
-        result.value.domains[result.value.domains.length - 1]?.expiryDate
-
       logger.debug('Indexer query succeeded', {
         stageId: ctx.stage.id,
         attempt,
         domainCount: result.value.domains.length,
-        firstExpiryDate,
-        lastExpiryDate,
+        firstExpiryDate: result.value.domains[0]?.expiryDate,
+        lastExpiryDate: result.value.domains.at(-1)?.expiryDate,
         hasMore: result.value.hasMore,
+        indexedAtSec: result.value.indexedAtSec,
       })
       return ok(result.value)
     }
 
+    const { error } = result
     if (
-      result.error._tag !== 'INDEXER_REQUEST_ERROR' ||
-      !isRetryableRequestError(result.error.cause) ||
+      error._tag !== 'INDEXER_REQUEST_ERROR' ||
+      !isRetryable(error.cause as BignameError) ||
       attempt === MAX_RETRIES
     ) {
-      return yield* result.error
+      return yield* error
     }
 
     const delayMs = toRetryDelayMs(attempt)
@@ -231,20 +195,16 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
       attempt,
       maxAttempts: MAX_RETRIES,
       delayMs,
-      status: result.error.status,
-      error: result.error.message,
-      cause:
-        result.error.cause instanceof Error
-          ? result.error.cause.message
-          : String(result.error.cause),
+      status: error.status,
+      error: error.message,
     })
 
     yield* fromPromise(
       wait(delayMs),
-      (error) =>
+      (cause) =>
         new IndexerRequestError({
           message: 'Failed while waiting to retry indexer request',
-          cause: error,
+          cause,
           attempt,
         }),
     )

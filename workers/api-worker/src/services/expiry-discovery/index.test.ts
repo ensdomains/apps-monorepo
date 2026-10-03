@@ -78,6 +78,7 @@ describe('runExpiryDiscoveryCron', () => {
           { name: 'alpha.eth', expiryDate: cursor + 100, owner: '0xabc' },
         ],
         hasMore: false,
+        indexedAtSec: NOW,
       }),
     )
 
@@ -101,7 +102,7 @@ describe('runExpiryDiscoveryCron', () => {
 
   it('snaps an empty stale stage to its lower bound but leaves an in-window cursor unchanged', async () => {
     vi.mocked(fetchExpiringNamesPage).mockReturnValue(
-      okAsync({ domains: [], hasMore: false }),
+      okAsync({ domains: [], hasMore: false, indexedAtSec: NOW }),
     )
     const kv = new MockKV()
     const cursors = caughtUpCursors()
@@ -119,6 +120,24 @@ describe('runExpiryDiscoveryCron', () => {
       getLowerBoundForStage(stage('expiry-30d'), NOW),
     )
     expect(stored['expiry-7d']?.expiry_timestamp).toBe(NOW + 2 * 86_400)
+  })
+
+  it('holds a stage cursor when the indexer is behind, even on an empty window', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
+      okAsync({ domains: [], hasMore: false, indexedAtSec: NOW - 2 * 3600 }),
+    )
+    const kv = new MockKV()
+    const cursors = caughtUpCursors()
+    cursors['expiry-30d'] = { expiry_timestamp: NOW - 100 * 86_400 }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+
+    await runExpiryDiscoveryCron(makeEnv(kv))
+
+    const stored = (await kv.get(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      'json',
+    )) as CursorState
+    expect(stored['expiry-30d']?.expiry_timestamp).toBe(NOW - 100 * 86_400)
   })
 
   it('emits only the current lifecycle stage after a long catch-up gap', async () => {
@@ -141,6 +160,7 @@ describe('runExpiryDiscoveryCron', () => {
               ? [{ name: 'catch-up.eth', expiryDate: targetExpiry }]
               : [],
           hasMore: false,
+          indexedAtSec: NOW,
         }),
     )
     const sendBatch = vi.fn(
@@ -168,6 +188,7 @@ describe('runExpiryDiscoveryCron', () => {
         return okAsync({
           domains: [{ name: 'beta.eth', expiryDate: cursor + 50 }],
           hasMore: false,
+          indexedAtSec: NOW,
         })
       },
     )
@@ -192,6 +213,7 @@ describe('runExpiryDiscoveryCron', () => {
       okAsync({
         domains: [{ name: 'alpha.eth', expiryDate: cursor + 50 }],
         hasMore: false,
+        indexedAtSec: NOW,
       }),
     )
     const sendBatch = vi.fn(async (messages: Array<{ body: unknown }>) => {
@@ -222,11 +244,12 @@ describe('runExpiryDiscoveryCron', () => {
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
     vi.mocked(fetchExpiringNamesPage).mockImplementation(({ cursor }) =>
       okAsync({
-        domains: Array.from({ length: 201 }, (_, index) => ({
+        domains: Array.from({ length: 150 }, (_, index) => ({
           name: `${index}.eth`,
           expiryDate: cursor + index + 1,
         })),
         hasMore: false,
+        indexedAtSec: NOW,
       }),
     )
     const sendBatch = vi.fn(
@@ -235,9 +258,9 @@ describe('runExpiryDiscoveryCron', () => {
 
     const result = await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
 
-    expect(result._unsafeUnwrap().totalEnqueued).toBe(201)
+    expect(result._unsafeUnwrap().totalEnqueued).toBe(150)
     expect(sendBatch.mock.calls.map(([messages]) => messages.length)).toEqual([
-      100, 100, 1,
+      100, 50,
     ])
   })
 
@@ -254,6 +277,7 @@ describe('runExpiryDiscoveryCron', () => {
           expiryDate: cursor + index + 1,
         })),
         hasMore: true,
+        indexedAtSec: NOW,
       }),
     )
 

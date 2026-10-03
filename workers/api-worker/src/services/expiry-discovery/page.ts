@@ -18,6 +18,8 @@ export type ProcessableExpiryPage = {
   cursorEnd: number
   hasMore: boolean
   overflow?: ExpiryTimestampOverflow
+  /** The chain time the index had reached when it answered. */
+  indexedAtSec: number
 }
 
 export type NormalExpiryPagePlan =
@@ -117,6 +119,7 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
       cursorEnd: plan.cursorEnd,
       hasMore: plan.hasMore,
       overflow: undefined,
+      indexedAtSec: page.indexedAtSec,
     } satisfies ProcessableExpiryPage)
   }
 
@@ -137,5 +140,6 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
           processedCount: exactPlan.domains.length,
         }
       : undefined,
+    indexedAtSec: Math.min(page.indexedAtSec, exactPage.indexedAtSec),
   } satisfies ProcessableExpiryPage)
 })
