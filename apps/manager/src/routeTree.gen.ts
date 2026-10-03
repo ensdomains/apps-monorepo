@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpgradePermissionsRouteImport } from './routes/upgrade-permissions'
 import { Route as UpgradeRouteImport } from './routes/upgrade'
+import { Route as MigrationPermissionsRouteImport } from './routes/migration-permissions'
+import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
 import { Route as AddressRouteRouteImport } from './routes/$address/route'
@@ -41,6 +43,16 @@ const UpgradePermissionsRoute = UpgradePermissionsRouteImport.update({
 const UpgradeRoute = UpgradeRouteImport.update({
   id: '/upgrade',
   path: '/upgrade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MigrationPermissionsRoute = MigrationPermissionsRouteImport.update({
+  id: '/migration-permissions',
+  path: '/migration-permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MigrationRoute = MigrationRouteImport.update({
+  id: '/migration',
+  path: '/migration',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -159,6 +171,8 @@ export interface FileRoutesByFullPath {
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/upgrade': typeof UpgradeRoute
   '/upgrade-permissions': typeof UpgradePermissionsRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
@@ -182,6 +196,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/upgrade': typeof UpgradeRoute
   '/upgrade-permissions': typeof UpgradePermissionsRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -207,6 +223,8 @@ export interface FileRoutesById {
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/upgrade': typeof UpgradeRoute
   '/upgrade-permissions': typeof UpgradePermissionsRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
@@ -234,6 +252,8 @@ export interface FileRouteTypes {
     | '/$address'
     | '/$name'
     | '/dashboard'
+    | '/migration'
+    | '/migration-permissions'
     | '/upgrade'
     | '/upgrade-permissions'
     | '/notifications'
@@ -257,6 +277,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/migration'
+    | '/migration-permissions'
     | '/upgrade'
     | '/upgrade-permissions'
     | '/legal/privacy-policy'
@@ -281,6 +303,8 @@ export interface FileRouteTypes {
     | '/$address'
     | '/$name'
     | '/dashboard'
+    | '/migration'
+    | '/migration-permissions'
     | '/upgrade'
     | '/upgrade-permissions'
     | '/notifications/_authenticated'
@@ -307,6 +331,8 @@ export interface RootRouteChildren {
   AddressRouteRoute: typeof AddressRouteRouteWithChildren
   NameRouteRoute: typeof NameRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  MigrationRoute: typeof MigrationRoute
+  MigrationPermissionsRoute: typeof MigrationPermissionsRoute
   UpgradeRoute: typeof UpgradeRoute
   UpgradePermissionsRoute: typeof UpgradePermissionsRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
@@ -338,6 +364,20 @@ declare module '@tanstack/react-router' {
       path: '/upgrade'
       fullPath: '/upgrade'
       preLoaderRoute: typeof UpgradeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/migration-permissions': {
+      id: '/migration-permissions'
+      path: '/migration-permissions'
+      fullPath: '/migration-permissions'
+      preLoaderRoute: typeof MigrationPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/migration': {
+      id: '/migration'
+      path: '/migration'
+      fullPath: '/migration'
+      preLoaderRoute: typeof MigrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -536,6 +576,8 @@ const rootRouteChildren: RootRouteChildren = {
   AddressRouteRoute: AddressRouteRouteWithChildren,
   NameRouteRoute: NameRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  MigrationRoute: MigrationRoute,
+  MigrationPermissionsRoute: MigrationPermissionsRoute,
   UpgradeRoute: UpgradeRoute,
   UpgradePermissionsRoute: UpgradePermissionsRoute,
   NotificationsAuthenticatedRouteRoute:
