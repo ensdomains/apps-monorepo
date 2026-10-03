@@ -9,7 +9,6 @@ import {
 } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
@@ -28,7 +27,8 @@ export class GetRegistrationPriceError extends TaggedError(
 export type BasePriceParameters = {
   readonly name: string
   readonly duration: number
-  readonly token?: SupportedTokenAddresses
+  // Required, so the summary and the token picker share one cache entry per price.
+  readonly token: SupportedTokenAddresses
 }
 
 export type RegistrationPriceParameters = BasePriceParameters
@@ -49,7 +49,6 @@ export const resolvePriceInputs = ResultFn(async function* ({
   token,
 }: BasePriceParameters) {
   const client = yield* safeGetClient()
-  const paymentToken = token ?? SUPPORTED_TOKENS.USDC
   const label = yield* fromSync(
     () => getLabel(name),
     (cause) =>
@@ -59,10 +58,10 @@ export const resolvePriceInputs = ResultFn(async function* ({
   )
   return ok({
     client,
-    paymentToken,
+    paymentToken: token,
     label,
     duration: BigInt(duration),
-    decimals: getTokenMetadataWithAddress(paymentToken).decimals,
+    decimals: getTokenMetadataWithAddress(token).decimals,
   })
 })
 

@@ -3053,6 +3053,10 @@ msgstr ""
 msgid "We couldn't upgrade one of your names. Try again."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
+msgstr ""
+
 #: src/routes/index.tsx
 msgid "web3 username"
 msgstr ""

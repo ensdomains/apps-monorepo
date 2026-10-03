@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { PriceErrorCard } from '@/features/register/components/PaymentTokenPicker'
 import { dateToPlainDate } from '@/utils/temporal'
 import { useNamePricing } from '../hooks/useNamePricing'
 import type {
@@ -41,12 +42,15 @@ export const ExtendNameModal = ({
   const baseDate = selectedName.expiryDate
     ? dateToPlainDate(selectedName.expiryDate)
     : undefined
-  const { durationSeconds, price } = useNamePricing(
+  const { durationSeconds, price, isError, refetch } = useNamePricing(
     selectedName,
     span,
     baseDate,
     open,
   )
+  // An errored refetch keeps the last good `data`, so check isError too: the
+  // confirm step must never proceed on a price the latest read failed to back.
+  const hasPrice = price !== null && !isError
 
   const { address } = useAccount()
   // Query runs eagerly (not gated on `open`) so ownership is known before
@@ -100,11 +104,12 @@ export const ExtendNameModal = ({
               setSpan={setSpan}
               baseDate={baseDate}
               onBack={isOwner ? undefined : () => setStep('disclaimer')}
+              canContinue={hasPrice}
               onNext={() => setStep('confirm')}
             />
           ))
           .with('confirm', () =>
-            price ? (
+            hasPrice ? (
               <ExtendNameConfirmation
                 selectedName={selectedName}
                 durationSeconds={durationSeconds}
@@ -119,7 +124,9 @@ export const ExtendNameModal = ({
                   })
                 }
               />
-            ) : null,
+            ) : (
+              <PriceErrorCard mode="renew" onRetry={() => refetch()} />
+            ),
           )
           .exhaustive()}
       </DialogContent>

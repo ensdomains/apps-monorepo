@@ -26,6 +26,7 @@ export {
   HCA_MAX_LEG_FEES_USDC,
   HCA_PRIMARY_NAME_BASE_GAS,
   HCA_PRIMARY_NAME_WORD_GAS,
+  HCA_RESOLVER_DEPLOY_GAS,
   type HcaBudgetBreakdown,
   HcaBudgetExceedsMaximumError,
   type HcaBudgetParams,
@@ -35,6 +36,7 @@ export {
   type QuoteLegCostUsdc,
   type QuoteLegResult,
   type QuoteMarketData,
+  type RegisterLegShape,
   registerLegGasLimit,
   withBudgetDrift,
 } from './budget'

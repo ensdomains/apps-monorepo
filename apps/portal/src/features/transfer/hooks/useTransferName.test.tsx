@@ -127,7 +127,11 @@ describe('useTransferName — non-canonical name gate', () => {
     const { result } = renderTransfer(name)
 
     act(() => {
-      result.current.startTransfer({ recipient: RECIPIENT, options })
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        options,
+      })
     })
 
     await waitFor(() => {
@@ -145,7 +149,11 @@ describe('useTransferName — non-canonical name gate', () => {
     const { result } = renderTransfer('alice.eth')
 
     act(() => {
-      result.current.startTransfer({ recipient: RECIPIENT, options })
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        options,
+      })
     })
 
     await waitFor(() => {
