@@ -35,30 +35,42 @@ const telegramCode = (value: string): string =>
 const telegramBold = (value: string): string => `<b>${escapeHtml(value)}</b>`
 
 const nameExpiryTelegramCopy = (context: NameExpiryDeliveryContext) =>
-  match(context.noticeKind)
-    .with('pre-expiry', () => ({
+  match(context.notice)
+    .with({ kind: 'pre-expiry' }, () => ({
       title: 'Domain expiration alert',
       body: `${telegramCode(context.name)} expires in ${telegramBold(formatDayCount(context.daysUntilExpiry))}.`,
       buttonText: 'Renew Now',
       url: context.renewUrl,
     }))
-    .with('grace-start', () => ({
+    .with({ kind: 'grace-start' }, () => ({
       title: 'Grace period started',
       body: `${telegramCode(context.name)} has expired but can still be renewed until ${telegramBold(formatCalendarDate(context.graceEndDate))}.`,
       buttonText: 'Renew Now',
       url: context.renewUrl,
     }))
-    .with('grace-ending', () => ({
+    .with({ kind: 'grace-ending' }, () => ({
       title: 'Grace period ending soon',
       body: `${telegramCode(context.name)} grace period ends in ${telegramBold(formatDayCount(context.daysUntilGraceEnd))}. Renew now to keep the name.`,
       buttonText: 'Renew Now',
       url: context.renewUrl,
     }))
-    .with('premium-start', () => ({
+    .with({ kind: 'premium-start' }, () => ({
       title: 'Grace period ended',
       body: `${telegramCode(context.name)} is no longer in its grace period and has entered the temporary premium period.`,
       buttonText: 'Register Name',
       url: context.registerUrl,
+    }))
+    .with({ kind: 'subname-pre-expiry' }, ({ parentName }) => ({
+      title: 'Domain expiration alert',
+      body: `${telegramCode(context.name)} expires in ${telegramBold(formatDayCount(context.daysUntilExpiry))}. The owner of ${telegramCode(parentName)} can extend it.`,
+      buttonText: 'View Name',
+      url: context.profileUrl,
+    }))
+    .with({ kind: 'subname-expired' }, ({ parentName }) => ({
+      title: 'Domain expired',
+      body: `${telegramCode(context.name)} has expired. The owner of ${telegramCode(parentName)} can extend it.`,
+      buttonText: 'View Name',
+      url: context.profileUrl,
     }))
     .exhaustive()
 

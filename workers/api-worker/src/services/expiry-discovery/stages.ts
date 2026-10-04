@@ -4,13 +4,14 @@ import {
   V1_GRACE_PERIOD_DAYS,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
-import type { ExpiryStageId } from '#types/events/index.js'
+import { EXPIRY_STAGE_IDS, type ExpiryStageId } from '#types/events/index.js'
 
 /**
  * Where a stage sits in a registration's lifecycle, which also decides who it
- * can be sent to (`isNotifiableAtStage`).
+ * can be sent to (`isNotifiableAtStage`). `expired` is the expiry of a name
+ * with no registrar grace, such as a subname.
  */
-type ExpiryPhase = 'pre-expiry' | 'in-grace' | 'grace-ended'
+type ExpiryPhase = 'pre-expiry' | 'in-grace' | 'grace-ended' | 'expired'
 
 export type ExpiryStageConfig = {
   id: ExpiryStageId
@@ -22,8 +23,7 @@ export type ExpiryStageConfig = {
   includeFavorites: boolean
 }
 
-/** Lifecycle order, furthest-future to furthest-past, on every track. */
-export const STAGES: readonly ExpiryStageConfig[] = [
+const PRE_EXPIRY_STAGES: readonly ExpiryStageConfig[] = [
   {
     id: 'expiry-30d',
     phase: 'pre-expiry',
@@ -45,6 +45,11 @@ export const STAGES: readonly ExpiryStageConfig[] = [
     daysBefore: 1,
     includeFavorites: true,
   },
+]
+
+/** A `.eth` registration's lifecycle, furthest-future to furthest-past. */
+export const REGISTRATION_STAGES: readonly ExpiryStageConfig[] = [
+  ...PRE_EXPIRY_STAGES,
   {
     id: 'grace-start',
     phase: 'in-grace',
@@ -75,12 +80,32 @@ export const STAGES: readonly ExpiryStageConfig[] = [
   },
 ]
 
-export type ExpiryTrackId = 'ens_v2' | 'ens_v1_lease' | 'ens_v1_reserved'
+/**
+ * A subname has no registrar grace (bigname serves `grace_ends_at` equal to
+ * `expires_at`), so its lifecycle ends with one notice at its expiry.
+ */
+export const SUBNAME_STAGES: readonly ExpiryStageConfig[] = [
+  ...PRE_EXPIRY_STAGES,
+  {
+    id: 'expired',
+    phase: 'expired',
+    anchor: 'expiry',
+    daysBefore: 0,
+    includeFavorites: true,
+  },
+]
+
+export type ExpiryTrackId =
+  | 'ens_v2'
+  | 'ens_v1_lease'
+  | 'ens_v1_reserved'
+  | 'subname'
 
 /**
- * One sweep of `.eth` second-level names (`GET /v1/names?parent=eth`) whose
- * registrations share an expiry rule. Each track keeps its own stage cursors,
- * in the track's own expiry time (the lease date for ENSv1).
+ * One `GET /v1/names` sweep of names that share an expiry rule: `.eth`
+ * second-level names by registry generation, or every other name with an
+ * expiry (subnames). Each track keeps its own stage cursors, in the track's
+ * own expiry time (the lease date for ENSv1).
  *
  * bigname windows `/v1/names` on the served `expires_at`, which is not always
  * the date a reminder follows (bigname expiry-sweep guide, "Expiry, grace and
@@ -99,11 +124,20 @@ export type ExpiryTrackId = 'ens_v2' | 'ens_v1_lease' | 'ens_v1_reserved'
  * renewing the lease, or a saturated lease date) is skipped and logged: the
  * guide's remedy is to re-read such names one by one, which this sweep does
  * not do.
+ *
+ * bigname can exclude subnames (`parent=eth`) but not select them, so the
+ * subname track reads every name in its window, whatever its authority, and
+ * drops the `.eth` second-level rows itself.
  */
 export type ExpiryTrack = {
   id: ExpiryTrackId
-  /** `authority=` filter for the sweep. */
-  authority: readonly Authority[]
+  /**
+   * Which names the track keeps: `.eth` second-level names, which the sweep
+   * selects with `parent=eth`, or every other name in the window.
+   */
+  names: 'eth_second_level' | 'subnames'
+  /** `authority=` filter for the sweep; none reads every authority. */
+  authority?: readonly Authority[]
   /** The row's own expiry: `expires_at` (ENSv2) or `ens_v1.expires_at`. */
   expirySource: 'served' | 'ens_v1'
   /** Seconds the served `expires_at` sits after the row's own expiry. */
@@ -116,6 +150,8 @@ export type ExpiryTrack = {
    * publication time is before it.
    */
   graceEndInclusive: boolean
+  /** The track's lifecycle, furthest-future to furthest-past. */
+  stages: readonly ExpiryStageConfig[]
 }
 
 const V1_AUTHORITIES = ['ens_v1', 'ens_v0'] as const satisfies Authority[]
@@ -125,27 +161,44 @@ const V2_GRACE_SECONDS = V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY
 export const TRACKS: readonly ExpiryTrack[] = [
   {
     id: 'ens_v2',
+    names: 'eth_second_level',
     authority: ['ens_v2'],
     expirySource: 'served',
     servedShiftSeconds: 0,
     graceSeconds: V2_GRACE_SECONDS,
     graceEndInclusive: false,
+    stages: REGISTRATION_STAGES,
   },
   {
     id: 'ens_v1_lease',
+    names: 'eth_second_level',
     authority: V1_AUTHORITIES,
     expirySource: 'ens_v1',
     servedShiftSeconds: 0,
     graceSeconds: V1_GRACE_SECONDS,
     graceEndInclusive: true,
+    stages: REGISTRATION_STAGES,
   },
   {
     id: 'ens_v1_reserved',
+    names: 'eth_second_level',
     authority: V1_AUTHORITIES,
     expirySource: 'ens_v1',
     servedShiftSeconds: V1_GRACE_SECONDS - V2_GRACE_SECONDS,
     graceSeconds: V1_GRACE_SECONDS,
     graceEndInclusive: true,
+    stages: REGISTRATION_STAGES,
+  },
+  {
+    // A wrapped ENSv1 subname serves its NameWrapper expiry (`ens_v1.expires_at`
+    // is null), an ENSv2 subname its registry entry's.
+    id: 'subname',
+    names: 'subnames',
+    expirySource: 'served',
+    servedShiftSeconds: 0,
+    graceSeconds: 0,
+    graceEndInclusive: false,
+    stages: SUBNAME_STAGES,
   },
 ]
 
@@ -175,16 +228,16 @@ export function getUpperBoundForStage(
   return nowSec + getStageOffsetSeconds(stage, track)
 }
 
+/** The track's next stage after `stage`, by offset rather than list position. */
 export function getCloserStage(
   stage: ExpiryStageConfig,
   track: ExpiryTrack,
-  stages: readonly ExpiryStageConfig[] = STAGES,
 ): ExpiryStageConfig | undefined {
   const offset = getStageOffsetSeconds(stage, track)
   let closer: ExpiryStageConfig | undefined
   let closerOffset = Number.NEGATIVE_INFINITY
 
-  for (const candidate of stages) {
+  for (const candidate of track.stages) {
     const candidateOffset = getStageOffsetSeconds(candidate, track)
     if (candidateOffset >= offset || candidateOffset <= closerOffset) continue
     closer = candidate
@@ -198,9 +251,8 @@ export function getLowerBoundForStage(
   stage: ExpiryStageConfig,
   track: ExpiryTrack,
   nowSec: number,
-  stages: readonly ExpiryStageConfig[] = STAGES,
 ): number {
-  const closerStage = getCloserStage(stage, track, stages)
+  const closerStage = getCloserStage(stage, track)
   if (closerStage) return getUpperBoundForStage(closerStage, track, nowSec)
   return (
     getUpperBoundForStage(stage, track, nowSec) - MAX_STAGE_CATCH_UP_SECONDS
@@ -212,9 +264,8 @@ export function getQueryCursorForStage(
   track: ExpiryTrack,
   cursor: number,
   nowSec: number,
-  stages: readonly ExpiryStageConfig[] = STAGES,
 ): number {
-  return Math.max(cursor, getLowerBoundForStage(stage, track, nowSec, stages))
+  return Math.max(cursor, getLowerBoundForStage(stage, track, nowSec))
 }
 
 export function getDefaultCursorForStage(
@@ -225,8 +276,12 @@ export function getDefaultCursorForStage(
   return Math.min(nowSec, getUpperBoundForStage(stage, track, nowSec))
 }
 
+/**
+ * A stage's place in the lifecycle across tracks, for picking the latest of
+ * one name's overlapping stages. A name's stages all come from one track.
+ */
 export function getExpiryStageRank(stageId: ExpiryStageId): number {
-  return STAGES.findIndex((stage) => stage.id === stageId)
+  return EXPIRY_STAGE_IDS.indexOf(stageId)
 }
 
 const HELD_STATUSES: ReadonlySet<RegistrationStatus> = new Set([
@@ -250,6 +305,12 @@ export type StageCandidate = {
  *   renewable until `grace_ends_at`. Both are notified.
  * - Once grace has ended, only rows released because they expired. A row
  *   still held was renewed or has not been released yet.
+ * - At the expiry of a name with no grace, held rows and rows released because
+ *   they expired. A wrapped ENSv1 subname stays `wrapped` past its NameWrapper
+ *   expiry and never carries `lapsed_registration`; an emancipated or locked
+ *   one also loses its `owner`, so only its favourites are notified. An ENSv2
+ *   subname is expected to be released as `expired`, as an ENSv2 `.eth`
+ *   registration is (bigname's `RegistryPathExpired` release).
  *
  * A row released for another cause (an ENSv2 unregister, or no
  * `lapsed_registration`) and an `unregistered` row are never notified.
@@ -270,5 +331,7 @@ export function isNotifiableAtStage(
       return isHeld || isExpiredRelease
     case 'grace-ended':
       return isExpiredRelease
+    case 'expired':
+      return isHeld || isExpiredRelease
   }
 }

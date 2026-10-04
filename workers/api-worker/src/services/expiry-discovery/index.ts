@@ -4,6 +4,7 @@ import type { ExpiryEvent } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
 import { logger } from '#utils/logger.js'
 import {
+  getStageCursor,
   loadNotificationCursors,
   type NotificationCursors,
   storeNotificationCursors,
@@ -18,7 +19,6 @@ import {
   getQueryCursorForStage,
   getUpperBoundForStage,
   isNotifiableAtStage,
-  STAGES,
   TRACKS,
 } from './stages.js'
 
@@ -226,7 +226,7 @@ const processStage = ResultFn(async function* (ctx: {
 })
 
 const STAGE_RUNS = TRACKS.flatMap((track) =>
-  STAGES.map((stage) => ({ track, stage })),
+  track.stages.map((stage) => ({ track, stage })),
 )
 
 export const runExpiryDiscoveryCron = ResultFn(async function* (
@@ -246,9 +246,10 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
     wallClockSec,
     publicationSec,
     trackCount: TRACKS.length,
-    stageCount: STAGES.length,
-    tracks: TRACKS.map((track) => track.id),
-    stages: STAGES.map((stage) => stage.id),
+    stageRunCount: STAGE_RUNS.length,
+    stagesByTrack: Object.fromEntries(
+      TRACKS.map((track) => [track.id, track.stages.map((stage) => stage.id)]),
+    ),
   })
 
   const cursors = yield* loadNotificationCursors(env, nowSec)
@@ -257,7 +258,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
       Object.entries(cursors).map(([trackId, stages]) => [
         trackId,
         Object.fromEntries(
-          Object.entries(stages).map(([k, v]) => [k, v.expiry_timestamp]),
+          Object.entries(stages).map(([k, v]) => [k, v?.expiry_timestamp]),
         ),
       ]),
     ),
@@ -269,7 +270,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
         env,
         track,
         stage,
-        cursor: cursors[track.id][stage.id].expiry_timestamp,
+        cursor: getStageCursor(cursors, track, stage, nowSec),
         nowSec,
       })
 
@@ -293,7 +294,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
       logger.error('Expiry discovery stage failed', {
         trackId: track.id,
         stageId: stage.id,
-        cursorStart: cursors[track.id][stage.id].expiry_timestamp,
+        cursorStart: getStageCursor(cursors, track, stage, nowSec),
         upperBound: getUpperBoundForStage(stage, track, nowSec),
         error: result.error,
       })

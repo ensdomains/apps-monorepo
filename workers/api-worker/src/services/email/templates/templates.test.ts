@@ -44,6 +44,14 @@ describe('link-free emails', () => {
       () =>
         renderNameExpiryEmail(expiryPayload(), { managerAppUrl, now: expiry }),
     ],
+    [
+      'subname expiry',
+      () =>
+        renderNameExpiryEmail(
+          expiryPayload({ name: 'pay.alice.eth', stage: 'expired' }),
+          { managerAppUrl, now: expiry },
+        ),
+    ],
     ['name transferred', () => renderNameTransferredEmail(transferPayload)],
   ] as const)('%s has no links or URLs', async (_name, render) => {
     const email: RenderedEmail = await render()
@@ -87,6 +95,22 @@ describe('name expiry email', () => {
     for (const part of [email.html, email.text]) {
       expect(part).toContain('alice.eth')
       expect(part).toContain(`${action} this name`)
+    }
+  })
+
+  it.each([
+    ['expiry-7d', 'Domain expiration alert', 'expires on'],
+    ['expired', 'Domain expired', 'expired on'],
+  ] as const)('tells a subname holder who can extend it at %s', async (stage, subject, body) => {
+    const email = await renderNameExpiryEmail(
+      expiryPayload({ name: 'pay.alice.eth', stage }),
+      { managerAppUrl, now: expiry },
+    )
+    expect(email.subject).toBe(subject)
+    expect(email.text).toContain(`pay.alice.eth ${body}`)
+    expect(email.text).toContain('The owner of alice.eth can extend this name.')
+    for (const part of [email.html, email.text]) {
+      expect(part).not.toMatch(/renew|register/i)
     }
   })
 

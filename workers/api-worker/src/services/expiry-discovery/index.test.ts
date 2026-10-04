@@ -8,6 +8,7 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 }))
 
 import { KV_KEY } from '#core/kv/index.js'
+import type { ExpiryStageId } from '#types/events/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
 import {
   type ExpiringDomain,
@@ -21,7 +22,6 @@ import {
   type ExpiryTrackId,
   getLowerBoundForStage,
   getUpperBoundForStage,
-  STAGES,
   TRACKS,
 } from './stages.js'
 
@@ -44,8 +44,10 @@ type StageCursorState = Record<string, { expiry_timestamp: number }>
 type CursorState = Record<ExpiryTrackId, StageCursorState>
 const DAY = 86_400
 const NOW = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
-const stage = (id: (typeof STAGES)[number]['id']) => {
-  const value = STAGES.find((candidate) => candidate.id === id)
+const stage = (id: ExpiryStageId) => {
+  const value = TRACKS.flatMap((current) => current.stages).find(
+    (candidate) => candidate.id === id,
+  )
   if (!value) throw new Error(`Missing stage: ${id}`)
   return value
 }
@@ -55,12 +57,13 @@ const track = (id: ExpiryTrackId): ExpiryTrack => {
   return value
 }
 const V2 = track('ens_v2')
+const SUBNAME = track('subname')
 const caughtUpCursors = (now = NOW): CursorState =>
   Object.fromEntries(
     TRACKS.map((value) => [
       value.id,
       Object.fromEntries(
-        STAGES.map((current) => [
+        value.stages.map((current) => [
           current.id,
           { expiry_timestamp: getUpperBoundForStage(current, value, now) },
         ]),
@@ -149,7 +152,7 @@ describe('runExpiryDiscoveryCron', () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()
     for (const current of TRACKS) {
-      for (const value of STAGES) {
+      for (const value of current.stages) {
         cursors[current.id][value.id] = {
           expiry_timestamp:
             getUpperBoundForStage(value, current, NOW) - 10 * DAY,
@@ -164,7 +167,19 @@ describe('runExpiryDiscoveryCron', () => {
     const runs = vi
       .mocked(fetchExpiringNamesPage)
       .mock.calls.map(([ctx]) => `${ctx.track.id}/${ctx.stage.id}`)
-    expect(new Set(runs).size).toBe(TRACKS.length * STAGES.length)
+    expect(new Set(runs)).toEqual(
+      new Set(
+        TRACKS.flatMap((current) =>
+          current.stages.map((value) => `${current.id}/${value.id}`),
+        ),
+      ),
+    )
+    expect(runs.filter((run) => run.startsWith('subname/')).sort()).toEqual([
+      'subname/expired',
+      'subname/expiry-1d',
+      'subname/expiry-30d',
+      'subname/expiry-7d',
+    ])
   })
 
   it('places windows at the publication time when it trails the wall clock', async () => {
@@ -222,12 +237,19 @@ describe('runExpiryDiscoveryCron', () => {
 
   it('emits only the current lifecycle stage after a long catch-up gap', async () => {
     const kv = new MockKV()
-    const stale = Object.fromEntries(
-      STAGES.map((value) => [value.id, { expiry_timestamp: NOW - 100 * DAY }]),
-    )
     kv.seed(
       KV_KEY.EXPIRY_DISCOVERY.CURSORS,
-      Object.fromEntries(TRACKS.map((value) => [value.id, stale])),
+      Object.fromEntries(
+        TRACKS.map((value) => [
+          value.id,
+          Object.fromEntries(
+            value.stages.map((current) => [
+              current.id,
+              { expiry_timestamp: NOW - 100 * DAY },
+            ]),
+          ),
+        ]),
+      ),
     )
     const targetExpiry = NOW - 10 * DAY
     vi.mocked(fetchExpiringNamesPage).mockImplementation(
@@ -453,6 +475,99 @@ describe('runExpiryDiscoveryCron', () => {
         owner: '0xabc',
         includeFavorites: true,
       },
+    ])
+  })
+  it('notifies a subname holder at its expiry, and only from the subname track', async () => {
+    const kv = new MockKV()
+    const cursors = caughtUpCursors()
+    const upperBound = getUpperBoundForStage(stage('expired'), SUBNAME, NOW)
+    expect(upperBound).toBe(NOW)
+    cursors.subname.expired = { expiry_timestamp: upperBound - 100 }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+    vi.mocked(fetchExpiringNamesPage).mockImplementation(
+      ({ track: current, stage: value }) =>
+        okAsync({
+          domains:
+            current.id === 'subname' && value.id === 'expired'
+              ? [
+                  domain('pay.alice.eth', upperBound - 50, {
+                    owner: '0xabc',
+                    registrationStatus: 'wrapped',
+                    graceEndDate: upperBound - 50,
+                  }),
+                  // The unfiltered window's `.eth` names are not the track's.
+                  domain('alice.eth', upperBound - 20, {
+                    inTrack: false,
+                    owner: '0xdef',
+                  }),
+                ]
+              : [],
+          hasMore: false,
+        }),
+    )
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
+
+    await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
+
+    expect(sentEvents(sendBatch)).toEqual([
+      {
+        type: 'name_expiring',
+        name: 'pay.alice.eth',
+        expiryDate: upperBound - 50,
+        graceEndDate: upperBound - 50,
+        stage: 'expired',
+        owner: '0xabc',
+        includeFavorites: true,
+      },
+    ])
+    const stored = await readCursors(kv)
+    expect(stored.subname.expired?.expiry_timestamp).toBe(upperBound - 20)
+  })
+
+  it('emits only subname stages for a subname after a long catch-up gap', async () => {
+    const kv = new MockKV()
+    kv.seed(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      Object.fromEntries(
+        TRACKS.map((value) => [
+          value.id,
+          Object.fromEntries(
+            value.stages.map((current) => [
+              current.id,
+              { expiry_timestamp: NOW - 100 * DAY },
+            ]),
+          ),
+        ]),
+      ),
+    )
+    const targetExpiry = NOW - DAY
+    vi.mocked(fetchExpiringNamesPage).mockImplementation(
+      ({ track: current, cursor, upperBound }) =>
+        okAsync({
+          domains:
+            current.id === 'subname' &&
+            targetExpiry > cursor &&
+            targetExpiry <= upperBound
+              ? [
+                  domain('pay.alice.eth', targetExpiry, {
+                    registrationStatus: 'wrapped',
+                    owner: '0xabc',
+                  }),
+                ]
+              : [],
+          hasMore: false,
+        }),
+    )
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
+
+    await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
+
+    expect(sentEvents(sendBatch)).toEqual([
+      expect.objectContaining({ name: 'pay.alice.eth', stage: 'expired' }),
     ])
   })
 })

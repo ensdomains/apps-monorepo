@@ -5,7 +5,7 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { getDefaultCursorForStage, STAGES, TRACKS } from './stages.js'
+import { getDefaultCursorForStage, TRACKS } from './stages.js'
 
 class MockKV {
   private store = new Map<string, string>()
@@ -30,7 +30,7 @@ const defaultsAt = (now: number): NotificationCursors =>
     TRACKS.map((track) => [
       track.id,
       Object.fromEntries(
-        STAGES.map((stage) => [
+        track.stages.map((stage) => [
           stage.id,
           { expiry_timestamp: getDefaultCursorForStage(stage, track, now) },
         ]),
@@ -87,7 +87,33 @@ describe('notification cursors', () => {
       },
       // A reserved lease's window sits 62 days before the served expiry.
       ens_v1_reserved: defaults.ens_v1_reserved,
+      subname: defaults.subname,
     })
+  })
+
+  it('starts the subname track from its defaults when an older value has none', async () => {
+    const kv = new MockKV()
+    const stored = defaultsAt(50)
+    const { subname: _subname, ...beforeSubnames } = stored
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, beforeSubnames)
+    const result = (
+      await loadNotificationCursors(
+        { KV: kv } as unknown as CloudflareBindings,
+        100,
+      )
+    )._unsafeUnwrap()
+
+    expect(result).toEqual({
+      ...beforeSubnames,
+      subname: defaultsAt(100).subname,
+    })
+    expect(Object.keys(result.subname)).toEqual([
+      'expiry-30d',
+      'expiry-7d',
+      'expiry-1d',
+      'expired',
+    ])
+    expect(result.ens_v2).not.toHaveProperty('expired')
   })
 
   it('rejects invalid cursor values', async () => {

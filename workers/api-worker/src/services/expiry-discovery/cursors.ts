@@ -5,10 +5,10 @@ import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import type { ExpiryStageId } from '#types/events/index.js'
 import { logger } from '#utils/logger.js'
 import {
+  type ExpiryStageConfig,
   type ExpiryTrack,
   type ExpiryTrackId,
   getDefaultCursorForStage,
-  STAGES,
   TRACKS,
 } from './stages.js'
 
@@ -24,6 +24,7 @@ const stageCursorsSchema = v.object({
   'grace-7d': v.optional(cursorValueSchema),
   'grace-1d': v.optional(cursorValueSchema),
   'premium-start': v.optional(cursorValueSchema),
+  expired: v.optional(cursorValueSchema),
 })
 
 type StoredStageCursors = v.InferOutput<typeof stageCursorsSchema>
@@ -33,13 +34,15 @@ type StoredStageCursors = v.InferOutput<typeof stageCursorsSchema>
  * holds the stage keys at the top level: one sweep of every name on the served
  * expiry. Those cursors carry over to the tracks whose window is the served
  * expiry itself (ENSv2 and unreserved ENSv1 leases); a reserved lease's window
- * is 62 days earlier, so that track starts from its defaults.
+ * is 62 days earlier, so that track starts from its defaults, as does the
+ * subname track, which those runs did not sweep.
  */
 const cursorSchema = v.object({
   ...stageCursorsSchema.entries,
   ens_v2: v.optional(stageCursorsSchema),
   ens_v1_lease: v.optional(stageCursorsSchema),
   ens_v1_reserved: v.optional(stageCursorsSchema),
+  subname: v.optional(stageCursorsSchema),
 })
 
 const LEGACY_TRACKS: ReadonlySet<ExpiryTrackId> = new Set([
@@ -47,7 +50,10 @@ const LEGACY_TRACKS: ReadonlySet<ExpiryTrackId> = new Set([
   'ens_v1_lease',
 ])
 
-export type StageCursors = Record<ExpiryStageId, { expiry_timestamp: number }>
+/** Cursors for the track's own stages; other stage ids are absent. */
+export type StageCursors = Partial<
+  Record<ExpiryStageId, { expiry_timestamp: number }>
+>
 export type NotificationCursors = Record<ExpiryTrackId, StageCursors>
 
 class CursorParseError extends TaggedError('CURSOR_PARSE_ERROR') {}
@@ -71,11 +77,11 @@ function createDefaultStageCursors(
   nowSec: number,
 ): StageCursors {
   return Object.fromEntries(
-    STAGES.map((stage) => [
+    track.stages.map((stage) => [
       stage.id,
       { expiry_timestamp: getDefaultCursorForStage(stage, track, nowSec) },
     ]),
-  ) as StageCursors
+  )
 }
 
 function createDefaultCursors(nowSec: number): NotificationCursors {
@@ -85,12 +91,29 @@ function createDefaultCursors(nowSec: number): NotificationCursors {
 }
 
 const fillStageCursors = (
+  track: ExpiryTrack,
   stored: StoredStageCursors | undefined,
   defaults: StageCursors,
 ): StageCursors =>
   Object.fromEntries(
-    STAGES.map((stage) => [stage.id, stored?.[stage.id] ?? defaults[stage.id]]),
-  ) as StageCursors
+    track.stages.map((stage) => [
+      stage.id,
+      stored?.[stage.id] ?? defaults[stage.id],
+    ]),
+  )
+
+/**
+ * The stage's cursor. Loaded cursors hold every stage of every track; the
+ * default only covers a value built some other way.
+ */
+export const getStageCursor = (
+  cursors: NotificationCursors,
+  track: ExpiryTrack,
+  stage: ExpiryStageConfig,
+  nowSec: number,
+): number =>
+  cursors[track.id][stage.id]?.expiry_timestamp ??
+  getDefaultCursorForStage(stage, track, nowSec)
 
 export const loadNotificationCursors = ResultFn(async function* (
   env: CloudflareBindings,
@@ -129,7 +152,7 @@ export const loadNotificationCursors = ResultFn(async function* (
       const legacy = LEGACY_TRACKS.has(track.id) ? parsed : undefined
       return [
         track.id,
-        fillStageCursors(parsed[track.id] ?? legacy, defaults[track.id]),
+        fillStageCursors(track, parsed[track.id] ?? legacy, defaults[track.id]),
       ]
     }),
   ) as NotificationCursors

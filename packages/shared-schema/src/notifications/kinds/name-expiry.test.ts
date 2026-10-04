@@ -15,6 +15,7 @@ describe('name-expiry notification contract', () => {
       'grace-7d',
       'grace-1d',
       'premium-start',
+      'expired',
     ] as const
     expect(stages.map(nameExpiryNoticeKindFromStage)).toEqual([
       'pre-expiry',
@@ -24,6 +25,7 @@ describe('name-expiry notification contract', () => {
       'grace-ending',
       'grace-ending',
       'premium-start',
+      'expired',
     ])
   })
 

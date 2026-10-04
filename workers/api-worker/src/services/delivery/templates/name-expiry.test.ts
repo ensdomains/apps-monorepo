@@ -72,4 +72,74 @@ describe('name expiry lifecycle delivery rendering', () => {
     )
     expect(context.graceEndDate).toEqual(getGraceEndDate(expiry, 'v2'))
   })
+  describe('subnames', () => {
+    const subname = (stage: 'expiry-7d' | 'expired') =>
+      payload({ name: 'pay.alice.eth', stage })
+
+    it('names the parent owner and links to the profile instead of renewing', () => {
+      const pre = buildNameExpiryPushNotification(
+        subname('expiry-7d'),
+        options(new Date(expiry.getTime() - 7 * MS_PER_DAY)),
+      )
+      const expired = buildNameExpiryPushNotification(
+        subname('expired'),
+        options(expiry),
+      )
+
+      expect(pre).toMatchObject({
+        title: 'ENS name expiring soon',
+        body: 'pay.alice.eth expires in 7 days. The owner of alice.eth can extend it',
+        data: { url: '/pay.alice.eth', stage: 'expiry-7d' },
+      })
+      expect(expired).toMatchObject({
+        title: 'ENS name expired',
+        body: 'pay.alice.eth has expired. The owner of alice.eth can extend it',
+        data: { url: '/pay.alice.eth', stage: 'expired' },
+      })
+    })
+
+    it.each([
+      'expiry-7d',
+      'expired',
+    ] as const)('sends %s to Telegram with a profile button and no renewal', (stage) => {
+      const message = buildNameExpiryTelegramMessage(
+        subname(stage),
+        options(expiry),
+      )
+
+      expect(message.text).toContain(
+        'The owner of <code>alice.eth</code> can extend it.',
+      )
+      expect(message.text).not.toMatch(/renew|register/i)
+      expect(message.buttons).toEqual([
+        [{ text: 'View Name', url: 'https://app.ens.dev/pay.alice.eth' }],
+      ])
+    })
+
+    it('treats any name but a .eth second-level name as a subname', () => {
+      expect(
+        buildNameExpiryDeliveryContext(
+          payload({ name: 'sub.example.com', stage: 'expired' }),
+          options(expiry),
+        ).notice,
+      ).toEqual({ kind: 'subname-expired', parentName: 'example.com' })
+      expect(
+        buildNameExpiryDeliveryContext(payload(), options(expiry)).notice,
+      ).toEqual({ kind: 'pre-expiry' })
+    })
+
+    it('reads a stageless legacy subname payload as pre-expiry or expired', () => {
+      const notice = (now: Date) =>
+        buildNameExpiryDeliveryContext(
+          payload({ name: 'pay.alice.eth', stage: undefined }),
+          options(now),
+        ).notice.kind
+      expect(notice(new Date(expiry.getTime() - MS_PER_DAY))).toBe(
+        'subname-pre-expiry',
+      )
+      expect(notice(new Date(expiry.getTime() + MS_PER_DAY))).toBe(
+        'subname-expired',
+      )
+    })
+  })
 })

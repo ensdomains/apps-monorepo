@@ -14,15 +14,45 @@ type NameExpiryPresentation = {
   action: 'renew' | 'register' | 'none'
 }
 
+/** The name one label up (`alice.eth` for `pay.alice.eth`), if any. */
+const getParentName = (name: string): string | undefined => {
+  const dot = name.indexOf('.')
+  return dot === -1 || dot === name.length - 1 ? undefined : name.slice(dot + 1)
+}
+
+/**
+ * Manager renews only `.eth` second-level names. Any other name with an
+ * expiry, such as a subname, has no grace, and normally only the owner of its
+ * parent can extend it.
+ */
+const getNonRenewablePresentation = (
+  payload: NameExpiryPayload,
+): NameExpiryPresentation => {
+  const expiry = formatExpiryTime(payload.expiryDate)
+  const parentName = getParentName(payload.name)
+  if (parentName === undefined) {
+    return {
+      description: "This name can't be renewed in Manager.",
+      statusText: expiry.text,
+      action: 'none',
+    }
+  }
+
+  const hasExpired = payload.stage
+    ? payload.stage === 'expired'
+    : expiry.isExpired
+  return {
+    description: `${hasExpired ? 'This name has expired.' : 'This name is expiring soon.'} The owner of ${parentName} can extend it.`,
+    statusText: expiry.text,
+    action: 'none',
+  }
+}
+
 export const getNameExpiryStaticPresentation = (
   payload: NameExpiryPayload,
 ): NameExpiryPresentation => {
   if (!isRenewableName(payload.name)) {
-    return {
-      description: "This name can't be renewed in Manager.",
-      statusText: formatExpiryTime(payload.expiryDate).text,
-      action: 'none',
-    }
+    return getNonRenewablePresentation(payload)
   }
 
   switch (payload.stage) {
@@ -39,6 +69,9 @@ export const getNameExpiryStaticPresentation = (
         }[payload.stage],
         action: 'renew',
       }
+    // Only names with no grace are sent `expired`; a `.eth` name's expiry
+    // starts its grace.
+    case 'expired':
     case 'grace-start':
       return {
         description:

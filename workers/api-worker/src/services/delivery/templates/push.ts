@@ -26,26 +26,36 @@ export type PushTemplate<K extends SupportedNotifications<'push'>> = (
 ) => PushNotificationData
 
 const nameExpiryPushCopy = (context: NameExpiryDeliveryContext) =>
-  match(context.noticeKind)
-    .with('pre-expiry', () => ({
+  match(context.notice)
+    .with({ kind: 'pre-expiry' }, () => ({
       title: 'ENS name expiring soon',
       body: `${context.name} expires in ${formatDayCount(context.daysUntilExpiry)}`,
       url: context.renewPath,
     }))
-    .with('grace-start', () => ({
+    .with({ kind: 'grace-start' }, () => ({
       title: 'ENS name in grace period',
       body: `${context.name} expired but can still be renewed`,
       url: context.renewPath,
     }))
-    .with('grace-ending', () => ({
+    .with({ kind: 'grace-ending' }, () => ({
       title: 'ENS grace period ending soon',
       body: `${context.name} grace period ends in ${formatDayCount(context.daysUntilGraceEnd)}`,
       url: context.renewPath,
     }))
-    .with('premium-start', () => ({
+    .with({ kind: 'premium-start' }, () => ({
       title: 'ENS grace period ended',
       body: `${context.name} has entered the temporary premium period`,
       url: context.registerPath,
+    }))
+    .with({ kind: 'subname-pre-expiry' }, ({ parentName }) => ({
+      title: 'ENS name expiring soon',
+      body: `${context.name} expires in ${formatDayCount(context.daysUntilExpiry)}. The owner of ${parentName} can extend it`,
+      url: context.profilePath,
+    }))
+    .with({ kind: 'subname-expired' }, ({ parentName }) => ({
+      title: 'ENS name expired',
+      body: `${context.name} has expired. The owner of ${parentName} can extend it`,
+      url: context.profilePath,
     }))
     .exhaustive()
 

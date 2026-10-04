@@ -16,7 +16,7 @@ import { EmailLayout } from './EmailLayout.js'
 interface NameExpiryCopy {
   readonly subject: string
   readonly body: ReactNode
-  readonly action: string
+  readonly action: ReactNode
 }
 
 interface NameExpiryEmailProps {
@@ -26,13 +26,19 @@ interface NameExpiryEmailProps {
 
 const RENEW_ACTION = 'Open the ENS Manager app to renew this name.'
 const REGISTER_ACTION = 'Open the ENS Manager app to register this name.'
+// The Manager cannot renew a subname, so there is nothing to open it for.
+const extendAction = (parentName: string): ReactNode => (
+  <>
+    The owner of <strong>{parentName}</strong> can extend this name.
+  </>
+)
 
 const getNameExpiryCopy = (
   context: NameExpiryDeliveryContext,
 ): NameExpiryCopy => {
   const name = <strong>{context.name}</strong>
-  return match(context.noticeKind)
-    .with('pre-expiry', () => ({
+  return match(context.notice)
+    .with({ kind: 'pre-expiry' }, () => ({
       subject: 'Domain expiration alert',
       body: (
         <>
@@ -42,7 +48,7 @@ const getNameExpiryCopy = (
       ),
       action: RENEW_ACTION,
     }))
-    .with('grace-start', () => ({
+    .with({ kind: 'grace-start' }, () => ({
       subject: 'Domain grace period started',
       body: (
         <>
@@ -52,7 +58,7 @@ const getNameExpiryCopy = (
       ),
       action: RENEW_ACTION,
     }))
-    .with('grace-ending', () => ({
+    .with({ kind: 'grace-ending' }, () => ({
       subject: 'Domain grace period ending soon',
       body: (
         <>
@@ -64,7 +70,7 @@ const getNameExpiryCopy = (
       ),
       action: RENEW_ACTION,
     }))
-    .with('premium-start', () => ({
+    .with({ kind: 'premium-start' }, () => ({
       subject: 'Domain grace period ended',
       body: (
         <>
@@ -73,6 +79,25 @@ const getNameExpiryCopy = (
         </>
       ),
       action: REGISTER_ACTION,
+    }))
+    .with({ kind: 'subname-pre-expiry' }, ({ parentName }) => ({
+      subject: 'Domain expiration alert',
+      body: (
+        <>
+          {name} expires on {formatCalendarDate(context.expiryDate)} (in{' '}
+          {formatDayCount(context.daysUntilExpiry)}).
+        </>
+      ),
+      action: extendAction(parentName),
+    }))
+    .with({ kind: 'subname-expired' }, ({ parentName }) => ({
+      subject: 'Domain expired',
+      body: (
+        <>
+          {name} expired on {formatCalendarDate(context.expiryDate)}.
+        </>
+      ),
+      action: extendAction(parentName),
     }))
     .exhaustive()
 }

@@ -9,6 +9,8 @@ export const nameExpiryStageSchema = v.picklist([
   'grace-7d',
   'grace-1d',
   'premium-start',
+  // A name with no registrar grace, such as a subname, at its expiry.
+  'expired',
 ])
 export type NameExpiryStage = v.InferOutput<typeof nameExpiryStageSchema>
 
@@ -26,6 +28,7 @@ export const nameExpiryNoticeKindSchema = v.picklist([
   'grace-start',
   'grace-ending',
   'premium-start',
+  'expired',
 ])
 export type NameExpiryNoticeKind = v.InferOutput<
   typeof nameExpiryNoticeKindSchema
@@ -39,6 +42,7 @@ const NAME_EXPIRY_NOTICE_KIND_BY_STAGE = {
   'grace-7d': 'grace-ending',
   'grace-1d': 'grace-ending',
   'premium-start': 'premium-start',
+  expired: 'expired',
 } as const satisfies Record<NameExpiryStage, NameExpiryNoticeKind>
 
 export const nameExpiryNoticeKindFromStage = (

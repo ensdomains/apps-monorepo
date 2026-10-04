@@ -18,7 +18,7 @@ import {
   planExactTimestampPage,
   planNormalExpiryPage,
 } from './page.js'
-import { STAGES, TRACKS } from './stages.js'
+import { TRACKS } from './stages.js'
 
 const domain = (name: string, expiryDate: number): ExpiringDomain => ({
   name,
@@ -111,8 +111,8 @@ describe('expiry page planning', () => {
       )
 
     const env = {} as CloudflareBindings
-    const stage = STAGES[0]
     const track = TRACKS[0]
+    const stage = track?.stages[0]
     if (!stage || !track) throw new Error('Expected an expiry stage and track')
     const result = await fetchProcessableExpiringNames({
       env,

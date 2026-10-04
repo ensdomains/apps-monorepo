@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createBigname } from '#core/bigname/index.js'
 import { makeMockEnv } from '#test-utils/env.js'
+import { logger } from '#utils/logger.js'
 import {
   EXACT_TIMESTAMP_MAX_ROWS,
   fetchExpiringNamesPage,
   fetchPublicationTime,
   QUERY_PAGE_SIZE,
 } from './indexer.js'
-import { type ExpiryTrackId, STAGES, TRACKS } from './stages.js'
+import { type ExpiryTrackId, TRACKS } from './stages.js'
 
 vi.mock('#core/bigname/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('#core/bigname/index.js')>()
@@ -114,6 +115,12 @@ const mockFetch = (...responses: Response[]) => {
   }
 }
 
+const firstStage = (trackId: ExpiryTrackId) => {
+  const stage = track(trackId).stages[0]
+  if (!stage) throw new Error(`Missing stage for track: ${trackId}`)
+  return stage
+}
+
 const fetchWindow = (
   cursor: number,
   upperBound: number,
@@ -122,7 +129,7 @@ const fetchWindow = (
   fetchExpiringNamesPage({
     env: makeMockEnv(),
     track: track(trackId),
-    stage: STAGES[0],
+    stage: firstStage(trackId),
     cursor,
     upperBound,
   })
@@ -277,6 +284,107 @@ describe('fetchExpiringNamesPage', () => {
     ])
   })
 
+  it('sweeps every name for subnames and keeps only the subnames, silently', async () => {
+    const warn = vi.spyOn(logger, 'warn')
+    const expiry = 1_700_000_000
+    const { url } = mockFetch(
+      page([
+        {
+          name: 'pay.alice.eth',
+          expires_at: ts(expiry),
+          grace_ends_at: ts(expiry),
+          owner: '0xABC',
+          registration_status: 'wrapped',
+          ens_v1: { expires_at: null },
+        },
+        // `.eth` names in the same unfiltered window, ENSv2 and ENSv1.
+        v2Row('alice.eth', expiry + 1, { owner: '0xdef' }),
+        v1Row('bob.eth', expiry + 2, null, { owner: '0xdef' }),
+        {
+          name: 'sub.example.com',
+          expires_at: ts(expiry + 3),
+          grace_ends_at: ts(expiry + 3),
+          registration_status: 'registered',
+        },
+      ]),
+    )
+
+    const result = (
+      await fetchWindow(expiry - 1, expiry + 100, 'subname')
+    )._unsafeUnwrap()
+
+    expect(Object.fromEntries(url(0).searchParams)).toEqual({
+      namespace: 'ens',
+      expires_after: ts(expiry),
+      expires_before: ts(expiry + 101),
+      sort: 'expires_at',
+      order: 'asc',
+      page_size: '200',
+    })
+    expect(
+      result.domains.map(({ name, expiryDate, inTrack, owner }) => ({
+        name,
+        expiryDate,
+        inTrack,
+        owner,
+      })),
+    ).toEqual([
+      {
+        name: 'pay.alice.eth',
+        expiryDate: expiry,
+        inTrack: true,
+        owner: '0xabc',
+      },
+      // Kept so the cursor moves past them, but never notified.
+      {
+        name: 'alice.eth',
+        expiryDate: expiry + 1,
+        inTrack: false,
+        owner: '0xdef',
+      },
+      {
+        name: 'bob.eth',
+        expiryDate: expiry + 2,
+        inTrack: false,
+        owner: '0xdef',
+      },
+      {
+        name: 'sub.example.com',
+        expiryDate: expiry + 3,
+        inTrack: true,
+        owner: undefined,
+      },
+    ])
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('warns about a subname row whose grace is not its expiry', async () => {
+    const warn = vi.spyOn(logger, 'warn')
+    const expiry = 1_700_000_000
+    mockFetch(
+      page([
+        v2Row('alice.eth', expiry),
+        {
+          name: 'odd.alice.eth',
+          expires_at: ts(expiry + 1),
+          grace_ends_at: ts(expiry + 1 + DAY),
+        },
+      ]),
+    )
+
+    const result = (
+      await fetchWindow(expiry - 1, expiry + 100, 'subname')
+    )._unsafeUnwrap()
+
+    expect(result.domains.map(({ inTrack }) => inTrack)).toEqual([false, false])
+    expect(warn).toHaveBeenCalledWith(
+      'bigname expiry rows fit no expiry track; not notified',
+      expect.objectContaining({ count: 1, names: ['odd.alice.eth'] }),
+    )
+    warn.mockRestore()
+  })
+
   it('queries a single second for an exact-timestamp window', async () => {
     const { url } = mockFetch(page([]))
     const timestamp = 1_700_000_000
@@ -327,7 +435,7 @@ describe('fetchExpiringNamesPage', () => {
       await fetchExpiringNamesPage({
         env: makeMockEnv(),
         track: track('ens_v2'),
-        stage: STAGES[0],
+        stage: firstStage('ens_v2'),
         cursor: 1,
         upperBound: 2_000_000_000,
         maxRows: EXACT_TIMESTAMP_MAX_ROWS,

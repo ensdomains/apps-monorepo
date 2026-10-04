@@ -7,10 +7,16 @@ import * as v from 'valibot'
 export const expiryStageIdSchema = nameExpiryStageSchema
 export type ExpiryStageId = v.InferOutput<typeof expiryStageIdSchema>
 
+/**
+ * Every stage, furthest-future to furthest-past. `expired` and `grace-start`
+ * share the expiry but never a name: one is for names with no registrar grace,
+ * the other for `.eth` second-level names.
+ */
 export const EXPIRY_STAGE_IDS = [
   'expiry-30d',
   'expiry-7d',
   'expiry-1d',
+  'expired',
   'grace-start',
   'grace-7d',
   'grace-1d',

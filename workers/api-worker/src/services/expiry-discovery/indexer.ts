@@ -13,6 +13,7 @@ import {
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok, type Result } from 'neverthrow'
 import { createBigname } from '#core/bigname/index.js'
+import { isEthSecondLevelName } from '#utils/ensName.js'
 import { logger } from '#utils/logger.js'
 import { type ExpiryStageConfig, type ExpiryTrack, TRACKS } from './stages.js'
 
@@ -63,7 +64,10 @@ export type ExpiringDomain = {
    * ENSv1).
    */
   expiryDate: number
-  /** Whether the row's dates are where the track expects them. Other rows only move the window. */
+  /**
+   * Whether the row is one of the track's names and its dates are where the
+   * track expects them. Other rows only move the window.
+   */
   inTrack: boolean
   /** End of the renewal grace (`grace_ends_at`), unix seconds. */
   graceEndDate?: number
@@ -80,15 +84,24 @@ const ownExpiry = (row: NameListRow, track: ExpiryTrack) =>
   )
 
 /**
- * Whether the served `expires_at` and `grace_ends_at` sit where the track
- * expects them for the row's own expiry. This is what tells a reserved ENSv1
- * lease (served 62 days later) from an unreserved one, and drops a reserved
- * lease whose reservation was extended separately.
+ * Whether the row is one of the track's names. The subname track's unfiltered
+ * window also holds every `.eth` second-level name expiring in it.
+ */
+const isTrackName = (row: NameListRow, track: ExpiryTrack) =>
+  isEthSecondLevelName(row.name) === (track.names === 'eth_second_level')
+
+/**
+ * Whether the row is the track's and its served `expires_at` and
+ * `grace_ends_at` sit where the track expects them for the row's own expiry.
+ * This is what tells a reserved ENSv1 lease (served 62 days later) from an
+ * unreserved one, and drops a reserved lease whose reservation was extended
+ * separately.
  */
 const isInTrack = (row: NameListRow, track: ExpiryTrack, served: bigint) => {
   const own = ownExpiry(row, track)
   const graceEnd = timestampToBigInt(row.grace_ends_at)
   return (
+    isTrackName(row, track) &&
     own !== undefined &&
     graceEnd !== undefined &&
     served - own === BigInt(track.servedShiftSeconds) &&
@@ -96,16 +109,18 @@ const isInTrack = (row: NameListRow, track: ExpiryTrack, served: bigint) => {
   )
 }
 
-/** Whether any track sweeping the same `authority` set keeps this row. */
-const isPlacedInAnyTrack = (
-  row: NameListRow,
-  authority: readonly string[],
-): boolean => {
+/** Whether two tracks read the same rows: the same names and `authority`. */
+const sharesSweep = (a: ExpiryTrack, b: ExpiryTrack) =>
+  a.names === b.names &&
+  (a.authority ?? []).join() === (b.authority ?? []).join()
+
+/** Whether any track sweeping the same rows as `track` keeps this row. */
+const isPlacedInAnyTrack = (row: NameListRow, track: ExpiryTrack): boolean => {
   const served = timestampToBigInt(row.expires_at)
   if (served === undefined) return false
-  return TRACKS.filter(
-    (track) => track.authority.join() === authority.join(),
-  ).some((track) => isInTrack(row, track, served))
+  return TRACKS.filter((candidate) => sharesSweep(candidate, track)).some(
+    (candidate) => isInTrack(row, candidate, served),
+  )
 }
 
 const toExpiringDomain = (
@@ -129,15 +144,17 @@ const toExpiringDomain = (
  * `hasMore` is true when the window holds more rows than were returned.
  *
  * Reads bigname's `GET /v1/names` expiry sweep over `.eth` second-level names
- * (`parent=eth`) with the track's `authority`. Its window is
+ * (`parent=eth`) with the track's `authority` or, for the subname track, over
+ * every name. Its window is
  * `[expires_after, expires_before)` on the served expiry, which is whole
  * seconds, so the half-open seconds window maps to
  * `[cursor + 1 + shift, upperBound + 1 + shift)`. The client retries
  * transient failures (408/429/5xx, network, `409 stale`).
  *
  * Rows are returned whatever their status or track fit (released names are
- * listed with their lapsed expiry); callers filter per stage so page planning
- * still sees every row.
+ * listed with their lapsed expiry), including the subname track's `.eth`
+ * second-level rows; callers filter per stage so page planning still sees
+ * every row.
  */
 export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   env: CloudflareBindings
@@ -170,7 +187,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
       (cursor) =>
         bigname.listNames({
           namespace: 'ens',
-          parent: 'eth',
+          parent: ctx.track.names === 'eth_second_level' ? 'eth' : undefined,
           authority: ctx.track.authority,
           expires_after,
           expires_before,
@@ -217,9 +234,10 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     hasMore: result.truncated,
   })
   // The ENSv1 tracks read the same rows and each keeps the ones in its step,
-  // so only rows that fit no track are worth a warning.
+  // so only rows that fit no track are worth a warning. The subname track's
+  // `.eth` second-level rows belong to the other tracks' sweeps.
   const unplaced = result.rows.filter(
-    (row) => !isPlacedInAnyTrack(row, ctx.track.authority),
+    (row) => isTrackName(row, ctx.track) && !isPlacedInAnyTrack(row, ctx.track),
   )
   if (unplaced.length > 0) {
     logger.warn('bigname expiry rows fit no expiry track; not notified', {
