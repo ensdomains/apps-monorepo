@@ -440,6 +440,8 @@ export const transactionMachine = setup({
           target: 'pending',
           actions: assign({
             hash: ({ event }) => event.output,
+            // A retried submission leaves the earlier attempt's error behind.
+            error: undefined,
           }),
         },
         onError: [

@@ -1,4 +1,3 @@
-import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { fromPromise, ok } from 'neverthrow'
@@ -8,10 +7,8 @@ import { sendRenderedEmail } from '#services/email/send.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
 import { createIntoError } from '#utils/result.js'
-import {
-  NotificationDeliveryNotFoundError,
-  UnsupportedNotificationTypeError,
-} from './errors.js'
+import { resolveDeliveryChannel } from './channel.js'
+import { UnsupportedNotificationTypeError } from './errors.js'
 import { type EmailTemplate, emailTemplates } from './templates/email.js'
 
 export const deliverEmailNotification = ResultFn(async function* (
@@ -20,37 +17,8 @@ export const deliverEmailNotification = ResultFn(async function* (
   db: Database,
   job: EmailDeliveryJob,
 ) {
-  const deliveryJob = await db.query.notificationDeliveries.findFirst({
-    where: eq(TABLE.notificationDeliveries.id, job.id),
-    columns: {
-      status: true,
-      target: true,
-    },
-    with: {
-      notification: {
-        columns: {
-          payload: true,
-        },
-      },
-    },
-  })
-  if (!deliveryJob) {
-    return yield* new NotificationDeliveryNotFoundError({
-      message: `Delivery job not found: ${job.id}`,
-    })
-  }
-
-  if (
-    deliveryJob.status === 'delivered' ||
-    deliveryJob.status === 'permanently_failed'
-  ) {
-    logger.debug('Skipping terminal email delivery', {
-      jobId: job.id,
-      kind: job.kind,
-      status: deliveryJob.status,
-    })
-    return ok(undefined)
-  }
+  const delivery = yield* resolveDeliveryChannel(db, job, 'email')
+  if (!delivery) return ok(undefined)
 
   // Get the template function
   const template = emailTemplates[job.kind] as EmailTemplate<typeof job.kind>
@@ -62,15 +30,13 @@ export const deliverEmailNotification = ResultFn(async function* (
 
   // Render locally; SendGrid only receives the finished email
   const email = yield* fromPromise(
-    template(
-      deliveryJob.notification.payload as AnyPersonalNotificationPayload,
-    ),
+    template(delivery.payload),
     createIntoError('EMAIL_RENDER_ERROR'),
   )
 
   const result = yield* sendRenderedEmail(apiKey, {
     from: fromEmail,
-    to: deliveryJob.target,
+    to: delivery.channel.target,
     email,
   })
 
@@ -91,7 +57,7 @@ export const deliverEmailNotification = ResultFn(async function* (
   logger.debug('Email notification delivered', {
     jobId: job.id,
     kind: job.kind,
-    to: deliveryJob.target,
+    channelId: delivery.channel.id,
   })
 
   return ok(undefined)

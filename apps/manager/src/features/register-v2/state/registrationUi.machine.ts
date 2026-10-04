@@ -37,6 +37,11 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import {
+  acquireRegistrationLock,
+  getBlockingRegistration,
+  releaseRegistrationLock,
+} from '../service/registrationLock'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
 import {
@@ -98,6 +103,11 @@ type Context = {
    * Nothing to retry — the failure screen offers only a way back.
    */
   nameUnavailable: boolean
+  /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
+  pendingStart?: Extract<
+    Events,
+    { type: 'registration.start' | 'registration.resume' }
+  >
   confirmedData?: RegistrationConfirmedData
   postRegistrationSetup?: RegistrationPostRegistrationSetup
   postRegistrationData?: PostRegistrationData
@@ -310,6 +320,18 @@ const machineSetup = setup({
     ),
   },
   guards: {
+    hasPendingStart: ({ context }) => context.pendingStart !== undefined,
+    isWalletRegisteringAnotherName: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return false
+
+      return (
+        getBlockingRegistration(
+          confirmed.ownerAddress,
+          asEthName(confirmed.label),
+        ) !== null
+      )
+    },
     isDurationValid: ({ context }) =>
       context.duration >= MIN_REGISTER_DURATION_SECONDS,
     hasEthRecordSyncRemaining: ({ context }) =>
@@ -378,7 +400,41 @@ const machineSetup = setup({
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
     forwardSuspend: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'SUSPEND' }),
+    // The child never received START_REGISTRATION for a refused start, so a
+    // RETRY would be dropped in its idle state. Re-run the start instead.
+    raisePendingStart: enqueueActions(({ enqueue, context }) => {
+      if (context.pendingStart) enqueue.raise(context.pendingStart)
+    }),
+    setRegistrationLockError: assign({
+      lastErrorMessage: ({ context }) => {
+        const confirmed = context.confirmedData
+        const blocking = confirmed
+          ? getBlockingRegistration(
+              confirmed.ownerAddress,
+              asEthName(confirmed.label),
+            )
+          : null
+
+        return registrationLockMessage(blocking)
+      },
+    }),
+    acquireRegistrationLock: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return
+
+      acquireRegistrationLock(
+        confirmed.ownerAddress,
+        asEthName(confirmed.label),
+      )
+    },
+    releaseRegistrationLock: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return
+
+      releaseRegistrationLock(confirmed.ownerAddress)
+    },
     clearRegistrationData: assign({
+      pendingStart: () => undefined,
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
       postRegistrationData: () => undefined,
@@ -433,6 +489,11 @@ const machineSetup = setup({
     }),
     captureChildSuccess: enqueueActions(({ enqueue, context, event }) => {
       if (!isRegistrationSnapshotEvent(event)) return
+
+      const confirmed = context.confirmedData
+      if (confirmed) {
+        releaseRegistrationLock(confirmed.ownerAddress)
+      }
 
       enqueue.assign({
         registrationCompleted: true,
@@ -516,6 +577,10 @@ const machineSetup = setup({
   },
 })
 
+/** Names the registration holding this wallet, so the user knows what to finish. */
+const registrationLockMessage = (blockingName: string | null): string =>
+  `Cannot register: ${blockingName ?? 'another name'} is already being registered with this wallet, possibly in another tab. Finish or cancel it first.`
+
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, event }) => {
     if (event.type !== 'registration.start') {
@@ -593,6 +658,25 @@ const startRegistrationAction = machineSetup.createAction(
       hcaPrimaryName: bundlePrimaryName,
       addrReverseClearTxId: undefined,
     })
+
+    // One registration at a time per wallet, across tabs. The commit batch
+    // funds the HCA with an EIP-2612 permit whose nonce is sequential per
+    // wallet, so a concurrent run reverts `TransferFromFailed()` and never
+    // records its commitment. Claimed after the assign above: `confirmedData`
+    // is what `retry` reads to re-run this check.
+    if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
+      enqueue.assign({ pendingStart: event })
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          registrationLockMessage(
+            getBlockingRegistration(ownerAddress, asEthName(event.label)),
+          ),
+        ),
+      })
+    }
+
+    enqueue.assign({ pendingStart: undefined })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -696,6 +780,22 @@ const resumeRegistrationAction = machineSetup.createAction(
       hcaPrimaryName: event.record.context.primaryName,
       addrReverseClearTxId: undefined,
     })
+
+    // A resumed run has no claim on the wallet yet (a reload dropped this
+    // tab's), and it is about to continue a commit on that wallet's nonce.
+    if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
+      enqueue.assign({ pendingStart: event })
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          registrationLockMessage(
+            getBlockingRegistration(ownerAddress, asEthName(event.label)),
+          ),
+        ),
+      })
+    }
+
+    enqueue.assign({ pendingStart: undefined })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -1174,16 +1274,42 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     success: {},
     failure: {
       on: {
-        retry: {
-          // Retrying a name someone else now owns would park the UI back on
-          // the pending screen while the child refuses the RETRY it forwards.
-          guard: ({ context }) => !context.nameUnavailable,
+        retry: [
+          {
+            // Retry re-enters `registering` directly, so it needs the same
+            // wallet guard the initial start has.
+            guard: 'isWalletRegisteringAnotherName',
+            actions: 'setRegistrationLockError',
+          },
+          {
+            guard: 'hasPendingStart',
+            actions: ['clearError', 'raisePendingStart'],
+          },
+          {
+            // Retrying a name someone else now owns would park the UI back on
+            // the pending screen while the child refuses the RETRY it forwards.
+            guard: ({ context }) => !context.nameUnavailable,
+            target: 'registering',
+            actions: ['clearError', 'acquireRegistrationLock', 'forwardRetry'],
+          },
+        ],
+        'registration.start': {
           target: 'registering',
-          actions: ['clearError', 'forwardRetry'],
+          guard: ({ event }) => event.duration >= MIN_REGISTER_DURATION_SECONDS,
+          actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
+        },
+        'registration.resume': {
+          target: 'registering',
+          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
         },
         cancel: {
           target: 'pricing',
-          actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
+          actions: [
+            'releaseRegistrationLock',
+            'clearRegistrationData',
+            'clearError',
+            'forwardCancel',
+          ],
         },
         // "Try Again" would carry on with the previous wallet's signer.
         'registration.suspend': {
@@ -1200,7 +1326,12 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     'label.changed': {
       target: '.pricing',
-      actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
+      actions: [
+        'releaseRegistrationLock',
+        'clearRegistrationData',
+        'clearError',
+        'forwardCancel',
+      ],
     },
   },
 })

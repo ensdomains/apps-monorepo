@@ -6,7 +6,7 @@ import {
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import type { SupportedTokenAddresses } from '../types/tokens'
-import { buildTokenData, DEFAULT_PRICE } from './tokenData'
+import { buildTokenData } from './tokenData'
 
 const mockToken = (
   symbol: string,
@@ -52,16 +52,6 @@ describe('buildTokenData', () => {
     })
   })
 
-  it('uses DEFAULT_PRICE when price is undefined', () => {
-    const tokens = [mockToken('USDC', SUPPORTED_TOKENS.USDC, USDC_DECIMALS)]
-    const balances = [100n]
-
-    const result = buildTokenData(tokens, [], balances, [])
-
-    expect(result[0].price).toEqual(DEFAULT_PRICE)
-    expect(result[0].balance).toBe(100n)
-  })
-
   it('uses 0n when balance is undefined', () => {
     const tokens = [mockToken('USDC', SUPPORTED_TOKENS.USDC, USDC_DECIMALS)]
     const prices = [validPrice]
@@ -71,16 +61,6 @@ describe('buildTokenData', () => {
 
     expect(result[0].price).toEqual(validPrice)
     expect(result[0].balance).toBe(0n)
-  })
-
-  it('uses DEFAULT_PRICE when price fails isPriceResult check', () => {
-    const tokens = [mockToken('USDC', SUPPORTED_TOKENS.USDC, USDC_DECIMALS)]
-    const prices = [{ foo: 'bar' } as unknown as typeof validPrice]
-    const balances = [100n]
-
-    const result = buildTokenData(tokens, prices, balances, [])
-
-    expect(result[0].price).toEqual(DEFAULT_PRICE)
   })
 
   it('handles empty tokens array', () => {

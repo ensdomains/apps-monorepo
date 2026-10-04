@@ -140,4 +140,26 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
+
+  it('blocks checkout when the budget quote failed', () => {
+    // Immunefi #93021: the wallet affords the 330 rent, but the rent is not
+    // what the registration costs, so proceeding strands the commitment.
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps the "up to" hedge when the budget quote failed', () => {
+    // The total falls back to the rent — a lower bound, not an exact price.
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
+
+    expect(screen.getByText('up to')).toBeInTheDocument()
+  })
+
+  it('leaves the EOA route alone, which has no budget to quote', () => {
+    renderPicker({ selectedToken: 'USDC' })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(screen.queryByText('up to')).not.toBeInTheDocument()
+  })
 })

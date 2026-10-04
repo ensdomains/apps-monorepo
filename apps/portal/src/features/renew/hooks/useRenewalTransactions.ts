@@ -138,8 +138,11 @@ function approveLabel(tokenSymbol: string, renewer: Address): string {
   return `Approve ${tokenSymbol} for ${isV2 ? 'v2' : 'v1'} renewal`
 }
 
-// Renewal approves 2× the price for headroom against price drift; the shared
-// builder handles the encoding so registration and renewal stay in lockstep.
+// Approve exactly the quoted price. `renew()` takes no amount — the renewer
+// pulls its own oracle price — so the allowance is the only cap on the charge,
+// and the approval is the only wallet prompt that shows one. The renew price is
+// a pure function of (label, duration, token), so there is no drift to pad for,
+// and an exact approval is fully consumed rather than left standing.
 function buildRenewalApproveIntent(params: {
   from: Address
   tokenAddress: Address
@@ -150,7 +153,7 @@ function buildRenewalApproveIntent(params: {
     from: params.from,
     token: params.tokenAddress,
     spender: params.renewer,
-    amount: params.tokenPrice * 2n,
+    amount: params.tokenPrice,
     chainId: sepoliaWithEns.id,
   })
 }

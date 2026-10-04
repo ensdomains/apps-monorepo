@@ -9,7 +9,7 @@ export const RenewalRouteError = ({
   name,
   reset,
 }: {
-  readonly error: Error
+  readonly error: unknown
   readonly name: string
   readonly reset: () => void
 }) => (
@@ -22,7 +22,7 @@ export const RenewalRouteError = ({
         <Trans>This name can’t be renewed here</Trans>
       </h1>
       <p className="mt-3 max-w-md text-ens-quartz-500 text-sm leading-5">
-        {error.message || (
+        {(error instanceof Error && error.message) || (
           <Trans>We couldn’t confirm that this name is renewable.</Trans>
         )}
       </p>

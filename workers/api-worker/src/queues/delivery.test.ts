@@ -54,7 +54,7 @@ const deliveryDb = (
         findFirst: vi.fn().mockResolvedValue({
           id: job.id,
           channel,
-          target: targets[channel],
+          channel_id: `${channel}-channel`,
           status,
           error,
           dlq_attempts: 1,
@@ -66,11 +66,16 @@ const deliveryDb = (
               watchReason: 'owned',
             },
           },
-        }),
-      },
-      userChannels: {
-        findFirst: vi.fn().mockResolvedValue({
-          data: { auth: 'auth', p256dh: 'key', expirationTime: null },
+          sourceChannel: {
+            id: `${channel}-channel`,
+            channel,
+            target: targets[channel],
+            status: 'verified',
+            data:
+              channel === 'push'
+                ? { auth: 'auth', p256dh: 'key', expirationTime: null }
+                : null,
+          },
         }),
       },
     },
@@ -95,7 +100,7 @@ describe.each([
   'push',
   'telegram',
 ] as const)('%s queue contract', (channel) => {
-  it('sends to the persisted target, records delivery, and ACKs', async () => {
+  it("sends to the source channel's target, records delivery, and ACKs", async () => {
     const { set } = deliveryDb(channel)
     const result = await runQueue(
       `app-api-worker-${channel}-delivery`,
