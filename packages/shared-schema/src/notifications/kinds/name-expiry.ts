@@ -55,6 +55,9 @@ export const nameExpiryDefinition = {
     watchReason: nameExpiryWatchReasonSchema,
     // Existing beta inbox rows predate lifecycle stages. New writes include it.
     stage: v.optional(nameExpiryStageSchema),
+    // Unix ms. An ENSv1 lease's grace is 90 days, ENSv2's 28; rows written
+    // before this field fall back to the ENSv2 grace.
+    graceEndDate: v.optional(v.number()),
   }),
   metadata: {
     category: 'Domain Lifecycle',

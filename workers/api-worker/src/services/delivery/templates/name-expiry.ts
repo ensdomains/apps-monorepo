@@ -47,7 +47,10 @@ export const buildNameExpiryDeliveryContext = (
 ): NameExpiryDeliveryContext => {
   const now = options.now ?? new Date()
   const expiryDate = new Date(payload.expiryDate)
-  const graceEndDate = getGraceEndDate(expiryDate, 'v2')
+  const graceEndDate =
+    payload.graceEndDate === undefined
+      ? getGraceEndDate(expiryDate, 'v2')
+      : new Date(payload.graceEndDate)
   const name = normalizeNotificationName(payload.name)
   const nameSegment = encodeNamePathSegment(name)
   const renewPath = `/renew/${nameSegment}`

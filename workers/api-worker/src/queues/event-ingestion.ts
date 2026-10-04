@@ -311,6 +311,9 @@ const reconcileNotifications = ResultFn(async function* (ctx: {
     payload: {
       name: ctx.event.name,
       expiryDate: ctx.event.expiryDate * 1000,
+      ...(ctx.event.graceEndDate === undefined
+        ? {}
+        : { graceEndDate: ctx.event.graceEndDate * 1000 }),
       stage: ctx.event.stage,
       isOwner: recipient.watchReason === 'owned',
       watchReason: recipient.watchReason,

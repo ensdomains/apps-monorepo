@@ -8,25 +8,29 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import type { ExpiringDomain } from './indexer.js'
+import { type ExpiringDomain, fetchPublicationTime } from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 import { fetchProcessableExpiringNames } from './page.js'
 import {
   type ExpiryStageConfig,
+  type ExpiryTrack,
   getLowerBoundForStage,
   getQueryCursorForStage,
   getUpperBoundForStage,
   isNotifiableAtStage,
   STAGES,
+  TRACKS,
 } from './stages.js'
 
 const QUEUE_BATCH_SIZE = 100
 
 class QueuePublishError extends TaggedError('QUEUE_PUBLISH_ERROR')<{
+  trackId: string
   stageId: string
 }> {}
 
 type StageRunMetrics = {
+  trackId: string
   stageId: string
   cursorStart: number
   cursorEnd: number
@@ -48,11 +52,12 @@ function buildExpiryEvents(
   domains: readonly ExpiringDomain[],
 ): ExpiryEvent[] {
   return domains
-    .filter((domain) => isNotifiableAtStage(stage, domain.registrationStatus))
+    .filter((domain) => domain.inTrack && isNotifiableAtStage(stage, domain))
     .map((domain) => ({
       type: 'name_expiring',
       name: domain.name,
       expiryDate: domain.expiryDate,
+      graceEndDate: domain.graceEndDate,
       stage: stage.id,
       owner: domain.owner,
       includeFavorites: stage.includeFavorites,
@@ -61,19 +66,26 @@ function buildExpiryEvents(
 
 const processStage = ResultFn(async function* (ctx: {
   env: CloudflareBindings
+  track: ExpiryTrack
   stage: ExpiryStageConfig
   cursor: number
   nowSec: number
 }) {
-  const upperBound = getUpperBoundForStage(ctx.stage, ctx.nowSec)
-  const lowerBound = getLowerBoundForStage(ctx.stage, ctx.nowSec)
-  const queryCursor = getQueryCursorForStage(ctx.stage, ctx.cursor, ctx.nowSec)
+  const upperBound = getUpperBoundForStage(ctx.stage, ctx.track, ctx.nowSec)
+  const lowerBound = getLowerBoundForStage(ctx.stage, ctx.track, ctx.nowSec)
+  const queryCursor = getQueryCursorForStage(
+    ctx.stage,
+    ctx.track,
+    ctx.cursor,
+    ctx.nowSec,
+  )
   const clampedBySec = Math.max(0, queryCursor - ctx.cursor)
   const lagSec = Math.max(0, upperBound - queryCursor)
 
   // Cursor already caught up with the stage window.
   if (queryCursor >= upperBound) {
     logger.debug('Expiry stage skipped (cursor caught up)', {
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
       queryCursor,
@@ -82,6 +94,7 @@ const processStage = ResultFn(async function* (ctx: {
       lagSec,
     })
     return ok({
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
       cursorEnd: ctx.cursor,
@@ -101,6 +114,7 @@ const processStage = ResultFn(async function* (ctx: {
 
   if (clampedBySec > 0) {
     logger.warn('Expiry stage cursor clamped to exclusive window', {
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
       queryCursor,
@@ -111,6 +125,7 @@ const processStage = ResultFn(async function* (ctx: {
   }
 
   logger.debug('Processing expiry stage window', {
+    trackId: ctx.track.id,
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
     queryCursor,
@@ -121,6 +136,7 @@ const processStage = ResultFn(async function* (ctx: {
 
   const page = yield* fetchProcessableExpiringNames({
     env: ctx.env,
+    track: ctx.track,
     stage: ctx.stage,
     cursor: queryCursor,
     upperBound,
@@ -129,6 +145,7 @@ const processStage = ResultFn(async function* (ctx: {
   if (page.overflow) {
     await reportExpiryTimestampOverflow({
       env: ctx.env,
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       expiryTimestamp: page.overflow.expiryTimestamp,
       processedCount: page.overflow.processedCount,
@@ -137,6 +154,7 @@ const processStage = ResultFn(async function* (ctx: {
 
   if (page.domains.length === 0) {
     logger.debug('Expiry stage returned no domains', {
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
       queryCursor,
@@ -144,6 +162,7 @@ const processStage = ResultFn(async function* (ctx: {
       upperBound,
     })
     return ok({
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
       cursorEnd: page.cursorEnd,
@@ -168,6 +187,7 @@ const processStage = ResultFn(async function* (ctx: {
 
   for (const eventChunk of eventChunks) {
     logger.trace('Enqueueing expiry events chunk', {
+      trackId: ctx.track.id,
       stageId: ctx.stage.id,
       chunkSize: eventChunk.length,
     })
@@ -178,14 +198,16 @@ const processStage = ResultFn(async function* (ctx: {
       ),
       (error) =>
         new QueuePublishError({
-          message: `Failed to enqueue expiry events for stage ${ctx.stage.id}`,
+          message: `Failed to enqueue expiry events for ${ctx.track.id} stage ${ctx.stage.id}`,
           cause: error,
+          trackId: ctx.track.id,
           stageId: ctx.stage.id,
         }),
     )
   }
 
   return ok({
+    trackId: ctx.track.id,
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
     cursorEnd: page.cursorEnd,
@@ -203,68 +225,94 @@ const processStage = ResultFn(async function* (ctx: {
   } satisfies StageRunMetrics)
 })
 
+const STAGE_RUNS = TRACKS.flatMap((track) =>
+  STAGES.map((stage) => ({ track, stage })),
+)
+
 export const runExpiryDiscoveryCron = ResultFn(async function* (
   env: CloudflareBindings,
 ) {
   const startedAt = Date.now()
-  const nowSec = Math.floor(Date.now() / 1000)
+  const wallClockSec = Math.floor(Date.now() / 1000)
+  // Stage windows follow the indexed state, not the wall clock: a row is
+  // only judged once bigname's publication has reached its phase.
+  const publicationSec = yield* fetchPublicationTime({
+    env,
+    nowSec: wallClockSec,
+  })
+  const nowSec = Math.min(wallClockSec, publicationSec)
   logger.info('Expiry discovery cron started', {
     nowSec,
+    wallClockSec,
+    publicationSec,
+    trackCount: TRACKS.length,
     stageCount: STAGES.length,
+    tracks: TRACKS.map((track) => track.id),
     stages: STAGES.map((stage) => stage.id),
   })
 
   const cursors = yield* loadNotificationCursors(env, nowSec)
   logger.debug('Loaded expiry notification cursors', {
     cursors: Object.fromEntries(
-      Object.entries(cursors).map(([k, v]) => [k, v.expiry_timestamp]),
+      Object.entries(cursors).map(([trackId, stages]) => [
+        trackId,
+        Object.fromEntries(
+          Object.entries(stages).map(([k, v]) => [k, v.expiry_timestamp]),
+        ),
+      ]),
     ),
   })
 
   const stageResults = await Promise.all(
-    STAGES.map(async (stage) => {
+    STAGE_RUNS.map(async ({ track, stage }) => {
       const result = await processStage({
         env,
+        track,
         stage,
-        cursor: cursors[stage.id].expiry_timestamp,
+        cursor: cursors[track.id][stage.id].expiry_timestamp,
         nowSec,
       })
 
       return {
+        track,
         stage,
         result,
       }
     }),
   )
 
-  const nextCursors: NotificationCursors = {
-    ...cursors,
-  }
+  let nextCursors: NotificationCursors = cursors
 
   let totalEnqueued = 0
   let failedStages = 0
   const stageMetrics: Record<string, StageRunMetrics> = {}
 
-  for (const { stage, result } of stageResults) {
+  for (const { track, stage, result } of stageResults) {
     if (result.isErr()) {
       failedStages += 1
       logger.error('Expiry discovery stage failed', {
+        trackId: track.id,
         stageId: stage.id,
-        cursorStart: cursors[stage.id].expiry_timestamp,
-        upperBound: getUpperBoundForStage(stage, nowSec),
+        cursorStart: cursors[track.id][stage.id].expiry_timestamp,
+        upperBound: getUpperBoundForStage(stage, track, nowSec),
         error: result.error,
       })
       continue
     }
 
     // Per-stage commit policy: successful stages move forward even if others fail.
-    nextCursors[stage.id] = {
-      expiry_timestamp: result.value.cursorEnd,
+    nextCursors = {
+      ...nextCursors,
+      [track.id]: {
+        ...nextCursors[track.id],
+        [stage.id]: { expiry_timestamp: result.value.cursorEnd },
+      },
     }
     totalEnqueued += result.value.enqueuedCount
-    stageMetrics[stage.id] = result.value
+    stageMetrics[`${track.id}/${stage.id}`] = result.value
 
     logger.info('Expiry discovery stage completed', {
+      trackId: track.id,
       stageId: stage.id,
       cursorStart: result.value.cursorStart,
       cursorEnd: result.value.cursorEnd,
@@ -286,7 +334,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
   yield* storeNotificationCursors(env, nextCursors)
 
   const durationMs = Date.now() - startedAt
-  const successfulStages = STAGES.length - failedStages
+  const successfulStages = STAGE_RUNS.length - failedStages
   logger.info('Expiry discovery cron completed', {
     durationMs,
     successfulStages,

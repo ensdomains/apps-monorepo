@@ -6,7 +6,7 @@ import {
   fetchExpiringNamesPage,
   PROCESS_PAGE_SIZE,
 } from './indexer.js'
-import type { ExpiryStageConfig } from './stages.js'
+import type { ExpiryStageConfig, ExpiryTrack } from './stages.js'
 
 export type ExpiryTimestampOverflow = {
   expiryTimestamp: number
@@ -105,6 +105,7 @@ export function planExactTimestampPage(
 
 export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
   env: CloudflareBindings
+  track: ExpiryTrack
   stage: ExpiryStageConfig
   cursor: number
   upperBound: number

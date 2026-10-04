@@ -8,6 +8,7 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 
 import {
   EXACT_TIMESTAMP_MAX_ROWS,
+  type ExpiringDomain,
   fetchExpiringNamesPage,
   PROCESS_PAGE_SIZE,
   QUERY_PAGE_SIZE,
@@ -17,18 +18,22 @@ import {
   planExactTimestampPage,
   planNormalExpiryPage,
 } from './page.js'
-import { STAGES } from './stages.js'
+import { STAGES, TRACKS } from './stages.js'
 
+const domain = (name: string, expiryDate: number): ExpiringDomain => ({
+  name,
+  expiryDate,
+  inTrack: true,
+  registrationStatus: 'active',
+})
 const uniqueDomains = (count: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    name: `${index}.eth`,
-    expiryDate: 100 + index,
-  }))
+  Array.from({ length: count }, (_, index) =>
+    domain(`${index}.eth`, 100 + index),
+  )
 const domainsAt = (count: number, expiryDate: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    name: `tied-${index}.eth`,
-    expiryDate,
-  }))
+  Array.from({ length: count }, (_, index) =>
+    domain(`tied-${index}.eth`, expiryDate),
+  )
 
 describe('expiry page planning', () => {
   beforeEach(() => vi.mocked(fetchExpiringNamesPage).mockReset())
@@ -107,9 +112,11 @@ describe('expiry page planning', () => {
 
     const env = {} as CloudflareBindings
     const stage = STAGES[0]
-    if (!stage) throw new Error('Expected an expiry stage')
+    const track = TRACKS[0]
+    if (!stage || !track) throw new Error('Expected an expiry stage and track')
     const result = await fetchProcessableExpiringNames({
       env,
+      track,
       stage,
       cursor: 50,
       upperBound: 20_000,
@@ -118,12 +125,14 @@ describe('expiry page planning', () => {
     expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(2)
     expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(1, {
       env,
+      track,
       stage,
       cursor: 50,
       upperBound: 20_000,
     })
     expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(2, {
       env,
+      track,
       stage,
       cursor: timestamp - 1,
       upperBound: timestamp,

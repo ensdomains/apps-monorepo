@@ -131,6 +131,25 @@ it('processes overlapping messages once and ACKs every source message', async ()
   expect(db.insert).toHaveBeenCalledTimes(2)
 })
 
+it('writes the grace end into the notification payload in milliseconds', async () => {
+  const db = controlledDb()
+  vi.mocked(getDatabase).mockReturnValue(db as never)
+  await runQueue(
+    'app-api-worker-event-ingestion',
+    [{ ...event, graceEndDate: 1707776000 }],
+    makeMockEnv(),
+  )
+  const values = vi.mocked(db.insert).mock.results[0]?.value.values
+  expect(values).toHaveBeenCalledWith([
+    expect.objectContaining({
+      payload: expect.objectContaining({
+        expiryDate: 1700000000000,
+        graceEndDate: 1707776000000,
+      }),
+    }),
+  ])
+})
+
 it('reconciles persisted identities, emits all channel jobs, and ACKs the source', async () => {
   const db = controlledDb()
   vi.mocked(getDatabase).mockReturnValue(db as never)

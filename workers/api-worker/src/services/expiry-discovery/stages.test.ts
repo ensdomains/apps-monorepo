@@ -1,17 +1,20 @@
-import { V2_GRACE_PERIOD_DAYS } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
 import type { ExpiryStageId } from '#types/events/index.js'
 import {
   type ExpiryStageConfig,
+  type ExpiryTrack,
+  type ExpiryTrackId,
   getCloserStage,
   getDefaultCursorForStage,
   getExpiryStageRank,
   getLowerBoundForStage,
   getQueryCursorForStage,
+  getStageOffsetSeconds,
   getUpperBoundForStage,
   isNotifiableAtStage,
   MAX_STAGE_CATCH_UP_SECONDS,
   STAGES,
+  TRACKS,
 } from './stages.js'
 
 const DAY = 86_400
@@ -20,6 +23,14 @@ const getStage = (id: ExpiryStageId): ExpiryStageConfig => {
   if (!stage) throw new Error(`Missing stage fixture: ${id}`)
   return stage
 }
+const getTrack = (id: ExpiryTrackId): ExpiryTrack => {
+  const track = TRACKS.find((candidate) => candidate.id === id)
+  if (!track) throw new Error(`Missing track fixture: ${id}`)
+  return track
+}
+const V2 = getTrack('ens_v2')
+const V1_LEASE = getTrack('ens_v1_lease')
+const V1_RESERVED = getTrack('ens_v1_reserved')
 
 describe('expiry stages', () => {
   it('defines and orders the complete lifecycle', () => {
@@ -32,39 +43,72 @@ describe('expiry stages', () => {
       'grace-1d',
       'premium-start',
     ])
-    expect(STAGES.map((stage) => stage.offsetDays)).toEqual([
-      30,
-      7,
-      1,
-      0,
-      -(V2_GRACE_PERIOD_DAYS - 7),
-      -(V2_GRACE_PERIOD_DAYS - 1),
-      -V2_GRACE_PERIOD_DAYS,
-    ])
     expect(getStage('expiry-30d').includeFavorites).toBe(false)
     expect(STAGES.slice(1).every((stage) => stage.includeFavorites)).toBe(true)
   })
 
+  it('places ENSv2 stages on the expiry and its 28-day grace', () => {
+    expect(STAGES.map((stage) => getStageOffsetSeconds(stage, V2))).toEqual([
+      30 * DAY,
+      7 * DAY,
+      DAY,
+      0,
+      -21 * DAY,
+      -27 * DAY,
+      -28 * DAY,
+    ])
+  })
+
+  it.each([
+    V1_LEASE,
+    V1_RESERVED,
+  ])('places $id stages on the lease and its 90-day grace', (track) => {
+    expect(STAGES.map((stage) => getStageOffsetSeconds(stage, track))).toEqual([
+      30 * DAY,
+      7 * DAY,
+      DAY,
+      0,
+      -83 * DAY,
+      -89 * DAY,
+      // The lease is released only after its grace's last second.
+      -90 * DAY - 1,
+    ])
+  })
+
+  it('sweeps ENSv1 by authority, shifting reserved leases by 62 days', () => {
+    expect(V2.authority).toEqual(['ens_v2'])
+    expect(V1_LEASE.authority).toEqual(['ens_v1', 'ens_v0'])
+    expect(V1_RESERVED.authority).toEqual(['ens_v1', 'ens_v0'])
+    expect(V1_LEASE.servedShiftSeconds).toBe(0)
+    expect(V1_RESERVED.servedShiftSeconds).toBe(62 * DAY)
+  })
+
+  it('keeps the lifecycle order on every track', () => {
+    for (const track of TRACKS) {
+      const offsets = STAGES.map((stage) => getStageOffsetSeconds(stage, track))
+      expect(offsets).toEqual([...offsets].sort((a, b) => b - a))
+    }
+  })
+
   it('uses exclusive stage windows and a bounded final catch-up', () => {
     const now = 1_700_000_000
-    expect(getLowerBoundForStage(getStage('expiry-30d'), now)).toBe(
-      now + 7 * DAY,
+    const lower = (id: ExpiryStageId, track: ExpiryTrack) =>
+      getLowerBoundForStage(getStage(id), track, now)
+
+    expect(lower('expiry-30d', V2)).toBe(now + 7 * DAY)
+    expect(lower('expiry-7d', V2)).toBe(now + DAY)
+    expect(lower('expiry-1d', V2)).toBe(now)
+    expect(lower('grace-start', V2)).toBe(now - 21 * DAY)
+    expect(lower('grace-7d', V2)).toBe(now - 27 * DAY)
+    expect(lower('grace-1d', V2)).toBe(now - 28 * DAY)
+    expect(lower('premium-start', V2)).toBe(
+      getUpperBoundForStage(getStage('premium-start'), V2, now) -
+        MAX_STAGE_CATCH_UP_SECONDS,
     )
-    expect(getLowerBoundForStage(getStage('expiry-7d'), now)).toBe(now + DAY)
-    expect(getLowerBoundForStage(getStage('expiry-1d'), now)).toBe(now)
-    expect(getLowerBoundForStage(getStage('grace-start'), now)).toBe(
-      now - 21 * DAY,
-    )
-    expect(getLowerBoundForStage(getStage('grace-7d'), now)).toBe(
-      now - 27 * DAY,
-    )
-    expect(getLowerBoundForStage(getStage('grace-1d'), now)).toBe(
-      now - 28 * DAY,
-    )
-    const premiumUpper = getUpperBoundForStage(getStage('premium-start'), now)
-    expect(getLowerBoundForStage(getStage('premium-start'), now)).toBe(
-      premiumUpper - MAX_STAGE_CATCH_UP_SECONDS,
-    )
+
+    expect(lower('expiry-1d', V1_LEASE)).toBe(now)
+    expect(lower('grace-start', V1_LEASE)).toBe(now - 83 * DAY)
+    expect(lower('grace-1d', V1_LEASE)).toBe(now - 90 * DAY - 1)
   })
 
   it('finds closer stages by offset instead of array position', () => {
@@ -74,10 +118,10 @@ describe('expiry stages', () => {
       getStage('grace-start'),
       getStage('expiry-7d'),
     ]
-    expect(getCloserStage(getStage('expiry-30d'), disordered)?.id).toBe(
+    expect(getCloserStage(getStage('expiry-30d'), V2, disordered)?.id).toBe(
       'expiry-7d',
     )
-    expect(getCloserStage(getStage('grace-start'), disordered)?.id).toBe(
+    expect(getCloserStage(getStage('grace-start'), V2, disordered)?.id).toBe(
       'premium-start',
     )
   })
@@ -85,24 +129,24 @@ describe('expiry stages', () => {
   it('clamps stale cursors without moving in-window cursors', () => {
     const now = 1_700_000_000
     const stage = getStage('expiry-30d')
-    expect(getQueryCursorForStage(stage, now - 200 * DAY, now)).toBe(
+    expect(getQueryCursorForStage(stage, V2, now - 200 * DAY, now)).toBe(
       now + 7 * DAY,
     )
-    expect(getQueryCursorForStage(stage, now + 10 * DAY, now)).toBe(
+    expect(getQueryCursorForStage(stage, V2, now + 10 * DAY, now)).toBe(
       now + 10 * DAY,
     )
   })
 
   it('defaults post-expiry stages at their current boundaries', () => {
     const now = 1_700_000_000
-    expect(getDefaultCursorForStage(getStage('expiry-30d'), now)).toBe(now)
-    expect(getDefaultCursorForStage(getStage('grace-start'), now)).toBe(now)
-    expect(getDefaultCursorForStage(getStage('grace-7d'), now)).toBe(
-      now - 21 * DAY,
-    )
-    expect(getDefaultCursorForStage(getStage('premium-start'), now)).toBe(
-      now - 28 * DAY,
-    )
+    const defaultCursor = (id: ExpiryStageId, track: ExpiryTrack) =>
+      getDefaultCursorForStage(getStage(id), track, now)
+
+    expect(defaultCursor('expiry-30d', V2)).toBe(now)
+    expect(defaultCursor('grace-start', V2)).toBe(now)
+    expect(defaultCursor('grace-7d', V2)).toBe(now - 21 * DAY)
+    expect(defaultCursor('premium-start', V2)).toBe(now - 28 * DAY)
+    expect(defaultCursor('grace-7d', V1_RESERVED)).toBe(now - 83 * DAY)
   })
 
   it('ranks stages from future to past', () => {
@@ -115,44 +159,50 @@ describe('expiry stages', () => {
   })
 
   describe('isNotifiableAtStage', () => {
-    const held = ['active', 'wrapped', 'registered'] as const
-    const lapsed = ['released', 'unregistered'] as const
+    const held = (['active', 'wrapped', 'registered'] as const).map(
+      (registrationStatus) => ({ registrationStatus }),
+    )
+    const expiredRelease = {
+      registrationStatus: 'released',
+      releaseKind: 'expired',
+    } as const
+    const neverNotified = [
+      { registrationStatus: 'released', releaseKind: 'unregistered' },
+      { registrationStatus: 'released' },
+      { registrationStatus: 'unregistered' },
+    ] as const
 
     it.each([
       'expiry-30d',
       'expiry-7d',
       'expiry-1d',
     ] as const)('keeps only held names before expiry (%s)', (id) => {
-      for (const status of held) {
-        expect(isNotifiableAtStage(getStage(id), status)).toBe(true)
+      for (const candidate of held) {
+        expect(isNotifiableAtStage(getStage(id), candidate)).toBe(true)
       }
-      for (const status of lapsed) {
-        expect(isNotifiableAtStage(getStage(id), status)).toBe(false)
-      }
-    })
-
-    it('keeps held ENSv1 leases and lapsed ENSv2 registrations at grace start', () => {
-      for (const status of [...held, ...lapsed]) {
-        expect(isNotifiableAtStage(getStage('grace-start'), status)).toBe(true)
+      for (const candidate of [expiredRelease, ...neverNotified]) {
+        expect(isNotifiableAtStage(getStage(id), candidate)).toBe(false)
       }
     })
 
     it.each([
+      'grace-start',
       'grace-7d',
       'grace-1d',
-      'premium-start',
-    ] as const)('keeps only lapsed ENSv2 registrations late in grace (%s)', (id) => {
-      for (const status of held) {
-        expect(isNotifiableAtStage(getStage(id), status)).toBe(false)
+    ] as const)('keeps held ENSv1 leases and expired ENSv2 releases in grace (%s)', (id) => {
+      for (const candidate of [...held, expiredRelease]) {
+        expect(isNotifiableAtStage(getStage(id), candidate)).toBe(true)
       }
-      for (const status of lapsed) {
-        expect(isNotifiableAtStage(getStage(id), status)).toBe(true)
+      for (const candidate of neverNotified) {
+        expect(isNotifiableAtStage(getStage(id), candidate)).toBe(false)
       }
     })
 
-    it('keeps rows without a status at every stage', () => {
-      for (const stage of STAGES) {
-        expect(isNotifiableAtStage(stage, undefined)).toBe(true)
+    it('keeps only expired releases once grace has ended', () => {
+      const stage = getStage('premium-start')
+      expect(isNotifiableAtStage(stage, expiredRelease)).toBe(true)
+      for (const candidate of [...held, ...neverNotified]) {
+        expect(isNotifiableAtStage(stage, candidate)).toBe(false)
       }
     })
   })

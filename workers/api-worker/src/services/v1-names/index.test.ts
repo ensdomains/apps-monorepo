@@ -4,15 +4,17 @@ import { makeMockEnv } from '#test-utils/env.js'
 import { hasV1Names } from './index'
 
 const ADDRESS = '0xabcdef0123456789abcdef0123456789abcdef01'
-const DAY_MS = 86_400_000
-const future = () => new Date(Date.now() + 30 * DAY_MS).toISOString()
-const past = () => new Date(Date.now() - DAY_MS).toISOString()
+const DAY = 86_400
+const nowSec = () => Math.floor(Date.now() / 1000)
+const future = () => String(nowSec() + 30 * DAY)
+const past = () => String(nowSec() - DAY)
 
 type Row = {
   name: string
-  expires_at?: string
+  expires_at?: string | null
   registration_status?: string
   authority?: string
+  ens_v1?: { expires_at?: string | null }
 }
 
 const row = (overrides: Row) => ({
@@ -61,7 +63,7 @@ afterEach(() => {
 })
 
 describe('hasV1Names', () => {
-  it('returns true for a live ENSv1 name', async () => {
+  it('returns true for a live ENSv1 name from one walk over both authorities', async () => {
     const { fetchMock, url } = mockFetch(
       page([{ name: 'alpha.eth', expires_at: future() }]),
     )
@@ -74,36 +76,53 @@ describe('hasV1Names', () => {
     expect(request.pathname).toBe(`/v1/addresses/${ADDRESS}/names`)
     expect(Object.fromEntries(request.searchParams)).toEqual({
       relation: 'any',
-      authority: 'ens_v1',
+      authority: 'ens_v1,ens_v0',
       sort: 'expires_at',
       order: 'desc',
       page_size: '200',
     })
   })
 
-  it('checks names still on the 2017 registry (ens_v0) after ens_v1', async () => {
-    const { fetchMock, url } = mockFetch(
-      page([]),
+  it('counts names still on the 2017 registry (ens_v0)', async () => {
+    mockFetch(
       page([{ name: 'legacy.eth', authority: 'ens_v0', expires_at: future() }]),
     )
-
     await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
-
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(url(1).searchParams.get('authority')).toBe('ens_v0')
   })
 
-  it('returns false when neither authority lists a name', async () => {
-    const { fetchMock } = mockFetch(page([]), page([]))
+  it('returns false when the walk lists no name', async () => {
+    const { fetchMock } = mockFetch(page([]))
     await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(false)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('counts a name without an expiry as live', async () => {
     mockFetch(
-      page([{ name: 'sub.alpha.eth', registration_status: 'registered' }]),
+      page([
+        {
+          name: 'sub.alpha.eth',
+          registration_status: 'wrapped',
+          expires_at: null,
+          ens_v1: { expires_at: null },
+        },
+      ]),
     )
     await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
+  })
+
+  it('judges a reserved lease by its own date, not the reservation', async () => {
+    mockFetch(
+      // Lease ended yesterday; the ENSv2 reservation runs 61 more days.
+      page([
+        {
+          name: 'reserved.eth',
+          registration_status: 'wrapped',
+          expires_at: String(nowSec() + 61 * DAY),
+          ens_v1: { expires_at: past() },
+        },
+      ]),
+    )
+    await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(false)
   })
 
   it('ignores reverse records, released, ownerless and expired names', async () => {
@@ -133,21 +152,43 @@ describe('hasV1Names', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(url(1).searchParams.get('cursor')).toBe('next-1')
-    expect(url(1).searchParams.get('authority')).toBe('ens_v1')
+    expect(url(1).searchParams.get('order')).toBe('desc')
   })
 
-  it('stops paging an authority once its rows have expired', async () => {
+  it('stops at the first lapsed expiry and reads expiry-less rows from the ascending end', async () => {
     const { fetchMock, url } = mockFetch(
       page([{ name: 'expired.eth', expires_at: past() }], 'next-1'),
-      page([]),
+      page([
+        {
+          name: 'sub.alpha.eth',
+          registration_status: 'wrapped',
+          expires_at: null,
+        },
+      ]),
+    )
+
+    await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
+
+    // The descending continuation is skipped; the second call starts over ascending.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(url(1).searchParams.get('order')).toBe('asc')
+    expect(url(1).searchParams.has('cursor')).toBe(false)
+  })
+
+  it('stops the ascending walk at the first row with an expiry', async () => {
+    const { fetchMock } = mockFetch(
+      page([{ name: 'expired.eth', expires_at: past() }], 'next-1'),
+      page(
+        [
+          { name: 'husk.alpha.eth', registration_status: 'unregistered' },
+          { name: 'old.eth', expires_at: past() },
+        ],
+        'next-2',
+      ),
     )
 
     await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(false)
-
-    // The ens_v1 continuation is skipped; the second call is ens_v0.
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(url(1).searchParams.get('authority')).toBe('ens_v0')
-    expect(url(1).searchParams.has('cursor')).toBe(false)
   })
 
   it('throws on a failed read (fail-closed for callers)', async () => {

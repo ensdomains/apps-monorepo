@@ -5,7 +5,7 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { getDefaultCursorForStage, STAGES } from './stages.js'
+import { getDefaultCursorForStage, STAGES, TRACKS } from './stages.js'
 
 class MockKV {
   private store = new Map<string, string>()
@@ -27,9 +27,14 @@ class MockKV {
 
 const defaultsAt = (now: number): NotificationCursors =>
   Object.fromEntries(
-    STAGES.map((stage) => [
-      stage.id,
-      { expiry_timestamp: getDefaultCursorForStage(stage, now) },
+    TRACKS.map((track) => [
+      track.id,
+      Object.fromEntries(
+        STAGES.map((stage) => [
+          stage.id,
+          { expiry_timestamp: getDefaultCursorForStage(stage, track, now) },
+        ]),
+      ),
     ]),
   ) as NotificationCursors
 
@@ -43,19 +48,45 @@ describe('notification cursors', () => {
     expect(result._unsafeUnwrap()).toEqual(defaultsAt(now))
   })
 
-  it('fills missing lifecycle keys without reading legacy keys', async () => {
+  it('fills missing track and stage keys from the defaults', async () => {
+    const kv = new MockKV()
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
+      ens_v1_reserved: { 'grace-1d': { expiry_timestamp: 10 } },
+    })
+    const result = await loadNotificationCursors(
+      { KV: kv } as unknown as CloudflareBindings,
+      100,
+    )
+    const defaults = defaultsAt(100)
+    expect(result._unsafeUnwrap()).toEqual({
+      ...defaults,
+      ens_v1_reserved: {
+        ...defaults.ens_v1_reserved,
+        'grace-1d': { expiry_timestamp: 10 },
+      },
+    })
+  })
+
+  it('carries pre-track cursors over to the tracks windowed on the served expiry', async () => {
     const kv = new MockKV()
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
       'expiry-30d': { expiry_timestamp: 10 },
+      // Keys from before the lifecycle stages are not read.
       '30d': { expiry_timestamp: 999 },
     })
     const result = await loadNotificationCursors(
       { KV: kv } as unknown as CloudflareBindings,
       100,
     )
+    const defaults = defaultsAt(100)
     expect(result._unsafeUnwrap()).toEqual({
-      ...defaultsAt(100),
-      'expiry-30d': { expiry_timestamp: 10 },
+      ens_v2: { ...defaults.ens_v2, 'expiry-30d': { expiry_timestamp: 10 } },
+      ens_v1_lease: {
+        ...defaults.ens_v1_lease,
+        'expiry-30d': { expiry_timestamp: 10 },
+      },
+      // A reserved lease's window sits 62 days before the served expiry.
+      ens_v1_reserved: defaults.ens_v1_reserved,
     })
   })
 
