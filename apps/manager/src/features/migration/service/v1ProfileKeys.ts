@@ -1,4 +1,4 @@
-import { parseRecordKey, type RecordInventory } from '@ens-apps/bigname'
+import type { RecordGroups } from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 import { bigname } from '@/lib/bigname'
@@ -26,8 +26,8 @@ export const hasV1ProfileRecords = (keys: V1ProfileKeys): boolean =>
 /**
  * The ABI content types the ENS resolver profiles define (JSON, zlib JSON,
  * CBOR, URI). When bigname cannot list a name's ABI content types
- * (`abi_content_types: null`), each of these is read on-chain instead, and
- * empty answers are dropped as for listed types.
+ * (`seen_abis` omitted, with `abi_unsupported_reason`), each of these is read
+ * on-chain instead, and empty answers are dropped as for listed types.
  */
 export const PROBED_ABI_CONTENT_TYPES: readonly bigint[] = [1n, 2n, 4n, 8n]
 
@@ -37,46 +37,42 @@ class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
 
 export type ProfileKeyTarget = { readonly id: string; readonly name: string }
 
+/** A `seen_*` key is worth reading unless bigname knows it was cleared (`null`). */
+const isNotCleared =
+  (values: Readonly<Record<string, unknown>>) =>
+  (key: string): boolean =>
+    values[key] !== null
+
 /**
- * Keys from a bigname record inventory. `unsupported_keys` are keys the
- * resolver is known to hold whose values bigname cannot vouch for; they still
- * need copying, so they are read on-chain with `known_keys`. `unset_keys` are
- * known to be cleared and are skipped.
+ * Keys from a name's grouped `records` (lookup `profile=detail`). Each
+ * `seen_*` list names the keys the resolver has written. A key mapped to
+ * `null` was cleared and is skipped; a key missing from its value map has a
+ * value bigname cannot vouch for, so it is still read on-chain. `avatar` is a
+ * text key; coin types are canonical decimal strings.
  */
-export const profileKeysFromInventory = (
+export const profileKeysFromRecords = (
   id: string,
-  inventory: RecordInventory,
+  records: RecordGroups,
 ): V1ProfileKeys => {
-  const texts = new Set<string>()
-  const coinTypes = new Set<number>()
-  let hasContentHash = false
-  for (const key of [...inventory.known_keys, ...inventory.unsupported_keys]) {
-    const parsed = parseRecordKey(key)
-    if (!parsed) continue
-    switch (parsed.kind) {
-      case 'text':
-        texts.add(parsed.key)
-        break
-      case 'avatar':
-        texts.add('avatar')
-        break
-      case 'addr':
-        coinTypes.add(parsed.coinType)
-        break
-      case 'contenthash':
-        hasContentHash = true
-        break
-    }
-  }
+  const texts = records.seen_texts.filter(isNotCleared(records.texts))
+  const coinTypes = records.seen_addresses
+    .filter(isNotCleared(records.addresses))
+    .flatMap((coinType) => {
+      const value = Number(coinType)
+      return Number.isSafeInteger(value) ? [value] : []
+    })
+  const hasContentHash =
+    records.seen_singletons.includes('contenthash') &&
+    records.contenthash !== null
   const abiContentTypes =
-    inventory.abi_content_types === null
+    records.seen_abis === undefined
       ? PROBED_ABI_CONTENT_TYPES
-      : [...new Set(inventory.abi_content_types.map((type) => BigInt(type)))]
+      : [...new Set(records.seen_abis.map((type) => BigInt(type)))]
 
   return {
     id: id.toLowerCase(),
-    texts: [...texts],
-    coinTypes: [...coinTypes],
+    texts: [...new Set(texts)],
+    coinTypes: [...new Set(coinTypes)],
     hasContentHash,
     abiContentTypes,
   }
@@ -90,26 +86,26 @@ const fetchProfileKeysBatch = async (
     {
       inputs: targets.map(({ id, name }) => ({ id, name })),
       profile: 'detail',
-      include: ['inventory'],
     },
     { signal },
   )
-  // A name with no inventory container (unsupported, unregistered, or no
-  // inventory row on its resolver) is left out, so callers see it as missing
-  // rather than as a name with no records.
+  // A name without `records` (unsupported, unregistered, or one whose records
+  // bigname withholds, e.g. `unresolvable_reason: no_live_ens_v2_entry`) is
+  // left out, so callers see it as missing rather than as a name with no
+  // records.
   return data.flatMap((result): V1ProfileKeys[] => {
     if (result.kind !== 'name' || result.status !== 'ok') return []
     const record = result.record
-    if (!record || record.status === 'unsupported' || !record.inventory) {
+    if (!record || record.status === 'unsupported' || !record.records) {
       return []
     }
-    return [profileKeysFromInventory(record.namehash, record.inventory)]
+    return [profileKeysFromRecords(record.namehash, record.records)]
   })
 }
 
 /**
  * Record keys for many ENSv1 names through `POST /v1/lookup`
- * (`profile=detail`, `include=inventory`), up to 1,000 names per request.
+ * (`profile=detail`), up to 1,000 names per request.
  */
 export const getV1ProfileKeys = ResultFn(async function* (
   targets: readonly ProfileKeyTarget[],

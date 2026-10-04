@@ -54,7 +54,7 @@ describe('getDashboardNames', () => {
               row({
                 name: 'legacy.eth',
                 authority: 'ens_v1',
-                relations: ['registrant'],
+                relations: ['owner'],
               }),
               row({ name: 'lapsed.eth', registration_status: 'released' }),
             ],

@@ -1,13 +1,8 @@
-import { isNameProfile, timestampToSeconds } from '@ens-apps/bigname'
+import { isNameProfile, timestampToBigInt } from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import {
-  getExpiry as ensjsv1_getExpiry,
-  type GetExpiryErrorType as GetV1ExpiryErrorType,
-  type GetExpiryReturnType as GetV1ExpiryReturnType,
-} from '@ensdomains/ensjs/public/v1'
 import {
   getExpiry as ensjsv2_getExpiry,
   type GetExpiryErrorType as GetV2ExpiryErrorType,
@@ -54,7 +49,7 @@ export const getProfileExpiryResultStatus = (
     : getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
-  cause: GetV1ExpiryErrorType | GetV2ExpiryErrorType
+  cause: unknown
 }> {}
 
 const ENS_REGISTRY = getChainContractAddress({
@@ -62,18 +57,17 @@ const ENS_REGISTRY = getChainContractAddress({
   contract: 'ensRegistry',
 })
 
-const normalizeV1Expiry = (
-  expiry: GetV1ExpiryReturnType,
-): ProfileExpiryResult => {
-  if (expiry?.expiry === 0n) {
-    return { expiry: null, isNonExpiring: true, protocol: 'v1' }
-  }
-
-  return {
-    expiry: expiry?.expiry ?? null,
-    isNonExpiring: false,
-    protocol: 'v1',
-  }
+/**
+ * An ENSv1 `.eth` 2LD's BaseRegistrar lease, as bigname serves it in
+ * `ens_v1.expires_at`. The top-level `expires_at` of such a name is its ENSv2
+ * reservation's from the Universal Resolver cutover, so it is not read here;
+ * the ENSv1 grace (90 days) is added to the lease by `getNameExpiryStatus`.
+ * A name bigname does not know (404) or serves without a lease answers null.
+ */
+const getV1LeaseExpiry = async (name: string): Promise<bigint | null> => {
+  const detail = await bigname.getName(name)
+  if (!detail || !isNameProfile(detail.data)) return null
+  return timestampToBigInt(detail.data.ens_v1?.expires_at) ?? null
 }
 
 /**
@@ -83,7 +77,9 @@ const normalizeV1Expiry = (
  * so this reads the indexer. Deliberately not bounded by the ancestors: a v2
  * label carries its own expiry, and a detached or custom subregistry can
  * outlive its parent, so a computed minimum would report a date no registry
- * holds. bigname omits `expires_at` when none is set (a parent that set no
+ * holds. A subname has no ENSv1 lease, so its top-level `expires_at` is its
+ * own (for a wrapped ENSv1 subname, the NameWrapper entry's). bigname serves
+ * `null` with `expires_at_reason` when none is set (a parent that set no
  * wrapper expiry, a v2 max expiry); that and any failure answer null and
  * render as no expiry. Released and expired subnames are still served.
  */
@@ -91,8 +87,7 @@ const getIndexedExpiry = async (name: string): Promise<bigint | null> => {
   try {
     const detail = await bigname.getName(name)
     if (!detail || !isNameProfile(detail.data)) return null
-    const seconds = timestampToSeconds(detail.data.expires_at)
-    return seconds === undefined ? null : BigInt(seconds)
+    return timestampToBigInt(detail.data.expires_at) ?? null
   } catch {
     return null
   }
@@ -128,19 +123,20 @@ export const getExpiry = ResultFn(async function* (
   const ownerRecord = protocol ? null : yield* getOwner({ name: ethName.name })
   const resolvedProtocol = protocol ?? ownerRecord?.protocol ?? 'v2'
 
-  const client = yield* safeGetClient()
-
   if (resolvedProtocol === 'v1') {
-    const v1Expiry = yield* fromPromise(
-      ensjsv1_getExpiry(client, { name: ethName.name }),
-      (e) =>
-        new GetProfileExpiryError({
-          cause: e as GetV1ExpiryErrorType,
-        }),
+    const leaseExpiry = yield* fromPromise(
+      getV1LeaseExpiry(ethName.name),
+      (e) => new GetProfileExpiryError({ cause: e }),
     )
 
-    return ok(normalizeV1Expiry(v1Expiry))
+    return ok({
+      expiry: leaseExpiry,
+      isNonExpiring: false,
+      protocol: 'v1',
+    } satisfies ProfileExpiryResult)
   }
+
+  const client = yield* safeGetClient()
 
   const expiry = yield* fromPromise(
     ensjsv2_getExpiry(client, {

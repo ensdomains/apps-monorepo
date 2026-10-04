@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   client: {},
-  getV1Expiry: vi.fn(),
   getV2Expiry: vi.fn(),
   getName: vi.fn(),
   owner: null as null | { readonly owner?: string; readonly protocol: string },
@@ -15,14 +14,27 @@ vi.mock('./profileOwner', async () => {
 
 vi.mock('@/lib/bigname', () => ({ bigname: { getName: mocks.getName } }))
 
-const subnameDetail = (expiresAt?: string) => ({
-  data: { name: 'mini.shiba.eth', status: 'ok', expires_at: expiresAt },
+const subnameDetail = (expiresAt?: string | null) => ({
+  data: {
+    name: 'mini.shiba.eth',
+    status: 'ok',
+    expires_at: expiresAt,
+    ...(expiresAt === null ? { expires_at_reason: 'not_set' } : {}),
+  },
   meta: {},
 })
 
-vi.mock('@ensdomains/ensjs/public/v1', () => ({
-  getExpiry: mocks.getV1Expiry,
-}))
+/** bigname v0.4.1 name detail of an ENSv1 `.eth` 2LD after the cutover. */
+const v1Detail = (lease: string | null, reservation = '1798801736') => ({
+  data: {
+    name: 'fgeorgescu.eth',
+    status: 'ok',
+    authority: 'ens_v1',
+    expires_at: reservation,
+    ens_v1: { expires_at: lease },
+  },
+  meta: {},
+})
 
 vi.mock('@ensdomains/ensjs/public/v2', () => ({
   getExpiry: mocks.getV2Expiry,
@@ -65,46 +77,38 @@ describe('getExpiry', () => {
     vi.useRealTimers()
   })
 
-  it('uses V1 registrar expiry for a V1 name', async () => {
-    mocks.getV1Expiry.mockResolvedValue({
-      expiry: 1_793_442_936n,
-      gracePeriod: 7_776_000,
-      status: 'active',
-    })
+  it("reads a V1 name's lease from bigname ens_v1.expires_at, not the ENSv2 reservation", async () => {
+    mocks.getName.mockResolvedValue(v1Detail('1793442936'))
 
     const result = await getExpiry('fgeorgescu.eth', 'v1')
 
-    expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toEqual({
       expiry: 1_793_442_936n,
       isNonExpiring: false,
       protocol: 'v1',
     })
-    expect(mocks.getV1Expiry).toHaveBeenCalledWith(mocks.client, {
-      name: 'fgeorgescu.eth',
+    expect(mocks.getName).toHaveBeenCalledWith('fgeorgescu.eth')
+    expect(mocks.getV2Expiry).not.toHaveBeenCalled()
+  })
+
+  it('reports no expiry for a V1 name bigname does not know', async () => {
+    mocks.getName.mockResolvedValue(null)
+
+    const result = await getExpiry('fgeorgescu.eth', 'v1')
+
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: null,
+      isNonExpiring: false,
+      protocol: 'v1',
     })
   })
 
-  it('does not query V2 registration or expiry for a V1 name', async () => {
-    mocks.getV2Expiry.mockResolvedValue(1_801_218_936n)
-    mocks.getV1Expiry.mockResolvedValue({
-      expiry: 1_793_442_936n,
-      gracePeriod: 7_776_000,
-      status: 'active',
-    })
+  it('returns err when bigname fails for a V1 name', async () => {
+    mocks.getName.mockRejectedValue(new Error('bigname down'))
 
     const result = await getExpiry('fgeorgescu.eth', 'v1')
 
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({
-      expiry: 1_793_442_936n,
-      isNonExpiring: false,
-      protocol: 'v1',
-    })
-    expect(mocks.getV2Expiry).not.toHaveBeenCalled()
-    expect(mocks.getV1Expiry).toHaveBeenCalledWith(mocks.client, {
-      name: 'fgeorgescu.eth',
-    })
+    expect(result.isErr()).toBe(true)
   })
 
   it('uses V2 expiry for a V2 name', async () => {
@@ -118,24 +122,7 @@ describe('getExpiry', () => {
       isNonExpiring: false,
       protocol: 'v2',
     })
-    expect(mocks.getV1Expiry).not.toHaveBeenCalled()
-  })
-
-  it('preserves non-expiring V1 fallback state', async () => {
-    mocks.getV1Expiry.mockResolvedValue({
-      expiry: 0n,
-      gracePeriod: 7_776_000,
-      status: 'active',
-    })
-
-    const result = await getExpiry('pokemon.eth', 'v1')
-
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({
-      expiry: null,
-      isNonExpiring: true,
-      protocol: 'v1',
-    })
+    expect(mocks.getName).not.toHaveBeenCalled()
   })
 
   it('does not read an unowned V2 label as non-expiring', async () => {
@@ -190,7 +177,7 @@ describe('subnames', () => {
   // Not clamped to the parent: a v2 label carries its own expiry in its
   // registry, and a detached or custom subregistry can outlive its parent.
   it('reads the expiry the indexer records for the subname itself', async () => {
-    mocks.getName.mockResolvedValue(subnameDetail('2027-09-23T11:53:39Z'))
+    mocks.getName.mockResolvedValue(subnameDetail('1821700419'))
 
     const result = await getExpiry('mini.shiba.eth')
 
@@ -212,7 +199,7 @@ describe('subnames', () => {
   })
 
   it('reports no expiry for a subname whose parent set none', async () => {
-    mocks.getName.mockResolvedValue(subnameDetail(undefined))
+    mocks.getName.mockResolvedValue(subnameDetail(null))
 
     const result = await getExpiry('mini.shiba.eth')
 
@@ -228,7 +215,7 @@ describe('subnames', () => {
   })
 
   it('reports no grace window after a subname expires', async () => {
-    mocks.getName.mockResolvedValue(subnameDetail('2020-09-13T12:26:40Z'))
+    mocks.getName.mockResolvedValue(subnameDetail('1600000000'))
 
     const status = getProfileExpiryResultStatus(
       (await getExpiry('mini.shiba.eth'))._unsafeUnwrap(),

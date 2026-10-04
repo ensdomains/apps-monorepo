@@ -12,9 +12,19 @@ import {
 const HOLDER = '0x00000000000000000000000000000000000000AA'
 const CONTROLLER = '0x00000000000000000000000000000000000000bb'
 const RESOLVER = '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5'
-const EXPIRES = '2030-01-01T00:00:00Z'
-const EXPIRES_SECONDS = BigInt(Date.parse(EXPIRES) / 1000)
+const DAY = 86_400n
+const NOW_SECONDS = BigInt(Math.floor(Date.now() / 1000))
+/** The ENSv1 lease, a year out. */
+const LEASE_SECONDS = NOW_SECONDS + 365n * DAY
+const LEASE = LEASE_SECONDS.toString()
+/** The ENSv2 reservation premigration made: lease + 62 days. */
+const RESERVATION = (LEASE_SECONDS + 62n * DAY).toString()
 
+const lockedFuses = Number(
+  FUSES.CANNOT_UNWRAP | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+)
+
+/** An unwrapped `.eth` 2LD as bigname v0.4.1 serves it after the cutover. */
 const record = (
   name: string,
   overrides: Partial<BignameV1NameRecord> = {},
@@ -22,11 +32,27 @@ const record = (
   name,
   namehash: namehash(name),
   owner: HOLDER,
-  registrant: HOLDER,
-  expires_at: EXPIRES,
+  manager: HOLDER,
+  expires_at: RESERVATION,
+  registration_status: 'active',
   resolver: { address: RESOLVER },
+  ens_v1: { expires_at: LEASE },
   ...overrides,
 })
+
+const wrappedSub = (
+  name: string,
+  overrides: Partial<BignameV1NameRecord> = {},
+): BignameV1NameRecord =>
+  record(name, {
+    registration_status: 'wrapped',
+    ens_v1: {
+      expires_at: null,
+      wrapper_state: 'emancipated',
+      wrapper_fuses: { fuses: Number(FUSES.PARENT_CANNOT_CONTROL) },
+    },
+    ...overrides,
+  })
 
 describe('v1ParentName', () => {
   it('strips the first label', () => {
@@ -37,7 +63,7 @@ describe('v1ParentName', () => {
 })
 
 describe('v1DomainFromBigname', () => {
-  it('maps an unwrapped .eth 2LD, reading the registry owner from manager', () => {
+  it('maps an unwrapped .eth 2LD: token holder from owner, registry owner from manager, lease from ens_v1', () => {
     const domain = v1DomainFromBigname(
       record('alice.eth', { manager: CONTROLLER }),
     )
@@ -52,45 +78,146 @@ describe('v1DomainFromBigname', () => {
       registrant: { id: HOLDER.toLowerCase() },
       wrappedOwner: null,
       parent: { name: 'eth', wrappedDomain: null },
-      registration: { expiryDate: EXPIRES_SECONDS.toString() },
+      registration: { expiryDate: LEASE },
       wrappedDomain: null,
     })
   })
 
-  it('adds the NameWrapper grace period to a wrapped .eth 2LD expiry', () => {
-    const fuses = Number(FUSES.CANNOT_UNWRAP | FUSES.PARENT_CANNOT_CONTROL)
+  it('lists an unwrapped .eth 2LD for its token holder, also when owner != manager', () => {
     const domain = v1DomainFromBigname(
       record('alice.eth', {
-        wrapper_state: 'locked',
-        wrapper_fuses: { fuses },
+        manager: CONTROLLER,
+        registration_status: 'registered',
+      }),
+    )
+
+    expect(
+      classifyName(domain, HOLDER, supportedL1Chains.sepolia),
+    ).toMatchObject({
+      type: 'classified',
+      name: {
+        tokenType: 'unwrapped',
+        tokenHolder: HOLDER.toLowerCase(),
+        managerAddress: CONTROLLER.toLowerCase(),
+      },
+    })
+    expect(
+      classifyName(domain, CONTROLLER, supportedL1Chains.sepolia),
+    ).toBeNull()
+  })
+
+  it('never reads the top-level (ENSv2) expiry as the lease', () => {
+    const domain = v1DomainFromBigname(
+      record('alice.eth', {
+        expires_at: (NOW_SECONDS + 30n * DAY).toString(),
+        ens_v1: { expires_at: (NOW_SECONDS - 30n * DAY).toString() },
+      }),
+    )
+
+    expect(domain.registration).toEqual({
+      expiryDate: (NOW_SECONDS - 30n * DAY).toString(),
+    })
+    expect(
+      classifyName(domain, HOLDER, supportedL1Chains.sepolia),
+    ).toMatchObject({
+      type: 'ineligible',
+      name: { reason: 'expired-registration' },
+    })
+  })
+
+  it('reads wrapper state and fuses from ens_v1 and adds the grace period to the lease', () => {
+    const domain = v1DomainFromBigname(
+      record('alice.eth', {
+        registration_status: 'wrapped',
+        ens_v1: {
+          expires_at: LEASE,
+          wrapper_state: 'locked',
+          wrapper_fuses: { fuses: lockedFuses },
+        },
       }),
     )
 
     expect(domain.wrappedOwner).toEqual({ id: HOLDER.toLowerCase() })
+    expect(domain.registrant).toBeNull()
     expect(domain.wrappedDomain).toEqual({
-      expiryDate: (EXPIRES_SECONDS + GRACE_PERIOD_SECONDS).toString(),
-      fuses,
+      expiryDate: (LEASE_SECONDS + GRACE_PERIOD_SECONDS).toString(),
+      fuses: lockedFuses,
     })
-    expect(domain.registration).toEqual({
-      expiryDate: EXPIRES_SECONDS.toString(),
+    expect(domain.registration).toEqual({ expiryDate: LEASE })
+    expect(
+      classifyName(domain, HOLDER, supportedL1Chains.sepolia),
+    ).toMatchObject({ type: 'classified', name: { tokenType: 'locked-2ld' } })
+  })
+
+  it('prefers the served NameWrapper expiry from address-row restrictions', () => {
+    const served = (LEASE_SECONDS + 100n * DAY).toString()
+    const wrapped = record('alice.eth', {
+      registration_status: 'wrapped',
+      ens_v1: {
+        expires_at: LEASE,
+        wrapper_state: 'locked',
+        wrapper_fuses: { fuses: lockedFuses },
+      },
+    })
+
+    expect(
+      v1DomainFromBigname(wrapped, null, {
+        kind: 'ens_v1_wrapper',
+        wrapper_expires_at: served,
+      }).wrappedDomain?.expiryDate,
+    ).toBe(served)
+    expect(
+      v1DomainFromBigname(wrappedSub('sub.alice.eth'), null, {
+        kind: 'ens_v1_wrapper',
+        wrapper_expires_at: null,
+        wrapper_expires_at_reason: 'not_set',
+      }).wrappedDomain?.expiryDate,
+    ).toBe('0')
+    expect(
+      v1DomainFromBigname(wrapped, null, {
+        kind: 'ens_v2_registry',
+      }).wrappedDomain?.expiryDate,
+    ).toBe((LEASE_SECONDS + GRACE_PERIOD_SECONDS).toString())
+  })
+
+  it('classifies a locked .eth 2LD whose lease is in grace (no manager served) as expired-registration', () => {
+    const lease = NOW_SECONDS - 3n * DAY
+    const domain = v1DomainFromBigname(
+      record('leon000.eth', {
+        manager: undefined,
+        registration_status: 'wrapped',
+        expires_at: (lease + 62n * DAY).toString(),
+        ens_v1: {
+          expires_at: lease.toString(),
+          wrapper_state: 'locked',
+          wrapper_fuses: { fuses: lockedFuses },
+        },
+      }),
+    )
+
+    expect(domain.registration).toEqual({ expiryDate: lease.toString() })
+    expect(domain.wrappedDomain?.expiryDate).toBe(
+      (lease + GRACE_PERIOD_SECONDS).toString(),
+    )
+    expect(
+      classifyName(domain, HOLDER, supportedL1Chains.sepolia),
+    ).toMatchObject({
+      type: 'ineligible',
+      name: { reason: 'expired-registration' },
     })
   })
 
-  it('uses a wrapped subname expiry as the wrapper expiry and reads parent fuses', () => {
-    const domain = v1DomainFromBigname(
-      record('sub.alice.eth', {
-        registrant: undefined,
-        wrapper_state: 'emancipated',
-        wrapper_fuses: { fuses: Number(FUSES.PARENT_CANNOT_CONTROL) },
-      }),
-      { wrapper_fuses: { fuses: Number(FUSES.CANNOT_UNWRAP) } },
-    )
+  it('uses a wrapped subname expiry as the wrapper expiry and reads parent fuses from ens_v1', () => {
+    const domain = v1DomainFromBigname(wrappedSub('sub.alice.eth'), {
+      ens_v1: { wrapper_fuses: { fuses: lockedFuses } },
+    })
 
     expect(domain.registration).toBeNull()
-    expect(domain.wrappedDomain?.expiryDate).toBe(EXPIRES_SECONDS.toString())
+    expect(domain.registrant).toBeNull()
+    expect(domain.wrappedDomain?.expiryDate).toBe(RESERVATION)
     expect(domain.parent).toEqual({
       name: 'alice.eth',
-      wrappedDomain: { fuses: Number(FUSES.CANNOT_UNWRAP) },
+      wrappedDomain: { fuses: lockedFuses },
     })
     expect(
       classifyName(domain, HOLDER, supportedL1Chains.sepolia),
@@ -100,12 +227,61 @@ describe('v1DomainFromBigname', () => {
     })
   })
 
+  it('classifies a wrapped subname past its wrapper expiry as expired-registration', () => {
+    const domain = v1DomainFromBigname(
+      wrappedSub('sub001.leon000.eth', {
+        expires_at: '1728697233',
+        ens_v1: {
+          expires_at: null,
+          wrapper_state: 'wrapped',
+          wrapper_fuses: { fuses: 0 },
+        },
+      }),
+    )
+
+    expect(domain.wrappedDomain).toEqual({ expiryDate: '1728697233', fuses: 0 })
+    expect(
+      classifyName(domain, HOLDER, supportedL1Chains.sepolia),
+    ).toMatchObject({
+      type: 'ineligible',
+      name: { reason: 'expired-registration' },
+    })
+  })
+
+  it('reads a null subname expiry with reason not_set as zero', () => {
+    const domain = v1DomainFromBigname(
+      wrappedSub('sub.alice.eth', {
+        expires_at: null,
+        expires_at_reason: 'not_set',
+        ens_v1: {
+          expires_at: null,
+          wrapper_state: 'wrapped',
+          wrapper_fuses: { fuses: 0 },
+        },
+      }),
+    )
+    expect(domain.wrappedDomain?.expiryDate).toBe('0')
+  })
+
+  it('reads a null subname expiry with reason no_expiry as the uint64 maximum', () => {
+    const domain = v1DomainFromBigname(
+      wrappedSub('sub.alice.eth', {
+        expires_at: null,
+        expires_at_reason: 'no_expiry',
+      }),
+    )
+    expect(domain.wrappedDomain?.expiryDate).toBe(((1n << 64n) - 1n).toString())
+  })
+
   it('treats an omitted subname expiry as zero while only wrapped', () => {
     const domain = v1DomainFromBigname(
-      record('sub.alice.eth', {
+      wrappedSub('sub.alice.eth', {
         expires_at: undefined,
-        wrapper_state: 'wrapped',
-        wrapper_fuses: { fuses: 0 },
+        ens_v1: {
+          expires_at: null,
+          wrapper_state: 'wrapped',
+          wrapper_fuses: { fuses: 0 },
+        },
       }),
     )
     expect(domain.wrappedDomain?.expiryDate).toBe('0')
@@ -113,11 +289,7 @@ describe('v1DomainFromBigname', () => {
 
   it('treats an omitted expiry on an emancipated subname as unrepresentably large', () => {
     const domain = v1DomainFromBigname(
-      record('sub.alice.eth', {
-        expires_at: undefined,
-        wrapper_state: 'emancipated',
-        wrapper_fuses: { fuses: Number(FUSES.PARENT_CANNOT_CONTROL) },
-      }),
+      wrappedSub('sub.alice.eth', { expires_at: undefined }),
     )
     expect(domain.wrappedDomain?.expiryDate).toBe(((1n << 64n) - 1n).toString())
   })
@@ -127,18 +299,23 @@ describe('v1DomainFromBigname', () => {
       record('alice.eth', { registration_status: 'wrapped' }),
     )
     expect(domain.wrappedOwner).toEqual({ id: HOLDER.toLowerCase() })
+    expect(domain.registrant).toBeNull()
     expect(domain.wrappedDomain).toEqual({ expiryDate: '0', fuses: 0 })
   })
 
   it('reads a registry-only subname owner from owner', () => {
     const domain = v1DomainFromBigname(
       record('sub.alice.eth', {
-        registrant: undefined,
+        registration_status: 'unregistered',
+        expires_at: undefined,
+        ens_v1: { expires_at: null },
         resolver: null,
         manager: CONTROLLER,
       }),
     )
     expect(domain.owner).toEqual({ id: HOLDER.toLowerCase() })
+    expect(domain.registrant).toBeNull()
+    expect(domain.registration).toBeNull()
     expect(domain.resolver).toBeNull()
     expect(domain.wrappedOwner).toBeNull()
   })

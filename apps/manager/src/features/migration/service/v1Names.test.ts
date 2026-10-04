@@ -22,7 +22,10 @@ vi.mock('@/lib/bigname', async () => {
 })
 
 const RESOLVER = '0x000000000000000000000000000000000000dddd'
-const EXPIRES = '2030-01-01T00:00:00Z'
+/** bigname v0.4.1: decimal Unix seconds. The ENSv1 lease lives under `ens_v1`. */
+const LEASE = '1893456000'
+/** The ENSv2 reservation premigration made: lease + 62 days. */
+const RESERVATION = String(Number(LEASE) + 62 * 86_400)
 
 const row = (name: string, overrides: Record<string, unknown> = {}) => ({
   name,
@@ -30,11 +33,14 @@ const row = (name: string, overrides: Record<string, unknown> = {}) => ({
   namespace: 'ens',
   namehash: namehash(name),
   owner: OWNER,
-  registrant: OWNER,
+  manager: OWNER,
   registration_status: 'active',
-  expires_at: EXPIRES,
+  created_at: '1700000000',
+  expires_at: RESERVATION,
+  grace_ends_at: String(Number(RESERVATION) + 28 * 86_400),
   authority: 'ens_v1',
-  relations: ['owner', 'registrant'],
+  ens_v1: { expires_at: LEASE },
+  relations: ['owner', 'manager'],
   is_primary: false,
   ...overrides,
 })
@@ -46,10 +52,11 @@ const detail = (name: string, overrides: Record<string, unknown> = {}) => ({
   namehash: namehash(name),
   status: 'ok',
   owner: OWNER,
-  registrant: OWNER,
-  expires_at: EXPIRES,
+  manager: OWNER,
+  expires_at: RESERVATION,
   registration_status: 'active',
   authority: 'ens_v1',
+  ens_v1: { expires_at: LEASE },
   resolver: { chain_id: 11155111, address: RESOLVER },
   ...overrides,
 })
@@ -66,14 +73,12 @@ const lookupOk = (records: ReturnType<typeof detail>[]) =>
   })
 
 type Responses = {
-  readonly v1?: readonly unknown[][]
-  readonly v0?: readonly unknown[][]
+  readonly pages?: readonly unknown[][]
   readonly lookup?: (inputs: readonly { name: string }[]) => Response
 }
 
-/** Route mocked requests by path and authority, since the walks run in parallel. */
-const serve = ({ v1 = [[]], v0 = [[]], lookup }: Responses) => {
-  const pages = { ens_v1: [...v1], ens_v0: [...v0] }
+/** Route mocked requests by path; the names walk pages on `cursor`. */
+const serve = ({ pages = [[]], lookup }: Responses) => {
   fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
     const { url, body } = bignameRequest([input, init])
     if (url.pathname === '/v1/lookup') {
@@ -81,11 +86,10 @@ const serve = ({ v1 = [[]], v0 = [[]], lookup }: Responses) => {
       if (!lookup) throw new Error('unexpected lookup')
       return lookup(inputs)
     }
-    const authority = url.searchParams.get('authority') as keyof typeof pages
     const cursor = url.searchParams.get('cursor')
     const index = cursor ? Number(cursor) : 0
-    const data = pages[authority][index] ?? []
-    const next = index + 1 < pages[authority].length ? String(index + 1) : null
+    const data = pages[index] ?? []
+    const next = index + 1 < pages.length ? String(index + 1) : null
     return bignameResponse(bignamePage(data, { nextCursor: next }))
   })
 }
@@ -106,10 +110,9 @@ afterEach(() => {
 })
 
 describe('getV1NamesForAddress', () => {
-  it('lists ens_v1 and ens_v0 names for any relation and adapts their detail', async () => {
+  it('lists ens_v1 and ens_v0 names in one walk and adapts their detail', async () => {
     serve({
-      v1: [[row('alice.eth')]],
-      v0: [[row('legacy.eth', { authority: 'ens_v0' })]],
+      pages: [[row('alice.eth'), row('legacy.eth', { authority: 'ens_v0' })]],
       lookup: () => lookupOk([detail('alice.eth'), detail('legacy.eth')]),
     })
 
@@ -125,23 +128,115 @@ describe('getV1NamesForAddress', () => {
       labelhash: labelhash('alice'),
       resolver: { address: RESOLVER },
       registrant: { id: OWNER },
-      registration: { expiryDate: String(Date.parse(EXPIRES) / 1000) },
+      registration: { expiryDate: LEASE },
     })
 
     const calls = listCalls()
-    expect(
-      calls.map((url) => url.searchParams.get('authority')).sort(),
-    ).toEqual(['ens_v0', 'ens_v1'])
-    for (const url of calls) {
-      expect(url.pathname).toBe(`/v1/addresses/${OWNER}/names`)
-      expect(url.searchParams.get('relation')).toBe('any')
-      expect(url.searchParams.get('page_size')).toBe('200')
+    expect(calls).toHaveLength(1)
+    const [url] = calls
+    expect(url?.pathname).toBe(`/v1/addresses/${OWNER}/names`)
+    expect(url?.searchParams.get('relation')).toBe('any')
+    expect(url?.searchParams.get('authority')).toBe('ens_v1,ens_v0')
+    expect(url?.searchParams.get('include')).toBe('role_summary')
+    expect(url?.searchParams.get('page_size')).toBe('200')
+  })
+
+  it('reads the NameWrapper expiry from the row restrictions, else derives it from the lease', async () => {
+    const wrapper = {
+      expires_at: LEASE,
+      wrapper_state: 'locked',
+      wrapper_fuses: { fuses: 196609 },
     }
+    const served = '1900000000'
+    serve({
+      pages: [
+        [
+          row('served.eth', {
+            registration_status: 'wrapped',
+            ens_v1: wrapper,
+            restrictions: {
+              registration_id: 'r1',
+              kind: 'ens_v1_wrapper',
+              wrapper_state: 'locked',
+              wrapper_fuses: { fuses: 196609 },
+              wrapper_expires_at: served,
+            },
+          }),
+          row('derived.eth', {
+            registration_status: 'wrapped',
+            ens_v1: wrapper,
+          }),
+        ],
+      ],
+      lookup: (inputs) =>
+        lookupOk(
+          inputs.map(({ name }) =>
+            detail(name, { registration_status: 'wrapped', ens_v1: wrapper }),
+          ),
+        ),
+    })
+
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isOk())
+    expect(result.value.map((domain) => domain.wrappedDomain)).toEqual([
+      { expiryDate: served, fuses: 196609 },
+      {
+        expiryDate: String(Number(LEASE) + 90 * 86_400),
+        fuses: 196609,
+      },
+    ])
+  })
+
+  it('walks again without role_summary when its budget answers 422', async () => {
+    serve({
+      pages: [[row('alice.eth')]],
+      lookup: () => lookupOk([detail('alice.eth')]),
+    })
+    const serveRows = fetchMock.getMockImplementation()
+    fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
+      const { url } = bignameRequest([input, init])
+      if (url.searchParams.get('include') === 'role_summary') {
+        return bignameResponse(
+          {
+            error: {
+              code: 'unsupported',
+              message: 'role summary budget exceeded',
+              details: {},
+            },
+          },
+          422,
+        )
+      }
+      return serveRows?.(input, init)
+    })
+
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isOk())
+    expect(result.value.map((domain) => domain.name)).toEqual(['alice.eth'])
+    expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
+      'role_summary',
+      null,
+    ])
+  })
+
+  it('lists an unwrapped .eth 2LD for its token holder (owner), not its controller (manager)', async () => {
+    const controller = '0x0000000000000000000000000000000000000009'
+    serve({
+      pages: [[row('held.eth', { manager: controller })]],
+      lookup: () => lookupOk([detail('held.eth', { manager: controller })]),
+    })
+
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isOk())
+    expect(result.value[0]).toMatchObject({
+      owner: { id: controller },
+      registrant: { id: OWNER },
+    })
   })
 
   it('follows cursors until the last page', async () => {
     serve({
-      v1: [[row('a.eth')], [row('b.eth')]],
+      pages: [[row('a.eth')], [row('b.eth')]],
       lookup: (inputs) => lookupOk(inputs.map(({ name }) => detail(name))),
     })
 
@@ -156,13 +251,18 @@ describe('getV1NamesForAddress', () => {
     ).toHaveLength(1)
   })
 
-  it('drops reverse records and released or unregistered names', async () => {
+  it('drops reverse records, released names and registry children without a name row', async () => {
     serve({
-      v1: [
+      pages: [
         [
           row('keep.eth'),
           row('released.eth', { registration_status: 'released' }),
-          row('gone.eth', { registration_status: 'unregistered' }),
+          row('gone.keep.eth', {
+            registration_status: 'unregistered',
+            created_at: undefined,
+            expires_at: undefined,
+            ens_v1: { expires_at: null },
+          }),
           row(`${'a'.repeat(40)}.addr.reverse`),
         ],
       ],
@@ -177,7 +277,7 @@ describe('getV1NamesForAddress', () => {
   it('looks up unlisted parents of subnames once, for their fuses', async () => {
     let lookupInputs: readonly { name: string }[] = []
     serve({
-      v1: [
+      pages: [
         [
           row('a.parent.eth'),
           row('b.parent.eth'),
@@ -189,17 +289,24 @@ describe('getV1NamesForAddress', () => {
         lookupInputs = inputs
         return lookupOk([
           detail('a.parent.eth', {
-            registrant: undefined,
-            wrapper_state: 'emancipated',
-            wrapper_fuses: { fuses: 65536 },
+            registration_status: 'wrapped',
+            ens_v1: {
+              expires_at: null,
+              wrapper_state: 'emancipated',
+              wrapper_fuses: { fuses: 65536 },
+            },
           }),
           detail('b.parent.eth'),
           detail('c.mine.eth'),
           detail('mine.eth'),
           detail('parent.eth', {
             owner: '0x0000000000000000000000000000000000000009',
-            wrapper_state: 'locked',
-            wrapper_fuses: { fuses: 1 },
+            registration_status: 'wrapped',
+            ens_v1: {
+              expires_at: LEASE,
+              wrapper_state: 'locked',
+              wrapper_fuses: { fuses: 1 },
+            },
           }),
         ])
       },
@@ -225,7 +332,7 @@ describe('getV1NamesForAddress', () => {
 
   it('leaves out names whose detail is unsupported or missing', async () => {
     serve({
-      v1: [[row('ok.eth'), row('unsupported.eth'), row('missing.eth')]],
+      pages: [[row('ok.eth'), row('unsupported.eth'), row('missing.eth')]],
       lookup: () =>
         bignameResponse({
           data: [

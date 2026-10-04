@@ -16,6 +16,8 @@ import {
 const OWNER = '0x1111111111111111111111111111111111111111'
 const OTHER = '0x2222222222222222222222222222222222222222'
 
+const seconds = (iso: string) => Math.floor(Date.parse(iso) / 1000)
+
 const row = (overrides: Partial<AddressNameRow> = {}): AddressNameRow => ({
   name: 'alice.eth',
   display_name: 'alice.eth',
@@ -25,7 +27,7 @@ const row = (overrides: Partial<AddressNameRow> = {}): AddressNameRow => ({
   is_primary: false,
   authority: 'ens_v2',
   registration_status: 'active',
-  expires_at: '2030-01-01T00:00:00Z',
+  expires_at: String(seconds('2030-01-01T00:00:00Z')),
   ...overrides,
 })
 
@@ -49,8 +51,6 @@ const name = (
   nameRoles: ['owner'],
   ...overrides,
 })
-
-const seconds = (iso: string) => Math.floor(Date.parse(iso) / 1000)
 
 describe('protocolForAuthority', () => {
   it('treats ens_v0 and ens_v1 as v1 and only ens_v2 as v2', () => {
@@ -82,35 +82,82 @@ describe('isListedAddressName', () => {
 })
 
 describe('addressNameExpirySeconds', () => {
-  it('parses expires_at', () => {
+  it('parses decimal-seconds expires_at', () => {
     expect(
-      addressNameExpirySeconds({ expires_at: '2030-01-01T00:00:00+00:00' }),
-    ).toBe(seconds('2030-01-01T00:00:00Z'))
+      addressNameExpirySeconds({
+        expires_at: '1893456000',
+        registration_status: 'registered',
+      }),
+    ).toBe(1_893_456_000)
   })
 
-  it('reads a held name without expires_at as not expiring', () => {
-    expect(addressNameExpirySeconds({ registration_status: 'active' })).toBe(0)
+  it("reads an ENSv1 .eth name's expiry from its lease, not the ENSv2 reservation", () => {
+    expect(
+      addressNameExpirySeconds({
+        expires_at: '1803965433',
+        registration_status: 'wrapped',
+        ens_v1: { expires_at: '1798608633' },
+      }),
+    ).toBe(1_798_608_633)
   })
 
-  it('leaves the expiry unknown when the row has no status', () => {
-    expect(addressNameExpirySeconds({})).toBeNull()
+  it('reads an ENSv1 subname, which has no lease, from expires_at', () => {
+    expect(
+      addressNameExpirySeconds({
+        expires_at: '1798624908',
+        registration_status: 'wrapped',
+        ens_v1: { expires_at: null, wrapper_state: 'emancipated' },
+      }),
+    ).toBe(1_798_624_908)
+  })
+
+  it('reads a held name with a null expiry as not expiring', () => {
+    expect(
+      addressNameExpirySeconds({
+        expires_at: null,
+        registration_status: 'wrapped',
+        ens_v1: { expires_at: null },
+      }),
+    ).toBe(0)
+  })
+
+  it('leaves the expiry unknown for a row the dashboard does not list', () => {
+    expect(
+      addressNameExpirySeconds({ registration_status: 'released' }),
+    ).toBeNull()
   })
 })
 
 describe('getAddressNameRoles', () => {
-  it('maps owner and registrant to Owner, manager to Manager', () => {
+  it('maps owner to Owner, manager to Manager', () => {
+    expect(getAddressNameRoles(row({ relations: ['owner'] }), [OWNER])).toEqual(
+      ['owner'],
+    )
     expect(
-      getAddressNameRoles(row({ relations: ['registrant'] }), [OWNER]),
-    ).toEqual(['owner'])
-    expect(
-      getAddressNameRoles(
-        row({ relations: ['registrant', 'owner', 'manager'] }),
-        [OWNER],
-      ),
+      getAddressNameRoles(row({ relations: ['owner', 'manager'] }), [OWNER]),
     ).toEqual(['owner', 'manager'])
     expect(
       getAddressNameRoles(row({ relations: ['manager'] }), [OWNER]),
     ).toEqual(['manager'])
+  })
+
+  it('maps an ENSv2 role holder to Manager without a role summary', () => {
+    expect(
+      getAddressNameRoles(row({ relations: ['role_holder'] }), [OWNER]),
+    ).toEqual(['manager'])
+  })
+
+  it('shows Owner only for a wrapped .eth name in grace (no manager served)', () => {
+    expect(
+      getAddressNameRoles(
+        row({
+          authority: 'ens_v1',
+          registration_status: 'wrapped',
+          relations: ['owner'],
+        }),
+        [OWNER],
+      ),
+    ).toEqual(['owner'])
   })
 
   it('adds Manager for an ENSv2 grant held by one of the addresses', () => {
@@ -133,7 +180,7 @@ describe('getAddressNameRoles', () => {
       getAddressNameRoles(
         row({
           authority: 'ens_v1',
-          relations: ['registrant'],
+          relations: ['owner'],
           role_summary: [grant(OWNER, ['registration_control'])],
         }),
         [OWNER],
@@ -149,10 +196,11 @@ describe('toDashboardName', () => {
         row({
           name: 'legacy.eth',
           authority: 'ens_v0',
-          relations: ['registrant', 'manager'],
+          relations: ['owner', 'manager'],
           is_primary: true,
-          created_at: '2020-01-01T00:00:00Z',
-          registered_at: '2021-01-01T00:00:00Z',
+          created_at: String(seconds('2020-01-01T00:00:00Z')),
+          registered_at: String(seconds('2021-01-01T00:00:00Z')),
+          ens_v1: { expires_at: String(seconds('2029-11-01T00:00:00Z')) },
         }),
         [OWNER],
       ),
@@ -160,7 +208,7 @@ describe('toDashboardName', () => {
       key: '0xlegacy.eth',
       name: 'legacy.eth',
       protocol: 'v1',
-      expiryDate: seconds('2030-01-01T00:00:00Z'),
+      expiryDate: seconds('2029-11-01T00:00:00Z'),
       createdAt: seconds('2020-01-01T00:00:00Z'),
       nameRoles: ['owner', 'manager'],
     })
@@ -326,5 +374,17 @@ describe('dashboardRowMetadata', () => {
     expect(meta.isInGrace).toBe(true)
     expect(meta.graceEndDate).toEqual(new Date('2024-01-30T00:00:00Z'))
     expect(meta.expiryCta).toBeNull()
+  })
+
+  it('gives a subname no grace window after its expiry', () => {
+    const expiry = seconds('2023-12-20T00:00:00Z')
+    for (const protocol of ['v1', 'v2'] as const) {
+      const meta = dashboardRowMetadata(
+        name({ name: 'sub.grace.eth', protocol, expiryDate: expiry }),
+      )
+      expect(meta.isInGrace).toBe(false)
+      expect(meta.graceEndDate).toBeNull()
+      expect(meta.displayExpiryDate).toEqual(new Date(expiry * 1000))
+    }
   })
 })

@@ -19,13 +19,13 @@ const row = (overrides: Partial<AddressNameRow>): AddressNameRow => ({
   display_name: 'name.eth',
   namespace: 'ens',
   namehash: `0x${overrides.name ?? 'name.eth'}`,
-  relations: ['owner', 'registrant'],
+  relations: ['owner', 'manager'],
   is_primary: false,
   authority: 'ens_v2',
   registration_status: 'active',
-  expires_at: '2030-01-01T00:00:00Z',
-  registered_at: '2024-01-01T00:00:00Z',
-  created_at: '2024-01-01T00:00:00Z',
+  expires_at: String(Date.parse('2030-01-01T00:00:00Z') / 1000),
+  registered_at: String(Date.parse('2024-01-01T00:00:00Z') / 1000),
+  created_at: String(Date.parse('2024-01-01T00:00:00Z') / 1000),
   ...overrides,
 })
 
@@ -72,7 +72,13 @@ describe('getProfileAddressNames', () => {
     bignameMock.listAddressNames.mockResolvedValue(
       page([
         row({ name: 'henlo.eth', authority: 'ens_v2' }),
-        row({ name: 'figma.eth', authority: 'ens_v1' }),
+        row({
+          name: 'figma.eth',
+          authority: 'ens_v1',
+          ens_v1: {
+            expires_at: String(Date.parse('2029-11-01T00:00:00Z') / 1000),
+          },
+        }),
         row({ name: 'legacy.eth', authority: 'ens_v0' }),
       ]),
     )
@@ -92,6 +98,10 @@ describe('getProfileAddressNames', () => {
       registeredAt: Date.parse('2024-01-01T00:00:00Z') / 1000,
       roleCategory: 'owned',
     })
+    // An ENSv1 name "Expires" with its lease, not the ENSv2 reservation.
+    expect(result.value[1]?.expiryDate).toBe(
+      Date.parse('2029-11-01T00:00:00Z') / 1000,
+    )
   })
 
   it('derives chips from relations and ENSv2 grants', async () => {
@@ -117,7 +127,7 @@ describe('getProfileAddressNames', () => {
         row({
           name: 'v1-managed.eth',
           authority: 'ens_v1',
-          relations: ['registrant'],
+          relations: ['owner'],
           role_summary: [
             {
               address: LOWER as `0x${string}`,
@@ -172,7 +182,13 @@ describe('getProfileAddressNames', () => {
 
   it('reads a held name without expires_at as not expiring', async () => {
     bignameMock.listAddressNames.mockResolvedValue(
-      page([row({ name: 'sub.name.eth', expires_at: undefined })]),
+      page([
+        row({
+          name: 'sub.name.eth',
+          expires_at: null,
+          expires_at_reason: 'not_set',
+        }),
+      ]),
     )
 
     const result = await getProfileAddressNames(ADDRESS)

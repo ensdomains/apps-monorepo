@@ -49,9 +49,7 @@ describe('getRegistration', () => {
   })
 
   it('reads a V2 registration date from bigname', async () => {
-    mocks.getName.mockResolvedValue(
-      detail({ registered_at: '2026-09-17T10:23:36Z' }),
-    )
+    mocks.getName.mockResolvedValue(detail({ registered_at: '1789640616' }))
 
     const result = await getRegistration('rabbit.eth', 'v2')
 
@@ -62,13 +60,13 @@ describe('getRegistration', () => {
 
   it('reads a V1 registration date from bigname, with no block lookup', async () => {
     mocks.getName.mockResolvedValue(
-      detail({ authority: 'ens_v1', registered_at: '2027-01-15T08:00:00Z' }),
+      detail({ authority: 'ens_v1', registered_at: '1800000000' }),
     )
 
     const result = await getRegistration('fgeorgescu.eth', 'v1')
 
     expect(result._unsafeUnwrap()).toEqual({
-      registrationDate: Date.parse('2027-01-15T08:00:00Z') / 1000,
+      registrationDate: 1_800_000_000,
     })
     expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
   })
@@ -109,9 +107,7 @@ describe('getRegistration', () => {
   })
 
   it('reads a subname registration date from bigname', async () => {
-    mocks.getName.mockResolvedValue(
-      detail({ registered_at: '2026-09-21T14:13:20Z' }),
-    )
+    mocks.getName.mockResolvedValue(detail({ registered_at: '1790000000' }))
 
     const result = await getRegistration('mini.shiba.eth')
 

@@ -896,7 +896,7 @@ export async function getNamesOnAnvil(
  * Live BaseRegistrar expiry (unix seconds) for a .eth label on the Anvil fork,
  * or null if unregistered/unreadable. The panel stores each name's expiryDate at
  * creation, which goes STALE after an in-app renewal (or time-travel) — and the
- * bigname mock feeds `expires_at` into migration eligibility
+ * bigname mock feeds it, as `ens_v1.expires_at`, into migration eligibility
  * (`classifyName` → `hasExpiredDotEthRegistration`). Reading it live keeps the
  * mock in step with on-chain state so a renewed grace name correctly becomes
  * migratable instead of staying classified `expired-registration`.

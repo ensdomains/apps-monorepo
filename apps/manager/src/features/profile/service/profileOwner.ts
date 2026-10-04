@@ -112,7 +112,11 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
     ) {
       // Active ownership disappears at expiry, and bigname serves a lapsed
       // ENSv2 row without an owner. The registry retains the latest owner, who
-      // can still renew their name during the grace period.
+      // can still renew their name during the grace period. bigname documents
+      // that holder as `lapsed_registration.owner` (`held_through: registry`,
+      // `release_kind: expired`), but as of v0.4.1 no ENSv2 name in grace or
+      // released ENSv2 registration exists on Sepolia to confirm it, so the
+      // registry stays the source until one can be checked.
       const state = yield* fromPromise(
         readContract(client, {
           address: ENS_REGISTRY,

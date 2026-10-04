@@ -1,4 +1,4 @@
-import type { RecordInventory } from '@ens-apps/bigname'
+import type { RecordGroups } from '@ens-apps/bigname'
 import { namehash } from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bignameRequest, bignameResponse } from './_fixtures'
@@ -6,7 +6,7 @@ import {
   getV1ProfileKeys,
   hasV1ProfileRecords,
   PROBED_ABI_CONTENT_TYPES,
-  profileKeysFromInventory,
+  profileKeysFromRecords,
 } from './v1ProfileKeys'
 
 const fetchMock = vi.hoisted(() => vi.fn())
@@ -22,19 +22,23 @@ vi.mock('@/lib/bigname', async () => {
   }
 })
 
-const inventory = (
-  overrides: Partial<RecordInventory> = {},
-): RecordInventory => ({
-  known_keys: [],
-  unset_keys: [],
-  unsupported_keys: [],
-  abi_content_types: [],
+/** Grouped `records` as lookup `profile=detail` serves them (bigname v0.4.1). */
+const records = (overrides: Partial<RecordGroups> = {}): RecordGroups => ({
+  seen_addresses: [],
+  addresses: {},
+  seen_texts: [],
+  texts: {},
+  seen_abis: [],
+  abis: {},
+  seen_singletons: [],
+  contenthash: null,
+  name: null,
   ...overrides,
 })
 
 const target = (name: string) => ({ id: namehash(name), name })
 
-const lookupResult = (name: string, inv?: RecordInventory) => ({
+const lookupResult = (name: string, groups?: RecordGroups) => ({
   input: { id: namehash(name), name },
   kind: 'name',
   status: 'ok',
@@ -44,7 +48,7 @@ const lookupResult = (name: string, inv?: RecordInventory) => ({
     namespace: 'ens',
     namehash: namehash(name),
     status: 'ok',
-    ...(inv ? { inventory: inv } : {}),
+    ...(groups ? { records: groups } : {}),
   },
 })
 
@@ -52,59 +56,65 @@ beforeEach(() => {
   fetchMock.mockReset()
 })
 
-describe('profileKeysFromInventory', () => {
-  it('maps known keys onto texts, coin types and contenthash', () => {
+describe('profileKeysFromRecords', () => {
+  it('maps the seen keys onto texts, coin types, contenthash and ABI types', () => {
     expect(
-      profileKeysFromInventory(
+      profileKeysFromRecords(
         '0xABC',
-        inventory({
-          known_keys: [
-            'text:email',
-            'avatar',
-            'addr:60',
-            'addr:2147483658',
-            'contenthash',
-          ],
-          unset_keys: ['text:url'],
-          abi_content_types: ['1', '4'],
+        records({
+          seen_texts: ['avatar', 'email'],
+          texts: { avatar: 'https://example.com/a.png', email: 'a@b.c' },
+          seen_addresses: ['60', '2147483658'],
+          addresses: { '60': '0x01', '2147483658': '0x02' },
+          seen_singletons: ['contenthash'],
+          contenthash: '0xe301',
+          seen_abis: ['1', '4'],
         }),
       ),
     ).toEqual({
       id: '0xabc',
-      texts: ['email', 'avatar'],
+      texts: ['avatar', 'email'],
       coinTypes: [60, 2147483658],
       hasContentHash: true,
       abiContentTypes: [1n, 4n],
     })
   })
 
-  it('reads unsupported keys too, since they may still be set', () => {
-    const keys = profileKeysFromInventory(
+  it('skips keys bigname knows were cleared, and reads keys whose value it cannot vouch for', () => {
+    const keys = profileKeysFromRecords(
       '0xabc',
-      inventory({
-        unsupported_keys: ['text:com.twitter', 'addr:0'],
-        abi_content_types: null,
-        abi_unsupported_reason: 'inventory_not_authoritative',
+      records({
+        seen_texts: ['com.github', 'url'],
+        texts: { 'com.github': null },
+        seen_addresses: ['0', '60'],
+        addresses: { '60': null },
+        seen_singletons: ['contenthash'],
+        contenthash: null,
       }),
     )
-    expect(keys.texts).toEqual(['com.twitter'])
+    expect(keys.texts).toEqual(['url'])
     expect(keys.coinTypes).toEqual([0])
+    expect(keys.hasContentHash).toBe(false)
     expect(hasV1ProfileRecords(keys)).toBe(true)
   })
 
+  it('reads an unknown contenthash value', () => {
+    const { contenthash: _cleared, ...unknown } = records({
+      seen_singletons: ['contenthash'],
+    })
+    expect(profileKeysFromRecords('0xabc', unknown).hasContentHash).toBe(true)
+  })
+
   it('probes the standard ABI content types when bigname cannot list them', () => {
-    const keys = profileKeysFromInventory(
-      '0xabc',
-      inventory({
-        abi_content_types: null,
-        abi_unsupported_reason: 'abi_observations_not_supported',
-      }),
-    )
+    const { seen_abis: _listed, ...unlisted } = records({
+      abi_unsupported_reason: 'abi_observations_not_supported',
+    })
+    const keys = profileKeysFromRecords('0xabc', unlisted)
     expect(keys.abiContentTypes).toEqual(PROBED_ABI_CONTENT_TYPES)
   })
 
   it('treats an empty ABI list as no ABI records', () => {
-    const keys = profileKeysFromInventory('0xabc', inventory())
+    const keys = profileKeysFromRecords('0xabc', records())
     expect(keys.abiContentTypes).toEqual([])
     expect(hasV1ProfileRecords(keys)).toBe(false)
   })
@@ -118,12 +128,15 @@ describe('getV1ProfileKeys', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('reads the inventory for each name through one detail lookup', async () => {
+  it('reads the records for each name through one detail lookup, without include', async () => {
     fetchMock.mockResolvedValueOnce(
       bignameResponse({
         data: [
-          lookupResult('a.eth', inventory({ known_keys: ['text:email'] })),
-          lookupResult('b.eth', inventory()),
+          lookupResult(
+            'a.eth',
+            records({ seen_texts: ['email'], texts: { email: 'a@b.c' } }),
+          ),
+          lookupResult('b.eth', records()),
         ],
         meta: {},
       }),
@@ -141,11 +154,10 @@ describe('getV1ProfileKeys', () => {
     expect(body).toEqual({
       inputs: [target('a.eth'), target('b.eth')],
       profile: 'detail',
-      include: 'inventory',
     })
   })
 
-  it('leaves out names without an inventory container so callers fail closed', async () => {
+  it('leaves out names without records so callers fail closed', async () => {
     fetchMock.mockResolvedValueOnce(
       bignameResponse({
         data: [
@@ -166,7 +178,7 @@ describe('getV1ProfileKeys', () => {
       const { body } = bignameRequest([input, init])
       const inputs = (body as { inputs: { name: string }[] }).inputs
       return bignameResponse({
-        data: inputs.map(({ name }) => lookupResult(name, inventory())),
+        data: inputs.map(({ name }) => lookupResult(name, records())),
         meta: {},
       })
     })

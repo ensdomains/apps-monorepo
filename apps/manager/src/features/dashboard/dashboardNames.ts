@@ -2,7 +2,7 @@ import {
   type AddressNameRow,
   type Authority,
   hasAnyGrant,
-  type RegistrationStatus,
+  type NameRowFields,
   timestampToSeconds,
 } from '@ens-apps/bigname'
 import {
@@ -40,21 +40,23 @@ export type DashboardName = {
 }
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
+const ETH_2LD_PATTERN = /^[^.]+\.eth$/
 
 /**
  * bigname lists every name with a current relation, including ENSv2 rows past
- * their grace period. Released and unregistered rows have no current holder,
- * so they are not names the address holds.
+ * their grace period. Released rows have no current holder (bigname serves
+ * them no `owner` or `manager`). `unregistered` rows are names without a
+ * registration, chiefly ENSv1 registry children listed without a name row
+ * (no `created_at`), whose name pages answer 404; neither is a name the
+ * address holds.
  */
-const LISTED_REGISTRATION_STATUSES: ReadonlySet<RegistrationStatus> = new Set([
-  'active',
-  'wrapped',
-  'registered',
-])
+const LISTED_REGISTRATION_STATUSES: ReadonlySet<
+  NameRowFields['registration_status']
+> = new Set(['active', 'wrapped', 'registered'])
 
-export const isListedAddressName = (row: AddressNameRow): boolean =>
-  row.registration_status === undefined ||
-  LISTED_REGISTRATION_STATUSES.has(row.registration_status)
+export const isListedAddressName = (
+  row: Pick<NameRowFields, 'registration_status'>,
+): boolean => LISTED_REGISTRATION_STATUSES.has(row.registration_status)
 
 /** `ens_v0` is an ENSv1 name still read from the 2017 registry. */
 export const protocolForAuthority = (
@@ -62,43 +64,46 @@ export const protocolForAuthority = (
 ): DashboardNameProtocol => (authority === 'ens_v2' ? 'v2' : 'v1')
 
 /**
- * bigname omits `expires_at` both for a name that never expires (a subname
- * whose parent set none, ENSv2 max expiry) and for an out-of-range value. A
- * held name without one is rendered as not expiring, like the `0` the indexer
- * used to send.
+ * The date a row "Expires", in seconds. An ENSv1 `.eth` 2LD expires with its
+ * BaseRegistrar lease, `ens_v1.expires_at`: from the Universal Resolver
+ * cutover the top-level `expires_at` of such a name is its ENSv2
+ * reservation's (lease + 62 days), not the lease. Every other row (ENSv2
+ * names, and ENSv1 subnames, whose `ens_v1.expires_at` is `null`) expires at
+ * the top-level `expires_at`. A held row with no finite expiry (`null` with
+ * `expires_at_reason`, or a value past the safe-integer range) does not
+ * expire, rendered as `0` like the indexer used to send.
  */
-export const addressNameExpirySeconds = (row: {
-  readonly expires_at?: string
-  readonly registration_status?: RegistrationStatus
-}): number | null => {
-  const seconds = timestampToSeconds(row.expires_at)
+export const addressNameExpirySeconds = (
+  row: Pick<NameRowFields, 'expires_at' | 'registration_status' | 'ens_v1'>,
+): number | null => {
+  const seconds = timestampToSeconds(row.ens_v1?.expires_at ?? row.expires_at)
   if (seconds !== undefined) return seconds
-  if (
-    row.registration_status !== undefined &&
-    LISTED_REGISTRATION_STATUSES.has(row.registration_status)
-  ) {
-    return 0
-  }
+  if (LISTED_REGISTRATION_STATUSES.has(row.registration_status)) return 0
   return null
 }
 
 /**
- * Chips for a row: `owner` for the token holder or registrant, `manager` for
- * the effective controller. ENSv2 names also count any registry grant the
- * addresses hold, as the Panoptes role bitmap did. An empty `role_summary` is
- * not proof that no grant exists (it can be partial), so it never removes a
- * chip `relations` supplies.
+ * Chips for a row: `owner` for the token holder (bigname's `owner`: the
+ * BaseRegistrar, NameWrapper or ENSv2 token holder, else the registry owner),
+ * `manager` for the account that can change the registry record or holds an
+ * ENSv2 registry role (`role_holder`). ENSv2 names also count any registry
+ * grant the addresses hold in `role_summary`, as the Panoptes role bitmap
+ * did. An empty `role_summary` is not proof that no grant exists (it can be
+ * partial, or dropped on the 422 fallback), so it never removes a chip
+ * `relations` supplies. A wrapped `.eth` 2LD in its registrar grace serves no
+ * `manager`, so it shows Owner only.
  */
 export const getAddressNameRoles = (
   row: Pick<AddressNameRow, 'relations' | 'role_summary' | 'authority'>,
   addresses: readonly string[],
 ): readonly DashboardNameRole[] => {
   const relations = new Set(row.relations)
-  const isOwner = relations.has('owner') || relations.has('registrant')
+  const isOwner = relations.has('owner')
   const hasV2Grant =
     row.authority === 'ens_v2' &&
     addresses.some((address) => hasAnyGrant(row.role_summary, address))
-  const isManager = relations.has('manager') || hasV2Grant
+  const isManager =
+    relations.has('manager') || relations.has('role_holder') || hasV2Grant
 
   const roles: DashboardNameRole[] = []
   if (isOwner) roles.push('owner')
@@ -234,10 +239,17 @@ export const dashboardRowMetadata = (
     name.expiryDate === 0 ? null : toDateFromSeconds(name.expiryDate)
   const isV1 = name.protocol === 'v1'
   const protocol = name.protocol
-  const isInGrace = isInGracePeriod(expiryDate, protocol, now)
+  // Only `.eth` 2LDs have a registrar grace: 90 days after the ENSv1 lease,
+  // 28 after an ENSv2 expiry (bigname's `grace_ends_at`). A subname's grace
+  // ends at its expiry.
+  const hasRegistrarGrace = ETH_2LD_PATTERN.test(label)
+  const isInGrace =
+    hasRegistrarGrace && isInGracePeriod(expiryDate, protocol, now)
   const graceEndDate =
     expiryDate && isInGrace ? getGraceEndDate(expiryDate, protocol) : null
-  const displayExpiryDate = getDisplayExpiryDate(expiryDate, protocol, now)
+  const displayExpiryDate = hasRegistrarGrace
+    ? getDisplayExpiryDate(expiryDate, protocol, now)
+    : expiryDate
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry =
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null

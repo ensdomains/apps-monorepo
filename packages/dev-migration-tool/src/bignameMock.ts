@@ -1,7 +1,9 @@
 // bigname REST mock for panel-created names: the hosted bigname deployment
 // cannot see names that exist only on the local Anvil fork, so their rows are
 // injected into the three reads the migration flow makes. Shapes follow
-// bigname's `/v1` contract (packages/bigname/src/types.ts).
+// bigname's v0.4.1 `/v1` contract (packages/bigname/src/types.ts): decimal
+// Unix-second timestamps, `owner` as the token holder (no `registrant`), the
+// ENSv1 lease and wrapper fields under `ens_v1`, grouped lookup `records`.
 
 import {
   type ActiveName,
@@ -13,6 +15,7 @@ import {
   labelhash,
   namehashFromLabelAndParent,
   PARENT_CANNOT_CONTROL,
+  PREMIGRATION_BONUS_PERIOD,
   V1_PUBLIC_RESOLVER,
 } from './MigrationTestPanel.helpers'
 
@@ -31,8 +34,14 @@ const FUSE_FLAGS = {
   can_extend_expiry: 1 << 18,
 } as const
 
-const toTimestamp = (seconds: number): string =>
-  new Date(seconds * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+const DAY_SECONDS = 86_400
+const V1_GRACE_SECONDS = 90 * DAY_SECONDS
+const V2_GRACE_SECONDS = 28 * DAY_SECONDS
+
+/** bigname serves every timestamp as a decimal string of Unix seconds. */
+const toTimestamp = (seconds: number): string => String(Math.floor(seconds))
+
+const nowSeconds = (): number => Math.floor(Date.now() / 1000)
 
 const isWrappedPreset = (name: ActiveName): boolean =>
   name.type !== 'unwrapped' && name.type !== 'grace-renewable-unwrapped'
@@ -52,64 +61,117 @@ const wrapperFuses = (fuses: number) => ({
   ),
 })
 
+/**
+ * Top-level expiry and grace as bigname serves them after the Universal
+ * Resolver cutover: a name with a live ENSv2 reservation serves that entry's
+ * expiry (premigration reserves at lease + 62 days) plus the 28-day ENSv2
+ * grace; the `grace` preset has no reservation, so it serves the lease plus
+ * the 90-day ENSv1 grace. The lease itself is `ens_v1.expires_at`.
+ */
+const servedExpiry = (name: ActiveName) => {
+  const reservation =
+    name.type === 'grace' ? null : name.expiryDate + PREMIGRATION_BONUS_PERIOD
+  return reservation !== null && reservation > nowSeconds()
+    ? {
+        expires_at: toTimestamp(reservation),
+        grace_ends_at: toTimestamp(reservation + V2_GRACE_SECONDS),
+      }
+    : {
+        expires_at: toTimestamp(name.expiryDate),
+        grace_ends_at: toTimestamp(name.expiryDate + V1_GRACE_SECONDS),
+      }
+}
+
+/** `ens_v1`: the lease date, plus the NameWrapper state of a wrapped preset. */
+const buildEnsV1 = (name: ActiveName) => {
+  if (!isWrappedPreset(name))
+    return { expires_at: toTimestamp(name.expiryDate) }
+  const fuses = presetFuses(name)
+  return {
+    expires_at: toTimestamp(name.expiryDate),
+    wrapper_state: fuses & CANNOT_UNWRAP ? 'locked' : 'emancipated',
+    wrapper_fuses: wrapperFuses(fuses),
+  }
+}
+
+/**
+ * NameWrapper refuses the holder of a wrapped `.eth` 2LD while its lease is
+ * in grace, so bigname omits `manager` then (and the `manager` relation).
+ */
+const hasManager = (name: ActiveName): boolean =>
+  !isWrappedPreset(name) || name.expiryDate > nowSeconds()
+
 /** Registration and identity fields shared by every mock row shape. */
 const buildMockIdentity = (name: ActiveName) => {
   const node = namehashFromLabelAndParent(labelhash(name.label), ETH_NODE)
   const owner = DEFAULT_ACCOUNT.toLowerCase()
-  const createdAt = toTimestamp(Math.floor(Date.now() / 1000) - 3600)
+  const createdAt = toTimestamp(nowSeconds() - 3600)
   return {
     name: `${name.label}.eth`,
     display_name: `${name.label}.eth`,
     namespace: 'ens',
     namehash: node,
     owner,
-    registrant: owner,
+    ...(hasManager(name) ? { manager: owner } : {}),
     registration_status: isWrappedPreset(name) ? 'wrapped' : 'active',
     registered_at: createdAt,
     created_at: createdAt,
-    expires_at: toTimestamp(name.expiryDate),
+    ...servedExpiry(name),
     authority: 'ens_v1',
-  }
-}
-
-/** `GET /v1/names/{name}` and lookup `profile=detail` record. */
-function buildMockNameProfile(name: ActiveName) {
-  const identity = buildMockIdentity(name)
-  if (!isWrappedPreset(name)) {
-    return {
-      ...identity,
-      status: 'ok',
-      token_id: BigInt(labelhash(name.label)).toString(),
-      manager: identity.owner,
-    }
-  }
-  const fuses = presetFuses(name)
-  return {
-    ...identity,
-    status: 'ok',
-    token_id: BigInt(labelhash(name.label)).toString(),
-    manager: identity.owner,
-    wrapper_state: fuses & CANNOT_UNWRAP ? 'locked' : 'emancipated',
-    wrapper_fuses: wrapperFuses(fuses),
-    resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
-  }
-}
-
-/** `GET /v1/addresses/{address}/names` row. */
-function buildMockAddressNameRow(name: ActiveName) {
-  return {
-    ...buildMockIdentity(name),
-    relations: ['owner', 'manager', 'registrant'],
-    is_primary: false,
+    ens_v1: buildEnsV1(name),
   }
 }
 
 /** Fork-created names hold no resolver records. */
-const EMPTY_INVENTORY = {
-  known_keys: [],
-  unset_keys: [],
-  unsupported_keys: [],
-  abi_content_types: [],
+const EMPTY_RECORDS = {
+  seen_addresses: [],
+  addresses: {},
+  seen_texts: [],
+  texts: {},
+  seen_abis: [],
+  abis: {},
+  seen_singletons: [],
+  contenthash: null,
+  name: null,
+}
+
+/** `GET /v1/names/{name}` and lookup `profile=detail` record. */
+function buildMockNameProfile(name: ActiveName) {
+  return {
+    ...buildMockIdentity(name),
+    status: 'ok',
+    token_id: BigInt(labelhash(name.label)).toString(),
+    resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
+    records: EMPTY_RECORDS,
+  }
+}
+
+/**
+ * `GET /v1/addresses/{address}/names` row. With `include=role_summary` a
+ * wrapped row carries its `restrictions`, whose `wrapper_expires_at` is the
+ * NameWrapper entry expiry: the lease plus the 90-day grace for a `.eth` 2LD.
+ */
+function buildMockAddressNameRow(name: ActiveName, withRoleSummary: boolean) {
+  const identity = buildMockIdentity(name)
+  const restrictions =
+    withRoleSummary && isWrappedPreset(name)
+      ? {
+          restrictions: {
+            registration_id: `mock-${name.label}`,
+            kind: 'ens_v1_wrapper',
+            wrapper_state: identity.ens_v1.wrapper_state,
+            wrapper_fuses: identity.ens_v1.wrapper_fuses,
+            wrapper_expires_at: toTimestamp(name.expiryDate + V1_GRACE_SECONDS),
+          },
+        }
+      : {}
+  return {
+    ...identity,
+    relations: 'manager' in identity ? ['owner', 'manager'] : ['owner'],
+    is_primary: false,
+    ...(withRoleSummary ? { role_summary: [] } : {}),
+    ...restrictions,
+  }
 }
 
 // --- request routing --------------------------------------------------------
@@ -178,29 +240,47 @@ type MockContext = {
   readonly all: readonly ActiveName[]
 }
 
+/** Relations the injected (held, ENSv1) names answer to. */
+const INJECTED_RELATIONS: ReadonlySet<string> = new Set([
+  'any',
+  'owner',
+  'manager',
+  'owner,manager',
+])
+
 /**
  * The address-name list gets the panel names when it asks for DEFAULT_ACCOUNT's
- * current ENSv1 names (first page only). Counts of migrated or ENSv2 names and
- * resolver-record reads are left alone.
+ * current ENSv1 names (first page only). Counts of migrated or ENSv2 names,
+ * `role_holder`, `former_owner` and `resolves_to` reads are left alone.
  */
 async function mockAddressNames(
   read: Extract<BignameRead, { kind: 'address-names' }>,
   ctx: MockContext,
 ): Promise<Response> {
   const params = read.url.searchParams
-  const authority = params.get('authority')
+  const authorities = params.get('authority')?.split(',') ?? null
+  const relation = params.get('relation')
+  const parent = params.get('parent')
   const prefix = params.get('q')?.toLowerCase() ?? ''
+  const withRoleSummary = (params.get('include') ?? '')
+    .split(',')
+    .includes('role_summary')
   const applies =
     read.address === DEFAULT_ACCOUNT.toLowerCase() &&
     !params.get('cursor') &&
     params.get('is_migrated') !== 'true' &&
-    params.get('relation') !== 'resolves_to' &&
-    (authority === null || authority === 'ens_v1')
+    (relation === null || INJECTED_RELATIONS.has(relation)) &&
+    (parent === null || parent === 'eth') &&
+    (authorities === null || authorities.includes('ens_v1'))
   if (!applies) return ctx.origFetch(ctx.input, ctx.init)
 
   const injected = (
     await ctx.names(ctx.all.filter((n) => `${n.label}.eth`.startsWith(prefix)))
-  ).map(buildMockAddressNameRow)
+  )
+    .map((name) => buildMockAddressNameRow(name, withRoleSummary))
+    .filter(
+      (row) => relation !== 'manager' || row.relations.includes('manager'),
+    )
   const injectedNames = new Set(injected.map((row) => row.name))
 
   let data: { name: string }[] = []
@@ -255,7 +335,6 @@ async function mockNameDetail(
 type LookupBody = {
   inputs?: { id?: string; name?: string }[]
   profile?: string
-  include?: string
 }
 
 /**
@@ -297,22 +376,15 @@ async function mockLookup(ctx: MockContext): Promise<Response> {
       n,
     ]),
   )
-  const withInventory =
-    body.profile === 'detail' &&
-    (body.include ?? '').split(',').includes('inventory')
   let realIndex = 0
   const data = inputs.map((input, index) => {
     const name = mocked[index]
     if (!name) return realResults[realIndex++]
-    const profile = buildMockNameProfile(live.get(name.label) ?? name)
     return {
       input,
       kind: 'name',
       status: 'ok',
-      record:
-        withInventory && 'resolver' in profile
-          ? { ...profile, inventory: EMPTY_INVENTORY }
-          : profile,
+      record: buildMockNameProfile(live.get(name.label) ?? name),
     }
   })
   return json({ data, meta })

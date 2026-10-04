@@ -12,15 +12,19 @@ export class GetOwnedNamesCountError extends TaggedError(
 }> {}
 
 /**
- * Registrations the address is registrant of. bigname returns an exact
- * `total_count` for authority relations, so one row is enough; a wrapped
- * `.eth` name counts once (one registrar lease).
+ * `.eth` registrations the address holds the token of: bigname's documented
+ * count recipe (`relation=owner&parent=eth&dedupe=registration`). `owner` is
+ * the BaseRegistrar, NameWrapper or ENSv2 token holder (bigname v0.3.0
+ * removed `registrant`); `parent=eth` keeps out the tokenless subnames that
+ * also list under `owner`; a wrapped `.eth` name counts once. bigname returns
+ * an exact `total_count` for authority relations, so one row is enough.
  */
 export const getOwnedNamesCount = ResultFn(async function* (address: string) {
   const { page } = yield* await ResultAsync.fromPromise(
     bigname.listAddressNames(address.toLowerCase(), {
       namespace: 'ens',
-      relation: ['registrant'],
+      relation: 'owner',
+      parent: 'eth',
       dedupe: 'registration',
       page_size: 1,
     }),

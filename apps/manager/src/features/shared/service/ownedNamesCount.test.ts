@@ -16,7 +16,7 @@ describe('getOwnedNamesCount', () => {
     vi.clearAllMocks()
   })
 
-  it('reads the exact registrant registration count from one row', async () => {
+  it('reads the exact .eth registration count of the token holder from one row', async () => {
     mocks.listAddressNames.mockResolvedValue({
       data: [],
       page: {
@@ -34,7 +34,8 @@ describe('getOwnedNamesCount', () => {
       ADDRESS.toLowerCase(),
       {
         namespace: 'ens',
-        relation: ['registrant'],
+        relation: 'owner',
+        parent: 'eth',
         dedupe: 'registration',
         page_size: 1,
       },
