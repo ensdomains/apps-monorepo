@@ -1,5 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DashboardName } from '@/features/dashboard/dashboardNames'
 import { resolveDashboardGraceBanner } from './resolveDashboardGraceBanner'
+
+const makeName = (
+  overrides: Partial<DashboardName> & Pick<DashboardName, 'name'>,
+): DashboardName => ({
+  key: `0x${overrides.name}`,
+  protocol: 'v2',
+  expiryDate: null,
+  createdAt: null,
+  nameRoles: ['owner'],
+  ...overrides,
+})
 
 describe('resolveDashboardGraceBanner', () => {
   beforeEach(() => {
@@ -27,8 +39,7 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: graceEnd,
         isPastGrace: false,
       },
-      v2Names: [],
-      v1Classified: [],
+      names: [],
     })
 
     expect(result).toEqual({
@@ -56,16 +67,8 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
-      v2Names: [],
-      v1Classified: [
-        {
-          label: 'legacy.eth',
-          domain: {
-            id: 'v1-1',
-            name: 'legacy.eth',
-            registration: { expiryDate: expired },
-          },
-        } as never,
+      names: [
+        makeName({ name: 'legacy.eth', protocol: 'v1', expiryDate: expired }),
       ],
     })
 
@@ -88,21 +91,15 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
-      v2Names: [
-        {
-          id: 'v2-1',
-          name: 'grace.eth',
-          expiryDate: expired,
-        } as never,
-        {
-          id: 'v2-2',
+      names: [
+        makeName({ name: 'grace.eth', expiryDate: expired }),
+        makeName({
           name: 'active.eth',
           expiryDate: Math.floor(
             new Date('2025-01-01T00:00:00Z').getTime() / 1000,
           ),
-        } as never,
+        }),
       ],
-      v1Classified: [],
     })
 
     expect(result).toEqual({
@@ -126,15 +123,14 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
-      v2Names: [
-        {
+      names: [
+        makeName({
           name: 'active.eth',
           expiryDate: Math.floor(
             new Date('2025-01-01T00:00:00Z').getTime() / 1000,
           ),
-        } as never,
+        }),
       ],
-      v1Classified: [],
     })
 
     expect(result).toEqual({ show: false })

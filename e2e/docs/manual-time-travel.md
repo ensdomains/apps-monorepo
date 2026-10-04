@@ -28,7 +28,7 @@ ships to production.
 ## 1. Start the stack
 
 ```bash
-pnpm --filter @ens-apps/e2e infra:up      # Anvil + bundler + paymaster + indexer + mockestrator
+pnpm --filter @ens-apps/e2e infra:up      # Anvil + bundler + paymaster + mockestrator
 ```
 
 Chain state persists for the life of the containers, so seeded names and time

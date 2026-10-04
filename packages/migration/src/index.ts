@@ -20,4 +20,10 @@ export {
   type EligibilityResult,
   runEligibilityChecks,
 } from './service/preflightChecks'
-export type { V1Domain } from './service/v1SubgraphClient'
+export {
+  type BignameV1NameRecord,
+  type BignameV1ParentRecord,
+  type V1Domain,
+  v1DomainFromBigname,
+  v1ParentName,
+} from './service/v1Domain'

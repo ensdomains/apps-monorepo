@@ -1,24 +1,38 @@
-import type { DomainFragment } from '@ens-apps/indexer'
-import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
+import { timestampToSeconds } from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { getDomains } from '@/features/dashboard/service/queries/getDashboardDomains'
-import { getDashboardRoleAssignments } from '@/features/dashboard/service/queries/getDashboardRoleAssignments'
-import { getManagedOnlyRoleNames } from '@/features/dashboard/v2NameRoles'
-import { getV1NamesForAddress } from '@/features/migration/service/v1SubgraphClient'
 import {
-  buildProfileAddressNames,
-  type ProfileAddressName,
-} from './buildProfileAddressNames'
+  addressNameExpirySeconds,
+  type DashboardNameRole,
+  getAddressNameRoles,
+  isListedAddressName,
+  protocolForAuthority,
+} from '@/features/dashboard/dashboardNames'
+import { getAllAddressNames } from '@/features/dashboard/service/queries/getDashboardNames'
 
 export { PROFILE_NAMES_PAGE_SIZE } from './profileOwnedNames'
 
-const V2_NAMES_PAGE_SIZE = 50
-const MANAGED_NAMES_CHUNK_SIZE = 50
+type ProfileAddressNameProtocol = 'v1' | 'v2'
+type ProfileAddressNameRoleCategory = 'owned' | 'managed'
+
+export type ProfileAddressName = {
+  readonly key: string
+  readonly label: string
+  readonly protocol: ProfileAddressNameProtocol
+  /** Seconds since the epoch; `0` = does not expire, `null` = unknown. */
+  readonly expiryDate: number | null
+  readonly createdAt: number | null
+  readonly registeredAt: number | null
+  readonly nameRoles: readonly DashboardNameRole[]
+  readonly roleCategory: ProfileAddressNameRoleCategory
+}
+
+const timestampOrNull = (value: string | undefined): number | null =>
+  timestampToSeconds(value) ?? null
 
 class GetProfileAddressNamesError extends TaggedError(
   'GetProfileAddressNamesError',
@@ -26,71 +40,43 @@ class GetProfileAddressNamesError extends TaggedError(
   cause: unknown
 }> {}
 
-const fetchAllV2DomainsForAddress = ResultFn(async function* (
-  normalizedAddress: string,
-) {
-  const domains: DomainFragment[] = []
-  let skip = 0
-
-  while (true) {
-    const page = yield* getDomains({
-      where: { owner: normalizedAddress },
-      first: V2_NAMES_PAGE_SIZE,
-      skip,
-      orderBy: Domain_OrderBy.RegistrationDate,
-      orderDirection: OrderDirection.Desc,
-    })
-
-    domains.push(...page.domains)
-    if (page.domains.length < V2_NAMES_PAGE_SIZE) break
-    skip += V2_NAMES_PAGE_SIZE
-  }
-
-  return ok(domains)
-})
-
-const fetchDomainsByNames = ResultFn(async function* (
-  names: readonly string[],
-) {
-  if (names.length === 0) return ok([] as DomainFragment[])
-
-  const domains: DomainFragment[] = []
-  for (let i = 0; i < names.length; i += MANAGED_NAMES_CHUNK_SIZE) {
-    const chunk = names.slice(i, i + MANAGED_NAMES_CHUNK_SIZE)
-    const page = yield* getDomains({
-      where: { name_in: [...chunk] },
-      first: chunk.length,
-    })
-    domains.push(...page.domains)
-  }
-
-  return ok(domains)
-})
-
+/**
+ * Every name the address holds any authority relation on, ENSv1 and ENSv2 in
+ * one bigname collection, newest registration first. `relations` and the
+ * ENSv2 `role_summary` decide the Owner/Manager chips and the owned/managed
+ * split.
+ */
 export const getProfileAddressNames = ResultFn(async function* (
   address: Address,
 ) {
   const normalizedAddress = address.toLowerCase()
 
-  const v1Domains = yield* getV1NamesForAddress(normalizedAddress)
-  const v2Domains = yield* fetchAllV2DomainsForAddress(normalizedAddress)
-  const roleAssignments = yield* fromPromise(
-    getDashboardRoleAssignments(normalizedAddress),
+  const rows = yield* fromPromise(
+    getAllAddressNames(normalizedAddress, {
+      sort: 'registered_at',
+      order: 'desc',
+    }),
     (error) => new GetProfileAddressNamesError({ cause: error }),
   )
 
-  const managedOnlyNames = getManagedOnlyRoleNames(v2Domains, roleAssignments)
-  const managedV2Domains = yield* fetchDomainsByNames(managedOnlyNames)
-
-  const names = buildProfileAddressNames({
-    address: normalizedAddress,
-    v1Domains,
-    v2Domains,
-    managedV2Domains,
-    roleAssignments,
+  const names = rows.filter(isListedAddressName).flatMap((row) => {
+    const nameRoles = getAddressNameRoles(row, [normalizedAddress])
+    if (nameRoles.length === 0) return []
+    return [
+      {
+        key: row.namehash,
+        label: row.name,
+        protocol: protocolForAuthority(row.authority),
+        expiryDate: addressNameExpirySeconds(row),
+        createdAt: timestampOrNull(row.created_at),
+        registeredAt: timestampOrNull(row.registered_at),
+        nameRoles,
+        roleCategory: nameRoles.includes('owner') ? 'owned' : 'managed',
+      } satisfies ProfileAddressName,
+    ]
   })
 
-  return ok(names)
+  return ok<ProfileAddressName[]>(names)
 })
 
 export const profileAddressNamesQuery = (address?: Address) =>
@@ -103,5 +89,3 @@ export const profileAddressNamesQuery = (address?: Address) =>
       dependsOn: ['indexer'],
     },
   })
-
-export type { ProfileAddressName }

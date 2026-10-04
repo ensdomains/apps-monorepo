@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getV1Expiry: vi.fn(),
   getV2Expiry: vi.fn(),
-  indexerQuery: vi.fn(),
+  getName: vi.fn(),
   owner: null as null | { readonly owner?: string; readonly protocol: string },
 }))
 
@@ -13,10 +13,12 @@ vi.mock('./profileOwner', async () => {
   return { getOwner: () => ok(mocks.owner) }
 })
 
-vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
-vi.mock('@ens-apps/indexer/urql', () => ({
-  graphqlRequest: (...args: unknown[]) => mocks.indexerQuery(...args),
-}))
+vi.mock('@/lib/bigname', () => ({ bigname: { getName: mocks.getName } }))
+
+const subnameDetail = (expiresAt?: string) => ({
+  data: { name: 'mini.shiba.eth', status: 'ok', expires_at: expiresAt },
+  meta: {},
+})
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getExpiry: mocks.getV1Expiry,
@@ -188,9 +190,7 @@ describe('subnames', () => {
   // Not clamped to the parent: a v2 label carries its own expiry in its
   // registry, and a detached or custom subregistry can outlive its parent.
   it('reads the expiry the indexer records for the subname itself', async () => {
-    mocks.indexerQuery.mockResolvedValue({
-      domains: [{ expiryDate: 1_821_700_419 }],
-    })
+    mocks.getName.mockResolvedValue(subnameDetail('2027-09-23T11:53:39Z'))
 
     const result = await getExpiry('mini.shiba.eth')
 
@@ -204,7 +204,23 @@ describe('subnames', () => {
   })
 
   it('reports no expiry for a subname the indexer does not know', async () => {
-    mocks.indexerQuery.mockResolvedValue({ domains: [] })
+    mocks.getName.mockResolvedValue(null)
+
+    const result = await getExpiry('mini.shiba.eth')
+
+    expect(result._unsafeUnwrap().expiry).toBeNull()
+  })
+
+  it('reports no expiry for a subname whose parent set none', async () => {
+    mocks.getName.mockResolvedValue(subnameDetail(undefined))
+
+    const result = await getExpiry('mini.shiba.eth')
+
+    expect(result._unsafeUnwrap().expiry).toBeNull()
+  })
+
+  it('reports no expiry when bigname fails', async () => {
+    mocks.getName.mockRejectedValue(new Error('bigname down'))
 
     const result = await getExpiry('mini.shiba.eth')
 
@@ -212,9 +228,7 @@ describe('subnames', () => {
   })
 
   it('reports no grace window after a subname expires', async () => {
-    mocks.indexerQuery.mockResolvedValue({
-      domains: [{ expiryDate: 1_600_000_000 }],
-    })
+    mocks.getName.mockResolvedValue(subnameDetail('2020-09-13T12:26:40Z'))
 
     const status = getProfileExpiryResultStatus(
       (await getExpiry('mini.shiba.eth'))._unsafeUnwrap(),

@@ -12,8 +12,6 @@ const resolverQueryKeys = new Set([
   // earlier in the session serves cached history missing the update.
   'get-name-history-pages',
   'get-name-history-anchor',
-  'get-name-history-auxiliary',
-  'get-name-event-types',
 ])
 
 /**

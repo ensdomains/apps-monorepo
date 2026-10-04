@@ -2,7 +2,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { useConnection } from 'wagmi'
-import { getV1NamesForAddress } from '@/features/migration/service/v1SubgraphClient'
+import { getV1NamesForAddress } from '@/features/migration/service/v1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 type UseV1NamesOptions = {

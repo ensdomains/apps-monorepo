@@ -1,15 +1,9 @@
-import type {
-  MigratedNamesCountQuery,
-  MigratedNamesCountQueryVariables,
-} from '@ens-apps/indexer'
-import { MigratedNamesCountDocument } from '@ens-apps/indexer'
-import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
-import { indexerClient } from '@/lib/indexer-client'
+import { bigname } from '@/lib/bigname'
 
 class GetMigratedNamesCountError extends TaggedError(
   'GetMigratedNamesCountError',
@@ -17,26 +11,25 @@ class GetMigratedNamesCountError extends TaggedError(
   cause: unknown
 }> {}
 
+/**
+ * Names the address owns whose ENSv2 registration came from an ENSv1→ENSv2
+ * migration (`is_migrated=true`). Native ENSv2 registrations do not count.
+ * The collection's `total_count` is exact, so one row is enough.
+ */
 export const getMigratedNamesCount = ResultFn(async function* (
   address: string,
 ) {
-  const variables = {
-    where: {
-      owner: address.toLowerCase(),
-      isMigrated: true,
-    },
-  } as unknown as MigratedNamesCountQueryVariables
-
-  const data = yield* await ResultAsync.fromPromise(
-    graphqlRequest<MigratedNamesCountQuery, MigratedNamesCountQueryVariables>(
-      indexerClient,
-      MigratedNamesCountDocument,
-      variables,
-    ),
+  const page = yield* await ResultAsync.fromPromise(
+    bigname.listAddressNames(address.toLowerCase(), {
+      relation: ['owner'],
+      is_migrated: true,
+      dedupe: 'name',
+      page_size: 1,
+    }),
     (error) => new GetMigratedNamesCountError({ cause: error }),
   )
 
-  return ok(data.domainConnection.totalCount ?? 0)
+  return ok(page.page.total_count ?? 0)
 })
 
 export const migratedNamesCountQueryOptions = (

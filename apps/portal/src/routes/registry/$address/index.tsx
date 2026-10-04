@@ -11,7 +11,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
 import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -28,7 +28,6 @@ import {
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
-import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -117,8 +116,7 @@ function RouteComponent() {
           </dt>
           <dd className="flex items-center h-10">
             <DeployedBadge
-              namehash={registry.namehash}
-              createdBlock={registry.createdBlock}
+              transactionHash={registry.createdTransactionHash}
               deployedDate={deployedDate}
             />
           </dd>
@@ -312,37 +310,26 @@ const FailedToLoad = () => (
 )
 
 const DeployedBadge = ({
-  namehash,
-  createdBlock,
+  transactionHash,
   deployedDate,
 }: {
-  readonly namehash: string
-  readonly createdBlock: number
+  readonly transactionHash: Hash | null
   readonly deployedDate: string | null
 }) => {
-  const {
-    data: deployment,
-    isLoading,
-    error,
-  } = useQuery(getRegistryDeploymentQueryOptions({ namehash, createdBlock }))
-  const deploymentTxHash = deployment?.transactionHash
-  const deploymentTxUrl = useBlockExplorerTxUrl(deploymentTxHash)
+  const deploymentTxUrl = useBlockExplorerTxUrl(transactionHash ?? undefined)
 
-  return match({ isLoading, error, deploymentTxHash })
-    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
-    .with({ error: P.not(null) }, () => <FailedToLoad />)
-    .with({ deploymentTxHash: P.string }, (m) => (
-      <EntityBadge
-        variant="tx"
-        className="font-normal"
-        label={deployedDate ?? undefined}
-        copyValue={m.deploymentTxHash}
-        etherscanHref={deploymentTxUrl}
-      >
-        {truncateAddress(m.deploymentTxHash, 6, 4)}
-      </EntityBadge>
-    ))
-    .otherwise(() =>
-      deployedDate ? <span>{deployedDate}</span> : <span>—</span>,
-    )
+  if (!transactionHash)
+    return deployedDate ? <span>{deployedDate}</span> : <span>—</span>
+
+  return (
+    <EntityBadge
+      variant="tx"
+      className="font-normal"
+      label={deployedDate ?? undefined}
+      copyValue={transactionHash}
+      etherscanHref={deploymentTxUrl}
+    >
+      {truncateAddress(transactionHash, 6, 4)}
+    </EntityBadge>
+  )
 }

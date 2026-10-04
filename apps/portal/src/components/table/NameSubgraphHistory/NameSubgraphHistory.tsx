@@ -4,18 +4,18 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
-import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   type GetNameHistoryError,
+  type GetNameHistoryParameters,
   getNameHistoryQueryOptions,
   NAME_HISTORY_PAGE_SIZE,
 } from '@/features/profile/hooks/useNameHistory'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
   groupEventsByTransactionId,
   type SubgraphEvent,
 } from '@/utils/history/groupEventsByTransactionId'
+import { historyEventsToSubgraphEvents } from '@/utils/history/historyEventsToSubgraphEvents'
 
 type Category = 'domain' | 'registration' | 'resolver'
 
@@ -23,42 +23,36 @@ interface NameSubgraphHistoryProps {
   name: string
   category?: Category
   /**
-   * Optional pre-fetched V2 events data. When provided, skips V1 query and timestamp fetching.
-   * V2 events already include timestamps from the indexer.
+   * Optional pre-fetched events. When provided, the name's history is not read.
    */
   v2Events?: SubgraphEvent[]
   enableHeader?: boolean
 }
 
-const categoryToEventType = (c: Category): `${Category}Events` => {
-  return `${c}Events`
+/**
+ * The old ENSv1 subgraph's event categories as bigname history filters: the
+ * name's own surface, its registration lifecycle, or its resolver activity.
+ */
+const CATEGORY_FILTERS: Record<
+  Category,
+  Pick<GetNameHistoryParameters, 'scope' | 'type'>
+> = {
+  domain: { scope: 'name' },
+  registration: { scope: 'registration' },
+  resolver: { type: ['record', 'resolver'] },
 }
 
 const NameSubgraphHistoryTable = ({
   name,
   data: history,
   category,
-  isV2,
 }: {
   name: string
   data: SubgraphEvent[]
   category: Category
-  isV2: boolean
 }) => {
+  // bigname dates every row, so each transaction carries its own timestamp.
   const groupedData = groupEventsByTransactionId(history, category)
-
-  // V2 events already have timestamps, so skip fetching for V2
-  const hasTimestamps =
-    isV2 && history.every((item) => item.timestamp !== undefined)
-
-  const {
-    data: timestampsData,
-    isLoading: isLoadingTimestamps,
-    error: timestampsError,
-  } = useBlockTimestamps({
-    blocks: history.map((item) => BigInt(item.blockNumber)),
-    enabled: !hasTimestamps,
-  })
 
   const {
     data: sendersData,
@@ -68,18 +62,8 @@ const NameSubgraphHistoryTable = ({
     transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
   })
 
-  if (!hasTimestamps && isLoadingTimestamps && isLoadingSenders) {
-    return <LoadingSpinner title="Loading transaction data..." />
-  }
-  if (!hasTimestamps && isLoadingTimestamps) {
-    return <LoadingSpinner title="Loading timestamps..." />
-  }
   if (isLoadingSenders) {
     return <LoadingSpinner title="Loading transaction senders..." />
-  }
-
-  if (!hasTimestamps && timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
   }
   if (sendersError) {
     return (
@@ -88,27 +72,9 @@ const NameSubgraphHistoryTable = ({
       </div>
     )
   }
-
-  if (!hasTimestamps && !timestampsData) {
-    return <div>No timestamp data available</div>
-  }
   if (!sendersData) {
     return <div>No sender data available</div>
   }
-
-  // For V2, create a timestamp map from the events themselves
-  const finalTimestampsData = hasTimestamps
-    ? new Map(
-        // biome-ignore lint/style/noNonNullAssertion: <need to check this>
-        history.map((event) => [BigInt(event.blockNumber), event.timestamp!]),
-      )
-    : timestampsData
-
-  const dataWithTimestampsAndSenders = enrichEventsWithMetadata(
-    groupedData,
-    finalTimestampsData,
-    sendersData,
-  )
 
   return (
     <EventsDataTable
@@ -117,7 +83,10 @@ const NameSubgraphHistoryTable = ({
       enableTransactionCount={false}
       enableSidebar={false}
       enableNetwork={false}
-      data={dataWithTimestampsAndSenders}
+      data={groupedData.map((tx) => ({
+        ...tx,
+        from: sendersData.get(tx.transactionID as Hash) || tx.from,
+      }))}
       name={name}
     />
   )
@@ -129,33 +98,27 @@ export const NameSubgraphHistory = ({
   v2Events,
   enableHeader = true,
 }: NameSubgraphHistoryProps) => {
-  const isV2 = !!v2Events
+  const hasEvents = !!v2Events
 
-  // Only fetch V1 history if V2 events weren't provided
   const {
     data: history,
     isLoading,
     error,
   } = useQuery({
-    ...getNameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
-    enabled: !isV2,
+    ...getNameHistoryQueryOptions({
+      name,
+      ...CATEGORY_FILTERS[category],
+      page_size: NAME_HISTORY_PAGE_SIZE,
+    }),
+    enabled: !hasEvents,
   })
 
-  if (!isV2 && isLoading) return <LoadingSpinner title="Loading..." />
-  if (!isV2 && error)
+  if (!hasEvents && isLoading) return <LoadingSpinner title="Loading..." />
+  if (!hasEvents && error)
     return <div>Error: {(error as GetNameHistoryError).cause?.message}</div>
 
-  // Use V2 events if provided, otherwise get from V1 history
-  let data: SubgraphEvent[] | undefined
-
-  if (isV2) {
-    data = v2Events
-  } else {
-    const eventType = categoryToEventType(category)
-    const rawData = history?.[eventType]
-    // Convert null to undefined and cast V1 event types to SubgraphEvent
-    data = rawData ? (rawData as SubgraphEvent[]) : undefined
-  }
+  const data =
+    v2Events ?? (history ? historyEventsToSubgraphEvents(history) : undefined)
 
   if (!data || data.length === 0)
     return (
@@ -172,7 +135,7 @@ export const NameSubgraphHistory = ({
   return (
     <div className="flex flex-col gap-4 w-full">
       {enableHeader && <HistorySectionHeader />}
-      <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />
+      <NameSubgraphHistoryTable {...{ name, data, category }} />
     </div>
   )
 }

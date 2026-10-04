@@ -10,7 +10,6 @@
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
 import { envConfig } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
@@ -27,7 +26,7 @@ const COMMEMORATIVE_RENDERER_ORIGIN = getCommemorativeNftConfig().rendererOrigin
 const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 
 // Deployment-specific override origins for the endpoints config does not own.
-// The RPC and indexer overrides are already folded into `config`, so they are
+// The RPC and bigname overrides are already folded into `config`, so they are
 // covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
@@ -37,12 +36,6 @@ const OVERRIDE_CONNECT_ORIGINS = [
   DQA_ORIGIN,
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
 ].filter((origin): origin is string => origin != null)
-
-// Subgraph endpoints ensjs resolves internally (getNameHistory). Derived from
-// its own chain config so the mainnet cutover can't silently fail closed.
-const SUBGRAPH_ORIGINS = Object.values(ensL1Subgraphs).map(
-  ({ ens }) => new URL(ens.url).origin,
-)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
@@ -54,14 +47,13 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexers, resolved in `@/config`.
-  ...[
-    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
-    originFromEnvUrl(envConfig.endpoints.bignameApi),
-  ].filter((origin): origin is string => origin !== null),
-  // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
-  // app-api.ens.dev), v1 subgraph (v1-graphql.ens.dev). Wildcarded so
-  // per-deployment / per-env *.ens.dev hosts don't silently break a flow.
+  // The bigname REST indexer, resolved in `@/config` (src/lib/bigname.ts).
+  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
+    (origin): origin is string => origin !== null,
+  ),
+  // ENS-owned hosts: backend API (VITE_API_URL / app-api.ens.dev), NFT
+  // assets. Wildcarded so per-deployment / per-env *.ens.dev hosts don't
+  // silently break a flow.
   'https://*.ens.dev',
   // ENS-owned *.ens.domains: metadata avatar gateway, PostHog analytics host
   // (jakob.ens.domains — VITE_PUBLIC_POSTHOG_HOST).
@@ -91,8 +83,6 @@ const DEFAULT_CONNECT_HOSTS = [
   'wss://*.walletconnect.org',
   // Reown AppKit (formerly Web3Modal) config + analytics API
   'https://api.web3modal.org',
-  // Subgraph endpoints ensjs resolves internally (see SUBGRAPH_ORIGINS).
-  ...SUBGRAPH_ORIGINS,
   // DNS-over-HTTPS — ensjs `getDnsTxtRecords` (utils/dnssec) defaults to
   // cloudflare-dns.com. Both hosts: CSP matches on host, not on service.
   'https://cloudflare-dns.com',

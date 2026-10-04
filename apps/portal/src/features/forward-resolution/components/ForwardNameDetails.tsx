@@ -1,4 +1,3 @@
-import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { Hash } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -6,29 +5,24 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
-import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
+import {
+  getRecordHistoryQueryOptions,
+  type RecordHistoryEvent,
+} from '@/features/records/hooks/useRecordHistory'
 import { fromCoinType } from '@/lib/utils'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { CoinTypeLabel } from './CoinTypeLabel'
 import type { ForwardName } from './ForwardNamesTable/columns'
 
 interface AddressHistoryProps {
-  history: ReturnResolverEvent[]
+  history: RecordHistoryEvent[]
   name: string
 }
 
 const AddressHistory = ({ history, name }: AddressHistoryProps) => {
+  // bigname dates every row, so the grouped transactions carry their timestamp.
   const groupedData = groupEventsByTransactionId(history, 'resolver')
-
-  const {
-    data: timestampsData,
-    isLoading: isLoadingTimestamps,
-    error: timestampsError,
-  } = useBlockTimestamps({
-    blocks: history.map((item) => BigInt(item.blockNumber)),
-  })
 
   const {
     data: sendersData,
@@ -38,19 +32,10 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
   })
 
-  if (isLoadingTimestamps && isLoadingSenders) {
-    return <LoadingSpinner title="Loading transaction data..." />
-  }
-  if (isLoadingTimestamps) {
-    return <LoadingSpinner title="Loading timestamps..." />
-  }
   if (isLoadingSenders) {
     return <LoadingSpinner title="Loading transaction senders..." />
   }
 
-  if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
-  }
   if (sendersError) {
     return (
       <div>
@@ -59,13 +44,12 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     )
   }
 
-  if (!timestampsData || !sendersData) {
+  if (!sendersData) {
     return <div>No data available</div>
   }
 
   const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
     ...tx,
-    timestamp: timestampsData.get(BigInt(tx.blockNumber)),
     from: sendersData.get(tx.transactionID as Hash) || tx.from,
   }))
 

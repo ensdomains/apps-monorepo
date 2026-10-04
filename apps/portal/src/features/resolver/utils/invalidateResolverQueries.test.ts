@@ -33,8 +33,6 @@ describe('invalidateResolverQueries', () => {
   it.each([
     'get-name-history-pages',
     'get-name-history-anchor',
-    'get-name-history-auxiliary',
-    'get-name-event-types',
   ])('invalidates the name history feed (%s)', async (key) => {
     const queryClient = new QueryClient()
     seed(queryClient, [key, { name: 'alice.eth' }])

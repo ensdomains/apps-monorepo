@@ -1,0 +1,19 @@
+{
+  "name": "@ens-apps/bigname",
+  "version": "1.0.0",
+  "description": "Fetch-based client for the bigname REST indexer (/v1)",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "biome check"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

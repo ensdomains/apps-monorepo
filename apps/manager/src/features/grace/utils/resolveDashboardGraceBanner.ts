@@ -1,12 +1,11 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import { match, P } from 'ts-pattern'
 import {
-  buildMergedNamesList,
-  mergedRowMetadata,
-} from '@/features/dashboard/mergedNames'
+  type DashboardName,
+  dashboardRowMetadata,
+  filterAndSortDashboardNames,
+} from '@/features/dashboard/dashboardNames'
 import type { GracePeriodBannerVariant } from '@/features/grace/components/GracePeriodBanner'
 import type { NameExpiryStatus } from '@/features/grace/utils/gracePeriod'
-import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 
 export type DashboardGraceBannerState =
   | {
@@ -22,8 +21,8 @@ export type DashboardGraceBannerState =
 type ResolveDashboardGraceBannerParams = {
   readonly primaryLabel: string | null
   readonly primaryGrace: NameExpiryStatus
-  readonly v2Names: readonly DomainFragment[]
-  readonly v1Classified: readonly ClassifiedName[]
+  /** Every dashboard name; only ENSv2 names can raise the any-name banner. */
+  readonly names: readonly DashboardName[]
 }
 
 const isPrimaryLabelMatch = (
@@ -34,20 +33,18 @@ const isPrimaryLabelMatch = (
 
 const resolveAnyNameGraceBanner = ({
   primaryLabel,
-  v2Names,
-  v1Classified,
+  names,
 }: Omit<ResolveDashboardGraceBannerParams, 'primaryGrace'>): Extract<
   DashboardGraceBannerState,
   { show: true }
 > | null => {
-  for (const item of buildMergedNamesList({
-    v2Names,
-    v1Classified,
+  for (const item of filterAndSortDashboardNames({
+    names,
     searchQuery: '',
     sortField: 'expiry',
     sortDir: 'asc',
   })) {
-    const meta = mergedRowMetadata(item, primaryLabel)
+    const meta = dashboardRowMetadata(item, { primaryLabel })
     if (
       meta.isV1 ||
       !meta.isInGrace ||

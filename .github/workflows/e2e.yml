@@ -179,7 +179,6 @@ jobs:
           if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
             echo "Using ENS V2 snapshot (no live Sepolia fork)"
             COMPOSE_FILES="-f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml"
-            export PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json"
             ANVIL_TIMEOUT=30
           else
             echo "Live Sepolia fork (box not available)"
@@ -187,9 +186,9 @@ jobs:
             ANVIL_TIMEOUT=60
           fi
 
-          # Core services — Panoptes (indexer + API) is intentionally omitted.
-          # All indexer GraphQL queries are intercepted by Playwright's route mock
-          # (E2E_MOCK_INDEXER=true in e2e/.env.ci), so no live indexer is needed.
+          # Core services only — no indexer runs here. bigname REST reads are
+          # intercepted by Playwright's route mock (E2E_MOCK_BIGNAME=true in
+          # e2e/.env.ci), so no live bigname is needed.
           # This saves ~1 GB RAM and prevents Anvil OOM in CI.
           SERVICES="anvil alto paymaster"
 
@@ -352,8 +351,7 @@ jobs:
         if: always()
         run: |
           if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
-            PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json" \
-              docker compose -f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml down
+            docker compose -f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml down
           else
             docker compose -f e2e/infra/docker-compose.yml down
           fi

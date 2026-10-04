@@ -89,12 +89,7 @@ const Profile = ({
   const isEthTld = tld === 'eth'
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const profileQuery = useQuery(
-    getProfileQueryOptions({
-      name,
-      protocolVersion: ownerQuery.data?.protocolVersion,
-    }),
-  )
+  const profileQuery = useQuery(getProfileQueryOptions({ name }))
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -439,7 +434,7 @@ const Profile = ({
 
         {/* Counter cards */}
         <div className="grid grid-cols-1 gap-3 content-start sm:grid-cols-3 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
-          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
+          <SubnameCount name={name} />
           <ProtocolVersionWithCounter
             name={name}
             protocolVersion={resolvedProtocolVersion}

@@ -1,186 +1,161 @@
-import { ok } from 'neverthrow'
+import { BignameError, type SubnameRow } from '@ens-apps/bigname'
+import { labelhash, namehash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockClient = { chain: { id: 11155111 } }
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok(mockClient),
+const mockListSubnames = vi.fn()
+vi.mock('@/lib/bigname', () => ({
+  bigname: { listSubnames: mockListSubnames },
 }))
 
-const mockEnsjsGetSubnames = vi.fn()
-vi.mock('@ensdomains/ensjs/subgraph', () => ({
-  getSubnames: mockEnsjsGetSubnames,
-}))
+const { getSubnameCount, getSubnames, toSubnames } = await import(
+  './useSubnames'
+)
 
-const mockGraphqlRequest = vi.fn()
-vi.mock('@/lib/indexer', () => ({
-  graphqlIndexerClient: {
-    request: mockGraphqlRequest,
+const OWNER = '0x1234567890123456789012345678901234567890'
+const OWNER_CHECKSUM = '0x1234567890123456789012345678901234567890'
+
+const row = (name: string, overrides: Partial<SubnameRow> = {}): SubnameRow => {
+  const label = name.split('.')[0] as string
+  return {
+    name,
+    display_name: name,
+    namespace: 'ens',
+    namehash: namehash(name),
+    labelhash: labelhash(label),
+    owner: OWNER,
+    ...overrides,
+  }
+}
+
+const page = (data: SubnameRow[], total_count = data.length) => ({
+  data,
+  page: {
+    cursor: null,
+    next_cursor: null,
+    page_size: 200,
+    total_count,
+    has_more: false,
   },
-}))
-
-const { getSubnames } = await import('./useSubnames')
+  meta: {},
+})
 
 describe('getSubnames', () => {
   beforeEach(() => {
-    mockEnsjsGetSubnames.mockClear()
-    mockGraphqlRequest.mockClear()
+    mockListSubnames.mockReset()
   })
 
-  it('returns subnames using ensjs for sepolia network', async () => {
-    const subname = {
-      name: 'sub.test.eth',
-      labelName: 'sub',
-      labelhash: '0x1234',
-      owner: '0x1234567890123456789012345678901234567890',
-    }
-    mockEnsjsGetSubnames.mockResolvedValue([{ ...subname, wrappedOwner: null }])
+  it('lists live subnames from bigname, ENSv1 and ENSv2 alike', async () => {
+    mockListSubnames.mockResolvedValue(page([row('sub.test.eth')]))
 
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv1',
-    })
-
-    expect(result._unsafeUnwrap()).toEqual([subname])
-    expect(mockEnsjsGetSubnames).toHaveBeenCalledWith(mockClient, {
-      name: 'test.eth',
-    })
-  })
-
-  // The registry slot of a wrapped name belongs to the NameWrapper contract.
-  it('reports the wrapper owner, not the NameWrapper, for a wrapped V1 subname', async () => {
-    mockEnsjsGetSubnames.mockResolvedValue([
-      {
-        name: 'sub.test.eth',
-        labelName: 'sub',
-        labelhash: '0x1234',
-        owner: '0x0635513f179D50A207757E05759CbD106d7dFcE8',
-        wrappedOwner: '0x1234567890123456789012345678901234567890',
-      },
-    ])
-
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv1',
-    })
+    const result = await getSubnames({ name: 'test.eth' })
 
     expect(result._unsafeUnwrap()).toEqual([
       {
         name: 'sub.test.eth',
         labelName: 'sub',
-        labelhash: '0x1234',
-        owner: '0x1234567890123456789012345678901234567890',
+        labelhash: labelhash('sub'),
+        namehash: namehash('sub.test.eth'),
+        owner: OWNER_CHECKSUM,
       },
     ])
+    expect(mockListSubnames).toHaveBeenCalledWith('test.eth', {
+      include_expired: false,
+      sort: 'name',
+      page_size: 200,
+      cursor: undefined,
+    })
   })
 
-  it('returns subnames using graphql indexer for namechainSepolia', async () => {
-    const mockGraphqlResponse = {
-      domains: [
-        {
-          subdomains: [
-            {
-              name: 'sub.test.eth',
-              labelName: 'sub',
-              labelhash: '0xabcd',
-              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-            },
-          ],
-        },
-      ],
-    }
-    mockGraphqlRequest.mockResolvedValue(mockGraphqlResponse)
+  it('returns no subnames for a parent bigname has not indexed', async () => {
+    mockListSubnames.mockRejectedValue(
+      new BignameError({
+        status: 404,
+        code: 'not_found',
+        message: 'name not found',
+        url: '/v1/names/nope.eth/subnames',
+      }),
+    )
 
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv2',
-    })
-
-    expect(result._unsafeUnwrap()).toEqual([
-      {
-        name: 'sub.test.eth',
-        labelName: 'sub',
-        labelhash: '0xabcd',
-        owner: '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
-      },
-    ])
-  })
-
-  it('names V1 subnames from their parent, encoding unknown labels', async () => {
-    mockEnsjsGetSubnames.mockResolvedValue([
-      {
-        name: '1.[d9212cee289e4bfe6f6deb963d8b06ce82538df961bf16733c3c34c2f8a057a0].eth',
-        labelName: '1',
-        labelhash:
-          '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
-        owner: '0x1234567890123456789012345678901234567890',
-        wrappedOwner: null,
-      },
-      {
-        name: null,
-        labelName: null,
-        labelhash:
-          '0xad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5',
-        owner: '0x1234567890123456789012345678901234567890',
-        wrappedOwner: null,
-      },
-    ])
-
-    const result = await getSubnames({
-      name: 'phantombug01.eth',
-      protocolVersion: 'ENSv1',
-    })
-
-    expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
-      '1.phantombug01.eth',
-      '[ad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5].phantombug01.eth',
-    ])
-  })
-
-  it('names V2 subnames from their parent, encoding unknown labels', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      domains: [
-        {
-          subdomains: [
-            {
-              name: 'sub.[6d255fc3390ee6b41191da315958b7d6a1e5b17904cc7683558f98acc57977b4].eth',
-              labelName: 'sub',
-              labelhash: '0xabcd',
-              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-            },
-            {
-              name: null,
-              labelName: null,
-              labelhash:
-                '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
-              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-            },
-          ],
-        },
-      ],
-    })
-
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv2',
-    })
-
-    expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
-      'sub.test.eth',
-      '[c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6].test.eth',
-    ])
-  })
-
-  it('returns empty array when domain has no subdomains', async () => {
-    const mockGraphqlResponse = {
-      domains: [{ subdomains: [] }],
-    }
-    mockGraphqlRequest.mockResolvedValue(mockGraphqlResponse)
-
-    const result = await getSubnames({
-      name: 'empty.eth',
-      protocolVersion: 'ENSv2',
-    })
+    const result = await getSubnames({ name: 'nope.eth' })
 
     expect(result._unsafeUnwrap()).toEqual([])
+  })
+
+  it('surfaces other bigname failures', async () => {
+    mockListSubnames.mockRejectedValue(
+      new BignameError({
+        status: 503,
+        code: 'overloaded',
+        message: 'try later',
+        url: '/v1/names/test.eth/subnames',
+      }),
+    )
+
+    const result = await getSubnames({ name: 'test.eth' })
+
+    expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('toSubnames', () => {
+  // `[<labelhash>].<parent>` is bigname's placeholder for a label it cannot
+  // state; it is not a name and must not reach a name route or a delete.
+  it('drops rows bigname could not state as a name', () => {
+    const hidden = labelhash('hidden').slice(2)
+    const rows = [
+      row('sub.test.eth'),
+      row(`[${hidden}].test.eth`, { labelhash: labelhash('hidden') }),
+      row('\\377bad.test.eth', { labelhash: labelhash('something-else') }),
+    ]
+
+    expect(toSubnames(rows, 'test.eth').map((s) => s.name)).toEqual([
+      'sub.test.eth',
+    ])
+  })
+
+  // The row's name can carry a parent label bigname learned after indexing
+  // the child, so the name is rebuilt from the child's label and the parent.
+  it('names each subname from its label and the parent asked for', () => {
+    const staleParent = labelhash('phantombug01').slice(2)
+    const rows = [
+      row(`1.[${staleParent}].eth`, {
+        labelhash: labelhash('1'),
+        namehash: namehash('1.phantombug01.eth'),
+      }),
+    ]
+
+    expect(toSubnames(rows, 'phantombug01.eth')).toEqual([
+      {
+        name: '1.phantombug01.eth',
+        labelName: '1',
+        labelhash: labelhash('1'),
+        namehash: namehash('1.phantombug01.eth'),
+        owner: OWNER_CHECKSUM,
+      },
+    ])
+  })
+
+  it('drops rows with no current owner', () => {
+    expect(
+      toSubnames([row('gone.test.eth', { owner: undefined })], 'test.eth'),
+    ).toEqual([])
+  })
+})
+
+describe('getSubnameCount', () => {
+  beforeEach(() => {
+    mockListSubnames.mockReset()
+  })
+
+  it("reads bigname's exact total rather than counting a page", async () => {
+    mockListSubnames.mockResolvedValue(page([row('a.test.eth')], 38))
+
+    const result = await getSubnameCount({ name: 'test.eth' })
+
+    expect(result._unsafeUnwrap()).toBe(38)
+    expect(mockListSubnames).toHaveBeenCalledWith('test.eth', {
+      include_expired: false,
+      page_size: 1,
+    })
   })
 })

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  filterAndSortOwnedNames,
-  is2LD,
-  labelCount,
-  mergeOwnedNames,
-} from './ownedNamesUtils'
+import { filterAndSortOwnedNames, is2LD, labelCount } from './ownedNamesUtils'
 
 describe('labelCount', () => {
   it('returns 2 for 2LD names', () => {
@@ -32,36 +27,6 @@ describe('is2LD', () => {
   it('returns false for subnames', () => {
     expect(is2LD('big.fox.eth')).toBe(false)
     expect(is2LD('mini.fox.eth')).toBe(false)
-  })
-})
-
-describe('mergeOwnedNames', () => {
-  it('merges v1 and v2 lists', () => {
-    const v1 = [{ name: 'v1name.eth' }]
-    const v2 = [{ name: 'v2name.eth' }]
-    expect(mergeOwnedNames(v1, v2)).toEqual([
-      { name: 'v1name.eth' },
-      { name: 'v2name.eth' },
-    ])
-  })
-
-  it('deduplicates by name case-insensitively', () => {
-    const v1 = [{ name: 'fox.eth' }]
-    const v2 = [{ name: 'Fox.eth' }]
-    expect(mergeOwnedNames(v1, v2)).toEqual([{ name: 'fox.eth' }])
-  })
-
-  it('skips v1 entries with null name', () => {
-    const v1 = [{ name: 'a.eth' }, { name: null }, { name: 'b.eth' }]
-    const v2: { name: string }[] = []
-    expect(mergeOwnedNames(v1, v2)).toEqual([
-      { name: 'a.eth' },
-      { name: 'b.eth' },
-    ])
-  })
-
-  it('returns empty when both inputs empty', () => {
-    expect(mergeOwnedNames([], [])).toEqual([])
   })
 })
 

@@ -1,48 +1,43 @@
+import type {
+  BignameError,
+  HistoryEvent,
+  NameHistoryParams,
+} from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetSupportedInterfacesErrorType } from '@ensdomains/ensjs/public'
-import type {
-  GetNameHistoryErrorType,
-  GetNameHistoryParameters,
-} from '@ensdomains/ensjs/subgraph'
-import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { bigname } from '@/lib/bigname'
 
 export class GetNameHistoryError extends TaggedError('GetNameHistoryError')<{
-  cause: GetNameHistoryErrorType
+  cause: BignameError
 }> {}
 
-/**
- * Page size for history queries that render a full event list.
- *
- * Callers MUST pass `first`. The query declares `$first: Int` and fans out to
- * three sibling `events` selections (domain, registration, resolver); when the
- * variable is left unsupplied the indexer cannot read a value and costs each
- * one at its worst case, so the whole query is rejected:
- *
- *   Query complexity (78003) exceeds maximum allowed cost
- *
- * 100 matches the page the indexer applies by default, so this bounds the cost
- * without changing how many events come back — with `first` supplied the same
- * query costs a fraction of the limit and succeeds.
- */
+/** Page size for history queries that render a full event list. */
 export const NAME_HISTORY_PAGE_SIZE = 100
 
-const getNameHistory = ResultFn(async function* (
-  params: GetNameHistoryParameters,
-) {
-  const client = yield* safeGetClient()
+export type GetNameHistoryParameters = {
+  name: string
+} & Pick<NameHistoryParams, 'scope' | 'type' | 'order' | 'page_size'>
 
-  const events = yield* fromPromise(
-    ensjs_getNameHistory(client, params),
-    (e) =>
-      new GetNameHistoryError({
-        cause: e as GetSupportedInterfacesErrorType,
-      }),
+/**
+ * One page of a name's history, ENSv1 and ENSv2 in one stream, with the typed
+ * `data` payload and the raw upstream `kind` on every row. Rows carry their
+ * block `timestamp`, so no block-timestamp RPC is needed to date them.
+ *
+ * The ENSv1 subgraph's categories map to `scope` / `type`: `domain` is
+ * `scope: 'name'`, `registration` is `scope: 'registration'`, and `resolver`
+ * is `type: ['record', 'resolver']`.
+ */
+const getNameHistory = ResultFn(async function* ({
+  name,
+  ...params
+}: GetNameHistoryParameters) {
+  const { data } = yield* fromPromise(
+    bigname.getNameHistory(name, { ...params, include: ['data', 'raw'] }),
+    (e) => new GetNameHistoryError({ cause: e as BignameError }),
   )
-  return ok(events)
+  return ok<readonly HistoryEvent[]>(data)
 })
 
 const getNameHistoryQueryKey = createQueryKey<
@@ -53,5 +48,5 @@ const getNameHistoryQueryKey = createQueryKey<
 export const getNameHistoryQueryOptions = (params: GetNameHistoryParameters) =>
   resultQueryOptions({
     queryKey: getNameHistoryQueryKey(params),
-    queryFn: () => getNameHistory(params),
+    queryFn: ({ queryKey: [, params] }) => getNameHistory(params),
   })

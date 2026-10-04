@@ -5,7 +5,7 @@ import {
   type GraceRenewalQuote,
   getGraceRenewalQuote,
 } from '../service/graceRenewal'
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '../service/v1Names'
 
 export type GraceRenewalQuoteState =
   | { readonly status: 'idle' }

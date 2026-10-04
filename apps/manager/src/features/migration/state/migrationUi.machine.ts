@@ -32,7 +32,7 @@ import {
 } from '../service/graceRenewal'
 import type { PendingGraceRenewal } from '../service/graceRenewalPending'
 import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '../service/v1Names'
 import {
   FINAL_STAGE_FILL_MS,
   REUNION_HOLD_MS,

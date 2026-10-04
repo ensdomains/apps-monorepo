@@ -2,7 +2,7 @@ import { type Address, type Hex, isAddress } from 'viem'
 
 import type { Profile } from './fetchV1Profiles'
 import type { MigrationApprovalId } from './migrationApprovals'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Names'
 
 const JOURNAL_VERSION = 1 as const
 const STORAGE_KEY =

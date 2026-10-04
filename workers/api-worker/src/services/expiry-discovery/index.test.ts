@@ -267,4 +267,52 @@ describe('runExpiryDiscoveryCron', () => {
       cursor + PROCESS_PAGE_SIZE,
     )
   })
+
+  it('filters rows by registration status per stage and still advances the cursor', async () => {
+    const kv = new MockKV()
+    const cursors = caughtUpCursors()
+    cursors['grace-7d'] = {
+      expiry_timestamp: getUpperBoundForStage(stage('grace-7d'), NOW) - 100,
+    }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+    const upperBound = getUpperBoundForStage(stage('grace-7d'), NOW)
+    vi.mocked(fetchExpiringNamesPage).mockImplementation(({ stage: current }) =>
+      okAsync({
+        domains:
+          current.id === 'grace-7d'
+            ? [
+                {
+                  name: 'v2-lapsed.eth',
+                  expiryDate: upperBound - 50,
+                  registrationStatus: 'released' as const,
+                },
+                {
+                  name: 'v1-in-grace.eth',
+                  expiryDate: upperBound - 10,
+                  owner: '0xabc',
+                  registrationStatus: 'active' as const,
+                },
+              ]
+            : [],
+        hasMore: false,
+      }),
+    )
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
+
+    await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
+
+    const events = sendBatch.mock.calls.flatMap(([messages]) =>
+      messages.map(({ body }) => body),
+    )
+    expect(events).toEqual([
+      expect.objectContaining({ name: 'v2-lapsed.eth', stage: 'grace-7d' }),
+    ])
+    const stored = (await kv.get(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      'json',
+    )) as CursorState
+    expect(stored['grace-7d']?.expiry_timestamp).toBe(upperBound - 10)
+  })
 })

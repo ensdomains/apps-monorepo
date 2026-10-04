@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import type { TimelineEvent } from '../timelineEvent'
 import type { TimelinePage } from '../timelineEventPage'
 import { timelinePageParams } from '../timelineEventPage'
 import {
@@ -10,21 +10,25 @@ import {
 } from './useHistoryTimeline'
 
 /** One event per transaction, so an action is an event and the counts line up. */
-const events = (count: number, from = 0): readonly TimelineIndexerEvent[] =>
+const events = (count: number, from = 0): readonly TimelineEvent[] =>
   Array.from({ length: count }, (_, index) => {
     const n = from + index
     return {
       id: `e-${String(n)}`,
-      type: 'TextChanged',
+      type: 'record',
+      name: 'alice.eth',
+      registrationId: null,
       transactionHash: `0x${String(n).padStart(40, '0')}` as const,
       blockNumber: 1000 - n,
+      logIndex: 0,
       timestamp: 1000 - n,
+      data: { key: 'text:url', value: String(n) },
     }
   })
 
 /** `next` is the cursor of the page after this one; omitted ends the feed. */
 const page = (
-  events: readonly TimelineIndexerEvent[],
+  events: readonly TimelineEvent[],
   next?: string,
 ): TimelinePage => ({
   events,
@@ -68,8 +72,8 @@ const renderFeed = (pages: readonly TimelinePage[]) => {
 
 describe('useTimelinePagesModel', () => {
   it('windows a fully-loaded feed that is still too long to render', async () => {
-    // The case the network cannot page: everything is in hand — as it is for a
-    // name whose tail is unpaged v1 history — and the list is still too long.
+    // The case the network cannot page: everything is in hand and the list is
+    // still too long to render.
     const { result } = renderFeed([page(events(TIMELINE_WINDOW_SIZE * 2))])
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))

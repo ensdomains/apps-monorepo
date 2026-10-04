@@ -71,11 +71,24 @@ const isSameAddress = (
 
 type OwnableName = {
   readonly name: string | null
-  readonly v1Roles?: { readonly owner?: boolean } | null
+  /**
+   * The address's authority relations to the name, from a `relation=any` read:
+   * a narrower read lists only the relations it asked for.
+   */
+  readonly relations: readonly string[]
 }
 
-const holdsRegistrarName = ({ name, v1Roles }: OwnableName) =>
-  Boolean(name && isRegistrarIssued(name) && (!v1Roles || v1Roles.owner))
+/**
+ * The address holds the name's token: `registrant` for a `.eth` 2LD (ENSv1, or
+ * the NameWrapper holder when wrapped), `owner` for the ENSv2 token holder. A
+ * `manager` relation alone is the registry controller, which is not a root.
+ */
+const holdsRegistrarName = ({ name, relations }: OwnableName) =>
+  Boolean(
+    name &&
+      isRegistrarIssued(name) &&
+      (relations.includes('registrant') || relations.includes('owner')),
+  )
 
 /**
  * Decides whether a name's history may be presented as the address's own.

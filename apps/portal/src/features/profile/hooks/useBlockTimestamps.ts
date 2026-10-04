@@ -1,7 +1,4 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { type GetBlockErrorType, getBlock } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -14,6 +11,7 @@ type GetBlockTimestampsParameters = {
   blocks: bigint[]
 }
 
+/** Block timestamps over RPC, for role history read from chain logs. */
 export const getBlockTimestamps = ResultFn(async function* ({
   blocks,
 }: GetBlockTimestampsParameters) {
@@ -33,24 +31,3 @@ export const getBlockTimestamps = ResultFn(async function* ({
 
   return ok(new Map(result))
 })
-
-const getBlockTimestampsQueryKey = createQueryKey<
-  'getBlockTimestampsQueryKey',
-  GetBlockTimestampsParameters
->('getBlockTimestampsQueryKey')
-
-const getBlockTimestampsQueryOptions = (params: GetBlockTimestampsParameters) =>
-  resultQueryOptions({
-    queryKey: getBlockTimestampsQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getBlockTimestamps(params),
-  })
-
-export const useBlockTimestamps = (
-  params: GetBlockTimestampsParameters & { enabled?: boolean },
-) => {
-  const { enabled = true, ...queryParams } = params
-  return useQuery({
-    ...getBlockTimestampsQueryOptions(queryParams),
-    enabled,
-  })
-}

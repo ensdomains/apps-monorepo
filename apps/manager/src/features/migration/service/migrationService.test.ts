@@ -100,7 +100,7 @@ import {
   type MigrationProgress,
   type OnBatchComplete,
 } from './migrationService'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Names'
 import {
   AtomicMigrationBatchReconciliationIndeterminateError,
   AtomicMigrationBatchVerificationError,

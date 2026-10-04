@@ -19,7 +19,7 @@ import {
   SortMenu,
   type SortOption,
 } from '@/features/dashboard/components/SortMenu'
-import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
+import type { SortDir, SortField } from '@/features/dashboard/dashboardNames'
 import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'

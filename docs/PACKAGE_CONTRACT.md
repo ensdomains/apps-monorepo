@@ -29,7 +29,8 @@ Library consumed directly from source files. Build artifacts are not required.
 
 Current examples:
 - `packages/utils`
-- `packages/indexer`
+- `packages/bigname`
+- `packages/config`
 - `packages/l2-primary`
 - `packages/transaction-manager`
 - `packages/locales` (data-only package)

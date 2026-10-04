@@ -6,7 +6,7 @@ import {
   EMPTY_PREFLIGHT,
   type MigrationPreflight,
 } from '@/features/migration/service/computeMigrationPreflight'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Domain } from '@/features/migration/service/v1Names'
 
 type HookParams = {
   eoa: Address | undefined

@@ -5,7 +5,6 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RecordList } from '@/features/records/components/RecordList'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
@@ -24,19 +23,14 @@ export const Route = createFileRoute('/$name/records')({
 function App() {
   const { name } = Route.useParams()
 
-  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
   const profileQuery = useQuery({
-    ...getProfileQueryOptions({
-      name,
-      protocolVersion: ownerQuery.data?.protocolVersion,
-    }),
+    ...getProfileQueryOptions({ name }),
     // Always refetch on mount to ensure fresh data after edits
     refetchOnMount: 'always' as const,
   })
   const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
 
-  const isLoading =
-    profileQuery.isLoading || ownerQuery.isLoading || isCanEditLoading
+  const isLoading = profileQuery.isLoading || isCanEditLoading
 
   if (isLoading) return <LoadingMessage />
 
@@ -67,7 +61,6 @@ function App() {
       name={name}
       records={profileQuery.data.records}
       canEdit={canEdit}
-      protocolVersion={ownerQuery.data?.protocolVersion}
     />
   )
 }

@@ -6,7 +6,7 @@ import type {
   DirectClassifiedName,
   MigrationTokenType,
 } from '../classifyNames'
-import type { V1Domain } from '../v1SubgraphClient'
+import type { V1Domain } from '../v1Names'
 
 export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'
@@ -167,20 +167,34 @@ export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
   }
 }
 
-export const jsonResponse = <T>(body: T, status = 200): Response =>
-  ({
-    ok: status >= 200 && status < 300,
+/** A bigname JSON response, for a `fetch` mock behind a real client. */
+export const bignameResponse = (body: unknown, status = 200): Response =>
+  new Response(JSON.stringify(body), {
     status,
-    json: () => Promise.resolve(body),
-  }) as unknown as Response
+    headers: { 'content-type': 'application/json' },
+  })
 
-type QueryMock = { mockReturnValueOnce: (v: never) => unknown }
+/** A bigname collection envelope. */
+export const bignamePage = <T>(
+  data: readonly T[],
+  page: { nextCursor?: string | null; totalCount?: number | null } = {},
+) => ({
+  data,
+  page: {
+    cursor: null,
+    next_cursor: page.nextCursor ?? null,
+    page_size: data.length,
+    total_count: page.totalCount ?? null,
+    has_more: (page.nextCursor ?? null) !== null,
+  },
+  meta: {},
+})
 
-export const mockIndexerQuery = (
-  queryMock: QueryMock,
-  response: { data?: unknown; error?: unknown },
-): void => {
-  queryMock.mockReturnValueOnce({
-    toPromise: () => Promise.resolve(response),
-  } as never)
+/** The request a `fetch` mock received, as URL plus parsed JSON body. */
+export const bignameRequest = (
+  call: readonly unknown[] | undefined,
+): { url: URL; body: unknown } => {
+  const [input, init] = (call ?? []) as [RequestInfo | URL, RequestInit?]
+  const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null
+  return { url: new URL(String(input)), body }
 }

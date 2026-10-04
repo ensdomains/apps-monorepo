@@ -9,12 +9,11 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getRecords: vi.fn(),
   resolveNameData: vi.fn(),
-  graphqlRequest: vi.fn(),
+  getNameRecords: vi.fn(),
 }))
 
-vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
-vi.mock('@ens-apps/indexer/urql', () => ({
-  graphqlRequest: mocks.graphqlRequest,
+vi.mock('@/lib/bigname', () => ({
+  bigname: { getNameRecords: mocks.getNameRecords },
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   getRecords: mocks.getRecords,
@@ -40,10 +39,28 @@ const ethAddress = '0x1111111111111111111111111111111111111111'
 const bytesResult = (value: Hex) =>
   encodeAbiParameters([{ type: 'bytes' }], [value])
 
+const inventory = (
+  knownKeys: readonly string[],
+  unsupportedKeys: readonly string[] = [],
+) => ({
+  data: {
+    namespace: 'ens',
+    resolver: { chain_id: 11155111, address: resolverAddress },
+    records: {},
+    inventory: {
+      known_keys: knownKeys,
+      unset_keys: [],
+      unsupported_keys: unsupportedKeys,
+      abi_content_types: null,
+    },
+  },
+  meta: {},
+})
+
 describe('profile records', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.graphqlRequest.mockResolvedValue({ domain: { resolver: null } })
+    mocks.getNameRecords.mockResolvedValue(null)
     mocks.getRecords.mockResolvedValue({
       texts: [{ key: 'theme', value: '#123456' }],
       contentHash: { protocolType: 'ipfs', decoded: 'example' },
@@ -53,10 +70,13 @@ describe('profile records', () => {
   })
 
   it.each([
-    { description: 'not indexed yet', indexedTexts: ['theme'] },
-    { description: 'already indexed', indexedTexts: ['theme', 'links'] },
+    { description: 'not indexed yet', indexedKeys: ['text:theme'] },
+    {
+      description: 'already indexed',
+      indexedKeys: ['text:theme', 'text:links'],
+    },
   ])('loads all saved links when the links key is $description', async ({
-    indexedTexts,
+    indexedKeys,
   }) => {
     const linksRecord = {
       key: 'links',
@@ -65,11 +85,7 @@ describe('profile records', () => {
         { name: 'Blog', url: 'https://blog.example.com' },
       ]),
     }
-    mocks.graphqlRequest.mockResolvedValue({
-      domain: {
-        resolver: { address: resolverAddress, texts: indexedTexts },
-      },
-    })
+    mocks.getNameRecords.mockResolvedValue(inventory(indexedKeys))
     mocks.getRecords.mockImplementationOnce(
       async (_client, { texts }: { texts: string[] }) => ({
         texts: texts.includes('links') ? [linksRecord] : [],
@@ -171,5 +187,69 @@ describe('profile records', () => {
   it('retains the profile error path when resolution fails', async () => {
     mocks.resolveNameData.mockRejectedValue(new Error('Resolution failed'))
     expect((await getProfileRecords('failed.eth')).isErr()).toBe(true)
+  })
+})
+
+describe('profile record key discovery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getRecords.mockResolvedValue({ texts: [], resolverAddress })
+    mocks.resolveNameData.mockResolvedValue(null)
+  })
+
+  const requestedCoinTypes = () => {
+    const [, parameters] = mocks.resolveNameData.mock.calls[0] ?? []
+    return (parameters.data as Hex[]).map((data) => {
+      const call = decodeFunctionData({
+        abi: [
+          ...publicResolverSingleAddrSnippet,
+          ...publicResolverMultiAddrSnippet,
+        ],
+        data,
+      })
+      return call.args.length === 1 ? 60n : call.args[1]
+    })
+  }
+
+  it('reads the inventory keys bigname has seen, including unsupported ones', async () => {
+    mocks.getNameRecords.mockResolvedValue(
+      inventory(
+        ['text:url', 'addr:60', 'addr:2147483658', 'avatar', 'contenthash'],
+        ['text:com.github'],
+      ),
+    )
+
+    await getProfileRecords('gift.eth')
+
+    expect(mocks.getNameRecords).toHaveBeenCalledWith('gift.eth', {
+      include: ['inventory'],
+    })
+    expect(mocks.getRecords).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({
+        texts: ['avatar', 'theme', 'links', 'url', 'com.github'],
+      }),
+    )
+    expect(requestedCoinTypes()).toEqual([60n, 121n, 501n, 2147483658n])
+  })
+
+  it('reads only the static keys when bigname has no inventory', async () => {
+    mocks.getNameRecords.mockResolvedValue({
+      data: { namespace: 'ens', records: {} },
+      meta: {},
+    })
+
+    await getProfileRecords('gift.eth')
+
+    expect(mocks.getRecords).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({ texts: ['avatar', 'theme', 'links'] }),
+    )
+  })
+
+  it('returns an error when bigname fails', async () => {
+    mocks.getNameRecords.mockRejectedValue(new Error('bigname down'))
+
+    expect((await getProfileRecords('gift.eth')).isErr()).toBe(true)
   })
 })

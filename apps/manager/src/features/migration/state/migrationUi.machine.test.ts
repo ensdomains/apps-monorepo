@@ -46,7 +46,7 @@ import {
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
 import { prepareGraceRenewalMigration } from '@/features/migration/service/prepareGraceRenewalMigration'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Domain } from '@/features/migration/service/v1Names'
 import {
   FINAL_STAGE_FILL_MS,
   REUNION_HOLD_MS,

@@ -49,13 +49,14 @@ vi.mock('@/config', async () => {
         return mockEnvConfig.network
       },
       chain: extendChainWithEns(mainnet),
-      endpoints: { indexerGraphql: 'https://indexer.example/graphql' },
+      endpoints: { bignameApi: 'https://bigname.example' },
     },
   }
 })
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
+vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 vi.mock('../service/userRegistryMigration', () => ({
   computeUserRegistryAddress: vi.fn(),
 }))

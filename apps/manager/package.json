@@ -26,12 +26,12 @@
     "prebuild": "tsx scripts/check-network-config.ts"
   },
   "dependencies": {
+    "@ens-apps/bigname": "workspace:*",
     "@ens-apps/config": "workspace:^",
     "@ens-apps/dev-dqa-overlay": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
     "@ens-apps/dev-tools": "workspace:*",
-    "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/migration": "workspace:*",
     "@ens-apps/og": "workspace:*",
@@ -77,7 +77,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "graphql": "^17.0.2",
     "lottie-web": "5.13.0",
     "lucide": "^0.542.0",
     "lucide-react": "^0.542.0",

@@ -532,11 +532,9 @@ Use named fake-service scenarios when useful for pagination/error cases.
 
 ### Current ENS indexer state
 
-Expiry-discovery orchestration already mocks the owned `fetchExpiringNamesPage()` boundary rather than mocking urql/GraphQL internals. That is the preferred orchestration-test shape.
+Expiry discovery and the faucet gate read the bigname REST API through `@ens-apps/bigname`. Expiry-discovery orchestration mocks the owned `fetchExpiringNamesPage()` boundary rather than the bigname client internals. That is the preferred orchestration-test shape.
 
-The API worker does **not currently have a runnable fake-indexer contract harness** that exercises `fetchExpiringNamesPage()` through the real HTTP/GraphQL transport. The fake-indexer example in this document is therefore a preferred future pattern, not an existing test command or service.
-
-If such a harness is added later, the real indexer client should be tested against it while expiry-discovery orchestration tests continue to mock the owned client boundary.
+`fetchExpiringNamesPage()` and `hasV1Names()` are tested through the real bigname client with a stubbed global `fetch` that returns bigname-shaped responses, so request serialization, paging, retries and response parsing run for real. There is **no runnable fake-bigname service** yet; the fake-service example in this document is a preferred future pattern, not an existing test command or service.
 
 Do not mock GraphQL/client internals in every application test.
 

@@ -2,19 +2,20 @@
  * Seed a **managed-only** V2 name for MANUAL testing of the address-profile
  * "Managed" filter (PR #964).
  *
- * A managed-only name is one the connected wallet does NOT own but has a
- * non-zero role bitmap on — it surfaces via the indexer's `roles(account:)`
- * query (getDashboardRoleAssignments) and is classified `managed` by
- * getManagedOnlyRoleNames. There is no way to produce this from the in-app
- * Dev Tools drawer (no second wallet), so this script does it headlessly:
+ * A managed-only name is one the connected wallet does NOT own but holds a
+ * registry grant on — it surfaces in bigname's
+ * `GET /v1/addresses/{address}/names?relation=any&include=role_summary` as an
+ * ENSv2 row whose `role_summary` lists the wallet, and the profile classifies
+ * it `managed`. There is no way to produce this from the in-app Dev Tools
+ * drawer (no second wallet), so this script does it headlessly:
  *
  *   1. Register a fresh .eth name owned by a SEPARATE account (mnemonic #1),
  *      NOT the connected wallet — reusing the same makeV2Name flow as the
  *      e2e suite.
  *   2. From that owner, grant a per-name role (ROLE_SET_RESOLVER + ROLE_RENEW)
  *      to the connected wallet (mnemonic #0 = 0xf39…2266 by default).
- *   3. Poll the local indexer until the grant is indexed as a role assignment
- *      for the connected wallet.
+ *   3. Poll bigname until it has indexed past the grant's block and lists the
+ *      grant under `GET /v1/permissions?name=&address=`.
  *
  * After this, opening the connected wallet's address profile and switching to
  * the "Managed" chip should show the name.
@@ -22,19 +23,26 @@
  * Prereqs:
  *   - Local stack up:  pnpm --filter @ens-apps/e2e infra:up
  *   - ANVIL_RPC_URL points at it (default http://127.0.0.1:8545)
+ *   - BIGNAME_API_URL points at a bigname that indexes that chain. The public
+ *     Sepolia deployment (the default) never sees fork transactions, so
+ *     against it the grant lands on-chain but never shows as indexed.
  *
  * Usage:
  *   pnpm --filter @ens-apps/e2e seed:managed-name
  *   LABEL=mymanaged pnpm --filter @ens-apps/e2e seed:managed-name
  *   MANAGER_ADDRESS=0x… pnpm --filter @ens-apps/e2e seed:managed-name   # override the "connected" wallet
  *   ROLES='ROLE_RENEW' pnpm --filter @ens-apps/e2e seed:managed-name    # semicolon/comma list of ensjs role names
+ *   BIGNAME_API_URL=http://127.0.0.1:8080 pnpm --filter @ens-apps/e2e seed:managed-name
  */
 import { pathToFileURL } from 'node:url'
+import { createBignameClient } from '@ens-apps/bigname'
+import { NETWORKS } from '@ens-apps/config'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
 import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { type Address, encodeFunctionData } from 'viem'
 import { mnemonicToAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
 import { createMakeV2Name } from '../fixtures/makeV2Name.js'
 import { publicClient, walletClient } from '../helpers/anvil-client.js'
 
@@ -51,8 +59,12 @@ const DEFAULT_MNEMONIC =
 const ETH_REGISTRY = (process.env.REGISTRY_ADDRESS ??
   ensL1Contracts[supportedL1Chains.sepolia].ensRegistry.address) as Address
 
-const INDEXER_URL =
-  process.env.INDEXER_GRAPHQL_URL ?? 'http://127.0.0.1:5655/graphql'
+const bigname = createBignameClient({
+  baseUrl:
+    process.env.BIGNAME_API_URL ||
+    process.env.VITE_BIGNAME_API_URL ||
+    NETWORKS.sepolia.endpoints.bignameApi,
+})
 
 /**
  * ensjs role names granted to the manager. Must be roles the NAME OWNER holds
@@ -72,31 +84,41 @@ function parseRoles(raw: string | undefined): Role[] {
     .filter(Boolean) as Role[]
 }
 
-/** Poll the indexer's `roles(account:)` until the granted name shows up. */
-async function waitForIndexedRole(
+/** Whether bigname lists a grant with any power for `account` on `name`. */
+async function hasIndexedGrant(account: Address, name: string) {
+  const { data } = await bigname.listPermissions({
+    name,
+    address: account.toLowerCase(),
+  })
+  return data.some((row) => row.powers.length > 0)
+}
+
+/**
+ * Poll bigname until it has indexed the grant's block (`GET /v1/status`
+ * `chains[chainId].indexed_block`) and lists the grant
+ * (`GET /v1/permissions?name=&address=`).
+ */
+async function waitForIndexedGrant(
   account: Address,
   name: string,
+  grantBlock: bigint,
   timeoutMs = 60_000,
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
-  const query = `{ roles(account: "${account.toLowerCase()}") { name roleBitmap } }`
+  const chainKey = String(sepolia.id)
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(INDEXER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      })
-      const json = (await res.json()) as {
-        data?: { roles?: { name: string | null; roleBitmap: string }[] }
+      const { data: status } = await bigname.getStatus()
+      const indexedBlock = status.chains[chainKey]?.indexed_block ?? null
+      if (
+        indexedBlock !== null &&
+        BigInt(indexedBlock) >= grantBlock &&
+        (await hasIndexedGrant(account, name))
+      ) {
+        return true
       }
-      const hit = json.data?.roles?.some(
-        (r) =>
-          r.name?.toLowerCase() === name.toLowerCase() && r.roleBitmap !== '0',
-      )
-      if (hit) return true
     } catch {
-      /* indexer not ready yet */
+      /* bigname not ready yet */
     }
     await new Promise((r) => setTimeout(r, 2000))
   }
@@ -158,14 +180,22 @@ async function main() {
     to: ETH_REGISTRY,
     data,
   })
-  await publicClient.waitForTransactionReceipt({ hash: grantTx })
+  const grantReceipt = await publicClient.waitForTransactionReceipt({
+    hash: grantTx,
+  })
   console.log(
     `[grant] ✅ granted [${roles.join(', ')}] on ${name} to ${managerAddress}`,
   )
 
-  // ── 3. Wait for the indexer to pick it up ────────────────────────────
-  console.log('[indexer] waiting for the role assignment to be indexed…')
-  const indexed = await waitForIndexedRole(managerAddress, name)
+  // ── 3. Wait for bigname to pick it up ────────────────────────────────
+  console.log(
+    `[bigname] waiting for ${bigname.baseUrl} to index the grant (block ${grantReceipt.blockNumber})…`,
+  )
+  const indexed = await waitForIndexedGrant(
+    managerAddress,
+    name,
+    grantReceipt.blockNumber,
+  )
 
   const block = await publicClient.getBlock()
   console.log('\n──────────────────────────────────────────────')
@@ -174,7 +204,7 @@ async function main() {
   console.log(`  Manager (you):   ${managerAddress}`)
   console.log(`  Roles granted:   ${roles.join(', ')}`)
   console.log(
-    `  Indexed:         ${indexed ? 'yes' : 'NOT YET (check indexer)'}`,
+    `  Indexed:         ${indexed ? 'yes' : `NOT YET (check ${bigname.baseUrl})`}`,
   )
   console.log(`  Profile view:    /${managerAddress}  → "Managed" chip`)
   console.log(
@@ -183,8 +213,10 @@ async function main() {
   console.log('──────────────────────────────────────────────\n')
   if (!indexed) {
     console.warn(
-      'Role not indexed within the timeout — the grant landed on-chain, but ' +
-        'the indexer may be lagging. Re-check the "Managed" chip shortly.',
+      'Grant not indexed within the timeout — it landed on-chain, but ' +
+        'bigname has not listed it. It may be lagging, or it does not index ' +
+        'this chain (the public Sepolia deployment never sees fork ' +
+        'transactions; set BIGNAME_API_URL).',
     )
   }
 }

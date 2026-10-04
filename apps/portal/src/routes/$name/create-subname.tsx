@@ -151,7 +151,7 @@ const CreateSubnameForm = ({
     subregistryAddress && subregistryAddress !== zeroAddress
 
   const { data: existingSubnames } = useQuery({
-    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
+    ...getSubnamesQueryOptions({ name }),
     enabled: Boolean(hasSubregistry),
   })
 

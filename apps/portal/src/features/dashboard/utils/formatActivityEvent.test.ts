@@ -4,46 +4,120 @@ import { formatActivityEvent } from './formatActivityEvent'
 
 const OWNER = '0xdb072374a9bbeba03ae9422ea21d93a4fe7504fd'
 
-const event = (
-  type: string,
-  data: Record<string, unknown>,
-): RecentActivityEvent => ({
+const base = {
   name: null,
-  type,
   transactionHash: '0x01',
   timestamp: 0,
   blockNumber: 0,
   contractAddress: '0x02',
   namehash: null,
-  domain: null,
-  data: JSON.stringify(data),
-})
+} as const
+
+const event = <T extends RecentActivityEvent['type']>(
+  type: T,
+  data: Extract<RecentActivityEvent, { type: T }>['data'],
+  kind?: string,
+): RecentActivityEvent => ({ ...base, type, kind, data }) as RecentActivityEvent
+
+const record = (key: string, value?: string) =>
+  event('record', { key, ...(value !== undefined && { value }) })
 
 describe('formatActivityEvent', () => {
-  it('reads the ERC-1155 transfer destination from `to`', () => {
+  it('words a registration by its registrant', () => {
     expect(
-      formatActivityEvent(event('Transfer', { from: '0x0', to: OWNER })).actor,
+      formatActivityEvent(event('registration', { registrant: OWNER })),
+    ).toEqual({ text: 'Registered by', actor: OWNER })
+  })
+
+  it('falls back to the registration owner', () => {
+    expect(
+      formatActivityEvent(event('registration', { owner: OWNER })).actor,
     ).toEqual(OWNER)
   })
 
-  it('reads the registry transfer destination from `owner`', () => {
+  it('reads the transfer destination from `to`', () => {
+    expect(formatActivityEvent(event('transfer', { to: OWNER }))).toEqual({
+      text: 'Ownership transferred to',
+      actor: OWNER,
+    })
+  })
+
+  it('reads the registry owner change from `owner`', () => {
+    expect(formatActivityEvent(event('authority', { owner: OWNER }))).toEqual({
+      text: 'Ownership transferred to',
+      actor: OWNER,
+    })
+  })
+
+  it('names the new resolver', () => {
     expect(
-      formatActivityEvent(event('Transfer', { node: '0x0', owner: OWNER }))
-        .actor,
-    ).toEqual(OWNER)
+      formatActivityEvent(
+        event('resolver', { resolver: { chain_id: 1, address: OWNER } }),
+      ),
+    ).toEqual({ text: 'Resolver updated to', actor: OWNER })
+  })
+
+  it('words the types with no payload to show', () => {
+    expect(formatActivityEvent(event('renewal', {})).text).toBe('Name renewed')
+    expect(formatActivityEvent(event('release', {})).text).toBe('Name released')
+    expect(formatActivityEvent(event('expiry', {})).text).toBe(
+      'Expiry extended',
+    )
+    expect(formatActivityEvent(event('subregistry', {})).text).toBe(
+      'Subregistry updated',
+    )
+    expect(formatActivityEvent(event('primary_name', {}))).toEqual({
+      text: 'Primary name updated',
+    })
+  })
+
+  it('tells a fuse change from a role change', () => {
+    expect(formatActivityEvent(event('permission', { fuses: 1 }))).toEqual({
+      text: 'Fuses updated',
+    })
+    expect(
+      formatActivityEvent(
+        event('permission', { address: OWNER, powers: ['set_addr'] }),
+      ),
+    ).toEqual({ text: 'Roles updated', entityFromData: OWNER })
+  })
+
+  it('omits a role-change account that is not a valid address', () => {
+    expect(
+      formatActivityEvent(
+        event('permission', {
+          address: '0xnot-an-addr' as `0x${string}`,
+          powers: [],
+        }),
+      ),
+    ).toEqual({ text: 'Roles updated' })
+  })
+
+  it('omits an actor that is not a valid address', () => {
+    expect(
+      formatActivityEvent(
+        event('registration', { owner: '0xvitalik' as `0x${string}` }),
+      ),
+    ).toEqual({ text: 'Registered by' })
   })
 
   it('carries a text-record key as a value, not appended to the label', () => {
-    expect(
-      formatActivityEvent(event('TextChanged', { key: 'com.twitter' })),
-    ).toEqual({ text: 'Text record updated', value: 'com.twitter' })
+    expect(formatActivityEvent(record('text:com.twitter'))).toEqual({
+      text: 'Text record updated',
+      value: 'com.twitter',
+    })
+  })
+
+  it('words the avatar key as a text record', () => {
+    expect(formatActivityEvent(record('avatar'))).toEqual({
+      text: 'Text record updated',
+      value: 'avatar',
+    })
   })
 
   it('sanitizes an attacker-chosen text record key', () => {
     expect(
-      formatActivityEvent(
-        event('TextChanged', { key: '\u202Eens.eth\nclaim at evil.example' }),
-      ),
+      formatActivityEvent(record('text:‮ens.eth\nclaim at evil.example')),
     ).toEqual({
       text: 'Text record updated',
       value: 'ens.eth claim at evil.example',
@@ -51,77 +125,62 @@ describe('formatActivityEvent', () => {
   })
 
   it('caps the length of an oversized text record key', () => {
-    const { value } = formatActivityEvent(
-      event('TextChanged', { key: 'a'.repeat(500) }),
-    )
-    expect(value).toBe(`${'a'.repeat(64)}\u2026`)
+    const { value } = formatActivityEvent(record(`text:${'a'.repeat(500)}`))
+    expect(value).toBe(`${'a'.repeat(64)}…`)
   })
 
   it('drops a text record key with nothing printable in it', () => {
-    expect(
-      formatActivityEvent(event('TextChanged', { key: '\u200B\u202E' })),
-    ).toEqual({ text: 'Text record updated' })
+    expect(formatActivityEvent(record('text:​‮'))).toEqual({
+      text: 'Text record updated',
+    })
   })
 
-  it('does not render an unverified reverse-record name as a name entity', () => {
-    const formatted = formatActivityEvent(
-      event('NameChanged', { name: 'vitalik.eth' }),
-    )
-    expect(formatted.entityFromData).toBeUndefined()
-    expect(formatted.actor).toBeUndefined()
+  it('does not render an unverified name record as a name entity', () => {
+    const formatted = formatActivityEvent(record('name', 'vitalik.eth'))
     expect(formatted).toEqual({
       text: 'Primary name updated',
       value: 'vitalik.eth',
     })
   })
 
-  it('sanitizes an attacker-chosen reverse-record name', () => {
+  it('sanitizes an attacker-chosen name record', () => {
     expect(
-      formatActivityEvent(
-        event('NameChanged', { name: '\u202Evitalik.eth\nsigned by ENS' }),
-      ),
+      formatActivityEvent(record('name', '‮vitalik.eth\nsigned by ENS')),
     ).toEqual({
       text: 'Primary name updated',
       value: 'vitalik.eth signed by ENS',
     })
   })
 
-  it('omits an actor that is not a valid address', () => {
-    expect(
-      formatActivityEvent(event('NameRegistered', { owner: 'vitalik.eth' })),
-    ).toEqual({ text: 'Registered by' })
-  })
-
-  it('omits a role-change account that is not a valid address', () => {
-    expect(
-      formatActivityEvent(event('EACRolesChanged', { account: 'not-an-addr' })),
-    ).toEqual({ text: 'Roles updated' })
-  })
-
-  it('links an ETH multicoin address as an address entity', () => {
-    expect(
-      formatActivityEvent(
-        event('AddressChanged', { coinType: 60, address: OWNER }),
-      ),
-    ).toEqual({
+  it('links an ETH address record as an address entity', () => {
+    expect(formatActivityEvent(record('addr:60', OWNER))).toEqual({
       text: 'ETH address updated',
       entityFromData: OWNER,
     })
   })
 
-  it('does not treat non-ETH multicoin bytes as an address', () => {
-    expect(
-      formatActivityEvent(
-        event('AddressChanged', { coinType: 0, address: '0x00a1b2' }),
-      ),
-    ).toEqual({ text: 'Address updated' })
+  it('does not treat non-ETH address bytes as an address', () => {
+    expect(formatActivityEvent(record('addr:0', '0x00a1b2'))).toEqual({
+      text: 'Address updated',
+    })
   })
 
-  it('omits the entity when the ETH payload is not a valid address', () => {
+  it('omits the entity when the ETH value is not a valid address', () => {
+    expect(formatActivityEvent(record('addr:60', '0xdead'))).toEqual({
+      text: 'ETH address updated',
+    })
+  })
+
+  it('words contenthash, resets and other keys', () => {
+    expect(formatActivityEvent(record('contenthash')).text).toBe(
+      'Contenthash updated',
+    )
     expect(
-      formatActivityEvent(
-        event('AddressChanged', { coinType: 60, address: '0xdead' }),
-      ),
-    ).toEqual({ text: 'ETH address updated' })
+      formatActivityEvent(event('record', {}, 'RecordVersionChanged')),
+    ).toEqual({ text: 'Resolver records cleared' })
+    expect(formatActivityEvent(record('abi:1'))).toEqual({
+      text: 'Record updated',
+      value: 'abi:1',
+    })
   })
 })

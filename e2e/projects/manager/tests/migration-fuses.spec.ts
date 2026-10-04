@@ -6,9 +6,10 @@
  *
  * Each test:
  * 1. Registers a locked V1 name on the Anvil fork with the given fuse combo.
- * 2. Mocks the V1 subgraph with the correct full NameWrapper fuse bitmap
- *    (owner fuses | PARENT_CANNOT_CONTROL | IS_DOT_ETH = owner fuses | 0x30000).
- *    The mock helper ORs these in automatically when `fuses` is provided.
+ * 2. Serves the name from the bigname mock with the full NameWrapper fuse
+ *    word (owner fuses | PARENT_CANNOT_CONTROL | IS_DOT_ETH = owner fuses |
+ *    0x30000) as `wrapper_fuses`. The mock ORs the parent bits in when `fuses`
+ *    is provided.
  * 3. Runs the migration UI flow.
  * 4. Asserts the name is REGISTERED with a WrapperRegistry and V1 resolver.
  *
@@ -30,7 +31,6 @@ import {
   assertLockedMigration,
   assertV2Resolver,
 } from '../../../helpers/migration-assertions.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -83,6 +83,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
     migrationConnectedPage: page,
     wallet,
     accounts,
+    mockBigname,
   }) => {
     const makeV1Name = createMakeV1Name({
       userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
@@ -97,7 +98,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       `[migration-fuses] locked+CANNOT_SET_RESOLVER name created: ${v1Name}`,
     )
 
-    await mockV1Subgraph(page, [
+    await mockBigname.addV1Names(page, [
       {
         name: v1Name,
         ownerAddress: HEADLESS_USER_ADDRESS,
@@ -122,6 +123,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
     migrationConnectedPage: page,
     wallet,
     accounts,
+    mockBigname,
   }) => {
     const makeV1Name = createMakeV1Name({
       userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
@@ -144,12 +146,12 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       `[migration-fuses] locked+all-child-fuses name created: ${v1Name}`,
     )
 
-    await mockV1Subgraph(page, [
+    await mockBigname.addV1Names(page, [
       {
         name: v1Name,
         ownerAddress: HEADLESS_USER_ADDRESS,
         type: 'locked',
-        // Pass owner-controlled fuses; mock ORs in PARENT_CANNOT_CONTROL | IS_DOT_ETH
+        // Pass owner-controlled fuses; the mock ORs in PARENT_CANNOT_CONTROL | IS_DOT_ETH
         fuses: FUSES.CANNOT_UNWRAP | allChildFuses,
       },
     ])

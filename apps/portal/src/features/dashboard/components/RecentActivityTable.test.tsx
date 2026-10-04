@@ -64,14 +64,14 @@ const nameChangedEvent = (
   indexedName: string | null = null,
 ): RecentActivityEvent => ({
   name: indexedName,
-  type: 'NameChanged',
+  type: 'record',
+  kind: 'RecordChanged',
   transactionHash: '0x01',
   timestamp: Math.floor(Date.now() / 1000),
   blockNumber: 0,
   contractAddress: '0x02',
   namehash: null,
-  domain: null,
-  data: JSON.stringify({ name: reverseName }),
+  data: { key: 'name', value: reverseName },
 })
 
 const renderTable = async (events: readonly RecentActivityEvent[]) => {

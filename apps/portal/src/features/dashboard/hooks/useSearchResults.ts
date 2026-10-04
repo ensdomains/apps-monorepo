@@ -15,18 +15,14 @@ import {
   buildSearchSuggestions,
   getSearchNotice,
 } from '../utils/buildSearchSuggestions'
-import {
-  filterAndSortOwnedNames,
-  mergeOwnedNames,
-} from '../utils/ownedNamesUtils'
+import { filterAndSortOwnedNames } from '../utils/ownedNamesUtils'
 import {
   buildSearchResultItems,
   type SearchResultItem,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
+import { getAddressNamesQueryOptions } from './useAddressNames'
 import { useSuggestionTlds } from './useSuggestionTlds'
-import { getV1NamesForAddressQueryOptions } from './useV1NamesForAddress'
-import { getV2NamesForAddressQueryOptions } from './useV2NamesForAddress'
 
 const MAX_OWNED_NAMES = 5
 
@@ -120,29 +116,17 @@ export const useSearchResults = ({
 
   const addressForOwned = connectedAddress ?? zeroAddress
 
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      {
-        ...getV1NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-      {
-        ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-    ],
+  // The same read the dashboard name list makes, so the two share one cache
+  // entry. bigname's `q` is a prefix match, and "Names you own" matches
+  // substrings ("fox" finds "arcticfox.eth"), so filtering stays client-side.
+  const { data: ownedNames } = useQuery({
+    ...getAddressNamesQueryOptions({ address: addressForOwned }),
+    enabled: Boolean(connectedAddress),
   })
 
-  const ownedNamesMerged = useMemo(
-    () =>
-      mergeOwnedNames(
-        v1NamesQuery.data ?? [],
-        (v2NamesQuery.data ?? []).flatMap((d) => [
-          { name: d.name },
-          ...(d.subdomains ?? []).map((s) => ({ name: s.name })),
-        ]),
-      ),
-    [v1NamesQuery.data, v2NamesQuery.data],
+  const ownedNameList = useMemo(
+    () => (ownedNames ?? []).map(({ name }) => ({ name })),
+    [ownedNames],
   )
 
   /** The name the input refers to exactly, e.g. "fox" and "fox.eth" both mean fox.eth. */
@@ -165,11 +149,11 @@ export const useSearchResults = ({
 
   const ownedNamesFiltered = useMemo(
     () =>
-      filterAndSortOwnedNames(ownedNamesMerged, searchValue, {
+      filterAndSortOwnedNames(ownedNameList, searchValue, {
         max: MAX_OWNED_NAMES,
         exclude: hasExactMatchSuggestion ? exactMatchName : undefined,
       }),
-    [searchValue, ownedNamesMerged, hasExactMatchSuggestion, exactMatchName],
+    [searchValue, ownedNameList, hasExactMatchSuggestion, exactMatchName],
   )
 
   /** Exclude suggestions for names the user already has in "Names you own" to avoid showing the same name twice. */

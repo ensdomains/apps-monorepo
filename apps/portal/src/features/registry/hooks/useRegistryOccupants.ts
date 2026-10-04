@@ -1,16 +1,21 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import {
+  type BignameError,
+  fetchAllPages,
+  isBignameError,
+  MAX_PAGE_SIZE,
+} from '@ens-apps/bigname'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import { fromPromise } from 'neverthrow'
+import { type Address, isAddressEqual } from 'viem'
+import { bigname } from '@/lib/bigname'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 class GetRegistryOccupantsError extends TaggedError(
   'GetRegistryOccupantsError',
 )<{
-  cause: GraphqlRequestError
+  cause: BignameError
 }> {}
 
 type GetRegistryOccupantsParameters = {
@@ -25,8 +30,8 @@ type GetRegistryOccupantsParameters = {
  * that stop resolving, and the ones held by anyone else are third parties who
  * get no say and no repair path.
  *
- * Both numbers are counted by the indexer rather than sampled and tallied here
- * — `thirdPartyCount` gates a destructive write, so a paged sample that missed
+ * Both numbers come from reading every label rather than a sample —
+ * `thirdPartyCount` gates a destructive write, so a paged sample that missed
  * the one stranger in a large registry would answer it wrongly.
  */
 export type RegistryOccupants = {
@@ -35,68 +40,43 @@ export type RegistryOccupants = {
 }
 
 /**
- * Counted through the root `domainConnection` rather than
- * `registry(address:).labelConnection`, which looks like the natural home for
- * it. Two indexer quirks rule that out, and both fail *open* — they return the
- * unfiltered count rather than erroring:
- *
- * - `owner_not` is advertised by the schema but not implemented, so asking for
- *   "everyone else" reports every non-empty registry as full of strangers.
- * - on `labelConnection`, `where` is only honoured as an inline literal; passed
- *   a GraphQL variable (or the whole filter as one) it is silently dropped.
- *
- * The root connection honours variables, so the third-party count is the total
- * minus the caller's own — both filtered server-side, nothing interpolated into
- * the document. `registry(address:)` still rides along, purely as the
- * existence probe the connection can't provide.
+ * Labels read before the count is given up on. bigname's labels route has no
+ * owner filter, so the third parties are counted here, page by page.
  */
-const getRegistryOccupants = ResultFn(async function* ({
+const OCCUPANTS_MAX_ROWS = 2000
+
+/**
+ * Every label in the registry, each owner compared with the caller. The count
+ * gates a destructive write, so anything short of the whole registry — a
+ * registry bigname has not indexed, or one too large to read here — is
+ * unknown rather than a number, and the caller renders "we couldn't check".
+ */
+const getRegistryOccupants = ({
   address,
   account,
-}: GetRegistryOccupantsParameters) {
-  const { registry, total, own } = yield* fromPromise(
-    graphqlIndexerClient.request<{
-      registry: { labelCount: number } | null
-      total: { totalCount: number | null }
-      own: { totalCount: number | null }
-    }>(
-      gql`
-        query getRegistryOccupants($registry: String!, $account: String!) {
-          registry(address: $registry) {
-            labelCount
-          }
-          total: domainConnection(first: 1, where: { registry: $registry }) {
-            totalCount
-          }
-          own: domainConnection(
-            first: 1
-            where: { registry: $registry, owner: $account }
-          ) {
-            totalCount
-          }
-        }
-      `,
-      { registry: address.toLowerCase(), account: account.toLowerCase() },
-    ),
-    (e) => new GetRegistryOccupantsError({ cause: e as GraphqlRequestError }),
-  )
-
-  // `domainConnection` answers 0 both for a registry it has indexed and found
-  // empty and for one it has never heard of — the second must not read as "safe
-  // to detach". `registry` is the only field that tells them apart: null means
-  // no record, so the count is unknown rather than zero.
-  if (!registry) return ok(null)
-
-  // A connection that reports no count leaves the subtraction undefined, and
-  // guessing here would under-report third parties. Absent, not zero — the
-  // caller renders this as "we couldn't check" and blocks the write.
-  if (total.totalCount === null || own.totalCount === null) return ok(null)
-
-  return ok({
-    count: total.totalCount,
-    thirdPartyCount: Math.max(0, total.totalCount - own.totalCount),
-  } satisfies RegistryOccupants)
-})
+}: GetRegistryOccupantsParameters) =>
+  fromPromise(
+    fetchAllPages(
+      (cursor) =>
+        bigname.listRegistryLabels(sepoliaWithEns.id, address.toLowerCase(), {
+          page_size: MAX_PAGE_SIZE,
+          cursor,
+        }),
+      { maxRows: OCCUPANTS_MAX_ROWS },
+    ).catch((e: unknown) => {
+      if (isBignameError(e, 'not_found')) return null
+      throw e
+    }),
+    (e) => new GetRegistryOccupantsError({ cause: e as BignameError }),
+  ).map((labels): RegistryOccupants | null => {
+    if (!labels || labels.truncated) return null
+    // A label with no owner is nobody's the caller can answer for, so it counts
+    // against them, as it did when this was total minus own.
+    const thirdPartyCount = labels.rows.filter(
+      ({ owner }) => !owner || !isAddressEqual(owner, account),
+    ).length
+    return { count: labels.rows.length, thirdPartyCount }
+  })
 
 const getRegistryOccupantsQueryKey = createQueryKey<
   'get-registry-occupants',

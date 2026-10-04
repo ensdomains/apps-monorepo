@@ -19,8 +19,7 @@ import {
   getEnsContractName,
 } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import { resolveDecodedName } from '../summarize/decodeRawData'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import type { TimelineEvent } from '../timelineEvent'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
@@ -33,11 +32,9 @@ const CONTRACT_PARAM_KEYS = new Set([
 ])
 
 const DecodedValue = ({
-  event,
   paramKey,
   value,
 }: {
-  event: TimelineIndexerEvent
   paramKey: string
   value: string
 }) => {
@@ -65,16 +62,6 @@ const DecodedValue = ({
     return <AccountBadge address={address} />
   }
 
-  const name =
-    paramKey === 'name' ? resolveDecodedName(value, event.name) : undefined
-  if (name) {
-    return (
-      <EntityBadge variant="name" name={name} compact format="wrap">
-        {name}
-      </EntityBadge>
-    )
-  }
-
   return (
     <EntityBadge
       variant="default"
@@ -89,7 +76,7 @@ const DecodedValue = ({
 }
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
-export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
+export const DecodedParams = ({ event }: { event: TimelineEvent }) => {
   const entries = getDecodedParamEntries(event)
 
   if (entries.length === 0) {
@@ -128,7 +115,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
                 {getTimelineFieldType(event.type, key)}
               </td>
               <td className="max-w-0 py-1.5 align-top">
-                <DecodedValue event={event} paramKey={key} value={value} />
+                <DecodedValue paramKey={key} value={value} />
               </td>
             </tr>
           ))}
@@ -163,7 +150,7 @@ export const TransactionMeta = ({
   event,
   txHash,
 }: {
-  event: TimelineIndexerEvent
+  event: TimelineEvent
   txHash: Hash
 }) => {
   const { data: tx, isLoading: isTxLoading } = useTransaction({ hash: txHash })

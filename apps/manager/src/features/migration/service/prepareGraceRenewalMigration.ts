@@ -2,7 +2,7 @@ import type { Config } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
 import { buildMigrationPlan } from './buildMigrationPlan'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Names'
 
 export const prepareGraceRenewalMigration = async (params: {
   readonly domains: readonly V1Domain[]

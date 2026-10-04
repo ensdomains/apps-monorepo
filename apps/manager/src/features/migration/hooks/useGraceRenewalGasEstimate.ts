@@ -10,7 +10,7 @@ import {
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '../service/v1Names'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 

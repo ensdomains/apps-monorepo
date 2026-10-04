@@ -9,7 +9,7 @@ import {
   expectSettled,
   renderWithCommitCounter,
 } from '@/test-utils'
-import type { V1Name, V2NameWithRoles } from '@/utils/names/mergeNamesData'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 
 const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
 const V1_NAME = 'sugh004.eth'
@@ -32,59 +32,52 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
-// The route's own memo is keyed on the two query results, so counting the merge
-// pins that specific contract — a tighter statement than "the page settles",
-// and the one that would catch the memo being dropped again (#1115 did exactly
-// that) even if some future table no longer looped over it.
-let mergeCalls = 0
-vi.mock('@/utils/names/mergeNamesData', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@/utils/names/mergeNamesData')>()
-  return {
-    ...actual,
-    mergeNamesData: (
-      ...args: Parameters<typeof actual.mergeNamesData>
-    ): ReturnType<typeof actual.mergeNamesData> => {
-      mergeCalls++
-      return actual.mergeNamesData(...args)
-    },
-  }
-})
-
 // Expiries are relative to now, because the route reads them through windows
 // that move: `getNameStatus` and, for the selection test, `isExtendable2LD`'s
 // 90-day v1 grace — a fixed date would eventually fall outside it and quietly
-// stop exercising the renewable path while still passing. `mergeNamesData`
-// sorts ascending by expiry, so the shorter v1 expiry keeps that name at row 0.
-const V1_NAMES = [
+// stop exercising the renewable path while still passing. bigname sorts by
+// expiry ascending, so the shorter v1 expiry keeps that name at row 0.
+const NAMES: AddressNameItem[] = [
   {
     name: V1_NAME,
-    expiryDate: { date: new Date(Date.now() + 365 * MS_PER_DAY) },
-    relation: { registrant: true, owner: true, wrappedOwner: false },
+    expiryDate: new Date(Date.now() + 365 * MS_PER_DAY),
+    protocolVersion: 'ENSv1',
+    roleBitmap: null,
+    v1Roles: { owner: true, manager: true },
+    relations: ['registrant', 'owner', 'manager'],
   },
-] satisfies V1Name[]
-
-const V2_NAMES = [
   {
     name: V2_NAME,
-    expiryDate: Math.floor((Date.now() + 730 * MS_PER_DAY) / 1000),
-    roleBitmap: '0x5',
+    expiryDate: new Date(Date.now() + 730 * MS_PER_DAY),
+    protocolVersion: 'ENSv2',
     subdomainCount: 0,
+    recordCount: 0,
+    roleBitmap: '0x5',
+    v1Roles: null,
+    relations: ['registrant', 'owner'],
   },
-] satisfies V2NameWithRoles[]
-
-const QUERY_DATA: Record<string, unknown> = {
-  'get-names-for-address': V1_NAMES,
-  'get-v2-names-with-roles-for-address': V2_NAMES,
-}
+]
 
 /** Every query key the route handed to `useQueries`, in request order. */
 const requestedQueryKeys: (readonly unknown[])[] = []
 
+// The names list comes from one `useQuery`; every other `useQuery` in the tree
+// runs for real. The same `NAMES` array is returned on every render, as the
+// query cache would.
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
+    useQuery: (options: { queryKey: readonly unknown[] }) => {
+      const isNames = options.queryKey[0] === 'get-address-names'
+      // Always call the real hook, so hook order never depends on the key;
+      // the names query is kept from fetching and answered from `NAMES`.
+      const result = actual.useQuery({
+        ...(options as Parameters<typeof actual.useQuery>[0]),
+        ...(isNames ? { enabled: false } : {}),
+      })
+      return isNames ? { data: NAMES, isLoading: false, error: null } : result
+    },
     useQueries: ({
       queries,
     }: {
@@ -92,11 +85,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     }) =>
       queries.map(({ queryKey }) => {
         requestedQueryKeys.push(queryKey)
-        return {
-          data: QUERY_DATA[queryKey[0] as string],
-          isLoading: false,
-          error: null,
-        }
+        return { data: undefined, isLoading: false, error: null }
       }),
   }
 })
@@ -141,7 +130,6 @@ const MAX_SETTLED_COMMITS = { onMount: 14, afterSelection: 14 }
 
 beforeEach(() => {
   requestedQueryKeys.length = 0
-  mergeCalls = 0
 })
 
 describe('addr names route', () => {
@@ -178,16 +166,5 @@ describe('addr names route', () => {
     ])
 
     await expectSettled(counter, MAX_SETTLED_COMMITS.afterSelection)
-  })
-
-  it('keeps the merged rows stable across a re-render', async () => {
-    const counter = renderRoute()
-
-    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
-
-    const afterFirstPaint = mergeCalls
-    counter.rerenderSubject()
-
-    expect(mergeCalls).toBe(afterFirstPaint)
   })
 })

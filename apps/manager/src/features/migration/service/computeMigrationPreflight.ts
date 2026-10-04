@@ -32,14 +32,12 @@ import {
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
 } from '@/features/migration/service/migrationInvariants'
-import type {
-  V1Domain,
-  V1ProfileKeys,
-} from '@/features/migration/service/v1SubgraphClient'
+import type { V1Domain } from '@/features/migration/service/v1Names'
 import {
   getV1ProfileKeys,
   hasV1ProfileRecords,
-} from '@/features/migration/service/v1SubgraphClient'
+  type V1ProfileKeys,
+} from '@/features/migration/service/v1ProfileKeys'
 
 export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
@@ -142,7 +140,7 @@ const computeProfilePreflight = async (
   }
 
   const keysResult = await getV1ProfileKeys(
-    namesWithSourceResolver.map((name) => name.domain.id),
+    namesWithSourceResolver.map((name) => name.domain),
     { signal },
   )
   signal?.throwIfAborted()
@@ -163,7 +161,7 @@ const computeProfilePreflight = async (
   ].filter((id) => !returnedIds.has(id))
   if (missingIds.length > 0) {
     throw new ProfileFetchError({
-      phase: 'subgraph',
+      phase: 'indexer',
       cause: new Error(
         `Profile key inventory omitted ${missingIds.length} requested resolver-backed node${missingIds.length === 1 ? '' : 's'}`,
       ),

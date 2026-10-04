@@ -1,21 +1,25 @@
+import { type ContractRef, type Power, parseRecordKey } from '@ens-apps/bigname'
 import { isAddress, zeroAddress } from 'viem'
-import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { V1_PROTOCOL } from '../timelineEvent'
-import {
-  decodeRoleChange,
-  parseEventData,
-  readString,
-  resolveDecodedName,
-} from './decodeRawData'
-import type { ActionSlot, Descriptor } from './summarize.types'
+import type {
+  HistoryEventType,
+  TimelineEvent,
+  TimelineEventOfType,
+} from '../timelineEvent'
+import type {
+  ActionSlot,
+  Descriptor,
+  DescriptorResult,
+} from './summarize.types'
 
 const isZero = (value?: string | null): boolean =>
   !value || value.toLowerCase() === zeroAddress
 
+/** Sentence-case a camel-cased raw kind, e.g. `LabelRegistered` → "Label registered". */
 export const humanizeType = (type: string): string =>
   type
+    .replace(/_/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)(?=[A-Z][a-z])/g, '$1 ')
     .split(' ')
@@ -28,6 +32,12 @@ export const humanizeType = (type: string): string =>
     })
     .join(' ')
 
+/** A power in words: `set_addr` → "Set addr", `admin_set_text` → "Set text Admin". */
+export const formatPower = (power: Power | string): string =>
+  power.startsWith('admin_')
+    ? `${humanizeType(power.slice('admin_'.length))} Admin`
+    : humanizeType(power)
+
 const nameSlot = (value?: string | null): ActionSlot =>
   value ? { kind: 'name', value } : { kind: 'placeholder', value: '—' }
 
@@ -37,373 +47,260 @@ const addressSlot = (value?: string | null): ActionSlot =>
     : { kind: 'placeholder', value: '—' }
 
 const contractSlot = (
-  value?: string | null,
+  value?: ContractRef | null,
   opts?: { isRegistry?: boolean; label?: string },
 ): ActionSlot => {
-  if (!value || !isAddress(value, { strict: false })) {
+  if (!value || !isAddress(value.address, { strict: false })) {
     return { kind: 'placeholder', value: '—' }
   }
   return {
     kind: 'contract',
-    value,
+    value: value.address,
     ...(opts?.isRegistry ? { isRegistry: true } : {}),
     ...(opts?.label ? { label: opts.label } : {}),
   }
 }
 
-const resolvedNameSlot = (
-  candidate?: string | null,
-  eventName?: string | null,
-): ActionSlot =>
-  nameSlot(
-    (candidate ? resolveDecodedName(candidate, eventName) : undefined) ??
-      eventName,
-  )
+/** Hex values (contenthash, non-EVM address bytes) are shortened; text is sanitized. */
+const valueSlot = (value?: string): ActionSlot => {
+  if (!value) return { kind: 'placeholder', value: '—' }
+  if (value.startsWith('0x') && value.length > 16)
+    return { kind: 'text', value: truncateAddress(value, 6, 4, '…') }
+  return { kind: 'text', value: sanitizeOnChainText(value) || '—' }
+}
+
+/**
+ * The record family a `record` row's key names, for labels. `key` is the stored
+ * key and may sit outside the records grammar (`name`, `abi:<content_type>`).
+ */
+export type RecordFamily =
+  | 'cleared'
+  | 'text'
+  | 'address'
+  | 'contenthash'
+  | 'name'
+  | 'abi'
+  | 'pubkey'
+  | 'interface'
+  | 'other'
+
+export const recordFamily = (
+  event: TimelineEventOfType<'record'>,
+): RecordFamily => {
+  // A record-version reset (clearRecords) carries no fields at all.
+  if (event.kind === 'RecordVersionChanged') return 'cleared'
+  const key = event.data.key
+  if (!key) return 'other'
+  const parsed = parseRecordKey(key)
+  if (parsed?.kind === 'text' || parsed?.kind === 'avatar') return 'text'
+  if (parsed?.kind === 'addr') return 'address'
+  if (parsed?.kind === 'contenthash') return 'contenthash'
+  if (key === 'name') return 'name'
+  if (key.startsWith('abi')) return 'abi'
+  if (key.startsWith('pubkey')) return 'pubkey'
+  if (key.startsWith('interface')) return 'interface'
+  return 'other'
+}
+
+/** The text key of a `text:<key>` row, sanitized; the key is attacker-authored. */
+export const recordTextKey = (event: TimelineEventOfType<'record'>): string => {
+  const key = event.data.key ?? ''
+  const bare = key.startsWith('text:') ? key.slice('text:'.length) : key
+  return sanitizeOnChainText(bare) || 'text'
+}
+
+const describeRecord = (
+  primary: TimelineEventOfType<'record'>,
+): DescriptorResult => {
+  const { value } = primary.data
+  switch (recordFamily(primary)) {
+    case 'cleared':
+      return { label: 'cleared records', slots: [] }
+    case 'text': {
+      const slots: ActionSlot[] = [
+        { kind: 'text', value: recordTextKey(primary) },
+      ]
+      const text = sanitizeOnChainText(value ?? '')
+      if (text)
+        slots.push({ kind: 'glyph', value: '→' }, { kind: 'text', value: text })
+      return { icon: 'text', label: 'set text record', slots }
+    }
+    case 'address':
+      return {
+        icon: 'address',
+        label: 'set address to',
+        slots: [
+          value && isAddress(value, { strict: false })
+            ? addressSlot(value)
+            : valueSlot(value),
+        ],
+      }
+    case 'contenthash':
+      return {
+        icon: 'contenthash',
+        label: 'set content hash to',
+        slots: [valueSlot(value)],
+      }
+    case 'name':
+      // History keeps the key of a `name()` write but not the name itself.
+      return value
+        ? {
+            icon: 'primary',
+            label: 'set primary name to',
+            slots: [nameSlot(value)],
+          }
+        : { icon: 'primary', label: 'set reverse name record', slots: [] }
+    case 'abi':
+      return { label: 'changed ABI', slots: [] }
+    case 'pubkey':
+      return { label: 'changed public key', slots: [] }
+    case 'interface':
+      return { label: 'set interface', slots: [] }
+    case 'other':
+      return {
+        label: 'set record',
+        slots: [
+          {
+            kind: 'text',
+            value: sanitizeOnChainText(primary.data.key ?? '') || '—',
+          },
+        ],
+      }
+  }
+}
+
+type Descriptors = {
+  readonly [TType in HistoryEventType]: Descriptor<TimelineEventOfType<TType>>
+}
 
 /**
  * Labels are lowercase past-tense verb phrases: every row is rendered as
  * "{actor} {label} {slots}", with the transaction sender as its subject (see
  * `summarizeEvents`), so a label must read on from a name or an address.
  */
-export const DESCRIPTORS = {
-  AddressChanged: {
-    icon: 'address',
+export const DESCRIPTORS: Descriptors = {
+  registration: {
+    icon: 'register',
+    build: (primary) =>
+      primary.subject === 'child'
+        ? {
+            icon: 'subname',
+            label: 'registered subname',
+            slots: [nameSlot(primary.name)],
+          }
+        : { label: 'registered', slots: [nameSlot(primary.name)] },
+  },
+  renewal: {
+    icon: 'renew',
+    build: (primary) => ({ label: 'renewed', slots: [nameSlot(primary.name)] }),
+  },
+  release: {
+    icon: 'expiry',
     build: (primary) => ({
-      label: 'set address to',
-      slots: [addressSlot(primary.asAddressChanged?.address)],
+      label: 'released',
+      slots: [nameSlot(primary.name)],
     }),
   },
-  AddrChanged: {
-    icon: 'address',
-    build: (primary) => ({
-      label: 'set address to',
-      slots: [
-        addressSlot(
-          primary.asAddressChanged?.address ??
-            readString(parseEventData(primary.data), 'address', 'addr'),
-        ),
-      ],
-    }),
+  expiry: {
+    icon: 'expiry',
+    build: () => ({ label: 'updated expiry', slots: [] }),
   },
-
-  TextChanged: {
-    icon: 'text',
+  transfer: {
+    icon: 'transfer',
     build: (primary) => {
-      const key =
-        sanitizeOnChainText(primary.asTextChanged?.key ?? primary.key ?? '') ||
-        '—'
-      const value = sanitizeOnChainText(
-        primary.asTextChanged?.value ?? primary.value ?? '',
-      )
-      const slots: ActionSlot[] = [{ kind: 'text', value: key }]
-      if (value) {
-        slots.push({ kind: 'glyph', value: '→' }, { kind: 'text', value })
-      }
-      return { label: 'set text record', slots }
-    },
-  },
-
-  ContenthashChanged: {
-    icon: 'contenthash',
-    build: (primary) => {
-      const hash = readString(
-        parseEventData(primary.data),
-        'hash',
-        'contentHash',
-      )
+      // A mint is the registration's own doing, not a transfer worth a headline.
+      if (isZero(primary.data.from)) return null
       return {
-        label: 'set content hash to',
+        label: 'transferred',
         slots: [
-          {
-            kind: 'text',
-            value: hash ? truncateAddress(hash, 6, 4, '…') : '—',
-          },
+          nameSlot(primary.name),
+          { kind: 'glyph', value: '→' },
+          addressSlot(primary.data.to),
         ],
       }
     },
   },
-
-  NameChanged: {
-    icon: 'primary',
-    build: (primary) => {
-      const setName =
-        readString(parseEventData(primary.data), 'name') ?? primary.name
-      return {
-        label: 'set primary name to',
-        slots: [nameSlot(setName)],
-      }
-    },
+  authority: {
+    icon: 'registry',
+    build: (primary) => ({
+      label: 'set registry owner to',
+      slots: [addressSlot(primary.data.owner)],
+    }),
   },
-  ReverseClaimed: {
+  resolver: {
+    icon: 'resolver',
+    build: (primary) =>
+      primary.data.resolver
+        ? {
+            label: 'updated resolver to',
+            slots: [contractSlot(primary.data.resolver, { label: 'resolver' })],
+          }
+        : { label: 'cleared resolver', slots: [] },
+  },
+  record: {
+    icon: 'records',
+    build: describeRecord,
+  },
+  primary_name: {
     icon: 'primary',
     build: (primary) => ({
       label: 'set primary name',
       slots: [
         nameSlot(primary.name),
         { kind: 'glyph', value: '↔' },
-        addressSlot(primary.asReverseClaimed?.address),
+        addressSlot(primary.data.address),
       ],
     }),
   },
-
-  Transfer: {
-    icon: 'transfer',
+  permission: {
+    icon: 'grant',
     build: (primary) => {
-      if (isZero(primary.asTransfer?.from)) return null
+      const { address, powers, fuses } = primary.data
+      if (!powers && fuses !== undefined)
+        return { icon: 'fuses', label: 'set fuses', slots: [] }
+      const account: ActionSlot =
+        address && isAddress(address, { strict: false })
+          ? primary.transactionHash
+            ? { kind: 'actor', txHash: primary.transactionHash, address }
+            : { kind: 'address', value: address }
+          : { kind: 'placeholder', value: '—' }
+      // `powers` is the subject's power set after the change; an empty set is
+      // every role gone.
+      if (!powers?.length)
+        return {
+          icon: 'revoke',
+          label: 'revoked roles from',
+          slots: [account],
+        }
       return {
-        label: 'transferred',
+        label: 'set roles',
         slots: [
-          nameSlot(primary.name),
-          { kind: 'glyph', value: '→' },
-          addressSlot(primary.asTransfer?.to),
+          { kind: 'text', value: powers.map(formatPower).join(', ') },
+          { kind: 'connective', value: 'for' },
+          account,
         ],
       }
     },
   },
-  RegistryTransfer: {
-    icon: 'transfer',
-    build: (primary) => ({
-      label: 'transferred',
-      slots: [
-        nameSlot(primary.name),
-        { kind: 'glyph', value: '→' },
-        addressSlot(primary.asRegistryTransfer?.owner),
-      ],
-    }),
-  },
-
-  LabelRegistered: {
-    icon: 'subname',
-    build: (primary) => ({
-      label: 'registered subname',
-      slots: [resolvedNameSlot(primary.asLabelRegistered?.name, primary.name)],
-    }),
-  },
-  NameRegistered: {
-    icon: 'register',
-    build: (primary) => ({
-      label: 'registered',
-      slots: [resolvedNameSlot(primary.asNameRegistered?.name, primary.name)],
-    }),
-  },
-  NameRenewed: {
-    icon: 'renew',
-    build: (primary) => ({
-      label: 'renewed',
-      slots: [nameSlot(primary.name)],
-    }),
-  },
-
-  ResolverUpdated: {
-    icon: 'resolver',
-    build: (primary) => ({
-      label: 'updated resolver to',
-      slots: [
-        contractSlot(primary.asResolverUpdated?.resolver, {
-          label: 'resolver',
-        }),
-      ],
-    }),
-  },
-
-  SubregistryUpdated: {
+  subregistry: {
     icon: 'registry',
-    build: (primary) => {
-      const registry = readString(
-        parseEventData(primary.data),
-        'registry',
-        'subregistry',
-      )
-      if (isZero(registry)) {
-        return { label: 'unlinked subregistry', slots: [] }
-      }
-      return {
-        label: 'deployed and linked subregistry',
-        slots: [contractSlot(registry, { isRegistry: true })],
-      }
-    },
-  },
-
-  EACRolesChanged: {
-    icon: 'grant',
-    build: (primary) => {
-      const change = decodeRoleChange(primary.data)
-      const roleText =
-        change.roles
-          .map((role) =>
-            role.endsWith('_ADMIN')
-              ? `${formatRoleLabel(role)} Admin`
-              : formatRoleLabel(role),
-          )
-          .join(', ') || 'roles'
-      const account: ActionSlot =
-        change.account && isAddress(change.account, { strict: false })
-          ? {
-              kind: 'actor',
-              txHash: primary.transactionHash,
-              address: change.account,
-            }
-          : { kind: 'placeholder', value: '—' }
-
-      if (change.direction === 'revoke') {
-        return {
-          icon: 'revoke',
-          label: 'revoked role',
-          slots: [
-            { kind: 'text', value: roleText },
-            { kind: 'connective', value: 'from' },
-            account,
-          ],
-        }
-      }
-      if (change.direction === 'grant') {
-        return {
-          label: 'granted role',
-          slots: [
-            { kind: 'text', value: roleText },
-            { kind: 'connective', value: 'to' },
-            account,
-          ],
-        }
-      }
-      return {
-        label: 'updated roles',
-        slots: [{ kind: 'text', value: roleText }],
-      }
-    },
-  },
-
-  // The only two type names that mean different things across protocols: under
-  // v1 these are the NameWrapper's wrap/unwrap, not the migration to v2.
-  NameWrapped: {
-    icon: 'migrate',
     build: (primary) =>
-      primary.protocol === V1_PROTOCOL
+      primary.data.subregistry
         ? {
-            label: 'wrapped',
+            label: 'linked subregistry',
             slots: [
-              nameSlot(primary.name),
-              { kind: 'connective', value: 'for' },
-              addressSlot(primary.asNameWrapped?.owner),
+              contractSlot(primary.data.subregistry, { isRegistry: true }),
             ],
           }
-        : {
-            label: 'migrated',
-            slots: [
-              nameSlot(primary.name),
-              { kind: 'connective', value: 'to ENSv2' },
-            ],
-          },
+        : { label: 'unlinked subregistry', slots: [] },
   },
-  NameUnwrapped: {
-    icon: 'migrate',
-    build: (primary) =>
-      primary.protocol === V1_PROTOCOL
-        ? {
-            label: 'unwrapped',
-            slots: [
-              nameSlot(primary.name),
-              { kind: 'connective', value: 'to' },
-              addressSlot(primary.asNameUnwrapped?.owner),
-            ],
-          }
-        : {
-            label: 'unwrapped',
-            slots: [
-              nameSlot(primary.name),
-              { kind: 'connective', value: 'from ENSv2' },
-            ],
-          },
-  },
-  FusesSet: {
-    icon: 'fuses',
-    build: () => ({ label: 'set fuses', slots: [] }),
-  },
-  ExpiryUpdated: {
-    icon: 'expiry',
-    build: () => ({ label: 'updated expiry', slots: [] }),
-  },
+}
 
-  // ENS v1 types with no v2 counterpart, so no collision to disambiguate.
-  NewOwner: {
-    icon: 'registry',
-    build: (primary) => ({
-      label: 'set registry owner to',
-      slots: [addressSlot(primary.asRegistryTransfer?.owner)],
-    }),
-  },
-  WrappedTransfer: {
-    icon: 'transfer',
-    build: (primary) => ({
-      label: 'transferred wrapped name',
-      slots: [
-        nameSlot(primary.name),
-        { kind: 'glyph', value: '→' },
-        addressSlot(primary.asTransfer?.to),
-      ],
-    }),
-  },
-  NameTransferred: {
-    icon: 'transfer',
-    build: (primary) => ({
-      label: 'transferred registrant to',
-      slots: [
-        addressSlot(readString(parseEventData(primary.data), 'newOwner')),
-      ],
-    }),
-  },
-  NewTTL: {
-    icon: 'registry',
-    build: (primary) => ({
-      label: 'set TTL to',
-      slots: [
-        {
-          kind: 'text',
-          value: readString(parseEventData(primary.data), 'ttl') ?? '—',
-        },
-      ],
-    }),
-  },
-  AbiChanged: {
-    icon: 'records',
-    build: () => ({ label: 'changed ABI', slots: [] }),
-  },
-  PubkeyChanged: {
-    icon: 'records',
-    build: () => ({ label: 'changed public key', slots: [] }),
-  },
-  InterfaceChanged: {
-    icon: 'records',
-    build: (primary) => ({
-      label: 'set interface',
-      slots: [
-        {
-          kind: 'text',
-          value: readString(parseEventData(primary.data), 'interfaceID') ?? '—',
-        },
-        { kind: 'glyph', value: '→' },
-        addressSlot(readString(parseEventData(primary.data), 'implementer')),
-      ],
-    }),
-  },
-  AuthorisationChanged: {
-    icon: 'grant',
-    build: (primary) => ({
-      label: 'changed authorisation for',
-      slots: [addressSlot(readString(parseEventData(primary.data), 'target'))],
-    }),
-  },
-  // The PublicResolver bumps the record version to clear every record at once.
-  VersionChanged: {
-    icon: 'records',
-    build: () => ({ label: 'cleared records', slots: [] }),
-  },
-} satisfies Record<string, Descriptor>
+/** Dispatch on the row's own type; the descriptor table is keyed exhaustively. */
+export const describeEvent = (
+  primary: TimelineEvent,
+): DescriptorResult | null =>
+  (DESCRIPTORS[primary.type] as Descriptor).build(primary)
 
-/**
- * The event types the timeline knows how to describe. Scoped reads name these,
- * and the values are inlined into the indexer query text (see
- * `buildHistoryTimelineQuery`), so this union is what guarantees only our own
- * constants ever reach it.
- */
-export type TimelineEventType = keyof typeof DESCRIPTORS
+export const descriptorIcon = (primary: TimelineEvent) =>
+  DESCRIPTORS[primary.type].icon

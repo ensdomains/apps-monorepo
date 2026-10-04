@@ -1,30 +1,9 @@
 /**
- * Pure helpers for merging and ordering "Names you own" in search.
+ * Pure helpers for filtering and ordering "Names you own" in search.
  * Ordering: 2LD names (e.g. fox.eth, arcticfox.eth) first, then subnames (e.g. big.fox.eth), alphabetically within each group.
  */
 
 export type OwnedName = { name: string }
-
-export type V1NameLike = { name: string | null }
-
-/**
- * Merges V1 and V2 owned name lists and deduplicates by name (case-insensitive).
- * V1 entries with null name are skipped.
- */
-export function mergeOwnedNames(
-  v1: V1NameLike[],
-  v2: OwnedName[],
-): OwnedName[] {
-  const v1Filtered = v1
-    .filter((d): d is V1NameLike & { name: string } => d.name != null)
-    .map((d) => ({ name: d.name }))
-  const byName = new Map<string, OwnedName>()
-  for (const d of [...v1Filtered, ...v2]) {
-    const key = d.name.trim().toLowerCase()
-    if (!byName.has(key)) byName.set(key, d)
-  }
-  return Array.from(byName.values())
-}
 
 /**
  * Number of labels in an ENS name (e.g. "fox.eth" -> 2, "big.fox.eth" -> 3).

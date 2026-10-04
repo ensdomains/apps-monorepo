@@ -13,28 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { ProtocolVersion } from '@/utils/types'
 import { columns, type NameRecord } from './columns'
 import { RecordSidebar } from './RecordSidebar'
 
 export const RecordsTable = ({
   name,
   table,
-  protocolVersion,
 }: {
   name: string
   table: TableData<NameRecord>
-  protocolVersion?: ProtocolVersion
 }) => {
   const [clickedRow, setClickedRow] = useState<Row<NameRecord> | null>(null)
 
   const [open, setOpen] = useState(false)
 
   return (
-    <RecordSidebar
-      row={clickedRow}
-      {...{ name, open, setOpen, protocolVersion }}
-    >
+    <RecordSidebar row={clickedRow} {...{ name, open, setOpen }}>
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

@@ -419,6 +419,26 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
   }
 }
 
+/**
+ * On-chain expiry (unix seconds) of a `.eth` 2LD in the V2 registry, or
+ * undefined when it cannot be read. Feeds the bigname mock's `expires_at`.
+ */
+export async function readV2Expiry(name: string): Promise<number | undefined> {
+  const label = name.replace(/\.eth$/, '')
+  if (label.includes('.')) return undefined
+  try {
+    const expiry = await publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: permissionedRegistryGetExpirySnippet,
+      functionName: 'getExpiry',
+      args: [BigInt(keccak256(toHex(label)))],
+    })
+    return expiry > 0n ? Number(expiry) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Resolver deployment helper
 // ---------------------------------------------------------------------------

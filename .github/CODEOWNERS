@@ -9,7 +9,6 @@
 
 # Packages
 /packages/transaction-manager/ @v1rtl @LeonmanRolls
-/packages/indexer/ @v1rtl
 /packages/smart-account/ @v1rtl @f1lander
 /packages/utils/ @svemat01
 /packages/l2-primary/ @v1rtl

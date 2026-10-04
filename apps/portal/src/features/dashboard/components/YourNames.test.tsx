@@ -6,7 +6,7 @@ import {
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { V2NameWithRoles } from '@/utils/names/mergeNamesData'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 import { YourNames } from './YourNames'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -20,44 +20,34 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 vi.mock('@/components/SettingsMenu', () => ({ SettingsMenu: () => null }))
 vi.mock('@/components/WalletMenu', () => ({ WalletMenu: () => null }))
 
-const v2Ref = vi.hoisted(() => ({
-  current: [] as V2NameWithRoles[] | Error,
+const namesRef = vi.hoisted(() => ({
+  current: [] as AddressNameItem[] | Error,
 }))
-const v1Ref = vi.hoisted(() => ({ current: [] as [] | Error }))
 
-vi.mock('../hooks/useV1NamesForAddress', () => ({
-  getV1NamesForAddressQueryOptions: () => ({
-    queryKey: ['v1-names-mock'],
+vi.mock('../hooks/useAddressNames', () => ({
+  getAddressNamesQueryOptions: () => ({
+    queryKey: ['address-names-mock'],
     queryFn: async () => {
-      if (v1Ref.current instanceof Error) throw v1Ref.current
-      return v1Ref.current
+      if (namesRef.current instanceof Error) throw namesRef.current
+      return namesRef.current
     },
   }),
 }))
 
-vi.mock('../hooks/useV2NamesWithRolesForAddress', () => ({
-  getV2NamesWithRolesForAddressQueryOptions: () => ({
-    queryKey: ['v2-names-mock'],
-    queryFn: async () => {
-      if (v2Ref.current instanceof Error) throw v2Ref.current
-      return v2Ref.current
-    },
-  }),
-}))
+const DAY_MS = 24 * 60 * 60 * 1000
 
-const DAY = 24n * 60n * 60n
-
-const v2Name = (name: string, daysLeft: bigint): V2NameWithRoles => ({
+const v2Name = (name: string, daysLeft: number): AddressNameItem => ({
   name,
-  // V2NameWithRoles carries the indexer's number-typed expiry.
-  expiryDate: Number(BigInt(Math.floor(Date.now() / 1000)) + daysLeft * DAY),
+  expiryDate: new Date(Date.now() + daysLeft * DAY_MS),
+  protocolVersion: 'ENSv2',
   roleBitmap: '0x1',
   subdomainCount: 0,
+  v1Roles: null,
+  relations: ['owner'],
 })
 
-const renderNames = (names: V2NameWithRoles[] | Error, v1: [] | Error = []) => {
-  v2Ref.current = names
-  v1Ref.current = v1
+const renderNames = (names: AddressNameItem[] | Error) => {
+  namesRef.current = names
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -69,8 +59,9 @@ const renderNames = (names: V2NameWithRoles[] | Error, v1: [] | Error = []) => {
 }
 
 describe('YourNames', () => {
-  it('warns about names expiring within 30 days, soonest first', async () => {
-    renderNames([v2Name('later.eth', 800n), v2Name('soon.eth', 4n)])
+  // bigname serves the list soonest expiry first (`sort=expires_at`).
+  it('warns about names expiring within 30 days, in the order served', async () => {
+    renderNames([v2Name('soon.eth', 4), v2Name('later.eth', 800)])
 
     const rows = await screen.findAllByRole('listitem')
     expect(rows[0]).toHaveTextContent('soon.eth')
@@ -84,9 +75,7 @@ describe('YourNames', () => {
 
   it('shows four names, then reveals more on demand', async () => {
     renderNames(
-      Array.from({ length: 6 }, (_, i) =>
-        v2Name(`name${i}.eth`, 100n + BigInt(i)),
-      ),
+      Array.from({ length: 6 }, (_, i) => v2Name(`name${i}.eth`, 100 + i)),
     )
 
     const showMore = await screen.findByRole('button', {
@@ -104,27 +93,16 @@ describe('YourNames', () => {
     expect(await screen.findByText('No names yet')).toBeInTheDocument()
   })
 
-  it('shows an error instead of an empty list when a query fails', async () => {
-    renderNames(new Error('indexer down'))
-    expect(
-      await screen.findByText(/Error fetching ENSv2 names/),
-    ).toBeInTheDocument()
+  it('shows an error instead of an empty list when the query fails', async () => {
+    renderNames(new Error('bigname down'))
+    expect(await screen.findByText(/Error fetching names/)).toBeInTheDocument()
     expect(screen.queryByText('No names yet')).toBeNull()
   })
 
-  it('keeps the names one source returned when the other fails', async () => {
-    renderNames([v2Name('kept.eth', 100n)], new Error('v1 subgraph down'))
-
-    expect(await screen.findByText('kept.eth')).toBeInTheDocument()
-    expect(screen.getByText(/Error fetching ENSv1 names/)).toBeInTheDocument()
-  })
-
-  it('orders granted subnames by expiry with the rest, so their warning shows', async () => {
+  it('lists granted subnames with their expiry warning', async () => {
     renderNames([
-      ...Array.from({ length: 4 }, (_, i) =>
-        v2Name(`held${i}.eth`, 500n + BigInt(i)),
-      ),
-      v2Name('granted.parent.eth', 10n),
+      v2Name('granted.parent.eth', 10),
+      ...Array.from({ length: 4 }, (_, i) => v2Name(`held${i}.eth`, 500 + i)),
     ])
 
     const rows = await screen.findAllByRole('listitem')
@@ -148,7 +126,7 @@ describe('YourNames', () => {
   it('truncates a long name so the expiry keeps its column', async () => {
     const encoded =
       '[ba9d5b944633af135d2899dce4c44a43b00ed78f640ff4bc2088401760432cdc].eth'
-    renderNames([v2Name(encoded, 271n)])
+    renderNames([v2Name(encoded, 271)])
 
     expect(await screen.findByText('[ba9d5b944…60432cdc].eth')).toHaveAttribute(
       'title',
@@ -172,10 +150,8 @@ describe('YourNames', () => {
       )
     renderNames([
       {
-        name: 'utc.eth',
-        expiryDate: Date.UTC(2026, 5, 3, 12) / 1000,
-        roleBitmap: '0x1',
-        subdomainCount: 0,
+        ...v2Name('utc.eth', 0),
+        expiryDate: new Date(Date.UTC(2026, 5, 3, 12)),
       },
     ])
 

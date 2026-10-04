@@ -1,102 +1,88 @@
-import { getConfig } from '#core/config.js'
+import {
+  type AddressNameRow,
+  type Authority,
+  iteratePages,
+  MAX_PAGE_SIZE,
+  parseTimestamp,
+} from '@ens-apps/bigname'
+import { createBigname } from '#core/bigname/index.js'
 import { logger } from '#utils/logger.js'
 
 /**
- * ENS v1 subgraph used to check whether an address still owns v1 names.
- * Mirrors the manager's `v1SubgraphClient` (apps/manager
- * src/features/migration/service/v1SubgraphClient.ts) — same endpoint and the
- * same eligibility filters — so the faucet's "owns v1 names" verdict can't
- * drift from what the migration flow actually shows the user.
- *
- * Both now read the chain's subgraph from ensjs, which keys it per network.
- * They had drifted onto different hosts despite the comment above, and the
- * one here no longer resolves.
+ * Both are ENSv1 names the migration flow can move: `ens_v0` only means the
+ * node's registry record still sits in the 2017 registry, and bigname derives
+ * its registration and control exactly as for `ens_v1`. Migrated names are
+ * `ens_v2`, so neither filter matches them.
  */
+const V1_AUTHORITIES = ['ens_v1', 'ens_v0'] as const satisfies Authority[]
 
-// keccak-derived namehash of `addr.reverse` — reverse records are not
-// migratable names, so they're excluded just like in the manager.
-const REVERSE_NODE =
-  '0x91d1777781884d03a6757a803996e38de2a42967fb37eeaca72729271025a9e2'
+/** Pages per authority. Rows are sorted so live names come first. */
+const MAX_PAGES = 5
 
-const HAS_NAMES_QUERY = `
-query hasV1NamesForAddress($whereFilter: Domain_filter) {
-  domains(first: 1, where: $whereFilter) {
-    id
-  }
-}
-`
+const isReverseName = (name: string) =>
+  name === 'reverse' || name.endsWith('.reverse')
 
-type V1SubgraphResponse = {
-  data?: {
-    domains: Array<{ id: string }>
-  }
-  errors?: Array<{ message: string }>
+const isLapsed = (row: AddressNameRow, nowMs: number) => {
+  const expiresAt = parseTimestamp(row.expires_at)
+  return expiresAt !== undefined && expiresAt.getTime() <= nowMs
 }
 
 /**
- * Whether `address` owns (owner / registrant / wrappedOwner) at least one
- * live, migratable ENS v1 name. A single `first: 1` existence query — we only
- * need the verdict, not the names.
+ * A name the owner can still migrate: not a reverse record, not released or
+ * ownerless, and not past its expiry (a name without an expiry, such as an
+ * unwrapped subname, counts as live).
+ */
+const isLiveMigratableName = (row: AddressNameRow, nowMs: number) =>
+  !isReverseName(row.name) &&
+  row.registration_status !== 'released' &&
+  row.registration_status !== 'unregistered' &&
+  !isLapsed(row, nowMs)
+
+/**
+ * Whether `address` owns, manages or is the registrant of at least one live,
+ * migratable ENSv1 name, read from bigname's address-names collection (the
+ * same source the manager's migration flow reads).
  *
- * Throws on subgraph/network errors so callers can decide the failure mode
- * (the faucet treats a failed check as "no drip", fail-closed).
+ * Throws `BignameError` on any failed read so callers can decide the failure
+ * mode (the faucet treats a failed check as "no drip", fail-closed).
  */
 export const hasV1Names = async (
-  address: string,
   env: CloudflareBindings,
+  address: string,
 ): Promise<boolean> => {
-  const addr = address.toLowerCase()
-  const now = Math.floor(Date.now() / 1000).toString()
+  const bigname = createBigname(env)
+  const nowMs = Date.now()
 
-  // Same filter set as the manager's getV1NamesForAddress: owned by the
-  // address, not a reverse record, not expired, and not an empty husk
-  // (zero owner with no resolver/registrant).
-  const whereFilter = {
-    and: [
-      {
-        or: [{ owner: addr }, { registrant: addr }, { wrappedOwner: addr }],
-      },
-      { parent_not: REVERSE_NODE },
-      {
-        or: [{ expiryDate_gt: now }, { expiryDate: null }],
-      },
-      {
-        or: [
-          { owner_not: '0x0000000000000000000000000000000000000000' },
-          { resolver_not: null },
-          {
-            and: [
-              {
-                registrant_not: '0x0000000000000000000000000000000000000000',
-              },
-              { registrant_not: null },
-            ],
-          },
-        ],
-      },
-    ],
+  for (const authority of V1_AUTHORITIES) {
+    const pages = iteratePages(
+      (cursor) =>
+        bigname.listAddressNames(address, {
+          relation: 'any',
+          authority,
+          // Unknown expiries sort first descending, then the latest expiries.
+          sort: 'expires_at',
+          order: 'desc',
+          page_size: MAX_PAGE_SIZE,
+          cursor,
+        }),
+      { maxPages: MAX_PAGES },
+    )
+
+    for await (const page of pages) {
+      if (page.data.some((row) => isLiveMigratableName(row, nowMs))) {
+        logger.debug('Checked v1 name ownership', {
+          address,
+          authority,
+          owns: true,
+        })
+        return true
+      }
+      // Every later row expires no later than this one.
+      const last = page.data.at(-1)
+      if (last && isLapsed(last, nowMs)) break
+    }
   }
 
-  const response = await fetch(getConfig(env).chain.subgraphs.ens.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: HAS_NAMES_QUERY,
-      variables: { whereFilter },
-      operationName: 'hasV1NamesForAddress',
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`V1 subgraph request failed: ${response.status}`)
-  }
-
-  const json: V1SubgraphResponse = await response.json()
-  if (json.errors?.length && json.errors[0]) {
-    throw new Error(`V1 subgraph error: ${json.errors[0].message}`)
-  }
-
-  const owns = (json.data?.domains.length ?? 0) > 0
-  logger.debug('Checked v1 name ownership', { address: addr, owns })
-  return owns
+  logger.debug('Checked v1 name ownership', { address, owns: false })
+  return false
 }

@@ -2,7 +2,14 @@
  * Metadata field names that should be filtered out from event details
  * when displaying event data to users
  */
-const METADATA_FIELDS = ['id', 'blockNumber', 'transactionID', 'type'] as const
+const METADATA_FIELDS = [
+  'id',
+  'blockNumber',
+  'transactionID',
+  'type',
+  'timestamp',
+  'category',
+] as const
 
 /**
  * Filters out metadata fields from event details, returning only

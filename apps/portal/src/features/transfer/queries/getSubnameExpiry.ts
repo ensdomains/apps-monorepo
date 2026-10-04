@@ -26,8 +26,8 @@ type GetSubnameExpiryParameters = {
 /**
  * A v2 subname's expiry, read from the registry that holds its token.
  *
- * Deliberately not `useGraceStatus`: its v2 path reads `expiryDate` from the
- * indexer and applies `V2_GRACE_PERIOD_DAYS`, which is `.eth` registrar
+ * Deliberately not `useGraceStatus`: its v2 path reads `expires_at` from
+ * bigname and applies `V2_GRACE_PERIOD_DAYS`, which is `.eth` registrar
  * semantics. A parent-issued subname has no registrar and no grace period — it
  * simply stops being owned, at which point the parent can re-issue it to anyone.
  */

@@ -1,4 +1,3 @@
-import { OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
@@ -38,12 +37,12 @@ const NameRowSkeleton = () => (
 
 const parseSort = (
   sort: FavoritesSort,
-): { field: FavoritesSortField; direction: OrderDirection } => {
-  const [field, dir] = sort.split('-') as [FavoritesSortField, 'asc' | 'desc']
-  return {
-    field,
-    direction: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
-  }
+): { field: FavoritesSortField; direction: 'asc' | 'desc' } => {
+  const [field, direction] = sort.split('-') as [
+    FavoritesSortField,
+    'asc' | 'desc',
+  ]
+  return { field, direction }
 }
 
 export const FavoritesList = ({

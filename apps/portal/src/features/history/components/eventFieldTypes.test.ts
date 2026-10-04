@@ -1,104 +1,72 @@
 import { describe, expect, it } from 'vitest'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import type { TimelineEvent } from '../timelineEvent'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
 
-const baseEvent = {
+const base = {
   id: '1',
+  name: 'alice.eth',
+  registrationId: null,
   transactionHash: '0xabc',
   blockNumber: 1,
+  logIndex: 0,
   timestamp: 1,
 } as const
 
 describe('getTimelineFieldType', () => {
-  it('returns ABI types for known event fields', () => {
-    expect(getTimelineFieldType('TextChanged', 'key')).toBe('string')
-    expect(getTimelineFieldType('FusesSet', 'fuses')).toBe('uint32')
-    expect(getTimelineFieldType('AddressChanged', 'address')).toBe('bytes')
-    expect(getTimelineFieldType('ExpiryUpdated', 'expiry')).toBe('uint64')
-    expect(getTimelineFieldType('SubregistryUpdated', 'subregistry')).toBe(
-      'address',
-    )
-    expect(getTimelineFieldType('SubregistryUpdated', 'canonicalId')).toBe(
-      'uint256',
-    )
-    expect(getTimelineFieldType('SubregistryUpdated', 'sender')).toBe('address')
+  it('returns the type of each served payload field', () => {
+    expect(getTimelineFieldType('record', 'key')).toBe('string')
+    expect(getTimelineFieldType('expiry', 'fuses')).toBe('uint32')
+    expect(getTimelineFieldType('renewal', 'expires_at')).toBe('timestamp')
+    expect(getTimelineFieldType('subregistry', 'subregistry')).toBe('address')
+    expect(getTimelineFieldType('permission', 'powers')).toBe('string[]')
   })
 
-  it('returns unknown for unmapped types or fields', () => {
-    expect(getTimelineFieldType('TextChanged', 'missing')).toBe('unknown')
-    expect(getTimelineFieldType('SomeFutureEvent', 'key')).toBe('unknown')
+  it('returns unknown for an unmapped field', () => {
+    expect(getTimelineFieldType('record', 'missing')).toBe('unknown')
   })
 })
 
 describe('getDecodedParamEntries', () => {
-  it('selects the typed payload for event.type', () => {
-    const event = {
-      ...baseEvent,
-      type: 'TextChanged',
-      asTextChanged: {
-        key: 'url',
-        value: 'https://ens.domains',
-        resolver: '0x1111111111111111111111111111111111111111',
-        namehash:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
+  it('flattens contract pointers to their address and lists to one string', () => {
+    const event: TimelineEvent = {
+      ...base,
+      type: 'registration',
+      data: {
+        owner: '0x1111111111111111111111111111111111111111',
+        resolver: {
+          chain_id: 11155111,
+          address: '0x2222222222222222222222222222222222222222',
+        },
+        expires_at: '2027-01-01T00:00:00Z',
       },
-      // Would win under first-non-null scanning — must be ignored.
-      asAddressChanged: {
-        address: '0x2222222222222222222222222222222222222222',
-        coinType: 60,
-      },
-    } as TimelineIndexerEvent
-
+    }
     expect(getDecodedParamEntries(event)).toEqual([
-      ['key', 'url'],
-      ['value', 'https://ens.domains'],
-      ['resolver', '0x1111111111111111111111111111111111111111'],
-      [
-        'namehash',
-        '0x0000000000000000000000000000000000000000000000000000000000000001',
-      ],
+      ['owner', '0x1111111111111111111111111111111111111111'],
+      ['resolver', '0x2222222222222222222222222222222222222222'],
+      ['expires_at', '2027-01-01T00:00:00Z'],
+    ])
+
+    const permission: TimelineEvent = {
+      ...base,
+      type: 'permission',
+      data: { powers: ['set_addr', 'set_text'] },
+    }
+    expect(getDecodedParamEntries(permission)).toEqual([
+      ['powers', 'set_addr, set_text'],
     ])
   })
 
-  it('maps AddrChanged onto asAddressChanged', () => {
-    const event = {
-      ...baseEvent,
-      type: 'AddrChanged',
-      asAddressChanged: {
-        address: '0x3333333333333333333333333333333333333333',
-        coinType: 60,
-      },
-    } as TimelineIndexerEvent
-
-    expect(getDecodedParamEntries(event)).toEqual([
-      ['address', '0x3333333333333333333333333333333333333333'],
-      ['coinType', '60'],
-    ])
+  it('drops empty values', () => {
+    const event: TimelineEvent = {
+      ...base,
+      type: 'record',
+      data: { key: 'text:url', value: '' },
+    }
+    expect(getDecodedParamEntries(event)).toEqual([['key', 'text:url']])
   })
 
-  it('falls back to parsing event.data when no typed payload exists', () => {
-    const event = {
-      ...baseEvent,
-      type: 'EACRolesChanged',
-      data: JSON.stringify({
-        account: '0x4444444444444444444444444444444444444444',
-        resource: '1',
-      }),
-    } as TimelineIndexerEvent
-
-    expect(getDecodedParamEntries(event)).toEqual([
-      ['account', '0x4444444444444444444444444444444444444444'],
-      ['resource', '1'],
-    ])
-  })
-
-  it('drops null and empty values', () => {
-    const event = {
-      ...baseEvent,
-      type: 'FusesSet',
-      asFusesSet: { node: '0x01', fuses: null },
-    } as TimelineIndexerEvent
-
-    expect(getDecodedParamEntries(event)).toEqual([['node', '0x01']])
+  it('returns nothing for a row with an empty payload', () => {
+    const event: TimelineEvent = { ...base, type: 'release', data: {} }
+    expect(getDecodedParamEntries(event)).toEqual([])
   })
 })

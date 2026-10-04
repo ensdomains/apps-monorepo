@@ -166,8 +166,8 @@ test.describe('ENS profile', () => {
     makeV2Name,
   }) => {
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
-      'Requires real indexer (SSR bypasses Playwright mock)',
+      process.env.E2E_MOCK_BIGNAME === 'true',
+      'Requires a real bigname (SSR bypasses the Playwright mock)',
     )
     // Register with a record so the profile view page renders
     // (empty profiles redirect to /edit where there's no heart button)
@@ -261,12 +261,12 @@ test.describe('ENS profile', () => {
     profileAuthenticatedPageWithBackend: page,
     makeV2Name,
   }) => {
-    // Skip when indexer is mocked — page.goto('/dashboard') triggers SSR which
+    // Skip when bigname is mocked — page.goto('/dashboard') triggers SSR which
     // bypasses Playwright's route interceptor, causing the server to redirect to /.
     // The owned-name favourite test already covers the full favourite flow.
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
-      'Requires real indexer (SSR bypasses Playwright mock)',
+      process.env.E2E_MOCK_BIGNAME === 'true',
+      'Requires a real bigname (SSR bypasses the Playwright mock)',
     )
 
     // Register a name owned by a different account so the authenticated

@@ -29,14 +29,13 @@ the snapshot image first (`build-ens-v2-snapshot` workflow).
    duplicates; it can stay scaled down / sleeping.
 2. Add GHCR registry credentials in project settings (the snapshot and
    mockestrator images are private): a GitHub PAT with `read:packages`.
-3. Create the six services in the base environment:
+3. Create the five services in the base environment:
 
    | Service (name matters — the workflow references them) | Source | Public port |
    |---|---|---|
    | `anvil` | Image `ghcr.io/ensdomains/ens-v2-snapshot:latest` | 8545 |
    | `alto` | Repo, root dir `e2e/infra`, Dockerfile `railway/alto/Dockerfile` | 4337 |
    | `paymaster` | Image `ghcr.io/pimlicolabs/mock-verifying-paymaster:main` | 3000 |
-   | `panoptes` | Repo, root dir `e2e/infra`, Dockerfile `railway/panoptes/Dockerfile` | 5655 |
    | `mockestrator` | Repo, root dir `e2e/infra`, Dockerfile `railway/mockestrator/Dockerfile` | 3000 |
    | `dqa` | Repo, root dir `packages/dqa-server` (its own Dockerfile) | 4000 |
 
@@ -44,9 +43,6 @@ the snapshot image first (`build-ens-v2-snapshot` workflow).
    - `anvil` custom start command:
      `anvil --load-state /state.json --chain-id 11155111 --port 8545 --host 0.0.0.0 --host ::`
      (the extra `--host ::` covers IPv6 private networking).
-   - `panoptes` runs indexer + API in one container on purpose: Railway
-     volumes can't be shared between services, and the two processes share a
-     sqlite file. See `railway/panoptes/entrypoint.sh`.
    - Set each service's **target port** for its public domain as listed above
      (services talk to each other over the private network:
      `<service>.railway.internal:<port>`).
@@ -126,7 +122,6 @@ comment:
 
 ```bash
 VITE_SEPOLIA_RPC_URL=https://anvil-pr-123.up.railway.app
-VITE_INDEXER_GRAPHQL_URL=https://panoptes-pr-123.up.railway.app/graphql
 VITE_DQA=1
 # Shared base dqa (fixed domain) — NOT a per-PR dqa; see Per-PR flow step 1.
 VITE_DQA_URL=https://<base-dqa-domain>
@@ -141,7 +136,11 @@ Known gaps / follow-ups:
   route or CORS headers in front of alto.
 - **Fork PRs**: `pull_request` from forks doesn't get secrets, so infra is
   only created for same-repo branches.
-- **Cost**: 6 services per open PR. If that's too much, gate on the
+- **Indexer**: there is none. The apps read names from bigname, and no
+  bigname deployment indexes the snapshot chain, so name lists, records
+  inventory and history in a PR environment come from public Sepolia bigname
+  and will not show names registered on the snapshot anvil.
+- **Cost**: 5 services per open PR. If that's too much, gate on the
   `railway-infra` label (commented out in the workflow) so only opted-in PRs
   get an environment.
 - The `railway domain` output parsing in the workflow is best-effort — verify

@@ -1,4 +1,4 @@
-import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
+import { isNameProfile } from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -7,10 +7,10 @@ import { getOwner as ensjsv1_getOwner } from '@ensdomains/ensjs/public/v1'
 import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, labelhash, namehash, zeroAddress } from 'viem'
+import { type Address, labelhash, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { isInGracePeriod } from '@/features/grace/utils/gracePeriod'
-import { indexerClient } from '@/lib/indexer-client'
+import { bigname } from '@/lib/bigname'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
@@ -95,25 +95,24 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
   }
 
   if (ethName.parentLabelsRootFirst.length === 0) {
-    // Not `graphqlRequest`: an empty payload is a valid answer here (the name
-    // simply isn't indexed), so this tolerates missing data instead of throwing.
-    const v2Domain = yield* fromPromise(
-      indexerClient
-        .query<DomainQuery>(DomainDocument, { id: namehash(ethName.name) })
-        .toPromise()
-        .then((result) => {
-          if (result.error) throw result.error
-          return result.data?.domain ?? null
-        }),
+    // A 404 (not indexed) is a valid answer here and resolves to null. bigname
+    // also serves ENSv1 names (including those reserved in the ENSv2 registry
+    // but not migrated), so only an ENSv2 authority makes this a v2 name with
+    // no current owner (for example one past its expiry); otherwise check V1
+    // ownership before choosing the renewal protocol.
+    const detail = yield* fromPromise(
+      bigname.getName(ethName.name),
       (e) => new GetOwnerError({ cause: e }),
     )
 
-    // V1 reservations are also indexed, but have no V2 owner. Only a record
-    // with a retained owner identifies an expired V2 registration; otherwise
-    // check V1 ownership before choosing the renewal protocol.
-    if (v2Domain && v2Domain.owner.id !== zeroAddress) {
-      // Active ownership disappears at expiry. The registry retains the latest
-      // owner, who can still renew their name during the grace period.
+    if (
+      detail &&
+      isNameProfile(detail.data) &&
+      detail.data.authority === 'ens_v2'
+    ) {
+      // Active ownership disappears at expiry, and bigname serves a lapsed
+      // ENSv2 row without an owner. The registry retains the latest owner, who
+      // can still renew their name during the grace period.
       const state = yield* fromPromise(
         readContract(client, {
           address: ENS_REGISTRY,

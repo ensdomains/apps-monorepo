@@ -1,5 +1,4 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
@@ -16,17 +15,16 @@ import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 import { dateToPlainDate } from '@/utils/temporal'
-import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
+import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
 interface NameListProps {
   readonly address: Address
   readonly limit?: number
 }
 
-type column = MergedName
+type column = AddressNameItem
 
 const NameCell = ({ name }: { name: string }) => (
   <EntityBadge variant="name" name={name} showAvatar>
@@ -39,7 +37,7 @@ const columns: ColumnDef<column>[] = [
     accessorKey: 'name',
     header: 'Name',
     cell: ({ getValue }) => {
-      const name = getValue() as NameWithRelation['name']
+      const name = getValue() as string
       return name ? <NameCell name={name} /> : null
     },
   },
@@ -109,45 +107,24 @@ const columns: ColumnDef<column>[] = [
 ]
 
 export const NameList = ({ address, limit }: NameListProps) => {
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
+  const {
+    data: names,
+    isLoading,
+    error,
+  } = useQuery(getAddressNamesQueryOptions({ address }))
 
-  const v1Pending = v1NamesQuery.isLoading
-  const v2Pending = v2NamesQuery.isLoading
-
-  // Full spinner only while nothing is displayable; a source that already
-  // has data keeps rendering while the slower one settles.
-  if (v1Pending && !v2NamesQuery.data)
-    return <LoadingSpinner title="Loading V1 names" />
-  if (v2Pending && !v1NamesQuery.data)
-    return <LoadingSpinner title="Loading V2 names" />
-
-  const v1Failed = Boolean(v1NamesQuery.error)
-  const v2Failed = Boolean(v2NamesQuery.error)
+  if (isLoading) return <LoadingSpinner title="Loading names" />
 
   // Registry ownership alone does not make a name the address's: any parent owner
   // can point a subname at any address. Names granted that way are kept visible, but
   // in their own group rather than among the names the address holds.
-  const { acquired: allData, assigned } = partitionOwnedNames(
-    mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
-  )
+  const { acquired: allData, assigned } = partitionOwnedNames(names ?? [])
   const data = limit ? allData.slice(0, limit) : allData
   // The assigned section is hidden in the limited (preview) view, so it only
   // counts as something to show when the full list is rendered.
   const showAssigned = !limit && assigned.length > 0
 
-  if (
-    data.length === 0 &&
-    !showAssigned &&
-    !v1Failed &&
-    !v2Failed &&
-    !v1Pending &&
-    !v2Pending
-  )
+  if (data.length === 0 && !showAssigned && !error)
     return (
       <NoResultsMessage
         title="No names yet"
@@ -158,19 +135,10 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
   return (
     <div>
-      {v1Pending && <LoadingSpinner title="Loading V1 names" />}
-      {v2Pending && <LoadingSpinner title="Loading V2 names" />}
-      {v1Failed && (
+      {error && (
         <ErrorMessage
           compact
-          description="Error fetching ENSv1 names. Please refresh the page."
-          className="mb-4"
-        />
-      )}
-      {v2Failed && (
-        <ErrorMessage
-          compact
-          description="Error fetching ENSv2 names. Please refresh the page."
+          description="Error fetching names. Please refresh the page."
           className="mb-4"
         />
       )}

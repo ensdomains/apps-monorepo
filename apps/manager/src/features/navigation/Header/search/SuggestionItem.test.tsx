@@ -53,10 +53,10 @@ vi.mock('@/features/profile/service/profileOwner', () => ({
   }),
 }))
 
-vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
-  getDomainsQuery: () => ({
-    queryKey: ['test-domains'],
-    queryFn: async () => ({ domains: [] }),
+vi.mock('@/features/search/nameIndexStatus', () => ({
+  nameIndexStatusQuery: (name: string) => ({
+    queryKey: ['test-name-index-status', name],
+    queryFn: async () => 'not_indexed',
   }),
 }))
 

@@ -2,16 +2,15 @@ import { ens_normalize, ens_split } from '@adraffy/ens-normalize'
 
 /**
  * A label of the form `[64 lowercase hex chars]` is an "encoded labelhash" —
- * the standard representation (emitted by the subgraph/indexer, understood by
- * viem's `namehash`) for a label that is only known by its hash. Such labels
+ * the standard representation (served by indexers such as bigname, understood
+ * by viem's `namehash`) for a label that is only known by its hash. Such labels
  * can never be normalized (brackets are disallowed characters), but names
  * containing them are real, registered, resolvable on-chain names and must
  * not be rejected as invalid.
  */
 const ENCODED_LABELHASH_RE = /^\[[0-9a-f]{64}\]$/
 
-export const isEncodedLabelhash = (label: string) =>
-  ENCODED_LABELHASH_RE.test(label)
+const isEncodedLabelhash = (label: string) => ENCODED_LABELHASH_RE.test(label)
 
 /** `label` is already its own ENSIP-15 form (so it names the token its hash names). */
 export const isNormalizedLabel = (label: string) => {

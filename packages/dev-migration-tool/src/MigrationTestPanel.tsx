@@ -8,15 +8,13 @@
  * Rendered only when `isMigrationToolEnabled()` — mounted by each app's root.
  */
 
-import { ensL1Subgraphs, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { useQueryClient } from '@tanstack/react-query'
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import { classifyBignameRequest, mockBignameRead } from './bignameMock'
 import { MIGRATION_TOOL_RPC } from './config'
 import {
   type ActiveName,
-  buildMockDomain,
   createV1NameOnAnvil,
-  DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
   getOnchainExpiries,
   PRESETS,
@@ -29,53 +27,6 @@ import {
   useDraggablePanel,
   useInvalidateMigrationQueriesOnMount,
 } from './MigrationTestPanel.hooks'
-
-/**
- * The V1 subgraph endpoint the apps actually talk to, read from the same ensjs
- * chain config their clients are built from. Hardcoding the host is what
- * silently broke injection once before: ensjs moved Sepolia's V1 subgraph off
- * `ensnode.io`, the pattern stopped matching, and every panel-created name
- * looked non-existent (and therefore non-migratable) to the apps while real
- * subgraph-indexed names kept working.
- */
-const V1_SUBGRAPH_URL = ensL1Subgraphs[supportedL1Chains.sepolia].ens.url
-
-/**
- * Whether a request is the V1 subgraph. Matches the configured endpoint first,
- * then falls back to any `/subgraph` path so a proxied or relocated endpoint
- * still gets injected — the V2 indexer serves `/graphql`, so there's no overlap.
- */
-function isV1SubgraphRequest(url: string): boolean {
-  if (url.startsWith(V1_SUBGRAPH_URL)) return true
-  try {
-    return new URL(url, window.location.origin).pathname.endsWith('/subgraph')
-  } catch {
-    return false
-  }
-}
-
-/** Extract the `name` GraphQL variable from a subgraph request body. */
-function migrationLookupName(body: string): string | undefined {
-  try {
-    const parsed = JSON.parse(body) as { variables?: { name?: string } }
-    return parsed.variables?.name
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * All panel-created names are owned by DEFAULT_ACCOUNT (see buildMockDomain).
- * getNamesForAddress is address-scoped (owner/registrant/wrappedOwner filter),
- * so only inject the mocks when the query actually targets DEFAULT_ACCOUNT —
- * otherwise every address's profile would leak the connected wallet's names.
- * The address is embedded verbatim (lowercased) in the where filter, so a
- * substring check against the serialized body is sufficient and robust to the
- * exact filter shape.
- */
-function nameListTargetsMockOwner(body: string): boolean {
-  return body.toLowerCase().includes(DEFAULT_ACCOUNT.toLowerCase())
-}
 
 // ---------------------------------------------------------------------------
 // Module-level fetch interceptor — installed at import time so it's active
@@ -90,7 +41,7 @@ export function setInjectedNames(names: ActiveName[]): void {
   _injectedNames = names
 }
 
-;(function installSubgraphInterceptor() {
+;(function installBignameInterceptor() {
   if (typeof window === 'undefined') return
   // HMR guard: store the true original fetch under a well-known key so that
   // re-executing this module (hot reload) doesn't double-wrap window.fetch.
@@ -109,60 +60,42 @@ export function setInjectedNames(names: ActiveName[]): void {
         : input instanceof URL
           ? input.href
           : (input as Request).url
+    const method = (
+      init?.method ?? (input instanceof Request ? input.method : 'GET')
+    ).toUpperCase()
 
-    if (!isV1SubgraphRequest(url)) return origFetch(input, init)
+    // Three bigname reads need panel-created names injected, since the hosted
+    // deployment cannot see names that exist only on the Anvil fork:
+    //  - GET /v1/addresses/{address}/names: the dashboard and migration lists.
+    //  - GET /v1/names/{name}: the migration-status lookup behind the upgrade
+    //    banner.
+    //  - POST /v1/lookup: name detail and record inventory for classification
+    //    and the profile replay.
+    const read = _injectedNames.length
+      ? classifyBignameRequest(url, method)
+      : null
+    if (!read) return origFetch(input, init)
 
-    // Two v1-subgraph queries need panel-created names injected:
-    //  - getNamesForAddress: the dashboard name list (returns all names).
-    //  - getV1DomainForMigration: the migration-status lookup, which filters
-    //    domains(where: { name: $name }) and must therefore be narrowed to just
-    //    the requested name — otherwise the upgrade banner never resolves for
-    //    Anvil-only names, since the real hosted subgraph can't see them.
-    const body = typeof init?.body === 'string' ? init.body : ''
-    const isNameList = body.includes('getNamesForAddress')
-    const isMigrationLookup = body.includes('getV1DomainForMigration')
-    if (!isNameList && !isMigrationLookup) return origFetch(input, init)
-
-    const nameListInjected = nameListTargetsMockOwner(body)
-      ? _injectedNames
-      : []
-    const injected = isNameList
-      ? nameListInjected
-      : _injectedNames.filter(
-          (n) => `${n.label}.eth` === migrationLookupName(body),
+    return mockBignameRead(read, {
+      origFetch,
+      input,
+      init,
+      all: _injectedNames,
+      // Reflect the live on-chain expiry (renewals/time-travel move it) rather
+      // than the value captured at creation — otherwise a renewed grace name
+      // still reads as expired and migration eligibility keeps hiding the
+      // upgrade banner.
+      names: async (subset) => {
+        const liveExpiries = await getOnchainExpiries(
+          MIGRATION_TOOL_RPC,
+          subset.map((name) => name.label),
         )
-
-    let realDomains: unknown[] = []
-    try {
-      const real = await origFetch(input, init)
-      const json = (await real.json()) as { data?: { domains?: unknown[] } }
-      realDomains = json?.data?.domains ?? []
-    } catch {
-      /* subgraph unreachable */
-    }
-
-    // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
-    // the value captured at creation — otherwise a renewed grace name still reads
-    // as expired and migration eligibility keeps hiding the upgrade banner.
-    const liveExpiries = await getOnchainExpiries(
-      MIGRATION_TOOL_RPC,
-      injected.map((name) => name.label),
-    )
-    const mockDomains = injected.map((name, index) => {
-      const liveExpiry = liveExpiries[index]
-      return buildMockDomain(
-        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
-      )
+        return subset.map((name, index) => {
+          const liveExpiry = liveExpiries[index]
+          return liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name
+        })
+      },
     })
-
-    return new Response(
-      JSON.stringify({
-        data: {
-          domains: [...realDomains, ...mockDomains],
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    )
   }
 })()
 

@@ -10,7 +10,7 @@ vi.mock('./computeMigrationPreflight', () => ({
 import { buildMigrationPlan } from './buildMigrationPlan'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { prepareGraceRenewalMigration } from './prepareGraceRenewalMigration'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Names'
 
 const ownerAddress: Address = '0x0000000000000000000000000000000000000001'
 const domain = (name: string, expiry: string) =>

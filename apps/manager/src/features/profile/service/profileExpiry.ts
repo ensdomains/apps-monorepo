@@ -1,4 +1,4 @@
-import { graphqlRequest } from '@ens-apps/indexer/urql'
+import { isNameProfile, timestampToSeconds } from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -19,7 +19,7 @@ import {
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
-import { indexerClient } from '@/lib/indexer-client'
+import { bigname } from '@/lib/bigname'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName, normalizeEthName } from './profileName'
@@ -76,20 +76,6 @@ const normalizeV1Expiry = (
   }
 }
 
-// Kept as a raw string: parsing with graphql 17 at module scope opens a
-// diagnostics-channel tracing span, which workerd disallows in global scope.
-const SubnameExpiryDocument = /* GraphQL */ `
-  query SubnameExpiry($name: String!) {
-    domains(where: { name: $name, includeUnreachable: true }) {
-      expiryDate
-    }
-  }
-`
-
-type SubnameExpiryQuery = {
-  readonly domains: readonly { readonly expiryDate: number | null }[]
-}
-
 /**
  * A subname's own expiry, as its registry records it.
  *
@@ -97,18 +83,16 @@ type SubnameExpiryQuery = {
  * so this reads the indexer. Deliberately not bounded by the ancestors: a v2
  * label carries its own expiry, and a detached or custom subregistry can
  * outlive its parent, so a computed minimum would report a date no registry
- * holds. Any failure answers null and renders as no expiry.
+ * holds. bigname omits `expires_at` when none is set (a parent that set no
+ * wrapper expiry, a v2 max expiry); that and any failure answer null and
+ * render as no expiry. Released and expired subnames are still served.
  */
 const getIndexedExpiry = async (name: string): Promise<bigint | null> => {
   try {
-    const { domains } = await graphqlRequest<
-      SubnameExpiryQuery,
-      { name: string }
-    >(indexerClient, SubnameExpiryDocument, { name })
-
-    const expiryDate = domains[0]?.expiryDate
-
-    return expiryDate == null ? null : BigInt(expiryDate)
+    const detail = await bigname.getName(name)
+    if (!detail || !isNameProfile(detail.data)) return null
+    const seconds = timestampToSeconds(detail.data.expires_at)
+    return seconds === undefined ? null : BigInt(seconds)
   } catch {
     return null
   }

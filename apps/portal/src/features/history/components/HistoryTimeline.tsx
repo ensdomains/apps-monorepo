@@ -11,13 +11,14 @@ import { Button } from '@/components/ui/button'
 import { TimelineFrame } from '@/components/ui/timeline'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
+import { toHistoryEventTypes } from '../eventTypes'
 import { buildEventTypeGroups, dateRangeToTimestamps } from '../filterTimeline'
 import type { HistoryTimelineModel } from '../hooks/useHistoryTimeline'
 import {
   TIMELINE_WINDOW_SIZE,
   useNameHistoryTimeline,
 } from '../hooks/useHistoryTimeline'
-import type { TimelineEventType } from '../summarize/descriptors'
+import type { HistoryEventType, TimelineEvent } from '../timelineEvent'
 import { ActionTimeline } from './ActionTimeline'
 import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
 
@@ -58,15 +59,14 @@ export const HistoryTimelineView = ({
     openIds,
     toggleAction,
     setAllOpen,
-    isTruncated,
     sourcesError,
   } = model
 
   const allExpanded =
-    actions.length > 0 && actions.every((a) => openIds.has(a.txHash))
+    actions.length > 0 && actions.every((a) => openIds.has(a.id))
 
   const toggleExpandAll = () =>
-    setAllOpen(allExpanded ? [] : actions.map((a) => a.txHash))
+    setAllOpen(allExpanded ? [] : actions.map((a) => a.id))
 
   // Rendered when there are rows too: "Expand all" is a control of the list.
   const header = (heading != null ||
@@ -107,21 +107,11 @@ export const HistoryTimelineView = ({
 
   // Rendered by both branches: a failed source with nothing to show is exactly
   // when "No history yet" would otherwise pass unavailable history off as none.
-  const disclosures = (
-    <>
-      {isTruncated && (
-        <p className="text-muted-foreground text-p">
-          Some of this name's history is too large to read in one request and is
-          not shown, so the event count is omitted.
-        </p>
-      )}
-      {sourcesError && (
-        <ErrorMessage
-          compact
-          description="Couldn't load all of this name's history — ENSv1 events, the first event or the event filters may be missing."
-        />
-      )}
-    </>
+  const disclosures = sourcesError && (
+    <ErrorMessage
+      compact
+      description="Couldn't load this name's first event, so it may be missing below."
+    />
   )
 
   // Still offer the break with no rows: a page whose boundary trim empties it
@@ -145,7 +135,7 @@ export const HistoryTimelineView = ({
   // Only when there is hidden history below it, and it isn't already a row above.
   const pinnedAction = match({ hasMore, anchorAction })
     .with({ hasMore: true, anchorAction: P.nonNullable }, ({ anchorAction }) =>
-      actions.some((shown) => shown.txHash === anchorAction.txHash)
+      actions.some((shown) => shown.id === anchorAction.id)
         ? undefined
         : anchorAction,
     )
@@ -182,7 +172,13 @@ export const HistoryTimelineView = ({
 interface HistoryTimelineProps
   extends Omit<HistoryTimelineViewProps, 'model' | 'filters' | 'breakContent'> {
   readonly name: string
-  readonly scope?: readonly TimelineEventType[]
+  /** What the surface may ever show, as bigname types. */
+  readonly scope?: readonly HistoryEventType[]
+  /**
+   * Narrows loaded rows within `scope` where bigname has no query filter (e.g.
+   * one record family). Totals are hidden while it is set.
+   */
+  readonly eventFilter?: (event: TimelineEvent) => boolean
   readonly showFilters?: boolean
   readonly canLoadMore?: boolean
 }
@@ -194,22 +190,23 @@ interface HistoryTimelineProps
 export const HistoryTimeline = ({
   name,
   scope,
+  eventFilter,
   heading,
   showFilters = true,
   canLoadMore = true,
   ...viewProps
 }: HistoryTimelineProps) => {
   const [dateRange, setDateRange] = useState<DateRange>({})
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<HistoryEventType[]>([])
 
   const model = useNameHistoryTimeline({
     name,
     scope,
+    eventFilter,
     selectedTypes,
     ...dateRangeToTimestamps(dateRange),
     windowSize: canLoadMore ? TIMELINE_WINDOW_SIZE : undefined,
     shouldFetchAnchor: canLoadMore,
-    shouldFetchEventTypes: showFilters,
   })
 
   if (model.isLoading) return <LoadingMessage />
@@ -250,7 +247,9 @@ export const HistoryTimeline = ({
                 label="Event"
                 groups={eventTypeGroups}
                 selectedValues={selectedTypes}
-                onChange={setSelectedTypes}
+                onChange={(values) =>
+                  setSelectedTypes([...(toHistoryEventTypes(values) ?? [])])
+                }
                 size="xs"
                 icon={ListFilter}
                 hideValue

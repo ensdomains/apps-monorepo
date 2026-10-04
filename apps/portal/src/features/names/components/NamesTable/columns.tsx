@@ -7,7 +7,7 @@ import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import type { V1Roles } from '@/utils/names/mergeNamesData'
+import type { V1Roles } from '@/utils/names/addressNames'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
 

@@ -22,20 +22,16 @@ import {
 import { columns } from '@/features/records/components/RecordsTable/columns'
 import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import type { ProtocolVersion } from '@/utils/types'
 
 export const RecordList = ({
   name,
   records: rawRecords,
   canEdit = false,
-  protocolVersion,
 }: {
   name: string
   records: GetRecordsReturnType
   /** Whether the connected user can edit records */
   canEdit?: boolean
-  /** The protocol version of the name */
-  protocolVersion?: ProtocolVersion
 }) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const records = useMemo(() => recordsToTableData(rawRecords), [rawRecords])
@@ -97,11 +93,7 @@ export const RecordList = ({
       </header>
       {recordCount > 0 ? (
         <div className="overflow-x-auto">
-          <RecordsTable
-            name={name}
-            table={table}
-            protocolVersion={protocolVersion}
-          />
+          <RecordsTable name={name} table={table} />
         </div>
       ) : (
         <NoResultsMessage

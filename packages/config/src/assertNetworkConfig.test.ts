@@ -9,29 +9,23 @@ describe('assertNetworkConfig', () => {
     expect(config.network).toBe('sepolia')
   })
 
-  it('applies the rpc and indexer overrides from env', () => {
+  it('applies the rpc and bigname overrides from env', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
       VITE_SEPOLIA_RPC_URL: '/rpc',
-      VITE_INDEXER_GRAPHQL_URL: 'http://127.0.0.1:5655/graphql',
       VITE_BIGNAME_API_URL: 'http://127.0.0.1:4010',
     })
 
     expect(config.rpcUrls[0]).toBe('/rpc')
-    expect(config.endpoints.indexerGraphql).toBe(
-      'http://127.0.0.1:5655/graphql',
-    )
     expect(config.endpoints.bignameApi).toBe('http://127.0.0.1:4010')
   })
 
   it('treats an empty string like an unset variable', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
-      VITE_INDEXER_GRAPHQL_URL: '',
       VITE_BIGNAME_API_URL: '',
     })
 
-    expect(config.endpoints.indexerGraphql).toBeTruthy()
     expect(config.endpoints.bignameApi).toBe('https://sepolia.api.bigname.sh')
   })
 
@@ -44,7 +38,6 @@ describe('assertNetworkConfig', () => {
     expect(() =>
       assertNetworkConfig({
         VITE_ENS_NETWORK: 'mainnet',
-        VITE_INDEXER_GRAPHQL_URL: 'https://indexer.example/',
         VITE_BIGNAME_API_URL: 'https://bigname.example/',
       }),
     ).toThrow(/ENSv2 is not deployed/)

@@ -1,34 +1,61 @@
+import {
+  type AddressNameRow,
+  fetchAllPages,
+  MAX_PAGE_SIZE,
+} from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type {
-  GetResolvedNamesForAddressErrorType,
-  GetResolvedNamesForAddressParameters,
-} from '@ensdomains/ensjs/subgraph'
-import { getResolvedNamesForAddress as ensjs_getResolvedNamesForAddress } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import type { Address } from 'viem'
+import { bigname } from '@/lib/bigname'
+import type { ForwardName } from '../ForwardNamesTable/columns'
 
 export class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: GetResolvedNamesForAddressErrorType
+  cause: unknown
 }> {}
 
-export const getResolvedNamesForAddress = ResultFn(async function* (
-  params: GetResolvedNamesForAddressParameters,
-) {
-  const client = yield* safeGetClient()
+type GetResolvedNamesForAddressParameters = {
+  address: Address
+}
 
-  const result = yield* fromPromise(
-    ensjs_getResolvedNamesForAddress(client, params),
-    (e) =>
-      new GetResolvedNamesForAddressError({
-        cause: e as GetResolvedNamesForAddressErrorType,
+/**
+ * A name row with the EVM coin types whose stored `addr` record holds the
+ * address (`resolutions`), as the forward-resolution table renders it.
+ */
+const toForwardNames = (rows: readonly AddressNameRow[]): ForwardName[] =>
+  rows.map((row) => ({
+    name: row.name,
+    coinTypes: (row.resolutions ?? []).map(({ coin_type }) =>
+      String(coin_type),
+    ),
+  }))
+
+/**
+ * Names whose resolver records point at the address on Ethereum or any EVM
+ * chain (coin 60 and every ENSIP-11 coin type, including the ENSIP-19 default
+ * record). Non-EVM coin types are not searched.
+ */
+export const getResolvedNamesForAddress = ResultFn(async function* ({
+  address,
+}: GetResolvedNamesForAddressParameters) {
+  const { rows } = yield* fromPromise(
+    fetchAllPages((cursor) =>
+      bigname.listAddressNames(address, {
+        namespace: 'ens',
+        relation: 'resolves_to',
+        coin_type: 'evm',
+        sort: 'name',
+        page_size: MAX_PAGE_SIZE,
+        cursor,
       }),
+    ),
+    (e) => new GetResolvedNamesForAddressError({ cause: e }),
   )
 
-  return ok(result)
+  return ok(toForwardNames(rows))
 })
 
 export const getResolvedNamesForAddressQueryKey = createQueryKey<
@@ -41,5 +68,5 @@ export const getResolvedNamesForAddressQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getResolvedNamesForAddressQueryKey(params),
-    queryFn: () => getResolvedNamesForAddress(params),
+    queryFn: ({ queryKey: [, params] }) => getResolvedNamesForAddress(params),
   })

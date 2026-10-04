@@ -1,3 +1,4 @@
+import type { RegistrationStatus } from '@ens-apps/bigname'
 import {
   SECONDS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
@@ -105,4 +106,39 @@ export function getDefaultCursorForStage(
 
 export function getExpiryStageRank(stageId: ExpiryStageId): number {
   return STAGES.findIndex((stage) => stage.id === stageId)
+}
+
+const HELD_STATUSES: ReadonlySet<RegistrationStatus> = new Set([
+  'active',
+  'wrapped',
+  'registered',
+])
+
+/**
+ * Whether a name listed in this stage's expiry window should be notified,
+ * judged by bigname's `registration_status` (the expiry listing covers live,
+ * in-grace and released registrations alike). Stage windows follow the ENSv2
+ * lifecycle (`V2_GRACE_PERIOD_DAYS`):
+ *
+ * - Before expiry, only held names: a released or ownerless row has nothing
+ *   to renew.
+ * - At grace start, every row: an ENSv1 lease in grace is still held, while an
+ *   ENSv2 registration is served `released` as soon as its expiry passes.
+ * - Later in grace and at premium start, only rows that are no longer held.
+ *   Those are ENSv2 registrations in their 28-day grace or premium. A row
+ *   still held this long after expiry is an ENSv1 lease inside its 90-day
+ *   grace, for which "grace ends soon" or "premium started" would be wrong.
+ *   ENSv1 leases are only released at expiry + 90 days, outside every window.
+ *
+ * A row without a status is kept, as before this filter existed.
+ */
+export function isNotifiableAtStage(
+  stage: ExpiryStageConfig,
+  registrationStatus: RegistrationStatus | undefined,
+): boolean {
+  if (registrationStatus === undefined) return true
+  const isHeld = HELD_STATUSES.has(registrationStatus)
+  if (stage.offsetDays > 0) return isHeld
+  if (stage.offsetDays === 0) return true
+  return !isHeld
 }

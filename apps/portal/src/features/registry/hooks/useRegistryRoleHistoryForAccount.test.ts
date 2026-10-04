@@ -16,13 +16,6 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
 }))
 
-// These cases exercise the node path; the indexer is the first source now.
-vi.mock('@/lib/indexer', () => ({
-  graphqlIndexerClient: {
-    request: () => Promise.reject(new Error('indexer unavailable')),
-  },
-}))
-
 const mockGetBlockTimestamps = vi.fn()
 
 vi.mock('@/features/profile/hooks/useBlockTimestamps', () => ({

@@ -1,6 +1,5 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
@@ -32,10 +31,12 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
-import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
+import {
+  getRecordHistoryQueryOptions,
+  type RecordHistoryEvent,
+} from '@/features/records/hooks/useRecordHistory'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -61,20 +62,13 @@ const SET_PRIMARY_NAME_TX_ID = 'tx-set-primary-name'
 type ActiveFlow = 'reverse' | 'primary'
 
 interface AddressHistoryProps {
-  history: ReturnResolverEvent[]
+  history: RecordHistoryEvent[]
   name: string
 }
 
 const AddressHistory = ({ history, name }: AddressHistoryProps) => {
+  // bigname dates every row, so the grouped transactions carry their timestamp.
   const groupedData = groupEventsByTransactionId(history, 'resolver')
-
-  const {
-    data: timestampsData,
-    isLoading: isLoadingTimestamps,
-    error: timestampsError,
-  } = useBlockTimestamps({
-    blocks: history.map((item) => BigInt(item.blockNumber)),
-  })
 
   const {
     data: sendersData,
@@ -84,24 +78,10 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
   })
 
-  if (isLoadingTimestamps && isLoadingSenders) {
-    return <LoadingSpinner title="Loading transaction data..." />
-  }
-  if (isLoadingTimestamps) {
-    return <LoadingSpinner title="Loading timestamps..." />
-  }
   if (isLoadingSenders) {
     return <LoadingSpinner title="Loading transaction senders..." />
   }
 
-  if (timestampsError) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching timestamps. Please refresh the page."
-      />
-    )
-  }
   if (sendersError) {
     return (
       <ErrorMessage
@@ -111,13 +91,12 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     )
   }
 
-  if (!timestampsData || !sendersData) {
+  if (!sendersData) {
     return <div>No data available</div>
   }
 
   const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
     ...tx,
-    timestamp: timestampsData.get(BigInt(tx.blockNumber)),
     from: sendersData.get(tx.transactionID as Hash) || tx.from,
   }))
 

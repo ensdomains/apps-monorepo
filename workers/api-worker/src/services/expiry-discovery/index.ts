@@ -8,6 +8,7 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
+import type { ExpiringDomain } from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 import { fetchProcessableExpiringNames } from './page.js'
 import {
@@ -15,6 +16,7 @@ import {
   getLowerBoundForStage,
   getQueryCursorForStage,
   getUpperBoundForStage,
+  isNotifiableAtStage,
   STAGES,
 } from './stages.js'
 
@@ -43,16 +45,18 @@ type StageRunMetrics = {
 
 function buildExpiryEvents(
   stage: ExpiryStageConfig,
-  domains: { name: string; expiryDate: number; owner?: string }[],
+  domains: readonly ExpiringDomain[],
 ): ExpiryEvent[] {
-  return domains.map((domain) => ({
-    type: 'name_expiring',
-    name: domain.name,
-    expiryDate: domain.expiryDate,
-    stage: stage.id,
-    owner: domain.owner,
-    includeFavorites: stage.includeFavorites,
-  }))
+  return domains
+    .filter((domain) => isNotifiableAtStage(stage, domain.registrationStatus))
+    .map((domain) => ({
+      type: 'name_expiring',
+      name: domain.name,
+      expiryDate: domain.expiryDate,
+      stage: stage.id,
+      owner: domain.owner,
+      includeFavorites: stage.includeFavorites,
+    }))
 }
 
 const processStage = ResultFn(async function* (ctx: {

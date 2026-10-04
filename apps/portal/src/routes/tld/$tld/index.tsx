@@ -16,15 +16,17 @@ import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
-import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
+import {
+  getNameHistoryQueryOptions,
+  NAME_HISTORY_PAGE_SIZE,
+} from '@/features/profile/hooks/useNameHistory'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import {
   type GetTldDataReturnType,
   getTldDataQueryOptions,
 } from '@/features/profile/hooks/useTldData'
-import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { historyEventsToSubgraphEvents } from '@/utils/history/historyEventsToSubgraphEvents'
 import { queryClient } from '@/utils/queryClient'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
@@ -64,13 +66,7 @@ const TldCounterCard = ({
 )
 
 const TldRecordCount = ({ tld }: { tld: string }) => {
-  const tldDataQuery = useQuery(getTldDataQueryOptions({ tld }))
-  const profileQuery = useQuery(
-    getProfileQueryOptions({
-      name: tld,
-      protocolVersion: tldDataQuery.data?.protocolVersion,
-    }),
-  )
+  const profileQuery = useQuery(getProfileQueryOptions({ name: tld }))
 
   const recordCount = useMemo(() => {
     if (profileQuery.data?.records)
@@ -106,15 +102,22 @@ const TldRegistryRow = ({
 )
 
 const HistorySection = ({ tld }: { tld: string }) => {
-  const v2HistoryQuery = useQuery(
-    getV2NameHistoryQueryOptions({ name: tld, first: NAME_HISTORY_PAGE_SIZE }),
+  const historyQuery = useQuery(
+    getNameHistoryQueryOptions({
+      name: tld,
+      page_size: NAME_HISTORY_PAGE_SIZE,
+    }),
+  )
+  const events = useMemo(
+    () => historyEventsToSubgraphEvents(historyQuery.data ?? []),
+    [historyQuery.data],
   )
 
-  if (v2HistoryQuery.isLoading) {
+  if (historyQuery.isLoading) {
     return <LoadingSpinner title="Loading history..." />
   }
 
-  if (v2HistoryQuery.error) {
+  if (historyQuery.error) {
     return (
       <ErrorMessage
         compact
@@ -133,11 +136,7 @@ const HistorySection = ({ tld }: { tld: string }) => {
           </Button>
         }
       />
-      <NameSubgraphHistory
-        name={tld}
-        v2Events={transformV2EventsToSubgraphFormat(v2HistoryQuery.data || [])}
-        enableHeader={false}
-      />
+      <NameSubgraphHistory name={tld} v2Events={events} enableHeader={false} />
     </div>
   )
 }

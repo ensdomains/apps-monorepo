@@ -146,7 +146,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     isLoading: subnamesLoading,
     error: subnamesError,
   } = useQuery({
-    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
+    ...getSubnamesQueryOptions({ name }),
     enabled: Boolean(hasSubregistry),
   })
 
@@ -341,7 +341,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   // absent from the query data, so the local override is no longer needed.
   useEffect(() => {
     if (!subnames) return
-    const present = new Set(subnames.map((s) => s.name || ''))
+    const present = new Set(subnames.map((s) => s.name))
     setOptimisticallyDeleted((prev) => {
       const next = new Set<string>()
       for (const n of prev) if (present.has(n)) next.add(n)
@@ -387,9 +387,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const canDeleteSubname = Boolean(hasUnregisterRole)
 
   const subnameRows: SubnameRow[] = (subnames || [])
-    .filter((subname) => !optimisticallyDeleted.has(subname.name || ''))
+    .filter((subname) => !optimisticallyDeleted.has(subname.name))
     .map((subname) => ({
-      name: subname.name || '',
+      name: subname.name,
       owner: subname.owner,
       canDelete: canDeleteSubname,
     }))
@@ -429,7 +429,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     data: subnames,
     isLoading,
     error,
-  } = useQuery(getSubnamesQueryOptions({ name, protocolVersion: 'ENSv1' }))
+  } = useQuery(getSubnamesQueryOptions({ name }))
 
   if (isLoading) return <LoadingMessage title="Loading subnames..." />
 
@@ -443,7 +443,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   }
 
   const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
-    name: subname.name || '',
+    name: subname.name,
     owner: subname.owner,
   }))
 

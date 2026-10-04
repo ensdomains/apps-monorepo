@@ -37,10 +37,7 @@ export const envConfig = buildConfig({
   rpcUrl:
     import.meta.env?.VITE_SEPOLIA_RPC_URL ??
     (isEnsNetwork(network) ? PORTAL_RPC_URLS[network] : undefined),
-  overrides: {
-    indexerGraphql: import.meta.env?.VITE_INDEXER_GRAPHQL_URL,
-    bignameApi: import.meta.env?.VITE_BIGNAME_API_URL,
-  },
+  overrides: { bignameApi: import.meta.env?.VITE_BIGNAME_API_URL },
 })
 
 export const { chain, isTestnet, rpcUrls } = envConfig

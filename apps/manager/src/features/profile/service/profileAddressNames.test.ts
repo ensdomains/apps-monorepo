@@ -1,238 +1,231 @@
-import { okAsync } from 'neverthrow'
+import type { AddressNameRow, BignamePage } from '@ens-apps/bigname'
+import { BignameError } from '@ens-apps/bigname'
 import type { Address } from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getDomains } from '@/features/dashboard/service/queries/getDashboardDomains'
-import { getDashboardRoleAssignments } from '@/features/dashboard/service/queries/getDashboardRoleAssignments'
-import { getV1NamesForAddress } from '@/features/migration/service/v1SubgraphClient'
+
+const bignameMock = vi.hoisted(() => ({
+  listAddressNames: vi.fn(),
+}))
+
+vi.mock('@/lib/bigname', () => ({ bigname: bignameMock }))
+
 import { getProfileAddressNames } from './profileAddressNames'
-import { testAddress, testV1Names } from './profileAddressNames.test.helpers'
 
-vi.mock('@/features/migration/service/v1SubgraphClient', () => ({
-  getV1NamesForAddress: vi.fn(),
-}))
+const ADDRESS = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF' as Address
+const LOWER = ADDRESS.toLowerCase()
 
-vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
-  getDomains: vi.fn(),
-}))
+const row = (overrides: Partial<AddressNameRow>): AddressNameRow => ({
+  name: 'name.eth',
+  display_name: 'name.eth',
+  namespace: 'ens',
+  namehash: `0x${overrides.name ?? 'name.eth'}`,
+  relations: ['owner', 'registrant'],
+  is_primary: false,
+  authority: 'ens_v2',
+  registration_status: 'active',
+  expires_at: '2030-01-01T00:00:00Z',
+  registered_at: '2024-01-01T00:00:00Z',
+  created_at: '2024-01-01T00:00:00Z',
+  ...overrides,
+})
 
-vi.mock(
-  '@/features/dashboard/service/queries/getDashboardRoleAssignments',
-  () => ({
-    getDashboardRoleAssignments: vi.fn(),
-  }),
-)
-
-const fixtureAddress = testAddress as Address
+const page = (
+  data: readonly AddressNameRow[],
+  nextCursor: string | null = null,
+): BignamePage<AddressNameRow> => ({
+  data,
+  page: {
+    cursor: null,
+    next_cursor: nextCursor,
+    page_size: data.length,
+    total_count: data.length,
+    has_more: nextCursor !== null,
+  },
+  meta: {},
+})
 
 beforeEach(() => {
-  vi.mocked(getV1NamesForAddress).mockReturnValue(
-    okAsync(
-      testV1Names.map((name) => ({
-        id: `v1-${name}`,
-        labelName: name.replace('.eth', ''),
-        labelhash: `0x${name}`,
-        name,
-        resolver: null,
-        owner: { id: testAddress.toLowerCase() },
-        registrant: { id: testAddress.toLowerCase() },
-        wrappedOwner: null,
-        parent: null,
-        registration: { expiryDate: '1893456000' },
-        wrappedDomain: null,
-      })),
-    ),
-  )
-  vi.mocked(getDomains).mockReturnValue(
-    okAsync({
-      domains: [
-        {
-          __typename: 'Domain',
-          id: 'v2-henlo.eth',
-          name: 'henlo.eth',
-          normalizedName: 'henlo.eth',
-          tokenId: null,
-          createdAt: 1_700_000_300,
-          registrationDate: null,
-          expiryDate: 1_891_036_800,
-          owner: {
-            __typename: 'Account',
-            id: testAddress.toLowerCase(),
-          },
-          resolver: null,
-        },
-        {
-          __typename: 'Domain',
-          id: 'v2-claude.eth',
-          name: 'claude.eth',
-          normalizedName: 'claude.eth',
-          tokenId: null,
-          createdAt: 1_700_000_200,
-          registrationDate: null,
-          expiryDate: 1_891_036_800,
-          owner: {
-            __typename: 'Account',
-            id: testAddress.toLowerCase(),
-          },
-          resolver: null,
-        },
-        {
-          __typename: 'Domain',
-          id: 'v2-alaska.eth',
-          name: 'alaska.eth',
-          normalizedName: 'alaska.eth',
-          tokenId: null,
-          createdAt: 1_700_000_100,
-          registrationDate: null,
-          expiryDate: 1_891_036_800,
-          owner: {
-            __typename: 'Account',
-            id: testAddress.toLowerCase(),
-          },
-          resolver: null,
-        },
-      ],
-    }),
-  )
-  vi.mocked(getDashboardRoleAssignments).mockResolvedValue([])
+  vi.clearAllMocks()
 })
 
 describe('getProfileAddressNames', () => {
-  it('returns merged v1 and v2 names for the fixture address', async () => {
-    const result = await getProfileAddressNames(fixtureAddress)
+  it('reads one relation=any collection with role summaries, newest first', async () => {
+    bignameMock.listAddressNames.mockResolvedValue(page([]))
 
-    assert(result.isOk())
-    expect(result.value.map((item) => item.label)).toEqual([
-      'henlo.eth',
-      'claude.eth',
-      'alaska.eth',
-      'figma.eth',
-      'sagar.eth',
-      'turbopuffer.eth',
-    ])
-    expect(
-      result.value.find((item) => item.label === 'figma.eth')?.protocol,
-    ).toBe('v1')
-    expect(
-      result.value.find((item) => item.label === 'henlo.eth')?.protocol,
-    ).toBe('v2')
-  })
+    await getProfileAddressNames(ADDRESS)
 
-  it('queries v1 subgraph and v2 indexer for the address', async () => {
-    await getProfileAddressNames(fixtureAddress)
-
-    expect(getV1NamesForAddress).toHaveBeenCalledWith(testAddress.toLowerCase())
-    expect(getDomains).toHaveBeenCalledWith(
+    expect(bignameMock.listAddressNames).toHaveBeenCalledExactlyOnceWith(
+      LOWER,
       expect.objectContaining({
-        where: { owner: testAddress.toLowerCase() },
+        namespace: 'ens',
+        relation: 'any',
+        sort: 'registered_at',
+        order: 'desc',
+        include: ['role_summary'],
+        page_size: 200,
       }),
-    )
-    expect(getDashboardRoleAssignments).toHaveBeenCalledWith(
-      testAddress.toLowerCase(),
+      expect.anything(),
     )
   })
 
-  it('fetches managed-only domains from role assignments not already owned', async () => {
-    vi.mocked(getDashboardRoleAssignments).mockResolvedValue([
-      { name: 'dom.eth', roleBitmap: '1' },
-      { name: 'henlo.eth', roleBitmap: '1' },
-    ])
-    vi.mocked(getDomains)
-      .mockReturnValueOnce(
-        okAsync({
-          domains: [
-            {
-              __typename: 'Domain',
-              id: 'v2-henlo.eth',
-              name: 'henlo.eth',
-              normalizedName: 'henlo.eth',
-              tokenId: null,
-              createdAt: 1_700_000_300,
-              registrationDate: null,
-              expiryDate: 1_891_036_800,
-              owner: {
-                __typename: 'Account',
-                id: testAddress.toLowerCase(),
-              },
-              resolver: null,
-            },
-          ],
-        }),
-      )
-      .mockReturnValueOnce(
-        okAsync({
-          domains: [
-            {
-              __typename: 'Domain',
-              id: 'v2-dom.eth',
-              name: 'dom.eth',
-              normalizedName: 'dom.eth',
-              tokenId: null,
-              createdAt: 1_700_000_050,
-              registrationDate: null,
-              expiryDate: 1_891_036_800,
-              owner: {
-                __typename: 'Account',
-                id: '0xother',
-              },
-              resolver: null,
-            },
-          ],
-        }),
-      )
+  it('maps v1 and v2 rows, with protocol from authority', async () => {
+    bignameMock.listAddressNames.mockResolvedValue(
+      page([
+        row({ name: 'henlo.eth', authority: 'ens_v2' }),
+        row({ name: 'figma.eth', authority: 'ens_v1' }),
+        row({ name: 'legacy.eth', authority: 'ens_v0' }),
+      ]),
+    )
 
-    const result = await getProfileAddressNames(fixtureAddress)
+    const result = await getProfileAddressNames(ADDRESS)
 
     assert(result.isOk())
-    expect(getDomains).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { name_in: ['dom.eth'] },
-      }),
+    expect(
+      result.value.map(({ label, protocol }) => [label, protocol]),
+    ).toEqual([
+      ['henlo.eth', 'v2'],
+      ['figma.eth', 'v1'],
+      ['legacy.eth', 'v1'],
+    ])
+    expect(result.value[0]).toMatchObject({
+      expiryDate: Date.parse('2030-01-01T00:00:00Z') / 1000,
+      registeredAt: Date.parse('2024-01-01T00:00:00Z') / 1000,
+      roleCategory: 'owned',
+    })
+  })
+
+  it('derives chips from relations and ENSv2 grants', async () => {
+    bignameMock.listAddressNames.mockResolvedValue(
+      page([
+        row({ name: 'owned.eth', relations: ['owner'] }),
+        row({
+          name: 'granted.eth',
+          relations: ['owner'],
+          role_summary: [
+            {
+              address: LOWER as `0x${string}`,
+              grants: [
+                {
+                  grant_scope: { kind: 'registration', detail: {} },
+                  powers: ['set_resolver'],
+                },
+              ],
+            },
+          ],
+        }),
+        row({ name: 'managed.eth', relations: ['manager'] }),
+        row({
+          name: 'v1-managed.eth',
+          authority: 'ens_v1',
+          relations: ['registrant'],
+          role_summary: [
+            {
+              address: LOWER as `0x${string}`,
+              grants: [
+                {
+                  grant_scope: { kind: 'registration', detail: {} },
+                  powers: ['registration_control'],
+                },
+              ],
+            },
+          ],
+        }),
+      ]),
     )
-    expect(result.value.find((item) => item.label === 'dom.eth')).toMatchObject(
+
+    const result = await getProfileAddressNames(ADDRESS)
+
+    assert(result.isOk())
+    expect(
+      result.value.map(({ label, nameRoles, roleCategory }) => ({
+        label,
+        nameRoles,
+        roleCategory,
+      })),
+    ).toEqual([
+      { label: 'owned.eth', nameRoles: ['owner'], roleCategory: 'owned' },
       {
-        protocol: 'v2',
-        nameRoles: ['manager'],
-        roleCategory: 'managed',
+        label: 'granted.eth',
+        nameRoles: ['owner', 'manager'],
+        roleCategory: 'owned',
       },
+      { label: 'managed.eth', nameRoles: ['manager'], roleCategory: 'managed' },
+      // ENSv1 grants are the registration itself, not an extra role.
+      { label: 'v1-managed.eth', nameRoles: ['owner'], roleCategory: 'owned' },
+    ])
+  })
+
+  it('drops released and unregistered rows', async () => {
+    bignameMock.listAddressNames.mockResolvedValue(
+      page([
+        row({ name: 'live.eth' }),
+        row({ name: 'lapsed.eth', registration_status: 'released' }),
+        row({ name: 'reserved.eth', registration_status: 'unregistered' }),
+      ]),
+    )
+
+    const result = await getProfileAddressNames(ADDRESS)
+
+    assert(result.isOk())
+    expect(result.value.map((item) => item.label)).toEqual(['live.eth'])
+  })
+
+  it('reads a held name without expires_at as not expiring', async () => {
+    bignameMock.listAddressNames.mockResolvedValue(
+      page([row({ name: 'sub.name.eth', expires_at: undefined })]),
+    )
+
+    const result = await getProfileAddressNames(ADDRESS)
+
+    assert(result.isOk())
+    expect(result.value[0]?.expiryDate).toBe(0)
+  })
+
+  it('walks every page', async () => {
+    bignameMock.listAddressNames
+      .mockResolvedValueOnce(page([row({ name: 'a.eth' })], 'next'))
+      .mockResolvedValueOnce(page([row({ name: 'b.eth' })]))
+
+    const result = await getProfileAddressNames(ADDRESS)
+
+    assert(result.isOk())
+    expect(result.value.map((item) => item.label)).toEqual(['a.eth', 'b.eth'])
+    expect(bignameMock.listAddressNames).toHaveBeenLastCalledWith(
+      LOWER,
+      expect.objectContaining({ cursor: 'next' }),
+      expect.anything(),
     )
   })
 
-  it('never lists a third-party name that differs only in case from a role name', async () => {
-    vi.mocked(getDashboardRoleAssignments).mockResolvedValue([
-      { name: 'cryptO.eth', roleBitmap: '1' },
-    ])
-    vi.mocked(getDomains)
-      .mockReturnValueOnce(okAsync({ domains: [] }))
-      .mockReturnValueOnce(
-        okAsync({
-          domains: [
-            {
-              __typename: 'Domain',
-              id: 'v2-crypto.eth',
-              name: 'crypto.eth',
-              normalizedName: 'crypto.eth',
-              tokenId: null,
-              createdAt: 1_700_000_050,
-              registrationDate: null,
-              expiryDate: 1_891_036_800,
-              owner: {
-                __typename: 'Account',
-                id: '0xthirdparty',
-              },
-              resolver: null,
-            },
-          ],
+  it('reads again without role summaries when the grant budget overflows', async () => {
+    bignameMock.listAddressNames
+      .mockRejectedValueOnce(
+        new BignameError({
+          status: 422,
+          code: 'unsupported',
+          message: 'role_summary grant budget exceeded',
         }),
       )
+      .mockResolvedValueOnce(page([row({ name: 'a.eth' })]))
 
-    const result = await getProfileAddressNames(fixtureAddress)
+    const result = await getProfileAddressNames(ADDRESS)
 
     assert(result.isOk())
-    expect(getDomains).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { name_in: ['cryptO.eth'] },
-      }),
+    expect(result.value.map((item) => item.label)).toEqual(['a.eth'])
+    expect(bignameMock.listAddressNames).toHaveBeenLastCalledWith(
+      LOWER,
+      expect.objectContaining({ include: undefined }),
+      expect.anything(),
     )
-    expect(result.value.map((item) => item.label)).not.toContain('crypto.eth')
+  })
+
+  it('returns an error when bigname fails', async () => {
+    bignameMock.listAddressNames.mockRejectedValue(
+      new BignameError({ status: 503, code: 'overloaded', message: 'busy' }),
+    )
+
+    const result = await getProfileAddressNames(ADDRESS)
+
+    expect(result.isErr()).toBe(true)
   })
 })

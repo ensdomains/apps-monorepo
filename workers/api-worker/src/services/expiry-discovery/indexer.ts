@@ -1,68 +1,30 @@
 import {
-  createPlainClient,
-  EmptyGraphQLResponseError,
-  graphqlRequest,
-} from '@ens-apps/indexer/urql/request'
+  type BignameClient,
+  fetchAllPages,
+  isBignameError,
+  MAX_PAGE_SIZE,
+  type RegistrationStatus,
+  secondsToTimestamp,
+  timestampToSeconds,
+} from '@ens-apps/bigname'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { CombinedError, gql } from '@urql/core'
 import { fromPromise, ok, type Result } from 'neverthrow'
-import * as v from 'valibot'
-import { getConfig } from '#core/config.js'
+import { createBigname } from '#core/bigname/index.js'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
 export const PROCESS_PAGE_SIZE = 999
+/** Rows read per window query: one processable page plus one lookahead row. */
 export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
-const MAX_RETRIES = 3
-const BASE_RETRY_DELAY_MS = 300
-
-const expiringNamesQuery = gql`
-  query GetExpiringNames($cursor: Int!, $upper_bound: Int!) {
-    domains(
-      where: { expiry_gt: $cursor, expiry_lte: $upper_bound }
-      orderBy: expiryDate
-      orderDirection: asc
-      first: ${String(QUERY_PAGE_SIZE)}
-    ) {
-      name
-      expiryDate
-      owner {
-        id
-      }
-    }
-  }
-`
-
-type ExpiringNamesQueryVariables = {
-  cursor: number
-  upper_bound: number
-}
-
 /**
- * TODO: keep this query contract aligned with the external ENS indexer.
- * Required schema:
- * - domains[].name: string
- * - domains[].expiryDate: Int unix seconds
- * - domains[].owner.id: string | null
+ * Rows read when a page boundary splits one expiry timestamp. bigname breaks
+ * expiry ties by name, so the cursor can continue inside one timestamp; this
+ * only bounds the work (and subrequests) a single bucket can take.
  */
-
-const indexerResponseSchema = v.object({
-  domains: v.array(
-    v.object({
-      name: v.string(),
-      expiryDate: v.number(),
-      owner: v.nullable(
-        v.object({
-          id: v.nullable(v.string()),
-        }),
-      ),
-    }),
-  ),
-})
+export const EXACT_TIMESTAMP_MAX_ROWS = 5_000
 
 class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
   status?: number
-  attempt: number
 }> {}
 
 class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
@@ -72,192 +34,116 @@ class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
 }> {}
 
 /**
- * Resolving the network can fail (an absent or unknown `CHAIN`). Returning a
- * Result keeps that inside the caller's error channel instead of rejecting the
+ * Building the client resolves the network from the bindings, which can fail
+ * (an absent or unknown `CHAIN`, no bigname URL for it). Returning a Result
+ * keeps that inside the caller's error channel instead of rejecting the
  * generator, which would bypass the cron's failure handling.
  */
-function getIndexerUrl(
+function getBigname(
   env: CloudflareBindings,
-): Result<string, IndexerConfigError> {
+): Result<BignameClient, IndexerConfigError> {
   return fromSync(
-    () => getConfig(env).endpoints.indexerGraphql,
+    () => createBigname(env),
     (error) => new IndexerConfigError({ cause: error }),
   )
-}
-
-function toRetryDelayMs(attempt: number): number {
-  const jitter = Math.floor(Math.random() * 100)
-  return BASE_RETRY_DELAY_MS * 2 ** (attempt - 1) + jitter
-}
-
-/**
- * `CombinedError.response` is whatever the exchange put there — a `Response`
- * for the fetch exchange we use, but urql neither types nor guarantees it — so
- * read the status defensively and fall back to "retryable" when it's absent.
- */
-function responseStatus(error: unknown): number | undefined {
-  if (!(error instanceof CombinedError)) return undefined
-  const status = (error.response as { status?: unknown } | undefined)?.status
-  return typeof status === 'number' ? status : undefined
-}
-
-function isRetryableRequestError(error: unknown): boolean {
-  // A successful request that carried no `data` returns the same empty payload
-  // however many times it's re-sent.
-  if (error instanceof EmptyGraphQLResponseError) return false
-
-  const status = responseStatus(error)
-  if (status === undefined) return true
-  return status === 429 || status >= 500
-}
-
-async function wait(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export type ExpiringDomain = {
   name: string
   expiryDate: number
   owner?: string
+  registrationStatus?: RegistrationStatus
 }
 
-const executeIndexerQuery = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  stage: ExpiryStageConfig
-  cursor: number
-  upperBound: number
-  attempt: number
-}) {
-  const indexerUrl = yield* getIndexerUrl(ctx.env)
-
-  const rawResponse = yield* fromPromise(
-    graphqlRequest(createPlainClient(indexerUrl), expiringNamesQuery, {
-      cursor: ctx.cursor,
-      upper_bound: ctx.upperBound,
-    } satisfies ExpiringNamesQueryVariables),
-    (error) => {
-      const status = responseStatus(error)
-
-      return new IndexerRequestError({
-        message: `Indexer query failed for stage ${ctx.stage.id}`,
-        cause: error,
-        status,
-        attempt: ctx.attempt,
-      })
-    },
-  )
-
-  let parsedResponse: v.InferOutput<typeof indexerResponseSchema>
-
-  try {
-    parsedResponse = v.parse(indexerResponseSchema, rawResponse)
-  } catch (error) {
-    logger.warn('Indexer response validation failed', {
-      stage: ctx.stage.id,
-      error: String(error),
-    })
-    return yield* new IndexerValidationError({
-      message: `Indexer response validation failed for stage ${ctx.stage.id}`,
-      cause: error,
-    })
-  }
-
-  const domains: ExpiringDomain[] = []
-
-  for (const domain of parsedResponse.domains) {
-    const owner = domain.owner?.id?.toLowerCase() ?? undefined
-
-    domains.push({
-      name: domain.name,
-      expiryDate: domain.expiryDate,
-      owner,
-    })
-  }
-
-  return ok({
-    domains,
-    hasMore: parsedResponse.domains.length === QUERY_PAGE_SIZE,
-  })
-})
-
+/**
+ * Names whose registration expiry is in `(cursor, upperBound]` (unix seconds),
+ * ascending by expiry, at most `maxRows` (default `QUERY_PAGE_SIZE`) of them.
+ * `hasMore` is true when the window holds more rows than were returned.
+ *
+ * Reads bigname's `GET /v1/names` expiry sweep. Its window is
+ * `[expires_after, expires_before)` and lease expiries are whole seconds, so
+ * the half-open seconds window maps to `[cursor + 1, upperBound + 1)`. The
+ * client retries transient failures (408/429/5xx, network, stale first page)
+ * and the pager restarts when a continuation cursor goes stale.
+ *
+ * Rows are returned whatever their `registration_status` (released names are
+ * listed with their lapsed expiry); callers filter per stage so page planning
+ * still sees every row.
+ */
 export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   env: CloudflareBindings
   stage: ExpiryStageConfig
   cursor: number
   upperBound: number
+  maxRows?: number
 }) {
-  logger.trace('Fetching expiring names page from indexer', {
+  const maxRows = ctx.maxRows ?? QUERY_PAGE_SIZE
+  logger.trace('Fetching expiring names page from bigname', {
     stageId: ctx.stage.id,
     cursor: ctx.cursor,
     upperBound: ctx.upperBound,
   })
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const result = await executeIndexerQuery({
-      env: ctx.env,
-      stage: ctx.stage,
-      cursor: ctx.cursor,
-      upperBound: ctx.upperBound,
-      attempt,
-    })
-
-    if (result.isOk()) {
-      const firstExpiryDate = result.value.domains[0]?.expiryDate
-      const lastExpiryDate =
-        result.value.domains[result.value.domains.length - 1]?.expiryDate
-
-      logger.debug('Indexer query succeeded', {
-        stageId: ctx.stage.id,
-        attempt,
-        domainCount: result.value.domains.length,
-        firstExpiryDate,
-        lastExpiryDate,
-        hasMore: result.value.hasMore,
-      })
-      return ok(result.value)
-    }
-
-    if (
-      result.error._tag !== 'INDEXER_REQUEST_ERROR' ||
-      !isRetryableRequestError(result.error.cause) ||
-      attempt === MAX_RETRIES
-    ) {
-      return yield* result.error
-    }
-
-    const delayMs = toRetryDelayMs(attempt)
-    logger.warn('Retrying indexer request after transient failure', {
-      stageId: ctx.stage.id,
-      attempt,
-      maxAttempts: MAX_RETRIES,
-      delayMs,
-      status: result.error.status,
-      error: result.error.message,
-      cause:
-        result.error.cause instanceof Error
-          ? result.error.cause.message
-          : String(result.error.cause),
-    })
-
-    yield* fromPromise(
-      wait(delayMs),
-      (error) =>
-        new IndexerRequestError({
-          message: 'Failed while waiting to retry indexer request',
-          cause: error,
-          attempt,
-        }),
-    )
+  // bigname rejects an empty or inverted window.
+  if (ctx.cursor >= ctx.upperBound) {
+    return ok({ domains: [] as ExpiringDomain[], hasMore: false })
   }
 
-  logger.error('Indexer query exhausted retries', {
+  const bigname = yield* getBigname(ctx.env)
+  const expires_after = secondsToTimestamp(ctx.cursor + 1)
+  const expires_before = secondsToTimestamp(ctx.upperBound + 1)
+
+  const result = yield* fromPromise(
+    fetchAllPages(
+      (cursor) =>
+        bigname.listNames({
+          namespace: 'ens',
+          expires_after,
+          expires_before,
+          sort: 'expires_at',
+          order: 'asc',
+          page_size: MAX_PAGE_SIZE,
+          cursor,
+        }),
+      { maxRows, maxPages: Math.ceil(maxRows / MAX_PAGE_SIZE) },
+    ),
+    (error) =>
+      new IndexerRequestError({
+        message: `bigname expiry query failed for stage ${ctx.stage.id}`,
+        cause: error,
+        status: isBignameError(error) ? error.status : undefined,
+      }),
+  )
+
+  const domains: ExpiringDomain[] = []
+  for (const row of result.rows) {
+    const expiryDate = timestampToSeconds(row.expires_at)
+    if (expiryDate === undefined) {
+      logger.warn('bigname expiry row validation failed', {
+        stage: ctx.stage.id,
+        name: row.name,
+        expiresAt: row.expires_at,
+      })
+      return yield* new IndexerValidationError({
+        message: `bigname expiry row without a valid expires_at for stage ${ctx.stage.id}`,
+      })
+    }
+
+    domains.push({
+      name: row.name,
+      expiryDate,
+      owner: (row.owner ?? row.registrant)?.toLowerCase(),
+      registrationStatus: row.registration_status,
+    })
+  }
+
+  logger.debug('bigname expiry query succeeded', {
     stageId: ctx.stage.id,
-    attempts: MAX_RETRIES,
-    cursor: ctx.cursor,
-    upperBound: ctx.upperBound,
+    domainCount: domains.length,
+    firstExpiryDate: domains[0]?.expiryDate,
+    lastExpiryDate: domains.at(-1)?.expiryDate,
+    hasMore: result.truncated,
   })
-  return yield* new IndexerRequestError({
-    message: `Indexer query exhausted retries for stage ${ctx.stage.id}`,
-    attempt: MAX_RETRIES,
-  })
+
+  return ok({ domains, hasMore: result.truncated })
 })

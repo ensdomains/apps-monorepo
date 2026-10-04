@@ -12,7 +12,7 @@ import {
   type NameForFetch,
   profileMapKey,
 } from './fetchV1Profiles.helpers'
-import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
 const PROFILE_MULTICALL_CHUNK = 700
 const PROFILE_MULTICALL_CONCURRENCY = 6
@@ -22,7 +22,7 @@ export { profileMapKey } from './fetchV1Profiles.helpers'
 
 export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
   cause: unknown
-  phase: 'subgraph' | 'onchain'
+  phase: 'indexer' | 'onchain'
 }> {}
 
 export type Profile = {
@@ -103,14 +103,17 @@ export const fetchV1Profiles = async (params: {
 
   const profileKeysResult = profileKeys
     ? null
-    : await getV1ProfileKeys([...byNode.keys()], { signal })
+    : await getV1ProfileKeys(
+        [...byNode].map(([id, name]) => ({ id, name: name.name })),
+        { signal },
+      )
   signal?.throwIfAborted()
   const keyEntries =
     profileKeys ??
     profileKeysResult?.match(
       (value) => value,
       (error) => {
-        throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
+        throw new ProfileFetchError({ cause: error, phase: 'indexer' })
       },
     ) ??
     []
@@ -123,7 +126,7 @@ export const fetchV1Profiles = async (params: {
   )
   if (missingNodes.length > 0) {
     throw new ProfileFetchError({
-      phase: 'subgraph',
+      phase: 'indexer',
       cause: new Error(
         `Profile key inventory omitted ${missingNodes.length} requested node${missingNodes.length === 1 ? '' : 's'}`,
       ),

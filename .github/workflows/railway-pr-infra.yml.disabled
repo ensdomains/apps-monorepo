@@ -1,7 +1,7 @@
 # Per-PR e2e infra on Railway.
 #
 # On PR open/reopen: duplicates the Railway base environment into `pr-<number>`
-# (anvil snapshot, alto, paymaster, panoptes, mockestrator, dqa), points the
+# (anvil snapshot, alto, paymaster, mockestrator, dqa), points the
 # dqa service at the PR branch, generates public domains, and posts the URLs
 # as a PR comment.
 # On PR close/merge: deletes the environment.
@@ -88,7 +88,7 @@ jobs:
             echo "urls<<EOF"
             # Only image-based chain services get public domains. `dqa` is NOT
             # exposed here (shared trusted instance is used instead).
-            for svc in anvil alto paymaster panoptes mockestrator; do
+            for svc in anvil alto paymaster mockestrator; do
               # Creates a domain if the service has none, prints it otherwise.
               url=$(railway domain --service "$svc" 2>/dev/null | grep -oE 'https?://[^ ]+' | head -1 || echo "pending")
               echo "| $svc | $url |"
@@ -118,7 +118,6 @@ jobs:
               '```bash',
               '# in apps/portal or apps/manager .env.local',
               'VITE_SEPOLIA_RPC_URL=<anvil url>',
-              'VITE_INDEXER_GRAPHQL_URL=<panoptes url>/graphql',
               'VITE_DQA=1',
               `VITE_DQA_URL=${DQA_SERVER_URL || '<shared DQA server URL>'}`,
               '```',

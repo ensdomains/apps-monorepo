@@ -1,8 +1,8 @@
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { dateToPlainDate } from '@/utils/temporal'
-import { humanizeType } from './summarize/descriptors'
-import { IGNORED_TYPES } from './summarize/summarizeEvents'
+import { HISTORY_EVENT_TYPE_LABELS } from './eventTypes'
+import { HISTORY_EVENT_TYPES, type HistoryEventType } from './timelineEvent'
 
 const plainDateToUnixSecondsUtc = (date: Temporal.PlainDate): number =>
   Math.floor(date.toZonedDateTime({ timeZone: 'UTC' }).epochMilliseconds / 1000)
@@ -27,22 +27,22 @@ export const dateRangeToTimestamps = (
 })
 
 /**
- * Takes types rather than events because they must come from a read that does
- * *not* carry the current selection — deriving them from the rendered feed made
- * the list collapse to whatever was selected. See `getNameEventTypesQueryOptions`.
+ * The Event chip's options. Takes the surface's types rather than the loaded
+ * events: deriving them from the rendered feed made the list collapse to
+ * whatever was selected. bigname's vocabulary is closed, so the options are
+ * known up front, in its canonical order.
  */
 export const buildEventTypeGroups = (
-  eventTypes: readonly string[],
+  eventTypes: readonly HistoryEventType[],
 ): FilterGroup[] => {
-  const types = [...new Set(eventTypes)]
-    .filter((type) => !IGNORED_TYPES.has(type))
-    .sort()
+  const present = new Set(eventTypes)
+  const types = HISTORY_EVENT_TYPES.filter((type) => present.has(type))
   if (types.length === 0) return []
   return [
     {
       title: 'Event type',
       options: types.map((type) => ({
-        label: humanizeType(type),
+        label: HISTORY_EVENT_TYPE_LABELS[type],
         value: type,
       })),
     },

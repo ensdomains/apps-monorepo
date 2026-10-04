@@ -24,7 +24,11 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 
 `anvil` and `mockestrator` are pinned **by digest** in `e2e/infra/docker-compose.yml`. CI runs on throwaway runners and pulls fresh every job, so a service left on a moving tag ships a different build on every run and an upstream push can turn CI red with no change in this repo — an anvil nightly that silently dropped some of the mockestrator's impersonated transactions is what made the manager registration test flaky through August 2026.
 
-The header comment in `docker-compose.yml` records the resolved versions, the evidence, and the procedure for bumping a pin. Alto, the paymaster and Panoptes are intentionally still on moving tags.
+The header comment in `docker-compose.yml` records the resolved versions, the evidence, and the procedure for bumping a pin. Alto and the paymaster are intentionally still on moving tags.
+
+### bigname mock
+
+The apps read names, record inventories and history from bigname (`VITE_BIGNAME_API_URL`, default `https://sepolia.api.bigname.sh`), which never indexes names registered on the Anvil fork, and the stack runs no indexer. With `E2E_MOCK_BIGNAME=true` (set in `e2e/.env.ci`) the manager and portal fixtures serve bigname's `/v1` routes from a Playwright route mock (`helpers/mock-bigname.ts`): names a test registers are added with `mockBigname.addName()` (`makeV2Name` does it for you), ENSv1 fixtures with `mockBigname.addV1Names(page, …)`, and every other name answers 404 like the real deployment. Only browser requests are intercepted; server-side (SSR) reads still reach the real deployment.
 
 ---
 

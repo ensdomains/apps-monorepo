@@ -1,20 +1,19 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import { screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { render } from '@/utils/test-utils'
+import type { DashboardName } from '../dashboardNames'
 import { MyNamesList } from './MyNamesList'
 
-const ownedDomainsMock = vi.hoisted(() => ({
-  useOwnedDomains: vi.fn(),
+const dashboardNamesMock = vi.hoisted(() => ({
+  useDashboardNames: vi.fn(),
 }))
 
-const dashboardV1NamesMock = vi.hoisted(() => ({
-  useDashboardV1Names: vi.fn(),
+const migrationEligibilityMock = vi.hoisted(() => ({
+  useDashboardMigrationEligibility: vi.fn(),
 }))
 
-vi.mock('../useOwnedDomains', () => ownedDomainsMock)
-vi.mock('../useDashboardV1Names', () => dashboardV1NamesMock)
+vi.mock('../useDashboardNames', () => dashboardNamesMock)
+vi.mock('../useDashboardMigrationEligibility', () => migrationEligibilityMock)
 vi.mock('./DashboardPagination', () => ({
   DashboardPagination: () => <div data-testid="dashboard-pagination" />,
 }))
@@ -50,85 +49,69 @@ vi.mock('./NameRow', () => ({
   ),
 }))
 
-const makeV1Domain = (overrides: Partial<V1Domain> = {}): V1Domain => ({
-  id: overrides.id ?? '0x1',
-  labelName: overrides.labelName ?? 'fgeorgescu',
-  labelhash: overrides.labelhash ?? '0xlabel',
-  name: overrides.name ?? 'fgeorgescu.eth',
-  resolver: overrides.resolver ?? null,
-  owner: overrides.owner ?? { id: '0xowner' },
-  registrant: overrides.registrant ?? null,
-  wrappedOwner: overrides.wrappedOwner ?? null,
-  parent: overrides.parent ?? null,
-  registration: overrides.registration ?? null,
-  wrappedDomain: overrides.wrappedDomain ?? null,
+const makeName = (
+  overrides: Partial<DashboardName> & Pick<DashboardName, 'name'>,
+): DashboardName => ({
+  key: `0x${overrides.name}`,
+  protocol: 'v2',
+  expiryDate: 1811808000,
+  createdAt: null,
+  nameRoles: ['owner'],
+  ...overrides,
 })
 
-const makeV2Domain = (
-  overrides: Partial<DomainFragment> & {
-    readonly nameRoles?: readonly string[]
-  } = {},
+const mockNames = (
+  names: readonly DashboardName[],
+  state: { readonly isPending?: boolean; readonly isError?: boolean } = {},
 ) =>
-  ({
-    __typename: 'Domain',
-    id: overrides.id ?? '0xv2',
-    name: overrides.name ?? 'alaska.eth',
-    normalizedName: overrides.normalizedName ?? overrides.name ?? 'alaska.eth',
-    tokenId: overrides.tokenId ?? null,
-    createdAt: overrides.createdAt ?? 0,
-    registrationDate: null,
-    expiryDate: overrides.expiryDate ?? 1811808000,
-    owner: overrides.owner ?? {
-      __typename: 'Account',
-      id: '0xowner',
-    },
-    resolver: overrides.resolver ?? null,
-    nameRoles: overrides.nameRoles,
-  }) as DomainFragment & { readonly nameRoles?: readonly string[] }
+  dashboardNamesMock.useDashboardNames.mockReturnValue({
+    names,
+    isPending: state.isPending ?? false,
+    isError: state.isError ?? false,
+  })
+
+const mockEligibility = (
+  eligibleNames: readonly string[] = [],
+  state: { readonly isPending?: boolean; readonly isError?: boolean } = {},
+) =>
+  migrationEligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+    eligibleNames: new Set(eligibleNames),
+    isPending: state.isPending ?? false,
+    isError: state.isError ?? false,
+  })
+
+const renderList = (props: Partial<Parameters<typeof MyNamesList>[0]> = {}) =>
+  render(
+    <MyNamesList
+      favoriteLabels={new Set()}
+      isAuthenticated
+      migrationEnabled={false}
+      onToggleFavorite={() => undefined}
+      sort="name-asc"
+      {...props}
+    />,
+  )
 
 describe('MyNamesList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [
-        makeV1Domain({
-          id: '0xfgeorgescu',
-          labelName: 'fgeorgescu',
-          name: 'fgeorgescu.eth',
-          registration: { expiryDate: '1793442936' },
-          wrappedDomain: { expiryDate: '1801218936', fuses: 196608 },
-        }),
-        makeV1Domain({
-          id: '0xpokemon',
-          labelName: 'pokemon',
-          name: 'pokemon.fgeorgescu.eth',
-          wrappedDomain: { expiryDate: '0', fuses: 0 },
-        }),
-      ].map((domain) => ({
-        domain,
-        label: domain.labelName ?? domain.name,
-        isMigrationEligible: false,
-      })),
-      isPending: false,
-      isError: false,
-    })
+    mockNames([
+      makeName({
+        name: 'fgeorgescu.eth',
+        protocol: 'v1',
+        expiryDate: 1793442936,
+      }),
+      makeName({
+        name: 'pokemon.fgeorgescu.eth',
+        protocol: 'v1',
+        expiryDate: 0,
+      }),
+    ])
+    mockEligibility()
   })
 
   it('renders owned V1 names when migration is disabled', () => {
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList()
 
     expect(screen.getByText('fgeorgescu.eth')).toBeInTheDocument()
     expect(screen.getByText('pokemon.fgeorgescu.eth')).toBeInTheDocument()
@@ -143,126 +126,72 @@ describe('MyNamesList', () => {
     expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
   })
 
-  it('passes V1 manager roles through to the name row', () => {
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [
-        {
-          domain: makeV1Domain({
-            id: '0xmanager',
-            labelName: 'manager-only',
-            name: 'manager-only.eth',
-          }),
-          label: 'manager-only',
-          isMigrationEligible: false,
-          nameRoles: ['manager'],
-        },
-        {
-          domain: makeV1Domain({
-            id: '0xboth',
-            labelName: 'wrapped',
-            name: 'wrapped.eth',
-          }),
-          label: 'wrapped',
-          isMigrationEligible: false,
-          nameRoles: ['owner', 'manager'],
-        },
-      ],
-      isPending: false,
-      isError: false,
-    })
+  it('labels an eligible V1 name for upgrade', () => {
+    mockEligibility(['fgeorgescu.eth'])
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList({ migrationEnabled: true })
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(rows.map((row) => row.dataset.status)).toEqual([
+      'eligibleUpgrade',
+      'ensv1Only',
+    ])
+  })
+
+  it('passes V1 and V2 roles through to the name row', () => {
+    mockNames([
+      makeName({
+        name: 'manager-only.eth',
+        protocol: 'v1',
+        nameRoles: ['manager'],
+      }),
+      makeName({
+        name: 'wrapped.eth',
+        protocol: 'v1',
+        nameRoles: ['owner', 'manager'],
+      }),
+      makeName({ name: 'zeta.eth', nameRoles: ['owner', 'manager'] }),
+    ])
+
+    renderList()
 
     const rows = screen.getAllByTestId('name-row')
     expect(rows.map((row) => row.dataset.roles)).toEqual([
       'manager',
       'owner,manager',
+      'owner,manager',
     ])
     expect(rows.every((row) => row.dataset.role === '')).toBe(true)
   })
 
-  it('passes V2 manager roles through to the name row', () => {
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [
-        makeV2Domain({
-          id: '0xalaska',
-          name: 'alaska.eth',
-          nameRoles: ['owner', 'manager'],
-        }),
-      ],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: false,
-    })
+  it('filters by substring and sorts by the chosen field', () => {
+    mockNames([
+      makeName({ name: 'alpha.eth', expiryDate: 1_900_000_000 }),
+      makeName({ name: 'beta-alp.eth', expiryDate: 1_850_000_000 }),
+      makeName({ name: 'gamma.eth', expiryDate: 1_800_000_000 }),
+    ])
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList({ searchQuery: 'alp', sort: 'expiry-asc' })
 
-    const row = screen.getByTestId('name-row')
-    expect(row).toHaveTextContent('alaska.eth')
-    expect(row.dataset.roles).toBe('owner,manager')
+    expect(
+      screen.getAllByTestId('name-row').map((row) => row.textContent),
+    ).toEqual(['beta-alp.eth', 'alpha.eth'])
   })
 
-  it('shows an error when V1 names fail and no other names are available', () => {
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: true,
-    })
+  it('shows an error when names fail and none are available', () => {
+    mockNames([], { isError: true })
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList()
 
     expect(screen.getByText('Error loading names')).toBeInTheDocument()
     expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
   })
 
-  it('shows a partial error when V1 names fail but V2 names are available', () => {
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [makeV2Domain({ id: '0xalaska', name: 'alaska.eth' })],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: true,
-    })
+  it('shows a partial error when eligibility fails but names are available', () => {
+    mockNames([makeName({ name: 'alaska.eth' })])
+    mockEligibility([], { isError: true })
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList({ migrationEnabled: true })
 
     expect(
       screen.getByText('Some names could not be loaded'),
@@ -271,40 +200,17 @@ describe('MyNamesList', () => {
   })
 
   it('selects only the name whose exact label is selected', () => {
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [
-        makeV2Domain({ id: '0xalice', name: 'alice.eth' }),
-        makeV2Domain({
-          id: '0xalice-lookalike',
-          name: 'ALICE.eth',
-          normalizedName: 'alice.eth',
-        }),
-      ],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: false,
-    })
+    mockNames([
+      makeName({ name: 'alice.eth' }),
+      makeName({ name: 'alice2.eth' }),
+    ])
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        selectedLabels={new Set(['alice.eth'])}
-        sort="name-asc"
-      />,
-    )
+    renderList({ selectedLabels: new Set(['alice.eth']) })
 
     const rows = screen.getAllByTestId('name-row')
     const byLabel = new Map(rows.map((row) => [row.textContent, row] as const))
 
     expect(byLabel.get('alice.eth')?.dataset.selected).toBe('true')
-    expect(byLabel.get('ALICE.eth')?.dataset.selected).toBe('false')
-    expect(byLabel.get('ALICE.eth')?.dataset.selectable).toBe('false')
+    expect(byLabel.get('alice2.eth')?.dataset.selected).toBe('false')
   })
 })

@@ -9,6 +9,7 @@ import {
   getLowerBoundForStage,
   getQueryCursorForStage,
   getUpperBoundForStage,
+  isNotifiableAtStage,
   MAX_STAGE_CATCH_UP_SECONDS,
   STAGES,
 } from './stages.js'
@@ -111,5 +112,48 @@ describe('expiry stages', () => {
     expect(getExpiryStageRank('grace-start')).toBeLessThan(
       getExpiryStageRank('premium-start'),
     )
+  })
+
+  describe('isNotifiableAtStage', () => {
+    const held = ['active', 'wrapped', 'registered'] as const
+    const lapsed = ['released', 'unregistered'] as const
+
+    it.each([
+      'expiry-30d',
+      'expiry-7d',
+      'expiry-1d',
+    ] as const)('keeps only held names before expiry (%s)', (id) => {
+      for (const status of held) {
+        expect(isNotifiableAtStage(getStage(id), status)).toBe(true)
+      }
+      for (const status of lapsed) {
+        expect(isNotifiableAtStage(getStage(id), status)).toBe(false)
+      }
+    })
+
+    it('keeps held ENSv1 leases and lapsed ENSv2 registrations at grace start', () => {
+      for (const status of [...held, ...lapsed]) {
+        expect(isNotifiableAtStage(getStage('grace-start'), status)).toBe(true)
+      }
+    })
+
+    it.each([
+      'grace-7d',
+      'grace-1d',
+      'premium-start',
+    ] as const)('keeps only lapsed ENSv2 registrations late in grace (%s)', (id) => {
+      for (const status of held) {
+        expect(isNotifiableAtStage(getStage(id), status)).toBe(false)
+      }
+      for (const status of lapsed) {
+        expect(isNotifiableAtStage(getStage(id), status)).toBe(true)
+      }
+    })
+
+    it('keeps rows without a status at every stage', () => {
+      for (const stage of STAGES) {
+        expect(isNotifiableAtStage(stage, undefined)).toBe(true)
+      }
+    })
   })
 })

@@ -1,8 +1,9 @@
 import type { Address, Hash } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
+  type AddressHistoryEvent,
+  type AddressNameHistory,
   groupAddressHistoryByName,
-  type V1NameHistory,
 } from '@/utils/history/transformAddressHistory'
 import {
   partitionAddressHistory,
@@ -13,6 +14,20 @@ import {
 const VICTIM = '0x1111111111111111111111111111111111111111' as Address
 const ATTACKER = '0x2222222222222222222222222222222222222222' as Address
 
+const event = (
+  id: string,
+  transactionHash: string,
+  blockNumber: number,
+  type: string,
+): AddressHistoryEvent => ({
+  id,
+  transactionHash,
+  blockNumber,
+  name: '',
+  type,
+  timestamp: 1_700_000_000 + blockNumber,
+})
+
 const senders = (entries: readonly (readonly [string, Address])[]) =>
   new Map<string, Address>(entries)
 
@@ -22,41 +37,19 @@ const senders = (entries: readonly (readonly [string, Address])[]) =>
  * resolver events from their own contract. The subgraph then reports the subname
  * as owned by the victim, and its resolver events as the subname's history.
  */
-const plantedSubname: V1NameHistory = {
+const plantedSubname: AddressNameHistory = {
   name: 'victim.evil.eth',
   registrarHolder: VICTIM,
-  domainEvents: [
-    {
-      id: 'planted-newowner',
-      transactionID: '0xattack1',
-      blockNumber: 200,
-      type: 'NewOwner',
-    },
-  ],
-  registrationEvents: [],
-  resolverEvents: [
-    {
-      id: 'planted-text',
-      transactionID: '0xattack2',
-      blockNumber: 201,
-      type: 'TextChanged',
-    },
+  events: [
+    event('planted-newowner', '0xattack1', 200, 'NewOwner'),
+    event('planted-text', '0xattack2', 201, 'TextChanged'),
   ],
 }
 
-const ownedName: V1NameHistory = {
+const ownedName: AddressNameHistory = {
   name: 'victim.eth',
   registrarHolder: VICTIM,
-  domainEvents: [
-    {
-      id: 'real-transfer',
-      transactionID: '0xreal1',
-      blockNumber: 100,
-      type: 'Transfer',
-    },
-  ],
-  registrationEvents: [],
-  resolverEvents: [],
+  events: [event('real-transfer', '0xreal1', 100, 'Transfer')],
 }
 
 const attackerSenders = senders([
@@ -174,20 +167,15 @@ describe('partitionAddressHistory', () => {
   })
 
   it('renders one row for a transaction that touched two acquired names', () => {
-    const sharedTransaction = {
-      id: 'shared',
-      transactionID: '0xshared',
-      blockNumber: 500,
-      type: 'Transfer',
-    }
+    const sharedTransaction = event('shared', '0xshared', 500, 'Transfer')
 
     const { acquired } = partitionAddressHistory(
       groupAddressHistoryByName([
-        { ...ownedName, name: 'one.eth', domainEvents: [sharedTransaction] },
+        { ...ownedName, name: 'one.eth', events: [sharedTransaction] },
         {
           ...ownedName,
           name: 'two.eth',
-          domainEvents: [{ ...sharedTransaction, id: 'shared-2' }],
+          events: [{ ...sharedTransaction, id: 'shared-2' }],
         },
       ]),
       VICTIM,
@@ -203,26 +191,11 @@ describe('partitionAddressHistory', () => {
       groupAddressHistoryByName([
         {
           ...ownedName,
-          domainEvents: [
-            {
-              id: 'real',
-              transactionID: '0xshared',
-              blockNumber: 500,
-              type: 'Transfer',
-            },
-          ],
+          events: [event('real', '0xshared', 500, 'Transfer')],
         },
         {
           ...plantedSubname,
-          domainEvents: [
-            {
-              id: 'planted',
-              transactionID: '0xshared',
-              blockNumber: 500,
-              type: 'NewOwner',
-            },
-          ],
-          resolverEvents: [],
+          events: [event('planted', '0xshared', 500, 'NewOwner')],
         },
       ]),
       VICTIM,
@@ -241,14 +214,7 @@ describe('partitionAddressHistory', () => {
         {
           ...ownedName,
           name: 'other.eth',
-          domainEvents: [
-            {
-              id: 'later',
-              transactionID: '0xreal2',
-              blockNumber: 300,
-              type: 'Transfer',
-            },
-          ],
+          events: [event('later', '0xreal2', 300, 'Transfer')],
         },
       ]),
       VICTIM,
@@ -311,13 +277,15 @@ describe('registrar ancestry', () => {
 })
 
 describe('partitionOwnedNames', () => {
+  const HOLDER = ['registrant', 'owner', 'manager'] as const
+
   it('separates names the address holds or minted from names granted to it', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'victim.eth' },
-      { name: 'mine.victim.eth' },
-      { name: 'a.b.victim.eth' },
-      { name: 'victim.evil.eth' },
-      { name: null },
+      { name: 'victim.eth', relations: HOLDER },
+      { name: 'mine.victim.eth', relations: ['owner'] },
+      { name: 'a.b.victim.eth', relations: ['owner'] },
+      { name: 'victim.evil.eth', relations: ['owner'] },
+      { name: null, relations: ['owner'] },
     ])
 
     expect(acquired.map((entry) => entry.name)).toEqual([
@@ -333,8 +301,8 @@ describe('partitionOwnedNames', () => {
 
   it('does not treat a 2LD under another TLD as a root', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'victim.foo' },
-      { name: 'sub.victim.foo' },
+      { name: 'victim.foo', relations: ['owner'] },
+      { name: 'sub.victim.foo', relations: ['owner'] },
     ])
 
     expect(acquired).toEqual([])
@@ -343,8 +311,8 @@ describe('partitionOwnedNames', () => {
 
   it('does not treat a V1 name the address only manages as a root', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'evil.eth', v1Roles: { owner: false, manager: true } },
-      { name: 'planted.evil.eth', v1Roles: { owner: false, manager: true } },
+      { name: 'evil.eth', relations: ['manager'] },
+      { name: 'planted.evil.eth', relations: ['manager'] },
     ])
 
     expect(acquired).toEqual([])
@@ -354,21 +322,11 @@ describe('partitionOwnedNames', () => {
     ])
   })
 
-  it('does not treat a V1 name that merely resolves to the address as a root', () => {
-    const { acquired, assigned } = partitionOwnedNames([
-      { name: 'evil.eth', v1Roles: { owner: false, manager: false } },
-      { name: 'planted.evil.eth', v1Roles: { owner: false, manager: false } },
-    ])
-
-    expect(acquired).toEqual([])
-    expect(assigned).toHaveLength(2)
-  })
-
   it('treats a V1 name the address holds as a root for its subtree', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'victim.eth', v1Roles: { owner: true, manager: true } },
-      { name: 'mine.victim.eth', v1Roles: { owner: false, manager: true } },
-      { name: 'evil.eth', v1Roles: { owner: false, manager: true } },
+      { name: 'victim.eth', relations: HOLDER },
+      { name: 'mine.victim.eth', relations: ['manager'] },
+      { name: 'evil.eth', relations: ['manager'] },
     ])
 
     expect(acquired.map((entry) => entry.name)).toEqual([
@@ -378,10 +336,10 @@ describe('partitionOwnedNames', () => {
     expect(assigned.map((entry) => entry.name)).toEqual(['evil.eth'])
   })
 
-  it('treats a V2 name as held: its query already filters to registry ownership', () => {
+  it('treats the ENSv2 token holder of a 2LD as holding it', () => {
     const { acquired } = partitionOwnedNames([
-      { name: 'victim.eth', v1Roles: null },
-      { name: 'mine.victim.eth', v1Roles: null },
+      { name: 'victim.eth', relations: ['owner'] },
+      { name: 'mine.victim.eth', relations: ['owner'] },
     ])
 
     expect(acquired).toHaveLength(2)

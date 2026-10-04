@@ -1,33 +1,33 @@
 import type { BulkRenewName } from '@/features/bulk-renew'
 import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
-import { resolveDomainLabel, toDateFromSeconds } from './utils'
+import type { DashboardName } from './dashboardNames'
+import { toDateFromSeconds } from './utils'
 
-type DomainLabels = {
+export type SelectableDomain = {
   readonly id: string
   readonly name?: string | null
   readonly normalizedName?: string | null
-}
-
-export type SelectableDomain = DomainLabels & {
   /** Seconds since the epoch, as the chain stores it. */
   readonly expiryDate?: bigint | null
 }
 
 /**
- * A domain as the indexer returns it, where the expiry is a JSON number.
- * Widened to `bigint` at this boundary, and never narrowed again.
+ * A dashboard name, whose expiry is a JSON number of seconds. Widened to
+ * `bigint` at this boundary, and never narrowed again.
  */
 export const toSelectableDomain = (
-  domain: DomainLabels & { readonly expiryDate?: number | null },
+  name: Pick<DashboardName, 'key' | 'name' | 'expiryDate'>,
 ): SelectableDomain => ({
-  ...domain,
-  expiryDate: domain.expiryDate == null ? null : BigInt(domain.expiryDate),
+  id: name.key,
+  name: name.name,
+  normalizedName: name.name,
+  expiryDate: name.expiryDate == null ? null : BigInt(name.expiryDate),
 })
 
 /** The canonical key a selection is stored under. */
-export const selectionKey = (domain: DomainLabels): string =>
-  resolveDomainLabel(domain)
+export const selectionKey = (name: Pick<DashboardName, 'name'>): string =>
+  name.name
 
 /**
  * A domain's bulk-renew payload, or `null` if it can't be renewed here. One
@@ -40,7 +40,7 @@ export const toBulkRenewName = (
 ): BulkRenewName | null => {
   if (domain.expiryDate == null) return null
 
-  // Not `resolveDomainLabel` — its `id` fallback isn't a name.
+  // Never the `id` (a namehash): it isn't a name.
   const label = resolveRenewalLabel(domain.name ?? domain.normalizedName ?? '')
   if (label.isErr()) return null
 

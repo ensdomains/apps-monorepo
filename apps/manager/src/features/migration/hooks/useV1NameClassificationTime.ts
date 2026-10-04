@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '../service/v1Names'
 import { getNextNameExpiryBoundary } from './useEligibleV1Names.helpers'
 
 const MAX_TIMEOUT_MS = 2_147_483_647

@@ -59,16 +59,10 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
       ),
   }),
 }))
-vi.mock('../hooks/useV1NamesForAddress', () => ({
-  getV1NamesForAddressQueryOptions: (params: { address: string }) => ({
-    queryKey: ['get-v1-names-for-address', params],
-    queryFn: () => Promise.resolve([]),
-  }),
-}))
 let ownedNamesOverride: { name: string }[] | null = null
-vi.mock('../hooks/useV2NamesForAddress', () => ({
-  getV2NamesForAddressQueryOptions: (params: { address: string }) => ({
-    queryKey: ['get-v2-names-for-address', params],
+vi.mock('../hooks/useAddressNames', () => ({
+  getAddressNamesQueryOptions: (params: { address: string }) => ({
+    queryKey: ['get-address-names', params],
     queryFn: () => Promise.resolve(ownedNamesOverride ?? []),
   }),
 }))

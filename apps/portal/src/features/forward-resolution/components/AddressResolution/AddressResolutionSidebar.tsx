@@ -35,6 +35,10 @@ import {
 } from '@/components/ui/sheet'
 import { envConfig } from '@/config'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import {
+  ADDRESS_RECORD_HISTORY_TYPES,
+  isAddressRecordEvent,
+} from '@/features/history/eventTypes'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
@@ -54,22 +58,6 @@ import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
-
-// Address-record writes only, forward direction. `AddrChanged` is v1's ETH-only
-// event and stays distinct from v2's multicoin `AddressChanged` all the way
-// through the timeline's descriptors, so both belong here or a v1 name's
-// resolution history filters down to nothing.
-//
-// `NameChanged` is the v1 `name()` record written on *this* node, kept because
-// the sidebar covers the name's primary-name state alongside its addresses.
-// Note it is not where a primary name actually lives — that record sits on
-// `{address}.addr.reverse`, a different node this query never reads — so this
-// surfaces `name()` writes on the name itself, which are rare in practice.
-const ADDRESS_HISTORY_EVENT_TYPES = [
-  'AddressChanged',
-  'AddrChanged',
-  'NameChanged',
-] as const
 
 const coinNetworkName = (coinType: number, fallback: string) => {
   try {
@@ -424,7 +412,8 @@ const ResolutionDetails = ({
         <div className="border-t pt-6">
           <HistoryTimeline
             name={name}
-            scope={ADDRESS_HISTORY_EVENT_TYPES}
+            scope={ADDRESS_RECORD_HISTORY_TYPES}
+            eventFilter={isAddressRecordEvent}
             heading={<h2 className="text-caps text-foreground">History</h2>}
             emptyTitle="No resolution history"
             emptyDescription="Resolution record changes will appear here as they happen."

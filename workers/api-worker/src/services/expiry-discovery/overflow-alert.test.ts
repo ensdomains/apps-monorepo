@@ -2,6 +2,7 @@ import { errAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
 import { makeTelegramRequest } from '#services/telegram/utils.js'
 import { logger } from '#utils/logger.js'
+import { EXACT_TIMESTAMP_MAX_ROWS } from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 
 vi.mock('#services/telegram/utils.js', () => ({
@@ -23,7 +24,7 @@ describe('expiry timestamp overflow reporting', () => {
         } as unknown as CloudflareBindings,
         stageId: 'grace-7d',
         expiryTimestamp: 1_700_000_000,
-        processedCount: 1000,
+        processedCount: EXACT_TIMESTAMP_MAX_ROWS,
       }),
     ).resolves.toBeUndefined()
 
@@ -33,8 +34,8 @@ describe('expiry timestamp overflow reporting', () => {
         stage: 'grace-7d',
         expiryTimestamp: 1_700_000_000,
         expiryTimestampIso: expect.any(String),
-        processedCount: 1000,
-        maxPerTimestamp: 1000,
+        processedCount: EXACT_TIMESTAMP_MAX_ROWS,
+        maxPerTimestamp: EXACT_TIMESTAMP_MAX_ROWS,
         detail: expect.any(String),
       }),
     )

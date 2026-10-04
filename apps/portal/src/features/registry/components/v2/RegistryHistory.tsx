@@ -11,8 +11,7 @@ import { Button } from '@/components/ui/button'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeline'
 import {
-  fetchTimelineEventPage,
-  HISTORY_TIMELINE_PAGE_SIZE,
+  fetchContractEventsPage,
   timelinePageParams,
 } from '@/features/history/timelineEventPage'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -31,8 +30,10 @@ const registryHistoryTimelineQueryKey = createQueryKey<
  * grants) — the name-keyed timeline would only return the slice the indexer
  * attributes to the registry's own name.
  *
- * There is no v1 counterpart to merge in: registries are an ENSv2 contract, so a
- * v1 name has no registry for this to describe (see `V2RegistryInfo`).
+ * There is no v1 counterpart: registries are an ENSv2 contract, so a v1 name
+ * has no registry for this to describe (see `V2RegistryInfo`). bigname does not
+ * count a `contract_address` read, so the feed shows no total; the registry
+ * overview's `counts.events` is the header's number.
  */
 export const RegistryHistoryByAddress = ({
   address,
@@ -45,18 +46,13 @@ export const RegistryHistoryByAddress = ({
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   action?: ReactNode
 }) => {
-  // The top-level connection filtered on `contractAddress`, not
-  // `registry(address:) { eventConnection }`: same feed (verified — identical
-  // totalCount and first 200 ids), but the nested field drops variable arguments,
-  // so `first` fell back to the default and `after` was ignored.
   const model = useTimelinePagesModel(
     resultInfiniteQueryOptions({
       queryKey: registryHistoryTimelineQueryKey({ address }),
       queryFn: ({ queryKey: [, { address }], pageParam }) =>
-        fetchTimelineEventPage({
-          where: { contractAddress: address.toLowerCase() },
-          first: HISTORY_TIMELINE_PAGE_SIZE,
-          after: pageParam,
+        fetchContractEventsPage({
+          contractAddress: address,
+          cursor: pageParam,
         }),
       ...timelinePageParams,
     }),

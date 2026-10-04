@@ -1,137 +1,102 @@
+import {
+  type HistoryEvent,
+  type HistoryEventDataByType,
+  type HistoryEventType,
+  timestampToSeconds,
+} from '@ens-apps/bigname'
 import type { Address, Hex } from 'viem'
 
 /**
- * TODO(indexer): add `from` (tx sender) to `Event` so the actor leading each row is
- * first-class instead of RPC-backfilled (see useTransactionSenders).
- * TODO(indexer): add typed decoders for ContenthashChanged / NameChanged so those
- * actions don't rely on parsing the raw `data` JSON (see summarize/decodeRawData.ts).
+ * bigname's closed history vocabulary, in its canonical order. Every history
+ * row is one of these; the raw storage kind behind it (`LabelRegistered`,
+ * `RecordChanged`, …) rides along as `kind` when the read asks for `include=raw`.
  */
+export const HISTORY_EVENT_TYPES = [
+  'registration',
+  'renewal',
+  'release',
+  'expiry',
+  'transfer',
+  'authority',
+  'resolver',
+  'record',
+  'primary_name',
+  'permission',
+  'subregistry',
+] as const satisfies readonly HistoryEventType[]
 
-/** Marks an event adapted from the v1 subgraph rather than the v2 indexer. */
-export const V1_PROTOCOL = 'v1'
+export type { HistoryEventType }
+
+type TimelineEventBase = {
+  /** bigname's opaque row identity: unique per row, stable across pages. */
+  readonly id: string
+  /** Raw storage kind (`include=raw`), e.g. `LabelRegistered`, `RecordVersionChanged`. */
+  readonly kind?: string
+  /**
+   * The name the row concerns. On a name's own history this is that name; on a
+   * child registration row (`subject: 'child'`) or a contract feed, the row's name.
+   * Empty for a record write bigname could not attribute to a name.
+   */
+  readonly name: string
+  readonly subject?: 'name' | 'child'
+  readonly registrationId: string | null
+  /**
+   * Null for rows derived from interpreter state rather than one log — a lapse
+   * after grace (`release`) or an expiry reached at a block boundary.
+   */
+  readonly transactionHash: Hex | null
+  readonly blockNumber: number
+  readonly logIndex: number | null
+  /** Unix seconds. */
+  readonly timestamp: number
+  /** The emitting contract; absent for state-derived rows. */
+  readonly contractAddress?: Address
+}
+
+/** One history row, discriminated on its friendly `type`. */
+export type TimelineEvent = {
+  readonly [TType in HistoryEventType]: TimelineEventBase & {
+    readonly type: TType
+    readonly data: HistoryEventDataByType[TType]
+  }
+}[HistoryEventType]
+
+export type TimelineEventOfType<TType extends HistoryEventType> = Extract<
+  TimelineEvent,
+  { readonly type: TType }
+>
 
 /**
- * On-chain integer params. The v2 indexer sends these as JSON numbers, but v1
- * values are adapted from subgraph strings and must not round-trip through
- * `Number` — a uint64 expiry or uint256 coin type exceeds
- * `Number.MAX_SAFE_INTEGER`. Nothing does arithmetic on them; they are
- * stringified for the decoded-param table, which handles either.
+ * A bigname history row as the timeline renders it: unix-second timestamp,
+ * camel-cased fields, `data` always present. A row with no chain position has
+ * nowhere to sit on a timeline and is dropped.
  */
-type OnChainInt = number | bigint | null
-
-export type TimelineDecoded = {
-  readonly asAddressChanged?: {
-    address?: string | null
-    coinType?: OnChainInt
-    resolver?: string | null
-    namehash?: string | null
-  } | null
-  readonly asTextChanged?: {
-    key?: string | null
-    value?: string | null
-    resolver?: string | null
-    namehash?: string | null
-  } | null
-  readonly asTransfer?: {
-    from?: string | null
-    to?: string | null
-    id?: string | null
-    operator?: string | null
-    value?: string | null
-  } | null
-  readonly asRegistryTransfer?: {
-    node?: string | null
-    owner?: string | null
-  } | null
-  readonly asLabelRegistered?: {
-    name?: string | null
-    owner?: string | null
-    registry?: string | null
-    tokenId?: string | null
-    sender?: string | null
-    canonicalId?: string | null
-    expiry?: OnChainInt
-  } | null
-  readonly asNameRegistered?: {
-    name?: string | null
-    label?: string | null
-    owner?: string | null
-    cost?: string | null
-    baseCost?: string | null
-    premium?: string | null
-    referrer?: string | null
-    expires?: OnChainInt
-  } | null
-  readonly asNameRenewed?: {
-    id?: string | null
-    expires?: OnChainInt
-  } | null
-  readonly asResolverUpdated?: {
-    resolver?: string | null
-    sender?: string | null
-    tokenId?: string | null
-  } | null
-  readonly asReverseClaimed?: {
-    address?: string | null
-    node?: string | null
-  } | null
-  readonly asNameWrapped?: {
-    node?: string | null
-    owner?: string | null
-    fuses?: OnChainInt
-    expiry?: OnChainInt
-  } | null
-  readonly asNameUnwrapped?: {
-    node?: string | null
-    owner?: string | null
-  } | null
-  readonly asFusesSet?: { node?: string | null; fuses?: OnChainInt } | null
-  readonly asExpiryUpdated?: {
-    node?: string | null
-    tokenId?: string | null
-    expiry?: OnChainInt
-  } | null
+const toTimelineEvent = (row: HistoryEvent): TimelineEvent | undefined => {
+  const timestamp = timestampToSeconds(row.timestamp)
+  if (row.block_number === null || timestamp === undefined) return undefined
+  return {
+    id: row.id,
+    type: row.type,
+    ...(row.kind && { kind: row.kind }),
+    name: row.name ?? '',
+    ...(row.subject && { subject: row.subject }),
+    registrationId: row.registration_id,
+    transactionHash: row.transaction_hash,
+    blockNumber: row.block_number,
+    logIndex: row.log_index,
+    timestamp,
+    ...(row.contract_address && { contractAddress: row.contract_address }),
+    data: row.data ?? {},
+  } as TimelineEvent
 }
 
-export type TimelineIndexerEvent = TimelineDecoded & {
-  readonly id: string
-  readonly type: string
-  readonly name?: string | null
-  readonly namehash?: string | null
-  readonly protocol?: string | null
-  readonly transactionHash: Hex
-  readonly blockNumber: number
-  readonly timestamp: number
-  readonly contractAddress?: Address | null
-  readonly key?: string | null
-  readonly value?: string | null
-  /** Raw JSON blob of decoded params — fallback for event types without an `as*` decoder. */
-  readonly data?: string | null
-}
-export const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
-    id
-    type
-    name
-    namehash
-    protocol
-    transactionHash
-    blockNumber
-    timestamp
-    contractAddress
-    key
-    value
-    data
-    asAddressChanged { address coinType resolver namehash }
-    asTextChanged { key value resolver namehash }
-    asTransfer { from to id operator value }
-    asRegistryTransfer { node owner }
-    asLabelRegistered { name owner registry tokenId sender canonicalId expiry }
-    asNameRegistered { name label owner cost baseCost premium referrer expires }
-    asNameRenewed { id expires }
-    asResolverUpdated { resolver sender tokenId }
-    asReverseClaimed { address node }
-    asNameWrapped { node owner fuses expiry }
-    asNameUnwrapped { node owner }
-    asFusesSet { node fuses }
-    asExpiryUpdated { node tokenId expiry }
-  }`
+export const toTimelineEvents = (
+  rows: readonly HistoryEvent[],
+): TimelineEvent[] => rows.flatMap((row) => toTimelineEvent(row) ?? [])
+
+/**
+ * The key a row is grouped into an action by: its transaction, or the row itself
+ * when it has none (a state-derived row is an action of its own).
+ */
+export const timelineGroupKey = (event: TimelineEvent): string =>
+  event.transactionHash?.toLowerCase() ?? `row:${event.id}`

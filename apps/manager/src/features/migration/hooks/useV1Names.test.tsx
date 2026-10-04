@@ -13,13 +13,13 @@ const wagmiMock = vi.hoisted(() => ({
   useConnection: vi.fn(),
 }))
 
-const v1SubgraphMock = vi.hoisted(() => ({
+const v1NamesMock = vi.hoisted(() => ({
   getV1NamesForAddress: vi.fn(),
 }))
 
 vi.mock('@/lib/smart-account', () => smartAccountMock)
 vi.mock('wagmi', () => wagmiMock)
-vi.mock('@/features/migration/service/v1SubgraphClient', () => v1SubgraphMock)
+vi.mock('@/features/migration/service/v1Names', () => v1NamesMock)
 
 import { useV1Names } from './useV1Names'
 
@@ -47,14 +47,14 @@ describe('useV1Names', () => {
     wagmiMock.useConnection.mockReturnValue({
       address: WALLET_ADDRESS,
     })
-    v1SubgraphMock.getV1NamesForAddress.mockReturnValue(ok([]))
+    v1NamesMock.getV1NamesForAddress.mockReturnValue(ok([]))
   })
 
   it('uses the wagmi address when the smart-account owner is not available', async () => {
     renderHook(() => useV1Names(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(v1SubgraphMock.getV1NamesForAddress).toHaveBeenCalledWith(
+      expect(v1NamesMock.getV1NamesForAddress).toHaveBeenCalledWith(
         WALLET_ADDRESS,
       )
     })
@@ -68,7 +68,7 @@ describe('useV1Names', () => {
     renderHook(() => useV1Names(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(v1SubgraphMock.getV1NamesForAddress).toHaveBeenCalledWith(
+      expect(v1NamesMock.getV1NamesForAddress).toHaveBeenCalledWith(
         OWNER_ADDRESS,
       )
     })

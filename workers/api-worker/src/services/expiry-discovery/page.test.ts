@@ -7,6 +7,7 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 }))
 
 import {
+  EXACT_TIMESTAMP_MAX_ROWS,
   fetchExpiringNamesPage,
   PROCESS_PAGE_SIZE,
   QUERY_PAGE_SIZE,
@@ -63,23 +64,29 @@ describe('expiry page planning', () => {
     expect(plan.domainsBeforeTimestamp).toHaveLength(PROCESS_PAGE_SIZE - 1)
   })
 
-  it('processes a bounded exact timestamp bucket and reports overflow', () => {
-    const fitting = planExactTimestampPage(domainsAt(500, 10_000), 10_000)
-    expect(fitting.domains).toHaveLength(500)
+  it('processes a whole exact timestamp bucket and reports overflow only when more remain', () => {
+    const fitting = planExactTimestampPage(
+      domainsAt(QUERY_PAGE_SIZE + 500, 10_000),
+      10_000,
+      false,
+    )
+    expect(fitting.domains).toHaveLength(QUERY_PAGE_SIZE + 500)
     expect(fitting.overflow).toBe(false)
 
     const overflow = planExactTimestampPage(
-      domainsAt(QUERY_PAGE_SIZE, 10_000),
+      domainsAt(EXACT_TIMESTAMP_MAX_ROWS, 10_000),
       10_000,
+      true,
     )
-    expect(overflow.domains).toHaveLength(QUERY_PAGE_SIZE)
+    expect(overflow.domains).toHaveLength(EXACT_TIMESTAMP_MAX_ROWS)
     expect(overflow.overflow).toBe(true)
     expect(overflow.cursorEnd).toBe(10_000)
   })
 
   it.each([
     { exactCount: 2, expectedOverflow: false },
-    { exactCount: QUERY_PAGE_SIZE, expectedOverflow: true },
+    { exactCount: QUERY_PAGE_SIZE + 1, expectedOverflow: false },
+    { exactCount: EXACT_TIMESTAMP_MAX_ROWS, expectedOverflow: true },
   ])('re-queries a split timestamp with $exactCount exact rows', async ({
     exactCount,
     expectedOverflow,
@@ -120,13 +127,14 @@ describe('expiry page planning', () => {
       stage,
       cursor: timestamp - 1,
       upperBound: timestamp,
+      maxRows: EXACT_TIMESTAMP_MAX_ROWS,
     })
     expect(result._unsafeUnwrap()).toEqual({
-      domains: [...beforeTimestamp, ...exactDomains.slice(0, QUERY_PAGE_SIZE)],
+      domains: [...beforeTimestamp, ...exactDomains],
       cursorEnd: timestamp,
       hasMore: true,
       overflow: expectedOverflow
-        ? { expiryTimestamp: timestamp, processedCount: QUERY_PAGE_SIZE }
+        ? { expiryTimestamp: timestamp, processedCount: exactCount }
         : undefined,
     })
   })

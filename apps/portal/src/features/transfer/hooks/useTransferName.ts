@@ -260,10 +260,8 @@ export const useTransferName = ({
         ...(parentName
           ? [
               queryClient.invalidateQueries({
-                queryKey: getSubnamesQueryOptions({
-                  name: parentName,
-                  protocolVersion: subject.kind === 'v2' ? 'ENSv2' : 'ENSv1',
-                }).queryKey,
+                queryKey: getSubnamesQueryOptions({ name: parentName })
+                  .queryKey,
               }),
             ]
           : []),

@@ -2,7 +2,7 @@
  * Post-migration assertion helpers for V1→V2 migration tests.
  *
  * All assertions read V2 on-chain state directly via the Anvil publicClient,
- * bypassing the subgraph. This gives reliable ground-truth verification that
+ * bypassing the indexer. This gives reliable ground-truth verification that
  * the migration transaction actually landed correctly in the V2 registry.
  */
 

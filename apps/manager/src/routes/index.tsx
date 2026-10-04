@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import * as v from 'valibot'
 import { useConnection } from 'wagmi'
 import patternBg from '@/assets/pattern-bg.svg'
-import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
+import { hasOwnedNamesQuery } from '@/features/dashboard/service/queries/hasOwnedNames'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
@@ -62,14 +62,8 @@ const useRedirectToDashboard = () => {
   const { isConnecting, isReconnecting } = useConnection()
 
   const hasDomains = useQuery({
-    ...getDomainsQuery({
-      where: {
-        owner: ownerAddress,
-      },
-      first: 1,
-    }),
+    ...hasOwnedNamesQuery(ownerAddress ?? undefined),
     enabled: !!ownerAddress,
-    select: (data) => data?.domains.length > 0,
   })
 
   useEffect(() => {
@@ -110,16 +104,13 @@ export const Route = createFileRoute('/')({
 
     // If the user is connected and has domains, redirect to the dashboard, otherwise let them stay on the landing page
     if (connectedAddress) {
-      const domains = await queryClient.fetchQuery(
-        getDomainsQuery({
-          where: {
-            owner: connectedAddress,
-          },
-          first: 1,
-        }),
-      )
+      // A failed lookup keeps the user on the landing page; the client-side
+      // check in `useRedirectToDashboard` retries once the wallet settles.
+      const hasNames = await queryClient
+        .fetchQuery(hasOwnedNamesQuery(connectedAddress))
+        .catch(() => false)
 
-      if (domains.domains.length > 0 && !landing) {
+      if (hasNames && !landing) {
         throw redirect({ to: '/dashboard' })
       }
     }

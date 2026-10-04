@@ -21,7 +21,7 @@ vi.mock('@/features/migration/service/computeMigrationPreflight', () => ({
 
 import { usePublicClient } from 'wagmi'
 import { computeMigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Domain } from '@/features/migration/service/v1Names'
 import { useMigrationPreflight } from './useMigrationPreflight'
 
 const usePublicClientMock = vi.mocked(usePublicClient)

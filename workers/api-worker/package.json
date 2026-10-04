@@ -26,8 +26,8 @@
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",
+    "@ens-apps/bigname": "workspace:*",
     "@ens-apps/config": "workspace:*",
-    "@ens-apps/indexer": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
@@ -35,7 +35,6 @@
     "@hono/valibot-validator": "^0.5.3",
     "@neondatabase/serverless": "^1.0.2",
     "@react-email/components": "^1.0.12",
-    "@urql/core": "^6.0.3",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.9.1",
     "lucide": "^0.542.0",

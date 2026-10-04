@@ -17,7 +17,7 @@ import {
   migrationPreparationFailure,
   runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Domain } from '@/features/migration/service/v1Names'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 

@@ -1,44 +1,153 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import {
+  type BignameError,
+  fetchAllPages,
+  type HistoryEvent,
+  MAX_PAGE_SIZE,
+  timestampToSeconds,
+} from '@ens-apps/bigname'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetSupportedInterfacesErrorType } from '@ensdomains/ensjs/public'
-import type {
-  GetRecordHistoryErrorType,
-  GetRecordHistoryParameters,
-} from '@ensdomains/ensjs/subgraph'
-import { getRecordHistory as ensjs_getRecordHistory } from '@ensdomains/ensjs/subgraph'
-import { fromPromise, ok } from 'neverthrow'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { fromPromise } from 'neverthrow'
+import { bigname } from '@/lib/bigname'
+import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 
 class GetRecordHistoryError extends TaggedError('GetRecordHistoryError')<{
-  cause: GetRecordHistoryErrorType
+  cause: BignameError
 }> {}
 
-const getRecordHistory = ResultFn(async function* (
-  params: GetRecordHistoryParameters,
-) {
-  const client = yield* safeGetClient()
+/** Every record of one family. */
+type RecordHistoryFamily = 'coins' | 'texts' | 'contentHash' | 'abi'
 
-  const events = yield* fromPromise(
-    ensjs_getRecordHistory(client, params),
-    (e) => {
-      return new GetRecordHistoryError({
-        cause: e as GetSupportedInterfacesErrorType,
-      })
-    },
+export type RecordHistoryParameters = {
+  readonly name: string
+  /**
+   * A record family, or one stored record key as bigname spells it
+   * (`addr:60`, `text:email`, `contenthash`).
+   */
+  readonly key: RecordHistoryFamily | (string & {})
+}
+
+/**
+ * One record write, in the shape the events table groups by transaction (see
+ * `groupEventsByTransactionId`). `id` is `{txHash}-{logIndex}`, which is how the
+ * table finds the write's log in the receipt.
+ */
+export type RecordHistoryEvent = {
+  readonly id: string
+  readonly transactionID: string
+  readonly blockNumber: number
+  readonly timestamp: bigint
+  /** The raw storage kind, e.g. `RecordChanged`, `RecordVersionChanged`. */
+  readonly type: string
+  readonly key?: string
+  /** Text values as written, other families as hex; absent when not retained. */
+  readonly value?: string
+  readonly coinType?: number
+}
+
+/** Enough for any one record's history; bigname has no server-side key filter. */
+const RECORD_HISTORY_MAX_ROWS = 1000
+
+const FAMILY_MATCHERS: Record<RecordHistoryFamily, (key: string) => boolean> = {
+  coins: (key) => key.startsWith('addr:'),
+  texts: (key) => key.startsWith('text:') || key === 'avatar',
+  contentHash: (key) => key === 'contenthash',
+  abi: (key) => key.startsWith('abi'),
+}
+
+const isFamily = (key: string): key is RecordHistoryFamily =>
+  key in FAMILY_MATCHERS
+
+/**
+ * Whether a `record` row belongs to the requested history. A record-version
+ * reset (`clearRecords`) carries no key and clears every record, so it belongs
+ * to all of them.
+ */
+const matchesKey = (
+  row: HistoryEvent,
+  wanted: RecordHistoryParameters['key'],
+): boolean => {
+  if (row.type !== 'record') return false
+  if (row.kind === 'RecordVersionChanged') return true
+  const key = row.data?.key
+  if (!key) return false
+  return isFamily(wanted) ? FAMILY_MATCHERS[wanted](key) : key === wanted
+}
+
+const toRecordHistoryEvent = (row: HistoryEvent): RecordHistoryEvent[] => {
+  const timestamp = timestampToSeconds(row.timestamp)
+  if (
+    row.type !== 'record' ||
+    !row.transaction_hash ||
+    row.block_number === null ||
+    timestamp === undefined
   )
-  return ok(events || [])
-})
+    return []
+  return [
+    {
+      id: `${row.transaction_hash}-${String(row.log_index ?? '')}`,
+      transactionID: row.transaction_hash,
+      blockNumber: row.block_number,
+      timestamp: BigInt(timestamp),
+      type: row.kind ?? row.type,
+      ...(row.data?.key !== undefined && { key: row.data.key }),
+      ...(row.data?.value !== undefined && { value: row.data.value }),
+      ...(row.data?.coin_type !== undefined && {
+        coinType: row.data.coin_type,
+      }),
+    },
+  ]
+}
+
+/**
+ * A legacy `setAddr(node, a)` logs both `AddrChanged` and `AddressChanged`;
+ * bigname keeps each log as its own `addr:60` row. They are one write.
+ */
+const dropDoubleEmits = (
+  events: readonly RecordHistoryEvent[],
+): RecordHistoryEvent[] => {
+  const seen = new Set<string>()
+  return events.filter((event) => {
+    const identity = `${event.transactionID}\u0000${event.key ?? ''}\u0000${event.value ?? ''}`
+    if (event.key === undefined) return true
+    if (seen.has(identity)) return false
+    seen.add(identity)
+    return true
+  })
+}
+
+/**
+ * A record's write history across every resolver the name has pointed at,
+ * ENSv1 and ENSv2 alike, newest first.
+ */
+const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
+  fromPromise(
+    fetchAllPages(
+      (cursor) =>
+        bigname.getNameHistory(normalizeOrLower(name), {
+          type: 'record',
+          include: ['data', 'raw'],
+          order: 'desc',
+          page_size: MAX_PAGE_SIZE,
+          cursor,
+        }),
+      { maxRows: RECORD_HISTORY_MAX_ROWS },
+    ),
+    (e) => new GetRecordHistoryError({ cause: e as BignameError }),
+  ).map(({ rows }) =>
+    dropDoubleEmits(
+      rows.filter((row) => matchesKey(row, key)).flatMap(toRecordHistoryEvent),
+    ),
+  )
 
 const getRecordHistoryQueryKey = createQueryKey<
   'get-record-history',
-  GetRecordHistoryParameters
+  RecordHistoryParameters
 >('get-record-history')
 
-export const getRecordHistoryQueryOptions = (
-  params: GetRecordHistoryParameters,
-) =>
+export const getRecordHistoryQueryOptions = (params: RecordHistoryParameters) =>
   resultQueryOptions({
     queryKey: getRecordHistoryQueryKey(params),
-    queryFn: () => getRecordHistory(params),
+    queryFn: ({ queryKey: [, params] }) => getRecordHistory(params),
   })

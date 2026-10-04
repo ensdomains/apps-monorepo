@@ -1,7 +1,7 @@
 import { makeTelegramRequest } from '#services/telegram/utils.js'
 import type { ExpiryStageId } from '#types/events/index.js'
 import { logger } from '#utils/logger.js'
-import { QUERY_PAGE_SIZE } from './indexer.js'
+import { EXACT_TIMESTAMP_MAX_ROWS } from './indexer.js'
 
 export type ExpiryOverflowAlertContext = {
   env: CloudflareBindings
@@ -23,9 +23,9 @@ const buildOverflowFields = (ctx: Omit<ExpiryOverflowAlertContext, 'env'>) => ({
   expiryTimestamp: ctx.expiryTimestamp,
   expiryTimestampIso: toIsoTimestamp(ctx.expiryTimestamp),
   processedCount: ctx.processedCount,
-  maxPerTimestamp: QUERY_PAGE_SIZE,
+  maxPerTimestamp: EXACT_TIMESTAMP_MAX_ROWS,
   detail:
-    'The exact-timestamp query reached the indexer limit; additional names may have been skipped so discovery can continue.',
+    'The exact-timestamp query reached its row limit; additional names at this expiry were skipped so discovery can continue.',
 })
 
 export async function reportExpiryTimestampOverflow(
@@ -51,7 +51,7 @@ export async function reportExpiryTimestampOverflow(
       {
         chat_id: chatId,
         text: [
-          `Expiry discovery overflow: exact-timestamp query reached the ${fields.maxPerTimestamp}-name indexer limit.`,
+          `Expiry discovery overflow: exact-timestamp query reached the ${fields.maxPerTimestamp}-name limit.`,
           `stage: ${fields.stage}`,
           `expiryTimestamp: ${fields.expiryTimestamp} (${fields.expiryTimestampIso})`,
           `processedCount: ${fields.processedCount}`,

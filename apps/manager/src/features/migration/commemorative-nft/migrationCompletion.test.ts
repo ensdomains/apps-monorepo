@@ -24,7 +24,7 @@ vi.mock('../service/migrationCompletionCheckpoint', async (importOriginal) => ({
 vi.mock('./diagnostics', () => ({ trackNftEvent: vi.fn() }))
 
 vi.mock('@wagmi/core', () => ({ getPublicClient: mocks.getPublicClient }))
-vi.mock('../service/v1SubgraphClient', () => ({
+vi.mock('../service/v1Names', () => ({
   getV1NamesForAddress: mocks.getV1NamesForAddress,
 }))
 vi.mock('../service/getMigratedNamesCount', () => ({

@@ -15,7 +15,7 @@ import {
   FUSES,
   groupClassifiedNames,
 } from './classifyNames'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Names'
 
 const classify = (o: Parameters<typeof makeDomain>[0] = {}) =>
   classifyName(makeDomain(o), OWNER, sepolia.id)

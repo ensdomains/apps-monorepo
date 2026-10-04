@@ -1,13 +1,9 @@
 import { match } from 'ts-pattern'
-import { isAddress, zeroAddress } from 'viem'
+import { isAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import {
-  decodeRoleChange,
-  resolveDecodedName,
-} from '../summarize/decodeRawData'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import { formatPower } from '../summarize/descriptors'
+import type { TimelineEvent } from '../timelineEvent'
 import { AccountBadge } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { DecodedParams } from './EventDetail'
@@ -27,97 +23,61 @@ const ActionValue = ({
 
 const muted = 'text-muted-foreground text-p'
 
-const RESOLVER_EVENT_TYPES = new Set([
-  'AbiChanged',
-  'AddrChanged',
-  'AddressChanged',
-  'AuthorisationChanged',
-  'ContenthashChanged',
-  'InterfaceChanged',
-  'NameChanged',
-  'PubkeyChanged',
-  'TextChanged',
-  'VersionChanged',
-])
-
-/** A name chip when the value resolves to a full ENS name, plain mono text otherwise. */
-const NameOrLabel = ({
-  value,
-  eventName,
-}: {
-  value?: string | null
-  eventName?: string | null
-}) => {
-  if (!value) return null
-  const name = resolveDecodedName(value, eventName)
-  return name ? (
+const NameChip = ({ name }: { name: string }) =>
+  name ? (
     <EntityBadge variant="name" name={name} compact>
       {name}
     </EntityBadge>
-  ) : (
-    <ActionValue copyValue={value}>{value}</ActionValue>
-  )
-}
+  ) : null
 
-const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
-  match(event.type)
-    .with('LabelRegistered', () => (
+const EventContent = ({ event }: { event: TimelineEvent }) =>
+  match(event)
+    .with({ type: 'registration' }, (e) => (
       <>
-        <span className={muted}>created label</span>
-        <NameOrLabel
-          value={event.asLabelRegistered?.name}
-          eventName={event.name}
-        />
+        <span className={muted}>
+          {e.subject === 'child' ? 'registered subname' : 'registered'}
+        </span>
+        <NameChip name={e.name} />
       </>
     ))
-    .with('NameRegistered', () => (
-      <>
-        <span className={muted}>registered</span>
-        <NameOrLabel
-          value={event.asNameRegistered?.name ?? event.name}
-          eventName={event.name}
-        />
-      </>
-    ))
-    .with('Transfer', () => {
-      const from = event.asTransfer?.from
-      const isMint = from?.toLowerCase() === zeroAddress
+    .with({ type: 'transfer' }, (e) =>
+      e.data.to && isAddress(e.data.to, { strict: false }) ? (
+        <>
+          <span className={muted}>
+            {e.data.from ? 'transferred to' : 'minted to'}
+          </span>
+          <AccountBadge address={e.data.to} />
+        </>
+      ) : null,
+    )
+    .with({ type: 'permission' }, (e) => {
+      const powers = e.data.powers ?? []
       return (
         <>
           <span className={muted}>
-            {isMint ? 'minted token ID' : 'transferred token ID'}
+            {powers.length
+              ? `${powers.length} ${powers.length === 1 ? 'power' : 'powers'} held by`
+              : 'no powers left for'}
           </span>
-          {event.asTransfer?.id && (
-            <ActionValue copyValue={event.asTransfer.id}>
-              {truncateAddress(event.asTransfer.id)}
-            </ActionValue>
+          {e.data.address && isAddress(e.data.address, { strict: false }) && (
+            <AccountBadge address={e.data.address} />
+          )}
+          {powers.length > 0 && (
+            <span className={muted}>{powers.map(formatPower).join(', ')}</span>
           )}
         </>
       )
     })
-    .with('EACRolesChanged', () => {
-      const change = decodeRoleChange(event.data)
-      const verb = change.direction === 'revoke' ? 'revoked from' : 'granted to'
-      return (
-        <>
-          <span className={muted}>
-            {change.roles.length || ''}{' '}
-            {change.roles.length === 1 ? 'role' : 'roles'} {verb}
-          </span>
-          {change.account && isAddress(change.account, { strict: false }) && (
-            <AccountBadge address={change.account} />
-          )}
-        </>
-      )
-    })
-    .with('TextChanged', () => {
-      const key = event.asTextChanged?.key ?? ''
-      // Copy hands over the real on-chain key — a sanitized one would no longer
+    .with({ type: 'record' }, (e) => {
+      const key = e.data.key ?? ''
+      // Copy hands over the real stored key — a sanitized one would no longer
       // match the record it came from.
       const label = sanitizeOnChainText(key)
       return (
         <>
-          <span className={muted}>set</span>
+          <span className={muted}>
+            {e.kind === 'RecordVersionChanged' ? 'cleared records' : 'set'}
+          </span>
           {label && <ActionValue copyValue={key}>{label}</ActionValue>}
         </>
       )
@@ -125,27 +85,26 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
     .otherwise(() => null)
 
 interface EventRowProps {
-  readonly event: TimelineIndexerEvent
+  readonly event: TimelineEvent
 }
 
 export const EventRow = ({ event }: EventRowProps) => {
-  const contractAddress = event.contractAddress ?? undefined
+  // The raw kind when the read carried it, which is what an explorer row names.
+  const badge = event.kind ?? event.type
 
   return (
     <ExpandableDetailRow
       left={
         <>
-          <ActionValue copyValue={event.type}>{event.type}</ActionValue>
+          <ActionValue copyValue={badge}>{badge}</ActionValue>
           <EventContent event={event} />
         </>
       }
       right={
-        contractAddress ? (
+        event.contractAddress ? (
           <ContractBadge
-            address={contractAddress}
-            label={
-              RESOLVER_EVENT_TYPES.has(event.type) ? 'resolver' : undefined
-            }
+            address={event.contractAddress}
+            label={event.type === 'record' ? 'resolver' : undefined}
           />
         ) : undefined
       }

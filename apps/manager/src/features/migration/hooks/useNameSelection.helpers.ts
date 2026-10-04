@@ -1,4 +1,4 @@
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '../service/v1Names'
 
 export const hasManagerRestorationAfterRenewal = (
   domain: V1Domain,

@@ -16,7 +16,7 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Names'
 
 const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 

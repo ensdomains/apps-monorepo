@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ProfileAddressName } from '@/features/profile/service/buildProfileAddressNames'
+import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
 import { render } from '@/utils/test-utils'
 
 import { AddressProfileNamesList } from './AddressProfileNamesList'
@@ -24,6 +24,7 @@ const name = (
   protocol: 'v2',
   expiryDate: null,
   createdAt: null,
+  registeredAt: null,
   nameRoles: roleCategory === 'owned' ? ['owner'] : ['manager'],
   roleCategory,
 })

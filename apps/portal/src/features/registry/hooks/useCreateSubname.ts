@@ -8,6 +8,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletClient } from 'wagmi'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { invalidateRegistryLabelQueries } from '@/features/registry/utils/invalidateRegistryQueries'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
@@ -44,21 +45,21 @@ export function useCreateSubname() {
     onSuccess: (_data, variables) => {
       const subnamesQueryKey = getSubnamesQueryOptions({
         name: variables.parentName,
-        protocolVersion: variables.protocolVersion,
       }).queryKey
 
-      queryClient.invalidateQueries({
-        queryKey: subnamesQueryKey,
-        refetchType: 'all',
-      })
-
-      pollForIndexerSync({
-        invalidateQueries: () =>
+      // The parent's subnames and the registry's own label reads all list the
+      // new state once bigname has indexed the transaction.
+      const invalidate = () =>
+        Promise.all([
           queryClient.invalidateQueries({
             queryKey: subnamesQueryKey,
             refetchType: 'all',
           }),
-      })
+          invalidateRegistryLabelQueries(queryClient),
+        ]).then(() => undefined)
+
+      void invalidate()
+      pollForIndexerSync({ invalidateQueries: invalidate })
     },
   })
 

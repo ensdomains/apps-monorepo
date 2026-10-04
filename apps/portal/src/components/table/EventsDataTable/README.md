@@ -127,20 +127,23 @@ Default columns:
 - ENS components: `AddressDisplay`, `EventsSidebar`
 - Table components: `TableDateRangeFilter`, `TableMultiSelectFilter`, `CollapseAllButton`
 
-## Migration from HistoryList
+## From bigname history
 
-The old `HistoryList` component has been replaced with this generic implementation:
+bigname history rows (read with `include=data,raw`) become table rows in two
+steps: `historyEventsToSubgraphEvents()` (`utils/history/historyEventsToSubgraphEvents.ts`)
+turns each row into a flat event keyed `{txHash}-{logIndex}` with its `data`
+payload spread in, and `groupEventsByTransactionId()` groups those into one
+`EventsTableData` row per transaction. Rows carry their own `timestamp`, so no
+block-timestamp RPC is needed; only the sender (`from`) is read from the chain,
+with `useTransactionSenders`.
 
-**Before:**
 ```typescript
-<HistoryList name={name} history={ensHistory} />
-```
-
-**After:**
-```typescript
-const eventsData = transformHistoryToEvents(ensHistory)
+const events = historyEventsToSubgraphEvents(historyRows)
+const eventsData = groupEventsByTransactionId(events, 'domain')
 <EventsDataTable data={eventsData} name={name} />
 ```
+
+`NameSubgraphHistory` does both for a name's history.
 
 ## Type Definitions
 

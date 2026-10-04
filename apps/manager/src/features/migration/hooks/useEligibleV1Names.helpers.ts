@@ -3,7 +3,7 @@ import {
   V1_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import type { IneligibleName } from '../service/classifyNames'
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '../service/v1Names'
 
 const V1_GRACE_PERIOD_SECONDS =
   BigInt(V1_GRACE_PERIOD_DAYS) * BigInt(SECONDS_PER_DAY)

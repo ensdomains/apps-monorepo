@@ -24,7 +24,9 @@ fi
 
 # ---------- start ----------
 echo "=== Starting E2E stack (Anvil + Alto + Paymaster) ==="
-docker compose -f "$COMPOSE_FILE" up -d
+# --remove-orphans drops containers of services this stack no longer defines
+# (e.g. the retired Panoptes indexer).
+docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 
 # ---------- wait for health ----------
 echo ""

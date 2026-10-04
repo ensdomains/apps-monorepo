@@ -43,7 +43,7 @@ export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
 // silently broke name creation once ownership moved — impersonating a non-owner
 // makes `addController` revert, so DEFAULT_ACCOUNT never becomes a controller
 // and every `register()` reverts, leaving phantom names that only exist in the
-// subgraph mock.
+// bigname mock.
 export const V1_BASE_REGISTRAR_OWNER =
   '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
 export const V1_PUBLIC_RESOLVER =
@@ -113,7 +113,7 @@ export interface ActiveName {
   label: string
   type: PresetType
   id: string
-  /** Unix seconds — V1 expiry, used for subgraph mock and V2 reservation */
+  /** Unix seconds — V1 expiry, used for the bigname mock and V2 reservation */
   expiryDate: number
 }
 
@@ -513,7 +513,7 @@ export async function isController(
  * transferred on Sepolia, and impersonating a stale owner makes `addController`
  * revert silently, so DEFAULT_ACCOUNT never becomes a controller and every
  * `register()` reverts — producing phantom names that exist only in the
- * subgraph mock. We verify the grant landed and throw loudly if it didn't.
+ * bigname mock. We verify the grant landed and throw loudly if it didn't.
  */
 export async function ensureFunded(endpoint: string): Promise<void> {
   const TARGET = '0x56BC75E2D63100000' // 100 ETH in wei
@@ -789,50 +789,6 @@ export async function createV1NameOnAnvil(
   }
 }
 
-// --- Subgraph mock ----------------------------------------------------------
-
-/**
- * Build a minimal V1 subgraph domain object for a panel-created name.
- * Injected into getNamesForAddress responses so the migration UI finds the name.
- */
-export function buildMockDomain(name: ActiveName): unknown {
-  const lh = labelhash(name.label)
-  const node = namehashFromLabelAndParent(lh, ETH_NODE)
-  const isWrapped =
-    name.type !== 'unwrapped' && name.type !== 'grace-renewable-unwrapped'
-  const owner = DEFAULT_ACCOUNT.toLowerCase()
-  const now = Math.floor(Date.now() / 1000)
-
-  let fuses = PARENT_CANNOT_CONTROL | IS_DOT_ETH
-  if (name.type !== 'unwrapped' && name.type !== 'wrapped')
-    fuses |= CANNOT_UNWRAP
-  if (name.type === 'locked-all') fuses |= ALL_CHILD_FUSES
-
-  return {
-    id: node,
-    labelName: name.label,
-    labelhash: lh,
-    name: `${name.label}.eth`,
-    isMigrated: false,
-    createdAt: String(now - 3600),
-    resolvedAddress: null,
-    resolver: isWrapped
-      ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
-      : null,
-    owner: { id: isWrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
-    registrant: { id: owner },
-    wrappedOwner: isWrapped ? { id: owner } : null,
-    parent: { name: 'eth', id: ETH_NODE, wrappedDomain: null },
-    registration: {
-      registrationDate: String(now - 3600),
-      expiryDate: String(name.expiryDate),
-    },
-    wrappedDomain: isWrapped
-      ? { expiryDate: String(name.expiryDate), fuses }
-      : null,
-  }
-}
-
 // --- Anvil on-chain sync helpers --------------------------------------------
 
 const V2_NAME_STATUS = {
@@ -940,7 +896,7 @@ export async function getNamesOnAnvil(
  * Live BaseRegistrar expiry (unix seconds) for a .eth label on the Anvil fork,
  * or null if unregistered/unreadable. The panel stores each name's expiryDate at
  * creation, which goes STALE after an in-app renewal (or time-travel) — and the
- * subgraph mock feeds `registration.expiryDate` into migration eligibility
+ * bigname mock feeds `expires_at` into migration eligibility
  * (`classifyName` → `hasExpiredDotEthRegistration`). Reading it live keeps the
  * mock in step with on-chain state so a renewed grace name correctly becomes
  * migratable instead of staying classified `expired-registration`.
@@ -1087,7 +1043,7 @@ export async function ensureNamesOnAnvil(
 // Panel-created names are persisted in a COOKIE rather than localStorage so the
 // list is shared across the portal (:3001) and manager (:3000) dev servers —
 // cookies are scoped by host, not port, whereas localStorage is per-origin.
-// This lets the subgraph mock in one app inject names created in the other,
+// This lets the bigname mock in one app inject names created in the other,
 // which is required for the manager migration list to see portal-created names.
 // Cookie-safe name (no colons — those are separators the cookie grammar
 // disallows in a name, even though some browsers tolerate them).

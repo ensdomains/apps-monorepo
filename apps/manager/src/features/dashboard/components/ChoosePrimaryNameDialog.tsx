@@ -1,8 +1,4 @@
-import {
-  Domain_OrderBy,
-  type DomainsQuery,
-  OrderDirection,
-} from '@ens-apps/indexer'
+import type { AddressNameRow } from '@ens-apps/bigname'
 import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
@@ -46,8 +42,7 @@ import {
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
-import { getDomainsQuery } from '../service/queries/getDashboardDomains'
-import { resolveDomainLabel } from '../utils'
+import { primaryNameCandidatesQuery } from '../service/queries/getPrimaryNameCandidates'
 import {
   getEthAddressFromRecords,
   isConfirmBlocked,
@@ -59,8 +54,9 @@ interface ChoosePrimaryNameDialogProps {
   readonly children?: React.ReactNode
 }
 
-type PrimaryNameDomain = DomainsQuery['domains'][number]
-type PrimaryNameQueryVariables = Parameters<typeof getDomainsQuery>[0]
+type PrimaryNameDomain = AddressNameRow
+
+const EMPTY_DOMAINS: readonly PrimaryNameDomain[] = []
 type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
 
 const getSetupResolverErrorMessage = (
@@ -102,7 +98,7 @@ const PrimaryNameOption = ({
   readonly onSelectName: (name: string) => void
 }) => {
   const { t } = useLingui()
-  const label = resolveDomainLabel(domain)
+  const label = domain.name
   const isSelected = selectedName === label
   const avatarUrl = buildNameAvatarUrl(label)
 
@@ -116,7 +112,7 @@ const PrimaryNameOption = ({
           : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-ens-white'
       } ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
       disabled={isSubmitting}
-      key={domain.id}
+      key={domain.namehash}
       onClick={() => onSelectName(label)}
       type="button"
     >
@@ -312,21 +308,6 @@ const useSetupResolverMutation = ({
   })
 }
 
-const getPrimaryNameQueryVariables = (
-  address: string | undefined,
-): PrimaryNameQueryVariables => {
-  const normalizedAddress = address?.toLowerCase()
-  if (!normalizedAddress) return undefined
-
-  return {
-    where: { owner: normalizedAddress },
-    first: 100,
-    skip: 0,
-    orderBy: Domain_OrderBy.Name,
-    orderDirection: OrderDirection.Asc,
-  }
-}
-
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
@@ -381,27 +362,18 @@ export const ChoosePrimaryNameDialog = ({
   })
 
   // Fetch all owned names
-  const queryVariables = getPrimaryNameQueryVariables(address)
-
-  const { data: domainsData, isLoading } = useQuery(
-    getDomainsQuery(open ? queryVariables : undefined),
+  const { data: allDomains = EMPTY_DOMAINS, isLoading } = useQuery(
+    primaryNameCandidatesQuery(open ? address : undefined),
   )
-  const allDomains = domainsData?.domains ?? []
 
-  // Sort domains to always show primary name first
+  // Sort domains to always show the indexed primary name first
   const domains = useMemo(
     () =>
       [...allDomains].sort((a, b) => {
-        const labelA = resolveDomainLabel(a)
-        const labelB = resolveDomainLabel(b)
-        const isPrimaryA = labelA.toLowerCase() === reverseName?.toLowerCase()
-        const isPrimaryB = labelB.toLowerCase() === reverseName?.toLowerCase()
-
-        if (isPrimaryA) return -1
-        if (isPrimaryB) return 1
-        return 0
+        if (a.is_primary === b.is_primary) return 0
+        return a.is_primary ? -1 : 1
       }),
-    [allDomains, reverseName],
+    [allDomains],
   )
 
   const {
@@ -585,7 +557,7 @@ export const ChoosePrimaryNameDialog = ({
                     <PrimaryNameOption
                       domain={domain}
                       isSubmitting={isSubmitting}
-                      key={domain.id}
+                      key={domain.namehash}
                       onSelectName={handleSelectName}
                       selectedName={selectedName}
                     />

@@ -27,6 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
@@ -180,6 +181,13 @@ async function ensurePortalStablecoinBalances(address: Address) {
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
+
+// bigname mock — installed on every page when E2E_MOCK_BIGNAME=true so the
+// portal's bigname reads stay on the runner instead of reaching the public
+// Sepolia deployment, which never indexes the fork. No names are added: every
+// name answers 404 (not indexed), as the real deployment does for fork names.
+const bignameMock = createBignameMock()
+
 type PortalFixtures = {
   /** Headless web3 wallet backend — use to authorize transactions. */
   wallet: Web3ProviderBackend
@@ -194,6 +202,11 @@ type PortalFixtures = {
 }
 
 export const test = base.extend<PortalFixtures>({
+  page: async ({ page }, use) => {
+    await bignameMock.installIfEnabled(page)
+    await use(page)
+  },
+
   accounts: async ({}, use) => {
     await use(createAccounts())
   },

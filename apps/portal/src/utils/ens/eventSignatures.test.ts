@@ -134,4 +134,14 @@ describe('getEventFieldType', () => {
     expect(getEventFieldType('EACRolesChanged', 'nonexistent')).toBe('unknown')
     expect(getEventFieldType('AddressChanged', 'nonexistent')).toBe('unknown')
   })
+
+  it('types the fields of a bigname history payload by field name', () => {
+    expect(getEventFieldType('RegistrationGranted', 'registrant')).toBe(
+      'address',
+    )
+    expect(getEventFieldType('RecordChanged', 'coin_type')).toBe('uint256')
+    expect(getEventFieldType('RegistrationRenewed', 'expires_at')).toBe(
+      'timestamp',
+    )
+  })
 })

@@ -1,10 +1,10 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ok } from 'neverthrow'
 import {
+  EXACT_TIMESTAMP_MAX_ROWS,
   type ExpiringDomain,
   fetchExpiringNamesPage,
   PROCESS_PAGE_SIZE,
-  QUERY_PAGE_SIZE,
 } from './indexer.js'
 import type { ExpiryStageConfig } from './stages.js'
 
@@ -90,14 +90,15 @@ export function planNormalExpiryPage(
 export function planExactTimestampPage(
   domains: readonly ExpiringDomain[],
   timestamp: number,
+  hasMore: boolean,
 ) {
-  // The normal query reserves one row for lookahead, but an exact-timestamp
-  // query can safely use the indexer's full page capacity. If it saturates that
-  // capacity, there may be additional names at T that we cannot page without a
-  // composite cursor. Process all returned names and surface the saturation.
+  // The exact-timestamp query walks bigname's cursor through every name at T,
+  // up to EXACT_TIMESTAMP_MAX_ROWS. The cursor then moves past T, so if the
+  // bucket held more than that, the rest are skipped: process what was
+  // returned and surface the saturation.
   return {
-    domains: [...domains.slice(0, QUERY_PAGE_SIZE)],
-    overflow: domains.length >= QUERY_PAGE_SIZE,
+    domains: [...domains],
+    overflow: hasMore,
     cursorEnd: timestamp,
   }
 }
@@ -124,8 +125,13 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
     ...ctx,
     cursor: plan.timestamp - 1,
     upperBound: plan.timestamp,
+    maxRows: EXACT_TIMESTAMP_MAX_ROWS,
   })
-  const exactPlan = planExactTimestampPage(exactPage.domains, plan.timestamp)
+  const exactPlan = planExactTimestampPage(
+    exactPage.domains,
+    plan.timestamp,
+    exactPage.hasMore,
+  )
 
   return ok({
     domains: [...plan.domainsBeforeTimestamp, ...exactPlan.domains],

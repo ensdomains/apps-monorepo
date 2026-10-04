@@ -1,11 +1,10 @@
-import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
-import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { getSearchNameQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
 import { classifyNameSearch } from './classifyNameSearch'
 import { getSearchNameKind } from './getSearchNameKind'
+import { nameIndexStatusQuery } from './nameIndexStatus'
 import type {
   AvailabilitySignal,
   ExistenceSignal,
@@ -96,16 +95,7 @@ export const useNameClassification = (name: string): NameClassification => {
   })
 
   const indexerQuery = useQuery({
-    ...getDomainsQuery(
-      isProfileName
-        ? {
-            where: { name },
-            first: 1,
-            orderBy: Domain_OrderBy.Name,
-            orderDirection: OrderDirection.Asc,
-          }
-        : undefined,
-    ),
+    ...nameIndexStatusQuery(name),
     enabled: isProfileName,
   })
 
@@ -116,7 +106,7 @@ export const useNameClassification = (name: string): NameClassification => {
     hasOwner: Boolean(ownerQuery.data?.owner),
     indexerPending: indexerQuery.data === undefined && !indexerQuery.isError,
     indexerError: indexerQuery.isError,
-    indexerHit: (indexerQuery.data?.domains.length ?? 0) > 0,
+    indexerHit: indexerQuery.data === 'held',
   })
 
   // TLD support only decides between not-imported and not-found, so skip the

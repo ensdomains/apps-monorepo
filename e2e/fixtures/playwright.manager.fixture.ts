@@ -22,10 +22,20 @@ import {
   PERMITTED_SIGN_KINDS,
   signInBackendAuthModal,
 } from '../helpers/manager-auth.js'
-import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
+import {
+  createBignameMock,
+  type MockBignameName,
+  type MockV1Name,
+  v1MockName,
+} from '../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
-import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
+import { readV1NameState } from './makeV1Name.js'
+import {
+  createMakeV2Name,
+  readV2Expiry,
+  type V2NameConfig,
+} from './makeV2Name.js'
 import { createTime, type Time } from './time.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -155,8 +165,40 @@ export function createAccounts(): PortalAccounts {
   }
 }
 
-// Shared indexer mock — active only when E2E_MOCK_INDEXER=true.
-const indexerMock = createIndexerMock()
+// Shared bigname mock — installed on every page when E2E_MOCK_BIGNAME=true.
+// Names added with `addName` are served for the rest of the worker, like the
+// fork state they mirror.
+const bignameMock = createBignameMock()
+
+/** Add a name to the mock, reading its V2 expiry from the fork when not given. */
+async function addBignameName(name: MockBignameName): Promise<void> {
+  bignameMock.addName({
+    ...name,
+    expiresAt: name.expiresAt ?? (await readV2Expiry(name.name)),
+  })
+}
+
+/**
+ * Serve ENSv1 names on `page` only, with the expiry and resolver the fork
+ * holds unless the fixture overrides them. Installs the mock on the page even
+ * when E2E_MOCK_BIGNAME is off: no real bigname deployment indexes the fork.
+ */
+async function addBignameV1Names(
+  page: Page,
+  names: readonly MockV1Name[],
+): Promise<void> {
+  const served = await Promise.all(
+    names.map(async (name) => {
+      const state = await readV1NameState(name.name)
+      return v1MockName({
+        ...name,
+        expiryDate: name.expiryDate ?? state.expiry,
+        resolver: name.resolver ?? state.resolver,
+      })
+    }),
+  )
+  await bignameMock.addPageNames(page, served)
+}
 
 type ManagerFixtures = {
   /** Test accounts derived from the Anvil mnemonic. */
@@ -188,16 +230,18 @@ type ManagerFixtures = {
   /**
    * Register a V2 .eth name on-chain to the connected user's EOA (Anvil
    * account 0), or to account 1 with `owner: 'other'`. When
-   * E2E_MOCK_INDEXER=true the name is fed into the mock so dashboard/profile
-   * queries return it.
+   * E2E_MOCK_BIGNAME=true the name is fed into the bigname mock so
+   * dashboard/profile queries return it.
    */
   makeV2Name: (config: V2NameConfig) => Promise<string>
   /**
-   * Mock indexer control. When E2E_MOCK_INDEXER=true, call `addName()` after
-   * on-chain registration so dashboard/profile queries return the name.
+   * bigname mock control. When E2E_MOCK_BIGNAME=true, `await addName()` after
+   * an on-chain registration so dashboard/profile queries return the name.
+   * `addV1Names` serves ENSv1 names on one page whatever the flag.
    */
-  mockIndexer: {
-    addName: (domain: MockDomain) => void
+  mockBigname: {
+    addName: (name: MockBignameName) => Promise<void>
+    addV1Names: (page: Page, names: readonly MockV1Name[]) => Promise<void>
     enabled: boolean
   }
 }
@@ -225,10 +269,11 @@ async function connectHeadless(
 }
 
 export const test = base.extend<ManagerFixtures>({
-  // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
-  // This prevents connection-refused errors in CI where Panoptes isn't running.
+  // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true, so the
+  // apps see the names registered on the fork (the public Sepolia deployment
+  // never indexes them).
   page: async ({ page }, use) => {
-    await indexerMock.installIfEnabled(page)
+    await bignameMock.installIfEnabled(page)
     await use(page)
   },
 
@@ -313,12 +358,12 @@ export const test = base.extend<ManagerFixtures>({
       // Unfreeze the browser clock after registration so app timers
       // (receipt polling, dialog transitions) tick at real speed.
       await time.resume()
-      if (indexerMock.enabled) {
+      if (bignameMock.enabled) {
         const ownerAddress =
           config.owner === 'other'
             ? accounts.getAddress('user2')
             : accounts.getAddress('user')
-        indexerMock.addName({
+        await addBignameName({
           name,
           owner: ownerAddress,
           records: config.records,
@@ -328,10 +373,11 @@ export const test = base.extend<ManagerFixtures>({
     })
   },
 
-  mockIndexer: async ({}, use) => {
+  mockBigname: async ({}, use) => {
     await use({
-      addName: indexerMock.addName,
-      enabled: indexerMock.enabled,
+      addName: addBignameName,
+      addV1Names: addBignameV1Names,
+      enabled: bignameMock.enabled,
     })
   },
 })

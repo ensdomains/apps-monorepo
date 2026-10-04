@@ -1,146 +1,52 @@
-import { parseEventData } from '../summarize/decodeRawData'
-import type { TimelineDecoded, TimelineIndexerEvent } from '../timelineEvent'
+import type { HistoryEventType, TimelineEvent } from '../timelineEvent'
 
 /**
- * Solidity types for the indexer's decoded event payloads, keyed by event type.
- * Field names mirror the `as*` payloads fetched by the history timeline query
- * (plus EACRolesChanged, whose canonical fields arrive via the raw data blob).
+ * Types of the fields bigname's `include=data` payload carries, per friendly
+ * type. `data` is translated state, not the raw log, so these describe the
+ * served value (`expires_at` is an RFC 3339 instant, a contract is its address).
  */
-const FIELD_TYPES: Record<string, Record<string, string>> = {
-  AddressChanged: {
-    address: 'bytes',
-    coinType: 'uint256',
-    resolver: 'address',
-    namehash: 'bytes32',
-  },
-  // AddrChanged shares the asAddressChanged payload.
-  AddrChanged: {
-    address: 'bytes',
-    coinType: 'uint256',
-    resolver: 'address',
-    namehash: 'bytes32',
-  },
-  TextChanged: {
-    key: 'string',
-    value: 'string',
-    resolver: 'address',
-    namehash: 'bytes32',
-  },
-  Transfer: {
-    from: 'address',
-    to: 'address',
-    id: 'uint256',
-    operator: 'address',
-    value: 'uint256',
-  },
-  RegistryTransfer: { node: 'bytes32', owner: 'address' },
-  LabelRegistered: {
-    name: 'string',
+const FIELD_TYPES: Record<HistoryEventType, Record<string, string>> = {
+  registration: {
+    registrant: 'address',
     owner: 'address',
-    registry: 'address',
-    tokenId: 'uint256',
-    sender: 'address',
-    canonicalId: 'uint256',
-    expiry: 'uint64',
-  },
-  NameRegistered: {
-    name: 'string',
-    label: 'bytes32',
-    owner: 'address',
-    cost: 'uint256',
-    baseCost: 'uint256',
-    premium: 'uint256',
-    referrer: 'bytes32',
-    expires: 'uint64',
-  },
-  NameRenewed: { id: 'uint256', expires: 'uint64' },
-  ResolverUpdated: {
+    expires_at: 'timestamp',
     resolver: 'address',
-    sender: 'address',
-    tokenId: 'uint256',
-  },
-  ReverseClaimed: { address: 'address', node: 'bytes32' },
-  NameWrapped: {
-    node: 'bytes32',
-    owner: 'address',
-    fuses: 'uint32',
-    expiry: 'uint64',
-  },
-  NameUnwrapped: { node: 'bytes32', owner: 'address' },
-  FusesSet: { node: 'bytes32', fuses: 'uint32' },
-  ExpiryUpdated: { node: 'bytes32', tokenId: 'uint256', expiry: 'uint64' },
-  EACRolesChanged: {
-    resource: 'uint256',
-    account: 'address',
-    oldRoleBitmap: 'uint256',
-    newRoleBitmap: 'uint256',
-  },
-  NewOwner: { owner: 'address', node: 'bytes32', parent: 'string' },
-  NewTTL: { node: 'bytes32', ttl: 'uint64' },
-  WrappedTransfer: { node: 'bytes32', owner: 'address' },
-  NameTransferred: { node: 'bytes32', newOwner: 'address' },
-  AbiChanged: { node: 'bytes32', resolver: 'address', contentType: 'uint256' },
-  PubkeyChanged: {
-    node: 'bytes32',
-    resolver: 'address',
-    x: 'bytes32',
-    y: 'bytes32',
-  },
-  InterfaceChanged: {
-    node: 'bytes32',
-    resolver: 'address',
-    interfaceID: 'bytes4',
-    implementer: 'address',
-  },
-  AuthorisationChanged: {
-    node: 'bytes32',
-    resolver: 'address',
-    owner: 'address',
-    target: 'address',
-    isAuthorized: 'bool',
-  },
-  VersionChanged: { node: 'bytes32', resolver: 'address', version: 'uint64' },
-  ContenthashChanged: { node: 'bytes32', resolver: 'address', hash: 'bytes' },
-  NameChanged: { node: 'bytes32', resolver: 'address', name: 'string' },
-  SubregistryUpdated: {
-    name: 'string',
-    canonicalId: 'uint256',
-    tokenId: 'uint256',
     subregistry: 'address',
-    registry: 'address',
-    sender: 'address',
   },
-}
-
-const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
-  AddressChanged: 'asAddressChanged',
-  AddrChanged: 'asAddressChanged',
-  TextChanged: 'asTextChanged',
-  Transfer: 'asTransfer',
-  RegistryTransfer: 'asRegistryTransfer',
-  LabelRegistered: 'asLabelRegistered',
-  NameRegistered: 'asNameRegistered',
-  NameRenewed: 'asNameRenewed',
-  ResolverUpdated: 'asResolverUpdated',
-  ReverseClaimed: 'asReverseClaimed',
-  NameWrapped: 'asNameWrapped',
-  NameUnwrapped: 'asNameUnwrapped',
-  FusesSet: 'asFusesSet',
-  ExpiryUpdated: 'asExpiryUpdated',
+  renewal: { expires_at: 'timestamp' },
+  release: { expires_at: 'timestamp' },
+  expiry: { expires_at: 'timestamp', fuses: 'uint32' },
+  transfer: { from: 'address', to: 'address', fuses: 'uint32' },
+  authority: { owner: 'address', from: 'address' },
+  resolver: { resolver: 'address' },
+  record: { key: 'string', value: 'string | bytes', coin_type: 'uint256' },
+  primary_name: { address: 'address', coin_type: 'uint256' },
+  permission: { address: 'address', powers: 'string[]', fuses: 'uint32' },
+  subregistry: { subregistry: 'address' },
 }
 
 export const getTimelineFieldType = (
-  eventType: string,
+  eventType: HistoryEventType,
   fieldKey: string,
-): string => FIELD_TYPES[eventType]?.[fieldKey] ?? 'unknown'
+): string => FIELD_TYPES[eventType][fieldKey] ?? 'unknown'
 
-/** Typed `as*` payload for `event.type`, else the raw `data` blob. */
-export const getDecodedParamEntries = (
-  event: TimelineIndexerEvent,
-): ReadonlyArray<readonly [string, string]> => {
-  const payloadKey = PAYLOAD_KEY_BY_TYPE[event.type]
-  const source = (payloadKey && event[payloadKey]) || parseEventData(event.data)
-  return Object.entries(source)
-    .filter(([, value]) => value != null && value !== '')
-    .map(([key, value]) => [key, String(value)] as const)
+const isContractRef = (value: unknown): value is { address: string } =>
+  typeof value === 'object' &&
+  value !== null &&
+  'address' in value &&
+  typeof value.address === 'string'
+
+/** A payload value as one string: a contract pointer by its address, a list comma-joined. */
+const stringify = (value: unknown): string => {
+  if (isContractRef(value)) return value.address
+  if (Array.isArray(value)) return value.map(String).join(', ')
+  return String(value)
 }
+
+/** The row's `data` fields, flattened for the decoded-parameter table. */
+export const getDecodedParamEntries = (
+  event: TimelineEvent,
+): ReadonlyArray<readonly [string, string]> =>
+  Object.entries(event.data)
+    .filter(([, value]) => value != null && value !== '')
+    .map(([key, value]) => [key, stringify(value)] as const)

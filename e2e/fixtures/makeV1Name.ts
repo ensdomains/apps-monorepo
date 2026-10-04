@@ -171,6 +171,43 @@ export type V1NameConfig = {
 }
 
 // ---------------------------------------------------------------------------
+// readV1NameState — what an indexer would report for a V1 name
+// ---------------------------------------------------------------------------
+
+/**
+ * Registrar expiry (unix seconds) and registry resolver of a V1 `.eth` 2LD on
+ * the fork, for the bigname mock. Each field is undefined when unreadable or
+ * unset.
+ */
+export async function readV1NameState(
+  name: string,
+): Promise<{ expiry?: number; resolver?: Address }> {
+  const label = name.replace(/\.eth$/, '')
+  const [expiry, resolver] = await Promise.all([
+    publicClient
+      .readContract({
+        address: V1_BASE_REGISTRAR,
+        abi: BASE_REGISTRAR_ABI,
+        functionName: 'nameExpires',
+        args: [BigInt(keccak256(toHex(label)))],
+      })
+      .catch(() => 0n),
+    publicClient
+      .readContract({
+        address: V1_ENS_REGISTRY,
+        abi: ENS_REGISTRY_ABI,
+        functionName: 'resolver',
+        args: [namehash(name)],
+      })
+      .catch(() => zeroAddress),
+  ])
+  return {
+    expiry: expiry > 0n ? Number(expiry) : undefined,
+    resolver: resolver === zeroAddress ? undefined : resolver,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // reserveInV2 — creates the RESERVED placeholder in V2 ETH Registry
 // ---------------------------------------------------------------------------
 

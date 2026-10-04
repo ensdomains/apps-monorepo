@@ -1,112 +1,76 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
+import { parseRecordKey, type RecordInventory } from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
-import type { GetRecordsErrorType } from '@ensdomains/ensjs/public'
-import type { GetSubgraphRecordsErrorType } from '@ensdomains/ensjs/subgraph'
-import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import { graphqlIndexerClient } from '@/lib/indexer'
-import { mergeCoinTypes, mergeTextKeys } from '@/utils/records/mergeRecordKeys'
-import type { ProtocolVersion } from '@/utils/types'
+import { bigname } from '@/lib/bigname'
 import { getRecords } from './useRecords'
-import { getSubgraphRecords } from './useSubgraphRecords'
 
 class GetProfileError extends TaggedError('RecordsError')<{
-  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | GraphqlRequestError
+  cause: unknown
 }> {}
 
 type GetProfileParameters = {
   name: string
-  protocolVersion?: ProtocolVersion
 }
 
-const getProfile = ResultFn(async function* ({
-  name,
-  protocolVersion,
-}: GetProfileParameters) {
-  const isV1 = protocolVersion === 'ENSv1'
-  const isV2 = protocolVersion === 'ENSv2'
+/** Records every profile asks the chain for, whatever the inventory says. */
+const DEFAULT_COINS = [
+  // EVM
+  coinNameToTypeMap.eth,
+  coinNameToTypeMap.arb1,
+  coinNameToTypeMap.op,
+  coinNameToTypeMap.base,
 
-  const subgraphV1Records = !isV2 ? yield* getSubgraphRecords(name) : null
+  // Non-EVM
+  coinNameToTypeMap.btc,
+  coinNameToTypeMap.doge,
+  coinNameToTypeMap.sol,
+  coinNameToTypeMap.strk,
+]
 
-  const subgraphV2Result = !isV1
-    ? yield* fromPromise(
-        graphqlIndexerClient.request<
-          {
-            domains: [
-              {
-                resolver: {
-                  texts: string[] | null
-                  addresses: { coinType: number; address: string }[] | null
-                } | null
-              },
-            ]
-          },
-          { name: string }
-        >(
-          gql`query getRecords($name: String!) {
-            domains(where: {name: $name}) {
-              resolver {
-                texts
-                addresses {
-                  coinType
-                  address
-                }
-              }
-            }
-          }`,
-          { name },
-        ),
-        (e) => new GetProfileError({ cause: e as GraphqlRequestError }),
-      )
-    : null
+const DEFAULT_TEXTS = [
+  'name',
+  'description',
+  'com.twitter',
+  'org.telegram',
+  'header',
+  'avatar',
+]
 
-  const subgraphV2Records = subgraphV2Result?.domains[0]?.resolver ?? null
+/**
+ * The text keys and coin types to read on chain: the defaults plus every key
+ * bigname's inventory knows is set. `unsupported_keys` are keys bigname cannot
+ * vouch for either way (e.g. a resolver it does not index), so they are read
+ * too rather than dropped.
+ */
+export const recordKeysToRead = (inventory: RecordInventory | undefined) => {
+  const texts = new Set<string>(DEFAULT_TEXTS)
+  const coins = new Set<number>(DEFAULT_COINS)
+  for (const key of [
+    ...(inventory?.known_keys ?? []),
+    ...(inventory?.unsupported_keys ?? []),
+  ]) {
+    const parsed = parseRecordKey(key)
+    if (parsed?.kind === 'text') texts.add(parsed.key)
+    else if (parsed?.kind === 'avatar') texts.add('avatar')
+    else if (parsed?.kind === 'addr') coins.add(parsed.coinType)
+  }
+  return { texts: [...texts], coins: [...coins] }
+}
 
-  // Coin types the V2 resolver actually has, per the indexer. Without these,
-  // migrated (ENSv2) names only surface the hardcoded default coins below,
-  // so any other address record is silently dropped from the records tab.
-  const subgraphV2Coins = subgraphV2Records?.addresses?.map(
-    (address) => address.coinType,
+const getProfile = ResultFn(async function* ({ name }: GetProfileParameters) {
+  // The inventory only says which keys exist; the values are read on chain.
+  const recordsResponse = yield* fromPromise(
+    bigname.getNameRecords(name, { include: ['inventory'] }),
+    (e) => new GetProfileError({ cause: e }),
   )
 
-  const coins = mergeCoinTypes(
-    [...(subgraphV1Records?.coins ?? []), ...(subgraphV2Coins ?? [])],
-    [
-      // default requested coins
-      // EVM
-      coinNameToTypeMap.eth,
-      coinNameToTypeMap.arb1,
-      coinNameToTypeMap.op,
-      coinNameToTypeMap.base,
-
-      // Non-EVM
-      coinNameToTypeMap.btc,
-      coinNameToTypeMap.doge,
-      coinNameToTypeMap.sol,
-      coinNameToTypeMap.strk,
-    ],
-  )
-
-  const texts = mergeTextKeys(
-    subgraphV1Records?.texts,
-    subgraphV2Records?.texts ?? undefined,
-    [
-      // default requested texts
-      'name',
-      'description',
-      'com.twitter',
-      'org.telegram',
-      'header',
-      'avatar',
-    ],
-  )
+  const { texts, coins } = recordKeysToRead(recordsResponse?.data.inventory)
 
   const records = yield* getRecords({
     name,
-    ...(subgraphV1Records ?? {}),
     coins,
     texts,
     contentHash: true,
@@ -114,26 +78,15 @@ const getProfile = ResultFn(async function* ({
     ignoreInvalidCoinTypes: true,
   })
 
-  return ok({
-    records,
-    subgraphRecords: { ...(subgraphV1Records ?? {}) },
-  })
+  return ok({ records })
 })
 
-export const profileQueryKey = createQueryKey<
+export const profileQueryKey = createQueryKey<'profile', GetProfileParameters>(
   'profile',
-  {
-    name: string
-    protocolVersion?: ProtocolVersion
-  }
->('profile')
+)
 
-export const getProfileQueryOptions = ({
-  name,
-  protocolVersion,
-}: GetProfileParameters) =>
+export const getProfileQueryOptions = ({ name }: GetProfileParameters) =>
   resultQueryOptions({
-    queryKey: profileQueryKey({ name, protocolVersion }),
-    queryFn: ({ queryKey: [, { name, protocolVersion }] }) =>
-      getProfile({ name, protocolVersion }),
+    queryKey: profileQueryKey({ name }),
+    queryFn: ({ queryKey: [, { name }] }) => getProfile({ name }),
   })

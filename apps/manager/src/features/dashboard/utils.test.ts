@@ -3,7 +3,6 @@ import {
   formatDashboardDate,
   getDaysUntil,
   isExpiringSoon,
-  resolveDomainLabel,
   toDateFromSeconds,
 } from './utils'
 
@@ -154,51 +153,6 @@ describe('dashboard utils', () => {
 
     it('should return false when daysUntilOverride is null', () => {
       expect(isExpiringSoon(null, 30, null)).toBe(false)
-    })
-  })
-
-  describe('resolveDomainLabel', () => {
-    it('should return name when available', () => {
-      const domain = {
-        id: '123',
-        name: 'example.eth',
-        normalizedName: 'example.eth',
-      }
-      expect(resolveDomainLabel(domain)).toBe('example.eth')
-    })
-
-    it('should return normalizedName when name is null', () => {
-      const domain = { id: '123', name: null, normalizedName: 'example.eth' }
-      expect(resolveDomainLabel(domain)).toBe('example.eth')
-    })
-
-    it('should return normalizedName when name is undefined', () => {
-      const domain = { id: '123', normalizedName: 'example.eth' }
-      expect(resolveDomainLabel(domain)).toBe('example.eth')
-    })
-
-    it('should return id when both name and normalizedName are null', () => {
-      const domain = { id: '123', name: null, normalizedName: null }
-      expect(resolveDomainLabel(domain)).toBe('123')
-    })
-
-    it('should return id when only id is provided', () => {
-      const domain = { id: '123' }
-      expect(resolveDomainLabel(domain)).toBe('123')
-    })
-
-    it('should prefer name over normalizedName', () => {
-      const domain = {
-        id: '123',
-        name: 'Display Name',
-        normalizedName: 'normalized',
-      }
-      expect(resolveDomainLabel(domain)).toBe('Display Name')
-    })
-
-    it('should handle empty string name', () => {
-      const domain = { id: '123', name: '', normalizedName: 'example.eth' }
-      expect(resolveDomainLabel(domain)).toBe('')
     })
   })
 

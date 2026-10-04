@@ -1,15 +1,9 @@
-import type {
-  OwnedNamesCountQuery,
-  OwnedNamesCountQueryVariables,
-} from '@ens-apps/indexer'
-import { OwnedNamesCountDocument } from '@ens-apps/indexer'
-import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
-import { indexerClient } from '@/lib/indexer-client'
+import { bigname } from '@/lib/bigname'
 
 export class GetOwnedNamesCountError extends TaggedError(
   'GetOwnedNamesCountError',
@@ -17,19 +11,23 @@ export class GetOwnedNamesCountError extends TaggedError(
   cause: unknown
 }> {}
 
-export const getOwnedNamesCount = ResultFn(async function* (
-  variables: OwnedNamesCountQueryVariables,
-) {
-  const data = yield* await ResultAsync.fromPromise(
-    graphqlRequest<OwnedNamesCountQuery, OwnedNamesCountQueryVariables>(
-      indexerClient,
-      OwnedNamesCountDocument,
-      variables,
-    ),
+/**
+ * Registrations the address is registrant of. bigname returns an exact
+ * `total_count` for authority relations, so one row is enough; a wrapped
+ * `.eth` name counts once (one registrar lease).
+ */
+export const getOwnedNamesCount = ResultFn(async function* (address: string) {
+  const { page } = yield* await ResultAsync.fromPromise(
+    bigname.listAddressNames(address.toLowerCase(), {
+      namespace: 'ens',
+      relation: ['registrant'],
+      dedupe: 'registration',
+      page_size: 1,
+    }),
     (error) => new GetOwnedNamesCountError({ cause: error }),
   )
 
-  return ok(data.registrationConnection.totalCount ?? 0)
+  return ok(page.total_count ?? 0)
 })
 
 const ownedNamesCountQueryKey = (address?: string) =>
@@ -40,10 +38,7 @@ const ownedNamesCountQueryKey = (address?: string) =>
 export const ownedNamesCountQueryOptions = (address?: string) =>
   resultQueryOptions({
     queryKey: ownedNamesCountQueryKey(address),
-    queryFn: address
-      ? () =>
-          getOwnedNamesCount({ where: { registrant: address.toLowerCase() } })
-      : skipToken,
+    queryFn: address ? () => getOwnedNamesCount(address) : skipToken,
     meta: {
       dependsOn: ['indexer'],
     },

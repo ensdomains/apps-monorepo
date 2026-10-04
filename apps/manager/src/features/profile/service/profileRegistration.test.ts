@@ -1,33 +1,16 @@
-import { namehash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   client: {},
-  getBlock: vi.fn(),
-  getNameHistory: vi.fn(),
+  getName: vi.fn(),
   getRegistrationDate: vi.fn(),
-  indexerQuery: vi.fn(),
 }))
 
 vi.mock('@ensdomains/ensjs/public/v2', () => ({
   getRegistrationDate: mocks.getRegistrationDate,
 }))
 
-vi.mock('@ensdomains/ensjs/subgraph', () => ({
-  getNameHistory: mocks.getNameHistory,
-}))
-
-vi.mock('viem/actions', () => ({
-  getBlock: mocks.getBlock,
-}))
-
-vi.mock('@/lib/indexer-client', () => ({
-  indexerClient: {
-    query: (...args: unknown[]) => ({
-      toPromise: () => Promise.resolve(mocks.indexerQuery(...args)),
-    }),
-  },
-}))
+vi.mock('@/lib/bigname', () => ({ bigname: { getName: mocks.getName } }))
 
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
@@ -40,6 +23,11 @@ import {
   getRegistration,
   profileRegistrationQuery,
 } from './profileRegistration'
+
+const detail = (data: Record<string, unknown>) => ({
+  data: { status: 'ok', ...data },
+  meta: {},
+})
 
 describe('profileRegistrationQuery', () => {
   it('includes protocol in the query key', () => {
@@ -57,24 +45,42 @@ describe('profileRegistrationQuery', () => {
 describe('getRegistration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.indexerQuery.mockResolvedValue({ data: { domain: null } })
+    mocks.getName.mockResolvedValue(null)
   })
 
-  it('reads a V2 registration date from the indexer', async () => {
-    mocks.indexerQuery.mockResolvedValue({
-      data: { domain: { registrationDate: 1_789_640_616 } },
-    })
+  it('reads a V2 registration date from bigname', async () => {
+    mocks.getName.mockResolvedValue(
+      detail({ registered_at: '2026-09-17T10:23:36Z' }),
+    )
 
     const result = await getRegistration('rabbit.eth', 'v2')
 
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_789_640_616 })
-    expect(mocks.indexerQuery).toHaveBeenCalledWith(expect.anything(), {
-      id: namehash('rabbit.eth'),
+    expect(mocks.getName).toHaveBeenCalledWith('rabbit.eth')
+    expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
+  })
+
+  it('reads a V1 registration date from bigname, with no block lookup', async () => {
+    mocks.getName.mockResolvedValue(
+      detail({ authority: 'ens_v1', registered_at: '2027-01-15T08:00:00Z' }),
+    )
+
+    const result = await getRegistration('fgeorgescu.eth', 'v1')
+
+    expect(result._unsafeUnwrap()).toEqual({
+      registrationDate: Date.parse('2027-01-15T08:00:00Z') / 1000,
     })
     expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
   })
 
-  it('falls back on chain for a V2 name the indexer has not seen yet', async () => {
+  it('answers no date for a V1 name bigname has no date for', async () => {
+    const result = await getRegistration('fgeorgescu.eth', 'v1')
+
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: null })
+    expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
+  })
+
+  it('falls back on chain for a V2 name bigname has not indexed (404)', async () => {
     mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
 
     const result = await getRegistration('figma.eth', 'v2')
@@ -82,8 +88,8 @@ describe('getRegistration', () => {
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
   })
 
-  it('falls back on chain when the indexer request fails', async () => {
-    mocks.indexerQuery.mockRejectedValue(new Error('indexer down'))
+  it('falls back on chain when bigname fails', async () => {
+    mocks.getName.mockRejectedValue(new Error('bigname down'))
     mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
 
     const result = await getRegistration('figma.eth', 'v2')
@@ -91,36 +97,26 @@ describe('getRegistration', () => {
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
   })
 
-  it('reads a subname registration date from the indexer', async () => {
-    mocks.indexerQuery.mockResolvedValue({
-      data: { domain: { registrationDate: 1_790_000_000 } },
-    })
+  it('falls back on chain for an unsupported name', async () => {
+    mocks.getName.mockResolvedValue(
+      detail({ status: 'unsupported', unsupported_reason: 'x' }),
+    )
+    mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
+
+    const result = await getRegistration('figma.eth', 'v2')
+
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
+  })
+
+  it('reads a subname registration date from bigname', async () => {
+    mocks.getName.mockResolvedValue(
+      detail({ registered_at: '2026-09-21T14:13:20Z' }),
+    )
 
     const result = await getRegistration('mini.shiba.eth')
 
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_790_000_000 })
-    expect(mocks.indexerQuery).toHaveBeenCalledWith(expect.anything(), {
-      id: namehash('mini.shiba.eth'),
-    })
+    expect(mocks.getName).toHaveBeenCalledWith('mini.shiba.eth')
     expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
-  })
-
-  it('reads a V1 registration date from the registration event block', async () => {
-    mocks.getNameHistory.mockResolvedValue({
-      registrationEvents: [
-        { blockNumber: 20, type: 'NameRenewed' },
-        { blockNumber: 15, type: 'NameRegistered' },
-        { blockNumber: 5, type: 'NameRegistered' },
-      ],
-    })
-    mocks.getBlock.mockResolvedValue({ timestamp: 1_800_000_000n })
-
-    const result = await getRegistration('fgeorgescu.eth', 'v1')
-
-    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
-    expect(mocks.getBlock).toHaveBeenCalledWith(mocks.client, {
-      blockNumber: 15n,
-    })
-    expect(mocks.indexerQuery).not.toHaveBeenCalled()
   })
 })

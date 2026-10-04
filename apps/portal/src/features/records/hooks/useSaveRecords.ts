@@ -59,10 +59,6 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
       try {
         await pollForIndexerSync({
           invalidateQueries: () =>
-            // Name-only key so this matches the active profile query
-            // regardless of its `protocolVersion` — a `{ name, protocolVersion:
-            // undefined }` key does NOT partial-match `{ name, protocolVersion:
-            // 'ENSv2' }`, so the profile never refetched.
             queryClient.invalidateQueries({
               queryKey: profileQueryKey({ name }),
               refetchType: 'all',

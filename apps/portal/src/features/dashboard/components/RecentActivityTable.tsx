@@ -52,14 +52,7 @@ export const RecentActivityTable = () => {
           events.map((event, index) => {
             const { text, value, actor, entityFromData } =
               formatActivityEvent(event)
-            const rawName =
-              event.name?.trim() || event.domain?.name?.trim() || null
-            const resolvedName =
-              rawName &&
-              !rawName.startsWith('tokenId:') &&
-              !rawName.startsWith('canonicalId:')
-                ? rawName
-                : null
+            const resolvedName = event.name?.trim() || null
             const txHash = event.transactionHash
 
             return (

@@ -1,55 +1,70 @@
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
-import { indexerClient } from '@/lib/indexer-client'
-import { mockIndexerQuery } from './_fixtures'
+import { bignamePage, bignameRequest, bignameResponse } from './_fixtures'
 import { getMigratedNamesCount } from './getMigratedNamesCount'
 
-// Stub only the client — `graphqlRequest` stays real so these exercise the
-// production unwrap path.
-vi.mock('@/lib/indexer-client', () => ({
-  indexerClient: { query: vi.fn() },
-}))
+const fetchMock = vi.hoisted(() => vi.fn())
 
-const queryMock = vi.mocked(indexerClient.query)
-const respond = (r: { data?: unknown; error?: unknown }) =>
-  mockIndexerQuery(queryMock, r)
+vi.mock('@/lib/bigname', async () => {
+  const { createBignameClient } = await import('@ens-apps/bigname')
+  return {
+    bigname: createBignameClient({
+      baseUrl: 'https://bigname.test',
+      fetch: fetchMock,
+      retry: false,
+    }),
+  }
+})
 
 const ADDR = '0x0000000000000000000000000000000000000001'
 
 beforeEach(() => {
-  queryMock.mockReset()
+  fetchMock.mockReset()
 })
 
 describe('getMigratedNamesCount', () => {
-  it('returns ok with the total count from the indexer', async () => {
-    respond({ data: { domainConnection: { totalCount: 42 } } })
+  it('returns the exact total_count of migrated names the address owns', async () => {
+    fetchMock.mockResolvedValueOnce(
+      bignameResponse(bignamePage([{}], { totalCount: 42 })),
+    )
     const r = await getMigratedNamesCount(ADDR)
     assert(r.isOk())
     expect(r.value).toBe(42)
   })
 
-  it('returns ok with 0 when totalCount is missing', async () => {
-    respond({ data: { domainConnection: {} } })
+  it('returns 0 when total_count is null', async () => {
+    fetchMock.mockResolvedValueOnce(bignameResponse(bignamePage([])))
     const r = await getMigratedNamesCount(ADDR)
     assert(r.isOk())
     expect(r.value).toBe(0)
   })
 
-  it.each([
-    ['error', { error: new Error('indexer 500') }],
-    ['no data and no error', {}],
-  ] as const)('returns err on %s', async (_, response) => {
-    respond(response)
+  it('returns err when bigname fails', async () => {
+    fetchMock.mockResolvedValueOnce(
+      bignameResponse(
+        { error: { code: 'internal_error', message: 'boom', details: {} } },
+        500,
+      ),
+    )
     const r = await getMigratedNamesCount(ADDR)
     assert(r.isErr())
     expect(r.error._tag).toBe('GetMigratedNamesCountError')
   })
 
-  it('lowercases the address when building query variables', async () => {
-    respond({ data: { domainConnection: { totalCount: 1 } } })
-    await getMigratedNamesCount('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
-    const vars = queryMock.mock.calls[0]?.[1] as { where?: { owner?: string } }
-    expect(vars?.where?.owner).toBe(
-      '0xabcdef0123456789abcdef0123456789abcdef01',
+  it('asks for one owner row of proven migrations, deduped by name', async () => {
+    fetchMock.mockResolvedValueOnce(
+      bignameResponse(bignamePage([], { totalCount: 1 })),
     )
+    await getMigratedNamesCount('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
+
+    const { url } = bignameRequest(fetchMock.mock.calls[0])
+    expect(url.pathname).toBe(
+      '/v1/addresses/0xabcdef0123456789abcdef0123456789abcdef01/names',
+    )
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      relation: 'owner',
+      is_migrated: 'true',
+      dedupe: 'name',
+      page_size: '1',
+    })
   })
 })

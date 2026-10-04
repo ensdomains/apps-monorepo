@@ -5,18 +5,18 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
-  buildMergedNamesList,
-  type MergedItem,
-  mergedRowMetadata,
+  type DashboardName,
+  dashboardRowMetadata,
+  filterAndSortDashboardNames,
   type SortDir,
   type SortField,
-} from '@/features/dashboard/mergedNames'
+} from '@/features/dashboard/dashboardNames'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
-import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
+import { useDashboardNames } from '../useDashboardNames'
 import { DashboardPagination } from './DashboardPagination'
 import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
@@ -24,7 +24,6 @@ import { getNameRowProfilePreview } from './nameRowProfileRecords'
 import { nameRowRecordsQuery } from './nameRowRecordsQuery'
 
 const PAGE_SIZE = 5
-const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
 
 export type Sort = `${SortField}-${SortDir}`
 
@@ -59,7 +58,7 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
   return { field, dir }
 }
 
-type MergedNameRowMetadata = ReturnType<typeof mergedRowMetadata>
+type DashboardNameRowMetadata = ReturnType<typeof dashboardRowMetadata>
 
 type NameRowActionState = {
   readonly cta: NameRowCta | null
@@ -81,8 +80,8 @@ const AnimatedNameRow = ({
   onToggleSelect,
   isV1Renewable,
 }: {
-  readonly metadata: MergedNameRowMetadata
-  readonly item: MergedItem
+  readonly metadata: DashboardNameRowMetadata
+  readonly item: DashboardName
   readonly name: string
   readonly index: number
   readonly profileRecords?: Pick<ProfileRecordsResult, 'texts'> | null
@@ -112,10 +111,7 @@ const AnimatedNameRow = ({
     records: profileRecords,
     isLoading: isProfileRecordsLoading,
   })
-  const nameRoles: readonly NameRole[] =
-    item.kind === 'v1'
-      ? (item.classified.nameRoles ?? OWNER_NAME_ROLES)
-      : (item.domain.nameRoles ?? OWNER_NAME_ROLES)
+  const nameRoles: readonly NameRole[] = item.nameRoles
   const { cta, status } = match({ isV1, isMigrationEligible })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
@@ -202,57 +198,58 @@ export const MyNamesList = ({
   }
 
   const {
-    v1Names,
-    isPending: isV1Pending,
-    isError: isV1Error,
-  } = useDashboardV1Names({
+    eligibleNames,
+    isPending: isEligibilityPending,
+    isError: isEligibilityError,
+  } = useDashboardMigrationEligibility({
     migrationEnabled,
   })
 
   const {
-    v2Names,
-    isPending: isV2Pending,
-    isError: isV2Error,
-  } = useOwnedDomains()
+    names,
+    isPending: isNamesPending,
+    isError: isNamesError,
+  } = useDashboardNames()
 
-  const mergedSortedFiltered = useMemo(
+  const sortedFiltered = useMemo(
     () =>
-      buildMergedNamesList({
-        v2Names,
-        v1Classified: v1Names,
+      filterAndSortDashboardNames({
+        names,
         searchQuery,
         sortField,
         sortDir,
       }),
-    [v2Names, v1Names, searchQuery, sortField, sortDir],
+    [names, searchQuery, sortField, sortDir],
   )
 
-  const total = mergedSortedFiltered.length
+  const total = sortedFiltered.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = mergedSortedFiltered.slice(
+  const pageItems = sortedFiltered.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   )
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
-  const isPending = isV2Pending || isV1Pending
-  const hasNames = v2Names.length > 0 || v1Names.length > 0
-  const hasError = isV2Error || isV1Error
+  const isPending = isNamesPending || isEligibilityPending
+  const hasNames = names.length > 0
+  const hasError = isNamesError || isEligibilityError
+  // A failed eligibility read leaves every name listed, only without the
+  // upgrade label, so it is a partial error rather than an empty list.
   const hasPartialError = hasError && hasNames
   const pageRows = pageItems.map((item) => ({
     item,
-    metadata: mergedRowMetadata(item, primaryLabel),
-    name:
-      item.kind === 'v2'
-        ? (item.domain.normalizedName ?? item.sortName)
-        : item.sortName,
+    metadata: dashboardRowMetadata(item, {
+      primaryLabel,
+      isMigrationEligible: eligibleNames.has(item.name.toLowerCase()),
+    }),
+    name: item.name,
   }))
   const pageProfileRecords = useQueries({
     queries: pageRows.map(({ item, metadata, name }) => ({
       ...nameRowRecordsQuery(name),
-      enabled: item.kind === 'v2' && !metadata.isInGrace,
+      enabled: item.protocol === 'v2' && !metadata.isInGrace,
     })),
     combine: (results) =>
       results.map((result) => ({
@@ -261,10 +258,12 @@ export const MyNamesList = ({
       })),
   })
   const { isRenewable: isV1Renewable } = useV1Renewable(
-    pageRows.filter(({ item }) => item.kind === 'v1').map(({ name }) => name),
+    pageRows
+      .filter(({ item }) => item.protocol === 'v1')
+      .map(({ name }) => name),
   )
 
-  if (hasError && !hasNames) {
+  if (isNamesError && !hasNames) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
         <Trans>Error loading names</Trans>
@@ -322,7 +321,7 @@ export const MyNamesList = ({
                     profileRecordState?.isLoading ?? false
                   }
                   isV1Renewable={
-                    row.item.kind === 'v1' && isV1Renewable(row.name)
+                    row.item.protocol === 'v1' && isV1Renewable(row.name)
                   }
                   item={row.item}
                   key={row.item.key}
