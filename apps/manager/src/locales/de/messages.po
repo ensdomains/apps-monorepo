@@ -5,16 +5,16 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
-"Language: sv\n"
+"Language: de\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
 "PO-Revision-Date: 2026-10-03 08:11\n"
 "Last-Translator: \n"
-"Language-Team: Swedish\n"
+"Language-Team: German\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Crowdin-Project: ens-app\n"
 "X-Crowdin-Project-ID: 877908\n"
-"X-Crowdin-Language: sv-SE\n"
+"X-Crowdin-Language: de\n"
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
@@ -195,7 +195,7 @@ msgstr ""
 
 #: src/routes/index.tsx
 msgid "A simple, portable identity that you control"
-msgstr "En enkel, portabel identitet som du kontrollerar"
+msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
@@ -422,11 +422,11 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
-msgstr "Kan jag byta mitt primära namn senare?"
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I send crypto to a .eth name (instead of an address)?"
-msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
+msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Can you share your order number?"
@@ -442,7 +442,7 @@ msgstr ""
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Cancel"
-msgstr "Avbryt"
+msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Cancel Email Verification?"
@@ -520,7 +520,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
-msgstr "Välj primärt namn"
+msgstr ""
 
 #: src/routes/index.tsx
 msgid "Claim your"
@@ -750,7 +750,7 @@ msgstr ""
 
 #: src/features/navigation/Header/account/NavSection.tsx
 msgid "Dashboard"
-msgstr "Översikt"
+msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying resolver"
@@ -786,7 +786,7 @@ msgstr ""
 
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Did You Know?"
-msgstr "Visste du att?"
+msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Discard renewal"
@@ -934,7 +934,7 @@ msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Error loading names"
-msgstr "Fel vid laddning av namn"
+msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Estimated network fee"
@@ -958,7 +958,7 @@ msgstr ""
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Expires"
-msgstr "Går ut"
+msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "Expires in {days} days"
@@ -1047,7 +1047,7 @@ msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "Favorites"
-msgstr "Favoriter"
+msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Favourites"
@@ -1075,7 +1075,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
-msgstr "Vanliga frågor"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
@@ -1158,11 +1158,11 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How can I secure my ENS name?"
-msgstr "Hur kan jag säkra mitt ENS-namn?"
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How do I show my .eth name instead of my address?"
-msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -1215,7 +1215,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
-msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
+msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Keep renewal"
@@ -1235,7 +1235,7 @@ msgstr ""
 
 #: src/features/navigation/Header/account/LanguageSection.tsx
 msgid "Language"
-msgstr "Språk"
+msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Later"
@@ -1300,7 +1300,7 @@ msgstr ""
 #: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
-msgstr "Laddar..."
+msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Loading…"
@@ -1407,12 +1407,12 @@ msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "My Names"
-msgstr "Mina namn"
+msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
-msgstr "Namn"
+msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Name Expiry"
@@ -1506,7 +1506,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "No names found"
-msgstr "Inga namn hittades"
+msgstr ""
 
 #: src/features/migration/components/SelectNamesStepNameList.tsx
 msgid "No names match your search"
@@ -1515,7 +1515,7 @@ msgstr ""
 #: src/features/dashboard/components/MyNamesList.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "No names to display"
-msgstr "Inga namn att visa"
+msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
@@ -1756,7 +1756,7 @@ msgstr ""
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
 msgid "Primary Name"
-msgstr "Primärt namn"
+msgstr ""
 
 #: src/features/navigation/Header/account/NavSection.tsx
 msgid "Primary Name Profile"
@@ -1764,7 +1764,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Primary name set successfully"
-msgstr "Primärt namn angivet"
+msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
@@ -1834,7 +1834,7 @@ msgstr ""
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Registered"
-msgstr "Registrerad"
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "Registering"
@@ -2182,7 +2182,7 @@ msgstr ""
 
 #: src/features/navigation/Header/search/SearchInput.tsx
 msgid "Search name, address..."
-msgstr "Sök namn, adress..."
+msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -2208,7 +2208,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Select {label} as primary name"
-msgstr "Välj {label} som primärt namn"
+msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
@@ -2242,7 +2242,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Set as Primary"
-msgstr "Ange som primärt"
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Set as primary name"
@@ -2278,7 +2278,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Set which ENS name displays as your identity across apps and wallets."
-msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
+msgstr ""
 
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
@@ -2306,7 +2306,7 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting..."
-msgstr "Anger..."
+msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
 msgid "Settings"
@@ -2432,7 +2432,7 @@ msgstr ""
 
 #: src/features/dashboard/components/SortMenu.tsx
 msgid "Sort by"
-msgstr "Sortera efter"
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3108,11 +3108,11 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
-msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 – appen slår upp adressen automatiskt."
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
-msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
+msgstr ""
 
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "You approve"
@@ -3201,7 +3201,7 @@ msgstr ""
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 msgid "Your ENS name"
-msgstr "Ditt ENS-namn"
+msgstr ""
 
 #: src/features/landing/ProfilesShowcase.tsx
 msgid "Your ENS name is your onchain identity. Personalize it with an avatar, a banner, and the links that matter most. Showcase your work, connect your socials, and make it easy for anyone to verify and follow you across the web."
