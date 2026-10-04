@@ -391,7 +391,10 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     .map((subname) => ({
       name: subname.name,
       owner: subname.owner,
-      canDelete: canDeleteSubname,
+      hasNameRow: subname.hasNameRow,
+      // Deleting is keyed by label, so a child whose label bigname cannot
+      // state cannot be deleted from here.
+      canDelete: canDeleteSubname && subname.labelName !== null,
     }))
 
   const canCreateSubname = Boolean(hasRegistrarRole)
@@ -445,6 +448,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
     name: subname.name,
     owner: subname.owner,
+    hasNameRow: subname.hasNameRow,
   }))
 
   return <SubnamesTable subnames={subnameRows} name={name} />

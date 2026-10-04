@@ -3,15 +3,16 @@ import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameBadge } from '@/components/NameBadge'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { WalletMenu } from '@/components/WalletMenu'
 import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
+import { displayNameWithUnknownLabels } from '@/utils/names/registryChildName'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
@@ -80,17 +81,21 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
       )}
       {names.length > 0 && (
         <ul>
-          {names.slice(0, visibleCount).map(({ name, expiryDate }) => (
-            <li
-              key={name}
-              className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <EntityBadge variant="name" name={name} showAvatar compact>
-                <span title={name}>{truncateName(name)}</span>
-              </EntityBadge>
-              <Expiry expiryDate={expiryDate} />
-            </li>
-          ))}
+          {names
+            .slice(0, visibleCount)
+            .map(({ name, expiryDate, hasNameRow }) => (
+              <li
+                key={name}
+                className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <NameBadge name={name} linkable={hasNameRow} showAvatar compact>
+                  <span title={name}>
+                    {truncateName(displayNameWithUnknownLabels(name))}
+                  </span>
+                </NameBadge>
+                <Expiry expiryDate={expiryDate} />
+              </li>
+            ))}
           {names.length > visibleCount && (
             <li className="border-t border-neutral-3 py-3">
               <button

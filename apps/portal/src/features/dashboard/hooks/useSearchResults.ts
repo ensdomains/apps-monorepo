@@ -124,8 +124,12 @@ export const useSearchResults = ({
     enabled: Boolean(connectedAddress),
   })
 
+  // A registry child without a name row has no page to navigate to.
   const ownedNameList = useMemo(
-    () => (ownedNames ?? []).map(({ name }) => ({ name })),
+    () =>
+      (ownedNames ?? [])
+        .filter(({ hasNameRow }) => hasNameRow)
+        .map(({ name }) => ({ name })),
     [ownedNames],
   )
 

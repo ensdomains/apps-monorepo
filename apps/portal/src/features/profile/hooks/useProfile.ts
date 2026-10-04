@@ -1,9 +1,14 @@
-import { parseRecordKey, type RecordInventory } from '@ens-apps/bigname'
+import {
+  isNameProfile,
+  parseRecordKey,
+  type RecordInventory,
+} from '@ens-apps/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { fromPromise, ok } from 'neverthrow'
+import { zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { getRecords } from './useRecords'
 
@@ -60,12 +65,43 @@ export const recordKeysToRead = (inventory: RecordInventory | undefined) => {
   return { texts: [...texts], coins: [...coins] }
 }
 
+/**
+ * Why a name resolves to nothing although it has a registration, from name
+ * detail. bigname serves `no_live_ens_v2_entry` for a `.eth` name ENSv1 decides
+ * with no live ENSv2 entry: past the Universal Resolver cutover nothing below
+ * it resolves, so it has no resolver or records to show.
+ */
+const unresolvableReasonOf = (name: string) =>
+  bigname
+    .getName(name)
+    .then((response) =>
+      response && isNameProfile(response.data)
+        ? response.data.unresolvable_reason
+        : undefined,
+    )
+
+/** The records of a name that resolves to nothing. */
+const NO_RECORDS = {
+  texts: [],
+  coins: [],
+  contentHash: null,
+  abi: null,
+  resolverAddress: zeroAddress,
+}
+
 const getProfile = ResultFn(async function* ({ name }: GetProfileParameters) {
   // The inventory only says which keys exist; the values are read on chain.
-  const recordsResponse = yield* fromPromise(
-    bigname.getNameRecords(name, { include: ['inventory'] }),
+  const [recordsResponse, unresolvableReason] = yield* fromPromise(
+    Promise.all([
+      bigname.getNameRecords(name, { include: ['inventory'] }),
+      unresolvableReasonOf(name),
+    ]),
     (e) => new GetProfileError({ cause: e }),
   )
+
+  // Reading the default keys on chain would only confirm the name resolves
+  // to nothing; the page says so instead.
+  if (unresolvableReason) return ok({ records: NO_RECORDS, unresolvableReason })
 
   const { texts, coins } = recordKeysToRead(recordsResponse?.data.inventory)
 
@@ -78,7 +114,7 @@ const getProfile = ResultFn(async function* ({ name }: GetProfileParameters) {
     ignoreInvalidCoinTypes: true,
   })
 
-  return ok({ records })
+  return ok({ records, unresolvableReason: undefined })
 })
 
 export const profileQueryKey = createQueryKey<'profile', GetProfileParameters>(

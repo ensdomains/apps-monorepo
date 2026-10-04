@@ -184,3 +184,47 @@ describe('formatActivityEvent', () => {
     })
   })
 })
+
+describe('formatActivityEvent — bigname v0.4.1 rows', () => {
+  it('words a migration', () => {
+    expect(
+      formatActivityEvent(
+        event('migration', { migration_path: 'unwrapped' }, 'MigrationApplied'),
+      ),
+    ).toEqual({ text: 'Migrated to ENSv2' })
+  })
+
+  it('words a type newer than the client by its raw kind instead of throwing', () => {
+    const future = {
+      ...base,
+      type: 'future_type',
+      kind: 'FutureThingChanged',
+      data: {},
+    } as unknown as RecentActivityEvent
+    expect(formatActivityEvent(future)).toEqual({
+      text: 'Future thing changed',
+    })
+  })
+
+  it('shows a set primary-name claim as a sanitized value pill', () => {
+    expect(
+      formatActivityEvent(
+        event('primary_name', { name: 'alice.eth', name_status: 'set' }),
+      ),
+    ).toEqual({ text: 'Primary name updated', value: 'alice.eth' })
+    expect(
+      formatActivityEvent(event('primary_name', { name_status: 'cleared' })),
+    ).toEqual({ text: 'Primary name updated' })
+  })
+
+  it('reads an ETH address value served as raw bytes', () => {
+    expect(
+      formatActivityEvent(
+        event('record', {
+          key: 'addr:60',
+          value: { encoding: 'hex', bytes: OWNER },
+        }),
+      ),
+    ).toEqual({ text: 'ETH address updated', entityFromData: OWNER })
+  })
+})

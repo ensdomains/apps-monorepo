@@ -68,6 +68,9 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
         </>
       )
     })
+    .with({ type: 'migration' }, () => (
+      <span className={muted}>migrated to ENSv2</span>
+    ))
     .with({ type: 'record' }, (e) => {
       const key = e.data.key ?? ''
       // Copy hands over the real stored key — a sanitized one would no longer

@@ -1,6 +1,7 @@
 import type { QueryFunctionContext } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   powersToResolverRoleBitmap,
   pruneLinksAfterUnlink,
@@ -202,7 +203,7 @@ describe('getResolverOverviewQueryOptions', () => {
           record_resource: { kind: 'text', hash: '0x10', key: 'avatar' },
           grant_event: {
             block_number: 5,
-            timestamp: '2026-06-10T00:00:06Z',
+            timestamp: '1781049606',
             transaction_hash: '0xfeed',
           },
         },
@@ -216,7 +217,7 @@ describe('getResolverOverviewQueryOptions', () => {
             type: 'record',
             kind: 'RecordChanged',
             block_number: 9,
-            timestamp: '2026-06-10T00:00:06Z',
+            timestamp: '1781049606',
             transaction_hash: '0xabc',
             data: { key: 'text:avatar', value: 'x' },
           },
@@ -234,14 +235,7 @@ describe('getResolverOverviewQueryOptions', () => {
     )
     expect(overview).toMatchObject({
       nodeCount: 12,
-      nodes: [
-        {
-          id: '0xaa',
-          name: 'a.eth',
-          owner: { id: HOLDER },
-          resolver: { address: RESOLVER.toLowerCase() },
-        },
-      ],
+      nodeCountIsLowerBound: false,
       linkCount: 2,
       roleHolderCount: 1,
       roles: [
@@ -275,11 +269,101 @@ describe('getResolverOverviewQueryOptions', () => {
     })
   })
 
+  it('counts the first page as a lower bound when bigname gives no total', async () => {
+    bigname.getResolver.mockResolvedValue({
+      data: {
+        chain_id: 11155111,
+        address: RESOLVER.toLowerCase(),
+        bound_names: {
+          data: [{ name: 'a.eth' }, { name: 'b.eth' }],
+          page: {
+            cursor: null,
+            next_cursor: 'more',
+            page_size: 200,
+            total_count: null,
+            has_more: true,
+          },
+        },
+      },
+      meta: {},
+    })
+    bigname.listResolverLinks.mockResolvedValue(page([]))
+    bigname.listResolverRoles.mockResolvedValue(page([]))
+    bigname.listEvents.mockResolvedValue(page([]))
+
+    expect(await read()).toMatchObject({
+      nodeCount: 2,
+      nodeCountIsLowerBound: true,
+    })
+  })
+
   it('answers null for a resolver bigname has no overview of', async () => {
     bigname.getResolver.mockResolvedValue(null)
     bigname.listResolverLinks.mockResolvedValue(page([], null))
     bigname.listResolverRoles.mockResolvedValue(page([], null))
     bigname.listEvents.mockResolvedValue(page([], 0))
     expect(await read()).toBeNull()
+  })
+})
+
+describe('getResolverNodesQueryOptions', () => {
+  const read = () => {
+    const { queryFn, queryKey } = getResolverNodesQueryOptions({
+      address: RESOLVER,
+    })
+    return (queryFn as (context: unknown) => Promise<unknown>)({
+      queryKey,
+    } as unknown as QueryFunctionContext)
+  }
+
+  const boundPage = (names: string[], next: string | null) => ({
+    data: {
+      chain_id: 11155111,
+      address: RESOLVER.toLowerCase(),
+      bound_names: {
+        data: names.map((name) => ({
+          status: 'ok',
+          name,
+          display_name: name,
+          namespace: 'ens',
+          namehash: `0x${name.length}`,
+          owner: HOLDER,
+        })),
+        page: {
+          cursor: null,
+          next_cursor: next,
+          page_size: 200,
+          total_count: null,
+          has_more: next !== null,
+        },
+      },
+    },
+    meta: {},
+  })
+
+  it('pages bound names past the overview’s first page', async () => {
+    bigname.getResolver.mockReset()
+    bigname.getResolver
+      .mockResolvedValueOnce(boundPage(['a.eth'], 'c2'))
+      .mockResolvedValueOnce(boundPage(['bb.eth'], null))
+
+    const result = (await read()) as {
+      nodes: { name: string }[]
+      truncated: boolean
+    }
+
+    expect(result.nodes.map(({ name }) => name)).toEqual(['a.eth', 'bb.eth'])
+    expect(result.truncated).toBe(false)
+    expect(bigname.getResolver).toHaveBeenLastCalledWith(
+      11155111,
+      RESOLVER.toLowerCase(),
+      { page_size: 200, cursor: 'c2' },
+    )
+  })
+
+  it('lists no nodes for a resolver bigname does not know', async () => {
+    bigname.getResolver.mockReset()
+    bigname.getResolver.mockResolvedValue(null)
+    expect(await read()).toEqual({ nodes: [], truncated: false })
   })
 })

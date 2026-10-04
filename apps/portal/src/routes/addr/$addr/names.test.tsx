@@ -41,20 +41,24 @@ const NAMES: AddressNameItem[] = [
   {
     name: V1_NAME,
     expiryDate: new Date(Date.now() + 365 * MS_PER_DAY),
+    graceEndDate: new Date(Date.now() + 455 * MS_PER_DAY),
+    hasNameRow: true,
     protocolVersion: 'ENSv1',
     roleBitmap: null,
     v1Roles: { owner: true, manager: true },
-    relations: ['registrant', 'owner', 'manager'],
+    relations: ['owner', 'manager'],
   },
   {
     name: V2_NAME,
     expiryDate: new Date(Date.now() + 730 * MS_PER_DAY),
+    graceEndDate: new Date(Date.now() + 758 * MS_PER_DAY),
+    hasNameRow: true,
     protocolVersion: 'ENSv2',
     subdomainCount: 0,
     recordCount: 0,
     roleBitmap: '0x5',
     v1Roles: null,
-    relations: ['registrant', 'owner'],
+    relations: ['owner', 'manager'],
   },
 ]
 

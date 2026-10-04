@@ -170,3 +170,84 @@ describe('history labels', () => {
     expect(describeEvent(event('transfer', { to: ADDRESS }))).toBeNull()
   })
 })
+
+describe('bigname v0.4.1 rows', () => {
+  it('a migration reads "migrated {name} to ENSv2" with its path', () => {
+    expect(
+      describeEvent(event('migration', { migration_path: 'unlocked_wrapped' })),
+    ).toEqual({
+      label: 'migrated',
+      slots: [
+        { kind: 'name', value: 'collector.eth' },
+        { kind: 'connective', value: 'to ENSv2' },
+        { kind: 'connective', value: '(wrapped)' },
+      ],
+    })
+  })
+
+  it('a type newer than the client renders by its raw kind instead of throwing', () => {
+    const future = {
+      ...event('record', {}),
+      type: 'future_type',
+      kind: 'FutureThingChanged',
+    } as unknown as TimelineEvent
+    expect(describeEvent(future)).toEqual({
+      label: 'future thing changed',
+      slots: [{ kind: 'name', value: 'collector.eth' }],
+    })
+  })
+
+  it('an ENSv2 role grant reads the powers it added', () => {
+    const result = describeEvent(
+      event('permission', {
+        address: ADDRESS,
+        grant_scope: { kind: 'registry', detail: {} },
+        powers: ['set_resolver', 'renew'],
+        added_powers: ['renew'],
+        removed_powers: [],
+      }),
+    )
+    expect(result?.label).toBe('granted roles')
+    expect(result?.slots[0]).toEqual({ kind: 'text', value: 'Renew' })
+  })
+
+  it('an ENSv2 role revoke reads the powers it removed', () => {
+    const result = describeEvent(
+      event('permission', {
+        address: ADDRESS,
+        grant_scope: { kind: 'registry', detail: {} },
+        powers: ['set_resolver'],
+        added_powers: [],
+        removed_powers: ['renew'],
+      }),
+    )
+    expect(result).toMatchObject({ icon: 'revoke', label: 'revoked roles' })
+    expect(result?.slots[0]).toEqual({ kind: 'text', value: 'Renew' })
+  })
+
+  it('a registrar controller change is not read as a role revoke', () => {
+    expect(
+      describeEvent(
+        event('permission', {
+          address: ADDRESS,
+          grant_scope: {
+            kind: 'registrar_controller',
+            detail: { registrar: { chain_id: 11155111, address: CONTRACT } },
+          },
+          approved: true,
+        }),
+      )?.label,
+    ).toBe('added registrar controller')
+  })
+
+  it('a record value served as raw bytes reads by its bytes', () => {
+    const result = describeEvent(
+      event('record', {
+        key: 'contenthash',
+        value: { encoding: 'hex', bytes: '0xe30101701220abcdef0123456789' },
+      }),
+    )
+    expect(result?.label).toBe('set content hash to')
+    expect(result?.slots[0]).toMatchObject({ kind: 'text' })
+  })
+})

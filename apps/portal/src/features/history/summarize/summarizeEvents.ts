@@ -1,5 +1,7 @@
+import { recordValueText } from '@/utils/history/recordValue'
 import {
   type HistoryEventType,
+  isKnownHistoryEventType,
   type TimelineEvent,
   type TimelineEventOfType,
   timelineGroupKey,
@@ -19,6 +21,9 @@ import type { Action, ActionSlot } from './summarize.types'
  * registration + transfer + permission rows → the registration is primary).
  */
 const TYPE_RANK: Record<HistoryEventType, number> = {
+  // A migration re-registers the name in ENSv2 in the same transaction; the
+  // headline is the migration, not the registration rows it writes.
+  migration: 110,
   registration: 100,
   renewal: 90,
   subregistry: 80,
@@ -72,7 +77,7 @@ const distinctRecordWrites = (
   const seen = new Set<string>()
   return group.filter(isRecord).filter((event) => {
     if (recordFamily(event) === 'cleared') return false
-    const key = `${event.data.key ?? ''}\u0000${event.data.value ?? ''}`
+    const key = `${event.data.key ?? ''}\u0000${recordValueText(event.data.value) ?? ''}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -99,7 +104,9 @@ const multiRecordRecipe = (
   return { icon: 'records', label: `set ${records.length} records`, slots }
 }
 
-const rankOf = (event: TimelineEvent): number => TYPE_RANK[event.type]
+/** A type newer than this table ranks lowest: it can only headline alone. */
+const rankOf = (event: TimelineEvent): number =>
+  isKnownHistoryEventType(event.type) ? TYPE_RANK[event.type] : 0
 
 /** Group rows by transaction (a state-derived row alone), preserving encounter order. */
 const groupByTransaction = (
@@ -140,8 +147,8 @@ const describeGroup = (
     return action
   }
 
-  // Only a group of mints reaches here: every type has a descriptor, and only
-  // the transfer one declines.
+  // Only a group of mints reaches here: every type has a descriptor (an
+  // unknown one the generic fallback), and only the transfer one declines.
   const [first] = byRank
   return {
     icon: 'default',

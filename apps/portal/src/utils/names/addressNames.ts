@@ -2,11 +2,12 @@ import {
   type AddressNameRow,
   type Grant,
   grantsForAddress,
-  type Power,
-  parseTimestamp,
 } from '@ens-apps/bigname'
 import { encodeRoleBitmap, type Role } from '@ensdomains/ensjs/utils/v2'
+import { registryPowerRole } from '@/lib/roles/registryPowerRoles'
 import type { ProtocolVersion } from '@/utils/types'
+import { hasNameRow } from './registryChildName'
+import { servedExpiry } from './servedExpiry'
 
 /**
  * Owner / Manager badges for an ENSv1 name.
@@ -22,8 +23,18 @@ export type V1Roles = {
  */
 export type AddressNameItem = {
   name: string
-  /** Bare registrar (or NameWrapper) expiry; null when the name has none. */
+  /**
+   * Expiry the name's protocol enforces (`servedExpiry`): the ENSv1 lease for
+   * a name ENSv1 decides, else the served expiry; null when it has none.
+   */
   expiryDate: Date | null
+  /** End of the renewal grace of `expiryDate`; null when it has none. */
+  graceEndDate: Date | null
+  /**
+   * False for a registry child bigname lists without a name row: its name
+   * routes 404, so it is shown unlinked and not counted as a name.
+   */
+  hasNameRow: boolean
   protocolVersion: ProtocolVersion
   subdomainCount?: number
   recordCount?: number
@@ -33,34 +44,6 @@ export type AddressNameItem = {
   v1Roles: V1Roles | null
   /** Authority relations between the address and the name (`relation=any`). */
   relations: AddressNameRow['relations']
-}
-
-/**
- * bigname's registry powers, keyed to the ensjs role each one is. The shared
- * table and card count roles with `decodeRoleBitmap`, so the powers are folded
- * back into that bitmap rather than giving those components a second format.
- */
-const REGISTRY_POWER_ROLES: Partial<Record<Power, Role>> = {
-  registrar: 'ROLE_REGISTRAR',
-  admin_registrar: 'ROLE_REGISTRAR_ADMIN',
-  register_reserved: 'ROLE_REGISTER_RESERVED',
-  admin_register_reserved: 'ROLE_REGISTER_RESERVED_ADMIN',
-  set_parent: 'ROLE_SET_PARENT',
-  admin_set_parent: 'ROLE_SET_PARENT_ADMIN',
-  unregister: 'ROLE_UNREGISTER',
-  admin_unregister: 'ROLE_UNREGISTER_ADMIN',
-  renew: 'ROLE_RENEW',
-  admin_renew: 'ROLE_RENEW_ADMIN',
-  set_subregistry: 'ROLE_SET_SUBREGISTRY',
-  admin_set_subregistry: 'ROLE_SET_SUBREGISTRY_ADMIN',
-  set_resolver: 'ROLE_SET_RESOLVER',
-  admin_set_resolver: 'ROLE_SET_RESOLVER_ADMIN',
-  can_transfer_admin: 'ROLE_CAN_TRANSFER_ADMIN',
-  was_reserved: 'ROLE_WAS_RESERVED',
-  set_uri: 'ROLE_SET_URI',
-  admin_set_uri: 'ROLE_SET_URI_ADMIN',
-  upgrade: 'ROLE_UPGRADE',
-  admin_upgrade: 'ROLE_UPGRADE_ADMIN',
 }
 
 /** Direct grants on the registry itself or on the name's registration. */
@@ -83,7 +66,7 @@ export const registryRoleBitmap = (
   for (const grant of grantsForAddress(row.role_summary, address)) {
     if (!isRegistryGrant(grant)) continue
     for (const power of grant.powers) {
-      const role = REGISTRY_POWER_ROLES[power]
+      const role = registryPowerRole(power)
       if (role) roles.add(role)
     }
   }
@@ -93,18 +76,18 @@ export const registryRoleBitmap = (
 }
 
 /**
- * Owner / Manager badges from the row's relations. `registrant` is the
- * registrar token holder (the NameWrapper holder for a wrapped `.eth` name);
- * for a wrapped subname, which has no registrant, the token holder is `owner`.
- * The registry owner of an unwrapped subname is its manager, not its owner,
- * matching the badges ensjs relations produced.
+ * Owner / Manager badges from the row's relations (bigname v0.3.0+). `owner`
+ * is the token holder: the BaseRegistrar holder of an unwrapped `.eth` 2LD,
+ * the NameWrapper holder of a wrapped name, else the registry owner. `manager`
+ * is whoever can change the registry record: the registry owner of an
+ * unwrapped name, the NameWrapper holder of a wrapped one (so a wrapped name's
+ * holder gets both badges). bigname omits `manager` while a wrapped `.eth` 2LD
+ * is in its registrar grace, so the Manager badge drops then.
  */
 const v1RolesFromRelations = (
-  row: Pick<AddressNameRow, 'relations' | 'registration_status'>,
+  row: Pick<AddressNameRow, 'relations'>,
 ): V1Roles => ({
-  owner:
-    row.relations.includes('registrant') ||
-    (row.registration_status === 'wrapped' && row.relations.includes('owner')),
+  owner: row.relations.includes('owner'),
   manager: row.relations.includes('manager'),
 })
 
@@ -116,9 +99,27 @@ const v1RolesFromRelations = (
 const isLapsedV1 = (row: AddressNameRow) =>
   row.registration_status === 'released' && row.authority !== 'ens_v2'
 
+const toDate = (seconds: number | null): Date | null =>
+  seconds === null ? null : new Date(seconds * 1000)
+
 /**
- * Maps a `relation=any` address-name page to list rows. Rows keep the server
- * order (`sort=expires_at`, unknown expiries last).
+ * Display order: names with an expiry first, in the server's ascending order,
+ * then names that do not expire, then registry children without a name row.
+ * bigname sorts a missing `expires_at` smallest (first ascending), and the
+ * ENSv1 lease date that `expiryDate` shows is not the value it sorts on.
+ */
+const displayRank = (item: AddressNameItem): number => {
+  if (!item.hasNameRow) return 2
+  return item.expiryDate ? 0 : 1
+}
+
+const byDisplayOrder = (a: AddressNameItem, b: AddressNameItem): number =>
+  displayRank(a) - displayRank(b) ||
+  (a.expiryDate?.getTime() ?? 0) - (b.expiryDate?.getTime() ?? 0)
+
+/**
+ * Maps a `relation=any` address-name page to list rows, in display order
+ * (`byDisplayOrder`).
  */
 export const toAddressNameItems = (
   rows: readonly AddressNameRow[],
@@ -126,11 +127,14 @@ export const toAddressNameItems = (
 ): AddressNameItem[] =>
   rows
     .filter((row) => !isLapsedV1(row))
-    .map((row) => {
+    .map((row): AddressNameItem => {
       const isV2 = row.authority === 'ens_v2'
+      const { expiry, graceEndsAt } = servedExpiry(row)
       return {
         name: row.name,
-        expiryDate: parseTimestamp(row.expires_at) ?? null,
+        expiryDate: toDate(expiry),
+        graceEndDate: toDate(graceEndsAt),
+        hasNameRow: hasNameRow(row),
         protocolVersion: isV2 ? 'ENSv2' : 'ENSv1',
         subdomainCount: row.subname_count,
         recordCount: row.record_count,
@@ -139,3 +143,4 @@ export const toAddressNameItems = (
         relations: row.relations,
       }
     })
+    .toSorted(byDisplayOrder)

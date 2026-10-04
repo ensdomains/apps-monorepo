@@ -1,11 +1,18 @@
-import { type ContractRef, type Power, parseRecordKey } from '@ens-apps/bigname'
+import {
+  type ContractRef,
+  type MigrationPath,
+  type Power,
+  parseRecordKey,
+} from '@ens-apps/bigname'
 import { isAddress, zeroAddress } from 'viem'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import type {
-  HistoryEventType,
-  TimelineEvent,
-  TimelineEventOfType,
+import { recordValueText } from '@/utils/history/recordValue'
+import {
+  type HistoryEventType,
+  isKnownHistoryEventType,
+  type TimelineEvent,
+  type TimelineEventOfType,
 } from '../timelineEvent'
 import type {
   ActionSlot,
@@ -112,7 +119,7 @@ export const recordTextKey = (event: TimelineEventOfType<'record'>): string => {
 const describeRecord = (
   primary: TimelineEventOfType<'record'>,
 ): DescriptorResult => {
-  const { value } = primary.data
+  const value = recordValueText(primary.data.value)
   switch (recordFamily(primary)) {
     case 'cleared':
       return { label: 'cleared records', slots: [] }
@@ -166,6 +173,120 @@ const describeRecord = (
           },
         ],
       }
+  }
+}
+
+const powerList = (powers: readonly Power[]): ActionSlot => ({
+  kind: 'text',
+  value: powers.map(formatPower).join(', '),
+})
+
+/** The grantee of a permission row, attributed to its transaction when known. */
+const permissionAccount = (
+  primary: TimelineEventOfType<'permission'>,
+): ActionSlot => {
+  const { address } = primary.data
+  if (!address || !isAddress(address, { strict: false }))
+    return { kind: 'placeholder', value: '—' }
+  return primary.transactionHash
+    ? { kind: 'actor', txHash: primary.transactionHash, address }
+    : { kind: 'address', value: address }
+}
+
+/**
+ * An ENSv2 registry role change states what it granted and revoked; a change
+ * that only grants or only revokes reads as that. Other rows (other eras, or
+ * a change that does both) are undefined here and read from `powers`.
+ */
+const describePowerDiff = (
+  added: readonly Power[] | undefined,
+  removed: readonly Power[] | undefined,
+  account: ActionSlot,
+): DescriptorResult | undefined => {
+  if (!added || !removed) return undefined
+  if (added.length > 0 && removed.length === 0)
+    return {
+      label: 'granted roles',
+      slots: [powerList(added), { kind: 'connective', value: 'to' }, account],
+    }
+  if (removed.length > 0 && added.length === 0)
+    return {
+      icon: 'revoke',
+      label: 'revoked roles',
+      slots: [
+        powerList(removed),
+        { kind: 'connective', value: 'from' },
+        account,
+      ],
+    }
+  return undefined
+}
+
+const describePermission = (
+  primary: TimelineEventOfType<'permission'>,
+): DescriptorResult => {
+  const {
+    powers,
+    added_powers: added,
+    removed_powers: removed,
+    fuses,
+    grant_scope: scope,
+    approved,
+  } = primary.data
+  const account = permissionAccount(primary)
+  // A BaseRegistrar controller change: registrar-wide, no power set.
+  if (scope?.kind === 'registrar_controller')
+    return approved === false
+      ? {
+          icon: 'revoke',
+          label: 'removed registrar controller',
+          slots: [account],
+        }
+      : { label: 'added registrar controller', slots: [account] }
+  if (!powers && fuses !== undefined)
+    return { icon: 'fuses', label: 'set fuses', slots: [] }
+  const diff = describePowerDiff(added, removed, account)
+  if (diff) return diff
+  // `powers` is the subject's power set after the change; an empty set is
+  // every role gone.
+  if (!powers?.length)
+    return {
+      icon: 'revoke',
+      label: 'revoked roles from',
+      slots: [account],
+    }
+  return {
+    label: 'set roles',
+    slots: [powerList(powers), { kind: 'connective', value: 'for' }, account],
+  }
+}
+
+const MIGRATION_PATH_LABELS: Record<MigrationPath, string> = {
+  unwrapped: 'unwrapped',
+  unlocked_wrapped: 'wrapped',
+  locked_wrapped: 'locked',
+  locked_child: 'locked subname',
+  emancipated_child: 'emancipated subname',
+}
+
+const describeMigration = (
+  primary: TimelineEventOfType<'migration'>,
+): DescriptorResult => {
+  const path = primary.data.migration_path
+  return {
+    label: 'migrated',
+    slots: [
+      nameSlot(primary.name),
+      { kind: 'connective', value: 'to ENSv2' },
+      ...(path && MIGRATION_PATH_LABELS[path]
+        ? [
+            {
+              kind: 'connective' as const,
+              value: `(${MIGRATION_PATH_LABELS[path]})`,
+            },
+          ]
+        : []),
+    ],
   }
 }
 
@@ -254,33 +375,7 @@ export const DESCRIPTORS: Descriptors = {
   },
   permission: {
     icon: 'grant',
-    build: (primary) => {
-      const { address, powers, fuses } = primary.data
-      if (!powers && fuses !== undefined)
-        return { icon: 'fuses', label: 'set fuses', slots: [] }
-      const account: ActionSlot =
-        address && isAddress(address, { strict: false })
-          ? primary.transactionHash
-            ? { kind: 'actor', txHash: primary.transactionHash, address }
-            : { kind: 'address', value: address }
-          : { kind: 'placeholder', value: '—' }
-      // `powers` is the subject's power set after the change; an empty set is
-      // every role gone.
-      if (!powers?.length)
-        return {
-          icon: 'revoke',
-          label: 'revoked roles from',
-          slots: [account],
-        }
-      return {
-        label: 'set roles',
-        slots: [
-          { kind: 'text', value: powers.map(formatPower).join(', ') },
-          { kind: 'connective', value: 'for' },
-          account,
-        ],
-      }
-    },
+    build: describePermission,
   },
   subregistry: {
     icon: 'registry',
@@ -294,13 +389,36 @@ export const DESCRIPTORS: Descriptors = {
           }
         : { label: 'unlinked subregistry', slots: [] },
   },
+  migration: {
+    icon: 'migrate',
+    build: describeMigration,
+  },
 }
 
-/** Dispatch on the row's own type; the descriptor table is keyed exhaustively. */
+/**
+ * A row of a type bigname added after `HISTORY_EVENT_TYPES` still renders: by
+ * its raw kind when the read carried one, else by the type itself.
+ */
+const UNKNOWN_TYPE_DESCRIPTOR: Descriptor = {
+  icon: 'default',
+  build: (primary) => ({
+    label: humanizeType(primary.kind ?? primary.type).toLowerCase(),
+    slots: primary.name ? [nameSlot(primary.name)] : [],
+  }),
+}
+
+const descriptorOf = (primary: TimelineEvent): Descriptor =>
+  isKnownHistoryEventType(primary.type)
+    ? (DESCRIPTORS[primary.type] as Descriptor)
+    : UNKNOWN_TYPE_DESCRIPTOR
+
+/**
+ * Dispatch on the row's own type; the descriptor table is keyed exhaustively
+ * over the known types, and an unknown one gets the generic descriptor.
+ */
 export const describeEvent = (
   primary: TimelineEvent,
-): DescriptorResult | null =>
-  (DESCRIPTORS[primary.type] as Descriptor).build(primary)
+): DescriptorResult | null => descriptorOf(primary).build(primary)
 
 export const descriptorIcon = (primary: TimelineEvent) =>
-  DESCRIPTORS[primary.type].icon
+  descriptorOf(primary).icon

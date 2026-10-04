@@ -10,7 +10,7 @@ const row = (over: Partial<HistoryEvent>): HistoryEvent =>
     namespace: 'ens',
     registration_id: '1',
     block_number: 100,
-    timestamp: '2026-06-10T00:00:06Z',
+    timestamp: '1781049606',
     transaction_hash: '0xabc',
     log_index: 3,
     kind: 'RegistrationGranted',

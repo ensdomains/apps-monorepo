@@ -1,4 +1,5 @@
 import {
+  type EventRow,
   type HistoryEvent,
   type HistoryEventDataByType,
   type HistoryEventType,
@@ -23,6 +24,7 @@ export const HISTORY_EVENT_TYPES = [
   'primary_name',
   'permission',
   'subregistry',
+  'migration',
 ] as const satisfies readonly HistoryEventType[]
 
 export type { HistoryEventType }
@@ -69,9 +71,16 @@ export type TimelineEventOfType<TType extends HistoryEventType> = Extract<
 /**
  * A bigname history row as the timeline renders it: unix-second timestamp,
  * camel-cased fields, `data` always present. A row with no chain position has
- * nowhere to sit on a timeline and is dropped.
+ * nowhere to sit on a timeline and is dropped. Name history rows always carry
+ * `name`; contract-feed rows (`/v1/events`) can omit it.
+ *
+ * `type` is passed through even when it is newer than `HISTORY_EVENT_TYPES`:
+ * every dispatcher over it falls back to a generic rendering rather than
+ * dropping or crashing on a type bigname adds later.
  */
-const toTimelineEvent = (row: HistoryEvent): TimelineEvent | undefined => {
+const toTimelineEvent = (
+  row: HistoryEvent | EventRow,
+): TimelineEvent | undefined => {
   const timestamp = timestampToSeconds(row.timestamp)
   if (row.block_number === null || timestamp === undefined) return undefined
   return {
@@ -79,7 +88,7 @@ const toTimelineEvent = (row: HistoryEvent): TimelineEvent | undefined => {
     type: row.type,
     ...(row.kind && { kind: row.kind }),
     name: row.name ?? '',
-    ...(row.subject && { subject: row.subject }),
+    ...('subject' in row && row.subject && { subject: row.subject }),
     registrationId: row.registration_id,
     transactionHash: row.transaction_hash,
     blockNumber: row.block_number,
@@ -91,8 +100,18 @@ const toTimelineEvent = (row: HistoryEvent): TimelineEvent | undefined => {
 }
 
 export const toTimelineEvents = (
-  rows: readonly HistoryEvent[],
+  rows: readonly (HistoryEvent | EventRow)[],
 ): TimelineEvent[] => rows.flatMap((row) => toTimelineEvent(row) ?? [])
+
+const KNOWN_TYPES: ReadonlySet<string> = new Set(HISTORY_EVENT_TYPES)
+
+/**
+ * Whether the portal knows how to word this row's type. A row of a type bigname
+ * added after this list is still shown, through the generic fallbacks.
+ */
+export const isKnownHistoryEventType = (
+  type: string,
+): type is HistoryEventType => KNOWN_TYPES.has(type)
 
 /**
  * The key a row is grouped into an action by: its transaction, or the row itself

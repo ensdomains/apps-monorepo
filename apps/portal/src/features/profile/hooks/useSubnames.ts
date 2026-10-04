@@ -11,18 +11,29 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, getAddress, type Hex, labelhash } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { hasNameRow, isUnknownLabel } from '@/utils/names/registryChildName'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
   cause: unknown
 }> {}
 
 export type Subname = {
+  /** `<label>.<parent>`, or `[<labelhash>].<parent>` when the label is unknown. */
   name: string
-  labelName: string
+  /**
+   * The label as a name form; null when bigname cannot state it. Only a label
+   * may reach a label-keyed write (create, delete), so a null one cannot.
+   */
+  labelName: string | null
   labelhash: Hex
   namehash: Hex
   /** The token holder: the NameWrapper holder for a wrapped ENSv1 subname. */
   owner: Address
+  /**
+   * False for a registry child bigname lists without a name row: every name
+   * route 404s on it, so it is shown but not linked.
+   */
+  hasNameRow: boolean
 }
 
 type GetSubnamesParameters = {
@@ -40,44 +51,52 @@ const isNormalizedLabel = (label: string) => {
 /**
  * The row's label, when bigname could state it as a name. A child whose label
  * it cannot state comes back as `[<labelhash>].<parent>` or as escaped bytes;
- * neither is a name, and neither may reach a name route or a label-keyed write.
- * bigname says to tell them apart by hash rather than by the text, so the
- * label must also hash to the row's `labelhash`. Only the first label is read:
- * the rest of the row's name is not trusted to match the parent (WEB-1542).
+ * neither is a name, and neither may reach a label-keyed write. bigname says
+ * to tell them apart by hash rather than by the text, so the label must also
+ * hash to the row's `labelhash`. Only the first label is read: the rest of the
+ * row's name is not trusted to match the parent (WEB-1542).
  */
-const nameFormLabel = (row: SubnameRow) => {
-  const label = row.name.split('.')[0] ?? ''
-  return isNormalizedLabel(label) && labelhash(label) === row.labelhash
-    ? label
-    : null
-}
+const nameFormLabel = (label: string, rowLabelhash: Hex) =>
+  isNormalizedLabel(label) && labelhash(label) === rowLabelhash ? label : null
+
+/** A `[<labelhash>]` label that is this row's own labelhash. */
+const isOwnUnknownLabel = (label: string, rowLabelhash: Hex) =>
+  isUnknownLabel(label) && `0x${label.slice(1, -1)}` === rowLabelhash
 
 /**
  * Maps subname rows to the list the subnames page and the create/delete flows
  * use. Rows without a current owner are dropped (the ENSv1 list this replaces
- * excluded deleted names), and so are non-name rows, which could not be linked
- * or acted on. Each name is built from its label and the parent asked for, so
- * a parent whose own label was learned after the child was indexed still
- * links its children by the parent's name (WEB-1542).
+ * excluded deleted names), and so are labels that are neither a name form nor
+ * bigname's `[<labelhash>]` spelling (escaped bytes, a non-normalized label, or
+ * one that does not hash to `labelhash`), which could not be linked or acted
+ * on. A `[<labelhash>]` child is kept: bigname accepts that spelling on name
+ * routes, so it links when the child has a name row. Each name is built from
+ * its label and the parent asked for, so a parent whose own label was learned
+ * after the child was indexed still links its children by the parent's name
+ * (WEB-1542). Children without a name row come last.
  */
 export const toSubnames = (
   rows: readonly SubnameRow[],
   parentName: string,
 ): Subname[] =>
-  rows.flatMap((row) => {
-    const labelName = nameFormLabel(row)
-    return row.owner && labelName
-      ? [
-          {
-            name: `${labelName}.${parentName}`,
-            labelName,
-            labelhash: row.labelhash,
-            namehash: row.namehash,
-            owner: getAddress(row.owner),
-          },
-        ]
-      : []
-  })
+  rows
+    .flatMap((row): Subname[] => {
+      const label = row.name.split('.')[0] ?? ''
+      if (!row.owner || !row.labelhash) return []
+      const labelName = nameFormLabel(label, row.labelhash)
+      if (!labelName && !isOwnUnknownLabel(label, row.labelhash)) return []
+      return [
+        {
+          name: `${labelName ?? label}.${parentName}`,
+          labelName,
+          labelhash: row.labelhash,
+          namehash: row.namehash,
+          owner: getAddress(row.owner),
+          hasNameRow: hasNameRow(row),
+        },
+      ]
+    })
+    .toSorted((a, b) => Number(b.hasNameRow) - Number(a.hasNameRow))
 
 export const getSubnames = ResultFn(async function* ({
   name,

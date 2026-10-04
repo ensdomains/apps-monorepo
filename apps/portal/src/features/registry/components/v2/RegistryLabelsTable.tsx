@@ -16,7 +16,7 @@ import {
 const columns: ColumnDef<RegistryLabelRow>[] = [
   {
     id: 'label',
-    accessorFn: (row) => row.labelName ?? row.name ?? row.labelhash,
+    accessorFn: (row) => row.labelName ?? row.name ?? row.labelhash ?? '',
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -28,8 +28,11 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     cell: ({ row }) => {
       const { name, labelName, labelhash } = row.original
       return (
-        <span className="bg-foreground font-medium text-background py-1 px-1.5 rounded-sm">
-          {labelName ?? name ?? labelhash}
+        <span
+          className="bg-foreground font-medium text-background py-1 px-1.5 rounded-sm"
+          title={labelhash ?? undefined}
+        >
+          {labelName ?? name ?? 'label unknown'}
         </span>
       )
     },

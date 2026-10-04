@@ -191,6 +191,7 @@ function RouteComponent() {
         const status = getNameStatus(
           row.expiryDate,
           row.protocolVersion === 'ENSv2',
+          row.graceEndDate,
         )
         return selectedStatuses.includes(status)
       })
@@ -254,15 +255,18 @@ function RouteComponent() {
     )
   }
 
-  const nameCount = filteredData.length
-  const totalCount = data.length
+  // A registry child without a name row is listed (unlinked) but is not a name.
+  const nameCount = filteredData.filter(
+    (row) => row.hasNameRow !== false,
+  ).length
+  const totalCount = data.filter((row) => row.hasNameRow !== false).length
   const hasActiveFilters =
     expiryDateRange.from ||
     expiryDateRange.to ||
     selectedStatuses.length > 0 ||
     selectedLengths.length > 0
 
-  if (totalCount === 0)
+  if (data.length === 0)
     return (
       <>
         <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">

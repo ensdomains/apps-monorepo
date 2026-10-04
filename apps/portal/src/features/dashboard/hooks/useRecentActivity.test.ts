@@ -15,7 +15,7 @@ const row = (over: Partial<HistoryEvent>): HistoryEvent =>
     namespace: 'ens',
     registration_id: null,
     block_number: 100,
-    timestamp: '2026-06-10T00:00:06Z',
+    timestamp: '1781049606',
     transaction_hash: '0xabc',
     log_index: 1,
     contract_address: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',

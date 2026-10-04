@@ -11,7 +11,6 @@ import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
-import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -20,6 +19,7 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { buildRenewIntent, type RenewParams } from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
@@ -361,23 +361,16 @@ export const useRenewalTransactions = ({
     clearTransaction()
     attempt.end()
     setFlow(null)
-    // Renewing pushes each name's expiry forward. Invalidate the expiry queries
-    // so grace banners clear and the new expiry shows on return. For v1 names
-    // this also re-qualifies the name for v1→v2 migration; the migration
-    // eligibility query (on the migration-banner branch) reads this expiry and
-    // re-runs on the refreshed data. A batch may mix v1 and v2 names, so we
-    // invalidate both queries for every name — the query for the name's other
-    // protocol version is simply a harmless no-op. We also invalidate the v1
-    // is-renewable query: a just-renewed v1 name leaves its grace window, so its
-    // cached isRenewable=true is now stale and must not gate a future flow.
+    // Renewing pushes each name's expiry forward. Both eras' expiry and grace
+    // come from bigname's name detail, so it is refreshed once bigname has
+    // indexed the renewal: grace banners clear and the new expiry shows on
+    // return. For v1 names this also re-qualifies the name for v1→v2
+    // migration; the migration eligibility query reads this expiry and re-runs
+    // on the refreshed data. The v1 is-renewable query is invalidated at once
+    // (it is an on-chain read): a just-renewed v1 name leaves its grace
+    // window, so its cached isRenewable=true is now stale and must not gate a
+    // future flow.
     for (const renewedName of renewedNames) {
-      queryClient.invalidateQueries({
-        queryKey: getV1ExpiryQueryOptions({ name: renewedName }).queryKey,
-      })
-      queryClient.invalidateQueries({
-        queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
-          .queryKey,
-      })
       queryClient.invalidateQueries({
         queryKey: getIsRenewableQueryOptions({
           renewerAddress: getRenewerAddress(false),
@@ -385,6 +378,18 @@ export const useRenewalTransactions = ({
         }).queryKey,
       })
     }
+    const invalidateExpiries = () =>
+      Promise.all(
+        renewedNames.map((renewedName) =>
+          queryClient.invalidateQueries({
+            queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
+              .queryKey,
+          }),
+        ),
+      ).then(() => undefined)
+    void invalidateExpiries()
+    if (renewedNames.length > 0)
+      void pollForIndexerSync({ invalidateQueries: invalidateExpiries })
     onComplete?.(flowType)
   }
 

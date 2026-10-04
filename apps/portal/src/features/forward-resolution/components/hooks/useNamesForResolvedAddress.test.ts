@@ -20,6 +20,7 @@ const row = (
   display_name: name,
   namespace: 'ens',
   namehash: '0x00',
+  registration_status: 'registered',
   relations: ['resolves_to'],
   is_primary: false,
   resolutions,

@@ -1,6 +1,6 @@
 import {
   type BignameError,
-  type HistoryEvent,
+  type EventRow,
   type HistoryEventDataByType,
   type HistoryEventType,
   timestampToSeconds,
@@ -45,7 +45,7 @@ class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
 
 const RECENT_ACTIVITY_PAGE_SIZE = 15
 
-const toActivityEvent = (row: HistoryEvent): RecentActivityEvent[] => {
+const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
   const timestamp = timestampToSeconds(row.timestamp)
   // A state-derived row has no transaction to link, nor a place in the feed.
   if (!row.transaction_hash || row.block_number === null || !timestamp)

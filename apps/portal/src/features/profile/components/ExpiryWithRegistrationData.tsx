@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -9,7 +9,6 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 import { useGraceStatus } from '../hooks/useGraceStatus'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
-import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
 import { InfoRow } from './InfoRow'
 import { Timestamp } from './Timestamp'
@@ -72,37 +71,43 @@ const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
   </InfoRow>
 )
 
+/**
+ * ENSv1: "Expires" is the BaseRegistrar lease (`ens_v1.expires_at`), not the
+ * ENSv2 reservation bigname serves at the top level, and "Grace ends" is the
+ * lease's 90-day grace. Both come from bigname with the registration date;
+ * the on-chain expiry read is gone.
+ */
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   const grace = useGraceStatus({ name, protocolVersion: 'ENSv1' })
 
-  // Expiry stays an on-chain read (the registrar is the source of truth for
-  // the live value); the registration date comes from bigname.
-  const [registrationData, expiry] = useQueries({
-    queries: [
-      getV2RegistrationDataQueryOptions({ name }),
-      getV1ExpiryQueryOptions({ name }),
-    ],
-  })
+  const { data, error, isLoading } = useQuery(
+    getV2RegistrationDataQueryOptions({ name }),
+  )
 
-  if (expiry.error)
-    return <div>Failed to fetch expiry: {expiry.error.cause.message}</div>
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching registration data. Please refresh the page."
+      />
+    )
 
-  if (expiry.isLoading || registrationData.isLoading)
+  if (isLoading)
     return <LoadingSpinner title="Loading expiry and registration data" />
 
-  const registeredAt = registrationData.data?.registeredAt ?? null
+  if (!data) return null
 
   return (
     <>
-      {expiry.data && (
+      {data.expiry !== null && (
         <InfoRow icon={ClockIcon} label="Expires">
           <span className="font-semi-mono">
-            <Timestamp timestamp={expiry.data.expiry} />
+            <Timestamp timestamp={data.expiry} />
           </span>
         </InfoRow>
       )}
-      {registeredAt !== null && (
-        <RegisteredRow name={name} registeredAt={registeredAt} />
+      {data.registeredAt !== null && (
+        <RegisteredRow name={name} registeredAt={data.registeredAt} />
       )}
       {grace.isInGrace && grace.graceEndDate && (
         <GraceEndsRow graceEndDate={grace.graceEndDate} />

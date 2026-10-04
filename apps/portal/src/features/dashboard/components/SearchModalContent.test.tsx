@@ -59,7 +59,7 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
       ),
   }),
 }))
-let ownedNamesOverride: { name: string }[] | null = null
+let ownedNamesOverride: { name: string; hasNameRow: boolean }[] | null = null
 vi.mock('../hooks/useAddressNames', () => ({
   getAddressNamesQueryOptions: (params: { address: string }) => ({
     queryKey: ['get-address-names', params],
@@ -308,7 +308,10 @@ describe('SearchModalContent', () => {
     // foobar.eth is owned but not the exact match, so it anchors the wait:
     // once it renders, the owned-names query has resolved and the placement
     // of the exact match foo.eth is final.
-    ownedNamesOverride = [{ name: 'foo.eth' }, { name: 'foobar.eth' }]
+    ownedNamesOverride = [
+      { name: 'foo.eth', hasNameRow: true },
+      { name: 'foobar.eth', hasNameRow: true },
+    ]
     mockBuildSearchSuggestions.mockReturnValue([
       {
         id: 'name:foo.eth',
@@ -353,7 +356,7 @@ describe('SearchModalContent', () => {
 
   it('shows an owned name that is not the exact match under Names you own', async () => {
     connectedAddressOverride = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
-    ownedNamesOverride = [{ name: 'foobar.eth' }]
+    ownedNamesOverride = [{ name: 'foobar.eth', hasNameRow: true }]
     mockBuildSearchSuggestions.mockReturnValue([
       {
         id: 'name:foo.eth',

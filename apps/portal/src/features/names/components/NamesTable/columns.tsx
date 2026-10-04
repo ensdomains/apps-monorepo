@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { EntityBadge } from '@/components/EntityBadge'
+import { NameBadge } from '@/components/NameBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,16 +14,14 @@ import type { ProtocolVersion } from '@/utils/types'
 export type NameRow = {
   name: string | null
   expiryDate?: Date | null
+  /** Served renewal deadline of `expiryDate` (see `getNameStatus`). */
+  graceEndDate?: Date | null
+  /** False for a registry child without a name row; rendered unlinked. */
+  hasNameRow?: boolean
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
   protocolVersion: ProtocolVersion
 }
-
-const NameCell = ({ name }: { name: string }) => (
-  <EntityBadge variant="name" name={name} showAvatar>
-    {name}
-  </EntityBadge>
-)
 
 export const columns: ColumnDef<NameRow>[] = [
   {
@@ -57,10 +55,10 @@ export const columns: ColumnDef<NameRow>[] = [
         Name
       </SortButton>
     ),
-    cell: ({ getValue }) => {
-      const name = getValue() as string
+    cell: ({ row }) => {
+      const { name, hasNameRow = true } = row.original
       if (!name) return null
-      return <NameCell name={name} />
+      return <NameBadge name={name} linkable={hasNameRow} showAvatar />
     },
   },
   {
@@ -84,7 +82,7 @@ export const columns: ColumnDef<NameRow>[] = [
         )
       }
       const isV2 = row.original.protocolVersion === 'ENSv2'
-      const status = getNameStatus(expiryDate, isV2)
+      const status = getNameStatus(expiryDate, isV2, row.original.graceEndDate)
       return (
         <div className="flex items-center gap-2">
           <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>

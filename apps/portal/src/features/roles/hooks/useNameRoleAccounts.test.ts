@@ -1,125 +1,134 @@
-import { registryRoles } from '@ensdomains/ensjs/utils/v2'
-import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { ok } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
+import type { EventRow } from '@ens-apps/bigname'
+import { type Address, getAddress, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
-const OWNER: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-const OTHER: Address = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+const OTHER_REGISTRY: Address = '0x2222222222222222222222222222222222222222'
+const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+const OTHER = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
-// A resource carrying a non-zero eacVersionId, i.e. a re-registered name. The
-// indexer stores these with the low 32 bits zeroed; logs carry them verbatim.
-const RESOURCE = 0xabcd_0000_0007n
-
-const mockGetLogs = vi.fn()
-const mockGetResource = vi.fn()
-
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
-}))
-
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
-  getResource: (...args: unknown[]) => mockGetResource(...args),
-}))
+const getName = vi.fn()
+const listEvents = vi.fn()
+vi.mock('@/lib/bigname', () => ({ bigname: { getName, listEvents } }))
 
 const { getNameRolesAccounts } = await import('./useNameRoleAccounts')
 
-const log = ({
-  block,
-  account = OWNER,
-  newRoleBitmap = registryRoles.ROLE_SET_RESOLVER,
-}: {
-  block: bigint
-  account?: Address
-  newRoleBitmap?: bigint
-}) => ({
-  blockNumber: block,
-  transactionHash: `0x${block.toString(16).padStart(64, '0')}`,
-  args: { resource: RESOURCE, account, oldRoleBitmap: 0n, newRoleBitmap },
+let block = 0
+const change = (
+  over: Partial<{
+    account: string
+    powers: string[]
+    added: string[]
+    removed: string[]
+    scope: 'registry' | 'resolver' | 'registration'
+    contract: string
+  }> = {},
+): EventRow =>
+  ({
+    id: `row-${++block}`,
+    type: 'permission',
+    kind: 'PermissionChanged',
+    name: 'test.eth',
+    namespace: 'ens',
+    registration_id: 'reg-current',
+    block_number: block,
+    timestamp: String(1_790_000_000 + block),
+    transaction_hash: `0x${block.toString(16).padStart(64, '0')}`,
+    log_index: 0,
+    contract_address: (over.contract ?? REGISTRY).toLowerCase(),
+    data: {
+      address: over.account ?? OWNER,
+      grant_scope: { kind: over.scope ?? 'registry', detail: {} },
+      powers: over.powers ?? ['set_resolver'],
+      ...(over.added && { added_powers: over.added }),
+      ...(over.removed && { removed_powers: over.removed }),
+    },
+  }) as EventRow
+
+const page = (data: EventRow[]) => ({
+  data,
+  page: {
+    cursor: null,
+    next_cursor: null,
+    page_size: 200,
+    total_count: data.length,
+    has_more: false,
+  },
+  meta: {},
 })
 
-const run = (name = 'test.chakri.eth') =>
-  getNameRolesAccounts({ name, registryAddress: REGISTRY })
+const run = () =>
+  getNameRolesAccounts({ name: 'Test.eth', registryAddress: REGISTRY })
 
 describe('getNameRolesAccounts', () => {
   beforeEach(() => {
-    mockGetLogs.mockReset()
-    mockGetLogs.mockResolvedValue([])
-    mockGetResource.mockReset()
-    mockGetResource.mockResolvedValue(RESOURCE)
+    block = 0
+    getName.mockReset()
+    getName.mockResolvedValue({
+      data: { status: 'ok', name: 'test.eth', registration_id: 'reg-current' },
+    })
+    listEvents.mockReset()
+    listEvents.mockResolvedValue(page([]))
   })
 
-  it('pins the resource the registry reports, version bits included', async () => {
+  it('reads the current registration’s permission history from bigname', async () => {
     await run()
-
-    expect(mockGetResource).toHaveBeenCalledWith(expect.anything(), {
-      label: 'test',
-      registryAddress: REGISTRY,
-    })
-    expect(mockGetLogs).toHaveBeenCalledWith({
-      address: REGISTRY,
-      event: eacRolesChangedEventSnippet[0],
-      args: { resource: RESOURCE, account: undefined },
-      fromBlock: ROLES_FROM_BLOCK,
-      strict: true,
+    expect(getName).toHaveBeenCalledWith('test.eth')
+    expect(listEvents).toHaveBeenCalledWith({
+      registration_id: 'reg-current',
+      type: 'permission',
+      include: ['data', 'raw'],
+      order: 'asc',
+      page_size: 200,
+      cursor: undefined,
     })
   })
 
-  it('derives the label from the normalized name', async () => {
-    await run('TEST.chakri.eth')
-
-    expect(mockGetResource).toHaveBeenCalledWith(expect.anything(), {
-      label: 'test',
-      registryAddress: REGISTRY,
+  it('keeps the latest set per account, as ensjs roles', async () => {
+    listEvents.mockResolvedValue(
+      page([
+        change({ powers: ['set_resolver'] }),
+        change({ account: OTHER, powers: ['renew'] }),
+        change({ powers: ['set_resolver', 'admin_set_resolver'] }),
+      ]),
+    )
+    const result = (await run())._unsafeUnwrap()
+    expect(Object.fromEntries(result)).toEqual({
+      [getAddress(OWNER)]: ['ROLE_SET_RESOLVER', 'ROLE_SET_RESOLVER_ADMIN'],
+      [getAddress(OTHER)]: ['ROLE_RENEW'],
     })
   })
 
-  it('fails rather than guessing when the name will not normalize', async () => {
-    const result = await run('in..valid.eth')
-
-    expect(result.isErr()).toBe(true)
-    expect(mockGetLogs).not.toHaveBeenCalled()
+  it('drops an account whose roles were revoked, and the zero address', async () => {
+    listEvents.mockResolvedValue(
+      page([
+        change({ account: OTHER, powers: ['renew'] }),
+        change({ account: OTHER, powers: [], removed: ['renew'], added: [] }),
+        change({ account: zeroAddress, powers: ['renew'] }),
+      ]),
+    )
+    expect((await run())._unsafeUnwrap().size).toBe(0)
   })
 
-  it('keeps the latest bitmap per account', async () => {
-    mockGetLogs.mockResolvedValue([
-      log({ block: 10n, newRoleBitmap: registryRoles.ROLE_SET_RESOLVER }),
-      log({ block: 20n, newRoleBitmap: registryRoles.ROLE_UNREGISTER }),
-    ])
-
-    const roles = (await run())._unsafeUnwrap()
-
-    expect(roles.get(OWNER)).toEqual(['ROLE_UNREGISTER'])
+  it('ignores resolver and ENSv1 scopes and other contracts', async () => {
+    listEvents.mockResolvedValue(
+      page([
+        change({ scope: 'resolver', powers: ['set_addr'] }),
+        change({ scope: 'registration', powers: ['registration_control'] }),
+        change({ contract: OTHER_REGISTRY, powers: ['renew'] }),
+      ]),
+    )
+    expect((await run())._unsafeUnwrap().size).toBe(0)
   })
 
-  it('drops an account whose roles were revoked', async () => {
-    mockGetLogs.mockResolvedValue([
-      log({ block: 10n }),
-      log({ block: 20n, account: OTHER }),
-      log({ block: 30n, newRoleBitmap: 0n }),
-    ])
-
-    const roles = (await run())._unsafeUnwrap()
-
-    expect(roles.has(OWNER)).toBe(false)
-    expect(roles.get(OTHER)).toEqual(['ROLE_SET_RESOLVER'])
+  it('has no roles for a name with no current registration', async () => {
+    getName.mockResolvedValue(null)
+    expect((await run())._unsafeUnwrap().size).toBe(0)
+    expect(listEvents).not.toHaveBeenCalled()
   })
 
-  it('ignores the zero address', async () => {
-    mockGetLogs.mockResolvedValue([log({ block: 10n, account: zeroAddress })])
-
-    const roles = (await run())._unsafeUnwrap()
-
-    expect(roles.size).toBe(0)
-  })
-
-  it('surfaces a node failure as an error result', async () => {
-    mockGetLogs.mockRejectedValue(new Error('query returns too many logs'))
-
-    const result = await run()
-
-    expect(result.isErr()).toBe(true)
+  it('surfaces a bigname failure as an error result', async () => {
+    listEvents.mockRejectedValue(new Error('overloaded'))
+    expect((await run()).isErr()).toBe(true)
   })
 })

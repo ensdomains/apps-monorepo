@@ -1,8 +1,9 @@
 import {
   type BignameError,
+  type BignamePage,
   type ContractRef,
+  type EventRow,
   fetchAllPages,
-  type HistoryEvent,
   isNameProfile,
   MAX_PAGE_SIZE,
   type NameDetail,
@@ -83,13 +84,16 @@ export type ResolverNode = {
 export type ResolverOverview = {
   readonly id: string
   readonly address: string
-  /** Names whose current registration declares this resolver. */
+  /**
+   * Names whose current registration declares this resolver: bigname's
+   * count when it gives one, else the first page's length, a lower bound
+   * while `nodeCountIsLowerBound` (shown as "N+").
+   */
   readonly nodeCount: number
+  readonly nodeCountIsLowerBound: boolean
   readonly linkCount: number
   /** Distinct accounts holding a resolver-scoped role. */
   readonly roleHolderCount: number
-  /** The first page of bound names (see `RESOLVER_NODES_PAGE_SIZE`). */
-  readonly nodes: readonly ResolverNode[]
   readonly links: readonly ResolverLink[]
   readonly namedResources: readonly ResolverNamedResource[]
   readonly roles: readonly ResolverRole[]
@@ -158,8 +162,14 @@ export const pruneLinksAfterUnlink = (
     }))
     .filter((link) => link.sharedWith.length > 0)
 
-/** Bound names listed; `nodeCount` is the exact total however many there are. */
+/**
+ * Bound names on the overview's first page. bigname gives `bound_names` no
+ * total, so `nodeCount` is this page's length, marked as a lower bound while
+ * more pages follow.
+ */
 const RESOLVER_NODES_PAGE_SIZE = MAX_PAGE_SIZE
+/** Bound on the bound-names walk behind the Nodes table and the link picker. */
+const RESOLVER_NODES_MAX_ROWS = 2000
 /** Events listed; a busy resolver's full feed is `/v1/events`, paged. */
 const RESOLVER_EVENTS_PAGE_SIZE = MAX_PAGE_SIZE
 /** Bound on the links and roles collections, which are read whole. */
@@ -284,7 +294,7 @@ const toResolverNode =
     resolver: { id: resolver.address, address: resolver.address },
   })
 
-const toResolverEvent = (row: HistoryEvent): ResolverEvent[] =>
+const toResolverEvent = (row: EventRow): ResolverEvent[] =>
   row.block_number === null
     ? []
     : [
@@ -341,14 +351,16 @@ const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
   ).map(([overview, links, roles, events]): ResolverOverview | null => {
     // null = bigname has no overview for this address: not a resolver it knows.
     if (!overview) return null
-    const boundNames = overview.data.bound_names
+    const boundNames = overview.data.bound_names.page
     const resolverLinks = toLinks(links.rows.flatMap(toLinkedName))
     const resolverRoles = roles.rows.map(toResolverRole)
     return {
       id: resolver.address,
       address: resolver.address,
-      nodeCount: boundNames.page.total_count ?? boundNames.data.length,
-      nodes: boundNames.data.map(toResolverNode(resolver)),
+      nodeCount:
+        boundNames.total_count ?? overview.data.bound_names.data.length,
+      nodeCountIsLowerBound:
+        boundNames.total_count === null && boundNames.has_more,
       links: resolverLinks,
       linkCount: resolverLinks.length,
       roles: resolverRoles,
@@ -363,6 +375,69 @@ const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
     }
   })
 }
+
+const NO_BOUND_NAMES = {
+  data: [],
+  page: {
+    cursor: null,
+    next_cursor: null,
+    page_size: 0,
+    total_count: 0,
+    has_more: false,
+  },
+  meta: {},
+} as const satisfies BignamePage<NameDetail>
+
+/**
+ * Every name bound to the resolver, walked page by page through the
+ * overview's `bound_names` cursor, up to `RESOLVER_NODES_MAX_ROWS`.
+ */
+type ResolverNodes = {
+  readonly nodes: readonly ResolverNode[]
+  /** True when the walk stopped at the row bound with more names left. */
+  readonly truncated: boolean
+}
+
+const getResolverNodes = ({ address }: GetResolverOverviewParameters) => {
+  const chainId = sepoliaWithEns.id
+  const resolver: ContractRef = {
+    chain_id: chainId,
+    address: address.toLowerCase() as Address,
+  }
+  return fromPromise(
+    fetchAllPages(
+      async (cursor): Promise<BignamePage<NameDetail>> => {
+        const response = await bigname.getResolver(chainId, resolver.address, {
+          page_size: MAX_PAGE_SIZE,
+          cursor,
+        })
+        return response
+          ? { ...response.data.bound_names, meta: response.meta }
+          : NO_BOUND_NAMES
+      },
+      { maxRows: RESOLVER_NODES_MAX_ROWS },
+    ),
+    (e) => new GetResolverOverviewError({ cause: e as BignameError }),
+  ).map(
+    ({ rows, truncated }): ResolverNodes => ({
+      nodes: rows.map(toResolverNode(resolver)),
+      truncated,
+    }),
+  )
+}
+
+const resolverNodesQueryKey = createQueryKey<
+  'resolver-nodes',
+  GetResolverOverviewParameters
+>('resolver-nodes')
+
+export const getResolverNodesQueryOptions = (
+  params: GetResolverOverviewParameters,
+) =>
+  resultQueryOptions({
+    queryKey: resolverNodesQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getResolverNodes(params),
+  })
 
 const resolverOverviewQueryKey = createQueryKey<
   'resolver-overview',

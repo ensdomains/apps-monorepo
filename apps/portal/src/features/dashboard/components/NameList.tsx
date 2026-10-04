@@ -4,9 +4,9 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameBadge } from '@/components/NameBadge'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Badge } from '@/components/ui/badge'
 import { partitionOwnedNames } from '@/features/address/nameAttribution'
@@ -26,19 +26,15 @@ interface NameListProps {
 
 type column = AddressNameItem
 
-const NameCell = ({ name }: { name: string }) => (
-  <EntityBadge variant="name" name={name} showAvatar>
-    {name}
-  </EntityBadge>
-)
-
 const columns: ColumnDef<column>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
-    cell: ({ getValue }) => {
-      const name = getValue() as string
-      return name ? <NameCell name={name} /> : null
+    cell: ({ row }) => {
+      const { name, hasNameRow } = row.original
+      return name ? (
+        <NameBadge name={name} linkable={hasNameRow} showAvatar />
+      ) : null
     },
   },
   {
@@ -54,7 +50,7 @@ const columns: ColumnDef<column>[] = [
         )
       }
       const isV2 = row.original.protocolVersion === 'ENSv2'
-      const status = getNameStatus(expiryDate, isV2)
+      const status = getNameStatus(expiryDate, isV2, row.original.graceEndDate)
       return (
         <div className="flex items-center gap-2">
           <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
@@ -149,6 +145,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
             key={name.name}
             name={name.name}
             expiryDate={name.expiryDate}
+            graceEndDate={name.graceEndDate}
+            hasNameRow={name.hasNameRow}
             roleBitmap={name.roleBitmap}
             v1Roles={name.v1Roles}
             protocolVersion={name.protocolVersion}
@@ -181,6 +179,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 key={name.name}
                 name={name.name}
                 expiryDate={name.expiryDate}
+                graceEndDate={name.graceEndDate}
+                hasNameRow={name.hasNameRow}
                 roleBitmap={name.roleBitmap}
                 v1Roles={name.v1Roles}
                 protocolVersion={name.protocolVersion}
@@ -203,7 +203,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
           className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripHorizontal className="size-4" />
-          Go to full list ({allData.length})
+          Go to full list ({allData.filter((item) => item.hasNameRow).length})
         </Link>
       )}
     </div>

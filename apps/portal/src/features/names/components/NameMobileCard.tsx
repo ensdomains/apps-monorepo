@@ -1,4 +1,5 @@
 import { EntityBadge } from '@/components/EntityBadge'
+import { NameBadge } from '@/components/NameBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
@@ -12,6 +13,10 @@ import type { ProtocolVersion } from '@/utils/types'
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
+  /** Served renewal deadline of `expiryDate` (see `getNameStatus`). */
+  graceEndDate?: Date | null
+  /** False for a registry child without a name row; rendered unlinked. */
+  hasNameRow?: boolean
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
   protocolVersion: ProtocolVersion
@@ -25,6 +30,8 @@ export interface NameMobileCardProps {
 export const NameMobileCard = ({
   name,
   expiryDate,
+  graceEndDate,
+  hasNameRow = true,
   roleBitmap,
   v1Roles,
   protocolVersion,
@@ -53,9 +60,11 @@ export const NameMobileCard = ({
             aria-label="Select row"
           />
         )}
-        <EntityBadge variant="name" name={name ?? undefined} showAvatar>
-          {name}
-        </EntityBadge>
+        {name ? (
+          <NameBadge name={name} linkable={hasNameRow} showAvatar />
+        ) : (
+          <EntityBadge variant="name">{name}</EntityBadge>
+        )}
       </div>
 
       {/* Expiry section */}
@@ -66,8 +75,11 @@ export const NameMobileCard = ({
             <span className="text-base">
               {formatDateTime(dateToPlainDate(expiryDate))}
             </span>
-            {getNameStatus(expiryDate, protocolVersion === 'ENSv2') ===
-              'grace' && <GraceBadge />}
+            {getNameStatus(
+              expiryDate,
+              protocolVersion === 'ENSv2',
+              graceEndDate,
+            ) === 'grace' && <GraceBadge />}
           </>
         ) : (
           <Badge variant="secondary" className="text-xs">

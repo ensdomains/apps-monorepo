@@ -11,7 +11,11 @@ const ADDRESS = '0x1111111111111111111111111111111111111111'
 
 let nextLog = 0
 const record = (
-  data: { key?: string; value?: string; coin_type?: number },
+  data: {
+    key?: string
+    value?: string | { encoding: 'hex'; bytes: string }
+    coin_type?: number
+  },
   over: Partial<HistoryEvent> = {},
 ): HistoryEvent =>
   ({
@@ -21,7 +25,7 @@ const record = (
     namespace: 'ens',
     registration_id: null,
     block_number: 100,
-    timestamp: '2026-06-10T00:00:06Z',
+    timestamp: '1781049606',
     transaction_hash: '0xabc',
     log_index: nextLog++,
     kind: 'RecordChanged',
@@ -56,10 +60,11 @@ describe('getRecordHistoryQueryOptions', () => {
     nextLog = 0
   })
 
-  it('reads the name’s record rows with payloads, newest first', async () => {
+  it('reads one key’s rows by record_key, with payloads, newest first', async () => {
     await read('text:url', [])
     expect(getNameHistory).toHaveBeenCalledWith('alice.eth', {
       type: 'record',
+      record_key: 'text:url',
       include: ['data', 'raw'],
       order: 'desc',
       page_size: 200,
@@ -91,6 +96,21 @@ describe('getRecordHistoryQueryOptions', () => {
         type: 'RecordVersionChanged',
       },
     ])
+  })
+
+  it('reads a family without record_key, which takes one exact key', async () => {
+    await read('texts', [])
+    expect(getNameHistory.mock.lastCall?.[1]).not.toHaveProperty('record_key')
+  })
+
+  it('reads a value served as raw bytes by its bytes', async () => {
+    const events = (await read('contentHash', [
+      record({
+        key: 'contenthash',
+        value: { encoding: 'hex', bytes: '0xe301' } as const,
+      }),
+    ])) as { value?: string }[]
+    expect(events[0]?.value).toBe('0xe301')
   })
 
   it('reads a family by its key prefix', async () => {

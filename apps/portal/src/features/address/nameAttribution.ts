@@ -79,16 +79,14 @@ type OwnableName = {
 }
 
 /**
- * The address holds the name's token: `registrant` for a `.eth` 2LD (ENSv1, or
- * the NameWrapper holder when wrapped), `owner` for the ENSv2 token holder. A
- * `manager` relation alone is the registry controller, which is not a root.
+ * The address holds the name's token. On a `.eth` 2LD bigname's `owner` is
+ * always a token holder: the BaseRegistrar holder (unwrapped ENSv1), the
+ * NameWrapper holder (wrapped ENSv1) or the ENSv2 token holder. A `manager`
+ * relation alone is the registry controller, which is not a root: after a
+ * token transfer without `reclaim` it is still the previous holder.
  */
 const holdsRegistrarName = ({ name, relations }: OwnableName) =>
-  Boolean(
-    name &&
-      isRegistrarIssued(name) &&
-      (relations.includes('registrant') || relations.includes('owner')),
-  )
+  Boolean(name && isRegistrarIssued(name) && relations.includes('owner'))
 
 /**
  * Decides whether a name's history may be presented as the address's own.

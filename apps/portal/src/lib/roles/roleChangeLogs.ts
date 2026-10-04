@@ -14,7 +14,14 @@ import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-/** Roles held here apply to every name in the registry rather than to one. */
+/**
+ * Roles held here apply to every name in the registry rather than to one.
+ *
+ * The scan in this file is kept only for this resource: bigname stores a
+ * registry's root-resource role changes as `RootPermissionChanged`, which no
+ * product route serves (v0.4.1), while a name token's changes are bigname
+ * `permission` rows (`nameRoleChanges.ts`).
+ */
 export const ROOT_RESOURCE = 0n
 
 class GetRoleChangeLogsError extends TaggedError('GetRoleChangeLogsError')<{
@@ -73,10 +80,15 @@ type RoleChangeLog = GetLogsReturnType<
   true
 >[number]
 
-/** One `EACRolesChanged` log, decoded for display. */
+/**
+ * One role change, decoded for display: an `EACRolesChanged` log from the scan
+ * below (root resource), or a bigname `permission` row (a name's token, see
+ * `nameRoleChanges.ts`), which carries no EAC resource id.
+ */
 export type RoleHistoryEntry = {
   readonly account: Address
-  readonly resource: string
+  /** EAC resource as hex; set by the log scan only. */
+  readonly resource?: string
   readonly oldRoles: readonly string[]
   readonly newRoles: readonly string[]
   readonly transactionHash: Hex

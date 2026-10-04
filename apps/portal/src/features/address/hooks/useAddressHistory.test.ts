@@ -20,7 +20,7 @@ const row = (over: Partial<HistoryEvent>): HistoryEvent =>
     namespace: 'ens',
     registration_id: '1',
     block_number: 100,
-    timestamp: '2026-06-10T00:00:06Z',
+    timestamp: '1781049606',
     transaction_hash: '0xabc',
     log_index: 2,
     kind: 'TokenControlTransferred',
@@ -56,7 +56,8 @@ describe('getAddressHistoryQueryOptions', () => {
     listAddressNames.mockReset()
     listAddressNames.mockResolvedValue(
       page([
-        { name: 'held.eth', relations: ['registrant', 'manager'] },
+        { name: 'held.eth', relations: ['owner', 'manager'] },
+        // A token transferred without `reclaim`: the old holder is manager only.
         { name: 'assigned.eth', relations: ['manager'] },
       ]),
     )

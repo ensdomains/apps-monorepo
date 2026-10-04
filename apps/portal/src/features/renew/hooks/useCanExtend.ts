@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import type { ProtocolVersion } from '@/utils/types'
 import { isExtendable2LD } from '../utils/nameExtension'
@@ -39,20 +38,14 @@ export const useCanExtend = ({
 }: UseCanExtendParameters): UseCanExtendReturnType => {
   const isV2 = protocolVersion === 'ENSv2'
 
-  const v1ExpiryQuery = useQuery({
-    ...getV1ExpiryQueryOptions({ name }),
-    enabled: enabled && !isV2,
-  })
-  const v2DataQuery = useQuery({
+  // Both eras' expiry from bigname: the ENSv1 lease (`ens_v1.expires_at`)
+  // for a v1 name, whose 90-day grace `isExtendable2LD` applies.
+  const { data } = useQuery({
     ...getV2RegistrationDataQueryOptions({ name }),
-    enabled: enabled && isV2,
+    enabled,
   })
 
-  const expirySeconds = isV2
-    ? (v2DataQuery.data?.expiry ?? null)
-    : v1ExpiryQuery.data?.expiry
-      ? Number(v1ExpiryQuery.data.expiry)
-      : null
+  const expirySeconds = data?.expiry ?? null
   const expiryDate =
     expirySeconds !== null ? new Date(expirySeconds * 1000) : undefined
 

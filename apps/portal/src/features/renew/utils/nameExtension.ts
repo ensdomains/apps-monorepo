@@ -23,14 +23,21 @@ export const getSelectedNames = (
       expiryDate: row.expiryDate,
     }))
 
+/**
+ * A name's lifecycle stage. `graceEndDate` is the renewal deadline bigname
+ * serves with the expiry (see `servedExpiry`), which knows a subname has no
+ * grace; without one, the `.eth` registrar grace of the name's era is assumed.
+ */
 export const getNameStatus = (
   expiryDate: Date | null | undefined,
   isV2 = false,
+  graceEndDate?: Date | null,
 ): string => {
   if (!expiryDate) return 'no-expiry'
   const now = new Date()
   const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
-  const gracePeriodEnd = new Date(expiryDate.getTime() + graceDays * MS_PER_DAY)
+  const gracePeriodEnd =
+    graceEndDate ?? new Date(expiryDate.getTime() + graceDays * MS_PER_DAY)
   if (isV2) {
     if (now > gracePeriodEnd) return 'expired'
     if (now > expiryDate) return 'grace'

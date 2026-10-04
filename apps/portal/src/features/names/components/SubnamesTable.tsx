@@ -13,6 +13,7 @@ import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { NameBadge } from '@/components/NameBadge'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
@@ -37,6 +38,8 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
+  /** False for a registry child without a name row; rendered unlinked. */
+  readonly hasNameRow?: boolean
   /** Whether the connected user has ROLE_UNREGISTER for this subname. */
   readonly canDelete?: boolean
 }
@@ -101,14 +104,13 @@ function buildColumns(
           Subname
         </SortButton>
       ),
-      cell: ({ row }) => {
-        const name = row.original.name
-        return (
-          <EntityBadge variant="name" name={name} showAvatar>
-            {name}
-          </EntityBadge>
-        )
-      },
+      cell: ({ row }) => (
+        <NameBadge
+          name={row.original.name}
+          linkable={row.original.hasNameRow ?? true}
+          showAvatar
+        />
+      ),
     },
     {
       accessorKey: 'owner',
@@ -294,13 +296,11 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <EntityBadge
-                      variant="name"
+                    <NameBadge
                       name={row.original.name}
+                      linkable={row.original.hasNameRow ?? true}
                       showAvatar
-                    >
-                      {row.original.name}
-                    </EntityBadge>
+                    />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"

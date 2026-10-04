@@ -1,6 +1,8 @@
 import { parseRecordKey } from '@ens-apps/bigname'
 import { type Address, isAddress } from 'viem'
+import { humanizeType } from '@/features/history/summarize/descriptors'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
+import { recordValueText } from '@/utils/history/recordValue'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
 export type FormattedActivity = {
@@ -53,13 +55,14 @@ const formatRecordEvent = (
   if (event.kind === 'RecordVersionChanged')
     return { text: 'Resolver records cleared' }
   const key = event.data.key ?? ''
+  const value = recordValueText(event.data.value)
   const parsed = parseRecordKey(key)
   if (parsed?.kind === 'addr') {
     // `value` is raw bytes per coin type — only a real address when ETH.
     if (parsed.coinType !== ETH_COIN_TYPE) return { text: 'Address updated' }
     return activity({
       text: 'ETH address updated',
-      entityFromData: asAddress(event.data.value),
+      entityFromData: asAddress(value),
     })
   }
   if (parsed?.kind === 'text' || parsed?.kind === 'avatar')
@@ -73,12 +76,16 @@ const formatRecordEvent = (
   if (key === 'name')
     return activity({
       text: 'Primary name updated',
-      value: asValue(event.data.value),
+      value: asValue(value),
     })
   return activity({ text: 'Record updated', value: asValue(key) })
 }
 
-/** One feed row, worded by bigname's friendly type. */
+/**
+ * One feed row, worded by bigname's friendly type. A type bigname added after
+ * this switch reads as its raw kind (or the type), so the feed never breaks on
+ * one.
+ */
 export const formatActivityEvent = (
   event: RecentActivityEvent,
 ): FormattedActivity => {
@@ -111,9 +118,16 @@ export const formatActivityEvent = (
       })
     case 'record':
       return formatRecordEvent(event)
-    // History keeps no claimed name on these rows, so there is no value pill.
+    // The claimed name is the reverse record's unverified claim, so it is a
+    // neutral value pill, not a name badge; a cleared claim has none.
     case 'primary_name':
-      return { text: 'Primary name updated' }
+      return activity({
+        text: 'Primary name updated',
+        value:
+          event.data.name_status === 'set'
+            ? asValue(event.data.name)
+            : undefined,
+      })
     case 'permission':
       return event.data.powers === undefined && event.data.fuses !== undefined
         ? { text: 'Fuses updated' }
@@ -123,5 +137,12 @@ export const formatActivityEvent = (
           })
     case 'subregistry':
       return { text: 'Subregistry updated' }
+    case 'migration':
+      return { text: 'Migrated to ENSv2' }
+    default: {
+      // `never` to the compiler; at runtime a type newer than this switch.
+      const { kind, type } = event as { kind?: string; type: string }
+      return { text: humanizeType(kind ?? type) }
+    }
   }
 }

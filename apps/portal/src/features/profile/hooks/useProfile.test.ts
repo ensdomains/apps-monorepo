@@ -2,9 +2,15 @@ import type { RecordInventory } from '@ens-apps/bigname'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+const getName = vi.fn()
+const getNameRecords = vi.fn()
+const getRecords = vi.fn()
+vi.mock('@/lib/bigname', () => ({ bigname: { getName, getNameRecords } }))
+vi.mock('./useRecords', () => ({ getRecords }))
 
-const { recordKeysToRead } = await import('./useProfile')
+const { getProfileQueryOptions, recordKeysToRead } = await import(
+  './useProfile'
+)
 
 const inventory = (
   overrides: Partial<RecordInventory> = {},
@@ -70,5 +76,32 @@ describe('recordKeysToRead', () => {
     )
 
     expect(texts).not.toContain('email')
+  })
+})
+
+describe('getProfileQueryOptions', () => {
+  const read = () => {
+    const { queryFn, queryKey } = getProfileQueryOptions({
+      name: 'jefflau.eth',
+    })
+    return (queryFn as (context: unknown) => Promise<unknown>)({ queryKey })
+  }
+
+  it('reports a name that resolves to nothing instead of reading default keys', async () => {
+    getNameRecords.mockResolvedValue({ data: { inventory: inventory() } })
+    getName.mockResolvedValue({
+      data: {
+        status: 'ok',
+        name: 'jefflau.eth',
+        unresolvable_reason: 'no_live_ens_v2_entry',
+      },
+    })
+    getRecords.mockReset()
+
+    await expect(read()).resolves.toMatchObject({
+      unresolvableReason: 'no_live_ens_v2_entry',
+      records: { texts: [], coins: [] },
+    })
+    expect(getRecords).not.toHaveBeenCalled()
   })
 })

@@ -75,7 +75,10 @@ function RouteComponent() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
           <CounterCardRow icon={GridIcon}>
-            <span className="font-medium">{resolver?.nodeCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolver?.nodeCount ?? 0}
+              {resolver?.nodeCountIsLowerBound && '+'}
+            </span>{' '}
             nodes
           </CounterCardRow>
         </CounterCard>

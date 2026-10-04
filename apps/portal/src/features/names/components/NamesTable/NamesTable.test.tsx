@@ -25,11 +25,11 @@ const { columns } = await import('./columns')
 /**
  * An expiry a subregistry can mint but `Date` cannot hold. Before the switch
  * to bigname it reached `Temporal.PlainDate.from({ year: NaN })` as an
- * `Invalid Date` and took the whole route down. bigname omits `uint64` max
- * expiries, but an RFC 3339 year past `Date`'s range must still map to no
- * expiry rather than an invalid date.
+ * `Invalid Date` and took the whole route down. bigname saturates such an
+ * expiry at `i64::MAX` seconds, which must still map to no expiry rather than
+ * an invalid date.
  */
-const OUT_OF_RANGE_EXPIRY = '+275760-09-14T00:00:01Z'
+const OUT_OF_RANGE_EXPIRY = '9223372036854775807'
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
 
@@ -90,7 +90,7 @@ describe('NamesTable expiry cell', () => {
   it('keeps a good row rendering beside a bad one', () => {
     const data = items([
       { name: 'attacker-minted.eth', expires_at: OUT_OF_RANGE_EXPIRY },
-      { name: 'victim.eth', expires_at: '2030-01-01T00:00:00Z' },
+      { name: 'victim.eth', expires_at: String(Date.UTC(2030, 0, 1) / 1000) },
     ])
 
     render(<NamesTableHarness data={data} />)

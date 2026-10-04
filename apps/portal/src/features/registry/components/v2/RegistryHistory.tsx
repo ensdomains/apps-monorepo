@@ -31,9 +31,8 @@ const registryHistoryTimelineQueryKey = createQueryKey<
  * attributes to the registry's own name.
  *
  * There is no v1 counterpart: registries are an ENSv2 contract, so a v1 name
- * has no registry for this to describe (see `V2RegistryInfo`). bigname does not
- * count a `contract_address` read, so the feed shows no total; the registry
- * overview's `counts.events` is the header's number.
+ * has no registry for this to describe (see `V2RegistryInfo`). The feed asks
+ * bigname to count the `contract_address` read, so it shows its own total.
  */
 export const RegistryHistoryByAddress = ({
   address,

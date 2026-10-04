@@ -1,6 +1,7 @@
 import {
   type BignameError,
   type BignamePage,
+  type EventRow,
   type HistoryEvent,
   type HistoryEventType,
   secondsToTimestamp,
@@ -58,14 +59,16 @@ const NO_CHILD_REGISTRATIONS = new Set(['eth', 'base.eth'])
 const canIncludeChildRegistrations = (name: string) =>
   !NO_CHILD_REGISTRATIONS.has(normalizeOrLower(name))
 
-const toPage = (response: BignamePage<HistoryEvent>): TimelinePage => ({
+type HistoryPage = BignamePage<HistoryEvent> | BignamePage<EventRow>
+
+const toPage = (response: HistoryPage): TimelinePage => ({
   events: toTimelineEvents(response.data),
   endCursor: response.page.next_cursor,
   hasNextPage: response.page.has_more,
   totalCount: response.page.total_count ?? undefined,
 })
 
-const wrap = (promise: Promise<BignamePage<HistoryEvent>>) =>
+const wrap = (promise: Promise<HistoryPage>) =>
   fromPromise(
     promise,
     (e) => new GetTimelineEventPageError({ cause: e as BignameError }),
@@ -125,8 +128,8 @@ export const fetchNameHistoryPage = ({
 
 /**
  * Everything one contract emitted — how a registry's own feed is addressed.
- * `total_count` is always null for a `contract_address` read; the registry
- * overview's `counts.events` is the total.
+ * `include=total_count` makes bigname count a `contract_address` read exactly
+ * (it does not by default), so the feed carries its own total.
  */
 export const fetchContractEventsPage = ({
   contractAddress,
@@ -138,7 +141,7 @@ export const fetchContractEventsPage = ({
   wrap(
     bigname.listEvents({
       contract_address: contractAddress.toLowerCase(),
-      include: ['data', 'raw'],
+      include: ['data', 'raw', 'total_count'],
       order: 'desc',
       page_size: HISTORY_TIMELINE_PAGE_SIZE,
       cursor,

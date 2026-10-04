@@ -21,8 +21,13 @@ describe('getTimelineFieldType', () => {
     expect(getTimelineFieldType('permission', 'powers')).toBe('string[]')
   })
 
-  it('returns unknown for an unmapped field', () => {
+  it('returns unknown for an unmapped field, or a type newer than the client', () => {
     expect(getTimelineFieldType('record', 'missing')).toBe('unknown')
+    expect(getTimelineFieldType('future_type', 'key')).toBe('unknown')
+  })
+
+  it('types the migration payload', () => {
+    expect(getTimelineFieldType('migration', 'migration_path')).toBe('string')
   })
 })
 
@@ -37,13 +42,13 @@ describe('getDecodedParamEntries', () => {
           chain_id: 11155111,
           address: '0x2222222222222222222222222222222222222222',
         },
-        expires_at: '2027-01-01T00:00:00Z',
+        expires_at: '1798761600',
       },
     }
     expect(getDecodedParamEntries(event)).toEqual([
       ['owner', '0x1111111111111111111111111111111111111111'],
       ['resolver', '0x2222222222222222222222222222222222222222'],
-      ['expires_at', '2027-01-01T00:00:00Z'],
+      ['expires_at', '2027-01-01T00:00:00.000Z'],
     ])
 
     const permission: TimelineEvent = {

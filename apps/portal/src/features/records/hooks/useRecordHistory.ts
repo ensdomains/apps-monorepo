@@ -11,6 +11,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise } from 'neverthrow'
 import { bigname } from '@/lib/bigname'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
+import { recordValueText } from '@/utils/history/recordValue'
 
 class GetRecordHistoryError extends TaggedError('GetRecordHistoryError')<{
   cause: BignameError
@@ -46,7 +47,10 @@ export type RecordHistoryEvent = {
   readonly coinType?: number
 }
 
-/** Enough for any one record's history; bigname has no server-side key filter. */
+/**
+ * Enough for any one record's history. One exact key is filtered server-side
+ * (`record_key`); a family is not, so its rows are filtered here.
+ */
 const RECORD_HISTORY_MAX_ROWS = 1000
 
 const FAMILY_MATCHERS: Record<RecordHistoryFamily, (key: string) => boolean> = {
@@ -84,6 +88,7 @@ const toRecordHistoryEvent = (row: HistoryEvent): RecordHistoryEvent[] => {
     timestamp === undefined
   )
     return []
+  const value = recordValueText(row.data?.value)
   return [
     {
       id: `${row.transaction_hash}-${String(row.log_index ?? '')}`,
@@ -92,7 +97,7 @@ const toRecordHistoryEvent = (row: HistoryEvent): RecordHistoryEvent[] => {
       timestamp: BigInt(timestamp),
       type: row.kind ?? row.type,
       ...(row.data?.key !== undefined && { key: row.data.key }),
-      ...(row.data?.value !== undefined && { value: row.data.value }),
+      ...(value !== undefined && { value }),
       ...(row.data?.coin_type !== undefined && {
         coinType: row.data.coin_type,
       }),
@@ -119,7 +124,9 @@ const dropDoubleEmits = (
 
 /**
  * A record's write history across every resolver the name has pointed at,
- * ENSv1 and ENSv2 alike, newest first.
+ * ENSv1 and ENSv2 alike, newest first. One exact key is asked for by
+ * `record_key`, which keeps that key's writes and every record reset; a family
+ * reads every `record` row and filters them here.
  */
 const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
   fromPromise(
@@ -127,6 +134,7 @@ const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
       (cursor) =>
         bigname.getNameHistory(normalizeOrLower(name), {
           type: 'record',
+          ...(!isFamily(key) && { record_key: key }),
           include: ['data', 'raw'],
           order: 'desc',
           page_size: MAX_PAGE_SIZE,

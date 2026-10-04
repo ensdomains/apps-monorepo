@@ -2,7 +2,6 @@ import {
   type BignameError,
   type RegistryLabelRow as BignameRegistryLabelRow,
   nullOnNotFound,
-  timestampToSeconds,
 } from '@ens-apps/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -11,6 +10,8 @@ import { fromPromise } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { isUnknownLabel } from '@/utils/names/registryChildName'
+import { servedExpiry } from '@/utils/names/servedExpiry'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
   cause: BignameError
@@ -25,7 +26,8 @@ export type RegistryLabelRow = {
   name: string | null
   /** The label segment (e.g. "lmao"); null when unknown. */
   labelName: string | null
-  labelhash: string
+  /** Null on the rare row bigname serves without one. */
+  labelhash: string | null
   /** Unix seconds; null means the label does not expire. */
   expiryDate: number | null
   /** Distinct accounts holding a label-scoped role on this label. */
@@ -38,16 +40,16 @@ const LABELS_LIMIT = 100
  * bigname serves a label it cannot name as `[<labelhash>].<parent>`, which
  * must never be read as a name.
  */
-const isPlaceholder = (name: string) => name.startsWith('[')
+const isPlaceholder = (name: string) => isUnknownLabel(name.split('.')[0] ?? '')
 
 const toRegistryLabelRow = (row: BignameRegistryLabelRow): RegistryLabelRow => {
   const named = !isPlaceholder(row.name)
   return {
     name: named ? row.name : null,
     labelName: named ? (row.display_name.split('.')[0] ?? null) : null,
-    labelhash: row.labelhash,
-    // Omitted for an unrepresentable (max uint64) expiry: it does not expire.
-    expiryDate: timestampToSeconds(row.expires_at) ?? null,
+    labelhash: row.labelhash ?? null,
+    // Null for no expiry (or one too large to date): it does not expire.
+    expiryDate: servedExpiry(row).expiry,
     roleHoldersCount: row.role_holder_count ?? 0,
   }
 }

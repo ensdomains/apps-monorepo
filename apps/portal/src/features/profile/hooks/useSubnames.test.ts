@@ -23,6 +23,8 @@ const row = (name: string, overrides: Partial<SubnameRow> = {}): SubnameRow => {
     namehash: namehash(name),
     labelhash: labelhash(label),
     owner: OWNER,
+    registration_status: 'active',
+    created_at: '1692284436',
     ...overrides,
   }
 }
@@ -56,6 +58,7 @@ describe('getSubnames', () => {
         labelhash: labelhash('sub'),
         namehash: namehash('sub.test.eth'),
         owner: OWNER_CHECKSUM,
+        hasNameRow: true,
       },
     ])
     expect(mockListSubnames).toHaveBeenCalledWith('test.eth', {
@@ -98,18 +101,49 @@ describe('getSubnames', () => {
 })
 
 describe('toSubnames', () => {
-  // `[<labelhash>].<parent>` is bigname's placeholder for a label it cannot
-  // state; it is not a name and must not reach a name route or a delete.
-  it('drops rows bigname could not state as a name', () => {
+  // `[<labelhash>].<parent>` is bigname's spelling of a label it cannot state.
+  // bigname accepts it on name routes, so the row is kept (and links when the
+  // child has a name row), but it has no label for a label-keyed write.
+  // Escaped bytes and a label that does not hash to the row are dropped.
+  it('keeps a [labelhash] child without a label, drops other non-name rows', () => {
     const hidden = labelhash('hidden').slice(2)
     const rows = [
       row('sub.test.eth'),
       row(`[${hidden}].test.eth`, { labelhash: labelhash('hidden') }),
+      row(`[${hidden}].test.eth`, { labelhash: labelhash('other') }),
       row('\\377bad.test.eth', { labelhash: labelhash('something-else') }),
     ]
 
-    expect(toSubnames(rows, 'test.eth').map((s) => s.name)).toEqual([
-      'sub.test.eth',
+    expect(
+      toSubnames(rows, 'test.eth').map(({ name, labelName }) => ({
+        name,
+        labelName,
+      })),
+    ).toEqual([
+      { name: 'sub.test.eth', labelName: 'sub' },
+      { name: `[${hidden}].test.eth`, labelName: null },
+    ])
+  })
+
+  // A registry child known only from registry owner events: bigname lists it
+  // with a readable name, but every name route 404s on it.
+  it('keeps a child without a name row, marked, after the others', () => {
+    const rows = [
+      row('sub002.leon.eth', {
+        registration_status: 'unregistered',
+        created_at: undefined,
+      }),
+      row('sub.leon.eth'),
+    ]
+
+    expect(
+      toSubnames(rows, 'leon.eth').map(({ name, hasNameRow }) => ({
+        name,
+        hasNameRow,
+      })),
+    ).toEqual([
+      { name: 'sub.leon.eth', hasNameRow: true },
+      { name: 'sub002.leon.eth', hasNameRow: false },
     ])
   })
 
@@ -131,6 +165,7 @@ describe('toSubnames', () => {
         labelhash: labelhash('1'),
         namehash: namehash('1.phantombug01.eth'),
         owner: OWNER_CHECKSUM,
+        hasNameRow: true,
       },
     ])
   })

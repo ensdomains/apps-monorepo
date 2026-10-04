@@ -1,10 +1,11 @@
 import {
   HISTORY_EVENT_TYPES,
   type HistoryEventType,
+  isKnownHistoryEventType,
   type TimelineEvent,
 } from './timelineEvent'
 
-/** Chip labels for bigname's eleven history types. */
+/** Chip labels for bigname's twelve history types. */
 export const HISTORY_EVENT_TYPE_LABELS: Record<HistoryEventType, string> = {
   registration: 'Registration',
   renewal: 'Renewal',
@@ -17,6 +18,7 @@ export const HISTORY_EVENT_TYPE_LABELS: Record<HistoryEventType, string> = {
   primary_name: 'Primary name',
   permission: 'Permission',
   subregistry: 'Subregistry',
+  migration: 'Migration',
 }
 
 /** The name-page facets, in bigname's vocabulary. */
@@ -27,6 +29,7 @@ export const OWNERSHIP_HISTORY_TYPES = [
   'expiry',
   'transfer',
   'authority',
+  'migration',
 ] as const satisfies readonly HistoryEventType[]
 
 export const RESOLVER_HISTORY_TYPES = [
@@ -40,8 +43,8 @@ export const ADDRESS_RECORD_HISTORY_TYPES = [
 
 /**
  * Narrows `ADDRESS_RECORD_HISTORY_TYPES` to the address records (`addr:<coin>`)
- * and the name's own `name()` record. bigname files every resolver write as
- * `record` and cannot filter by key, so this runs over loaded rows. A reset
+ * and the name's own `name()` record. bigname's `record_key` filter takes one
+ * exact key, not a family, so this runs over loaded rows. A reset
  * (`clearRecords`, no key) wipes the addresses too, so it stays.
  */
 export const isAddressRecordEvent = (event: TimelineEvent): boolean => {
@@ -50,12 +53,10 @@ export const isAddressRecordEvent = (event: TimelineEvent): boolean => {
   return key === undefined || key === 'name' || key.startsWith('addr:')
 }
 
-const isHistoryEventType = (value: string): value is HistoryEventType =>
-  (HISTORY_EVENT_TYPES as readonly string[]).includes(value)
-
 /**
  * A facet or chip selection as a positive set of bigname types, in canonical
- * order. bigname has no `type_not_in`, so every narrowing is expressed this way.
+ * order: every narrowing here is an intersection, which `type` expresses
+ * directly (`exclude_type` is for removing a type from an unfaceted read).
  * Returns `undefined` for "no narrowing", and `[]` when nothing in `types` is a
  * bigname type.
  */
@@ -63,6 +64,6 @@ export const toHistoryEventTypes = (
   types: readonly string[] | undefined,
 ): readonly HistoryEventType[] | undefined => {
   if (!types) return undefined
-  const wanted = new Set(types.filter(isHistoryEventType))
+  const wanted = new Set(types.filter(isKnownHistoryEventType))
   return HISTORY_EVENT_TYPES.filter((type) => wanted.has(type))
 }

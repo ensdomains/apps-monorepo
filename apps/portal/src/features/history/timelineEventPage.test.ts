@@ -17,7 +17,7 @@ const row = (over: Partial<HistoryEvent> = {}): HistoryEvent =>
     namespace: 'ens',
     registration_id: null,
     block_number: 100,
-    timestamp: '2026-06-10T00:00:06Z',
+    timestamp: '1781049606',
     transaction_hash: '0xabc',
     log_index: 12,
     contract_address: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',
@@ -57,8 +57,8 @@ describe('fetchNameHistoryPage', () => {
     expect(getNameHistory).toHaveBeenCalledWith('alice.eth', {
       include: ['data', 'raw'],
       type: ['resolver', 'record'],
-      from_timestamp: '2023-11-14T22:13:20Z',
-      to_timestamp: '2023-11-15T22:13:19Z',
+      from_timestamp: '1700000000',
+      to_timestamp: '1700086399',
       order: 'desc',
       page_size: 100,
       cursor: 'c1',
@@ -136,18 +136,45 @@ describe('fetchNameHistoryPage', () => {
 })
 
 describe('fetchContractEventsPage', () => {
-  it('reads one contract’s events, newest first', async () => {
-    listEvents.mockResolvedValue(page([row()], { total_count: null }))
-    await fetchContractEventsPage({
+  it('reads one contract’s events, newest first, with their exact total', async () => {
+    listEvents.mockResolvedValue(page([row()], { total_count: 13_587 }))
+    const result = await fetchContractEventsPage({
       contractAddress: '0xABCdef0000000000000000000000000000000001',
       cursor: 'c2',
     })
     expect(listEvents).toHaveBeenCalledWith({
       contract_address: '0xabcdef0000000000000000000000000000000001',
-      include: ['data', 'raw'],
+      include: ['data', 'raw', 'total_count'],
       order: 'desc',
       page_size: 100,
       cursor: 'c2',
     })
+    expect(result._unsafeUnwrap().totalCount).toBe(13_587)
+  })
+
+  it('renders a migration row and a type newer than the client without failing', async () => {
+    listEvents.mockResolvedValue(
+      page(
+        [
+          row({
+            id: 'migrated',
+            type: 'migration',
+            kind: 'MigrationApplied',
+            data: { migration_path: 'unlocked_wrapped' },
+          }),
+          row({ id: 'future', type: 'future_type' as never, data: {} }),
+        ],
+        { has_more: false, next_cursor: null },
+      ),
+    )
+    const result = (
+      await fetchContractEventsPage({
+        contractAddress: '0xabcdef0000000000000000000000000000000001',
+      })
+    )._unsafeUnwrap()
+    expect(result.events.map((event) => event.type)).toEqual([
+      'migration',
+      'future_type',
+    ])
   })
 })

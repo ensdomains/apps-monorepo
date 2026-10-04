@@ -10,6 +10,12 @@ import { RecordList } from '@/features/records/components/RecordList'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { queryClient } from '@/utils/queryClient'
 
+/** Copy per bigname `unresolvable_reason`; an unknown reason gets the generic line. */
+const UNRESOLVABLE_DESCRIPTIONS: Partial<Record<string, string>> = {
+  no_live_ens_v2_entry:
+    'Resolution now starts in ENSv2, and this name has no live ENSv2 entry, so it resolves to nothing. It keeps its owner and registration.',
+}
+
 export const Route = createFileRoute('/$name/records')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
@@ -40,6 +46,22 @@ function App() {
         compact
         description="Error fetching records. Please refresh the page."
       />
+    )
+  }
+
+  if (profileQuery.data?.unresolvableReason) {
+    return (
+      <div className="flex flex-col gap-8">
+        <PageHeading parent={{ type: 'name', name }}>Records</PageHeading>
+        <NoResultsMessage
+          title="This name does not resolve"
+          description={
+            UNRESOLVABLE_DESCRIPTIONS[profileQuery.data.unresolvableReason] ??
+            'This name resolves to nothing, so it has no records to show.'
+          }
+          className="mx-0"
+        />
+      </div>
     )
   }
 

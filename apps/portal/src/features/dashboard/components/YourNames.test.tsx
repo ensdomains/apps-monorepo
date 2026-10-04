@@ -39,6 +39,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const v2Name = (name: string, daysLeft: number): AddressNameItem => ({
   name,
   expiryDate: new Date(Date.now() + daysLeft * DAY_MS),
+  graceEndDate: null,
+  hasNameRow: true,
   protocolVersion: 'ENSv2',
   roleBitmap: '0x1',
   subdomainCount: 0,
@@ -124,17 +126,27 @@ describe('YourNames', () => {
   })
 
   it('truncates a long name so the expiry keeps its column', async () => {
+    const long = 'averyveryverylongregisteredlabel.eth'
+    renderNames([v2Name(long, 271)])
+
+    expect(await screen.findByText('averyveryv…eredlabel.eth')).toHaveAttribute(
+      'title',
+      long,
+    )
+    expect(screen.queryByText(long)).toBeNull()
+    expect(screen.getByText('Expires in 271 days')).toHaveClass(
+      'whitespace-nowrap',
+    )
+  })
+
+  it('shows a label bigname cannot state as unknown, keeping its labelhash in the title', async () => {
     const encoded =
       '[ba9d5b944633af135d2899dce4c44a43b00ed78f640ff4bc2088401760432cdc].eth'
     renderNames([v2Name(encoded, 271)])
 
-    expect(await screen.findByText('[ba9d5b944…60432cdc].eth')).toHaveAttribute(
+    expect(await screen.findByText('[label unknown].eth')).toHaveAttribute(
       'title',
       encoded,
-    )
-    expect(screen.queryByText(encoded)).toBeNull()
-    expect(screen.getByText('Expires in 271 days')).toHaveClass(
-      'whitespace-nowrap',
     )
   })
 

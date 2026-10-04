@@ -32,9 +32,10 @@ const detail = (name: string, overrides: Partial<NameDetail> = {}) =>
     token_id: BigInt(labelhash(name.split('.')[0] as string)).toString(),
     owner: HOLDER,
     manager: HOLDER,
-    registrant: HOLDER,
     registration_status: 'registered',
-    expires_at: '2099-01-01T00:00:00Z',
+    // The lease ends 2098-10-31; the top level is the ENSv2 reservation, 62 days on.
+    expires_at: '4070908800',
+    ens_v1: { expires_at: '4065552000' },
     authority: 'ens_v1',
     ...overrides,
   }) as NameDetail
@@ -126,7 +127,6 @@ describe('getMigrationStatus', () => {
         registration_status: 'released',
         owner: undefined,
         manager: undefined,
-        registrant: undefined,
       }),
       meta: {},
     })

@@ -1,14 +1,9 @@
-import {
-  type BignameError,
-  fetchAllPages,
-  isBignameError,
-  MAX_PAGE_SIZE,
-} from '@ens-apps/bigname'
+import { type BignameError, nullOnNotFound } from '@ens-apps/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise } from 'neverthrow'
-import { type Address, isAddressEqual } from 'viem'
+import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
@@ -30,53 +25,49 @@ type GetRegistryOccupantsParameters = {
  * that stop resolving, and the ones held by anyone else are third parties who
  * get no say and no repair path.
  *
- * Both numbers come from reading every label rather than a sample —
- * `thirdPartyCount` gates a destructive write, so a paged sample that missed
- * the one stranger in a large registry would answer it wrongly.
+ * Both numbers are bigname's exact counts over every label rather than a
+ * sample: `thirdPartyCount` gates a destructive write, so a paged sample that
+ * missed the one stranger in a large registry would answer it wrongly.
  */
 export type RegistryOccupants = {
   readonly count: number
   readonly thirdPartyCount: number
 }
 
-/**
- * Labels read before the count is given up on. bigname's labels route has no
- * owner filter, so the third parties are counted here, page by page.
- */
-const OCCUPANTS_MAX_ROWS = 2000
+/** A one-row page read for its `total_count`; `null` when bigname did not count it. */
+const countLabels = (
+  address: Address,
+  filter: { readonly exclude_owner?: string },
+) =>
+  nullOnNotFound(
+    bigname.listRegistryLabels(sepoliaWithEns.id, address.toLowerCase(), {
+      ...filter,
+      page_size: 1,
+    }),
+  ).then((page) => (page ? page.page.total_count : 0))
 
 /**
- * Every label in the registry, each owner compared with the caller. The count
- * gates a destructive write, so anything short of the whole registry — a
- * registry bigname has not indexed, or one too large to read here — is
- * unknown rather than a number, and the caller renders "we couldn't check".
+ * Two counts: every label, and the labels not held by the caller
+ * (`exclude_owner`, which keeps ownerless labels: nobody the caller can answer
+ * for). A registry bigname has not indexed has no labels. A count bigname
+ * declines to give (`total_count: null`, past its counting cap) is unknown
+ * rather than a number, and the caller renders "we couldn't check".
  */
 const getRegistryOccupants = ({
   address,
   account,
 }: GetRegistryOccupantsParameters) =>
   fromPromise(
-    fetchAllPages(
-      (cursor) =>
-        bigname.listRegistryLabels(sepoliaWithEns.id, address.toLowerCase(), {
-          page_size: MAX_PAGE_SIZE,
-          cursor,
-        }),
-      { maxRows: OCCUPANTS_MAX_ROWS },
-    ).catch((e: unknown) => {
-      if (isBignameError(e, 'not_found')) return null
-      throw e
-    }),
+    Promise.all([
+      countLabels(address, {}),
+      countLabels(address, { exclude_owner: account.toLowerCase() }),
+    ]),
     (e) => new GetRegistryOccupantsError({ cause: e as BignameError }),
-  ).map((labels): RegistryOccupants | null => {
-    if (!labels || labels.truncated) return null
-    // A label with no owner is nobody's the caller can answer for, so it counts
-    // against them, as it did when this was total minus own.
-    const thirdPartyCount = labels.rows.filter(
-      ({ owner }) => !owner || !isAddressEqual(owner, account),
-    ).length
-    return { count: labels.rows.length, thirdPartyCount }
-  })
+  ).map(([count, thirdPartyCount]): RegistryOccupants | null =>
+    count === null || thirdPartyCount === null
+      ? null
+      : { count, thirdPartyCount },
+  )
 
 const getRegistryOccupantsQueryKey = createQueryKey<
   'get-registry-occupants',

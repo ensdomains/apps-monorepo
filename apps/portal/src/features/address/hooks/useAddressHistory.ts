@@ -1,7 +1,7 @@
 import {
   type BignameError,
+  type EventRow,
   fetchAllPages,
-  type HistoryEvent,
   MAX_PAGE_SIZE,
   timestampToSeconds,
 } from '@ens-apps/bigname'
@@ -57,8 +57,9 @@ const readHistory = async (address: Address, pageSize: number | undefined) => {
 
 /**
  * The names the address holds the token of, from a `relation=any` names read:
- * `registrant` for an ENSv1 `.eth` 2LD (or its NameWrapper holder), `owner` for
- * an ENSv2 token holder. A `manager` relation alone is the registry controller,
+ * `owner` is the token holder (BaseRegistrar, NameWrapper or ENSv2 token; the
+ * registry owner only for a tokenless subname, which `attributeName` never
+ * treats as a root). A `manager` relation alone is the registry controller,
  * which any parent owner can assign, so it does not count.
  */
 const readHeldNames = async (address: Address): Promise<Set<string>> => {
@@ -73,15 +74,12 @@ const readHeldNames = async (address: Address): Promise<Set<string>> => {
   )
   return new Set(
     rows
-      .filter(
-        ({ relations }) =>
-          relations.includes('registrant') || relations.includes('owner'),
-      )
+      .filter(({ relations }) => relations.includes('owner'))
       .map(({ name }) => name),
   )
 }
 
-const toEvent = (row: HistoryEvent): AddressHistoryEvent[] => {
+const toEvent = (row: EventRow): AddressHistoryEvent[] => {
   const timestamp = timestampToSeconds(row.timestamp)
   // A state-derived row has no transaction for the table to group under.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
@@ -100,8 +98,8 @@ const toEvent = (row: HistoryEvent): AddressHistoryEvent[] => {
 }
 
 /**
- * An address's history, one bigname stream over every name it is or was the
- * owner, manager or registrant of, ENSv1 and ENSv2 alike, grouped by name.
+ * An address's history, one bigname stream over every name it is the owner,
+ * manager or a role holder of, ENSv1 and ENSv2 alike, grouped by name.
  *
  * Grouped rather than flat because whether a name's history is the address's
  * own is decided per name (see `nameAttribution.ts`), and that needs each
