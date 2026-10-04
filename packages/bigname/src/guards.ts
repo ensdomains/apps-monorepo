@@ -1,25 +1,27 @@
 import type {
+  EventRow,
   HistoryEvent,
   HistoryEventType,
-  LookupRecord,
+  LookupDetailRecord,
   NameDetail,
-  NameProfile,
-  ResolverAliasEvent,
-  ResolverAliasRow,
+  UnsupportedName,
 } from './types'
 
-/** True for a supported profile; `false` means `status=unsupported` (identity only). */
-export const isNameProfile = (
-  detail: NameDetail | LookupRecord,
-): detail is NameProfile => detail.status !== 'unsupported'
+/**
+ * True for a served name record; `false` means `status=unsupported` (identity
+ * only on indexed reads). Works on name detail and lookup `profile=detail`
+ * records.
+ */
+export const isNameProfile = <TRecord extends NameDetail | LookupDetailRecord>(
+  record: TRecord,
+): record is Exclude<TRecord, UnsupportedName> =>
+  record.status !== 'unsupported'
 
-/** Alias-event rows carry `from_name`; binding rows are plain name identities. */
-export const isResolverAliasEvent = (
-  row: ResolverAliasRow,
-): row is ResolverAliasEvent => 'from_name' in row
-
-/** Narrow a history row to one `type` so `data` gets that type's payload. */
-export const isHistoryEventOfType = <TType extends HistoryEventType>(
-  event: HistoryEvent,
+/** Narrow a history or event row to one `type` so `data` gets that type's payload. */
+export const isHistoryEventOfType = <
+  TEvent extends HistoryEvent | EventRow,
+  TType extends HistoryEventType,
+>(
+  event: TEvent,
   type: TType,
-): event is Extract<HistoryEvent, { type: TType }> => event.type === type
+): event is Extract<TEvent, { readonly type: TType }> => event.type === type

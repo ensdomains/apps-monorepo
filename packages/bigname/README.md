@@ -7,9 +7,11 @@ uses plain `fetch` and no React, so it runs in the browser, in TanStack Router
 `beforeLoad`, in Cloudflare workerd and in Node. Wrap it in your own TanStack
 Query hooks inside each app.
 
-The types are written by hand from bigname's `docs/api-v1.md` and
-`docs/api-v1-routes.md`, because bigname publishes no OpenAPI file. Field
-names are the snake_case names the server sends.
+The types follow the bigname **v0.4.1** contract: `docs/api-v1.md`,
+`docs/api-v1-routes.md` and the generated `apps/api/openapi.json` at that tag
+(also served at `<baseUrl>/openapi.json`). Field names are the snake_case
+names the server sends. `src/v041.mock.ts` holds real v0.4.1 responses that
+typecheck against these types with `satisfies`.
 
 ## Configuration
 
@@ -57,28 +59,33 @@ client.getName(name, { namespace, at, finality, source, include: ['counts'] })
 client.getNameRecords(name, { namespace, at, finality, source: 'indexed'|'verified'|'auto',
                               keys: string[], include: ['inventory'] })
                                                                 → { data: NameRecords } | null  // null on 404
-client.listSubnames(name, { namespace, q, sort, order, include_expired, include: ['counts'], cursor, page_size })
+client.listSubnames(name, { namespace, q, match: 'prefix'|'contains', sort, order, include_expired,
+                            include: ['counts'], cursor, page_size })
                                                                 → Page<SubnameRow>
-client.getNameHistory(name, { namespace, scope, type, order, from_timestamp, to_timestamp,
+client.getNameHistory(name, { namespace, scope, type, exclude_type, kind, record_key, order,
+                              from_timestamp, to_timestamp,
                               include: ['data'|'raw'|'total_count'|'child_registrations'], cursor, page_size })
                                                                 → Page<HistoryEvent>
-client.getAddressHistory(address, { namespace, relation, scope, type, order, from_timestamp,
+client.getAddressHistory(address, { namespace, relation: 'any' | AuthorityRelation | AuthorityRelation[],
+                                    scope, type, exclude_type, kind, record_key, order, from_timestamp,
                                     to_timestamp, include: ['data'|'raw'|'total_count'], cursor, page_size })
-                                                                → Page<HistoryEvent>
+                                                                → Page<EventRow>
 client.listEvents({ namespace, name, address, resolver: {chain_id, address} | 'chain:addr',
-                    contract_address, registration_id, type, from_block, to_block,
-                    from_timestamp, to_timestamp, order, include, cursor, page_size })
-                                                                → Page<HistoryEvent>
-client.listAddressNames(address, { namespace, relation: 'any' | AuthorityRelation[] | 'resolves_to',
-                                   authority: 'ens_v0'|'ens_v1'|'ens_v2', is_migrated,
-                                   coin_type: number | 'evm', q, sort, order,
+                    contract_address, registration_id, type, exclude_type, kind, record_key,
+                    from_block, to_block, from_timestamp, to_timestamp, order, include, cursor, page_size })
+                                                                → Page<EventRow>
+client.listAddressNames(address, { namespace,
+                                   relation: 'any' | AuthorityRelation | AuthorityRelation[] | 'resolves_to' | 'former_owner',
+                                   authority: Authority | Authority[], parent, is_migrated,
+                                   coin_type: number | 'evm', expires_after, expires_before,
+                                   q, match, sort: 'name'|'expires_at'|'registered_at'|'created_at', order,
                                    dedupe: 'name'|'registration', include: ['counts'|'role_summary'],
                                    cursor, page_size })
                                                                 → Page<AddressNameRow>
 client.getPrimaryName(address, { coin_type, namespace, source }) → { data: PrimaryName }
-client.lookup({ inputs, profile: 'feed'|'detail', namespace, include: ['inventory'] })
-                                                                → { data: LookupResult[] }
-client.listNames({ namespace, expires_after and/or expires_before, sort, order, cursor, page_size })
+client.lookup({ inputs, profile?: 'feed'|'detail', namespace })  → { data: LookupResult<profile>[] }
+client.listNames({ namespace, expires_after and/or expires_before, authority, parent,
+                   sort, order, cursor, page_size })
                                                                 → Page<NameListRow>   // expiry sweep
 client.search({ q, match: 'prefix'|'contains', namespace, cursor, page_size })
                                                                 → Page<NameListRow>
@@ -86,18 +93,22 @@ client.listPermissions({ name, registration_id, address, namespace, include: ['l
                                                                 → PermissionsPage     // + restrictions?
 client.getRegistry(chainId, address, { include: ['counts'], at, finality, cursor, page_size })
                                                                 → { data: Registry } | null
-client.listRegistryLabels(chainId, address, { include: ['counts'], cursor, page_size })
+client.listRegistryLabels(chainId, address, { include: ['counts'], owner | exclude_owner, cursor, page_size })
                                                                 → Page<RegistryLabelRow>
 client.getResolver(chainId, address, { at, finality, cursor, page_size })
                                                                 → { data: ResolverOverview } | null
 client.listResolverLinks(chainId, address, { at, finality, cursor, page_size })   → Page<ResolverLinkRow>
 client.listResolverRoles(chainId, address, { at, finality, cursor, page_size })   → Page<ResolverRoleRow>
-client.listResolverAliases(chainId, address, { at, finality, cursor, page_size }) → Page<ResolverAliasRow>
 client.getNamespace(namespace)                                  → { data: NamespaceInfo }
 ```
 
+`AuthorityRelation` is `owner | manager | role_holder` (`registrant` was
+removed in bigname v0.3.0 and answers 400). Lookup reverse inputs take
+`relation: 'any' | 'owner' | 'manager' | 'owner,manager' | 'resolves_to'`.
+
 Timestamp params (`at`, `from_timestamp`, `to_timestamp`, `expires_after`,
-`expires_before`) accept an RFC 3339 string or a `Date`.
+`expires_before`) accept decimal Unix seconds (`number`, `bigint` or a digit
+string), an RFC 3339 string, or a `Date` (sent as RFC 3339).
 
 ### Paging
 
@@ -112,14 +123,13 @@ const { rows, truncated } = await fetchAllPages((cursor) =>
 )
 ```
 
-`MAX_PAGE_SIZE` is 200. Collections that read current state (names, subnames,
-address names, permissions, registry labels, resolver collections) tie each
-cursor to the index publication that was current when the cursor was issued.
-If that publication has changed, the continuation answers `409 stale`, and
-the pager starts again from the first page. `iteratePages` marks the first
-page after a restart with `restarted: true`, so drop the rows you already
-collected. `fetchAllPages` drops them for you. For `useInfiniteQuery`, catch
-`isBignameError(e, 'stale')` on a `pageParam` fetch and reset the query.
+`MAX_PAGE_SIZE` is 200. Every bigname cursor holds only its sort position and
+filters, not an index publication, so a page that answers `409 stale` is
+retried with the same cursor and continues. The one exception is a resolver
+collection pinned with `at`: once a later block is published, its
+continuation stays stale, and the pager starts again from the first page.
+`iteratePages` marks the first page after a restart with `restarted: true`, so
+drop the rows you already collected. `fetchAllPages` drops them for you.
 
 ### Errors and retries
 
@@ -129,20 +139,12 @@ collected. `fetchAllPages` drops them for you. For `useInfiniteQuery`, catch
 `overloaded` (503) or `internal_error` (500). `status` is `0` for a network
 failure. Check with `isBignameError(error, code?)`.
 
-The client retries 408, 429, 502, 503, 504 and network errors, up to 3
-times, with backoff of 250 ms, then 500 ms, then 1 s (with jitter, never more
-than 2 s, and following `Retry-After` when the server sends it). It also
-retries `409 stale` for:
-
-- single-resource reads,
-- first pages, and
-- history walks (name history, address history and events). History cursors
-  stay valid when the index publishes, so the client resends the same cursor.
-
-It does not retry `409 stale` on a current-state continuation, because that
-cursor can no longer be used; the pager restarts instead. `409 conflict` is
-never retried. An aborted `signal` rejects with the original `AbortError` and
-is never retried.
+The client retries 408, 429, 502, 503, 504, network errors and `409 stale`,
+up to 3 times, with backoff of 250 ms, then 500 ms, then 1 s (with jitter,
+never more than 2 s, and following `Retry-After` when the server sends it).
+It does not retry `409 stale` on a resolver continuation pinned with `at`.
+`409 conflict` is never retried. An aborted `signal` rejects with the
+original `AbortError` and is never retried.
 
 A `404` from a collection (for example subnames or history of a name bigname
 has not indexed) rejects with `not_found`. Wrap the call in
@@ -157,39 +159,58 @@ parseRecordKey(key) → { kind: 'text', key } | { kind: 'addr', coinType } | { k
 isRecordKey(key), isEvmCoinType(coinType)
 getRecordValue(records, key) → string | undefined        // only for status 'ok'
 isOkRecordAnswer(answer)
-parseTimestamp(rfc3339) → Date | undefined                // Z, +00:00, up to 9 fractional digits
-timestampToSeconds(rfc3339) → number | undefined
-secondsToTimestamp(seconds | bigint) → RFC 3339 UTC
+parseTimestamp(ts) → Date | undefined          // decimal Unix seconds; undefined past year 275760
+timestampToSeconds(ts) → number | undefined    // undefined above Number.MAX_SAFE_INTEGER
+timestampToBigInt(ts) → bigint | undefined     // exact for every served value
+secondsToTimestamp(seconds | bigint | Date) → decimal-seconds string
 grantsForAddress(roleSummary, address), powersForAddress(roleSummary, address)
 hasAnyGrant(roleSummary, address), hasPower(roleSummary, address, power), isAdminPower(power)
-isNameProfile(detail)          // false means status 'unsupported': identity fields only
-isHistoryEventOfType(event, 'record')   // narrows event.data to that type's payload
-isResolverAliasEvent(row)
+isNameProfile(record)          // name detail or lookup detail; false means status 'unsupported'
+isHistoryEventOfType(event, 'record')   // HistoryEvent or EventRow; narrows event.data
 buildQuery(params)             // drops absent values, joins lists with commas, percent-encodes values (so + becomes %2B)
 ```
 
-All wire types (`NameDetail`, `NameProfile`, `NameRecords`, `RecordInventory`,
-`AddressNameRow`, `HistoryEvent`, `LookupResult`, `PermissionRow`, `Restrictions`,
-`Power`, `Meta`, `Page`, ...) are exported from the package root.
+All wire types (`NameDetail`, `NameProfile`, `RecordGroups`, `EnsV1`,
+`NameRecords`, `AddressNameRow`, `HistoryEvent`, `EventRow`, `LookupResult`,
+`PermissionRow`, `Restrictions`, `Power`, `Meta`, `Page`, ...) are exported
+from the package root.
 
-## Contract notes for migrators
+## Contract notes (bigname v0.4.1)
 
+- Every timestamp is a decimal string of Unix seconds (`"1803965433"`).
+  Expiries can exceed `2^53`; compare with `timestampToBigInt`. A classified
+  absent expiry is `expires_at: null` with `expires_at_reason`
+  (`no_expiry`, `not_set`, `released`) and `grace_ends_at: null`.
 - Name detail is a union. Check `isNameProfile(detail)` before you read any
-  registration field. A `status: 'unsupported'` name has only identity fields
-  and an `unsupported_reason`. A `404` means bigname has not indexed the name,
-  and `getName` returns `null` for it.
-- The records route no longer returns the flat `addresses`, `text_records` or
-  `content_hash` maps (bigname #938). Use `records[key]` or
-  `inventory.known_keys`. The flat maps are still returned by `getName` and
-  by `lookup` with `profile: 'detail'`.
-- `inventory.abi_content_types === null` means bigname does not know which
-  ABI content types are set. It does not mean there are none; read
-  `abi_unsupported_reason`. The items are decimal strings, so parse them with
-  `BigInt`.
-- The resolver overview has no counts and no samples (bigname #954), and it
-  rejects `include`. Use the `/links`, `/roles` and `/aliases` collections,
-  which return exact `total_count` values, and
-  `listEvents({ resolver: { chain_id, address } })` for events.
+  registration field. A `404` means bigname has not indexed the name, and
+  `getName` returns `null` for it.
+- `owner` is the token holder (BaseRegistrar, NameWrapper or ENSv2 token),
+  else the registry owner. `manager` can change the registry record; it is
+  omitted while a wrapped `.eth` 2LD is in registrar grace, on released names
+  and where the NameWrapper state is unknown. Released names have neither;
+  the last holder is `lapsed_registration.owner` and the
+  `relation=former_owner` listing. `registrant` exists only in history
+  `registration` payloads.
+- While `authority` is `ens_v1` or `ens_v0`, name rows carry
+  `ens_v1: { expires_at, wrapper_state?, wrapper_fuses? }`. From the Universal
+  Resolver cutover (`getNamespace` → `networks[].resolution`), a `.eth` name
+  with a live ENSv2 entry serves that entry's expiry at the top level (grace
+  +28 days) and the ENSv1 lease date as `ens_v1.expires_at` (grace +90 days).
+  Read "renewable until" from `grace_ends_at`; do not add grace yourself.
+- Name detail and lookup `profile=detail` carry grouped `records`
+  (`seen_addresses`/`addresses`, `seen_texts`/`texts`, `seen_abis` or
+  `abi_unsupported_reason`, `seen_singletons`, `contenthash`, `name`). A seen
+  key absent from its map is unknown; `null` means cleared. The records route
+  keeps per-key answers and `include=inventory`.
+- Lookup `profile=feed` records carry identity, `chain_id`, `network`,
+  `status`, `subregistry`, and `expires_at`, `expires_at_reason`,
+  `grace_ends_at`, `ens_v1`; no `owner`, `manager`, `authority` or `records`.
+  `lookup` takes no `include` (400).
+- ENSv2 registry role changes are `permission` history rows
+  (`kind: 'PermissionChanged'`, `grant_scope.kind: 'registry'`) with
+  `powers`, `added_powers` and `removed_powers`, including those on the root
+  registry's TLD tokens. Registry-wide root-resource role changes
+  (`RootPermissionChanged`) are not served on any product history route.
 - `restrictions` (the NameWrapper expiry `wrapper_expires_at`, or ENSv2
   `locked_roles`) is returned on `listAddressNames(..., { include: ['role_summary'] })`
   rows and at the top level of a `listPermissions` call made with `name` or
@@ -197,14 +218,17 @@ All wire types (`NameDetail`, `NameProfile`, `NameRecords`, `RecordInventory`,
 - An empty `role_summary`, or an empty permissions page, is not proof that no
   one holds roles on the name. When `meta.completeness` is `'partial'`, read
   `meta.unlisted_permission_surfaces` to see what is missing.
-- `listAddressNames` returns an exact `page.total_count`. To count, use
-  `page_size: 1` with `dedupe: 'name'` for names or `dedupe: 'registration'`
-  for registrations. `listNames` and `resolves_to` reads always return
-  `total_count: null`.
+- `listAddressNames` returns an exact `page.total_count` on authority
+  relations. The `.eth` registrations an address holds:
+  `{ relation: 'owner', parent: 'eth', dedupe: 'registration', page_size: 1 }`.
+  `relation: 'owner'` without `parent` also counts tokenless subnames and
+  registry children. `listNames`, `resolves_to` and `former_owner` reads
+  return `total_count: null`.
 - To get a name's event count, call
   `getNameHistory(name, { page_size: 1, include: ['total_count'] })`.
-- Timestamps can come back as `Z` or `+00:00`. Always parse them with
-  `parseTimestamp`; never compare the strings.
-- A `SubnameRow.name` can be a placeholder such as `[<labelhash>].parent.eth`.
-  Never pass it back to a method that takes a name. Use `namehash` or
-  `labelhash` as the row key.
+- A label spelled `[<64 lowercase hex>]` is its labelhash and is a valid name
+  input on every name-shaped route. A `SubnameRow.name` such as
+  `[<labelhash>].parent.eth` can still 404 when the child has no name row;
+  key rows by `namehash`.
+- The resolver overview has no counts and its `bound_names.page.total_count`
+  is `null`. The `/aliases` route was removed (bigname v0.1.0).

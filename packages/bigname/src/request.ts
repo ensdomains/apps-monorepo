@@ -22,9 +22,10 @@ export interface RawRequest extends RequestOptions {
   readonly query?: QueryParams
   readonly body?: unknown
   /**
-   * Retry `409 stale` like a transient error. Right for single-resource reads,
-   * first pages and history walks (whose cursors survive publications); wrong
-   * for current-state continuations, whose cursor is dead and must restart.
+   * Retry `409 stale` like a transient error (default true). Every bigname
+   * cursor survives a publication change, so a stale page is retried with
+   * the same cursor. Pass `false` only for a resolver continuation pinned
+   * with `at`, which stays stale once a later block is published.
    */
   readonly retryStale?: boolean
 }

@@ -1,29 +1,57 @@
 import type { Timestamp } from './types'
 
 /**
- * bigname serves RFC 3339 with `Z` or a numeric offset and up to nine
- * fractional digits (the live deployment also emits `+00:00`). `Date` keeps
- * milliseconds, so extra digits are dropped before parsing.
+ * bigname serves every timestamp as a decimal string of Unix seconds
+ * (`"1803965433"`). Finite expiries keep every digit, including values beyond
+ * `2^53` and `i64::MAX`, so only `timestampToBigInt` is exact for all of them.
  */
-const EXTRA_FRACTION = /(\.\d{3})\d+/
+const DECIMAL_SECONDS = /^(0|[1-9][0-9]*)$/
 
-/** RFC 3339 → `Date`; `undefined` for a missing or unparseable value. */
-export const parseTimestamp = (
+/** Largest instant a `Date` can hold, in seconds (±8.64e15 ms). */
+const MAX_DATE_SECONDS = 8_640_000_000_000n
+
+/** Decimal-seconds string → exact `bigint`; `undefined` for a missing or malformed value. */
+export const timestampToBigInt = (
   value: Timestamp | null | undefined,
-): Date | undefined => {
-  if (!value) return undefined
-  const millis = Date.parse(value.replace(EXTRA_FRACTION, '$1'))
-  return Number.isNaN(millis) ? undefined : new Date(millis)
-}
+): bigint | undefined =>
+  value != null && DECIMAL_SECONDS.test(value) ? BigInt(value) : undefined
 
-/** RFC 3339 → whole unix seconds; `undefined` for a missing or unparseable value. */
+/**
+ * Decimal-seconds string → whole Unix seconds as a `number`. `undefined` for
+ * a missing or malformed value, or one above `Number.MAX_SAFE_INTEGER` (use
+ * `timestampToBigInt` for those).
+ */
 export const timestampToSeconds = (
   value: Timestamp | null | undefined,
 ): number | undefined => {
-  const date = parseTimestamp(value)
-  return date === undefined ? undefined : Math.floor(date.getTime() / 1000)
+  const seconds = timestampToBigInt(value)
+  if (seconds === undefined || seconds > BigInt(Number.MAX_SAFE_INTEGER)) {
+    return undefined
+  }
+  return Number(seconds)
 }
 
-/** Unix seconds → RFC 3339 UTC (`YYYY-MM-DDTHH:MM:SSZ`) for query params. */
-export const secondsToTimestamp = (seconds: number | bigint): Timestamp =>
-  new Date(Number(seconds) * 1000).toISOString().replace('.000Z', 'Z')
+/**
+ * Decimal-seconds string → `Date`. `undefined` for a missing or malformed
+ * value, or one past the largest `Date` (year 275760).
+ */
+export const parseTimestamp = (
+  value: Timestamp | null | undefined,
+): Date | undefined => {
+  const seconds = timestampToBigInt(value)
+  if (seconds === undefined || seconds > MAX_DATE_SECONDS) return undefined
+  return new Date(Number(seconds) * 1000)
+}
+
+/**
+ * Unix seconds (or a `Date`) → the decimal-seconds string bigname serves and
+ * accepts in timestamp query params. Fractional seconds are floored; a
+ * non-finite number or invalid `Date` throws `RangeError`.
+ */
+export const secondsToTimestamp = (
+  seconds: number | bigint | Date,
+): Timestamp => {
+  if (typeof seconds === 'bigint') return seconds.toString()
+  const value = seconds instanceof Date ? seconds.getTime() / 1000 : seconds
+  return BigInt(Math.floor(value)).toString()
+}

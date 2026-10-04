@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { createBignameClient } from './client'
 import { BignameError, isBignameError } from './errors'
 import { errorResponse, jsonResponse, mockFetch, pageOf } from './testUtils'
+import type { LookupFeedRecord } from './types'
+import {
+  mockAddressNameFormerOwner,
+  mockLookupFeed,
+  mockNameNick,
+} from './v041.mock'
 
 const BASE = 'https://bigname.test'
 
@@ -12,43 +18,30 @@ const clientWith = (fetchMock: typeof fetch) =>
     retry: { retries: 3, baseDelayMs: 0, maxDelayMs: 0 },
   })
 
-const nameDetail = {
-  name: 'nick.eth',
-  display_name: 'nick.eth',
-  namespace: 'ens',
-  namehash: '0x05a6',
-  status: 'ok',
-  authority: 'ens_v1',
-}
+const nameDetail = mockNameNick.data
 
 describe('envelope', () => {
   it('returns data and meta from a single-resource read', async () => {
-    const meta = {
-      as_of: {
-        '11155111': {
-          block_number: 1,
-          block_hash: '0xabc',
-          timestamp: '2026-09-28T07:12:00Z',
-        },
-      },
-      as_of_token: 'tok',
-    }
-    const { fetch, calls } = mockFetch(
-      jsonResponse(200, { data: nameDetail, meta }),
-    )
+    const { fetch, calls } = mockFetch(jsonResponse(200, mockNameNick))
     const response = await clientWith(fetch).getName('nick.eth')
     expect(response?.data).toEqual(nameDetail)
-    expect(response?.meta.as_of?.['11155111']?.block_number).toBe(1)
+    expect(response?.meta.as_of?.['11155111']?.block_number).toBe(11844764)
     expect(calls[0]?.url).toBe(`${BASE}/v1/names/nick.eth`)
     expect(calls[0]?.init?.method).toBe('GET')
   })
 
   it('returns data, page and meta from a collection', async () => {
     const { fetch } = mockFetch(
-      jsonResponse(200, pageOf([{ name: 'a.eth' }], 'next')),
+      jsonResponse(200, pageOf([mockAddressNameFormerOwner], 'next')),
     )
-    const response = await clientWith(fetch).listAddressNames('0xabc')
-    expect(response.data).toEqual([{ name: 'a.eth' }])
+    const response = await clientWith(fetch).listAddressNames('0xabc', {
+      relation: 'former_owner',
+    })
+    expect(response.data[0]?.relations).toEqual(['former_owner'])
+    expect(response.data[0]?.owner).toBeUndefined()
+    expect(response.data[0]?.lapsed_registration?.owner).toBe(
+      '0xe073413aeacb8532f50fa00f9e47b7b37f50f442',
+    )
     expect(response.page.next_cursor).toBe('next')
     expect(response.page.has_more).toBe(true)
   })
@@ -242,7 +235,7 @@ describe('retry', () => {
     expect(calls).toHaveLength(2)
   })
 
-  it('retries 409 stale on a history continuation (cursor survives publications)', async () => {
+  it('retries 409 stale on a history continuation with the same cursor', async () => {
     const { fetch, calls } = mockFetch(
       errorResponse(409, 'stale'),
       jsonResponse(200, pageOf([], null, 'c1')),
@@ -252,12 +245,29 @@ describe('retry', () => {
     expect(calls[1]?.url).toContain('cursor=c1')
   })
 
-  it('does not retry 409 stale on a current-state continuation', async () => {
-    const { fetch, calls } = mockFetch(errorResponse(409, 'stale'))
+  it('retries 409 stale on a current-state continuation (cursors hold no publication)', async () => {
+    const { fetch, calls } = mockFetch(
+      errorResponse(409, 'stale', 'collection publication changed'),
+      jsonResponse(200, pageOf([], null, 'c1')),
+    )
+    await clientWith(fetch).listAddressNames('0xabc', { cursor: 'c1' })
+    expect(calls).toHaveLength(2)
+    expect(calls[1]?.url).toContain('cursor=c1')
+  })
+
+  it('does not retry 409 stale on a resolver continuation pinned with at', async () => {
+    const { fetch, calls } = mockFetch(
+      errorResponse(409, 'stale'),
+      errorResponse(409, 'stale'),
+      jsonResponse(200, pageOf([], null)),
+    )
+    const client = clientWith(fetch)
     await expect(
-      clientWith(fetch).listAddressNames('0xabc', { cursor: 'c1' }),
+      client.listResolverRoles(11155111, '0xabc', { at: 'tok', cursor: 'c1' }),
     ).rejects.toMatchObject({ code: 'stale' })
     expect(calls).toHaveLength(1)
+    await client.listResolverRoles(11155111, '0xabc', { at: 'tok' })
+    expect(calls).toHaveLength(3)
   })
 
   it('does not retry 409 conflict', async () => {
@@ -296,6 +306,74 @@ describe('request building', () => {
     )
   })
 
+  it('serializes v0.4.1 filters', async () => {
+    const { fetch, calls } = mockFetch(
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, pageOf([], null)),
+    )
+    const client = clientWith(fetch)
+    await client.listAddressNames('0xabc', {
+      relation: 'owner',
+      parent: 'eth',
+      authority: ['ens_v1', 'ens_v0'],
+      dedupe: 'registration',
+      sort: 'created_at',
+      q: 'lia',
+      match: 'contains',
+      page_size: 1,
+    })
+    expect(calls[0]?.url).toBe(
+      `${BASE}/v1/addresses/0xabc/names?relation=owner&parent=eth&authority=ens_v1%2Cens_v0&dedupe=registration&sort=created_at&q=lia&match=contains&page_size=1`,
+    )
+    await client.listAddressNames('0xabc', {
+      relation: 'former_owner',
+      expires_after: 1780000000,
+      expires_before: 1781000000n,
+    })
+    expect(calls[1]?.url).toBe(
+      `${BASE}/v1/addresses/0xabc/names?relation=former_owner&expires_after=1780000000&expires_before=1781000000`,
+    )
+    await client.listNames({
+      namespace: 'ens',
+      parent: 'eth',
+      authority: 'ens_v2',
+      expires_after: '1791000000',
+    })
+    expect(calls[2]?.url).toBe(
+      `${BASE}/v1/names?namespace=ens&parent=eth&authority=ens_v2&expires_after=1791000000`,
+    )
+    await client.getNameHistory('nick.eth', {
+      record_key: 'addr:60',
+      exclude_type: ['record', 'expiry'],
+      kind: 'RecordChanged',
+      type: 'migration',
+    })
+    expect(calls[3]?.url).toBe(
+      `${BASE}/v1/names/nick.eth/history?record_key=addr%3A60&exclude_type=record%2Cexpiry&kind=RecordChanged&type=migration`,
+    )
+    await client.listRegistryLabels(11155111, '0xd4eb', {
+      exclude_owner: '0x7bc1',
+      page_size: 1,
+    })
+    expect(calls[4]?.url).toBe(
+      `${BASE}/v1/registries/11155111/0xd4eb/labels?exclude_owner=0x7bc1&page_size=1`,
+    )
+  })
+
+  it('accepts a bracketed labelhash label in a name path', async () => {
+    const { fetch, calls } = mockFetch(jsonResponse(200, mockNameNick))
+    const label =
+      '[5d5727cb0fb76e4944eafb88ec9a3cf0b3c9025a4b2f947729137c5d7f84f68f]'
+    const response = await clientWith(fetch).getName(`${label}.eth`)
+    expect(calls[0]?.url).toBe(
+      `${BASE}/v1/names/%5B5d5727cb0fb76e4944eafb88ec9a3cf0b3c9025a4b2f947729137c5d7f84f68f%5D.eth`,
+    )
+    expect(response?.data.name).toBe('nick.eth')
+  })
+
   it('serializes Date params and the events resolver filter', async () => {
     const { fetch, calls } = mockFetch(jsonResponse(200, pageOf([], null)))
     await clientWith(fetch).listEvents({
@@ -307,24 +385,52 @@ describe('request building', () => {
     )
   })
 
-  it('posts lookup with a JSON body and comma-joined include', async () => {
+  it('posts lookup with a JSON body and no include', async () => {
     const { fetch, calls } = mockFetch(
-      jsonResponse(200, { data: [], meta: {} }),
+      jsonResponse(200, { data: mockLookupFeed, meta: {} }),
     )
-    await clientWith(fetch).lookup({
-      inputs: [{ id: 'a', name: 'nick.eth' }],
-      profile: 'detail',
-      include: ['inventory'],
+    const response = await clientWith(fetch).lookup({
+      inputs: [{ id: 'a', name: 'nick.eth' }, { name: 'fox.eth' }],
+      profile: 'feed',
     })
     expect(calls[0]?.url).toBe(`${BASE}/v1/lookup`)
     expect(calls[0]?.init?.method).toBe('POST')
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
-      inputs: [{ id: 'a', name: 'nick.eth' }],
-      profile: 'detail',
-      include: 'inventory',
+      inputs: [{ id: 'a', name: 'nick.eth' }, { name: 'fox.eth' }],
+      profile: 'feed',
     })
+    const [nick, fox] = response.data
+    const nickRecord: LookupFeedRecord | undefined =
+      nick?.kind === 'name' ? nick.record : undefined
+    expect(nickRecord?.ens_v1?.expires_at).toBe('1798608633')
+    expect(nickRecord?.grace_ends_at).toBe('1806384633')
+    expect(fox?.kind === 'name' && fox.record?.ens_v1).toBeUndefined()
+  })
+
+  it('rejects contract-removed params at the type level', () => {
+    const client = createBignameClient({ baseUrl: BASE })
+    const typeOnly = () => {
+      void client.lookup({
+        inputs: [{ name: 'nick.eth' }],
+        // @ts-expect-error lookup takes no include since bigname v0.1.0 (400)
+        include: ['inventory'],
+      })
+      // @ts-expect-error relation=registrant answers 400 since v0.3.0
+      void client.listAddressNames('0xabc', { relation: ['registrant'] })
+      // @ts-expect-error relation=registrant answers 400 since v0.3.0
+      void client.getAddressHistory('0xabc', { relation: ['registrant'] })
+      void client.lookup({
+        // @ts-expect-error role_holder is not a lookup relation
+        inputs: [{ address: '0xabc', relation: 'role_holder' }],
+      })
+      // @ts-expect-error the aliases route was removed in v0.1.0 (404)
+      void client.listResolverAliases
+    }
+    expect(typeOf(typeOnly)).toBe('function')
   })
 })
+
+const typeOf = (value: unknown): string => typeof value
 
 describe('configuration', () => {
   it('uses the configured base URL', () => {

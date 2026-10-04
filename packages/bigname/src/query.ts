@@ -2,6 +2,7 @@
 export type QueryValue =
   | string
   | number
+  | bigint
   | boolean
   | Date
   | null

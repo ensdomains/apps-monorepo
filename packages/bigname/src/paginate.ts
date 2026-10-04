@@ -9,7 +9,7 @@ export type PageFetcher<TPage extends BignamePage<unknown>> = (
 export interface IteratePagesOptions {
   /** Pages to fetch per pass (a restart begins a new pass). Default 100. */
   readonly maxPages?: number
-  /** Restarts from the first page after a `409 stale` continuation. Default 3. */
+  /** Restarts from the first page after a continuation that stays `409 stale`. Default 3. */
   readonly maxRestarts?: number
   readonly signal?: AbortSignal
 }
@@ -23,12 +23,12 @@ export type PageStep<TPage> = TPage & {
 /**
  * Walk `next_cursor` until `has_more` is false or `maxPages` is reached.
  *
- * A continuation that answers `409 stale` (its publication-bound cursor is no
- * longer valid) restarts from the first page, up to `maxRestarts` times, and
- * the first page of the new pass is yielded with `restarted: true`: consumers
- * must drop what they collected so far. First-page and history-walk stale
- * answers are already retried inside the client, so they only reach here once
- * those retries are spent.
+ * The client already retries `409 stale` with the same cursor (bigname
+ * cursors hold only a sort position). A continuation that is still stale
+ * after those retries, such as a resolver collection pinned with `at` after
+ * a later block, restarts from the first page, up to `maxRestarts` times,
+ * and the first page of the new pass is yielded with `restarted: true`:
+ * consumers must drop what they collected so far.
  */
 export async function* iteratePages<TPage extends BignamePage<unknown>>(
   fetchPage: PageFetcher<TPage>,

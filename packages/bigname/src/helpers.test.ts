@@ -9,8 +9,27 @@ import {
   parseRecordKey,
   textKey,
 } from './records'
-import { parseTimestamp, secondsToTimestamp, timestampToSeconds } from './time'
-import type { HistoryEvent, NameDetail, RoleSummaryEntry } from './types'
+import {
+  parseTimestamp,
+  secondsToTimestamp,
+  timestampToBigInt,
+  timestampToSeconds,
+} from './time'
+import type {
+  EventRow,
+  HistoryEvent,
+  LookupResult,
+  NameDetail,
+  RoleSummaryEntry,
+} from './types'
+import {
+  mockAddressHistoryRecordWithoutName,
+  mockHistoryMigration,
+  mockHistoryRootPermission,
+  mockLookupDetailFox,
+  mockNameNick,
+  mockNameWrappedSub,
+} from './v041.mock'
 
 describe('buildQuery', () => {
   it('drops absent values and comma-joins lists', () => {
@@ -25,6 +44,17 @@ describe('buildQuery', () => {
         include_expired: false,
       }),
     ).toBe('?keys=text%3Aavatar%2Caddr%3A60&page_size=50&include_expired=false')
+  })
+
+  it('serializes bigint and Date values', () => {
+    expect(
+      buildQuery({
+        expires_after: 18446744073709551614n,
+        at: new Date('2026-01-01T00:00:00Z'),
+      }),
+    ).toBe(
+      '?expires_after=18446744073709551614&at=2026-01-01T00%3A00%3A00.000Z',
+    )
   })
 
   it('percent-encodes + in timestamps', () => {
@@ -85,28 +115,59 @@ describe('record keys', () => {
 })
 
 describe('time', () => {
-  it('parses Z, numeric offsets and long fractions', () => {
-    expect(parseTimestamp('2026-12-30T05:30:33Z')?.toISOString()).toBe(
-      '2026-12-30T05:30:33.000Z',
+  it('parses decimal Unix seconds', () => {
+    expect(parseTimestamp('1803965433')?.toISOString()).toBe(
+      '2027-03-02T05:30:33.000Z',
     )
-    expect(parseTimestamp('2024-12-11T13:37:24+00:00')?.toISOString()).toBe(
-      '2024-12-11T13:37:24.000Z',
-    )
+    expect(parseTimestamp('0')?.getTime()).toBe(0)
+    expect(timestampToSeconds('1803965433')).toBe(1803965433)
+    expect(timestampToBigInt('1803965433')).toBe(1803965433n)
+  })
+
+  it('reads every served timestamp in a real v0.4.1 response', () => {
+    const detail = mockNameNick.data
+    expect(timestampToSeconds(detail.expires_at)).toBe(1803965433)
+    expect(timestampToSeconds(detail.grace_ends_at)).toBe(1806384633)
+    expect(timestampToSeconds(detail.ens_v1.expires_at)).toBe(1798608633)
+    expect(timestampToSeconds(detail.registered_at)).toBe(1733924244)
     expect(
-      parseTimestamp('2025-06-15T17:37:42.123456789+02:30')?.toISOString(),
-    ).toBe('2025-06-15T15:07:42.123Z')
+      parseTimestamp(mockNameNick.meta.as_of['11155111'].timestamp),
+    ).toBeInstanceOf(Date)
+    expect(timestampToSeconds(mockHistoryMigration.timestamp)).toBe(1790947464)
   })
 
-  it('handles missing and invalid input', () => {
-    expect(parseTimestamp(undefined)).toBeUndefined()
-    expect(parseTimestamp(null)).toBeUndefined()
-    expect(parseTimestamp('not a date')).toBeUndefined()
+  it('keeps finite expiries beyond 2^53 exact as bigint only', () => {
+    expect(timestampToBigInt('18446744073709551614')).toBe(
+      18446744073709551614n,
+    )
+    expect(timestampToSeconds('18446744073709551614')).toBeUndefined()
+    expect(parseTimestamp('18446744073709551614')).toBeUndefined()
+    expect(timestampToSeconds(String(Number.MAX_SAFE_INTEGER))).toBe(
+      Number.MAX_SAFE_INTEGER,
+    )
   })
 
-  it('converts to and from unix seconds', () => {
-    expect(timestampToSeconds('1970-01-01T00:01:40Z')).toBe(100)
-    expect(secondsToTimestamp(100)).toBe('1970-01-01T00:01:40Z')
-    expect(secondsToTimestamp(100n)).toBe('1970-01-01T00:01:40Z')
+  it('treats null expiry, missing and malformed values as undefined', () => {
+    expect(parseTimestamp(mockNameWrappedSub.expires_at)).toBeUndefined()
+    expect(timestampToSeconds(undefined)).toBeUndefined()
+    expect(timestampToBigInt(null)).toBeUndefined()
+    // RFC 3339 is an accepted input, never an output, since bigname v0.1.0.
+    expect(parseTimestamp('2026-12-30T05:30:33Z')).toBeUndefined()
+    expect(timestampToSeconds('1.5')).toBeUndefined()
+    expect(timestampToSeconds('-1')).toBeUndefined()
+    expect(timestampToSeconds('0100')).toBeUndefined()
+  })
+
+  it('formats seconds as the decimal string bigname accepts', () => {
+    expect(secondsToTimestamp(100)).toBe('100')
+    expect(secondsToTimestamp(100.9)).toBe('100')
+    expect(secondsToTimestamp(18446744073709551614n)).toBe(
+      '18446744073709551614',
+    )
+    expect(secondsToTimestamp(new Date('2026-10-05T00:00:00.750Z'))).toBe(
+      '1791158400',
+    )
+    expect(() => secondsToTimestamp(Number.NaN)).toThrow(RangeError)
   })
 })
 
@@ -158,26 +219,54 @@ describe('guards', () => {
       unsupported_reason: 'current_authority_not_projected',
     }
     expect(isNameProfile(unsupported)).toBe(false)
-    expect(isNameProfile({ ...unsupported, status: 'ok' })).toBe(true)
+    const detail: NameDetail = mockNameNick.data
+    expect(isNameProfile(detail)).toBe(true)
+    if (isNameProfile(detail)) {
+      expect(detail.records?.addresses['60']).toBe(
+        '0xb8c2c29ee19d8307cb7255e1cd9cbde883a267d5',
+      )
+    }
   })
 
-  it('narrows history rows to a type', () => {
-    const event: HistoryEvent = {
-      id: 'id',
-      type: 'record',
-      name: 'nick.eth',
-      namespace: 'ens',
-      registration_id: null,
-      block_number: 1,
-      timestamp: '2026-01-01T00:00:00Z',
-      transaction_hash: '0x01',
-      log_index: 0,
-      data: { key: 'addr:60', coin_type: 60, value: '0xabc' },
+  it('narrows lookup detail records', () => {
+    const result: LookupResult = mockLookupDetailFox
+    expect(result.kind).toBe('name')
+    if (
+      result.kind === 'name' &&
+      result.record &&
+      isNameProfile(result.record)
+    ) {
+      expect(result.record.authority).toBe('ens_v2')
+      expect(result.record.ens_v1).toBeUndefined()
     }
-    expect(isHistoryEventOfType(event, 'record')).toBe(true)
-    if (isHistoryEventOfType(event, 'record')) {
-      expect(event.data?.key).toBe('addr:60')
+  })
+
+  it('narrows name history rows to a type', () => {
+    const event: HistoryEvent = mockHistoryMigration
+    expect(isHistoryEventOfType(event, 'migration')).toBe(true)
+    if (isHistoryEventOfType(event, 'migration')) {
+      expect(event.data?.migration_path).toBe('unlocked_wrapped')
     }
     expect(isHistoryEventOfType(event, 'transfer')).toBe(false)
+  })
+
+  it('narrows event rows, which may lack a name', () => {
+    const event: EventRow = mockAddressHistoryRecordWithoutName
+    expect(event.name).toBeUndefined()
+    expect(isHistoryEventOfType(event, 'record')).toBe(true)
+    if (isHistoryEventOfType(event, 'record')) {
+      expect(event.data?.record_id).toBe('5')
+      expect(event.data?.key).toBe('text:avatar')
+    }
+  })
+
+  it('types ENSv2 role changes as permission rows with added/removed powers', () => {
+    const event: EventRow = mockHistoryRootPermission
+    expect(event.kind).toBe('PermissionChanged')
+    if (isHistoryEventOfType(event, 'permission')) {
+      expect(event.data?.grant_scope?.kind).toBe('registry')
+      expect(event.data?.added_powers).toEqual([])
+      expect(event.data?.removed_powers).toContain('admin_registrar')
+    }
   })
 })

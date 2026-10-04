@@ -36,7 +36,21 @@ describe('fetchAllPages', () => {
     expect(calls.map((call) => cursorOf(call.url))).toEqual([null, 'c1', 'c2'])
   })
 
-  it('restarts from the first page when a continuation answers 409 stale', async () => {
+  it('continues a walk through a retried 409 stale with the same cursor', async () => {
+    const { fetch, calls } = mockFetch(
+      jsonResponse(200, pageOf([{ name: 'a.eth' }], 'c1')),
+      errorResponse(409, 'stale', 'collection publication changed'),
+      jsonResponse(200, pageOf([{ name: 'b.eth' }], null, 'c1')),
+    )
+    const client = clientWith(fetch)
+    const result = await fetchAllPages((cursor) =>
+      client.listSubnames('eth', { cursor }),
+    )
+    expect(result.rows.map((row) => row.name)).toEqual(['a.eth', 'b.eth'])
+    expect(calls.map((call) => cursorOf(call.url))).toEqual([null, 'c1', 'c1'])
+  })
+
+  it('restarts from the first page when a pinned resolver continuation stays 409 stale', async () => {
     const { fetch, calls } = mockFetch(
       jsonResponse(200, pageOf([{ name: 'old-a.eth' }], 'c1')),
       errorResponse(409, 'stale', 'collection publication changed'),
@@ -45,7 +59,7 @@ describe('fetchAllPages', () => {
     )
     const client = clientWith(fetch)
     const result = await fetchAllPages((cursor) =>
-      client.listSubnames('eth', { cursor }),
+      client.listResolverLinks(11155111, '0xabc', { at: 'tok', cursor }),
     )
     expect(result.rows.map((row) => row.name)).toEqual(['a.eth', 'b.eth'])
     expect(calls.map((call) => cursorOf(call.url))).toEqual([
@@ -65,9 +79,11 @@ describe('fetchAllPages', () => {
     )
     const client = clientWith(fetch)
     await expect(
-      fetchAllPages((cursor) => client.listSubnames('eth', { cursor }), {
-        maxRestarts: 1,
-      }),
+      fetchAllPages(
+        (cursor) =>
+          client.listResolverLinks(11155111, '0xabc', { at: 'tok', cursor }),
+        { maxRestarts: 1 },
+      ),
     ).rejects.toMatchObject({ code: 'stale' })
   })
 
@@ -123,7 +139,7 @@ describe('iteratePages', () => {
     const client = clientWith(fetch)
     const steps: { data: readonly unknown[]; restarted: boolean }[] = []
     for await (const step of iteratePages((cursor) =>
-      client.listPermissions({ address: '0xabc', cursor }),
+      client.listResolverRoles(11155111, '0xabc', { at: 'tok', cursor }),
     )) {
       steps.push({ data: step.data, restarted: step.restarted })
     }

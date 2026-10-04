@@ -24,11 +24,7 @@ export {
   type TimestampParam,
 } from './client'
 export { BignameError, type BignameErrorInit, isBignameError } from './errors'
-export {
-  isHistoryEventOfType,
-  isNameProfile,
-  isResolverAliasEvent,
-} from './guards'
+export { isHistoryEventOfType, isNameProfile } from './guards'
 export {
   type AllPages,
   type FetchAllPagesOptions,
@@ -61,5 +57,10 @@ export {
   textKey,
 } from './records'
 export type { RawRequest, RequestOptions, RetryOptions } from './request'
-export { parseTimestamp, secondsToTimestamp, timestampToSeconds } from './time'
+export {
+  parseTimestamp,
+  secondsToTimestamp,
+  timestampToBigInt,
+  timestampToSeconds,
+} from './time'
 export type * from './types'

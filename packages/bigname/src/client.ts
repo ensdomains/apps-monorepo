@@ -16,14 +16,17 @@ import type {
   BignamePage,
   BignameResponse,
   ContractRef,
+  EventRow,
   Finality,
   HistoryEvent,
+  HistoryEventKind,
   HistoryEventType,
   LookupInput,
   LookupProfile,
   LookupResult,
   NameDetail,
   NameListRow,
+  NameMatch,
   NameRecords,
   Namespace,
   NamespaceInfo,
@@ -31,7 +34,6 @@ import type {
   PrimaryName,
   Registry,
   RegistryLabelRow,
-  ResolverAliasRow,
   ResolverLinkRow,
   ResolverOverview,
   ResolverRoleRow,
@@ -42,8 +44,12 @@ import type {
 /** Largest `page_size` any bigname collection accepts. */
 export const MAX_PAGE_SIZE = 200
 
-/** RFC 3339 string or Date (serialized with `toISOString`). */
-export type TimestampParam = string | Date
+/**
+ * A timestamp query value: decimal Unix seconds as a `number`, `bigint` or
+ * string (`"1791150000"`), an RFC 3339 string, or a `Date` (sent as RFC 3339
+ * with milliseconds). bigname accepts both forms on every timestamp param.
+ */
+export type TimestampParam = string | number | bigint | Date
 
 type SortOrder = 'asc' | 'desc'
 type ListOf<T> = T | readonly T[]
@@ -56,7 +62,7 @@ interface PageParams {
 
 /** Snapshot selectors accepted by single-resource reads. */
 interface SnapshotParams {
-  /** RFC 3339 instant or a `meta.as_of_token` from an earlier response. */
+  /** A `TimestampParam` instant or a `meta.as_of_token` from an earlier response. */
   readonly at?: TimestampParam
   readonly finality?: Finality
 }
@@ -77,8 +83,10 @@ export interface GetNameRecordsParams extends SnapshotParams {
 
 export interface ListSubnamesParams extends PageParams {
   readonly namespace?: Namespace
-  /** ENSIP-15 prefix; one trailing dot marks a label boundary. */
+  /** ENSIP-15 name text; one trailing dot marks a label boundary. */
   readonly q?: string
+  /** Default `prefix`. */
+  readonly match?: NameMatch
   readonly sort?: 'name' | 'expires_at' | 'registered_at'
   readonly order?: SortOrder
   /** Default true. `false` drops released and past-expiry children. */
@@ -88,11 +96,20 @@ export interface ListSubnamesParams extends PageParams {
 
 export type HistoryInclude = 'data' | 'raw' | 'total_count'
 
+/** Filters shared by name history, address history and `/v1/events`. */
 interface HistoryFilterParams extends PageParams {
   readonly type?: ListOf<HistoryEventType>
+  /** Removes types after `type`; exclusion wins. */
+  readonly exclude_type?: ListOf<HistoryEventType>
+  /** Raw kinds (the `include=raw` values); intersects the type filters. */
+  readonly kind?: ListOf<HistoryEventKind>
+  /** One exact stored record key (`addr:60`, `text:avatar`, `name`, `abi:16`); keeps record writes and resets. */
+  readonly record_key?: string
   /** Default `desc` (newest first). */
   readonly order?: SortOrder
+  /** Inclusive. */
   readonly from_timestamp?: TimestampParam
+  /** Inclusive. */
   readonly to_timestamp?: TimestampParam
 }
 
@@ -104,8 +121,8 @@ export interface NameHistoryParams extends HistoryFilterParams {
   readonly include?: readonly (HistoryInclude | 'child_registrations')[]
 }
 
-/** `any`, or a set of `owner`, `manager`, `registrant`. */
-export type AuthorityRelationParam = 'any' | readonly AuthorityRelation[]
+/** `any` (owner, manager and role_holder), or one or a set of authority relations. */
+export type AuthorityRelationParam = 'any' | ListOf<AuthorityRelation>
 
 export interface AddressHistoryParams extends HistoryFilterParams {
   /** Defaults to `ens` server-side. */
@@ -125,21 +142,37 @@ export interface ListEventsParams extends HistoryFilterParams {
   readonly registration_id?: string
   readonly from_block?: number
   readonly to_block?: number
+  /** `total_count` is exact for anchored reads and for `contract_address` reads. */
   readonly include?: readonly HistoryInclude[]
 }
 
 export interface ListAddressNamesParams extends PageParams {
   readonly namespace?: Namespace
-  /** Authority relations, or `resolves_to` alone. Server default is `any`. */
-  readonly relation?: AuthorityRelationParam | 'resolves_to'
-  readonly authority?: Authority
-  /** Proven ENSv1→ENSv2 migration; rejected with `resolves_to`. */
+  /**
+   * Authority relations (server default `any`), or `resolves_to` or
+   * `former_owner` alone. `former_owner` lists released names the address
+   * last held; it takes no `authority`, `is_migrated`, `q`, `coin_type` or
+   * `include`, only `sort=expires_at` and name dedupe.
+   */
+  readonly relation?: AuthorityRelationParam | 'resolves_to' | 'former_owner'
+  /** Served-authority set; rows that serve no authority match none. Not with `former_owner`. */
+  readonly authority?: ListOf<Authority>
+  /** Only names exactly one label below this name (`eth` → `.eth` 2LDs only). Every relation. */
+  readonly parent?: string
+  /** Proven ENSv1→ENSv2 migration; not with `resolves_to` or `former_owner`. */
   readonly is_migrated?: boolean
   /** Only with `relation=resolves_to`: a decimal coin type (default 60) or `evm`. */
   readonly coin_type?: number | 'evm'
-  /** ENSIP-15 prefix match on `name`. */
+  /** Only with `relation=former_owner`: inclusive `expires_at` bound. */
+  readonly expires_after?: TimestampParam
+  /** Only with `relation=former_owner`: exclusive `expires_at` bound. */
+  readonly expires_before?: TimestampParam
+  /** ENSIP-15 name text matched on `name`. */
   readonly q?: string
-  readonly sort?: 'name' | 'expires_at' | 'registered_at'
+  /** Default `prefix`. */
+  readonly match?: NameMatch
+  /** Missing values sort smallest (first ascending). */
+  readonly sort?: 'name' | 'expires_at' | 'registered_at' | 'created_at'
   readonly order?: SortOrder
   /** Default `name`. */
   readonly dedupe?: 'name' | 'registration'
@@ -155,13 +188,13 @@ export interface GetPrimaryNameParams {
   readonly source?: 'indexed' | 'verified'
 }
 
-export interface LookupRequest {
+/** `POST /v1/lookup` body. The route takes no `include` (400). */
+export interface LookupRequest<TProfile extends LookupProfile = 'detail'> {
   /** At most 1000 inputs. */
   readonly inputs: readonly LookupInput[]
-  readonly profile: LookupProfile
+  /** Server default `detail`. */
+  readonly profile?: TProfile
   readonly namespace?: Namespace
-  /** `inventory` requires `profile: 'detail'`. */
-  readonly include?: readonly 'inventory'[]
 }
 
 type ExpiryWindow =
@@ -174,10 +207,17 @@ type ExpiryWindow =
       readonly expires_before: TimestampParam
     }
 
-/** `GET /v1/names`: `expires_after` inclusive, `expires_before` exclusive. */
+/**
+ * `GET /v1/names`: `expires_after` inclusive, `expires_before` exclusive; at
+ * least one is required.
+ */
 export type ListNamesParams = ExpiryWindow &
   PageParams & {
     readonly namespace: Namespace
+    /** Served-authority set; rows that serve no authority match none. */
+    readonly authority?: ListOf<Authority>
+    /** Only names exactly one label below this name (`eth` → `.eth` 2LDs only). */
+    readonly parent?: string
     readonly sort?: 'expires_at'
     /** Default `asc`. */
     readonly order?: SortOrder
@@ -185,7 +225,8 @@ export type ListNamesParams = ExpiryWindow &
 
 export interface SearchParams extends PageParams {
   readonly q: string
-  readonly match?: 'prefix' | 'contains'
+  /** Default `prefix`. */
+  readonly match?: NameMatch
   readonly namespace?: Namespace
 }
 
@@ -204,6 +245,10 @@ export interface GetRegistryParams extends SnapshotParams, PageParams {
 
 export interface ListRegistryLabelsParams extends PageParams {
   readonly include?: readonly 'counts'[]
+  /** Labels held by this address. Not with `exclude_owner`. */
+  readonly owner?: string
+  /** Labels not held by this address, ownerless ones included. Not with `owner`. */
+  readonly exclude_owner?: string
 }
 
 /** Resolver overview (`cursor`/`page_size` page `bound_names`) and its sub-collections. */
@@ -281,11 +326,16 @@ export const createBignameClient = (config: BignameClientConfig) => {
     return body as TEnvelope
   }
 
-  const getResource = <TData>(
+  /**
+   * GET with `409 stale` retried: since v0.4.1 every cursor holds only its
+   * sort position (no publication), so a stale page is retried with the same
+   * cursor. The one exception is `getPinnedResolverRead`.
+   */
+  const get = <TEnvelope>(
     path: string,
     params: object | undefined,
     options: RequestOptions | undefined,
-  ): Promise<BignameResponse<TData>> =>
+  ): Promise<TEnvelope> =>
     request({
       path,
       query: toQuery(params),
@@ -294,21 +344,20 @@ export const createBignameClient = (config: BignameClientConfig) => {
     })
 
   /**
-   * Current-state collections bind cursors to a publication: a `409 stale`
-   * continuation is dead, so it is not retried here (the pager restarts).
-   * History walks survive publications, so their cursors are retried.
+   * Resolver collections pinned with `at` read current projections: once a
+   * later block is published their continuation answers `409 stale` for good,
+   * so it is not retried (the pager restarts the walk).
    */
-  const getCollection = <TPage>(
+  const getPinnedResolverRead = <TEnvelope>(
     path: string,
-    params: (object & { readonly cursor?: string }) | undefined,
+    params: ResolverParams | undefined,
     options: RequestOptions | undefined,
-    kind: 'current' | 'walk',
-  ): Promise<TPage> =>
+  ): Promise<TEnvelope> =>
     request({
       path,
       query: toQuery(params),
       signal: options?.signal,
-      retryStale: kind === 'walk' || params?.cursor === undefined,
+      retryStale: params?.at === undefined || params.cursor === undefined,
     })
 
   const names = (name: string) => `/v1/names/${pathSegment(name)}`
@@ -324,15 +373,18 @@ export const createBignameClient = (config: BignameClientConfig) => {
 
     /** `GET /v1/status`: per-chain indexing readiness. */
     getStatus: (options?: RequestOptions): Promise<BignameResponse<Status>> =>
-      getResource('/v1/status', undefined, options),
+      get('/v1/status', undefined, options),
 
-    /** `GET /v1/names/{name}`. `null` when the name is not indexed (404). */
+    /**
+     * `GET /v1/names/{name}`. `null` when the name is not indexed (404). A
+     * label may be spelled `[<64 lowercase hex>]` (its labelhash).
+     */
     getName: (
       name: string,
       params?: GetNameParams,
       options?: RequestOptions,
     ): Promise<BignameResponse<NameDetail> | null> =>
-      nullOnNotFound(getResource(names(name), params, options)),
+      nullOnNotFound(get(names(name), params, options)),
 
     /** `GET /v1/names/{name}/records`. `null` when the name is not indexed (404). */
     getNameRecords: (
@@ -340,7 +392,7 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: GetNameRecordsParams,
       options?: RequestOptions,
     ): Promise<BignameResponse<NameRecords> | null> =>
-      nullOnNotFound(getResource(`${names(name)}/records`, params, options)),
+      nullOnNotFound(get(`${names(name)}/records`, params, options)),
 
     /** `GET /v1/names/{name}/subnames`. Rejects `not_found` for a missing parent. */
     listSubnames: (
@@ -348,15 +400,15 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: ListSubnamesParams,
       options?: RequestOptions,
     ): Promise<BignamePage<SubnameRow>> =>
-      getCollection(`${names(name)}/subnames`, params, options, 'current'),
+      get(`${names(name)}/subnames`, params, options),
 
-    /** `GET /v1/names/{name}/history`. Rejects `not_found` for a missing name on the first page. */
+    /** `GET /v1/names/{name}/history`. Rejects `not_found` for a missing name. */
     getNameHistory: (
       name: string,
       params?: NameHistoryParams,
       options?: RequestOptions,
     ): Promise<BignamePage<HistoryEvent>> =>
-      getCollection(`${names(name)}/history`, params, options, 'walk'),
+      get(`${names(name)}/history`, params, options),
 
     /** `GET /v1/addresses/{address}/names`. */
     listAddressNames: (
@@ -364,7 +416,7 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: ListAddressNamesParams,
       options?: RequestOptions,
     ): Promise<BignamePage<AddressNameRow>> =>
-      getCollection(`${addresses(address)}/names`, params, options, 'current'),
+      get(`${addresses(address)}/names`, params, options),
 
     /** `GET /v1/addresses/{address}/primary-name`. Always 200 with in-band `status`. */
     getPrimaryName: (
@@ -372,21 +424,24 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: GetPrimaryNameParams,
       options?: RequestOptions,
     ): Promise<BignameResponse<PrimaryName>> =>
-      getResource(`${addresses(address)}/primary-name`, params, options),
+      get(`${addresses(address)}/primary-name`, params, options),
 
-    /** `GET /v1/addresses/{address}/history`. */
+    /** `GET /v1/addresses/{address}/history`. Rows may omit `name`. */
     getAddressHistory: (
       address: string,
       params?: AddressHistoryParams,
       options?: RequestOptions,
-    ): Promise<BignamePage<HistoryEvent>> =>
-      getCollection(`${addresses(address)}/history`, params, options, 'walk'),
+    ): Promise<BignamePage<EventRow>> =>
+      get(`${addresses(address)}/history`, params, options),
 
-    /** `GET /v1/events`. `total_count` is null unless name/address/registration_id/resolver anchors it. */
+    /**
+     * `GET /v1/events`. `total_count` is null unless name/address/
+     * registration_id/resolver anchors it, or `include: ['total_count']`.
+     */
     listEvents: (
       params?: ListEventsParams,
       options?: RequestOptions,
-    ): Promise<BignamePage<HistoryEvent>> => {
+    ): Promise<BignamePage<EventRow>> => {
       const query = params && {
         ...params,
         resolver:
@@ -394,24 +449,21 @@ export const createBignameClient = (config: BignameClientConfig) => {
             ? undefined
             : formatResolverFilter(params.resolver),
       }
-      return getCollection('/v1/events', query, options, 'walk')
+      return get('/v1/events', query, options)
     },
 
-    /** `POST /v1/lookup`: batched forward/reverse lookup with in-band per-input `status`. */
-    lookup: (
-      body: LookupRequest,
+    /**
+     * `POST /v1/lookup`: batched forward/reverse lookup with in-band per-input
+     * `status`. The result type follows `profile` (server default `detail`).
+     */
+    lookup: <TProfile extends LookupProfile = 'detail'>(
+      body: LookupRequest<TProfile>,
       options?: RequestOptions,
-    ): Promise<BignameResponse<readonly LookupResult[]>> =>
+    ): Promise<BignameResponse<readonly LookupResult<TProfile>[]>> =>
       request({
         method: 'POST',
         path: '/v1/lookup',
-        body: {
-          ...body,
-          include:
-            body.include && body.include.length > 0
-              ? body.include.join(',')
-              : undefined,
-        },
+        body,
         signal: options?.signal,
         retryStale: true,
       }),
@@ -420,22 +472,19 @@ export const createBignameClient = (config: BignameClientConfig) => {
     listNames: (
       params: ListNamesParams,
       options?: RequestOptions,
-    ): Promise<BignamePage<NameListRow>> =>
-      getCollection('/v1/names', params, options, 'current'),
+    ): Promise<BignamePage<NameListRow>> => get('/v1/names', params, options),
 
     /** `GET /v1/search`: prefix or contains match over names. */
     search: (
       params: SearchParams,
       options?: RequestOptions,
-    ): Promise<BignamePage<NameListRow>> =>
-      getCollection('/v1/search', params, options, 'current'),
+    ): Promise<BignamePage<NameListRow>> => get('/v1/search', params, options),
 
     /** `GET /v1/permissions`. Resource-bound reads carry top-level `restrictions`. */
     listPermissions: (
       params: ListPermissionsParams,
       options?: RequestOptions,
-    ): Promise<PermissionsPage> =>
-      getCollection('/v1/permissions', params, options, 'current'),
+    ): Promise<PermissionsPage> => get('/v1/permissions', params, options),
 
     /** `GET /v1/registries/{chain_id}/{address}`. `null` for an unknown registry (404). */
     getRegistry: (
@@ -444,14 +493,7 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: GetRegistryParams,
       options?: RequestOptions,
     ): Promise<BignameResponse<Registry> | null> =>
-      nullOnNotFound(
-        request({
-          path: registries(chainId, address),
-          query: toQuery(params),
-          signal: options?.signal,
-          retryStale: params?.cursor === undefined,
-        }),
-      ),
+      nullOnNotFound(get(registries(chainId, address), params, options)),
 
     /** `GET /v1/registries/{chain_id}/{address}/labels`. */
     listRegistryLabels: (
@@ -460,12 +502,7 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: ListRegistryLabelsParams,
       options?: RequestOptions,
     ): Promise<BignamePage<RegistryLabelRow>> =>
-      getCollection(
-        `${registries(chainId, address)}/labels`,
-        params,
-        options,
-        'current',
-      ),
+      get(`${registries(chainId, address)}/labels`, params, options),
 
     /** `GET /v1/resolvers/{chain_id}/{address}`. `null` when there is no overview (404). */
     getResolver: (
@@ -475,12 +512,7 @@ export const createBignameClient = (config: BignameClientConfig) => {
       options?: RequestOptions,
     ): Promise<BignameResponse<ResolverOverview> | null> =>
       nullOnNotFound(
-        request({
-          path: resolvers(chainId, address),
-          query: toQuery(params),
-          signal: options?.signal,
-          retryStale: params?.cursor === undefined,
-        }),
+        getPinnedResolverRead(resolvers(chainId, address), params, options),
       ),
 
     /** `GET /v1/resolvers/{chain_id}/{address}/links` (ENSv2 record-ID resolvers). */
@@ -490,11 +522,10 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: ResolverParams,
       options?: RequestOptions,
     ): Promise<BignamePage<ResolverLinkRow>> =>
-      getCollection(
+      getPinnedResolverRead(
         `${resolvers(chainId, address)}/links`,
         params,
         options,
-        'current',
       ),
 
     /** `GET /v1/resolvers/{chain_id}/{address}/roles`. */
@@ -504,37 +535,18 @@ export const createBignameClient = (config: BignameClientConfig) => {
       params?: ResolverParams,
       options?: RequestOptions,
     ): Promise<BignamePage<ResolverRoleRow>> =>
-      getCollection(
+      getPinnedResolverRead(
         `${resolvers(chainId, address)}/roles`,
         params,
         options,
-        'current',
       ),
 
-    /** `GET /v1/resolvers/{chain_id}/{address}/aliases`. */
-    listResolverAliases: (
-      chainId: number,
-      address: string,
-      params?: ResolverParams,
-      options?: RequestOptions,
-    ): Promise<BignamePage<ResolverAliasRow>> =>
-      getCollection(
-        `${resolvers(chainId, address)}/aliases`,
-        params,
-        options,
-        'current',
-      ),
-
-    /** `GET /v1/namespaces/{namespace}`: capability summary. */
+    /** `GET /v1/namespaces/{namespace}`: capabilities and per-network resolution protocol. */
     getNamespace: (
       namespace: Namespace,
       options?: RequestOptions,
     ): Promise<BignameResponse<NamespaceInfo>> =>
-      getResource(
-        `/v1/namespaces/${pathSegment(namespace)}`,
-        undefined,
-        options,
-      ),
+      get(`/v1/namespaces/${pathSegment(namespace)}`, undefined, options),
   }
 }
 
