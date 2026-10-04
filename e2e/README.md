@@ -30,6 +30,14 @@ The header comment in `docker-compose.yml` records the resolved versions, the ev
 
 The apps read names, record inventories and history from bigname (`VITE_BIGNAME_API_URL`, default `https://sepolia.api.bigname.sh`), which never indexes names registered on the Anvil fork, and the stack runs no indexer. With `E2E_MOCK_BIGNAME=true` (set in `e2e/.env.ci`) the manager and portal fixtures serve bigname's `/v1` routes from a Playwright route mock (`helpers/mock-bigname.ts`): names a test registers are added with `mockBigname.addName()` (`makeV2Name` does it for you), ENSv1 fixtures with `mockBigname.addV1Names(page, …)`, and every other name answers 404 like the real deployment. Only browser requests are intercepted; server-side (SSR) reads still reach the real deployment.
 
+The mock serves the bigname v0.4.1 contract, typed against `@ens-apps/bigname`, so a contract change in the client fails `pnpm typecheck` here:
+
+- Timestamps are decimal strings of Unix seconds.
+- `owner` is the token holder and `manager` the account that can change the registry record (omitted while a wrapped `.eth` name is in its registrar grace). A released name (`releasedAt`) carries neither: it serves `registration_status: "released"` and `lapsed_registration`, and lists under `relation=former_owner`. `relation=registrant` answers 400.
+- ENSv1 rows carry `ens_v1` (`expires_at` lease, `wrapper_state`, `wrapper_fuses`). The fork is Sepolia past the Universal Resolver cutover, so, as live Sepolia does for a premigration reservation, a live ENSv1 `.eth` name serves the top-level `expires_at` as the lease plus 62 days and `grace_ends_at` 28 days after that. The lease date the apps show comes from `ens_v1.expires_at`.
+- Name detail and `POST /v1/lookup` (`profile=detail`) carry grouped `records`; lookup rejects `include`.
+- A name with a `migration` serves `migrated_at` and a `migration` row in its history. No other history rows are mocked.
+
 ---
 
 ## Project Structure

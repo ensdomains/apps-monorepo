@@ -8,8 +8,8 @@
  * 1. Registers a locked V1 name on the Anvil fork with the given fuse combo.
  * 2. Serves the name from the bigname mock with the full NameWrapper fuse
  *    word (owner fuses | PARENT_CANNOT_CONTROL | IS_DOT_ETH = owner fuses |
- *    0x30000) as `wrapper_fuses`. The mock ORs the parent bits in when `fuses`
- *    is provided.
+ *    0x30000) as `ens_v1.wrapper_fuses`. The mock ORs the parent bits in when
+ *    `fuses` is provided.
  * 3. Runs the migration UI flow.
  * 4. Asserts the name is REGISTERED with a WrapperRegistry and V1 resolver.
  *
