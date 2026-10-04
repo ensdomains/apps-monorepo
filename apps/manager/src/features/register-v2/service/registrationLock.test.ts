@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acquireRegistrationLock,
   getBlockingRegistration,
@@ -197,5 +197,101 @@ describe('registrationLock', () => {
 
     expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
     expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+  })
+})
+
+/**
+ * "Duplicate tab" clones `sessionStorage`, so the copy opens holding the
+ * original's holder id: it used to sweep away that tab's live claim on mount
+ * and then register alongside it.
+ */
+describe('claimTabHolderId', () => {
+  /** Stands in for the live tab on the other end of the channel. */
+  class FakeChannel {
+    static answerFor: string | null = null
+    private listeners: ((event: MessageEvent<unknown>) => void)[] = []
+
+    addEventListener(
+      _type: string,
+      listener: (e: MessageEvent<unknown>) => void,
+    ) {
+      this.listeners.push(listener)
+    }
+
+    postMessage(data: unknown) {
+      const message = data as { type: string; holderId: string }
+      if (message.type !== 'claim') return
+      if (message.holderId !== FakeChannel.answerFor) return
+
+      for (const listener of this.listeners) {
+        listener({
+          data: { type: 'taken', holderId: message.holderId },
+        } as MessageEvent<unknown>)
+      }
+    }
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.resetModules()
+    vi.stubGlobal('BroadcastChannel', FakeChannel)
+    FakeChannel.answerFor = null
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps the id when no other tab answers for it', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    await expect(lock.claimTabHolderId()).resolves.toBe('only-tab')
+  })
+
+  it('takes a new id when another tab already answers for it', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    const holderId = await lock.claimTabHolderId()
+
+    expect(holderId).not.toBe('original-tab')
+    expect(sessionStorage.getItem('ens-registration-holder')).toBe(holderId)
+  })
+
+  // The bug this exists for: the clone's mount sweep wiped the claim of the
+  // tab it was cloned from, which then had no claim to block a third tab.
+  it('leaves the original tab’s claim alone once it has a new id', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    localStorage.setItem(
+      'ens-registration-locks-v1',
+      JSON.stringify({
+        [WALLET.toLowerCase()]: {
+          name: 'name-one.eth',
+          holderId: 'original-tab',
+          updatedAt: Date.now(),
+        },
+      }),
+    )
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    await lock.claimTabHolderId()
+    lock.releaseHolderLocks()
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+    expect(lock.acquireRegistrationLock(WALLET, 'name-two.eth')).toBe(false)
+  })
+
+  it('falls back to the stored id without a broadcast channel', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined)
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    await expect(lock.claimTabHolderId()).resolves.toBe('only-tab')
   })
 })
