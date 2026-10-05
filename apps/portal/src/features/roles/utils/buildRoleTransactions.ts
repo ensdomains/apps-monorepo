@@ -10,6 +10,7 @@ import type { FlowScope } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import type { Transaction } from '@/features/transaction-manager/types'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { prepareGrantRolesTransaction } from '../helpers/grantRoles'
 import { prepareRevokeRolesTransaction } from '../helpers/revokeRoles'
 import {
@@ -22,6 +23,7 @@ import {
 export type RoleTransactionHandlers = {
   readonly grantRoles: (params: {
     readonly name: string
+    readonly resourceId: ResourceId
     readonly account: Address
     readonly roles: readonly Role[]
     readonly id: string
@@ -29,6 +31,7 @@ export type RoleTransactionHandlers = {
   }) => void
   readonly revokeRoles: (params: {
     readonly name: string
+    readonly resourceId: ResourceId
     readonly account: Address
     readonly roles: readonly Role[]
     readonly id: string
@@ -54,6 +57,8 @@ export function buildRoleTransactions(
   handlers: RoleTransactionHandlers,
   registryAddress: Address,
   flowScope: FlowScope | null,
+  /** The name's on-chain id, resolved by the caller (WEB-1458). */
+  resourceId: ResourceId,
 ): readonly Transaction[] {
   const descriptors = buildRoleTransactionDescriptors(
     pendingSave,
@@ -68,6 +73,7 @@ export function buildRoleTransactions(
     d.type === 'grant'
       ? grantRoles({
           name,
+          resourceId,
           account: d.account,
           roles: d.roles,
           id: d.id,
@@ -75,6 +81,7 @@ export function buildRoleTransactions(
         })
       : revokeRoles({
           name,
+          resourceId,
           account: d.account,
           roles: d.roles,
           id: d.id,
@@ -92,6 +99,7 @@ export function buildRoleTransactions(
           descriptor.type === 'grant'
             ? prepareGrantRolesTransaction({
                 name,
+                resourceId,
                 account: descriptor.account,
                 roles: descriptor.roles,
                 walletClient,
@@ -100,6 +108,7 @@ export function buildRoleTransactions(
               })
             : prepareRevokeRolesTransaction({
                 name,
+                resourceId,
                 account: descriptor.account,
                 roles: descriptor.roles,
                 walletClient,

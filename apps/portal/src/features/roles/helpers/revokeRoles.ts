@@ -11,8 +11,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
-import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { revokeRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
@@ -22,6 +21,11 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import {
+  assertCalldataResourceId,
+  canonicalResourceId,
+  type ResourceId,
+} from '@/lib/resource/resourceId'
 
 // ============================================================================
 // Types
@@ -29,6 +33,12 @@ import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intent
 
 export type RevokeRolesTransactionParameters = {
   readonly name: string
+  /**
+   * The name's on-chain id, resolved by the caller. Not derived here: a label
+   * rendered `[<64 hex>]` does not say which name it is, so the id has to come
+   * from a typed source (WEB-1458).
+   */
+  readonly resourceId: ResourceId
   readonly account: Address
   readonly roles: readonly Role[]
   readonly walletClient: WalletClient
@@ -57,6 +67,7 @@ export interface RevokeRolesResult {
  */
 export function prepareRevokeRolesTransaction({
   name,
+  resourceId,
   account,
   roles,
   walletClient,
@@ -67,8 +78,7 @@ export function prepareRevokeRolesTransaction({
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const { label } = makeLabelNodeAndParent(name)
-  const resource = labelToCanonicalId(label)
+  const resource = canonicalResourceId(resourceId)
 
   const writeParams = revokeRolesWriteParameters(
     walletClient as Parameters<typeof revokeRolesWriteParameters>[0],
@@ -85,6 +95,13 @@ export function prepareRevokeRolesTransaction({
     functionName: writeParams.functionName,
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
+
+  assertCalldataResourceId({
+    abi: writeParams.abi,
+    data,
+    expected: resource,
+    action: `Revoking roles for ${name}`,
+  })
 
   return toEoaCustomIntent({
     from: walletClient.account.address,

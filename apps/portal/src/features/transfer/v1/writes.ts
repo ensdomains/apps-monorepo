@@ -29,15 +29,10 @@ import {
   nameWrapperSetSubnodeOwnerSnippet,
 } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import { match } from 'ts-pattern'
-import {
-  type Address,
-  encodeFunctionData,
-  labelhash,
-  namehash,
-  zeroAddress,
-} from 'viem'
+import { type Address, encodeFunctionData, namehash, zeroAddress } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { IntentContext } from '@/features/transaction-manager/types'
+import { requireResourceIdForName } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 const LEGACY_REGISTRY = getChainContractAddress({
@@ -72,8 +67,11 @@ export const prepareTransferV1NameTransaction = ({
   readonly shouldReclaim?: boolean
 }): CustomTransactionIntent => {
   const from = walletClient.account.address
-  // The registrar's token id is the 2LD's labelhash; the wrapper's is the namehash.
-  const registrarTokenId = BigInt(labelhash(name.split('.')[0]))
+  // The registrar's token id is the 2LD's labelhash; the wrapper's is the
+  // namehash. Derived fail-closed rather than by splitting the displayed name:
+  // `labelhash` leaves an encoded (`[<64 hex>]`) label unhashed, so the token
+  // moved would not be the one on screen (WEB-1458).
+  const registrarTokenId = requireResourceIdForName(name)
 
   const { to, data } = match({ contract, shouldReclaim })
     .with({ contract: 'registrar', shouldReclaim: true }, () => ({

@@ -14,6 +14,11 @@ import {
   type ResolverSetterScope,
 } from '@ensdomains/ensjs/utils/v2'
 import { toHex } from 'viem'
+import {
+  type ResourceId,
+  ROOT_RESOURCE_ID,
+  resourceIdFromChainValue,
+} from '@/lib/resource/resourceId'
 
 export {
   computeResolverResource,
@@ -86,9 +91,18 @@ export const resolverPermissions: ResolverPermission[] = [
   },
 ]
 
-/** The EAC resource covering every name on the resolver. */
-export const ROOT_RESOURCE = 0n
+/**
+ * The EAC resource covering every name on the resolver.
+ *
+ * An explicit constant, and the only way to name root scope in this module.
+ * No conversion here returns it: an unreadable resource comes back as `null`,
+ * because widening "I could not read this" into "everything" is how a grant
+ * meant for one scope lands on all of them (WEB-1513).
+ */
+export const ROOT_RESOURCE: ResourceId = ROOT_RESOURCE_ID
 export const ROOT_RESOURCE_LABEL = 'All names'
+/** Shown for a grant whose scope the indexer's value does not yield. */
+export const UNREADABLE_RESOURCE_LABEL = 'Unreadable scope'
 
 /** Human label for a setter scope. */
 export const formatSetterScope = (scope: ResolverSetterScope): string => {
@@ -213,8 +227,19 @@ type RoleInput = {
 
 export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
   readonly account: string
-  /** EAC resource the roles are held on, as a decimal string. */
+  /** Row identity: the resource as a decimal string, or the raw value when it
+   * could not be read. */
   readonly resource: string
+  /**
+   * The same resource, typed, for the save path to carry straight into
+   * calldata instead of re-parsing the string above (WEB-1513).
+   *
+   * `null` when the indexer's value does not yield one. The row is still
+   * listed — hiding it would leave the operator unaware the grant exists — but
+   * nothing can be written for it, because the only scope a guess could reach
+   * is every name on the resolver.
+   */
+  readonly resourceId: ResourceId | null
   readonly isRoot: boolean
   readonly resourceLabel: string
   readonly roles: readonly T[]
@@ -226,13 +251,8 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
  * `ROOT_RESOURCE` would merge the row into the account's root grant, and
  * revoking from that row would then target root roles.
  */
-const normalizeResource = (resource: string): bigint | null => {
-  try {
-    return BigInt(resource)
-  } catch {
-    return null
-  }
-}
+const normalizeResource = (resource: string): ResourceId | null =>
+  resourceIdFromChainValue(resource).unwrapOr(null)
 
 /**
  * Groups resolver roles by account and resource. One row per grant scope,
@@ -247,7 +267,8 @@ export const groupRolesByAccount = <T extends RoleInput>(
     string,
     {
       account: string
-      resource: bigint
+      resource: string
+      resourceId: ResourceId | null
       roles: T[]
       decodedRoles: ResolverRole[]
     }
@@ -255,8 +276,11 @@ export const groupRolesByAccount = <T extends RoleInput>(
 
   for (const role of roles) {
     const account = role.account.toLowerCase()
-    const resource = normalizeResource(role.resource)
-    if (resource === null) continue
+    const resourceId = normalizeResource(role.resource)
+    // An unreadable resource keeps its own row, keyed on the raw value: it must
+    // never share a group with a readable one, least of all the root grant.
+    const resource =
+      resourceId === null ? `raw:${role.resource}` : resourceId.toString()
     const decoded = decodeResolverRoleBitmap(BigInt(role.roleBitmap))
     const groupKey = `${account}:${resource}`
 
@@ -268,6 +292,7 @@ export const groupRolesByAccount = <T extends RoleInput>(
       grouped.set(groupKey, {
         account,
         resource,
+        resourceId,
         roles: [role],
         decodedRoles: [...decoded],
       })
@@ -276,9 +301,13 @@ export const groupRolesByAccount = <T extends RoleInput>(
 
   return Array.from(grouped.values()).map((g) => ({
     account: g.account,
-    resource: g.resource.toString(),
-    isRoot: g.resource === ROOT_RESOURCE,
-    resourceLabel: describeResolverResource(g.resource, revealed),
+    resource: g.resource,
+    resourceId: g.resourceId,
+    isRoot: g.resourceId === ROOT_RESOURCE,
+    resourceLabel:
+      g.resourceId === null
+        ? UNREADABLE_RESOURCE_LABEL
+        : describeResolverResource(g.resourceId, revealed),
     roles: g.roles,
     decodedRoles: g.decodedRoles,
   }))
@@ -296,7 +325,7 @@ export const resolverRoleGroupId = ({
 
 /** One revoke call: every role `account` holds on one resource. */
 export type ResolverRevocation = {
-  readonly resource: bigint
+  readonly resource: ResourceId
   readonly resourceLabel: string
   readonly roles: readonly ResolverRole[]
 }
@@ -327,11 +356,20 @@ export const planAccountRemoval = <T extends RoleInput>(
 
   const revocations = groupRolesByAccount(held, revealed)
     .filter((group) => group.decodedRoles.length > 0)
-    .map((group) => ({
-      resource: BigInt(group.resource),
-      resourceLabel: group.resourceLabel,
-      roles: group.decodedRoles,
-    }))
+    .flatMap((group) =>
+      // Unreachable after the `unreadable` return above; kept so a group
+      // without a resource can never be turned into a revoke call.
+      group.resourceId === null
+        ? []
+        : [
+            {
+              // Carried from the group, not re-parsed from its string form.
+              resource: group.resourceId,
+              resourceLabel: group.resourceLabel,
+              roles: group.decodedRoles,
+            },
+          ],
+    )
     // Root first, so the widest grant is the first one taken away.
     .toSorted(
       (a, b) =>
