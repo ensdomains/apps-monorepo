@@ -255,6 +255,43 @@ describe('getNameRolesAccounts', () => {
     expect(mockGetLogs).not.toHaveBeenCalled()
   })
 
+  it('keeps the indexed holders, unverified, when the block number cannot be read', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      eacRolesChangeds: [row({ block: 10 })],
+    })
+    onChain({ [OWNER]: SET_RESOLVER })
+    mockGetBlockNumber.mockRejectedValue(new Error('rpc unavailable'))
+
+    const { holders, isVerified } = (await run())._unsafeUnwrap()
+
+    expect(isVerified).toBe(false)
+    expect(holders.get(OWNER)).toEqual(['ROLE_SET_RESOLVER'])
+    expect(mockReadContract).not.toHaveBeenCalled()
+    expect(mockGetLogs).not.toHaveBeenCalled()
+  })
+
+  it('reads on-chain roles only for accounts that still hold some', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      eacRolesChangeds: [
+        row({ block: 10, account: OTHER }),
+        row({ block: 20, account: OTHER, newRoleBitmap: 0n }),
+        row({ block: 30 }),
+      ],
+    })
+    onChain({ [OWNER]: SET_RESOLVER })
+
+    const { holders, isVerified } = (await run())._unsafeUnwrap()
+
+    expect(isVerified).toBe(true)
+    expect([...holders.keys()]).toEqual([OWNER])
+    expect(mockReadContract).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'roles',
+        args: [RESOURCE, OTHER],
+      }),
+    )
+  })
+
   describe('replay', () => {
     beforeEach(() => {
       mockGraphqlRequest.mockRejectedValue(new Error('indexer unavailable'))

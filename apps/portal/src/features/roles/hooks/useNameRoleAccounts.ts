@@ -7,7 +7,7 @@ import {
   permissionedRegistryRoleCountSnippet,
   permissionedRegistryRolesSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { getBlockNumber, readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
@@ -94,7 +94,9 @@ const matchesRegistry = ResultFn(async function* ({
 }) {
   const client = yield* safeGetClient()
   const call = getAction(client, readContract, 'readContract')
-  const entries = [...bitmaps]
+  // A revoked account holds nothing, so it passes the subset check unread and
+  // adds nothing to the sum; reading it would only grow the batch.
+  const entries = [...bitmaps].filter(([, bitmap]) => bitmap !== 0n)
 
   const [roleCount, held] = yield* fromPromise(
     Promise.all([
@@ -151,13 +153,22 @@ export const getNameRolesAccounts = ResultFn(async function* ({
 
   const client = yield* safeGetClient()
 
-  const blockNumber = yield* fromPromise(
+  // Only pins the reads that verify a replay: without it the holders are still
+  // listed, just unverified.
+  const blockNumber = await fromPromise(
     getAction(client, getBlockNumber, 'getBlockNumber')({}),
     (cause) => new GetBlockNumberError({ cause }),
   )
 
-  const check = (bitmaps: ReadonlyMap<Address, bigint>) =>
-    matchesRegistry({ registryAddress, resource, blockNumber, bitmaps })
+  const check = async (bitmaps: ReadonlyMap<Address, bigint>) =>
+    blockNumber.isErr()
+      ? err(blockNumber.error)
+      : await matchesRegistry({
+          registryAddress,
+          resource,
+          blockNumber: blockNumber.value,
+          bitmaps,
+        })
 
   const indexed = await getIndexedRoleChangeLogs({ registryAddress, resource })
   const fromIndexer = indexed.isOk() ? foldRoleBitmaps(indexed.value) : null
@@ -190,7 +201,7 @@ export const getNameRolesAccounts = ResultFn(async function* ({
   const node = await getNodeRoleChangeLogs({
     registryAddress,
     resource,
-    toBlock: blockNumber,
+    toBlock: blockNumber.unwrapOr(undefined),
   })
   if (node.isErr() && fromIndexer) {
     return ok<NameRoleHolders>({
