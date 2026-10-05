@@ -314,6 +314,9 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
     expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+    // Nothing started here, so the screen names the blocking run rather than
+    // reporting this one as failed.
+    expect(snapshot.context.isWalletBusy).toBe(true)
 
     // QA's sequence: the block held, then Try Again went straight through.
     actor.send({ type: 'retry' })
@@ -326,6 +329,40 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     actor.send({ type: 'retry' })
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(getChild(actor).getSnapshot().value).toBe('running')
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(false)
+  })
+
+  // A refusal is not a failure, and a later real failure must not keep
+  // presenting itself as one.
+  it('clears the busy notice when the user leaves or something fails', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+
+    const hcaAccount = {
+      signer: { type: 'rhinestone' },
+      accountAddress: HCA_ADDRESS,
+      ownerAddress: EOA_ADDRESS,
+      walletClient: {},
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(true)
+
+    // Going back to the quote drops it, and so does a later real error: both
+    // would otherwise keep showing "another registration is running".
+    actor.send({ type: 'cancel' })
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(false)
+
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: '$error', error: new Error('reverted') })
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.isWalletBusy).toBe(false)
+    expect(snapshot.context.lastErrorMessage).toBe('reverted')
   })
 
   // QA hit this: the block held, then Try Again re-entered `registering`

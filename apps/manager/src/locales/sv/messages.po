@@ -283,6 +283,10 @@ msgstr ""
 msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another Registration Is Running"
+msgstr ""
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
@@ -1059,6 +1063,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
