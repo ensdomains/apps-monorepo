@@ -16,7 +16,7 @@ import {
   UserCell,
 } from '@/features/roles/components/roleTableColumns'
 import {
-  getRegistryRootRoleHoldersQueryOptions,
+  getRegistryRootRolesQueryOptions,
   type RootRoleHolder,
 } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
@@ -45,9 +45,7 @@ export const RegistryRolesTable = ({
     data: roles,
     isLoading,
     error,
-  } = useQuery(
-    getRegistryRootRoleHoldersQueryOptions({ registryAddress: address }),
-  )
+  } = useQuery(getRegistryRootRolesQueryOptions({ registryAddress: address }))
 
   const [editingRow, setEditingRow] = useState<RootRoleHolder | null>(null)
   const { data: walletClient } = useWalletClient()
@@ -72,7 +70,13 @@ export const RegistryRolesTable = ({
       ]
     : baseColumns
 
-  const rows = roles ?? []
+  const rows = roles?.holders ?? []
+  // Normal for every registry outside the ENS manifest, so a note, not a warning.
+  const operatorNote = roles?.areOperatorRolesUnlisted && (
+    <p className="mt-2 text-muted-foreground text-sm">
+      Roles held through an operator approval aren't listed here.
+    </p>
+  )
 
   if (isLoading) return <LoadingSpinner title="Loading roles..." />
 
@@ -87,11 +91,14 @@ export const RegistryRolesTable = ({
 
   if (rows.length === 0)
     return (
-      <NoResultsMessage
-        title="No role holders yet"
-        description="Accounts with roles on this registry will appear here."
-        className="mx-0"
-      />
+      <>
+        <NoResultsMessage
+          title="No role holders yet"
+          description="Accounts with roles on this registry will appear here."
+          className="mx-0"
+        />
+        {operatorNote}
+      </>
     )
 
   return (
@@ -101,6 +108,7 @@ export const RegistryRolesTable = ({
         data={rows}
         getRowId={(row) => row.account.toLowerCase()}
       />
+      {operatorNote}
       {showActions && (
         <RegistryEditUserSheet
           open={!!editingRow}

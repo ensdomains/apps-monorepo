@@ -45,7 +45,7 @@ type EventRowOf<T extends EventRow['type']> = Extract<EventRow, { type: T }>
  * states the diff; without one, the account's previous row under the same
  * scope is the set before (an empty set when there is none).
  */
-const previousPowers = (
+export const previousPowers = (
   data: NonNullable<EventRowOf<'permission'>['data']>,
   lastSeen: readonly Power[] | undefined,
 ): readonly Power[] => {
@@ -114,7 +114,7 @@ const toRoleChanges =
  * Rows emitted by another contract than `registryAddress` are left out.
  *
  * Registry-wide changes on a registry's root resource (`RootPermissionChanged`)
- * are not served by bigname; those stay on the log scan in `roleChangeLogs.ts`.
+ * are never part of a name's history; `rootRoleReads.ts` reads those.
  */
 export const getNameRoleChanges = ({
   name,

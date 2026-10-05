@@ -3,8 +3,12 @@
  *
  * Split by data source. The log-backed reads are correct the moment the
  * transaction confirms, so they are invalidated once; the indexer-backed ones
- * lag and are polled, and re-running a log scan on every poll tick would cost
- * a full rescan of the registry for nothing.
+ * lag and are refreshed again once bigname has indexed the transaction.
+ *
+ * The root role reads are either: log-backed against bigname v0.4.1, and
+ * indexer-backed where bigname serves them (`rootRoleReads.ts`). They join the
+ * second refresh only in the latter case, where it is needed; against v0.4.1
+ * it would rescan the registry's logs for nothing.
  *
  * What does NOT need invalidating on a role mutation:
  *  - `get-registry-label-count` — labelCount is unchanged by role changes.
@@ -14,9 +18,10 @@
  */
 
 import type { QueryClient } from '@tanstack/react-query'
+import { rootRoleReadsSupportedQueryKey } from '@/lib/roles/rootRoleReads'
 
-/** Read from logs: current as soon as the transaction confirms. */
-const LOG_BACKED_KEYS = new Set<string>([
+/** Root role reads: from logs, or from bigname where it serves them. */
+const ROOT_ROLE_KEYS = new Set<string>([
   // Holders table on /registry/$address/roles.
   'get-registry-root-role-holders',
   // Per-user role-change history embedded in the edit sheet.
@@ -46,12 +51,21 @@ const invalidate = (
 export const invalidateRegistryQueries = (
   queryClient: QueryClient,
 ): Promise<void> =>
-  invalidate(queryClient, new Set([...LOG_BACKED_KEYS, ...INDEXER_BACKED_KEYS]))
+  invalidate(queryClient, new Set([...ROOT_ROLE_KEYS, ...INDEXER_BACKED_KEYS]))
 
-/** The polled subset. Safe to call repeatedly while the indexer catches up. */
+/** The indexed subset. Call once bigname has caught up with the transaction. */
 export const invalidateIndexedRegistryQueries = (
   queryClient: QueryClient,
-): Promise<void> => invalidate(queryClient, INDEXER_BACKED_KEYS)
+): Promise<void> => {
+  const areRootRolesIndexed =
+    queryClient.getQueryData(rootRoleReadsSupportedQueryKey()) === true
+  return invalidate(
+    queryClient,
+    areRootRolesIndexed
+      ? new Set([...ROOT_ROLE_KEYS, ...INDEXER_BACKED_KEYS])
+      : INDEXER_BACKED_KEYS,
+  )
+}
 
 /** Read from bigname, and changed when a label is created or deleted. */
 const LABEL_BACKED_KEYS = new Set<string>([

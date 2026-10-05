@@ -17,10 +17,14 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 /**
  * Roles held here apply to every name in the registry rather than to one.
  *
- * The scan in this file is kept only for this resource: bigname stores a
- * registry's root-resource role changes as `RootPermissionChanged`, which no
- * product route serves (v0.4.1), while a name token's changes are bigname
- * `permission` rows (`nameRoleChanges.ts`).
+ * The scan in this file is kept only for this resource, and only as the
+ * fallback for bigname v0.4.1, which serves neither a registry's root holders
+ * nor its `RootPermissionChanged` rows. Later releases serve both
+ * (`rootRoleReads.ts`); a name token's changes are bigname `permission` rows
+ * on every version (`nameRoleChanges.ts`).
+ *
+ * Remove the scan, `toRoleHistoryEntries` and `getBlockTimestamps` once the
+ * release that accepts `GET /v1/permissions?registry=` is deployed everywhere.
  */
 export const ROOT_RESOURCE = 0n
 
@@ -81,13 +85,14 @@ type RoleChangeLog = GetLogsReturnType<
 >[number]
 
 /**
- * One role change, decoded for display: an `EACRolesChanged` log from the scan
- * below (root resource), or a bigname `permission` row (a name's token, see
+ * One role change, decoded for display: a root-resource change (a bigname
+ * `RootPermissionChanged` row, or an `EACRolesChanged` log from the scan
+ * below), or a bigname `permission` row on a name's token (see
  * `nameRoleChanges.ts`), which carries no EAC resource id.
  */
 export type RoleHistoryEntry = {
   readonly account: Address
-  /** EAC resource as hex; set by the log scan only. */
+  /** EAC resource as hex; set for root-resource changes only. */
   readonly resource?: string
   readonly oldRoles: readonly string[]
   readonly newRoles: readonly string[]

@@ -5,7 +5,8 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./postV041.mock": "./src/postV041.mock.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

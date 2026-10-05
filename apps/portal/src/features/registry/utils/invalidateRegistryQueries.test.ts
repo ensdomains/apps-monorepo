@@ -21,9 +21,10 @@ const seed = (keys: readonly (readonly unknown[])[]) => {
   return queryClient
 }
 
-// The role holder and history reads scan the node's logs, which are current
-// once the grant or revoke confirms; if they miss the success invalidation the
-// holders table keeps showing revoked permissions until an unrelated refetch.
+// Against bigname v0.4.1 the role holder and history reads scan the node's
+// logs, which are current once the grant or revoke confirms; if they miss the
+// success invalidation the holders table keeps showing revoked permissions
+// until an unrelated refetch.
 describe('invalidateRegistryQueries', () => {
   it('refreshes the role holder and history reads on success', async () => {
     const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS])
@@ -35,10 +36,11 @@ describe('invalidateRegistryQueries', () => {
     }
   })
 
-  // Polling re-runs every invalidated read until bigname catches up; a log scan
-  // in that set would rescan the registry on every tick for nothing.
-  it('polls only the bigname reads', async () => {
+  // A log scan is already current, so refreshing it again once bigname has
+  // caught up would rescan the registry for nothing.
+  it('refreshes only the bigname reads again while the role reads scan logs', async () => {
     const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS])
+    queryClient.setQueryData(['bigname-root-role-reads-supported'], false)
 
     await invalidateIndexedRegistryQueries(queryClient)
 
@@ -47,6 +49,19 @@ describe('invalidateRegistryQueries', () => {
     }
     for (const key of ROLE_KEYS) {
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false)
+    }
+  })
+
+  // Read from bigname, the same reads lag like the rest: without the second
+  // refresh the table would keep the holders from before the transaction.
+  it('refreshes the role reads again too once bigname serves them', async () => {
+    const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS])
+    queryClient.setQueryData(['bigname-root-role-reads-supported'], true)
+
+    await invalidateIndexedRegistryQueries(queryClient)
+
+    for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS]) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
     }
   })
 })
