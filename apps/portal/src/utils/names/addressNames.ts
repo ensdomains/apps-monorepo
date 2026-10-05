@@ -42,7 +42,10 @@ export type AddressNameItem = {
   roleBitmap: string | null
   /** ENSv1 Owner / Manager badges. */
   v1Roles: V1Roles | null
-  /** Authority relations between the address and the name (`relation=any`). */
+  /**
+   * Authority relations between the address and the name (`relation=any`), or
+   * `['resolves_to']` for a name that only resolves to the address.
+   */
   relations: AddressNameRow['relations']
 }
 
@@ -118,7 +121,28 @@ const byDisplayOrder = (a: AddressNameItem, b: AddressNameItem): number =>
   (a.expiryDate?.getTime() ?? 0) - (b.expiryDate?.getTime() ?? 0)
 
 /**
- * Maps a `relation=any` address-name page to list rows, in display order
+ * The address's authority rows (`relation=any`) plus the names that only
+ * resolve to it (`relation=resolves_to`), merged by namehash. A name on both
+ * keeps its authority row, so its relations and badges are unchanged; a
+ * resolve-only name keeps `relations: ['resolves_to']`, so it gets no Owner,
+ * Manager or role badge, and `partitionOwnedNames` puts it under "assigned"
+ * unless the address holds its `.eth` 2LD. The ENSv1 subgraph list this
+ * replaces read them through ensjs's `resolvedAddress` clause, with the same
+ * result.
+ */
+export const withResolvedNames = (
+  authorityRows: readonly AddressNameRow[],
+  resolvedRows: readonly AddressNameRow[],
+): AddressNameRow[] => {
+  const listed = new Set(authorityRows.map(({ namehash }) => namehash))
+  return [
+    ...authorityRows,
+    ...resolvedRows.filter(({ namehash }) => !listed.has(namehash)),
+  ]
+}
+
+/**
+ * Maps address-name rows (`withResolvedNames`) to list rows, in display order
  * (`byDisplayOrder`).
  */
 export const toAddressNameItems = (

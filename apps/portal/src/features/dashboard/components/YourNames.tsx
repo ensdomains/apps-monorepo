@@ -54,7 +54,8 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
 export const YourNames = ({ address }: { readonly address: Address }) => {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
   // Every name the wallet owns, manages or holds roles on, ENSv1 and ENSv2
-  // alike, granted subnames included, soonest expiry first (bigname's order).
+  // alike, granted subnames and names that resolve to it included, soonest
+  // expiry first.
   const {
     data: names = [],
     isPending,

@@ -299,6 +299,21 @@ describe('partitionOwnedNames', () => {
     ])
   })
 
+  it('puts a name that only resolves to the address under assigned', () => {
+    const { acquired, assigned } = partitionOwnedNames([
+      { name: 'mine.eth', relations: ['owner', 'manager'] },
+      { name: 'openregistry.eth', relations: ['resolves_to'] },
+      { name: 'pointer.mine.eth', relations: ['resolves_to'] },
+    ])
+
+    expect(acquired.map((entry) => entry.name)).toEqual([
+      'mine.eth',
+      // Under a 2LD the address holds, as for any of its subnames.
+      'pointer.mine.eth',
+    ])
+    expect(assigned.map((entry) => entry.name)).toEqual(['openregistry.eth'])
+  })
+
   it('does not treat a 2LD under another TLD as a root', () => {
     const { acquired, assigned } = partitionOwnedNames([
       { name: 'victim.foo', relations: ['owner'] },

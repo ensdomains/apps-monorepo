@@ -73,7 +73,8 @@ type OwnableName = {
   readonly name: string | null
   /**
    * The address's authority relations to the name, from a `relation=any` read:
-   * a narrower read lists only the relations it asked for.
+   * a narrower read lists only the relations it asked for. A name that only
+   * resolves to the address carries `['resolves_to']`, which holds nothing.
    */
   readonly relations: readonly string[]
 }

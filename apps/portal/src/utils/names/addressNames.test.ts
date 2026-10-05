@@ -1,7 +1,11 @@
 import type { AddressNameRow, RoleSummaryEntry } from '@ens-apps/bigname'
 import { describe, expect, it } from 'vitest'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
-import { registryRoleBitmap, toAddressNameItems } from './addressNames'
+import {
+  registryRoleBitmap,
+  toAddressNameItems,
+  withResolvedNames,
+} from './addressNames'
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
 const OTHER = '0x2222222222222222222222222222222222222222'
@@ -292,5 +296,95 @@ describe('registryRoleBitmap', () => {
     )
     expect(v2?.roleBitmap).not.toBeNull()
     expect(v1?.roleBitmap).toBeNull()
+  })
+})
+
+/**
+ * A `relation=resolves_to` row as bigname v0.4.1 serves it with the default
+ * coin type: `openregistry.eth` resolving to 0x1ca2…1b5e on Sepolia.
+ */
+const resolvedRow = (overrides: Partial<AddressNameRow> = {}): AddressNameRow =>
+  row({
+    name: 'openregistry.eth',
+    display_name: 'openregistry.eth',
+    namehash:
+      '0x10902dca70244496212849811d98d78c730f454504687f5771fe60631094362b',
+    permission_resource_id: '75309503-9a91-5c37-be0f-64d9cefb5770',
+    owner: '0xe9d8f4832e2c63c7c7ccfc4d48f3e4ed2263192f',
+    manager: '0xe9d8f4832e2c63c7c7ccfc4d48f3e4ed2263192f',
+    registration_status: 'active',
+    registered_at: '1723053708',
+    created_at: '1723053708',
+    expires_at: '1823018508',
+    grace_ends_at: '1825437708',
+    authority: 'ens_v1',
+    ens_v1: { expires_at: '1817661708' },
+    relations: ['resolves_to'],
+    is_primary: false,
+    resolution: { coin_type: 60, record_key: 'addr:60' },
+    subname_count: 13,
+    record_count: 1,
+    ...overrides,
+  })
+
+describe('withResolvedNames', () => {
+  it('adds a name that only resolves to the address', () => {
+    const owned = row({ name: 'mine.eth', namehash: '0x01' })
+
+    const rows = withResolvedNames([owned], [resolvedRow()])
+
+    expect(rows.map(({ name }) => name)).toEqual([
+      'mine.eth',
+      'openregistry.eth',
+    ])
+  })
+
+  it('keeps the authority row of a name on both reads', () => {
+    const owned = row({
+      name: 'leon000.eth',
+      namehash: '0x02',
+      relations: ['owner'],
+    })
+    const resolved = resolvedRow({ name: 'leon000.eth', namehash: '0x02' })
+
+    expect(withResolvedNames([owned], [resolved])).toEqual([owned])
+  })
+
+  it('merges by namehash, not by name text', () => {
+    const owned = row({ name: 'a.eth', namehash: '0x03' })
+    const resolved = resolvedRow({ name: 'a.eth', namehash: '0x04' })
+
+    expect(withResolvedNames([owned], [resolved])).toHaveLength(2)
+  })
+})
+
+describe('toAddressNameItems with a resolve-only row', () => {
+  it('gives it no Owner, Manager or role badge', () => {
+    const [v1] = toAddressNameItems([resolvedRow()], ADDRESS)
+    const [v2] = toAddressNameItems(
+      [resolvedRow({ authority: 'ens_v2', ens_v1: undefined })],
+      ADDRESS,
+    )
+
+    expect(v1).toMatchObject({
+      name: 'openregistry.eth',
+      protocolVersion: 'ENSv1',
+      v1Roles: { owner: false, manager: false },
+      roleBitmap: null,
+      relations: ['resolves_to'],
+      subdomainCount: 13,
+      recordCount: 1,
+      expiryDate: date(1_817_661_708),
+    })
+    expect(v2).toMatchObject({ roleBitmap: null, v1Roles: null })
+  })
+
+  it('drops a released ENSv1 name, as the authority read does', () => {
+    expect(
+      toAddressNameItems(
+        [resolvedRow({ registration_status: 'released' })],
+        ADDRESS,
+      ),
+    ).toEqual([])
   })
 })

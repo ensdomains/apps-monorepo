@@ -59,11 +59,32 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
       ),
   }),
 }))
-let ownedNamesOverride: { name: string; hasNameRow: boolean }[] | null = null
+let ownedNamesOverride:
+  | {
+      name: string
+      hasNameRow: boolean
+      protocolVersion?: string
+      relations?: string[]
+      subdomainCount?: number
+    }[]
+  | null = null
 vi.mock('../hooks/useAddressNames', () => ({
   getAddressNamesQueryOptions: (params: { address: string }) => ({
     queryKey: ['get-address-names', params],
-    queryFn: () => Promise.resolve(ownedNamesOverride ?? []),
+    queryFn: () =>
+      Promise.resolve(
+        (ownedNamesOverride ?? []).map((name) => ({
+          relations: [],
+          ...name,
+        })),
+      ),
+  }),
+}))
+const mockOwnedSubnames = vi.fn()
+vi.mock('../hooks/useOwnedSubnames', () => ({
+  getOwnedSubnamesQueryOptions: (params: { parents: string[] }) => ({
+    queryKey: ['get-owned-subnames', params],
+    queryFn: () => mockOwnedSubnames(params),
   }),
 }))
 vi.mock('@/hooks/useSupportsInterfaces', () => ({
@@ -96,6 +117,8 @@ describe('SearchModalContent', () => {
     mockOnSelectAvailableName.mockClear()
     connectedAddressOverride = undefined
     ownedNamesOverride = null
+    mockOwnedSubnames.mockReset()
+    mockOwnedSubnames.mockResolvedValue([])
     mockBuildSearchSuggestions.mockImplementation(
       ({ value }: { value: string }) => {
         if (!value.trim()) return []
@@ -394,5 +417,73 @@ describe('SearchModalContent', () => {
       .getAllByRole('option')
       .find((el) => el.textContent?.includes('foobar.eth'))
     expect(ownedOption).toHaveAttribute('data-value', 'owned:foobar.eth')
+  })
+
+  it('suggests subnames of an owned ENSv2 name under Names you own', async () => {
+    connectedAddressOverride = '0x5b7d523f27c5b2232536fb900ebffb590d03ff5d'
+    ownedNamesOverride = [
+      {
+        name: 'ensforge.eth',
+        hasNameRow: true,
+        protocolVersion: 'ENSv2',
+        relations: ['owner', 'manager', 'role_holder'],
+        subdomainCount: 10,
+      },
+    ]
+    mockOwnedSubnames.mockResolvedValue([
+      { name: 'different-owner.ensforge.eth' },
+    ])
+    mockBuildSearchSuggestions.mockReturnValue([])
+
+    render(
+      <SearchModalContent
+        searchValue="different"
+        onSelectSuggestion={mockOnSelectSuggestion}
+        onSelectOwnedName={mockOnSelectOwnedName}
+        navigateToName={mockNavigateToName}
+        navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
+      />,
+      { wrapper: createWrapper() },
+    )
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getAllByRole('option')
+          .find((el) => el.textContent?.includes('different-owner')),
+      ).toHaveAttribute('data-value', 'owned:different-owner.ensforge.eth')
+    })
+    expect(mockOwnedSubnames).toHaveBeenCalledWith({
+      parents: ['ensforge.eth'],
+    })
+  })
+
+  it('does not fetch subnames until there is something to search', async () => {
+    connectedAddressOverride = '0x5b7d523f27c5b2232536fb900ebffb590d03ff5d'
+    ownedNamesOverride = [
+      {
+        name: 'ensforge.eth',
+        hasNameRow: true,
+        protocolVersion: 'ENSv2',
+        relations: ['owner'],
+        subdomainCount: 10,
+      },
+    ]
+
+    render(
+      <SearchModalContent
+        searchValue=""
+        onSelectSuggestion={mockOnSelectSuggestion}
+        onSelectOwnedName={mockOnSelectOwnedName}
+        navigateToName={mockNavigateToName}
+        navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
+      />,
+      { wrapper: createWrapper() },
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(mockOwnedSubnames).not.toHaveBeenCalled()
   })
 })
