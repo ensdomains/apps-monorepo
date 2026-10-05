@@ -22,13 +22,14 @@ import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
   type getIsPermissionedResolver,
   getIsPermissionedResolverQueryOptions,
 } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { invalidateRolesQueries } from '@/features/roles/utils/invalidateRolesQueries'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import {
   estimateGasForCall,
@@ -50,13 +51,15 @@ import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
 } from '../queries/getOwnResolver'
-import type { TransferSubject, V1TransferActor } from '../types'
+import type { NameRoleGrant, TransferSubject, V1TransferActor } from '../types'
 import {
   buildTransferPlan,
+  describeTransferStep,
   isRecordAheadOfMove,
-  STEP_LABELS,
   type TransferOptions,
+  type TransferStep,
   type TransferStepKind,
+  transferStepKey,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
 import { canStartStep } from '../utils/canStartStep'
@@ -78,6 +81,19 @@ export type StartTransferParams = {
   /** The address the form showed for `recipientInput`. */
   readonly recipient: Address
   readonly options: TransferOptions
+  /**
+   * The third-party registry grants the `revokeRoles` option revokes, resolved
+   * by the form. Empty unless the option is on — the plan only reads it then,
+   * but the two are kept in step here so a stale list can't outlive the toggle.
+   */
+  readonly roleGrants: readonly NameRoleGrant[]
+  /**
+   * Whether anyone but the sender still holds a role on the name once
+   * `roleGrants` are revoked — the option is off, or some grants aren't the
+   * sender's to revoke. The registry only moves such a name through
+   * `unsafeTransfer`.
+   */
+  readonly hasRemainingRoleHolders: boolean
 }
 
 type NameReads = StartTransferParams & {
@@ -135,7 +151,9 @@ const CARRIES_RECIPIENT: Record<TransferStepKind, boolean> = {
   'set-eth-addr': true,
   'detach-resolver': false,
   'detach-registry': false,
+  'revoke-roles': false,
   'transfer-token': true,
+  'transfer-token-unsafe': true,
   reclaim: true,
   'transfer-erc721': true,
   'transfer-erc1155': true,
@@ -231,6 +249,42 @@ const recordPointsAt = (
   !!record && !!address && isAddress(record) && isAddressEqual(record, address)
 
 /**
+ * The token id a step should act on. Granting or revoking a role re-mints the
+ * token under a bumped version, so the id read when the flow was prepared stops
+ * naming it once a revoke step has landed; the step that moves a V2 token
+ * re-reads it. Every other step keeps the prepared one.
+ *
+ * Split out only to keep the step runner under the complexity limit.
+ */
+const getStepTokenId = async (
+  step: TransferStep,
+  {
+    name,
+    subject,
+    tokenId,
+  }: {
+    readonly name: string
+    readonly subject: TransferSubject
+    readonly tokenId: bigint | null
+  },
+): Promise<bigint | null> => {
+  if (
+    subject.kind !== 'v2' ||
+    (step.kind !== 'transfer-token' && step.kind !== 'transfer-token-unsafe')
+  )
+    return tokenId
+  return getEnsTokenId({
+    label: getLabel(name),
+    registryAddress: subject.registryAddress,
+  }).match(
+    (fresh) => fresh,
+    (error) => {
+      throw error
+    },
+  )
+}
+
+/**
  * Runs a transfer plan through the transaction modal, one step per transaction.
  * Every step's calldata comes from `buildTransferStepIntent`, shared between the
  * modal's gas estimate and the submit so the two can't drift.
@@ -292,6 +346,9 @@ export const useTransferName = ({
     const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
+        // The revoke steps rewrite the name's role table, and the roles page is
+        // where the recipient checks nobody else is left on it.
+        invalidateRolesQueries(queryClient),
         queryClient.invalidateQueries({
           queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
         }),
@@ -307,10 +364,10 @@ export const useTransferName = ({
         ...(parentName
           ? [
               queryClient.invalidateQueries({
-                queryKey: getSubnamesQueryOptions({
+                queryKey: getSubnamesQueryKey({
                   name: parentName,
                   protocolVersion: subject.kind === 'v2' ? 'ENSv2' : 'ENSv1',
-                }).queryKey,
+                }),
               }),
             ]
           : []),
@@ -426,7 +483,9 @@ export const useTransferName = ({
       reads.options,
       subject.kind,
       actor,
-    ).includes('set-eth-addr')
+      reads.roleGrants,
+      reads.hasRemainingRoleHolders,
+    ).some((step) => step.kind === 'set-eth-addr')
     if (!resolverAddress || !writesResolver)
       return okAsync({
         ...reads,
@@ -466,11 +525,26 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const move = buildTransferPlan(params.options, subject.kind, actor).at(
-          -1,
+        const plan = buildTransferPlan(
+          params.options,
+          subject.kind,
+          actor,
+          params.roleGrants,
+          params.hasRemainingRoleHolders,
         )
+        const move = plan.at(-1)
         if (!move) throw new Error('Transfer plan has no move step')
-        const { request } = buildTransferStepIntent(move, {
+        // The revokes haven't been sent yet, so `safeTransferFrom` would revert
+        // here on the very grants the plan is about to remove. `unsafeTransfer`
+        // runs the same move without the registry's safe-transfer checks, so
+        // the receiver hook and the sender's right to transfer are still
+        // exercised.
+        const simulated: TransferStep =
+          move.kind === 'transfer-token' &&
+          plan.some((step) => step.kind === 'revoke-roles')
+            ? { kind: 'transfer-token-unsafe' }
+            : move
+        const { request } = buildTransferStepIntent(simulated, {
           ...params,
           name,
           subject,
@@ -593,15 +667,21 @@ export const useTransferName = ({
   // array in a ref for auto-advance, so referential stability isn't needed.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const steps: readonly TransferStepKind[] = isRestoring
-      ? ['restore-eth-addr']
-      : buildTransferPlan(savedParams.options, subject.kind, actor)
+    const steps: readonly TransferStep[] = isRestoring
+      ? [{ kind: 'restore-eth-addr' }]
+      : buildTransferPlan(
+          savedParams.options,
+          subject.kind,
+          actor,
+          savedParams.roleGrants,
+          savedParams.hasRemainingRoleHolders,
+        )
     const stepContext = { ...savedParams, name, subject }
 
     // Idempotent per step: `onStart` may fire twice (modal UI + the prior
     // step's auto-advance `onDone`). Errors clear the guard to allow a retry.
     const runners = steps.map((step) => async () => {
-      const id = transferStepId(name, step, attempt.scope)
+      const id = transferStepId(name, transferStepKey(step), attempt.scope)
       if (
         !canStartStep({
           startedSteps: startedStepsRef.current,
@@ -616,45 +696,49 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
+        const tokenId = await getStepTokenId(step, stepContext)
         txId = transactionManager.startTransaction(
           buildTransferStepIntent(step, {
             ...stepContext,
+            tokenId,
             walletClient: walletClient as WalletClientWithAccount,
             chainId,
           }),
           createEOASigner(walletClient),
           {
             id,
-            description: `${STEP_LABELS[step]} - ${name}`,
+            description: `${describeTransferStep(step)} - ${name}`,
             publicClient,
             timeout: 120_000,
           },
         )
         await waitForTransaction(txId)
-        setConfirmedSteps((prev) => new Set(prev).add(step))
+        setConfirmedSteps((prev) => new Set(prev).add(step.kind))
       } catch (err) {
         // Tx reverts surface via the modal's machine state; non-tx failures
         // (e.g. a wallet with no connected account, or the step's actor being
         // stopped) don't, so log those. Deliberately not a `finally`: a step
         // that succeeded must stay guarded, or a stray `onStart` would send it
         // a second time.
-        console.error(`Transfer step "${step}" failed:`, err)
+        console.error(`Transfer step "${transferStepKey(step)}" failed:`, err)
         startedStepsRef.current.delete(id)
-        flagIfSent(step, txId)
+        flagIfSent(step.kind, txId)
       }
     })
 
     return steps.map((step, i) => ({
-      id: transferStepId(name, step, attempt.scope),
-      title: STEP_LABELS[step],
-      transactionName: `${STEP_LABELS[step]} - ${name}`,
+      id: transferStepId(name, transferStepKey(step), attempt.scope),
+      title: describeTransferStep(step),
+      transactionName: `${describeTransferStep(step)} - ${name}`,
       // From the same params the calldata is built from, not the form behind
       // the modal, so what the user confirms is what gets sent.
-      details: CARRIES_RECIPIENT[step]
+      details: CARRIES_RECIPIENT[step.kind]
         ? [{ label: 'To', value: savedParams.recipient }]
         : undefined,
-      // Same builder as the submit path, so the gas estimate is for exactly
-      // the call that gets sent.
+      // Same builder as the submit path, so the modal's live gas estimate is
+      // for the call that will be sent. The one difference is the move after a
+      // revoke: the submit path re-reads the token id (see `getStepTokenId`),
+      // which a synchronous estimate built before the revoke can't know yet.
       intent: {
         prepare: (ctx) =>
           buildTransferStepIntent(step, { ...stepContext, ...ctx }),
@@ -669,7 +753,13 @@ export const useTransferName = ({
 
   const recipient = savedParams?.recipient
   const plan = savedParams
-    ? buildTransferPlan(savedParams.options, subject.kind, actor)
+    ? buildTransferPlan(
+        savedParams.options,
+        subject.kind,
+        actor,
+        savedParams.roleGrants,
+        savedParams.hasRemainingRoleHolders,
+      )
     : []
   const move = plan.at(-1)
 
@@ -687,7 +777,7 @@ export const useTransferName = ({
 
   // Who holds the name now, read the way each protocol version defines it:
   // the V2 token owner, or the V1 holder (registrant for an unwrapped 2LD).
-  const isMoveUnsettled = !!move && unsettledSteps.has(move)
+  const isMoveUnsettled = !!move && unsettledSteps.has(move.kind)
   const keepPollingUntil = (holder: Address | null | undefined) =>
     recordPointsAt(holder, recipient) ? false : 15_000
   const liveV2OwnerQuery = useQuery({

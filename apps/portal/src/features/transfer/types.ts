@@ -1,3 +1,4 @@
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 
 /**
@@ -76,14 +77,26 @@ export type V1ParentState = {
  */
 export type V1TransferActor = 'owner' | 'parent'
 
-export type TransferOptionKey =
+/**
+ * The options that point the name away from the sender's own records and
+ * registry. Every protocol has them, and `getV1DetachTargets` /
+ * `useTransferDetachTargets` decide which are offered.
+ */
+export type TransferDetachOptionKey =
   | 'setEthAddress'
   | 'detachResolver'
   | 'detachRegistry'
 
+/**
+ * `revokeRoles` is V2-only and isn't a detach target: whether to offer it
+ * depends on who holds roles on the name, not on what it points at, so it is
+ * decided from {@link TransferRoleRevocations} instead.
+ */
+export type TransferOptionKey = TransferDetachOptionKey | 'revokeRoles'
+
 /** Which pre-move options the form should offer, and whether that is known yet. */
 export type TransferDetachTargets = {
-  readonly isOptionVisible: Readonly<Record<TransferOptionKey, boolean>>
+  readonly isOptionVisible: Readonly<Record<TransferDetachOptionKey, boolean>>
   /** Every lookup succeeded — the targets are known. */
   readonly isSettled: boolean
   /** At least one lookup errored — the targets are unknown. */
@@ -130,4 +143,43 @@ export type RegistryDetachImpact =
        * answer and may be about to change, so they can't be signed off yet.
        */
       readonly isRevalidating: boolean
+    }
+
+/** Everything one account holds on the name's own registry resource. */
+export type NameRoleGrant = {
+  readonly account: Address
+  readonly roles: readonly Role[]
+}
+
+/**
+ * Who, other than the sender, can still act on the name through its registry
+ * roles — and how much of that the sender can take away before handing it over.
+ *
+ * Registry roles are keyed on the label, not on the token, so they survive a
+ * transfer: a delegate the seller added keeps `ROLE_SET_RESOLVER` over the
+ * buyer's name unless the transfer revokes it.
+ *
+ * A union rather than a list beside a flag, because "we couldn't read the
+ * grants" and "there are none" must never be the same value — the form offers
+ * the revoke step off the back of this, and an unread answer that looked empty
+ * would hand the name over with the grants still live.
+ */
+export type TransferRoleRevocations =
+  | { readonly status: 'pending' }
+  | { readonly status: 'error' }
+  | {
+      readonly status: 'ready'
+      /** Every non-owner holder, whatever the sender can do about them. */
+      readonly holders: readonly NameRoleGrant[]
+      /**
+       * The part of `holders` the sender holds the matching admin role for, so
+       * the revoke would actually land. This is what the plan revokes.
+       */
+      readonly revocable: readonly NameRoleGrant[]
+      /**
+       * The remainder: roles no admin role of the sender's covers. They outlive
+       * the transfer whatever the sender picks, so the form says so rather than
+       * sending a write that would revert.
+       */
+      readonly unrevocable: readonly NameRoleGrant[]
     }

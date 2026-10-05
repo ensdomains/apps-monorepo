@@ -8,7 +8,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -96,10 +96,10 @@ export const useDeleteSubname = ({
       })
     },
     onSuccess: () => {
-      const subnamesQueryKey = getSubnamesQueryOptions({
+      const subnamesQueryKey = getSubnamesQueryKey({
         name,
         protocolVersion: 'ENSv2',
-      }).queryKey
+      })
 
       queryClient.invalidateQueries({
         queryKey: subnamesQueryKey,

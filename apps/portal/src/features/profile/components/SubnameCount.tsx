@@ -7,7 +7,7 @@ import {
   DataBlockCardError,
 } from '@/features/dashboard/components'
 import type { ProtocolVersion } from '@/utils/types'
-import { getSubnamesQueryOptions } from '../hooks/useSubnames'
+import { getSubnamesCountQueryOptions } from '../hooks/useSubnames'
 
 export const SubnameCount = ({
   name,
@@ -17,7 +17,7 @@ export const SubnameCount = ({
   protocolVersion: ProtocolVersion
 }) => {
   const { data, isLoading, error } = useQuery(
-    getSubnamesQueryOptions({ name, protocolVersion }),
+    getSubnamesCountQueryOptions({ name, protocolVersion }),
   )
 
   if (error)
@@ -35,7 +35,7 @@ export const SubnameCount = ({
       params={{ name }}
       icon={GraphIcon}
       label="Subnames"
-      value={data ? data.length : 0}
+      value={data ?? 0}
     />
   )
 }

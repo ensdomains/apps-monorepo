@@ -9,15 +9,14 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
-import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
-import { resourceIdForName } from '@/lib/resource/resourceId'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
 
@@ -32,18 +31,11 @@ const V2NameRoles = ({
 }) => {
   const { labels } = getNameLabels(name)
 
-  // Rows are read against the same resource the sidebar's grants and revokes
-  // address, so the table and the writes cannot be about different names.
-  const idFromName = resourceIdForName(name).unwrapOr(null)
   const {
-    data: readId,
+    data: resourceId = null,
     isLoading: isReadingId,
     error: readIdError,
-  } = useQuery({
-    ...getNameResourceIdQueryOptions({ name, registryAddress }),
-    enabled: idFromName === null,
-  })
-  const resourceId = idFromName ?? readId ?? null
+  } = useQuery(getVersionedResourceQueryOptions({ name, registryAddress }))
 
   const nameRolesQuery = useQuery({
     ...getNameRolesAccountsQueryOptions({
@@ -186,16 +178,12 @@ export const NameRolesOverviewTable = ({
 
   const { address } = useConnection()
 
-  // Asked about the id the grants and revokes below are addressed with, not
-  // the label: the two disagree for an encoded (`[<64 hex>]`) label, which
-  // would either lock an admin out or show controls for a transaction that
-  // reverts (WEB-1458).
-  const idFromName = resourceIdForName(name).unwrapOr(null)
-  const { data: readId } = useQuery({
-    ...getNameResourceIdQueryOptions({ name, registryAddress }),
-    enabled: idFromName === null,
-  })
-  const resourceId = idFromName ?? readId ?? null
+  // Asked about the name's id, not the label: the two disagree for an encoded
+  // (`[<64 hex>]`) label, which would either lock an admin out or show controls
+  // for a transaction that reverts (WEB-1458).
+  const { data: resourceId = null } = useQuery(
+    getVersionedResourceQueryOptions({ name, registryAddress }),
+  )
 
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({

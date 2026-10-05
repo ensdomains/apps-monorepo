@@ -14,17 +14,33 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type {
   RecordAheadOfMove,
   TransferControls,
 } from '../hooks/useTransferName'
 import type {
+  NameRoleGrant,
   ParentWarning,
   RegistryDetachImpact,
   TransferDetachTargets,
   TransferOptionKey,
+  TransferRoleRevocations,
 } from '../types'
 import type { TransferOptions } from '../utils/buildTransferPlan'
+
+/**
+ * What a protocol without registry roles reports: nothing held, nothing to
+ * revoke, nothing outstanding. A V1 name has no EAC resource at all, so this is
+ * the settled answer rather than a placeholder for one still loading.
+ */
+const NO_ROLE_REVOCATIONS: TransferRoleRevocations = {
+  status: 'ready',
+  holders: [],
+  revocable: [],
+  unrevocable: [],
+}
 
 /**
  * The transfer form, protocol-agnostic. Everything that depends on how the name
@@ -41,6 +57,12 @@ type SendNameFormProps = {
   readonly parentWarning: ParentWarning | null
   /** V2 only: what detaching the registry would break. Null when there's no such step. */
   readonly registryDetachImpact?: RegistryDetachImpact | null
+  /**
+   * V2 only: who else holds roles on the name, and which of those the sender
+   * can revoke. Defaults to the empty settled answer for protocols that have no
+   * registry roles.
+   */
+  readonly roleRevocations?: TransferRoleRevocations
   readonly transfer: TransferControls
   /** Protocol-specific notices, rendered under the irreversibility warning. */
   readonly notices?: ReactNode
@@ -79,6 +101,14 @@ const OPTIONS: readonly OptionConfig[] = [
     label: 'Detach the registry',
     description:
       'Points this name away from its registry. Every subname under it — including any owned by other people — stops resolving, and they can’t undo it. Leave this off unless you know the registry is empty or yours.',
+  },
+  {
+    key: 'revokeRoles',
+    label: 'Revoke everyone else’s permissions',
+    description:
+      'Takes back the permissions you granted other accounts on this name. They are held on the name itself, not on the token, so they survive the transfer unless you revoke them first.',
+    warning:
+      'The accounts listed below keep their permissions on this name after the transfer. They hold no part of it, but they can still act on it — repointing its resolver, for instance — until the recipient revokes them.',
   },
 ]
 
@@ -194,11 +224,69 @@ const getDetachConsentState = (
       isBlocked: getDetachConsentKey(impact) !== acknowledgedFor,
     }))
 
+/**
+ * What the sender's toggles actually mean once visibility is applied: a hidden
+ * option never contributes to the plan, whatever its stored value.
+ *
+ * Split out to keep the form under the complexity limit, like
+ * `getDetachConsentState`.
+ */
+const resolveOptions = ({
+  options,
+  detachVisibility,
+  hasRoleHolders,
+}: {
+  readonly options: Record<TransferOptionKey, boolean>
+  readonly detachVisibility: TransferDetachTargets['isOptionVisible']
+  readonly hasRoleHolders: boolean
+}) => {
+  const visibility: Record<TransferOptionKey, boolean> = {
+    ...detachVisibility,
+    revokeRoles: hasRoleHolders,
+  }
+
+  const effective: TransferOptions = {
+    setEthAddress: options.setEthAddress && visibility.setEthAddress,
+    detachResolver: options.detachResolver && visibility.detachResolver,
+    detachRegistry: options.detachRegistry && visibility.detachRegistry,
+    revokeRoles: options.revokeRoles && visibility.revokeRoles,
+  }
+
+  return {
+    effective,
+    visibleOptions: OPTIONS.filter((option) => visibility[option.key]),
+  }
+}
+
+/**
+ * What the plan does about the name's other role holders. Split out to keep
+ * the form under the complexity limit, like `resolveOptions`.
+ */
+const resolveRolePlan = (
+  revocations: TransferRoleRevocations,
+  shouldRevoke: boolean,
+) => {
+  if (revocations.status !== 'ready')
+    return { roleGrants: [], hasRemainingRoleHolders: false }
+
+  return {
+    // Only the grants the sender holds the admin role for; the rest can't be
+    // revoked by this wallet and are called out separately instead.
+    roleGrants: shouldRevoke ? revocations.revocable : [],
+    // Whoever is left once those revokes land: everyone when the option is
+    // off, the grants this wallet can't revoke when it is on. The registry
+    // refuses a plain transfer while any remain, so the plan has to know.
+    hasRemainingRoleHolders:
+      (shouldRevoke ? revocations.unrevocable : revocations.holders).length > 0,
+  }
+}
+
 export const SendNameForm = ({
   owner,
   detachTargets,
   parentWarning,
   registryDetachImpact = null,
+  roleRevocations = NO_ROLE_REVOCATIONS,
   transfer,
   notices,
 }: SendNameFormProps) => {
@@ -210,12 +298,22 @@ export const SendNameForm = ({
     // who aren't party to the transfer. Nobody's routine transfer should break
     // a stranger's subname because a toggle shipped on.
     detachRegistry: false,
+    // On by default, like the other cleanup steps: a grant left behind is a
+    // live write authority over a name its holder no longer has any stake in.
+    revokeRoles: true,
   })
   // What was acknowledged, not merely that something was — see
   // `getDetachConsentKey`.
   const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null)
 
   const { isOptionVisible, isSettled, hasFailed } = detachTargets
+
+  // Only offered once we know there is someone to revoke. Until then the
+  // option stays hidden *and* `canStart` blocks, so an unread answer can never
+  // pass for "nobody else holds roles" and transfer the grants along with the
+  // name.
+  const hasRoleHolders =
+    roleRevocations.status === 'ready' && roleRevocations.holders.length > 0
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -234,14 +332,16 @@ export const SendNameForm = ({
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
   const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
-  // A hidden option never contributes to the plan, whatever its stored value.
-  const effectiveOptions: TransferOptions = {
-    setEthAddress: options.setEthAddress && isOptionVisible.setEthAddress,
-    detachResolver: options.detachResolver && isOptionVisible.detachResolver,
-    detachRegistry: options.detachRegistry && isOptionVisible.detachRegistry,
-  }
+  const { effective: effectiveOptions, visibleOptions } = resolveOptions({
+    options,
+    detachVisibility: isOptionVisible,
+    hasRoleHolders,
+  })
 
-  const visibleOptions = OPTIONS.filter((option) => isOptionVisible[option.key])
+  const { roleGrants, hasRemainingRoleHolders } = resolveRolePlan(
+    roleRevocations,
+    effectiveOptions.revokeRoles,
+  )
 
   const { needsConsent: needsDetachConsent, isBlocked: isDetachBlocked } =
     getDetachConsentState(
@@ -254,6 +354,7 @@ export const SendNameForm = ({
     !isResolving &&
     !isPreparing &&
     isSettled &&
+    roleRevocations.status === 'ready' &&
     !parentWarning?.isLoading &&
     !isDetachBlocked
 
@@ -274,6 +375,8 @@ export const SendNameForm = ({
       recipientInput: recipientInput.trim(),
       recipient,
       options: effectiveOptions,
+      roleGrants,
+      hasRemainingRoleHolders,
     })
   }
 
@@ -324,6 +427,9 @@ export const SendNameForm = ({
           isResolverDetaching={effectiveOptions.detachResolver}
           onToggle={toggleOption}
           isLocked={isPreparing}
+          roleHolders={
+            <RoleHolderList revocations={roleRevocations} owner={owner} />
+          }
         />
       )}
 
@@ -354,6 +460,14 @@ export const SendNameForm = ({
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
+        </span>
+      )}
+
+      {hasValidRecipient && roleRevocations.status === 'error' && (
+        <span className="text-destructive text-sm">
+          Couldn’t check who else holds permissions on this name, so we can’t
+          tell whether transferring it would leave any behind. Refresh and try
+          again.
         </span>
       )}
 
@@ -500,6 +614,7 @@ const TransferDetachOptions = ({
   isResolverDetaching,
   onToggle,
   isLocked,
+  roleHolders,
 }: {
   readonly options: Record<TransferOptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
@@ -508,6 +623,8 @@ const TransferDetachOptions = ({
   readonly onToggle: (key: TransferOptionKey) => void
   /** Locks every switch, e.g. while a plan is being prepared from them. */
   readonly isLocked: boolean
+  /** Rendered under the `revokeRoles` toggle, whichever way it is set. */
+  readonly roleHolders: ReactNode
 }) => {
   if (visibleOptions.length === 0) return null
 
@@ -564,6 +681,8 @@ const TransferDetachOptions = ({
               />
             </label>
 
+            {option.key === 'revokeRoles' && roleHolders}
+
             {!isDisabled && !options[option.key] && option.warning && (
               <Alert variant="warning">
                 <AlertTriangle className="size-4" />
@@ -573,6 +692,73 @@ const TransferDetachOptions = ({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** One account and the permissions it holds on the name, as a single line. */
+const RoleHolderLine = ({ grant }: { readonly grant: NameRoleGrant }) => (
+  <li className="flex flex-col">
+    <span className="text-foreground font-medium">
+      {truncateAddress(grant.account)}
+    </span>
+    <span className="text-muted-foreground">
+      {grant.roles.map(formatRoleLabel).join(', ')}
+    </span>
+  </li>
+)
+
+/**
+ * Names the accounts the revoke step is about. Shown whether the toggle is on
+ * or off: off, it is the list of who keeps authority over the name; on, it is
+ * what the extra transactions will do.
+ *
+ * Grants this wallet holds no admin role for get their own alert, because no
+ * setting here removes them — the revoke would revert — and the sender should
+ * hear that before the token moves rather than from the recipient afterwards.
+ */
+const RoleHolderList = ({
+  revocations,
+  owner,
+}: {
+  readonly revocations: TransferRoleRevocations
+  readonly owner: Address
+}) => {
+  if (revocations.status !== 'ready' || revocations.holders.length === 0)
+    return null
+
+  const { revocable, unrevocable } = revocations
+
+  return (
+    <div className="flex flex-col gap-2">
+      {revocable.length > 0 && (
+        <ul className="flex flex-col gap-2 text-sm">
+          {revocable.map((grant) => (
+            <RoleHolderLine key={`revocable-${grant.account}`} grant={grant} />
+          ))}
+        </ul>
+      )}
+
+      {unrevocable.length > 0 && (
+        <Alert variant="warning">
+          <AlertTriangle className="size-4" />
+          <AlertDescription className="flex flex-col gap-2">
+            <p>
+              {truncateAddress(owner)} doesn’t hold the admin permission for
+              these grants, so they can’t be revoked from here and will outlive
+              the transfer whichever way you set this:
+            </p>
+            <ul className="flex flex-col gap-2">
+              {unrevocable.map((grant) => (
+                <RoleHolderLine
+                  key={`unrevocable-${grant.account}`}
+                  grant={grant}
+                />
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   )
 }
