@@ -350,7 +350,10 @@ describe('SendNameForm — ETH address without the resolver detach (immunefi #93
         setEthAddress: true,
         detachResolver: false,
         detachRegistry: false,
+        revokeRoles: false,
       },
+      roleGrants: [],
+      hasRemainingRoleHolders: false,
     })
   })
 

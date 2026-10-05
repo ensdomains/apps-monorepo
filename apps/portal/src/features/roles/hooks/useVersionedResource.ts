@@ -7,6 +7,10 @@ import { type NormalizeErrorType, normalize } from '@ensdomains/ensjs/utils'
 import { fromPromise } from 'neverthrow'
 import type { Address } from 'viem'
 import {
+  getNameResourceId,
+  needsRegistryLookupForId,
+} from '@/features/registry/hooks/useNameResourceId'
+import {
   type ResourceIdError,
   resourceIdFromChainValue,
 } from '@/lib/resource/resourceId'
@@ -29,10 +33,16 @@ type GetVersionedResourceParameters = {
  * the role-log read pins it unchanged — an id hashed from the label alone has
  * the label's own low bits where the version goes and matches no log.
  */
-const getVersionedResource = ResultFn(async function* ({
+export const getVersionedResource = ResultFn(async function* ({
   name,
   registryAddress,
 }: GetVersionedResourceParameters) {
+  // A first label written `[<64 hex>]` does not say which name it is, and the
+  // registry settles that by handing back the resource of the entry it holds —
+  // already versioned (WEB-1458).
+  if (needsRegistryLookupForId(name))
+    return getNameResourceId({ name, registryAddress })
+
   // Normalized before hashing: a raw route parameter would address a resource
   // the registry never wrote to.
   const normalized = yield* fromSync(
