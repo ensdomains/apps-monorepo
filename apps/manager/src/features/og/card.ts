@@ -96,7 +96,7 @@ function renderNameChip(
   return `
     <div style="display: flex; box-sizing: border-box; gap: ${AVATAR_GAP}px; min-height: 115.2px; padding: ${padding}px; border-radius: 12px; background: ${palette.chipBackground}; ${layout}">
       ${avatarHtml}
-      <div style="display: flex; font-family: 'OgSemiMono'; font-size: 80px; line-height: 86.4px; letter-spacing: 0.576px; color: ${palette.chipText}; ${textLayout}">${escapeHtml(text)}</div>
+      <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 500; font-size: 80px; line-height: 86.4px; letter-spacing: 0.576px; color: ${palette.chipText}; ${textLayout}">${escapeHtml(text)}</div>
     </div>`
 }
 
@@ -200,7 +200,7 @@ export function renderInvalidNameOgImage(
   const icon = svgDataUri(errorIconSvg, '__ICON_COLOR__', palette.chipText)
   const chip = renderNeutralChip(
     `<img src="${icon}" width="${CHIP_ICON_SIZE}" height="${CHIP_ICON_SIZE}" style="width: ${CHIP_ICON_SIZE}px; height: ${CHIP_ICON_SIZE}px;" />
-     <div style="display: flex; font-family: 'OgSemiMono'; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; white-space: nowrap;">invalid name</div>`,
+     <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 400; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; white-space: nowrap;">invalid name</div>`,
   )
 
   return renderCardImage(
