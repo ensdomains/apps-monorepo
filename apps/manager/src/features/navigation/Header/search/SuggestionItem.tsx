@@ -39,6 +39,42 @@ type NameSuggestionItemProps = {
   readonly onNavigate?: () => void
 }
 
+const NameSuggestionAvatar = ({
+  name,
+  avatarRecord,
+}: {
+  readonly name: string
+  readonly avatarRecord?: string
+}) => {
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
+
+  return (
+    <ImageFallback.Root className="contents">
+      <ImageFallback.Image
+        alt={`${name} avatar`}
+        className="size-full object-cover"
+        src={avatarUrl ?? undefined}
+      />
+      <ImageFallback.Fallback>
+        <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
+      </ImageFallback.Fallback>
+    </ImageFallback.Root>
+  )
+}
+
+const RegisteredNameSuggestionAvatar = ({
+  name,
+}: {
+  readonly name: string
+}) => {
+  const { data: avatarRecords } = useQuery(profileAvatarRecordsQuery(name))
+  const avatarRecord = avatarRecords?.texts
+    .find((record) => record.key === 'avatar')
+    ?.value.trim()
+
+  return <NameSuggestionAvatar avatarRecord={avatarRecord} name={name} />
+}
+
 export const NameSuggestionItem = ({
   name,
   onNavigate,
@@ -58,18 +94,6 @@ export const NameSuggestionItem = ({
     enabled: isEth2ld && isOwned,
   })
   const { isInGrace } = getProfileExpiryResultStatus(registeredExpiryQuery.data)
-
-  const { data: avatarRecords } = useQuery({
-    ...profileAvatarRecordsQuery(name),
-    enabled: isOwned && !isInGrace,
-  })
-  const avatarRecord =
-    isOwned && !isInGrace
-      ? avatarRecords?.texts
-          .find((record) => record.key === 'avatar')
-          ?.value.trim()
-      : undefined
-  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
 
   const pricingQuery = useQuery({
     ...getNamePricingQueryOptions(isAvailable ? name : undefined),
@@ -92,16 +116,11 @@ export const NameSuggestionItem = ({
   const content = (
     <>
       <div className="relative size-8 shrink-0 overflow-hidden rounded bg-slate-100">
-        <ImageFallback.Root className="contents">
-          <ImageFallback.Image
-            alt={`${name} avatar`}
-            className="size-full object-cover"
-            src={avatarUrl ?? undefined}
-          />
-          <ImageFallback.Fallback>
-            <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
-          </ImageFallback.Fallback>
-        </ImageFallback.Root>
+        {isOwned && !isInGrace ? (
+          <RegisteredNameSuggestionAvatar name={name} />
+        ) : (
+          <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
+        )}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
