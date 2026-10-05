@@ -36,7 +36,12 @@
 
       // Build & Temp files
       "!!**/dist",
-      "!!**/.wrangler"
+      "!!**/.wrangler",
+
+      // Local tool state such as the api-worker Postgres data volume, which is
+      // owned by the container user and unreadable to Biome. Must live in the
+      // root config: Biome's scanner applies it before nested configs load.
+      "!!**/.tools"
     ]
   },
   "formatter": {

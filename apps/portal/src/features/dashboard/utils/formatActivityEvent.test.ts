@@ -20,6 +20,12 @@ const event = (
 })
 
 describe('formatActivityEvent', () => {
+  it('describes the v2 NameWrapped event as an upgrade', () => {
+    expect(formatActivityEvent(event('NameWrapped', {}))).toEqual({
+      text: 'Upgraded from ENSv1 to ENSv2',
+    })
+  })
+
   it('reads the ERC-1155 transfer destination from `to`', () => {
     expect(
       formatActivityEvent(event('Transfer', { from: '0x0', to: OWNER })).actor,

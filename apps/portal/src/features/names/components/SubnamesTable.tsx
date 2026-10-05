@@ -31,13 +31,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
-  /** Whether the connected user has ROLE_UNREGISTER for this subname. */
+  /**
+   * The subname's on-chain id, as the indexer reported it. Every write about
+   * this row is addressed with this, never with `name` (WEB-1458). Undefined
+   * when the indexer gave no usable id, which makes the row read-only.
+   */
+  readonly resourceId?: ResourceId
+  /** Whether the connected user has ROLE_UNREGISTER on this subname's resource. */
   readonly canDelete?: boolean
 }
 
@@ -80,13 +87,17 @@ function buildColumns(
         aria-label="Select all"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
+    // Only rows the caller can actually delete get a checkbox: selection and
+    // permission must not diverge, or a bulk Clear would quietly act on fewer
+    // names than were ticked.
+    cell: ({ row }) =>
+      row.getCanSelect() ? (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ) : null,
   }
 
   return [
@@ -184,7 +195,9 @@ export const SubnamesTable = ({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (row) => row.name,
-    enableRowSelection: true,
+    // Selection follows the per-row permission, so "N selected" is always N
+    // names the Clear button can really delete.
+    enableRowSelection: (row) => Boolean(row.original.canDelete),
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
@@ -198,6 +211,9 @@ export const SubnamesTable = ({
   const rows = table.getRowModel().rows
   const selectedRows = table.getSelectedRowModel().rows
   const selectedCount = selectedRows.length
+  // `enableRowSelection` already keeps non-deletable rows out of the selection;
+  // the filter stays as a second line in case a row's permission changes while
+  // it is ticked.
   const deletableSelected = selectedRows
     .filter((r) => r.original.canDelete)
     .map((r) => r.original)
@@ -287,7 +303,7 @@ export const SubnamesTable = ({
                     </span>
                   )}
                   <div className="flex flex-row gap-2 items-center">
-                    {onDeleteSubname && (
+                    {onDeleteSubname && row.getCanSelect() && (
                       <Checkbox
                         checked={row.getIsSelected()}
                         onCheckedChange={(value) => row.toggleSelected(!!value)}

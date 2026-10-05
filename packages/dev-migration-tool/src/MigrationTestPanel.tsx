@@ -344,9 +344,9 @@ function SelectedNameActions({
         disabled={busy || !selectedName}
         onClick={() => selectedName && onMigrate(selectedName)}
         style={smallChipStyle('#0080bc')}
-        title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
+        title={selectedName ? `Upgrade ${selectedName.label}.eth` : ''}
       >
-        Migrate
+        Upgrade
       </button>
       <button
         type="button"
@@ -452,7 +452,7 @@ export function MigrationPanelContent() {
         // Include child names, so a `subname*` preset arrives with the whole
         // hierarchy pre-selected instead of just its 2LD.
         const nameParam = refreshed.flatMap((n) => fullNamesFor(n)).join(',')
-        window.location.href = `/migration?names=${encodeURIComponent(nameParam)}`
+        window.location.href = `/upgrade?names=${encodeURIComponent(nameParam)}`
       } catch (e) {
         setActionError(`Failed to sync names to Anvil: ${String(e)}`)
         setBusy(false)
@@ -539,9 +539,9 @@ export function MigrationPanelContent() {
           disabled={busy || activeNames.length === 0}
           onClick={migrateAll}
           style={migrateAllChipStyle(busy || activeNames.length === 0)}
-          title="Navigate to /migration with all active names"
+          title="Navigate to /upgrade with all active names"
         >
-          Migrate All ({activeNames.length})
+          Upgrade All ({activeNames.length})
         </button>
         <div style={statusDotContainerStyle}>
           <span

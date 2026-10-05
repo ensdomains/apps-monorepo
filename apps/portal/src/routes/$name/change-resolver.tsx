@@ -66,7 +66,9 @@ const PermissionDenied = ({
 function RouteComponent() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
-  const { canSet, isLoading, target } = useCanSetResolver({ name })
+  const { canSet, isLoading, isUnsupported, target } = useCanSetResolver({
+    name,
+  })
 
   if (isLoading) {
     return <LoadingSpinner title="Checking permissions..." />
@@ -78,6 +80,25 @@ function RouteComponent() {
         <ErrorMessage
           title="Wallet Not Connected"
           description="Please connect your wallet to change the resolver."
+        />
+      </PageLayout>
+    )
+  }
+
+  // Said before any permission check, because it is not one: with no id there
+  // is no resource to ask about, and the role query answers a flat `false`.
+  if (isUnsupported) {
+    return (
+      <PageLayout name={name}>
+        <ErrorMessage
+          title="Unsupported name"
+          description={
+            <>
+              The on-chain identity of <strong>{name}</strong> could not be
+              established, so nothing can be written for it here. This is not a
+              permissions problem.
+            </>
+          }
         />
       </PageLayout>
     )

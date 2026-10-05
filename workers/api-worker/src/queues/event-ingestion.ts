@@ -13,6 +13,11 @@ import {
   intoDbResult,
   TABLE,
 } from '#core/database/index.js'
+import type { DeliveryStatus } from '#core/database/schema/notifications.js'
+import {
+  insertQueuedDeliveries,
+  isPushSubscriptionActive,
+} from '#services/delivery/channel.js'
 import { getExpiryStageRank } from '#services/expiry-discovery/stages.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
@@ -74,16 +79,17 @@ type ReconciledNotification = {
 
 type DesiredDelivery = {
   readonly notificationId: string
+  readonly channelId: string
   readonly channel: 'email' | 'push' | 'telegram'
-  readonly target: string
 }
 
 type ReconciledDelivery = DesiredDelivery & {
   readonly id: string
-  readonly status: 'queued' | 'delivered' | 'failed' | 'permanently_failed'
+  readonly status: DeliveryStatus
 }
 
 type VerifiedChannel = {
+  readonly id: string
   readonly channel: 'email' | 'push' | 'telegram'
   readonly target: string | null
   readonly data: unknown
@@ -165,21 +171,18 @@ const getNotificationWatchReason = (
   )
 }
 
-const deliveryIdentity = (delivery: DesiredDelivery): string =>
-  JSON.stringify([delivery.notificationId, delivery.channel, delivery.target])
+// One delivery per notification per exact source channel, never per target.
+const deliveryIdentity = (delivery: {
+  readonly notificationId: string
+  readonly channelId: string
+}): string => JSON.stringify([delivery.notificationId, delivery.channelId])
 
 const isActiveVerifiedChannel = (
   channel: VerifiedChannel,
   now: number,
-): boolean => {
-  if (channel.channel !== 'push') {
-    return true
-  }
-
-  const pushData = channel.data as ChannelData['push'] | null
-  const expirationTime = pushData?.expirationTime ?? null
-  return expirationTime === null || expirationTime > now
-}
+): boolean =>
+  channel.channel !== 'push' ||
+  isPushSubscriptionActive(channel.data as ChannelData['push'] | null, now)
 
 const getNotificationDeliveryFanout = ResultFn(function* (ctx: {
   readonly notification: ReconciledNotification
@@ -227,8 +230,8 @@ const getNotificationDeliveryFanout = ResultFn(function* (ctx: {
 
     deliveries.push({
       notificationId: ctx.notification.id,
+      channelId: channel.id,
       channel: channel.channel,
-      target: channel.target,
     })
   }
 
@@ -377,6 +380,7 @@ const deriveDesiredDeliveries = ResultFn(async function* (ctx: {
       eq(TABLE.userChannels.status, 'verified'),
     ),
     columns: {
+      id: true,
       user_id: true,
       channel: true,
       target: true,
@@ -457,26 +461,7 @@ const reconcileDeliveries = ResultFn(async function* (ctx: {
     [...ctx.desiredDeliveries],
     DATABASE_WRITE_BATCH_SIZE,
   )) {
-    yield* intoDbResult(
-      ctx.db
-        .insert(TABLE.notificationDeliveries)
-        .values(
-          deliveryChunk.map((delivery) => ({
-            notification_id: delivery.notificationId,
-            channel: delivery.channel,
-            target: delivery.target,
-            status: 'queued' as const,
-            attempts: 0,
-          })),
-        )
-        .onConflictDoNothing({
-          target: [
-            TABLE.notificationDeliveries.notification_id,
-            TABLE.notificationDeliveries.channel,
-            TABLE.notificationDeliveries.target,
-          ],
-        }),
-    )
+    yield* insertQueuedDeliveries(ctx.db, deliveryChunk)
   }
 
   if (ctx.desiredDeliveries.length === 0) {
@@ -495,30 +480,62 @@ const reconcileDeliveries = ResultFn(async function* (ctx: {
       columns: {
         id: true,
         notification_id: true,
+        channel_id: true,
         channel: true,
-        target: true,
         status: true,
       },
     }),
   )
   const desiredIdentities = new Set(ctx.desiredDeliveries.map(deliveryIdentity))
-  const reconciledDeliveries = deliveryRows
-    .map(
-      (delivery): ReconciledDelivery => ({
+  // Deliveries whose channel was removed are unbound history, never desired.
+  const reconciledDeliveries = deliveryRows.flatMap(
+    (delivery): ReconciledDelivery[] => {
+      if (!delivery.channel_id) return []
+      const reconciled = {
         id: delivery.id,
         notificationId: delivery.notification_id,
+        channelId: delivery.channel_id,
         channel: delivery.channel,
-        target: delivery.target,
         status: delivery.status,
-      }),
-    )
-    .filter((delivery) => desiredIdentities.has(deliveryIdentity(delivery)))
+      }
+      return desiredIdentities.has(deliveryIdentity(reconciled))
+        ? [reconciled]
+        : []
+    },
+  )
   const reconciledIdentities = new Set(
     reconciledDeliveries.map(deliveryIdentity),
   )
-  const missingDeliveries = ctx.desiredDeliveries.filter(
+  const unreconciledDeliveries = ctx.desiredDeliveries.filter(
     (delivery) => !reconciledIdentities.has(deliveryIdentity(delivery)),
   )
+  // A channel removed since fanout read it no longer wants a delivery; only
+  // deliveries whose channel still exists must be reconciled.
+  const remainingChannels =
+    unreconciledDeliveries.length > 0
+      ? yield* intoDbResult(
+          ctx.db.query.userChannels.findMany({
+            where: inArray(
+              TABLE.userChannels.id,
+              unreconciledDeliveries.map((delivery) => delivery.channelId),
+            ),
+            columns: { id: true },
+          }),
+        )
+      : []
+  const remainingChannelIds = new Set(
+    remainingChannels.map((channel) => channel.id),
+  )
+  const missingDeliveries = unreconciledDeliveries.filter((delivery) =>
+    remainingChannelIds.has(delivery.channelId),
+  )
+  const removedChannelCount =
+    unreconciledDeliveries.length - missingDeliveries.length
+  if (removedChannelCount > 0) {
+    logger.info('Skipped deliveries for channels removed during fanout', {
+      removedChannelCount,
+    })
+  }
 
   if (missingDeliveries.length > 0) {
     yield* new EventIngestionReconciliationError({

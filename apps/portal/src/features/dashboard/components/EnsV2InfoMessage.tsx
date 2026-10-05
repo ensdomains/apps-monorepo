@@ -48,7 +48,7 @@ const RESOURCES: readonly { title: string; description: ReactNode }[] = [
       <>
         Use the{' '}
         <InlineLink href="https://app.ens.dev/dashboard">ENS App</InlineLink> to
-        migrate names to v2
+        upgrade names to v2
       </>
     ),
   },

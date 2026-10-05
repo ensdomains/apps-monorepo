@@ -1,5 +1,6 @@
 import { ok } from 'neverthrow'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DeliveryStatus } from '#core/database/schema/notifications.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 
 const mocks = vi.hoisted(() => ({
@@ -49,8 +50,6 @@ import { deliverEmailNotification } from './email.js'
 import { deliverPushNotification } from './push.js'
 import { deliverTelegramNotification } from './telegram.js'
 
-type DeliveryStatus = 'queued' | 'delivered' | 'failed' | 'permanently_failed'
-
 const job: BaseDeliveryJob = {
   id: 'delivery-1',
   notificationId: 'notification-1',
@@ -58,20 +57,16 @@ const job: BaseDeliveryJob = {
   kind: 'name-expiry',
 }
 
-const makeDb = (status: DeliveryStatus) => {
+const makeDb = (
+  status: DeliveryStatus,
+  channel: 'email' | 'push' | 'telegram',
+) => {
   const updateWhere = vi.fn(async () => undefined)
-  const userChannelFindFirst = vi.fn(async () => ({
-    data: {
-      auth: 'auth',
-      p256dh: 'p256dh',
-      expirationTime: null,
-    },
-  }))
   const db = {
     query: {
       notificationDeliveries: {
         findFirst: vi.fn(async () => ({
-          target: 'https://fcm.googleapis.com/push/subscription-1',
+          channel,
           status,
           notification: {
             payload: {
@@ -81,10 +76,18 @@ const makeDb = (status: DeliveryStatus) => {
               watchReason: 'owned',
             },
           },
+          sourceChannel: {
+            id: 'channel-1',
+            channel,
+            target: 'https://fcm.googleapis.com/push/subscription-1',
+            status: 'verified',
+            data: {
+              auth: 'auth',
+              p256dh: 'p256dh',
+              expirationTime: null,
+            },
+          },
         })),
-      },
-      userChannels: {
-        findFirst: userChannelFindFirst,
       },
     },
     update: vi.fn(() => ({
@@ -92,7 +95,7 @@ const makeDb = (status: DeliveryStatus) => {
     })),
   }
 
-  return { db, updateWhere, userChannelFindFirst }
+  return { db, updateWhere }
 }
 
 const pushEnv = {
@@ -122,9 +125,10 @@ afterEach(() => {
 describe.each([
   'delivered',
   'permanently_failed',
+  'cancelled',
 ] as const)('terminal delivery status %s', (status) => {
   it('skips the email provider', async () => {
-    const { db, updateWhere } = makeDb(status)
+    const { db, updateWhere } = makeDb(status, 'email')
 
     const result = await deliverEmailNotification(
       'api-key',
@@ -139,19 +143,18 @@ describe.each([
   })
 
   it('skips the push provider', async () => {
-    const { db, updateWhere, userChannelFindFirst } = makeDb(status)
+    const { db, updateWhere } = makeDb(status, 'push')
 
     const result = await deliverPushNotification(pushEnv, db as never, job)
 
     expect(result.isOk()).toBe(true)
-    expect(userChannelFindFirst).not.toHaveBeenCalled()
     expect(mocks.buildPushPayload).not.toHaveBeenCalled()
     expect(mocks.fetch).not.toHaveBeenCalled()
     expect(updateWhere).not.toHaveBeenCalled()
   })
 
   it('skips the Telegram provider', async () => {
-    const { db, updateWhere } = makeDb(status)
+    const { db, updateWhere } = makeDb(status, 'telegram')
 
     const result = await deliverTelegramNotification(
       'bot-token',
@@ -170,9 +173,9 @@ describe.each([
   'failed',
 ] as const)('nonterminal delivery status %s', (status) => {
   it('still sends through every provider', async () => {
-    const email = makeDb(status)
-    const push = makeDb(status)
-    const telegram = makeDb(status)
+    const email = makeDb(status, 'email')
+    const push = makeDb(status, 'push')
+    const telegram = makeDb(status, 'telegram')
 
     const [emailResult, pushResult, telegramResult] = await Promise.all([
       deliverEmailNotification(

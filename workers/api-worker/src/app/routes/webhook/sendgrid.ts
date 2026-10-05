@@ -169,8 +169,9 @@ export async function processEvents(
   events: v.InferOutput<typeof SendGridWebhookPayloadSchema>,
 ) {
   for (const event of events) {
-    // SendGrid events currently identify a mailbox, not a source channel.
-    // Apply mailbox-wide suppression until WEB-1580 can attribute deliveries.
+    // SendGrid events identify a mailbox, not a delivery, so suppression stays
+    // mailbox-wide. Provider lifecycle events that carry the provider message
+    // ID can resolve delivery -> channel_id instead (WEB-719).
     const matchingEmail = and(
       eq(TABLE.userChannels.channel, 'email'),
       sql`lower(${TABLE.userChannels.target}) = lower(${event.email})`,

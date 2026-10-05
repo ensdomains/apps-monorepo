@@ -7,7 +7,7 @@ describe('UpgradeBanner', () => {
     render(<UpgradeBanner name="jooooe.eth" />)
 
     expect(
-      screen.getByText(/reserved on ENS v2 until it is migrated/),
+      screen.getByText(/reserved on ENS v2 until it is upgraded/),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /Upgrade to v2/ }),
@@ -22,11 +22,11 @@ describe('UpgradeBanner', () => {
 
     expect(
       screen.getByText(
-        'This wrapped name must be unwrapped before it can be migrated to ENS v2',
+        'This wrapped name must be unwrapped before it can be upgraded to ENS v2',
       ),
     ).toBeInTheDocument()
     const cta = screen.getByRole('link', { name: /Unwrap and upgrade/ })
-    expect(cta.getAttribute('href')).toMatch(/\/migration$/)
+    expect(cta.getAttribute('href')).toMatch(/\/upgrade$/)
     expect(screen.queryByText(/Upgrade to v2/)).not.toBeInTheDocument()
   })
 })

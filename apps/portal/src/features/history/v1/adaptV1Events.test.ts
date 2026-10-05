@@ -357,7 +357,7 @@ describe('v1 descriptors', () => {
 })
 
 describe('v2 events are unaffected', () => {
-  it('still labels NameWrapped as the migration', () => {
+  it('still labels NameWrapped as the upgrade', () => {
     const [action] = summarizeEvents([
       {
         id: '1',
@@ -368,6 +368,6 @@ describe('v2 events are unaffected', () => {
         timestamp: 1,
       },
     ])
-    expect(action.label).toBe('migrated')
+    expect(action.label).toBe('upgraded')
   })
 })

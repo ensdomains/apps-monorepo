@@ -28,8 +28,8 @@ export const UpgradeBanner = ({
     <div className="flex items-start lg:items-center gap-4 flex-col lg:flex-row">
       <p className="text-p">
         {isWrapped
-          ? 'This wrapped name must be unwrapped before it can be migrated to ENS v2'
-          : 'This name is reserved on ENS v2 until it is migrated from ENS v1'}
+          ? 'This wrapped name must be unwrapped before it can be upgraded to ENS v2'
+          : 'This name is reserved on ENS v2 until it is upgraded from ENS v1'}
       </p>
       <UpgradeActions name={name} isWrapped={isWrapped} />
     </div>

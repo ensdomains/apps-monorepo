@@ -52,6 +52,8 @@ const controls = (
   transactions: [],
   isPreparing: false,
   prepError: null,
+  recordAheadOfMove: null,
+  restoreEthAddress: vi.fn(),
   ...overrides,
 })
 
@@ -295,5 +297,115 @@ describe('SendNameForm while a transfer is being prepared', () => {
     expect(vi.mocked(transfer.discardPreparation).mock.calls.length).toBe(
       discardsAfterTyping + 1,
     )
+  })
+})
+
+describe('SendNameForm — ETH address without the resolver detach (immunefi #93008)', () => {
+  /** Own resolver with an ETH record, but no ROLE_SET_RESOLVER to detach it. */
+  const NO_RESOLVER_ROLE: TransferDetachTargets = {
+    isOptionVisible: {
+      setEthAddress: true,
+      detachResolver: false,
+      detachRegistry: false,
+    },
+    isSettled: true,
+    hasFailed: false,
+  }
+
+  it('does not claim a resolver detach that is not in the plan', async () => {
+    const transfer = controls()
+    render(
+      <SendNameForm
+        owner={OWNER}
+        detachTargets={NO_RESOLVER_ROLE}
+        parentWarning={null}
+        transfer={transfer}
+      />,
+      { wrapper: createTestWrapper() },
+    )
+    const user = await enterRecipient()
+
+    // The repoint is a real write, so it's shown as one — live and described.
+    const ethToggle = await screen.findByRole('switch', {
+      name: /set the eth address/i,
+    })
+    expect(ethToggle).toBeEnabled()
+    expect(
+      screen.queryByText(/while the resolver is being detached/i),
+    ).not.toBeInTheDocument()
+    // And why the detach isn't offered is said, not left to be inferred.
+    expect(
+      screen.getByText(/isn’t allowed to detach this name’s resolver/i),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /transfer name/i }))
+    expect(transfer.startTransfer).toHaveBeenCalledWith({
+      recipientInput: '0xcccccccccccccccccccccccccccccccccccccccc',
+      recipient: '0xcccccccccccccccccccccccccccccccccccccccc',
+      options: {
+        setEthAddress: true,
+        detachResolver: false,
+        detachRegistry: false,
+      },
+    })
+  })
+
+  it('still covers the ETH address when the detach really is planned', async () => {
+    renderForm(EMPTY_REGISTRY)
+    await enterRecipient()
+
+    expect(
+      await screen.findByRole('switch', { name: /set the eth address/i }),
+    ).toBeDisabled()
+    expect(
+      screen.getByText(/while the resolver is being detached/i),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('SendNameForm — a move that failed after the record landed (immunefi #93008)', () => {
+  const RECIPIENT = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
+
+  const renderStranded = (previousEthAddress: Address | null) => {
+    const transfer: TransferControls = {
+      ...controls(),
+      recordAheadOfMove: { recipient: RECIPIENT, previousEthAddress },
+    }
+    render(
+      <SendNameForm
+        owner={OWNER}
+        detachTargets={ALL_TARGETS}
+        parentWarning={null}
+        transfer={transfer}
+      />,
+      { wrapper: createTestWrapper() },
+    )
+    return transfer
+  }
+
+  it('says the name was not moved but its ETH address was, and offers a revert', async () => {
+    // e.g. the recipient contract started rejecting `onERC1155Received`
+    // between the preflight and the move.
+    const transfer = renderStranded(OWNER)
+
+    expect(
+      screen.getByText(/transfer didn’t go through, so you still own/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText(RECIPIENT)).toBeInTheDocument()
+    expect(screen.getByText(OWNER)).toBeInTheDocument()
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: /restore eth address/i }))
+    expect(transfer.restoreEthAddress).toHaveBeenCalledOnce()
+  })
+
+  it('still reports the changed record when there is nothing to restore to', () => {
+    renderStranded(null)
+
+    expect(screen.getByText(RECIPIENT)).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /restore eth address/i }),
+    ).not.toBeInTheDocument()
   })
 })

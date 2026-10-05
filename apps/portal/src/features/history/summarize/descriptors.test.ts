@@ -109,14 +109,14 @@ describe('history labels', () => {
     })
   })
 
-  it('v2 NameWrapped reads as the migration of the name', () => {
+  it('v2 NameWrapped reads as the upgrade of the name', () => {
     const built = DESCRIPTORS.NameWrapped.build({
       ...base,
       type: 'NameWrapped',
       protocol: 'v2',
     } as TimelineIndexerEvent)
     expect(built).toEqual({
-      label: 'migrated',
+      label: 'upgraded',
       slots: [
         { kind: 'name', value: 'collector.eth' },
         { kind: 'connective', value: 'to ENSv2' },
