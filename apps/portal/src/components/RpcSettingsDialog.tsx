@@ -31,7 +31,9 @@ const isLocal = (url: string) =>
 
 // Form state lives here (not inline in the component) so the reset-on-open
 // effect has a named home. Reopening a Radix dialog doesn't remount it, so
-// without this the previous attempt would still be in the field.
+// without this the previous attempt would still be in the field. The save
+// itself stays in the component's submit handler: user-action orchestration
+// belongs in handlers, not hooks.
 function useRpcForm(open: boolean) {
   const [value, setValue] = useState(() => getCustomRpcUrl() ?? '')
   const [error, setError] = useState<string | null>(null)
@@ -49,8 +51,40 @@ function useRpcForm(open: boolean) {
     setIsChecking(false)
   }, [open])
 
+  return {
+    value,
+    setValue,
+    error,
+    setError,
+    isChecking,
+    setIsChecking,
+    beginAttempt: (): number => ++attemptRef.current,
+    isCurrentAttempt: (attempt: number): boolean =>
+      attempt === attemptRef.current,
+  }
+}
+
+export const RpcSettingsDialog = ({
+  open,
+  onOpenChange,
+}: {
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+}) => {
+  const current = getCustomRpcUrl()
+  const {
+    value,
+    setValue,
+    error,
+    setError,
+    isChecking,
+    setIsChecking,
+    beginAttempt,
+    isCurrentAttempt,
+  } = useRpcForm(open)
+
   const save = async (): Promise<void> => {
-    const attempt = ++attemptRef.current
+    const attempt = beginAttempt()
     const validated = validateRpcUrl(value)
     if (validated.isErr())
       return setError(INVALID_MESSAGES[validated.error.reason])
@@ -58,7 +92,7 @@ function useRpcForm(open: boolean) {
     setError(null)
     setIsChecking(true)
     const checked = await checkRpcEndpoint(validated.value)
-    if (attempt !== attemptRef.current) return
+    if (!isCurrentAttempt(attempt)) return
     setIsChecking(false)
 
     if (checked.isErr()) {
@@ -77,19 +111,6 @@ function useRpcForm(open: boolean) {
     }
     saveCustomRpcUrl(validated.value)
   }
-
-  return { value, setValue, error, isChecking, save }
-}
-
-export const RpcSettingsDialog = ({
-  open,
-  onOpenChange,
-}: {
-  readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
-}) => {
-  const current = getCustomRpcUrl()
-  const { value, setValue, error, isChecking, save } = useRpcForm(open)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

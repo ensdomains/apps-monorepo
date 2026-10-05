@@ -291,12 +291,12 @@ export function withSecurityHeaders(
   const isDocument = (result.headers.get('Content-Type') ?? '').includes(
     'text/html',
   )
-  const reporting = !isDocument || hasTelemetryCookie(request)
+  const shouldReport = !isDocument || hasTelemetryCookie(request)
   result.headers.set(
     'Content-Security-Policy',
-    reporting ? cspWithFrameAncestors : cspWithoutReporting,
+    shouldReport ? cspWithFrameAncestors : cspWithoutReporting,
   )
-  if (reporting) {
+  if (shouldReport) {
     // Names the `posthog` endpoint that the `report-to` CSP directive targets.
     result.headers.set(
       'Reporting-Endpoints',

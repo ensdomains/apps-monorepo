@@ -12,6 +12,7 @@ export class InvalidRpcUrlError extends TaggedError('CustomRpc/InvalidUrl')<{
 
 export class RpcCheckError extends TaggedError('CustomRpc/CheckFailed')<{
   reason: 'unreachable' | 'wrong-chain'
+  cause?: unknown
 }> {}
 
 export const validateRpcUrl = (
