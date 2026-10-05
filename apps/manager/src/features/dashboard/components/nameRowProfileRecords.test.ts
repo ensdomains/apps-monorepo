@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
@@ -36,12 +35,12 @@ describe('getNameRowProfilePreview', () => {
     expect(preview.themeColor).toBe('#E72A96')
   })
 
-  it('uses the metadata avatar URL only when an explicit avatar record exists', () => {
+  it('uses the saved avatar record only when an explicit record exists', () => {
     expect(
       getNameRowProfilePreview({
         label: 'alaska.eth',
         records: profileRecords([{ key: 'theme', value: '#E72A96' }]),
-      }).avatarUrl,
+      }).avatarRecord,
     ).toBeUndefined()
 
     expect(
@@ -51,19 +50,19 @@ describe('getNameRowProfilePreview', () => {
         records: profileRecords([
           { key: 'avatar', value: 'https://example.com/avatar.png' },
         ]),
-      }).avatarUrl,
-    ).toBe(buildNameAvatarUrl('alaska.eth'))
+      }).avatarRecord,
+    ).toBe('https://example.com/avatar.png')
   })
 
-  it('uses the canonical name for metadata avatar URLs', () => {
+  it('preserves content-addressed avatar records for resolution', () => {
     const preview = getNameRowProfilePreview({
       label: 'Display Name',
       name: 'normalized.eth',
       records: profileRecords([
-        { key: 'avatar', value: 'https://example.com/avatar.png' },
+        { key: 'avatar', value: ' ipfs://new-avatar ' },
       ]),
     })
 
-    expect(preview.avatarUrl).toBe(buildNameAvatarUrl('normalized.eth'))
+    expect(preview.avatarRecord).toBe('ipfs://new-avatar')
   })
 })

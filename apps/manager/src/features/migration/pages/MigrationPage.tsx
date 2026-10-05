@@ -42,7 +42,7 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
-import { isMigrationQueryKey } from './MigrationPage.helpers'
+import { invalidateMigrationQueries } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -194,14 +194,6 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   }
 }
 
-const invalidateMigrationQueries = (
-  queryClient: ReturnType<typeof useQueryClient>,
-) => {
-  queryClient.invalidateQueries({
-    predicate: (query) => isMigrationQueryKey(query.queryKey),
-  })
-}
-
 export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
@@ -305,7 +297,7 @@ export const MigrationPage = () => {
           },
         })
       }
-      invalidateMigrationQueries(queryClient)
+      void invalidateMigrationQueries(queryClient)
     }
   }, [step, queryClient, migrationPlan, completedOperations])
 
