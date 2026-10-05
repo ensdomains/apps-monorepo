@@ -7,8 +7,8 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@fe19830b"
-  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@fe19830b"
+  "@ensdomains/ensjs": ^5.0.0
+  "@ensdomains/ensjs-abi": ^5.0.0
   xstate: ^5.24.0
   typescript: ^7.0.2
   vite: ^8.0.10
@@ -41,15 +41,11 @@ catalog:
   # package gets zod 4. That splits viem into two module instances, and then
   # `instanceof` on viem errors fails across the app/package boundary. Declared
   # in the apps only to pin that peer; nothing imports it.
-  zod: ^4.4.3
+  zod: ^4.6.5
 
 dedupeDirectDeps: true
 
 minimumReleaseAge: 1440
-
-minimumReleaseAgeExclude:
-  - "@ensdomains/ensjs"
-  - "@ensdomains/ensjs-abi"
 
 # Only add entries here if absolutely necessary. To bypass the minimum release age for a specific package, you can temporarily include it below, run install, and then remove it.
 # Note: `minimumReleaseAgeExclude` is used solely for checking new package versions.
@@ -62,19 +58,7 @@ trustPolicy: no-downgrade
 
 trustPolicyIgnoreAfter: 10080 # 1 week
 
-trustPolicyExclude:
-  - "@ensdomains/ensjs"
-  - "@ensdomains/ensjs-abi"
-
-# blockExoticSubdeps (pnpm >=11, no allowlist) rejects the tarball edge
-# ensjs -> ensjs-abi, so drop that one edge; ensjs-abi still resolves via
-# hoisting, but only when it is in the installed tree. Every package that
-# depends on ensjs must therefore declare ensjs-abi too, or a filtered install
-# (Workers Builds runs `pnpm install --filter api-worker...`) leaves it out and
-# the bundle fails to resolve it. Both catalog entries must stay on the same
-# pkg.pr.new build. Remove once ensjs-abi is published to npm.
 overrides:
-  "@ensdomains/ensjs>@ensdomains/ensjs-abi": "-"
   available-typed-arrays: "npm:@socketregistry/available-typed-arrays@^1"
   es-define-property: "npm:@socketregistry/es-define-property@^1"
   for-each: "npm:@socketregistry/for-each@^1"
