@@ -148,7 +148,7 @@ export const runMigrationPreparationStage = async <T>(
 
 const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'account-unavailable': msg`Couldn't prepare your account. Reconnect your wallet and try again.`,
-  'account-mismatch': msg`Your migration account doesn't match this wallet. Reconnect the owner wallet.`,
+  'account-mismatch': msg`Your upgrade account doesn't match this wallet. Reconnect the owner wallet.`,
   'contract-unavailable': msg`A required upgrade contract is unavailable. Please try again later.`,
   'contract-incompatible': msg`The upgrade contracts don't match this account. Please contact support.`,
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,

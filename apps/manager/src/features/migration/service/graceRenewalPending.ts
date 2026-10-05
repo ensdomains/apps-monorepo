@@ -130,7 +130,7 @@ export const withGraceRenewalLock = async <T>(
   const locks = globalThis.navigator?.locks
   if (!locks) {
     throw new Error(
-      'Your browser cannot start this renewal. Open migration in an up-to-date browser and try again.',
+      'Your browser cannot start this renewal. Open the upgrade page in an up-to-date browser and try again.',
     )
   }
   return locks.request(
