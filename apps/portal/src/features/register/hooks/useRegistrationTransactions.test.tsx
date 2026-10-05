@@ -38,7 +38,7 @@ vi.mock('wagmi', async (importOriginal) => ({
   usePublicClient: () => publicClient,
   useReadContract: () => ({ data: undefined }),
   // No code at the wallet's resolver address unless a test says otherwise.
-  useBytecode: vi.fn(() => ({ data: null })),
+  useBytecode: vi.fn(() => ({ data: null, isSuccess: true })),
 }))
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   useTransactionModal: () => ({
@@ -254,7 +254,10 @@ describe('useRegistrationTransactions before a run', () => {
   })
 
   it('drops the deploy step once the wallet has a resolver', () => {
-    vi.mocked(useBytecode).mockReturnValue({ data: '0x6080' } as never)
+    vi.mocked(useBytecode).mockReturnValue({
+      data: '0x6080',
+      isSuccess: true,
+    } as never)
     const result = render()
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
@@ -267,7 +270,10 @@ describe('useRegistrationTransactions before a run', () => {
   it('leaves the deploy step out while the resolver read has no answer', () => {
     // Pending or failed: the wallet may have a resolver already, and an
     // estimate against it would fail.
-    vi.mocked(useBytecode).mockReturnValue({ data: undefined } as never)
+    vi.mocked(useBytecode).mockReturnValue({
+      data: undefined,
+      isSuccess: false,
+    } as never)
     const result = render()
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([

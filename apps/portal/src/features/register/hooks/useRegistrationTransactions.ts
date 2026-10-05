@@ -3,6 +3,7 @@ import {
   computeDedicatedResolverAddress,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
+  hasDeployedCode,
   REGISTRATION_TX_IDS,
   registrationMachine,
   subscribeRegistrationPersistence,
@@ -159,7 +160,7 @@ export const useRegistrationTransactions = ({
 
   // Whether this run deploys the wallet's resolver, fixed when it starts for
   // the same reason. Only a wallet's first registration does.
-  const [resolverDeployPlanned, setResolverDeployPlanned] = useState<
+  const [isResolverDeployPlanned, setIsResolverDeployPlanned] = useState<
     boolean | null
   >(null)
 
@@ -269,20 +270,13 @@ export const useRegistrationTransactions = ({
     // code" would list the deploy step again.
     query: { staleTime: 0 },
   })
-  // wagmi reads "no code" as `null`; `undefined` is a read still pending or
-  // failed, which says nothing either way. Only a confirmed absence lists the
-  // step, or its estimate runs against a resolver that already exists.
-  const needsResolverDeploy = walletResolverQuery.data === null
+  // Judged as the machine's own check judges it, and only on a read that
+  // succeeded: a pending or failed one says nothing either way, and listing the
+  // step then would estimate a deploy against a resolver that may exist.
+  const shouldDeployResolver =
+    walletResolverQuery.isSuccess && !hasDeployedCode(walletResolverQuery.data)
   const { refetch: refetchWalletResolver } = walletResolverQuery
-  const showResolverDeployStep = resolverDeployPlanned ?? needsResolverDeploy
-
-  // A run whose start-time read was inconclusive takes the machine's own check
-  // as the plan, so the step is listed exactly when the machine deploys.
-  useEffect(() => {
-    if (resolverDeployPlanned !== null) return
-    if (machineState === 'deployingResolver') setResolverDeployPlanned(true)
-    if (machineState === 'preparingCommitment') setResolverDeployPlanned(false)
-  }, [machineState, resolverDeployPlanned])
+  const showResolverDeployStep = isResolverDeployPlanned ?? shouldDeployResolver
 
   const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
@@ -313,15 +307,20 @@ export const useRegistrationTransactions = ({
 
     // Read now, not from the cache: an approve from an earlier run on this page
     // may have landed since.
-    const [{ data: allowance }, { data: walletResolverCode }] =
-      await Promise.all([refetchAllowance(), refetchWalletResolver()])
+    const [{ data: allowance }, walletResolverRead] = await Promise.all([
+      refetchAllowance(),
+      refetchWalletResolver(),
+    ])
+    // The machine reads the same code before it deploys. Without an answer
+    // here the step list can't match what it does, and its own read would
+    // most likely fail the same way.
+    if (!walletResolverRead.isSuccess) {
+      throw new Error("Failed to check the wallet's resolver")
+    }
     setApprovalPlanned(
       allowance === undefined || allowance < savedParams.tokenPrice,
     )
-    // Left open when the read gave no answer: the machine's check settles it.
-    setResolverDeployPlanned(
-      walletResolverCode === undefined ? null : walletResolverCode === null,
-    )
+    setIsResolverDeployPlanned(!hasDeployedCode(walletResolverRead.data))
 
     transactionManager.clear()
 
@@ -535,7 +534,7 @@ export const useRegistrationTransactions = ({
     actor.send({ type: 'SUSPEND' })
     setResumed(null)
     setApprovalPlanned(null)
-    setResolverDeployPlanned(null)
+    setIsResolverDeployPlanned(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
@@ -544,7 +543,7 @@ export const useRegistrationTransactions = ({
     actor.send({ type: 'CANCEL' })
     setResumed(null)
     setApprovalPlanned(null)
-    setResolverDeployPlanned(null)
+    setIsResolverDeployPlanned(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])

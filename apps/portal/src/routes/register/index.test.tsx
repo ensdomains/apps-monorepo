@@ -23,6 +23,8 @@ const deploy = vi.hoisted(() => ({ finish: () => {} }))
 // Whether the wallet's resolver is already on-chain from an earlier
 // registration. Read both by the page (step list) and the machine.
 const walletResolverDeployed = vi.hoisted(() => vi.fn(() => false))
+// Whether the page's read of that resolver fails instead of answering.
+const walletResolverReadFails = vi.hoisted(() => vi.fn(() => false))
 const waitForResolverDeployment = vi.hoisted(() =>
   vi.fn(() => new Promise(() => {})),
 )
@@ -82,8 +84,10 @@ vi.mock('wagmi', async (importOriginal) => ({
     refetch: async () => ({ data: undefined }),
   }),
   useBytecode: () => {
-    const data = walletResolverDeployed() ? '0x6080' : null
-    return { data, refetch: async () => ({ data }) }
+    const isSuccess = !walletResolverReadFails()
+    const code = walletResolverDeployed() ? '0x6080' : null
+    const data = isSuccess ? code : undefined
+    return { data, isSuccess, refetch: async () => ({ data, isSuccess }) }
   },
 }))
 
@@ -143,6 +147,7 @@ const RegisterRoute = (Route as unknown as { component: () => React.ReactNode })
 describe('/register', () => {
   afterEach(() => {
     walletResolverDeployed.mockReset()
+    walletResolverReadFails.mockReset()
   })
 
   it('stops the flow for the old name when ?name= changes', async () => {
@@ -259,5 +264,23 @@ describe('/register', () => {
       '0xbbbb000000000000000000000000000000000002',
     )
     expect(waitForResolverDeployment).not.toHaveBeenCalled()
+  })
+
+  it("won't start while the wallet's resolver can't be read", async () => {
+    search.name = 'unread.eth'
+    walletResolverReadFails.mockReturnValue(true)
+    render(<RegisterRoute />)
+
+    act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
+    expect(flow.transactions.map(({ id }) => id)).not.toContain(
+      REGISTRATION_TX_IDS.deployResolver,
+    )
+
+    // Starting would leave the machine to deploy a resolver the step list
+    // never showed.
+    await expect(
+      act(async () => flow.transactions[0].onStart?.()),
+    ).rejects.toThrow("Failed to check the wallet's resolver")
+    expect(flow.actor.getSnapshot().value).toBe('idle')
   })
 })

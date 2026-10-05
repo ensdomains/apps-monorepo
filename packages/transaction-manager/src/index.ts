@@ -51,6 +51,7 @@ export {
   computeDedicatedResolverAddress,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
+  hasDeployedCode,
   type TOKEN_SYMBOL,
   VERIFY_GRACE_WINDOW_MS,
   VERIFY_POLL_INTERVAL_MS,

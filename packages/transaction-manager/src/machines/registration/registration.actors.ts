@@ -378,6 +378,14 @@ export function computeDedicatedResolverAddress(input: {
 }
 
 /**
+ * Whether a `getCode` read found a deployed contract. viem answers "no code" as
+ * `undefined`, wagmi as `null`, and some nodes as a bare `0x`; all mean none.
+ */
+export function hasDeployedCode(code: Hex | null | undefined): boolean {
+  return Boolean(code && code !== '0x')
+}
+
+/**
  * Find the wallet's resolver and whether it still has to be deployed.
  */
 export function checkResolverDeploymentActor(input: {
@@ -395,7 +403,7 @@ export function checkResolverDeploymentActor(input: {
       const code = await input.publicClient.getCode({
         address: resolverAddress,
       })
-      return { resolverAddress, deployed: Boolean(code && code !== '0x') }
+      return { resolverAddress, deployed: hasDeployedCode(code) }
     })(),
     (error) => new Error(`Failed to check resolver deployment: ${error}`),
   )
