@@ -1,8 +1,9 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { type Address, isAddressEqual } from 'viem'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { getLabel } from '@/utils/token/getLabel'
 import type { TransferRoleRevocations } from '../types'
 import { planRoleRevocations } from '../utils/planRoleRevocations'
@@ -44,11 +45,18 @@ export const useTransferRoleRevocations = ({
     label = getLabel(name)
   } catch {}
 
+  const resourceQuery = useQuery({
+    ...getVersionedResourceQueryOptions({ name, registryAddress }),
+    enabled: label !== null,
+    staleTime: 0,
+  })
+  const resource = resourceQuery.data ?? null
+
   const [accountsQuery, ownerRolesQuery, rootHoldersQuery] = useQueries({
     queries: [
       {
-        ...getNameRolesAccountsQueryOptions({ name, registryAddress }),
-        enabled: label !== null,
+        ...getNameRolesAccountsQueryOptions({ resource, registryAddress }),
+        enabled: resource !== null,
         staleTime: 0,
       },
       {
@@ -74,6 +82,7 @@ export const useTransferRoleRevocations = ({
 
   if (
     label === null ||
+    resourceQuery.isError ||
     accountsQuery.isError ||
     ownerRolesQuery.isError ||
     rootHoldersQuery.isError
@@ -85,6 +94,7 @@ export const useTransferRoleRevocations = ({
   // "no grants". `isFetching` covers the revalidation case — see the note
   // above.
   if (
+    resourceQuery.isFetching ||
     !accountsQuery.data ||
     !ownerRolesQuery.data ||
     !rootHoldersQuery.data ||

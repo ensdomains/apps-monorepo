@@ -6,6 +6,7 @@ import { ShieldPersonIcon } from '@/assets/icons'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { cn } from '@/lib/utils'
 
@@ -35,8 +36,18 @@ export const V2NameManagersRow = ({
   readonly owner: Address
   readonly className?: string
 }) => {
+  const {
+    data: resource = null,
+    isLoading: isReadingId,
+    error: readIdError,
+  } = useQuery({
+    ...getVersionedResourceQueryOptions({ name, registryAddress }),
+    staleTime: 0,
+  })
+
   const { data, isLoading, error } = useQuery({
-    ...getNameRolesAccountsQueryOptions({ name, registryAddress }),
+    ...getNameRolesAccountsQueryOptions({ resource, registryAddress }),
+    enabled: resource !== null,
     // Opted out of the app-wide one-hour staleTime: this row exists to disclose
     // a live write authority over the name, and an hour-old "nobody" is exactly
     // the answer that would keep hiding a grant made since.
@@ -49,12 +60,12 @@ export const V2NameManagersRow = ({
     </InfoRow>
   )
 
-  if (isLoading)
+  if (isReadingId || isLoading)
     return row(<span className="text-sm text-muted-foreground">Loading</span>)
 
   // Unknown, not none — on both branches. Silence here would reproduce exactly
   // the gap this row exists to close, so say the check didn't land.
-  if (error)
+  if (readIdError || error)
     return row(
       <span className="text-sm text-muted-foreground">
         Couldn’t check who else holds permissions on this name

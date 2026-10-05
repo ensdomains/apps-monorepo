@@ -112,6 +112,7 @@ export const buildTransferStepIntent = (
       )
     return prepareRevokeRolesTransaction({
       name,
+      resourceId: requireResourceIdForName(name),
       account: step.grant.account,
       roles: step.grant.roles,
       walletClient,
