@@ -142,15 +142,59 @@ describe('parseName', () => {
     })
   })
 
-  it('ignores leading and trailing dots around an otherwise valid name', () => {
-    const result = parseName('.sub.vitalik.eth.')
+  // Stray dots are dropped; the register/renew routes redirect to the result.
+  it.each([
+    ['a leading dot', '.vitalik.eth'],
+    ['a trailing dot', 'vitalik.eth.'],
+    ['dots on both ends', '.sub.vitalik.eth.'],
+    ["the audit's `.eth.eth`", '.eth.eth'],
+  ])('canonicalises %s to the dotless name', (_case, name) => {
+    const result = parseName(name)
 
     assert(result.isOk())
-    expect(result.value).toEqual({
-      subLabels: ['sub'],
-      label: 'vitalik',
-      tld: 'eth',
-      name: 'sub.vitalik.eth',
+    expect(result.value.name).toBe(name.replace(/^\.|\.$/g, ''))
+  })
+
+  // Homograph inputs from the WEB-334 audit
+  describe('homograph and display-trick inputs', () => {
+    it.each([
+      ['a right-to-left override', 'ev\u202eil.eth'],
+      ['a left-to-right override', 'ev\u202dil.eth'],
+      ['a left-to-right isolate', 'ev\u2066il.eth'],
+      ['a pop-directional-isolate', 'ev\u2069il.eth'],
+      ['a zero-width joiner outside an emoji sequence', 'vi\u200dtalik.eth'],
+      ['a C0 control character', 'vita\u0001lik.eth'],
+      ['a DEL control character', 'vita\u007flik.eth'],
+      ['an invisible separator', 'vita\u2063lik.eth'],
+    ])('refuses a name containing %s', (_case, name) => {
+      const result = parseName(name)
+
+      assert(result.isErr())
+      expect(result.error).toMatchObject({ reason: 'NOT_NORMALIZED' })
+    })
+
+    it('refuses a Latin name with Cyrillic look-alike letters mixed in', () => {
+      // Cyrillic і and а in a Latin label
+      const result = parseName('v\u0456t\u0430lik.eth')
+
+      assert(result.isErr())
+      expect(result.error).toMatchObject({ reason: 'NOT_NORMALIZED' })
+    })
+
+    it('accepts a whole-script Cyrillic name, which ENSIP-15 allows', () => {
+      // Valid per ENSIP-15, so the parser can't refuse it. Display-level
+      // warning is a separate ticket.
+      const result = parseName('\u0455\u0441\u0430\u043c.eth')
+
+      assert(result.isOk())
+      expect(result.value.name).toBe('\u0455\u0441\u0430\u043c.eth')
+    })
+
+    it('still accepts emoji names, which are legitimately non-NFC', () => {
+      const result = parseName('\u{1f680}\u{1f680}\u{1f680}.eth')
+
+      assert(result.isOk())
+      expect(result.value.label).toBe('\u{1f680}\u{1f680}\u{1f680}')
     })
   })
 })
