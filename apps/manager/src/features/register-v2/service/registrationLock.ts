@@ -93,10 +93,15 @@ type HolderMessage = {
   readonly type: 'claim' | 'taken'
   readonly holderId: string
   /**
-   * Orders two tabs claiming the same id at once, lower first. A reload racing
-   * its own duplicate would otherwise have both step aside, leaving the live
-   * lock owned by neither tab and the wallet blocked until it goes stale.
-   * Absent from a tab that has already settled, which always keeps its id.
+   * On a claim: orders two tabs claiming the same id at once, lower first. A
+   * reload racing its own duplicate would otherwise have both step aside,
+   * leaving the live lock owned by neither tab and the wallet blocked until it
+   * goes stale. Absent from a tab that has already settled, which always keeps
+   * its id.
+   *
+   * On a `taken`: the rank of the claim being answered. With three tabs on one
+   * id, the middle one answers the lowest-ranked claim, and the winner must
+   * not read that reply as its own and step aside too.
    */
   readonly claimRank?: string
 }
@@ -188,7 +193,16 @@ export const claimTabHolderId = (): Promise<string> => {
           return
         }
 
-        channel.postMessage({ type: 'taken', holderId: getHolderId() })
+        channel.postMessage({
+          type: 'taken',
+          holderId: getHolderId(),
+          claimRank: event.data.claimRank,
+        })
+        return
+      }
+
+      // Addressed to another claimant, or to a claim this tab already settled.
+      if (pendingRank === undefined || event.data.claimRank !== pendingRank) {
         return
       }
 
@@ -211,8 +225,11 @@ export const claimTabHolderId = (): Promise<string> => {
  * mounts and leaves inside the claim window would otherwise sweep with the id
  * it inherited, which is the live claim of the tab it was cloned from.
  */
-export const releaseHolderLocksWhenSettled = (): Promise<void> =>
-  claimTabHolderId().then(() => releaseHolderLocks())
+export const releaseHolderLocksWhenSettled = (): Promise<void> => {
+  const since = readLocks()
+
+  return claimTabHolderId().then(() => releaseHolderLocks(since))
+}
 
 const readLock = (owner: Address): RegistrationLock | undefined =>
   readLocks()[owner.toLowerCase()]
@@ -299,14 +316,24 @@ export const releaseRegistrationLock = (owner: Address): void => {
  * unmounts: a tab that is not mid-registration cannot legitimately hold one, so
  * a reload or a route change frees the wallet instead of waiting out staleness.
  *
- * Only safe once {@link claimTabHolderId} has settled, or a duplicated tab
- * sweeps away the claim of the tab it was cloned from.
+ * `since` limits the sweep to the claims as they were when it was asked for.
+ * One acquired or refreshed in the meantime is a live registration — the flow
+ * left and came back, or never left — and is kept. Without that, a sweep that
+ * waits for the holder id can land on a claim made during the wait.
  */
-export const releaseHolderLocks = (): void => {
+export const releaseHolderLocks = (since?: RegistrationLocks): void => {
   const holderId = getHolderId()
   const locks = readLocks()
   const rest = Object.fromEntries(
-    Object.entries(locks).filter(([, lock]) => lock.holderId !== holderId),
+    Object.entries(locks).filter(([owner, lock]) => {
+      if (lock.holderId !== holderId) return true
+      if (!since) return false
+
+      const seen = since[owner]
+      return (
+        !seen || seen.name !== lock.name || seen.updatedAt !== lock.updatedAt
+      )
+    }),
   )
   if (Object.keys(rest).length !== Object.keys(locks).length) writeLocks(rest)
 }

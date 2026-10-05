@@ -239,7 +239,12 @@ describe('claimTabHolderId', () => {
         message.type === 'claim' &&
         message.holderId === FakeChannel.answerFor
       )
-        this.deliver({ type: 'taken', holderId: message.holderId })
+        this.deliver({
+          type: 'taken',
+          holderId: message.holderId,
+          // A reply names the claim it answers, as the real one does.
+          claimRank: message.claimRank,
+        })
     }
 
     /** Push a message from the other tab into the one under test. */
@@ -349,7 +354,11 @@ describe('claimTabHolderId', () => {
     })
     // Silence is the yield: the other tab keeps the id and says so.
     expect(takenSent()).toBe(false)
-    channel?.deliver({ type: 'taken', holderId: 'shared-id' })
+    channel?.deliver({
+      type: 'taken',
+      holderId: 'shared-id',
+      claimRank: claimSent().claimRank,
+    })
 
     await expect(settled).resolves.not.toBe('shared-id')
   })
@@ -388,6 +397,39 @@ describe('claimTabHolderId', () => {
     const lock = await import('./registrationLock')
 
     await lock.releaseHolderLocksWhenSettled()
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+  })
+
+  // Three tabs on one id: the middle-ranked tab answers the lowest claim, and
+  // that reply reaches everyone. The tab that actually wins must not read it
+  // as its own and step aside, leaving the live lock owned by nobody.
+  it('ignores a reply addressed to another claimant', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'taken',
+      holderId: 'shared-id',
+      claimRank: `${claimSent().claimRank}-someone-else`,
+    })
+
+    await expect(settled).resolves.toBe('shared-id')
+  })
+
+  // The flow can leave and come back inside the claim window: a sweep asked
+  // for on the way out must not take the claim the new run just made.
+  it('keeps a claim made while the sweep was waiting', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    const sweep = lock.releaseHolderLocksWhenSettled()
+    lock.acquireRegistrationLock(WALLET, 'name-one.eth')
+    await sweep
 
     expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
       'name-one.eth',
