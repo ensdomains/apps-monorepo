@@ -19,10 +19,15 @@ vi.mock('@/lib/indexer', () => ({
   },
 }))
 
-const { getSubnames, getSubnamesCountQueryOptions, getSubnamesQueryOptions } =
-  await import('./useSubnames')
+const {
+  getIsSubnameTakenQueryOptions,
+  getSubnamesCountQueryOptions,
+  getSubnamesQueryKey,
+  getV1Subnames,
+  getV2SubnamesQueryOptions,
+} = await import('./useSubnames')
 
-describe('getSubnames', () => {
+describe('getV1Subnames', () => {
   beforeEach(() => {
     mockEnsjsGetSubnames.mockClear()
     mockGraphqlRequest.mockClear()
@@ -37,10 +42,7 @@ describe('getSubnames', () => {
     }
     mockEnsjsGetSubnames.mockResolvedValue([{ ...subname, wrappedOwner: null }])
 
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv1',
-    })
+    const result = await getV1Subnames({ name: 'test.eth' })
 
     expect(result._unsafeUnwrap()).toEqual([subname])
     expect(mockEnsjsGetSubnames).toHaveBeenCalledWith(mockClient, {
@@ -60,10 +62,7 @@ describe('getSubnames', () => {
       },
     ])
 
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv1',
-    })
+    const result = await getV1Subnames({ name: 'test.eth' })
 
     expect(result._unsafeUnwrap()).toEqual([
       {
@@ -71,38 +70,6 @@ describe('getSubnames', () => {
         labelName: 'sub',
         labelhash: '0x1234',
         owner: '0x1234567890123456789012345678901234567890',
-      },
-    ])
-  })
-
-  it('returns subnames using graphql indexer for namechainSepolia', async () => {
-    const mockGraphqlResponse = {
-      domains: [
-        {
-          subdomains: [
-            {
-              name: 'sub.test.eth',
-              labelName: 'sub',
-              labelhash: '0xabcd',
-              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-            },
-          ],
-        },
-      ],
-    }
-    mockGraphqlRequest.mockResolvedValue(mockGraphqlResponse)
-
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv2',
-    })
-
-    expect(result._unsafeUnwrap()).toEqual([
-      {
-        name: 'sub.test.eth',
-        labelName: 'sub',
-        labelhash: '0xabcd',
-        owner: '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
       },
     ])
   })
@@ -127,128 +94,214 @@ describe('getSubnames', () => {
       },
     ])
 
-    const result = await getSubnames({
-      name: 'phantombug01.eth',
-      protocolVersion: 'ENSv1',
-    })
+    const result = await getV1Subnames({ name: 'phantombug01.eth' })
 
     expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
       '1.phantombug01.eth',
       '[ad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5].phantombug01.eth',
     ])
   })
+})
 
-  it('names V2 subnames from their parent, encoding unknown labels', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      domains: [
-        {
-          subdomains: [
-            {
-              name: 'sub.[6d255fc3390ee6b41191da315958b7d6a1e5b17904cc7683558f98acc57977b4].eth',
-              labelName: 'sub',
-              labelhash: '0xabcd',
-              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-            },
-            {
-              name: null,
-              labelName: null,
-              labelhash:
-                '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
-              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-            },
-          ],
-        },
-      ],
-    })
+const OWNER_ID = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
 
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv2',
-    })
+const subdomain = (i: number) => ({
+  name: `sub${i}.test.eth`,
+  labelName: `sub${i}`,
+  labelhash: '0xabcd',
+  owner: { id: OWNER_ID },
+})
 
-    expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
-      'sub.test.eth',
-      '[c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6].test.eth',
-    ])
+/** What the indexer returns for `count` subdomains starting at `from`. */
+const indexerPage = (from: number, count: number, subdomainsCount: number) => ({
+  domains: [
+    {
+      subdomainsCount,
+      subdomains: Array.from({ length: count }, (_, i) => subdomain(from + i)),
+    },
+  ],
+})
+
+describe('getV2SubnamesQueryOptions', () => {
+  beforeEach(() => {
+    mockEnsjsGetSubnames.mockReset()
+    mockGraphqlRequest.mockReset()
   })
 
-  it('pages through every V2 subname, not just the first page', async () => {
-    const subdomain = (i: number) => ({
-      name: `sub${i}.test.eth`,
-      labelName: `sub${i}`,
-      labelhash: '0xabcd',
-      owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-    })
-    mockGraphqlRequest
-      .mockResolvedValueOnce({
-        domains: [
-          {
-            subdomainsCount: 51,
-            subdomains: Array.from({ length: 40 }, (_, i) => subdomain(i)),
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        domains: [
-          {
-            subdomainsCount: 51,
-            subdomains: Array.from({ length: 11 }, (_, i) => subdomain(40 + i)),
-          },
-        ],
-      })
+  const options = getV2SubnamesQueryOptions({ name: 'test.eth' })
 
-    const result = await getSubnames({
+  // A name can hold thousands of subnames; opening the page must cost one
+  // request, whatever the total.
+  it('loads only the first page, with the name’s total beside it', async () => {
+    mockGraphqlRequest.mockResolvedValue(indexerPage(0, 40, 10181))
+
+    const data = await new QueryClient().fetchInfiniteQuery(options)
+
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(expect.anything(), {
       name: 'test.eth',
-      protocolVersion: 'ENSv2',
+      skip: 0,
+    })
+    expect(data.pages).toHaveLength(1)
+    expect(data.pages[0]?.subnames).toHaveLength(40)
+    expect(data.pages[0]?.totalCount).toBe(10181)
+  })
+
+  it('asks for the next page from where the loaded rows end', async () => {
+    mockGraphqlRequest
+      .mockResolvedValueOnce(indexerPage(0, 40, 51))
+      .mockResolvedValueOnce(indexerPage(40, 11, 51))
+
+    const data = await new QueryClient().fetchInfiniteQuery({
+      ...options,
+      pages: 2,
     })
 
-    const subnames = result._unsafeUnwrap()
-    expect(subnames).toHaveLength(51)
-    expect(subnames.at(-1)?.name).toBe('sub50.test.eth')
     expect(
       mockGraphqlRequest.mock.calls.map(([, variables]) => variables),
     ).toEqual([
       { name: 'test.eth', skip: 0 },
       { name: 'test.eth', skip: 40 },
     ])
+    const subnames = data.pages.flatMap((page) => page.subnames)
+    expect(subnames).toHaveLength(51)
+    expect(subnames.at(-1)?.name).toBe('sub50.test.eth')
   })
 
-  it('makes one request when the V2 subnames exactly fill a page', async () => {
+  it('has no next page once every subname is loaded', async () => {
+    mockGraphqlRequest.mockResolvedValue(indexerPage(0, 40, 40))
+
+    const data = await new QueryClient().fetchInfiniteQuery(options)
+
+    expect(
+      options.getNextPageParam?.(
+        data.pages[0] as never,
+        data.pages as never,
+        0,
+        [0],
+      ),
+    ).toBeUndefined()
+  })
+
+  // A count that ran ahead of the rows must not refetch the same page forever.
+  it('stops on an empty page even when the count says there is more', () => {
+    const first = {
+      subnames: Array.from({ length: 40 }, () => ({})),
+      totalCount: 90,
+    }
+    const empty = { subnames: [], totalCount: 90 }
+
+    expect(
+      options.getNextPageParam?.(
+        empty as never,
+        [first, empty] as never,
+        40,
+        [0, 40],
+      ),
+    ).toBeUndefined()
+  })
+
+  it('checksums the owner and names rows from their parent, encoding unknown labels', async () => {
     mockGraphqlRequest.mockResolvedValue({
       domains: [
         {
-          subdomainsCount: 40,
-          subdomains: Array.from({ length: 40 }, (_, i) => ({
-            name: `sub${i}.test.eth`,
-            labelName: `sub${i}`,
-            labelhash: '0xabcd',
-            owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-          })),
+          subdomainsCount: 2,
+          subdomains: [
+            {
+              name: 'sub.[6d255fc3390ee6b41191da315958b7d6a1e5b17904cc7683558f98acc57977b4].eth',
+              labelName: 'sub',
+              labelhash: '0xabcd',
+              owner: { id: OWNER_ID },
+            },
+            {
+              name: null,
+              labelName: null,
+              labelhash:
+                '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
+              owner: { id: OWNER_ID },
+            },
+          ],
         },
       ],
     })
 
-    const result = await getSubnames({
-      name: 'test.eth',
-      protocolVersion: 'ENSv2',
-    })
+    const data = await new QueryClient().fetchInfiniteQuery(options)
 
-    expect(result._unsafeUnwrap()).toHaveLength(40)
-    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
+    expect(data.pages[0]?.subnames).toEqual([
+      {
+        name: 'sub.test.eth',
+        labelName: 'sub',
+        labelhash: '0xabcd',
+        owner: '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
+      },
+      {
+        name: '[c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6].test.eth',
+        labelName: null,
+        labelhash:
+          '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
+        owner: '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
+      },
+    ])
   })
 
-  it('returns empty array when domain has no subdomains', async () => {
-    const mockGraphqlResponse = {
-      domains: [{ subdomains: [] }],
-    }
-    mockGraphqlRequest.mockResolvedValue(mockGraphqlResponse)
+  it('is empty, with a zero total, for a name the indexer does not know', async () => {
+    mockGraphqlRequest.mockResolvedValue({ domains: [] })
 
-    const result = await getSubnames({
-      name: 'empty.eth',
-      protocolVersion: 'ENSv2',
+    const data = await new QueryClient().fetchInfiniteQuery(options)
+
+    expect(data.pages[0]).toEqual({ subnames: [], totalCount: 0 })
+  })
+
+  // Creating, deleting and transferring a subname all invalidate the name's
+  // subnames key; the loaded pages must go stale with it.
+  it('is invalidated by the name’s subnames key', async () => {
+    mockGraphqlRequest.mockResolvedValue(indexerPage(0, 3, 3))
+    const queryClient = new QueryClient()
+    await queryClient.fetchInfiniteQuery(options)
+
+    await queryClient.invalidateQueries({
+      queryKey: getSubnamesQueryKey({
+        name: 'test.eth',
+        protocolVersion: 'ENSv2',
+      }),
+      refetchType: 'none',
     })
 
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(queryClient.getQueryState(options.queryKey)?.isInvalidated).toBe(
+      true,
+    )
+  })
+})
+
+describe('getIsSubnameTakenQueryOptions', () => {
+  beforeEach(() => {
+    mockGraphqlRequest.mockReset()
+  })
+
+  it('asks the indexer about the one subname', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [{ name: 'alias.test.eth' }],
+    })
+
+    const isTaken = await new QueryClient().fetchQuery(
+      getIsSubnameTakenQueryOptions({ name: 'test.eth', label: 'alias' }),
+    )
+
+    expect(isTaken).toBe(true)
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(1)
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(expect.anything(), {
+      name: 'alias.test.eth',
+    })
+  })
+
+  it('is false when the indexer has no such subname', async () => {
+    mockGraphqlRequest.mockResolvedValue({ domains: [] })
+
+    const isTaken = await new QueryClient().fetchQuery(
+      getIsSubnameTakenQueryOptions({ name: 'test.eth', label: 'free' }),
+    )
+
+    expect(isTaken).toBe(false)
   })
 })
 
@@ -305,7 +358,7 @@ describe('getSubnamesCountQueryOptions', () => {
     await queryClient.fetchQuery(countOptions)
 
     await queryClient.invalidateQueries({
-      queryKey: getSubnamesQueryOptions(params).queryKey,
+      queryKey: getSubnamesQueryKey(params),
       refetchType: 'none',
     })
 

@@ -22,7 +22,7 @@ import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
@@ -307,10 +307,10 @@ export const useTransferName = ({
         ...(parentName
           ? [
               queryClient.invalidateQueries({
-                queryKey: getSubnamesQueryOptions({
+                queryKey: getSubnamesQueryKey({
                   name: parentName,
                   protocolVersion: subject.kind === 'v2' ? 'ENSv2' : 'ENSv1',
-                }).queryKey,
+                }),
               }),
             ]
           : []),
