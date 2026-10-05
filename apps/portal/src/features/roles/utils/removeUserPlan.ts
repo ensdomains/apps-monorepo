@@ -39,15 +39,34 @@ export type NameRoleHolder = {
 /** Only ever held as an admin role, and checked on the token owner, not the caller. */
 const TRANSFER_ROLE: Role = 'ROLE_CAN_TRANSFER_ADMIN'
 
+/**
+ * Why the transfer role is kept. `last-holder` wins over `owner`: it holds even
+ * on a non-owner row, and it is the stronger consequence.
+ */
+export type TransferRoleHold = 'last-holder' | 'owner' | 'owner-unknown'
+
 export type RemoveUserPlan = {
   /** The roles the revoke transaction encodes. */
   readonly rolesToRevoke: readonly Role[]
-  /** Kept back: this account is the last transfer admin, so revoking freezes the name. */
+  /** Kept back: revoking the transfer role would freeze the name. */
   readonly frozenRoles: readonly Role[]
-  /** Kept back: the caller holds no `_ADMIN` for them, so revoking would revert. */
+  /** Why `frozenRoles` is non-empty; `null` when it is empty. */
+  readonly transferRoleHold: TransferRoleHold | null
+  /**
+   * Kept back: the caller holds no `_ADMIN` for them that we could confirm, so
+   * revoking would revert.
+   */
   readonly unauthorizedRoles: readonly Role[]
-  /** In `rolesToRevoke`, but this account is their last admin — nobody can grant them back. */
+  /**
+   * In `rolesToRevoke`, but this account is their last admin on the name and no
+   * root holder is known to grant them back.
+   */
   readonly lockoutRoles: readonly Role[]
+  /**
+   * The registry root's holders couldn't be read, so root authority — the
+   * caller's, and anyone's who could restore a revoked role — is unknown.
+   */
+  readonly isRootAuthorityUnknown: boolean
 }
 
 const isSameAccount = (a: Address, b: Address) =>
@@ -70,8 +89,9 @@ type BuildRemoveUserPlanParameters = {
   /**
    * `_ADMIN` roles held by anyone at the registry root. Root holders can grant on
    * any resource in the registry, so these roles stay restorable after a revoke.
+   * `undefined` when the root couldn't be read: unknown, not empty.
    */
-  readonly rootAdminRoles: ReadonlySet<Role>
+  readonly rootAdminRoles: ReadonlySet<Role> | undefined
 }
 
 /**
@@ -80,7 +100,9 @@ type BuildRemoveUserPlanParameters = {
  * The three kept/revoked buckets are disjoint and preserve `currentRoles` order.
  * Anything still unknown — the holder list, the owner — resolves towards keeping
  * the transfer role, since keeping a role we could have revoked is recoverable
- * and revoking one we shouldn't have is not.
+ * and revoking one we shouldn't have is not. Unknown root authority likewise
+ * counts as no root holder for the lockout warning, flagged so the copy can say
+ * it is unconfirmed rather than certain.
  */
 export const buildRemoveUserPlan = ({
   account,
@@ -104,11 +126,19 @@ export const buildRemoveUserPlan = ({
     )
   )
 
-  const frozen = new Set<Role>(
-    isOwnerRow || isLastTransferAdmin
-      ? currentRoles.filter((role) => role === TRANSFER_ROLE)
-      : [],
+  const transferRoleHold: TransferRoleHold | null = !currentRoles.includes(
+    TRANSFER_ROLE,
   )
+    ? null
+    : isLastTransferAdmin
+      ? 'last-holder'
+      : !isOwnerRow
+        ? null
+        : ownerAddress
+          ? 'owner'
+          : 'owner-unknown'
+
+  const frozen = new Set<Role>(transferRoleHold ? [TRANSFER_ROLE] : [])
 
   const removable = new Set(getRemovableRoles(currentRoles, callerAdminRoles))
   const soleAdminRoles = getSoleAdminRoles(holders, account)
@@ -120,13 +150,15 @@ export const buildRemoveUserPlan = ({
   return {
     rolesToRevoke,
     frozenRoles: [...frozen],
+    transferRoleHold,
     unauthorizedRoles: currentRoles.filter(
       (role) => !removable.has(role) && !frozen.has(role),
     ),
     // A root holder of the same `_ADMIN` role can grant it back, so being the
     // name's last admin only locks the role out when root has no holder either.
     lockoutRoles: rolesToRevoke.filter(
-      (role) => soleAdminRoles.has(role) && !rootAdminRoles.has(role),
+      (role) => soleAdminRoles.has(role) && !rootAdminRoles?.has(role),
     ),
+    isRootAuthorityUnknown: rootAdminRoles === undefined,
   }
 }

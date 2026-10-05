@@ -95,6 +95,38 @@ describe('buildRemoveUserPlan', () => {
 
       expect(plan.rolesToRevoke).not.toContain('ROLE_CAN_TRANSFER_ADMIN')
       expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+      // Not the last holder, so the dialog must not say it is.
+      expect(plan.transferRoleHold).toBe('owner')
+    })
+
+    it('says the owner is its last holder only when nobody else holds it', () => {
+      const plan = buildRemoveUserPlan({
+        account: OWNER,
+        currentRoles: OWNER_ROLES,
+        callerAdminRoles: OWNER_ADMIN_ROLES,
+        holders: holders([{ account: OWNER, roles: OWNER_ROLES }]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(plan.transferRoleHold).toBe('last-holder')
+    })
+
+    it('keeps it, without claiming ownership, while the owner is unknown', () => {
+      const plan = buildRemoveUserPlan({
+        account: MANAGER,
+        currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+        callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+        holders: holders([
+          { account: MANAGER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
+          { account: OWNER, roles: OWNER_ROLES },
+        ]),
+        ownerAddress: undefined,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+      expect(plan.transferRoleHold).toBe('owner-unknown')
     })
 
     it('stays with a non-owner who is its last holder on the name', () => {
@@ -279,6 +311,22 @@ describe('buildRemoveUserPlan', () => {
         'ROLE_SET_RESOLVER_ADMIN',
       ])
     })
+
+    it('is flagged unknown, not empty, when the root could not be read', () => {
+      const plan = buildRemoveUserPlan({
+        account: OTHER,
+        currentRoles: soleDelegated,
+        callerAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
+        holders: holders([{ account: OTHER, roles: soleDelegated }]),
+        ownerAddress: OWNER,
+        rootAdminRoles: undefined,
+      })
+
+      // Still warned about, since a root holder can't be confirmed, but flagged
+      // so the copy says it is unconfirmed rather than certain.
+      expect(plan.lockoutRoles).toEqual(['ROLE_SET_RESOLVER_ADMIN'])
+      expect(plan.isRootAuthorityUnknown).toBe(true)
+    })
   })
 
   it('drops ROLE_WAS_RESERVED, which has no admin and cannot be revoked', () => {
@@ -310,8 +358,10 @@ describe('buildRemoveUserPlan', () => {
     ).toEqual({
       rolesToRevoke: [],
       frozenRoles: [],
+      transferRoleHold: null,
       unauthorizedRoles: [],
       lockoutRoles: [],
+      isRootAuthorityUnknown: false,
     })
   })
 

@@ -11,7 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { RemoveUserPlan } from '@/features/roles/utils/removeUserPlan'
+import type {
+  RemoveUserPlan,
+  TransferRoleHold,
+} from '@/features/roles/utils/removeUserPlan'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -25,8 +28,19 @@ const formatRoleList = (roles: readonly Role[]) =>
     )
     .join(', ')
 
+const transferRoleHoldReason = (hold: TransferRoleHold, name: string) => {
+  switch (hold) {
+    case 'last-holder':
+      return `This account is the last one holding it, and without a holder ${name} could never be transferred or sold again.`
+    case 'owner':
+      return `This account owns ${name}, which can only be transferred or sold while its owner holds it, whoever else does.`
+    case 'owner-unknown':
+      return `${name}'s owner couldn't be confirmed, and this account may be it: ${name} can only be transferred or sold while its owner holds it.`
+  }
+}
+
 type RemoveUserConfirmDialogProps = {
-  readonly open: boolean
+  readonly isOpen: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onConfirm: () => void
   readonly name: string
@@ -42,17 +56,25 @@ type RemoveUserConfirmDialogProps = {
  * see {@link RemoveUserPlan} for what the button is and isn't allowed to touch.
  */
 export const RemoveUserConfirmDialog = ({
-  open,
+  isOpen,
   onOpenChange,
   onConfirm,
   name,
   account,
   plan,
 }: RemoveUserConfirmDialogProps) => {
-  const { rolesToRevoke, lockoutRoles, frozenRoles, unauthorizedRoles } = plan
+  const {
+    rolesToRevoke,
+    lockoutRoles,
+    transferRoleHold,
+    unauthorizedRoles,
+    isRootAuthorityUnknown,
+  } = plan
+  const pronoun = (roles: readonly Role[]) =>
+    roles.length === 1 ? 'it' : 'them'
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Remove user</DialogTitle>
@@ -67,18 +89,19 @@ export const RemoveUserConfirmDialog = ({
           <Alert variant="destructive">
             <AlertDescription>
               No other account is admin for {formatRoleList(lockoutRoles)} on{' '}
-              {name}, so once revoked nobody can grant{' '}
-              {lockoutRoles.length === 1 ? 'it' : 'them'} back.
+              {name}
+              {isRootAuthorityUnknown
+                ? `, and registry-wide admins couldn't be checked, so once revoked it may not be possible to grant ${pronoun(lockoutRoles)} back.`
+                : `, so once revoked nobody can grant ${pronoun(lockoutRoles)} back.`}
             </AlertDescription>
           </Alert>
         )}
 
-        {frozenRoles.length > 0 && (
+        {transferRoleHold && (
           <Alert variant="warning">
             <AlertDescription>
-              Transfer permission is kept. This account is the last one holding
-              it, and without a holder {name} could never be transferred or sold
-              again.
+              Transfer permission is kept.{' '}
+              {transferRoleHoldReason(transferRoleHold, name)}
             </AlertDescription>
           </Alert>
         )}
@@ -86,9 +109,12 @@ export const RemoveUserConfirmDialog = ({
         {unauthorizedRoles.length > 0 && (
           <Alert variant="warning">
             <AlertDescription>
-              This user keeps {formatRoleList(unauthorizedRoles)} — your account
-              isn't admin for {unauthorizedRoles.length === 1 ? 'it' : 'them'},
-              so it can't be revoked from here.
+              This user keeps {formatRoleList(unauthorizedRoles)} —{' '}
+              {isRootAuthorityUnknown
+                ? `your registry-wide roles couldn't be read, so your account couldn't be confirmed as admin for ${pronoun(unauthorizedRoles)}`
+                : `your account isn't admin for ${pronoun(unauthorizedRoles)}`}
+              , so {unauthorizedRoles.length === 1 ? 'it' : 'they'} can't be
+              revoked from here.
             </AlertDescription>
           </Alert>
         )}

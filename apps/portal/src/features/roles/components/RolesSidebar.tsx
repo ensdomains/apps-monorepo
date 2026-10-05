@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -19,30 +19,23 @@ import {
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
-import { getAccountAdminRoles } from '@/features/registry/utils/registryRoleAccess'
 import { RemoveUserConfirmDialog } from '@/features/roles/components/RemoveUserConfirmDialog'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
-import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
-import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { useRemoveUserPlan } from '@/features/roles/hooks/useRemoveUserPlan'
 import { useRevokeRoles } from '@/features/roles/hooks/useRevokeRoles'
 import type {
   PendingRemove,
   PendingSave,
 } from '@/features/roles/utils/buildRoleTransactionDescriptors'
 import { buildRoleTransactions } from '@/features/roles/utils/buildRoleTransactions'
-import { buildRemoveUserPlan } from '@/features/roles/utils/removeUserPlan'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { resourceIdForName } from '@/lib/resource/resourceId'
-import {
-  isAdminRole,
-  isManagerRoleSettable,
-  permissions,
-} from '@/lib/roles/permissions'
+import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import {
   computeRoleChanges,
   hasPermissionsChanged,
@@ -50,7 +43,6 @@ import {
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { getLabel } from '@/utils/token/getLabel'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -109,68 +101,14 @@ export const RolesSidebar = <
     [row],
   )
 
-  // A raw route parameter would address a resource the registry never wrote to,
-  // so the label is normalised first. `getLabel` throws on a name it can't
-  // normalise; that leaves the query disabled, which reads as no admin roles and
-  // so disables Remove user rather than under-reporting what it would revoke.
-  const label = useMemo(() => {
-    try {
-      return getLabel(name)
-    } catch {
-      return null
-    }
-  }, [name])
-
-  const { data: callerRolesData } = useQuery({
-    ...getNameRolesForAccountQueryOptions({
-      registryAddress,
-      label: label ?? '',
-      account: callerAddress ?? zeroAddress,
-    }),
-    enabled: Boolean(callerAddress) && Boolean(label),
-  })
-
-  // Already fetched by the page's registry-wide roles section, so this is a cache
-  // read in practice.
-  const { data: rootHolders } = useQuery(
-    getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
-  )
-
-  // Only `_ADMIN` roles authorise a revoke, so they alone decide what Remove user
-  // may encode. `_getRevokableRoles` runs on `_effectiveRoles`, which ORs the
-  // caller's root roles over its per-name ones, so root authority counts too.
-  const callerAdminRoles = useMemo(
-    () =>
-      new Set<Role>([
-        ...(callerRolesData?.decoded ?? []).filter(isAdminRole),
-        ...getAccountAdminRoles(rootHolders, callerAddress),
-      ]),
-    [callerRolesData, rootHolders, callerAddress],
-  )
-
-  /** Root holders can grant on any resource, so these roles survive a revoke. */
-  const rootAdminRoles = useMemo(
-    () =>
-      new Set<Role>(
-        (rootHolders ?? []).flatMap((holder) =>
-          holder.roles.filter(isAdminRole),
-        ),
-      ),
-    [rootHolders],
-  )
-
-  const holders = useMemo(
-    () => [...roleHolders].map(([account, roles]) => ({ account, roles })),
-    [roleHolders],
-  )
-
-  const removePlan = buildRemoveUserPlan({
+  const removePlan = useRemoveUserPlan({
+    name,
+    registryAddress,
     account: selectedAccount,
     currentRoles: originalRoles,
-    callerAdminRoles,
-    holders,
+    roleHolders,
     ownerAddress: ownerData?.owner,
-    rootAdminRoles,
+    callerAddress,
   })
 
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
@@ -431,7 +369,7 @@ export const RolesSidebar = <
           </div>
 
           <RemoveUserConfirmDialog
-            open={confirmOpen}
+            isOpen={confirmOpen}
             onOpenChange={setConfirmOpen}
             onConfirm={handleRemoveUser}
             name={name}
