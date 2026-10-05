@@ -12,6 +12,7 @@ import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
+import { V2NameManagersRow } from '@/features/ownership/components/V2NameManagersRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { ParentName } from '@/features/profile/components/ParentName'
@@ -152,6 +153,13 @@ function RouteComponent() {
         />
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />
+        )}
+        {data.protocolVersion === 'ENSv2' && (
+          <V2NameManagersRow
+            name={name}
+            registryAddress={data.registryAddress}
+            owner={data.owner}
+          />
         )}
         <ParentName asRow name={name} />
       </div>

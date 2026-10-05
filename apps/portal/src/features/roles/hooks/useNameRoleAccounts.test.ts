@@ -9,8 +9,8 @@ const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const OWNER: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const OTHER: Address = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
-// A resource carrying a non-zero eacVersionId, i.e. a re-registered name. The
-// indexer stores these with the low 32 bits zeroed; logs carry them verbatim.
+// A resource carrying a non-zero eacVersionId, i.e. a re-registered name. Both
+// the indexer and the node match it verbatim, version bits included.
 const RESOURCE = 0xabcd_0000_0007n
 
 const mockGetLogs = vi.fn()

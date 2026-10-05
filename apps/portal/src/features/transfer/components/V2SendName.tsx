@@ -4,6 +4,7 @@ import { useParentAuthority } from '../hooks/useParentAuthority'
 import { useRegistryDetachImpact } from '../hooks/useRegistryDetachImpact'
 import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
 import { useTransferName } from '../hooks/useTransferName'
+import { useTransferRoleRevocations } from '../hooks/useTransferRoleRevocations'
 import { SendNameForm } from './SendNameForm'
 
 /**
@@ -49,6 +50,15 @@ export const V2SendName = ({
     owner,
   })
 
+  // Registry roles are keyed on the label while the token is keyed on its id,
+  // so a grant made from the roles page outlives the transfer. Read who holds
+  // one before the form offers to hand the name over.
+  const roleRevocations = useTransferRoleRevocations({
+    name,
+    registryAddress,
+    owner,
+  })
+
   const transfer = useTransferName({
     name,
     account: owner,
@@ -60,6 +70,7 @@ export const V2SendName = ({
       owner={owner}
       detachTargets={detachTargets}
       registryDetachImpact={registryDetachImpact}
+      roleRevocations={roleRevocations}
       parentWarning={
         parentName === null
           ? null

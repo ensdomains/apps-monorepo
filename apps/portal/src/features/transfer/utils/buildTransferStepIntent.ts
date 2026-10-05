@@ -1,11 +1,18 @@
 import { createSetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { match, P } from 'ts-pattern'
-import { type Address, encodeFunctionData, erc1155Abi, zeroAddress } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  erc1155Abi,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { normalize } from 'viem/ens'
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
 import { prepareSetForwardResolutionTransaction } from '@/features/reverse-resolution/helpers/setForwardResolution'
+import { prepareRevokeRolesTransaction } from '@/features/roles/helpers/revokeRoles'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -17,7 +24,12 @@ import {
   prepareSetV1RegistryOwnerTransaction,
   prepareTransferV1NameTransaction,
 } from '../v1/writes'
-import type { TransferStepKind } from './buildTransferPlan'
+import type { TransferStep } from './buildTransferPlan'
+
+// `IUnsafeTransferable.unsafeTransfer`, which ensjs-abi doesn't export yet.
+const unsafeTransferAbi = parseAbi([
+  'function unsafeTransfer(address to, uint256 tokenId, bytes data)',
+])
 
 export type TransferStepContext = IntentContext & {
   readonly name: string
@@ -51,7 +63,7 @@ export type TransferStepContext = IntentContext & {
  * Throws for a step the plan should never have produced for this subject.
  */
 export const buildTransferStepIntent = (
-  step: TransferStepKind,
+  step: TransferStep,
   {
     name: rawName,
     subject,
@@ -91,8 +103,26 @@ export const buildTransferStepIntent = (
     })
   }
 
+  // Handled ahead of the match because it is the one step that carries data of
+  // its own: which account's grant it takes away, and which roles of theirs.
+  if (step.kind === 'revoke-roles') {
+    if (subject.kind !== 'v2')
+      throw new Error(
+        `Step "revoke-roles" does not apply to a ${subject.kind} name`,
+      )
+    return prepareRevokeRolesTransaction({
+      name,
+      resourceId: requireResourceIdForName(name),
+      account: step.grant.account,
+      roles: step.grant.roles,
+      walletClient,
+      chainId,
+      registryAddress: subject.registryAddress,
+    })
+  }
+
   return (
-    match([step, subject] as const)
+    match([step.kind, subject] as const)
       .with(['set-eth-addr', P._], () => prepareSetEthAddress(recipient))
       .with(['restore-eth-addr', P._], () => {
         if (!previousEthAddress)
@@ -143,6 +173,26 @@ export const buildTransferStepIntent = (
           chainId,
         })
       })
+      // The same move without the registry's safe-transfer checks (the sender
+      // is the only role holder, the registry is emancipated), for a name whose
+      // other grants are staying behind. The receiver hook and the sender's
+      // `ROLE_CAN_TRANSFER_ADMIN` are still enforced.
+      .with(
+        ['transfer-token-unsafe', { kind: 'v2' }],
+        ([, { registryAddress }]) => {
+          if (tokenId === null) throw new Error(`${name} has no token id`)
+          return toEoaCustomIntent({
+            from: walletClient.account.address,
+            to: registryAddress,
+            data: encodeFunctionData({
+              abi: unsafeTransferAbi,
+              functionName: 'unsafeTransfer',
+              args: [recipient, tokenId, '0x'],
+            }),
+            chainId,
+          })
+        },
+      )
       .with(['reclaim', { kind: 'v1-registrar' }], () =>
         prepareTransferV1NameTransaction({
           ...ctx,
@@ -170,7 +220,7 @@ export const buildTransferStepIntent = (
       )
       .otherwise(() => {
         throw new Error(
-          `Step "${step}" does not apply to a ${subject.kind} name`,
+          `Step "${step.kind}" does not apply to a ${subject.kind} name`,
         )
       })
   )
