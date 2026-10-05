@@ -15,18 +15,13 @@ import {
   buildSearchSuggestions,
   getSearchNotice,
 } from '../utils/buildSearchSuggestions'
-import {
-  filterAndSortOwnedNames,
-  mergeOwnedNames,
-  subnameParents,
-} from '../utils/ownedNamesUtils'
+import { filterAndSortOwnedNames } from '../utils/ownedNamesUtils'
 import {
   buildSearchResultItems,
   type SearchResultItem,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
 import { getAddressNamesQueryOptions } from './useAddressNames'
-import { getOwnedSubnamesQueryOptions } from './useOwnedSubnames'
 import { useSuggestionTlds } from './useSuggestionTlds'
 
 const MAX_OWNED_NAMES = 5
@@ -129,25 +124,13 @@ export const useSearchResults = ({
     enabled: Boolean(connectedAddress),
   })
 
-  // Subnames of owned names are on no address read, so they are fetched per
-  // owned name: a stopgap until bigname has a relation for them. Only while
-  // there is something to search, as nothing else shows them.
-  const parents = useMemo(() => subnameParents(ownedNames ?? []), [ownedNames])
-  const { data: ownedSubnames } = useQuery({
-    ...getOwnedSubnamesQueryOptions({ parents }),
-    enabled: Boolean(connectedAddress && searchValue) && parents.length > 0,
-  })
-
   // A registry child without a name row has no page to navigate to.
   const ownedNameList = useMemo(
     () =>
-      mergeOwnedNames(
-        (ownedNames ?? [])
-          .filter(({ hasNameRow }) => hasNameRow)
-          .map(({ name }) => ({ name })),
-        ownedSubnames ?? [],
-      ),
-    [ownedNames, ownedSubnames],
+      (ownedNames ?? [])
+        .filter(({ hasNameRow }) => hasNameRow)
+        .map(({ name }) => ({ name })),
+    [ownedNames],
   )
 
   /** The name the input refers to exactly, e.g. "fox" and "fox.eth" both mean fox.eth. */

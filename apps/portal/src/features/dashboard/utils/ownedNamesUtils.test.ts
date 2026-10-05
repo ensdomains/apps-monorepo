@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  filterAndSortOwnedNames,
-  is2LD,
-  labelCount,
-  MAX_SUBNAME_PARENTS,
-  mergeOwnedNames,
-  subnameParents,
-} from './ownedNamesUtils'
+import { filterAndSortOwnedNames, is2LD, labelCount } from './ownedNamesUtils'
 
 describe('labelCount', () => {
   it('returns 2 for 2LD names', () => {
@@ -195,84 +188,5 @@ describe('filterAndSortOwnedNames', () => {
     expect(resultNames).toContain('test.florin.eth')
     expect(resultNames).toContain('testing.eth')
     expect(resultNames).not.toContain('other.eth')
-  })
-})
-
-describe('subnameParents', () => {
-  type Parent = Parameters<typeof subnameParents>[0][number]
-  const item = (overrides: Partial<Parent>): Parent => ({
-    name: 'ensforge.eth',
-    protocolVersion: 'ENSv2',
-    relations: ['owner', 'manager', 'role_holder'],
-    hasNameRow: true,
-    subdomainCount: 10,
-    ...overrides,
-  })
-
-  it('keeps owned ENSv2 names that have subnames', () => {
-    // 0x5b7d…ff5d on Sepolia: two of its ENSv2 names have subnames.
-    expect(
-      subnameParents([
-        item({ name: 'alias.ensforge.eth', subdomainCount: 0 }),
-        item({ name: 'branch.ensforge.eth', subdomainCount: 1 }),
-        item({ name: 'ensforge.eth', subdomainCount: 10 }),
-      ]),
-    ).toEqual(['branch.ensforge.eth', 'ensforge.eth'])
-  })
-
-  it('leaves out ENSv1 names, as the Panoptes list did', () => {
-    expect(
-      subnameParents([item({ name: 'leon01.eth', protocolVersion: 'ENSv1' })]),
-    ).toEqual([])
-  })
-
-  it('leaves out names the address does not own', () => {
-    expect(
-      subnameParents([
-        item({ name: 'managed.eth', relations: ['manager'] }),
-        item({ name: 'openregistry.eth', relations: ['resolves_to'] }),
-      ]),
-    ).toEqual([])
-  })
-
-  it('leaves out registry children without a name row', () => {
-    expect(subnameParents([item({ hasNameRow: false })])).toEqual([])
-  })
-
-  it('keeps a name whose subname count is unknown', () => {
-    expect(subnameParents([item({ subdomainCount: undefined })])).toEqual([
-      'ensforge.eth',
-    ])
-  })
-
-  it(`stops at ${MAX_SUBNAME_PARENTS} names, in list order`, () => {
-    const names = Array.from({ length: 30 }, (_, i) =>
-      item({ name: `name${i}.eth` }),
-    )
-
-    const parents = subnameParents(names)
-
-    expect(parents).toHaveLength(MAX_SUBNAME_PARENTS)
-    expect(parents[0]).toBe('name0.eth')
-    expect(parents.at(-1)).toBe('name24.eth')
-  })
-})
-
-describe('mergeOwnedNames', () => {
-  it('appends subnames the address does not already list', () => {
-    expect(
-      mergeOwnedNames(
-        [{ name: 'ensforge.eth' }, { name: 'alias.ensforge.eth' }],
-        [
-          { name: 'alias.ensforge.eth' },
-          { name: 'Different-Owner.ensforge.eth' },
-          { name: 'different-owner.ensforge.eth' },
-        ],
-      ),
-    ).toEqual([
-      { name: 'ensforge.eth' },
-      { name: 'alias.ensforge.eth' },
-      { name: 'Different-Owner.ensforge.eth' },
-    ])
   })
 })
