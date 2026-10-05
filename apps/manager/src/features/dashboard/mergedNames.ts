@@ -6,6 +6,7 @@ import {
   isInGracePeriod,
 } from '@/features/grace/utils/gracePeriod'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
   formatDashboardDate,
@@ -75,6 +76,13 @@ const formatMergedExpiryDate = (
 const normalizeMergedName = (name: string | null | undefined): string | null =>
   name ? name.toLowerCase() : null
 
+// Un-normalised names render as the canonical name they resemble (WEB-1730)
+const isDisplayableV2 = (domain: DashboardV2Name): boolean =>
+  !domain.name || isNormalizedName(domain.name)
+
+const isDisplayableV1 = (classified: DashboardV1Name): boolean =>
+  isNormalizedName(classified.domain.name)
+
 const getV2NameSet = (
   v2Names: readonly DashboardV2Name[],
 ): ReadonlySet<string> =>
@@ -127,6 +135,7 @@ export const buildMergedNamesList = (params: {
   const v2NameSet = getV2NameSet(v2Names)
 
   for (const domain of v2Names) {
+    if (!isDisplayableV2(domain)) continue
     const label = resolveDomainLabel(domain)
     if (q && !label.toLowerCase().includes(q)) continue
     items.push({
@@ -140,6 +149,7 @@ export const buildMergedNamesList = (params: {
   }
 
   for (const classified of v1Classified) {
+    if (!isDisplayableV1(classified)) continue
     const label = classified.domain.name
     if (v2NameSet.has(label.toLowerCase())) continue
     if (
@@ -169,10 +179,12 @@ export const getMergedNamesCount = (params: {
 }): number => {
   const v2NameSet = getV2NameSet(params.v2Names)
   const v1OnlyCount = params.v1Classified.filter(
-    (classified) => !v2NameSet.has(classified.domain.name.toLowerCase()),
+    (classified) =>
+      isDisplayableV1(classified) &&
+      !v2NameSet.has(classified.domain.name.toLowerCase()),
   ).length
 
-  return params.v2Names.length + v1OnlyCount
+  return params.v2Names.filter(isDisplayableV2).length + v1OnlyCount
 }
 
 export type MergedRowMetadata = {
