@@ -19,10 +19,15 @@ export type PostHogEvents = {
 
 export type PostHogEvent = keyof PostHogEvents
 
+// False until telemetry is enabled (init is skipped) and again after opt-out.
+export const isPostHogActive = (): boolean =>
+  posthog.__loaded && posthog.is_capturing()
+
 export function track<N extends PostHogEvent>(
   name: N,
   ...args: PostHogEvents[N] extends undefined ? [] : [PostHogEvents[N]]
 ): void {
+  if (!isPostHogActive()) return
   posthog.capture(name, args[0])
 }
 
@@ -31,5 +36,6 @@ export function trackWithOptions<N extends PostHogEvent>(
   args: PostHogEvents[N],
   options: CaptureOptions,
 ): void {
+  if (!isPostHogActive()) return
   posthog.capture(name, args, options)
 }
