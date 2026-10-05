@@ -23,6 +23,7 @@ import {
   grantRolesWriteParameters,
   revokeRolesWriteParameters,
 } from '@ensdomains/ensjs/wallet/v2'
+import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import {
@@ -1203,5 +1204,191 @@ test.describe('Portal name roles — repeat changes in one session (WEB-1418)', 
     await driveSecondAttempt(page, wallet, PORTAL_TRANSACTION_IDS.grantRoles)
 
     await assertRoleBitmap({ label }, grantee, ['ROLE_SET_RESOLVER'])
+  })
+})
+
+/**
+ * Remove user on a role holder's row (WEB-1487, Immunefi #92542, #1269).
+ *
+ * Bug: the sidebar's Remove user passed the row's raw decoded role list to
+ * `revokeRoles`. On a `.eth` 2LD that list includes `ROLE_CAN_TRANSFER_ADMIN`,
+ * which `PermissionedRegistry._update` checks on the token owner, and which no
+ * account can grant back once its last holder loses it. Removing the owner's
+ * own row froze the name for the rest of its term, behind a confirmation that
+ * only warned about "adding more users".
+ *
+ * Fix: `buildRemoveUserPlan` keeps the transfer role back (and any role the
+ * caller isn't admin for), and `RemoveUserConfirmDialog` names exactly what is
+ * revoked and why anything is kept.
+ *
+ * What these reach that `removeUserPlan.test.ts` doesn't: the real role set the
+ * registrar grants, the caller and root-holder reads `useRemoveUserPlan` makes,
+ * the bitmap the transaction actually encodes, and whether the registry still
+ * lets the owner transfer afterwards.
+ */
+test.describe('Portal name roles — Remove user keeps the transfer role (WEB-1487)', () => {
+  test.describe.configure({ timeout: 240_000 })
+
+  /**
+   * Local Panoptes answers the typed `eacRolesChangeds` query with `null`,
+   * which the reader can't recover from. Aborting it sends the app to its node
+   * fallback, as an indexer outage would. Every log is still the chain's.
+   */
+  const useNodeForRoleEvents = (page: Page) =>
+    page.route('**/graphql', (route) =>
+      (route.request().postData() ?? '').includes('RoleChangeEvents')
+        ? route.abort()
+        : route.fallback(),
+    )
+
+  const rolesPanel = (page: Page) =>
+    page
+      .locator('h3', { hasText: 'parent registry / roles' })
+      .locator('xpath=parent::div/following-sibling::*[1]')
+
+  /** Opens `account`'s sheet from its row and presses Remove user. */
+  async function openRemoveUser(page: Page, account: Address) {
+    const row = rolesPanel(page).locator('tr', { hasText: truncate(account) })
+    await expect(row).toHaveCount(1, { timeout: 60_000 })
+    await row.getByRole('button', { name: 'Edit user roles' }).click()
+    await expect(
+      page.getByRole('heading', { name: truncate(account) }),
+    ).toBeVisible({
+      timeout: 20_000,
+    })
+    const remove = page.getByRole('button', { name: 'Remove user' })
+    await expect(remove).toBeEnabled({ timeout: 20_000 })
+    await remove.click()
+    const confirm = page.getByRole('dialog', { name: 'Remove user' })
+    await expect(confirm).toBeVisible()
+    return confirm
+  }
+
+  test("removing the owner's own row keeps Can Transfer, and the name can still be transferred", {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'roles-rm-owner', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+
+    // The registrar's grant is the precondition the bug needs: the owner's row
+    // carries the transfer role alongside the ones the sheet displays.
+    const before = (await readNameRoles({ label }, owner)).decoded
+    expect(
+      before,
+      'the registrar should grant the owner the transfer role',
+    ).toContain('ROLE_CAN_TRANSFER_ADMIN')
+    expect(
+      (await readRoleHolders({ label })).size,
+      'the owner should be the only holder, so it is the last transfer-role holder',
+    ).toBe(1)
+
+    await useNodeForRoleEvents(page)
+    await page.goto(rolesPage(name))
+    const confirm = await openRemoveUser(page, owner)
+
+    // Soft, so the chain read below is what a pre-fix run reports.
+    await expect
+      .soft(
+        confirm.getByText('Transfer permission is kept.'),
+        'the dialog should say the transfer role is kept',
+      )
+      .toBeVisible()
+    await expect
+      .soft(
+        confirm.getByText(
+          /no other account is admin for .*nobody can grant them back/i,
+        ),
+        'revoking the sole admin roles should be flagged as destructive',
+      )
+      .toBeVisible()
+    await confirm.getByRole('button', { name: 'Remove', exact: true }).click()
+    // Its close animation leaves a second dialog-content in the DOM.
+    await expect(
+      page.locator('[data-slot="dialog-content"][data-state="closed"]'),
+    ).toHaveCount(0, { timeout: 15_000 })
+
+    await driveTransactionsToSuccess(page, wallet, [
+      PORTAL_TRANSACTION_IDS.revokeRoles,
+    ])
+
+    // Exactly the transfer role is left: it was kept, and everything else the
+    // row held was still revoked, so the button didn't just do nothing.
+    await assertRoleBitmap({ label }, owner, ['ROLE_CAN_TRANSFER_ADMIN'])
+
+    // The behaviour the role exists for: the registry still lets the owner
+    // move the name. Pre-fix this reverts `TransferDisallowed`. The revoke
+    // re-mints the token, so the id is read back rather than derived.
+    const readState = () =>
+      publicClient.readContract({
+        address: ETH_REGISTRY,
+        abi: permissionedRegistryGetStateSnippet,
+        functionName: 'getState',
+        args: [labelToCanonicalId(label)],
+      })
+    const { tokenId } = await readState()
+    const recipient = privateKeyToAddress(generatePrivateKey())
+    const receipt = await registryWrite(
+      wallets.account('owner'),
+      encodeFunctionData({
+        abi: REGISTRY_WRITE_ABI,
+        functionName: 'safeTransferFrom',
+        args: [owner, recipient, tokenId, 1n, '0x'],
+      }),
+    )
+    expect(
+      receipt.status,
+      'the owner should still be able to transfer the name',
+    ).toBe('success')
+    expect(
+      (await readState()).latestOwner,
+      'the name should now belong to the recipient',
+    ).toBe(recipient)
+  })
+
+  test("removing another holder's row revokes everything they hold, and leaves the owner alone", async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    // Guard: the legitimate path behaves the same before and after the fix.
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = wallets.address('owner')
+    const manager = wallets.address('manager')
+    const name = await makeName({ label: 'roles-rm-manager', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER', 'ROLE_SET_SUBREGISTRY'],
+      wallets.account('owner'),
+    )
+    const ownerBefore = (await readNameRoles({ label }, owner)).decoded
+
+    await useNodeForRoleEvents(page)
+    await page.goto(rolesPage(name))
+    const confirm = await openRemoveUser(page, manager)
+
+    // A non-owner row holds no transfer role, so nothing is held back.
+    await expect(confirm.getByText('Transfer permission is kept.')).toHaveCount(
+      0,
+    )
+    await confirm.getByRole('button', { name: 'Remove', exact: true }).click()
+    // Its close animation leaves a second dialog-content in the DOM.
+    await expect(
+      page.locator('[data-slot="dialog-content"][data-state="closed"]'),
+    ).toHaveCount(0, { timeout: 15_000 })
+
+    await driveTransactionsToSuccess(page, wallet, [
+      PORTAL_TRANSACTION_IDS.revokeRoles,
+    ])
+
+    await assertRoleBitmap({ label }, manager, [])
+    await assertRoleBitmap({ label }, owner, ownerBefore)
   })
 })
