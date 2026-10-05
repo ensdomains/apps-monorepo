@@ -92,6 +92,13 @@ export const getHolderId = (): string => {
 type HolderMessage = {
   readonly type: 'claim' | 'taken'
   readonly holderId: string
+  /**
+   * Orders two tabs claiming the same id at once, lower first. A reload racing
+   * its own duplicate would otherwise have both step aside, leaving the live
+   * lock owned by neither tab and the wallet blocked until it goes stale.
+   * Absent from a tab that has already settled, which always keeps its id.
+   */
+  readonly claimRank?: string
 }
 
 const isHolderMessage = (data: unknown): data is HolderMessage => {
@@ -100,9 +107,17 @@ const isHolderMessage = (data: unknown): data is HolderMessage => {
   const message = data as Record<string, unknown>
   return (
     (message.type === 'claim' || message.type === 'taken') &&
-    typeof message.holderId === 'string'
+    typeof message.holderId === 'string' &&
+    (message.claimRank === undefined || typeof message.claimRank === 'string')
   )
 }
+
+/**
+ * Whether this tab keeps the id against a tab claiming it at the same moment.
+ * Any total order will do; what matters is that exactly one side yields.
+ */
+const outranksClaim = (theirs: string | undefined, ours: string): boolean =>
+  theirs === undefined ? false : ours < theirs
 
 /** A fresh id for this tab, replacing whatever it inherited. */
 const takeNewHolderId = (): string => {
@@ -149,26 +164,55 @@ export const claimTabHolderId = (): Promise<string> => {
       return
     }
 
+    const claimRank = crypto.randomUUID()
+    // Cleared once settled, and a settled tab answers without a rank: it has
+    // held the id long enough that a fresh claim on it is the clone's.
+    let pendingRank: string | undefined = claimRank
+
+    const settle = (holderId: string) => {
+      pendingRank = undefined
+      resolve(holderId)
+    }
+
     channel.addEventListener('message', (event: MessageEvent<unknown>) => {
       if (!isHolderMessage(event.data)) return
       if (event.data.holderId !== getHolderId()) return
 
       if (event.data.type === 'claim') {
+        // Yield to the other side of a simultaneous claim rather than answer
+        // it: both tabs rotating would orphan the lock this id still holds.
+        if (
+          pendingRank !== undefined &&
+          !outranksClaim(event.data.claimRank, pendingRank)
+        ) {
+          return
+        }
+
         channel.postMessage({ type: 'taken', holderId: getHolderId() })
         return
       }
 
       // Another live tab already answers to this id, so this tab is the clone.
-      resolve(takeNewHolderId())
+      settle(takeNewHolderId())
     })
 
-    channel.postMessage({ type: 'claim', holderId: getHolderId() })
+    channel.postMessage({ type: 'claim', claimRank, holderId: getHolderId() })
     // Unanswered means nobody else holds it: a reload, or the first tab.
-    window.setTimeout(() => resolve(getHolderId()), CLAIM_REPLY_WINDOW_MS)
+    window.setTimeout(() => settle(getHolderId()), CLAIM_REPLY_WINDOW_MS)
   })
 
   return holderClaim
 }
+
+/**
+ * Drop this tab's claims once its identity has settled.
+ *
+ * Both ends of the flow's lifecycle go through here: a duplicated tab that
+ * mounts and leaves inside the claim window would otherwise sweep with the id
+ * it inherited, which is the live claim of the tab it was cloned from.
+ */
+export const releaseHolderLocksWhenSettled = (): Promise<void> =>
+  claimTabHolderId().then(() => releaseHolderLocks())
 
 const readLock = (owner: Address): RegistrationLock | undefined =>
   readLocks()[owner.toLowerCase()]

@@ -340,15 +340,15 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     )
     asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
 
+    const hcaAccount = {
+      signer: { type: 'rhinestone' },
+      accountAddress: HCA_ADDRESS,
+      ownerAddress: EOA_ADDRESS,
+      walletClient: {},
+    } as unknown as SmartAccountContextValue
+
     const actor = startActorInTokens()
-    actor.send(
-      startEvent({
-        signer: { type: 'rhinestone' } as any,
-        accountAddress: HCA_ADDRESS,
-        ownerAddress: EOA_ADDRESS,
-        walletClient: {} as any,
-      } as unknown as SmartAccountContextValue),
-    )
+    actor.send(startEvent(hcaAccount))
     expect(actor.getSnapshot().context.walletBusyWith).toBe('othername.eth')
 
     // Going back to the quote drops it, and so does a later real error: both
