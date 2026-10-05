@@ -31,7 +31,6 @@
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
-    "@ensdomains/ensjs-abi": "catalog:",
     "@hono/valibot-validator": "^0.5.3",
     "@neondatabase/serverless": "^1.0.2",
     "@react-email/components": "^1.0.12",

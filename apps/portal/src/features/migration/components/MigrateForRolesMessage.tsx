@@ -27,8 +27,8 @@ export const MigrateForRolesMessage = ({
       <p>This name is not wrapped, so it has no fuses to show.</p>
       <p>
         {canMigrate
-          ? 'Roles and permissions replace fuses in ENSv2. Migrate this name to v2 in order to assign Roles.'
-          : 'Roles and permissions replace fuses in ENSv2. This name would need to be migrated to v2 to use them.'}
+          ? 'Roles and permissions replace fuses in ENSv2. Upgrade this name to v2 in order to assign Roles.'
+          : 'Roles and permissions replace fuses in ENSv2. This name would need to be upgraded to v2 to use them.'}
       </p>
     </AlertDescription>
     {canMigrate && (

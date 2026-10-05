@@ -45,7 +45,7 @@ export const Route = createFileRoute('/renew-v1/$name')({
 
     if (!isRenewable) {
       throw new Error(
-        'This ENSv1 name is migrated, unreserved, or outside its renewal window.',
+        'This ENSv1 name is upgraded, unreserved, or outside its renewal window.',
       )
     }
 

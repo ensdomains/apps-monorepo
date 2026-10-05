@@ -83,7 +83,7 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
   NameChanged: { text: 'Primary name updated', valueField: 'name' },
 
   // Migration
-  NameWrapped: { text: 'Migrated from ENSv1 to ENSv2' },
+  NameWrapped: { text: 'Upgraded from ENSv1 to ENSv2' },
   NameUnwrapped: { text: 'Unwrapped from ENSv2' },
 
   // Access control — account lives inside data.account

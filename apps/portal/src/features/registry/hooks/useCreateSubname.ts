@@ -7,7 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletClient } from 'wagmi'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
@@ -42,10 +42,10 @@ export function useCreateSubname() {
       })
     },
     onSuccess: (_data, variables) => {
-      const subnamesQueryKey = getSubnamesQueryOptions({
+      const subnamesQueryKey = getSubnamesQueryKey({
         name: variables.parentName,
         protocolVersion: variables.protocolVersion,
-      }).queryKey
+      })
 
       queryClient.invalidateQueries({
         queryKey: subnamesQueryKey,

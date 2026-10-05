@@ -122,6 +122,7 @@ const NO_OPTIONS = {
   setEthAddress: false,
   detachResolver: false,
   detachRegistry: false,
+  revokeRoles: false,
 } as const
 
 /** A raw-address recipient: the form's value is the address itself. */
@@ -129,6 +130,8 @@ const to = (recipient: Address) => ({
   recipientInput: recipient,
   recipient,
   options: NO_OPTIONS,
+  roleGrants: [],
+  hasRemainingRoleHolders: false,
 })
 
 const tokenIdRead = (index: number) => {
@@ -179,6 +182,8 @@ describe('useTransferName preparation runs', () => {
         recipientInput: 'bob.eth',
         recipient: RECIPIENT_A,
         options: NO_OPTIONS,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
       })
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
@@ -198,6 +203,8 @@ describe('useTransferName preparation runs', () => {
         recipientInput: 'bob.eth',
         recipient: RECIPIENT_A,
         options: NO_OPTIONS,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
       })
     })
 

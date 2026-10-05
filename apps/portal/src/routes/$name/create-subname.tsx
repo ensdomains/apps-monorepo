@@ -22,7 +22,7 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getIsSubnameTakenQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
@@ -150,16 +150,15 @@ const CreateSubnameForm = ({
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
-  const { data: existingSubnames } = useQuery({
-    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
-    enabled: Boolean(hasSubregistry),
-  })
-
   const trimmedLabel = label.trim()
   const labelError = getLabelRegistrationError(trimmedLabel)
-  const isLabelTaken = Boolean(
-    trimmedLabel && existingSubnames?.some((s) => s.labelName === trimmedLabel),
-  )
+
+  // Asked about the one label rather than read off the list: a name can hold
+  // thousands of subnames, and the list is only ever loaded a page at a time.
+  const { data: isLabelTaken = false } = useQuery({
+    ...getIsSubnameTakenQueryOptions({ name, label: trimmedLabel }),
+    enabled: Boolean(hasSubregistry) && Boolean(trimmedLabel) && !labelError,
+  })
 
   const handleStartTransaction = () => {
     if (!hasSubregistry || !ownerAddress || !resolverAddress || labelError) {

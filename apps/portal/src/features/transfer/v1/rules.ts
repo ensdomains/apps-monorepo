@@ -23,7 +23,7 @@ import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual } from 'viem'
 import { is2LD } from '@/utils/ens/tldHelpers'
 import type {
-  TransferOptionKey,
+  TransferDetachOptionKey,
   V1ParentState,
   V1TransferActor,
   V1TransferSubject,
@@ -223,7 +223,7 @@ export const getV1DetachTargets = ({
   readonly resolverAddress: Address | null
   readonly account: Address
   readonly hasEthAddress: boolean
-}): Readonly<Record<TransferOptionKey, boolean>> => {
+}): Readonly<Record<TransferDetachOptionKey, boolean>> => {
   // Resolver record writes: PublicResolver authorises the registry owner, or
   // the wrapper owner when the registry owner is the wrapper. For an unwrapped
   // 2LD that is the controller — the registrant alone can't write records. A

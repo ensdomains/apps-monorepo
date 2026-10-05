@@ -78,6 +78,7 @@ export const RolesTable = ({
       name={name}
       canManageRoles={canManageRoles}
       registryAddress={registryAddress}
+      roleHolders={roles}
     >
       <div className={rolesTableClassName(canManageRoles)}>
         <DataTable
