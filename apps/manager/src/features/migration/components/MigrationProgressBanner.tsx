@@ -70,7 +70,7 @@ export const MigrationProgressBanner = () => {
           </div>
           <MigrationUpgradeButton
             className="w-full shrink-0 md:w-[338px]"
-            onClick={() => navigate({ to: '/migration' })}
+            onClick={() => navigate({ to: '/upgrade' })}
             showNftPlaceholder={nftCopyEnabled && isConfirmedUnclaimed}
             type="button"
           >

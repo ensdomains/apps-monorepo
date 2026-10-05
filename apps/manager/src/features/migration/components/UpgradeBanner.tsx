@@ -126,7 +126,7 @@ export const UpgradeBanner = ({
         </div>
         <MigrationUpgradeButton
           className="w-full shrink-0 md:w-75"
-          onClick={() => navigate({ to: '/migration' })}
+          onClick={() => navigate({ to: '/upgrade' })}
           showNftPlaceholder={
             !shouldRenewNames && nftCopyEnabled && isConfirmedUnclaimed
           }

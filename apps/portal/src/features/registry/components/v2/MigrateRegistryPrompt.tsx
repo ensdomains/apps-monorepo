@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
-import { MANAGER_MIGRATE_URL } from '@/lib/constants/domain'
+import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 import { RegistryPanel } from './RegistryPanel'
 
 /**
@@ -29,14 +29,14 @@ export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
           No registry configured
         </h3>
         <p className="text-base">
-          This name must be migrated to ENSv2 before it can deploy and manage
+          This name must be upgraded to ENSv2 before it can deploy and manage
           its own registry.
         </p>
       </div>
       <Button asChild className="w-full">
-        <a href={MANAGER_MIGRATE_URL} target="_blank" rel="noopener noreferrer">
+        <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
           <Plus className="size-4" />
-          Migrate name to ENSv2
+          Upgrade name to ENSv2
         </a>
       </Button>
     </RegistryPanel>
