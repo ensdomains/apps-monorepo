@@ -128,11 +128,11 @@ const graceMock = (
   expiryDate: Number(grace.expiry),
 })
 
-/** Mock the subgraph, align the browser clock with the chain, and open /migration. */
+/** Mock the subgraph, align the browser clock with the chain, and open /upgrade. */
 async function openMigration(page: Page, names: MockV1Name[]) {
   await mockV1Subgraph(page, names)
   await syncBrowserToChain(page)
-  await page.goto(`${MANAGER_APP_URL}/migration`)
+  await page.goto(`${MANAGER_APP_URL}/upgrade`)
 }
 
 async function qaShot(page: Page, name: string) {
@@ -287,7 +287,7 @@ async function dismissWelcomeDialog(page: Page) {
 test.describe('Grace-period names in migration (WEB-424)', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  test('a grace-period name is offered for renewal from the dashboard and listed on /migration', {
+  test('a grace-period name is offered for renewal from the dashboard and listed on /upgrade', {
     tag: ['@smoke'],
   }, async ({ migrationConnectedPage: page, accounts }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
@@ -313,8 +313,9 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await qaShot(page, 'list-1-dashboard')
     await renew.click()
 
-    // ── /migration: the grace name is listed, selected, and badged ──
-    await expect(page).toHaveURL(/\/migration$/)
+    // ── /upgrade: the grace name is listed, selected, and badged ──
+    // #1307 renamed /migration to /upgrade (the old path redirects).
+    await expect(page).toHaveURL(/\/upgrade$/)
     await expect(
       main.getByRole('heading', {
         level: 1,
@@ -454,7 +455,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await qaShot(page, 'mixed-1-dashboard')
 
     // ── /migration: both selected; only the grace name carries the badge ──
-    await page.goto(`${MANAGER_APP_URL}/migration`)
+    await page.goto(`${MANAGER_APP_URL}/upgrade`)
     await expect(
       main.getByRole('heading', {
         level: 1,
@@ -623,7 +624,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await assertV2Reserved(grace.label)
 
     // Back on /migration the grace name is still offered, now on its own.
-    await page.goto(`${MANAGER_APP_URL}/migration`)
+    await page.goto(`${MANAGER_APP_URL}/upgrade`)
     await expect(
       page.locator('main').getByRole('heading', {
         level: 1,
