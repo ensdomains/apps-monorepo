@@ -316,7 +316,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
     // Nothing started here, so the screen names the blocking run rather than
     // reporting this one as failed.
-    expect(snapshot.context.walletBusyWith).toBe('othername.eth')
+    expect(snapshot.context.isWalletBusy).toBe(true)
 
     // QA's sequence: the block held, then Try Again went straight through.
     actor.send({ type: 'retry' })
@@ -329,7 +329,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     actor.send({ type: 'retry' })
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(getChild(actor).getSnapshot().value).toBe('running')
-    expect(actor.getSnapshot().context.walletBusyWith).toBeUndefined()
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(false)
   })
 
   // A refusal is not a failure, and a later real failure must not keep
@@ -349,19 +349,19 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
 
     const actor = startActorInTokens()
     actor.send(startEvent(hcaAccount))
-    expect(actor.getSnapshot().context.walletBusyWith).toBe('othername.eth')
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(true)
 
     // Going back to the quote drops it, and so does a later real error: both
     // would otherwise keep showing "another registration is running".
     actor.send({ type: 'cancel' })
-    expect(actor.getSnapshot().context.walletBusyWith).toBeUndefined()
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(false)
 
     asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
     actor.send({ type: '$error', error: new Error('reverted') })
 
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
-    expect(snapshot.context.walletBusyWith).toBeUndefined()
+    expect(snapshot.context.isWalletBusy).toBe(false)
     expect(snapshot.context.lastErrorMessage).toBe('reverted')
   })
 

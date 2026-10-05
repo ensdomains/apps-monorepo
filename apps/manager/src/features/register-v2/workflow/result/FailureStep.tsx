@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Clock, XCircle } from 'lucide-react'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
@@ -17,18 +17,18 @@ export const FailureStep = () => {
   )
   // Another tab is registering with this wallet. Nothing started here, so the
   // screen waits on that run rather than offering to retry this one.
-  const walletBusyWith = RegisterV2Context.useSelector(
-    (state) => state.context.walletBusyWith,
+  const isWalletBusy = RegisterV2Context.useSelector(
+    (state) => state.context.isWalletBusy,
   )
 
   return (
     <FailureStepView
+      isWalletBusy={isWalletBusy}
       label={label}
       message={message}
       nameUnavailable={nameUnavailable}
       onCancel={() => uiActor.send({ type: 'cancel' })}
       onRetry={() => uiActor.send({ type: 'retry' })}
-      walletBusyWith={walletBusyWith}
     />
   )
 }
@@ -37,8 +37,8 @@ interface FailureStepViewProps {
   readonly label: string
   readonly message?: string
   readonly nameUnavailable?: boolean
-  /** The name holding the wallet, when this run was refused rather than failed. */
-  readonly walletBusyWith?: string
+  /** This run was refused because the wallet is busy, rather than failing. */
+  readonly isWalletBusy?: boolean
   readonly onRetry: () => void
   readonly onCancel: () => void
 }
@@ -47,12 +47,11 @@ export const FailureStepView = ({
   label,
   message,
   nameUnavailable,
-  walletBusyWith,
+  isWalletBusy = false,
   onRetry,
   onCancel,
 }: FailureStepViewProps) => {
   const { t } = useLingui()
-  const isWalletBusy = !!walletBusyWith
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
@@ -60,12 +59,12 @@ export const FailureStepView = ({
         {isWalletBusy ? (
           <Clock
             aria-hidden="true"
-            className="mt-0.5 h-4 w-4 shrink-0 text-ens-lapis-dense"
+            className="mt-0.5 size-4 shrink-0 text-ens-lapis-dense"
           />
         ) : (
           <XCircle
             aria-hidden="true"
-            className="mt-0.5 h-4 w-4 shrink-0 text-ens-lapis-dense"
+            className="mt-0.5 size-4 shrink-0 text-ens-lapis-dense"
           />
         )}
         <div className="flex min-w-0 flex-col gap-1">
@@ -99,17 +98,17 @@ export const FailureStepView = ({
               <Trans>What would you like to do?</Trans>
             </h3>
             <p className="text-ens-gray text-sm">
-              {match({ nameUnavailable, walletBusyWith })
+              {match({ nameUnavailable, isWalletBusy })
                 .with({ nameUnavailable: true }, () => (
                   <Trans>
                     Another address registered this name first, so it can no
                     longer be registered here. Go back to pick a different name.
                   </Trans>
                 ))
-                .with({ walletBusyWith: P.string }, () => (
+                .with({ isWalletBusy: true }, () => (
                   <Trans>
-                    Finish or cancel the other registration in its tab. Try
-                    Again then picks this one up from the start.
+                    Finish or cancel the other registration in its tab, then Try
+                    Again once this wallet is free.
                   </Trans>
                 ))
                 .otherwise(() => (

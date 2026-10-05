@@ -104,11 +104,13 @@ type Context = {
    */
   nameUnavailable: boolean
   /**
-   * The name holding this wallet when a start or resume was refused. Nothing
-   * ran and nothing failed, so the screen says so instead of offering a retry
-   * of a registration that never began.
+   * A start or resume was refused because the wallet is registering elsewhere.
+   * Nothing ran and nothing failed, so the screen says so instead of offering
+   * a retry of a registration that never began. Tracked apart from the name
+   * holding the wallet: that lookup can come back empty if the other tab
+   * finishes in between, and the refusal still happened.
    */
-  walletBusyWith?: string
+  isWalletBusy: boolean
   /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
   pendingStart?: Extract<
     Events,
@@ -371,7 +373,7 @@ const machineSetup = setup({
     clearError: assign({
       lastErrorMessage: () => undefined,
       nameUnavailable: () => false,
-      walletBusyWith: () => undefined,
+      isWalletBusy: () => false,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -390,7 +392,7 @@ const machineSetup = setup({
           )
           .otherwise(() => false),
       // A real failure replaces a refusal: something did run this time.
-      walletBusyWith: () => undefined,
+      isWalletBusy: () => false,
     }),
     setInvokeError: assign({
       lastErrorMessage: ({ event }) => {
@@ -413,20 +415,13 @@ const machineSetup = setup({
             registrationLockMessage(blockingName),
           )
           .otherwise(() => undefined),
-      walletBusyWith: ({ event }) =>
-        match(event)
-          .with(
-            { type: '$walletBusy' },
-            ({ blockingName }) => blockingName ?? undefined,
-          )
-          .otherwise(() => undefined),
+      isWalletBusy: () => true,
       nameUnavailable: () => false,
     }),
     setRegistrationLockError: assign({
       lastErrorMessage: ({ context }) =>
         registrationLockMessage(blockingRegistrationFor(context)),
-      walletBusyWith: ({ context }) =>
-        blockingRegistrationFor(context) ?? undefined,
+      isWalletBusy: () => true,
     }),
     acquireRegistrationLock: ({ context }) => {
       const confirmed = context.confirmedData
@@ -948,6 +943,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     nameUnavailable: false,
+    isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,

@@ -28,7 +28,7 @@ describe('FailureStepView', () => {
   it('presents a wallet held elsewhere as a wait, not a failure', () => {
     renderView({
       message: 'name-one.eth is already being registered with this wallet.',
-      walletBusyWith: 'name-one.eth',
+      isWalletBusy: true,
     })
 
     expect(screen.getByText('Another Registration Is Running')).toBeVisible()

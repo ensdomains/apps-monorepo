@@ -1061,8 +1061,8 @@ msgid "Fee at this moment"
 msgstr "Fee at this moment"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
-msgid "Finish or cancel the other registration in its tab. Try Again then picks this one up from the start."
-msgstr "Finish or cancel the other registration in its tab. Try Again then picks this one up from the start."
+msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
+msgstr "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"

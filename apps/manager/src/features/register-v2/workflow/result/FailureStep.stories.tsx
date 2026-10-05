@@ -35,7 +35,7 @@ export const WalletBusyElsewhere: Story = {
   args: {
     message:
       'name-one.eth is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.',
-    walletBusyWith: 'name-one.eth',
+    isWalletBusy: true,
   },
 }
 
