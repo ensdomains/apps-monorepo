@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react'
 import type { Address } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fromPromise } from 'xstate'
 import type { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
@@ -22,7 +22,7 @@ vi.mock('@tanstack/react-router', () => ({
 const deploy = vi.hoisted(() => ({ finish: () => {} }))
 // Whether the wallet's resolver is already on-chain from an earlier
 // registration. Read both by the page (step list) and the machine.
-const walletResolver = vi.hoisted(() => ({ deployed: false }))
+const walletResolverDeployed = vi.hoisted(() => vi.fn(() => false))
 const waitForResolverDeployment = vi.hoisted(() =>
   vi.fn(() => new Promise(() => {})),
 )
@@ -35,7 +35,7 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
       actors: {
         checkResolverDeployment: fromPromise(async () => ({
           resolverAddress: '0xbbbb000000000000000000000000000000000002',
-          deployed: walletResolver.deployed,
+          deployed: walletResolverDeployed(),
         })) as never,
         deployResolver: fromPromise(
           () =>
@@ -82,7 +82,7 @@ vi.mock('wagmi', async (importOriginal) => ({
     refetch: async () => ({ data: undefined }),
   }),
   useBytecode: () => {
-    const data = walletResolver.deployed ? '0x6080' : null
+    const data = walletResolverDeployed() ? '0x6080' : null
     return { data, refetch: async () => ({ data }) }
   },
 }))
@@ -141,6 +141,10 @@ const RegisterRoute = (Route as unknown as { component: () => React.ReactNode })
   .component
 
 describe('/register', () => {
+  afterEach(() => {
+    walletResolverDeployed.mockReset()
+  })
+
   it('stops the flow for the old name when ?name= changes', async () => {
     search.name = 'expensive.eth'
     const { rerender } = render(<RegisterRoute />)
@@ -234,7 +238,7 @@ describe('/register', () => {
 
   it('reuses the resolver an earlier registration deployed', async () => {
     search.name = 'second.eth'
-    walletResolver.deployed = true
+    walletResolverDeployed.mockReturnValue(true)
     waitForResolverDeployment.mockClear()
     render(<RegisterRoute />)
 
@@ -255,6 +259,5 @@ describe('/register', () => {
       '0xbbbb000000000000000000000000000000000002',
     )
     expect(waitForResolverDeployment).not.toHaveBeenCalled()
-    walletResolver.deployed = false
   })
 })

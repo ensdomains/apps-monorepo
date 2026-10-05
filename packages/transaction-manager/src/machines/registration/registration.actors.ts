@@ -362,11 +362,11 @@ export function createTransactionRequest(params: {
  * (`computeResolverSalt`).
  */
 export function computeDedicatedResolverAddress(input: {
-  chainId: number
+  readonly chainId: number
   /** The account that calls `deployProxy`. */
-  deployer: Address
+  readonly deployer: Address
   /** The account the resolver grants its roles to. */
-  owner: Address
+  readonly owner: Address
 }): Address {
   const contracts = getDestinationContracts(input.chainId)
   return computeVerifiableProxyAddress({
@@ -381,9 +381,9 @@ export function computeDedicatedResolverAddress(input: {
  * Find the wallet's resolver and whether it still has to be deployed.
  */
 export function checkResolverDeploymentActor(input: {
-  owner: Address
-  signer: Signer
-  publicClient: PublicClient
+  readonly owner: Address
+  readonly signer: Signer
+  readonly publicClient: PublicClient
 }): ResultAsync<{ resolverAddress: Address; deployed: boolean }, Error> {
   return fromPromise(
     (async () => {

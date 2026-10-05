@@ -269,9 +269,20 @@ export const useRegistrationTransactions = ({
     // code" would list the deploy step again.
     query: { staleTime: 0 },
   })
-  const needsResolverDeploy = !walletResolverQuery.data
+  // wagmi reads "no code" as `null`; `undefined` is a read still pending or
+  // failed, which says nothing either way. Only a confirmed absence lists the
+  // step, or its estimate runs against a resolver that already exists.
+  const needsResolverDeploy = walletResolverQuery.data === null
   const { refetch: refetchWalletResolver } = walletResolverQuery
   const showResolverDeployStep = resolverDeployPlanned ?? needsResolverDeploy
+
+  // A run whose start-time read was inconclusive takes the machine's own check
+  // as the plan, so the step is listed exactly when the machine deploys.
+  useEffect(() => {
+    if (resolverDeployPlanned !== null) return
+    if (machineState === 'deployingResolver') setResolverDeployPlanned(true)
+    if (machineState === 'preparingCommitment') setResolverDeployPlanned(false)
+  }, [machineState, resolverDeployPlanned])
 
   const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
@@ -307,7 +318,10 @@ export const useRegistrationTransactions = ({
     setApprovalPlanned(
       allowance === undefined || allowance < savedParams.tokenPrice,
     )
-    setResolverDeployPlanned(!walletResolverCode)
+    // Left open when the read gave no answer: the machine's check settles it.
+    setResolverDeployPlanned(
+      walletResolverCode === undefined ? null : walletResolverCode === null,
+    )
 
     transactionManager.clear()
 
