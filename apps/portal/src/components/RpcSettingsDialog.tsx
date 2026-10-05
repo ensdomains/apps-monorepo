@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { match } from 'ts-pattern'
 import {
   checkRpcEndpoint,
   getCustomRpcUrl,
@@ -26,7 +27,25 @@ const INVALID_MESSAGES: Record<InvalidRpcUrlError['reason'], string> = {
 }
 
 const isLocal = (url: string) =>
-  /^(https?|wss?):\/\/(localhost|127\.0\.0\.1)\b/.test(url)
+  /^(https?|wss?):\/\/(localhost|127\.0\.0\.1)([:/?#]|$)/.test(url)
+
+// Form state lives here (not inline in the component) so the reset-on-open
+// effect has a named home. Reopening a Radix dialog doesn't remount it, so
+// without this the previous attempt would still be in the field.
+function useRpcForm(open: boolean) {
+  const [value, setValue] = useState(() => getCustomRpcUrl() ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [isChecking, setIsChecking] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setValue(getCustomRpcUrl() ?? '')
+    setError(null)
+    setIsChecking(false)
+  }, [open])
+
+  return { value, setValue, error, setError, isChecking, setIsChecking }
+}
 
 export const RpcSettingsDialog = ({
   open,
@@ -36,28 +55,31 @@ export const RpcSettingsDialog = ({
   readonly onOpenChange: (open: boolean) => void
 }) => {
   const current = getCustomRpcUrl()
-  const [value, setValue] = useState(current ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
+  const { value, setValue, error, setError, isChecking, setIsChecking } =
+    useRpcForm(open)
 
-  const save = async () => {
+  const save = async (): Promise<void> => {
     const validated = validateRpcUrl(value)
     if (validated.isErr())
       return setError(INVALID_MESSAGES[validated.error.reason])
 
     setError(null)
-    setChecking(true)
+    setIsChecking(true)
     const checked = await checkRpcEndpoint(validated.value)
-    setChecking(false)
+    setIsChecking(false)
 
     if (checked.isErr()) {
       const url = validated.value
+      const isPlaintextRemote = /^(http|ws):/.test(url) && !isLocal(url)
       return setError(
-        checked.error.reason === 'wrong-chain'
-          ? 'This RPC is on a different network.'
-          : /^(http|ws):/.test(url) && !isLocal(url)
-            ? 'Could not reach this RPC. Plain http/ws is blocked on remote hosts; use https/wss.'
-            : 'Could not reach this RPC.',
+        match(checked.error.reason)
+          .with('wrong-chain', () => 'This RPC is on a different network.')
+          .with('unreachable', () =>
+            isPlaintextRemote
+              ? 'Could not reach this RPC. Plain http/ws is blocked on remote hosts; use https/wss.'
+              : 'Could not reach this RPC.',
+          )
+          .exhaustive(),
       )
     }
     saveCustomRpcUrl(validated.value)
@@ -73,29 +95,36 @@ export const RpcSettingsDialog = ({
             providers. The page reloads when you save.
           </DialogDescription>
         </DialogHeader>
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="https://…"
-          aria-label="RPC URL"
-          aria-invalid={error !== null}
-          disabled={checking}
-        />
-        {error && (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        )}
-        <DialogFooter>
-          {current && (
-            <Button variant="ghost" onClick={resetCustomRpcUrl}>
-              Reset to default
-            </Button>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void save()
+          }}
+        >
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="https://…"
+            aria-label="RPC URL"
+            aria-invalid={error !== null}
+            disabled={isChecking}
+          />
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
           )}
-          <Button onClick={save} disabled={checking}>
-            {checking ? 'Checking…' : 'Save'}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            {current && (
+              <Button variant="ghost" type="button" onClick={resetCustomRpcUrl}>
+                Reset to default
+              </Button>
+            )}
+            <Button type="submit" disabled={isChecking}>
+              {isChecking ? 'Checking…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

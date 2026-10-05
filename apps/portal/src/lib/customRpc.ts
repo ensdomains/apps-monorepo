@@ -1,4 +1,4 @@
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result } from 'neverthrow'
 import { envConfig } from '@/config'
 
@@ -20,45 +20,47 @@ export const validateRpcUrl = (
   const trimmed = input.trim()
   if (!trimmed) return err(new InvalidRpcUrlError({ reason: 'empty' }))
 
-  let url: URL
-  try {
-    url = new URL(trimmed)
-  } catch {
-    return err(new InvalidRpcUrlError({ reason: 'malformed' }))
-  }
-  if (!PROTOCOLS.has(url.protocol))
-    return err(new InvalidRpcUrlError({ reason: 'protocol' }))
-  if (url.username || url.password)
-    return err(new InvalidRpcUrlError({ reason: 'credentials' }))
-
-  return ok(url.toString())
+  return fromSync(
+    () => new URL(trimmed),
+    () => new InvalidRpcUrlError({ reason: 'malformed' }),
+  ).andThen((url) => {
+    if (!PROTOCOLS.has(url.protocol))
+      return err(new InvalidRpcUrlError({ reason: 'protocol' }))
+    if (url.username || url.password)
+      return err(new InvalidRpcUrlError({ reason: 'credentials' }))
+    return ok(url.toString())
+  })
 }
 
 // Read once at startup (wagmi clients are built once). Anything unreadable or
 // invalid falls back to the default RPC.
 export const getCustomRpcUrl = (): string | null => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return null
-    const result = validateRpcUrl(JSON.parse(stored))
-    return result.isOk() ? result.value : null
-  } catch {
-    return null
-  }
+  const result = fromSync(
+    (): string | null => {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (!stored) return null
+      const parsed: unknown = JSON.parse(stored)
+      if (typeof parsed !== 'string') return null
+      const validated = validateRpcUrl(parsed)
+      return validated.isOk() ? validated.value : null
+    },
+    () => null,
+  )
+  return result.isOk() ? result.value : null
 }
 
 // wagmi builds its clients once, so a reload is what applies the change.
-export const saveCustomRpcUrl = (url: string) => {
+export const saveCustomRpcUrl = (url: string): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(url))
   window.location.reload()
 }
 
-export const resetCustomRpcUrl = () => {
+export const resetCustomRpcUrl = (): void => {
   localStorage.removeItem(STORAGE_KEY)
   window.location.reload()
 }
 
-export const isWebSocketUrl = (url: string) => /^wss?:/.test(url)
+export const isWebSocketUrl = (url: string): boolean => /^wss?:/.test(url)
 
 const REQUEST = JSON.stringify({
   jsonrpc: '2.0',
