@@ -1,4 +1,4 @@
-import type { Timestamp } from './types'
+import type { Timestamp, WrapperExpiryReason } from './types'
 
 /**
  * bigname serves every timestamp as a decimal string of Unix seconds
@@ -54,4 +54,35 @@ export const secondsToTimestamp = (
   if (typeof seconds === 'bigint') return seconds.toString()
   const value = seconds instanceof Date ? seconds.getTime() / 1000 : seconds
   return BigInt(Math.floor(value)).toString()
+}
+
+/** A served NameWrapper entry expiry: exact seconds, or why there is none. */
+export type WrapperExpiry =
+  | { readonly expiresAt: bigint; readonly reason?: undefined }
+  | { readonly expiresAt: null; readonly reason: WrapperExpiryReason }
+
+/**
+ * Read `wrapper_expires_at` and its reason from an `ens_v1` object or
+ * `ens_v1_wrapper` restrictions. A finite expiry is exact `bigint` seconds
+ * (it can exceed `2^53`); a classified absent expiry is `expiresAt: null`
+ * with `no_expiry` or `not_set`. `undefined` when the field is not served
+ * (always on `ens_v1` from v0.4.1, and for a name with no current NameWrapper
+ * entry) or is malformed, which is not proof the name is unwrapped.
+ */
+export const readWrapperExpiry = (
+  source:
+    | {
+        readonly wrapper_expires_at?: Timestamp | null
+        readonly wrapper_expires_at_reason?: WrapperExpiryReason
+      }
+    | null
+    | undefined,
+): WrapperExpiry | undefined => {
+  if (source?.wrapper_expires_at === undefined) return undefined
+  if (source.wrapper_expires_at === null) {
+    const reason = source.wrapper_expires_at_reason
+    return reason === undefined ? undefined : { expiresAt: null, reason }
+  }
+  const expiresAt = timestampToBigInt(source.wrapper_expires_at)
+  return expiresAt === undefined ? undefined : { expiresAt }
 }

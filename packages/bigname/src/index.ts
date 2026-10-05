@@ -23,7 +23,13 @@ export {
   type SearchParams,
   type TimestampParam,
 } from './client'
-export { BignameError, type BignameErrorInit, isBignameError } from './errors'
+export {
+  BignameError,
+  type BignameErrorInit,
+  isBignameError,
+  isUnknownQueryParamError,
+  isUnsupportedIncludeError,
+} from './errors'
 export { isHistoryEventOfType, isNameProfile } from './guards'
 export {
   type AllPages,
@@ -59,8 +65,10 @@ export {
 export type { RawRequest, RequestOptions, RetryOptions } from './request'
 export {
   parseTimestamp,
+  readWrapperExpiry,
   secondsToTimestamp,
   timestampToBigInt,
   timestampToSeconds,
+  type WrapperExpiry,
 } from './time'
 export type * from './types'

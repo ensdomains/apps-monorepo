@@ -1,13 +1,18 @@
 /**
- * Wire types for the bigname `/v1` REST contract, bigname v0.4.1.
+ * Wire types for the bigname `/v1` REST contract: bigname v0.4.1 plus the
+ * additive shapes merged on bigname `main` after it (up to 4a89b2d, #1073
+ * to #1084).
  *
  * Written from bigname's `docs/api-v1.md` (envelope, naming dictionary,
  * status vocabulary, powers vocabulary), `docs/api-v1-routes.md` (per-route
- * shapes) and the generated `apps/api/openapi.json` at tag `v0.4.1`
- * (also served at `/openapi.json`). Field names are snake_case exactly as
- * served. Optional (`?`) means the server omits the field when it has no
- * backed value; bigname does not serialize `null` placeholders unless the
- * contract says a field is nullable (`| null`).
+ * shapes) and the generated `apps/api/openapi.json` (also served at
+ * `/openapi.json`). Field names are snake_case exactly as served. Optional
+ * (`?`) means the server omits the field when it has no backed value; bigname
+ * does not serialize `null` placeholders unless the contract says a field is
+ * nullable (`| null`).
+ *
+ * A field marked "after v0.4.1" is never served by a v0.4.1 deployment, so
+ * its absence there says nothing about the name.
  */
 
 /** Lowercase `0x`-prefixed hex string (addresses, hashes, record values). */
@@ -128,7 +133,12 @@ export interface Meta {
   readonly completeness?: Completeness
   readonly unsupported_fields?: readonly string[]
   readonly unsupported_reason?: string
-  /** Permission reads: surfaces whose holders the rows do not list. */
+  /**
+   * Permission reads: surfaces whose holders the rows do not list. A
+   * `registry` read of a discovered (not manifest-declared) registry reports
+   * `['ens_v2_registry_operators']` with `completeness: 'partial'` and
+   * `unsupported_reason: 'permissions_partially_listed'`, on an empty page too.
+   */
   readonly unlisted_permission_surfaces?: readonly PermissionSurface[]
   /** Present on routes that accept `source`. */
   readonly source?: 'indexed' | 'verified'
@@ -138,6 +148,11 @@ export interface Page {
   readonly cursor: string | null
   readonly next_cursor: string | null
   readonly page_size: number
+  /**
+   * Exact count where the route supports it and it was asked for, else
+   * `null`. After v0.4.1 address names serve `null` for an address with more
+   * than 1,000 candidate names unless `include=total_count` is sent.
+   */
   readonly total_count: number | null
   readonly has_more: boolean
 }
@@ -275,35 +290,70 @@ export type LockableRole =
   | 'set_resolver'
   | 'transfer'
 
-/** `ens_v1_wrapper` resource restrictions. */
+/**
+ * Why a `wrapper_expires_at` is `null`: `no_expiry` is the NameWrapper
+ * maximum (`type(uint64).max`), `not_set` a stored zero.
+ */
+export type WrapperExpiryReason = 'no_expiry' | 'not_set'
+
+/**
+ * `ens_v1_wrapper` resource restrictions. Served only for a backed wrapper
+ * (one with a `wrapper_state`), unlike `ens_v1.wrapper_expires_at`.
+ */
 export interface WrapperRestrictions {
   readonly registration_id: string
   readonly kind: 'ens_v1_wrapper'
   readonly wrapper_state: WrapperState
   readonly wrapper_fuses: WrapperFuses
   /**
-   * NameWrapper entry expiry; for a wrapped `.eth` 2LD it is the registrar
-   * expiry plus 90 days. `null` with `wrapper_expires_at_reason`.
+   * The NameWrapper entry's own stored expiry, exact over the full uint64
+   * range, or `null` with `wrapper_expires_at_reason`. Wrapping and
+   * `NameWrapper.renew` set it to the registrar expiry plus 90 days on a
+   * `.eth` 2LD, but a renewal through a controller that calls only
+   * `BaseRegistrar.renew` leaves it unchanged, so it can trail the lease.
+   * Read it with `readWrapperExpiry`.
    */
   readonly wrapper_expires_at?: Timestamp | null
   /** Present exactly when `wrapper_expires_at` is `null`. */
-  readonly wrapper_expires_at_reason?: 'no_expiry' | 'not_set'
+  readonly wrapper_expires_at_reason?: WrapperExpiryReason
 }
 
 /** `ens_v2_registry` resource restrictions. */
 export interface RegistryRestrictions {
   readonly registration_id: string
   readonly kind: 'ens_v2_registry'
+  /**
+   * Roles whose assignment can no longer change: no current permission row
+   * on the registration or its registry root carries the admin counterpart.
+   * `transfer` is the exception: it is listed whenever no row on the
+   * registration itself carries `can_transfer_admin`, since that role on the
+   * registry root does not count. v0.4.1 ignores root admins for every role,
+   * so it can list a role a root admin can still change. `[]` means every
+   * role can still change.
+   */
   readonly locked_roles: readonly LockableRole[]
 }
 
 /** Resource restrictions of a registration (api-v1.md, Resource restrictions). */
 export type Restrictions = WrapperRestrictions | RegistryRestrictions
 
+/**
+ * Scope of a grant on an ENSv2 registry's root resource, whose roles apply to
+ * every resource of that registry.
+ */
+export interface RootGrantScope {
+  readonly kind: 'root'
+  readonly detail: {
+    /** The registry. After v0.4.1; v0.4.1 serves `detail: {}`. */
+    readonly registry?: ContractRef
+  }
+}
+
 /** Scope of a current permission grant (permission rows, `role_summary`). */
 export type GrantScope =
+  | RootGrantScope
   | {
-      readonly kind: 'root' | 'registry' | 'registration'
+      readonly kind: 'registry' | 'registration'
       readonly detail: Readonly<Record<string, never>>
     }
   | {
@@ -412,11 +462,18 @@ export interface PermissionLineage {
   readonly transfer_behavior?: string | PermissionLineageEntry
 }
 
+/**
+ * A registry root holder (`grant_scope.kind: 'root'`) carries its declared
+ * root roles in `powers` (never empty), the root resource's id as
+ * `registration_id` and `authority_context: 'resource_audit'`; it has no
+ * `name`, `grant_relation`, `record_resource` or wrapper fields.
+ */
 export interface PermissionRow {
   readonly address: Hex
   readonly grant_relation?: GrantRelation
   readonly grant_scope: GrantScope
   readonly powers: readonly Power[]
+  /** On a root row the registry root resource's id, not a name registration. */
   readonly registration_id: string
   readonly record_resource?: RecordResource
   readonly name?: string
@@ -427,7 +484,10 @@ export interface PermissionRow {
   readonly lineage?: PermissionLineage
 }
 
-/** `GET /v1/permissions`: resource-bound reads add top-level `restrictions`. */
+/**
+ * `GET /v1/permissions`: reads bound to a name or registration add top-level
+ * `restrictions`; a `registry` read never does.
+ */
 export interface PermissionsPage extends BignamePage<PermissionRow> {
   readonly restrictions?: Restrictions
 }
@@ -491,6 +551,21 @@ export interface EnsV1 {
   /** Present exactly when `wrapper_fuses` is present. */
   readonly wrapper_state?: WrapperState
   readonly wrapper_fuses?: WrapperFuses
+  /**
+   * After v0.4.1. The NameWrapper entry's own stored expiry, exact over the
+   * full uint64 range, or `null` with `wrapper_expires_at_reason`. Not the
+   * lease plus 90 days: a renewal that calls only `BaseRegistrar.renew`
+   * leaves it unchanged, so it can be earlier than `expires_at`. Present
+   * while the name has a current NameWrapper entry: beside `wrapper_state`,
+   * and alone, in the past, once an emancipated or locked wrapper has lapsed.
+   * Omitted when there is no entry, once the name is unwrapped (even where
+   * `wrapper_state` is still served) and on a registry child with no name
+   * row, so absence does not prove the name is unwrapped. Read it with
+   * `readWrapperExpiry`.
+   */
+  readonly wrapper_expires_at?: Timestamp | null
+  /** Present exactly when `wrapper_expires_at` is `null`. */
+  readonly wrapper_expires_at_reason?: WrapperExpiryReason
 }
 
 /** Holder of a released registration when it ended. Not current state. */
@@ -563,7 +638,14 @@ export interface NameRowFields
 export interface RegistrationFields extends OwnershipFields, ExpiryFields {
   /** Omitted when `registration_status` is `unregistered`. */
   readonly registration_id?: string
-  /** Decimal-string token id. */
+  /**
+   * Decimal-string token id. For ENSv2 it is the versioned ERC-1155 token
+   * recorded for the current registration (it changes when roles regenerate
+   * the token, while `registration_id` stays), never the labelhash or the
+   * permission resource; omitted without a current registration or recorded
+   * token, so released names have none. v0.4.1 does not guarantee this for
+   * ENSv2 names (bigname #1079 fixed it).
+   */
   readonly token_id?: string
   readonly registered_at?: Timestamp
   readonly created_at?: Timestamp
@@ -834,6 +916,8 @@ export type HistoryEventKind =
   | 'RecordVersionChanged'
   | 'ReverseChanged'
   | 'PermissionChanged'
+  /** After v0.4.1: a role change on an ENSv2 registry's root resource. */
+  | 'RootPermissionChanged'
   | 'PermissionScopeChanged'
   | 'RolesChanged'
   | 'EACRolesChanged'
@@ -868,28 +952,82 @@ interface HistoryExpiryData {
   readonly expires_at_reason?: ExpiryReason
 }
 
-/** Per-type `include=data` payloads. Only fields the row carries are present. */
+/**
+ * After v0.4.1. The ENSv2 storage key of the row's token: the event-local
+ * identifier with its low 32 bits (the token version) cleared, as a decimal
+ * string. Scoped by registry and chain; not the labelhash, a `token_id` or a
+ * `registration_id`. Only on ENSv2 registry and registrar rows that retain
+ * the evidence; never on root permission rows.
+ */
+interface HistoryCanonicalIdData {
+  readonly canonical_id?: string
+}
+
+/**
+ * After v0.4.1. Registrar payment evidence, only where the admitted event
+ * retained it (Basenames rows and some Sepolia ENSv1 rows have none). Amounts
+ * are unsigned decimal strings with full uint256 precision: native wei for
+ * ENSv1, raw units of `payment_token` for ENSv2. An explicit zero is served.
+ */
+interface HistoryPaymentData {
+  /** A registration's unsplit amount, or a renewal's total. */
+  readonly cost?: string
+  /** ENSv2 only: the ERC-20 paid in. A zero address is served as is. */
+  readonly payment_token?: ContractRef
+  /** The emitted bytes32 referrer, lowercase hex, zero included. */
+  readonly referrer?: Hex
+}
+
+/**
+ * Per-type `include=data` payloads. Only fields the row carries are present.
+ * `token_id`, `canonical_id`, the payment fields and `operator` are served
+ * after v0.4.1 only.
+ */
 export interface HistoryEventDataByType {
-  readonly registration: HistoryExpiryData & {
-    /** The registrant the event named (history keeps it; rows dropped it in v0.3.0). */
-    readonly registrant?: Hex
-    readonly owner?: Hex
-    readonly resolver?: ContractRef
-    readonly subregistry?: ContractRef
-    /** Groups the rows of one registration action. */
-    readonly action_id?: string
-    readonly action_role?: 'registered' | 'linked' | 'reachable'
-  }
-  readonly renewal: HistoryExpiryData
-  readonly release: HistoryExpiryData
-  readonly expiry: HistoryExpiryData & {
-    /** uint32 fuse word when the change came through NameWrapper. */
-    readonly fuses?: number
-  }
-  readonly transfer: {
+  readonly registration: HistoryExpiryData &
+    HistoryCanonicalIdData &
+    HistoryPaymentData & {
+      /**
+       * ENSv2 only: the versioned ERC-1155 token at this event's own position,
+       * not the name's current token.
+       */
+      readonly token_id?: string
+      /** Explicitly emitted base amount; a row with only `cost` has no split. */
+      readonly base_cost?: string
+      /** Explicitly emitted premium. */
+      readonly premium?: string
+      /** The registrant the event named (history keeps it; rows dropped it in v0.3.0). */
+      readonly registrant?: Hex
+      readonly owner?: Hex
+      readonly resolver?: ContractRef
+      readonly subregistry?: ContractRef
+      /**
+       * Groups the rows of one registration action. The `registered` and
+       * `linked` rows of one action can both carry the same payment: one charge.
+       */
+      readonly action_id?: string
+      readonly action_role?: 'registered' | 'linked' | 'reachable'
+    }
+  readonly renewal: HistoryExpiryData &
+    HistoryCanonicalIdData &
+    HistoryPaymentData
+  readonly release: HistoryExpiryData & HistoryCanonicalIdData
+  readonly expiry: HistoryExpiryData &
+    HistoryCanonicalIdData & {
+      /** uint32 fuse word when the change came through NameWrapper. */
+      readonly fuses?: number
+    }
+  readonly transfer: HistoryCanonicalIdData & {
     readonly from?: Hex
     readonly to?: Hex
     readonly fuses?: number
+    /**
+     * The operator an ERC-1155 transfer (NameWrapper or ENSv2 registry)
+     * named. ERC-721 transfers have none; never the transaction sender.
+     */
+    readonly operator?: Hex
+    /** ENSv2 only: the versioned ERC-1155 token at this event's own position. */
+    readonly token_id?: string
   }
   readonly authority: {
     /** New registry owner. */
@@ -898,7 +1036,9 @@ export interface HistoryEventDataByType {
     readonly from?: Hex
   }
   /** `resolver` absent means the pointer was cleared. */
-  readonly resolver: { readonly resolver?: ContractRef }
+  readonly resolver: HistoryCanonicalIdData & {
+    readonly resolver?: ContractRef
+  }
   readonly record: {
     /** Stored key; may be outside the record grammar (`name`, `abi:<ct>`). Absent on a version reset. */
     readonly key?: string
@@ -920,7 +1060,16 @@ export interface HistoryEventDataByType {
     readonly name?: string
     readonly name_status?: 'set' | 'cleared' | 'unknown'
   }
-  readonly permission: {
+  /**
+   * After v0.4.1 a role change on an ENSv2 registry's root resource is a
+   * `permission` row too (raw kind `RootPermissionChanged`): `grant_scope`
+   * is `root` with `detail.registry`, `powers` may be `[]`, `added_powers`
+   * and `removed_powers` are always present, and the row has no `name`, a
+   * `null` `registration_id` and the registry as `contract_address`. It is
+   * served on `/v1/events` and on the subject's address history, never on
+   * name history.
+   */
+  readonly permission: HistoryCanonicalIdData & {
     /** The subject. */
     readonly address?: Hex
     readonly grant_scope?: HistoryGrantScope
@@ -929,13 +1078,21 @@ export interface HistoryEventDataByType {
     /** Only when the log states the previous set (ENSv2 `EACRolesChanged`). */
     readonly added_powers?: readonly Power[]
     readonly removed_powers?: readonly Power[]
+    /**
+     * ENSv2 registry role changes on a token, never root rows: the token at
+     * this event's own position, so the event that starts a regeneration
+     * shows the old token. Omitted when the evidence does not prove it.
+     */
+    readonly token_id?: string
     /** Registrar-controller rows: `true` added, `false` removed. */
     readonly approved?: boolean
     /** uint32 word for NameWrapper fuse changes. */
     readonly fuses?: number
   }
   /** `subregistry` absent means the link was cleared. */
-  readonly subregistry: { readonly subregistry?: ContractRef }
+  readonly subregistry: HistoryCanonicalIdData & {
+    readonly subregistry?: ContractRef
+  }
   readonly migration: { readonly migration_path?: MigrationPath }
 }
 

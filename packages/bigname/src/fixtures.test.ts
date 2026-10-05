@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import * as postV041 from './postV041.mock'
 import { parseTimestamp } from './time'
-import * as fixtures from './v041.mock'
+import * as v041 from './v041.mock'
 
 const TIMESTAMP_KEYS = new Set([
   'expires_at',
@@ -32,7 +33,10 @@ const timestampFields = (
   ])
 }
 
-describe('v0.4.1 fixtures', () => {
+describe.each([
+  ['v0.4.1', v041],
+  ['post-v0.4.1', postV041],
+])('%s fixtures', (_version, fixtures) => {
   const entries = Object.entries(fixtures)
 
   it.each(entries)('%s parses every served timestamp', (_name, fixture) => {

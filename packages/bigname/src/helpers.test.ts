@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { isHistoryEventOfType, isNameProfile } from './guards'
+import {
+  mockEnsV1LapsedWrapper,
+  mockEnsV1WrapperNoExpiry,
+  mockEventRootPermissionChanged,
+  mockHistoryPermissionToken,
+  mockHistoryRegistrationPayment,
+  mockNameWrapperExpiry,
+  mockNameWrapperExpiryNotSet,
+  mockPermissionsRegistryRoot,
+} from './postV041.mock'
 import { hasAnyGrant, hasPower, powersForAddress } from './powers'
 import { buildQuery } from './query'
 import {
@@ -11,12 +21,15 @@ import {
 } from './records'
 import {
   parseTimestamp,
+  readWrapperExpiry,
   secondsToTimestamp,
   timestampToBigInt,
   timestampToSeconds,
 } from './time'
 import type {
+  EnsV1,
   EventRow,
+  GrantScope,
   HistoryEvent,
   LookupResult,
   NameDetail,
@@ -29,6 +42,7 @@ import {
   mockLookupDetailFox,
   mockNameNick,
   mockNameWrappedSub,
+  mockPermissionsNick,
 } from './v041.mock'
 
 describe('buildQuery', () => {
@@ -171,6 +185,48 @@ describe('time', () => {
   })
 })
 
+describe('readWrapperExpiry', () => {
+  it('reads a finite expiry as exact seconds', () => {
+    expect(readWrapperExpiry(mockNameWrapperExpiry.ens_v1)).toEqual({
+      expiresAt: 1806384633n,
+    })
+    expect(readWrapperExpiry(mockEnsV1LapsedWrapper)).toEqual({
+      expiresAt: 1759000000n,
+    })
+    expect(
+      readWrapperExpiry({ wrapper_expires_at: '18446744073709551614' }),
+    ).toEqual({ expiresAt: 18446744073709551614n })
+  })
+
+  it('keeps the reason of a classified absent expiry', () => {
+    expect(readWrapperExpiry(mockNameWrapperExpiryNotSet.ens_v1)).toEqual({
+      expiresAt: null,
+      reason: 'not_set',
+    })
+    expect(readWrapperExpiry(mockEnsV1WrapperNoExpiry)).toEqual({
+      expiresAt: null,
+      reason: 'no_expiry',
+    })
+  })
+
+  it('reads wrapper restrictions the same way', () => {
+    expect(readWrapperExpiry(mockPermissionsNick.restrictions)).toEqual({
+      expiresAt: 1806384633n,
+    })
+  })
+
+  it('is undefined when the field is not served (v0.4.1 ens_v1) or malformed', () => {
+    const served: EnsV1 = mockNameNick.data.ens_v1
+    expect(readWrapperExpiry(served)).toBeUndefined()
+    expect(readWrapperExpiry(undefined)).toBeUndefined()
+    expect(readWrapperExpiry(null)).toBeUndefined()
+    expect(readWrapperExpiry({ wrapper_expires_at: null })).toBeUndefined()
+    expect(
+      readWrapperExpiry({ wrapper_expires_at: '2026-12-30T05:30:33Z' }),
+    ).toBeUndefined()
+  })
+})
+
 describe('powers', () => {
   const roleSummary: readonly RoleSummaryEntry[] = [
     {
@@ -267,6 +323,53 @@ describe('guards', () => {
       expect(event.data?.grant_scope?.kind).toBe('registry')
       expect(event.data?.added_powers).toEqual([])
       expect(event.data?.removed_powers).toContain('admin_registrar')
+    }
+  })
+
+  it('types registry root role changes as permission rows without a name', () => {
+    const event: EventRow = mockEventRootPermissionChanged
+    expect(event.name).toBeUndefined()
+    expect(event.registration_id).toBeNull()
+    expect(event.kind).toBe('RootPermissionChanged')
+    if (isHistoryEventOfType(event, 'permission')) {
+      const scope = event.data?.grant_scope
+      expect(scope?.kind === 'root' && scope.detail.registry?.address).toBe(
+        event.contract_address,
+      )
+      expect(event.data?.removed_powers).toEqual(['admin_registrar'])
+      expect(event.data?.token_id).toBeUndefined()
+    }
+  })
+
+  it('reads the registry of a root scope, absent on v0.4.1', () => {
+    const [row] = mockPermissionsRegistryRoot.data
+    const scope: GrantScope = row.grant_scope
+    expect(scope.kind === 'root' && scope.detail.registry?.chain_id).toBe(
+      11155111,
+    )
+    const v041Scope: GrantScope = { kind: 'root', detail: {} }
+    expect(
+      v041Scope.kind === 'root' && v041Scope.detail.registry,
+    ).toBeUndefined()
+  })
+
+  it('types event-time token and payment data per history type', () => {
+    const registration: HistoryEvent = mockHistoryRegistrationPayment
+    if (isHistoryEventOfType(registration, 'registration')) {
+      expect(registration.data?.base_cost).toBe('5000000')
+      expect(registration.data?.payment_token?.chain_id).toBe(11155111)
+      expect(registration.data?.cost).toBeUndefined()
+    }
+    const permission: HistoryEvent = mockHistoryPermissionToken
+    if (isHistoryEventOfType(permission, 'permission')) {
+      const { token_id: tokenId, canonical_id: canonicalId } =
+        permission.data ?? {}
+      expect(BigInt(tokenId ?? 0) & ~0xffffffffn).toBe(BigInt(canonicalId ?? 1))
+    }
+    const migration: HistoryEvent = mockHistoryMigration
+    if (isHistoryEventOfType(migration, 'migration')) {
+      // @ts-expect-error migration rows carry no token or payment data
+      expect(migration.data?.token_id).toBeUndefined()
     }
   })
 })

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { createBignameClient } from './client'
-import { BignameError, isBignameError } from './errors'
+import {
+  BignameError,
+  isBignameError,
+  isUnknownQueryParamError,
+  isUnsupportedIncludeError,
+} from './errors'
+import {
+  mockAddressNamesAboveCountCap,
+  mockPermissionsRegistryRoot,
+} from './postV041.mock'
 import { errorResponse, jsonResponse, mockFetch, pageOf } from './testUtils'
 import type { LookupFeedRecord } from './types'
 import {
@@ -124,6 +133,65 @@ describe('errors', () => {
       clientWith(fetch).getStatus({ signal: controller.signal }),
     ).rejects.toBe(abortError)
     expect(calls).toHaveLength(1)
+  })
+})
+
+describe('version probes', () => {
+  const failure = async (response: Response): Promise<unknown> => {
+    const { fetch } = mockFetch(response)
+    return clientWith(fetch)
+      .listPermissions({ registry: '11155111:0xd4eb' })
+      .catch((error: unknown) => error)
+  }
+
+  it('recognizes the v0.4.1 answer to a parameter it does not know', async () => {
+    const error = await failure(
+      errorResponse(400, 'invalid_input', 'unknown query parameter: registry'),
+    )
+    expect(isUnknownQueryParamError(error, 'registry')).toBe(true)
+    expect(isUnknownQueryParamError(error, 'address')).toBe(false)
+  })
+
+  it('does not mistake other rejections for a missing parameter', async () => {
+    const combination = await failure(
+      errorResponse(
+        400,
+        'invalid_input',
+        'registry cannot be combined with name or registration_id',
+      ),
+    )
+    expect(isUnknownQueryParamError(combination, 'registry')).toBe(false)
+    const overloaded = await failure(errorResponse(422, 'unsupported'))
+    expect(isUnknownQueryParamError(overloaded, 'registry')).toBe(false)
+    expect(isUnknownQueryParamError(new Error('x'), 'registry')).toBe(false)
+  })
+
+  it('recognizes an include value the deployment does not list', async () => {
+    const v041 = await failure(
+      errorResponse(
+        400,
+        'invalid_input',
+        'include must contain only role_summary or counts',
+      ),
+    )
+    expect(isUnsupportedIncludeError(v041, 'total_count')).toBe(true)
+    expect(isUnsupportedIncludeError(v041, 'counts')).toBe(false)
+    const main = await failure(
+      errorResponse(
+        400,
+        'invalid_input',
+        'include must contain only role_summary, counts or total_count',
+      ),
+    )
+    expect(isUnsupportedIncludeError(main, 'total_count')).toBe(false)
+    const refused = await failure(
+      errorResponse(
+        400,
+        'invalid_input',
+        'include=total_count requires an ownership relation',
+      ),
+    )
+    expect(isUnsupportedIncludeError(refused, 'total_count')).toBe(false)
   })
 })
 
@@ -361,6 +429,47 @@ describe('request building', () => {
     expect(calls[4]?.url).toBe(
       `${BASE}/v1/registries/11155111/0xd4eb/labels?exclude_owner=0x7bc1&page_size=1`,
     )
+  })
+
+  it('sends post-v0.4.1 params only when asked', async () => {
+    const { fetch, calls } = mockFetch(
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, mockPermissionsRegistryRoot),
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, pageOf([], null)),
+      jsonResponse(200, mockAddressNamesAboveCountCap),
+    )
+    const client = clientWith(fetch)
+    await client.listPermissions({ name: 'nick.eth', include: ['lineage'] })
+    expect(calls[0]?.url).toBe(
+      `${BASE}/v1/permissions?name=nick.eth&include=lineage`,
+    )
+    const roots = await client.listPermissions({
+      registry: { chain_id: 11155111, address: '0xd4eb' },
+      address: '0x84d3',
+    })
+    expect(calls[1]?.url).toBe(
+      `${BASE}/v1/permissions?registry=11155111%3A0xd4eb&address=0x84d3`,
+    )
+    expect(roots.data[0]?.grant_scope.kind).toBe('root')
+    expect(roots.restrictions).toBeUndefined()
+    await client.listPermissions({ registry: '11155111:0xd4eb' })
+    expect(calls[2]?.url).toBe(
+      `${BASE}/v1/permissions?registry=11155111%3A0xd4eb`,
+    )
+    await client.listAddressNames('0xabc', { relation: 'owner' })
+    expect(calls[3]?.url).toBe(
+      `${BASE}/v1/addresses/0xabc/names?relation=owner`,
+    )
+    const capped = await client.listAddressNames('0xabc', {
+      relation: 'owner',
+      include: ['total_count'],
+      page_size: 1,
+    })
+    expect(calls[4]?.url).toBe(
+      `${BASE}/v1/addresses/0xabc/names?relation=owner&include=total_count&page_size=1`,
+    )
+    expect(capped.page.total_count).toBeNull()
   })
 
   it('accepts a bracketed labelhash label in a name path', async () => {

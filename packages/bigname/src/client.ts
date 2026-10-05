@@ -176,7 +176,15 @@ export interface ListAddressNamesParams extends PageParams {
   readonly order?: SortOrder
   /** Default `name`. */
   readonly dedupe?: 'name' | 'registration'
-  readonly include?: readonly ('counts' | 'role_summary')[]
+  /**
+   * `total_count` (after v0.4.1) asks the authority relations for an exact
+   * `page.total_count` on an address with more than 1,000 candidate names,
+   * where it is otherwise `null`. It reads every candidate, so send it on
+   * the first page only (it does not bind cursors). Rejected with
+   * `relation=resolves_to` or `former_owner`, and by v0.4.1 (see
+   * `isUnsupportedIncludeError`), which always counts exactly without it.
+   */
+  readonly include?: readonly ('counts' | 'role_summary' | 'total_count')[]
 }
 
 export interface GetPrimaryNameParams {
@@ -230,11 +238,22 @@ export interface SearchParams extends PageParams {
   readonly namespace?: Namespace
 }
 
-/** At least one of `name`, `registration_id`, `address` is required. */
+/**
+ * At least one of `name`, `registration_id`, `address` or `registry` is
+ * required. `registry` combines with `address` only.
+ */
 export interface ListPermissionsParams extends PageParams {
   readonly name?: string
   readonly registration_id?: string
   readonly address?: string
+  /**
+   * After v0.4.1: one ENSv2 registry, serialized as `<chain_id>:<address>`.
+   * Lists the current holders of its root resource (`grant_scope.kind:
+   * 'root'`), or with `address` that account's root row. Not with `name` or
+   * `registration_id`. An unknown registry answers an empty page. v0.4.1
+   * rejects the parameter (see `isUnknownQueryParamError`).
+   */
+  readonly registry?: ContractRef | string
   readonly namespace?: Namespace
   readonly include?: readonly 'lineage'[]
 }
@@ -269,10 +288,11 @@ export interface BignameClientConfig {
 const toQuery = (params: object | undefined): QueryParams =>
   (params ?? {}) as QueryParams
 
-const formatResolverFilter = (resolver: ContractRef | string): string =>
-  typeof resolver === 'string'
-    ? resolver
-    : `${resolver.chain_id}:${resolver.address}`
+/** A contract filter value: `<chain_id>:<address>`. */
+const formatContractFilter = (contract: ContractRef | string): string =>
+  typeof contract === 'string'
+    ? contract
+    : `${contract.chain_id}:${contract.address}`
 
 const isEnvelope = (value: unknown): value is { data: unknown } =>
   typeof value === 'object' && value !== null && 'data' in value
@@ -447,7 +467,7 @@ export const createBignameClient = (config: BignameClientConfig) => {
         resolver:
           params.resolver === undefined
             ? undefined
-            : formatResolverFilter(params.resolver),
+            : formatContractFilter(params.resolver),
       }
       return get('/v1/events', query, options)
     },
@@ -480,11 +500,20 @@ export const createBignameClient = (config: BignameClientConfig) => {
       options?: RequestOptions,
     ): Promise<BignamePage<NameListRow>> => get('/v1/search', params, options),
 
-    /** `GET /v1/permissions`. Resource-bound reads carry top-level `restrictions`. */
+    /**
+     * `GET /v1/permissions`. Reads bound to a name or registration carry
+     * top-level `restrictions`; a `registry` read lists root holders.
+     */
     listPermissions: (
       params: ListPermissionsParams,
       options?: RequestOptions,
-    ): Promise<PermissionsPage> => get('/v1/permissions', params, options),
+    ): Promise<PermissionsPage> => {
+      const query =
+        params.registry === undefined
+          ? params
+          : { ...params, registry: formatContractFilter(params.registry) }
+      return get('/v1/permissions', query, options)
+    },
 
     /** `GET /v1/registries/{chain_id}/{address}`. `null` for an unknown registry (404). */
     getRegistry: (

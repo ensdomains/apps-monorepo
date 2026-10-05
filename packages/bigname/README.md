@@ -7,11 +7,14 @@ uses plain `fetch` and no React, so it runs in the browser, in TanStack Router
 `beforeLoad`, in Cloudflare workerd and in Node. Wrap it in your own TanStack
 Query hooks inside each app.
 
-The types follow the bigname **v0.4.1** contract: `docs/api-v1.md`,
-`docs/api-v1-routes.md` and the generated `apps/api/openapi.json` at that tag
-(also served at `<baseUrl>/openapi.json`). Field names are the snake_case
-names the server sends. `src/v041.mock.ts` holds real v0.4.1 responses that
-typecheck against these types with `satisfies`.
+The types follow the bigname **v0.4.1** contract (`docs/api-v1.md`,
+`docs/api-v1-routes.md` and the generated `apps/api/openapi.json`, also served
+at `<baseUrl>/openapi.json`) plus the additive shapes merged on bigname `main`
+after it. The deployed API is still v0.4.1, so the client works against both:
+see [After v0.4.1](#after-v041). Field names are the snake_case names the
+server sends. `src/v041.mock.ts` holds real v0.4.1 responses and
+`src/postV041.mock.ts` hand-written ones in the newer shapes; both typecheck
+against these types with `satisfies`.
 
 ## Configuration
 
@@ -79,7 +82,8 @@ client.listAddressNames(address, { namespace,
                                    authority: Authority | Authority[], parent, is_migrated,
                                    coin_type: number | 'evm', expires_after, expires_before,
                                    q, match, sort: 'name'|'expires_at'|'registered_at'|'created_at', order,
-                                   dedupe: 'name'|'registration', include: ['counts'|'role_summary'],
+                                   dedupe: 'name'|'registration',
+                                   include: ['counts'|'role_summary'|'total_count'],
                                    cursor, page_size })
                                                                 → Page<AddressNameRow>
 client.getPrimaryName(address, { coin_type, namespace, source }) → { data: PrimaryName }
@@ -89,7 +93,8 @@ client.listNames({ namespace, expires_after and/or expires_before, authority, pa
                                                                 → Page<NameListRow>   // expiry sweep
 client.search({ q, match: 'prefix'|'contains', namespace, cursor, page_size })
                                                                 → Page<NameListRow>
-client.listPermissions({ name, registration_id, address, namespace, include: ['lineage'], cursor, page_size })
+client.listPermissions({ name, registration_id, address, registry: {chain_id, address} | 'chain:addr',
+                         namespace, include: ['lineage'], cursor, page_size })
                                                                 → PermissionsPage     // + restrictions?
 client.getRegistry(chainId, address, { include: ['counts'], at, finality, cursor, page_size })
                                                                 → { data: Registry } | null
@@ -139,6 +144,11 @@ drop the rows you already collected. `fetchAllPages` drops them for you.
 `overloaded` (503) or `internal_error` (500). `status` is `0` for a network
 failure. Check with `isBignameError(error, code?)`.
 
+`isUnknownQueryParamError(error, 'registry')` and
+`isUnsupportedIncludeError(error, 'total_count')` are true only for the `400`
+a deployment answers when it predates that parameter or `include` value, so
+you can fall back instead of failing.
+
 The client retries 408, 429, 502, 503, 504, network errors and `409 stale`,
 up to 3 times, with backoff of 250 ms, then 500 ms, then 1 s (with jitter,
 never more than 2 s, and following `Retry-After` when the server sends it).
@@ -162,6 +172,8 @@ isOkRecordAnswer(answer)
 parseTimestamp(ts) → Date | undefined          // decimal Unix seconds; undefined past year 275760
 timestampToSeconds(ts) → number | undefined    // undefined above Number.MAX_SAFE_INTEGER
 timestampToBigInt(ts) → bigint | undefined     // exact for every served value
+readWrapperExpiry(ensV1 | wrapperRestrictions)
+  → { expiresAt: bigint } | { expiresAt: null, reason: 'no_expiry'|'not_set' } | undefined   // undefined: not served
 secondsToTimestamp(seconds | bigint | Date) → decimal-seconds string
 grantsForAddress(roleSummary, address), powersForAddress(roleSummary, address)
 hasAnyGrant(roleSummary, address), hasPower(roleSummary, address, power), isAdminPower(power)
@@ -232,3 +244,57 @@ from the package root.
   key rows by `namehash`.
 - The resolver overview has no counts and its `bound_names.page.total_count`
   is `null`. The `/aliases` route was removed (bigname v0.1.0).
+
+## After v0.4.1
+
+These shapes are merged on bigname `main` (#1073 to #1084) and not deployed.
+Every new response field is optional in the types, and no new request
+parameter is sent unless you pass it. Against v0.4.1 the fields are absent
+and the parameters answer `400 invalid_input`.
+
+- `ens_v1.wrapper_expires_at` (with `wrapper_expires_at_reason` when `null`)
+  is the NameWrapper entry's own expiry, on every name-shaped row. It is not
+  the lease plus 90 days and can be earlier than `ens_v1.expires_at`. It is
+  present beside `wrapper_state`, and alone and in the past once an
+  emancipated or locked wrapper has lapsed. It is omitted for an unwrapped
+  name and for a registry child with no name row, so absence proves nothing.
+  Read it with `readWrapperExpiry`, which also reads wrapper `restrictions`.
+- `listPermissions({ registry })` lists the holders of an ENSv2 registry's
+  root resource, and with `address` one account's root row. It cannot be
+  combined with `name` or `registration_id`. Root rows have
+  `grant_scope: { kind: 'root', detail: { registry } }`, no `name` and no
+  top-level `restrictions`. For a registry that discovery admitted,
+  `meta.completeness` is `'partial'` with
+  `unlisted_permission_surfaces: ['ens_v2_registry_operators']`, on an empty
+  page too. An unknown registry is an empty page, not a 404. v0.4.1 rejects
+  the parameter: check `isUnknownQueryParamError(error, 'registry')`. Root
+  rows that v0.4.1 serves on `address` reads carry `detail: {}`.
+- Registry root role changes are `permission` history rows with
+  `kind: 'RootPermissionChanged'` and `grant_scope.kind: 'root'`, on
+  `listEvents` and on the subject's `getAddressHistory`, never on name
+  history. They have no `name`, a `null` `registration_id`, and `powers`,
+  `added_powers` and `removed_powers`. This replaces the v0.4.1 note above
+  that these rows are not served.
+- History `include: ['data']` adds `token_id` (ENSv2 `registration`,
+  `transfer` and non-root `permission` rows: the token at that event, not
+  the current one), `canonical_id` (ENSv2 rows of every type except
+  `authority`, `record`, `primary_name` and `migration`), `cost`,
+  `payment_token` and `referrer` (`registration` and `renewal`), `base_cost`
+  and `premium` (`registration`), and `operator` (ERC-1155 `transfer`).
+  Amounts are decimal strings: wei for ENSv1, raw `payment_token` units for
+  ENSv2. The `registered` and `linked` rows of one `action_id` can both
+  carry the same payment; count it once.
+- `token_id` on name detail and lookup is, for ENSv2, the versioned ERC-1155
+  token of the current registration. It is omitted without a current
+  registration, and changes when the token regenerates while
+  `registration_id` does not.
+- `restrictions.locked_roles` counts admins on the registry root as well as
+  on the registration, except for `transfer`, which only
+  `can_transfer_admin` on the registration itself unlocks.
+- `listAddressNames` returns `page.total_count: null` on authority relations
+  for an address with more than 1,000 candidate names (counted before
+  filters) unless you pass `include: ['total_count']`. Send it on the first
+  page only; it reads every candidate and can time out on very large
+  addresses. It is rejected with `relation: 'resolves_to'` and
+  `'former_owner'`, and by v0.4.1, which always counts exactly without it:
+  check `isUnsupportedIncludeError(error, 'total_count')`.
