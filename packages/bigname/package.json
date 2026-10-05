@@ -6,6 +6,7 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
+    "./v041.mock": "./src/v041.mock.ts",
     "./postV041.mock": "./src/postV041.mock.ts"
   },
   "scripts": {

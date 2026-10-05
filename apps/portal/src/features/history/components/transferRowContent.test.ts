@@ -1,6 +1,7 @@
 import type { HistoryEventDataByType } from '@ens-apps/bigname'
+import { mockHistoryTransferOperator } from '@ens-apps/bigname/postV041.mock'
 import { describe, expect, it } from 'vitest'
-import type { TimelineEventOfType } from '../timelineEvent'
+import { type TimelineEventOfType, toTimelineEvents } from '../timelineEvent'
 import { transferRowContent } from './transferRowContent'
 
 const BASE_REGISTRAR = '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85'
@@ -98,5 +99,36 @@ describe('transferRowContent', () => {
         transfer({ from: HOLDER }, { contractAddress: ENS_V2_ETH_REGISTRY }),
       ),
     ).toBeUndefined()
+  })
+})
+
+describe('transferRowContent after v0.4.1', () => {
+  it('names the token an ENSv2 transfer serves', () => {
+    const [event] = toTimelineEvents([mockHistoryTransferOperator])
+    expect(
+      transferRowContent(event as TimelineEventOfType<'transfer'>),
+    ).toEqual({
+      label: 'transferred token ID',
+      token: {
+        contract: 'Registry',
+        tokenId: mockHistoryTransferOperator.data.token_id,
+      },
+      recipient: mockHistoryTransferOperator.data.to,
+    })
+  })
+
+  it('reads an ENSv2 mint by its served token', () => {
+    expect(
+      transferRowContent(
+        transfer(
+          { to: BUYER, token_id: '42' },
+          { contractAddress: ENS_V2_ETH_REGISTRY },
+        ),
+      ),
+    ).toEqual({
+      label: 'minted token ID',
+      token: { contract: 'Registry', tokenId: '42' },
+      recipient: BUYER,
+    })
   })
 })

@@ -15,6 +15,7 @@ import {
   flattenHistoryData,
   historyEventLogId,
 } from '@/utils/history/historyEventsToSubgraphEvents'
+import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
 import type {
   AddressHistoryEvent,
   AddressNameHistory,
@@ -115,7 +116,8 @@ const getAddressHistory = ({
     (e) => new GetAddressHistoryError({ cause: e as BignameError }),
   ).map(([rows, heldNames]): AddressNameHistory[] => {
     const byName = new Map<string, AddressHistoryEvent[]>()
-    for (const row of rows) {
+    // One registration's charge is stated once across its rows.
+    for (const row of withoutDuplicateCharges(rows)) {
       const events = toEvent(row)
       if (events.length === 0) continue
       const key = row.name ?? ''

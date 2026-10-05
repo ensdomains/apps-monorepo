@@ -1,7 +1,16 @@
 import type { HistoryEventDataByType } from '@ens-apps/bigname'
+import {
+  mockEventRootPermissionChanged,
+  mockHistoryRegistrationPayment,
+} from '@ens-apps/bigname/postV041.mock'
+import { mockHistoryRegistration } from '@ens-apps/bigname/v041.mock'
 import type { Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { HistoryEventType, TimelineEvent } from '../timelineEvent'
+import {
+  type HistoryEventType,
+  type TimelineEvent,
+  toTimelineEvents,
+} from '../timelineEvent'
 import { summarizeEvents } from './summarizeEvents'
 
 const ZERO = '0x0000000000000000000000000000000000000000'
@@ -242,5 +251,56 @@ describe('summarizeEvents — ENSv1 to ENSv2 migration', () => {
       ],
     })
     expect(action.events).toHaveLength(4)
+  })
+})
+
+describe('summarizeEvents after v0.4.1', () => {
+  it("states a registration's charge on one row of its action", () => {
+    const registered = mockHistoryRegistrationPayment
+    const linked = {
+      ...registered,
+      id: 'b'.repeat(64),
+      log_index: 43,
+      data: { ...registered.data, action_role: 'linked' },
+    } as const
+    const [action] = summarizeEvents(toTimelineEvents([linked, registered]))
+
+    expect(action.label).toBe('registered')
+    expect(action.events).toHaveLength(2)
+    const charged = action.events.filter(
+      ({ data }) => 'base_cost' in data || 'payment_token' in data,
+    )
+    expect(charged.map(({ id }) => id)).toEqual([registered.id])
+    // Only the charge is dropped from the copy; the rest of the row stays.
+    expect(action.events[0].data).toMatchObject({
+      token_id: registered.data.token_id,
+      referrer: registered.data.referrer,
+      action_role: 'linked',
+    })
+  })
+
+  it('renders a root role change in a registry feed, which has no name to lead with', () => {
+    const [action] = summarizeEvents(
+      toTimelineEvents([mockEventRootPermissionChanged]),
+      { includeSubjectName: true },
+    )
+    expect(action.label).toBe('revoked root roles')
+    expect(action.icon).toBe('revoke')
+    expect(action.slots.some((slot) => slot.kind === 'name')).toBe(false)
+    expect(action.slots.at(-1)).toEqual({
+      kind: 'contract',
+      value: mockEventRootPermissionChanged.contract_address,
+      isRegistry: true,
+    })
+  })
+
+  it('leaves v0.4.1 rows as served', () => {
+    const rows = toTimelineEvents([
+      mockHistoryRegistration,
+      { ...mockHistoryRegistration, id: 'f'.repeat(64) },
+    ])
+    const [action] = summarizeEvents(rows)
+    expect(action.events).toEqual(rows)
+    expect(action.events[0]).toBe(rows[0])
   })
 })

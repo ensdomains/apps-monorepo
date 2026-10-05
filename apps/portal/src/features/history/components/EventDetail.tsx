@@ -29,6 +29,7 @@ const CONTRACT_PARAM_KEYS = new Set([
   'registry',
   'subregistry',
   'implementer',
+  'payment_token',
 ])
 
 const DecodedValue = ({

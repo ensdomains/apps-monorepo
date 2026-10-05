@@ -1,5 +1,18 @@
+import {
+  mockEventRootPermissionChanged,
+  mockHistoryPermissionToken,
+  mockHistoryRegistrationPayment,
+  mockHistoryRenewalPayment,
+  mockHistoryTransferOperator,
+} from '@ens-apps/bigname/postV041.mock'
+import {
+  mockHistoryRegistration,
+  mockHistoryRootPermission,
+} from '@ens-apps/bigname/v041.mock'
 import { describe, expect, it } from 'vitest'
-import type { TimelineEvent } from '../timelineEvent'
+import { chain } from '@/config'
+import { TOKENS } from '@/lib/tokens'
+import { type TimelineEvent, toTimelineEvents } from '../timelineEvent'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
 
 const base = {
@@ -105,5 +118,118 @@ describe('getDecodedParamEntries', () => {
   it('returns nothing for a row with an empty payload', () => {
     const event: TimelineEvent = { ...base, type: 'release', data: {} }
     expect(getDecodedParamEntries(event)).toEqual([])
+  })
+})
+
+/** A decimal Unix-seconds instant as the ISO string the table prints. */
+const iso = (seconds: string) => new Date(Number(seconds) * 1000).toISOString()
+
+describe('getDecodedParamEntries after v0.4.1', () => {
+  const entriesOf = (row: Parameters<typeof toTimelineEvents>[0][number]) =>
+    Object.fromEntries(getDecodedParamEntries(toTimelineEvents([row])[0]))
+
+  it('lists an ENSv2 registration with its token, canonical id, charge and referrer', () => {
+    const { data } = mockHistoryRegistrationPayment
+    const row = {
+      ...mockHistoryRegistrationPayment,
+      data: {
+        ...data,
+        payment_token: {
+          chain_id: chain.id,
+          address: TOKENS.USDC.address.toLowerCase() as `0x${string}`,
+        },
+      },
+    }
+    const entries = getDecodedParamEntries(toTimelineEvents([row])[0])
+    expect(Object.fromEntries(entries)).toMatchObject({
+      token_id: data.token_id,
+      canonical_id: data.canonical_id,
+      base_cost: '5 USDC',
+      premium: '0 USDC',
+      payment_token: TOKENS.USDC.address.toLowerCase(),
+      referrer: data.referrer,
+    })
+    // The served token id is listed once, not again as a derived one.
+    expect(entries.filter(([key]) => key === 'token_id')).toHaveLength(1)
+  })
+
+  it('lists an ENSv1 renewal cost in ETH, with its referrer', () => {
+    expect(entriesOf(mockHistoryRenewalPayment)).toEqual({
+      expires_at: iso(mockHistoryRenewalPayment.data.expires_at),
+      cost: '0.00312500000000349 ETH',
+      referrer: mockHistoryRenewalPayment.data.referrer,
+    })
+  })
+
+  it('lists an ENSv2 transfer with its operator, token and canonical id', () => {
+    const { data } = mockHistoryTransferOperator
+    expect(entriesOf(mockHistoryTransferOperator)).toEqual({
+      token_id: data.token_id,
+      canonical_id: data.canonical_id,
+      operator: data.operator,
+      from: data.from,
+      to: data.to,
+    })
+  })
+
+  it("lists a permission row's own token, the one the change was made on", () => {
+    const { data } = mockHistoryPermissionToken
+    expect(entriesOf(mockHistoryPermissionToken)).toMatchObject({
+      token_id: data.token_id,
+      canonical_id: data.canonical_id,
+      grant_scope: 'registry',
+    })
+  })
+
+  it('lists a root role change with its registry', () => {
+    const { data } = mockEventRootPermissionChanged
+    expect(
+      getDecodedParamEntries(
+        toTimelineEvents([mockEventRootPermissionChanged])[0],
+      ),
+    ).toEqual([
+      ['address', data.address],
+      ['grant_scope', 'root'],
+      ['powers', 'registrar'],
+      ['added_powers', ''],
+      ['removed_powers', 'admin_registrar'],
+      ['registry', data.grant_scope.detail.registry.address],
+    ])
+    expect(getTimelineFieldType('permission', 'registry')).toBe('address')
+  })
+
+  it('types the fields served after v0.4.1', () => {
+    expect(getTimelineFieldType('registration', 'cost')).toBe('uint256')
+    expect(getTimelineFieldType('registration', 'base_cost')).toBe('uint256')
+    expect(getTimelineFieldType('registration', 'premium')).toBe('uint256')
+    expect(getTimelineFieldType('renewal', 'cost')).toBe('uint256')
+    expect(getTimelineFieldType('renewal', 'payment_token')).toBe('address')
+    expect(getTimelineFieldType('renewal', 'referrer')).toBe('bytes32')
+    expect(getTimelineFieldType('transfer', 'operator')).toBe('address')
+    expect(getTimelineFieldType('permission', 'token_id')).toBe('uint256')
+    for (const type of ['release', 'expiry', 'resolver', 'subregistry'])
+      expect(getTimelineFieldType(type, 'canonical_id')).toBe('uint256')
+  })
+
+  it('lists v0.4.1 rows exactly as served', () => {
+    const registration = mockHistoryRegistration.data
+    expect(
+      getDecodedParamEntries(toTimelineEvents([mockHistoryRegistration])[0]),
+    ).toEqual([
+      ['action_id', registration.action_id],
+      ['action_role', 'linked'],
+      ['expires_at', iso(registration.expires_at)],
+      ['registrant', registration.registrant],
+    ])
+    const permission = mockHistoryRootPermission.data
+    expect(
+      getDecodedParamEntries(toTimelineEvents([mockHistoryRootPermission])[0]),
+    ).toEqual([
+      ['added_powers', ''],
+      ['address', permission.address],
+      ['grant_scope', 'registry'],
+      ['powers', permission.powers.join(', ')],
+      ['removed_powers', permission.removed_powers.join(', ')],
+    ])
   })
 })

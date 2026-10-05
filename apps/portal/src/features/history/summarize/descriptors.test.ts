@@ -1,6 +1,12 @@
 import type { HistoryEventDataByType, MigrationPath } from '@ens-apps/bigname'
+import { mockEventRootPermissionChanged } from '@ens-apps/bigname/postV041.mock'
+import { mockHistoryRootPermission } from '@ens-apps/bigname/v041.mock'
 import { describe, expect, it } from 'vitest'
-import type { HistoryEventType, TimelineEvent } from '../timelineEvent'
+import {
+  type HistoryEventType,
+  type TimelineEvent,
+  toTimelineEvents,
+} from '../timelineEvent'
 import { describeEvent, formatPower, humanizeType } from './descriptors'
 
 const event = <TType extends HistoryEventType>(
@@ -279,5 +285,98 @@ describe('bigname v0.4.1 rows', () => {
     )
     expect(result?.label).toBe('set content hash to')
     expect(result?.slots[0]).toMatchObject({ kind: 'text' })
+  })
+})
+
+describe('root role changes (after v0.4.1)', () => {
+  const REGISTRY = mockEventRootPermissionChanged.contract_address
+  const root = { chain_id: 11155111, address: REGISTRY } as const
+  const onRegistry = [
+    { kind: 'connective', value: 'on' },
+    { kind: 'contract', value: REGISTRY, isRegistry: true },
+  ]
+
+  it('a root revoke names the registry instead of the name it lacks', () => {
+    const [row] = toTimelineEvents([mockEventRootPermissionChanged])
+    expect(row.name).toBe('')
+    expect(describeEvent(row)).toEqual({
+      icon: 'revoke',
+      label: 'revoked root roles',
+      slots: [
+        { kind: 'text', value: 'Registrar Admin' },
+        { kind: 'connective', value: 'from' },
+        {
+          kind: 'actor',
+          txHash: mockEventRootPermissionChanged.transaction_hash,
+          address: mockEventRootPermissionChanged.data.address,
+        },
+        ...onRegistry,
+      ],
+    })
+  })
+
+  it('a root grant, a mixed change and an emptied set read as root roles', () => {
+    const scope = { kind: 'root', detail: { registry: root } } as const
+    const change = (
+      powers: readonly ('registrar' | 'renew')[],
+      added: readonly ('registrar' | 'renew')[],
+      removed: readonly ('registrar' | 'renew')[],
+    ) =>
+      describeEvent(
+        event(
+          'permission',
+          {
+            address: ADDRESS,
+            grant_scope: scope,
+            powers,
+            added_powers: added,
+            removed_powers: removed,
+          },
+          { name: '' },
+        ),
+      )
+    expect(change(['registrar'], ['registrar'], [])).toMatchObject({
+      label: 'granted root roles',
+    })
+    expect(change(['registrar'], ['registrar'], ['renew'])).toMatchObject({
+      label: 'set root roles',
+    })
+    const emptied = change([], [], [])
+    expect(emptied).toMatchObject({
+      icon: 'revoke',
+      label: 'revoked root roles from',
+    })
+    expect(emptied?.slots.slice(1)).toEqual(onRegistry)
+  })
+
+  it('a root row that names no registry still reads, without one', () => {
+    // v0.4.1 serves `detail: {}` on the root scopes it knows.
+    expect(
+      describeEvent(
+        event(
+          'permission',
+          {
+            address: ADDRESS,
+            grant_scope: { kind: 'root', detail: {} },
+            powers: ['registrar'],
+          },
+          { name: '' },
+        ),
+      ),
+    ).toEqual({
+      label: 'set root roles',
+      slots: [
+        { kind: 'text', value: 'Registrar' },
+        { kind: 'connective', value: 'for' },
+        { kind: 'actor', txHash: '0xabc', address: ADDRESS },
+      ],
+    })
+  })
+
+  it('a v0.4.1 role change on a registry token keeps its wording', () => {
+    const [row] = toTimelineEvents([mockHistoryRootPermission])
+    const result = describeEvent(row)
+    expect(result).toMatchObject({ icon: 'revoke', label: 'revoked roles' })
+    expect(result?.slots).toHaveLength(3)
   })
 })

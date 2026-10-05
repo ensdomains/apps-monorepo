@@ -7,8 +7,12 @@ import { zeroAddress } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import type { TimelineEvent } from './timelineEvent'
 
-/** The ENSv1 token contracts whose token id is a pure function of the name. */
-type HistoryTokenContract = 'BaseRegistrar' | 'NameWrapper'
+/**
+ * Where a row's token lives: the ENSv1 token contracts, whose token id is a
+ * pure function of the name, or an ENSv2 registry, whose token id bigname
+ * serves.
+ */
+type HistoryTokenContract = 'BaseRegistrar' | 'NameWrapper' | 'Registry'
 
 export type HistoryToken = {
   readonly contract: HistoryTokenContract
@@ -41,22 +45,25 @@ const ETH_SECOND_LEVEL = /^[^.]+\.eth$/
 
 const toTokenId = (hash: `0x${string}`): string => BigInt(hash).toString(10)
 
+const DECIMAL = /^\d+$/
+
 /**
- * The token a registration or transfer row is about, where it can be derived
- * exactly from what bigname serves. bigname does not serve per-row token ids,
- * so the emitting contract decides which token it is:
+ * The token a registration or transfer row is about.
+ *
+ * A served `data.token_id` wins. After v0.4.1 bigname serves it on ENSv2
+ * registry rows: the versioned ERC-1155 token at the row's own position, which
+ * nothing else can supply. The id is the labelhash with its low 32 bits
+ * replaced by a version counter that unregister, re-registration and each role
+ * change bump (`PermissionedRegistry._constructTokenId`, `_regenerate`), and
+ * history carries no counter. So without the served field an ENSv2 row has
+ * none, as on v0.4.1.
+ *
+ * Otherwise the emitting contract decides, where the id is exact:
  *
  * - BaseRegistrar (ERC-721): a `.eth` second-level name's token id is its
  *   labelhash as a uint256.
  * - NameWrapper (ERC-1155): any wrapped name's token id is its namehash as a
  *   uint256.
- *
- * Anything else has none. An ENSv2 registry's token id is the labelhash with
- * its low 32 bits replaced by a version counter that unregister,
- * re-registration and each `grantRoles`/`revokeRoles` call that changes roles
- * bump (`PermissionedRegistry._constructTokenId`, `_regenerate`). History carries
- * no counter, and its permission rows do not map one-to-one to bumps, so any
- * id shown would be a guess.
  *
  * The contract is the row's, not the name's: a migrated name keeps its
  * BaseRegistrar and NameWrapper rows from before the migration, and those
@@ -65,7 +72,11 @@ const toTokenId = (hash: `0x${string}`): string => BigInt(hash).toString(10)
 export const historyTokenId = (
   event: TimelineEvent,
 ): HistoryToken | undefined => {
-  if (!TOKEN_ROW_TYPES.has(event.type) || !event.name) return undefined
+  if (!TOKEN_ROW_TYPES.has(event.type)) return undefined
+  const served = (event.data as { readonly token_id?: unknown }).token_id
+  if (typeof served === 'string' && DECIMAL.test(served))
+    return { contract: 'Registry', tokenId: served }
+  if (!event.name) return undefined
   const contract = event.contractAddress?.toLowerCase()
   if (!contract) return undefined
   if (BASE_REGISTRAR_ADDRESSES.has(contract)) {

@@ -5,6 +5,8 @@ import {
   timestampToSeconds,
 } from '@ens-apps/bigname'
 import type { SubgraphEvent } from './groupEventsByTransactionId'
+import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
+import { rootPermissionRegistry } from './rootPermission'
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -25,22 +27,36 @@ const flatten = (value: unknown): unknown => {
   return JSON.stringify(value)
 }
 
-/** An `expires_at` instant (decimal Unix seconds) as ISO; anything else as served. */
-const flattenField = (key: string, value: unknown): unknown =>
+/**
+ * An `expires_at` instant (decimal Unix seconds) as ISO and an amount in its
+ * currency (see `formatHistoryAmount`); anything else as served.
+ */
+const flattenField = (key: string, value: unknown, data: object): unknown =>
   key === 'expires_at' && typeof value === 'string'
     ? (parseTimestamp(value)?.toISOString() ?? value)
-    : flatten(value)
+    : (formatHistoryAmount(key, value, data) ?? flatten(value))
 
-/** A row's `include=data` payload as flat, printable fields. */
+/**
+ * A row's `include=data` payload as flat, printable fields. A root role
+ * change (after v0.4.1) also gets its `registry`, which the flattened
+ * `grant_scope` would lose and the row, having no name, has no other trace of.
+ */
 export const flattenHistoryData = (
   data: HistoryEvent['data'] | EventRow['data'],
-): Record<string, unknown> =>
-  Object.fromEntries(
-    Object.entries(data ?? {}).map(([key, value]) => [
-      key,
-      flattenField(key, value),
-    ]),
-  )
+): Record<string, unknown> => {
+  if (!data) return {}
+  const registry =
+    'grant_scope' in data ? rootPermissionRegistry(data.grant_scope) : undefined
+  return {
+    ...Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [
+        key,
+        flattenField(key, value, data),
+      ]),
+    ),
+    ...(registry && { registry: registry.address }),
+  }
+}
 
 /**
  * `{txHash}-{logIndex}`: how the events table finds an event's log in the
@@ -54,13 +70,14 @@ export const historyEventLogId = (row: HistoryEvent | EventRow): string =>
  * (`groupEventsByTransactionId`). `id` is `{txHash}-{logIndex}`, which is how
  * the table finds the event's log in the receipt; `type` is the raw storage
  * kind when the read asked for `include=raw`; the `data` payload rides along as
- * the event's decoded fields. A row with no transaction (a state-derived lapse)
- * has nothing to group under and is left out.
+ * the event's decoded fields, a registration's charge on one of its rows only
+ * (see `withoutDuplicateCharges`). A row with no transaction (a state-derived
+ * lapse) has nothing to group under and is left out.
  */
 export const historyEventsToSubgraphEvents = (
   rows: readonly HistoryEvent[],
 ): (SubgraphEvent & Record<string, unknown>)[] =>
-  rows.flatMap((row) => {
+  withoutDuplicateCharges(rows).flatMap((row) => {
     const timestamp = timestampToSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null) return []
     return [

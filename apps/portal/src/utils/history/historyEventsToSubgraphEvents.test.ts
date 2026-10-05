@@ -1,6 +1,19 @@
 import type { HistoryEvent } from '@ens-apps/bigname'
+import {
+  mockEventRootPermissionChanged,
+  mockHistoryRegistrationPayment,
+  mockHistoryRenewalPayment,
+  mockHistoryTransferOperator,
+} from '@ens-apps/bigname/postV041.mock'
+import {
+  mockAddressHistoryRecordWithoutName,
+  mockHistoryRegistration,
+} from '@ens-apps/bigname/v041.mock'
 import { describe, expect, it } from 'vitest'
-import { historyEventsToSubgraphEvents } from './historyEventsToSubgraphEvents'
+import {
+  flattenHistoryData,
+  historyEventsToSubgraphEvents,
+} from './historyEventsToSubgraphEvents'
 
 const row = (over: Partial<HistoryEvent>): HistoryEvent =>
   ({
@@ -57,5 +70,72 @@ describe('historyEventsToSubgraphEvents', () => {
     expect(
       historyEventsToSubgraphEvents([row({ transaction_hash: null })]),
     ).toEqual([])
+  })
+})
+
+/** A decimal Unix-seconds instant as the ISO string the table prints. */
+const iso = (seconds: string) => new Date(Number(seconds) * 1000).toISOString()
+
+describe('flattenHistoryData after v0.4.1', () => {
+  it('prints an ENSv1 cost in ETH and keeps the referrer as served', () => {
+    expect(flattenHistoryData(mockHistoryRenewalPayment.data)).toEqual({
+      expires_at: iso(mockHistoryRenewalPayment.data.expires_at),
+      cost: '0.00312500000000349 ETH',
+      referrer: mockHistoryRenewalPayment.data.referrer,
+    })
+  })
+
+  it('prints the transfer operator, token and canonical id', () => {
+    expect(flattenHistoryData(mockHistoryTransferOperator.data)).toEqual(
+      mockHistoryTransferOperator.data,
+    )
+  })
+
+  it("adds a root role change's registry, which its flattened scope loses", () => {
+    const { data } = mockEventRootPermissionChanged
+    expect(flattenHistoryData(data)).toEqual({
+      address: data.address,
+      grant_scope: 'root',
+      powers: 'registrar',
+      added_powers: '',
+      removed_powers: 'admin_registrar',
+      registry: data.grant_scope.detail.registry.address,
+    })
+  })
+
+  it('prints v0.4.1 rows as before, with or without a name', () => {
+    expect(flattenHistoryData(mockHistoryRegistration.data)).toEqual({
+      ...mockHistoryRegistration.data,
+      expires_at: iso(mockHistoryRegistration.data.expires_at),
+    })
+    expect(
+      flattenHistoryData(mockAddressHistoryRecordWithoutName.data),
+    ).toEqual({
+      ...mockAddressHistoryRecordWithoutName.data,
+      resolver: mockAddressHistoryRecordWithoutName.data.resolver.address,
+    })
+    expect(flattenHistoryData(undefined)).toEqual({})
+  })
+})
+
+describe('historyEventsToSubgraphEvents after v0.4.1', () => {
+  it("prints one registration's charge on one of its rows", () => {
+    const registered = mockHistoryRegistrationPayment
+    const linked = {
+      ...registered,
+      id: 'b'.repeat(64),
+      log_index: 43,
+      data: { ...registered.data, action_role: 'linked' },
+    } as const satisfies HistoryEvent
+    const [first, second] = historyEventsToSubgraphEvents([registered, linked])
+    expect(first).toHaveProperty('base_cost')
+    expect(first).toHaveProperty(
+      'payment_token',
+      registered.data.payment_token.address,
+    )
+    expect(second).not.toHaveProperty('base_cost')
+    expect(second).not.toHaveProperty('premium')
+    expect(second).not.toHaveProperty('payment_token')
+    expect(second).toHaveProperty('token_id', registered.data.token_id)
   })
 })

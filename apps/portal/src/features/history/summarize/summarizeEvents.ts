@@ -1,3 +1,4 @@
+import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
 import { recordValueText } from '@/utils/history/recordValue'
 import {
   type HistoryEventType,
@@ -157,7 +158,11 @@ const describeGroup = (
   }
 }
 
-/** Turn a flat list of history rows into tier-1 semantic actions, one per transaction. */
+/**
+ * Turn a flat list of history rows into tier-1 semantic actions, one per
+ * transaction. A registration's charge is stated on one of its rows only (see
+ * `withoutDuplicateCharges`), so an action never shows one payment twice.
+ */
 export const summarizeEvents = (
   events: readonly TimelineEvent[],
   /**
@@ -169,19 +174,21 @@ export const summarizeEvents = (
     includeSubjectName = false,
   }: { readonly includeSubjectName?: boolean } = {},
 ): Action[] => {
-  const actions = groupByTransaction(events).map((group): Action => {
-    const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
-    const { slots, ...described } = describeGroup(group, byRank)
-    const txHash = group[0].transactionHash
-    return {
-      id: timelineGroupKey(group[0]),
-      ...(txHash && { txHash }),
-      timestamp: Math.max(...group.map((event) => event.timestamp)),
-      events: group,
-      ...described,
-      slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
-    }
-  })
+  const actions = groupByTransaction(withoutDuplicateCharges(events)).map(
+    (group): Action => {
+      const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
+      const { slots, ...described } = describeGroup(group, byRank)
+      const txHash = group[0].transactionHash
+      return {
+        id: timelineGroupKey(group[0]),
+        ...(txHash && { txHash }),
+        timestamp: Math.max(...group.map((event) => event.timestamp)),
+        events: group,
+        ...described,
+        slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
+      }
+    },
+  )
 
   return actions.sort((a, b) => b.timestamp - a.timestamp)
 }

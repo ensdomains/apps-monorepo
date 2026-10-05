@@ -8,6 +8,7 @@ import { isAddress, zeroAddress } from 'viem'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordValueText } from '@/utils/history/recordValue'
+import { rootPermissionRegistry } from '@/utils/history/rootPermission'
 import {
   type HistoryEventType,
   isKnownHistoryEventType,
@@ -202,17 +203,18 @@ const describePowerDiff = (
   added: readonly Power[] | undefined,
   removed: readonly Power[] | undefined,
   account: ActionSlot,
+  roles: string,
 ): DescriptorResult | undefined => {
   if (!added || !removed) return undefined
   if (added.length > 0 && removed.length === 0)
     return {
-      label: 'granted roles',
+      label: `granted ${roles}`,
       slots: [powerList(added), { kind: 'connective', value: 'to' }, account],
     }
   if (removed.length > 0 && added.length === 0)
     return {
       icon: 'revoke',
-      label: 'revoked roles',
+      label: `revoked ${roles}`,
       slots: [
         powerList(removed),
         { kind: 'connective', value: 'from' },
@@ -245,19 +247,35 @@ const describePermission = (
       : { label: 'added registrar controller', slots: [account] }
   if (!powers && fuses !== undefined)
     return { icon: 'fuses', label: 'set fuses', slots: [] }
-  const diff = describePowerDiff(added, removed, account)
-  if (diff) return diff
+  // A change on a registry's root resource (after v0.4.1) has no name: its
+  // roles cover every name of the registry, so the row says "root" and names
+  // the registry instead.
+  const roles = scope?.kind === 'root' ? 'root roles' : 'roles'
+  const registry = rootPermissionRegistry(scope)
+  const onRegistry: ActionSlot[] = registry
+    ? [
+        { kind: 'connective', value: 'on' },
+        contractSlot(registry, { isRegistry: true }),
+      ]
+    : []
+  const diff = describePowerDiff(added, removed, account, roles)
+  if (diff) return { ...diff, slots: [...diff.slots, ...onRegistry] }
   // `powers` is the subject's power set after the change; an empty set is
   // every role gone.
   if (!powers?.length)
     return {
       icon: 'revoke',
-      label: 'revoked roles from',
-      slots: [account],
+      label: `revoked ${roles} from`,
+      slots: [account, ...onRegistry],
     }
   return {
-    label: 'set roles',
-    slots: [powerList(powers), { kind: 'connective', value: 'for' }, account],
+    label: `set ${roles}`,
+    slots: [
+      powerList(powers),
+      { kind: 'connective', value: 'for' },
+      account,
+      ...onRegistry,
+    ],
   }
 }
 

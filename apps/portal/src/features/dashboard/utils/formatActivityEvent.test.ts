@@ -1,3 +1,5 @@
+import { mockEventRootPermissionChanged } from '@ens-apps/bigname/postV041.mock'
+import { mockHistoryRootPermission } from '@ens-apps/bigname/v041.mock'
 import { describe, expect, it } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 import { formatActivityEvent } from './formatActivityEvent'
@@ -277,5 +279,64 @@ describe('formatActivityEvent — bigname v0.4.1 rows', () => {
         }),
       ),
     ).toEqual({ text: 'ETH address updated', entityFromData: OWNER })
+  })
+})
+
+describe('formatActivityEvent root role changes (after v0.4.1)', () => {
+  const { data, contract_address: REGISTRY } = mockEventRootPermissionChanged
+
+  it('words a root role change by its registry, subject and roles', () => {
+    expect(
+      formatActivityEvent(
+        event('permission', data, mockEventRootPermissionChanged.kind),
+      ),
+    ).toEqual({
+      text: 'Root roles updated',
+      actor: data.address,
+      entityFromData: REGISTRY,
+      value: 'Registrar',
+    })
+  })
+
+  it('falls back to the emitting contract, and shows no roles when none are left', () => {
+    expect(
+      formatActivityEvent({
+        ...event('permission', {
+          address: OWNER,
+          grant_scope: { kind: 'root', detail: {} },
+          powers: [],
+          added_powers: [],
+          removed_powers: ['registrar'],
+        }),
+        contractAddress: REGISTRY,
+      }),
+    ).toEqual({
+      text: 'Root roles updated',
+      actor: OWNER,
+      entityFromData: REGISTRY,
+    })
+  })
+
+  it('never throws on a root row that carries nothing else', () => {
+    expect(
+      formatActivityEvent(
+        event('permission', { grant_scope: { kind: 'root', detail: {} } }),
+      ),
+    ).toEqual({ text: 'Root roles updated' })
+  })
+
+  it('keeps the v0.4.1 wording for a role change on a registry token', () => {
+    expect(
+      formatActivityEvent(
+        event(
+          'permission',
+          mockHistoryRootPermission.data,
+          'PermissionChanged',
+        ),
+      ),
+    ).toEqual({
+      text: 'Roles updated',
+      entityFromData: mockHistoryRootPermission.data.address,
+    })
   })
 })

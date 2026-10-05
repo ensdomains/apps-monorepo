@@ -1,11 +1,13 @@
 import { parseRecordKey } from '@ens-apps/bigname'
 import { type Address, isAddress } from 'viem'
 import {
+  formatPower,
   humanizeType,
   migrationPathLabel,
 } from '@/features/history/summarize/descriptors'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { recordValueText } from '@/utils/history/recordValue'
+import { rootPermissionRegistry } from '@/utils/history/rootPermission'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
 export type FormattedActivity = {
@@ -85,6 +87,27 @@ const formatRecordEvent = (
 }
 
 /**
+ * A role change on an ENSv2 registry's root resource (`RootPermissionChanged`,
+ * served after v0.4.1). The row has no name, so the registry stands in the
+ * name column: the one the scope names, else the emitting contract, which is
+ * the registry. The subject is the actor pill and the roles it now holds the
+ * value pill.
+ */
+const formatRootPermissionEvent = (
+  event: Extract<RecentActivityEvent, { type: 'permission' }>,
+): FormattedActivity => {
+  const { address, grant_scope: scope, powers = [] } = event.data
+  return activity({
+    text: 'Root roles updated',
+    actor: asAddress(address),
+    entityFromData: asAddress(
+      rootPermissionRegistry(scope)?.address ?? event.contractAddress,
+    ),
+    value: powers.map(formatPower).join(', ') || undefined,
+  })
+}
+
+/**
  * One feed row, worded by bigname's friendly type. A type bigname added after
  * this switch reads as its raw kind (or the type), so the feed never breaks on
  * one.
@@ -132,6 +155,8 @@ export const formatActivityEvent = (
             : undefined,
       })
     case 'permission':
+      if (event.data.grant_scope?.kind === 'root')
+        return formatRootPermissionEvent(event)
       return event.data.powers === undefined && event.data.fuses !== undefined
         ? { text: 'Fuses updated' }
         : activity({

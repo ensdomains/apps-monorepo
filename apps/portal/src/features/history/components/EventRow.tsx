@@ -68,12 +68,14 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
     .with({ type: 'transfer' }, (e) => <TransferContent event={e} />)
     .with({ type: 'permission' }, (e) => {
       const powers = e.data.powers ?? []
+      // A registry's root resource (after v0.4.1): the row has no name.
+      const root = e.data.grant_scope?.kind === 'root' ? 'root ' : ''
       return (
         <>
           <span className={muted}>
             {powers.length
-              ? `${powers.length} ${powers.length === 1 ? 'power' : 'powers'} held by`
-              : 'no powers left for'}
+              ? `${powers.length} ${root}${powers.length === 1 ? 'power' : 'powers'} held by`
+              : `no ${root}powers left for`}
           </span>
           {e.data.address && isAddress(e.data.address, { strict: false }) && (
             <AccountBadge address={e.data.address} />

@@ -1,7 +1,17 @@
 import type { HistoryEventDataByType } from '@ens-apps/bigname'
+import {
+  mockHistoryPermissionToken,
+  mockHistoryRegistrationPayment,
+  mockHistoryTransferOperator,
+} from '@ens-apps/bigname/postV041.mock'
+import { mockHistoryRegistration } from '@ens-apps/bigname/v041.mock'
 import { describe, expect, it } from 'vitest'
 import { historyTokenId } from './historyTokenId'
-import type { HistoryEventType, TimelineEvent } from './timelineEvent'
+import {
+  type HistoryEventType,
+  type TimelineEvent,
+  toTimelineEvents,
+} from './timelineEvent'
 
 // Sepolia emitters, as bigname serves them in `contract_address`.
 const BASE_REGISTRAR = '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85'
@@ -144,5 +154,53 @@ describe('historyTokenId', () => {
       { name: 'sub.envoy1084.eth', contractAddress: BASE_REGISTRAR },
     )
     expect(historyTokenId(event)).toBeUndefined()
+  })
+})
+
+describe('historyTokenId after v0.4.1', () => {
+  it('reads the token an ENSv2 registry row serves', () => {
+    const [registration, transfer] = toTimelineEvents([
+      mockHistoryRegistrationPayment,
+      mockHistoryTransferOperator,
+    ])
+    expect(historyTokenId(registration)).toEqual({
+      contract: 'Registry',
+      tokenId: mockHistoryRegistrationPayment.data.token_id,
+    })
+    expect(historyTokenId(transfer)).toEqual({
+      contract: 'Registry',
+      tokenId: mockHistoryTransferOperator.data.token_id,
+    })
+  })
+
+  it('prefers a served token id to the derived one', () => {
+    const event = row(
+      'transfer',
+      { from: HOLDER, to: NAME_WRAPPER, token_id: '42' },
+      { kind: 'TokenControlTransferred', contractAddress: BASE_REGISTRAR },
+    )
+    expect(historyTokenId(event)).toEqual({
+      contract: 'Registry',
+      tokenId: '42',
+    })
+  })
+
+  it('reads a served token id on a row with no name', () => {
+    const event = row(
+      'transfer',
+      { to: HOLDER, token_id: '42' },
+      { name: '', contractAddress: ENS_V2_ETH_REGISTRY },
+    )
+    expect(historyTokenId(event)?.tokenId).toBe('42')
+  })
+
+  it('still names no token on a permission row, which lists its own', () => {
+    const [permission] = toTimelineEvents([mockHistoryPermissionToken])
+    expect(historyTokenId(permission)).toBeUndefined()
+  })
+
+  it('has none for a v0.4.1 ENSv2 registration, which serves no token', () => {
+    const [registration] = toTimelineEvents([mockHistoryRegistration])
+    expect(historyTokenId(registration)).toBeUndefined()
   })
 })
