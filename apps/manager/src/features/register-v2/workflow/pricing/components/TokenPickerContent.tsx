@@ -11,6 +11,7 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { formatYears } from '@/features/shared/registration/pricing'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -27,9 +28,13 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import {
+  getAnnualFeeTerm,
+  getPaymentBreakdownFigures,
+} from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
-import { NetworkCostRow } from './NetworkCostRow'
+import { PaymentBreakdown } from './PaymentBreakdown'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -66,15 +71,22 @@ class BudgetQuoteUnavailableError extends TaggedError(
  * standalone-HCA route. See {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
-  networkFee: number
+  /** The registrar's charge for the name, the first line of the breakdown. */
+  readonly registration: number
+  readonly networkFee: number
   /** What the registration costs — the figure shown on the total row. */
-  total: number
+  readonly total: number
+  /**
+   * What the HCA still holds from an earlier attempt and applies to this one.
+   * Zero in the common case; above zero it is shown as a deduction and the
+   * headline becomes what the wallet pays now.
+   */
+  readonly hcaCredit: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
    * This, not `total`, is what the affordability gates compare against.
    */
-  walletDebit: number
-  isLoading: boolean
+  readonly walletDebit: number
 }
 
 const getDomainSizeClasses = (domainName: string): string => {
@@ -175,6 +187,11 @@ export const TokenPickerContent = () => {
   const budgetQueryOptions = getHcaBudgetQueryOptions(budgetQueryParams)
   const budgetQuery = useQuery(budgetQueryOptions)
 
+  // The sheet's shape follows the route, not how far the quote has got: on the
+  // HCA route both lines are mounted from the first frame and stay there, so a
+  // slow, refetched or refused quote only ever changes the figures.
+  const isHcaRoute = account.signer?.type === 'rhinestone'
+
   // The EOA route needs no budget and must not be gated on a quote it never
   // takes; on the HCA route a missing quote blocks rather than falling back to
   // the rent, which is not what the wallet pays.
@@ -240,7 +257,9 @@ export const TokenPickerContent = () => {
       // never diverge from what was on screen. `undefined` when the quote
       // failed and only the rent was shown; the machine's independent ceiling
       // still applies.
-      ...(funding ? { displayedWalletDebit: funding.walletDebitRaw } : {}),
+      ...(funding && !budgetQuery.isPlaceholderData
+        ? { displayedWalletDebit: funding.walletDebitRaw }
+        : {}),
     })
   }
 
@@ -336,7 +355,7 @@ export const TokenPickerContent = () => {
     .with(
       { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
       ({ funding: f }) =>
-        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and your account already holds ${f.hcaCredit.toFixed(2)}, so you need ${f.walletDebit.toFixed(2)} more — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and ${f.hcaCredit.toFixed(2)} is left from your last attempt, so you need ${f.walletDebit.toFixed(2)} more, but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
     )
     .with(
       { funding: { isUnderfunded: true } },
@@ -365,12 +384,23 @@ export const TokenPickerContent = () => {
     .with(
       { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
       (f) =>
-        t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
+        t`What was left from your last attempt covers the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
     )
     .otherwise(() => null)
 
+  const annualFeeTerm = pricingQuery.data
+    ? getAnnualFeeTerm({
+        basePrice: pricingQuery.data.basePriceNumber,
+        durationInSeconds: duration,
+      })
+    : null
+
   return (
     <TokenPickerContentBase
+      annualFee={annualFeeTerm?.annualFee}
+      durationYears={
+        annualFeeTerm ? Number(formatYears(annualFeeTerm.years)) : undefined
+      }
       errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
@@ -397,22 +427,25 @@ export const TokenPickerContent = () => {
       funding={
         funding
           ? {
+              registration: funding.registration,
               networkFee: funding.networkFee,
               total: funding.total,
               walletDebit: funding.walletDebit,
-              isLoading: budgetQuery.isFetching,
+              hcaCredit: funding.hcaCredit,
             }
           : undefined
       }
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
+      hasFundingBudget={isHcaRoute}
       infoMessage={infoMessage}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
-      isQuotingFunding={budgetQuery.isLoading}
+      isQuoteStale={budgetQuery.isPlaceholderData}
       label={label}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
+      premium={pricingQuery.data?.premiumPriceNumber}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
@@ -460,30 +493,34 @@ export const TokenPickerContentBase = ({
   nextMessage = <Trans>Register name</Trans>,
   footer,
   funding,
-  isQuotingFunding = false,
+  annualFee,
+  durationYears,
+  premium,
+  isQuoteStale = false,
+  hasFundingBudget = false,
   hasBudgetQuoteFailed = false,
 }: {
-  label: string
-  pricingLoading: boolean
-  pricingData: number | undefined
-  isInPriceCooldown?: boolean
-  selectedToken: SUPPORTED_TOKEN | undefined
-  errorMessage?: string | null
+  readonly label: string
+  readonly pricingLoading: boolean
+  readonly pricingData: number | undefined
+  readonly isInPriceCooldown?: boolean
+  readonly selectedToken: SUPPORTED_TOKEN | undefined
+  readonly errorMessage?: string | null
   /**
    * Reassurance shown in the error slot when there is no error — currently the
    * standing-HCA-balance note. Suppressed whenever `errorMessage` is set: a
    * "you are already funded" line under a funding failure reads as a
    * contradiction.
    */
-  infoMessage?: string | null
-  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
-  onNext: () => void
-  stablecoinBalances: StablecoinBalance[]
-  isLoadingBalances: boolean
-  isConnected: boolean
-  nextMessage?: ReactNode
+  readonly infoMessage?: string | null
+  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly onNext: () => void
+  readonly stablecoinBalances: StablecoinBalance[]
+  readonly isLoadingBalances: boolean
+  readonly isConnected: boolean
+  readonly nextMessage?: ReactNode
   /** Optional content below the payment options (e.g. the primary-name toggle). */
-  footer?: ReactNode
+  readonly footer?: ReactNode
   /**
    * Itemises the funding budget when the wallet is debited more than the rent —
    * the standalone-HCA route funds both on-chain legs from the same transfer.
@@ -491,19 +528,32 @@ export const TokenPickerContentBase = ({
    * (a pure-EOA signer pays the registrar directly). When present, `total` —
    * not `pricingData` — is what the wallet must cover.
    */
-  funding?: RegistrationFundingSummary
+  readonly funding?: RegistrationFundingSummary
+  /** The yearly rent, for the annual figure on the registration line. */
+  readonly annualFee?: number
+  /** The registration term that rent is multiplied by. */
+  readonly durationYears?: number
+  /** A temporary premium, charged once on top of the rent. */
+  readonly premium?: number
   /**
-   * The budget quote is still in flight. Reserves the network-cost row's space
-   * so the token list below it does not jump once the quote lands — two
-   * orchestrator round-trips is long enough for that shift to be felt.
+   * The figures on screen belong to an earlier quote (the primary-name opt-in
+   * changed). Checkout waits: the amount the machine is handed has to be the
+   * one the user was shown, for the options they picked.
    */
-  isQuotingFunding?: boolean
+  readonly isQuoteStale?: boolean
+  /**
+   * This route charges a network fee on top of the name, so the breakdown is
+   * mounted whether or not the quote has landed. Holding its space is what
+   * stops the sheet re-flowing under the user: two orchestrator round-trips
+   * is long enough for that shift to be felt, and the toggle re-quotes.
+   */
+  readonly hasFundingBudget?: boolean
   /**
    * The budget quote was required for this route and failed, so the screen has
    * only the rent — less than the registration costs. Blocks checkout. Routes
    * with no budget to quote (a pure-EOA signer) never set this.
    */
-  hasBudgetQuoteFailed?: boolean
+  readonly hasBudgetQuoteFailed?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -525,9 +575,15 @@ export const TokenPickerContentBase = ({
   // owes the shortfall.
   const requiredAmount = funding?.walletDebit ?? pricingData
 
-  // What the registration costs, shown on the total row. Diverges from
-  // `requiredAmount` only when the HCA is already carrying USDC.
-  const displayTotal = funding?.total ?? pricingData
+  // The lines as shown, rounded so the subtraction on screen is checkable.
+  const figures = funding ? getPaymentBreakdownFigures(funding) : undefined
+  const leftover = figures?.leftover ?? 0
+
+  // With something left from the last attempt the headline is what the wallet
+  // pays now, and the lines above it show how that was arrived at. Otherwise
+  // it is the plain total and nothing is deducted.
+  const displayTotal =
+    leftover > 0 ? figures?.walletDebit : (figures?.total ?? pricingData)
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -550,6 +606,7 @@ export const TokenPickerContentBase = ({
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
+    !isQuoteStale &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin &&
     // Refuse rather than proceed on a figure that cannot fund the batch.
@@ -560,9 +617,9 @@ export const TokenPickerContentBase = ({
     // it neither column shrinks below its content and the `overflow-y-auto`
     // below never scrolls. Inside the dialog's `max-h-[90vh]` that clipped the
     // total and the Register button out of reach on a short viewport.
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 px-4 pt-2 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-5 overflow-y-auto">
+        <div className="flex w-full min-w-0 flex-col items-center gap-3 rounded-2xl bg-ens-quartz-50 p-6 pb-4">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               {premiumLabel && (
@@ -586,15 +643,20 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          {(funding || isQuotingFunding) && (
-            <NetworkCostRow
-              isLoading={funding?.isLoading ?? true}
-              networkFee={funding?.networkFee}
+          {(funding || hasFundingBudget) && (
+            <PaymentBreakdown
+              annualFee={annualFee}
+              durationYears={durationYears}
+              isFeeUnavailable={!funding && hasBudgetQuoteFailed}
+              leftover={leftover}
+              networkFee={figures?.networkFee}
+              premium={premium}
+              registration={figures?.registration ?? pricingData}
             />
           )}
         </div>
 
-        <div className="flex w-full flex-col gap-6">
+        <div className="flex w-full flex-col gap-4">
           <h2 className="text-center font-medium text-[18px] leading-ens-none">
             <Trans>Select payment</Trans>
           </h2>
@@ -678,6 +740,7 @@ export const TokenPickerContentBase = ({
       */}
       <PaymentTotalRow
         isEstimate={!!funding || hasBudgetQuoteFailed}
+        label={leftover > 0 ? <Trans>You pay now</Trans> : undefined}
         total={displayTotal}
       />
 

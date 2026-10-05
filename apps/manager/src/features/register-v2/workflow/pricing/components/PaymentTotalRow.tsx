@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 /**
@@ -17,13 +18,16 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 export const PaymentTotalRow = ({
   total,
   isEstimate,
+  label = <Trans>Total</Trans>,
 }: {
-  total: number | undefined
-  isEstimate: boolean
+  readonly total: number | undefined
+  readonly isEstimate: boolean
+  /** "Total" unless something already paid in makes the figure a remainder. */
+  readonly label?: ReactNode
 }) => (
   <div className="flex w-full items-baseline justify-between">
     <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">
-      <Trans>Total</Trans>
+      {label}
     </span>
     <div className="flex items-center gap-2">
       <p className="tracking-[0.36px]">

@@ -5,9 +5,11 @@ import {
   type HcaSessionEnableParams,
   readHcaUsdcBalanceActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
+import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { keepPreviousData } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { chain } from '@/config'
@@ -148,6 +150,17 @@ export const isHcaBudgetQuoteRequired = (
   params.label.length > 0 &&
   params.durationInSeconds > 0
 
+/**
+ * On screen a refused quote only reads as an unknown fee, so the reason it was
+ * refused would otherwise leave no trace. Wraps the whole pipeline: a session
+ * payload that cannot be resolved fails the quote just as an estimate can.
+ */
+const getLoggedHcaBudget = (params: HcaBudgetQueryParams) =>
+  getHcaBudget(params).mapErr((error) => {
+    logger.warn('HCA budget quote failed', error)
+    return error
+  })
+
 export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
   resultQueryOptions({
     queryKey: $qk({
@@ -160,11 +173,16 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       // quote, so it has to refetch rather than serve the other variant.
       primaryName: params.primaryName ?? null,
     }),
-    queryFn: () => getHcaBudget(params),
+    queryFn: () => getLoggedHcaBudget(params),
     enabled: isHcaBudgetQuoteRequired(params),
-    staleTime: HCA_BUDGET_STALE_TIME_MS,
     // One retry for a flaky orchestrator. If it still fails the caller must
     // surface that: here "no budget" means "the permit cannot be sized", not
     // "show the rent alone".
     retry: 1,
+    staleTime: HCA_BUDGET_STALE_TIME_MS,
+    // The primary-name toggle is part of the key, so flipping it starts a
+    // fresh query. Carrying the last quote through keeps the figures on screen
+    // instead of the breakdown emptying out and refilling. Callers must treat
+    // placeholder data as not-yet-quoted: it belongs to the other toggle state.
+    placeholderData: keepPreviousData,
   })
