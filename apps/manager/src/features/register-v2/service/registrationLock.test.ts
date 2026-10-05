@@ -214,26 +214,26 @@ describe('claimTabHolderId', () => {
 
   /** The channel the tabs talk over, with the other tab played by the test. */
   class FakeChannel {
-    static instances: FakeChannel[] = []
-    static posted: HolderMessage[] = []
+    static instances: readonly FakeChannel[] = []
+    static posted: readonly HolderMessage[] = []
     /** Answer a claim for this id the way a settled tab does. */
     static answerFor: string | null = null
-    private listeners: ((event: MessageEvent<unknown>) => void)[] = []
+    private listeners: readonly ((event: MessageEvent<unknown>) => void)[] = []
 
     constructor() {
-      FakeChannel.instances.push(this)
+      FakeChannel.instances = [...FakeChannel.instances, this]
     }
 
     addEventListener(
       _type: string,
       listener: (e: MessageEvent<unknown>) => void,
     ) {
-      this.listeners.push(listener)
+      this.listeners = [...this.listeners, listener]
     }
 
     postMessage(data: unknown) {
       const message = data as HolderMessage
-      FakeChannel.posted.push(message)
+      FakeChannel.posted = [...FakeChannel.posted, message]
 
       if (
         message.type === 'claim' &&

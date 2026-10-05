@@ -124,6 +124,49 @@ const isHolderMessage = (data: unknown): data is HolderMessage => {
 const outranksClaim = (theirs: string | undefined, ours: string): boolean =>
   theirs === undefined ? false : ours < theirs
 
+/**
+ * Whether to tell a claimant the id is taken. A settled tab (no `pendingRank`)
+ * always does; one still claiming answers only the claims it outranks, so that
+ * exactly one side of a simultaneous claim steps aside.
+ */
+const answersClaim = (
+  claim: HolderMessage,
+  pendingRank: string | undefined,
+): boolean =>
+  pendingRank === undefined || outranksClaim(claim.claimRank, pendingRank)
+
+/** Whether a `taken` answers this tab's own outstanding claim. */
+const answersThisTab = (
+  reply: HolderMessage,
+  pendingRank: string | undefined,
+): boolean => pendingRank !== undefined && reply.claimRank === pendingRank
+
+/**
+ * Answer one message on behalf of the tab holding `pendingRank`, and say what
+ * it leaves this tab's own id as.
+ */
+const answerHolderMessage = (
+  channel: BroadcastChannel,
+  message: HolderMessage,
+  pendingRank: string | undefined,
+): 'keep' | 'rotate' => {
+  if (message.holderId !== getHolderId()) return 'keep'
+
+  if (message.type === 'claim') {
+    if (answersClaim(message, pendingRank)) {
+      channel.postMessage({
+        type: 'taken',
+        holderId: getHolderId(),
+        claimRank: message.claimRank,
+      })
+    }
+    return 'keep'
+  }
+
+  // Another live tab already answers to this id, so this tab is the clone.
+  return answersThisTab(message, pendingRank) ? 'rotate' : 'keep'
+}
+
 /** A fresh id for this tab, replacing whatever it inherited. */
 const takeNewHolderId = (): string => {
   const created = crypto.randomUUID()
@@ -181,33 +224,9 @@ export const claimTabHolderId = (): Promise<string> => {
 
     channel.addEventListener('message', (event: MessageEvent<unknown>) => {
       if (!isHolderMessage(event.data)) return
-      if (event.data.holderId !== getHolderId()) return
-
-      if (event.data.type === 'claim') {
-        // Yield to the other side of a simultaneous claim rather than answer
-        // it: both tabs rotating would orphan the lock this id still holds.
-        if (
-          pendingRank !== undefined &&
-          !outranksClaim(event.data.claimRank, pendingRank)
-        ) {
-          return
-        }
-
-        channel.postMessage({
-          type: 'taken',
-          holderId: getHolderId(),
-          claimRank: event.data.claimRank,
-        })
-        return
+      if (answerHolderMessage(channel, event.data, pendingRank) === 'rotate') {
+        settle(takeNewHolderId())
       }
-
-      // Addressed to another claimant, or to a claim this tab already settled.
-      if (pendingRank === undefined || event.data.claimRank !== pendingRank) {
-        return
-      }
-
-      // Another live tab already answers to this id, so this tab is the clone.
-      settle(takeNewHolderId())
     })
 
     channel.postMessage({ type: 'claim', claimRank, holderId: getHolderId() })
