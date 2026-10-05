@@ -103,6 +103,14 @@ type Context = {
    * Nothing to retry — the failure screen offers only a way back.
    */
   nameUnavailable: boolean
+  /**
+   * A start or resume was refused because the wallet is registering elsewhere.
+   * Nothing ran and nothing failed, so the screen says so instead of offering
+   * a retry of a registration that never began. Tracked apart from the name
+   * holding the wallet: that lookup can come back empty if the other tab
+   * finishes in between, and the refusal still happened.
+   */
+  isWalletBusy: boolean
   /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
   pendingStart?: Extract<
     Events,
@@ -188,6 +196,7 @@ type Events =
   | { type: 'cancel' }
   | { type: 'label.changed' }
   | { type: '$error'; error: Error }
+  | { type: '$walletBusy'; blockingName: string | null }
 
 type Input = {
   chainId: number
@@ -321,17 +330,8 @@ const machineSetup = setup({
   },
   guards: {
     hasPendingStart: ({ context }) => context.pendingStart !== undefined,
-    isWalletRegisteringAnotherName: ({ context }) => {
-      const confirmed = context.confirmedData
-      if (!confirmed) return false
-
-      return (
-        getBlockingRegistration(
-          confirmed.ownerAddress,
-          asEthName(confirmed.label),
-        ) !== null
-      )
-    },
+    isWalletRegisteringAnotherName: ({ context }) =>
+      blockingRegistrationFor(context) !== null,
     isDurationValid: ({ context }) =>
       context.duration >= MIN_REGISTER_DURATION_SECONDS,
     hasEthRecordSyncRemaining: ({ context }) =>
@@ -373,6 +373,7 @@ const machineSetup = setup({
     clearError: assign({
       lastErrorMessage: () => undefined,
       nameUnavailable: () => false,
+      isWalletBusy: () => false,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -390,6 +391,8 @@ const machineSetup = setup({
             ({ nameUnavailable }) => nameUnavailable === true,
           )
           .otherwise(() => false),
+      // A real failure replaces a refusal: something did run this time.
+      isWalletBusy: () => false,
     }),
     setInvokeError: assign({
       lastErrorMessage: ({ event }) => {
@@ -405,18 +408,20 @@ const machineSetup = setup({
     raisePendingStart: enqueueActions(({ enqueue, context }) => {
       if (context.pendingStart) enqueue.raise(context.pendingStart)
     }),
+    setWalletBusy: assign({
+      lastErrorMessage: ({ event }) =>
+        match(event)
+          .with({ type: '$walletBusy' }, ({ blockingName }) =>
+            registrationLockMessage(blockingName),
+          )
+          .otherwise(() => undefined),
+      isWalletBusy: () => true,
+      nameUnavailable: () => false,
+    }),
     setRegistrationLockError: assign({
-      lastErrorMessage: ({ context }) => {
-        const confirmed = context.confirmedData
-        const blocking = confirmed
-          ? getBlockingRegistration(
-              confirmed.ownerAddress,
-              asEthName(confirmed.label),
-            )
-          : null
-
-        return registrationLockMessage(blocking)
-      },
+      lastErrorMessage: ({ context }) =>
+        registrationLockMessage(blockingRegistrationFor(context)),
+      isWalletBusy: () => true,
     }),
     acquireRegistrationLock: ({ context }) => {
       const confirmed = context.confirmedData
@@ -578,8 +583,19 @@ const machineSetup = setup({
 })
 
 /** Names the registration holding this wallet, so the user knows what to finish. */
+/** The name holding this run's wallet, if any. */
+const blockingRegistrationFor = (context: Context): string | null => {
+  const confirmed = context.confirmedData
+  if (!confirmed) return null
+
+  return getBlockingRegistration(
+    confirmed.ownerAddress,
+    asEthName(confirmed.label),
+  )
+}
+
 const registrationLockMessage = (blockingName: string | null): string =>
-  `Cannot register: ${blockingName ?? 'another name'} is already being registered with this wallet, possibly in another tab. Finish or cancel it first.`
+  `${blockingName ?? 'Another name'} is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.`
 
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, event }) => {
@@ -667,11 +683,10 @@ const startRegistrationAction = machineSetup.createAction(
     if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
       enqueue.assign({ pendingStart: event })
       return enqueue.raise({
-        type: '$error',
-        error: new Error(
-          registrationLockMessage(
-            getBlockingRegistration(ownerAddress, asEthName(event.label)),
-          ),
+        type: '$walletBusy',
+        blockingName: getBlockingRegistration(
+          ownerAddress,
+          asEthName(event.label),
         ),
       })
     }
@@ -786,11 +801,10 @@ const resumeRegistrationAction = machineSetup.createAction(
     if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
       enqueue.assign({ pendingStart: event })
       return enqueue.raise({
-        type: '$error',
-        error: new Error(
-          registrationLockMessage(
-            getBlockingRegistration(ownerAddress, asEthName(event.label)),
-          ),
+        type: '$walletBusy',
+        blockingName: getBlockingRegistration(
+          ownerAddress,
+          asEthName(event.label),
         ),
       })
     }
@@ -929,6 +943,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     nameUnavailable: false,
+    isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,
@@ -1323,6 +1338,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     $error: {
       target: '.failure',
       actions: ['setError'],
+    },
+    // Not a failure: the wallet is busy elsewhere and this run never started.
+    $walletBusy: {
+      target: '.failure',
+      actions: ['setWalletBusy'],
     },
     'label.changed': {
       target: '.pricing',
