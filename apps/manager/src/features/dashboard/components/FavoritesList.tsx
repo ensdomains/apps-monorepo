@@ -1,11 +1,12 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
+import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -49,16 +50,19 @@ const parseSort = (
 
 const FavoriteNameRow = ({
   label,
+  profileRecords,
+  isProfileRecordsLoading,
   onToggleFavorite,
 }: {
   readonly label: string
+  readonly profileRecords?: Pick<ProfileRecordsResult, 'texts'> | null
+  readonly isProfileRecordsLoading: boolean
   readonly onToggleFavorite: () => void
 }) => {
-  const records = useQuery(profileAvatarRecordsQuery(label))
   const preview = getNameRowProfilePreview({
     label,
-    records: records.data,
-    isLoading: records.isLoading,
+    records: profileRecords,
+    isLoading: isProfileRecordsLoading,
   })
 
   return (
@@ -117,6 +121,16 @@ export const FavoritesList = ({
     PAGE_SIZE,
   )
   const paginatedFavorites = paginatedData.favorites
+  const pageProfileRecords = useQueries({
+    queries: paginatedFavorites.map(({ label }) =>
+      profileAvatarRecordsQuery(label),
+    ),
+    combine: (results) =>
+      results.map((result) => ({
+        records: result.data,
+        isLoading: result.isLoading,
+      })),
+  })
 
   return (
     <div className="w-full">
@@ -175,8 +189,12 @@ export const FavoritesList = ({
                     })}
               >
                 <FavoriteNameRow
+                  isProfileRecordsLoading={
+                    pageProfileRecords[index]?.isLoading ?? false
+                  }
                   label={fav.label}
                   onToggleFavorite={() => toggleFavorite(fav.label)}
+                  profileRecords={pageProfileRecords[index]?.records}
                 />
               </motion.div>
             )),
