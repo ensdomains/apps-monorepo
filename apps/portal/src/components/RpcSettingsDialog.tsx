@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import {
   checkRpcEndpoint,
@@ -36,29 +36,21 @@ function useRpcForm(open: boolean) {
   const [value, setValue] = useState(() => getCustomRpcUrl() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isChecking, setIsChecking] = useState(false)
+  // Identifies the latest save attempt. A check that finishes after the
+  // dialog closed — or after a newer attempt started — must not save.
+  const attemptRef = useRef(0)
 
   useEffect(() => {
+    // Any open/close transition invalidates a pending check.
+    attemptRef.current += 1
     if (!open) return
     setValue(getCustomRpcUrl() ?? '')
     setError(null)
     setIsChecking(false)
   }, [open])
 
-  return { value, setValue, error, setError, isChecking, setIsChecking }
-}
-
-export const RpcSettingsDialog = ({
-  open,
-  onOpenChange,
-}: {
-  readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
-}) => {
-  const current = getCustomRpcUrl()
-  const { value, setValue, error, setError, isChecking, setIsChecking } =
-    useRpcForm(open)
-
   const save = async (): Promise<void> => {
+    const attempt = ++attemptRef.current
     const validated = validateRpcUrl(value)
     if (validated.isErr())
       return setError(INVALID_MESSAGES[validated.error.reason])
@@ -66,6 +58,7 @@ export const RpcSettingsDialog = ({
     setError(null)
     setIsChecking(true)
     const checked = await checkRpcEndpoint(validated.value)
+    if (attempt !== attemptRef.current) return
     setIsChecking(false)
 
     if (checked.isErr()) {
@@ -84,6 +77,19 @@ export const RpcSettingsDialog = ({
     }
     saveCustomRpcUrl(validated.value)
   }
+
+  return { value, setValue, error, isChecking, save }
+}
+
+export const RpcSettingsDialog = ({
+  open,
+  onOpenChange,
+}: {
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+}) => {
+  const current = getCustomRpcUrl()
+  const { value, setValue, error, isChecking, save } = useRpcForm(open)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

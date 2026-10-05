@@ -259,6 +259,64 @@ describe('csp', () => {
       expect(result.status).toBe(201)
       expect(await result.text()).toBe('body')
     })
+
+    describe('telemetry-gated violation reporting', () => {
+      const html = () =>
+        new Response('<html></html>', {
+          headers: { 'Content-Type': 'text/html' },
+        })
+      const requestWith = (cookie: string | null) =>
+        new Request('https://explorer.ens.dev/', {
+          headers: cookie ? { Cookie: cookie } : {},
+        })
+
+      it('omits reporting directives on documents without the telemetry cookie', () => {
+        const result = withSecurityHeaders(html(), requestWith(null))
+        const policy = result.headers.get('Content-Security-Policy') ?? ''
+
+        expect(policy).not.toContain('report-to')
+        expect(policy).not.toContain('report-uri')
+        expect(result.headers.get('Reporting-Endpoints')).toBeNull()
+      })
+
+      it('keeps reporting on documents with the telemetry cookie', () => {
+        const result = withSecurityHeaders(
+          html(),
+          requestWith('foo=bar; telemetry=1'),
+        )
+        const policy = result.headers.get('Content-Security-Policy') ?? ''
+
+        expect(policy).toContain('report-to posthog')
+        expect(policy).toContain('https://eu.i.posthog.com/report/')
+        expect(result.headers.get('Reporting-Endpoints')).toMatch(
+          /^posthog="https:\/\/eu\.i\.posthog\.com\/report\//,
+        )
+      })
+
+      it('ignores lookalike cookie values', () => {
+        const result = withSecurityHeaders(
+          html(),
+          requestWith('telemetry=0; other=telemetry=1x'),
+        )
+
+        expect(result.headers.get('Content-Security-Policy')).not.toContain(
+          'report-to',
+        )
+      })
+
+      it('keeps reporting bytes unchanged on non-documents regardless of cookie', () => {
+        // Reporting directives on subresource responses are inert, so assets
+        // never vary by cookie (and stay edge-cacheable as before).
+        const result = withSecurityHeaders(
+          new Response('hi'),
+          requestWith(null),
+        )
+
+        expect(result.headers.get('Content-Security-Policy')).toBe(
+          cspWithFrameAncestors,
+        )
+      })
+    })
   })
 })
 

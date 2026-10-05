@@ -57,6 +57,11 @@ describe('checkRpcEndpoint', () => {
     expect((await checkRpcEndpoint('https://a.io')).isOk()).toBe(true)
   })
 
+  it('accepts an uppercase matching chain id', async () => {
+    stubChainId(`0x${envConfig.chain.id.toString(16).toUpperCase()}`)
+    expect((await checkRpcEndpoint('https://a.io')).isOk()).toBe(true)
+  })
+
   it('rejects a different chain', async () => {
     stubChainId('0x1')
     const res = await checkRpcEndpoint('https://a.io')
@@ -72,6 +77,26 @@ describe('checkRpcEndpoint', () => {
   it('rejects a non-RPC response', async () => {
     stubChainId(undefined)
     const res = await checkRpcEndpoint('https://a.io')
+    expect(res._unsafeUnwrapErr().reason).toBe('unreachable')
+  })
+
+  it('rejects a websocket message that is not JSON instead of hanging', async () => {
+    vi.stubGlobal(
+      'WebSocket',
+      class {
+        onopen: (() => void) | null = null
+        onmessage: ((event: { data: unknown }) => void) | null = null
+        onerror: (() => void) | null = null
+        close = vi.fn()
+        send = vi.fn(() => {
+          setTimeout(() => this.onmessage?.({ data: '<html>nope</html>' }), 0)
+        })
+        constructor() {
+          setTimeout(() => this.onopen?.(), 0)
+        }
+      },
+    )
+    const res = await checkRpcEndpoint('wss://a.io')
     expect(res._unsafeUnwrapErr().reason).toBe('unreachable')
   })
 })

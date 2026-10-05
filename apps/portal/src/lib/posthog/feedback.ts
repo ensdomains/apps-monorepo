@@ -45,11 +45,11 @@ export const displayFeedbackSurvey = (
     if (!client) return
 
     // Survey definitions load async, and displaySurvey needs them cached.
-    let shown = false
+    let isShown = false
     let unsubscribe: (() => void) | undefined
     unsubscribe = client.onSurveysLoaded(() => {
-      if (shown) return
-      shown = true
+      if (isShown) return
+      isShown = true
       client.displaySurvey(surveyId, options)
       unsubscribe?.()
     })

@@ -1,5 +1,5 @@
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok, type Result } from 'neverthrow'
+import { err, ok, type Result, ResultAsync } from 'neverthrow'
 import { envConfig } from '@/config'
 
 const STORAGE_KEY = 'custom-rpc-url'
@@ -91,8 +91,16 @@ const fetchChainId = async (url: string, signal: AbortSignal) => {
     signal.addEventListener('abort', onAbort)
     socket.onopen = () => socket.send(REQUEST)
     socket.onerror = () => done(() => reject(new Error('socket error')))
-    socket.onmessage = (event) =>
-      done(() => resolve(JSON.parse(event.data).result))
+    socket.onmessage = (event) => {
+      // Parse before done(): it removes the abort listener, so a throw here
+      // would leave the promise unsettled and the check hanging forever.
+      const parsed = fromSync(
+        () => JSON.parse(event.data) as { result?: unknown },
+        () => new Error('non-JSON response'),
+      )
+      if (parsed.isErr()) return done(() => reject(parsed.error))
+      return done(() => resolve(parsed.value.result))
+    }
   })
 }
 
@@ -101,16 +109,16 @@ export const checkRpcEndpoint = async (
 ): Promise<Result<void, RpcCheckError>> => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS)
-  try {
-    const chainId = await fetchChainId(url, controller.signal)
+  const result = await ResultAsync.fromPromise(
+    fetchChainId(url, controller.signal),
+    (cause) => new RpcCheckError({ reason: 'unreachable', cause }),
+  ).andThen((chainId): Result<void, RpcCheckError> => {
     if (typeof chainId !== 'string' || !/^0x[0-9a-f]+$/i.test(chainId))
       return err(new RpcCheckError({ reason: 'unreachable' }))
-    return Number(chainId) === envConfig.chain.id
+    return BigInt(chainId) === BigInt(envConfig.chain.id)
       ? ok()
       : err(new RpcCheckError({ reason: 'wrong-chain' }))
-  } catch (cause) {
-    return err(new RpcCheckError({ reason: 'unreachable', cause }))
-  } finally {
-    clearTimeout(timer)
-  }
+  })
+  clearTimeout(timer)
+  return result
 }

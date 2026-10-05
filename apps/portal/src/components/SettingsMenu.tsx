@@ -41,12 +41,12 @@ const FeedbackMenuItem = () => {
 }
 
 const TelemetryToggle = () => {
-  const [enabled, setEnabled] = useTelemetryEnabled()
+  const [isEnabled, setIsEnabled] = useTelemetryEnabled()
 
   return (
     <DropdownMenuCheckboxItem
-      checked={enabled}
-      onCheckedChange={setEnabled}
+      checked={isEnabled}
+      onCheckedChange={setIsEnabled}
       onSelect={(event) => event.preventDefault()}
     >
       Share usage data
