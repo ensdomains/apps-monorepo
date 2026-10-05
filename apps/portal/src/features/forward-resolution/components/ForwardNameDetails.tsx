@@ -10,7 +10,6 @@ import {
   getRecordHistoryQueryOptions,
   type RecordHistoryEvent,
 } from '@/features/records/hooks/useRecordHistory'
-import { fromCoinType } from '@/lib/utils'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { CoinTypeLabel } from './CoinTypeLabel'
 import type { ForwardName } from './ForwardNamesTable/columns'
@@ -95,10 +94,6 @@ const HistoryView = ({ name }: HistoryViewProps) => {
 }
 
 export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {
-  const coins = coinTypes.map((coin) =>
-    fromCoinType(BigInt(Number.parseInt(coin, 10))),
-  )
-
   return (
     <div className="flex flex-col p-6 gap-6 [&_[data-slot=info-row]]:px-0">
       <h2 className="font-sans text-h2">{name}</h2>
@@ -110,8 +105,8 @@ export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {
         </InfoRow>
         <InfoRow label="Records">
           <div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
-            {coins.map((coin) => (
-              <CoinTypeLabel coin={coin} key={coin} />
+            {coinTypes.map((coinType) => (
+              <CoinTypeLabel coinType={coinType} key={coinType} />
             ))}
           </div>
         </InfoRow>
