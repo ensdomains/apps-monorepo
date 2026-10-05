@@ -35,6 +35,46 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
         },
       }
 
+const PrimaryNameCardWithAvatar = ({
+  primaryName,
+  avatarRecord,
+  themeColor,
+}: {
+  readonly primaryName: string
+  readonly avatarRecord?: string
+  readonly themeColor?: string
+}) => {
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
+
+  return (
+    <PrimaryNameCard
+      avatarUrl={avatarUrl}
+      primaryName={primaryName}
+      themeColor={themeColor}
+    />
+  )
+}
+
+const PrimaryNameCardWithRecords = ({
+  primaryName,
+}: {
+  readonly primaryName: string
+}) => {
+  const { data: records } = useQuery(profileRecordsQuery(primaryName))
+  const themeColor = records?.texts.find((text) => text.key === 'theme')?.value
+  const avatarRecord = records?.texts
+    .find((text) => text.key === 'avatar')
+    ?.value.trim()
+
+  return (
+    <PrimaryNameCardWithAvatar
+      avatarRecord={avatarRecord}
+      primaryName={primaryName}
+      themeColor={themeColor}
+    />
+  )
+}
+
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
@@ -51,21 +91,7 @@ export const DashboardPage = () => {
     enabled: !!ownerAddress,
   })
 
-  const { data: reverseRecords } = useQuery({
-    ...profileRecordsQuery(reverseName ?? ''),
-    enabled: !!reverseName,
-  })
-
-  const themeColor = reverseRecords?.texts.find(
-    (text) => text.key === 'theme',
-  )?.value
-
   const defaultName = reverseName ?? null
-  const avatarRecord = reverseRecords?.texts
-    .find((text) => text.key === 'avatar')
-    ?.value.trim()
-  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
-  const hasProfile = Boolean(defaultName)
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:pb-10">
@@ -82,13 +108,9 @@ export const DashboardPage = () => {
         >
           <DashboardGraceBanner primaryLabel={defaultName} />
         </motion.div>
-        {hasProfile ? (
+        {defaultName ? (
           <motion.div {...stagger(2, shouldReduceMotion)}>
-            <PrimaryNameCard
-              avatarUrl={avatarUrl}
-              primaryName={defaultName}
-              themeColor={themeColor}
-            />
+            <PrimaryNameCardWithRecords primaryName={defaultName} />
           </motion.div>
         ) : (
           <Card

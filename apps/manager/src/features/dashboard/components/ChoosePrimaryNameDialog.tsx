@@ -91,6 +91,33 @@ const PrimaryNameSkeletonList = () => (
   </div>
 )
 
+const PrimaryNameOptionAvatar = ({
+  label,
+  avatarRecord,
+}: {
+  readonly label: string
+  readonly avatarRecord?: string
+}) => {
+  const { t } = useLingui()
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
+
+  return (
+    <ImageFallback.Root className="contents">
+      <ImageFallback.Image
+        alt={t`${label} avatar`}
+        className="size-full object-cover"
+        src={avatarUrl ?? undefined}
+      />
+      <ImageFallback.Fallback>
+        <PatternAvatar
+          className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+          name={label}
+        />
+      </ImageFallback.Fallback>
+    </ImageFallback.Root>
+  )
+}
+
 const PrimaryNameOption = ({
   domain,
   selectedName,
@@ -109,7 +136,6 @@ const PrimaryNameOption = ({
   const avatarRecord = avatarRecords?.texts
     .find((record) => record.key === 'avatar')
     ?.value.trim()
-  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
 
   return (
     <button
@@ -127,19 +153,7 @@ const PrimaryNameOption = ({
     >
       <div className="flex items-center gap-3">
         <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-white">
-          <ImageFallback.Root className="contents">
-            <ImageFallback.Image
-              alt={t`${label} avatar`}
-              className="size-full object-cover"
-              src={avatarUrl ?? undefined}
-            />
-            <ImageFallback.Fallback>
-              <PatternAvatar
-                className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
-                name={label}
-              />
-            </ImageFallback.Fallback>
-          </ImageFallback.Root>
+          <PrimaryNameOptionAvatar avatarRecord={avatarRecord} label={label} />
         </div>
         <span className="font-mono text-[16px] text-foreground leading-[0.96] tracking-[-0.32px]">
           {label}

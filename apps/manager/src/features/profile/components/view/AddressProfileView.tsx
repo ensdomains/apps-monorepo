@@ -15,6 +15,28 @@ import { isViewingConnectedAddress } from './connectedAccounts.helpers'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileThemeColorProvider } from './ProfileThemeColor'
 
+const AddressProfileBanner = ({
+  defaultHeaderUrl,
+  headerRecord,
+  name,
+}: {
+  readonly defaultHeaderUrl: string
+  readonly headerRecord?: string
+  readonly name: string
+}) => {
+  const header = useQuery(imageRecordQuery(headerRecord))
+
+  return (
+    <ProfileBanner
+      defaultHeaderUrl={defaultHeaderUrl}
+      fadeClassName="bottom-0"
+      headerLoading={header.isLoading}
+      headerUrl={header.data ?? undefined}
+      name={name}
+    />
+  )
+}
+
 export const AddressProfileView = ({
   address,
   primaryName,
@@ -48,8 +70,6 @@ export const AddressProfileView = ({
     ? transformProfileRecords(profileRecords)
     : null
   const themeVars = getThemeVars(records?.base.theme)
-  const header = useQuery(imageRecordQuery(records?.base.header?.trim()))
-  const headerUrl = header.data ?? undefined
   const defaultHeaderUrl = getDefaultHeaderCover({
     themeColor: records?.base.theme,
   })
@@ -60,11 +80,9 @@ export const AddressProfileView = ({
       style={themeVars as CSSProperties}
     >
       <ProfileThemeColorProvider value={themeVars['--theme-color']}>
-        <ProfileBanner
+        <AddressProfileBanner
           defaultHeaderUrl={defaultHeaderUrl}
-          fadeClassName="bottom-0"
-          headerLoading={header.isLoading}
-          headerUrl={headerUrl}
+          headerRecord={records?.base.header?.trim()}
           name={primaryName ?? address}
         />
         <div className="relative z-10 mx-auto -mt-21 w-[calc(100%-40px)] max-w-[809.257px] space-y-6 lg:landscape:-mt-11.25">
