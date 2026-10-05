@@ -10,6 +10,7 @@ import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { deleteSubname } from '../helpers/deleteSubname'
@@ -29,8 +30,13 @@ interface DeleteSubnameResult {
 interface DeleteSubnameMutationInput {
   /** The full subname (e.g., 'cold.domico.eth') */
   readonly subname: string
-  /** The label portion of the subname (e.g., 'cold') */
-  readonly label: string
+  /**
+   * The subname's on-chain id, taken from the indexer row being deleted. The
+   * label string is deliberately not accepted here: re-hashing it would
+   * address a different name whenever the label is written in encoded
+   * (`[<64 hex>]`) form (WEB-1458).
+   */
+  readonly resourceId: ResourceId
   /** Transaction id for the transaction manager / modal */
   readonly id: string
 }
@@ -50,8 +56,8 @@ interface DeleteSubnameMutationInput {
  *
  * await deleteSubnameAsync({
  *   subname: 'cold.domico.eth',
- *   label: 'cold',
- *   owner: '0x...',
+ *   resourceId,
+ *   id: 'tx-delete-ens-subname-cold.domico.eth',
  * })
  * ```
  */
@@ -80,7 +86,7 @@ export const useDeleteSubname = ({
 
       return deleteSubname({
         name: input.subname,
-        label: input.label,
+        resourceId: input.resourceId,
         registryAddress,
         id: input.id,
         walletClient,

@@ -147,6 +147,8 @@ describe('ResolverRolesTable row identity', () => {
     ).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    // Root scope is named in the confirmation before anything is submitted.
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     expect(
       within(screen.getByRole('list', { name: 'Transaction steps' })).getByText(
