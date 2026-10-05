@@ -2,7 +2,11 @@ import {
   type FlowScope,
   scopeTransactionId,
 } from '@ens-apps/transaction-manager'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
@@ -20,7 +24,10 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import {
+  getV1SubnamesQueryOptions,
+  getV2SubnamesQueryOptions,
+} from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -150,13 +157,20 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   })
 
   const {
-    data: subnames,
+    data: subnamePages,
     isLoading: subnamesLoading,
     error: subnamesError,
-  } = useQuery({
-    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    ...getV2SubnamesQueryOptions({ name }),
     enabled: Boolean(hasSubregistry),
   })
+  const subnames = useMemo(
+    () => subnamePages?.pages.flatMap((page) => page.subnames),
+    [subnamePages],
+  )
 
   const {
     deleteSubnameAsync,
@@ -477,6 +491,14 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     <>
       <SubnamesTable
         subnames={subnameRows}
+        // The name's total, less the loaded rows hidden while their delete
+        // waits on the indexer.
+        totalCount={
+          (subnamePages?.pages[0]?.totalCount ?? 0) -
+          ((subnames?.length ?? 0) - subnameRows.length)
+        }
+        onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
+        isLoadingMore={isFetchingNextPage}
         name={name}
         canCreateSubname={canCreateSubname}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
@@ -506,7 +528,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     data: subnames,
     isLoading,
     error,
-  } = useQuery(getSubnamesQueryOptions({ name, protocolVersion: 'ENSv1' }))
+  } = useQuery(getV1SubnamesQueryOptions({ name }))
 
   if (isLoading) return <LoadingMessage title="Loading subnames..." />
 
