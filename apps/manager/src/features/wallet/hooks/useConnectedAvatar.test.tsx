@@ -38,7 +38,10 @@ const mockProfileRecords = ({
     (options) =>
       ({
         data:
-          options.queryKey[0]?.$action === 'image_record' ? undefined : data,
+          (options.queryKey[0] as { readonly $action?: string })?.$action ===
+          'image_record'
+            ? undefined
+            : data,
         error: null,
         isLoading,
       }) as unknown as ReturnType<typeof useQuery>,
