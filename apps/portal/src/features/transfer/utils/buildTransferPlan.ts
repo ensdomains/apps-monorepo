@@ -35,6 +35,11 @@ export type TransferStepKind =
    * `ENSRegistry.setSubnodeOwner` (unwrapped), overriding the current holder.
    */
   | 'set-subnode-owner'
+  /**
+   * Recovery, never part of a plan: points the ETH address back at what it
+   * was, after `set-eth-addr` landed but the move didn't.
+   */
+  | 'restore-eth-addr'
 
 /** The step(s) that actually move the name, per subject kind. */
 const MOVE_STEPS: Record<TransferSubject['kind'], readonly TransferStepKind[]> =
@@ -88,4 +93,39 @@ export const STEP_LABELS: Record<TransferStepKind, string> = {
   'transfer-erc1155': 'Transfer name',
   'set-registry-owner': 'Transfer name',
   'set-subnode-owner': 'Reassign subname',
+  'restore-eth-addr': 'Restore ETH address',
+}
+
+/**
+ * The ETH address record already points at the recipient, but the step that
+ * moves the name never confirmed — a failed or abandoned move leaves the sender
+ * owning a name that resolves to someone else. The move is always the plan's
+ * last step.
+ *
+ * A step whose receipt never came back (polling timed out after the send) may
+ * still have landed, so the chain decides instead:
+ * - `isRecordRepointedOnChain`: the live ETH record points at the recipient.
+ * - `mayHaveMoved`: the move's receipt was lost and the live holder doesn't
+ *   prove it failed — the recipient holds it, or the read hasn't settled.
+ *   Claiming the sender still owns it would offer a restore they can no longer
+ *   authorize.
+ */
+export const isRecordAheadOfMove = (
+  plan: readonly TransferStepKind[],
+  confirmedSteps: ReadonlySet<TransferStepKind>,
+  {
+    isRecordRepointedOnChain = false,
+    mayHaveMoved = false,
+  }: {
+    readonly isRecordRepointedOnChain?: boolean
+    readonly mayHaveMoved?: boolean
+  } = {},
+): boolean => {
+  const move = plan.at(-1)
+  return (
+    (confirmedSteps.has('set-eth-addr') || isRecordRepointedOnChain) &&
+    move !== undefined &&
+    !confirmedSteps.has(move) &&
+    !mayHaveMoved
+  )
 }
