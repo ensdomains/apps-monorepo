@@ -1,3 +1,8 @@
+import {
+  readWrapperExpiry,
+  type WrapperExpiry,
+  type WrapperExpiryReason,
+} from '@ens-apps/bigname'
 import { labelhash, namehash, zeroAddress } from 'viem'
 import { GRACE_PERIOD_SECONDS } from './constants'
 
@@ -41,8 +46,8 @@ export type V1Domain = {
 
 /**
  * The ENSv1 half of a bigname name row (`ens_v1`): the BaseRegistrar lease
- * date and the NameWrapper state and fuse word. bigname serves it exactly
- * while the name's `authority` is `ens_v1` or `ens_v0`.
+ * date and the NameWrapper state, fuse word and entry expiry. bigname serves
+ * it exactly while the name's `authority` is `ens_v1` or `ens_v0`.
  */
 export type BignameEnsV1Fields = {
   /** Lease expiry, decimal Unix seconds; `null` when the name has no lease (every subname). */
@@ -50,6 +55,16 @@ export type BignameEnsV1Fields = {
   /** Present exactly when `wrapper_fuses` is present. */
   readonly wrapper_state?: string
   readonly wrapper_fuses?: { readonly fuses: number }
+  /**
+   * The NameWrapper entry's own expiry, served after bigname v0.4.1: beside
+   * `wrapper_state`, and alone, in the past, once an emancipated or locked
+   * wrapper has lapsed. v0.4.1 never serves it, and later releases omit it
+   * for an unwrapped name (even one that still serves `wrapper_state`) and
+   * for a registry child with no name row, so its absence says nothing about
+   * whether the name is wrapped.
+   */
+  readonly wrapper_expires_at?: string | null
+  readonly wrapper_expires_at_reason?: WrapperExpiryReason
 }
 
 /**
@@ -83,13 +98,13 @@ export type BignameV1NameRecord = {
 /**
  * A registration's resource restrictions, as `include=role_summary` address
  * name rows carry them (`restrictions`). Only the `ens_v1_wrapper` kind's
- * `wrapper_expires_at` is read: the exact NameWrapper entry expiry, which
- * name detail and lookup do not serve.
+ * `wrapper_expires_at` is read: the exact NameWrapper entry expiry, and the
+ * only place bigname v0.4.1 serves it.
  */
 export type BignameV1Restrictions = {
   readonly kind: string
   readonly wrapper_expires_at?: string | null
-  readonly wrapper_expires_at_reason?: string
+  readonly wrapper_expires_at_reason?: WrapperExpiryReason
 }
 
 /** The parent's record; only its NameWrapper fuses are read. */
@@ -138,34 +153,44 @@ const labelFacts = (
   return { labelName: label, labelhash: labelhash(label) }
 }
 
-/** A `null` NameWrapper expiry: `no_expiry` is the uint64 maximum, `not_set` (a parent that set none) is zero. */
+/** A `null` expiry: `no_expiry` is the uint64 maximum, `not_set` (a parent that set none) is zero. */
 const nullExpiry = (reason: string | undefined): bigint =>
   reason === 'no_expiry' ? MAX_UINT64 : 0n
 
 /**
- * The served NameWrapper entry expiry (`restrictions.wrapper_expires_at`),
- * or `undefined` when the read did not carry it.
+ * A served NameWrapper expiry as the `uint64` the entry stores: `no_expiry`
+ * is the maximum, `not_set` (a parent that set none) is zero.
  */
-const servedWrapperExpiry = (
-  restrictions: BignameV1Restrictions | null | undefined,
-): bigint | undefined => {
-  if (restrictions?.kind !== 'ens_v1_wrapper') return undefined
-  const { wrapper_expires_at: expiresAt } = restrictions
-  if (expiresAt === null) {
-    return nullExpiry(restrictions.wrapper_expires_at_reason)
-  }
-  return toSeconds(expiresAt)
-}
+const storedWrapperExpiry = (expiry: WrapperExpiry): bigint =>
+  expiry.expiresAt ?? nullExpiry(expiry.reason)
 
 /**
- * NameWrapper entry expiry when the read did not carry
- * `restrictions.wrapper_expires_at` (lookup and name detail never do; an
- * address-names walk does only with `include=role_summary`). Derived:
+ * The NameWrapper entry expiry bigname served for the name, or `undefined`
+ * when the read did not carry one. `ens_v1.wrapper_expires_at` (after
+ * v0.4.1, on every name-shaped row) comes first; the address row's
+ * `restrictions` carry the same value on v0.4.1, for a backed wrapper read
+ * with `include=role_summary`.
+ */
+const servedWrapperExpiry = (
+  record: BignameV1NameRecord,
+  restrictions: BignameV1Restrictions | null | undefined,
+): WrapperExpiry | undefined =>
+  readWrapperExpiry(record.ens_v1) ??
+  (restrictions?.kind === 'ens_v1_wrapper'
+    ? readWrapperExpiry(restrictions)
+    : undefined)
+
+/**
+ * NameWrapper entry expiry when bigname served none: v0.4.1 name detail and
+ * lookup never do, and its address-names walk does only with
+ * `include=role_summary`. Derived:
  *
- * - A wrapped `.eth` 2LD: NameWrapper stores the registrar lease plus the
- *   90-day grace period, so it is `ens_v1.expires_at` + 90 days. The
- *   top-level `expires_at` is the ENSv2 entry's expiry from the Universal
- *   Resolver cutover and must not be used.
+ * - A wrapped `.eth` 2LD: wrapping and `NameWrapper.renew` store the
+ *   registrar lease plus the 90-day grace period, so it is
+ *   `ens_v1.expires_at` + 90 days. A renewal through a controller that calls
+ *   only `BaseRegistrar.renew` leaves the entry behind the lease; only the
+ *   served value shows that. The top-level `expires_at` is the ENSv2 entry's
+ *   expiry from the Universal Resolver cutover and must not be used.
  * - A wrapped subname: it has no lease, and bigname's top-level `expires_at`
  *   is "the NameWrapper entry's expiry, which is the only expiry the chain
  *   holds for it" (api-v1.md, `expires_at`). Assumption: that stays true for
@@ -199,14 +224,26 @@ const wrapperEntry = (
   restrictions: BignameV1Restrictions | null | undefined,
 ): V1Domain['wrappedDomain'] => {
   const ensV1 = record.ens_v1
+  const served = servedWrapperExpiry(record, restrictions)
   if (ensV1?.wrapper_state !== undefined && ensV1.wrapper_fuses) {
-    const expiry =
-      servedWrapperExpiry(restrictions) ??
-      derivedWrapperExpiry(record, isDotEth2ld)
+    // `wrapper_state` without a served expiry is a wrapped name on v0.4.1
+    // and an unwrapped one afterwards; the two cannot be told apart from one
+    // row, so it stays a wrapper entry and the on-chain ownership check
+    // rejects the unwrapped case.
+    const expiry = served
+      ? storedWrapperExpiry(served)
+      : derivedWrapperExpiry(record, isDotEth2ld)
     return {
       expiryDate: expiry.toString(),
       fuses: ensV1.wrapper_fuses.fuses,
     }
+  }
+  // A served expiry with no `wrapper_state`: an emancipated or locked wrapper
+  // that lapsed past its own expiry. NameWrapper then reports no owner and a
+  // cleared fuse word, and bigname omits `owner`, so nobody is classified as
+  // holding it; the entry keeps its real expiry.
+  if (served) {
+    return { expiryDate: storedWrapperExpiry(served).toString(), fuses: 0 }
   }
   // Still held through the NameWrapper but without wrapper fields: bigname
   // omits them while the NameWrapper state is unknown or has lapsed. Read it
@@ -220,9 +257,13 @@ const wrapperEntry = (
 
 /**
  * Adapt a bigname ENSv1 name record (and its parent's record, for parent
- * fuses) into the `V1Domain` shape `classifyName` reads. Pass the name's
- * address-row `restrictions` (`include=role_summary`) when the read has
- * them: they carry the exact NameWrapper expiry, which is otherwise derived.
+ * fuses) into the `V1Domain` shape `classifyName` reads.
+ *
+ * The NameWrapper entry's expiry is the one bigname serves:
+ * `ens_v1.wrapper_expires_at` after v0.4.1, else the name's address-row
+ * `restrictions` (`include=role_summary`) when the read has them. With
+ * neither it is derived from the lease, which cannot show an entry that
+ * trails its lease.
  *
  * Since bigname v0.3.0 `owner` is the token holder and `registrant` is gone:
  * - an unwrapped `.eth` 2LD's BaseRegistrar holder (the subgraph's

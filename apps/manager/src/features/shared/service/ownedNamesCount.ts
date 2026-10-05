@@ -3,7 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
-import { bigname } from '@/lib/bigname'
+import { getAddressNamesCount } from './addressNamesCount'
 
 export class GetOwnedNamesCountError extends TaggedError(
   'GetOwnedNamesCountError',
@@ -16,22 +16,24 @@ export class GetOwnedNamesCountError extends TaggedError(
  * count recipe (`relation=owner&parent=eth&dedupe=registration`). `owner` is
  * the BaseRegistrar, NameWrapper or ENSv2 token holder (bigname v0.3.0
  * removed `registrant`); `parent=eth` keeps out the tokenless subnames that
- * also list under `owner`; a wrapped `.eth` name counts once. bigname returns
- * an exact `total_count` for authority relations, so one row is enough.
+ * also list under `owner`; a wrapped `.eth` name counts once.
+ *
+ * `null` when the address holds some but bigname could not count them in
+ * time (see `getAddressNamesCount`): only an address with more than 1,000
+ * candidate names, which auto primary-name setup skips like a collector.
  */
 export const getOwnedNamesCount = ResultFn(async function* (address: string) {
-  const { page } = yield* await ResultAsync.fromPromise(
-    bigname.listAddressNames(address.toLowerCase(), {
+  const count = yield* await ResultAsync.fromPromise(
+    getAddressNamesCount(address.toLowerCase(), {
       namespace: 'ens',
       relation: 'owner',
       parent: 'eth',
       dedupe: 'registration',
-      page_size: 1,
     }),
     (error) => new GetOwnedNamesCountError({ cause: error }),
   )
 
-  return ok(page.total_count ?? 0)
+  return ok(count)
 })
 
 const ownedNamesCountQueryKey = (address?: string) =>

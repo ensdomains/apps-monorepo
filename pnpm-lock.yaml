@@ -1050,6 +1050,9 @@ importers:
 
   packages/migration:
     dependencies:
+      '@ens-apps/bigname':
+        specifier: workspace:*
+        version: link:../bigname
       '@ens-apps/config':
         specifier: workspace:*
         version: link:../config

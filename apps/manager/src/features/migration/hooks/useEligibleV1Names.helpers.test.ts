@@ -50,6 +50,27 @@ describe('getNextNameExpiryBoundary', () => {
     ).toBeNull()
   })
 
+  it('adds the transfer cutoff of a NameWrapper entry that trails its lease', () => {
+    // Renewed through a controller that only called BaseRegistrar.renew: the
+    // entry still holds the old lease plus grace.
+    const lease = EXPIRY + 365n * 86_400n
+    const domains = [
+      expiredName({
+        isWrapped: true,
+        registrationExpiry: String(lease),
+        wrappedExpiry: String(EXPIRY + GRACE_SECONDS),
+      }).domain,
+    ]
+
+    expect(getNextNameExpiryBoundary(domains, EXPIRY - 1n)).toBe(EXPIRY)
+    expect(getNextNameExpiryBoundary(domains, EXPIRY)).toBe(
+      EXPIRY + GRACE_SECONDS,
+    )
+    expect(getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS)).toBe(
+      lease,
+    )
+  })
+
   it('chooses the earliest future boundary across registrations and wrapped subnames', () => {
     const domains = [
       expiredName({ registrationExpiry: String(EXPIRY + 10n) }).domain,

@@ -29,6 +29,8 @@ export const MigrationModal = () => {
     !isEligibleV1NamesPending &&
     !isMigratedCountPending &&
     eligibleNameCount > 0 &&
+    // `null` is a count bigname could not give for names that exist.
+    migratedCount !== null &&
     (migratedCount ?? 0) === 0
   const { open, dismiss } = useOpenModalOnFirstVisit(
     isConnected,

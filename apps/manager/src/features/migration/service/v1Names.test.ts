@@ -1,3 +1,4 @@
+import { mockEnsV1WrapperTrailsLease } from '@ens-apps/bigname/postV041.mock'
 import { labelhash, namehash } from 'viem'
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -77,7 +78,10 @@ type Responses = {
   readonly lookup?: (inputs: readonly { name: string }[]) => Response
 }
 
-/** Route mocked requests by path; the names walk pages on `cursor`. */
+/**
+ * Route mocked requests by path; the names walk pages on `cursor`. As on
+ * bigname, a row's `restrictions` are served only with `include=role_summary`.
+ */
 const serve = ({ pages = [[]], lookup }: Responses) => {
   fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
     const { url, body } = bignameRequest([input, init])
@@ -88,7 +92,11 @@ const serve = ({ pages = [[]], lookup }: Responses) => {
     }
     const cursor = url.searchParams.get('cursor')
     const index = cursor ? Number(cursor) : 0
-    const data = pages[index] ?? []
+    const hasRoleSummary = url.searchParams.get('include') === 'role_summary'
+    const data = (pages[index] ?? []).map((item) => {
+      const { restrictions, ...rest } = item as Record<string, unknown>
+      return hasRoleSummary ? item : rest
+    })
     const next = index + 1 < pages.length ? String(index + 1) : null
     return bignameResponse(bignamePage(data, { nextCursor: next }))
   })
@@ -137,11 +145,11 @@ describe('getV1NamesForAddress', () => {
     expect(url?.pathname).toBe(`/v1/addresses/${OWNER}/names`)
     expect(url?.searchParams.get('relation')).toBe('any')
     expect(url?.searchParams.get('authority')).toBe('ens_v1,ens_v0')
-    expect(url?.searchParams.get('include')).toBe('role_summary')
+    expect(url?.searchParams.get('include')).toBeNull()
     expect(url?.searchParams.get('page_size')).toBe('200')
   })
 
-  it('reads the NameWrapper expiry from the row restrictions, else derives it from the lease', async () => {
+  it('bigname v0.4.1: walks again with role_summary and reads the NameWrapper expiry from the row restrictions, else derives it from the lease', async () => {
     const wrapper = {
       expires_at: LEASE,
       wrapper_state: 'locked',
@@ -185,12 +193,62 @@ describe('getV1NamesForAddress', () => {
         fuses: 196609,
       },
     ])
+    expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
+      null,
+      'role_summary',
+    ])
   })
 
-  it('walks again without role_summary when its budget answers 422', async () => {
+  it('after bigname v0.4.1: reads the NameWrapper expiry from ens_v1 in one walk without role_summary', async () => {
+    const wrapped = {
+      registration_status: 'wrapped',
+      ens_v1: mockEnsV1WrapperTrailsLease,
+    }
+    // An unwrapped name can keep serving `wrapper_state` with no expiry; it
+    // must not send the walk back for `restrictions` it does not have.
+    const unwrapped = {
+      ens_v1: {
+        expires_at: LEASE,
+        wrapper_state: 'emancipated',
+        wrapper_fuses: { fuses: 196608 },
+      },
+    }
     serve({
-      pages: [[row('alice.eth')]],
-      lookup: () => lookupOk([detail('alice.eth')]),
+      pages: [[row('stale.eth', wrapped), row('unwrapped.eth', unwrapped)]],
+      lookup: () =>
+        lookupOk([
+          detail('stale.eth', wrapped),
+          detail('unwrapped.eth', unwrapped),
+        ]),
+    })
+
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isOk())
+    // The entry trails the lease: not the lease plus 90 days.
+    expect(result.value[0]).toMatchObject({
+      registration: { expiryDate: mockEnsV1WrapperTrailsLease.expires_at },
+      wrappedDomain: {
+        expiryDate: mockEnsV1WrapperTrailsLease.wrapper_expires_at,
+        fuses: mockEnsV1WrapperTrailsLease.wrapper_fuses.fuses,
+      },
+    })
+    expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
+      null,
+    ])
+  })
+
+  it('bigname v0.4.1: keeps the plain rows and derives the expiry when the role_summary budget answers 422', async () => {
+    const wrapped = {
+      registration_status: 'wrapped',
+      ens_v1: {
+        expires_at: LEASE,
+        wrapper_state: 'locked',
+        wrapper_fuses: { fuses: 196609 },
+      },
+    }
+    serve({
+      pages: [[row('alice.eth', wrapped)]],
+      lookup: () => lookupOk([detail('alice.eth', wrapped)]),
     })
     const serveRows = fetchMock.getMockImplementation()
     fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
@@ -212,10 +270,12 @@ describe('getV1NamesForAddress', () => {
 
     const result = await getV1NamesForAddress(OWNER)
     assert(result.isOk())
-    expect(result.value.map((domain) => domain.name)).toEqual(['alice.eth'])
+    expect(result.value.map((domain) => domain.wrappedDomain)).toEqual([
+      { expiryDate: String(Number(LEASE) + 90 * 86_400), fuses: 196609 },
+    ])
     expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
-      'role_summary',
       null,
+      'role_summary',
     ])
   })
 

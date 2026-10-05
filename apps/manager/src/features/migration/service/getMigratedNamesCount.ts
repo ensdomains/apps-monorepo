@@ -3,7 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
-import { bigname } from '@/lib/bigname'
+import { getAddressNamesCount } from '@/features/shared/service/addressNamesCount'
 
 class GetMigratedNamesCountError extends TaggedError(
   'GetMigratedNamesCountError',
@@ -14,22 +14,23 @@ class GetMigratedNamesCountError extends TaggedError(
 /**
  * Names the address owns whose ENSv2 registration came from an ENSv1→ENSv2
  * migration (`is_migrated=true`). Native ENSv2 registrations do not count.
- * The collection's `total_count` is exact, so one row is enough.
+ *
+ * `null` when the address has migrated names but bigname could not count
+ * them in time (see `getAddressNamesCount`): at least one, how many unknown.
  */
 export const getMigratedNamesCount = ResultFn(async function* (
   address: string,
 ) {
-  const page = yield* await ResultAsync.fromPromise(
-    bigname.listAddressNames(address.toLowerCase(), {
+  const count = yield* await ResultAsync.fromPromise(
+    getAddressNamesCount(address.toLowerCase(), {
       relation: ['owner'],
       is_migrated: true,
       dedupe: 'name',
-      page_size: 1,
     }),
     (error) => new GetMigratedNamesCountError({ cause: error }),
   )
 
-  return ok(page.page.total_count ?? 0)
+  return ok(count)
 })
 
 export const migratedNamesCountQueryOptions = (

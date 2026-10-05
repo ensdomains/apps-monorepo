@@ -145,6 +145,18 @@ const hasSupportedCopyResolver = (
 ): boolean =>
   resolverAddress === null || isKnownPublicResolver(resolverAddress, chainId)
 
+/**
+ * Whether a `.eth` 2LD cannot be moved because of an expiry: its lease is in
+ * registrar grace, or NameWrapper treats its wrapped token as in grace.
+ *
+ * NameWrapper decides the second from the entry's own expiry, not the lease:
+ * `_beforeTransfer` takes the 90-day grace period off it and refuses the
+ * transfer once that has passed. The entry holds the lease plus the grace
+ * period only while every renewal went through `NameWrapper.renew`; a renewal
+ * through a controller that calls only `BaseRegistrar.renew` leaves it
+ * behind, so a wrapped name can be frozen while its lease is live. With an
+ * entry derived from the lease the two tests agree.
+ */
 const hasExpiredDotEthRegistration = (
   domain: V1Domain,
   parentName: string | null,
@@ -152,9 +164,11 @@ const hasExpiredDotEthRegistration = (
 ): boolean => {
   if (parentName !== 'eth') return false
   const registrationExpiry = domain.registration?.expiryDate
-  if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
-  // Fall back to the wrapper expiry only while the name is genuinely in its
-  // grace period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
+  if (registrationExpiry && BigInt(registrationExpiry) <= nowSeconds) {
+    return true
+  }
+  // Read the wrapper expiry only while the token is genuinely in its grace
+  // period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
   // expiry fully in the past means the wrapper is stale/expired (the name has
   // reverted to its registrant) — not a grace-period registration — so it must
   // not be flagged here.

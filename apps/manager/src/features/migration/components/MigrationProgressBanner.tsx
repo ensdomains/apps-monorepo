@@ -21,6 +21,8 @@ export const MigrationProgressBanner = () => {
   if (!isConnected) return null
   if (isV1Pending || isCountPending) return null
 
+  // Without the number (a failed read, or `null` for a count bigname could
+  // not give) there is no "N out of T" to show.
   const migrated = migratedCount ?? 0
   const remaining = eligibleV1Names.length
   const total = migrated + remaining

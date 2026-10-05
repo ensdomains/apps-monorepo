@@ -29,6 +29,8 @@ export const shouldShowUpgradeBanner = ({
     return isEligibleProfileName(eligibleV1Names, profileName)
   }
   if (eligibleV1Names.length + gracePeriodNameCount === 0) return false
+  // An uncounted `null` keeps this banner: the progress banner needs the
+  // number and stays hidden without it.
   if ((migratedCount ?? 0) >= 1) return false
   return true
 }

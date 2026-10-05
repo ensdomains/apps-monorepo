@@ -39,7 +39,56 @@ describe('getOwnedNamesCount', () => {
         dedupe: 'registration',
         page_size: 1,
       },
+      {},
     )
+  })
+
+  it('asks for the exact count when bigname leaves it null above its candidate cap', async () => {
+    const page = (total_count: number | null) => ({
+      data: [{ name: 'alice.eth' }],
+      page: {
+        cursor: null,
+        next_cursor: 'next',
+        page_size: 1,
+        total_count,
+        has_more: true,
+      },
+      meta: {},
+    })
+    mocks.listAddressNames
+      .mockResolvedValueOnce(page(null))
+      .mockResolvedValueOnce(page(1500))
+
+    expect((await getOwnedNamesCount(ADDRESS))._unsafeUnwrap()).toBe(1500)
+    expect(mocks.listAddressNames).toHaveBeenLastCalledWith(
+      ADDRESS.toLowerCase(),
+      expect.objectContaining({ page_size: 1, include: ['total_count'] }),
+      expect.anything(),
+    )
+  })
+
+  it('returns null, not zero, when the exact count times out', async () => {
+    mocks.listAddressNames
+      .mockResolvedValueOnce({
+        data: [{ name: 'alice.eth' }],
+        page: {
+          cursor: null,
+          next_cursor: 'next',
+          page_size: 1,
+          total_count: null,
+          has_more: true,
+        },
+        meta: {},
+      })
+      .mockRejectedValueOnce(
+        new BignameError({
+          status: 408,
+          code: 'request_timeout',
+          message: 'request deadline exceeded',
+        }),
+      )
+
+    expect((await getOwnedNamesCount(ADDRESS))._unsafeUnwrap()).toBeNull()
   })
 
   it('returns an error when bigname fails', async () => {

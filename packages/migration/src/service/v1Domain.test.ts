@@ -1,6 +1,14 @@
+import {
+  mockEnsV1LapsedWrapper,
+  mockEnsV1WrapperNoExpiry,
+  mockEnsV1WrapperTrailsLease,
+  mockNameWrapperExpiry,
+  mockNameWrapperExpiryNotSet,
+} from '@ens-apps/bigname/postV041.mock'
+import { mockNameNick, mockNameWrappedSub } from '@ens-apps/bigname/v041.mock'
 import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelhash, namehash } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { classifyName, FUSES } from './classifyNames'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import {
@@ -344,6 +352,182 @@ describe('v1DomainFromBigname', () => {
     ).toMatchObject({
       type: 'ineligible',
       name: { reason: 'unknown-label' },
+    })
+  })
+})
+
+describe('v1DomainFromBigname NameWrapper entry expiry', () => {
+  const NICK = mockNameNick.data.owner
+  const NICK_LEASE = BigInt(mockNameNick.data.ens_v1.expires_at)
+  const MAX_UINT64 = ((1n << 64n) - 1n).toString()
+  /** `mockEnsV1WrapperTrailsLease`: the entry stops transferring here, the lease runs a year longer. */
+  const STALE_ENTRY = BigInt(mockEnsV1WrapperTrailsLease.wrapper_expires_at)
+  const STALE_TRANSFER_END = STALE_ENTRY - GRACE_PERIOD_SECONDS
+  const staleWrapped = {
+    ...mockNameNick.data,
+    ens_v1: mockEnsV1WrapperTrailsLease,
+  }
+
+  const classifyAt = (
+    seconds: bigint,
+    domain: ReturnType<typeof v1DomainFromBigname>,
+  ) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(Number(seconds) * 1000)
+    return classifyName(domain, NICK, supportedL1Chains.sepolia)
+  }
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  describe('bigname v0.4.1 (no ens_v1.wrapper_expires_at)', () => {
+    it('derives a wrapped .eth 2LD entry as the lease plus the grace period', () => {
+      expect(v1DomainFromBigname(mockNameNick.data).wrappedDomain).toEqual({
+        expiryDate: (NICK_LEASE + GRACE_PERIOD_SECONDS).toString(),
+        fuses: mockNameNick.data.ens_v1.wrapper_fuses.fuses,
+      })
+    })
+
+    it('derives a wrapped subname entry from the top-level expiry', () => {
+      expect(
+        v1DomainFromBigname(mockNameWrappedSub).wrappedDomain?.expiryDate,
+      ).toBe('0')
+    })
+
+    it('still prefers the address-row restrictions over the derivation', () => {
+      expect(
+        v1DomainFromBigname(mockNameNick.data, null, {
+          kind: 'ens_v1_wrapper',
+          wrapper_expires_at: STALE_ENTRY.toString(),
+        }).wrappedDomain?.expiryDate,
+      ).toBe(STALE_ENTRY.toString())
+    })
+
+    it('keeps a wrapped name whose lease is live migratable through the old cutoff', () => {
+      const { wrapper_expires_at: _, ...ensV1 } = mockEnsV1WrapperTrailsLease
+      const domain = v1DomainFromBigname({
+        ...mockNameNick.data,
+        ens_v1: ensV1,
+      })
+
+      expect(domain.wrappedDomain?.expiryDate).toBe(
+        (BigInt(ensV1.expires_at) + GRACE_PERIOD_SECONDS).toString(),
+      )
+      expect(classifyAt(STALE_TRANSFER_END + DAY, domain)).toMatchObject({
+        type: 'classified',
+        name: { tokenType: 'unlocked' },
+      })
+    })
+  })
+
+  describe('after bigname v0.4.1 (ens_v1.wrapper_expires_at served)', () => {
+    it('uses the served expiry of a backed wrapper', () => {
+      const domain = v1DomainFromBigname(mockNameWrapperExpiry)
+
+      expect(domain.wrappedDomain).toEqual({
+        expiryDate: mockNameWrapperExpiry.ens_v1.wrapper_expires_at,
+        fuses: mockNameWrapperExpiry.ens_v1.wrapper_fuses.fuses,
+      })
+      expect(classifyAt(NICK_LEASE - DAY, domain)).toMatchObject({
+        type: 'classified',
+        name: { tokenType: 'unlocked' },
+      })
+    })
+
+    it('prefers ens_v1 over the address-row restrictions', () => {
+      expect(
+        v1DomainFromBigname(mockNameWrapperExpiry, null, {
+          kind: 'ens_v1_wrapper',
+          wrapper_expires_at: '1',
+        }).wrappedDomain?.expiryDate,
+      ).toBe(mockNameWrapperExpiry.ens_v1.wrapper_expires_at)
+    })
+
+    it('reads null with reason not_set as zero', () => {
+      expect(
+        v1DomainFromBigname(mockNameWrapperExpiryNotSet).wrappedDomain
+          ?.expiryDate,
+      ).toBe('0')
+    })
+
+    it('reads null with reason no_expiry as the uint64 maximum', () => {
+      // The top-level expiry would derive something else: the served value wins.
+      const domain = v1DomainFromBigname({
+        ...mockNameWrappedSub,
+        expires_at: '1',
+        ens_v1: mockEnsV1WrapperNoExpiry,
+      })
+      expect(domain.wrappedDomain?.expiryDate).toBe(MAX_UINT64)
+    })
+
+    it('keeps an entry that trails its lease instead of adding grace to the lease', () => {
+      const domain = v1DomainFromBigname(staleWrapped)
+
+      expect(domain.registration).toEqual({
+        expiryDate: mockEnsV1WrapperTrailsLease.expires_at,
+      })
+      expect(domain.wrappedDomain?.expiryDate).toBe(STALE_ENTRY.toString())
+    })
+
+    it('classifies a trailing entry as migratable while NameWrapper still transfers it', () => {
+      expect(
+        classifyAt(STALE_TRANSFER_END - DAY, v1DomainFromBigname(staleWrapped)),
+      ).toMatchObject({ type: 'classified', name: { tokenType: 'unlocked' } })
+    })
+
+    it('classifies a trailing entry as expired-registration once NameWrapper freezes it, although the lease is live', () => {
+      expect(
+        classifyAt(STALE_TRANSFER_END + DAY, v1DomainFromBigname(staleWrapped)),
+      ).toMatchObject({
+        type: 'ineligible',
+        name: { reason: 'expired-registration' },
+      })
+    })
+
+    it('reads a past expiry with no wrapper_state as a lapsed wrapper nobody holds', () => {
+      const { owner: _owner, manager: _manager, ...lapsed } = mockNameWrappedSub
+      const domain = v1DomainFromBigname({
+        ...lapsed,
+        ens_v1: mockEnsV1LapsedWrapper,
+      })
+
+      expect(domain.wrappedDomain).toEqual({
+        expiryDate: mockEnsV1LapsedWrapper.wrapper_expires_at,
+        fuses: 0,
+      })
+      expect(domain.wrappedOwner).toBeNull()
+      expect(
+        classifyAt(
+          BigInt(mockEnsV1LapsedWrapper.wrapper_expires_at) + DAY,
+          domain,
+        ),
+      ).toBeNull()
+    })
+
+    it('classifies a lapsed wrapped subname as expired-registration for a holder bigname still serves', () => {
+      const domain = v1DomainFromBigname({
+        ...mockNameWrappedSub,
+        ens_v1: mockEnsV1LapsedWrapper,
+      })
+
+      expect(
+        classifyAt(
+          BigInt(mockEnsV1LapsedWrapper.wrapper_expires_at) + DAY,
+          domain,
+        ),
+      ).toMatchObject({
+        type: 'ineligible',
+        name: { reason: 'expired-registration' },
+      })
+    })
+
+    it('falls back to the derivation for a served wrapper_state with no served expiry', () => {
+      // An unwrapped name can keep serving `wrapper_state`; it is not told
+      // apart from a v0.4.1 row, so the entry is derived as before.
+      expect(
+        v1DomainFromBigname(mockNameNick.data).wrappedDomain?.expiryDate,
+      ).toBe((NICK_LEASE + GRACE_PERIOD_SECONDS).toString())
     })
   })
 })

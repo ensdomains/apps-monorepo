@@ -31,11 +31,58 @@ describe('getMigratedNamesCount', () => {
     expect(r.value).toBe(42)
   })
 
-  it('returns 0 when total_count is null', async () => {
+  it('returns 0 for an empty page whose total_count is null', async () => {
     fetchMock.mockResolvedValueOnce(bignameResponse(bignamePage([])))
     const r = await getMigratedNamesCount(ADDR)
     assert(r.isOk())
     expect(r.value).toBe(0)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('asks for the exact count when a page with rows has a null total_count', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        bignameResponse(bignamePage([{}], { nextCursor: 'next' })),
+      )
+      .mockResolvedValueOnce(
+        bignameResponse(
+          bignamePage([{}], { nextCursor: 'next', totalCount: 1200 }),
+        ),
+      )
+    const r = await getMigratedNamesCount(ADDR)
+    assert(r.isOk())
+    expect(r.value).toBe(1200)
+
+    const { url } = bignameRequest(fetchMock.mock.calls[1])
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      relation: 'owner',
+      is_migrated: 'true',
+      dedupe: 'name',
+      page_size: '1',
+      include: 'total_count',
+    })
+  })
+
+  it('returns null, not 0, when the exact count times out', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        bignameResponse(bignamePage([{}], { nextCursor: 'next' })),
+      )
+      .mockResolvedValueOnce(
+        bignameResponse(
+          {
+            error: {
+              code: 'request_timeout',
+              message: 'request deadline exceeded',
+              details: {},
+            },
+          },
+          408,
+        ),
+      )
+    const r = await getMigratedNamesCount(ADDR)
+    assert(r.isOk())
+    expect(r.value).toBeNull()
   })
 
   it('returns err when bigname fails', async () => {

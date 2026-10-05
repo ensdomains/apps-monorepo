@@ -17,15 +17,15 @@ export const getNextNameExpiryBoundary = (
     const boundaries = wrappedExpiry ? [BigInt(wrappedExpiry)] : []
     if (domain.parent?.name !== 'eth') return boundaries
 
+    // NameWrapper stops transferring a wrapped `.eth` 2LD 90 days before the
+    // entry's own expiry, which can trail the lease.
+    const wrapperBoundaries = wrappedExpiry
+      ? [...boundaries, BigInt(wrappedExpiry) - V1_GRACE_PERIOD_SECONDS]
+      : boundaries
     const registrationExpiry = domain.registration?.expiryDate
-    if (registrationExpiry) {
-      const expiry = BigInt(registrationExpiry)
-      return [...boundaries, expiry, expiry + V1_GRACE_PERIOD_SECONDS]
-    }
-    if (wrappedExpiry) {
-      return [...boundaries, BigInt(wrappedExpiry) - V1_GRACE_PERIOD_SECONDS]
-    }
-    return boundaries
+    if (!registrationExpiry) return wrapperBoundaries
+    const expiry = BigInt(registrationExpiry)
+    return [...wrapperBoundaries, expiry, expiry + V1_GRACE_PERIOD_SECONDS]
   })
 
   return boundaries.reduce<bigint | null>((next, boundary) => {

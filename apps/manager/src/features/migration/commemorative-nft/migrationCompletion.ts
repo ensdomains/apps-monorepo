@@ -67,6 +67,8 @@ const getPositiveMigrationEvidence = async (
     throw new Error('Your upgraded names could not be checked.', {
       cause: migrated.error,
     })
+  // An uncounted collection is not empty: that is the evidence needed here.
+  if (migrated.value === null) return 1
   if (!Number.isSafeInteger(migrated.value) || migrated.value < 0)
     throw new Error('The upgraded name count is invalid.')
   if (migrated.value > 0) return migrated.value

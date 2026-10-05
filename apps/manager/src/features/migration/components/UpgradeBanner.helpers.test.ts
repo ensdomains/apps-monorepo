@@ -56,6 +56,15 @@ describe('shouldShowUpgradeBanner', () => {
     ).toBe(true)
   })
 
+  it('keeps the account-level banner when the migrated count is unknown', () => {
+    expect(
+      shouldShowUpgradeBanner({
+        eligibleV1Names: [name('alice.eth')],
+        migratedCount: null,
+      }),
+    ).toBe(true)
+  })
+
   it('hides the account-level banner after migration has started', () => {
     expect(
       shouldShowUpgradeBanner({

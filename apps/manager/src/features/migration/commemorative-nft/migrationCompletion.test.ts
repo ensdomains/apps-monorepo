@@ -300,6 +300,14 @@ describe('commemorative NFT migration completion', () => {
     ).rejects.toThrow('RPC unavailable')
   })
 
+  it('takes migrated names bigname could not count as evidence of a migration', async () => {
+    mocks.getMigratedNamesCount.mockResolvedValue(ok(null))
+
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).resolves.toMatchObject({ status: 'complete', migratedNameCount: 1 })
+  })
+
   it.each([
     -1,
     Number.NaN,

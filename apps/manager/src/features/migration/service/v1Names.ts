@@ -6,6 +6,7 @@ import {
   type ListAddressNamesParams,
   type LookupRecord,
   MAX_PAGE_SIZE,
+  readWrapperExpiry,
 } from '@ens-apps/bigname'
 import {
   type BignameV1NameRecord,
@@ -52,12 +53,30 @@ const chunk = <T>(items: readonly T[], size: number): T[][] => {
   return chunks
 }
 
+const servesWrapperExpiry = (row: AddressNameRow): boolean =>
+  readWrapperExpiry(row.ens_v1) !== undefined
+
 /**
- * One walk over both ENSv1 authorities (`authority=ens_v1,ens_v0`), with
- * `include=role_summary` for the rows' `restrictions`, which carry each
- * wrapped name's exact NameWrapper expiry. The role-summary grant budget
- * answers a whole-request `422 unsupported` on overflow; that case is read
- * again without it, and the wrapper expiry is then derived.
+ * Whether the rows' NameWrapper expiries have to come from `restrictions`:
+ * some row is wrapped and no row carries `ens_v1.wrapper_expires_at`, which
+ * is every wrapped name on bigname v0.4.1. One row carrying it shows the
+ * deployment serves it, and a wrapped-looking row without it is then an
+ * unwrapped name still serving `wrapper_state`, which has no `restrictions`
+ * either.
+ */
+const needsWrapperRestrictions = (rows: readonly AddressNameRow[]): boolean =>
+  rows.some((row) => row.ens_v1?.wrapper_state !== undefined) &&
+  !rows.some(servesWrapperExpiry)
+
+/**
+ * One walk over both ENSv1 authorities (`authority=ens_v1,ens_v0`).
+ *
+ * After bigname v0.4.1 each row's `ens_v1.wrapper_expires_at` is the wrapped
+ * name's exact NameWrapper expiry and this is the only walk. v0.4.1 serves
+ * that expiry only in the rows' `restrictions`, so there the walk is repeated
+ * with `include=role_summary`. The role-summary grant budget answers a
+ * whole-request `422 unsupported` on overflow; the plain rows are kept then,
+ * and the wrapper expiry is derived.
  */
 const listV1NameRows = async (
   address: string,
@@ -90,11 +109,13 @@ const listV1NameRows = async (
     return rows
   }
 
+  const rows = await walk()
+  if (!needsWrapperRestrictions(rows)) return rows
   try {
     return await walk(['role_summary'])
   } catch (error) {
     if (!isBignameError(error, 'unsupported')) throw error
-    return walk()
+    return rows
   }
 }
 
@@ -137,10 +158,10 @@ const lookupV1NameRecords = async (
  * walk lists the names, then one `POST /v1/lookup` batch reads name detail
  * (resolver, `ens_v1` lease date, wrapper state and fuses) for them and for
  * the parents whose fuses decide whether a wrapped subname is detached.
- * The NameWrapper expiry comes from the listed row's `restrictions`; lookup
- * does not serve it, so a parent read only through lookup (whose fuses alone
- * are used) and a walk that fell back without `role_summary` derive it (see
- * `v1DomainFromBigname`).
+ * The NameWrapper expiry is the record's `ens_v1.wrapper_expires_at` after
+ * bigname v0.4.1. On v0.4.1 it comes from the listed row's `restrictions`;
+ * lookup does not serve it there, so a walk that fell back without
+ * `role_summary` derives it (see `v1DomainFromBigname`).
  */
 export const getV1NamesForAddress = ResultFn(async function* (
   address: string,
