@@ -120,6 +120,7 @@ const options: TransferOptions = {
   setEthAddress: true,
   detachResolver: false,
   detachRegistry: false,
+  revokeRoles: false,
 }
 
 const renderTransfer = () => {
@@ -148,6 +149,9 @@ const runFlow = async ({ result, rerender }: Hook) => {
       recipient: RECIPIENT,
       recipientInput: RECIPIENT,
       options,
+      // V1 names hold no V2 role grants (#1251).
+      roleGrants: [],
+      hasRemainingRoleHolders: false,
     })
   })
   await waitFor(() => expect(result.current.transactions.length).toBe(2))
@@ -223,7 +227,7 @@ describe('useTransferName — ETH address record ahead of the move (WEB-1508)', 
       await steps[0]?.onStart?.()
     })
     expect(buildIntent).toHaveBeenCalledWith(
-      'restore-eth-addr',
+      { kind: 'restore-eth-addr' },
       expect.objectContaining({ previousEthAddress: ACCOUNT }),
     )
   })
