@@ -1,4 +1,4 @@
-import type { HistoryEventDataByType } from '@ens-apps/bigname'
+import type { HistoryEventDataByType, MigrationPath } from '@ens-apps/bigname'
 import { describe, expect, it } from 'vitest'
 import type { HistoryEventType, TimelineEvent } from '../timelineEvent'
 import { describeEvent, formatPower, humanizeType } from './descriptors'
@@ -183,6 +183,36 @@ describe('bigname v0.4.1 rows', () => {
         { kind: 'connective', value: '(wrapped)' },
       ],
     })
+  })
+
+  it('a migration words every path bigname serves', () => {
+    const pathSlot = (path: MigrationPath) =>
+      describeEvent(event('migration', { migration_path: path }))?.slots.at(-1)
+    const connective = (value: string) => ({ kind: 'connective', value })
+    expect(pathSlot('unwrapped')).toEqual(connective('(unwrapped)'))
+    expect(pathSlot('locked_wrapped')).toEqual(connective('(locked)'))
+    expect(pathSlot('locked_child')).toEqual(connective('(locked subname)'))
+    expect(pathSlot('emancipated_child')).toEqual(
+      connective('(emancipated subname)'),
+    )
+  })
+
+  it('a migration with no path, or one newer than the client, reads without one', () => {
+    const expected = {
+      label: 'migrated',
+      slots: [
+        { kind: 'name', value: 'collector.eth' },
+        { kind: 'connective', value: 'to ENSv2' },
+      ],
+    }
+    expect(describeEvent(event('migration', {}))).toEqual(expected)
+    expect(
+      describeEvent(
+        event('migration', {
+          migration_path: 'future_path' as MigrationPath,
+        }),
+      ),
+    ).toEqual(expected)
   })
 
   it('a type newer than the client renders by its raw kind instead of throwing', () => {

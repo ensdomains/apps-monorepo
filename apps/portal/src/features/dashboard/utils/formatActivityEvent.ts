@@ -1,6 +1,9 @@
 import { parseRecordKey } from '@ens-apps/bigname'
 import { type Address, isAddress } from 'viem'
-import { humanizeType } from '@/features/history/summarize/descriptors'
+import {
+  humanizeType,
+  migrationPathLabel,
+} from '@/features/history/summarize/descriptors'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { recordValueText } from '@/utils/history/recordValue'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
@@ -137,8 +140,13 @@ export const formatActivityEvent = (
           })
     case 'subregistry':
       return { text: 'Subregistry updated' }
+    // What the name was in ENSv1 (unwrapped, wrapped, locked …) rides along
+    // as a value pill.
     case 'migration':
-      return { text: 'Migrated to ENSv2' }
+      return activity({
+        text: 'Migrated from ENSv1 to ENSv2',
+        value: migrationPathLabel(event.data.migration_path),
+      })
     default: {
       // `never` to the compiler; at runtime a type newer than this switch.
       const { kind, type } = event as { kind?: string; type: string }

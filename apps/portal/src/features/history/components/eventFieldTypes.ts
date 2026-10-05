@@ -1,4 +1,5 @@
 import { parseTimestamp } from '@ens-apps/bigname'
+import { historyTokenId } from '../historyTokenId'
 import {
   type HistoryEventType,
   isKnownHistoryEventType,
@@ -9,7 +10,8 @@ import {
  * Types of the fields bigname's `include=data` payload carries, per friendly
  * type. `data` is translated state, not the raw log, so these describe the
  * served value (`expires_at` is a decimal Unix-seconds instant, shown as a
- * date; a contract is its address).
+ * date; a contract is its address). `token_id` is not served: it is derived
+ * from the name where exact (see `historyTokenId`).
  */
 const FIELD_TYPES: Record<HistoryEventType, Record<string, string>> = {
   registration: {
@@ -21,6 +23,7 @@ const FIELD_TYPES: Record<HistoryEventType, Record<string, string>> = {
     subregistry: 'address',
     action_id: 'string',
     action_role: 'string',
+    token_id: 'uint256',
   },
   renewal: { expires_at: 'timestamp', expires_at_reason: 'string' },
   release: { expires_at: 'timestamp', expires_at_reason: 'string' },
@@ -29,7 +32,12 @@ const FIELD_TYPES: Record<HistoryEventType, Record<string, string>> = {
     expires_at_reason: 'string',
     fuses: 'uint32',
   },
-  transfer: { from: 'address', to: 'address', fuses: 'uint32' },
+  transfer: {
+    from: 'address',
+    to: 'address',
+    fuses: 'uint32',
+    token_id: 'uint256',
+  },
   authority: { owner: 'address', from: 'address' },
   resolver: { resolver: 'address' },
   record: {
@@ -101,10 +109,16 @@ const formatField = (
   return stringify(value)
 }
 
-/** The row's `data` fields, flattened for the decoded-parameter table. */
+/**
+ * The row's `data` fields, flattened for the decoded-parameter table, then the
+ * token id the row is about when it can be derived exactly.
+ */
 export const getDecodedParamEntries = (
   event: TimelineEvent,
-): ReadonlyArray<readonly [string, string]> =>
-  Object.entries(event.data)
+): ReadonlyArray<readonly [string, string]> => {
+  const served = Object.entries(event.data)
     .filter(([, value]) => value != null && value !== '')
     .map(([key, value]) => [key, formatField(event.type, key, value)] as const)
+  const token = historyTokenId(event)
+  return token ? [...served, ['token_id', token.tokenId] as const] : served
+}

@@ -199,3 +199,48 @@ describe('summarizeEvents — a transaction of mints only', () => {
     ).toBe('emitted token control transferred')
   })
 })
+
+describe('summarizeEvents — ENSv1 to ENSv2 migration', () => {
+  // The rows bigname serves for envoy1084.eth's migration transaction
+  // (0x517a7105…, Sepolia), trimmed to one row per kind.
+  const migrationTx = [
+    event(
+      'permission',
+      'p',
+      { address: OWNER, powers: ['set_resolver'] },
+      { kind: 'PermissionChanged', logIndex: 152 },
+    ),
+    event(
+      'registration',
+      'g',
+      { action_role: 'registered', owner: OWNER },
+      { kind: 'RegistrationGranted', logIndex: 149 },
+    ),
+    event(
+      'migration',
+      'm',
+      { migration_path: 'unwrapped' },
+      { kind: 'MigrationApplied', logIndex: 149 },
+    ),
+    event(
+      'transfer',
+      't',
+      { from: OWNER, to: RESOLVER },
+      { kind: 'TokenControlTransferred', logIndex: 148 },
+    ),
+  ]
+
+  it('headlines the transaction as the migration, with its path', () => {
+    const [action] = summarizeEvents(migrationTx)
+    expect(action).toMatchObject({
+      icon: 'migrate',
+      label: 'migrated',
+      slots: [
+        { kind: 'name', value: 'alice.eth' },
+        { kind: 'connective', value: 'to ENSv2' },
+        { kind: 'connective', value: '(unwrapped)' },
+      ],
+    })
+    expect(action.events).toHaveLength(4)
+  })
+})

@@ -2,12 +2,14 @@ import { match } from 'ts-pattern'
 import { isAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
-import { formatPower } from '../summarize/descriptors'
-import type { TimelineEvent } from '../timelineEvent'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { formatPower, migrationPathLabel } from '../summarize/descriptors'
+import type { TimelineEvent, TimelineEventOfType } from '../timelineEvent'
 import { AccountBadge } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { DecodedParams } from './EventDetail'
 import { ExpandableDetailRow } from './ExpandableDetailRow'
+import { transferRowContent } from './transferRowContent'
 
 const ActionValue = ({
   children,
@@ -30,6 +32,29 @@ const NameChip = ({ name }: { name: string }) =>
     </EntityBadge>
   ) : null
 
+/** "minted token ID {id} to {account}", the token id only where it is exact. */
+const TransferContent = ({
+  event,
+}: {
+  event: TimelineEventOfType<'transfer'>
+}) => {
+  const content = transferRowContent(event)
+  if (!content) return null
+  const { label, token, recipient } = content
+  return (
+    <>
+      <span className={muted}>{label}</span>
+      {token && (
+        <ActionValue copyValue={token.tokenId}>
+          {truncateAddress(token.tokenId)}
+        </ActionValue>
+      )}
+      {token && recipient && <span className={muted}>to</span>}
+      {recipient && <AccountBadge address={recipient} />}
+    </>
+  )
+}
+
 const EventContent = ({ event }: { event: TimelineEvent }) =>
   match(event)
     .with({ type: 'registration' }, (e) => (
@@ -40,16 +65,7 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
         <NameChip name={e.name} />
       </>
     ))
-    .with({ type: 'transfer' }, (e) =>
-      e.data.to && isAddress(e.data.to, { strict: false }) ? (
-        <>
-          <span className={muted}>
-            {e.data.from ? 'transferred to' : 'minted to'}
-          </span>
-          <AccountBadge address={e.data.to} />
-        </>
-      ) : null,
-    )
+    .with({ type: 'transfer' }, (e) => <TransferContent event={e} />)
     .with({ type: 'permission' }, (e) => {
       const powers = e.data.powers ?? []
       return (
@@ -68,9 +84,12 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
         </>
       )
     })
-    .with({ type: 'migration' }, () => (
-      <span className={muted}>migrated to ENSv2</span>
-    ))
+    .with({ type: 'migration' }, (e) => {
+      const path = migrationPathLabel(e.data.migration_path)
+      return (
+        <span className={muted}>migrated to ENSv2{path && ` (${path})`}</span>
+      )
+    })
     .with({ type: 'record' }, (e) => {
       const key = e.data.key ?? ''
       // Copy hands over the real stored key — a sanitized one would no longer

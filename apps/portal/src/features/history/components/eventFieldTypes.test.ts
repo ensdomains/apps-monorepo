@@ -61,6 +61,38 @@ describe('getDecodedParamEntries', () => {
     ])
   })
 
+  it('adds the token id a BaseRegistrar or NameWrapper row is about', () => {
+    const registration: TimelineEvent = {
+      ...base,
+      name: 'envoy1084.eth',
+      type: 'registration',
+      kind: 'RegistrationGranted',
+      contractAddress: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
+      data: { action_role: 'registered' },
+    }
+    expect(getDecodedParamEntries(registration)).toEqual([
+      ['action_role', 'registered'],
+      [
+        'token_id',
+        '85527650159212779790354773742537435044869515479240792704213198141377375979258',
+      ],
+    ])
+    expect(getTimelineFieldType('registration', 'token_id')).toBe('uint256')
+    expect(getTimelineFieldType('transfer', 'token_id')).toBe('uint256')
+  })
+
+  it('adds no token id to an ENSv2 registry row', () => {
+    const transfer: TimelineEvent = {
+      ...base,
+      type: 'transfer',
+      contractAddress: '0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4',
+      data: { to: '0x00a2895816e64f152ff81c8a931dc1bd9f5c3ce3' },
+    }
+    expect(getDecodedParamEntries(transfer)).toEqual([
+      ['to', '0x00a2895816e64f152ff81c8a931dc1bd9f5c3ce3'],
+    ])
+  })
+
   it('drops empty values', () => {
     const event: TimelineEvent = {
       ...base,

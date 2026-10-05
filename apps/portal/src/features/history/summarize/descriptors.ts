@@ -269,23 +269,27 @@ const MIGRATION_PATH_LABELS: Record<MigrationPath, string> = {
   emancipated_child: 'emancipated subname',
 }
 
+/**
+ * What the name was in ENSv1 when it migrated, in words; undefined when the
+ * row kept no path or carries one newer than this table.
+ */
+export const migrationPathLabel = (
+  path: MigrationPath | undefined,
+): string | undefined =>
+  path && Object.hasOwn(MIGRATION_PATH_LABELS, path)
+    ? MIGRATION_PATH_LABELS[path]
+    : undefined
+
 const describeMigration = (
   primary: TimelineEventOfType<'migration'>,
 ): DescriptorResult => {
-  const path = primary.data.migration_path
+  const path = migrationPathLabel(primary.data.migration_path)
   return {
     label: 'migrated',
     slots: [
       nameSlot(primary.name),
       { kind: 'connective', value: 'to ENSv2' },
-      ...(path && MIGRATION_PATH_LABELS[path]
-        ? [
-            {
-              kind: 'connective' as const,
-              value: `(${MIGRATION_PATH_LABELS[path]})`,
-            },
-          ]
-        : []),
+      ...(path ? [{ kind: 'connective' as const, value: `(${path})` }] : []),
     ],
   }
 }

@@ -186,12 +186,27 @@ describe('formatActivityEvent', () => {
 })
 
 describe('formatActivityEvent — bigname v0.4.1 rows', () => {
-  it('words a migration', () => {
+  it('words a migration as main did, with its path as a value pill', () => {
     expect(
       formatActivityEvent(
         event('migration', { migration_path: 'unwrapped' }, 'MigrationApplied'),
       ),
-    ).toEqual({ text: 'Migrated to ENSv2' })
+    ).toEqual({ text: 'Migrated from ENSv1 to ENSv2', value: 'unwrapped' })
+    expect(
+      formatActivityEvent(
+        event(
+          'migration',
+          { migration_path: 'unlocked_wrapped' },
+          'MigrationApplied',
+        ),
+      ),
+    ).toEqual({ text: 'Migrated from ENSv1 to ENSv2', value: 'wrapped' })
+  })
+
+  it('words a migration with no path without a pill', () => {
+    expect(formatActivityEvent(event('migration', {}))).toEqual({
+      text: 'Migrated from ENSv1 to ENSv2',
+    })
   })
 
   it('words a type newer than the client by its raw kind instead of throwing', () => {
@@ -214,6 +229,42 @@ describe('formatActivityEvent — bigname v0.4.1 rows', () => {
     ).toEqual({ text: 'Primary name updated', value: 'alice.eth' })
     expect(
       formatActivityEvent(event('primary_name', { name_status: 'cleared' })),
+    ).toEqual({ text: 'Primary name updated' })
+  })
+
+  it('shows the claimed name of a live `ReverseChanged` row as the pill', () => {
+    // A live `/v1/events` row: no top-level `name`, the claim in `data.name`.
+    const live = {
+      ...base,
+      type: 'primary_name',
+      kind: 'ReverseChanged',
+      contractAddress: '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47',
+      data: {
+        address: '0xb2e06b6029c53cec70572401abb4b9e98fdff7d3',
+        coin_type: 2147483648,
+        name: 'gastroadenitis.eth',
+        name_status: 'set',
+      },
+    } as RecentActivityEvent
+    expect(formatActivityEvent(live)).toEqual({
+      text: 'Primary name updated',
+      value: 'gastroadenitis.eth',
+    })
+  })
+
+  it('strips control characters from a claimed name and drops an unretained one', () => {
+    expect(
+      formatActivityEvent(
+        event('primary_name', {
+          name: '\u202Eevil.eth',
+          name_status: 'set',
+        }),
+      ).value,
+    ).toBe('evil.eth')
+    expect(
+      formatActivityEvent(
+        event('primary_name', { name: 'stale.eth', name_status: 'unknown' }),
+      ),
     ).toEqual({ text: 'Primary name updated' })
   })
 
