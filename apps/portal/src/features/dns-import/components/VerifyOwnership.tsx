@@ -448,7 +448,7 @@ const OnchainImportActions = ({
       {isActionable && isProofError && (
         <div className="flex flex-col gap-2">
           <StatusChip tone="danger">
-            Could not build a DNSSEC proof the ENS oracle accepts.
+            Could not prepare the DNSSEC proof for this import.
           </StatusChip>
           <DnssecDebugLink name={name} source="import" />
         </div>

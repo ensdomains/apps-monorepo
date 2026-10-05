@@ -92,23 +92,48 @@ const toPresenceCheck = ({
   }
 }
 
-const toFormatCheck = (purpose: RecordPurpose, value: string): DnssecCheck => {
-  if (purpose === 'offchain') {
-    const [, resolver] = value.split(/\s+/)
-    return resolver
-      ? {
-          id: 'record-format',
-          status: 'pass',
-          title: 'ENS1 record',
-          detail: `Resolver: ${resolver}`,
-        }
-      : {
-          id: 'record-format',
-          status: 'fail',
-          title: 'ENS1 record has no resolver',
-          detail: 'Expected "ENS1 <resolver> <address>".',
-        }
+/**
+ * Mirrors the import's ENS1 parse (ensjs `getDnsOffchainData`): the resolver is
+ * an address or an ENS name, and everything after it is optional extra data
+ * the resolver interprets. A name is only resolved onchain there, so here it
+ * can only be checked for shape.
+ */
+const toEns1FormatCheck = (value: string): DnssecCheck => {
+  const [, resolver, ...extraData] = value.split(/\s+/).filter(Boolean)
+  if (!resolver) {
+    return {
+      id: 'record-format',
+      status: 'fail',
+      title: 'ENS1 record has no resolver',
+      detail: 'Expected "ENS1 <resolver> <address>".',
+    }
   }
+  if (!isAddress(resolver) && !resolver.includes('.')) {
+    return {
+      id: 'record-format',
+      status: 'fail',
+      title: 'ENS1 resolver is not an address or ENS name',
+      detail: `"${resolver}" is neither a checksummed 0x address nor a name like dnsname.ens.eth, so the import rejects the record.`,
+    }
+  }
+  if (extraData.length === 0) {
+    return {
+      id: 'record-format',
+      status: 'warn',
+      title: 'ENS1 record has no address',
+      detail: `Resolver: ${resolver}. Nothing follows it, so the name resolves no ETH address and ownership can't be verified. Expected "ENS1 <resolver> <address>".`,
+    }
+  }
+  return {
+    id: 'record-format',
+    status: 'pass',
+    title: 'ENS1 record',
+    detail: `Resolver: ${resolver}\nData: ${extraData.join(' ')}`,
+  }
+}
+
+const toFormatCheck = (purpose: RecordPurpose, value: string): DnssecCheck => {
+  if (purpose === 'offchain') return toEns1FormatCheck(value)
   const address = value.slice(ENS_PREFIX.onchain.length).trim()
   if (!isAddress(address, { strict: false })) {
     return {
@@ -232,9 +257,14 @@ export const evaluateRecord = async ({
     hasCname: getRecords(response, 'CNAME', owner).length > 0,
   })
   const wildcard = toWildcardCheck(owner, signatureResult)
+  const resolverCheck = toResolverCheck(resolver, validatedResponse)
+  // With no record there's nothing to sign or format-check, but a validating
+  // resolver that SERVFAILs the lookup still breaks the import.
   const checks: DnssecCheck[] =
     ensValues.length === 0
-      ? [presence]
+      ? resolverCheck.status === 'fail'
+        ? [presence, resolverCheck]
+        : [presence]
       : [
           presence,
           ...ensValues.map((value) => toFormatCheck(purpose, value)),
@@ -252,7 +282,7 @@ export const evaluateRecord = async ({
                 detail: `The record's signer is not one of the zones validated above.`,
               },
           ...(wildcard ? [wildcard] : []),
-          toResolverCheck(resolver, validatedResponse),
+          resolverCheck,
         ]
 
   return {

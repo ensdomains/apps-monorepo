@@ -124,8 +124,18 @@ const CRYPTO_RANK: Readonly<Record<SignatureCrypto, number>> = {
   'no-key': 3,
 }
 
-const rank = (evaluation: SignatureEvaluation): number =>
-  CRYPTO_RANK[evaluation.crypto] * 2 + (evaluation.timing === 'current' ? 0 : 1)
+/**
+ * Lower is better. Among signatures that verify or can't be checked here, a
+ * current validity window wins over the algorithm: during a rollover an expired
+ * signature that verifies proves nothing, while a current one this browser
+ * can't verify leaves the link inconclusive rather than broken.
+ */
+const rank = ({ crypto, timing }: SignatureEvaluation): number => {
+  const timingRank = timing === 'current' ? 0 : 1
+  return crypto === 'valid' || crypto === 'unsupported'
+    ? timingRank * 2 + CRYPTO_RANK[crypto]
+    : 4 + CRYPTO_RANK[crypto] * 2 + timingRank
+}
 
 /**
  * Checks every RRSIG over an RRset against the candidate keys. One good

@@ -280,6 +280,101 @@ describe('walkDnssecChain', () => {
     expect(buildOracleRequest(report).records).toEqual([])
   })
 
+  // Greptile on #1312: `_ens` can be its own zone, signed below the apex's.
+  it('follows the chain into a separately delegated _ens zone', async () => {
+    const hierarchy = await createTestHierarchy()
+    const ensKey = await createEcdsaKey('_ens.example.xyz')
+    const ensDs = await makeDs(ensKey)
+    const record = txt('_ens.example.xyz', `a=${ADDRESS}`)
+    hierarchy.responses.set(
+      '_ens.example.xyz DS',
+      answer([ensDs, await sign([ensDs], hierarchy.keys.example)]),
+    )
+    hierarchy.responses.set(
+      '_ens.example.xyz DNSKEY',
+      answer([ensKey.record, await sign([ensKey.record], ensKey)]),
+    )
+    hierarchy.responses.set(
+      '_ens.example.xyz TXT',
+      answer([record, await sign([record], ensKey)]),
+    )
+
+    const report = await walk(hierarchy)
+    const onchain = getRecord(report, 'onchain')
+
+    expect(report.zones.map((z) => z.zone)).toEqual([
+      '.',
+      'xyz',
+      'example.xyz',
+      '_ens.example.xyz',
+    ])
+    expect(onchain.zone).toBe('_ens.example.xyz')
+    expect(getCheck(onchain, 'record-signature')?.status).toBe('pass')
+    expect(getRecord(report, 'offchain').zone).toBe('example.xyz')
+    expect(deriveVerdict(report)).toEqual({ kind: 'valid', warnings: 0 })
+    expect(
+      buildOracleRequest(report).records.map((r) => [r.owner, r.proofs.length]),
+    ).toEqual([
+      ['_ens.example.xyz', 8],
+      ['example.xyz', 6],
+    ])
+  })
+
+  it('rejects an ENS1 resolver that is neither an address nor a name', async () => {
+    const hierarchy = await createTestHierarchy()
+    const record = txt('example.xyz', `ENS1 randomnonsense ${ADDRESS}`)
+    hierarchy.responses.set(
+      'example.xyz TXT',
+      answer([record, await sign([record], hierarchy.keys.example)]),
+    )
+
+    const report = await walk(hierarchy)
+
+    expect(
+      getCheck(getRecord(report, 'offchain'), 'record-format'),
+    ).toMatchObject({
+      status: 'fail',
+      title: 'ENS1 resolver is not an address or ENS name',
+    })
+  })
+
+  it('warns, rather than passes, an ENS1 record with no address', async () => {
+    const hierarchy = await createTestHierarchy()
+    const record = txt('example.xyz', 'ENS1 dnsname.ens.eth')
+    hierarchy.responses.set(
+      'example.xyz TXT',
+      answer([record, await sign([record], hierarchy.keys.example)]),
+    )
+
+    const report = await walk(hierarchy)
+
+    expect(
+      getCheck(getRecord(report, 'offchain'), 'record-format'),
+    ).toMatchObject({ status: 'warn', title: 'ENS1 record has no address' })
+  })
+
+  it('surfaces a SERVFAIL even when no record was found', async () => {
+    const hierarchy = await createTestHierarchy()
+    hierarchy.responses.set(
+      '_ens.example.xyz TXT',
+      negative('example.xyz', 'NXDOMAIN'),
+    )
+    hierarchy.validated.set('_ens.example.xyz TXT', {
+      type: 'response',
+      rcode: 'SERVFAIL',
+      answers: [],
+    })
+
+    const report = await walk(hierarchy)
+    const onchain = getRecord(report, 'onchain')
+
+    expect(getCheck(onchain, 'resolver-validation')?.status).toBe('fail')
+    expect(deriveVerdict(report)).toMatchObject({
+      kind: 'broken',
+      step: '_ens.example.xyz TXT',
+    })
+  })
+
   it('reports a name that does not exist', async () => {
     const hierarchy = await createTestHierarchy()
     hierarchy.responses.set('missing.xyz TXT', negative('xyz', 'NXDOMAIN'))
@@ -295,18 +390,48 @@ describe('walkDnssecChain', () => {
 
     expect(
       deriveVerdict(report, {
-        steps: [
-          {
-            label: '. DNSKEY',
-            outcome: {
-              status: 'fail',
-              errorName: 'NoMatchingProof',
-              message: 'No key.',
+        status: 'checked',
+        result: {
+          steps: [
+            {
+              label: '. DNSKEY',
+              outcome: {
+                status: 'fail',
+                errorName: 'NoMatchingProof',
+                message: 'No key.',
+              },
             },
-          },
-        ],
-        records: [],
+          ],
+          records: [],
+        },
       }),
     ).toEqual({ kind: 'oracle-rejected', step: '. DNSKEY', message: 'No key.' })
+  })
+
+  it('keeps an unreachable oracle distinct from an accepted proof', async () => {
+    const report = await walk(await createTestHierarchy())
+
+    expect(
+      deriveVerdict(report, { status: 'unavailable', message: 'HTTP 503' }),
+    ).toEqual({
+      kind: 'oracle-unavailable',
+      step: null,
+      message: 'HTTP 503',
+      warnings: 0,
+    })
+    expect(
+      deriveVerdict(report, {
+        status: 'checked',
+        result: {
+          steps: [
+            {
+              label: '. DNSKEY',
+              outcome: { status: 'error', message: 'RPC timed out' },
+            },
+          ],
+          records: [],
+        },
+      }),
+    ).toMatchObject({ kind: 'oracle-unavailable', step: '. DNSKEY' })
   })
 })

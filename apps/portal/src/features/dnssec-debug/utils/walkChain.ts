@@ -112,13 +112,36 @@ const evaluateZones = async ({
   return { steps, zoneKeys }
 }
 
+/**
+ * The zone the chain has to reach. `_ens.<name>` can be delegated as its own
+ * zone, signed below the one answering the name's apex; walking only to the
+ * apex signer would never load its keys. The deeper zone's chain passes
+ * through both. Only a zone on the path to `_ens.<name>` is followed: anything
+ * else claiming to answer for it is not a zone it can live in.
+ */
+const pickLeafZone = ({
+  apexZone,
+  ensZone,
+  ensOwner,
+}: {
+  readonly apexZone: string
+  readonly ensZone: string | null
+  readonly ensOwner: string
+}): string =>
+  ensZone &&
+  isProperAncestor(apexZone, ensZone) &&
+  (ensZone === ensOwner || isProperAncestor(ensZone, ensOwner))
+    ? ensZone
+    : apexZone
+
 const ROOT_ANCHORS: readonly DsInfo[] = ROOT_TRUST_ANCHORS.map((anchor) => ({
   ...anchor,
 }))
 
 /**
- * Walks the DNSSEC chain of trust for a DNS name — root, TLD, the name's zone
- * — and the two TXT records ENS reads, evaluating every link instead of
+ * Walks the DNSSEC chain of trust for a DNS name — root, TLD, the name's zone,
+ * and `_ens.<name>`'s zone when that is delegated separately — and the two TXT
+ * records ENS reads, evaluating every link instead of
  * stopping at the first failure the way a validating resolver (or
  * dnsprovejs) does.
  */
@@ -148,15 +171,20 @@ export const walkDnssecChain = async ({
       txt(ensOwner, false),
     ])
 
-  const leafZone = getAnsweringZone(offchain) ?? owner
-  const responses = await collectZoneResponses(leafZone, query)
+  const apexZone = getAnsweringZone(offchain) ?? owner
+  const ensZone = getAnsweringZone(onchain)
+  const responses = await collectZoneResponses(
+    pickLeafZone({ apexZone, ensZone, ensOwner }),
+    query,
+  )
   const { steps, zoneKeys } = await evaluateZones({ responses, anchors, now })
 
-  const shared = { fallbackZone: leafZone, zoneKeys, resolver, now }
+  const shared = { zoneKeys, resolver, now }
   const records = await Promise.all([
     evaluateRecord({
       ...shared,
       purpose: 'onchain',
+      fallbackZone: ensZone ?? apexZone,
       owner: ensOwner,
       response: onchain,
       validatedResponse: onchainValidated,
@@ -164,6 +192,7 @@ export const walkDnssecChain = async ({
     evaluateRecord({
       ...shared,
       purpose: 'offchain',
+      fallbackZone: apexZone,
       owner,
       response: offchain,
       validatedResponse: offchainValidated,

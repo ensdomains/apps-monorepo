@@ -277,7 +277,11 @@ export const useDnsImportTransactions = ({
     startImport,
     isReady:
       !!dnsImportData && (mode !== 'claim' || approvalQuery.data !== undefined),
-    /** Building or pre-verifying the DNSSEC proof failed. */
+    /**
+     * Fetching, building or pre-verifying the DNSSEC proof failed — for any
+     * reason: a DNS or RPC error as much as an oracle rejection, which ensjs
+     * doesn't tell apart. Word it neutrally; the debugger finds the cause.
+     */
     isProofError: importDataQuery.isError,
   }
 }

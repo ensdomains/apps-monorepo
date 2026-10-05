@@ -12,7 +12,12 @@ type Tone = 'success' | 'warning' | 'danger'
 const getTone = (verdict: DnssecVerdict): Tone =>
   match(verdict)
     .with({ kind: 'valid', warnings: 0 }, () => 'success' as const)
-    .with({ kind: 'valid' }, { kind: 'no-records' }, () => 'warning' as const)
+    .with(
+      { kind: 'valid' },
+      { kind: 'no-records' },
+      { kind: 'oracle-unavailable' },
+      () => 'warning' as const,
+    )
     .otherwise(() => 'danger' as const)
 
 const TONE_CLASS: Readonly<Record<Tone, string>> = {

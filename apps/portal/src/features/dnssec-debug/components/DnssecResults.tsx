@@ -8,7 +8,7 @@ import { getDnssecOracleCheckQueryOptions } from '../queries/getDnssecOracleChec
 import type { DnssecReport, DnssecStep } from '../types'
 import { formatReport } from '../utils/formatReport'
 import { buildOracleRequest } from '../utils/oracle'
-import { deriveVerdict } from '../utils/verdict'
+import { deriveVerdict, type OracleState } from '../utils/verdict'
 import { DnssecOracleSection } from './DnssecOracleSection'
 import { DnssecStepItem } from './DnssecStepItem'
 import { DnssecSummary } from './DnssecSummary'
@@ -36,7 +36,15 @@ export const DnssecResults = ({ name, report }: DnssecResultsProps) => {
     ...getDnssecOracleCheckQueryOptions(request),
     enabled: request.entries.length > 0,
   })
-  const verdict = deriveVerdict(report, oracleQuery.data)
+  const oracleErrorMessage = oracleQuery.error
+    ? extractErrorMessage(oracleQuery.error)
+    : null
+  const oracleState: OracleState = oracleQuery.data
+    ? { status: 'checked', result: oracleQuery.data }
+    : oracleErrorMessage !== null
+      ? { status: 'unavailable', message: oracleErrorMessage }
+      : { status: 'not-checked' }
+  const verdict = deriveVerdict(report, oracleState)
   useTrackDnssecDebugResult({
     name,
     verdict: oracleQuery.isLoading ? null : verdict,
@@ -85,9 +93,7 @@ export const DnssecResults = ({ name, report }: DnssecResultsProps) => {
         request={request}
         check={oracleQuery.data}
         isLoading={oracleQuery.isLoading}
-        errorMessage={
-          oracleQuery.error ? extractErrorMessage(oracleQuery.error) : null
-        }
+        errorMessage={oracleErrorMessage}
       />
     </div>
   )

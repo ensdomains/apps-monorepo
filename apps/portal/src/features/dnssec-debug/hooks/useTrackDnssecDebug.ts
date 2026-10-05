@@ -20,6 +20,7 @@ const getFailedStep = (verdict: DnssecVerdict): string | null => {
   switch (verdict.kind) {
     case 'broken':
     case 'oracle-rejected':
+    case 'oracle-unavailable':
       return verdict.step
     case 'not-enabled':
       return verdict.zone
