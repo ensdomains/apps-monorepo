@@ -130,6 +130,15 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://*.intercom-messenger.com',
   'wss://*.intercom-messenger.com',
   'https://uploads.intercomusercontent.com',
+  // User-chosen RPC (Settings → RPC, lib/customRpc.ts) can be any host, so
+  // secure schemes are open; plaintext only for a local node. The page is
+  // https, so bare http:/ws: would be blocked as mixed content anyway.
+  'https:',
+  'wss:',
+  'http://localhost:*',
+  'http://127.0.0.1:*',
+  'ws://localhost:*',
+  'ws://127.0.0.1:*',
 ] as const
 
 // Static defaults plus any deployment-specific override origins. Deduped so an
