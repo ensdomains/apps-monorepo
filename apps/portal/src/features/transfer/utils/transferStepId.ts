@@ -2,7 +2,6 @@ import {
   type FlowScope,
   scopeTransactionId,
 } from '@ens-apps/transaction-manager'
-import type { TransferStepKind } from './buildTransferPlan'
 
 /**
  * Names one step of one transfer attempt.
@@ -13,9 +12,11 @@ import type { TransferStepKind } from './buildTransferPlan'
  * next attempt would use. The modal would then show that step as done, skip
  * it, and move straight to the one after it. `scope` pins the id to a single
  * attempt and to the wallet running it.
+ *
+ * `step` is the step's key within the plan (see `transferStepKey`).
  */
 export const transferStepId = (
   name: string,
-  step: TransferStepKind,
+  step: string,
   scope: FlowScope | null,
 ): string => scopeTransactionId(`transfer-${name}-${step}`, scope)
