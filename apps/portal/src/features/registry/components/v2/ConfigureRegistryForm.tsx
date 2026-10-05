@@ -1,4 +1,4 @@
-import { useIsFetching } from '@tanstack/react-query'
+import { useIsFetching, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
@@ -9,7 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useHasSetSubregistryRole } from '@/features/registry/hooks/useHasSetSubregistryRole'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { useSubregistryWriteGuard } from '@/features/registry/hooks/useSubregistryWriteGuard'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { RegistryPanel } from './RegistryPanel'
 import { SubregistryConfigurator } from './SubregistryConfigurator'
@@ -22,10 +24,22 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
   const { hasRole, isLoading, error, parentRegistry, connectedAddress } =
     useHasSetSubregistryRole(name)
 
+  // The id the write will use, so the guard proves the slot that id names is
+  // empty rather than a slot derived from the displayed label (WEB-1458).
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const { data: readId } = useQuery({
+    ...getNameResourceIdQueryOptions({
+      name,
+      registryAddress: parentRegistry ?? undefined,
+    }),
+    enabled: idFromName === null && Boolean(parentRegistry),
+  })
+
   const [showForm, setShowForm] = useState(false)
   const { writeBlock, assertUnset } = useSubregistryWriteGuard({
     name,
     parentRegistry,
+    resourceId: idFromName ?? readId ?? null,
   })
   const isRefetchingRegistries =
     useIsFetching({

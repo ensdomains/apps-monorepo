@@ -15,6 +15,7 @@ import {
 } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { IntentContext } from '@/features/transaction-manager/types'
+import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
 import { ROOT_RESOURCE } from '@/lib/roles/resolverRoles'
 import {
   buildResolverRolesTransactions,
@@ -24,7 +25,9 @@ import {
 
 const resolverAddress = '0x1111111111111111111111111111111111111111' as Address
 const account = '0x3333333333333333333333333333333333333333' as Address
-const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+const avatar = resourceIdFromChainValue(
+  computeResolverResource({ kind: 'text', key: 'avatar' }),
+)._unsafeUnwrap()
 
 const ctx = {
   walletClient: {

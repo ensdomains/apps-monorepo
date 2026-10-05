@@ -1,5 +1,6 @@
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ROOT_RESOURCE } from '@/lib/roles/resolverRoles'
 import type { RoleContractKind } from '../utils/roleContractKind'
 
 const target = '0x1111111111111111111111111111111111111111' as Address
@@ -121,7 +122,7 @@ describe('role writes check the contract before sending', () => {
       revokeResolverRoles({
         ...clients,
         resolverAddress: target,
-        resource: 0n,
+        resource: ROOT_RESOURCE,
         account: grantee,
         roles: ['ROLE_SET_TEXT'],
       }),

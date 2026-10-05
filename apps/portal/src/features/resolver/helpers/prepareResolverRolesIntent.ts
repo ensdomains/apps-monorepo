@@ -1,6 +1,7 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import type { Address } from 'viem'
 import type { IntentContext } from '@/features/transaction-manager/types'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import type {
   ResolverRevocation,
   ResolverRole,
@@ -15,7 +16,12 @@ import { prepareRevokeResolverRolesTransaction } from './revokeResolverRoles'
  */
 export type ResolverRolesSaveAction = {
   readonly type: 'save'
-  readonly resource: bigint
+  /**
+   * Carried from the row the operator opened, never re-derived from its
+   * displayed label, and never a stand-in for a resource that could not be
+   * read (WEB-1513).
+   */
+  readonly resource: ResourceId
   readonly resourceLabel: string
   readonly account: Address
   readonly rolesToGrant: readonly ResolverRole[]

@@ -9,6 +9,7 @@ import {
   ROOT_RESOURCE_LABEL,
   resolverPermissions,
   resolverRoleGroupId,
+  UNREADABLE_RESOURCE_LABEL,
 } from './resolverRoles'
 
 // The bit layout, resources and setter encodings are ensjs's and are covered
@@ -115,18 +116,25 @@ describe('groupRolesByAccount', () => {
 })
 
 describe('groupRolesByAccount with a malformed resource', () => {
-  it('skips the row rather than folding it into the account root grant', () => {
+  it('keeps the row apart from the account root grant, with no resource', () => {
     const account = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
     const groups = groupRolesByAccount([
       makeRole(account, 1n << 0n),
       { account, resource: 'not-a-number', roleBitmap: (1n << 4n).toString() },
     ])
 
-    // One group, the genuine root grant, and it must not have absorbed the
-    // malformed row's role: revoking it would otherwise target root.
-    expect(groups).toHaveLength(1)
-    expect(groups[0]?.isRoot).toBe(true)
-    expect(groups[0]?.decodedRoles).toEqual(['ROLE_SET_ADDRESS'])
+    // The genuine root grant must not have absorbed the malformed row's role:
+    // revoking it would otherwise target root.
+    const root = groups.find((group) => group.isRoot)
+    expect(root?.decodedRoles).toEqual(['ROLE_SET_ADDRESS'])
+
+    // The malformed row is still listed, so the operator can see the grant
+    // exists, but it carries no resource for anything to be written against.
+    const unreadable = groups.find((group) => group.resourceId === null)
+    expect(unreadable?.isRoot).toBe(false)
+    expect(unreadable?.resourceLabel).toBe(UNREADABLE_RESOURCE_LABEL)
+    expect(unreadable?.decodedRoles).toEqual(['ROLE_SET_TEXT'])
+    expect(groups).toHaveLength(2)
   })
 })
 

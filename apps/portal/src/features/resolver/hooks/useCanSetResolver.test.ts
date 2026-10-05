@@ -4,6 +4,7 @@ import { ok } from 'neverthrow'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { requireResourceIdForName } from '@/lib/resource/resourceId'
 
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const REGISTRANT = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
@@ -20,6 +21,7 @@ let connectedAddress: Address | undefined = OWNER
 let ownerQuery: QueryStub = idle()
 let registriesQuery: QueryStub = idle()
 let roleQuery: QueryStub = idle()
+let resourceIdQuery: QueryStub = idle()
 let v1Query: QueryStub = idle()
 
 vi.mock('wagmi', async (importOriginal) => ({
@@ -47,10 +49,15 @@ vi.mock('@tanstack/react-query', async () => {
         .with('get-ens-owner', () => ownerQuery)
         .with('nameRegistries', () => registriesQuery)
         .with('hasRoles', () => roleQuery)
+        .with('get-name-resource-id', () => resourceIdQuery)
         .with('transfer-v1-name-state', () => v1Query)
         .otherwise(idle)
 
-      return enabled === false ? { ...stub, isLoading: false } : stub
+      // `useNameResourceId` reads `isPending`, the rest read `isLoading`.
+      const withPending = { ...stub, isPending: stub.isLoading }
+      return enabled === false
+        ? { ...withPending, isLoading: false, isPending: false }
+        : withPending
     },
   }
 })
@@ -72,6 +79,7 @@ describe('useCanSetResolver', () => {
     ownerQuery = idle()
     registriesQuery = idle()
     roleQuery = idle()
+    resourceIdQuery = idle()
     v1Query = idle()
   })
 
@@ -142,7 +150,24 @@ describe('useCanSetResolver', () => {
     expect(result.target).toEqual({
       protocol: 'ENSv2',
       registryAddress: V2_REGISTRY,
+      resourceId: requireResourceIdForName('modern.eth'),
     })
+  })
+
+  it('has no V2 target for a name whose id cannot be established', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    registriesQuery = settled([undefined, V2_REGISTRY])
+    roleQuery = settled(true)
+    // An encoded first label sends the id to the indexer, which here holds no
+    // single matching name — so the write has nowhere to go, and that is not a
+    // permission problem.
+    resourceIdQuery = settled(undefined)
+
+    const result = render(`[${'0'.repeat(64)}].eth`)
+
+    expect(result.isLoading).toBe(false)
+    expect(result.isUnsupported).toBe(true)
+    expect(result.target).toBeNull()
   })
 
   it('refuses a V2 name without the role, whoever is asking', () => {
