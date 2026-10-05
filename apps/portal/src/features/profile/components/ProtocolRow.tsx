@@ -28,14 +28,16 @@ export const ProtocolRow = ({
     {match({ isError, isLoading, migration })
       .with({ isError: true }, () => (
         <span className="text-muted-foreground">
-          : Failed to check migration
+          : Failed to check upgrade eligibility
         </span>
       ))
       .with({ isLoading: true }, () => (
-        <span className="text-muted-foreground">: Checking migration</span>
+        <span className="text-muted-foreground">
+          : Checking upgrade eligibility
+        </span>
       ))
-      .with({ migration: { migratable: true } }, () => ': Can be migrated')
-      .with({ migration: { migratable: false } }, () => ': Cannot be migrated')
+      .with({ migration: { migratable: true } }, () => ': Can be upgraded')
+      .with({ migration: { migratable: false } }, () => ': Cannot be upgraded')
       .with({ migration: P.nullish }, () => null)
       .exhaustive()}
   </InfoRow>

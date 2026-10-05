@@ -38,6 +38,11 @@ export type TransferStepContext = IntentContext & {
    * name has no resolver, or the plan never writes to it.
    */
   readonly isPermissionedResolver: boolean | null
+  /**
+   * The ETH address record before the flow started, for `restore-eth-addr`.
+   * Null when it was never read (the plan doesn't repoint it) or was unset.
+   */
+  readonly previousEthAddress: Address | null
 }
 
 /**
@@ -54,6 +59,7 @@ export const buildTransferStepIntent = (
     tokenId,
     resolverAddress,
     isPermissionedResolver,
+    previousEthAddress,
     walletClient,
     chainId,
   }: TransferStepContext,
@@ -62,28 +68,36 @@ export const buildTransferStepIntent = (
   // canonical form the reads used, or the write targets a different node.
   const name = normalize(rawName)
   const ctx = { name, recipient, walletClient, chainId }
+
+  const prepareSetEthAddress = (targetAddress: Address) => {
+    // The form only offers this step when the name has its own resolver, so
+    // a null here means the state changed underneath us.
+    if (!resolverAddress)
+      throw new Error(`${name} has no resolver of its own to update`)
+    // Never default the kind: the wrong setter shape hits the other
+    // resolver's fallback and reverts with empty data.
+    if (isPermissionedResolver === null)
+      throw new Error(`Could not tell what kind of resolver ${name} uses`)
+    return prepareSetForwardResolutionTransaction({
+      request: createSetForwardResolutionRequest({
+        name,
+        coinType: MAINNET_COIN_TYPE,
+        resolverAddress,
+        targetAddress,
+        permissioned: isPermissionedResolver,
+      }),
+      from: walletClient.account.address,
+      chainId,
+    })
+  }
+
   return (
     match([step, subject] as const)
-      .with(['set-eth-addr', P._], () => {
-        // The form only offers this step when the name has its own resolver, so
-        // a null here means the state changed underneath us.
-        if (!resolverAddress)
-          throw new Error(`${name} has no resolver of its own to update`)
-        // Never default the kind: the wrong setter shape hits the other
-        // resolver's fallback and reverts with empty data.
-        if (isPermissionedResolver === null)
-          throw new Error(`Could not tell what kind of resolver ${name} uses`)
-        return prepareSetForwardResolutionTransaction({
-          request: createSetForwardResolutionRequest({
-            name,
-            coinType: MAINNET_COIN_TYPE,
-            resolverAddress,
-            targetAddress: recipient,
-            permissioned: isPermissionedResolver,
-          }),
-          from: walletClient.account.address,
-          chainId,
-        })
+      .with(['set-eth-addr', P._], () => prepareSetEthAddress(recipient))
+      .with(['restore-eth-addr', P._], () => {
+        if (!previousEthAddress)
+          throw new Error(`${name} had no ETH address to restore`)
+        return prepareSetEthAddress(previousEthAddress)
       })
       // Same builders the resolver and registry features submit, so the detach
       // steps carry their calldata (and, for setSubregistry, its gas cap).

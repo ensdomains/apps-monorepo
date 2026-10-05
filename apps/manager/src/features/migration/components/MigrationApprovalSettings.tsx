@@ -22,7 +22,7 @@ const approvalDescription = (id: MigrationOperatorApproval['id']) => {
         title: <Trans>Unwrapped .eth name access</Trans>,
         detail: (
           <Trans>
-            Lets the migration contract move any unwrapped .eth name you own.
+            Lets the upgrade contract move any unwrapped .eth name you own.
           </Trans>
         ),
       }
@@ -31,7 +31,7 @@ const approvalDescription = (id: MigrationOperatorApproval['id']) => {
         title: <Trans>Wrapped name access</Trans>,
         detail: (
           <Trans>
-            Lets the migration contract move any wrapped name you own.
+            Lets the upgrade contract move any wrapped name you own.
           </Trans>
         ),
       }
@@ -66,7 +66,7 @@ export const MigrationApprovalSettings = () => {
       {approvalsQuery.isPending && owner && hca && (
         <div className="flex items-center gap-3 rounded-lg bg-ens-quartz-50 p-4 text-slate-600 text-sm">
           <Loader2Icon aria-hidden className="size-5 animate-spin" />
-          <Trans>Checking migration access...</Trans>
+          <Trans>Checking upgrade access...</Trans>
         </div>
       )}
       {approvalsQuery.isError && (
@@ -75,7 +75,7 @@ export const MigrationApprovalSettings = () => {
           role="alert"
         >
           <p className="text-sm">
-            <Trans>We couldn't check your migration access.</Trans>
+            <Trans>We couldn't check your upgrade access.</Trans>
           </p>
           <Button
             className="w-fit uppercase"
@@ -97,7 +97,7 @@ export const MigrationApprovalSettings = () => {
           />
           <div className="flex flex-col gap-1">
             <p className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-              <Trans>No migration access to remove</Trans>
+              <Trans>No upgrade access to remove</Trans>
             </p>
             <p className="text-slate-600 text-sm leading-ens-normal">
               <Trans>You're all set.</Trans>

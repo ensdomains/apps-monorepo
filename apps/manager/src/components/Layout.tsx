@@ -24,7 +24,7 @@ export const Layout = ({ children }: LayoutProps) => {
   })
   const isMigrationPage = useMatches({
     select: (matches) =>
-      matches.some((routeMatch) => routeMatch.routeId === '/migration'),
+      matches.some((routeMatch) => routeMatch.routeId === '/upgrade'),
   })
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = profileRouteMatch !== undefined

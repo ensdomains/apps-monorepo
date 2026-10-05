@@ -288,7 +288,7 @@ export const DESCRIPTORS = {
             ],
           }
         : {
-            label: 'migrated',
+            label: 'upgraded',
             slots: [
               nameSlot(primary.name),
               { kind: 'connective', value: 'to ENSv2' },
