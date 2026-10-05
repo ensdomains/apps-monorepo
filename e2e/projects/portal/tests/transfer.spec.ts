@@ -11,7 +11,7 @@ import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import {
   type Address,
   createWalletClient,
@@ -23,7 +23,11 @@ import {
   parseAbi,
   zeroAddress,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import {
+  generatePrivateKey,
+  privateKeyToAccount,
+  privateKeyToAddress,
+} from 'viem/accounts'
 import { withChainSnapshot } from '../../../fixtures/chain-snapshot.js'
 import {
   registerSubname as createSubname,
@@ -3958,5 +3962,465 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
         'a parent in grace is refused with the grace card and a way to renew',
       ).toBeVisible({ timeout: 60_000 })
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// WEB-1508 / Immunefi #93008 (#1217): the ETH address record ahead of the move
+//
+// Bug 1: the "Set the ETH address to the recipient" switch was greyed out and
+// labelled "Not needed while the resolver is being detached" whenever the
+// stored `detachResolver` value was on. That value defaults to on even when
+// the detach isn't offered (a burned CANNOT_SET_RESOLVER fuse in V1, a missing
+// ROLE_SET_RESOLVER in V2), so the form claimed the detach covered the record
+// while the plan still ran `set-eth-addr`, and the user couldn't opt out.
+//
+// Bug 2: the record write and the move are separate transactions, and the
+// record goes first. When the move then fails (the wallet prompt is rejected,
+// or the recipient starts refusing the token after the preflight), the sender
+// still owns a name that resolves to the recipient, and nothing said so.
+//
+// Fix: the switch is gated on the detach actually in the plan, and the form
+// says when the resolver stays attached. `useTransferName` tracks which steps
+// confirmed; once the modal closes with `set-eth-addr` landed and the move
+// not, the form names both addresses and offers a one-step `restore-eth-addr`.
+// A retry keeps the pre-flow address as the restore target.
+//
+// What these reach that the unit tests don't: a real burned fuse driving
+// `getV1TransferOptions`, a real ETH record on the V1 PublicResolver, the
+// real modal's retry policy and Close, a move that actually reverts on chain
+// after the preflight passed, and the restore transaction writing the record
+// back. Fresh V2 names can't take part: their per-name resolver on this fork
+// has no `setAddr` (see F12), so a burned CANNOT_SET_RESOLVER on a wrapped V1
+// name is the only reachable "record offered, detach not" shape here. The V2
+// role-missing case stays with `SendNameForm.test.tsx`.
+//
+// Oracle: `addr(60)` and `NameWrapper.ownerOf` read from the chain, plus the
+// transaction ids the steps log.
+// ---------------------------------------------------------------------------
+test.describe('Portal name transfer — ETH address record ahead of the move (WEB-1508, #1217)', () => {
+  const NOT_NEEDED_COPY = 'Not needed while the resolver is being detached.'
+  const RESOLVER_STAYS_COPY =
+    /Your wallet isn’t allowed to detach this name’s resolver, so it stays attached/
+  const STRANDED_COPY =
+    /The transfer didn’t go through, so you still own this name/
+  // Deployed on the fork, and not an ERC-1155 receiver: a recipient running
+  // this code makes `NameWrapper.safeTransferFrom` revert.
+  const NOT_A_RECEIVER = '0xcA11bde05977b3631167028862bE2a173976CA11'
+  const V1_REGISTRY_RESOLVER_ABI = parseAbi([
+    'function resolver(bytes32 node) view returns (address)',
+  ])
+
+  const readWrapperOwner = (name: string) =>
+    publicClient.readContract({
+      address: V1_NAME_WRAPPER,
+      abi: parseAbi(['function ownerOf(uint256 id) view returns (address)']),
+      functionName: 'ownerOf',
+      args: [BigInt(namehash(name))],
+    }) as Promise<Address>
+
+  const readEthRecord = async (name: string) =>
+    (
+      (await getAddressRecord(publicClient as never, { name, coin: 60 })) as {
+        value?: string
+      } | null
+    )?.value?.toLowerCase() ?? null
+
+  /** A wrapped V1 name whose ETH address record points at its owner. */
+  const makeV1NameWithEthRecord = (
+    ownerKey: Hash,
+    label: string,
+    shape: { type: 'wrapped' } | { type: 'locked'; fuses: number },
+  ) =>
+    createMakeV1Name({ userAccount: privateKeyToAccount(ownerKey) })({
+      label,
+      ...shape,
+      records: {
+        addresses: [
+          { coinType: 60, value: privateKeyToAccount(ownerKey).address },
+        ],
+      },
+    })
+
+  /** Opens the form with `recipient` typed in, once its options have settled. */
+  async function openTransferForm(page: Page, name: string, recipient: string) {
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const main = page.locator('main')
+    const ethSwitch = main.getByRole('switch', {
+      name: /Set the ETH address to the recipient/,
+    })
+    const transferButton = main.getByRole('button', { name: 'Transfer name' })
+    await expect(ethSwitch).toBeVisible({ timeout: 60_000 })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    return { main, ethSwitch, transferButton }
+  }
+
+  /**
+   * Presses whichever control asks the wallet for the current step: "Open
+   * wallet", or the icon button beside "Waiting...". False when neither shows.
+   */
+  async function pressWalletTrigger(dialog: Locator): Promise<boolean> {
+    const openWallet = dialog.getByRole('button', { name: /open wallet/i })
+    if (await openWallet.isVisible().catch(() => false)) {
+      await openWallet.click()
+      return true
+    }
+    const waiting = dialog.getByRole('button', { name: /^Waiting\.\.\.$/i })
+    if (!(await waiting.isVisible().catch(() => false))) return false
+    const icon = waiting.locator('xpath=preceding-sibling::button[1]')
+    if (!(await icon.isVisible().catch(() => false))) return false
+    await icon.click()
+    return true
+  }
+
+  /**
+   * Runs the default two-step plan (`set-eth-addr`, then `transfer-erc1155`)
+   * with step 1 authorised and step 2 failing, and returns once the modal
+   * shows the move as failed.
+   *
+   * - `reject`: every send prompt for the move is rejected. The headless
+   *   wallet drops the 4001 code, so the machine retries; rejecting each
+   *   attempt is what ends in Failed (see the WEB-1229 notes).
+   * - `revert`: the move's first prompt is authorised with automine off, so
+   *   it is estimated and broadcast against an accepting recipient; then
+   *   `beforeMine` runs and the block is mined, so it reverts on chain after
+   *   every check passed. Any resubmission is rejected: the headless wallet
+   *   never answers the page when a send fails at estimate time.
+   */
+  async function strandRecord(
+    page: Page,
+    wallet: Web3ProviderBackend,
+    name: string,
+    failMove:
+      | { mode: 'reject' }
+      | { mode: 'revert'; beforeMine: () => Promise<void> },
+  ) {
+    const ethAddrId = transferTxId(name, 'set-eth-addr')
+    let ethAddrLanded = false
+    const landedLine = new RegExp(
+      `Transaction ${ethAddrId.replace(/\./g, '\\.')}(--\\S+)? state: success`,
+    )
+    const onConsole = (msg: { text(): string }) => {
+      ethAddrLanded ||= landedLine.test(msg.text())
+    }
+    page.on('console', onConsole)
+
+    const dialog = page.locator('[data-slot="dialog-content"]')
+    await page
+      .locator('main')
+      .getByRole('button', { name: 'Transfer name' })
+      .click()
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+    await expect(dialog.getByText('Update ETH address')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Start', exact: true }).click()
+    await dialog.getByRole('button', { name: /open wallet/i }).click()
+    await authorizeTransaction(wallet, 60_000)
+    await expect
+      .poll(() => ethAddrLanded, {
+        message: 'step 1 (set-eth-addr) must land before the move is failed',
+        timeout: 60_000,
+      })
+      .toBe(true)
+    page.off('console', onConsole)
+
+    const answerMovePrompt = async (nth: number) => {
+      if (failMove.mode === 'reject' || nth > 1)
+        return wallet.reject(Web3RequestKind.SendTransaction)
+      await testClient.setAutomine(false)
+      try {
+        await authorizeTransaction(wallet, 30_000)
+        await failMove.beforeMine()
+        await testClient.mine({ blocks: 1 })
+      } finally {
+        await testClient.setAutomine(true)
+      }
+    }
+    let movePrompts = 0
+    // A failed send ends in the step overview's Retry; a broadcast move that
+    // reverted ends in the step's own Transaction Error with Try again.
+    const failed = dialog.getByRole('button', { name: /^(Retry|Try again)$/ })
+    const deadline = Date.now() + 150_000
+    while (Date.now() < deadline) {
+      if (await failed.isVisible().catch(() => false)) return dialog
+      if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0) {
+        movePrompts++
+        await answerMovePrompt(movePrompts)
+        await page.waitForTimeout(1_000)
+        continue
+      }
+      if (await pressWalletTrigger(dialog)) {
+        await page.waitForTimeout(800)
+        continue
+      }
+      await page.waitForTimeout(500)
+    }
+    throw new Error(
+      `strandRecord: the move never showed as failed (${movePrompts} prompts)`,
+    )
+  }
+
+  test('lets the user opt out of the ETH repoint when the resolver detach is not on offer', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    // CANNOT_SET_RESOLVER is the V1 twin of a missing ROLE_SET_RESOLVER: the
+    // name has a resolver of its own, but the sender can't detach it.
+    const name = await makeV1NameWithEthRecord(
+      accounts.getPrivateKey('user'),
+      'web1508-optout',
+      { type: 'locked', fuses: FUSES.CANNOT_SET_RESOLVER },
+    )
+    expect(await readEthRecord(name)).toBe(owner.toLowerCase())
+
+    const { main, ethSwitch, transferButton } = await openTransferForm(
+      page,
+      name,
+      recipient,
+    )
+
+    // The form loaded with its options (switch visible, Transfer enabled), so
+    // the absence below is a real absence. The detach is hidden...
+    await expect(
+      main.getByRole('switch', { name: /Detach the resolver/ }),
+    ).toHaveCount(0)
+    // ...so nothing covers the ETH record, and the switch must be live, not
+    // greyed out behind a claim that a detach is happening.
+    await expect(
+      ethSwitch,
+      'with no resolver detach in the plan, the ETH switch must be operable (pre-fix: disabled as "Not needed")',
+    ).toBeEnabled()
+    await expect(ethSwitch).toBeChecked()
+    await expect(main.getByText(NOT_NEEDED_COPY)).toHaveCount(0)
+    await expect(main.getByText(RESOLVER_STAYS_COPY)).toBeVisible()
+
+    // Opt out: the plan shrinks to the move alone.
+    await ethSwitch.click()
+    await expect(ethSwitch).not.toBeChecked()
+    await transferButton.click()
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'transfer-erc1155'),
+    ])
+
+    await expect
+      .poll(async () => (await readWrapperOwner(name)).toLowerCase(), {
+        message: 'the name must move to the recipient',
+        timeout: 60_000,
+      })
+      .toBe(recipient.toLowerCase())
+    // The record the user chose not to repoint is untouched, and the resolver
+    // stays attached, as the form said it would.
+    expect(await readEthRecord(name)).toBe(owner.toLowerCase())
+    expect(
+      (
+        await publicClient.readContract({
+          address: V1_ENS_REGISTRY,
+          abi: V1_REGISTRY_RESOLVER_ABI,
+          functionName: 'resolver',
+          args: [namehash(name)],
+        })
+      ).toLowerCase(),
+    ).toBe(V1_PUBLIC_RESOLVER.toLowerCase())
+  })
+
+  // Guard: green on both builds. The "Not needed" copy is still true when the
+  // detach really is in the plan, and keeping the resolver still repoints the
+  // record and moves the name. Without this, the test above would pass on a
+  // build that dropped the copy, or the repoint, altogether.
+  test('still marks the ETH repoint redundant while a real resolver detach is planned, and repoints it once the resolver is kept', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const recipient = accounts.getAddress('user2')
+    const name = await makeV1NameWithEthRecord(
+      accounts.getPrivateKey('user'),
+      'web1508-detach',
+      { type: 'wrapped' },
+    )
+
+    const { main, ethSwitch, transferButton } = await openTransferForm(
+      page,
+      name,
+      recipient,
+    )
+    const detachSwitch = main.getByRole('switch', {
+      name: /Detach the resolver/,
+    })
+    await expect(detachSwitch).toBeChecked()
+    await expect(ethSwitch).toBeDisabled()
+    await expect(main.getByText(NOT_NEEDED_COPY)).toBeVisible()
+    await expect(main.getByText(RESOLVER_STAYS_COPY)).toHaveCount(0)
+
+    await detachSwitch.click()
+    await expect(ethSwitch).toBeEnabled()
+    await expect(ethSwitch).toBeChecked()
+    await expect(main.getByText(NOT_NEEDED_COPY)).toHaveCount(0)
+
+    await transferButton.click()
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'set-eth-addr'),
+      transferTxId(name, 'transfer-erc1155'),
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+    await expect
+      .poll(async () => (await readWrapperOwner(name)).toLowerCase(), {
+        timeout: 60_000,
+      })
+      .toBe(recipient.toLowerCase())
+    expect(await readEthRecord(name)).toBe(recipient.toLowerCase())
+  })
+
+  test('says the ETH address was already repointed when the transfer prompt is rejected, and restores it', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(420_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const name = await makeV1NameWithEthRecord(
+      accounts.getPrivateKey('user'),
+      'web1508-reject',
+      { type: 'locked', fuses: FUSES.CANNOT_SET_RESOLVER },
+    )
+
+    const { main } = await openTransferForm(page, name, recipient)
+    const dialog = await strandRecord(page, wallet, name, { mode: 'reject' })
+
+    // The stranded state, on chain: the record moved, the name didn't.
+    await expect(dialog.getByText('Failed', { exact: true })).toBeVisible()
+    expect(await readEthRecord(name)).toBe(recipient.toLowerCase())
+    expect((await readWrapperOwner(name)).toLowerCase()).toBe(
+      owner.toLowerCase(),
+    )
+    // Mid-flow the gap is expected (Retry is right there), so no alert yet.
+    await expect(main.getByText(STRANDED_COPY)).toHaveCount(0)
+
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await expect(dialog).toBeHidden()
+
+    const alert = main.getByRole('alert').filter({ hasText: STRANDED_COPY })
+    await expect(
+      alert,
+      'after closing a flow whose record landed but whose move did not, the form must say so (pre-fix: nothing)',
+    ).toBeVisible({ timeout: 15_000 })
+    await expect(alert).toContainText(recipient)
+    await expect(alert).toContainText(`Restore it to ${owner}`)
+
+    await alert.getByRole('button', { name: 'Restore ETH address' }).click()
+    // One step, and only the restore.
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+    await expect(dialog.getByText('Restore ETH address')).toBeVisible()
+    await expect(dialog.getByText('Transfer name')).toHaveCount(0)
+    await expect(dialog.getByText('Update ETH address')).toHaveCount(0)
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'restore-eth-addr'),
+    ])
+
+    await expect
+      .poll(() => readEthRecord(name), {
+        message: 'the restore must write the pre-flow ETH address back',
+        timeout: 60_000,
+      })
+      .toBe(owner.toLowerCase())
+    expect((await readWrapperOwner(name)).toLowerCase()).toBe(
+      owner.toLowerCase(),
+    )
+    // Back on the form, no longer stranded.
+    await expect(dialog).toBeHidden()
+    await expect(
+      main.getByRole('button', { name: 'Transfer name' }),
+    ).toBeVisible()
+    await expect(main.getByText(STRANDED_COPY)).toHaveCount(0)
+  })
+
+  test('restores the original ETH address after a recipient that starts refusing the token, even across a retry', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(540_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    // A fresh EOA, so the preflight and the move's gas estimate pass, then
+    // given a non-receiver's code before the move is mined: the report's
+    // recipient that changes its behaviour between the check and the
+    // transfer.
+    const recipient = privateKeyToAddress(generatePrivateKey())
+    const rejectingCode = await publicClient.getCode({
+      address: NOT_A_RECEIVER,
+    })
+    if (!rejectingCode) throw new Error('precondition: Multicall3 is deployed')
+
+    const name = await makeV1NameWithEthRecord(
+      accounts.getPrivateKey('user'),
+      'web1508-flip',
+      { type: 'wrapped' },
+    )
+
+    try {
+      const { main, ethSwitch } = await openTransferForm(page, name, recipient)
+      await main.getByRole('switch', { name: /Detach the resolver/ }).click()
+      await expect(ethSwitch).toBeEnabled()
+
+      const dialog = await strandRecord(page, wallet, name, {
+        mode: 'revert',
+        beforeMine: () =>
+          testClient.setCode({ address: recipient, bytecode: rejectingCode }),
+      })
+      await expect(
+        dialog.getByText(/Transaction 0x[0-9a-f]{64} reverted/).first(),
+      ).toBeVisible()
+      expect(await readEthRecord(name)).toBe(recipient.toLowerCase())
+      expect((await readWrapperOwner(name)).toLowerCase()).toBe(
+        owner.toLowerCase(),
+      )
+      await dialog.getByRole('button', { name: 'Close' }).click()
+
+      const alert = main.getByRole('alert').filter({ hasText: STRANDED_COPY })
+      await expect(
+        alert,
+        'a move that reverted after the record landed must be reported (pre-fix: nothing)',
+      ).toBeVisible({ timeout: 15_000 })
+      await expect(alert).toContainText(`Restore it to ${owner}`)
+
+      // "Try the transfer again", with the recipient accepting again. The
+      // retry re-reads a record that now holds the recipient; the restore
+      // target must stay the pre-flow owner.
+      await testClient.setCode({ address: recipient, bytecode: '0x' })
+      await strandRecord(page, wallet, name, { mode: 'reject' })
+      await dialog.getByRole('button', { name: 'Close' }).click()
+      await expect(alert).toBeVisible({ timeout: 15_000 })
+      await expect(
+        alert,
+        'a retry must keep the address from before the first attempt as the restore target',
+      ).toContainText(`Restore it to ${owner}`)
+
+      await alert.getByRole('button', { name: 'Restore ETH address' }).click()
+      await driveTransactionsToSuccess(page, wallet, [
+        transferTxId(name, 'restore-eth-addr'),
+      ])
+      await expect
+        .poll(() => readEthRecord(name), { timeout: 60_000 })
+        .toBe(owner.toLowerCase())
+      expect((await readWrapperOwner(name)).toLowerCase()).toBe(
+        owner.toLowerCase(),
+      )
+    } finally {
+      await testClient.setCode({ address: recipient, bytecode: '0x' })
+    }
   })
 })

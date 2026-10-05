@@ -53,7 +53,9 @@ export const transferTxId = (
     /** V1 registry-only. */
     | 'set-registry-owner'
     /** V1 subname moved by its PARENT (#1144): `setSubnodeOwner`. */
-    | 'set-subnode-owner',
+    | 'set-subnode-owner'
+    /** Recovery after `set-eth-addr` landed but the move didn't (#1217). */
+    | 'restore-eth-addr',
 ) => `transfer-${name}-${step}`
 
 /**

@@ -77,10 +77,37 @@ type Shape = {
   splitRegistrant?: boolean
   /** Register the whole name to somebody else. */
   owner?: 'user2'
+  /** Point the name's ETH address record at you (WEB-1508). */
+  ethRecord?: boolean
   steps?: string[]
 }
 
 const SHAPES: Record<string, Shape> = {
+  'eth-locked-resolver': {
+    gate: 'ok',
+    scenario: 'WEB-1508',
+    type: 'locked',
+    fuses: FUSES.CANNOT_SET_RESOLVER,
+    ethRecord: true,
+    what: 'a locked V1 name with CANNOT_SET_RESOLVER burned and an ETH address record pointing at you',
+    expect: [
+      'no "Detach the resolver" switch, and a warning that the resolver stays attached',
+      '"Set the ETH address to the recipient" is on AND clickable, with no "Not needed" line',
+      'the plan is TWO steps: "Update ETH address" then "Transfer name"',
+      'reject the second prompt and close the modal: a red alert says the transfer didn’t go through, names both addresses, and offers Restore ETH address',
+    ],
+  },
+  'eth-wrapped': {
+    gate: 'ok',
+    scenario: 'WEB-1508',
+    type: 'wrapped',
+    ethRecord: true,
+    what: 'a wrapped V1 name with an ETH address record pointing at you, resolver detach allowed',
+    expect: [
+      '"Detach the resolver" is on, and the ETH switch is greyed out as "Not needed while the resolver is being detached."',
+      'turning the detach off makes the ETH switch clickable again',
+    ],
+  },
   ok: {
     gate: 'ok',
     scenario: 'F23',
@@ -189,6 +216,13 @@ async function seed(key: string, shape: Shape) {
     ...(shape.fuses ? { fuses: shape.fuses } : {}),
     ...(shape.duration ? { duration: shape.duration } : {}),
     ...(shape.owner ? { owner: shape.owner } : {}),
+    ...(shape.ethRecord
+      ? {
+          records: {
+            addresses: [{ coinType: 60, value: accounts.getAddress('user') }],
+          },
+        }
+      : {}),
   })
   const label = name.replace(/\.eth$/, '')
   const tokenId = BigInt(labelhash(label))
