@@ -29,8 +29,9 @@ import {
 import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -104,7 +105,11 @@ const PrimaryNameOption = ({
   const { t } = useLingui()
   const label = resolveDomainLabel(domain)
   const isSelected = selectedName === label
-  const avatarUrl = buildNameAvatarUrl(label)
+  const { data: avatarRecords } = useQuery(profileAvatarRecordsQuery(label))
+  const avatarRecord = avatarRecords?.texts
+    .find((record) => record.key === 'avatar')
+    ?.value.trim()
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
 
   return (
     <button
@@ -126,7 +131,7 @@ const PrimaryNameOption = ({
             <ImageFallback.Image
               alt={t`${label} avatar`}
               className="size-full object-cover"
-              src={avatarUrl}
+              src={avatarUrl ?? undefined}
             />
             <ImageFallback.Fallback>
               <PatternAvatar

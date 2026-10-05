@@ -5,12 +5,12 @@ import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
   getProfileNameExpiryStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import type { ProfileRecords } from '@/features/profile/types'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
@@ -65,14 +65,16 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   )
 }
 
-const useAddressProfileAvatarUrl = ({
+const useAddressProfileAvatar = ({
   addressNames,
   primaryName,
   isNamesPending,
+  records,
 }: {
   readonly addressNames: readonly ProfileAddressName[]
   readonly primaryName?: string
   readonly isNamesPending: boolean
+  readonly records: ProfileRecords | null
 }) => {
   const primaryEntry = findPrimaryAddressName(addressNames, primaryName)
   const isV1Primary = primaryEntry?.protocol === 'v1'
@@ -86,7 +88,11 @@ const useAddressProfileAvatarUrl = ({
       ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1').isInGrace
       : getProfileExpiryResultStatus(expiryData).isInGrace
 
-  return primaryName && !isInGrace ? buildNameAvatarUrl(primaryName) : undefined
+  return useQuery(
+    imageRecordQuery(
+      primaryName && !isInGrace ? records?.base.avatar?.trim() : undefined,
+    ),
+  )
 }
 
 export const AddressProfileHeader = ({
@@ -102,17 +108,19 @@ export const AddressProfileHeader = ({
   readonly isNamesPending?: boolean
   readonly records: ProfileRecords | null
 }) => {
-  const avatarUrl = useAddressProfileAvatarUrl({
+  const avatar = useAddressProfileAvatar({
     addressNames,
     primaryName,
     isNamesPending,
+    records,
   })
+  const avatarUrl = avatar.data ?? undefined
 
   return (
     <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">
       {primaryName ? (
         <ProfileAvatar
-          avatarLoading={false}
+          avatarLoading={avatar.isLoading}
           avatarUrl={avatarUrl}
           className="mx-auto -mt-14 size-42.5 rounded-xl shadow-none lg:landscape:hidden"
           name={primaryName}
@@ -139,7 +147,7 @@ export const AddressProfileHeader = ({
         <div className="flex flex-col gap-5 lg:landscape:grid lg:landscape:grid-cols-[max-content_minmax(0,1fr)] lg:landscape:items-start lg:landscape:gap-5.5">
           <div className="relative hidden size-45 lg:landscape:block">
             <ProfileAvatar
-              avatarLoading={false}
+              avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
               className="absolute inset-0 size-full rounded-xl shadow-none"
               name={primaryName}

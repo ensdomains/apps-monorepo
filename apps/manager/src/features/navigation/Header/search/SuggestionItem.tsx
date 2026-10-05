@@ -9,10 +9,12 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { EXPLORER_URL } from '@/constants'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { useNameClassification } from '@/features/search/useNameClassification'
 import { getNamePricingQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
@@ -34,13 +36,11 @@ const LINK_OPTIONS = {
 
 type NameSuggestionItemProps = {
   readonly name: string
-  readonly avatarUrl?: string
   readonly onNavigate?: () => void
 }
 
 export const NameSuggestionItem = ({
   name,
-  avatarUrl,
   onNavigate,
 }: NameSuggestionItemProps) => {
   const { kind, outcome } = useNameClassification(name)
@@ -58,6 +58,18 @@ export const NameSuggestionItem = ({
     enabled: isEth2ld && isOwned,
   })
   const { isInGrace } = getProfileExpiryResultStatus(registeredExpiryQuery.data)
+
+  const { data: avatarRecords } = useQuery({
+    ...profileAvatarRecordsQuery(name),
+    enabled: isOwned && !isInGrace,
+  })
+  const avatarRecord =
+    isOwned && !isInGrace
+      ? avatarRecords?.texts
+          .find((record) => record.key === 'avatar')
+          ?.value.trim()
+      : undefined
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
 
   const pricingQuery = useQuery({
     ...getNamePricingQueryOptions(isAvailable ? name : undefined),
@@ -84,7 +96,7 @@ export const NameSuggestionItem = ({
           <ImageFallback.Image
             alt={`${name} avatar`}
             className="size-full object-cover"
-            src={avatarUrl}
+            src={avatarUrl ?? undefined}
           />
           <ImageFallback.Fallback>
             <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />

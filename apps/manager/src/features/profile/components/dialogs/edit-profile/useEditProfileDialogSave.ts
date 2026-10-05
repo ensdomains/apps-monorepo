@@ -13,7 +13,10 @@ import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
 import { NameRegistryNotFoundError } from '@/features/profile/service/changeResolver'
-import { refreshProfileImageCaches } from '@/features/profile/service/profileImageCache'
+import {
+  refreshProfileImageCaches,
+  updateProfileImageRecords,
+} from '@/features/profile/service/profileImageCache'
 import {
   type PreparedProfileImageUpload,
   submitPreparedProfileImageUpload,
@@ -51,6 +54,7 @@ interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly ethAddressChanged: boolean
   readonly form: EditProfileForm
   readonly isSuccess: boolean
+  readonly name: string
   readonly onPreparedImageUploadsSaved: () => void
   readonly onUpdated?: () => undefined | Promise<unknown>
   readonly queryClient: QueryClient
@@ -133,6 +137,7 @@ const useCloseProfileDialogOnSuccessfulSave = ({
   ethAddressChanged,
   form,
   isSuccess,
+  name,
   onPreparedImageUploadsSaved,
   onUpdated,
   queryClient,
@@ -146,6 +151,11 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     let cancelled = false
 
     const finalizeSave = async () => {
+      await updateProfileImageRecords({
+        name,
+        records: savedRecords,
+        queryClient,
+      })
       form.reset(savedRecords)
       await onUpdated?.()
       onPreparedImageUploadsSaved()
@@ -178,6 +188,7 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     ethAddressChanged,
     form,
     isSuccess,
+    name,
     onPreparedImageUploadsSaved,
     onUpdated,
     queryClient,
@@ -532,6 +543,7 @@ export const useEditProfileDialogSave = ({
     ethAddressChanged,
     form,
     isSuccess,
+    name,
     onPreparedImageUploadsSaved: handlePreparedImageUploadsSaved,
     onUpdated,
     queryClient,

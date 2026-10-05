@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { profileAddressNamesQuery } from '@/features/profile/service/profileAddressNames'
-import { buildNameHeaderUrl } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -48,10 +48,8 @@ export const AddressProfileView = ({
     ? transformProfileRecords(profileRecords)
     : null
   const themeVars = getThemeVars(records?.base.theme)
-  const headerUrl =
-    primaryName && records?.base.header?.trim()
-      ? buildNameHeaderUrl(primaryName)
-      : undefined
+  const header = useQuery(imageRecordQuery(records?.base.header?.trim()))
+  const headerUrl = header.data ?? undefined
   const defaultHeaderUrl = getDefaultHeaderCover({
     themeColor: records?.base.theme,
   })
@@ -65,7 +63,7 @@ export const AddressProfileView = ({
         <ProfileBanner
           defaultHeaderUrl={defaultHeaderUrl}
           fadeClassName="bottom-0"
-          headerLoading={false}
+          headerLoading={header.isLoading}
           headerUrl={headerUrl}
           name={primaryName ?? address}
         />

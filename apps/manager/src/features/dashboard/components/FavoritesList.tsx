@@ -5,7 +5,7 @@ import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -16,6 +16,7 @@ import {
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
+import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
 export type FavoritesSortField = 'name' | 'addedAt'
 export type FavoritesSort = `${FavoritesSortField}-${'asc' | 'desc'}`
@@ -44,6 +45,34 @@ const parseSort = (
     field,
     direction: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
   }
+}
+
+const FavoriteNameRow = ({
+  label,
+  onToggleFavorite,
+}: {
+  readonly label: string
+  readonly onToggleFavorite: () => void
+}) => {
+  const records = useQuery(profileAvatarRecordsQuery(label))
+  const preview = getNameRowProfilePreview({
+    label,
+    records: records.data,
+    isLoading: records.isLoading,
+  })
+
+  return (
+    <NameRow
+      avatarPending={preview.isAvatarPending}
+      avatarRecord={preview.avatarRecord}
+      isAuthenticated
+      isFavorite
+      label={label}
+      onToggleFavorite={onToggleFavorite}
+      showFavoriteButton
+      themeColor={preview.themeColor}
+    />
+  )
 }
 
 export const FavoritesList = ({
@@ -145,13 +174,9 @@ export const FavoritesList = ({
                       },
                     })}
               >
-                <NameRow
-                  avatarUrl={buildNameAvatarUrl(fav.label)}
-                  isAuthenticated
-                  isFavorite
+                <FavoriteNameRow
                   label={fav.label}
                   onToggleFavorite={() => toggleFavorite(fav.label)}
-                  showFavoriteButton
                 />
               </motion.div>
             )),

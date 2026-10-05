@@ -15,7 +15,7 @@ import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { CommemorativeNftDashboard } from '@/features/migration/components/success/CommemorativeNftDashboard'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -61,7 +61,10 @@ export const DashboardPage = () => {
   )?.value
 
   const defaultName = reverseName ?? null
-  const avatarUrl = reverseName ? buildNameAvatarUrl(reverseName) : null
+  const avatarRecord = reverseRecords?.texts
+    .find((text) => text.key === 'avatar')
+    ?.value.trim()
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
   const hasProfile = Boolean(defaultName)
 
   return (
