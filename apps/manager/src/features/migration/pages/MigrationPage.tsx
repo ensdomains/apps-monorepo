@@ -32,6 +32,7 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { recordRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
   useMigrationCompletedOperations,
@@ -297,6 +298,10 @@ export const MigrationPage = () => {
           },
         })
       }
+      // The V2 indexer trails the transaction by a few seconds, and a name
+      // that has already left V1 is in neither list until it catches up. The
+      // dashboard waits for these rather than showing the user a short list.
+      recordRecentlyMigratedNames(completedOperations.map(({ name }) => name))
       void invalidateMigrationQueries(queryClient)
     }
   }, [step, queryClient, migrationPlan, completedOperations])
