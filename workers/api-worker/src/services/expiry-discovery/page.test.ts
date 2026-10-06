@@ -314,4 +314,23 @@ describe('fetchStageNames', () => {
     expect(read.domains).toEqual([])
     expect(read.cursorEnd).toBe(110 + MAX_PAGES_PER_SOURCE - 2)
   })
+
+  it('moves past released rows it dropped at the end of a complete window', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+      okAsync(
+        page([named('live.eth', 120), named('released.eth', 150, 'v2', true)]),
+      ),
+    )
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
+    })
+
+    const read = result._unsafeUnwrap()
+    expect(read.domains.map(({ name }) => name)).toEqual(['live.eth'])
+    expect(read.cursorEnd).toBe(150)
+  })
 })

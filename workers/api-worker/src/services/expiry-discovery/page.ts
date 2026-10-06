@@ -89,7 +89,7 @@ const readSource = ResultFn(async function* (ctx: {
       ...names,
       ...page.names
         // Only the premium notice is for a former holder.
-        .filter((name) => ctx.stage.includesReleased || !name.isReleased)
+        .filter((name) => ctx.stage.includeReleased || !name.isReleased)
         .map((name) => ({
           ...name,
           position: name.expiryDate + ctx.source.shiftSec,
@@ -140,11 +140,11 @@ export const fetchStageNames = ResultFn(async function* (ctx: {
   const truncated = reads.filter((read) => !read.isComplete)
 
   if (truncated.length === 0) {
-    // Only as far as the last name seen: a name the index records late, with
+    // Only as far as the last row seen: a name the index records late, with
     // an expiry past that point, is still found next run.
     return ok<ProcessableExpiryPage>({
       domains: all,
-      cursorEnd: all.at(-1)?.position ?? ctx.cursor,
+      cursorEnd: Math.max(...reads.map((read) => read.lastReadPosition)),
       hasMore: false,
       indexedAtSec,
     })
