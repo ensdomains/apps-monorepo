@@ -70,6 +70,29 @@ describe('hasV1Names', () => {
     await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(true)
   })
 
+  it.each([
+    {
+      label: 'true while the expired name is still in grace',
+      graceEnds: FUTURE,
+      expected: true,
+    },
+    {
+      label: 'false once its grace period has ended',
+      graceEnds: PAST,
+      expected: false,
+    },
+  ])('is $label', async ({ graceEnds, expected }) => {
+    mockBigname(page([{ ...row('alice.eth', PAST), grace_ends_at: graceEnds }]))
+
+    await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(expected)
+  })
+
+  it('is true for a wrapped name that never expires', async () => {
+    mockBigname(page([row('passkey.eth', '18446744073709551615')]))
+
+    await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(true)
+  })
+
   it('is false when every name has lapsed', async () => {
     mockBigname(page([row('alice.eth', PAST), row('bob.eth', PAST)]))
 

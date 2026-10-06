@@ -16,7 +16,7 @@ const MS_PER_SECOND = 1000
  * One request: the address's v1 names sorted by expiry, latest first. bigname
  * puts names with no expiry ahead of the rest in that order, so the first
  * row that is neither a reverse record nor released decides: live if it has
- * no expiry or expires in the future.
+ * no expiry or its grace period has not ended.
  *
  * Throws on any failure so the caller stays fail-closed (no drip).
  */
@@ -41,11 +41,14 @@ export const hasV1Names = async (
       !row.name.endsWith(REVERSE_SUFFIX) &&
       row.registration_status !== 'released',
   )
-  const expiry = toUnixSeconds(latest?.expires_at)
+  // A name in grace still belongs to its holder and can be renewed and
+  // migrated, as the manager's migration flow treats it.
+  const heldUntil = latest?.grace_ends_at ?? latest?.expires_at
+  const heldUntilSec = toUnixSeconds(heldUntil)
   const hasLiveV1Name =
     latest !== undefined &&
-    (latest.expires_at === undefined ||
-      (expiry !== null && expiry > Date.now() / MS_PER_SECOND))
+    (heldUntil === undefined ||
+      (heldUntilSec !== null && heldUntilSec > Date.now() / MS_PER_SECOND))
 
   logger.debug('Checked v1 name ownership', { address: addr, hasLiveV1Name })
   return hasLiveV1Name

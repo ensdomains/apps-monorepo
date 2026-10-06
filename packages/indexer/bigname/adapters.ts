@@ -31,7 +31,10 @@ const toEpochMs = (value: Timestamp | undefined): number | null => {
   return Number.isFinite(ms) && Math.abs(ms) <= MAX_DATE_MS ? ms : null
 }
 
+// Seconds are not range-checked: a wrapped name can expire at 2^64 - 1, which
+// is past what a Date can hold but still compares correctly as a number.
 export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
+  if (value !== undefined && UNIX_SECONDS.test(value)) return Number(value)
   const ms = toEpochMs(value)
   return ms === null ? null : Math.floor(ms / MS_PER_SECOND)
 }

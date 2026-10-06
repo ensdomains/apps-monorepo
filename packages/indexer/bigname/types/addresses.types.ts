@@ -57,6 +57,8 @@ export type AddressName = Readonly<{
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  /** End of the registrar grace period, already adjusted for the authority. */
+  grace_ends_at?: Timestamp
   authority?: Authority
   migrated_at?: Timestamp
   /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
