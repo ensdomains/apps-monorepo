@@ -6,9 +6,11 @@ import { bigname } from '@/lib/bigname'
 
 const readDetail = readNameDetail(bigname)
 
+export const getNameDetail = (name: string) => readDetail({ name })
+
 /** A name's indexed detail, or null when bigname has not indexed it. */
 export const nameDetailQuery = (name: string | undefined) =>
   resultQueryOptions({
     queryKey: qk('name', 'detail', { name: name ?? null }),
-    queryFn: name ? () => readDetail({ name }) : skipToken,
+    queryFn: name ? () => getNameDetail(name) : skipToken,
   })
