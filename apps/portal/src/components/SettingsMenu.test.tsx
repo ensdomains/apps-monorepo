@@ -26,19 +26,14 @@ afterEach(() => {
 })
 
 describe('SettingsMenu', () => {
-  it('opens the feedback survey with the configured id', async () => {
+  it('hides PostHog feedback even when a survey id is configured', async () => {
     const SettingsMenu = await importSettingsMenu('survey-123')
     const user = userEvent.setup()
     render(<SettingsMenu />)
-
     await user.click(screen.getByRole('button', { name: 'Settings' }))
-    await user.click(await screen.findByRole('menuitem', { name: /feedback/i }))
-
-    expect(displaySurvey).toHaveBeenCalledWith('survey-123', {
-      displayType: 'popover',
-      ignoreConditions: true,
-      ignoreDelay: true,
-    })
+    expect(await screen.findByTestId('theme-toggle')).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
+    expect(displaySurvey).not.toHaveBeenCalled()
   })
 
   it('hides the feedback item when no survey id is configured', async () => {

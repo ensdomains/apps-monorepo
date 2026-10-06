@@ -1,9 +1,9 @@
-import { transactionManager } from '@ens-apps/transaction-manager'
 import { boot, trackEvent } from '@intercom/messenger-js-sdk'
 import { render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
+import { INTERCOM_APP_ID } from '@/lib/intercom'
 import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
 import { PHProvider } from './provider'
 
@@ -52,7 +52,7 @@ describe('launch PostHog provider', () => {
       'test-key',
       expect.objectContaining(FEATURE_FLAGS_ONLY_CONFIG),
     )
-    expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
+    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
     expect(posthog.capture).not.toHaveBeenCalled()
   })
 
@@ -95,20 +95,6 @@ describe('launch PostHog provider', () => {
         <div>child</div>
       </PHProvider>,
     )
-    expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
-  })
-  it('keeps failure diagnostics local without PostHog telemetry', () => {
-    render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
-    const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
-      .calls[0]?.[0]
-    listener?.({
-      run: { txId: 'tx', runId: 'run', status: 'error' },
-      summary: { failureStage: 'submission' },
-    } as Parameters<NonNullable<typeof listener>>[0])
-    expect(posthog.capture).not.toHaveBeenCalled()
+    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
   })
 })

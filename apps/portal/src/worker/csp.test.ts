@@ -188,10 +188,8 @@ describe('csp', () => {
       expect(header['frame-ancestors']).toEqual(["'none'"])
       expect(meta['frame-ancestors']).toBeUndefined()
 
-      expect(header['report-to']).toEqual(['posthog'])
-      expect(header['report-uri']?.[0]).toContain(
-        'https://eu.i.posthog.com/report/',
-      )
+      expect(header['report-to']).toBeUndefined()
+      expect(header['report-uri']).toBeUndefined()
       expect(meta['report-to']).toBeUndefined()
       expect(meta['report-uri']).toBeUndefined()
     })
@@ -239,9 +237,7 @@ describe('csp', () => {
       expect(result.headers.get('Content-Security-Policy')).toBe(
         cspWithFrameAncestors,
       )
-      expect(result.headers.get('Reporting-Endpoints')).toMatch(
-        /^posthog="https:\/\/eu\.i\.posthog\.com\/report\//,
-      )
+      expect(result.headers.get('Reporting-Endpoints')).toBeNull()
       expect(result.headers.get('X-Content-Type-Options')).toBe('nosniff')
       expect(result.headers.get('Referrer-Policy')).toBe(
         'strict-origin-when-cross-origin',

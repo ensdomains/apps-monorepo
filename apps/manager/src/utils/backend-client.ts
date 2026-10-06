@@ -1,7 +1,6 @@
 import { createStore } from '@xstate/store-react'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
-import posthog from 'posthog-js/dist/module.full.no-external'
 import * as v from 'valibot'
 import { DEBUG_FEATURES_ENABLED } from './debug-features'
 import { persist } from './xstate-store'
@@ -177,20 +176,22 @@ const authFetch: typeof fetch = async (input, init) => {
 }
 
 export const backendClient = hc<AppRouter>(DEFAULT_BACKEND_API_URL, {
-  headers: () => {
+  headers: (): Record<string, string> => {
     const auth = backendAuthStore.get().context.authKey
-    const posthogId = posthog.get_distinct_id()
-
-    if (!auth) {
-      return {
-        'X-PostHog-Distinct-ID': posthogId,
-      } as Record<string, string>
-    }
-
-    return {
-      Authorization: `Bearer ${auth}`,
-      'X-PostHog-Distinct-ID': posthogId,
-    }
+    // POSTHOG_LAUNCH_PAUSE: analytics correlation paused. To restore, import posthog from posthog-js/dist/module.full.no-external and replace the return below.
+    // const posthogId = posthog.get_distinct_id()
+    //
+    // if (!auth) {
+    //   return {
+    //     'X-PostHog-Distinct-ID': posthogId,
+    //   } as Record<string, string>
+    // }
+    //
+    // return {
+    //   Authorization: `Bearer ${auth}`,
+    //   'X-PostHog-Distinct-ID': posthogId,
+    // }
+    return auth ? { Authorization: `Bearer ${auth}` } : {}
   },
 
   fetch: authFetch,
