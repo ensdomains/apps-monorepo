@@ -76,13 +76,13 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE)
     expect(result.current.hasMore).toBe(true)
 
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(result.current.hasMore).toBe(false)
   })
 
   it('reveals loaded rows before asking the network for more', async () => {
-    // Three windows' worth in the first page, so the first two clicks are free.
+    // Three windows' worth in the first page, so the first doubling is free.
     const loaded = TIMELINE_WINDOW_SIZE * 3
     const { result, queryFn } = renderFeed([
       page(events(loaded), '1'),
@@ -94,17 +94,16 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE)
 
     // Loaded rows are still hidden, so this click costs no request.
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(queryFn).toHaveBeenCalledOnce()
 
-    // The window has now run past everything loaded — one short of the page,
-    // whose boundary transaction is trimmed rather than split across the two —
-    // so the next page is worth fetching.
-    act(() => result.current.loadMore())
+    // The next doubling runs past everything loaded, so the next page is worth
+    // fetching.
+    act(() => result.current.loader.onMore())
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2))
     await waitFor(() =>
-      expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 3),
+      expect(result.current.actions).toHaveLength(loaded + 10),
     )
   })
 
@@ -116,7 +115,7 @@ describe('useTimelinePagesModel', () => {
     ])
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
 
     rerender({ subject: 'b' })

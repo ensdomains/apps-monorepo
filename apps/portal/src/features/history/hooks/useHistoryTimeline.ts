@@ -9,6 +9,11 @@ import {
 } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Hex } from 'viem'
+import type { ListLoaderProps } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { dropPagedDuplicates, mergeTimeline } from '../mergeTimeline'
 import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
@@ -33,8 +38,7 @@ export type HistoryTimelineModel = {
   readonly anchorAction: Action | undefined
   readonly totalCount: number | undefined
   readonly hasMore: boolean
-  readonly loadMore: () => void
-  readonly isLoadingMore: boolean
+  readonly loader: ListLoaderProps
   readonly isLoading: boolean
   readonly error: TimelineQueryError | null
   readonly sourcesError: TimelineQueryError | null
@@ -48,15 +52,14 @@ export type HistoryTimelineModel = {
 export const TIMELINE_WINDOW_SIZE = 50
 
 /**
- * The newest actions whose events fit the budget; `undefined` takes them all. A
+ * The newest actions whose events fit the budget. A
  * transaction is never split across the break, so the last one admitted may
  * carry the count past the budget.
  */
 const takeEvents = (
   actions: readonly Action[],
-  budget: number | undefined,
+  budget: number,
 ): readonly Action[] => {
-  if (budget === undefined) return actions
   let taken = 0
   const shown: Action[] = []
   for (const action of actions) {
@@ -76,7 +79,7 @@ type TimelineSources = {
   readonly eventTypes?: readonly string[]
   readonly limit?: number
   readonly selectedTypes?: readonly string[]
-  /** Events revealed per click; `undefined` renders every loaded action. */
+  /** Events shown before the first More; `undefined` renders every loaded action. */
   readonly windowSize?: number
   /** Changes when the feed's query does, so the window closes back to one page. */
   readonly resetKey?: string
@@ -85,6 +88,9 @@ type TimelineSources = {
   readonly isLoadingSources?: boolean
   readonly sourcesError?: TimelineQueryError | null
 }
+
+const countEvents = (actions: readonly Action[]) =>
+  actions.reduce((total, action) => total + action.events.length, 0)
 
 const newestFirst = (a: TimelineIndexerEvent, b: TimelineIndexerEvent) =>
   b.timestamp - a.timestamp
@@ -125,12 +131,6 @@ const useTimelineModel = (
   }: TimelineSources = {},
 ): HistoryTimelineModel => {
   const disclosure = useActionDisclosure()
-  // Reset during render, not in an effect: a new query key must not paint its
-  // first page through the previous list's widened window.
-  const [visible, setVisible] = useState({ key: resetKey, count: windowSize })
-  if (visible.key !== resetKey) setVisible({ key: resetKey, count: windowSize })
-  const shown = visible.key === resetKey ? visible.count : windowSize
-
   const pages = pagesQuery.data?.pages ?? []
   const pagedTotalCount = pages.at(-1)?.totalCount
   const hasNextPage = pagesQuery.hasNextPage
@@ -145,15 +145,43 @@ const useTimelineModel = (
         action.events.some((event) => kept.has(event.type)),
       )
     : summarized
+  const loadedCount = countEvents(allActions)
+
+  // Withheld when a source is known short, rather than presenting a lower
+  // bound as an exact count.
+  //
+  // The sum is only exact once the feed is fully loaded, because the auxiliary
+  // sources overlap the paged one (see `dropPagedDuplicates`) and an overlap
+  // on a page still unfetched cannot be seen. While pages remain, a name with
+  // auxiliary events gets no count at all rather than one inflated by its own
+  // duplicates — fox.eth printed 251 for 73 real events.
+  const totalCount =
+    pagedTotalCount === undefined ||
+    isTruncated ||
+    sourcesError ||
+    selectedTypes?.length ||
+    (hasNextPage && auxiliaryEvents.length > 0)
+      ? undefined
+      : pagedTotalCount +
+        dropPagedDuplicates(auxiliaryEvents, pagedEvents).length
+
+  const loader = useListLoader({
+    initialCount: windowSize ?? Number.POSITIVE_INFINITY,
+    loaded: loadedCount,
+    total: totalCount,
+    hasMore: hasNextPage,
+    fetchMore: infiniteFetchMore(
+      pagesQuery.fetchNextPage,
+      (page) => page.events.length,
+    ),
+    resetKey,
+  })
+
   // The window is counted in events and grows; `limit` is a fixed preview
   // counted in actions. A surface passes one or neither — `slice(0, undefined)`
   // is the whole list.
-  const actions = takeEvents(allActions, shown).slice(0, limit)
-
-  const loadedCount = allActions.reduce(
-    (total, action) => total + action.events.length,
-    0,
-  )
+  const actions = takeEvents(allActions, loader.shown).slice(0, limit)
+  const hasMore = hasNextPage || allActions.length > actions.length
 
   return {
     ...disclosure,
@@ -167,33 +195,9 @@ const useTimelineModel = (
           ...dropPagedDuplicates(auxiliaryEvents, anchorEvents),
         ].sort(newestFirst),
       ).at(-1),
-    // Withheld when a source is known short, rather than presenting a lower
-    // bound as an exact count.
-    //
-    // The sum is only exact once the feed is fully loaded, because the auxiliary
-    // sources overlap the paged one (see `dropPagedDuplicates`) and an overlap
-    // on a page still unfetched cannot be seen. While pages remain, a name with
-    // auxiliary events gets no count at all rather than one inflated by its own
-    // duplicates — fox.eth printed 251 for 73 real events.
-    totalCount:
-      pagedTotalCount === undefined ||
-      isTruncated ||
-      sourcesError ||
-      selectedTypes?.length ||
-      (hasNextPage && auxiliaryEvents.length > 0)
-        ? undefined
-        : pagedTotalCount +
-          dropPagedDuplicates(auxiliaryEvents, pagedEvents).length,
-    hasMore: hasNextPage || allActions.length > actions.length,
-    // Widen the window first; the network page is only worth fetching once it
-    // has run past every loaded event — the v1 tail beside them has no page.
-    loadMore: () => {
-      if (windowSize === undefined) return void pagesQuery.fetchNextPage()
-      const widened = (shown ?? windowSize) + windowSize
-      setVisible({ key: resetKey, count: widened })
-      if (widened >= loadedCount) void pagesQuery.fetchNextPage()
-    },
-    isLoadingMore: pagesQuery.isFetchingNextPage,
+    totalCount,
+    hasMore,
+    loader: { ...loader, shown: countEvents(actions), canShowMore: hasMore },
     // The sources gate first paint too, or a paged-only history would render
     // and then have older rows pushed in underneath it.
     isLoading: pagesQuery.isLoading || isLoadingSources,
