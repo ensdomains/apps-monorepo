@@ -14,6 +14,8 @@ type FetchUntilParameters = FetchMoreResult & {
   readonly target: number
   readonly fetchMore: () => Promise<FetchMoreResult>
   readonly stalledPages?: number
+  /** Aborting stops before the next page; a page in flight still lands. */
+  readonly signal?: AbortSignal
 }
 
 const MAX_STALLED_PAGES = 5
@@ -28,8 +30,10 @@ export const fetchUntil = async ({
   hasMore,
   fetchMore,
   stalledPages = 0,
+  signal,
 }: FetchUntilParameters): Promise<FetchMoreResult> => {
-  if (loaded >= target || !hasMore) return { loaded, hasMore }
+  if (loaded >= target || !hasMore || signal?.aborted)
+    return { loaded, hasMore }
   if (stalledPages >= MAX_STALLED_PAGES)
     throw new ListStalledError({
       message: 'The list stopped returning rows before it ended',
@@ -41,6 +45,7 @@ export const fetchUntil = async ({
     ...next,
     target,
     fetchMore,
+    signal,
     stalledPages: next.loaded > loaded ? 0 : stalledPages + 1,
   })
 }

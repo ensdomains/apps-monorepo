@@ -120,6 +120,25 @@ describe('fetchUntil', () => {
     expect(fetchMore).toHaveBeenCalledTimes(MAX_STALLED_PAGES * 3)
   })
 
+  it('stops before the next page once aborted', async () => {
+    const controller = new AbortController()
+    const fetchMore = vi.fn(async (): Promise<FetchMoreResult> => {
+      controller.abort()
+      return { loaded: 200, hasMore: true }
+    })
+
+    const result = await fetchUntil({
+      target: Number.POSITIVE_INFINITY,
+      loaded: 100,
+      hasMore: true,
+      fetchMore,
+      signal: controller.signal,
+    })
+
+    expect(fetchMore).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ loaded: 200, hasMore: true })
+  })
+
   it('rejects when a page fails, after keeping the pages before it', async () => {
     const fetchMore = vi
       .fn<() => Promise<FetchMoreResult>>()

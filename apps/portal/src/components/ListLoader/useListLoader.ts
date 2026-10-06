@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type FetchMoreResult, fetchUntil } from './fetchUntil'
 import type { ListLoaderProps } from './ListLoader'
@@ -32,12 +32,24 @@ export const useListLoader = ({
 
   const { mutate, isPending, isError } = useMutation({ mutationFn: fetchUntil })
 
+  const abortRef = useRef<AbortController | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new list, or leaving the page, stops the fetch in flight
+  useEffect(() => () => abortRef.current?.abort(), [resetKey])
+
   const shown = Math.min(target, loaded)
 
   const showUpTo = (next: number) => {
     setChoice({ resetKey, target: next })
-    if (fetchMore && hasMore && next > loaded)
-      mutate({ target: next, loaded, hasMore, fetchMore })
+    abortRef.current?.abort()
+    if (!fetchMore || !hasMore || next <= loaded) return
+    abortRef.current = new AbortController()
+    mutate({
+      target: next,
+      loaded,
+      hasMore,
+      fetchMore,
+      signal: abortRef.current.signal,
+    })
   }
 
   return {
@@ -55,5 +67,6 @@ export const useListLoader = ({
       .otherwise(() => 'idle'),
     onMore: () => showUpTo(Math.max(shown * 2, initialCount, 1)),
     onAll: () => showUpTo(Number.POSITIVE_INFINITY),
+    onStop: () => abortRef.current?.abort(),
   } satisfies ListLoaderProps
 }

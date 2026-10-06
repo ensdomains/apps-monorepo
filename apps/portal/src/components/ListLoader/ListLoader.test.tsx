@@ -292,6 +292,61 @@ describe('ListLoader on a server-paged list', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('stops fetching when Stop is pressed, keeping what has loaded', async () => {
+    const user = userEvent.setup()
+    const landers: (() => void)[] = []
+    const fetchPage = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          landers.push(resolve)
+        }),
+    )
+    renderList(
+      <ServerList
+        total={1000}
+        pageSize={100}
+        initialCount={100}
+        fetchPage={fetchPage}
+      />,
+    )
+
+    await user.click(all())
+    await user.click(await screen.findByRole('button', { name: 'Stop' }))
+    landers[0]?.()
+
+    await screen.findByText('Showing 200 of 1000')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(fetchPage).toHaveBeenCalledTimes(1)
+    expect(more()).toBeEnabled()
+  })
+
+  it('stops fetching when the list is left', async () => {
+    const user = userEvent.setup()
+    const landers: (() => void)[] = []
+    const fetchPage = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          landers.push(resolve)
+        }),
+    )
+    const { unmount } = renderList(
+      <ServerList
+        total={1000}
+        pageSize={100}
+        initialCount={100}
+        fetchPage={fetchPage}
+      />,
+    )
+
+    await user.click(all())
+    await screen.findByRole('button', { name: 'Stop' })
+    unmount()
+    landers[0]?.()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(fetchPage).toHaveBeenCalledTimes(1)
+  })
+
   it('does not carry one list’s failure over to the next', async () => {
     const user = userEvent.setup()
     const fetchPage = () => Promise.reject(new Error('indexer unavailable'))
@@ -355,6 +410,7 @@ describe('ListLoader when the source holds fewer rows than the total', () => {
         status="idle"
         onMore={vi.fn()}
         onAll={vi.fn()}
+        onStop={vi.fn()}
       />,
     )
 
