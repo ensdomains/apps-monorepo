@@ -918,6 +918,10 @@ const buildNameStateExpectations = (params: {
   ]
 }
 
+/**
+ * A manager role is only ever restored for a name the owner opted in for, which
+ * is the only thing that sets `managerAddress` — see `classifyNames`.
+ */
 const buildManagerRoleFragment = (
   classified: ClassifiedName,
 ): NameExecutionFragment => {

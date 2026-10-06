@@ -11,6 +11,8 @@ export {
   hasFuse,
   type IneligibleName,
   type MigrationTokenType,
+  managerRestorationCandidates,
+  withManagerRestorationOptIn,
 } from '@ens-apps/migration'
 
 export const is2LD = (name: ClassifiedName): boolean =>
