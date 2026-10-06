@@ -42,34 +42,34 @@ vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
     `https://etherscan.io/tx/${txHash}`,
 }))
 
-const eventsRef = vi.hoisted(() => ({
-  current: [] as readonly RecentActivityEvent[],
-}))
-
-const feedRef = vi.hoisted(() => ({
-  totalCount: undefined as number | undefined,
-}))
+const fetchPage = vi.hoisted(() =>
+  vi.fn<(offset: number) => Promise<unknown>>(),
+)
 
 vi.mock('../hooks/useRecentActivity', () => ({
   RECENT_ACTIVITY_PAGE_SIZE: 15,
   getRecentActivityQueryOptions: () => ({
     queryKey: ['recent-activity-mock'],
-    queryFn: async ({ pageParam = 0 }: { pageParam?: number }) => {
-      const total = feedRef.totalCount ?? eventsRef.current.length
-      const events = eventsRef.current.slice(pageParam, pageParam + 15)
-      return {
-        events,
-        totalCount: feedRef.totalCount,
-        endCursor: null,
-        hasNextPage: pageParam + events.length < total,
-        next: pageParam + events.length,
-      }
-    },
+    queryFn: ({ pageParam }: { pageParam: number }) => fetchPage(pageParam),
     initialPageParam: 0,
     getNextPageParam: (last: { hasNextPage: boolean; next: number }) =>
       last.hasNextPage ? last.next : undefined,
   }),
 }))
+
+const pageOf =
+  (events: readonly RecentActivityEvent[], totalCount?: number) =>
+  async (offset: number) => {
+    const page = events.slice(offset, offset + 15)
+    const next = offset + page.length
+    return {
+      events: page,
+      totalCount,
+      endCursor: null,
+      hasNextPage: next < (totalCount ?? events.length),
+      next,
+    }
+  }
 
 const nameChangedEvent = (
   reverseName: string,
@@ -86,8 +86,16 @@ const nameChangedEvent = (
   data: JSON.stringify({ name: reverseName }),
 })
 
-const renderTable = async (events: readonly RecentActivityEvent[]) => {
-  eventsRef.current = events
+const fortyEvents = Array.from({ length: 40 }, (_, i) => ({
+  ...nameChangedEvent(`name${i}.eth`),
+  transactionHash: `0x${(i + 1).toString(16)}` as const,
+}))
+
+const renderTable = async (
+  events: readonly RecentActivityEvent[],
+  totalCount?: number,
+) => {
+  fetchPage.mockImplementation(pageOf(events, totalCount))
   render(
     <QueryClientProvider
       client={
@@ -111,7 +119,7 @@ const linkedNames = () =>
 
 describe('RecentActivityTable', () => {
   afterEach(() => {
-    feedRef.totalCount = undefined
+    fetchPage.mockReset()
   })
 
   it('renders a reverse-record name as an unlinked pill, not a name badge', async () => {
@@ -128,13 +136,7 @@ describe('RecentActivityTable', () => {
   })
 
   it('opens with 15 events and loads more on demand, with no All', async () => {
-    feedRef.totalCount = 32364
-    await renderTable(
-      Array.from({ length: 40 }, (_, i) => ({
-        ...nameChangedEvent(`name${i}.eth`),
-        transactionHash: `0x${(i + 1).toString(16)}` as const,
-      })),
-    )
+    await renderTable(fortyEvents, 32364)
 
     expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
     expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
@@ -144,5 +146,25 @@ describe('RecentActivityTable', () => {
 
     expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
     expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
+  })
+
+  it('keeps the loaded events when a later page fails, and More retries', async () => {
+    await renderTable(fortyEvents, 32364)
+    fetchPage.mockRejectedValueOnce(new Error('indexer down'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Couldn’t load more.',
+    )
+    expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
+    expect(screen.queryByText(/Error fetching recent activity/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+
+    expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })
