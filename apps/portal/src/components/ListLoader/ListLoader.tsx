@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils'
 
 export type ListLoaderProps = {
   readonly shown: number
+  /** How many rows `More` will show. */
+  readonly moreCount: number
   readonly total: number | undefined
   readonly canShowMore: boolean
   readonly status: 'idle' | 'loading' | 'error'
@@ -17,6 +19,7 @@ const ACTION_CLASS_NAME =
 /** `Showing X of Y · More · All`. More doubles the rows shown; All shows the rest. */
 export const ListLoader = ({
   shown,
+  moreCount,
   total,
   canShowMore,
   status,
@@ -45,6 +48,7 @@ export const ListLoader = ({
             type="button"
             onClick={onMore}
             disabled={status === 'loading'}
+            title={`Show ${moreCount}`}
             className={ACTION_CLASS_NAME}
           >
             More
@@ -54,6 +58,7 @@ export const ListLoader = ({
             type="button"
             onClick={onAll}
             disabled={status === 'loading'}
+            title={total === undefined ? 'Show all' : `Show all ${total}`}
             className={ACTION_CLASS_NAME}
           >
             All
@@ -63,7 +68,12 @@ export const ListLoader = ({
       {status === 'loading' && (
         <>
           <span role="status">Loading…</span>
-          <button type="button" onClick={onStop} className={ACTION_CLASS_NAME}>
+          <button
+            type="button"
+            onClick={onStop}
+            title="Stop loading"
+            className={ACTION_CLASS_NAME}
+          >
             Stop
           </button>
         </>

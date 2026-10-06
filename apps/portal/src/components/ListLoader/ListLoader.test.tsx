@@ -197,6 +197,19 @@ describe('ListLoader on a server-paged list', () => {
     expect(fetchPage).toHaveBeenCalledTimes(3)
   })
 
+  it('says on hover what each control will do', async () => {
+    const user = userEvent.setup()
+    renderList(<ServerList total={250} pageSize={100} initialCount={100} />)
+
+    expect(more()).toHaveAttribute('title', 'Show 200')
+    expect(all()).toHaveAttribute('title', 'Show all 250')
+
+    await user.click(more())
+    await screen.findByText('Showing 200 of 250')
+
+    expect(more()).toHaveAttribute('title', 'Show 250')
+  })
+
   it('reveals rows already fetched without another request', async () => {
     const user = userEvent.setup()
     const fetchPage = vi.fn(() => Promise.resolve())
@@ -405,6 +418,7 @@ describe('ListLoader when the source holds fewer rows than the total', () => {
     renderList(
       <ListLoader
         shown={100}
+        moreCount={200}
         total={588}
         canShowMore={false}
         status="idle"

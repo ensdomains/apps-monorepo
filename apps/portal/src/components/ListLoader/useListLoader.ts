@@ -52,9 +52,16 @@ export const useListLoader = ({
     })
   }
 
+  const knownTotal = total ?? (hasMore ? undefined : loaded)
+  const moreCount = Math.min(
+    Math.max(shown * 2, initialCount, 1),
+    knownTotal ?? Number.POSITIVE_INFINITY,
+  )
+
   return {
     shown,
-    total: total ?? (hasMore ? undefined : loaded),
+    moreCount,
+    total: knownTotal,
     canShowMore: shown < loaded || hasMore,
     status: match({
       isCurrent: choice?.resetKey === resetKey,
@@ -65,7 +72,7 @@ export const useListLoader = ({
       .with({ isCurrent: true, isPending: true }, () => 'loading')
       .with({ isCurrent: true, isError: true }, () => 'error')
       .otherwise(() => 'idle'),
-    onMore: () => showUpTo(Math.max(shown * 2, initialCount, 1)),
+    onMore: () => showUpTo(moreCount),
     onAll: () => showUpTo(Number.POSITIVE_INFINITY),
     onStop: () => abortRef.current?.abort(),
   } satisfies ListLoaderProps
