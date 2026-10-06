@@ -13,7 +13,7 @@ export type ListLoaderProps = {
 }
 
 const ACTION_CLASS_NAME =
-  'cursor-pointer underline underline-offset-2 hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60'
+  'cursor-pointer underline-offset-2 hover:text-foreground hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-60'
 
 /** `Showing X of Y · More · All`. More doubles the rows shown; All shows the rest. */
 export const ListLoader = ({
@@ -59,7 +59,7 @@ export const ListLoader = ({
                 type="button"
                 onClick={onAll}
                 disabled={status === 'loading'}
-                title={total === undefined ? 'Show all' : `Show all ${total}`}
+                title={`Show all ${total}`}
                 className={ACTION_CLASS_NAME}
               >
                 All

@@ -37,7 +37,6 @@ export const RecentActivityTable = () => {
     total: data?.pages.at(-1)?.totalCount,
     hasMore: hasNextPage,
     fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.events.length),
-    canShowAll: false,
   })
 
   return (
