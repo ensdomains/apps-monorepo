@@ -25,9 +25,9 @@ type GetRegistryOccupantsParameters = {
  * that stop resolving, and the ones held by anyone else are third parties who
  * get no say and no repair path.
  *
- * Both numbers are bigname's exact counts over every label rather than a
- * sample: `thirdPartyCount` gates a destructive write, so a paged sample that
- * missed the one stranger in a large registry would answer it wrongly.
+ * Both numbers cover every label rather than a sample: `thirdPartyCount`
+ * gates a destructive write, so a paged sample that missed the one stranger
+ * in a large registry would answer it wrongly.
  */
 export type RegistryOccupants = {
   readonly count: number
@@ -47,26 +47,48 @@ const countLabels = (
   ).then((page) => (page ? page.page.total_count : 0))
 
 /**
- * Two counts: every label, and the labels not held by the caller
- * (`exclude_owner`, which keeps ownerless labels: nobody the caller can answer
- * for). A registry bigname has not indexed has no labels. A count bigname
- * declines to give (`total_count: null`, past its counting cap) is unknown
- * rather than a number, and the caller renders "we couldn't check".
+ * A complete first page gives both counts in one read. When the registry is
+ * larger, use its exact total and ask for the exact other-owner count; never
+ * infer that count from a sample. Ownerless labels are third parties too.
+ *
+ * Always read a fresh page here rather than reusing the registry-list cache:
+ * an old empty page must not let a destructive detach bypass its guard.
+ * Counts bigname declines to give remain unknown to the caller.
  */
 const getRegistryOccupants = ({
   address,
   account,
 }: GetRegistryOccupantsParameters) =>
   fromPromise(
-    Promise.all([
-      countLabels(address, {}),
-      countLabels(address, { exclude_owner: account.toLowerCase() }),
-    ]),
+    nullOnNotFound(
+      bigname.listRegistryLabels(sepoliaWithEns.id, address.toLowerCase(), {
+        page_size: 200,
+      }),
+    ).then(async (page): Promise<RegistryOccupants | null> => {
+      if (!page) return { count: 0, thirdPartyCount: 0 }
+
+      const count = page.page.total_count
+      if (count === null) return null
+
+      if (
+        !page.page.has_more &&
+        page.page.next_cursor === null &&
+        page.data.length === count
+      ) {
+        return {
+          count,
+          thirdPartyCount: page.data.filter(
+            (label) => label.owner?.toLowerCase() !== account.toLowerCase(),
+          ).length,
+        }
+      }
+
+      const thirdPartyCount = await countLabels(address, {
+        exclude_owner: account.toLowerCase(),
+      })
+      return thirdPartyCount === null ? null : { count, thirdPartyCount }
+    }),
     (e) => new GetRegistryOccupantsError({ cause: e as BignameError }),
-  ).map(([count, thirdPartyCount]): RegistryOccupants | null =>
-    count === null || thirdPartyCount === null
-      ? null
-      : { count, thirdPartyCount },
   )
 
 const getRegistryOccupantsQueryKey = createQueryKey<

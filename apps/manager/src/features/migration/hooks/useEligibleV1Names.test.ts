@@ -92,6 +92,26 @@ afterEach(() => {
 })
 
 describe('useEligibleV1Names grace-period names', () => {
+  it('keeps known unavailable names out of selection and exposes their reasons', () => {
+    const unreserved = {
+      ...makeDomain({ name: 'unreserved.eth' }),
+      unresolvableReason: 'no_live_ens_v2_entry',
+    }
+    const missing = {
+      ...makeDomain({ name: 'missing.eth', registrationExpiry: null }),
+      registrationMissing: true as const,
+    }
+    mocks.useV1Names.mockReturnValue({
+      data: [unreserved, missing],
+      isPending: false,
+    })
+    const { result } = renderHook(() => useEligibleV1Names())
+    expect(result.current.eligible).toEqual([])
+    expect(result.current.unavailableNames.map(({ reason }) => reason)).toEqual(
+      ['not-reserved', 'missing-registration'],
+    )
+  })
+
   it.each([
     false,
     true,

@@ -177,12 +177,11 @@ export interface ListAddressNamesParams extends PageParams {
   /** Default `name`. */
   readonly dedupe?: 'name' | 'registration'
   /**
-   * `total_count` (after v0.4.1) asks the authority relations for an exact
+   * `total_count` asks the authority relations for an exact
    * `page.total_count` on an address with more than 1,000 candidate names,
    * where it is otherwise `null`. It reads every candidate, so send it on
    * the first page only (it does not bind cursors). Rejected with
-   * `relation=resolves_to` or `former_owner`, and by v0.4.1 (see
-   * `isUnsupportedIncludeError`), which always counts exactly without it.
+   * `relation=resolves_to` or `former_owner`.
    */
   readonly include?: readonly ('counts' | 'role_summary' | 'total_count')[]
 }
@@ -209,15 +208,23 @@ type ExpiryWindow =
   | {
       readonly expires_after: TimestampParam
       readonly expires_before?: TimestampParam
+      readonly expires_window?: never
     }
   | {
       readonly expires_after?: TimestampParam
       readonly expires_before: TimestampParam
+      readonly expires_window?: never
+    }
+  | {
+      /** 1–32 disjoint finite half-open `after..before` windows. */
+      readonly expires_window: readonly string[]
+      readonly expires_after?: never
+      readonly expires_before?: never
     }
 
 /**
  * `GET /v1/names`: `expires_after` inclusive, `expires_before` exclusive; at
- * least one is required.
+ * least one scalar bound or repeated `expires_window` is required.
  */
 export type ListNamesParams = ExpiryWindow &
   PageParams & {
@@ -247,11 +254,10 @@ export interface ListPermissionsParams extends PageParams {
   readonly registration_id?: string
   readonly address?: string
   /**
-   * After v0.4.1: one ENSv2 registry, serialized as `<chain_id>:<address>`.
+   * One ENSv2 registry, serialized as `<chain_id>:<address>`.
    * Lists the current holders of its root resource (`grant_scope.kind:
    * 'root'`), or with `address` that account's root row. Not with `name` or
-   * `registration_id`. An unknown registry answers an empty page. v0.4.1
-   * rejects the parameter (see `isUnknownQueryParamError`).
+   * `registration_id`. An unknown registry answers an empty page.
    */
   readonly registry?: ContractRef | string
   readonly namespace?: Namespace
@@ -278,7 +284,7 @@ export interface BignameClientConfig {
   readonly baseUrl: string
   /** Defaults to `globalThis.fetch`, looked up per request. */
   readonly fetch?: typeof fetch
-  /** Backoff for 408/429/502/503/504, network errors and retryable `409 stale`. `false` disables. */
+  /** Backoff for 408/429/502/503/504, network errors, retryable `409 stale` and unpinned `409 conflict`. `false` disables. */
   readonly retry?: RetryOptions | false
   /** Extra headers sent with every request. */
   readonly headers?: Readonly<Record<string, string>>

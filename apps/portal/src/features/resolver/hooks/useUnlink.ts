@@ -51,7 +51,12 @@ export const useUnlink = ({
         (current) => {
           if (!current) return current
           const links = pruneLinksAfterUnlink(current.links, sourceName)
-          return { ...current, links, linkCount: links.length }
+          return {
+            ...current,
+            links,
+            linkCount:
+              current.linksStatus === 'unsupported' ? null : links.length,
+          }
         },
       )
 

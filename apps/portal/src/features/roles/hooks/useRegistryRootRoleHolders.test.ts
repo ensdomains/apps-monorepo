@@ -3,15 +3,12 @@ import {
   mockPermissionsDiscoveredRegistryRoot,
   mockPermissionsRegistryRoot,
 } from '@ens-apps/bigname/postV041.mock'
-import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { ok } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { queryClient } from '@/utils/queryClient'
 
 const REGISTRY: Address = '0xd4ebcbBDf463c9C45784603DB0ddD499BC44A8b4'
 const HOLDER = getAddress('0x84d3a426d4e12e955d1df95db0b24fe26afe39d3')
-const OTHER = getAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
 
 const listPermissions = vi.fn()
 vi.mock('@/lib/bigname', () => ({ bigname: { listPermissions } }))
@@ -23,7 +20,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
 
 const { getRegistryRootRoles } = await import('./useRegistryRootRoleHolders')
 
-/** What v0.4.1 answers for `registry=`. */
+/** An unsupported deployment is an error, never a signal to scan RPC logs. */
 const unknownRegistryParam = () =>
   new BignameError({
     status: 400,
@@ -34,18 +31,10 @@ const unknownRegistryParam = () =>
 const overloaded = () =>
   new BignameError({ status: 503, code: 'overloaded', message: 'overloaded' })
 
-const log = (account: Address, newRoleBitmap: bigint) => ({
-  address: REGISTRY,
-  blockNumber: 10n,
-  transactionHash: `0x${'1'.repeat(64)}`,
-  args: { resource: 0n, account, oldRoleBitmap: 0n, newRoleBitmap },
-})
-
 const run = () => getRegistryRootRoles({ registryAddress: REGISTRY })
 
 describe('getRegistryRootRoles', () => {
   beforeEach(() => {
-    queryClient.clear()
     listPermissions.mockReset()
     mockGetLogs.mockReset()
     mockGetLogs.mockResolvedValue([])
@@ -83,7 +72,7 @@ describe('getRegistryRootRoles', () => {
       })
     })
 
-    it('gives the roles the log scan gives: admin variants as their own role, in the same order', async () => {
+    it('keeps admin variants as their own roles', async () => {
       listPermissions.mockResolvedValue({
         ...mockPermissionsRegistryRoot,
         data: [
@@ -100,20 +89,6 @@ describe('getRegistryRootRoles', () => {
       })
       const fromBigname = (await run())._unsafeUnwrap().holders
 
-      queryClient.clear()
-      listPermissions.mockRejectedValue(unknownRegistryParam())
-      mockGetLogs.mockResolvedValue([
-        log(
-          HOLDER,
-          registryRoles.ROLE_RENEW |
-            registryRoles.ROLE_RENEW_ADMIN |
-            registryRoles.ROLE_CAN_TRANSFER_ADMIN |
-            registryRoles.ROLE_UPGRADE_ADMIN,
-        ),
-      ])
-      const fromLogs = (await run())._unsafeUnwrap().holders
-
-      expect(fromBigname).toEqual(fromLogs)
       expect(fromBigname[0]?.roles).toHaveLength(4)
       expect(fromBigname[0]?.roles).toEqual(
         expect.arrayContaining([
@@ -136,46 +111,19 @@ describe('getRegistryRootRoles', () => {
       expect((await run())._unsafeUnwrap().holders).toEqual([])
     })
 
-    it('asks whether bigname serves them once, not on every read', async () => {
+    it('reads root permissions directly without a capability probe', async () => {
       listPermissions.mockResolvedValue(mockPermissionsRegistryRoot)
 
       await run()
       await run()
 
-      // One probe, then one page per read.
-      expect(listPermissions).toHaveBeenCalledTimes(3)
-    })
-  })
-
-  describe('against bigname v0.4.1', () => {
-    beforeEach(() => {
-      listPermissions.mockRejectedValue(unknownRegistryParam())
-    })
-
-    it('falls back to the log scan when `registry` is an unknown parameter', async () => {
-      mockGetLogs.mockResolvedValue([
-        log(HOLDER, registryRoles.ROLE_REGISTRAR),
-        log(OTHER, registryRoles.ROLE_RENEW),
-        log(OTHER, 0n),
-      ])
-
-      expect((await run())._unsafeUnwrap()).toEqual({
-        holders: [{ account: HOLDER, roles: ['ROLE_REGISTRAR'] }],
-        areOperatorRolesUnlisted: false,
-      })
-    })
-
-    it('remembers the answer instead of asking before every scan', async () => {
-      await run()
-      await run()
-
-      expect(listPermissions).toHaveBeenCalledTimes(1)
-      expect(mockGetLogs).toHaveBeenCalledTimes(2)
+      expect(listPermissions).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('on any other bigname error', () => {
     it.each([
+      ['an unsupported deployment', unknownRegistryParam()],
       [
         'a different 400',
         new BignameError({
@@ -194,18 +142,7 @@ describe('getRegistryRootRoles', () => {
       expect(mockGetLogs).not.toHaveBeenCalled()
     })
 
-    it('errors when the holders read fails after the probe passed', async () => {
-      listPermissions
-        .mockResolvedValueOnce(mockPermissionsRegistryRoot)
-        .mockRejectedValueOnce(overloaded())
-
-      const result = await run()
-
-      expect(result.isErr()).toBe(true)
-      expect(mockGetLogs).not.toHaveBeenCalled()
-    })
-
-    it('does not remember a failed probe', async () => {
+    it('can retry a failed permissions read', async () => {
       listPermissions.mockRejectedValueOnce(overloaded())
       listPermissions.mockResolvedValue(mockPermissionsRegistryRoot)
 

@@ -14,7 +14,7 @@ import {
 } from '@/features/dashboard/dashboardNames'
 import { getAllAddressNames } from '@/features/dashboard/service/queries/getDashboardNames'
 
-export { PROFILE_NAMES_PAGE_SIZE } from './profileOwnedNames'
+export const PROFILE_NAMES_PAGE_SIZE = 5
 
 type ProfileAddressNameProtocol = 'v1' | 'v2'
 type ProfileAddressNameRoleCategory = 'owned' | 'managed'
@@ -26,7 +26,6 @@ export type ProfileAddressName = {
   /** Seconds since the epoch; `0` = does not expire, `null` = unknown. */
   readonly expiryDate: number | null
   readonly createdAt: number | null
-  readonly registeredAt: number | null
   readonly nameRoles: readonly DashboardNameRole[]
   readonly roleCategory: ProfileAddressNameRoleCategory
 }
@@ -69,7 +68,6 @@ export const getProfileAddressNames = ResultFn(async function* (
         protocol: protocolForAuthority(row.authority),
         expiryDate: addressNameExpirySeconds(row),
         createdAt: timestampOrNull(row.created_at),
-        registeredAt: timestampOrNull(row.registered_at),
         nameRoles,
         roleCategory: nameRoles.includes('owner') ? 'owned' : 'managed',
       } satisfies ProfileAddressName,

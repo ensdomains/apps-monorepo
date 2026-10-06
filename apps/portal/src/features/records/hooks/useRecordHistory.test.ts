@@ -33,24 +33,31 @@ const record = (
     ...over,
   }) as HistoryEvent
 
-const read = async (key: string, rows: HistoryEvent[]) => {
-  getNameHistory.mockResolvedValue({
-    data: rows,
-    page: {
-      cursor: null,
-      next_cursor: null,
-      page_size: 200,
-      total_count: rows.length,
-      has_more: false,
-    },
-    meta: {},
-  })
+const page = (data: HistoryEvent[], next: string | null = null) => ({
+  data,
+  page: {
+    cursor: null,
+    next_cursor: next,
+    page_size: 200,
+    total_count: null,
+    has_more: next !== null,
+  },
+  meta: {},
+})
+
+const read = async (
+  key: string,
+  rows?: HistoryEvent[],
+  signal?: AbortSignal,
+) => {
+  if (rows) getNameHistory.mockResolvedValue(page(rows))
   const { queryFn, queryKey } = getRecordHistoryQueryOptions({
     name: 'Alice.eth',
     key,
   })
   return (queryFn as (context: unknown) => Promise<unknown>)({
     queryKey,
+    signal,
   } as unknown as QueryFunctionContext)
 }
 
@@ -62,14 +69,65 @@ describe('getRecordHistoryQueryOptions', () => {
 
   it('reads one key’s rows by record_key, with payloads, newest first', async () => {
     await read('text:url', [])
-    expect(getNameHistory).toHaveBeenCalledWith('alice.eth', {
-      type: 'record',
-      record_key: 'text:url',
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: 200,
-      cursor: undefined,
+    expect(getNameHistory).toHaveBeenCalledWith(
+      'alice.eth',
+      {
+        type: 'record',
+        record_key: 'text:url',
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size: 200,
+        cursor: undefined,
+      },
+      { signal: undefined },
+    )
+  })
+
+  it.each([
+    'text:url',
+    'coins',
+  ])('reads %s history past the old row cap and the default page limit', async (key) => {
+    const total = 20_200
+    getNameHistory.mockImplementation(
+      async (_name, { cursor }: { cursor?: string }) => {
+        const offset = Number(cursor ?? 0)
+        return page(
+          Array.from({ length: 200 }, (_, i) =>
+            record({
+              key:
+                offset + i === total - 1 && key === 'coins'
+                  ? 'addr:60'
+                  : 'text:url',
+              value: String(offset + i),
+            }),
+          ),
+          offset + 200 < total ? String(offset + 200) : null,
+        )
+      },
+    )
+
+    const events = await read(key)
+    expect(events).toHaveLength(key === 'coins' ? 1 : total)
+    expect(events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ value: '20199' })]),
+    )
+    expect(getNameHistory).toHaveBeenCalledTimes(101)
+  })
+
+  it('stops an uncapped walk when the query is cancelled', async () => {
+    const controller = new AbortController()
+    getNameHistory.mockImplementation(async (_name, _params, { signal }) => {
+      expect(signal).toBe(controller.signal)
+      controller.abort()
+      return page([record({ key: 'text:url', value: 'first' })], 'more')
     })
+
+    await expect(
+      read('text:url', undefined, controller.signal),
+    ).rejects.toMatchObject({
+      cause: controller.signal.reason,
+    })
+    expect(getNameHistory).toHaveBeenCalledTimes(1)
   })
 
   it('keeps only the requested key, plus record clears', async () => {

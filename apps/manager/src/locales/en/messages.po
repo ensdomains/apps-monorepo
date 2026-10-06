@@ -1491,6 +1491,14 @@ msgstr "No eligible names found for this wallet"
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
 msgstr "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "No ENSv1 registration was found for this name."
+msgstr "No ENSv1 registration was found for this name."
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "No ENSv2 reservation is available for this name yet."
+msgstr "No ENSv2 reservation is available for this name yet."
+
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
 msgstr "No favorites to display"
@@ -3250,6 +3258,10 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names cannot be upgraded yet"
+msgstr "Your names cannot be upgraded yet"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"

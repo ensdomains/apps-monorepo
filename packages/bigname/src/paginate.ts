@@ -71,6 +71,8 @@ export async function* iteratePages<TPage extends BignamePage<unknown>>(
 export interface FetchAllPagesOptions extends IteratePagesOptions {
   /** Stop collecting after this many rows. Default 10,000. */
   readonly maxRows?: number
+  /** Retain fetched rows on a transient continuation failure. Never retains stale snapshots. */
+  readonly allowPartial?: boolean
 }
 
 export interface AllPages<TRow> {
@@ -79,8 +81,10 @@ export interface AllPages<TRow> {
   readonly page: Page
   /** Meta of the last page fetched. */
   readonly meta: Meta
-  /** True when `maxPages` or `maxRows` stopped the walk before the end. */
+  /** True when a guard or an allowed partial failure stopped the walk before the end. */
   readonly truncated: boolean
+  /** Present only when allowPartial retained rows after a continuation failed. */
+  readonly partialError?: unknown
 }
 
 type RowOf<TPage> = TPage extends BignamePage<infer TRow> ? TRow : never
@@ -93,12 +97,33 @@ export const fetchAllPages = async <TPage extends BignamePage<unknown>>(
   const maxRows = options.maxRows ?? 10_000
   let rows: RowOf<TPage>[] = []
   let last: PageStep<TPage> | undefined
-  for await (const step of iteratePages(fetchPage, options)) {
-    rows = step.restarted
-      ? [...(step.data as RowOf<TPage>[])]
-      : [...rows, ...(step.data as RowOf<TPage>[])]
-    last = step
-    if (rows.length >= maxRows) break
+  let partialError: unknown
+  const fetchCheckedPage: PageFetcher<TPage> = async (cursor) => {
+    try {
+      return await fetchPage(cursor)
+    } catch (error) {
+      if (isBignameError(error, 'stale')) {
+        rows = []
+        last = undefined
+      }
+      throw error
+    }
+  }
+  try {
+    for await (const step of iteratePages(fetchCheckedPage, options)) {
+      rows = step.restarted
+        ? [...(step.data as RowOf<TPage>[])]
+        : [...rows, ...(step.data as RowOf<TPage>[])]
+      last = step
+      if (rows.length >= maxRows) break
+    }
+  } catch (error) {
+    const transient =
+      isBignameError(error) &&
+      [0, 408, 429, 502, 503, 504].includes(error.status)
+    if (!options.allowPartial || !last || !transient || options.signal?.aborted)
+      throw error
+    partialError = error
   }
   if (!last) throw new Error('bigname: pager finished without a page')
   const hasMore = last.page.has_more && last.page.next_cursor !== null
@@ -107,5 +132,6 @@ export const fetchAllPages = async <TPage extends BignamePage<unknown>>(
     page: last.page,
     meta: last.meta,
     truncated: hasMore || rows.length > maxRows,
+    ...(partialError !== undefined ? { partialError } : {}),
   }
 }

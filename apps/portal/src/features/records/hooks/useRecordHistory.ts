@@ -47,12 +47,6 @@ export type RecordHistoryEvent = {
   readonly coinType?: number
 }
 
-/**
- * Enough for any one record's history. One exact key is filtered server-side
- * (`record_key`); a family is not, so its rows are filtered here.
- */
-const RECORD_HISTORY_MAX_ROWS = 1000
-
 const FAMILY_MATCHERS: Record<RecordHistoryFamily, (key: string) => boolean> = {
   coins: (key) => key.startsWith('addr:'),
   texts: (key) => key.startsWith('text:') || key === 'avatar',
@@ -128,19 +122,30 @@ const dropDoubleEmits = (
  * `record_key`, which keeps that key's writes and every record reset; a family
  * reads every `record` row and filters them here.
  */
-const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
+const getRecordHistory = (
+  { name, key }: RecordHistoryParameters,
+  signal?: AbortSignal,
+) =>
   fromPromise(
     fetchAllPages(
       (cursor) =>
-        bigname.getNameHistory(normalizeOrLower(name), {
-          type: 'record',
-          ...(!isFamily(key) && { record_key: key }),
-          include: ['data', 'raw'],
-          order: 'desc',
-          page_size: MAX_PAGE_SIZE,
-          cursor,
-        }),
-      { maxRows: RECORD_HISTORY_MAX_ROWS },
+        bigname.getNameHistory(
+          normalizeOrLower(name),
+          {
+            type: 'record',
+            ...(!isFamily(key) && { record_key: key }),
+            include: ['data', 'raw'],
+            order: 'desc',
+            page_size: MAX_PAGE_SIZE,
+            cursor,
+          },
+          { signal },
+        ),
+      {
+        maxRows: Number.POSITIVE_INFINITY,
+        maxPages: Number.POSITIVE_INFINITY,
+        signal,
+      },
     ),
     (e) => new GetRecordHistoryError({ cause: e as BignameError }),
   ).map(({ rows }) =>
@@ -157,5 +162,6 @@ const getRecordHistoryQueryKey = createQueryKey<
 export const getRecordHistoryQueryOptions = (params: RecordHistoryParameters) =>
   resultQueryOptions({
     queryKey: getRecordHistoryQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRecordHistory(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getRecordHistory(params, signal),
   })

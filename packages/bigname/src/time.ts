@@ -66,8 +66,8 @@ export type WrapperExpiry =
  * `ens_v1_wrapper` restrictions. A finite expiry is exact `bigint` seconds
  * (it can exceed `2^53`); a classified absent expiry is `expiresAt: null`
  * with `no_expiry` or `not_set`. `undefined` when the field is not served
- * (always on `ens_v1` from v0.4.1, and for a name with no current NameWrapper
- * entry) or is malformed, which is not proof the name is unwrapped.
+ * for a name with no current NameWrapper entry or is malformed. A wrapped
+ * row without an expiry is incomplete and must not use a lease-based estimate.
  */
 export const readWrapperExpiry = (
   source:

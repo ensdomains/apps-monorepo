@@ -1,9 +1,10 @@
-import { errAsync, okAsync } from 'neverthrow'
+import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./indexer.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./indexer.js')>()),
   fetchExpiringNamesPage: vi.fn(),
+  fetchExpiringNamesPages: vi.fn(),
   fetchPublicationTime: vi.fn(),
 }))
 
@@ -13,6 +14,7 @@ import { runExpiryDiscoveryCron } from './index.js'
 import {
   type ExpiringDomain,
   fetchExpiringNamesPage,
+  fetchExpiringNamesPages,
   fetchPublicationTime,
   PROCESS_PAGE_SIZE,
   QUERY_PAGE_SIZE,
@@ -99,6 +101,19 @@ const makeEnv = (
 describe('runExpiryDiscoveryCron', () => {
   beforeEach(() => {
     vi.mocked(fetchExpiringNamesPage).mockReset()
+    vi.mocked(fetchExpiringNamesPages).mockReset()
+    // Feed existing lifecycle fixtures through the shared track read. HTTP
+    // batching, cursor restarts and per-window caps have indexer coverage.
+    vi.mocked(fetchExpiringNamesPages).mockImplementation(
+      ({ env, track, windows }) =>
+        ResultAsync.combine(
+          windows.map((window) =>
+            fetchExpiringNamesPage({ env, track, ...window }).map(
+              (page) => [window.stage.id, page] as const,
+            ),
+          ),
+        ).map((pages) => new Map(pages)),
+    )
     vi.mocked(fetchPublicationTime).mockReset()
     vi.mocked(fetchPublicationTime).mockReturnValue(okAsync(NOW))
     vi.useFakeTimers()
@@ -174,6 +189,7 @@ describe('runExpiryDiscoveryCron', () => {
         ),
       ),
     )
+    expect(fetchExpiringNamesPages).toHaveBeenCalledTimes(4)
     expect(runs.filter((run) => run.startsWith('subname/')).sort()).toEqual([
       'subname/expired',
       'subname/expiry-1d',
@@ -280,7 +296,7 @@ describe('runExpiryDiscoveryCron', () => {
     ])
   })
 
-  it('commits successful stages while preserving a failed stage cursor', async () => {
+  it('preserves every open cursor of a failed batched track', async () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()
     cursors.ens_v2['expiry-7d'] = { expiry_timestamp: NOW + 2 * DAY }
@@ -299,9 +315,9 @@ describe('runExpiryDiscoveryCron', () => {
 
     const result = await runExpiryDiscoveryCron(makeEnv(kv))
     const stored = await readCursors(kv)
-    expect(result._unsafeUnwrap().failedStages).toBe(1)
+    expect(result._unsafeUnwrap().failedStages).toBe(2)
     expect(stored.ens_v2['expiry-7d']).toEqual(cursors.ens_v2['expiry-7d'])
-    expect(stored.ens_v2['expiry-1d']?.expiry_timestamp).toBe(NOW + 50)
+    expect(stored.ens_v2['expiry-1d']).toEqual(cursors.ens_v2['expiry-1d'])
   })
 
   it('does not advance a stage cursor when queue publication fails', async () => {

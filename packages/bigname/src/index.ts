@@ -1,4 +1,9 @@
 export {
+  fetchRoleSummaryPage,
+  fetchV2GraceNames,
+  isV2GraceName,
+} from './addressNames'
+export {
   type AddressHistoryParams,
   type AuthorityRelationParam,
   type BignameClient,
@@ -27,8 +32,6 @@ export {
   BignameError,
   type BignameErrorInit,
   isBignameError,
-  isUnknownQueryParamError,
-  isUnsupportedIncludeError,
 } from './errors'
 export { isHistoryEventOfType, isNameProfile } from './guards'
 export {

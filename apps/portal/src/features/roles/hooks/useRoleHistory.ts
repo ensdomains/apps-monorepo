@@ -2,9 +2,9 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type Address, isAddressEqual } from 'viem'
 import { getNameRoleChanges } from '@/lib/roles/nameRoleChanges'
-import type { RoleHistoryEntry } from '@/lib/roles/roleChangeLogs'
+import type { RoleHistoryEntry } from '@/lib/roles/roleHistory'
 
-export type { RoleHistoryEntry } from '@/lib/roles/roleChangeLogs'
+export type { RoleHistoryEntry } from '@/lib/roles/roleHistory'
 
 type GetRoleHistoryParameters = {
   readonly name: string

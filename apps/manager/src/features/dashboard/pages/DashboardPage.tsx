@@ -21,6 +21,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { DashboardNamesProvider } from '../DashboardNamesProvider'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
   shouldReduceMotion
@@ -35,7 +36,7 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
         },
       }
 
-export const DashboardPage = () => {
+const DashboardContent = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlagEnabled(
@@ -142,3 +143,9 @@ export const DashboardPage = () => {
     </div>
   )
 }
+
+export const DashboardPage = () => (
+  <DashboardNamesProvider>
+    <DashboardContent />
+  </DashboardNamesProvider>
+)

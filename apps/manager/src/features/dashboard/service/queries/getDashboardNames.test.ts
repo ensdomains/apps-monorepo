@@ -1,6 +1,6 @@
 import type { AddressNameRow } from '@ens-apps/bigname'
 import { BignameError } from '@ens-apps/bigname'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ listAddressNames: vi.fn() }))
 
@@ -8,6 +8,7 @@ vi.mock('@/lib/bigname', () => ({
   bigname: { listAddressNames: mocks.listAddressNames },
 }))
 
+import { dashboardRowMetadata } from '../../dashboardNames'
 import { getDashboardNames, getDashboardNamesQuery } from './getDashboardNames'
 
 const EOA = '0x1111111111111111111111111111111111111111'
@@ -44,7 +45,11 @@ describe('getDashboardNames', () => {
 
   it('reads every page per address and merges rows by namehash', async () => {
     mocks.listAddressNames.mockImplementation(
-      async (address: string, params: { cursor?: string }) => {
+      async (
+        address: string,
+        params: { cursor?: string; relation?: string },
+      ) => {
+        if (params.relation === 'former_owner') return page([], null)
         if (address === EOA && !params.cursor) {
           return page([row({ name: 'alice.eth', relations: ['owner'] })], 'c1')
         }
@@ -101,21 +106,53 @@ describe('getDashboardNames', () => {
     )
   })
 
-  it('reads again without role summaries on a 422 grant-budget overflow', async () => {
-    mocks.listAddressNames
-      .mockRejectedValueOnce(
-        new BignameError({ status: 422, code: 'unsupported', message: 'x' }),
-      )
-      .mockResolvedValueOnce(page([row({ name: 'alice.eth' })], null))
-
+  it('shrinks an overflowing page without dropping summaries', async () => {
+    mocks.listAddressNames.mockImplementation(async (_address, params) => {
+      if (params.relation === 'former_owner') return page([], null)
+      if (params.page_size === 200)
+        throw new BignameError({
+          status: 422,
+          code: 'unsupported',
+          message: 'x',
+        })
+      return page([row({ name: 'alice.eth' })], null)
+    })
     const names = await getDashboardNames([EOA])
-
     expect(names.map((item) => item.name)).toEqual(['alice.eth'])
     expect(mocks.listAddressNames).toHaveBeenLastCalledWith(
       EOA,
-      expect.objectContaining({ include: undefined }),
+      expect.objectContaining({ page_size: 100, include: ['role_summary'] }),
       expect.anything(),
     )
+  })
+
+  it('keeps renewable former-owned names visible without inventing current authority', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    mocks.listAddressNames.mockImplementation(async (_address, params) =>
+      page(
+        params.relation === 'former_owner'
+          ? [
+              row({
+                registration_status: 'released',
+                relations: ['former_owner'],
+                expires_at: String(now - 1),
+                grace_ends_at: String(now + 86400),
+                lapsed_registration: {
+                  owner: EOA,
+                  held_through: 'registry',
+                  release_kind: 'expired',
+                },
+              }),
+            ]
+          : [],
+        null,
+      ),
+    )
+    const names = await getDashboardNames([EOA])
+    expect(names).toHaveLength(1)
+    expect(names[0]?.nameRoles).toEqual([])
+    assert(names[0])
+    expect(dashboardRowMetadata(names[0]).expiryCta).toBe('renew')
   })
 
   it('rejects with a tagged error when bigname fails', async () => {

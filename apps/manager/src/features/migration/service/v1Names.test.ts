@@ -1,4 +1,5 @@
 import { mockEnsV1WrapperTrailsLease } from '@ens-apps/bigname/postV041.mock'
+import { classifyName } from '@ens-apps/migration'
 import { labelhash, namehash } from 'viem'
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -23,7 +24,7 @@ vi.mock('@/lib/bigname', async () => {
 })
 
 const RESOLVER = '0x000000000000000000000000000000000000dddd'
-/** bigname v0.4.1: decimal Unix seconds. The ENSv1 lease lives under `ens_v1`. */
+/** Decimal Unix seconds. The ENSv1 lease lives under `ens_v1`. */
 const LEASE = '1893456000'
 /** The ENSv2 reservation premigration made: lease + 62 days. */
 const RESERVATION = String(Number(LEASE) + 62 * 86_400)
@@ -149,57 +150,7 @@ describe('getV1NamesForAddress', () => {
     expect(url?.searchParams.get('page_size')).toBe('200')
   })
 
-  it('bigname v0.4.1: walks again with role_summary and reads the NameWrapper expiry from the row restrictions, else derives it from the lease', async () => {
-    const wrapper = {
-      expires_at: LEASE,
-      wrapper_state: 'locked',
-      wrapper_fuses: { fuses: 196609 },
-    }
-    const served = '1900000000'
-    serve({
-      pages: [
-        [
-          row('served.eth', {
-            registration_status: 'wrapped',
-            ens_v1: wrapper,
-            restrictions: {
-              registration_id: 'r1',
-              kind: 'ens_v1_wrapper',
-              wrapper_state: 'locked',
-              wrapper_fuses: { fuses: 196609 },
-              wrapper_expires_at: served,
-            },
-          }),
-          row('derived.eth', {
-            registration_status: 'wrapped',
-            ens_v1: wrapper,
-          }),
-        ],
-      ],
-      lookup: (inputs) =>
-        lookupOk(
-          inputs.map(({ name }) =>
-            detail(name, { registration_status: 'wrapped', ens_v1: wrapper }),
-          ),
-        ),
-    })
-
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isOk())
-    expect(result.value.map((domain) => domain.wrappedDomain)).toEqual([
-      { expiryDate: served, fuses: 196609 },
-      {
-        expiryDate: String(Number(LEASE) + 90 * 86_400),
-        fuses: 196609,
-      },
-    ])
-    expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
-      null,
-      'role_summary',
-    ])
-  })
-
-  it('after bigname v0.4.1: reads the NameWrapper expiry from ens_v1 in one walk without role_summary', async () => {
+  it('reads the NameWrapper expiry from ens_v1 in one walk without role_summary', async () => {
     const wrapped = {
       registration_status: 'wrapped',
       ens_v1: mockEnsV1WrapperTrailsLease,
@@ -232,50 +183,11 @@ describe('getV1NamesForAddress', () => {
         fuses: mockEnsV1WrapperTrailsLease.wrapper_fuses.fuses,
       },
     })
+    expect(result.value[1]?.wrappedDomain).toBeNull()
+    expect(result.value[1]?.registrant).toEqual({ id: OWNER })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
       null,
-    ])
-  })
-
-  it('bigname v0.4.1: keeps the plain rows and derives the expiry when the role_summary budget answers 422', async () => {
-    const wrapped = {
-      registration_status: 'wrapped',
-      ens_v1: {
-        expires_at: LEASE,
-        wrapper_state: 'locked',
-        wrapper_fuses: { fuses: 196609 },
-      },
-    }
-    serve({
-      pages: [[row('alice.eth', wrapped)]],
-      lookup: () => lookupOk([detail('alice.eth', wrapped)]),
-    })
-    const serveRows = fetchMock.getMockImplementation()
-    fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
-      const { url } = bignameRequest([input, init])
-      if (url.searchParams.get('include') === 'role_summary') {
-        return bignameResponse(
-          {
-            error: {
-              code: 'unsupported',
-              message: 'role summary budget exceeded',
-              details: {},
-            },
-          },
-          422,
-        )
-      }
-      return serveRows?.(input, init)
-    })
-
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isOk())
-    expect(result.value.map((domain) => domain.wrappedDomain)).toEqual([
-      { expiryDate: String(Number(LEASE) + 90 * 86_400), fuses: 196609 },
-    ])
-    expect(listCalls().map((url) => url.searchParams.get('include'))).toEqual([
-      null,
-      'role_summary',
     ])
   })
 
@@ -352,6 +264,7 @@ describe('getV1NamesForAddress', () => {
             registration_status: 'wrapped',
             ens_v1: {
               expires_at: null,
+              wrapper_expires_at: RESERVATION,
               wrapper_state: 'emancipated',
               wrapper_fuses: { fuses: 65536 },
             },
@@ -364,6 +277,7 @@ describe('getV1NamesForAddress', () => {
             registration_status: 'wrapped',
             ens_v1: {
               expires_at: LEASE,
+              wrapper_expires_at: RESERVATION,
               wrapper_state: 'locked',
               wrapper_fuses: { fuses: 1 },
             },
@@ -428,6 +342,178 @@ describe('getV1NamesForAddress', () => {
     const result = await getV1NamesForAddress(OWNER)
     assert(result.isOk())
     expect(result.value.map((domain) => domain.name)).toEqual(['ok.eth'])
+  })
+
+  it.each([
+    'failed',
+    'stale',
+  ] as const)('fails discovery instead of dropping a child with %s detail', async (status) => {
+    serve({
+      pages: [[row('ok.eth'), row('problem.eth')]],
+      lookup: () =>
+        bignameResponse({
+          data: [
+            {
+              kind: 'name',
+              input: { name: 'ok.eth' },
+              status: 'ok',
+              record: detail('ok.eth'),
+            },
+            {
+              kind: 'name',
+              input: { name: 'problem.eth' },
+              status,
+              record: detail('problem.eth', { status }),
+              failure_reason: 'read_failed',
+            },
+          ],
+          meta: {},
+        }),
+    })
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isErr())
+    expect(result.error._tag).toBe('GetV1NamesError')
+    expect(result.error.cause).toMatchObject({
+      message: 'BigName could not read migration details for problem.eth',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    'failed',
+    'stale',
+  ] as const)('does not classify a detached child using a %s parent read', async (status) => {
+    const child = detail('child.parent.eth', {
+      registration_status: 'wrapped',
+      resolver: null,
+      ens_v1: {
+        expires_at: null,
+        wrapper_expires_at: RESERVATION,
+        wrapper_state: 'emancipated',
+        wrapper_fuses: { fuses: 65536 },
+      },
+    })
+    const parent = detail('parent.eth', {
+      ens_v1: {
+        expires_at: LEASE,
+        wrapper_expires_at: RESERVATION,
+        wrapper_state: 'locked',
+        wrapper_fuses: { fuses: 1 },
+      },
+    })
+    serve({
+      pages: [[row('child.parent.eth')]],
+      lookup: () =>
+        bignameResponse({
+          data: [
+            {
+              kind: 'name',
+              input: { name: child.name },
+              status: 'ok',
+              record: child,
+            },
+            {
+              kind: 'name',
+              input: { name: parent.name },
+              status,
+              record: { ...parent, status },
+              failure_reason: 'read_failed',
+            },
+          ],
+          meta: {},
+        }),
+    })
+    const failed = await getV1NamesForAddress(OWNER)
+    assert(failed.isErr())
+    expect(failed.error.cause).toMatchObject({
+      message: 'BigName could not read migration details for parent.eth',
+    })
+
+    // A subsequent successful read supplies the fuses and keeps the direct
+    // detached-child route, instead of presenting the parent-copy route.
+    serve({
+      pages: [[row(child.name)]],
+      lookup: () => lookupOk([child, parent]),
+    })
+    const recovered = await getV1NamesForAddress(OWNER)
+    assert(recovered.isOk())
+    const domain = recovered.value[0]
+    assert(domain)
+    expect(classifyName(domain, OWNER, 11155111)).toMatchObject({
+      type: 'classified',
+      name: { action: 'migrate', tokenType: 'detached-child' },
+    })
+  })
+
+  it.each([
+    'failed',
+    'stale',
+  ] as const)('ignores a speculative %s parent result for an unwrapped registry child', async (status) => {
+    const child = detail('child.parent.eth', {
+      registration_status: 'registered',
+      resolver: null,
+      ens_v1: { expires_at: null },
+    })
+    serve({
+      pages: [[row(child.name)]],
+      lookup: () =>
+        bignameResponse({
+          data: [
+            {
+              kind: 'name',
+              input: { name: child.name },
+              status: 'ok',
+              record: child,
+            },
+            {
+              kind: 'name',
+              input: { name: 'parent.eth' },
+              status,
+              failure_reason: 'read_failed',
+            },
+          ],
+          meta: {},
+        }),
+    })
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isOk())
+    const domain = result.value[0]
+    assert(domain)
+    expect(classifyName(domain, OWNER, 11155111)).toMatchObject({
+      type: 'classified',
+      name: { action: 'copy', tokenType: 'registry-child' },
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails when the lookup response omits a required input result', async () => {
+    serve({ pages: [[row('omitted.eth')]], lookup: () => lookupOk([]) })
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isErr())
+    expect(result.error.cause).toMatchObject({
+      message: 'BigName could not read migration details for omitted.eth',
+    })
+  })
+
+  it('fails on missing wrapper expiry without another discovery walk or a derived expiry', async () => {
+    const wrapped = {
+      registration_status: 'wrapped',
+      ens_v1: {
+        expires_at: LEASE,
+        wrapper_state: 'locked',
+        wrapper_fuses: { fuses: 196609 },
+      },
+    }
+    serve({
+      pages: [[row('broken.eth', wrapped)]],
+      lookup: () => lookupOk([detail('broken.eth', wrapped)]),
+    })
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isErr())
+    expect(result.error.cause).toMatchObject({
+      message: 'Missing NameWrapper expiry for broken.eth',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('returns err when a bigname read fails', async () => {

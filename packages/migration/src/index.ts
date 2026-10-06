@@ -24,7 +24,6 @@ export {
   type BignameEnsV1Fields,
   type BignameV1NameRecord,
   type BignameV1ParentRecord,
-  type BignameV1Restrictions,
   type V1Domain,
   v1DomainFromBigname,
   v1ParentName,

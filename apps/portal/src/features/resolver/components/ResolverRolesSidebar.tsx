@@ -415,8 +415,9 @@ export const ResolverRolesSidebar = ({
                 {canEdit && removalPlan?.type === 'unreadable' && (
                   <Alert variant="destructive">
                     <AlertDescription>
-                      This account holds a grant whose scope can't be read, so
-                      it can't be fully removed from this page.
+                      {removalPlan.reason === 'incomplete'
+                        ? "The role list is incomplete, so this account can't be fully removed from this page."
+                        : "This account holds a grant whose scope can't be read, so it can't be fully removed from this page."}
                     </AlertDescription>
                   </Alert>
                 )}

@@ -21,47 +21,19 @@ const seed = (keys: readonly (readonly unknown[])[]) => {
   return queryClient
 }
 
-// Against bigname v0.4.1 the role holder and history reads scan the node's
-// logs, which are current once the grant or revoke confirms; if they miss the
-// success invalidation the holders table keeps showing revoked permissions
-// until an unrelated refetch.
-describe('invalidateRegistryQueries', () => {
-  it('refreshes the role holder and history reads on success', async () => {
-    const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS])
-
-    await invalidateRegistryQueries(queryClient)
-
-    for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS]) {
+describe('registry role invalidation', () => {
+  it.each([
+    ['on confirmation', invalidateRegistryQueries],
+    ['after indexing', invalidateIndexedRegistryQueries],
+  ])('refreshes holders, history and registry reads %s without a capability flag', async (_, invalidate) => {
+    const untouched = [
+      'get-registry-label-count',
+      { registryAddress: '0x1' },
+    ] as const
+    const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS, untouched])
+    await invalidate(queryClient)
+    for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS])
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
-    }
-  })
-
-  // A log scan is already current, so refreshing it again once bigname has
-  // caught up would rescan the registry for nothing.
-  it('refreshes only the bigname reads again while the role reads scan logs', async () => {
-    const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS])
-    queryClient.setQueryData(['bigname-root-role-reads-supported'], false)
-
-    await invalidateIndexedRegistryQueries(queryClient)
-
-    for (const key of BIGNAME_KEYS) {
-      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
-    }
-    for (const key of ROLE_KEYS) {
-      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false)
-    }
-  })
-
-  // Read from bigname, the same reads lag like the rest: without the second
-  // refresh the table would keep the holders from before the transaction.
-  it('refreshes the role reads again too once bigname serves them', async () => {
-    const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS])
-    queryClient.setQueryData(['bigname-root-role-reads-supported'], true)
-
-    await invalidateIndexedRegistryQueries(queryClient)
-
-    for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS]) {
-      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
-    }
+    expect(queryClient.getQueryState(untouched)?.isInvalidated).toBe(false)
   })
 })

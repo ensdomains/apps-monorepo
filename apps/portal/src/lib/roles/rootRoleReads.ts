@@ -2,28 +2,21 @@ import {
   type BignameError,
   type EventRow,
   fetchAllPages,
-  isUnknownQueryParamError,
   MAX_PAGE_SIZE,
   type PermissionRow,
   type Power,
   timestampToBigInt,
 } from '@ens-apps/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { fromPromise } from 'neverthrow'
 import { type Address, getAddress, isAddressEqual, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { previousPowers } from '@/lib/roles/nameRoleChanges'
 import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
-import {
-  ROOT_RESOURCE,
-  type RoleHistoryEntry,
-} from '@/lib/roles/roleChangeLogs'
+import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { queryClient } from '@/utils/queryClient'
 
 class GetRootRoleReadsError extends TaggedError('GetRootRoleReadsError')<{
   cause: BignameError
@@ -31,60 +24,6 @@ class GetRootRoleReadsError extends TaggedError('GetRootRoleReadsError')<{
 
 const toError = (e: unknown) =>
   new GetRootRoleReadsError({ cause: e as BignameError })
-
-export const rootRoleReadsSupportedQueryKey = createQueryKey(
-  'bigname-root-role-reads-supported',
-)
-
-/** How long a "not supported" answer stands before the deployment is asked again. */
-const UNSUPPORTED_RECHECK_MS = 5 * 60 * 1000
-
-/**
- * Whether this bigname deployment serves registry root roles: the holders on
- * `GET /v1/permissions?registry=` and the `RootPermissionChanged` history
- * rows, which ship in one release. v0.4.1 has neither. It rejects `registry`
- * as an unknown parameter, which is the only signal there is: its history
- * simply lacks the rows, and rejects `kind=RootPermissionChanged` with a 400
- * that does not name a version.
- *
- * Any registry answers the question, so the probe asks for one row of the
- * `.eth` registry. Any other failure rejects and is not cached.
- */
-const probeRootRoleReads = (): Promise<boolean> =>
-  bigname
-    .listPermissions({
-      registry: {
-        chain_id: sepoliaWithEns.id,
-        address: getChainContractAddress({
-          chain: sepoliaWithEns,
-          contract: 'ensRegistry',
-        }),
-      },
-      page_size: 1,
-    })
-    .then(
-      () => true,
-      (error: unknown) => {
-        if (isUnknownQueryParamError(error, 'registry')) return false
-        throw error
-      },
-    )
-
-/**
- * The cached answer to `probeRootRoleReads`: one request per session once the
- * deployment supports the reads, and one every five minutes while it does not,
- * so an open tab picks the release up without a reload.
- */
-export const getRootRoleReadsSupported = () =>
-  fromPromise(
-    queryClient.fetchQuery({
-      queryKey: rootRoleReadsSupportedQueryKey(),
-      queryFn: probeRootRoleReads,
-      staleTime: ({ state }) =>
-        state.data ? Number.POSITIVE_INFINITY : UNSUPPORTED_RECHECK_MS,
-    }),
-    toError,
-  )
 
 export type RootRoleHolder = {
   readonly account: Address
@@ -94,9 +33,9 @@ export type RootRoleHolder = {
 export type RegistryRootRoles = {
   readonly holders: RootRoleHolder[]
   /**
-   * The registry can also give its root roles to operators, and bigname does
-   * not list those. Set for every registry outside the ENS manifest (user
-   * registries, migration registries), with or without listed holders.
+   * Discovered registry code may derive additional authority (for example
+   * from a parent registry). BigName conservatively marks that coverage gap;
+   * ordinary indexed operator approvals are not the missing surface.
    */
   readonly areOperatorRolesUnlisted: boolean
 }
@@ -148,7 +87,7 @@ const toHolders =
 /**
  * The current holders of a registry's root resource, from bigname. Root rows
  * state the declared role bits with no read-time mask, so they are the same
- * set the log scan folds to. Call only when `getRootRoleReadsSupported`.
+ * set the contract stores.
  */
 export const getBignameRootRoleHolders = ({
   registryAddress,
@@ -227,8 +166,7 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
  * shown; `type=permission` would also page every name token's role change on
  * the registry. Each row carries its timestamp and, because the log states
  * the old bitmap, `added_powers` and `removed_powers`, so the set before a
- * change needs neither a block lookup nor the earlier rows. Call only when
- * `getRootRoleReadsSupported`: v0.4.1 rejects the `kind`.
+ * change needs neither a block lookup nor the earlier rows.
  */
 export const getBignameRootRoleChanges = (
   params: RegistryParameters & { readonly account: Address },

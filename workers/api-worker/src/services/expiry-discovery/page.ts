@@ -3,6 +3,7 @@ import { ok } from 'neverthrow'
 import {
   EXACT_TIMESTAMP_MAX_ROWS,
   type ExpiringDomain,
+  type ExpiringNamesPage,
   fetchExpiringNamesPage,
   PROCESS_PAGE_SIZE,
 } from './indexer.js'
@@ -109,8 +110,9 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
   stage: ExpiryStageConfig
   cursor: number
   upperBound: number
+  page?: ExpiringNamesPage
 }) {
-  const page = yield* fetchExpiringNamesPage(ctx)
+  const page = ctx.page ?? (yield* fetchExpiringNamesPage(ctx))
   const plan = planNormalExpiryPage(page.domains, ctx.cursor)
 
   if (plan.type !== 'split-timestamp') {

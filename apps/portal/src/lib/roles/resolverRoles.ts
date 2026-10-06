@@ -207,7 +207,7 @@ export const describeResolverResource = (
 
 type RoleInput = {
   readonly account: string
-  readonly resource: string
+  readonly resource: string | null
   readonly roleBitmap: string
 }
 
@@ -226,7 +226,8 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
  * `ROOT_RESOURCE` would merge the row into the account's root grant, and
  * revoking from that row would then target root roles.
  */
-const normalizeResource = (resource: string): bigint | null => {
+const normalizeResource = (resource: string | null): bigint | null => {
+  if (resource === null) return null
   try {
     return BigInt(resource)
   } catch {
@@ -312,7 +313,7 @@ export type AccountRemovalPlan =
       readonly type: 'complete'
       readonly revocations: readonly ResolverRevocation[]
     }
-  | { readonly type: 'unreadable' }
+  | { readonly type: 'unreadable'; readonly reason?: 'incomplete' }
 
 export const planAccountRemoval = <T extends RoleInput>(
   roles: readonly T[],

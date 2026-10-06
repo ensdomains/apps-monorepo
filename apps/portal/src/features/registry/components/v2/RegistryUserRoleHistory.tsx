@@ -9,7 +9,7 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import type { RoleHistoryEntry } from '@/lib/roles/roleChangeLogs'
+import type { RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { getRegistryRoleHistoryForAccountQueryOptions } from '../../hooks/useRegistryRoleHistoryForAccount'
 

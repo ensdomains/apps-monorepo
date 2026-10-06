@@ -23,9 +23,6 @@ const CODE_BY_STATUS: Readonly<Record<number, BignameErrorCode>> = {
   503: 'overloaded',
 }
 
-/** Start of the rejection that lists the `include` values a route accepts. */
-const INCLUDE_REJECTION = 'include must contain only '
-
 export interface BignameErrorInit {
   readonly status: number
   readonly code: BignameErrorCode
@@ -88,35 +85,4 @@ export const errorFromResponse = (
       : `bigname request failed with HTTP ${status}`
   const details = isRecord(envelope?.details) ? envelope.details : undefined
   return new BignameError({ status, code, message, details, url })
-}
-
-/**
- * True when bigname rejected `param` as a query parameter it does not know:
- * the `400 invalid_input` a deployment answers for a parameter added after
- * its version, such as `registry` on `listPermissions` against v0.4.1. Any
- * other rejection of the same request (a malformed value, a combination the
- * route does not accept) is `false`.
- */
-export const isUnknownQueryParamError = (
-  error: unknown,
-  param: string,
-): error is BignameError =>
-  isBignameError(error, 'invalid_input') &&
-  error.message === `unknown query parameter: ${param}`
-
-/**
- * True when bigname rejected an `include` list because the route does not
- * know `value`: the `400 invalid_input` a deployment answers for an expansion
- * added after its version, such as `total_count` on `listAddressNames`
- * against v0.4.1. A deployment that knows `value` but refuses it for this
- * request (`total_count` with `relation=resolves_to`) is `false`.
- */
-export const isUnsupportedIncludeError = (
-  error: unknown,
-  value: string,
-): error is BignameError => {
-  if (!isBignameError(error, 'invalid_input')) return false
-  if (!error.message.startsWith(INCLUDE_REJECTION)) return false
-  const accepted = error.message.slice(INCLUDE_REJECTION.length).split(/[\s,]+/)
-  return !accepted.includes(value)
 }

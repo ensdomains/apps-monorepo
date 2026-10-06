@@ -1,7 +1,6 @@
 import {
   type AuthorityRelationParam,
   isBignameError,
-  isUnsupportedIncludeError,
   type ListAddressNamesParams,
   type RequestOptions,
 } from '@ens-apps/bigname'
@@ -47,14 +46,15 @@ const readExactCount = async (
           { ...params, page_size: 1, include: ['total_count'] },
           { signal: controller.signal },
         )
-        .then(({ page }) => page.total_count),
+        .then(
+          ({ data, page }) =>
+            page.total_count ??
+            (data.length === 0 && !page.has_more ? 0 : null),
+        ),
       timedOut,
     ])
   } catch (error) {
-    if (
-      isBignameError(error, 'request_timeout') ||
-      isUnsupportedIncludeError(error, 'total_count')
-    ) {
+    if (isBignameError(error, 'request_timeout')) {
       return null
     }
     throw error
@@ -66,33 +66,9 @@ const readExactCount = async (
   }
 }
 
-/**
- * How many names an address-names ownership collection holds, read from one
- * row's `page.total_count`.
- *
- * bigname v0.4.1 always counts exactly. Later releases answer
- * `total_count: null` for an address with more than 1,000 candidate names
- * (counted before the filters, so the filtered collection can still be
- * small). An empty page is then a count of zero; otherwise the read is
- * repeated with `include=total_count`. The flag is never sent first, because
- * v0.4.1 rejects it with a 400, and the first read costs nothing extra there.
- *
- * The exact count reads every candidate and can time out on an address with
- * tens of thousands of names. The result is then `null`: the collection is
- * not empty, and its size is unknown. Callers must not show that as zero.
- * Any other failure rejects with `BignameError`.
- */
-export const getAddressNamesCount = async (
+/** Exact ownership count from the target BigName contract, in one request. */
+export const getAddressNamesCount = (
   address: string,
   params: AddressNamesCountParams,
   options: RequestOptions = {},
-): Promise<number | null> => {
-  const first = await bigname.listAddressNames(
-    address,
-    { ...params, page_size: 1 },
-    options,
-  )
-  if (first.page.total_count !== null) return first.page.total_count
-  if (first.data.length === 0 && !first.page.has_more) return 0
-  return readExactCount(address, params, options)
-}
+): Promise<number | null> => readExactCount(address, params, options)

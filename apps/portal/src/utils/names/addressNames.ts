@@ -96,8 +96,8 @@ const v1RolesFromRelations = (
 
 /**
  * Released ENSv1 leases are past their grace period; the ENSv1 subgraph list
- * this replaces never showed them. Expired ENSv2 names were listed, and still
- * are.
+ * this replaces never showed them. Renewable ENSv2 names are supplied by a
+ * separate former_owner read, bounded to their exclusive grace period.
  */
 const isLapsedV1 = (row: AddressNameRow) =>
   row.registration_status === 'released' && row.authority !== 'ens_v2'

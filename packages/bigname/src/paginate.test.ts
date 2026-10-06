@@ -162,3 +162,34 @@ describe('iteratePages', () => {
     await expect(pages.next()).rejects.toThrow()
   })
 })
+
+describe('partial continuation recovery', () => {
+  it('retains earlier rows after an exhausted transient failure only when opted in', async () => {
+    const { fetch } = mockFetch(
+      jsonResponse(200, pageOf([{ name: 'a.eth' }], 'next')),
+      ...Array.from({ length: 3 }, () => errorResponse(503, 'overloaded')),
+    )
+    const result = await fetchAllPages(
+      (cursor) => clientWith(fetch).listSubnames('eth', { cursor }),
+      { allowPartial: true },
+    )
+    expect(result.rows.map((row) => row.name)).toEqual(['a.eth'])
+    expect(result.truncated).toBe(true)
+    expect(result.partialError).toMatchObject({ code: 'overloaded' })
+  })
+  it('does not keep an invalidated snapshot when the restart fails', async () => {
+    const { fetch } = mockFetch(
+      jsonResponse(200, pageOf([{ name: 'old.eth' }], 'next')),
+      errorResponse(409, 'stale'),
+      ...Array.from({ length: 3 }, () => errorResponse(503, 'overloaded')),
+    )
+    const client = clientWith(fetch)
+    await expect(
+      fetchAllPages(
+        (cursor) =>
+          client.listResolverLinks(11155111, '0xabc', { at: 'tok', cursor }),
+        { allowPartial: true },
+      ),
+    ).rejects.toMatchObject({ code: 'overloaded' })
+  })
+})

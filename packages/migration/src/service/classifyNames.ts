@@ -39,6 +39,8 @@ export type IneligibleReason =
   | 'unlocked-subname'
   | 'expired-registration'
   | 'registry-only'
+  | 'missing-registration'
+  | 'not-reserved'
   | 'not-transferable'
   | 'missing-parent'
   | 'frozen-approval'
@@ -195,6 +197,21 @@ const ineligible = (
   reason: IneligibleReason,
 ): ClassifyResult => ({ type: 'ineligible', name: { domain, reason } })
 
+/** Availability restrictions apply to direct .eth migrations, never child copies. */
+const unavailableRegistration = ({
+  domain,
+  parentName,
+  nowSeconds,
+}: ClassificationContext): IneligibleReason | undefined => {
+  if (parentName !== 'eth') return undefined
+  if (domain.registrationMissing) return 'missing-registration'
+  if (domain.unresolvableReason === 'no_live_ens_v2_entry')
+    return 'not-reserved'
+  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds))
+    return 'expired-registration'
+  return undefined
+}
+
 const classifyWithoutActiveWrapper = (
   context: ClassificationContext,
 ): ClassifyResult => {
@@ -205,7 +222,6 @@ const classifyWithoutActiveWrapper = (
     ownerAddressLower,
     parentName,
     v1ResolverAddress,
-    nowSeconds,
   } = context
 
   if (isDotEthSubname(domain, parentName)) {
@@ -238,9 +254,8 @@ const classifyWithoutActiveWrapper = (
   const registrant = domain.registrant
   if (registrant?.id.toLowerCase() !== ownerAddressLower) return null
   if (parentName !== 'eth') return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return ineligible(domain, 'expired-registration')
-  }
+  const registrationReason = unavailableRegistration(context)
+  if (registrationReason) return ineligible(domain, registrationReason)
 
   const tokenHolder = toAddress(registrant.id)
   if (!tokenHolder) return null
@@ -403,16 +418,15 @@ const classifyActiveWrapper = (
   context: ClassificationContext,
   wrappedDomain: NonNullable<V1Domain['wrappedDomain']>,
 ): ClassifyResult => {
-  const { domain, ownerAddressLower, parentName, nowSeconds } = context
+  const { domain, ownerAddressLower } = context
   const wrappedOwner = domain.wrappedOwner
   if (!wrappedOwner || wrappedOwner.id.toLowerCase() !== ownerAddressLower) {
     return null
   }
   const wrappedHolder = toAddress(wrappedOwner.id)
   if (!wrappedHolder) return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return ineligible(domain, 'expired-registration')
-  }
+  const registrationReason = unavailableRegistration(context)
+  if (registrationReason) return ineligible(domain, registrationReason)
 
   const fuses = BigInt(wrappedDomain.fuses)
   return hasFuse(fuses, FUSES.CANNOT_UNWRAP)

@@ -54,7 +54,7 @@ describe('getProfileAddressNames', () => {
 
     await getProfileAddressNames(ADDRESS)
 
-    expect(bignameMock.listAddressNames).toHaveBeenCalledExactlyOnceWith(
+    expect(bignameMock.listAddressNames).toHaveBeenCalledWith(
       LOWER,
       expect.objectContaining({
         namespace: 'ens',
@@ -95,7 +95,6 @@ describe('getProfileAddressNames', () => {
     ])
     expect(result.value[0]).toMatchObject({
       expiryDate: Date.parse('2030-01-01T00:00:00Z') / 1000,
-      registeredAt: Date.parse('2024-01-01T00:00:00Z') / 1000,
       roleCategory: 'owned',
     })
     // An ENSv1 name "Expires" with its lease, not the ENSv2 reservation.
@@ -165,6 +164,28 @@ describe('getProfileAddressNames', () => {
     ])
   })
 
+  it('hides reverse records while keeping registered registry children', async () => {
+    bignameMock.listAddressNames.mockResolvedValue(
+      page([
+        row({
+          name: 'abc.addr.reverse',
+          authority: 'ens_v1',
+          registration_status: 'registered',
+        }),
+        row({
+          name: '[abcd].parent.eth',
+          authority: 'ens_v1',
+          registration_status: 'registered',
+        }),
+      ]),
+    )
+    const result = await getProfileAddressNames(ADDRESS)
+    assert(result.isOk())
+    expect(result.value.map(({ label }) => label)).toEqual([
+      '[abcd].parent.eth',
+    ])
+  })
+
   it('drops released and unregistered rows', async () => {
     bignameMock.listAddressNames.mockResolvedValue(
       page([
@@ -230,7 +251,7 @@ describe('getProfileAddressNames', () => {
     expect(result.value.map((item) => item.label)).toEqual(['a.eth'])
     expect(bignameMock.listAddressNames).toHaveBeenLastCalledWith(
       LOWER,
-      expect.objectContaining({ include: undefined }),
+      expect.objectContaining({ include: ['role_summary'], page_size: 100 }),
       expect.anything(),
     )
   })

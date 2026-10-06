@@ -67,6 +67,19 @@ describe('hasOwnedNames', () => {
     await expect(hasOwnedNames(ADDRESS)).resolves.toBe(true)
   })
 
+  it('does not redirect for reverse records alone but continues to a forward name', async () => {
+    const reverse = {
+      name: 'abc.addr.reverse',
+      registration_status: 'registered',
+    }
+    mocks.listAddressNames.mockResolvedValueOnce(page([reverse]))
+    await expect(hasOwnedNames(ADDRESS)).resolves.toBe(false)
+    mocks.listAddressNames
+      .mockResolvedValueOnce(page([reverse], 'next'))
+      .mockResolvedValueOnce(page([held]))
+    await expect(hasOwnedNames(ADDRESS)).resolves.toBe(true)
+  })
+
   it('is false for an address with no names', async () => {
     mocks.listAddressNames.mockResolvedValueOnce(page([]))
 

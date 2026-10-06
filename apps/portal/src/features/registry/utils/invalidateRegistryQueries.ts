@@ -1,26 +1,7 @@
-/**
- * Invalidate the registry-derived caches a role grant or revoke affects.
- *
- * Split by data source. The log-backed reads are correct the moment the
- * transaction confirms, so they are invalidated once; the indexer-backed ones
- * lag and are refreshed again once bigname has indexed the transaction.
- *
- * The root role reads are either: log-backed against bigname v0.4.1, and
- * indexer-backed where bigname serves them (`rootRoleReads.ts`). They join the
- * second refresh only in the latter case, where it is needed; against v0.4.1
- * it would rescan the registry's logs for nothing.
- *
- * What does NOT need invalidating on a role mutation:
- *  - `get-registry-label-count` — labelCount is unchanged by role changes.
- *  - `nameRegistries` / `nameRegistry` — name→registry lookups, unrelated.
- *  - `registry-referenced-by` — derived from `SubregistryUpdated` logs, not
- *    from EAC role state.
- */
-
+/** Registry role reads refresh on confirmation and again after indexing. */
 import type { QueryClient } from '@tanstack/react-query'
-import { rootRoleReadsSupportedQueryKey } from '@/lib/roles/rootRoleReads'
 
-/** Root role reads: from logs, or from bigname where it serves them. */
+/** Root role reads from BigName. */
 const ROOT_ROLE_KEYS = new Set<string>([
   // Holders table on /registry/$address/roles.
   'get-registry-root-role-holders',
@@ -54,18 +35,7 @@ export const invalidateRegistryQueries = (
   invalidate(queryClient, new Set([...ROOT_ROLE_KEYS, ...INDEXER_BACKED_KEYS]))
 
 /** The indexed subset. Call once bigname has caught up with the transaction. */
-export const invalidateIndexedRegistryQueries = (
-  queryClient: QueryClient,
-): Promise<void> => {
-  const areRootRolesIndexed =
-    queryClient.getQueryData(rootRoleReadsSupportedQueryKey()) === true
-  return invalidate(
-    queryClient,
-    areRootRolesIndexed
-      ? new Set([...ROOT_ROLE_KEYS, ...INDEXER_BACKED_KEYS])
-      : INDEXER_BACKED_KEYS,
-  )
-}
+export const invalidateIndexedRegistryQueries = invalidateRegistryQueries
 
 /** Read from bigname, and changed when a label is created or deleted. */
 const LABEL_BACKED_KEYS = new Set<string>([

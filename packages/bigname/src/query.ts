@@ -21,13 +21,20 @@ const formatValue = (value: Exclude<QueryValue, null | undefined>): string => {
  * Build a query string (with leading `?`, or `''` when empty).
  *
  * bigname rejects unknown parameters with 400, so absent values are dropped
- * rather than sent empty. Lists are comma-joined. Every key and value is
+ * rather than sent empty. Lists are comma-joined except `expires_window`,
+ * which repeats its key. Every key and value is
  * percent-encoded, which keeps a `+` in an RFC 3339 offset (`+02:00`) from
  * being decoded as a space.
  */
 export const buildQuery = (params: QueryParams): string => {
   const parts = Object.entries(params).flatMap(([key, value]) => {
     if (value === undefined || value === null) return []
+    if (key === 'expires_window' && Array.isArray(value)) {
+      return value.map(
+        (window) =>
+          `${encodeURIComponent(key)}=${encodeURIComponent(String(window))}`,
+      )
+    }
     const formatted = formatValue(value)
     if (formatted === '') return []
     return [`${encodeURIComponent(key)}=${encodeURIComponent(formatted)}`]

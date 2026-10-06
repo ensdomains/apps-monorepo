@@ -1,7 +1,8 @@
 import {
   isNameProfile,
-  type NameDetail,
-  type NameProfile,
+  type LookupDetailRecord,
+  type LookupProfileRecord,
+  type LookupResult,
 } from '@ens-apps/bigname'
 import {
   type ClassifiedName,
@@ -58,12 +59,27 @@ type GetMigrationStatusParameters = {
 }
 
 const isMigratableV1 = (
-  record: NameDetail | undefined,
-): record is NameProfile =>
+  record: LookupDetailRecord | undefined,
+): record is LookupProfileRecord =>
   !!record &&
   isNameProfile(record) &&
   (record.authority === 'ens_v1' || record.authority === 'ens_v0') &&
   record.registration_status !== 'released'
+
+const getLookupRecord = (result: LookupResult | undefined) => {
+  if (
+    result?.kind !== 'name' ||
+    result.status === 'failed' ||
+    result.status === 'stale' ||
+    (result.status === 'ok' && !result.record)
+  )
+    return err(
+      new GetMigrationStatusError({
+        cause: new Error('BigName could not read migration details'),
+      }),
+    )
+  return ok(result.status === 'ok' ? result.record : undefined)
+}
 
 const getMigrationStatus = ResultFn(async function* ({
   name,
@@ -71,29 +87,46 @@ const getMigrationStatus = ResultFn(async function* ({
 }: GetMigrationStatusParameters) {
   const client = yield* safeGetClient()
 
-  const nameResponse = yield* fromPromise(
-    bigname.getName(name),
+  // Include a possible wrapped subname's parent up front so its fuse read
+  // shares one request with the child. Unwrapped names may return an unused
+  // parent record; .eth 2LDs never need an eth read.
+  const parentName = v1ParentName(name)
+  const includeParent = parentName && parentName.toLowerCase() !== 'eth'
+  const response = yield* fromPromise(
+    bigname.lookup({
+      profile: 'detail',
+      inputs: [
+        { id: 'name', name },
+        ...(includeParent ? [{ id: 'parent', name: parentName }] : []),
+      ],
+    }),
     (e) => new GetMigrationStatusError({ cause: e }),
   )
-  const record = nameResponse?.data
+  const record = yield* getLookupRecord(
+    response.data.find((result) => result.input.id === 'name'),
+  )
   // Only a live ENSv1 name can migrate. `ens_v0` (still read from the 2017
   // registry) is ENSv1 too. An `ens_v2` name has migrated, or is held by a
   // released ENSv2 registration that owns the name even while an old ENSv1
   // lease is live; a released ENSv1 lease has no holder left to migrate it.
   if (!isMigratableV1(record)) return ok<MigrationStatus>({ migratable: false })
 
-  // The parent's NameWrapper fuses decide whether a wrapped child is detached.
-  const parentName = v1ParentName(record.name)
-  const parentResponse = parentName
-    ? yield* fromPromise(
-        bigname.getName(parentName),
-        (e) => new GetMigrationStatusError({ cause: e }),
+  // A speculative parent failure must not hide an unwrapped name's verdict.
+  const needsParent =
+    record.ens_v1?.wrapper_expires_at !== undefined && includeParent
+  const parent = needsParent
+    ? yield* getLookupRecord(
+        response.data.find((result) => result.input.id === 'parent'),
       )
-    : null
-  const parent = parentResponse?.data
-  const domain = v1DomainFromBigname(
-    record,
-    parent && isNameProfile(parent) ? parent : null,
+    : undefined
+  const domain = yield* fromPromise(
+    Promise.resolve().then(() =>
+      v1DomainFromBigname(
+        record,
+        parent && isNameProfile(parent) ? parent : null,
+      ),
+    ),
+    (e) => new GetMigrationStatusError({ cause: e }),
   )
 
   const holderCandidate =
@@ -159,7 +192,7 @@ export const getMigrationStatusQueryOptions = (
  * cannot migrate, so nothing should offer them the action. `isWrapped` marks
  * an unlocked NameWrapper token, which is unwrapped as part of the upgrade.
  *
- * `enabled` exists because the read is not cheap: two bigname reads plus
+ * `enabled` exists because the read is not cheap: one BigName lookup plus
  * on-chain eligibility checks. Callers pass false for anything that is not a
  * v1 name.
  */

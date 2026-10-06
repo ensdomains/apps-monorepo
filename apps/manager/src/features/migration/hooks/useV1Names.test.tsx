@@ -20,6 +20,9 @@ const v1NamesMock = vi.hoisted(() => ({
 vi.mock('@/lib/smart-account', () => smartAccountMock)
 vi.mock('wagmi', () => wagmiMock)
 vi.mock('@/features/migration/service/v1Names', () => v1NamesMock)
+vi.mock('@/features/dashboard/DashboardNamesProvider', () => ({
+  useDashboardDiscoveryAddresses: () => undefined,
+}))
 
 import { useV1Names } from './useV1Names'
 
@@ -56,6 +59,7 @@ describe('useV1Names', () => {
     await waitFor(() => {
       expect(v1NamesMock.getV1NamesForAddress).toHaveBeenCalledWith(
         WALLET_ADDRESS,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       )
     })
   })
@@ -70,6 +74,7 @@ describe('useV1Names', () => {
     await waitFor(() => {
       expect(v1NamesMock.getV1NamesForAddress).toHaveBeenCalledWith(
         OWNER_ADDRESS,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       )
     })
   })

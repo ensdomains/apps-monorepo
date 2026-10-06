@@ -1496,6 +1496,14 @@ msgstr ""
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
 msgstr ""
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "No ENSv1 registration was found for this name."
+msgstr ""
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "No ENSv2 reservation is available for this name yet."
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
 msgstr ""
@@ -3254,6 +3262,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names cannot be upgraded yet"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx

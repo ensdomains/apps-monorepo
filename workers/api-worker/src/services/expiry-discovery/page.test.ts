@@ -147,4 +147,40 @@ describe('expiry page planning', () => {
         : undefined,
     })
   })
+
+  it('recovers a split second from a batched stage without refetching its normal window', async () => {
+    const timestamp = 10_000
+    const beforeTimestamp = uniqueDomains(PROCESS_PAGE_SIZE - 1)
+    const exactDomains = domainsAt(3, timestamp)
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
+      okAsync({ domains: exactDomains, hasMore: false }),
+    )
+    const track = TRACKS[0]
+    const stage = track?.stages[0]
+    if (!track || !stage) throw new Error('Missing expiry stage')
+    const result = await fetchProcessableExpiringNames({
+      env: {} as CloudflareBindings,
+      track,
+      stage,
+      cursor: 50,
+      upperBound: 20_000,
+      page: {
+        domains: [...beforeTimestamp, ...exactDomains.slice(0, 2)],
+        hasMore: true,
+      },
+    })
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(1)
+    expect(fetchExpiringNamesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: timestamp - 1,
+        upperBound: timestamp,
+        maxRows: EXACT_TIMESTAMP_MAX_ROWS,
+      }),
+    )
+    expect(result._unsafeUnwrap().domains).toEqual([
+      ...beforeTimestamp,
+      ...exactDomains,
+    ])
+    expect(result._unsafeUnwrap().cursorEnd).toBe(timestamp)
+  })
 })

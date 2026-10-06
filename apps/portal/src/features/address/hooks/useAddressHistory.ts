@@ -29,29 +29,36 @@ type GetAddressHistoryParameters = {
   readonly address: Address
   /**
    * Read one page of this many rows — the recent-history teaser. Omitted, the
-   * history is paged up to `ADDRESS_HISTORY_MAX_ROWS`.
+   * history is read through the final page.
    */
   readonly pageSize?: number
 }
 
-/** Bound on a full read: an address's history is attacker-inflatable. */
-const ADDRESS_HISTORY_MAX_ROWS = 1000
-/** Bound on the names read that supplies each name's relations. */
-const ADDRESS_NAMES_MAX_ROWS = 1000
-
-const readHistory = async (address: Address, pageSize: number | undefined) => {
+const readHistory = async (
+  address: Address,
+  pageSize: number | undefined,
+  signal?: AbortSignal,
+) => {
   const read = (cursor: string | undefined, page_size: number) =>
-    bigname.getAddressHistory(address.toLowerCase(), {
-      relation: 'any',
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size,
-      cursor,
-    })
+    bigname.getAddressHistory(
+      address.toLowerCase(),
+      {
+        relation: 'any',
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size,
+        cursor,
+      },
+      { signal },
+    )
   if (pageSize !== undefined) return (await read(undefined, pageSize)).data
   const { rows } = await fetchAllPages(
     (cursor) => read(cursor, MAX_PAGE_SIZE),
-    { maxRows: ADDRESS_HISTORY_MAX_ROWS },
+    {
+      maxRows: Number.POSITIVE_INFINITY,
+      maxPages: Number.POSITIVE_INFINITY,
+      signal,
+    },
   )
   return rows
 }
@@ -63,15 +70,26 @@ const readHistory = async (address: Address, pageSize: number | undefined) => {
  * treats as a root). A `manager` relation alone is the registry controller,
  * which any parent owner can assign, so it does not count.
  */
-const readHeldNames = async (address: Address): Promise<Set<string>> => {
+const readHeldNames = async (
+  address: Address,
+  signal?: AbortSignal,
+): Promise<Set<string>> => {
   const { rows } = await fetchAllPages(
     (cursor) =>
-      bigname.listAddressNames(address.toLowerCase(), {
-        relation: 'any',
-        page_size: MAX_PAGE_SIZE,
-        cursor,
-      }),
-    { maxRows: ADDRESS_NAMES_MAX_ROWS },
+      bigname.listAddressNames(
+        address.toLowerCase(),
+        {
+          relation: 'any',
+          page_size: MAX_PAGE_SIZE,
+          cursor,
+        },
+        { signal },
+      ),
+    {
+      maxRows: Number.POSITIVE_INFINITY,
+      maxPages: Number.POSITIVE_INFINITY,
+      signal,
+    },
   )
   return new Set(
     rows
@@ -107,12 +125,15 @@ const toEvent = (row: EventRow): AddressHistoryEvent[] => {
  * name's provenance: `registrarHolder` is the address when it holds the name's
  * token, read from the names list since history rows carry no relations.
  */
-const getAddressHistory = ({
-  address,
-  pageSize,
-}: GetAddressHistoryParameters) =>
+const getAddressHistory = (
+  { address, pageSize }: GetAddressHistoryParameters,
+  signal?: AbortSignal,
+) =>
   fromPromise(
-    Promise.all([readHistory(address, pageSize), readHeldNames(address)]),
+    Promise.all([
+      readHistory(address, pageSize, signal),
+      readHeldNames(address, signal),
+    ]),
     (e) => new GetAddressHistoryError({ cause: e as BignameError }),
   ).map(([rows, heldNames]): AddressNameHistory[] => {
     const byName = new Map<string, AddressHistoryEvent[]>()
@@ -141,5 +162,6 @@ export const getAddressHistoryQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getAddressHistoryQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getAddressHistory(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getAddressHistory(params, signal),
   })

@@ -128,7 +128,7 @@ export const getNameRoleChanges = ({
           ? detail.data.registration_id
           : undefined
       if (!registrationId) return []
-      const { rows } = await fetchAllPages(
+      const { rows, truncated } = await fetchAllPages(
         (cursor) =>
           bigname.listEvents({
             registration_id: registrationId,
@@ -140,6 +140,10 @@ export const getNameRoleChanges = ({
           }),
         { maxRows: ROLE_CHANGES_MAX_ROWS },
       )
+      if (truncated)
+        throw new Error(
+          'Name role history is incomplete; current role holders cannot be determined',
+        )
       return rows
     })(),
     (e) => new GetNameRoleChangesError({ cause: e as BignameError }),

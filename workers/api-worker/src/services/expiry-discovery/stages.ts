@@ -120,10 +120,13 @@ export type ExpiryTrackId =
  *   reservation's 28-day grace ends with the lease's 90-day one. Both kinds
  *   coexist on one network, so each gets its own track, shifted by that gap.
  *
- * A row whose dates fit neither ENSv1 track (a reservation extended without
- * renewing the lease, or a saturated lease date) is skipped and logged: the
- * guide's remedy is to re-read such names one by one, which this sweep does
- * not do.
+ * These two ENSv1 tracks cover an unreserved lease and the usual 62-day
+ * reservation gap. The API also permits a reservation to be extended without
+ * its lease, so a different gap need not be inconsistent data. Such a row
+ * cannot be discovered reliably through these fixed served-expiry windows;
+ * complete lease reminders need a backend window/sort on ens_v1.expires_at.
+ * Rows outside the supported gaps are skipped and logged rather than given
+ * a reminder for the wrong lease date.
  *
  * bigname can exclude subnames (`parent=eth`) but not select them, so the
  * subname track reads every name in its window, whatever its authority, and

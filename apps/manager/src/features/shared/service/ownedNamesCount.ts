@@ -18,9 +18,9 @@ export class GetOwnedNamesCountError extends TaggedError(
  * removed `registrant`); `parent=eth` keeps out the tokenless subnames that
  * also list under `owner`; a wrapped `.eth` name counts once.
  *
- * `null` when the address holds some but bigname could not count them in
- * time (see `getAddressNamesCount`): only an address with more than 1,000
- * candidate names, which auto primary-name setup skips like a collector.
+ * `null` when the exact count is unavailable or its deadline expires
+ * (see `getAddressNamesCount`). This can happen at any collection size;
+ * automatic primary-name setup waits until a count is known.
  */
 export const getOwnedNamesCount = ResultFn(async function* (address: string) {
   const count = yield* await ResultAsync.fromPromise(

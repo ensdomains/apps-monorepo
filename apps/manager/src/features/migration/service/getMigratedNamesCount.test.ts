@@ -39,21 +39,18 @@ describe('getMigratedNamesCount', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
-  it('asks for the exact count when a page with rows has a null total_count', async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        bignameResponse(bignamePage([{}], { nextCursor: 'next' })),
-      )
-      .mockResolvedValueOnce(
-        bignameResponse(
-          bignamePage([{}], { nextCursor: 'next', totalCount: 1200 }),
-        ),
-      )
+  it('requests an exact count above the candidate cap in one read', async () => {
+    fetchMock.mockResolvedValueOnce(
+      bignameResponse(
+        bignamePage([{}], { nextCursor: 'next', totalCount: 1200 }),
+      ),
+    )
     const r = await getMigratedNamesCount(ADDR)
     assert(r.isOk())
     expect(r.value).toBe(1200)
+    expect(fetchMock).toHaveBeenCalledOnce()
 
-    const { url } = bignameRequest(fetchMock.mock.calls[1])
+    const { url } = bignameRequest(fetchMock.mock.calls[0])
     expect(Object.fromEntries(url.searchParams)).toEqual({
       relation: 'owner',
       is_migrated: 'true',
@@ -64,22 +61,18 @@ describe('getMigratedNamesCount', () => {
   })
 
   it('returns null, not 0, when the exact count times out', async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        bignameResponse(bignamePage([{}], { nextCursor: 'next' })),
-      )
-      .mockResolvedValueOnce(
-        bignameResponse(
-          {
-            error: {
-              code: 'request_timeout',
-              message: 'request deadline exceeded',
-              details: {},
-            },
+    fetchMock.mockResolvedValueOnce(
+      bignameResponse(
+        {
+          error: {
+            code: 'request_timeout',
+            message: 'request deadline exceeded',
+            details: {},
           },
-          408,
-        ),
-      )
+        },
+        408,
+      ),
+    )
     const r = await getMigratedNamesCount(ADDR)
     assert(r.isOk())
     expect(r.value).toBeNull()
@@ -112,6 +105,7 @@ describe('getMigratedNamesCount', () => {
       is_migrated: 'true',
       dedupe: 'name',
       page_size: '1',
+      include: 'total_count',
     })
   })
 })

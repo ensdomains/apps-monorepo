@@ -62,6 +62,27 @@ describe('protocolForAuthority', () => {
 })
 
 describe('isListedAddressName', () => {
+  it('excludes reverse records while retaining registered children and forward names', () => {
+    expect(
+      isListedAddressName(
+        row({ name: 'abc.addr.reverse', registration_status: 'registered' }),
+      ),
+    ).toBe(false)
+    expect(
+      isListedAddressName(
+        row({ name: '[abcd].parent.eth', registration_status: 'registered' }),
+      ),
+    ).toBe(true)
+    expect(
+      isListedAddressName(
+        row({
+          name: 'abc.addr.reverse.eth',
+          registration_status: 'registered',
+        }),
+      ),
+    ).toBe(true)
+  })
+
   it('drops released and unregistered rows', () => {
     expect(isListedAddressName(row({ registration_status: 'active' }))).toBe(
       true,

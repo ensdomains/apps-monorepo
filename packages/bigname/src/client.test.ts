@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBignameClient } from './client'
-import {
-  BignameError,
-  isBignameError,
-  isUnknownQueryParamError,
-  isUnsupportedIncludeError,
-} from './errors'
+import { BignameError, isBignameError } from './errors'
 import {
   mockAddressNamesAboveCountCap,
   mockPermissionsRegistryRoot,
@@ -133,65 +128,6 @@ describe('errors', () => {
       clientWith(fetch).getStatus({ signal: controller.signal }),
     ).rejects.toBe(abortError)
     expect(calls).toHaveLength(1)
-  })
-})
-
-describe('version probes', () => {
-  const failure = async (response: Response): Promise<unknown> => {
-    const { fetch } = mockFetch(response)
-    return clientWith(fetch)
-      .listPermissions({ registry: '11155111:0xd4eb' })
-      .catch((error: unknown) => error)
-  }
-
-  it('recognizes the v0.4.1 answer to a parameter it does not know', async () => {
-    const error = await failure(
-      errorResponse(400, 'invalid_input', 'unknown query parameter: registry'),
-    )
-    expect(isUnknownQueryParamError(error, 'registry')).toBe(true)
-    expect(isUnknownQueryParamError(error, 'address')).toBe(false)
-  })
-
-  it('does not mistake other rejections for a missing parameter', async () => {
-    const combination = await failure(
-      errorResponse(
-        400,
-        'invalid_input',
-        'registry cannot be combined with name or registration_id',
-      ),
-    )
-    expect(isUnknownQueryParamError(combination, 'registry')).toBe(false)
-    const overloaded = await failure(errorResponse(422, 'unsupported'))
-    expect(isUnknownQueryParamError(overloaded, 'registry')).toBe(false)
-    expect(isUnknownQueryParamError(new Error('x'), 'registry')).toBe(false)
-  })
-
-  it('recognizes an include value the deployment does not list', async () => {
-    const v041 = await failure(
-      errorResponse(
-        400,
-        'invalid_input',
-        'include must contain only role_summary or counts',
-      ),
-    )
-    expect(isUnsupportedIncludeError(v041, 'total_count')).toBe(true)
-    expect(isUnsupportedIncludeError(v041, 'counts')).toBe(false)
-    const main = await failure(
-      errorResponse(
-        400,
-        'invalid_input',
-        'include must contain only role_summary, counts or total_count',
-      ),
-    )
-    expect(isUnsupportedIncludeError(main, 'total_count')).toBe(false)
-    const refused = await failure(
-      errorResponse(
-        400,
-        'invalid_input',
-        'include=total_count requires an ownership relation',
-      ),
-    )
-    expect(isUnsupportedIncludeError(refused, 'total_count')).toBe(false)
   })
 })
 
@@ -338,9 +274,11 @@ describe('retry', () => {
     expect(calls).toHaveLength(3)
   })
 
-  it('does not retry 409 conflict', async () => {
+  it('does not retry a pinned 409 conflict', async () => {
     const { fetch, calls } = mockFetch(errorResponse(409, 'conflict'))
-    await expect(clientWith(fetch).getName('nick.eth')).rejects.toMatchObject({
+    await expect(
+      clientWith(fetch).listResolverRoles(11155111, '0xabc', { at: 'tok' }),
+    ).rejects.toMatchObject({
       code: 'conflict',
     })
     expect(calls).toHaveLength(1)
@@ -550,4 +488,40 @@ describe('configuration', () => {
   it.each(['', '   '])('throws on a blank base URL (%o)', (baseUrl) => {
     expect(() => createBignameClient({ baseUrl })).toThrow(/no base URL/)
   })
+})
+
+describe('unpinned conflicts', () => {
+  it('retries read-only lookup POSTs after publication conflicts', async () => {
+    const { fetch, calls } = mockFetch(
+      errorResponse(409, 'conflict'),
+      jsonResponse(200, { data: [], meta: {} }),
+    )
+    await clientWith(fetch).lookup({
+      inputs: [{ name: 'nick.eth' }],
+      profile: 'detail',
+    })
+    expect(calls).toHaveLength(2)
+  })
+})
+
+it('serializes disjoint expiry windows as repeated parameters in request order', async () => {
+  const calls: string[] = []
+  const client = createBignameClient({
+    baseUrl: BASE,
+    fetch: (async (input) => {
+      calls.push(String(input))
+      return new Response(JSON.stringify({ data: [], page: {}, meta: {} }))
+    }) as typeof fetch,
+  })
+  await client.listNames({
+    namespace: 'ens',
+    authority: ['ens_v1', 'ens_v0'],
+    expires_window: ['100..200', '300..400'],
+  })
+  const url = new URL(calls[0] ?? '')
+  expect(url.searchParams.getAll('expires_window')).toEqual([
+    '100..200',
+    '300..400',
+  ])
+  expect(url.searchParams.get('authority')).toBe('ens_v1,ens_v0')
 })

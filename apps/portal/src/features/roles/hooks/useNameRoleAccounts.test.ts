@@ -61,6 +61,15 @@ const run = () =>
   getNameRolesAccounts({ name: 'Test.eth', registryAddress: REGISTRY })
 
 describe('getNameRolesAccounts', () => {
+  it('rejects incomplete history instead of reporting stale current holders', async () => {
+    const response = page(Array.from({ length: 2000 }, () => change()))
+    listEvents.mockResolvedValue({
+      ...response,
+      page: { ...response.page, has_more: true, next_cursor: 'more' },
+    })
+    expect((await run()).isErr()).toBe(true)
+  })
+
   beforeEach(() => {
     block = 0
     getName.mockReset()

@@ -1,6 +1,7 @@
 import {
   type BignameError,
   type BignamePage,
+  type Completeness,
   type ContractRef,
   type EventRow,
   fetchAllPages,
@@ -17,6 +18,7 @@ import {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { fromPromise } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
@@ -53,8 +55,10 @@ export type ResolverNamedResource = {
 
 export type ResolverRole = {
   readonly account: string
-  /** EAC resource as a decimal string; `0` for a root grant. */
-  readonly resource: string
+  /** EAC resource as a decimal string; null when the API does not identify it. */
+  readonly resource: string | null
+  /** Opaque permission handle, never an EAC resource to send to the contract. */
+  readonly registrationId?: string
   /** The held powers, re-encoded as the resolver's role bitmap. */
   readonly roleBitmap: string
   readonly blockNumber: number
@@ -91,9 +95,11 @@ export type ResolverOverview = {
    */
   readonly nodeCount: number
   readonly nodeCountIsLowerBound: boolean
-  readonly linkCount: number
+  readonly linkCount: number | null
+  readonly linksStatus: Completeness
+  readonly rolesStatus: Completeness
   /** Distinct accounts holding a resolver-scoped role. */
-  readonly roleHolderCount: number
+  readonly roleHolderCount: number | null
   readonly links: readonly ResolverLink[]
   readonly namedResources: readonly ResolverNamedResource[]
   readonly roles: readonly ResolverRole[]
@@ -168,12 +174,8 @@ export const pruneLinksAfterUnlink = (
  * more pages follow.
  */
 const RESOLVER_NODES_PAGE_SIZE = MAX_PAGE_SIZE
-/** Bound on the bound-names walk behind the Nodes table and the link picker. */
-const RESOLVER_NODES_MAX_ROWS = 2000
 /** Events listed; a busy resolver's full feed is `/v1/events`, paged. */
 const RESOLVER_EVENTS_PAGE_SIZE = MAX_PAGE_SIZE
-/** Bound on the links and roles collections, which are read whole. */
-const RESOLVER_COLLECTION_MAX_ROWS = 1000
 
 /**
  * A `/links` row as a named link. The resolver's default record (the empty-name
@@ -268,15 +270,16 @@ const toNamedResource = (
 }
 
 /**
- * A `/roles` row as a role grant. A root grant carries no `record_resource`
- * and sits on resource `0`; a scoped one sits on its setter argument's
- * resource, `keccak256` of the argument, which `record_resource.hash` is.
+ * Missing record_resource does not prove root: admin-only grants and unknown
+ * arguments omit it too. Keep their scopes unknown so no write can target 0
+ * by inference. The registration handle is opaque and cannot recover it.
  */
 const toResolverRole = (row: ResolverRoleRow): ResolverRole => ({
   account: row.address,
   resource: row.record_resource
     ? BigInt(row.record_resource.hash).toString()
-    : '0',
+    : null,
+  registrationId: row.registration_id,
   roleBitmap: powersToResolverRoleBitmap(row.powers).toString(),
   blockNumber: row.grant_event?.block_number ?? 0,
   transactionHash: row.grant_event?.transaction_hash ?? null,
@@ -309,11 +312,75 @@ const toResolverEvent = (row: EventRow): ResolverEvent[] =>
       ]
 
 /**
+ * Cache the bound-names first page separately so overview, Nodes and the link
+ * picker share it, including while either query is still in flight. Consumer
+ * refetches refresh this page explicitly; a separate key prevents broad
+ * overview invalidation from cancelling and reissuing that nested request.
+ */
+const getResolverFirstPage = (
+  client: QueryClient,
+  address: Address,
+  refresh: boolean,
+) =>
+  client.fetchQuery({
+    queryKey: ['resolver-first-page', { address: address.toLowerCase() }],
+    queryFn: () =>
+      bigname.getResolver(sepoliaWithEns.id, address.toLowerCase() as Address, {
+        page_size: RESOLVER_NODES_PAGE_SIZE,
+      }),
+    // A refetch of a consumer must also refresh its underlying first page.
+    // Initial consumers otherwise inherit the app's normal cache lifetime.
+    ...(refresh ? { staleTime: 0 } : {}),
+  })
+
+const isResolverRefetch = (client: QueryClient, queryKey: QueryKey) => {
+  const state = client.getQueryState(queryKey)
+  return Boolean(state?.dataUpdatedAt || state?.isInvalidated)
+}
+
+/** Preserve incomplete coverage from any page, not just the final page. */
+const readResolverCollection = async <T>(
+  read: (cursor: string | undefined) => Promise<BignamePage<T>>,
+  signal?: AbortSignal,
+) => {
+  let status: Completeness = 'full'
+  const result = await fetchAllPages(
+    async (cursor) => {
+      if (cursor === undefined) status = 'full'
+      const page = await read(cursor)
+      if (page.meta.completeness === 'unsupported') status = 'unsupported'
+      else if (page.meta.completeness === 'partial' && status === 'full')
+        status = 'partial'
+      return page
+    },
+    {
+      maxRows: Number.POSITIVE_INFINITY,
+      maxPages: Number.POSITIVE_INFINITY,
+      signal,
+    },
+  )
+  return { ...result, status: status as Completeness }
+}
+
+export const resolverCollectionCount = (
+  count: number | null | undefined,
+  status: Completeness | undefined,
+): string => {
+  if (count == null || status === 'unsupported') return 'Unknown'
+  return `${count}${status === 'partial' ? '+' : ''}`
+}
+
+/**
  * A resolver's overview in four bigname reads: the overview for its bound
  * names, the `/links` and `/roles` collections, and its events. The overview
  * itself carries no counts or samples (bigname #954).
  */
-const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
+const getResolverOverview = (
+  { address }: GetResolverOverviewParameters,
+  client: QueryClient,
+  refresh: boolean,
+  signal?: AbortSignal,
+) => {
   const chainId = sepoliaWithEns.id
   const resolver: ContractRef = {
     chain_id: chainId,
@@ -321,31 +388,42 @@ const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
   }
   return fromPromise(
     Promise.all([
-      bigname.getResolver(chainId, resolver.address, {
-        page_size: RESOLVER_NODES_PAGE_SIZE,
-      }),
-      fetchAllPages(
+      getResolverFirstPage(client, address, refresh),
+      readResolverCollection(
         (cursor) =>
-          bigname.listResolverLinks(chainId, resolver.address, {
-            page_size: MAX_PAGE_SIZE,
-            cursor,
-          }),
-        { maxRows: RESOLVER_COLLECTION_MAX_ROWS },
+          bigname.listResolverLinks(
+            chainId,
+            resolver.address,
+            {
+              page_size: MAX_PAGE_SIZE,
+              cursor,
+            },
+            { signal },
+          ),
+        signal,
       ),
-      fetchAllPages(
+      readResolverCollection(
         (cursor) =>
-          bigname.listResolverRoles(chainId, resolver.address, {
-            page_size: MAX_PAGE_SIZE,
-            cursor,
-          }),
-        { maxRows: RESOLVER_COLLECTION_MAX_ROWS },
+          bigname.listResolverRoles(
+            chainId,
+            resolver.address,
+            {
+              page_size: MAX_PAGE_SIZE,
+              cursor,
+            },
+            { signal },
+          ),
+        signal,
       ),
-      bigname.listEvents({
-        resolver,
-        include: ['data', 'raw'],
-        order: 'desc',
-        page_size: RESOLVER_EVENTS_PAGE_SIZE,
-      }),
+      bigname.listEvents(
+        {
+          resolver,
+          include: ['data', 'raw'],
+          order: 'desc',
+          page_size: RESOLVER_EVENTS_PAGE_SIZE,
+        },
+        { signal },
+      ),
     ]),
     (e) => new GetResolverOverviewError({ cause: e as BignameError }),
   ).map(([overview, links, roles, events]): ResolverOverview | null => {
@@ -362,11 +440,15 @@ const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
       nodeCountIsLowerBound:
         boundNames.total_count === null && boundNames.has_more,
       links: resolverLinks,
-      linkCount: resolverLinks.length,
+      linkCount: links.status === 'unsupported' ? null : resolverLinks.length,
+      linksStatus: links.status,
+      rolesStatus: roles.status,
       roles: resolverRoles,
-      roleHolderCount: new Set(
-        resolverRoles.map(({ account }) => account.toLowerCase()),
-      ).size,
+      roleHolderCount:
+        roles.status === 'unsupported'
+          ? null
+          : new Set(resolverRoles.map(({ account }) => account.toLowerCase()))
+              .size,
       namedResources: roles.rows.flatMap((row) =>
         row.record_resource ? (toNamedResource(row.record_resource) ?? []) : [],
       ),
@@ -390,38 +472,61 @@ const NO_BOUND_NAMES = {
 
 /**
  * Every name bound to the resolver, walked page by page through the
- * overview's `bound_names` cursor, up to `RESOLVER_NODES_MAX_ROWS`.
+ * overview's `bound_names` cursor until the final page.
  */
 type ResolverNodes = {
   readonly nodes: readonly ResolverNode[]
-  /** True when the walk stopped at the row bound with more names left. */
+  /** True when a continuation failure left more names unread. */
   readonly truncated: boolean
+  readonly partial: boolean
 }
 
-const getResolverNodes = ({ address }: GetResolverOverviewParameters) => {
+const getResolverNodes = (
+  { address }: GetResolverOverviewParameters,
+  client: QueryClient,
+  refresh: boolean,
+  signal?: AbortSignal,
+) => {
   const chainId = sepoliaWithEns.id
   const resolver: ContractRef = {
     chain_id: chainId,
     address: address.toLowerCase() as Address,
   }
+  let firstPageRead = false
   return fromPromise(
     fetchAllPages(
       async (cursor): Promise<BignamePage<NameDetail>> => {
-        const response = await bigname.getResolver(chainId, resolver.address, {
-          page_size: MAX_PAGE_SIZE,
-          cursor,
-        })
+        const response = await (cursor
+          ? bigname.getResolver(
+              chainId,
+              resolver.address,
+              {
+                page_size: MAX_PAGE_SIZE,
+                cursor,
+              },
+              { signal },
+            )
+          : getResolverFirstPage(client, address, refresh || firstPageRead))
+        // A stale-cursor restart must fetch a new snapshot, not reuse the page
+        // whose continuation failed. fetchAllPages discards the old rows.
+        firstPageRead = true
         return response
           ? { ...response.data.bound_names, meta: response.meta }
           : NO_BOUND_NAMES
       },
-      { maxRows: RESOLVER_NODES_MAX_ROWS },
+      {
+        maxRows: Number.POSITIVE_INFINITY,
+        maxPages: Number.POSITIVE_INFINITY,
+        allowPartial: true,
+        signal,
+      },
     ),
     (e) => new GetResolverOverviewError({ cause: e as BignameError }),
   ).map(
-    ({ rows, truncated }): ResolverNodes => ({
+    ({ rows, truncated, partialError }): ResolverNodes => ({
       nodes: rows.map(toResolverNode(resolver)),
       truncated,
+      partial: partialError !== undefined,
     }),
   )
 }
@@ -436,7 +541,13 @@ export const getResolverNodesQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: resolverNodesQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getResolverNodes(params),
+    queryFn: ({ queryKey, client, signal }) =>
+      getResolverNodes(
+        queryKey[1],
+        client,
+        isResolverRefetch(client, queryKey),
+        signal,
+      ),
   })
 
 const resolverOverviewQueryKey = createQueryKey<
@@ -449,5 +560,11 @@ export const getResolverOverviewQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: resolverOverviewQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getResolverOverview(params),
+    queryFn: ({ queryKey, client, signal }) =>
+      getResolverOverview(
+        queryKey[1],
+        client,
+        isResolverRefetch(client, queryKey),
+        signal,
+      ),
   })

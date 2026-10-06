@@ -3,12 +3,14 @@ import {
   BignameError,
   type ListAddressNamesParams,
 } from '@ens-apps/bigname'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockListAddressNames = vi.fn()
 vi.mock('@/lib/bigname', () => ({
   bigname: { listAddressNames: mockListAddressNames },
 }))
+
+import { partitionOwnedNames } from '@/features/address/nameAttribution'
 
 const { getAddressNames } = await import('./useAddressNames')
 
@@ -81,6 +83,7 @@ const byRelation =
     readonly resolves_to: AddressNameRow[] | Error
   }) =>
   (_address: string, params: ListAddressNamesParams) => {
+    if (params.relation === 'former_owner') return Promise.resolve(page([]))
     const result =
       params.relation === 'resolves_to' ? rows.resolves_to : rows.any
     return result instanceof Error
@@ -105,7 +108,7 @@ describe('getAddressNames', () => {
       ['publicregistry.eth', ['resolves_to']],
       ['a.openregistry.eth', ['owner', 'manager']],
     ])
-    expect(mockListAddressNames).toHaveBeenCalledTimes(2)
+    expect(mockListAddressNames).toHaveBeenCalledTimes(3)
     expect(mockListAddressNames).toHaveBeenCalledWith(ADDRESS, {
       namespace: 'ens',
       relation: 'any',
@@ -164,7 +167,47 @@ describe('getAddressNames', () => {
     const names = (await getAddressNames({ address: ADDRESS }))._unsafeUnwrap()
 
     expect(names).toHaveLength(3)
-    expect(mockListAddressNames).toHaveBeenCalledTimes(3)
+    expect(mockListAddressNames).toHaveBeenCalledTimes(11)
+  })
+
+  it('puts renewable former-owned names in the main list without granting descendant authority', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    mockListAddressNames.mockImplementation((_address, params) =>
+      Promise.resolve(
+        page(
+          params.relation === 'former_owner'
+            ? [
+                row({
+                  name: 'renew.eth',
+                  authority: 'ens_v2',
+                  registration_status: 'released',
+                  relations: ['former_owner'],
+                  expires_at: String(now - 1),
+                  grace_ends_at: String(now + 86400),
+                  lapsed_registration: {
+                    owner: ADDRESS,
+                    held_through: 'registry',
+                    release_kind: 'expired',
+                  },
+                }),
+              ]
+            : [],
+        ),
+      ),
+    )
+    const names = (await getAddressNames({ address: ADDRESS }))._unsafeUnwrap()
+    expect(names).toHaveLength(1)
+    expect(names[0]).toMatchObject({
+      relations: ['former_owner'],
+      roleBitmap: null,
+    })
+    assert(names[0])
+    const partition = partitionOwnedNames([
+      ...names,
+      { ...names[0], name: 'sub.renew.eth', relations: ['owner'] },
+    ])
+    expect(partition.acquired.map((row) => row.name)).toEqual(['renew.eth'])
+    expect(partition.assigned.map((row) => row.name)).toEqual(['sub.renew.eth'])
   })
 
   it('fails when the resolution read fails', async () => {

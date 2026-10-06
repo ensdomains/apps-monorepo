@@ -215,9 +215,12 @@ export const partitionOwnedNames = <T extends OwnableName>(
     names.filter(holdsRegistrarName).map(({ name }) => name as string),
   )
 
-  const isOwn = ({ name }: T) =>
+  const isOwn = ({ name, relations }: T) =>
     Boolean(
-      name && (heldNames.has(name) || heldNames.has(registrarAncestor(name))),
+      name &&
+        (heldNames.has(name) ||
+          heldNames.has(registrarAncestor(name)) ||
+          (isRegistrarIssued(name) && relations.includes('former_owner'))),
     )
 
   return {

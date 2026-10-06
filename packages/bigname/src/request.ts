@@ -56,10 +56,14 @@ const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([
 const isAbortError = (error: unknown): boolean =>
   error instanceof Error && error.name === 'AbortError'
 
-const isRetryable = (error: BignameError, retryStale: boolean): boolean =>
+const isRetryable = (error: BignameError, request: RawRequest): boolean =>
   error.status === 0 ||
   RETRYABLE_STATUSES.has(error.status) ||
-  (retryStale && error.code === 'stale')
+  ((request.retryStale ?? true) && error.code === 'stale') ||
+  // A conflict without a pinned snapshot is transient, including lookup POSTs.
+  (error.status === 409 &&
+    error.code === 'conflict' &&
+    request.query?.at == null)
 
 const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -180,13 +184,11 @@ export const sendRequest = async <TEnvelope>(
 ): Promise<TEnvelope> => {
   const url =
     joinUrl(context.baseUrl, request.path) + buildQuery(request.query ?? {})
-  const retryStale = request.retryStale ?? true
   for (let attemptIndex = 0; ; attemptIndex++) {
     const result = await attempt(context, request, url)
     if (result.ok) return result.body as TEnvelope
     const canRetry =
-      attemptIndex < context.retry.retries &&
-      isRetryable(result.error, retryStale)
+      attemptIndex < context.retry.retries && isRetryable(result.error, request)
     if (!canRetry) throw result.error
     await sleep(
       backoffMs(attemptIndex, context.retry, result.response),

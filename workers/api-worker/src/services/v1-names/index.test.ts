@@ -155,7 +155,7 @@ describe('hasV1Names', () => {
     expect(url(1).searchParams.get('order')).toBe('desc')
   })
 
-  it('stops at the first lapsed expiry and reads expiry-less rows from the ascending end', async () => {
+  it('continues past lapsed rows to a live name without an expiry', async () => {
     const { fetchMock, url } = mockFetch(
       page([{ name: 'expired.eth', expires_at: past() }], 'next-1'),
       page([
@@ -169,26 +169,88 @@ describe('hasV1Names', () => {
 
     await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
 
-    // The descending continuation is skipped; the second call starts over ascending.
+    // No finite expiry proves that unseen names without an expiry are absent.
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(url(1).searchParams.get('order')).toBe('asc')
-    expect(url(1).searchParams.has('cursor')).toBe(false)
+    expect(url(1).searchParams.get('order')).toBe('desc')
+    expect(url(1).searchParams.get('cursor')).toBe('next-1')
   })
 
-  it('stops the ascending walk at the first row with an expiry', async () => {
-    const { fetchMock } = mockFetch(
+  it('does not infer that a lease has lapsed from an earlier served reservation date', async () => {
+    const { fetchMock, url } = mockFetch(
       page([{ name: 'expired.eth', expires_at: past() }], 'next-1'),
+      page([
+        {
+          name: 'still-live.eth',
+          expires_at: past(),
+          ens_v1: { expires_at: future() },
+        },
+      ]),
+    )
+    await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(url(1).searchParams.get('cursor')).toBe('next-1')
+  })
+
+  it('finds a live lease after 1,000 ineligible finite rows', async () => {
+    const { fetchMock, url } = mockFetch(
+      ...Array.from({ length: 5 }, (_, pageIndex) =>
+        page(
+          Array.from({ length: 200 }, (_, index) => ({
+            name: `lapsed-${pageIndex}-${index}.eth`,
+            expires_at: String(nowSec() + 61 * DAY),
+            ens_v1: { expires_at: past() },
+          })),
+          `next-${pageIndex}`,
+        ),
+      ),
+      page([{ name: 'eligible.eth', expires_at: future() }], 'unused'),
+    )
+    await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(url(5).searchParams.get('order')).toBe('desc')
+    expect(url(5).searchParams.get('cursor')).toBe('next-4')
+  })
+
+  it('continues beyond the shared pager default to a live name without an expiry', async () => {
+    const { fetchMock } = mockFetch(
+      ...Array.from({ length: 100 }, (_, pageIndex) =>
+        page(
+          Array.from({ length: 200 }, (_, index) => ({
+            name: `ignored-${pageIndex}-${index}.addr.reverse`,
+            expires_at: null,
+          })),
+          `next-${pageIndex}`,
+        ),
+      ),
+      page([{ name: 'eligible.alpha.eth', expires_at: null }]),
+    )
+    await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(101)
+  })
+
+  it('returns false only after exhausting ineligible finite and expiry-less rows', async () => {
+    const { fetchMock } = mockFetch(
       page(
         [
-          { name: 'husk.alpha.eth', registration_status: 'unregistered' },
-          { name: 'old.eth', expires_at: past() },
+          {
+            name: 'released.eth',
+            registration_status: 'released',
+            expires_at: future(),
+          },
         ],
-        'next-2',
+        'next-1',
       ),
+      page([{ name: 'expired.eth', expires_at: past() }], 'next-2'),
+      page([
+        {
+          name: 'husk.alpha.eth',
+          registration_status: 'unregistered',
+          expires_at: null,
+        },
+      ]),
     )
-
     await expect(hasV1Names(makeMockEnv(), ADDRESS)).resolves.toBe(false)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('throws on a failed read (fail-closed for callers)', async () => {

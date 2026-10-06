@@ -1,10 +1,14 @@
 import {
   type AddressNameRow,
   fetchAllPages,
-  isBignameError,
-  type ListAddressNamesParams,
+  fetchRoleSummaryPage,
+  fetchV2GraceNames,
   MAX_PAGE_SIZE,
 } from '@ens-apps/bigname'
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -24,40 +28,25 @@ type GetAddressNamesParameters = {
   address: Address
 }
 
-const fetchRows = (
-  address: Address,
-  include: ListAddressNamesParams['include'],
-) =>
-  fetchAllPages((cursor) =>
-    bigname.listAddressNames(address, {
-      namespace: 'ens',
-      relation: 'any',
-      include,
-      sort: 'expires_at',
-      order: 'asc',
-      page_size: MAX_PAGE_SIZE,
-      cursor,
-    }),
-  )
-
-/**
- * Every ENS name the address owns, manages or holds roles on, ENSv1 and ENSv2
- * alike, with subname/record counts and the address's roles.
- *
- * `role_summary` answers `422 unsupported` when a page expands past bigname's
- * grant budget; the list is still worth showing then, just without role
- * badges, so the read falls back to counts only.
- */
+/** Keep counts and shrink only the role-summary page when the grant budget is exceeded. */
 const fetchAuthorityRows = async (
   address: Address,
-): Promise<readonly AddressNameRow[]> => {
-  try {
-    return (await fetchRows(address, ['counts', 'role_summary'])).rows
-  } catch (error) {
-    if (!isBignameError(error, 'unsupported')) throw error
-    return (await fetchRows(address, ['counts'])).rows
-  }
-}
+): Promise<readonly AddressNameRow[]> =>
+  (
+    await fetchAllPages((cursor) =>
+      fetchRoleSummaryPage((pageSize, withRoles) =>
+        bigname.listAddressNames(address, {
+          namespace: 'ens',
+          relation: 'any',
+          include: withRoles ? ['counts', 'role_summary'] : ['counts'],
+          sort: 'expires_at',
+          order: 'asc',
+          page_size: pageSize,
+          cursor,
+        }),
+      ),
+    )
+  ).rows
 
 /**
  * The names whose ETH address record (coin type 60) resolves to the address.
@@ -89,11 +78,17 @@ const fetchResolvedRows = async (
 const fetchAddressNames = async (
   address: Address,
 ): Promise<readonly AddressNameRow[]> => {
-  const [authorityRows, resolvedRows] = await Promise.all([
+  const [authorityRows, resolvedRows, graceRows] = await Promise.all([
     fetchAuthorityRows(address),
     fetchResolvedRows(address),
+    fetchV2GraceNames(bigname, address, {
+      gracePeriodSeconds: V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY,
+    }),
   ])
-  return withResolvedNames(authorityRows, resolvedRows)
+  return withResolvedNames(
+    withResolvedNames(authorityRows, graceRows),
+    resolvedRows,
+  )
 }
 
 export const getAddressNames = ResultFn(async function* ({

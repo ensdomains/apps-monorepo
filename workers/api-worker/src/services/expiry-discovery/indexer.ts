@@ -2,6 +2,7 @@ import {
   type BignameClient,
   fetchAllPages,
   isBignameError,
+  iteratePages,
   MAX_PAGE_SIZE,
   type Meta,
   type NameListRow,
@@ -94,8 +95,9 @@ const isTrackName = (row: NameListRow, track: ExpiryTrack) =>
  * Whether the row is the track's and its served `expires_at` and
  * `grace_ends_at` sit where the track expects them for the row's own expiry.
  * This is what tells a reserved ENSv1 lease (served 62 days later) from an
- * unreserved one, and drops a reserved lease whose reservation was extended
- * separately.
+ * unreserved one. Reservation-only extensions can legitimately change the
+ * gap; these fixed windows do not cover them. Complete coverage requires
+ * filtering and sorting on the lease's own expiry (see ExpiryTrack).
  */
 const isInTrack = (row: NameListRow, track: ExpiryTrack, served: bigint) => {
   const own = ownExpiry(row, track)
@@ -293,3 +295,197 @@ const smallestAsOfSeconds = (meta: Meta): number | undefined => {
     .filter((value): value is number => value !== undefined)
   return seconds.length === 0 ? undefined : Math.min(...seconds)
 }
+
+export type ExpiryWindow = {
+  stage: ExpiryStageConfig
+  cursor: number
+  upperBound: number
+}
+
+export type ExpiringNamesPage = {
+  domains: ExpiringDomain[]
+  hasMore: boolean
+}
+
+type WindowReadState = {
+  rows: Map<string, NameListRow[]>
+  currentWindowIndex: number
+  cappedIndex?: number
+}
+
+const createWindowReadState = (
+  windows: readonly ExpiryWindow[],
+): WindowReadState => ({
+  rows: new Map(windows.map((window) => [window.stage.id, []])),
+  currentWindowIndex: 0,
+})
+
+function collectWindowRows(
+  state: WindowReadState,
+  windows: readonly ExpiryWindow[],
+  rows: readonly NameListRow[],
+) {
+  for (const row of rows) {
+    const index = row.expires_window_index
+    const window = index === undefined ? undefined : windows[index]
+    if (index === undefined || !window || !Number.isInteger(index)) {
+      throw new IndexerValidationError({
+        message: 'bigname expiry row without a valid expires_window_index',
+      })
+    }
+    state.currentWindowIndex = index
+    const bucket = state.rows.get(window.stage.id) ?? []
+    bucket.push(row)
+    if (bucket.length >= QUERY_PAGE_SIZE) state.cappedIndex = index
+  }
+}
+
+/** A page cannot overfill any band, or consume later bands after a cap. */
+const windowPageSize = (
+  state: WindowReadState,
+  windows: readonly ExpiryWindow[],
+) =>
+  Math.min(
+    MAX_PAGE_SIZE,
+    ...windows
+      .slice(state.currentWindowIndex)
+      .map(
+        (window) =>
+          QUERY_PAGE_SIZE - (state.rows.get(window.stage.id)?.length ?? 0),
+      ),
+  )
+
+/** Keep this request's window order stable for every continuation. */
+async function readWindowBatch(
+  bigname: BignameClient,
+  track: ExpiryTrack,
+  windows: readonly ExpiryWindow[],
+) {
+  let state = createWindowReadState(windows)
+  const shift = track.servedShiftSeconds
+  const expires_window = windows.map(
+    (window) =>
+      `${secondsToTimestamp(window.cursor + 1 + shift)}..${secondsToTimestamp(window.upperBound + 1 + shift)}`,
+  )
+  let exhausted = false
+  for await (const response of iteratePages(
+    (cursor) =>
+      bigname.listNames({
+        namespace: 'ens',
+        parent: track.names === 'eth_second_level' ? 'eth' : undefined,
+        authority: track.authority,
+        expires_window,
+        sort: 'expires_at',
+        order: 'asc',
+        page_size: windowPageSize(state, windows),
+        cursor,
+      }),
+    {
+      maxPages:
+        windows.length * (Math.ceil(QUERY_PAGE_SIZE / MAX_PAGE_SIZE) + 1),
+    },
+  )) {
+    if (response.restarted) state = createWindowReadState(windows)
+    collectWindowRows(state, windows, response.data)
+    exhausted = !response.page.has_more
+    if (state.cappedIndex !== undefined || exhausted) break
+  }
+  if (!exhausted && state.cappedIndex === undefined) {
+    throw new IndexerValidationError({
+      message: 'bigname expiry window walk ended before completion',
+    })
+  }
+  return {
+    rows: state.rows,
+    finishedCount: exhausted ? windows.length : (state.cappedIndex ?? -1) + 1,
+    exhausted,
+  }
+}
+
+function toWindowPage(
+  rows: readonly NameListRow[],
+  track: ExpiryTrack,
+  window: ExpiryWindow,
+  hasMore: boolean,
+): ExpiringNamesPage {
+  const domains = rows.map((row) => {
+    const served = timestampToSeconds(row.expires_at)
+    if (served === undefined) {
+      throw new IndexerValidationError({
+        message: 'bigname expiry row without a valid expires_at',
+      })
+    }
+    return toExpiringDomain(row, track, served)
+  })
+  const unplaced = rows.filter(
+    (row) => isTrackName(row, track) && !isPlacedInAnyTrack(row, track),
+  )
+  if (unplaced.length > 0) {
+    logger.warn('bigname expiry rows fit no expiry track; not notified', {
+      trackId: track.id,
+      stageId: window.stage.id,
+      count: unplaced.length,
+      names: unplaced.slice(0, UNPLACED_LOG_LIMIT).map((row) => row.name),
+    })
+  }
+  return { domains, hasMore }
+}
+
+async function readExpiringWindows(
+  bigname: BignameClient,
+  track: ExpiryTrack,
+  windows: readonly ExpiryWindow[],
+) {
+  const pages = new Map<string, ExpiringNamesPage>()
+  let pending = windows
+  while (pending.length > 0) {
+    const batch = await readWindowBatch(bigname, track, pending)
+    for (const window of pending.slice(0, batch.finishedCount)) {
+      pages.set(
+        window.stage.id,
+        toWindowPage(
+          batch.rows.get(window.stage.id) ?? [],
+          track,
+          window,
+          !batch.exhausted && window === pending[batch.finishedCount - 1],
+        ),
+      )
+    }
+    // Dropping completed/capped bands changes the query, so the next batch
+    // starts a fresh cursor and cannot starve behind a dense earlier band.
+    pending = pending.slice(batch.finishedCount)
+  }
+  return pages
+}
+
+/**
+ * Sweep all open stages of one track together. Stage windows are disjoint.
+ * Keep each stage's 1,000-row budget: when a dense stage fills it, start a
+ * new request for the later windows, so that stage cannot starve the rest.
+ * Changing the window list starts a new cursor; continuations retain the
+ * exact original list/order. Each stage still plans its own timestamp-safe
+ * checkpoint and exact-second recovery after this read.
+ */
+export const fetchExpiringNamesPages = ResultFn(async function* (ctx: {
+  env: CloudflareBindings
+  track: ExpiryTrack
+  windows: readonly ExpiryWindow[]
+}) {
+  const windows = ctx.windows
+    .filter((window) => window.cursor < window.upperBound)
+    .toSorted((a, b) => a.cursor - b.cursor)
+  if (windows.length === 0) return ok(new Map<string, ExpiringNamesPage>())
+  const bigname = yield* getBigname(ctx.env)
+  const result = yield* fromPromise(
+    readExpiringWindows(bigname, ctx.track, windows),
+    (error) =>
+      error instanceof IndexerValidationError
+        ? error
+        : new IndexerRequestError({
+            message: `bigname expiry windows query failed for ${ctx.track.id}`,
+            cause: error,
+            status: isBignameError(error) ? error.status : undefined,
+          }),
+  )
+  return ok(result)
+})

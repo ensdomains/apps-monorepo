@@ -34,7 +34,7 @@ vi.mock('@/features/roles/components/roleTableColumns', async (original) => ({
   UserCell: ({ account }: { account: Address }) => <span>{account}</span>,
 }))
 
-const note = () => screen.queryByText(/operator approval aren't listed/)
+const note = () => screen.queryByText(/roles inherited from a parent registry/)
 
 describe('RegistryRolesTable', () => {
   beforeEach(() => {
@@ -51,7 +51,7 @@ describe('RegistryRolesTable', () => {
     expect(note()).not.toBeInTheDocument()
   })
 
-  it('notes under the table that operator-held roles are not listed', () => {
+  it('notes that inherited or contract-derived registry roles may be absent', () => {
     roles = { ...roles, areOperatorRolesUnlisted: true }
 
     render(<RegistryRolesTable address={registry} disableEdit />)

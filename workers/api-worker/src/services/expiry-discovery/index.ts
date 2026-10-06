@@ -9,7 +9,12 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { type ExpiringDomain, fetchPublicationTime } from './indexer.js'
+import {
+  type ExpiringDomain,
+  type ExpiringNamesPage,
+  fetchExpiringNamesPages,
+  fetchPublicationTime,
+} from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 import { fetchProcessableExpiringNames } from './page.js'
 import {
@@ -70,6 +75,7 @@ const processStage = ResultFn(async function* (ctx: {
   stage: ExpiryStageConfig
   cursor: number
   nowSec: number
+  page?: ExpiringNamesPage
 }) {
   const upperBound = getUpperBoundForStage(ctx.stage, ctx.track, ctx.nowSec)
   const lowerBound = getLowerBoundForStage(ctx.stage, ctx.track, ctx.nowSec)
@@ -140,6 +146,7 @@ const processStage = ResultFn(async function* (ctx: {
     stage: ctx.stage,
     cursor: queryCursor,
     upperBound,
+    page: ctx.page,
   })
 
   if (page.overflow) {
@@ -264,23 +271,46 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
     ),
   })
 
-  const stageResults = await Promise.all(
-    STAGE_RUNS.map(async ({ track, stage }) => {
-      const result = await processStage({
-        env,
-        track,
-        stage,
-        cursor: getStageCursor(cursors, track, stage, nowSec),
-        nowSec,
-      })
-
-      return {
-        track,
-        stage,
-        result,
-      }
-    }),
-  )
+  const stageResults = (
+    await Promise.all(
+      TRACKS.map(async (track) => {
+        const windows = track.stages
+          .map((stage) => ({
+            stage,
+            cursor: getQueryCursorForStage(
+              stage,
+              track,
+              getStageCursor(cursors, track, stage, nowSec),
+              nowSec,
+            ),
+            upperBound: getUpperBoundForStage(stage, track, nowSec),
+          }))
+          .filter((window) => window.cursor < window.upperBound)
+        const batch = await fetchExpiringNamesPages({ env, track, windows })
+        return Promise.all(
+          track.stages.map(async (stage) => {
+            const isOpen = windows.some(
+              (window) => window.stage.id === stage.id,
+            )
+            // Failed reads never move the affected track's open checkpoints.
+            // Other tracks and queue publication retain independent outcomes.
+            const result =
+              isOpen && batch.isErr()
+                ? batch
+                : await processStage({
+                    env,
+                    track,
+                    stage,
+                    cursor: getStageCursor(cursors, track, stage, nowSec),
+                    nowSec,
+                    page: batch.isOk() ? batch.value.get(stage.id) : undefined,
+                  })
+            return { track, stage, result }
+          }),
+        )
+      }),
+    )
+  ).flat()
 
   let nextCursors: NotificationCursors = cursors
 

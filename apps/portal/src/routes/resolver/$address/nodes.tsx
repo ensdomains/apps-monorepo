@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
@@ -197,11 +198,11 @@ function RouteComponent() {
         Nodes
       </PageHeading>
 
-      {boundNames?.truncated && (
-        <p className="text-sm text-muted-foreground">
-          Showing the first {nodes.length.toLocaleString()} nodes.
-        </p>
-      )}
+      <ResolverNodesNotice
+        count={nodes.length}
+        truncated={boundNames?.truncated}
+        partial={boundNames?.partial}
+      />
 
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>
@@ -217,6 +218,13 @@ function RouteComponent() {
       <NodeDetailSheet
         node={selectedNode}
         roles={rolesForNode}
+        rolesStatus={
+          resolver?.rolesStatus === 'unsupported'
+            ? 'unsupported'
+            : roles.some((role) => role.resource === null)
+              ? 'partial'
+              : resolver?.rolesStatus
+        }
         resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}

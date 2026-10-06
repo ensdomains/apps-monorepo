@@ -22,6 +22,8 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
+import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
 import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
 import {
@@ -194,6 +196,17 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
+
+      <ResolverNodesNotice
+        count={nodes.length}
+        truncated={boundNames?.truncated}
+        partial={boundNames?.partial}
+      />
+
+      <ResolverCollectionNotice
+        collection="links"
+        status={resolver?.linksStatus}
+      />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field data-invalid={isAlreadyLinked}>

@@ -1,7 +1,6 @@
 /**
- * Wire types for the bigname `/v1` REST contract: bigname v0.4.1 plus the
- * additive shapes merged on bigname `main` after it (up to 4a89b2d, #1073
- * to #1084).
+ * Wire types for the bigname `/v1` REST contract, targeting the planned
+ * merged `main` + `next` release including PR #1094.
  *
  * Written from bigname's `docs/api-v1.md` (envelope, naming dictionary,
  * status vocabulary, powers vocabulary), `docs/api-v1-routes.md` (per-route
@@ -10,9 +9,6 @@
  * (`?`) means the server omits the field when it has no backed value; bigname
  * does not serialize `null` placeholders unless the contract says a field is
  * nullable (`| null`).
- *
- * A field marked "after v0.4.1" is never served by a v0.4.1 deployment, so
- * its absence there says nothing about the name.
  */
 
 /** Lowercase `0x`-prefixed hex string (addresses, hashes, record values). */
@@ -150,7 +146,7 @@ export interface Page {
   readonly page_size: number
   /**
    * Exact count where the route supports it and it was asked for, else
-   * `null`. After v0.4.1 address names serve `null` for an address with more
+   * `null`. Address names serve `null` for an address with more
    * than 1,000 candidate names unless `include=total_count` is sent.
    */
   readonly total_count: number | null
@@ -327,8 +323,7 @@ export interface RegistryRestrictions {
    * on the registration or its registry root carries the admin counterpart.
    * `transfer` is the exception: it is listed whenever no row on the
    * registration itself carries `can_transfer_admin`, since that role on the
-   * registry root does not count. v0.4.1 ignores root admins for every role,
-   * so it can list a role a root admin can still change. `[]` means every
+   * registry root does not count. `[]` means every
    * role can still change.
    */
   readonly locked_roles: readonly LockableRole[]
@@ -344,7 +339,7 @@ export type Restrictions = WrapperRestrictions | RegistryRestrictions
 export interface RootGrantScope {
   readonly kind: 'root'
   readonly detail: {
-    /** The registry. After v0.4.1; v0.4.1 serves `detail: {}`. */
+    /** The registry for a root permission scope. */
     readonly registry?: ContractRef
   }
 }
@@ -552,7 +547,7 @@ export interface EnsV1 {
   readonly wrapper_state?: WrapperState
   readonly wrapper_fuses?: WrapperFuses
   /**
-   * After v0.4.1. The NameWrapper entry's own stored expiry, exact over the
+   * The NameWrapper entry's own stored expiry, exact over the
    * full uint64 range, or `null` with `wrapper_expires_at_reason`. Not the
    * lease plus 90 days: a renewal that calls only `BaseRegistrar.renew`
    * leaves it unchanged, so it can be earlier than `expires_at`. Present
@@ -643,8 +638,7 @@ export interface RegistrationFields extends OwnershipFields, ExpiryFields {
    * recorded for the current registration (it changes when roles regenerate
    * the token, while `registration_id` stays), never the labelhash or the
    * permission resource; omitted without a current registration or recorded
-   * token, so released names have none. v0.4.1 does not guarantee this for
-   * ENSv2 names (bigname #1079 fixed it).
+   * token, so released names have none.
    */
   readonly token_id?: string
   readonly registered_at?: Timestamp
@@ -796,6 +790,8 @@ export interface NameRecords {
 
 /** Row served by `GET /v1/names` (expiry sweep) and `GET /v1/search`. */
 export interface NameListRow extends NameRowFields {
+  /** Matching expires_window in request order; absent on scalar reads/search. */
+  readonly expires_window_index?: number
   /** Released names only: the ended registration's last holder. */
   readonly lapsed_registration?: LapsedRegistration
 }
@@ -916,7 +912,7 @@ export type HistoryEventKind =
   | 'RecordVersionChanged'
   | 'ReverseChanged'
   | 'PermissionChanged'
-  /** After v0.4.1: a role change on an ENSv2 registry's root resource. */
+  /** a role change on an ENSv2 registry's root resource. */
   | 'RootPermissionChanged'
   | 'PermissionScopeChanged'
   | 'RolesChanged'
@@ -953,7 +949,7 @@ interface HistoryExpiryData {
 }
 
 /**
- * After v0.4.1. The ENSv2 storage key of the row's token: the event-local
+ * The ENSv2 storage key of the row's token: the event-local
  * identifier with its low 32 bits (the token version) cleared, as a decimal
  * string. Scoped by registry and chain; not the labelhash, a `token_id` or a
  * `registration_id`. Only on ENSv2 registry and registrar rows that retain
@@ -964,7 +960,7 @@ interface HistoryCanonicalIdData {
 }
 
 /**
- * After v0.4.1. Registrar payment evidence, only where the admitted event
+ * Registrar payment evidence, only where the admitted event
  * retained it (Basenames rows and some Sepolia ENSv1 rows have none). Amounts
  * are unsigned decimal strings with full uint256 precision: native wei for
  * ENSv1, raw units of `payment_token` for ENSv2. An explicit zero is served.
@@ -981,7 +977,7 @@ interface HistoryPaymentData {
 /**
  * Per-type `include=data` payloads. Only fields the row carries are present.
  * `token_id`, `canonical_id`, the payment fields and `operator` are served
- * after v0.4.1 only.
+ * when the admitted event carries it.
  */
 export interface HistoryEventDataByType {
   readonly registration: HistoryExpiryData &
@@ -1061,7 +1057,7 @@ export interface HistoryEventDataByType {
     readonly name_status?: 'set' | 'cleared' | 'unknown'
   }
   /**
-   * After v0.4.1 a role change on an ENSv2 registry's root resource is a
+   * A role change on an ENSv2 registry's root resource is a
    * `permission` row too (raw kind `RootPermissionChanged`): `grant_scope`
    * is `root` with `detail.registry`, `powers` may be `[]`, `added_powers`
    * and `removed_powers` are always present, and the row has no `name`, a

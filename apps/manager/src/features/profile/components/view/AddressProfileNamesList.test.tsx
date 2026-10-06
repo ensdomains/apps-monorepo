@@ -24,7 +24,6 @@ const name = (
   protocol: 'v2',
   expiryDate: null,
   createdAt: null,
-  registeredAt: null,
   nameRoles: roleCategory === 'owned' ? ['owner'] : ['manager'],
   roleCategory,
 })

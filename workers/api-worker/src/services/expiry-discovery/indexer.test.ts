@@ -2,13 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createBigname } from '#core/bigname/index.js'
 import { makeMockEnv } from '#test-utils/env.js'
 import { logger } from '#utils/logger.js'
+import { runExpiryDiscoveryCron } from './index.js'
 import {
   EXACT_TIMESTAMP_MAX_ROWS,
   fetchExpiringNamesPage,
+  fetchExpiringNamesPages,
   fetchPublicationTime,
   QUERY_PAGE_SIZE,
 } from './indexer.js'
-import { type ExpiryTrackId, TRACKS } from './stages.js'
+import { type ExpiryTrackId, getUpperBoundForStage, TRACKS } from './stages.js'
 
 vi.mock('#core/bigname/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('#core/bigname/index.js')>()
@@ -27,6 +29,7 @@ const track = (id: ExpiryTrackId) => {
 
 type Row = {
   name: string
+  expires_window_index?: number
   expires_at?: string
   grace_ends_at?: string
   owner?: string
@@ -562,5 +565,194 @@ describe('fetchPublicationTime', () => {
     })
 
     expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
+  })
+})
+
+describe('batched expiry windows', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+  const secondStage = track('ens_v2').stages[1]
+  if (!secondStage) throw new Error('Missing second ENSv2 stage')
+  const windows = [
+    { stage: firstStage('ens_v2'), cursor: 100, upperBound: 200 },
+    { stage: secondStage, cursor: 300, upperBound: 400 },
+  ] as const
+  const fetchWindows = () =>
+    fetchExpiringNamesPages({
+      env: makeMockEnv(),
+      track: track('ens_v2'),
+      windows,
+    })
+
+  it('reads multiple reminder bands once and assigns rows by server window index', async () => {
+    const { fetchMock, url } = mockFetch(
+      page([
+        v2Row('early.eth', 150, { expires_window_index: 0 }),
+        v2Row('late.eth', 350, { expires_window_index: 1 }),
+      ]),
+    )
+    const result = (await fetchWindows())._unsafeUnwrap()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(url(0).searchParams.getAll('expires_window')).toEqual([
+      '101..201',
+      '301..401',
+    ])
+    expect(url(0).searchParams.has('expires_after')).toBe(false)
+    expect(
+      result.get(windows[0].stage.id)?.domains.map((domain) => domain.name),
+    ).toEqual(['early.eth'])
+    expect(
+      result.get(windows[1].stage.id)?.domains.map((domain) => domain.name),
+    ).toEqual(['late.eth'])
+  })
+
+  it('continues with the same windows and cursor until the union is exhausted', async () => {
+    const { url } = mockFetch(
+      page([v2Row('early.eth', 150, { expires_window_index: 0 })], 'next'),
+      page([v2Row('late.eth', 350, { expires_window_index: 1 })]),
+    )
+    const result = (await fetchWindows())._unsafeUnwrap()
+    expect(result.size).toBe(2)
+    expect(url(1).searchParams.get('cursor')).toBe('next')
+    expect(url(1).searchParams.getAll('expires_window')).toEqual(
+      url(0).searchParams.getAll('expires_window'),
+    )
+  })
+
+  it('caps a dense band without starving a later reminder band', async () => {
+    const dense = Array.from({ length: 5 }, (_, offset) =>
+      page(
+        Array.from({ length: 200 }, (_, index) =>
+          v2Row(`${offset * 200 + index}.eth`, 150, {
+            expires_window_index: 0,
+          }),
+        ),
+        `page-${offset + 1}`,
+      ),
+    )
+    const { fetchMock, url } = mockFetch(
+      ...dense,
+      page([v2Row('late.eth', 350, { expires_window_index: 0 })]),
+    )
+    const result = (await fetchWindows())._unsafeUnwrap()
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(result.get(windows[0].stage.id)?.domains).toHaveLength(
+      QUERY_PAGE_SIZE,
+    )
+    expect(result.get(windows[0].stage.id)?.hasMore).toBe(true)
+    expect(
+      result.get(windows[1].stage.id)?.domains.map((domain) => domain.name),
+    ).toEqual(['late.eth'])
+    expect(url(5).searchParams.getAll('expires_window')).toEqual(['301..401'])
+    expect(url(5).searchParams.has('cursor')).toBe(false)
+  })
+
+  it('drops every partial bucket when a stale continuation restarts the union', async () => {
+    const { url } = mockFetch(
+      page([v2Row('old.eth', 150, { expires_window_index: 0 })], 'old-cursor'),
+      ...Array.from({ length: 4 }, () => error(409, 'stale')),
+      page([v2Row('fresh.eth', 350, { expires_window_index: 1 })]),
+    )
+    const resultPromise = fetchWindows()
+    await vi.runAllTimersAsync()
+    const result = (await resultPromise)._unsafeUnwrap()
+    expect(result.get(windows[0].stage.id)?.domains).toEqual([])
+    expect(
+      result.get(windows[1].stage.id)?.domains.map((domain) => domain.name),
+    ).toEqual(['fresh.eth'])
+    expect(url(5).searchParams.has('cursor')).toBe(false)
+    expect(url(5).searchParams.getAll('expires_window')).toEqual(
+      url(0).searchParams.getAll('expires_window'),
+    )
+  })
+
+  it('does not constrain later windows to a nearly full earlier bucket', async () => {
+    const responses = Array.from({ length: 4 }, (_, offset) =>
+      page(
+        Array.from({ length: 200 }, (_, index) =>
+          v2Row(`${offset * 200 + index}.eth`, 150, {
+            expires_window_index: 0,
+          }),
+        ),
+        `early-${offset}`,
+      ),
+    )
+    responses.push(
+      page(
+        [
+          ...Array.from({ length: 199 }, (_, index) =>
+            v2Row(`${800 + index}.eth`, 150, { expires_window_index: 0 }),
+          ),
+          v2Row('late.eth', 350, { expires_window_index: 1 }),
+        ],
+        'later',
+      ),
+    )
+    responses.push(page([v2Row('late2.eth', 351, { expires_window_index: 1 })]))
+    const { url } = mockFetch(...responses)
+    const result = (await fetchWindows())._unsafeUnwrap()
+    expect(result.get(windows[0].stage.id)?.domains).toHaveLength(999)
+    expect(result.get(windows[1].stage.id)?.domains).toHaveLength(2)
+    expect(url(5).searchParams.get('page_size')).toBe('200')
+  })
+
+  it('rejects unassigned rows instead of advancing empty stage checkpoints', async () => {
+    mockFetch(page([v2Row('unknown.eth', 150)]))
+    const result = await fetchWindows()
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toContain('expires_window_index')
+  })
+
+  it('runs all 25 open stages in five HTTP requests including the publication probe', async () => {
+    const now = 1_700_000_000
+    vi.setSystemTime(now * 1000)
+    const { fetchMock, url } = mockFetch(
+      page([], null, {
+        as_of: {
+          '1': { block_number: 1, block_hash: '0x1', timestamp: String(now) },
+        },
+      }),
+      page([]),
+      page([]),
+      page([]),
+      page([]),
+    )
+    const env = makeMockEnv()
+    const storedCursors = Object.fromEntries(
+      TRACKS.map((track) => [
+        track.id,
+        Object.fromEntries(
+          track.stages.map((stage) => [
+            stage.id,
+            {
+              expiry_timestamp: getUpperBoundForStage(stage, track, now) - 60,
+            },
+          ]),
+        ),
+      ]),
+    )
+    Object.assign(env.KV, { get: vi.fn(async () => storedCursors) })
+    const result = await runExpiryDiscoveryCron(env)
+    expect(result._unsafeUnwrap().failedStages).toBe(0)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(
+      [1, 2, 3, 4].map(
+        (index) => url(index).searchParams.getAll('expires_window').length,
+      ),
+    ).toEqual([7, 7, 7, 4])
+  })
+
+  it('does not issue a request when every stage is caught up', async () => {
+    const { fetchMock } = mockFetch()
+    const result = await fetchExpiringNamesPages({
+      env: makeMockEnv(),
+      track: track('ens_v2'),
+      windows: [],
+    })
+    expect(result._unsafeUnwrap().size).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

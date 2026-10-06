@@ -1,10 +1,12 @@
-import type { QueryFunctionContext } from '@tanstack/react-query'
+import { BignameError } from '@ens-apps/bigname'
+import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   powersToResolverRoleBitmap,
   pruneLinksAfterUnlink,
+  resolverCollectionCount,
   toLinks,
 } from './useResolverOverview'
 
@@ -140,12 +142,9 @@ const page = <T>(data: T[], total: number | null = data.length) => ({
 
 describe('getResolverOverviewQueryOptions', () => {
   const read = () => {
-    const { queryFn, queryKey } = getResolverOverviewQueryOptions({
-      address: RESOLVER,
-    })
-    return (queryFn as (context: unknown) => Promise<unknown>)({
-      queryKey,
-    } as unknown as QueryFunctionContext)
+    return new QueryClient().fetchQuery(
+      getResolverOverviewQueryOptions({ address: RESOLVER }),
+    )
   }
 
   it('assembles the overview from bound names, links, roles and events', async () => {
@@ -232,6 +231,7 @@ describe('getResolverOverviewQueryOptions', () => {
       expect.objectContaining({
         resolver: { chain_id: 11155111, address: RESOLVER.toLowerCase() },
       }),
+      { signal: expect.any(AbortSignal) },
     )
     expect(overview).toMatchObject({
       nodeCount: 12,
@@ -239,7 +239,12 @@ describe('getResolverOverviewQueryOptions', () => {
       linkCount: 2,
       roleHolderCount: 1,
       roles: [
-        { account: HOLDER, resource: '0', roleBitmap: '1' },
+        {
+          account: HOLDER,
+          resource: null,
+          roleBitmap: '1',
+          registrationId: 'r1',
+        },
         {
           account: HOLDER,
           resource: '16',
@@ -267,6 +272,137 @@ describe('getResolverOverviewQueryOptions', () => {
       ],
       eventCount: 40,
     })
+  })
+
+  const mockEmptyOverview = () => {
+    bigname.getResolver.mockResolvedValue({
+      data: {
+        chain_id: 11155111,
+        address: RESOLVER.toLowerCase(),
+        bound_names: page([]),
+      },
+      meta: {},
+    })
+    bigname.listResolverLinks.mockReset().mockResolvedValue(page([]))
+    bigname.listResolverRoles.mockReset().mockResolvedValue(page([]))
+    bigname.listEvents.mockResolvedValue(page([]))
+  }
+
+  it('does not infer root from an admin-only or undecoded grant', async () => {
+    mockEmptyOverview()
+    bigname.listResolverRoles.mockResolvedValue(
+      page([
+        {
+          address: HOLDER,
+          registration_id: 'scoped-admin',
+          powers: ['admin_set_text'],
+        },
+        {
+          address: HOLDER,
+          registration_id: 'unknown-argument',
+          powers: ['link'],
+        },
+      ]),
+    )
+    expect((await read())?.roles).toMatchObject([
+      { registrationId: 'scoped-admin', resource: null },
+      { registrationId: 'unknown-argument', resource: null },
+    ])
+  })
+
+  it('keeps unsupported collections unknown instead of reporting zero', async () => {
+    mockEmptyOverview()
+    const unsupported = {
+      ...page([], null),
+      meta: {
+        completeness: 'unsupported',
+        unsupported_reason: 'resolver_overview_not_supported',
+      },
+    }
+    bigname.listResolverLinks.mockResolvedValue(unsupported)
+    bigname.listResolverRoles.mockResolvedValue(unsupported)
+    expect(await read()).toMatchObject({
+      linkCount: null,
+      roleHolderCount: null,
+      linksStatus: 'unsupported',
+      rolesStatus: 'unsupported',
+      links: [],
+      roles: [],
+    })
+  })
+
+  it('retains partial coverage from an earlier page and keeps known rows', async () => {
+    mockEmptyOverview()
+    const first = page([
+      { address: HOLDER, registration_id: 'r1', powers: ['set_text'] },
+    ])
+    bigname.listResolverRoles
+      .mockResolvedValueOnce({
+        ...first,
+        page: { ...first.page, has_more: true, next_cursor: 'next' },
+        meta: { completeness: 'partial' },
+      })
+      .mockResolvedValueOnce(page([]))
+    expect(await read()).toMatchObject({
+      roleHolderCount: 1,
+      rolesStatus: 'partial',
+      linksStatus: 'full',
+      linkCount: 0,
+    })
+  })
+
+  it('reads all links and roles past their old row caps and the default page limit', async () => {
+    const total = 20_200
+    bigname.getResolver.mockResolvedValue({
+      data: {
+        chain_id: 11155111,
+        address: RESOLVER.toLowerCase(),
+        bound_names: page([]),
+      },
+      meta: {},
+    })
+    bigname.listEvents.mockResolvedValue(page([]))
+    const collection = <T>(
+      cursor: string | undefined,
+      makeRow: (index: number) => T,
+    ) => {
+      const offset = Number(cursor ?? 0)
+      const response = page(
+        Array.from({ length: 200 }, (_, i) => makeRow(offset + i)),
+        total,
+      )
+      const next = offset + 200 < total ? String(offset + 200) : null
+      return {
+        ...response,
+        page: { ...response.page, next_cursor: next, has_more: next !== null },
+      }
+    }
+    bigname.listResolverLinks
+      .mockReset()
+      .mockImplementation(async (_chain, _address, { cursor }) =>
+        collection(cursor, (i) => ({
+          name: `${i}.eth`,
+          namehash: `0x${i}`,
+          record_id: String(Math.floor(i / 2)),
+          default: false,
+        })),
+      )
+    bigname.listResolverRoles
+      .mockReset()
+      .mockImplementation(async (_chain, _address, { cursor }) =>
+        collection(cursor, () => ({
+          address: HOLDER,
+          powers: ['set_text'],
+        })),
+      )
+
+    const overview = await read()
+    expect(overview?.links).toHaveLength(total)
+    expect(overview?.linkCount).toBe(total)
+    expect(overview?.links.at(-1)?.sharedWith).toEqual(['20198.eth'])
+    expect(overview?.roles).toHaveLength(total)
+    expect(bigname.listResolverLinks).toHaveBeenCalledTimes(101)
+    expect(bigname.listResolverRoles).toHaveBeenCalledTimes(101)
   })
 
   it('counts the first page as a lower bound when bigname gives no total', async () => {
@@ -308,12 +444,9 @@ describe('getResolverOverviewQueryOptions', () => {
 
 describe('getResolverNodesQueryOptions', () => {
   const read = () => {
-    const { queryFn, queryKey } = getResolverNodesQueryOptions({
-      address: RESOLVER,
-    })
-    return (queryFn as (context: unknown) => Promise<unknown>)({
-      queryKey,
-    } as unknown as QueryFunctionContext)
+    return new QueryClient().fetchQuery(
+      getResolverNodesQueryOptions({ address: RESOLVER }),
+    )
   }
 
   const boundPage = (names: string[], next: string | null) => ({
@@ -341,16 +474,158 @@ describe('getResolverNodesQueryOptions', () => {
     meta: {},
   })
 
+  const clientWithFreshCache = () =>
+    new QueryClient({
+      defaultOptions: { queries: { staleTime: 60_000, retry: false } },
+    })
+
+  const mockOverviewCollections = () => {
+    bigname.listResolverLinks.mockReset().mockResolvedValue(page([]))
+    bigname.listResolverRoles.mockReset().mockResolvedValue(page([]))
+    bigname.listEvents.mockReset().mockResolvedValue(page([]))
+  }
+
+  it('shares one first-page request between concurrent overview and Nodes consumers', async () => {
+    const client = clientWithFreshCache()
+    mockOverviewCollections()
+    bigname.getResolver
+      .mockReset()
+      .mockResolvedValue(boundPage(['a.eth'], null))
+    const [overview, nodes] = await Promise.all([
+      client.fetchQuery(getResolverOverviewQueryOptions({ address: RESOLVER })),
+      client.fetchQuery(getResolverNodesQueryOptions({ address: RESOLVER })),
+    ])
+    expect(overview?.nodeCount).toBe(1)
+    expect(nodes.nodes.map(({ name }) => name)).toEqual(['a.eth'])
+    expect(bigname.getResolver).toHaveBeenCalledTimes(1)
+    expect(bigname.listResolverLinks).toHaveBeenCalledTimes(1)
+    expect(bigname.listResolverRoles).toHaveBeenCalledTimes(1)
+    expect(bigname.listEvents).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    'overview',
+    'nodes',
+  ] as const)('reuses a fresh first page when %s loaded first', async (first) => {
+    const client = clientWithFreshCache()
+    mockOverviewCollections()
+    bigname.getResolver
+      .mockReset()
+      .mockResolvedValue(boundPage(['a.eth'], null))
+    const overview = () =>
+      client.fetchQuery(getResolverOverviewQueryOptions({ address: RESOLVER }))
+    const nodes = () =>
+      client.fetchQuery(getResolverNodesQueryOptions({ address: RESOLVER }))
+    if (first === 'overview') {
+      await overview()
+      await nodes()
+    } else {
+      await nodes()
+      expect(bigname.listResolverLinks).not.toHaveBeenCalled()
+      expect(bigname.listResolverRoles).not.toHaveBeenCalled()
+      expect(bigname.listEvents).not.toHaveBeenCalled()
+      await overview()
+    }
+    expect(bigname.getResolver).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes the shared page when the overview is invalidated', async () => {
+    const client = clientWithFreshCache()
+    mockOverviewCollections()
+    bigname.getResolver
+      .mockReset()
+      .mockResolvedValueOnce(boundPage(['old.eth'], null))
+      .mockResolvedValueOnce(boundPage(['new.eth', 'newer.eth'], null))
+    const options = getResolverOverviewQueryOptions({ address: RESOLVER })
+    await client.fetchQuery(options)
+    await client.invalidateQueries({
+      queryKey: ['resolver-overview'],
+      refetchType: 'all',
+    })
+    expect(client.getQueryData(options.queryKey)?.nodeCount).toBe(2)
+    expect(bigname.getResolver).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes the shared page when Nodes is explicitly refetched', async () => {
+    const client = clientWithFreshCache()
+    bigname.getResolver
+      .mockReset()
+      .mockResolvedValueOnce(boundPage(['old.eth'], null))
+      .mockResolvedValueOnce(boundPage(['new.eth'], null))
+    const options = getResolverNodesQueryOptions({ address: RESOLVER })
+    await client.fetchQuery(options)
+    await client.refetchQueries({ queryKey: options.queryKey })
+    expect(
+      client.getQueryData(options.queryKey)?.nodes.map(({ name }) => name),
+    ).toEqual(['new.eth'])
+    expect(bigname.getResolver).toHaveBeenCalledTimes(2)
+  })
+
+  it('discards a cached first page after a stale continuation and fetches a fresh snapshot', async () => {
+    const client = clientWithFreshCache()
+    mockOverviewCollections()
+    bigname.getResolver
+      .mockReset()
+      .mockResolvedValueOnce(boundPage(['old.eth'], 'old-cursor'))
+      .mockRejectedValueOnce(
+        new BignameError({
+          status: 409,
+          code: 'stale',
+          message: 'snapshot changed',
+        }),
+      )
+      .mockResolvedValueOnce(boundPage(['new.eth'], 'new-cursor'))
+      .mockResolvedValueOnce(boundPage(['newer.eth'], null))
+    await client.fetchQuery(
+      getResolverOverviewQueryOptions({ address: RESOLVER }),
+    )
+    const nodes = await client.fetchQuery(
+      getResolverNodesQueryOptions({ address: RESOLVER }),
+    )
+    expect(nodes.nodes.map(({ name }) => name)).toEqual([
+      'new.eth',
+      'newer.eth',
+    ])
+    expect(nodes.partial).toBe(false)
+    expect(
+      bigname.getResolver.mock.calls.map(([, , params]) => params.cursor),
+    ).toEqual([undefined, 'old-cursor', undefined, 'new-cursor'])
+  })
+
+  it('reads nodes past the old row cap and the default page limit, sharing the overview first page', async () => {
+    const client = clientWithFreshCache()
+    const total = 20_200
+    mockOverviewCollections()
+    bigname.getResolver
+      .mockReset()
+      .mockImplementation(
+        async (_chain, _address, { cursor }: { cursor?: string }) => {
+          const offset = Number(cursor ?? 0)
+          return boundPage(
+            Array.from({ length: 200 }, (_, i) => `${offset + i}.eth`),
+            offset + 200 < total ? String(offset + 200) : null,
+          )
+        },
+      )
+    await client.fetchQuery(
+      getResolverOverviewQueryOptions({ address: RESOLVER }),
+    )
+    const nodes = await client.fetchQuery(
+      getResolverNodesQueryOptions({ address: RESOLVER }),
+    )
+    expect(nodes.nodes).toHaveLength(total)
+    expect(nodes.nodes.at(-1)?.name).toBe('20199.eth')
+    expect(nodes).toMatchObject({ truncated: false, partial: false })
+    expect(bigname.getResolver).toHaveBeenCalledTimes(101)
+  })
+
   it('pages bound names past the overview’s first page', async () => {
     bigname.getResolver.mockReset()
     bigname.getResolver
       .mockResolvedValueOnce(boundPage(['a.eth'], 'c2'))
       .mockResolvedValueOnce(boundPage(['bb.eth'], null))
 
-    const result = (await read()) as {
-      nodes: { name: string }[]
-      truncated: boolean
-    }
+    const result = await read()
 
     expect(result.nodes.map(({ name }) => name)).toEqual(['a.eth', 'bb.eth'])
     expect(result.truncated).toBe(false)
@@ -358,12 +633,44 @@ describe('getResolverNodesQueryOptions', () => {
       11155111,
       RESOLVER.toLowerCase(),
       { page_size: 200, cursor: 'c2' },
+      { signal: expect.any(AbortSignal) },
     )
+  })
+
+  it('keeps fetched nodes and marks the result partial when a continuation times out', async () => {
+    bigname.getResolver.mockReset()
+    bigname.getResolver
+      .mockResolvedValueOnce(boundPage(['a.eth'], 'more'))
+      .mockRejectedValueOnce(
+        new BignameError({
+          status: 408,
+          code: 'request_timeout',
+          message: 'timeout',
+        }),
+      )
+    expect(await read()).toMatchObject({
+      nodes: [{ name: 'a.eth' }],
+      truncated: true,
+      partial: true,
+    })
   })
 
   it('lists no nodes for a resolver bigname does not know', async () => {
     bigname.getResolver.mockReset()
     bigname.getResolver.mockResolvedValue(null)
-    expect(await read()).toEqual({ nodes: [], truncated: false })
+    expect(await read()).toEqual({
+      nodes: [],
+      truncated: false,
+      partial: false,
+    })
+  })
+})
+
+describe('resolverCollectionCount', () => {
+  it('distinguishes a known empty collection from unavailable or partial coverage', () => {
+    expect(resolverCollectionCount(0, 'full')).toBe('0')
+    expect(resolverCollectionCount(null, 'unsupported')).toBe('Unknown')
+    expect(resolverCollectionCount(0, 'partial')).toBe('0+')
+    expect(resolverCollectionCount(12, 'partial')).toBe('12+')
   })
 })

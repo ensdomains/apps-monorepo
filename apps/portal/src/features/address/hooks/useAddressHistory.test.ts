@@ -28,14 +28,14 @@ const row = (over: Partial<HistoryEvent>): HistoryEvent =>
     ...over,
   }) as HistoryEvent
 
-const page = <T>(data: T[]) => ({
+const page = <T>(data: T[], next: string | null = null) => ({
   data,
   page: {
     cursor: null,
-    next_cursor: null,
+    next_cursor: next,
     page_size: 200,
     total_count: data.length,
-    has_more: false,
+    has_more: next !== null,
   },
   meta: {},
 })
@@ -66,24 +66,75 @@ describe('getAddressHistoryQueryOptions', () => {
   it('reads every relation in one stream, with payloads', async () => {
     getAddressHistory.mockResolvedValue(page([]))
     await read()
-    expect(getAddressHistory).toHaveBeenCalledWith(ADDRESS.toLowerCase(), {
-      relation: 'any',
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: 200,
-      cursor: undefined,
-    })
-    expect(listAddressNames).toHaveBeenCalledWith(ADDRESS.toLowerCase(), {
-      relation: 'any',
-      page_size: 200,
-      cursor: undefined,
-    })
+    expect(getAddressHistory).toHaveBeenCalledWith(
+      ADDRESS.toLowerCase(),
+      {
+        relation: 'any',
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size: 200,
+        cursor: undefined,
+      },
+      { signal: undefined },
+    )
+    expect(listAddressNames).toHaveBeenCalledWith(
+      ADDRESS.toLowerCase(),
+      {
+        relation: 'any',
+        page_size: 200,
+        cursor: undefined,
+      },
+      { signal: undefined },
+    )
   })
 
   it('reads one short page for the teaser', async () => {
     getAddressHistory.mockResolvedValue(page([]))
     await read(5)
     expect(getAddressHistory.mock.lastCall?.[1]).toMatchObject({ page_size: 5 })
+  })
+
+  it('reads history and ownership past the old row caps and the default page limit', async () => {
+    const total = 20_200
+    getAddressHistory.mockImplementation(
+      async (_address, { cursor }: { cursor?: string }) => {
+        const offset = Number(cursor ?? 0)
+        return page(
+          Array.from({ length: 200 }, (_, i) =>
+            row({
+              name: `name-${offset + i}.eth`,
+              log_index: offset + i,
+            }),
+          ),
+          offset + 200 < total ? String(offset + 200) : null,
+        )
+      },
+    )
+    listAddressNames.mockImplementation(
+      async (_address, { cursor }: { cursor?: string }) => {
+        const offset = Number(cursor ?? 0)
+        return page(
+          Array.from({ length: 200 }, (_, i) => ({
+            name: `name-${offset + i}.eth`,
+            relations: ['owner'],
+          })),
+          offset + 200 < total ? String(offset + 200) : null,
+        )
+      },
+    )
+
+    const names = await read()
+    expect(names).toHaveLength(total)
+    expect(names).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'name-20199.eth',
+          registrarHolder: ADDRESS,
+        }),
+      ]),
+    )
+    expect(getAddressHistory).toHaveBeenCalledTimes(101)
+    expect(listAddressNames).toHaveBeenCalledTimes(101)
   })
 
   it('groups by name, marking the names whose token the address holds', async () => {

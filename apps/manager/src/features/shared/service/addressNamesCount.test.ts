@@ -35,164 +35,77 @@ const json = (body: unknown, status = 200): Response =>
 const error = (status: number, code: string, message: string): Response =>
   json({ error: { code, message, details: {} } }, status)
 
-/** A one-row page as bigname v0.4.1 serves it: always counted. */
-const countedPage = (totalCount: number) => ({
+const countedPage = (totalCount: number | null) => ({
   data: totalCount === 0 ? [] : [mockAddressNameRoleHolder],
   page: {
     cursor: null,
-    next_cursor: totalCount > 1 ? 'eyJzIjoibmFtZSJ9' : null,
+    next_cursor: null,
     page_size: 1,
     total_count: totalCount,
-    has_more: totalCount > 1,
+    has_more: false,
   },
   meta: mockAddressNamesAboveCountCap.meta,
 })
 
-/** The 400 bigname v0.4.1 answers for `include=total_count`. */
-const v041IncludeRejection = () =>
-  error(
-    400,
-    'invalid_input',
-    'include must contain only role_summary or counts',
-  )
-
-const queries = () =>
-  fetchMock.mock.calls.map(([url]) =>
-    Object.fromEntries(new URL(String(url)).searchParams),
-  )
-
 beforeEach(() => {
   fetchMock.mockReset()
 })
-
 afterEach(() => {
   vi.useRealTimers()
 })
 
 describe('getAddressNamesCount', () => {
-  describe('bigname v0.4.1 (always counts, rejects include=total_count)', () => {
-    it('reads the exact count from one row and never sends the flag', async () => {
-      fetchMock.mockImplementation(async (url: string) =>
-        new URL(url).searchParams.has('include')
-          ? v041IncludeRejection()
-          : json(countedPage(11)),
-      )
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBe(11)
-      expect(queries()).toEqual([
-        {
-          relation: 'owner',
-          parent: 'eth',
-          dedupe: 'registration',
-          page_size: '1',
-        },
-      ])
-    })
-
-    it('reads a count of zero', async () => {
-      fetchMock.mockResolvedValueOnce(json(countedPage(0)))
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBe(0)
-      expect(fetchMock).toHaveBeenCalledOnce()
-    })
-
-    it('reads an uncounted page it cannot recount as unknown', async () => {
-      fetchMock
-        .mockResolvedValueOnce(json(mockAddressNamesAboveCountCap))
-        .mockResolvedValueOnce(v041IncludeRejection())
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBeNull()
+  it.each([
+    0,
+    3,
+    1234,
+    null,
+  ])('requests the exact count directly, including above the automatic count cap: %s', async (count) => {
+    fetchMock.mockResolvedValueOnce(json(countedPage(count)))
+    await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBe(count)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(
+      Object.fromEntries(
+        new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams,
+      ),
+    ).toEqual({
+      relation: 'owner',
+      parent: 'eth',
+      dedupe: 'registration',
+      page_size: '1',
+      include: 'total_count',
     })
   })
-
-  describe('after bigname v0.4.1 (null above 1,000 candidate names)', () => {
-    it('reads a count bigname gives without the flag', async () => {
-      fetchMock.mockResolvedValueOnce(json(countedPage(3)))
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBe(3)
-      expect(fetchMock).toHaveBeenCalledOnce()
-    })
-
-    it('asks again with include=total_count on the first page when the count is null', async () => {
-      fetchMock
-        .mockResolvedValueOnce(json(mockAddressNamesAboveCountCap))
-        .mockResolvedValueOnce(json(countedPage(1234)))
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBe(1234)
-      const first = {
-        relation: 'owner',
-        parent: 'eth',
-        dedupe: 'registration',
-        page_size: '1',
-      }
-      expect(queries()).toEqual([first, { ...first, include: 'total_count' }])
-    })
-
-    it('reads an empty uncounted page as zero without asking again', async () => {
-      fetchMock.mockResolvedValueOnce(
-        json({
-          ...mockAddressNamesAboveCountCap,
-          data: [],
-          page: {
-            ...mockAddressNamesAboveCountCap.page,
-            next_cursor: null,
-            has_more: false,
-          },
+  it('keeps a backend deadline as an unknown count', async () => {
+    fetchMock.mockResolvedValueOnce(
+      error(408, 'request_timeout', 'request deadline exceeded'),
+    )
+    await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBeNull()
+  })
+  it('aborts a count after its own deadline', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | undefined
+    fetchMock.mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          signal = init?.signal ?? undefined
+          signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          )
         }),
-      )
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBe(0)
-      expect(fetchMock).toHaveBeenCalledOnce()
-    })
-
-    it('reads an exact count that reaches the bigname deadline (408) as unknown', async () => {
-      fetchMock
-        .mockResolvedValueOnce(json(mockAddressNamesAboveCountCap))
-        .mockResolvedValueOnce(
-          error(408, 'request_timeout', 'request deadline exceeded'),
-        )
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).resolves.toBeNull()
-    })
-
-    it('stops waiting for the exact count after its own deadline and aborts the read', async () => {
-      vi.useFakeTimers()
-      let exactSignal: AbortSignal | undefined
-      fetchMock
-        .mockResolvedValueOnce(json(mockAddressNamesAboveCountCap))
-        .mockImplementationOnce(
-          (_url: string, init?: RequestInit) =>
-            new Promise<Response>((_resolve, reject) => {
-              exactSignal = init?.signal ?? undefined
-              exactSignal?.addEventListener('abort', () =>
-                reject(new DOMException('Aborted', 'AbortError')),
-              )
-            }),
-        )
-
-      const count = getAddressNamesCount(ADDRESS, PARAMS)
-      await vi.advanceTimersByTimeAsync(EXACT_COUNT_TIMEOUT_MS)
-
-      await expect(count).resolves.toBeNull()
-      expect(exactSignal?.aborted).toBe(true)
-    })
-
-    it('rejects when the exact count fails for another reason', async () => {
-      fetchMock
-        .mockResolvedValueOnce(json(mockAddressNamesAboveCountCap))
-        .mockResolvedValueOnce(error(500, 'internal_error', 'boom'))
-
-      await expect(getAddressNamesCount(ADDRESS, PARAMS)).rejects.toMatchObject(
-        { code: 'internal_error' },
-      )
-    })
+    )
+    const count = getAddressNamesCount(ADDRESS, PARAMS)
+    await vi.advanceTimersByTimeAsync(EXACT_COUNT_TIMEOUT_MS)
+    await expect(count).resolves.toBeNull()
+    expect(signal?.aborted).toBe(true)
   })
-
-  it('rejects when the first read fails', async () => {
-    fetchMock.mockResolvedValueOnce(error(503, 'overloaded', 'busy'))
-
+  it.each([
+    [400, 'invalid_input', 'include must contain only role_summary or counts'],
+    [500, 'internal_error', 'boom'],
+  ])('surfaces an error instead of trying an older contract: %s', async (status, code, message) => {
+    fetchMock.mockResolvedValueOnce(error(status, code, message))
     await expect(getAddressNamesCount(ADDRESS, PARAMS)).rejects.toMatchObject({
-      code: 'overloaded',
+      code,
     })
     expect(fetchMock).toHaveBeenCalledOnce()
   })

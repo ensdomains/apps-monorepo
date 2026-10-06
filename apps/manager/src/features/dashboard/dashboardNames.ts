@@ -2,6 +2,7 @@ import {
   type AddressNameRow,
   type Authority,
   hasAnyGrant,
+  isV2GraceName,
   type NameRowFields,
   timestampToSeconds,
 } from '@ens-apps/bigname'
@@ -43,20 +44,21 @@ const RENEW_CTA_THRESHOLD_DAYS = 7
 const ETH_2LD_PATTERN = /^[^.]+\.eth$/
 
 /**
- * bigname lists every name with a current relation, including ENSv2 rows past
- * their grace period. Released rows have no current holder (bigname serves
- * them no `owner` or `manager`). `unregistered` rows are names without a
- * registration, chiefly ENSv1 registry children listed without a name row
- * (no `created_at`), whose name pages answer 404; neither is a name the
- * address holds.
+ * Current registrations plus renewable ENSv2 former-owner rows. Released
+ * rows have no current owner or manager; only those still inside their
+ * exclusive grace window belong here. Unregistered rows, including registry
+ * children without a name row on v0.4.1, are not current registrations.
  */
 const LISTED_REGISTRATION_STATUSES: ReadonlySet<
   NameRowFields['registration_status']
 > = new Set(['active', 'wrapped', 'registered'])
 
 export const isListedAddressName = (
-  row: Pick<NameRowFields, 'registration_status'>,
-): boolean => LISTED_REGISTRATION_STATUSES.has(row.registration_status)
+  row: Pick<NameRowFields, 'registration_status'> & Partial<AddressNameRow>,
+): boolean =>
+  !row.name?.endsWith('.addr.reverse') &&
+  (LISTED_REGISTRATION_STATUSES.has(row.registration_status) ||
+    isV2GraceName(row))
 
 /** `ens_v0` is an ENSv1 name still read from the 2017 registry. */
 export const protocolForAuthority = (
