@@ -30,7 +30,9 @@ export const useListLoader = ({
   const target =
     choice && choice.resetKey === resetKey ? choice.target : initialCount
 
-  const { mutate, isPending, isError } = useMutation({ mutationFn: fetchUntil })
+  const { mutate, reset, isPending, isError } = useMutation({
+    mutationFn: fetchUntil,
+  })
 
   const abortRef = useRef<AbortController | null>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new list, or leaving the page, stops the fetch in flight
@@ -41,6 +43,7 @@ export const useListLoader = ({
   const showUpTo = (next: number) => {
     setChoice({ resetKey, target: next })
     abortRef.current?.abort()
+    reset()
     if (!fetchMore || !hasMore || next <= loaded) return
     abortRef.current = new AbortController()
     mutate({

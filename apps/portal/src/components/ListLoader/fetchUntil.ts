@@ -1,14 +1,16 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 
-class ListStalledError extends TaggedError('ListStalledError')<{
-  message: string
-}> {}
-
 /** Where a server-paged list stands after one more page. */
 export type FetchMoreResult = {
   readonly loaded: number
   readonly hasMore: boolean
 }
+
+class ListStalledError extends TaggedError('ListStalledError')<{
+  message: string
+  /** Where the list stood when it stopped advancing. */
+  cause: FetchMoreResult
+}> {}
 
 type FetchUntilParameters = FetchMoreResult & {
   readonly target: number
@@ -37,6 +39,7 @@ export const fetchUntil = async ({
   if (stalledPages >= MAX_STALLED_PAGES)
     throw new ListStalledError({
       message: 'The list stopped returning rows before it ended',
+      cause: { loaded, hasMore },
     })
 
   const next = await fetchMore()

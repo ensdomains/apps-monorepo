@@ -361,6 +361,37 @@ describe('ListLoader on a server-paged list', () => {
     expect(screen.getByText('Showing 100 of 300')).toBeInTheDocument()
   })
 
+  it('does not show the last list’s failure when the next one only reveals rows', async () => {
+    const user = userEvent.setup()
+    const fetchPage = () => Promise.reject(new Error('indexer unavailable'))
+    const { rerender } = renderList(
+      <ServerList
+        total={300}
+        pageSize={100}
+        initialCount={100}
+        fetchPage={fetchPage}
+        resetKey="alice.eth"
+      />,
+    )
+    await user.click(more())
+    await screen.findByRole('alert')
+
+    rerender(
+      <ServerList
+        total={300}
+        pageSize={100}
+        initialCount={15}
+        fetchPage={fetchPage}
+        resetKey="bob.eth"
+      />,
+    )
+    await user.click(more())
+
+    expect(screen.getByText('Showing 30 of 300')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(more()).toBeEnabled()
+  })
+
   it('leaves the total off while it is unknown', async () => {
     const user = userEvent.setup()
     renderList(
