@@ -1,10 +1,13 @@
-import { type InfiniteData, useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
-import { useListLoader } from '@/components/ListLoader/useListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { SortButton } from '@/components/table/SortButton'
@@ -14,7 +17,6 @@ import {
   getRegistryLabelsQueryOptions,
   REGISTRY_LABELS_PAGE_SIZE,
   type RegistryLabelRow,
-  type RegistryLabelsPage,
 } from '../../hooks/useRegistryLabels'
 
 const columns: ColumnDef<RegistryLabelRow>[] = [
@@ -87,9 +89,6 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
   },
 ]
 
-const toLabels = (data: InfiniteData<RegistryLabelsPage> | undefined) =>
-  data?.pages.flatMap((page) => page.labels) ?? []
-
 export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   const {
     data,
@@ -100,21 +99,14 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
     fetchNextPage,
   } = useInfiniteQuery(getRegistryLabelsQueryOptions({ address }))
 
-  const labels = toLabels(data)
+  const labels = data?.pages.flatMap((page) => page.labels) ?? []
 
   const loader = useListLoader({
     initialCount: REGISTRY_LABELS_PAGE_SIZE,
     loaded: labels.length,
     total: data?.pages.at(-1)?.totalCount,
     hasMore: hasNextPage,
-    fetchMore: async () => {
-      const next = await fetchNextPage()
-      if (next.isError) throw next.error
-      return {
-        loaded: toLabels(next.data).length,
-        hasMore: next.hasNextPage,
-      }
-    },
+    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.labels.length),
     resetKey: address,
   })
 
