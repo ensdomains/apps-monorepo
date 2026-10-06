@@ -105,8 +105,9 @@ export const V1_SUBNAMES_PAGE_SIZE = 100
 
 type V1SubnamesPage = {
   readonly subnames: readonly Subname[]
-  /** The page as ensjs returned it, which is its cursor for the next one. */
-  readonly raw: GetSubnamesReturnType
+  /** The page's last row as ensjs returned it; ensjs pages from it. */
+  readonly cursor: GetSubnamesReturnType
+  readonly hasNextPage: boolean
 }
 
 export const getV1SubnamesPage = ResultFn(async function* ({
@@ -142,7 +143,8 @@ export const getV1SubnamesPage = ResultFn(async function* ({
         owner: wrappedOwner ?? owner,
       }),
     ),
-    raw: raw ?? [],
+    cursor: raw?.slice(-1) ?? [],
+    hasNextPage: raw?.length === V1_SUBNAMES_PAGE_SIZE,
   } satisfies V1SubnamesPage)
 })
 
@@ -168,7 +170,7 @@ export const getV1SubnamesQueryOptions = ({
       getV1SubnamesPage({ name, previousPage: pageParam }),
     initialPageParam: undefined as GetSubnamesReturnType | undefined,
     getNextPageParam: (last: V1SubnamesPage) =>
-      last.raw.length === V1_SUBNAMES_PAGE_SIZE ? last.raw : undefined,
+      last.hasNextPage ? last.cursor : undefined,
   })
 
 /**

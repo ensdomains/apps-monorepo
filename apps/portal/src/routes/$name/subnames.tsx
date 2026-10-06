@@ -166,6 +166,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     data: subnamePages,
     isLoading: subnamesLoading,
     error: subnamesError,
+    isFetchNextPageError,
     hasNextPage,
     fetchNextPage,
   } = useInfiniteQuery({
@@ -484,7 +485,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     return <LoadingMessage title="Loading subnames..." />
   }
 
-  if (subnamesError) {
+  if (subnamesError && !isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Failed to load subnames"

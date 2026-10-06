@@ -165,7 +165,7 @@ function buildColumns(
 export const SubnamesTable = ({
   subnames,
   loader,
-  totalCount = loader?.canShowMore ? undefined : subnames.length,
+  totalCount = loader ? loader.total : subnames.length,
   name,
   canCreateSubname,
   onDeleteSubname,

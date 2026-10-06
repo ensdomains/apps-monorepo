@@ -133,7 +133,7 @@ describe('getV1SubnamesQueryOptions', () => {
     })
 
     expect(mockEnsjsGetSubnames.mock.calls[1]?.[1]).toMatchObject({
-      previousPage: first,
+      previousPage: [first[99]],
     })
     expect(data.pages.flatMap((page) => page.subnames)).toHaveLength(120)
   })
