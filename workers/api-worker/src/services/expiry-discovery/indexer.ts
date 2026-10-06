@@ -20,6 +20,7 @@ const BASE_RETRY_DELAY_MS = 300
 const MS_PER_SECOND = 1000
 
 export class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
+  cause: unknown
   status?: number
   attempt: number
 }> {}
@@ -255,6 +256,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
   })
   return yield* new IndexerRequestError({
     message: `Indexer query exhausted retries for stage ${ctx.stageId}`,
+    cause: undefined,
     attempt: MAX_RETRIES,
   })
 })

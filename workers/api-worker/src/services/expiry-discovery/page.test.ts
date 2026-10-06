@@ -230,7 +230,11 @@ describe('fetchStageNames', () => {
     },
     { label: 'fails on any other error', isStale: false },
   ])('$label', async ({ isStale }) => {
-    const failure = new IndexerRequestError({ message: 'rejected', attempt: 1 })
+    const failure = new IndexerRequestError({
+      message: 'rejected',
+      cause: new Error('rejected'),
+      attempt: 1,
+    })
     vi.mocked(isStaleCursorError).mockReturnValue(isStale)
     vi.mocked(fetchExpiringNamesPage)
       .mockReturnValueOnce(okAsync(page([named('a.eth', 110)], 'c1')))

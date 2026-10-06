@@ -213,7 +213,11 @@ describe('runExpiryDiscoveryCron', () => {
       ({ stage: current, cursor }) =>
         current.id === 'expiry-7d'
           ? errAsync(
-              new IndexerRequestError({ message: 'unavailable', attempt: 3 }),
+              new IndexerRequestError({
+                message: 'unavailable',
+                cause: new Error('bigname unavailable'),
+                attempt: 3,
+              }),
             )
           : okAsync(readOf([stageName('beta.eth', cursor + 50)], cursor)),
     )
