@@ -12,7 +12,7 @@ import {
   type NameForFetch,
   profileMapKey,
 } from './fetchV1Profiles.helpers'
-import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
 const PROFILE_MULTICALL_CHUNK = 700
 const PROFILE_MULTICALL_CONCURRENCY = 6
@@ -103,7 +103,10 @@ export const fetchV1Profiles = async (params: {
 
   const profileKeysResult = profileKeys
     ? null
-    : await getV1ProfileKeys([...byNode.keys()], { signal })
+    : await getV1ProfileKeys(
+        names.map(({ name }) => name),
+        { signal },
+      )
   signal?.throwIfAborted()
   const keyEntries =
     profileKeys ??

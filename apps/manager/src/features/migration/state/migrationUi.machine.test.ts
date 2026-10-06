@@ -29,6 +29,7 @@ vi.mock('@/features/migration/service/prepareGraceRenewalMigration', () => ({
   prepareGraceRenewalMigration: vi.fn(),
 }))
 
+import type { V1Domain } from '@ens-apps/migration'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import type {
@@ -46,7 +47,6 @@ import {
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
 import { prepareGraceRenewalMigration } from '@/features/migration/service/prepareGraceRenewalMigration'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import {
   FINAL_STAGE_FILL_MS,
   REUNION_HOLD_MS,

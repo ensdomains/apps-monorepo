@@ -19,6 +19,7 @@ import type {
   WrapperFuses,
   WrapperState,
 } from './common.types'
+import type { RecordGroups } from './records.types'
 
 /** `GET /v1/names`: an expiry window; `expires_after` is inclusive, `expires_before` exclusive. */
 export type ExpiryWindow =
@@ -90,11 +91,8 @@ export type NameRecord = Readonly<{
   namehash: Hex
   resolver?: ResolverRef
   subregistry?: RegistryRef
-  /** Decimal coin type -> scalar hex address; `{}` means known-empty. */
-  addresses?: Readonly<Record<string, Hex>>
-  /** Text key -> value; `{}` means known-empty. */
-  text_records?: Readonly<Record<string, string>>
-  content_hash?: Hex
+  /** Present when a current record inventory is available. */
+  records?: RecordGroups
   primary_name?: string
   primary_address?: Hex
   chain_id?: number

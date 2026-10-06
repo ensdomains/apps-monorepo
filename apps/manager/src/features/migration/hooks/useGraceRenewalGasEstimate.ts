@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { hashKey, useQuery } from '@tanstack/react-query'
@@ -10,7 +11,6 @@ import {
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
-import type { V1Domain } from '../service/v1SubgraphClient'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 

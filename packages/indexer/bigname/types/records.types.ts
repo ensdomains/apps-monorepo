@@ -72,3 +72,23 @@ export type NameRecords = Readonly<{
 
 /** `GET /v1/names/{name}/records`: response. */
 export type NameRecordsResponse = Envelope<NameRecords>
+
+/** `GET /v1/names/{name}`, detail lookup: resolver keys and values, grouped. */
+export type RecordGroups = Readonly<{
+  /** Observed canonical decimal coin types. */
+  seen_addresses: readonly string[]
+  /** Null means cleared; a seen key absent here has an unknown value. */
+  addresses: Readonly<Record<string, string | null>>
+  /** Observed text keys, including ones whose value is null or unknown. */
+  seen_texts: readonly string[]
+  texts: Readonly<Record<string, string | null>>
+  /** Observed decimal ABI content types; absent when they cannot be enumerated. */
+  seen_abis?: readonly string[]
+  abi_unsupported_reason?: string
+  abis: Readonly<Record<string, string | null>>
+  /** Singletons whose write was observed or whose key was verified. */
+  seen_singletons: readonly ('contenthash' | 'name')[]
+  /** Null when cleared or unset, absent when unknown. */
+  contenthash?: string | null
+  name?: string | null
+}>

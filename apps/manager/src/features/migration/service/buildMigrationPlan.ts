@@ -1,4 +1,5 @@
 import { requireChainId } from '@ens-apps/config'
+import type { V1Domain } from '@ens-apps/migration'
 import {
   buildHcaOwnerExecutionCall,
   computeResolverAddress,
@@ -74,11 +75,7 @@ import {
   checkMigrationHcaReadiness,
   getRequiredMigrationContracts,
 } from './migrationInvariants'
-import {
-  getV1ProfileKeys,
-  type V1Domain,
-  type V1ProfileKeys,
-} from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
 export type MigrationPlan = {
   readonly hcaAddress: Address
@@ -116,6 +113,7 @@ const fetchProfilesForNames = async (params: {
     names: namesToOwnedPermRes
       .filter((n) => n.v1ResolverAddress)
       .map((n) => ({
+        name: n.domain.name,
         nodeHex: namehash(n.domain.name) as Hex,
         v1ResolverAddress: n.v1ResolverAddress as Address,
       })),
@@ -295,6 +293,7 @@ const fetchLockedResolverProfiles = async (params: {
   try {
     return await fetchV1Profiles({
       names: params.candidates.map(({ name, v1Resolver }) => ({
+        name: name.domain.name,
         nodeHex: namehash(name.domain.name) as Hex,
         v1ResolverAddress: v1Resolver,
       })),
@@ -371,7 +370,7 @@ export const assertLockedResolverReplacementRecordSafety = async (
   if (candidates.length === 0) return
 
   const result = await getV1ProfileKeys(
-    candidates.map(({ name }) => name.domain.id),
+    candidates.map(({ name }) => name.domain.name),
     { signal },
   )
   signal?.throwIfAborted()

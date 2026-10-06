@@ -19,10 +19,10 @@ import {
   persistSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
 import { assertRequiredMigrationContractCode } from './migrationInvariants'
-import { getV1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys } from './v1ProfileKeys'
 
-vi.mock('./v1SubgraphClient', async (importActual) => ({
-  ...(await importActual<typeof import('./v1SubgraphClient')>()),
+vi.mock('./v1ProfileKeys', async (importActual) => ({
+  ...(await importActual<typeof import('./v1ProfileKeys')>()),
   getV1ProfileKeys: vi.fn(),
 }))
 vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
@@ -153,7 +153,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           id: name.domain.id,
           texts: [],
           coinTypes: [],
-          contentHash: null,
+          hasContentHash: false,
           abiContentTypes: [],
         },
       ]) as never,
@@ -175,7 +175,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           id: name.domain.id,
           texts: ['email'],
           coinTypes: ['60'],
-          contentHash: null,
+          hasContentHash: false,
           abiContentTypes: [],
         },
       ]) as never,
@@ -206,7 +206,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           id: name.domain.id,
           texts: [],
           coinTypes: [],
-          contentHash: '0xe301',
+          hasContentHash: true,
           abiContentTypes: [1n],
         },
       ]) as never,

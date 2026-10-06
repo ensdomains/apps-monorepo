@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
@@ -17,7 +18,6 @@ import {
   managerRestorationCandidates,
   withManagerRestorationOptIn,
 } from './classifyNames'
-import type { V1Domain } from './v1SubgraphClient'
 
 const classify = (o: Parameters<typeof makeDomain>[0] = {}) =>
   classifyName(makeDomain(o), OWNER, sepolia.id)
