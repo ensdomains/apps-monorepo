@@ -81,10 +81,10 @@ vi.mock('@/features/profile/service/profileOwner', () => ({
   }),
 }))
 
-vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
-  getDomainsQuery: () => ({
-    queryKey: ['test-domains'],
-    queryFn: async () => ({ domains: [] }),
+vi.mock('@/features/shared/service/nameDetail', () => ({
+  nameDetailQuery: () => ({
+    queryKey: ['test-name-detail'],
+    queryFn: async () => null,
   }),
 }))
 
