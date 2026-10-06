@@ -98,17 +98,56 @@ describe('launch PostHog provider', () => {
     expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
   })
   it('keeps failure diagnostics local without PostHog telemetry', () => {
-    render(
+    vi.stubEnv('DEV', true)
+    const groupCollapsed = vi
+      .spyOn(console, 'groupCollapsed')
+      .mockImplementation(() => undefined)
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const groupEnd = vi
+      .spyOn(console, 'groupEnd')
+      .mockImplementation(() => undefined)
+    const unsubscribeFailed = vi.fn()
+    const unsubscribeLive = vi.fn()
+    vi.mocked(transactionManager.onFailedRunTelemetry).mockReturnValueOnce(
+      unsubscribeFailed,
+    )
+    vi.mocked(transactionManager.onRunTelemetryEvent).mockReturnValueOnce(
+      unsubscribeLive,
+    )
+
+    const { unmount } = render(
       <PHProvider>
         <div>child</div>
       </PHProvider>,
     )
     const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
       .calls[0]?.[0]
-    listener?.({
+    expect(transactionManager.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
+    expect(transactionManager.onRunTelemetryEvent).toHaveBeenCalledTimes(1)
+    expect(listener).toBeTypeOf('function')
+    if (!listener) throw new Error('Missing failure telemetry listener')
+    listener({
       run: { txId: 'tx', runId: 'run', status: 'error' },
       summary: { failureStage: 'submission' },
     } as Parameters<NonNullable<typeof listener>>[0])
+    expect(groupCollapsed).toHaveBeenCalledWith(
+      '[TM-RUN] failed tx status=error stage=submission',
+    )
+    expect(info).toHaveBeenCalledWith(
+      'summary',
+      expect.objectContaining({
+        runId: 'run',
+        txId: 'tx',
+        status: 'error',
+        failureStage: 'submission',
+      }),
+    )
+    expect(groupEnd).toHaveBeenCalledTimes(1)
+    expect(unsubscribeFailed).not.toHaveBeenCalled()
+    expect(unsubscribeLive).not.toHaveBeenCalled()
+    unmount()
+    expect(unsubscribeFailed).toHaveBeenCalledTimes(1)
+    expect(unsubscribeLive).toHaveBeenCalledTimes(1)
     expect(posthog.capture).not.toHaveBeenCalled()
   })
 })
