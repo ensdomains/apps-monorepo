@@ -214,6 +214,13 @@ export type RegistrationContext = {
    * to keep the submission error (a declined prompt, say) as the message.
    */
   revealSubmitFailed?: boolean
+  /**
+   * The reveal never reached the chain: the orchestrator rejected the intent,
+   * either at submission or while we waited for its bundle. The registry check
+   * that follows can then only say "nothing is registered", which names no
+   * cause, so the rejection is kept as the error instead.
+   */
+  revealNeverLanded?: boolean
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
     | 'computingHcaBudget'
@@ -780,6 +787,7 @@ export const registrationMachine = setup({
               retryTarget: () => undefined,
               nameUnavailable: () => undefined,
               revealSubmitFailed: () => undefined,
+              revealNeverLanded: () => undefined,
             }),
           ],
         },
@@ -1579,6 +1587,9 @@ export const registrationMachine = setup({
           target: 'verifyingRegistration',
           actions: assign({
             error: ({ event }) => event.error as Error,
+            // An intent the orchestrator rejected never reached the chain, so
+            // "nothing is registered" explains nothing: the rejection does.
+            revealNeverLanded: () => true,
           }),
         },
       },
@@ -1830,6 +1841,7 @@ export const registrationMachine = setup({
               error: () => undefined,
               nameUnavailable: () => undefined,
               revealSubmitFailed: () => undefined,
+              revealNeverLanded: () => undefined,
             }),
           },
           {
@@ -1847,6 +1859,7 @@ export const registrationMachine = setup({
                 nameUnavailable: () => true,
                 retryTarget: () => undefined,
                 revealSubmitFailed: () => undefined,
+                revealNeverLanded: () => undefined,
               }),
               ({ context }) => {
                 console.error(
@@ -1861,12 +1874,15 @@ export const registrationMachine = setup({
             actions: [
               assign({
                 // After a polling failure, prefer why the check refused over the
-                // polling error — only the former means the name is now taken.
-                // A reveal rejected at submission never reached the chain, so
-                // the check's reason (nothing registered yet) says nothing and
-                // the submission error is kept.
+                // polling error — only the former means the name went somewhere
+                // we did not expect. When the reveal never landed (rejected at
+                // submission, or rejected by the orchestrator while we waited)
+                // the check can only report "nothing is registered", which
+                // names no cause: the submission error is what the user needs.
                 error: ({ context, event }) =>
-                  event.output.reason && !context.revealSubmitFailed
+                  event.output.reason &&
+                  !context.revealSubmitFailed &&
+                  !context.revealNeverLanded
                     ? new Error(
                         `This registration could not be confirmed as yours: ${event.output.reason}`,
                         { cause: context.error },
@@ -1877,6 +1893,7 @@ export const registrationMachine = setup({
                     ? ('submittingRhinestoneBundle' as const)
                     : ('registeringDomain' as const),
                 revealSubmitFailed: () => undefined,
+                revealNeverLanded: () => undefined,
               }),
               ({ event }) => {
                 console.error(
@@ -1896,6 +1913,7 @@ export const registrationMachine = setup({
                   ? ('submittingRhinestoneBundle' as const)
                   : ('registeringDomain' as const),
               revealSubmitFailed: () => undefined,
+              revealNeverLanded: () => undefined,
             }),
             ({ event }) => {
               console.error(

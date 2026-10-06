@@ -1180,6 +1180,71 @@ describe('registrationMachine — intent id capture', () => {
     actor.stop()
   })
 
+  // QA hit this: the orchestrator rejected the reveal, and the screen reported
+  // "label is not REGISTERED (status 0)" — true, but it names no cause, and it
+  // reads as if the name were the problem rather than the rejected intent.
+  it('keeps the orchestrator reason when the reveal never landed', async () => {
+    const rejected = new Error(
+      'Failed to submit transaction: Intent failed (errorType=Unknown)',
+    )
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: 1_800_000_000_000,
+          })) as never,
+          waitAfterCommitment: fromPromise(async () => undefined) as never,
+          submitRevealBatch: fromPromise(
+            async () => 'tx-reg-register',
+          ) as never,
+          pollTransactionStatus: fromPromise(async () => {
+            throw rejected
+          }) as never,
+          verifyRegistration: fromPromise(async () => ({
+            verified: false,
+            registeredToOther: false,
+            reason: 'label is not REGISTERED (status 0)',
+          })) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'malak.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        commitmentTxId: 'tx-reg-commit',
+        registerReadyTimestamp: 1_800_000_000_000,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    const { context } = actor.getSnapshot()
+    expect(context.error).toBe(rejected)
+    expect(context.error?.message).not.toContain('not REGISTERED')
+    // Still retryable: the name is free, the intent just has to go again.
+    expect(context.nameUnavailable).toBeUndefined()
+    actor.stop()
+  })
+
   it('stores the status fetcher on a live run, not just on resume', () => {
     // A live run whose reveal intent dies should fail verification in one
     // orchestrator read, same as a resumed one — not sit out the blind poll.

@@ -2,6 +2,7 @@ import { logger } from '@ens-apps/utils/logger'
 import type { Address, Hash, PublicClient } from 'viem'
 import { type ActorRefFrom, createActor } from 'xstate'
 import { randomNonce } from '../helpers/flow-identity'
+import { toPersistableRequest } from '../helpers/persistable-request'
 import {
   archiveTransaction,
   clearAllTransactions,
@@ -430,7 +431,7 @@ class TransactionManager {
           // Prefer the machine-prepared request (ctx.request); the closure
           // `request` is only set for pre-prepared requests, not intents the
           // machine prepares internally (ens-renewal/eth-transfer).
-          request: ctx.request ?? request,
+          request: toPersistableRequest(ctx.request ?? request),
           error: ctx.error?.message,
         },
         timestamp: Date.now(),
