@@ -2,10 +2,17 @@ import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAvailable } from '@ensdomains/ensjs/public'
 import { getExpiry, getOwner } from '@ensdomains/ensjs/public/v2'
 import {
+  permissionedRegistryGetResolverSnippet,
+  proxyDeployedEventSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2'
+import {
   ethRegistrarGetRegisterPriceSnippet,
   ethRegistrarGetRenewPriceSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
+  injectHeadlessWeb3Provider,
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
@@ -13,16 +20,22 @@ import type { Locator, Page } from '@playwright/test'
 import {
   type Address,
   decodeFunctionData,
+  encodeAbiParameters,
+  encodeFunctionData,
   erc20Abi,
   formatUnits,
   type Hash,
   keccak256,
   maxUint256,
   parseAbi,
+  parseEther,
+  parseEventLogs,
+  stringToHex,
   toFunctionSelector,
   toHex,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
@@ -1248,7 +1261,12 @@ test.describe('Portal Extend — wallet on an undeclared chain (WEB-281)', () =>
 // fork, with the headless wallet failing one real `eth_sendTransaction`. The
 // oracles are the transaction ids' own state lines, the explorer hash on each
 // "Done" badge checked against the mined transaction, and a scan of every
-// transaction the wallet mined: exactly one deploy and one commitment.
+// transaction the wallet mined: exactly one commitment.
+//
+// Since WEB-1572 (PR #1310) a wallet deploys its resolver once and reuses it,
+// so whether a run has a "Deploy resolver" step depends on the fork's history.
+// These tests deploy `user`'s resolver up front (`ensureWalletResolver`), so
+// every run starts at the commitment and never deploys.
 //
 // Harness note: the headless wallet's `reject` crosses into the page through
 // `exposeFunction`, which keeps only the message, so every rejection reaches
@@ -1283,7 +1301,8 @@ async function setRegistrarAllowance(owner: Address, amount: bigint) {
 
 /** Every transaction `owner` mined after `fromBlock`, by what it did. */
 async function minedRegistrationSends(owner: Address, fromBlock: bigint) {
-  const latest = await publicClient.getBlockNumber()
+  // Uncached: a send mined moments ago must be in range.
+  const latest = await publicClient.getBlockNumber({ cacheTime: 0 })
   const sends = { deploy: [] as Hash[], commit: [] as Hash[], other: 0 }
   for (let n = fromBlock + 1n; n <= latest; n++) {
     const block = await publicClient.getBlock({
@@ -1366,9 +1385,9 @@ async function showOverview(dialog: Locator) {
 }
 
 /**
- * Opens the registration modal for `name` with USDC, presses Start and
- * authorizes the resolver deploy. Then fails the commitment's first send
- * transiently and authorizes the automatic resubmission, which lands.
+ * Opens the registration modal for `name` with USDC and presses Start. The
+ * wallet's resolver already exists, so the commitment is the first send: it
+ * fails transiently, and the automatic resubmission is authorized and lands.
  */
 async function startWithResubmittedCommit(
   page: Page,
@@ -1385,15 +1404,10 @@ async function startWithResubmittedCommit(
   await paymentSection.getByRole('button', { name: /^Register$/i }).click()
 
   const dialog = page.locator('[data-slot="dialog-content"]')
+  await expect(overviewRow(dialog, 'Submit commitment')).toBeVisible()
+  await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
   await dialog.getByRole('button', { name: /^Start$/i }).click()
   await dialog.getByRole('button', { name: /open wallet/i }).click()
-  await waitForWalletPrompt(wallet)
-  await wallet.authorize(Web3RequestKind.SendTransaction)
-  await expect
-    .poll(() => states.includes('tx-reg-deploy-resolver:success'), {
-      timeout: 60_000,
-    })
-    .toBe(true)
 
   // The commitment's first send fails; the machine resubmits on its own.
   await failSendTransiently(wallet)
@@ -1452,6 +1466,7 @@ test.describe('Portal registration — a step that landed on a resubmission stay
   // fails when the run has one), so put it back as found.
   let allowanceBefore: bigint
   test.beforeEach(async ({ accounts }) => {
+    await ensureWalletResolver(accounts.getAddress('user'))
     allowanceBefore = await publicClient.readContract({
       address: MOCK_USDC,
       abi: erc20Abi,
@@ -1492,7 +1507,6 @@ test.describe('Portal registration — a step that landed on a resubmission stay
     await expect(overviewRow(dialog, 'Approve payment')).toContainText(
       'In Progress',
     )
-    await expectStepDone(dialog, 'Deploy resolver', owner)
     await expectStepDone(dialog, 'Submit commitment', owner)
     // One resubmission, one landing: the retry did not send the commitment again.
     expect(states.filter((s) => s.startsWith('tx-reg-commit:'))).toEqual([
@@ -1530,11 +1544,11 @@ test.describe('Portal registration — a step that landed on a resubmission stay
       })
       .toBe(owner)
 
-    // The chain agrees: one deploy and one commitment — the one the modal
-    // showed as Done — for the whole run.
+    // The chain agrees: one commitment — the one the modal showed as Done —
+    // and no deploy for the whole run.
     const sends = await minedRegistrationSends(owner, fromBlock)
     expect(sends.commit).toEqual([commitHash])
-    expect(sends.deploy).toHaveLength(1)
+    expect(sends.deploy).toEqual([])
   })
 
   test('closing the modal during the commitment wait keeps the steps that landed', async ({
@@ -1563,12 +1577,11 @@ test.describe('Portal registration — a step that landed on a resubmission stay
     await viewProgress.click()
     await showOverview(dialog)
 
-    // The bug cleared every transaction on close: both landed steps read
-    // "Not Started" and the primary action offered to Start the deploy again.
+    // The bug cleared every transaction on close: the landed commitment read
+    // "Not Started" and the primary action offered to Start the run again.
     await expect(overviewRow(dialog, 'Register name')).toContainText(
       'Not Started',
     ) // loaded: the step still ahead is listed
-    const deployHash = await expectStepDone(dialog, 'Deploy resolver', owner)
     const commitHash = await expectStepDone(dialog, 'Submit commitment', owner)
     await expect(
       dialog.getByRole('button', { name: 'Start', exact: true }),
@@ -1584,7 +1597,7 @@ test.describe('Portal registration — a step that landed on a resubmission stay
       })
       .toBe(owner)
     const sends = await minedRegistrationSends(owner, fromBlock)
-    expect(sends.deploy).toEqual([deployHash])
+    expect(sends.deploy).toEqual([])
     expect(sends.commit).toEqual([commitHash])
   })
   // KNOWN DEFECT E2E-018 (docs/e2e-defects.md), found verifying WEB-1229 but
@@ -1624,12 +1637,431 @@ test.describe('Portal registration — a step that landed on a resubmission stay
       'Not Started',
     ) // loaded
 
-    // The defect: both read "Not Started", and Start is offered.
-    await expectStepDone(dialog, 'Deploy resolver', owner)
+    // The defect: the commitment reads "Not Started", and Start is offered.
     await expectStepDone(dialog, 'Submit commitment', owner)
     await expect(
       dialog.getByRole('button', { name: 'Start', exact: true }),
     ).toHaveCount(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-1572 (PR #1310) — one resolver per wallet, deployed once.
+//
+// The bug: every portal registration deployed a brand-new PermissionedResolver
+// proxy for the name, under a random salt. A wallet paid a deploy transaction
+// on every registration and ended up with one resolver per name.
+//
+// The fix: the resolver salt is fixed per owner (`computeResolverSalt`, the
+// same formula manager uses), so a wallet's resolver lives at one CREATE2
+// address. The registration machine's new `checkingResolver` state reads the
+// code there and skips straight to the commitment when it exists, and the
+// portal only lists "Deploy resolver" when it doesn't. When there is no deploy
+// step, "Submit commitment" starts the run.
+//
+// The PR's unit tests check the address formula against manager's, and the
+// step list with the code read mocked. These register on the fork with a fresh
+// wallet each, so "first registration" is a real state: the oracles are the
+// `ProxyDeployed` event of the one deploy, every transaction the wallet mined
+// (by target), and the resolver the .eth registry records for each name.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+const PERMISSIONED_RESOLVER_IMPL =
+  ensjsSepolia.ensPermissionedResolverImpl.address
+const ANVIL_FUNDER = privateKeyToAccount(
+  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+)
+const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
+
+/**
+ * Manager's per-owner resolver salt (`computeResolverSalt` in
+ * `@ens-apps/smart-account`), written out here because that package is not an
+ * e2e dependency. A resolver deployed with it is the one the PR says the portal
+ * shares with manager; the reuse test proves the portal finds it.
+ */
+const walletResolverSalt = (owner: Address) =>
+  BigInt(
+    keccak256(
+      encodeAbiParameters(
+        [{ type: 'bytes32' }, { type: 'address' }, { type: 'uint256' }],
+        [keccak256(stringToHex('OwnedResolver')), owner, 0n],
+      ),
+    ),
+  )
+
+/** The `PermissionedResolver.initialize` call the app deploys with. */
+const walletResolverInit = (owner: Address) =>
+  encodeFunctionData({
+    abi: permissionedResolverInitializeSnippet,
+    functionName: 'initialize',
+    args: [
+      [
+        {
+          account: owner,
+          roleBitmap: BigInt(`0x${'1'.repeat(64)}`),
+        },
+      ],
+      [],
+    ],
+  })
+
+/**
+ * Deploys `owner`'s resolver at its fixed address unless it is already there.
+ * `deployProxy` only simulates while the address is free, so a revert after
+ * the deploy (or instead of it) means the resolver exists.
+ */
+async function ensureWalletResolver(owner: Address) {
+  const call = {
+    account: owner,
+    address: VERIFIABLE_FACTORY,
+    abi: verifiableFactoryDeployProxySnippet,
+    functionName: 'deployProxy',
+    args: [
+      PERMISSIONED_RESOLVER_IMPL,
+      walletResolverSalt(owner),
+      walletResolverInit(owner),
+    ],
+  } as const
+  const isFree = () =>
+    publicClient.simulateContract(call).then(
+      () => true,
+      () => false,
+    )
+  if (await isFree()) {
+    await testClient.impersonateAccount({ address: owner })
+    try {
+      const hash = await walletClient.writeContract({
+        ...call,
+        chain: undefined,
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+    } finally {
+      await testClient.stopImpersonatingAccount({ address: owner })
+    }
+  }
+  expect(await isFree(), `${owner}'s resolver must be deployed`).toBe(false)
+}
+
+/**
+ * A wallet nothing has used: gas, 10 000 USDC, and a headless provider holding
+ * only its key. Every registration it makes is its own, so "first" is real.
+ */
+async function freshWallet(page: Page) {
+  const privateKey = generatePrivateKey()
+  const account = privateKeyToAccount(privateKey)
+  await testClient.setBalance({
+    address: account.address,
+    value: parseEther('100'),
+  })
+  const hash = await walletClient.writeContract({
+    account: ANVIL_FUNDER,
+    chain: undefined,
+    address: MOCK_USDC,
+    abi: parseAbi(['function mint(address to, uint256 amount)']),
+    functionName: 'mint',
+    args: [account.address, 10_000_000_000n],
+  })
+  await publicClient.waitForTransactionReceipt({ hash })
+  const wallet = await injectHeadlessWeb3Provider({
+    page,
+    privateKeys: [privateKey],
+    chains: [{ ...sepolia, rpcUrls: { default: { http: [ANVIL_RPC_URL] } } }],
+  })
+  return { account, wallet }
+}
+
+/** The proxy a mined deploy created, from its `ProxyDeployed` event. */
+async function deployedProxy(hash: Hash): Promise<Address> {
+  const receipt = await publicClient.getTransactionReceipt({ hash })
+  const [event] = parseEventLogs({
+    abi: proxyDeployedEventSnippet,
+    eventName: 'ProxyDeployed',
+    logs: receipt.logs,
+  })
+  expect(event, `deploy ${hash} must emit ProxyDeployed`).toBeTruthy()
+  return event.args.proxyAddress
+}
+
+/** The resolver the .eth registry holds for `name`. */
+const registryResolver = (name: string) =>
+  publicClient.readContract({
+    address: ETH_REGISTRY,
+    abi: permissionedRegistryGetResolverSnippet,
+    functionName: 'getResolver',
+    args: [name.replace(/\.eth$/, '')],
+  })
+
+/**
+ * Opens the checkout modal for `name` with USDC and waits for its step list —
+ * "Submit commitment" is listed on every new run, so it is the loaded sign.
+ */
+async function openRegistrationOverview(page: Page) {
+  const paymentSection = page.locator(
+    'section:has-text("Select payment method")',
+  )
+  await expect(paymentSection).toBeVisible({ timeout: 30_000 })
+  await paymentSection.getByRole('button', { name: 'USDC' }).first().click()
+  await paymentSection.getByRole('button', { name: /^Register$/i }).click()
+  const dialog = page.locator('[data-slot="dialog-content"]')
+  await expect(dialog.getByText('Transaction overview')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect(overviewRow(dialog, 'Submit commitment')).toBeVisible()
+  await expect(overviewRow(dialog, 'Register name')).toBeVisible()
+  return dialog
+}
+
+/** Presses Start and authorizes every step until the register lands. */
+async function startAndFinish(
+  dialog: Locator,
+  wallet: Web3ProviderBackend,
+  states: string[],
+) {
+  await dialog.getByRole('button', { name: 'Start', exact: true }).click()
+  await finishRegistration(dialog, wallet, states)
+}
+
+test.describe('Portal registration — one resolver per wallet (WEB-1572)', () => {
+  test('a wallet deploys its resolver on its first registration and reuses it on the next', async ({
+    page,
+  }) => {
+    test.setTimeout(420_000)
+    const { account, wallet } = await freshWallet(page)
+    const owner = account.address
+    const states = recordRegistrationTxStates(page)
+    const stamp = Date.now().toString(36)
+    const first = `e2e-web1572-a-${stamp}.eth`
+    const second = `e2e-web1572-b-${stamp}.eth`
+
+    await page.goto(`${PORTAL_APP_URL}/register?name=${first}`)
+    await connectWithHeadlessWallet(page, wallet)
+
+    // ── First registration: the deploy is listed and mined, once ─────────
+    // Positive control for the second run's missing step.
+    const fromFirst = await publicClient.getBlockNumber({ cacheTime: 0 })
+    let dialog = await openRegistrationOverview(page)
+    await expect(overviewRow(dialog, 'Deploy resolver')).toBeVisible()
+    await startAndFinish(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name: first }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    const firstSends = await minedRegistrationSends(owner, fromFirst)
+    expect(firstSends.deploy).toHaveLength(1)
+    const resolver = await deployedProxy(firstSends.deploy[0])
+    expect(await registryResolver(first)).toBe(resolver)
+
+    // ── Second registration, on a fresh load ─────────────────────────────
+    // Not reached in-app: after a registration, the next name's modal first
+    // opens on the finished run's steps (all "Done", no Start), on the pre-fix
+    // build too. KNOWN DEFECT E2E-019 (docs/e2e-defects.md).
+    await expect(page.getByText('Congratulations!')).toBeVisible({
+      timeout: 60_000,
+    })
+    await page.goto(`${PORTAL_APP_URL}/register?name=${second}`)
+
+    states.length = 0
+    const fromSecond = await publicClient.getBlockNumber({ cacheTime: 0 })
+    dialog = await openRegistrationOverview(page)
+    // The bug: "Deploy resolver" was listed (and mined) on every run.
+    await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
+    await startAndFinish(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name: second }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    const secondSends = await minedRegistrationSends(owner, fromSecond)
+    expect(secondSends.deploy, 'the second run must not deploy').toEqual([])
+    expect(secondSends.commit).toHaveLength(1)
+    expect(await registryResolver(second)).toBe(resolver)
+    expect(
+      states.filter((s) => s.startsWith('tx-reg-deploy-resolver:')),
+    ).toEqual([])
+  })
+
+  test('a resolver already deployed at the wallet’s address (as manager deploys it) is reused', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
+    test.setTimeout(300_000)
+    const { account, wallet } = await freshWallet(page)
+    const owner = account.address
+
+    // Deployed by the wallet itself with manager's salt, outside the portal.
+    const seedHash = await walletClient.writeContract({
+      account,
+      chain: undefined,
+      address: VERIFIABLE_FACTORY,
+      abi: verifiableFactoryDeployProxySnippet,
+      functionName: 'deployProxy',
+      args: [
+        PERMISSIONED_RESOLVER_IMPL,
+        walletResolverSalt(owner),
+        walletResolverInit(owner),
+      ],
+    })
+    await publicClient.waitForTransactionReceipt({ hash: seedHash })
+    const resolver = await deployedProxy(seedHash)
+
+    const states = recordRegistrationTxStates(page)
+    const name = `e2e-web1572-seeded-${Date.now().toString(36)}.eth`
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    await connectWithHeadlessWallet(page, wallet)
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    const dialog = await openRegistrationOverview(page)
+    await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
+
+    // With no deploy step, Start must open the commitment itself.
+    await startAndFinish(dialog, wallet, states)
+    expect(states[0], 'the run’s first transaction is the commitment').toMatch(
+      /^tx-reg-commit:/,
+    )
+    expect(
+      states.filter((s) => s.startsWith('tx-reg-deploy-resolver:')),
+    ).toEqual([])
+    await expect
+      .poll(() => getOwner(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    const sends = await minedRegistrationSends(owner, fromBlock)
+    expect(
+      sends.deploy,
+      'the portal must not deploy a second resolver',
+    ).toEqual([])
+    expect(await registryResolver(name)).toBe(resolver)
+  })
+
+  // Guard, green on the pre-fix build too: a run reloaded at the commit prompt
+  // resumes at the commitment, which never re-deployed.
+  test('a run abandoned after its deploy landed reuses that resolver when restarted', async ({
+    page,
+  }) => {
+    test.setTimeout(360_000)
+    const { account, wallet } = await freshWallet(page)
+    const owner = account.address
+    const states = recordRegistrationTxStates(page)
+    const name = `e2e-web1572-restart-${Date.now().toString(36)}.eth`
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    await connectWithHeadlessWallet(page, wallet)
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    // Deploy lands; the page is reloaded while the commit is still waiting
+    // for the wallet, so nothing of the run but the resolver is on chain.
+    let dialog = await openRegistrationOverview(page)
+    await expect(overviewRow(dialog, 'Deploy resolver')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Start', exact: true }).click()
+    await dialog.getByRole('button', { name: /open wallet/i }).click()
+    await waitForWalletPrompt(wallet)
+    await wallet.authorize(Web3RequestKind.SendTransaction)
+    await expect
+      .poll(() => states.includes('tx-reg-deploy-resolver:success'), {
+        timeout: 60_000,
+      })
+      .toBe(true)
+    const deploys = (await minedRegistrationSends(owner, fromBlock)).deploy
+    expect(deploys).toHaveLength(1)
+    const resolver = await deployedProxy(deploys[0])
+    expect((await minedRegistrationSends(owner, fromBlock)).commit).toEqual([])
+
+    await page.reload()
+    // The commit prompt from before the reload is still queued in the
+    // headless wallet; answering it would send a stale commitment.
+    while (pendingSends(wallet) > 0) {
+      await wallet.reject(Web3RequestKind.SendTransaction)
+    }
+    states.length = 0
+
+    // The page reopens the unfinished run's modal on its own. The restarted
+    // run finds the resolver and goes straight to the commit.
+    dialog = page.locator('[data-slot="dialog-content"]')
+    await expect(dialog.getByText('Transaction overview')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(overviewRow(dialog, 'Submit commitment')).toContainText(
+      'Not Started',
+    )
+    await expect(overviewRow(dialog, 'Register name')).toBeVisible()
+    await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
+    await startAndFinish(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    const sends = await minedRegistrationSends(owner, fromBlock)
+    expect(sends.deploy, 'one deploy for the whole registration').toEqual(
+      deploys,
+    )
+    expect(sends.commit).toHaveLength(1)
+    expect(await registryResolver(name)).toBe(resolver)
+  })
+
+  test('a deploy that lands after its run was lost is reused, not sent again', async ({
+    page,
+  }) => {
+    test.setTimeout(360_000)
+    const { account, wallet } = await freshWallet(page)
+    const owner = account.address
+    const states = recordRegistrationTxStates(page)
+    const name = `e2e-web1572-lost-${Date.now().toString(36)}.eth`
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    await connectWithHeadlessWallet(page, wallet)
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    // The deploy is sent but held in the mempool, and the page is reloaded
+    // before it mines: the run that sent it never learns it landed.
+    let dialog = await openRegistrationOverview(page)
+    await expect(overviewRow(dialog, 'Deploy resolver')).toBeVisible()
+    await testClient.setAutomine(false)
+    try {
+      await dialog.getByRole('button', { name: 'Start', exact: true }).click()
+      await dialog.getByRole('button', { name: /open wallet/i }).click()
+      await waitForWalletPrompt(wallet)
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      await expect
+        .poll(() => states.includes('tx-reg-deploy-resolver:pending'), {
+          timeout: 30_000,
+        })
+        .toBe(true)
+      await page.reload()
+      await testClient.mine({ blocks: 1 })
+    } finally {
+      await testClient.setAutomine(true)
+    }
+    const deploys = (await minedRegistrationSends(owner, fromBlock)).deploy
+    expect(deploys, 'the held deploy must have landed').toHaveLength(1)
+    const resolver = await deployedProxy(deploys[0])
+    states.length = 0
+
+    // Whatever the reloaded page offers — the reopened run or a new checkout —
+    // it must not deploy again.
+    dialog = page.locator('[data-slot="dialog-content"]')
+    if (!(await dialog.getByText('Transaction overview').isVisible())) {
+      dialog = await openRegistrationOverview(page)
+    }
+    await expect(overviewRow(dialog, 'Submit commitment')).toBeVisible()
+    // The bug: "Deploy resolver" again, under a new salt.
+    await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
+    await startAndFinish(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    const sends = await minedRegistrationSends(owner, fromBlock)
+    expect(sends.deploy, 'one deploy for the whole registration').toEqual(
+      deploys,
+    )
+    expect(await registryResolver(name)).toBe(resolver)
   })
 })
 
