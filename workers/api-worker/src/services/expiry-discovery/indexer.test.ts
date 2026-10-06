@@ -132,18 +132,21 @@ describe('fetchExpiringNamesPage', () => {
           name: 'v2.eth',
           expiryDate: 1_700_000_000,
           protocol: 'v2',
+          isReleased: false,
           owner: '0xabc',
         },
         {
           name: 'v1.eth',
           expiryDate: 1_700_000_001,
           protocol: 'v1',
+          isReleased: false,
           owner: '0xdef',
         },
         {
           name: 'v0.eth',
           expiryDate: 1_700_000_002,
           protocol: 'v1',
+          isReleased: false,
           owner: undefined,
         },
       ],
@@ -170,7 +173,9 @@ describe('fetchExpiringNamesPage', () => {
 
     const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
 
-    expect(page.names[0]?.owner).toBe('0xdef')
+    expect(page.names[0]).toEqual(
+      expect.objectContaining({ isReleased: true, owner: '0xdef' }),
+    )
   })
 
   it('returns the next cursor only while bigname has more', async () => {

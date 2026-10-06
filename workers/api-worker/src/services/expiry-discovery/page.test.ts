@@ -36,7 +36,8 @@ const named = (
   name: string,
   expiryDate: number,
   protocol: ExpiringName['protocol'] = 'v2',
-): ExpiringName => ({ name, expiryDate, protocol })
+  isReleased = false,
+): ExpiringName => ({ name, expiryDate, protocol, isReleased })
 
 const page = (
   names: readonly ExpiringName[],
@@ -258,5 +259,59 @@ describe('fetchStageNames', () => {
       'a.eth',
       'b.eth',
     ])
+  })
+
+  it.each([
+    { id: 'premium-start', kept: ['live.eth', 'released.eth'] },
+    { id: 'grace-1d', kept: ['live.eth'] },
+  ] as const)('keeps released names only where they belong: $id', async ({
+    id,
+    kept,
+  }) => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
+      okAsync(
+        page([
+          named('live.eth', 10_000_050),
+          named('released.eth', 10_000_060, 'v2', true),
+        ]),
+      ),
+    )
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage(id),
+      cursor: 10_000_000,
+      upperBound: 10_000_100,
+    })
+
+    expect([
+      ...new Set(result._unsafeUnwrap().domains.map(({ name }) => name)),
+    ]).toEqual(kept)
+  })
+
+  it('stops at the last row read even when every row on the page was dropped', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_SOURCE; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(
+          page(
+            Array.from({ length: PAGE_SIZE }, (_, index) =>
+              named(`r${read}-${index}.eth`, 110 + read, 'v2', true),
+            ),
+            `c${read + 1}`,
+          ),
+        ),
+      )
+    }
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
+    })
+
+    const read = result._unsafeUnwrap()
+    expect(read.domains).toEqual([])
+    expect(read.cursorEnd).toBe(110 + MAX_PAGES_PER_SOURCE - 2)
   })
 })

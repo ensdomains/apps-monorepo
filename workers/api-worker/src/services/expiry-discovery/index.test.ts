@@ -62,6 +62,7 @@ const stageName = (
   name,
   expiryDate: position,
   protocol: 'v2',
+  isReleased: false,
   position,
   ...extra,
 })

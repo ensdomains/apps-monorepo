@@ -13,6 +13,8 @@ export type ExpiryStageConfig = {
   readonly includeFavorites: boolean
   /** Whether the stage is timed from the registrar expiry or the grace end. */
   readonly anchor: 'expiry' | 'grace-end'
+  /** Whether released names belong here, notified at their last holder. */
+  readonly includesReleased: boolean
 }
 
 /**
@@ -32,42 +34,49 @@ const STAGE_DEFINITIONS: readonly ExpiryStageConfig[] = [
     offsetDays: 30,
     includeFavorites: false,
     anchor: 'expiry',
+    includesReleased: false,
   },
   {
     id: 'expiry-7d',
     offsetDays: 7,
     includeFavorites: true,
     anchor: 'expiry',
+    includesReleased: false,
   },
   {
     id: 'expiry-1d',
     offsetDays: 1,
     includeFavorites: true,
     anchor: 'expiry',
+    includesReleased: false,
   },
   {
     id: 'grace-start',
     offsetDays: 0,
     includeFavorites: true,
     anchor: 'expiry',
+    includesReleased: false,
   },
   {
     id: 'grace-7d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 7),
     includeFavorites: true,
     anchor: 'grace-end',
+    includesReleased: false,
   },
   {
     id: 'grace-1d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 1),
     includeFavorites: true,
     anchor: 'grace-end',
+    includesReleased: false,
   },
   {
     id: 'premium-start',
     offsetDays: -V2_GRACE_PERIOD_DAYS,
     includeFavorites: true,
     anchor: 'grace-end',
+    includesReleased: true,
   },
 ]
 

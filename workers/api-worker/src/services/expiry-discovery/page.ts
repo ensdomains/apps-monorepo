@@ -60,6 +60,8 @@ export const sourcesForStage = (stage: ExpiryStageConfig): readonly Source[] =>
 type SourceRead = {
   readonly names: readonly StageName[]
   readonly isComplete: boolean
+  /** Position of the last row read, kept or not. */
+  readonly lastReadPosition: number
   readonly indexedAtSec: number
 }
 
@@ -72,6 +74,7 @@ const readSource = ResultFn(async function* (ctx: {
 }) {
   let names: readonly StageName[] = []
   let indexedAtSec = Number.POSITIVE_INFINITY
+  let lastReadPosition = ctx.cursor
   let pageCursor: string | null = null
   for (let read = 0; read < MAX_PAGES_PER_SOURCE; read++) {
     const page: ExpiringNamesPage = yield* fetchExpiringNamesPage({
@@ -84,11 +87,16 @@ const readSource = ResultFn(async function* (ctx: {
     })
     names = [
       ...names,
-      ...page.names.map((name) => ({
-        ...name,
-        position: name.expiryDate + ctx.source.shiftSec,
-      })),
+      ...page.names
+        // Only the premium notice is for a former holder.
+        .filter((name) => ctx.stage.includesReleased || !name.isReleased)
+        .map((name) => ({
+          ...name,
+          position: name.expiryDate + ctx.source.shiftSec,
+        })),
     ]
+    const lastRow = page.names.at(-1)
+    if (lastRow) lastReadPosition = lastRow.expiryDate + ctx.source.shiftSec
     indexedAtSec = Math.min(indexedAtSec, page.indexedAtSec)
     pageCursor = page.nextCursor
     if (pageCursor === null) break
@@ -96,12 +104,10 @@ const readSource = ResultFn(async function* (ctx: {
   return ok({
     names,
     isComplete: pageCursor === null,
+    lastReadPosition,
     indexedAtSec,
   } satisfies SourceRead)
 })
-
-const lastPosition = (read: SourceRead): number =>
-  read.names.at(-1)?.position ?? Number.POSITIVE_INFINITY
 
 /**
  * Reads every name a stage owes a reminder for in (cursor, upperBound].
@@ -144,7 +150,7 @@ export const fetchStageNames = ResultFn(async function* (ctx: {
     })
   }
 
-  const stopAt = Math.min(...truncated.map(lastPosition))
+  const stopAt = Math.min(...truncated.map((read) => read.lastReadPosition))
   if (stopAt - 1 > ctx.cursor) {
     return ok<ProcessableExpiryPage>({
       domains: all.filter((name) => name.position < stopAt),

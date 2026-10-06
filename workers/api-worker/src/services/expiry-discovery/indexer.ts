@@ -89,6 +89,8 @@ export type ExpiringName = {
   /** The registrar expiry. */
   readonly expiryDate: number
   readonly protocol: GraceProtocol
+  /** Past its grace period; `owner` is then the last holder. */
+  readonly isReleased: boolean
   readonly owner?: string
 }
 
@@ -174,6 +176,7 @@ const executeIndexerQuery = ResultFn(async function* (
             name: row.name,
             expiryDate,
             protocol,
+            isReleased: row.registration_status === 'released',
             owner: (row.owner ?? row.lapsed_registration?.owner)?.toLowerCase(),
           },
         ],
