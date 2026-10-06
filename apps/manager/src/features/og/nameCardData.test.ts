@@ -66,7 +66,6 @@ describe('fetchNameOgCard avatar cap', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     mockGetRecords.mockResolvedValue({
-      coins: [],
       texts: [{ key: 'avatar', value: 'https://example.test/a.png' }],
     })
   })
@@ -111,7 +110,6 @@ describe('fetchNameOgCard avatar cap', () => {
   it('still returns a themed card when the avatar fetch fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('upstream down'))
     mockGetRecords.mockResolvedValue({
-      coins: [],
       texts: [
         { key: 'avatar', value: 'https://example.test/a.png' },
         { key: 'theme', value: '#E72A96' },
@@ -120,10 +118,21 @@ describe('fetchNameOgCard avatar cap', () => {
 
     const card = await fetchNameOgCard('test.eth')
 
-    expect(card).toMatchObject({
+    expect(card).toEqual({
       avatar: null,
       name: 'test.eth',
       themeColor: '#E72A96',
+    })
+  })
+
+  it('reads no coin records, since the card never shows an address', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('upstream down'))
+
+    await fetchNameOgCard('test.eth')
+
+    expect(mockGetRecords).toHaveBeenCalledWith(expect.anything(), {
+      name: 'test.eth',
+      texts: ['avatar', 'theme'],
     })
   })
 })
