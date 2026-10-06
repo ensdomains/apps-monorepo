@@ -1,9 +1,10 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { ok } from 'neverthrow'
+import { errAsync, ok } from 'neverthrow'
 import {
   type ExpiringDomain,
   type ExpiringNamesPage,
   fetchExpiringNamesPage,
+  isStaleCursorError,
   MAX_EXACT_TIMESTAMP_PAGES,
   PROCESS_PAGE_SIZE,
 } from './indexer.js'
@@ -104,11 +105,35 @@ export function planExactTimestampPage(
   }
 }
 
+const readExactTimestamp = ResultFn(async function* (ctx: {
+  readonly env: CloudflareBindings
+  readonly stage: ExpiryStageConfig
+  readonly timestamp: number
+}) {
+  let domains: readonly ExpiringDomain[] = []
+  let indexedAtSec = Number.POSITIVE_INFINITY
+  let pageCursor: string | null = null
+  for (let read = 0; read < MAX_EXACT_TIMESTAMP_PAGES; read++) {
+    const page: ExpiringNamesPage = yield* fetchExpiringNamesPage({
+      env: ctx.env,
+      stage: ctx.stage,
+      cursor: ctx.timestamp - 1,
+      upperBound: ctx.timestamp,
+      ...(pageCursor !== null && { pageCursor }),
+    })
+    domains = [...domains, ...page.domains]
+    indexedAtSec = Math.min(indexedAtSec, page.indexedAtSec)
+    pageCursor = page.nextCursor
+    if (pageCursor === null) break
+  }
+  return ok({ domains, indexedAtSec, hasMoreAtTimestamp: pageCursor !== null })
+})
+
 export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  stage: ExpiryStageConfig
-  cursor: number
-  upperBound: number
+  readonly env: CloudflareBindings
+  readonly stage: ExpiryStageConfig
+  readonly cursor: number
+  readonly upperBound: number
 }) {
   const page = yield* fetchExpiringNamesPage(ctx)
   const plan = planNormalExpiryPage(page.domains, ctx.cursor)
@@ -123,25 +148,16 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
     } satisfies ProcessableExpiryPage)
   }
 
-  const exactDomains: ExpiringDomain[] = []
-  let indexedAtSec = page.indexedAtSec
-  let pageCursor: string | null = null
-  for (let read = 0; read < MAX_EXACT_TIMESTAMP_PAGES; read++) {
-    const exactPage: ExpiringNamesPage = yield* fetchExpiringNamesPage({
-      ...ctx,
-      cursor: plan.timestamp - 1,
-      upperBound: plan.timestamp,
-      ...(pageCursor !== null && { pageCursor }),
-    })
-    exactDomains.push(...exactPage.domains)
-    indexedAtSec = Math.min(indexedAtSec, exactPage.indexedAtSec)
-    pageCursor = exactPage.nextCursor
-    if (pageCursor === null) break
-  }
+  const exactCtx = { env: ctx.env, stage: ctx.stage, timestamp: plan.timestamp }
+  // A cursor that went stale mid-read is re-read once from the first page,
+  // dropping the partial read so no name is published twice.
+  const exact = yield* readExactTimestamp(exactCtx).orElse((error) =>
+    isStaleCursorError(error) ? readExactTimestamp(exactCtx) : errAsync(error),
+  )
   const exactPlan = planExactTimestampPage(
-    exactDomains,
+    exact.domains,
     plan.timestamp,
-    pageCursor !== null,
+    exact.hasMoreAtTimestamp,
   )
 
   return ok({
@@ -154,6 +170,6 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
           processedCount: exactPlan.domains.length,
         }
       : undefined,
-    indexedAtSec,
+    indexedAtSec: Math.min(page.indexedAtSec, exact.indexedAtSec),
   } satisfies ProcessableExpiryPage)
 })

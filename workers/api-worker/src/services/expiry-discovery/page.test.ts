@@ -1,13 +1,16 @@
-import { okAsync } from 'neverthrow'
+import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./indexer.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./indexer.js')>()),
   fetchExpiringNamesPage: vi.fn(),
+  isStaleCursorError: vi.fn(),
 }))
 
 import {
   fetchExpiringNamesPage,
+  IndexerRequestError,
+  isStaleCursorError,
   MAX_EXACT_TIMESTAMP_PAGES,
   PROCESS_PAGE_SIZE,
   QUERY_PAGE_SIZE,
@@ -31,7 +34,10 @@ const domainsAt = (count: number, expiryDate: number) =>
   }))
 
 describe('expiry page planning', () => {
-  beforeEach(() => vi.mocked(fetchExpiringNamesPage).mockReset())
+  beforeEach(() => {
+    vi.mocked(fetchExpiringNamesPage).mockReset()
+    vi.mocked(isStaleCursorError).mockReset()
+  })
 
   it.each([
     50,
@@ -157,5 +163,67 @@ describe('expiry page planning', () => {
         ? { expiryTimestamp: timestamp, processedCount: processed.length }
         : undefined,
     })
+  })
+
+  it.each([
+    { label: 'restarts once on a stale cursor', isStale: true },
+    { label: 'fails on any other error', isStale: false },
+  ])('$label', async ({ isStale }) => {
+    const timestamp = 10_000
+    const failure = new IndexerRequestError({ message: 'rejected', attempt: 1 })
+    vi.mocked(isStaleCursorError).mockReturnValue(isStale)
+    vi.mocked(fetchExpiringNamesPage)
+      .mockReturnValueOnce(
+        okAsync({
+          domains: [
+            ...uniqueDomains(PROCESS_PAGE_SIZE - 1),
+            ...domainsAt(2, timestamp),
+          ],
+          hasMore: true,
+          nextCursor: null,
+          indexedAtSec: 1_700_000_000,
+        }),
+      )
+      .mockReturnValueOnce(
+        okAsync({
+          domains: domainsAt(QUERY_PAGE_SIZE, timestamp),
+          hasMore: true,
+          nextCursor: 'c1',
+          indexedAtSec: 1_700_000_000,
+        }),
+      )
+      .mockReturnValueOnce(errAsync(failure))
+      .mockReturnValueOnce(
+        okAsync({
+          domains: domainsAt(3, timestamp),
+          hasMore: false,
+          nextCursor: null,
+          indexedAtSec: 1_700_000_000,
+        }),
+      )
+
+    const stage = STAGES[0]
+    if (!stage) throw new Error('Expected an expiry stage')
+    const result = await fetchProcessableExpiringNames({
+      env: {} as CloudflareBindings,
+      stage,
+      cursor: 50,
+      upperBound: 20_000,
+    })
+
+    if (!isStale) {
+      expect(result._unsafeUnwrapErr()).toBe(failure)
+      expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(3)
+      return
+    }
+    // The partial read before the stale page is dropped, not duplicated.
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(4)
+    expect(fetchExpiringNamesPage).not.toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ pageCursor: expect.anything() }),
+    )
+    expect(result._unsafeUnwrap().domains).toHaveLength(
+      PROCESS_PAGE_SIZE - 1 + 3,
+    )
   })
 })

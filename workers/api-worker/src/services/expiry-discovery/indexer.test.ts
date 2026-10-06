@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchExpiringNamesPage, QUERY_PAGE_SIZE } from './indexer.js'
+import {
+  fetchExpiringNamesPage,
+  isStaleCursorError,
+  QUERY_PAGE_SIZE,
+} from './indexer.js'
 import { STAGES } from './stages.js'
 
 const ENV = { CHAIN: 'sepolia' } as CloudflareBindings
@@ -39,15 +43,19 @@ const json = (body: unknown, status = 200) =>
     headers: { 'content-type': 'application/json' },
   })
 
-const stubFetch = (...responses: (Response | Error)[]) => {
-  const fetchMock = vi.fn(async () => {
-    const next = responses.shift()
+const stubFetch = (...responses: readonly (Response | Error)[]) => {
+  let call = 0
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL) => {
+    const next = responses[call++]
     if (next instanceof Error) throw next
     return next ?? json({}, 500)
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
+
+const requestedUrl = (fetchMock: ReturnType<typeof stubFetch>): string =>
+  String(fetchMock.mock.calls[0]?.[0])
 
 describe('fetchExpiringNamesPage', () => {
   beforeEach(() => {
@@ -70,9 +78,9 @@ describe('fetchExpiringNamesPage', () => {
       upperBound: 200,
     })
 
-    const [url] = fetchMock.mock.calls[0] as unknown as [string]
+    const url = requestedUrl(fetchMock)
     expect(url).toBe(
-      `https://sepolia.api.bigname.sh/v1/names?namespace=ens&parent=eth&authority=ens_v2&expires_after=1970-01-01T00%3A01%3A41.000Z&expires_before=1970-01-01T00%3A03%3A21.000Z&sort=expires_at&order=asc&page_size=${QUERY_PAGE_SIZE}`,
+      `https://sepolia.api.bigname.sh/v1/names?namespace=ens&parent=eth&expires_after=1970-01-01T00%3A01%3A41.000Z&expires_before=1970-01-01T00%3A03%3A21.000Z&sort=expires_at&order=asc&page_size=${QUERY_PAGE_SIZE}`,
     )
     expect(result._unsafeUnwrap()).toEqual({
       domains: [
@@ -82,6 +90,60 @@ describe('fetchExpiringNamesPage', () => {
       nextCursor: null,
       indexedAtSec: AS_OF_SEC,
     })
+  })
+
+  it.each(
+    STAGES.map((stage) => ({
+      id: stage.id,
+      stage,
+      authority: stage.offsetDays > 0 ? null : 'ens_v2',
+    })),
+  )('asks for $authority names on $id', async ({ stage, authority }) => {
+    const fetchMock = stubFetch(json(listing([])))
+
+    await fetchExpiringNamesPage({ env: ENV, stage, cursor: 1, upperBound: 2 })
+
+    const url = requestedUrl(fetchMock)
+    const params = new URL(url).searchParams
+    expect(params.get('parent')).toBe('eth')
+    expect(params.get('authority')).toBe(authority)
+  })
+
+  it('recognises a stale cursor rejection', async () => {
+    stubFetch(
+      json(
+        { error: { code: 'stale', message: 'republished', details: {} } },
+        409,
+      ),
+    )
+
+    const result = await fetchExpiringNamesPage({
+      env: ENV,
+      stage: STAGES[0],
+      cursor: 1,
+      upperBound: 2,
+      pageCursor: 'old',
+    })
+
+    expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(true)
+  })
+
+  it('does not treat other rejections as a stale cursor', async () => {
+    stubFetch(
+      json(
+        { error: { code: 'invalid_input', message: 'bad', details: {} } },
+        400,
+      ),
+    )
+
+    const result = await fetchExpiringNamesPage({
+      env: ENV,
+      stage: STAGES[0],
+      cursor: 1,
+      upperBound: 2,
+    })
+
+    expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(false)
   })
 
   it('takes the owner from the lapsed registration once released', async () => {
@@ -156,7 +218,7 @@ describe('fetchExpiringNamesPage', () => {
       })
     )._unsafeUnwrap()
 
-    const [url] = fetchMock.mock.calls[0] as unknown as [string]
+    const url = requestedUrl(fetchMock)
     expect(new URL(url).searchParams.get('cursor')).toBe('c1')
     expect(page.nextCursor).toBe('c2')
   })

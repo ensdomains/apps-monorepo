@@ -1,5 +1,9 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
-import { createBignameClient, toUnixSeconds } from '@ens-apps/indexer/bigname'
+import {
+  BignameError,
+  createBignameClient,
+  isStale,
+  toUnixSeconds,
+} from '@ens-apps/indexer/bigname'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok, type Result } from 'neverthrow'
 import { getConfig } from '#core/config.js'
@@ -17,7 +21,7 @@ const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 const MS_PER_SECOND = 1000
 
-class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
+export class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
   status?: number
   attempt: number
 }> {}
@@ -38,7 +42,10 @@ class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
 const getIndexer = (
   env: CloudflareBindings,
 ): Result<
-  { client: ReturnType<typeof createBignameClient>; chainId: number },
+  {
+    readonly client: ReturnType<typeof createBignameClient>
+    readonly chainId: number
+  },
   IndexerConfigError
 > =>
   fromSync(
@@ -65,6 +72,12 @@ const isRetryable = (error: BignameError): boolean =>
   error.status === 429 ||
   error.status >= 500
 
+/** bigname rejected a page cursor because its index moved on. */
+export const isStaleCursorError = (error: unknown): boolean =>
+  error instanceof IndexerRequestError &&
+  error.cause instanceof BignameError &&
+  isStale(error.cause)
+
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -89,12 +102,12 @@ export type ExpiringNamesPage = {
 }
 
 const executeIndexerQuery = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  stage: ExpiryStageConfig
-  cursor: number
-  upperBound: number
-  pageCursor?: string
-  attempt: number
+  readonly env: CloudflareBindings
+  readonly stage: ExpiryStageConfig
+  readonly cursor: number
+  readonly upperBound: number
+  readonly pageCursor?: string
+  readonly attempt: number
 }) {
   const { client, chainId } = yield* getIndexer(ctx.env)
 
@@ -104,10 +117,11 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   const response = yield* client
     .names({
       namespace: 'ens',
-      // Stage timings use ENSv2's grace period, and only .eth registrations
-      // have registrar grace at all.
+      // Only .eth registrations have registrar grace. Grace and premium
+      // messages date the grace end with ENSv2's 28 days, so ENSv1 names
+      // (90 days) get the pre-expiry reminders only.
       parent: 'eth',
-      authority: 'ens_v2',
+      ...(ctx.stage.offsetDays <= 0 && { authority: 'ens_v2' as const }),
       expires_after: toIso(ctx.cursor + 1),
       expires_before: toIso(ctx.upperBound + 1),
       sort: 'expires_at',
@@ -135,23 +149,30 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
     })
   }
 
-  const domains: ExpiringDomain[] = []
-  for (const row of response.data) {
-    // The expiry window only lists rows with an expiry; a row without one is
-    // a contract change, not a name to skip quietly.
-    const expiryDate = toUnixSeconds(row.expires_at)
-    if (expiryDate === null) {
-      return yield* new IndexerValidationError({
-        message: `Indexer listed ${row.name} without a readable expiry for stage ${ctx.stage.id}`,
-        cause: row,
-      })
-    }
-    domains.push({
-      name: row.name,
-      expiryDate,
-      owner: (row.owner ?? row.lapsed_registration?.owner)?.toLowerCase(),
+  const rows = response.data.map((row) => ({
+    row,
+    expiryDate: toUnixSeconds(row.expires_at),
+  }))
+  // The expiry window only lists rows with an expiry; a row without one is
+  // a contract change, not a name to skip quietly.
+  const unreadable = rows.find(({ expiryDate }) => expiryDate === null)
+  if (unreadable) {
+    return yield* new IndexerValidationError({
+      message: `Indexer listed ${unreadable.row.name} without a readable expiry for stage ${ctx.stage.id}`,
+      cause: unreadable.row,
     })
   }
+  const domains = rows.flatMap(({ row, expiryDate }): ExpiringDomain[] =>
+    expiryDate === null
+      ? []
+      : [
+          {
+            name: row.name,
+            expiryDate,
+            owner: (row.owner ?? row.lapsed_registration?.owner)?.toLowerCase(),
+          },
+        ],
+  )
 
   return ok({
     domains,
@@ -164,11 +185,11 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
 })
 
 export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  stage: ExpiryStageConfig
-  cursor: number
-  upperBound: number
-  pageCursor?: string
+  readonly env: CloudflareBindings
+  readonly stage: ExpiryStageConfig
+  readonly cursor: number
+  readonly upperBound: number
+  readonly pageCursor?: string
 }) {
   logger.trace('Fetching expiring names page from indexer', {
     stageId: ctx.stage.id,
@@ -202,7 +223,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     const { error } = result
     if (
       error._tag !== 'INDEXER_REQUEST_ERROR' ||
-      !isRetryable(error.cause as BignameError) ||
+      !(error.cause instanceof BignameError && isRetryable(error.cause)) ||
       attempt === MAX_RETRIES
     ) {
       return yield* error
