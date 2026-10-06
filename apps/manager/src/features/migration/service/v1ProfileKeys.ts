@@ -37,33 +37,21 @@ class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
 
 export type ProfileKeyTarget = { readonly id: string; readonly name: string }
 
-/** A `seen_*` key is worth reading unless bigname knows it was cleared (`null`). */
-const isNotCleared =
-  (values: Readonly<Record<string, unknown>>) =>
-  (key: string): boolean =>
-    values[key] !== null
-
 /**
- * Keys from a name's grouped `records` (lookup `profile=detail`). Each
- * `seen_*` list names the keys the resolver has written. A key mapped to
- * `null` was cleared and is skipped; a key missing from its value map has a
- * value bigname cannot vouch for, so it is still read on-chain. `avatar` is a
- * text key; coin types are canonical decimal strings.
+ * Known keys from lookup `profile=detail`. Indexed values can lag the chain,
+ * including a cleared record that has since been restored. Read every seen
+ * key on-chain and let the fresh value determine whether it is copied.
  */
 export const profileKeysFromRecords = (
   id: string,
   records: RecordGroups,
 ): V1ProfileKeys => {
-  const texts = records.seen_texts.filter(isNotCleared(records.texts))
-  const coinTypes = records.seen_addresses
-    .filter(isNotCleared(records.addresses))
-    .flatMap((coinType) => {
-      const value = Number(coinType)
-      return Number.isSafeInteger(value) ? [value] : []
-    })
-  const hasContentHash =
-    records.seen_singletons.includes('contenthash') &&
-    records.contenthash !== null
+  const texts = records.seen_texts
+  const coinTypes = records.seen_addresses.flatMap((coinType) => {
+    const value = Number(coinType)
+    return Number.isSafeInteger(value) ? [value] : []
+  })
+  const hasContentHash = records.seen_singletons.includes('contenthash')
   const abiContentTypes =
     records.seen_abis === undefined
       ? PROBED_ABI_CONTENT_TYPES

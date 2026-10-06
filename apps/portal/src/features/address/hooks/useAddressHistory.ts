@@ -64,7 +64,7 @@ const readHistory = async (
 }
 
 /**
- * The names the address holds the token of, from a `relation=any` names read:
+ * The names the address holds the token of, from a `relation=owner` names read:
  * `owner` is the token holder (BaseRegistrar, NameWrapper or ENSv2 token; the
  * registry owner only for a tokenless subname, which `attributeName` never
  * treats as a root). A `manager` relation alone is the registry controller,
@@ -79,7 +79,7 @@ const readHeldNames = async (
       bigname.listAddressNames(
         address.toLowerCase(),
         {
-          relation: 'any',
+          relation: 'owner',
           page_size: MAX_PAGE_SIZE,
           cursor,
         },
@@ -91,11 +91,7 @@ const readHeldNames = async (
       signal,
     },
   )
-  return new Set(
-    rows
-      .filter(({ relations }) => relations.includes('owner'))
-      .map(({ name }) => name),
-  )
+  return new Set(rows.map(({ name }) => name))
 }
 
 const toEvent = (row: EventRow): AddressHistoryEvent[] => {

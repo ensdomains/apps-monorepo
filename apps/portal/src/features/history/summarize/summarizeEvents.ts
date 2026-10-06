@@ -1,5 +1,4 @@
 import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
-import { recordValueText } from '@/utils/history/recordValue'
 import {
   type HistoryEventType,
   isKnownHistoryEventType,
@@ -67,28 +66,12 @@ const recordLabel = (event: TimelineEventOfType<'record'>): string => {
   }
 }
 
-/**
- * The record writes a transaction made, one per key and value. A legacy
- * `setAddr` logs both `AddrChanged` and `AddressChanged`, which bigname keeps
- * as two `addr:60` rows; they are one write.
- */
-const distinctRecordWrites = (
-  group: readonly TimelineEvent[],
-): TimelineEventOfType<'record'>[] => {
-  const seen = new Set<string>()
-  return group.filter(isRecord).filter((event) => {
-    if (recordFamily(event) === 'cleared') return false
-    const key = `${event.data.key ?? ''}\u0000${recordValueText(event.data.value) ?? ''}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
 const multiRecordRecipe = (
   group: readonly TimelineEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> | null => {
-  const records = distinctRecordWrites(group)
+  const records = group
+    .filter(isRecord)
+    .filter((event) => recordFamily(event) !== 'cleared')
   if (records.length < 2) return null
 
   const MAX_SHOWN = 4

@@ -55,11 +55,7 @@ describe('getAddressHistoryQueryOptions', () => {
     getAddressHistory.mockReset()
     listAddressNames.mockReset()
     listAddressNames.mockResolvedValue(
-      page([
-        { name: 'held.eth', relations: ['owner', 'manager'] },
-        // A token transferred without `reclaim`: the old holder is manager only.
-        { name: 'assigned.eth', relations: ['manager'] },
-      ]),
+      page([{ name: 'held.eth', relations: ['owner', 'manager'] }]),
     )
   })
 
@@ -80,7 +76,7 @@ describe('getAddressHistoryQueryOptions', () => {
     expect(listAddressNames).toHaveBeenCalledWith(
       ADDRESS.toLowerCase(),
       {
-        relation: 'any',
+        relation: 'owner',
         page_size: 200,
         cursor: undefined,
       },

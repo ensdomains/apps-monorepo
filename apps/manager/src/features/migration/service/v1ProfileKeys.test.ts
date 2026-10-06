@@ -80,7 +80,7 @@ describe('profileKeysFromRecords', () => {
     })
   })
 
-  it('skips keys bigname knows were cleared, and reads keys whose value it cannot vouch for', () => {
+  it('keeps every known key even when its indexed value is cleared or unknown', () => {
     const keys = profileKeysFromRecords(
       '0xabc',
       records({
@@ -92,9 +92,9 @@ describe('profileKeysFromRecords', () => {
         contenthash: null,
       }),
     )
-    expect(keys.texts).toEqual(['url'])
-    expect(keys.coinTypes).toEqual([0])
-    expect(keys.hasContentHash).toBe(false)
+    expect(keys.texts).toEqual(['com.github', 'url'])
+    expect(keys.coinTypes).toEqual([0, 60])
+    expect(keys.hasContentHash).toBe(true)
     expect(hasV1ProfileRecords(keys)).toBe(true)
   })
 

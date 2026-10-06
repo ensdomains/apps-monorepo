@@ -365,10 +365,13 @@ export const DESCRIPTORS: Descriptors = {
   },
   authority: {
     icon: 'registry',
-    build: (primary) => ({
-      label: 'set registry owner to',
-      slots: [addressSlot(primary.data.owner)],
-    }),
+    build: (primary) =>
+      primary.kind === 'AuthorityTransferred'
+        ? {
+            label: 'set registry owner to',
+            slots: [addressSlot(primary.data.owner)],
+          }
+        : { label: 'updated authority', slots: [] },
   },
   resolver: {
     icon: 'resolver',

@@ -84,7 +84,7 @@ describe('summarizeEvents — records recipe vs structural rows', () => {
     expect(action.label).toBe('transferred')
   })
 
-  it('counts a legacy setAddr double emit as one write', () => {
+  it('counts both legacy setAddr rows returned by bigname', () => {
     // `setAddr(node, a)` logs both AddrChanged and AddressChanged; bigname keeps
     // both as `addr:60` rows with the same value.
     const [action] = summarizeEvents([
@@ -103,7 +103,7 @@ describe('summarizeEvents — records recipe vs structural rows', () => {
       event('record', 't1', { key: 'text:url', value: 'y' }),
     ])
 
-    expect(action.label).toBe('set 2 records')
+    expect(action.label).toBe('set 3 records')
     expect(action.events).toHaveLength(3)
   })
 })

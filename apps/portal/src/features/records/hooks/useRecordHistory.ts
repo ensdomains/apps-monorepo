@@ -100,23 +100,6 @@ const toRecordHistoryEvent = (row: HistoryEvent): RecordHistoryEvent[] => {
 }
 
 /**
- * A legacy `setAddr(node, a)` logs both `AddrChanged` and `AddressChanged`;
- * bigname keeps each log as its own `addr:60` row. They are one write.
- */
-const dropDoubleEmits = (
-  events: readonly RecordHistoryEvent[],
-): RecordHistoryEvent[] => {
-  const seen = new Set<string>()
-  return events.filter((event) => {
-    const identity = `${event.transactionID}\u0000${event.key ?? ''}\u0000${event.value ?? ''}`
-    if (event.key === undefined) return true
-    if (seen.has(identity)) return false
-    seen.add(identity)
-    return true
-  })
-}
-
-/**
  * A record's write history across every resolver the name has pointed at,
  * ENSv1 and ENSv2 alike, newest first. One exact key is asked for by
  * `record_key`, which keeps that key's writes and every record reset; a family
@@ -149,9 +132,7 @@ const getRecordHistory = (
     ),
     (e) => new GetRecordHistoryError({ cause: e as BignameError }),
   ).map(({ rows }) =>
-    dropDoubleEmits(
-      rows.filter((row) => matchesKey(row, key)).flatMap(toRecordHistoryEvent),
-    ),
+    rows.filter((row) => matchesKey(row, key)).flatMap(toRecordHistoryEvent),
   )
 
 const getRecordHistoryQueryKey = createQueryKey<

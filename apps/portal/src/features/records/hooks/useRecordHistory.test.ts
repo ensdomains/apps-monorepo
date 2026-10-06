@@ -183,11 +183,11 @@ describe('getRecordHistoryQueryOptions', () => {
     ])
   })
 
-  it('collapses a legacy setAddr double emit into one write', async () => {
+  it('preserves both legacy setAddr rows returned by bigname', async () => {
     const events = await read('addr:60', [
       record({ key: 'addr:60', coin_type: 60, value: ADDRESS }),
       record({ key: 'addr:60', coin_type: 60, value: ADDRESS }),
     ])
-    expect(events).toHaveLength(1)
+    expect(events).toHaveLength(2)
   })
 })

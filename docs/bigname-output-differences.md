@@ -19,10 +19,10 @@ HTTP costs.
 
 | Area | Current limitation / next action |
 | --- | --- |
-| **Migration record copying — P1** | Indexed-null values remove known text/address keys before the fresh on-chain read. A record restored on-chain before BigName catches up can therefore be omitted during migration. Retain known keys and let the on-chain read decide whether values are empty. Confirmed by independent review; **not fixed**. See [v1ProfileKeys.ts](../apps/manager/src/features/migration/service/v1ProfileKeys.ts). |
 | Resolver permission targets | Grants without an explicit numeric EAC target stay visible but read-only; they never default to resource 0. Whole-account removal also stops when any target or collection is incomplete. Genuine root grants can be affected. [TYR-253](https://linear.app/enslabs/issue/TYR-253) requests exact resource identity from BigName. |
 | History action identity | Wrap/unwrap are generic authority changes. Operator approvals, reservations, resolver record links and token regeneration are excluded from product history. The v0→v1 handoff is diagnostics-only. Reverse claims need distinction from confirmed name writes; record resets omit their version. Contract lifecycle coverage also needs an explicit decision. BigName work: [TYR-255](https://linear.app/enslabs/issue/TYR-255). |
-| History presentation | Portal currently calls every authority change “set registry owner” and every primary-name event “set primary name.” These labels overstate what generic authority changes and standalone reverse claims prove. Apps can distinguish the served authority kinds now; explicit wrap/unwrap wording needs backend support. |
+| Legacy address double events | Record history and summaries preserve all rows returned by BigName. One legacy `setAddr` write can appear twice; backend action normalization is tracked in [TYR-256](https://linear.app/enslabs/issue/TYR-256). |
+| History presentation | Authority transfers say “set registry owner”; epoch changes and unknown authority kinds say “updated authority.” Primary-name events still say “set primary name,” which can overstate standalone reverse claims. Explicit wrap/unwrap and reverse-claim distinctions need backend support. |
 | History detail | Event sender and original role bitmaps are missing: [TYR-254](https://linear.app/enslabs/issue/TYR-254). ENSv1 TTL changes are decoded but discarded; public-key changes are not admitted. Both are outside TYR-255. |
 | Former resolver bindings | Nodes lists current bindings only; inactive/former bindings need [TYR-240](https://linear.app/enslabs/issue/TYR-240). The overview's node count remains a lower bound such as “200+.” |
 
@@ -40,7 +40,7 @@ ERC-1155 quantity display is not a requested parity requirement.
 | Grace and renewal | A separate former-owner read restores released ENSv2 `.eth` names still in their 28-day grace. They remain former-owner rows rather than acquiring invented Owner/Manager roles. Subnames have no registrar grace. |
 | Migration selection | Authority-filtered lists plus batched name/parent detail feed the existing classifier. Required failed, stale, missing or malformed lookup results error before classification. Unused speculative parent failures do not block an unwrapped candidate. |
 | Migration eligibility | Missing registrar leases and explicitly missing reservations block direct `.eth` upgrades with an explanation. Copyable registry children are exempt from the individual-reservation requirement. Exact wrapper expiry comes from the API; there is no lease-derived fallback. |
-| Migration profiles | BigName supplies the record inventory; existing RPC reads supply values. ABI inventory is used when served, otherwise types 1, 2, 4 and 8 are probed. Nonstandard ABI types without inventory are not copied. The indexed-null pruning bug above remains. |
+| Migration profiles | BigName supplies the record inventory; existing RPC reads supply values. ABI inventory is used when served, otherwise types 1, 2, 4 and 8 are probed. Nonstandard ABI types without inventory are not copied. All known keys are read even when indexed values are null; fresh chain values determine what is copied. |
 | Address profiles and counts | One authority inventory replaces separate source lists. Unknown-label names can appear. Owned-registration counts include ENSv1 leases and exclude subnames; migrated counts require proven migrations. Unknown totals remain unknown. |
 | Landing and search | ENSv1-only owners and held registered children can trigger the dashboard redirect. Search combines chain ownership with indexed status; unsupported names are conservatively treated as held. |
 | Name dates | ENSv1 expiry and registration dates depend more on indexed data. Missing ENSv1 registration dates have no chain fallback; ENSv2 registration dates retain their chain fallback. |
@@ -114,14 +114,18 @@ summaries. Empty permissions are not proof of complete coverage; honor metadata.
 
 ## Validation and release checks
 
-After the app fixes, the full suites passed: Manager **2,843** (1 skipped),
+Before the latest consumer cleanup, the full suites passed: Manager **2,843** (1 skipped),
 Portal **2,338**, Worker **274** (31 skipped). All three typechecks passed.
 Biome checked 96 changed TypeScript files with no errors and three existing
-complexity-threshold warnings. No code changed during this documentation edit.
+complexity-threshold warnings.
 
-The independent review later found the migration record-key issue above with a
-focused reproduction; passing suites did not cover it. It reviewed major paths
-across the final working tree, not every changed line.
+The independent review found an indexed-null record-key pruning bug. It is now
+fixed by retaining all known keys for fresh chain reads. The review covered major paths, not every changed line.
+
+The latest consumer cleanup passed 48 focused Manager tests and 57 Portal
+tests, both app typechecks, and Biome. It retains known migration record keys,
+uses the owner filter for held names, distinguishes authority event kinds,
+and removes record-history deduplication.
 
 Before release, verify the combined backend capabilities and replay, actual
 resolver permission coverage, grace/released-name behavior, exact counts on

@@ -27,7 +27,7 @@ RPC actions are listed separately because providers may batch or split them.
 | Faucet eligibility | **1 → usually 1**, otherwise until match or completion | Old query filtered eligibility server-side. Branch filters locally with no app page cap; a read failure is not false. |
 | One expiry stage window | **1 → 1–5** for up to 1,000 rows | BigName's page limit is 200. Whole-run batching reduces the number of small requests below. |
 | Portal record history | **1 → P(events)** | Uncapped walk. Exact keys filter server-side; family views may read other keys before local filtering. |
-| Portal address history | **2 → P(events) + P(held names)** | Current ownership attribution needs a separate inventory. Both walks are uncapped; the teaser limits only its history page. |
+| Portal address history | **2 → P(events) + P(held names)** | Current ownership attribution uses a separate `relation=owner` inventory. Both walks are uncapped; the teaser limits only its history page. |
 
 ## Shared reads, reductions and unchanged costs
 
