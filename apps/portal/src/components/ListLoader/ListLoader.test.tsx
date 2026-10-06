@@ -13,14 +13,17 @@ const rowsUpTo = (count: number) =>
 const ClientList = ({
   count,
   initialCount,
+  resetKey,
 }: {
   readonly count: number
   readonly initialCount: number
+  readonly resetKey?: string
 }) => {
   const rows = rowsUpTo(count)
   const { shown, loader } = useListLoader({
     initialCount,
     loaded: rows.length,
+    resetKey,
   })
 
   return (
@@ -45,12 +48,14 @@ const ServerList = ({
   initialCount,
   isTotalKnown = true,
   fetchPage = () => Promise.resolve(),
+  resetKey,
 }: {
   readonly total: number
   readonly pageSize: number
   readonly initialCount: number
   readonly isTotalKnown?: boolean
   readonly fetchPage?: () => Promise<void>
+  readonly resetKey?: string
 }) => {
   const [loaded, setLoaded] = useState(Math.min(pageSize, total))
   // One `More` can fetch several pages back to back, before a re-render hands
@@ -62,6 +67,7 @@ const ServerList = ({
     loaded,
     total: isTotalKnown ? total : undefined,
     hasMore: loaded < total,
+    resetKey,
     fetchMore: async () => {
       await fetchPage()
       const next = Math.min(total, loadedRef.current + pageSize)
@@ -128,6 +134,46 @@ describe('ListLoader on a client-side list', () => {
 
     expect(screen.getAllByRole('listitem')).toHaveLength(6)
     expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument()
+  })
+
+  // A route that moves from one name to another keeps the component mounted.
+  it('opens the next list at its initial count, not the last one’s', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderList(
+      <ClientList count={30} initialCount={4} resetKey="alice.eth" />,
+    )
+    await user.click(all())
+    expect(screen.getAllByRole('listitem')).toHaveLength(30)
+
+    rerender(<ClientList count={50} initialCount={4} resetKey="bob.eth" />)
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(4)
+    expect(screen.getByText('Showing 4 of 50')).toBeInTheDocument()
+  })
+
+  it('keeps the reader’s choice while the same list refreshes', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderList(
+      <ClientList count={30} initialCount={4} resetKey="alice.eth" />,
+    )
+    await user.click(more())
+
+    rerender(<ClientList count={31} initialCount={4} resetKey="alice.eth" />)
+
+    expect(screen.getByText('Showing 8 of 31')).toBeInTheDocument()
+  })
+
+  // A caller that opens a list collapsed still gets a `More` that does something.
+  it('reveals a row on More when the list opens with none', async () => {
+    const user = userEvent.setup()
+    renderList(<ClientList count={5} initialCount={0} />)
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
+
+    await user.click(more())
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+
+    await user.click(more())
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
   })
 
   it('renders nothing for a list that fits its initial count', () => {
@@ -256,6 +302,35 @@ describe('ListLoader on a server-paged list', () => {
 
     await screen.findByText('Showing 200 of 300')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('does not carry one list’s failure over to the next', async () => {
+    const user = userEvent.setup()
+    const fetchPage = () => Promise.reject(new Error('indexer unavailable'))
+    const { rerender } = renderList(
+      <ServerList
+        total={300}
+        pageSize={100}
+        initialCount={100}
+        fetchPage={fetchPage}
+        resetKey="alice.eth"
+      />,
+    )
+    await user.click(more())
+    await screen.findByRole('alert')
+
+    rerender(
+      <ServerList
+        total={300}
+        pageSize={100}
+        initialCount={100}
+        fetchPage={fetchPage}
+        resetKey="bob.eth"
+      />,
+    )
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Showing 100 of 300')).toBeInTheDocument()
   })
 
   // Some sources can't say how many rows exist until the last page arrives.

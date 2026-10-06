@@ -68,12 +68,13 @@ describe('fetchUntil', () => {
     expect(result).toEqual({ loaded: 120, hasMore: false })
   })
 
-  // A cursor that stopped advancing while still claiming more would otherwise
-  // be asked forever.
-  it('stops on a page that adds no rows, even if more is claimed', async () => {
-    const fetchMore = vi.fn(
-      async (): Promise<FetchMoreResult> => ({ loaded: 100, hasMore: true }),
-    )
+  // History trims the transaction a page boundary cut in half and groups
+  // events into rows, so a page can add no rows while later ones still do.
+  it('keeps going past a page that adds no rows', async () => {
+    const fetchMore = vi
+      .fn<() => Promise<FetchMoreResult>>()
+      .mockResolvedValueOnce({ loaded: 100, hasMore: true })
+      .mockResolvedValueOnce({ loaded: 160, hasMore: false })
 
     const result = await fetchUntil({
       target: Number.POSITIVE_INFINITY,
@@ -82,8 +83,8 @@ describe('fetchUntil', () => {
       fetchMore,
     })
 
-    expect(fetchMore).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({ loaded: 100, hasMore: true })
+    expect(fetchMore).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ loaded: 160, hasMore: false })
   })
 
   it('rejects when a page fails, after keeping the pages before it', async () => {

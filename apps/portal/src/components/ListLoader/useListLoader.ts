@@ -18,6 +18,12 @@ type UseListLoaderParameters = {
   readonly hasMore?: boolean
   /** Server-paged lists: fetches the next page; rejects when it fails. */
   readonly fetchMore?: () => Promise<FetchMoreResult>
+  /**
+   * Names the list being shown, e.g. the route's name or address. A route that
+   * moves to another one keeps this hook mounted, so without it the next list
+   * would open at whatever the last one had been expanded to.
+   */
+  readonly resetKey?: string
 }
 
 /**
@@ -37,19 +43,36 @@ export const useListLoader = ({
   total,
   hasMore = false,
   fetchMore,
+  resetKey,
 }: UseListLoaderParameters) => {
-  const [target, setTarget] = useState(initialCount)
+  // What the reader asked for, and for which list. A choice made on another
+  // list doesn't carry over: this one opens at its own initial count.
+  const [choice, setChoice] = useState<{
+    readonly resetKey: string | undefined
+    readonly target: number
+  } | null>(null)
+  const target =
+    choice && choice.resetKey === resetKey ? choice.target : initialCount
 
   // A mutation rather than the query's own flags: one `More` can span several
   // page fetches, and the query reports idle in the gap between two of them.
-  const fetching = useMutation({ mutationFn: fetchUntil })
+  const fetching = useMutation({
+    mutationFn: ({
+      resetKey: _resetKey,
+      ...params
+    }: Parameters<typeof fetchUntil>[0] & {
+      readonly resetKey: string | undefined
+    }) => fetchUntil(params),
+  })
+  // A fetch started for another list says nothing about this one.
+  const isFetchForThisList = fetching.variables?.resetKey === resetKey
 
   const shown = Math.min(target, loaded)
 
   const showUpTo = (next: number) => {
-    setTarget(next)
+    setChoice({ resetKey, target: next })
     if (fetchMore && hasMore && next > loaded)
-      fetching.mutate({ target: next, loaded, hasMore, fetchMore })
+      fetching.mutate({ target: next, loaded, hasMore, fetchMore, resetKey })
   }
 
   return {
@@ -59,14 +82,16 @@ export const useListLoader = ({
       // Once nothing is left to fetch, what is loaded is the total.
       total: total ?? (hasMore ? undefined : loaded),
       canShowMore: shown < loaded || hasMore,
-      status: match(fetching)
+      status: match({ ...fetching, isFetchForThisList })
         .returnType<ListLoaderProps['status']>()
+        .with({ isFetchForThisList: false }, () => 'idle')
         .with({ isPending: true }, () => 'loading')
         .with({ isError: true }, () => 'error')
         .otherwise(() => 'idle'),
       // No page size in the copy, so doubling is the whole contract. A list
-      // showing nothing yet has nothing to double; it opens at its initial count.
-      onMore: () => showUpTo(shown > 0 ? shown * 2 : initialCount),
+      // showing nothing has nothing to double, so it opens at its initial
+      // count — or at one row, so `More` always reveals something.
+      onMore: () => showUpTo(Math.max(shown * 2, initialCount, 1)),
       onAll: () => showUpTo(Number.POSITIVE_INFINITY),
     } satisfies ListLoaderProps,
   }
