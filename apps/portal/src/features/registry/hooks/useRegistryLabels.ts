@@ -1,6 +1,6 @@
 import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
@@ -27,38 +27,73 @@ export type RegistryLabelRow = {
   roleHoldersCount: number
 }
 
-const LABELS_LIMIT = 100
+export type RegistryLabelsPage = {
+  readonly labels: readonly RegistryLabelRow[]
+  readonly totalCount: number
+  readonly endCursor: string | null
+  readonly hasNextPage: boolean
+}
 
-const getRegistryLabels = ResultFn(async function* ({
+export const REGISTRY_LABELS_PAGE_SIZE = 100
+
+const getRegistryLabelsPage = ResultFn(async function* ({
   address,
-}: GetRegistryLabelsParameters) {
+  after,
+}: GetRegistryLabelsParameters & { readonly after: string | undefined }) {
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: {
-        labels: RegistryLabelRow[]
+        labelConnection: {
+          totalCount: number
+          pageInfo: { hasNextPage: boolean; endCursor: string | null }
+          edges: { node: RegistryLabelRow }[]
+        }
       } | null
     }>(
       gql`
-        query getRegistryLabels($address: String!) {
+        query getRegistryLabels($address: String!, $first: Int!, $after: String) {
           registry(address: $address) {
-            labels(first: ${String(LABELS_LIMIT)}, orderBy: name, orderDirection: asc) {
-              name
-              labelName
-              labelhash
-              expiryDate
-              roleHoldersCount: roleHolderCount
+            labelConnection(
+              first: $first
+              after: $after
+              orderBy: name
+              orderDirection: asc
+            ) {
+              totalCount
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              edges {
+                node {
+                  name
+                  labelName
+                  labelhash
+                  expiryDate
+                  roleHoldersCount: roleHolderCount
+                }
+              }
             }
           }
         }
       `,
-      { address: address.toLowerCase() },
+      {
+        address: address.toLowerCase(),
+        first: REGISTRY_LABELS_PAGE_SIZE,
+        after,
+      },
     ),
     (e) => new GetRegistryLabelsError({ cause: e as GraphqlRequestError }),
   )
 
-  if (!registry) return ok([])
+  const connection = registry?.labelConnection
 
-  return ok(registry.labels)
+  return ok({
+    labels: connection?.edges.map(({ node }) => node) ?? [],
+    totalCount: connection?.totalCount ?? 0,
+    endCursor: connection?.pageInfo.endCursor ?? null,
+    hasNextPage: connection?.pageInfo.hasNextPage ?? false,
+  } satisfies RegistryLabelsPage)
 })
 
 const getRegistryLabelsQueryKey = createQueryKey<
@@ -69,7 +104,11 @@ const getRegistryLabelsQueryKey = createQueryKey<
 export const getRegistryLabelsQueryOptions = (
   params: GetRegistryLabelsParameters,
 ) =>
-  resultQueryOptions({
+  resultInfiniteQueryOptions({
     queryKey: getRegistryLabelsQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryLabels(params),
+    queryFn: ({ pageParam }) =>
+      getRegistryLabelsPage({ ...params, after: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: RegistryLabelsPage) =>
+      last.hasNextPage ? (last.endCursor ?? undefined) : undefined,
   })
