@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { renderGenericOgImage, renderNameOgImage } from '@/features/og/card'
 import { fetchNameOgCard } from '@/features/og/nameCardData'
 
 /**
@@ -13,6 +12,9 @@ export const Route = createFileRoute('/og/$name')({
   server: {
     handlers: {
       GET: async ({ params, request }) => {
+        const { renderGenericOgImage, renderNameOgImage } = await import(
+          '@/features/og/card'
+        )
         const name = params.name.replace(/\.png$/, '')
 
         // Anything that isn't name-shaped (and any name whose card fails to
