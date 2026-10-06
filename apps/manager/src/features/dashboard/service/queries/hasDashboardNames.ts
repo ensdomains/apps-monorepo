@@ -10,6 +10,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { readNamesPage } from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 
 const PAGE_SIZE = 50
@@ -36,7 +37,7 @@ export const hasDashboardNames = ResultFn(async function* (
 ) {
   let cursor: string | null = null
   for (let read = 0; read < MAX_PAGES; read++) {
-    const page: Page<NameSummary> = yield* readNames({
+    const page: Page<NameSummary> = yield* readNamesPage(readNames, {
       address,
       relations: ['owner'],
       pageSize: PAGE_SIZE,
@@ -46,10 +47,13 @@ export const hasDashboardNames = ResultFn(async function* (
     if (page.nextCursor === null) return ok(false)
     cursor = page.nextCursor
   }
-  return ok(false)
+  // Pages of hidden names alone are unlikely; with more left, assume a listed one.
+  return ok(true)
 })
 
-export const hasDashboardNamesQuery = (address: Address | null | undefined) =>
+export const getHasDashboardNamesQueryOptions = (
+  address: Address | null | undefined,
+) =>
   resultQueryOptions({
     queryKey: qk('dashboard', 'has_names', {
       address: address?.toLowerCase() ?? null,

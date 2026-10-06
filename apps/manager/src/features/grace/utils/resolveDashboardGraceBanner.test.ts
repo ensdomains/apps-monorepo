@@ -13,6 +13,7 @@ const dashboardName = (
   expiryDate,
   createdAt: null,
   nameRoles: ['owner'],
+  isLapsed: false,
 })
 
 describe('resolveDashboardGraceBanner', () => {

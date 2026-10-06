@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { type Address, getAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
-import { dashboardNamesQuery } from './service/queries/getDashboardNames'
+import { getDashboardNamesQueryOptions } from './service/queries/getDashboardNames'
 
 export const useDashboardNames = () => {
   const { address } = useConnection()
@@ -21,7 +21,9 @@ export const useDashboardNames = () => {
     [address, smartAccount?.accountAddress, smartAccount?.ownerAddress],
   )
 
-  const { data, isPending, isError } = useQuery(dashboardNamesQuery(addresses))
+  const { data, isPending, isError } = useQuery(
+    getDashboardNamesQueryOptions(addresses),
+  )
   const hasAddresses = addresses.length > 0
 
   return {

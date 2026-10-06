@@ -135,6 +135,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('migrate an unwrapped V1 name and view profile', async ({
     migrationConnectedPage: page,
+    mockIndexer,
     wallet,
     accounts,
   }) => {
@@ -144,11 +145,13 @@ test.describe('ENS V1 → V2 Migration', () => {
     const v1Name = await makeV1Name({ label: 'migtest' })
     console.log(`[migration] unwrapped V1 name created: ${v1Name}`)
 
-    await mockV1Names(page, [
+    const v1Names = await mockV1Names(page, [
       { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
     ])
 
     await runMigrationFlow(page, wallet)
+
+    v1Names.markMigrated(mockIndexer)
 
     // ── Post-migration: search for the name and go to profile ────
     await searchAndNavigateToProfile(page, v1Name)
@@ -162,6 +165,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('batch migrate multiple V1 names to V2', async ({
     migrationConnectedPage: page,
+    mockIndexer,
     wallet,
     accounts,
   }) => {
@@ -188,9 +192,11 @@ test.describe('ENS V1 → V2 Migration', () => {
       },
       { name: lockedName, ownerAddress: HEADLESS_USER_ADDRESS, type: 'locked' },
     ]
-    await mockV1Names(page, mockNames)
+    const v1Names = await mockV1Names(page, mockNames)
 
     await runMigrationFlow(page, wallet)
+
+    v1Names.markMigrated(mockIndexer)
     await assertUnlockedMigration(unwrappedName.replace('.eth', ''))
     await assertUnlockedMigration(wrappedName.replace('.eth', ''))
     await assertLockedMigration(lockedName.replace('.eth', ''))
@@ -201,6 +207,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('V1 records are preserved after migration', async ({
     migrationConnectedPage: page,
+    mockIndexer,
     wallet,
     accounts,
   }) => {
@@ -221,7 +228,7 @@ test.describe('ENS V1 → V2 Migration', () => {
     })
     console.log(`[migration] V1 name with records created: ${v1Name}`)
 
-    await mockV1Names(page, [
+    const v1Names = await mockV1Names(page, [
       {
         name: v1Name,
         ownerAddress: HEADLESS_USER_ADDRESS,
@@ -230,6 +237,8 @@ test.describe('ENS V1 → V2 Migration', () => {
     ])
 
     await runMigrationFlow(page, wallet)
+
+    v1Names.markMigrated(mockIndexer)
 
     // ── Navigate to the migrated name's profile and verify records ───
     await goToProfile(page, v1Name)
@@ -251,6 +260,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('can edit profile after migration', async ({
     migrationConnectedPage: page,
+    mockIndexer,
     wallet,
     accounts,
   }) => {
@@ -260,11 +270,13 @@ test.describe('ENS V1 → V2 Migration', () => {
     const v1Name = await makeV1Name({ label: 'migedit' })
     console.log(`[migration] V1 name for edit test created: ${v1Name}`)
 
-    await mockV1Names(page, [
+    const v1Names = await mockV1Names(page, [
       { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
     ])
 
     await runMigrationFlow(page, wallet)
+
+    v1Names.markMigrated(mockIndexer)
 
     // ── Navigate to the edit profile page ───────────────────────────
     await page.goto(`${MANAGER_APP_URL}/p/${v1Name}/edit`)

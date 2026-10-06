@@ -123,11 +123,16 @@ function v1Record(n: MockV1Name) {
  * Serve mock ENSv1 names from bigname. Call this BEFORE navigating to pages
  * that read the migration list.
  */
+type IndexerMock = {
+  readonly addName: (domain: { name: string; owner: string }) => void
+}
+
 export async function mockV1Names(
   page: Page,
   mockNames: readonly MockV1Name[],
-): Promise<void> {
+): Promise<{ readonly markMigrated: (indexerMock: IndexerMock) => void }> {
   const byName = new Map(mockNames.map((n) => [n.name.toLowerCase(), n]))
+  let isMigrated = false
 
   const fulfill = (route: Route, json: unknown) =>
     route.fulfill({ status: 200, json, headers: CORS_HEADERS })
@@ -135,6 +140,7 @@ export async function mockV1Names(
   await page.route(/bigname\.sh\/v1\//, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
+    if (isMigrated) return route.fallback()
     if (request.method() === 'OPTIONS') {
       return route.fulfill({ status: 204, headers: CORS_HEADERS })
     }
@@ -185,4 +191,14 @@ export async function mockV1Names(
 
     return route.fallback()
   })
+
+  return {
+    /** After a migration, the names are ENSv2 names served by the shared mock. */
+    markMigrated: (indexerMock) => {
+      isMigrated = true
+      for (const n of mockNames) {
+        indexerMock.addName({ name: n.name, owner: n.ownerAddress })
+      }
+    },
+  }
 }

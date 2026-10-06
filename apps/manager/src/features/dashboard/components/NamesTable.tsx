@@ -14,6 +14,7 @@ import {
   toBulkRenewName,
   toSelectableDomain,
 } from '../bulkRenewSelection'
+import { isHeldName } from '../dashboardNames'
 import {
   buildMergedNamesList,
   type SortDir,
@@ -102,6 +103,7 @@ export const NamesTable = ({
         sortDir: ownedSortState.dir,
       }).flatMap((item) =>
         item.kind === 'v2' &&
+        isHeldName(item.name) &&
         toBulkRenewName(toSelectableDomain(item.name)) !== null
           ? [selectionKey(item.name)]
           : [],
@@ -122,7 +124,9 @@ export const NamesTable = ({
       names
         .filter(
           (name) =>
-            name.protocol === 'v2' && selectedLabels.has(selectionKey(name)),
+            name.protocol === 'v2' &&
+            isHeldName(name) &&
+            selectedLabels.has(selectionKey(name)),
         )
         .map((name) => toBulkRenewName(toSelectableDomain(name)))
         .filter((name): name is BulkRenewName => name !== null),

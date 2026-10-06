@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { getSearchNameQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
-import { nameDetailQuery } from '@/features/shared/service/nameDetail'
+import { getNameDetailQueryOptions } from '@/features/shared/service/nameDetail'
 import { classifyNameSearch } from './classifyNameSearch'
 import { getSearchNameKind } from './getSearchNameKind'
 import type {
@@ -103,7 +103,7 @@ export const useNameClassification = (name: string): NameClassification => {
   })
 
   const indexerQuery = useQuery({
-    ...nameDetailQuery(isProfileName ? name : undefined),
+    ...getNameDetailQueryOptions(isProfileName ? name : undefined),
     enabled: isProfileName,
   })
 

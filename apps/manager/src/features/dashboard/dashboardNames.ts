@@ -14,6 +14,8 @@ export type DashboardName = {
   readonly expiryDate: number
   readonly createdAt: number | null
   readonly nameRoles: readonly DashboardNameRole[]
+  /** An ENSv2 name the address held until it expired, still renewable in grace. */
+  readonly isLapsed: boolean
 }
 
 const DASHBOARD_ROLES: readonly DashboardNameRole[] = ['owner', 'manager']
@@ -48,7 +50,12 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
   expiryDate: toSeconds(name.expiresAt) ?? 0,
   createdAt: toSeconds(name.createdAt),
   nameRoles: toNameRoles(name.relations),
+  isLapsed: false,
 })
+
+/** Names the connected accounts hold, or held until a grace they can still renew in. */
+export const isHeldName = (name: DashboardName): boolean =>
+  name.nameRoles.includes('owner') || name.isLapsed
 
 const toSafeSeconds = (timestamp: string | undefined): number | null => {
   const seconds = Number(timestamp)
@@ -83,6 +90,7 @@ export const toGraceName = (
     expiryDate,
     createdAt: toSafeSeconds(row.created_at),
     nameRoles: [],
+    isLapsed: true,
   }
 }
 

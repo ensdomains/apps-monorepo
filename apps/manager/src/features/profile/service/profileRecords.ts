@@ -6,7 +6,7 @@ import {
   type GetContentHashReturnType,
   getCoderFromCoin,
 } from '@ensdomains/ensjs/utils'
-import { fromPromise, fromThrowable, ok } from 'neverthrow'
+import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -61,10 +61,15 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   }
 
   const client = yield* safeGetClient()
+  // A name bigname has not indexed has no indexed keys; the static ones still apply.
   const recordKeys = yield* bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
     .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
-    .mapErr((error) => new GetProfileRecordsError({ cause: error }))
+    .orElse((error) =>
+      error.code === 'not_found'
+        ? okAsync(parseKnownKeys([]))
+        : errAsync(new GetProfileRecordsError({ cause: error })),
+    )
 
   const texts = unique([
     ...staticTextRecords,

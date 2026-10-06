@@ -82,7 +82,7 @@ vi.mock('@/features/profile/service/profileOwner', () => ({
 }))
 
 vi.mock('@/features/shared/service/nameDetail', () => ({
-  nameDetailQuery: () => ({
+  getNameDetailQueryOptions: () => ({
     queryKey: ['test-name-detail'],
     queryFn: async () => null,
   }),
