@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { type FetchMoreResult, fetchUntil } from './fetchUntil'
 
-/** A source of `total` rows served `pageSize` at a time. */
 const pagedSource = (total: number, pageSize: number, alreadyLoaded = 0) => {
   let loaded = alreadyLoaded
   return vi.fn(async (): Promise<FetchMoreResult> => {
@@ -25,7 +24,6 @@ describe('fetchUntil', () => {
     expect(result).toEqual({ loaded: 100, hasMore: true })
   })
 
-  // Doubling 100 rows to 200 on 40-row pages is three fetches, not one.
   it('fetches as many pages as the target takes', async () => {
     const fetchMore = pagedSource(1000, 40, 100)
 
@@ -68,8 +66,6 @@ describe('fetchUntil', () => {
     expect(result).toEqual({ loaded: 120, hasMore: false })
   })
 
-  // History trims the transaction a page boundary cut in half and groups
-  // events into rows, so a page can add no rows while later ones still do.
   it('keeps going past a page that adds no rows', async () => {
     const fetchMore = vi
       .fn<() => Promise<FetchMoreResult>>()

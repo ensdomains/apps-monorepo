@@ -9,7 +9,6 @@ import { useListLoader } from './useListLoader'
 const rowsUpTo = (count: number) =>
   Array.from({ length: count }, (_, i) => `row ${i + 1}`)
 
-/** A list whose rows are all in memory, like the dashboard's "Your names". */
 const ClientList = ({
   count,
   initialCount,
@@ -38,10 +37,6 @@ const ClientList = ({
   )
 }
 
-/**
- * A list fetched a page at a time, like history. `fetchPage` stands in for the
- * request and decides whether it lands.
- */
 const ServerList = ({
   total,
   pageSize,
@@ -58,9 +53,6 @@ const ServerList = ({
   readonly resetKey?: string
 }) => {
   const [loaded, setLoaded] = useState(Math.min(pageSize, total))
-  // One `More` can fetch several pages back to back, before a re-render hands
-  // out a fresh closure — so the running count lives in a ref, as a query
-  // cache would hold it.
   const loadedRef = useRef(loaded)
   const { shown, loader } = useListLoader({
     initialCount,
@@ -136,7 +128,6 @@ describe('ListLoader on a client-side list', () => {
     expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument()
   })
 
-  // A route that moves from one name to another keeps the component mounted.
   it('opens the next list at its initial count, not the last one’s', async () => {
     const user = userEvent.setup()
     const { rerender } = renderList(
@@ -163,7 +154,6 @@ describe('ListLoader on a client-side list', () => {
     expect(screen.getByText('Showing 8 of 31')).toBeInTheDocument()
   })
 
-  // A caller that opens a list collapsed still gets a `More` that does something.
   it('reveals a row on More when the list opens with none', async () => {
     const user = userEvent.setup()
     renderList(<ClientList count={5} initialCount={0} />)
@@ -185,7 +175,6 @@ describe('ListLoader on a client-side list', () => {
 })
 
 describe('ListLoader on a server-paged list', () => {
-  // 200 shown, 100-row pages: doubling to 400 takes two fetches, not one.
   it('fetches as many pages as a doubling takes', async () => {
     const user = userEvent.setup()
     const fetchPage = vi.fn(() => Promise.resolve())
@@ -274,7 +263,6 @@ describe('ListLoader on a server-paged list', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  // A failed page must not cost the reader what is already on screen.
   it('keeps the rows shown when a fetch fails, and retries on the next press', async () => {
     const user = userEvent.setup()
     const fetchPage = vi
@@ -333,7 +321,6 @@ describe('ListLoader on a server-paged list', () => {
     expect(screen.getByText('Showing 100 of 300')).toBeInTheDocument()
   })
 
-  // Some sources can't say how many rows exist until the last page arrives.
   it('leaves the total off while it is unknown', async () => {
     const user = userEvent.setup()
     renderList(
@@ -359,8 +346,6 @@ describe('ListLoader on a server-paged list', () => {
 })
 
 describe('ListLoader when the source holds fewer rows than the total', () => {
-  // An honest count beats a hidden one: nothing more can be revealed, but the
-  // reader is still told rows are missing.
   it('keeps the count and drops the controls', () => {
     renderList(
       <ListLoader
