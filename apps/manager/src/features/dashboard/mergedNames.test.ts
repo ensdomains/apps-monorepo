@@ -291,6 +291,25 @@ describe('buildMergedNamesList', () => {
         }),
       ).toBe(2)
     })
+
+    it('keeps a canonical v1 name whose only v2 twin is hidden', () => {
+      const params = {
+        v2Names: [makeV2({ id: '0x1', name: 'ALPHA.eth' })],
+        v1Classified: [
+          makeV1({ id: '0x2', name: 'alpha.eth', label: 'alpha' }),
+        ],
+      }
+      const items = buildMergedNamesList({
+        ...params,
+        searchQuery: '',
+        sortField: 'name',
+        sortDir: 'asc',
+      })
+      expect(items.map((i) => [i.kind, i.sortName])).toEqual([
+        ['v1', 'alpha.eth'],
+      ])
+      expect(getMergedNamesCount(params)).toBe(1)
+    })
   })
 
   it('sorts by created date desc with unknowns last', () => {

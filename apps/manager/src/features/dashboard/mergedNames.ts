@@ -88,6 +88,7 @@ const getV2NameSet = (
 ): ReadonlySet<string> =>
   new Set(
     v2Names
+      .filter(isDisplayableV2)
       .map((domain) => normalizeMergedName(resolveDomainLabel(domain)))
       .filter((name): name is string => !!name),
   )
