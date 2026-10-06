@@ -56,6 +56,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   expiryDate: 1811808000,
   createdAt: 0,
   nameRoles: ['owner'],
+  isLapsed: false,
   ...overrides,
 })
 
@@ -182,6 +183,37 @@ describe('MyNamesList', () => {
       screen.getByText('Some names could not be loaded'),
     ).toBeInTheDocument()
     expect(screen.getByText('alaska.eth')).toBeInTheDocument()
+  })
+
+  it('offers bulk renewal only for names the accounts hold', () => {
+    const renewable = Math.floor(Date.now() / 1000) + 3 * 86_400
+    mockNames([
+      makeName({
+        key: '0x08',
+        name: 'managed.eth',
+        expiryDate: renewable,
+        nameRoles: ['manager'],
+      }),
+      makeName({ key: '0x09', name: 'owned.eth', expiryDate: renewable }),
+      makeName({
+        key: '0x0a',
+        name: 'lapsed.eth',
+        expiryDate: Math.floor(Date.now() / 1000) - 86_400,
+        nameRoles: [],
+        isLapsed: true,
+      }),
+    ])
+
+    renderList()
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(
+      rows.map((row) => [row.textContent, row.dataset.selectable]),
+    ).toEqual([
+      ['lapsed.eth', 'true'],
+      ['managed.eth', 'false'],
+      ['owned.eth', 'true'],
+    ])
   })
 
   it('selects only the name whose exact label is selected', () => {

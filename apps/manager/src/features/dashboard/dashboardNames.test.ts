@@ -51,6 +51,7 @@ const dashboardName = (
   expiryDate: 100,
   createdAt: null,
   nameRoles: ['owner'],
+  isLapsed: false,
   ...overrides,
 })
 
@@ -95,6 +96,7 @@ describe('toGraceName', () => {
       expiryDate: nowSeconds - 86_400 * 3,
       createdAt: null,
       nameRoles: [],
+      isLapsed: true,
     })
   })
 

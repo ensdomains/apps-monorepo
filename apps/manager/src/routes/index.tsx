@@ -6,7 +6,7 @@ import * as v from 'valibot'
 import { isAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import patternBg from '@/assets/pattern-bg.svg'
-import { hasDashboardNamesQuery } from '@/features/dashboard/service/queries/hasDashboardNames'
+import { getHasDashboardNamesQueryOptions } from '@/features/dashboard/service/queries/hasDashboardNames'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
@@ -62,7 +62,7 @@ const useRedirectToDashboard = () => {
   const { ownerAddress } = useSmartAccountContext()
   const { isConnecting, isReconnecting } = useConnection()
 
-  const hasDomains = useQuery(hasDashboardNamesQuery(ownerAddress))
+  const hasDomains = useQuery(getHasDashboardNamesQueryOptions(ownerAddress))
 
   useEffect(() => {
     // Defer the redirect until the wallet connection has settled. Navigating
@@ -105,7 +105,7 @@ export const Route = createFileRoute('/')({
 
     // An unreachable indexer leaves the user on the landing page.
     const hasNames = await queryClient
-      .fetchQuery(hasDashboardNamesQuery(connectedAddress))
+      .fetchQuery(getHasDashboardNamesQueryOptions(connectedAddress))
       .catch(() => false)
     if (hasNames) throw redirect({ to: '/dashboard' })
   },

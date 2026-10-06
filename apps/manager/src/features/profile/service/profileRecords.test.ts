@@ -1,8 +1,9 @@
+import { BignameError } from '@ens-apps/indexer/bigname'
 import {
   publicResolverMultiAddrSnippet,
   publicResolverSingleAddrSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
-import { okAsync } from 'neverthrow'
+import { errAsync, okAsync } from 'neverthrow'
 import { decodeFunctionData, encodeAbiParameters, type Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -187,6 +188,27 @@ describe('profile records', () => {
     )
     const [, parameters] = mocks.resolveNameData.mock.calls[0] ?? []
     expect(parameters.data).toHaveLength(4)
+  })
+
+  it('reads the static keys for a name bigname has not indexed', async () => {
+    mocks.nameRecords.mockReturnValue(
+      errAsync(
+        new BignameError({
+          code: 'not_found',
+          status: 404,
+          message: 'missing',
+        }),
+      ),
+    )
+    mocks.resolveNameData.mockResolvedValue(null)
+
+    const result = await getProfileRecords('unregistered.eth')
+
+    expect(result.isOk()).toBe(true)
+    expect(mocks.getRecords).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({ texts: ['avatar', 'theme', 'links'] }),
+    )
   })
 
   it('returns no coins when the universal resolver has no result', async () => {

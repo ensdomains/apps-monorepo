@@ -16,6 +16,7 @@ import type { ProfileRecordsResult } from '@/features/profile/service/profileRec
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
+import { isHeldName } from '../dashboardNames'
 import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
 import { useDashboardNames } from '../useDashboardNames'
 import { DashboardPagination } from './DashboardPagination'
@@ -166,7 +167,7 @@ const AnimatedNameRow = ({
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
-        selectable={!isV1 && isRenewable}
+        selectable={!isV1 && isRenewable && isHeldName(item.name)}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}

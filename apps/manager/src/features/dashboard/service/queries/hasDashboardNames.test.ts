@@ -82,15 +82,37 @@ describe('hasDashboardNames', () => {
     )
   })
 
-  it('gives up after a few pages of hidden names', async () => {
+  it('stops after a few pages of hidden names and assumes a listed one follows', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(() =>
       okAsync(page([summary('abc.addr.reverse')], 'more')),
     )
 
     const result = await hasDashboardNames(readNames, ADDRESS)
 
-    expect(result._unsafeUnwrap()).toBe(false)
+    expect(result._unsafeUnwrap()).toBe(true)
     expect(readNames).toHaveBeenCalledTimes(4)
+  })
+
+  it('retries a stale page with the same cursor', async () => {
+    const stale = new IndexerReadError({
+      message: 'stale',
+      kind: 'stale',
+      cause: new Error('snapshot moved'),
+    })
+    const readNames = vi
+      .fn<ReadNamesForAddress>()
+      .mockReturnValueOnce(okAsync(page([summary('abc.addr.reverse')], 'next')))
+      .mockReturnValueOnce(errAsync(stale))
+      .mockReturnValueOnce(okAsync(page([summary('alice.eth')])))
+
+    const result = await hasDashboardNames(readNames, ADDRESS)
+
+    expect(result._unsafeUnwrap()).toBe(true)
+    expect(readNames.mock.calls.map(([query]) => query.cursor)).toEqual([
+      undefined,
+      'next',
+      'next',
+    ])
   })
 
   it('passes a read failure on', async () => {

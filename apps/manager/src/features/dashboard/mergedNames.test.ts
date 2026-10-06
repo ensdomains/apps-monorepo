@@ -14,6 +14,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   expiryDate: 100,
   createdAt: 100,
   nameRoles: ['owner'],
+  isLapsed: false,
   ...overrides,
 })
 
