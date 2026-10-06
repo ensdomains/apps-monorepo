@@ -1,4 +1,5 @@
-import { labelhash, namehash, zeroAddress } from 'viem'
+import { errAsync, okAsync } from 'neverthrow'
+import { labelhash, zeroAddress } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MS_PER_DAY,
@@ -11,15 +12,12 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getV1Owner: vi.fn(),
   getV2Owner: vi.fn(),
-  getV2Domain: vi.fn(),
-  queryV2Domain: vi.fn(),
+  getNameDetail: vi.fn(),
   readContract: vi.fn(),
 }))
 
-vi.mock('@/lib/indexer-client', () => ({
-  indexerClient: {
-    query: mocks.queryV2Domain,
-  },
+vi.mock('@/features/shared/service/nameDetail', () => ({
+  getNameDetail: mocks.getNameDetail,
 }))
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
@@ -53,8 +51,7 @@ describe('getOwner', () => {
     vi.useFakeTimers()
     vi.setSystemTime(expiryDate.getTime() + MS_PER_DAY)
     mocks.getV2Owner.mockResolvedValue(null)
-    mocks.getV2Domain.mockResolvedValue({ data: { domain: null } })
-    mocks.queryV2Domain.mockReturnValue({ toPromise: mocks.getV2Domain })
+    mocks.getNameDetail.mockReturnValue(okAsync(null))
     mocks.getV1Owner.mockResolvedValue(null)
     mocks.readContract.mockResolvedValue({
       expiry,
@@ -81,24 +78,14 @@ describe('getOwner', () => {
       owner: '0x0000000000000000000000000000000000000002',
       protocol: 'v2',
     })
-    expect(mocks.queryV2Domain).not.toHaveBeenCalled()
+    expect(mocks.getNameDetail).not.toHaveBeenCalled()
     expect(mocks.getV1Owner).not.toHaveBeenCalled()
     expect(mocks.readContract).not.toHaveBeenCalled()
   })
 
   it('recovers the on-chain owner of a V2 registration during grace', async () => {
-    const domainId = namehash('gloomy.eth')
-
     mocks.getV2Owner.mockResolvedValue(zeroAddress)
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: {
-          id: domainId,
-          owner: { id: '0x0000000000000000000000000000000000000001' },
-          expiryDate: '0',
-        },
-      },
-    })
+    mocks.getNameDetail.mockReturnValue(okAsync({ protocol: 'v2' }))
 
     // Legacy registry ownership can remain after a name has migrated to V2.
     mocks.getV1Owner.mockResolvedValue({
@@ -114,9 +101,7 @@ describe('getOwner', () => {
       owner: previousOwner,
       protocol: 'v2',
     })
-    expect(mocks.queryV2Domain).toHaveBeenCalledWith(expect.anything(), {
-      id: domainId,
-    })
+    expect(mocks.getNameDetail).toHaveBeenCalledWith('gloomy.eth')
     expect(mocks.getV1Owner).not.toHaveBeenCalled()
     expect(mocks.readContract).toHaveBeenCalledWith(
       mocks.client,
@@ -132,11 +117,7 @@ describe('getOwner', () => {
     'accountAddress',
     'ownerAddress',
   ] as const)('recognises the previous owner through %s without a third-party warning', async (addressKey) => {
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
+    mocks.getNameDetail.mockReturnValue(okAsync({ protocol: 'v2' }))
 
     const result = await getOwner({ name: 'gloomy.eth' })
     const owner = result._unsafeUnwrap()?.owner
@@ -172,11 +153,7 @@ describe('getOwner', () => {
     ownsName,
   }) => {
     vi.setSystemTime(expiryDate.getTime() + elapsed)
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
+    mocks.getNameDetail.mockReturnValue(okAsync({ protocol: 'v2' }))
 
     // Legacy registry ownership can remain after a name has migrated to V2.
     mocks.getV1Owner.mockResolvedValue({
@@ -195,11 +172,7 @@ describe('getOwner', () => {
   })
 
   it('does not invent an owner when the registry has none', async () => {
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
+    mocks.getNameDetail.mockReturnValue(okAsync({ protocol: 'v2' }))
     mocks.readContract.mockResolvedValue({ expiry, latestOwner: zeroAddress })
 
     const result = await getOwner({ name: 'gloomy.eth' })
@@ -211,11 +184,7 @@ describe('getOwner', () => {
   })
 
   it('returns an error when the previous owner cannot be verified on-chain', async () => {
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
+    mocks.getNameDetail.mockReturnValue(okAsync({ protocol: 'v2' }))
     mocks.readContract.mockRejectedValue(new Error('RPC unavailable'))
 
     const result = await getOwner({ name: 'gloomy.eth' })
@@ -238,9 +207,7 @@ describe('getOwner', () => {
   ])('keeps an indexed V1 name $status on V1', async ({ name, registrant }) => {
     const owner = '0x0000000000000000000000000000000000000001'
     mocks.getV2Owner.mockResolvedValue(zeroAddress)
-    mocks.getV2Domain.mockResolvedValue({
-      data: { domain: { id: namehash(name), owner: { id: zeroAddress } } },
-    })
+    mocks.getNameDetail.mockReturnValue(okAsync({ protocol: 'v1' }))
     mocks.getV1Owner.mockResolvedValue({
       owner,
       registrant,
@@ -252,6 +219,15 @@ describe('getOwner', () => {
     expect(result._unsafeUnwrap()).toEqual({ owner, protocol: 'v1' })
     expect(mocks.getV1Owner).toHaveBeenCalledWith(mocks.client, { name })
     expect(mocks.readContract).not.toHaveBeenCalled()
+  })
+
+  it('returns an error when the index cannot be read', async () => {
+    mocks.getNameDetail.mockReturnValue(errAsync(new Error('bigname down')))
+
+    const result = await getOwner({ name: 'gloomy.eth' })
+
+    expect(result.isErr()).toBe(true)
+    expect(mocks.getV1Owner).not.toHaveBeenCalled()
   })
 
   it('falls back to V1 ownership when V2 has no owner', async () => {
@@ -268,7 +244,7 @@ describe('getOwner', () => {
       owner: '0x0000000000000000000000000000000000000001',
       protocol: 'v1',
     })
-    expect(mocks.queryV2Domain).toHaveBeenCalled()
+    expect(mocks.getNameDetail).toHaveBeenCalled()
     expect(mocks.readContract).not.toHaveBeenCalled()
   })
 
@@ -285,7 +261,7 @@ describe('getOwner', () => {
       owner: '0x0000000000000000000000000000000000000001',
       protocol: 'v1',
     })
-    expect(mocks.queryV2Domain).not.toHaveBeenCalled()
+    expect(mocks.getNameDetail).not.toHaveBeenCalled()
     expect(mocks.readContract).not.toHaveBeenCalled()
   })
 
@@ -294,7 +270,7 @@ describe('getOwner', () => {
 
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBeNull()
-    expect(mocks.queryV2Domain).toHaveBeenCalled()
+    expect(mocks.getNameDetail).toHaveBeenCalled()
     expect(mocks.getV1Owner).toHaveBeenCalled()
   })
 })
