@@ -81,6 +81,7 @@ const AnimatedNameRow = ({
   selectedLabels,
   onToggleSelect,
   isV1Renewable,
+  isEligibilityPending,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -95,6 +96,7 @@ const AnimatedNameRow = ({
   readonly selectedLabels: ReadonlySet<string>
   readonly onToggleSelect: (label: string) => void
   readonly isV1Renewable: boolean
+  readonly isEligibilityPending: boolean
 }) => {
   const {
     label,
@@ -114,10 +116,19 @@ const AnimatedNameRow = ({
     isLoading: isProfileRecordsLoading,
   })
   const { nameRoles } = item.name
-  const { cta, status } = match({ isV1, isMigrationEligible })
+  const { cta, status } = match({
+    isV1,
+    isMigrationEligible,
+    isEligibilityPending,
+  })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
       cta: expiryCta,
+      status: null,
+    }))
+    // An ENSv1 row shows no upgrade state until eligibility is known.
+    .with({ isV1: true, isEligibilityPending: true }, () => ({
+      cta: null,
       status: null,
     }))
     .with({ isV1: true, isMigrationEligible: true }, () => ({
@@ -235,10 +246,9 @@ export const MyNamesList = ({
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
-  const isPending = isNamesPending || isEligibilityPending
+  const isPending = isNamesPending
   const hasNames = names.length > 0
-  const hasError = isNamesError || isEligibilityError
-  const hasPartialError = hasError && hasNames
+  const hasPartialError = (isNamesError && hasNames) || isEligibilityError
   const pageRows = pageItems.map((item) => ({
     item,
     metadata: mergedRowMetadata(item, primaryLabel),
@@ -259,7 +269,7 @@ export const MyNamesList = ({
     pageRows.filter(({ item }) => item.kind === 'v1').map(({ name }) => name),
   )
 
-  if (hasError && !hasNames) {
+  if (isNamesError && !hasNames) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
         <Trans>Error loading names</Trans>
@@ -313,6 +323,7 @@ export const MyNamesList = ({
                   favoriteLabels={favoriteLabels}
                   index={index}
                   isAuthenticated={isAuthenticated}
+                  isEligibilityPending={isEligibilityPending}
                   isProfileRecordsLoading={
                     profileRecordState?.isLoading ?? false
                   }

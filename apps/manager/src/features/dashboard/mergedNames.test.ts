@@ -11,8 +11,8 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   key: '0x01',
   name: 'alice.eth',
   protocol: 'v2',
-  expiryDate: 100,
-  createdAt: 100,
+  expiryDate: 100n,
+  createdAt: 100n,
   nameRoles: ['owner'],
   isLapsed: false,
   ...overrides,
@@ -22,8 +22,8 @@ const makeMerged = (overrides: Partial<MergedItem> = {}): MergedItem => ({
   kind: 'v2',
   key: '0x01',
   sortName: 'alice.eth',
-  sortExpiry: 100,
-  sortCreated: 100,
+  sortExpiry: 100n,
+  sortCreated: 100n,
   name: makeName(),
   isMigrationEligible: false,
   ...overrides,
@@ -36,28 +36,28 @@ const makeMergedV1 = (overrides: Partial<MergedItem> = {}) =>
   makeMerged({
     kind: 'v1',
     sortName: 'bob.eth',
-    sortExpiry: null,
+    sortExpiry: 0n,
     sortCreated: null,
     ...overrides,
   })
 
 describe('compareMerged', () => {
-  const a = makeMergedV2({ sortName: 'alpha.eth', sortExpiry: 10 })
-  const b = makeMergedV2({ sortName: 'beta.eth', sortExpiry: 20 })
-  const noExpiry = makeMergedV1({ sortName: 'gamma.eth', sortExpiry: null })
+  const a = makeMergedV2({ sortName: 'alpha.eth', sortExpiry: 10n })
+  const b = makeMergedV2({ sortName: 'beta.eth', sortExpiry: 20n })
+  const noExpiry = makeMergedV1({ sortName: 'gamma.eth', sortExpiry: 0n })
   const older = makeMergedV2({
     sortName: 'older.eth',
-    sortExpiry: 20,
-    sortCreated: 10,
+    sortExpiry: 20n,
+    sortCreated: 10n,
   })
   const newer = makeMergedV2({
     sortName: 'newer.eth',
-    sortExpiry: 10,
-    sortCreated: 20,
+    sortExpiry: 10n,
+    sortCreated: 20n,
   })
   const noCreated = makeMergedV1({
     sortName: 'unknown.eth',
-    sortExpiry: 1,
+    sortExpiry: 1n,
   })
 
   it('sorts by name asc', () => {
@@ -76,13 +76,13 @@ describe('compareMerged', () => {
   it('pushes zero expiry to the end like null expiry', () => {
     const nonExpiring = makeMergedV1({
       sortName: 'non-expiring.eth',
-      sortExpiry: 0,
+      sortExpiry: 0n,
     })
     expect(compareMerged(a, nonExpiring, 'expiry', 'asc')).toBeLessThan(0)
     expect(compareMerged(a, nonExpiring, 'expiry', 'desc')).toBeLessThan(0)
   })
   it('returns 0 when both expiries are null', () => {
-    const c = makeMergedV1({ sortName: 'delta.eth', sortExpiry: null })
+    const c = makeMergedV1({ sortName: 'delta.eth', sortExpiry: 0n })
     expect(compareMerged(noExpiry, c, 'expiry', 'asc')).toBe(0)
   })
   it('sorts by created date and keeps unknown created dates last', () => {
@@ -96,22 +96,27 @@ describe('buildMergedNamesList', () => {
     makeName({
       key: '0x1',
       name: 'alpha.eth',
-      expiryDate: 200,
-      createdAt: 100,
+      expiryDate: 200n,
+      createdAt: 100n,
     }),
-    makeName({ key: '0x2', name: 'zeta.eth', expiryDate: 100, createdAt: 200 }),
+    makeName({
+      key: '0x2',
+      name: 'zeta.eth',
+      expiryDate: 100n,
+      createdAt: 200n,
+    }),
     makeName({
       key: '0x3',
       name: 'mike.eth',
       protocol: 'v1',
-      expiryDate: 0,
+      expiryDate: 0n,
       createdAt: null,
     }),
     makeName({
       key: '0x4',
       name: 'beta.eth',
       protocol: 'v1',
-      expiryDate: 50,
+      expiryDate: 50n,
       createdAt: null,
     }),
   ]
@@ -149,7 +154,7 @@ describe('buildMergedNamesList', () => {
       sortField: 'expiry',
       sortDir: 'asc',
     })
-    expect(items.map((i) => i.sortExpiry)).toEqual([50, 100, 200, 0])
+    expect(items.map((i) => i.sortExpiry)).toEqual([50n, 100n, 200n, 0n])
   })
 
   describe('version filter', () => {
@@ -315,14 +320,14 @@ describe('mergedRowMetadata', () => {
   })
 
   it('flags v2 name matching primaryLabel as primary', () => {
-    const item = makeMergedV2({ sortName: 'alice.eth', sortExpiry: null })
+    const item = makeMergedV2({ sortName: 'alice.eth', sortExpiry: 0n })
     const meta = mergedRowMetadata(item, 'alice.eth')
     expect(meta.isPrimary).toBe(true)
     expect(meta.isV1).toBe(false)
   })
 
   it('never flags v1 items as primary even on label match', () => {
-    const item = makeMergedV1({ sortName: 'bob.eth', sortExpiry: null })
+    const item = makeMergedV1({ sortName: 'bob.eth', sortExpiry: 0n })
     const meta = mergedRowMetadata(item, 'bob.eth')
     expect(meta.isPrimary).toBe(false)
     expect(meta.isV1).toBe(true)
@@ -341,7 +346,7 @@ describe('mergedRowMetadata', () => {
     )
     const item = makeMergedV2({
       sortName: 'a.eth',
-      sortExpiry: tenDaysFromNow,
+      sortExpiry: BigInt(tenDaysFromNow),
     })
     const meta = mergedRowMetadata(item, null)
     expect(meta.expiringSoon).toBe(true)
@@ -351,7 +356,7 @@ describe('mergedRowMetadata', () => {
   it('labels zero expiry timestamps as non-expiring', () => {
     const item = makeMergedV1({
       sortName: 'pokemon.fgeorgescu.eth',
-      sortExpiry: 0,
+      sortExpiry: 0n,
     })
 
     const meta = mergedRowMetadata(item, null)
@@ -367,7 +372,7 @@ describe('mergedRowMetadata', () => {
     )
     const item = makeMergedV2({
       sortName: 'remind.eth',
-      sortExpiry: tenDaysFromNow,
+      sortExpiry: BigInt(tenDaysFromNow),
     })
     const meta = mergedRowMetadata(item, null)
     expect(meta.expiryCta).toBe('remindMe')
@@ -379,7 +384,7 @@ describe('mergedRowMetadata', () => {
     )
     const item = makeMergedV2({
       sortName: 'renew.eth',
-      sortExpiry: sevenDaysFromNow,
+      sortExpiry: BigInt(sevenDaysFromNow),
     })
     const meta = mergedRowMetadata(item, null)
     expect(meta.expiryCta).toBe('renew')
@@ -389,7 +394,10 @@ describe('mergedRowMetadata', () => {
     const expired = Math.floor(
       new Date('2023-12-20T00:00:00Z').getTime() / 1000,
     )
-    const item = makeMergedV2({ sortName: 'grace.eth', sortExpiry: expired })
+    const item = makeMergedV2({
+      sortName: 'grace.eth',
+      sortExpiry: BigInt(expired),
+    })
     const meta = mergedRowMetadata(item, null)
     expect(meta.isInGrace).toBe(true)
     expect(meta.useDefaultAvatar).toBe(true)

@@ -9,13 +9,13 @@ export type SelectableDomain = {
   readonly expiryDate: bigint | null
 }
 
-/** A listed name, whose expiry is a JSON number; `0` never expires. */
+/** A listed name; an expiry of `0n` never expires. */
 export const toSelectableDomain = (domain: {
   readonly name: string
-  readonly expiryDate: number
+  readonly expiryDate: bigint
 }): SelectableDomain => ({
   name: domain.name,
-  expiryDate: domain.expiryDate === 0 ? null : BigInt(domain.expiryDate),
+  expiryDate: domain.expiryDate === 0n ? null : domain.expiryDate,
 })
 
 /** The canonical key a selection is stored under. */

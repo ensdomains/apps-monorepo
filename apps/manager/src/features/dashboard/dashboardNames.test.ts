@@ -48,7 +48,7 @@ const dashboardName = (
   key: '0x01',
   name: 'alice.eth',
   protocol: 'v2',
-  expiryDate: 100,
+  expiryDate: 100n,
   createdAt: null,
   nameRoles: ['owner'],
   isLapsed: false,
@@ -67,7 +67,7 @@ describe('toDashboardName', () => {
   })
 
   it('renders a name without an expiry as non-expiring', () => {
-    expect(toDashboardName(summary({ expiresAt: null })).expiryDate).toBe(0)
+    expect(toDashboardName(summary({ expiresAt: null })).expiryDate).toBe(0n)
   })
 })
 
@@ -93,7 +93,7 @@ describe('toGraceName', () => {
       key: '0x02',
       name: 'grace.eth',
       protocol: 'v2',
-      expiryDate: nowSeconds - 86_400 * 3,
+      expiryDate: BigInt(nowSeconds - 86_400 * 3),
       createdAt: null,
       nameRoles: [],
       isLapsed: true,
@@ -144,9 +144,9 @@ describe('mergeDashboardNames', () => {
   it('prefers a current row over a grace row for the same name', () => {
     expect(
       mergeDashboardNames([
-        dashboardName({ expiryDate: 50, nameRoles: [] }),
-        dashboardName({ expiryDate: 200, nameRoles: ['owner'] }),
+        dashboardName({ expiryDate: 50n, nameRoles: [] }),
+        dashboardName({ expiryDate: 200n, nameRoles: ['owner'] }),
       ]),
-    ).toEqual([dashboardName({ expiryDate: 200, nameRoles: ['owner'] })])
+    ).toEqual([dashboardName({ expiryDate: 200n, nameRoles: ['owner'] })])
   })
 })
