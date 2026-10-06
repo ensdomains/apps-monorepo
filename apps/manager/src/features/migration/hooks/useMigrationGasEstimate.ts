@@ -39,6 +39,8 @@ type UseMigrationGasEstimateParams = {
   readonly hcaAddress: Address | undefined
   readonly accountError?: string | null
   readonly selectedNames: readonly string[]
+  /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
+  readonly managerRestorationNames?: readonly string[]
   readonly v1Names: readonly V1Domain[]
   readonly enabled?: boolean
 }
@@ -83,12 +85,14 @@ const buildEstimate = async (params: {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
+  readonly managerRestorationNames: readonly string[]
   readonly signal: AbortSignal
   readonly ensurePreflight: (
     domains: readonly V1Domain[],
     options: {
       readonly signal: AbortSignal
       readonly staleTime: number
+      readonly requiresManagerRestoration: boolean
     },
   ) => Promise<MigrationPreflight>
 }) => {
@@ -133,6 +137,7 @@ const buildEstimate = async (params: {
     params.ensurePreflight(params.domains, {
       signal: params.signal,
       staleTime: 0,
+      requiresManagerRestoration: params.managerRestorationNames.length > 0,
     }),
   )
   params.signal.throwIfAborted()
@@ -141,6 +146,7 @@ const buildEstimate = async (params: {
       domains: params.domains,
       hcaAddress,
       migrationOwner: ownerAddress,
+      managerRestorationNames: params.managerRestorationNames,
       publicClient,
       preflight,
       signal: params.signal,
@@ -161,6 +167,7 @@ export const useMigrationGasEstimate = ({
   hcaAddress,
   accountError,
   selectedNames,
+  managerRestorationNames,
   v1Names,
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
@@ -175,6 +182,12 @@ export const useMigrationGasEstimate = ({
   const selectedNamesKey = useMemo(
     () => [...selectedNames].sort(),
     [selectedNames],
+  )
+  // A per-name opt-in changes the calls inside the batch, so it has to key the
+  // estimate the same way the selection does.
+  const managerRestorationKey = useMemo(
+    () => [...(managerRestorationNames ?? [])].sort(),
+    [managerRestorationNames],
   )
   const domains = useMemo(
     () =>
@@ -216,6 +229,7 @@ export const useMigrationGasEstimate = ({
         hcaAddress: hcaAddress?.toLowerCase() ?? '',
         domainIds,
         selectedNames: selectedNamesKey,
+        managerRestorationNames: managerRestorationKey,
         recoveryOperations,
       },
     ] as const,
@@ -233,6 +247,7 @@ export const useMigrationGasEstimate = ({
         recoverySnapshot,
         recoverySelectionMatches,
         domains,
+        managerRestorationNames: managerRestorationKey,
         ensurePreflight,
         signal,
       })

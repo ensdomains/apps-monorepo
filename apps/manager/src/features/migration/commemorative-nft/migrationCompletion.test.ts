@@ -330,6 +330,7 @@ describe('commemorative NFT migration completion', () => {
       profiles: new Map(),
       ownedPermRes: null,
       plannedApprovals: [],
+      managerRestorationNames: [],
     })
 
     await expect(

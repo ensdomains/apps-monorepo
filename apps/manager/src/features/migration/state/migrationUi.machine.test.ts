@@ -97,6 +97,7 @@ const makeClassified = (d: V1Domain): ClassifiedName => ({
   tokenHolder: OWNER,
   v1ResolverAddress: null,
   resolverStrategy: 'to-owned-permres',
+  registryController: null,
   managerAddress: null,
 })
 
@@ -193,6 +194,7 @@ const MIGRATION_REQUEST_STEPS: MigrationPlan['stepDescriptors'] = [
     count: 1,
     migrateCount: 1,
     copyCount: 0,
+    roleGrants: [],
   },
 ]
 const RENEWAL_REQUEST_STEPS: readonly MigrationWalletRequestDescriptor[] = [
@@ -462,6 +464,7 @@ describe('migrationUiMachine', () => {
               count: 1,
               migrateCount: 1,
               copyCount: 0,
+              roleGrants: [],
             },
           ],
         }),
