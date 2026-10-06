@@ -16,8 +16,10 @@ import {
   PAGE_SIZE,
 } from './indexer.js'
 import {
-  fetchStageNames,
+  fetchSweep,
   MAX_PAGES_PER_SOURCE,
+  mergeWindows,
+  type StageWindow,
   sourcesForStage,
 } from './page.js'
 import { GRACE_END_SHIFT_SECONDS, STAGES } from './stages.js'
@@ -31,6 +33,12 @@ const stage = (id: (typeof STAGES)[number]['id']) => {
   if (!value) throw new Error(`Missing stage: ${id}`)
   return value
 }
+
+const window = (
+  id: (typeof STAGES)[number]['id'],
+  cursor: number,
+  upperBound: number,
+): StageWindow => ({ stage: stage(id), cursor, upperBound })
 
 const named = (
   name: string,
@@ -50,6 +58,30 @@ const fullPageAt = (expiryDate: number, prefix: string) =>
     named(`${prefix}-${index}.eth`, expiryDate),
   )
 
+const namesOf = (
+  result: Awaited<ReturnType<typeof fetchSweep>>,
+  id: (typeof STAGES)[number]['id'],
+) =>
+  result
+    ._unsafeUnwrap()
+    .pages.get(id)
+    ?.domains.map(({ name }) => name)
+
+describe('mergeWindows', () => {
+  it('joins windows that overlap or touch and keeps the rest apart', () => {
+    expect(
+      mergeWindows([
+        window('expiry-7d', 200, 300),
+        window('expiry-1d', 100, 200),
+        window('expiry-30d', 900, 1000),
+      ]),
+    ).toEqual([
+      { from: 100, to: 300 },
+      { from: 900, to: 1000 },
+    ])
+  })
+})
+
 describe('sourcesForStage', () => {
   it.each(
     STAGES.map((value) => ({
@@ -62,142 +94,177 @@ describe('sourcesForStage', () => {
   })
 })
 
-describe('fetchStageNames', () => {
+describe('fetchSweep', () => {
   beforeEach(() => {
     vi.mocked(fetchExpiringNamesPage).mockReset()
     vi.mocked(isStaleCursorError).mockReset()
   })
 
-  it('reads an expiry stage once, over every authority, at the registrar expiry', async () => {
+  it('reads the expiry stages once over the union of their windows and splits the rows by stage', async () => {
     vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
-      okAsync(page([named('a.eth', 150, 'v1'), named('b.eth', 160)])),
+      okAsync(
+        page([
+          named('one-day.eth', 150, 'v1'),
+          named('seven-day.eth', 250),
+          named('thirty-day.eth', 350),
+        ]),
+      ),
     )
 
-    const result = await fetchStageNames({
+    const result = await fetchSweep({
       env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
+      windows: [
+        window('expiry-1d', 100, 200),
+        window('expiry-7d', 200, 300),
+        window('expiry-30d', 300, 400),
+      ],
     })
 
     expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(1)
-    expect(fetchExpiringNamesPage).toHaveBeenCalledWith({
-      env: ENV,
-      stageId: 'expiry-30d',
-      expiresFrom: 101,
-      expiresTo: 200,
-    })
-    expect(result._unsafeUnwrap()).toEqual({
-      domains: [
-        { ...named('a.eth', 150, 'v1'), position: 150 },
-        { ...named('b.eth', 160), position: 160 },
-      ],
-      cursorEnd: 160,
-      hasMore: false,
-      indexedAtSec: INDEXED_AT,
-    })
+    expect(fetchExpiringNamesPage).toHaveBeenCalledWith(
+      expect.objectContaining({ expiresFrom: 101, expiresTo: 400 }),
+    )
+    expect(
+      vi.mocked(fetchExpiringNamesPage).mock.calls[0]?.[0],
+    ).not.toHaveProperty('authorities')
+    expect(namesOf(result, 'expiry-1d')).toEqual(['one-day.eth'])
+    expect(namesOf(result, 'expiry-7d')).toEqual(['seven-day.eth'])
+    expect(namesOf(result, 'expiry-30d')).toEqual(['thirty-day.eth'])
+    expect(result._unsafeUnwrap().pages.get('expiry-7d')?.cursorEnd).toBe(300)
   })
 
-  it('reads a grace-end stage per protocol, with ENSv1 moved back by the grace difference', async () => {
+  it('reads grace-end stages per protocol, with ENSv1 moved back by the grace difference', async () => {
     const cursor = 10_000_000
-    const upperBound = cursor + 100
     vi.mocked(fetchExpiringNamesPage)
       .mockReturnValueOnce(okAsync(page([named('v2.eth', cursor + 50)])))
       .mockReturnValueOnce(
         okAsync(page([named('v1.eth', cursor + 20 - V1_SHIFT, 'v1')])),
       )
 
-    const result = await fetchStageNames({
+    const result = await fetchSweep({
       env: ENV,
-      stage: stage('premium-start'),
-      cursor,
-      upperBound,
-    })
-
-    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(1, {
-      env: ENV,
-      stageId: 'premium-start',
-      expiresFrom: cursor + 1,
-      expiresTo: upperBound,
-      authorities: ['ens_v2'],
-    })
-    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(2, {
-      env: ENV,
-      stageId: 'premium-start',
-      expiresFrom: cursor + 1 - V1_SHIFT,
-      expiresTo: upperBound - V1_SHIFT,
-      authorities: ['ens_v0', 'ens_v1'],
-    })
-    const read = result._unsafeUnwrap()
-    expect(read.domains.map(({ name, position }) => [name, position])).toEqual([
-      ['v1.eth', cursor + 20],
-      ['v2.eth', cursor + 50],
-    ])
-    expect(read.domains[0]?.expiryDate).toBe(cursor + 20 - V1_SHIFT)
-    expect(read.cursorEnd).toBe(cursor + 50)
-  })
-
-  it('leaves the cursor where it was when the window is empty', async () => {
-    vi.mocked(fetchExpiringNamesPage).mockReturnValue(okAsync(page([])))
-
-    const result = await fetchStageNames({
-      env: ENV,
-      stage: stage('expiry-7d'),
-      cursor: 100,
-      upperBound: 200,
-    })
-
-    expect(result._unsafeUnwrap().cursorEnd).toBe(100)
-  })
-
-  it('follows the cursor across pages and reports the oldest index position', async () => {
-    vi.mocked(fetchExpiringNamesPage)
-      .mockReturnValueOnce(okAsync(page([named('a.eth', 110)], 'c1')))
-      .mockReturnValueOnce(
-        okAsync(page([named('b.eth', 120)], null, INDEXED_AT - 30)),
-      )
-
-    const result = await fetchStageNames({
-      env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
+      windows: [window('premium-start', cursor, cursor + 100)],
     })
 
     expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ pageCursor: 'c1' }),
+      1,
+      expect.objectContaining({
+        expiresFrom: cursor + 1,
+        expiresTo: cursor + 100,
+        authorities: ['ens_v2'],
+      }),
     )
-    const read = result._unsafeUnwrap()
-    expect(read.domains.map(({ name }) => name)).toEqual(['a.eth', 'b.eth'])
-    expect(read.indexedAtSec).toBe(INDEXED_AT - 30)
-    expect(read.hasMore).toBe(false)
+    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        expiresFrom: cursor + 1 - V1_SHIFT,
+        expiresTo: cursor + 100 - V1_SHIFT,
+        authorities: ['ens_v0', 'ens_v1'],
+      }),
+    )
+    const read = result._unsafeUnwrap().pages.get('premium-start')
+    expect(read?.domains.map(({ name, position }) => [name, position])).toEqual(
+      [
+        ['v1.eth', cursor + 20],
+        ['v2.eth', cursor + 50],
+      ],
+    )
+    expect(read?.domains[0]?.expiryDate).toBe(cursor + 20 - V1_SHIFT)
   })
 
-  it('stops just before the second a source was reading when it runs out of pages', async () => {
-    const pages = Array.from({ length: MAX_PAGES_PER_SOURCE }, (_, read) =>
-      page(fullPageAt(110 + read, `p${read}`), `c${read + 1}`),
+  it('reads windows that do not touch separately, so processed names are not read again', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(okAsync(page([])))
+
+    await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-1d', 100, 200), window('expiry-30d', 900, 1000)],
+    })
+
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(2)
+    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ expiresFrom: 901, expiresTo: 1000 }),
     )
-    for (const value of pages) {
-      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(okAsync(value))
+  })
+
+  it('moves an empty window to its end', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(okAsync(page([])))
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-7d', 100, 200)],
+    })
+
+    expect(result._unsafeUnwrap().pages.get('expiry-7d')).toEqual({
+      domains: [],
+      cursorEnd: 200,
+      hasMore: false,
+    })
+  })
+
+  it.each([
+    { id: 'premium-start', kept: ['live.eth', 'released.eth'] },
+    { id: 'grace-1d', kept: ['live.eth'] },
+  ] as const)('keeps released names only where they belong: $id', async ({
+    id,
+    kept,
+  }) => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
+      okAsync(
+        page([
+          named('live.eth', 10_000_050),
+          named('released.eth', 10_000_060, 'v2', true),
+        ]),
+      ),
+    )
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window(id, 10_000_000, 10_000_100)],
+    })
+
+    expect([...new Set(namesOf(result, id))]).toEqual(kept)
+  })
+
+  it('moves past released rows it dropped at the end of a complete window', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+      okAsync(
+        page([named('live.eth', 120), named('released.eth', 150, 'v2', true)]),
+      ),
+    )
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-30d', 100, 200)],
+    })
+
+    const read = result._unsafeUnwrap().pages.get('expiry-30d')
+    expect(read?.domains.map(({ name }) => name)).toEqual(['live.eth'])
+    expect(read?.cursorEnd).toBe(200)
+  })
+
+  it('stops the window it ran out of pages in, and leaves later windows for next run', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_SOURCE; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(page(fullPageAt(110 + read, `p${read}`), `c${read + 1}`)),
+      )
     }
 
-    const result = await fetchStageNames({
+    const result = await fetchSweep({
       env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
+      windows: [window('expiry-1d', 100, 200), window('expiry-7d', 200, 300)],
     })
 
     const lastSecond = 110 + MAX_PAGES_PER_SOURCE - 1
-    const read = result._unsafeUnwrap()
-    expect(read.cursorEnd).toBe(lastSecond - 1)
-    expect(read.hasMore).toBe(true)
-    expect(read.overflow).toBeUndefined()
-    expect(read.domains.every(({ position }) => position < lastSecond)).toBe(
-      true,
-    )
-    expect(read.domains).toHaveLength(PAGE_SIZE * (MAX_PAGES_PER_SOURCE - 1))
+    const first = result._unsafeUnwrap().pages.get('expiry-1d')
+    expect(first?.cursorEnd).toBe(lastSecond - 1)
+    expect(first?.hasMore).toBe(true)
+    expect(first?.domains).toHaveLength(PAGE_SIZE * (MAX_PAGES_PER_SOURCE - 1))
+    expect(result._unsafeUnwrap().pages.get('expiry-7d')).toEqual({
+      domains: [],
+      cursorEnd: 200,
+      hasMore: true,
+    })
   })
 
   it('moves past one second that fills the page budget and reports the overflow', async () => {
@@ -207,20 +274,35 @@ describe('fetchStageNames', () => {
       )
     }
 
-    const result = await fetchStageNames({
+    const result = await fetchSweep({
       env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
+      windows: [window('expiry-30d', 100, 200)],
     })
 
-    const read = result._unsafeUnwrap()
-    expect(read.cursorEnd).toBe(101)
-    expect(read.domains).toHaveLength(PAGE_SIZE * MAX_PAGES_PER_SOURCE)
-    expect(read.overflow).toEqual({
+    const read = result._unsafeUnwrap().pages.get('expiry-30d')
+    expect(read?.cursorEnd).toBe(101)
+    expect(read?.overflow).toEqual({
       expiryTimestamp: 101,
       processedCount: PAGE_SIZE * MAX_PAGES_PER_SOURCE,
     })
+  })
+
+  it('reports the oldest index position across reads', async () => {
+    vi.mocked(fetchExpiringNamesPage)
+      .mockReturnValueOnce(okAsync(page([], null, INDEXED_AT)))
+      .mockReturnValueOnce(okAsync(page([], null, INDEXED_AT - 30)))
+      .mockReturnValueOnce(okAsync(page([], null, INDEXED_AT - 10)))
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [
+        window('expiry-1d', 100, 200),
+        window('grace-1d', 10_000_000, 10_000_100),
+      ],
+    })
+
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(3)
+    expect(result._unsafeUnwrap().indexedAtSec).toBe(INDEXED_AT - 30)
   })
 
   it.each([
@@ -243,11 +325,9 @@ describe('fetchStageNames', () => {
         okAsync(page([named('a.eth', 110), named('b.eth', 120)])),
       )
 
-    const result = await fetchStageNames({
+    const result = await fetchSweep({
       env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
+      windows: [window('expiry-30d', 100, 200)],
     })
 
     if (!isStale) {
@@ -259,82 +339,6 @@ describe('fetchStageNames', () => {
       3,
       expect.not.objectContaining({ pageCursor: expect.anything() }),
     )
-    expect(result._unsafeUnwrap().domains.map(({ name }) => name)).toEqual([
-      'a.eth',
-      'b.eth',
-    ])
-  })
-
-  it.each([
-    { id: 'premium-start', kept: ['live.eth', 'released.eth'] },
-    { id: 'grace-1d', kept: ['live.eth'] },
-  ] as const)('keeps released names only where they belong: $id', async ({
-    id,
-    kept,
-  }) => {
-    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
-      okAsync(
-        page([
-          named('live.eth', 10_000_050),
-          named('released.eth', 10_000_060, 'v2', true),
-        ]),
-      ),
-    )
-
-    const result = await fetchStageNames({
-      env: ENV,
-      stage: stage(id),
-      cursor: 10_000_000,
-      upperBound: 10_000_100,
-    })
-
-    expect([
-      ...new Set(result._unsafeUnwrap().domains.map(({ name }) => name)),
-    ]).toEqual(kept)
-  })
-
-  it('stops at the last row read even when every row on the page was dropped', async () => {
-    for (let read = 0; read < MAX_PAGES_PER_SOURCE; read++) {
-      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
-        okAsync(
-          page(
-            Array.from({ length: PAGE_SIZE }, (_, index) =>
-              named(`r${read}-${index}.eth`, 110 + read, 'v2', true),
-            ),
-            `c${read + 1}`,
-          ),
-        ),
-      )
-    }
-
-    const result = await fetchStageNames({
-      env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
-    })
-
-    const read = result._unsafeUnwrap()
-    expect(read.domains).toEqual([])
-    expect(read.cursorEnd).toBe(110 + MAX_PAGES_PER_SOURCE - 2)
-  })
-
-  it('moves past released rows it dropped at the end of a complete window', async () => {
-    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
-      okAsync(
-        page([named('live.eth', 120), named('released.eth', 150, 'v2', true)]),
-      ),
-    )
-
-    const result = await fetchStageNames({
-      env: ENV,
-      stage: stage('expiry-30d'),
-      cursor: 100,
-      upperBound: 200,
-    })
-
-    const read = result._unsafeUnwrap()
-    expect(read.domains.map(({ name }) => name)).toEqual(['live.eth'])
-    expect(read.cursorEnd).toBe(150)
+    expect(namesOf(result, 'expiry-30d')).toEqual(['a.eth', 'b.eth'])
   })
 })

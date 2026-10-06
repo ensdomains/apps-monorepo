@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type ExpiringNamesQuery,
   fetchExpiringNamesPage,
+  fetchIndexedAtSec,
   isStaleCursorError,
   PAGE_SIZE,
 } from './indexer.js'
@@ -12,7 +13,7 @@ const AS_OF_SEC = 1_790_755_200
 
 const QUERY: ExpiringNamesQuery = {
   env: ENV,
-  stageId: 'expiry-30d',
+  label: 'a test read',
   expiresFrom: 101,
   expiresTo: 200,
 }
@@ -265,5 +266,16 @@ describe('fetchExpiringNamesPage', () => {
     const result = await fetchExpiringNamesPage({ ...QUERY, pageCursor: 'old' })
 
     expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(isStale)
+  })
+
+  it('probes the index position with a one-second window', async () => {
+    const fetchMock = stubFetch(json(listing([])))
+
+    const indexedAt = await fetchIndexedAtSec(ENV, 1_700_000_000)
+
+    expect(indexedAt._unsafeUnwrap()).toBe(AS_OF_SEC)
+    const params = requestedParams(fetchMock)
+    expect(params.get('expires_after')).toBe('2023-11-14T22:13:20.000Z')
+    expect(params.get('expires_before')).toBe('2023-11-14T22:13:21.000Z')
   })
 })

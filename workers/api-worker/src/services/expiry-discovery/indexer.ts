@@ -10,7 +10,6 @@ import type { GraceProtocol } from '@ens-apps/utils/gracePeriod'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok, type Result } from 'neverthrow'
 import { getConfig } from '#core/config.js'
-import type { ExpiryStageId } from '#types/events/index.js'
 import { logger } from '#utils/logger.js'
 
 // bigname's largest page.
@@ -105,7 +104,8 @@ export type ExpiringNamesPage = {
 
 export type ExpiringNamesQuery = {
   readonly env: CloudflareBindings
-  readonly stageId: ExpiryStageId
+  /** What the read is for, in logs and errors. */
+  readonly label: string
   /** Inclusive bounds on the registrar expiry. */
   readonly expiresFrom: number
   readonly expiresTo: number
@@ -136,7 +136,7 @@ const executeIndexerQuery = ResultFn(async function* (
     .mapErr(
       (error) =>
         new IndexerRequestError({
-          message: `Indexer query failed for stage ${ctx.stageId}`,
+          message: `Indexer query failed for ${ctx.label}`,
           cause: error,
           status: error.status,
           attempt: ctx.attempt,
@@ -148,7 +148,7 @@ const executeIndexerQuery = ResultFn(async function* (
   )
   if (indexedAtSec === null) {
     return yield* new IndexerValidationError({
-      message: `Indexer response carried no chain position for stage ${ctx.stageId}`,
+      message: `Indexer response carried no chain position for ${ctx.label}`,
       cause: response.meta,
     })
   }
@@ -165,7 +165,7 @@ const executeIndexerQuery = ResultFn(async function* (
   )
   if (unreadable) {
     return yield* new IndexerValidationError({
-      message: `Indexer listed ${unreadable.row.name} without a readable expiry or authority for stage ${ctx.stageId}`,
+      message: `Indexer listed ${unreadable.row.name} without a readable expiry or authority for ${ctx.label}`,
       cause: unreadable.row,
     })
   }
@@ -196,7 +196,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
   ctx: ExpiringNamesQuery,
 ) {
   logger.trace('Fetching expiring names page from indexer', {
-    stageId: ctx.stageId,
+    label: ctx.label,
     expiresFrom: ctx.expiresFrom,
     expiresTo: ctx.expiresTo,
     authorities: ctx.authorities,
@@ -207,7 +207,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
 
     if (result.isOk()) {
       logger.debug('Indexer query succeeded', {
-        stageId: ctx.stageId,
+        label: ctx.label,
         attempt,
         nameCount: result.value.names.length,
         firstExpiryDate: result.value.names[0]?.expiryDate,
@@ -229,7 +229,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
 
     const delayMs = toRetryDelayMs(attempt)
     logger.warn('Retrying indexer request after transient failure', {
-      stageId: ctx.stageId,
+      label: ctx.label,
       attempt,
       maxAttempts: MAX_RETRIES,
       delayMs,
@@ -249,14 +249,23 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
   }
 
   logger.error('Indexer query exhausted retries', {
-    stageId: ctx.stageId,
+    label: ctx.label,
     attempts: MAX_RETRIES,
     expiresFrom: ctx.expiresFrom,
     expiresTo: ctx.expiresTo,
   })
   return yield* new IndexerRequestError({
-    message: `Indexer query exhausted retries for stage ${ctx.stageId}`,
+    message: `Indexer query exhausted retries for ${ctx.label}`,
     cause: undefined,
     attempt: MAX_RETRIES,
   })
 })
+
+/** The chain time bigname's index has reached, from a one-row read. */
+export const fetchIndexedAtSec = (env: CloudflareBindings, nowSec: number) =>
+  fetchExpiringNamesPage({
+    env,
+    label: 'index position',
+    expiresFrom: nowSec,
+    expiresTo: nowSec,
+  }).map((page) => page.indexedAtSec)
