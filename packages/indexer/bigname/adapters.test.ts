@@ -23,8 +23,8 @@ describe('toUnixSeconds', () => {
     expect(toUnixSeconds(value)).toBeNull()
   })
 
-  it('keeps a wrapped name expiry beyond what a Date can hold', () => {
-    expect(toUnixSeconds('18446744073709551615')).toBeGreaterThan(1e19)
+  it('clamps a wrapped name expiry to the largest exact number', () => {
+    expect(toUnixSeconds('18446744073709551615')).toBe(Number.MAX_SAFE_INTEGER)
   })
 })
 
