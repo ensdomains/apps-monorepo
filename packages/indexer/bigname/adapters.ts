@@ -9,23 +9,36 @@ import type { BignameError } from './errors'
 import type { Authority, Relation, Timestamp } from './types'
 
 const UNIX_SECONDS = /^-?\d+$/
+// An explicit zone is required; without one `Date.parse` reads local time.
+const RFC_3339 =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/
 const MS_PER_SECOND = 1000
+// The largest instant a JavaScript Date can hold.
+const MAX_DATE_MS = 8.64e15
 
 /**
  * bigname documents RFC 3339 but currently sends unix seconds as a decimal
  * string, so both are accepted. Anything else is null rather than an
  * `Invalid Date`, which would otherwise travel as a real value.
  */
-export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
+const toEpochMs = (value: Timestamp | undefined): number | null => {
   if (value === undefined) return null
-  if (UNIX_SECONDS.test(value)) return Number(value)
-  const parsed = Date.parse(value)
-  return Number.isNaN(parsed) ? null : Math.floor(parsed / MS_PER_SECOND)
+  const ms = UNIX_SECONDS.test(value)
+    ? Number(value) * MS_PER_SECOND
+    : RFC_3339.test(value)
+      ? Date.parse(value)
+      : Number.NaN
+  return Number.isFinite(ms) && Math.abs(ms) <= MAX_DATE_MS ? ms : null
+}
+
+export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
+  const ms = toEpochMs(value)
+  return ms === null ? null : Math.floor(ms / MS_PER_SECOND)
 }
 
 export const toDate = (value: Timestamp | undefined): Date | null => {
-  const seconds = toUnixSeconds(value)
-  return seconds === null ? null : new Date(seconds * MS_PER_SECOND)
+  const ms = toEpochMs(value)
+  return ms === null ? null : new Date(ms)
 }
 
 // ens_v0 is a v1 name whose registry record still comes from the 2017

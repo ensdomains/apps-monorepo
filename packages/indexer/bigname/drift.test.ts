@@ -78,6 +78,23 @@ const expectTimestamp = (value: unknown, label: string) => {
   )
 }
 
+// The dates the shared reads convert. Optional on the wire, so only checked
+// when present.
+const READ_DATES = [
+  'expires_at',
+  'registered_at',
+  'created_at',
+  'migrated_at',
+] as const
+
+const expectReadDates = (value: object) => {
+  for (const key of READ_DATES) {
+    if (key in value) {
+      expectTimestamp((value as Record<string, unknown>)[key], key)
+    }
+  }
+}
+
 // A current-state collection's first page answers 409 when the publication
 // moves mid-read. Retrying is the caller's job, and here the caller is us.
 const once = async <T>(
@@ -121,6 +138,8 @@ describe.skipIf(!integration)(
       expect(REGISTRATION_STATUSES).toContain(data.registration_status)
       expectShape(data.resolver, { chain_id: 'number', address: 'string' })
       expectTimestamp(data.registered_at, 'registered_at')
+      expectTimestamp(data.expires_at, 'expires_at')
+      expectReadDates(data)
       expectShape(meta.as_of?.['11155111'], {
         block_number: 'number',
         block_hash: 'string',
@@ -229,6 +248,7 @@ describe.skipIf(!integration)(
           subname_count: 'number',
         })
         expect(AUTHORITIES).toContain(row.authority)
+        expectReadDates(row)
       }
     })
 

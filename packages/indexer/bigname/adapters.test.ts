@@ -18,6 +18,8 @@ describe('toUnixSeconds', () => {
     ['absent', undefined],
     ['unparseable', 'soon'],
     ['empty', ''],
+    ['beyond what a Date can hold', '9'.repeat(20)],
+    ['missing a timezone', '2026-10-30T22:33:48'],
   ])('returns null when %s', (_label, value) => {
     expect(toUnixSeconds(value)).toBeNull()
   })
@@ -28,7 +30,20 @@ describe('toDate', () => {
     expect(toDate('1793399628')).toEqual(new Date('2026-10-30T22:33:48Z'))
   })
 
+  it('keeps fractional seconds', () => {
+    expect(toDate('2026-10-30T22:33:48.500Z')?.getTime()).toBe(
+      1_793_399_628_500,
+    )
+  })
+
+  it('reads an offset as the same instant', () => {
+    expect(toDate('2026-10-31T00:33:48+02:00')).toEqual(
+      new Date('2026-10-30T22:33:48Z'),
+    )
+  })
+
   it('returns null instead of an Invalid Date', () => {
     expect(toDate('soon')).toBeNull()
+    expect(toDate('9'.repeat(20))).toBeNull()
   })
 })
