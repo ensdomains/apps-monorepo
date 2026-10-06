@@ -82,15 +82,25 @@ describe('hasDashboardNames', () => {
     )
   })
 
-  it('stops after a few pages of hidden names and assumes a listed one follows', async () => {
-    const readNames = vi.fn<ReadNamesForAddress>(() =>
-      okAsync(page([summary('abc.addr.reverse')], 'more')),
+  it.each([
+    { last: 'alice.eth', hasNames: true },
+    { last: 'last.addr.reverse', hasNames: false },
+  ])('reads past pages of hidden names to the end: $last', async ({
+    last,
+    hasNames,
+  }) => {
+    const hiddenPages = Array.from({ length: 5 }, (_, index) =>
+      page([summary(`${index}.addr.reverse`)], `page-${index + 1}`),
     )
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) => {
+      const index = cursor ? Number(cursor.replace('page-', '')) : 0
+      return okAsync(hiddenPages[index] ?? page([summary(last)]))
+    })
 
     const result = await hasDashboardNames(readNames, ADDRESS)
 
-    expect(result._unsafeUnwrap()).toBe(true)
-    expect(readNames).toHaveBeenCalledTimes(4)
+    expect(result._unsafeUnwrap()).toBe(hasNames)
+    expect(readNames).toHaveBeenCalledTimes(6)
   })
 
   it('retries a stale page with the same cursor', async () => {

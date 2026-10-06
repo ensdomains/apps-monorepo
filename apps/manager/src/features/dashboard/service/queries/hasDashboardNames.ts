@@ -13,10 +13,9 @@ import type { Address } from 'viem'
 import { readNamesPage } from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 
-const PAGE_SIZE = 50
 // Reverse records are the names the dashboard hides that usually come first,
 // so the first page almost always decides.
-const MAX_PAGES = 4
+const PAGE_SIZE = 50
 
 const HIDDEN_STATUSES: readonly NameSummary['registrationStatus'][] = [
   'released',
@@ -36,7 +35,7 @@ export const hasDashboardNames = ResultFn(async function* (
   address: Address,
 ) {
   let cursor: string | null = null
-  for (let read = 0; read < MAX_PAGES; read++) {
+  do {
     const page: Page<NameSummary> = yield* readNamesPage(readNames, {
       address,
       relations: ['owner'],
@@ -44,11 +43,9 @@ export const hasDashboardNames = ResultFn(async function* (
       ...(cursor !== null && { cursor }),
     })
     if (page.items.some(isListed)) return ok(true)
-    if (page.nextCursor === null) return ok(false)
     cursor = page.nextCursor
-  }
-  // Pages of hidden names alone are unlikely; with more left, assume a listed one.
-  return ok(true)
+  } while (cursor !== null)
+  return ok(false)
 })
 
 export const getHasDashboardNamesQueryOptions = (
