@@ -5,6 +5,7 @@ export type ListLoaderProps = {
   readonly moreCount: number
   readonly total: number | undefined
   readonly canShowMore: boolean
+  readonly canShowAll: boolean
   readonly status: 'idle' | 'loading' | 'error'
   readonly onMore: () => void
   readonly onAll: () => void
@@ -20,6 +21,7 @@ export const ListLoader = ({
   moreCount,
   total,
   canShowMore,
+  canShowAll,
   status,
   onMore,
   onAll,
@@ -50,16 +52,20 @@ export const ListLoader = ({
           >
             More
           </button>
-          <span aria-hidden="true">·</span>
-          <button
-            type="button"
-            onClick={onAll}
-            disabled={status === 'loading'}
-            title={total === undefined ? 'Show all' : `Show all ${total}`}
-            className={ACTION_CLASS_NAME}
-          >
-            All
-          </button>
+          {canShowAll && (
+            <>
+              <span aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={onAll}
+                disabled={status === 'loading'}
+                title={total === undefined ? 'Show all' : `Show all ${total}`}
+                className={ACTION_CLASS_NAME}
+              >
+                All
+              </button>
+            </>
+          )}
         </>
       )}
       {status === 'loading' && <span role="status">Loading…</span>}

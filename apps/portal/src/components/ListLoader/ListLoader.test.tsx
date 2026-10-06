@@ -424,6 +424,7 @@ describe('ListLoader when the source holds fewer rows than the total', () => {
         moreCount={200}
         total={588}
         canShowMore={false}
+        canShowAll
         status="idle"
         onMore={vi.fn()}
         onAll={vi.fn()}

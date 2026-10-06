@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
@@ -46,16 +46,26 @@ const eventsRef = vi.hoisted(() => ({
   current: [] as readonly RecentActivityEvent[],
 }))
 
+const feedRef = vi.hoisted(() => ({ totalCount: null as number | null }))
+
 vi.mock('../hooks/useRecentActivity', () => ({
+  RECENT_ACTIVITY_PAGE_SIZE: 15,
   getRecentActivityQueryOptions: () => ({
     queryKey: ['recent-activity-mock'],
-    queryFn: async () => ({
-      events: eventsRef.current,
-      endCursor: null,
-      hasNextPage: false,
-    }),
-    initialPageParam: undefined,
-    getNextPageParam: () => undefined,
+    queryFn: async ({ pageParam = 0 }: { pageParam?: number }) => {
+      const total = feedRef.totalCount ?? eventsRef.current.length
+      const events = eventsRef.current.slice(pageParam, pageParam + 15)
+      return {
+        events,
+        totalCount: feedRef.totalCount,
+        endCursor: null,
+        hasNextPage: pageParam + events.length < total,
+        next: pageParam + events.length,
+      }
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last: { hasNextPage: boolean; next: number }) =>
+      last.hasNextPage ? last.next : undefined,
   }),
 }))
 
@@ -85,7 +95,7 @@ const renderTable = async (events: readonly RecentActivityEvent[]) => {
       <RecentActivityTable />
     </QueryClientProvider>,
   )
-  await screen.findByText('Primary name updated')
+  await screen.findAllByText('Primary name updated')
 }
 
 /** The distinct names the row links to — `/$name` is rendered by both the pill and its chip. */
@@ -109,5 +119,25 @@ describe('RecentActivityTable', () => {
     await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
 
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
+  })
+
+  it('opens with 15 events and loads more on demand, with no All', async () => {
+    feedRef.totalCount = 32364
+    await renderTable(
+      Array.from({ length: 40 }, (_, i) => ({
+        ...nameChangedEvent(`name${i}.eth`),
+        transactionHash: `0x${(i + 1).toString(16)}` as const,
+      })),
+    )
+
+    expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+
+    expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
+    feedRef.totalCount = null
   })
 })

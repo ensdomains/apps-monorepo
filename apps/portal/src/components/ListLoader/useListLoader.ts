@@ -1,4 +1,8 @@
-import { useMutation } from '@tanstack/react-query'
+import {
+  type InfiniteData,
+  type InfiniteQueryObserverResult,
+  useMutation,
+} from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type FetchMoreResult, fetchUntil } from './fetchUntil'
@@ -11,7 +15,27 @@ type UseListLoaderParameters = {
   readonly hasMore?: boolean
   readonly fetchMore?: () => Promise<FetchMoreResult>
   readonly resetKey?: string
+  readonly hasAll?: boolean
 }
+
+/** Turns an infinite query's `fetchNextPage` into `fetchMore`. */
+export const infiniteFetchMore =
+  <TPage, TError>(
+    fetchNextPage: () => Promise<
+      InfiniteQueryObserverResult<InfiniteData<TPage>, TError>
+    >,
+    countRows: (page: TPage) => number,
+  ) =>
+  async (): Promise<FetchMoreResult> => {
+    const next = await fetchNextPage()
+    if (next.isError) throw next.error
+
+    return {
+      loaded:
+        next.data?.pages.reduce((sum, page) => sum + countRows(page), 0) ?? 0,
+      hasMore: next.hasNextPage,
+    }
+  }
 
 /** Props for `ListLoader`; render `rows.slice(0, shown)` beside it. */
 export const useListLoader = ({
@@ -21,6 +45,7 @@ export const useListLoader = ({
   hasMore = false,
   fetchMore,
   resetKey,
+  hasAll = true,
 }: UseListLoaderParameters) => {
   const [choice, setChoice] = useState<{
     readonly resetKey: string | undefined
@@ -65,6 +90,7 @@ export const useListLoader = ({
     moreCount,
     total: knownTotal,
     canShowMore: shown < loaded || hasMore,
+    canShowAll: hasAll,
     status: match({
       isCurrent: choice?.resetKey === resetKey,
       isPending,

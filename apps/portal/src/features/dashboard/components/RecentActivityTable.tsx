@@ -3,12 +3,18 @@ import { match, P } from 'ts-pattern'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { timelineBreakActionClassName } from '@/features/history/components/TimelineBreak'
-import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { truncateName } from '@/utils/formatting/truncateName'
-import { getRecentActivityQueryOptions } from '../hooks/useRecentActivity'
+import {
+  getRecentActivityQueryOptions,
+  RECENT_ACTIVITY_PAGE_SIZE,
+} from '../hooks/useRecentActivity'
 import {
   formatActivityEvent,
   formatRelativeTime,
@@ -19,18 +25,32 @@ export const RecentActivityTable = () => {
     data,
     isLoading,
     error,
+    isFetchNextPageError,
     hasNextPage,
     fetchNextPage,
-    isFetchingNextPage,
   } = useInfiniteQuery(getRecentActivityQueryOptions())
   const events = data?.pages.flatMap((page) => page.events) ?? []
+
+  const loader = useListLoader({
+    initialCount: RECENT_ACTIVITY_PAGE_SIZE,
+    loaded: events.length,
+    total: data?.pages.at(-1)?.totalCount ?? undefined,
+    hasMore: hasNextPage,
+    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.events.length),
+    // The feed is every event in the protocol: All would be thousands of pages.
+    hasAll: false,
+  })
 
   return (
     <div className="flex flex-col w-full">
       <div className="flex gap-2 h-12 items-center border-b border-border shrink-0">
         <span className="text-caps">Recent Activity</span>
       </div>
-      {match({ isLoading, error, count: events.length })
+      {match({
+        isLoading,
+        error: isFetchNextPageError ? null : error,
+        count: events.length,
+      })
         .with({ isLoading: true }, () => (
           <div className="flex items-center justify-center py-8">
             <LoadingSpinner title="Loading recent activity..." />
@@ -49,7 +69,7 @@ export const RecentActivityTable = () => {
           </div>
         ))
         .otherwise(() =>
-          events.map((event, index) => {
+          events.slice(0, loader.shown).map((event, index) => {
             const { text, value, actor, entityFromData } =
               formatActivityEvent(event)
             const rawName =
@@ -114,19 +134,7 @@ export const RecentActivityTable = () => {
             )
           }),
         )}
-      {events.length > 0 && hasNextPage && (
-        <button
-          type="button"
-          onClick={() => void fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className={cn(
-            timelineBreakActionClassName,
-            'w-fit cursor-pointer py-2.5 text-[14px] text-neutral-7 tracking-[0.02em]',
-          )}
-        >
-          {isFetchingNextPage ? 'Loading…' : 'Load more events'}
-        </button>
-      )}
+      <ListLoader {...loader} className="py-2.5" />
     </div>
   )
 }

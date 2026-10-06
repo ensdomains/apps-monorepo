@@ -23,6 +23,7 @@ export type RecentActivityEvent = {
 /** One page of the protocol-wide feed. */
 export type RecentActivityPage = {
   readonly events: readonly RecentActivityEvent[]
+  readonly totalCount: number | null
   readonly endCursor: string | null
   readonly hasNextPage: boolean
 }
@@ -31,7 +32,7 @@ class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
   cause: GraphqlRequestError
 }> {}
 
-const RECENT_ACTIVITY_PAGE_SIZE = 15
+export const RECENT_ACTIVITY_PAGE_SIZE = 15
 
 /** Only the top-level connection honours `first`/`after`/`orderBy` (see `timelineEventPage.ts`). */
 const recentActivityQuery = gql`
@@ -43,6 +44,7 @@ const recentActivityQuery = gql`
       orderDirection: desc
       where: $where
     ) {
+      totalCount
       pageInfo {
         hasNextPage
         endCursor
@@ -70,6 +72,7 @@ const getRecentActivityPage = (after: string | undefined) =>
   fromPromise(
     graphqlIndexerClient.request<{
       readonly eventConnection: {
+        readonly totalCount: number | null
         readonly pageInfo: {
           readonly hasNextPage: boolean
           readonly endCursor: string | null
@@ -85,6 +88,7 @@ const getRecentActivityPage = (after: string | undefined) =>
   ).map(
     ({ eventConnection }): RecentActivityPage => ({
       events: eventConnection?.edges.map(({ node }) => node) ?? [],
+      totalCount: eventConnection?.totalCount ?? null,
       endCursor: eventConnection?.pageInfo.endCursor ?? null,
       hasNextPage: eventConnection?.pageInfo.hasNextPage ?? false,
     }),
