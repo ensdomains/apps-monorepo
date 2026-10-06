@@ -2,6 +2,7 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Finality,
   Hex,
@@ -56,6 +57,8 @@ export type NameListingRow = Readonly<{
   grace_ends_at?: Timestamp
   /** Replaces `owner` once the registration has been released. */
   lapsed_registration?: LapsedRegistration
+  /** The lease that decides an ENSv1 name, which a reserved name's `expires_at` does not show. */
+  ens_v1?: EnsV1Facts
 }>
 
 /** `GET /v1/names`: response (`page.total_count` is always null). */

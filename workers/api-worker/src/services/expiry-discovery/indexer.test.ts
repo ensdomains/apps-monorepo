@@ -3,7 +3,8 @@ import {
   type ExpiringNamesQuery,
   fetchExpiringNamesPage,
   fetchIndexedAtSec,
-  isStaleCursorError,
+  fetchIndexReadiness,
+  MAX_INDEX_STALENESS_SECONDS,
   PAGE_SIZE,
 } from './indexer.js'
 
@@ -132,6 +133,7 @@ describe('fetchExpiringNamesPage', () => {
         {
           name: 'v2.eth',
           expiryDate: 1_700_000_000,
+          listedAt: 1_700_000_000,
           protocol: 'v2',
           isReleased: false,
           owner: '0xabc',
@@ -139,6 +141,7 @@ describe('fetchExpiringNamesPage', () => {
         {
           name: 'v1.eth',
           expiryDate: 1_700_000_001,
+          listedAt: 1_700_000_001,
           protocol: 'v1',
           isReleased: false,
           owner: '0xdef',
@@ -146,6 +149,7 @@ describe('fetchExpiringNamesPage', () => {
         {
           name: 'v0.eth',
           expiryDate: 1_700_000_002,
+          listedAt: 1_700_000_002,
           protocol: 'v1',
           isReleased: false,
           owner: undefined,
@@ -251,21 +255,63 @@ describe('fetchExpiringNamesPage', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it.each([
-    { code: 'stale', status: 409, isStale: true },
-    { code: 'invalid_input', status: 400, isStale: false },
-  ])('recognises a $code rejection as stale: $isStale', async ({
-    code,
-    status,
-    isStale,
-  }) => {
-    stubFetch(
-      json({ error: { code, message: 'rejected', details: {} } }, status),
+  it('retries a stale page with the same cursor', async () => {
+    const fetchMock = stubFetch(
+      json({ error: { code: 'stale', message: 'retry', details: {} } }, 409),
+      json(listing([])),
     )
 
-    const result = await fetchExpiringNamesPage({ ...QUERY, pageCursor: 'old' })
+    const promise = fetchExpiringNamesPage({ ...QUERY, pageCursor: 'next' })
+    await vi.runAllTimersAsync()
 
-    expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(isStale)
+    expect((await promise).isOk()).toBe(true)
+    expect(
+      fetchMock.mock.calls.map(([input]) =>
+        new URL(String(input)).searchParams.get('cursor'),
+      ),
+    ).toEqual(['next', 'next'])
+  })
+
+  it('dates an ENSv1 name by its lease, not its ENSv2 reservation', async () => {
+    stubFetch(
+      json(
+        listing([
+          row('reserved.eth', '1705356800', {
+            authority: 'ens_v1',
+            ens_v1: { expires_at: '1700000000' },
+          }),
+          row('unreserved.eth', '1700000001', {
+            authority: 'ens_v1',
+            ens_v1: { expires_at: '1700000001' },
+          }),
+          row('saturated.eth', '1705356800', {
+            authority: 'ens_v1',
+            ens_v1: { expires_at: '9223372036854775807' },
+          }),
+        ]),
+      ),
+    )
+
+    const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
+
+    expect(
+      page.names.map(({ name, expiryDate, listedAt }) => ({
+        name,
+        expiryDate,
+        listedAt,
+      })),
+    ).toEqual([
+      {
+        name: 'reserved.eth',
+        expiryDate: 1_700_000_000,
+        listedAt: 1_705_356_800,
+      },
+      {
+        name: 'unreserved.eth',
+        expiryDate: 1_700_000_001,
+        listedAt: 1_700_000_001,
+      },
+    ])
   })
 
   it('probes the index position with a one-second window', async () => {
@@ -277,5 +323,76 @@ describe('fetchExpiringNamesPage', () => {
     const params = requestedParams(fetchMock)
     expect(params.get('expires_after')).toBe('2023-11-14T22:13:20.000Z')
     expect(params.get('expires_before')).toBe('2023-11-14T22:13:21.000Z')
+  })
+})
+
+const chainStatus = (overrides: Readonly<Record<string, unknown>> = {}) =>
+  json({
+    data: {
+      status: 'ready',
+      pending_invalidation_count: 0,
+      pending_invalidation_count_capped: false,
+      dead_letter_count: 0,
+      chains: {
+        '11155111': {
+          lag_seconds: 0,
+          ingestion_lag_seconds: 12,
+          status: 'ready',
+          ...overrides,
+        },
+      },
+    },
+    meta: {},
+  })
+
+describe('fetchIndexReadiness', () => {
+  it.each([
+    { case: 'a current index', overrides: {}, isReady: true },
+    {
+      case: 'lag at the limit',
+      overrides: {
+        lag_seconds: 60,
+        ingestion_lag_seconds: MAX_INDEX_STALENESS_SECONDS - 60,
+      },
+      isReady: true,
+    },
+    {
+      case: 'lag past the limit',
+      overrides: { ingestion_lag_seconds: MAX_INDEX_STALENESS_SECONDS + 1 },
+      isReady: false,
+    },
+    {
+      case: 'a redo in progress',
+      overrides: { lag_seconds: null },
+      isReady: false,
+    },
+    {
+      case: 'unknown ingestion lag',
+      overrides: { ingestion_lag_seconds: null },
+      isReady: false,
+    },
+  ])('$case is ready: $isReady', async ({ overrides, isReady }) => {
+    stubFetch(chainStatus(overrides))
+
+    const readiness = await fetchIndexReadiness(ENV)
+
+    expect(readiness._unsafeUnwrap().isReady).toBe(isReady)
+  })
+
+  it('is not ready for a chain bigname does not serve', async () => {
+    stubFetch(
+      json({
+        data: {
+          status: 'ready',
+          pending_invalidation_count: 0,
+          pending_invalidation_count_capped: false,
+          dead_letter_count: 0,
+          chains: {},
+        },
+        meta: {},
+      }),
+    )
+
+    expect((await fetchIndexReadiness(ENV))._unsafeUnwrap().isReady).toBe(false)
   })
 })

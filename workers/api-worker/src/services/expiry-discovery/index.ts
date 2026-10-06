@@ -8,7 +8,7 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { fetchIndexedAtSec } from './indexer.js'
+import { fetchIndexedAtSec, fetchIndexReadiness } from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 import {
   fetchSweep,
@@ -180,6 +180,22 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
     stageCount: STAGES.length,
     stages: STAGES.map((stage) => stage.id),
   })
+
+  // Notices sent from a stale view could tell a renewed name it expired, so a
+  // run waits for a current index and leaves every cursor where it is.
+  const readiness = await fetchIndexReadiness(env)
+  if (readiness.isErr()) {
+    logger.error('Expiry discovery could not read the index status', {
+      error: readiness.error,
+    })
+    return ok({ totalEnqueued: 0, failedStages: STAGES.length })
+  }
+  if (!readiness.value.isReady) {
+    logger.warn('Expiry discovery skipped: the index is not current', {
+      reason: readiness.value.reason,
+    })
+    return ok({ totalEnqueued: 0, failedStages: 0 })
+  }
 
   const cursors = yield* loadNotificationCursors(env, nowSec)
   logger.debug('Loaded expiry notification cursors', {

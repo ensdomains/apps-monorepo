@@ -8,11 +8,16 @@ vi.mock('./page.js', async (importOriginal) => ({
 vi.mock('./indexer.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./indexer.js')>()),
   fetchIndexedAtSec: vi.fn(),
+  fetchIndexReadiness: vi.fn(),
 }))
 
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
-import { fetchIndexedAtSec, IndexerRequestError } from './indexer.js'
+import {
+  fetchIndexedAtSec,
+  fetchIndexReadiness,
+  IndexerRequestError,
+} from './indexer.js'
 import {
   fetchSweep,
   type ProcessableExpiryPage,
@@ -70,6 +75,7 @@ const stageName = (
 ): StageName => ({
   name,
   expiryDate: position,
+  listedAt: position,
   protocol: 'v2',
   isReleased: false,
   position,
@@ -114,6 +120,8 @@ describe('runExpiryDiscoveryCron', () => {
     vi.mocked(fetchSweep).mockReset()
     vi.mocked(fetchIndexedAtSec).mockReset()
     vi.mocked(fetchIndexedAtSec).mockReturnValue(okAsync(NOW))
+    vi.mocked(fetchIndexReadiness).mockReset()
+    vi.mocked(fetchIndexReadiness).mockReturnValue(okAsync({ isReady: true }))
     vi.useFakeTimers()
     vi.setSystemTime(new Date(NOW * 1000))
   })
@@ -228,6 +236,35 @@ describe('runExpiryDiscoveryCron', () => {
         getUpperBoundForStage(swept.stage, indexedAt),
       )
     }
+  })
+
+  it.each([
+    {
+      case: 'is not current',
+      readiness: () =>
+        okAsync({ isReady: false as const, reason: 'lag unknown' }),
+      failedStages: 0,
+    },
+    {
+      case: 'status cannot be read',
+      readiness: () => errAsync(failure()),
+      failedStages: STAGES.length,
+    },
+  ])('sends nothing and holds every cursor when the index $case', async ({
+    readiness,
+    failedStages,
+  }) => {
+    vi.mocked(fetchIndexReadiness).mockReturnValue(readiness())
+    const kv = new MockKV()
+    const cursors = caughtUpCursors()
+    cursors['expiry-7d'] = { expiry_timestamp: NOW + 2 * 86_400 }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+
+    const result = await runExpiryDiscoveryCron(makeEnv(kv))
+
+    expect(result._unsafeUnwrap()).toEqual({ totalEnqueued: 0, failedStages })
+    expect(fetchSweep).not.toHaveBeenCalled()
+    expect(await readCursors(kv)).toEqual(cursors)
   })
 
   it('holds every cursor when the index position cannot be read', async () => {

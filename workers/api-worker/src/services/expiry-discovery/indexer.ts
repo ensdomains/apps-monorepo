@@ -2,7 +2,6 @@ import {
   type Authority,
   BignameError,
   createBignameClient,
-  isStale,
   toProtocol,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
@@ -17,6 +16,9 @@ export const PAGE_SIZE = 200
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 const MS_PER_SECOND = 1000
+const SATURATED_LEASE = '9223372036854775807'
+// How old the served state may be before notices from it are held.
+export const MAX_INDEX_STALENESS_SECONDS = 15 * 60
 
 export class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
   cause: unknown
@@ -64,17 +66,13 @@ const toRetryDelayMs = (attempt: number): number => {
 
 // The client makes one attempt per call by design; the retry policy is the
 // job's. Anything transient, or with no status at all, is worth another try.
+// bigname's cursors hold no snapshot, so a stale page is retried as sent.
 const isRetryable = (error: BignameError): boolean =>
+  error.code === 'stale' ||
   error.code === 'network' ||
   error.status === undefined ||
   error.status === 429 ||
   error.status >= 500
-
-/** bigname rejected a page cursor because its index moved on. */
-export const isStaleCursorError = (error: unknown): boolean =>
-  error instanceof IndexerRequestError &&
-  error.cause instanceof BignameError &&
-  isStale(error.cause)
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
@@ -86,8 +84,10 @@ const toIso = (seconds: number): string =>
 // stage maths and the cursors it stores already use them, and they fit exactly.
 export type ExpiringName = {
   readonly name: string
-  /** The registrar expiry. */
+  /** The registrar expiry: for an ENSv1 name its lease, not an ENSv2 reservation. */
   readonly expiryDate: number
+  /** The served `expires_at` the listing is sorted and windowed by. */
+  readonly listedAt: number
   readonly protocol: GraceProtocol
   /** Past its grace period; `owner` is then the last holder. */
   readonly isReleased: boolean
@@ -153,15 +153,27 @@ const executeIndexerQuery = ResultFn(async function* (
     })
   }
 
-  const rows = response.data.map((row) => ({
-    row,
-    expiryDate: toUnixSeconds(row.expires_at),
-    protocol: toProtocol(row.authority),
-  }))
+  const rows = response.data.flatMap((row) => {
+    const protocol = toProtocol(row.authority)
+    const lease = row.ens_v1?.expires_at
+    // A saturated lease no longer carries its own date, so it has none to notify.
+    if (protocol === 'v1' && lease === SATURATED_LEASE) return []
+    return [
+      {
+        row,
+        expiryDate: toUnixSeconds(
+          protocol === 'v1' ? (lease ?? row.expires_at) : row.expires_at,
+        ),
+        listedAt: toUnixSeconds(row.expires_at),
+        protocol,
+      },
+    ]
+  })
   // The expiry window only lists rows with an expiry and an authority; a row
   // without either is a contract change, not a name to skip quietly.
   const unreadable = rows.find(
-    ({ expiryDate, protocol }) => expiryDate === null || protocol === null,
+    ({ expiryDate, listedAt, protocol }) =>
+      expiryDate === null || listedAt === null || protocol === null,
   )
   if (unreadable) {
     return yield* new IndexerValidationError({
@@ -169,18 +181,22 @@ const executeIndexerQuery = ResultFn(async function* (
       cause: unreadable.row,
     })
   }
-  const names = rows.flatMap(({ row, expiryDate, protocol }): ExpiringName[] =>
-    expiryDate === null || protocol === null
-      ? []
-      : [
-          {
-            name: row.name,
-            expiryDate,
-            protocol,
-            isReleased: row.registration_status === 'released',
-            owner: (row.owner ?? row.lapsed_registration?.owner)?.toLowerCase(),
-          },
-        ],
+  const names = rows.flatMap(
+    ({ row, expiryDate, listedAt, protocol }): ExpiringName[] =>
+      expiryDate === null || listedAt === null || protocol === null
+        ? []
+        : [
+            {
+              name: row.name,
+              expiryDate,
+              listedAt,
+              protocol,
+              isReleased: row.registration_status === 'released',
+              owner: (
+                row.owner ?? row.lapsed_registration?.owner
+              )?.toLowerCase(),
+            },
+          ],
   )
 
   return ok<ExpiringNamesPage>({
@@ -269,3 +285,39 @@ export const fetchIndexedAtSec = (env: CloudflareBindings, nowSec: number) =>
     expiresFrom: nowSec,
     expiresTo: nowSec,
   }).map((page) => page.indexedAtSec)
+
+export type IndexReadiness =
+  | { readonly isReady: true }
+  | { readonly isReady: false; readonly reason: string }
+
+/**
+ * Whether bigname serves a recent enough view of the chain to notify from.
+ * Unknown lag (a redo in progress) is not ready.
+ */
+export const fetchIndexReadiness = ResultFn(async function* (
+  env: CloudflareBindings,
+) {
+  const { client, chainId } = yield* getIndexer(env)
+  const { data } = yield* client.status().mapErr(
+    (error) =>
+      new IndexerRequestError({
+        message: 'Indexer status request failed',
+        cause: error,
+        status: error.status,
+        attempt: 1,
+      }),
+  )
+  const chain = data.chains[String(chainId)]
+  if (!chain) {
+    return ok<IndexReadiness>({ isReady: false, reason: 'chain not served' })
+  }
+  if (chain.lag_seconds === null || chain.ingestion_lag_seconds === null) {
+    return ok<IndexReadiness>({ isReady: false, reason: 'lag unknown' })
+  }
+  const stalenessSec = chain.lag_seconds + chain.ingestion_lag_seconds
+  return ok<IndexReadiness>(
+    stalenessSec <= MAX_INDEX_STALENESS_SECONDS
+      ? { isReady: true }
+      : { isReady: false, reason: `index ${stalenessSec}s behind the chain` },
+  )
+})

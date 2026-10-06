@@ -1,12 +1,11 @@
 import type { Authority } from '@ens-apps/indexer/bigname'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { errAsync, ok } from 'neverthrow'
+import { ok } from 'neverthrow'
 import type { ExpiryStageId } from '#types/events/index.js'
 import {
   type ExpiringName,
   type ExpiringNamesPage,
   fetchExpiringNamesPage,
-  isStaleCursorError,
   PAGE_SIZE,
 } from './indexer.js'
 import { type ExpiryStageConfig, GRACE_END_SHIFT_SECONDS } from './stages.js'
@@ -41,32 +40,64 @@ export type StageWindow = {
 }
 
 type Source = {
-  readonly key: 'all' | 'v2' | 'v1'
+  readonly key:
+    | 'expiry'
+    | 'expiry-v1-reserved'
+    | 'grace-end'
+    | 'grace-end-v1-unreserved'
+  readonly anchor: ExpiryStageConfig['anchor']
   readonly authorities?: readonly Authority[]
-  readonly shiftSec: number
+  /** A row sits this far after its served `expires_at` on the stage timeline. */
+  readonly listingShiftSec: number
 }
 
+// A reserved ENSv1 name is listed by its ENSv2 reservation, which normally
+// ends this long after the lease so that both graces end together.
+const RESERVATION_SHIFT_SECONDS = GRACE_END_SHIFT_SECONDS.v1
+const V1_AUTHORITIES = [
+  'ens_v0',
+  'ens_v1',
+] as const satisfies readonly Authority[]
+
 const SOURCES = {
-  all: { key: 'all', shiftSec: 0 },
-  v2: {
-    key: 'v2',
-    authorities: ['ens_v2'],
-    shiftSec: GRACE_END_SHIFT_SECONDS.v2,
+  // ENSv2 names, and ENSv1 names listed by their lease.
+  expiry: { key: 'expiry', anchor: 'expiry', listingShiftSec: 0 },
+  'expiry-v1-reserved': {
+    key: 'expiry-v1-reserved',
+    anchor: 'expiry',
+    authorities: V1_AUTHORITIES,
+    listingShiftSec: -RESERVATION_SHIFT_SECONDS,
   },
-  v1: {
-    key: 'v1',
-    authorities: ['ens_v0', 'ens_v1'],
-    shiftSec: GRACE_END_SHIFT_SECONDS.v1,
+  // ENSv2 names, and reserved ENSv1 names, whose listing date is their grace end
+  // in ENSv2 terms.
+  'grace-end': { key: 'grace-end', anchor: 'grace-end', listingShiftSec: 0 },
+  'grace-end-v1-unreserved': {
+    key: 'grace-end-v1-unreserved',
+    anchor: 'grace-end',
+    authorities: V1_AUTHORITIES,
+    listingShiftSec: RESERVATION_SHIFT_SECONDS,
   },
 } as const satisfies Record<Source['key'], Source>
 
 /**
- * Expiry stages read every authority at its registrar expiry. bigname cannot
- * filter on the grace end, so grace-end stages read each protocol over the
- * expiry window that maps onto the stage window.
+ * bigname windows on the served `expires_at`, which for a reserved ENSv1 name
+ * is its reservation rather than its lease. Each anchor reads the stage window
+ * once as served and once shifted by the reservation, then places every row by
+ * its own lease.
  */
 export const sourcesForStage = (stage: ExpiryStageConfig): readonly Source[] =>
-  stage.anchor === 'expiry' ? [SOURCES.all] : [SOURCES.v2, SOURCES.v1]
+  stage.anchor === 'expiry'
+    ? [SOURCES.expiry, SOURCES['expiry-v1-reserved']]
+    : [SOURCES['grace-end'], SOURCES['grace-end-v1-unreserved']]
+
+/** Where a name sits on a stage timeline, from its lease or ENSv2 expiry. */
+export const stagePosition = (
+  name: ExpiringName,
+  anchor: ExpiryStageConfig['anchor'],
+): number =>
+  anchor === 'expiry'
+    ? name.expiryDate
+    : name.expiryDate + GRACE_END_SHIFT_SECONDS[name.protocol]
 
 /** A stretch of one stage timeline, (from, to]. */
 type Interval = {
@@ -118,17 +149,22 @@ const readSource = ResultFn(async function* (ctx: {
     const page: ExpiringNamesPage = yield* fetchExpiringNamesPage({
       env: ctx.env,
       label: `the ${ctx.source.key} expiry sweep`,
-      expiresFrom: ctx.from + 1 - ctx.source.shiftSec,
-      expiresTo: ctx.to - ctx.source.shiftSec,
+      expiresFrom: ctx.from + 1 - ctx.source.listingShiftSec,
+      expiresTo: ctx.to - ctx.source.listingShiftSec,
       ...(ctx.source.authorities && { authorities: ctx.source.authorities }),
       ...(pageCursor !== null && { pageCursor }),
     })
     const placed = page.names.map((name) => ({
       ...name,
-      position: name.expiryDate + ctx.source.shiftSec,
+      position: stagePosition(name, ctx.source.anchor),
     }))
     rows = [...rows, ...placed]
-    lastReadPosition = placed.at(-1)?.position ?? lastReadPosition
+    // The walk is ordered by listing date, so that is how far it got.
+    const lastListedAt = page.names.at(-1)?.listedAt
+    lastReadPosition =
+      lastListedAt === undefined
+        ? lastReadPosition
+        : lastListedAt + ctx.source.listingShiftSec
     indexedAtSec = Math.min(indexedAtSec, page.indexedAtSec)
     pageCursor = page.nextCursor
     if (pageCursor === null) break
@@ -162,6 +198,10 @@ const pageForWindow = (
     window.stage.includeReleased || !name.isReleased
   const seen = reads
     .flatMap((read) => read.rows)
+    .filter(
+      (row, index, rows) =>
+        rows.findIndex((other) => other.name === row.name) === index,
+    )
     .filter(
       ({ position }) =>
         position > window.cursor && position <= window.upperBound,
@@ -232,11 +272,11 @@ export const fetchSweep = ResultFn(async function* (ctx: {
   for (const key of keys) {
     const windows = ctx.windows.filter((window) => usesSource(window, key))
     for (const interval of mergeWindows(windows)) {
-      const sourceCtx = { env: ctx.env, source: SOURCES[key], ...interval }
-      // A cursor that went stale mid-read is re-read once from the first page.
-      const read = yield* readSource(sourceCtx).orElse((error) =>
-        isStaleCursorError(error) ? readSource(sourceCtx) : errAsync(error),
-      )
+      const read = yield* readSource({
+        env: ctx.env,
+        source: SOURCES[key],
+        ...interval,
+      })
       reads = [...reads, read]
     }
   }
