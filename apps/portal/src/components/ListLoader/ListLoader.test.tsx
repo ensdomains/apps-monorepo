@@ -197,6 +197,32 @@ describe('ListLoader on a server-paged list', () => {
     expect(fetchPage).toHaveBeenCalledTimes(3)
   })
 
+  it('offers All up to 1000 rows and only More beyond that', () => {
+    const { unmount } = renderList(
+      <ServerList total={1000} pageSize={100} initialCount={100} />,
+    )
+    expect(all()).toBeInTheDocument()
+    unmount()
+
+    renderList(<ServerList total={1001} pageSize={100} initialCount={100} />)
+    expect(more()).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+  })
+
+  it('offers only More while the total is unknown', () => {
+    renderList(
+      <ServerList
+        total={250}
+        pageSize={100}
+        initialCount={100}
+        isTotalKnown={false}
+      />,
+    )
+
+    expect(more()).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+  })
+
   it('says on hover what each control will do', async () => {
     const user = userEvent.setup()
     renderList(<ServerList total={250} pageSize={100} initialCount={100} />)
@@ -424,6 +450,7 @@ describe('ListLoader when the source holds fewer rows than the total', () => {
         moreCount={200}
         total={588}
         canShowMore={false}
+        canShowAll
         status="idle"
         onMore={vi.fn()}
         onAll={vi.fn()}
