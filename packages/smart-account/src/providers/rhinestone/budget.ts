@@ -54,22 +54,40 @@ export const HCA_LEG_GAS_LIMITS = {
   // commit, which deploys the HCA) filled at ~393k gas on live Sepolia. The
   // rail prices the quote on this LIMIT, so it must cover the full bundle or a
   // successful quote could underfund the HCA and revert the first commit.
+  // Still accurate: a Sepolia commit fill measured 446_210 gas on 2026-10-06
+  // (`0xee6abba1266b3e09811647a48e5b4912f2bac85da5e283832d4a823d4f603a39`).
   commit: 450_000n,
   // Approve + register + record setters, WITHOUT the conditional resolver
   // deploy — `registerLegGasLimit` adds that on top.
-  register: 450_000n,
+  //
+  // Measured from a Sepolia reveal fill that deployed no resolver: 1_200_176
+  // gas on 2026-10-06
+  // (`0x570d87e352442bf9203f747a3f6496ebb828ed95eb58776eacb1b00b68fb80b1`),
+  // rounded up for headroom. The previous 450_000 came from a ~393k
+  // measurement the batch has since outgrown, and since the rail prices the
+  // quote on this limit, it priced the leg at roughly half its real cost: the
+  // permit then funded the HCA for that half, and the orchestrator refused to
+  // plan a reveal the account could not pay for — a rejection with no on-chain
+  // trace, identical on every retry.
+  register: 1_350_000n,
 } as const
 
 /**
  * Gas for the conditional `deployProxy` that `buildRevealBatch` prepends when
  * the HCA has no `PermissionedResolver` — i.e. on every FIRST registration.
  *
- * Measured at ~185_900 execution gas, flat, via `eth_estimateGas` against the
- * deployed Sepolia `VerifiableFactory` (`0x9e726Eb5…`); rounded up for headroom.
- * Leaving it unpriced under-sized the permit by ~41% of the leg (Immunefi
+ * Measured as the difference between two Sepolia reveal fills on 2026-10-06:
+ * 2_229_951 gas with the deploy
+ * (`0xc03cb436c8fdf54792f06d8fa3525a51604913f5711334c29511527f06301873`,
+ * and `0xe5745e1b…` within 546 gas of it) against 1_200_176 without, so the
+ * deploy costs ~1_030_000 in the batch; rounded up for headroom.
+ *
+ * The earlier 210_000 came from an `eth_estimateGas` of the factory call on
+ * its own, which misses what the deploy costs inside the batch. Leaving it
+ * unpriced altogether under-sized the permit by ~41% of the leg (Immunefi
  * #89462) — see {@link registerLegGasLimit} for why the quote cannot see it.
  */
-export const HCA_RESOLVER_DEPLOY_GAS = 210_000n
+export const HCA_RESOLVER_DEPLOY_GAS = 1_150_000n
 
 /**
  * Gas for the first storage word of the primary name, plus the fixed overhead
@@ -180,19 +198,26 @@ const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
  * number and we sign for it. The price half of the budget is read on-chain by
  * us, so it needs no bounding — only the fee half does.
  *
- * WHY 25 USDC. Live Sepolia fills price the commit leg at ~0.9 USDC and the
- * 450k-gas register leg at ~3.3 USDC, so a healthy route uses ~4.2 of this. The
- * bound is set at roughly 6x that, which is also just above what the clamped
- * fallback model can produce at its own 5 gwei cap (~950k gas × 5 gwei ≈ 0.0048
- * ETH, ~19 USDC at $4000/ETH) — so a legitimate gas regime, even a spiky one,
- * never trips it. It is a sanity bound on a fund-moving figure, not a budget
- * target.
+ * WHY 65 USDC. Live Sepolia fills on 2026-10-06 priced the commit leg at ~1.2
+ * USDC and the register leg at 3.40 USDC without a resolver deploy, 5.69 with
+ * one, so a healthy route uses ~7 of this. The bound also has to clear what the
+ * clamped fallback model can produce at its own 5 gwei cap: the corrected leg
+ * limits sum to 2.95M gas, which at 5 gwei is 0.0148 ETH, ~59 USDC at
+ * $4000/ETH. Below that, a legitimate gas regime on the fallback path would be
+ * refused outright.
+ *
+ * It was 25 USDC, derived the same way from a 450k-gas register leg that the
+ * batch has since outgrown — the figure moved because the leg did, not because
+ * the bound was loosened on purpose. It remains a sanity bound on a fund-moving
+ * figure, not a budget target, and it is now ~9x a healthy route rather than
+ * ~6x: a tighter bound needs the fallback model to be bounded separately from
+ * the orchestrator's own quote, which is a bigger change than this fix.
  *
  * REVISIT ON MAINNET. The manifest is testnet-only today (sepolia +
  * baseSepolia). A mainnet deployment prices legs in real gas and must re-derive
  * this from that chain's own fills rather than inherit the testnet number.
  */
-export const HCA_MAX_LEG_FEES_USDC = 25_000_000n
+export const HCA_MAX_LEG_FEES_USDC = 65_000_000n
 
 /**
  * The largest funding budget (USDC, 6dp) this route will ever ask a wallet to

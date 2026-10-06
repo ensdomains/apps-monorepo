@@ -199,18 +199,18 @@ describe('estimateHcaBudget', () => {
     )
   })
 
-  it('pins the leg-fee ceiling at 25 USDC', async () => {
+  it('pins the leg-fee ceiling at 65 USDC', async () => {
     // The other ceiling tests feed the constant back into itself, so they stay
     // green whatever it is set to. These use literals on purpose: raising the
     // ceiling (e.g. for mainnet, see the REVISIT ON MAINNET note on
     // HCA_MAX_LEG_FEES_USDC in budget.ts) must be a deliberate edit here too.
-    expect(HCA_MAX_LEG_FEES_USDC).toBe(25_000_000n)
+    expect(HCA_MAX_LEG_FEES_USDC).toBe(65_000_000n)
 
-    // 13 USDC per leg = 26 USDC of fees, just over the ceiling.
+    // 33 USDC per leg = 66 USDC of fees, just over the ceiling.
     await expect(
       estimateHcaBudget({
         ...baseParams(USDC(5)),
-        quoteLegCostUsdc: async () => ({ spendUsdc: 13_000_000n }),
+        quoteLegCostUsdc: async () => ({ spendUsdc: 33_000_000n }),
       }),
     ).rejects.toThrow(HcaBudgetExceedsMaximumError)
   })
@@ -263,6 +263,23 @@ describe('estimateHcaBudget', () => {
     )
   })
 
+  // Literals on purpose, like the ceiling test: the rail prices each leg on
+  // the LIMIT we quote it against, so a stale limit silently underfunds the
+  // permit. These come from Sepolia fills on 2026-10-06 — 1_200_176 gas for a
+  // reveal with no resolver deploy (0x570d87e3…) and 2_229_951 with one
+  // (0xc03cb436…) — and moving them has to be a deliberate edit here too.
+  it('pins the register leg limits to the measured fills', () => {
+    expect(HCA_LEG_GAS_LIMITS.register).toBe(1_350_000n)
+    expect(HCA_RESOLVER_DEPLOY_GAS).toBe(1_150_000n)
+
+    expect(registerLegGasLimit({ isResolverDeployed: true })).toBeGreaterThan(
+      1_200_176n,
+    )
+    expect(registerLegGasLimit({ isResolverDeployed: false })).toBeGreaterThan(
+      2_229_951n,
+    )
+  })
+
   it('prices the resolver deploy into the register leg on a first registration', async () => {
     // Immunefi #89462: a flat 450k limit never funded the conditional
     // `deployProxy` a first registration carries.
@@ -279,8 +296,10 @@ describe('estimateHcaBudget', () => {
     const fresh = await budgetFor(false)
     const existing = await budgetFor(true)
 
-    // 210k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 1.26 USDC, previously unfunded.
-    expect(fresh.registerCost - existing.registerCost).toBe(1_260_000n)
+    // 1.15M gas × 2 gwei × $3000/ETH ÷ $1/USDC = 6.90 USDC. The deploy is what
+    // separates a 1.2M-gas reveal fill from a 2.23M one, so pricing it at the
+    // old 210k left a first registration underfunded by most of it.
+    expect(fresh.registerCost - existing.registerCost).toBe(6_900_000n)
     expect(fresh.total).toBeGreaterThan(existing.total)
   })
 })
