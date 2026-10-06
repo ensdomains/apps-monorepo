@@ -13,6 +13,10 @@ import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import {
+  ListLoader,
+  type ListLoaderProps,
+} from '@/components/ListLoader/ListLoader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
@@ -59,11 +63,9 @@ const OwnerCell = ({ owner }: { owner: Address }) => (
 interface SubnamesTableProps {
   /** The rows loaded so far, which for a V2 name can be fewer than it has. */
   readonly subnames: readonly SubnameRow[]
-  /** Every subname the name has. Defaults to the rows given. */
+  /** Every subname the name has; left off the heading while unknown. */
   readonly totalCount?: number
-  /** Loads the next page; absent once every subname is loaded. */
-  readonly onLoadMore?: () => void
-  readonly isLoadingMore?: boolean
+  readonly loader?: ListLoaderProps
   readonly name: string
   readonly canCreateSubname?: boolean
   /** Called when user confirms delete on a single subname. */
@@ -162,9 +164,8 @@ function buildColumns(
 
 export const SubnamesTable = ({
   subnames,
-  totalCount = subnames.length,
-  onLoadMore,
-  isLoadingMore,
+  loader,
+  totalCount = loader?.canShowMore ? undefined : subnames.length,
   name,
   canCreateSubname,
   onDeleteSubname,
@@ -232,7 +233,7 @@ export const SubnamesTable = ({
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
           <PageHeading parent={{ type: 'name', name }} className="flex-1">
-            {totalCount > 0 ? `Subnames (${totalCount})` : 'Subnames'}
+            {totalCount ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
             <Button variant="default" asChild>
@@ -281,9 +282,9 @@ export const SubnamesTable = ({
             </InputGroupAddon>
           </InputGroup>
         )}
-        {onLoadMore && globalFilter && (
+        {loader?.canShowMore && globalFilter && (
           <p className="text-sm text-muted-foreground">
-            Searching the {subnames.length} subnames loaded so far. Load more to
+            Searching the {subnames.length} subnames shown so far. Show more to
             search the rest.
           </p>
         )}
@@ -485,20 +486,7 @@ export const SubnamesTable = ({
         </TableBody>
       </Table>
 
-      {onLoadMore && (
-        <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">
-          <span className="text-sm text-muted-foreground">
-            Showing {subnames.length} of {totalCount}
-          </span>
-          <Button
-            variant="outline"
-            disabled={isLoadingMore}
-            onClick={onLoadMore}
-          >
-            {isLoadingMore ? 'Loading…' : 'Load more subnames'}
-          </Button>
-        </div>
-      )}
+      {loader && <ListLoader {...loader} className="px-6 py-4 md:px-0" />}
     </>
   )
 }
