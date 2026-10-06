@@ -3,6 +3,7 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Hex,
   LapsedRegistration,
@@ -90,6 +91,7 @@ export type LookupRecord = Readonly<{
   /** `relation=resolves_to` reverse rows only. */
   resolution?: AddressNameResolution
   authority?: Authority
+  ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
   status: ResultStatus
   unsupported_reason?: string

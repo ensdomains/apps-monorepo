@@ -145,6 +145,16 @@ export type WrapperFuses = Readonly<{
   can_extend_expiry: boolean
 }>
 
+/** Name-shaped rows: the ENSv1 registrar lease and NameWrapper state behind a name. */
+export type EnsV1Facts = Readonly<{
+  /** The BaseRegistrar lease; null on a subname. */
+  expires_at?: Timestamp | null
+  wrapper_state?: WrapperState
+  wrapper_fuses?: WrapperFuses
+  /** Null when the wrapper never set one. */
+  wrapper_expires_at?: Timestamp | null
+}>
+
 /** Name-shaped rows: where the chain reads the current registration fields from. */
 export type Authority = 'ens_v0' | 'ens_v1' | 'ens_v2'
 

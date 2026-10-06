@@ -3,7 +3,13 @@ import type {
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '../reads/namesForAddress.types'
-import { toDate, toProtocol, toReadError, toRelations } from './adapters'
+import {
+  toDate,
+  toExpiresAt,
+  toProtocol,
+  toReadError,
+  toRelations,
+} from './adapters'
 import type { BignameClient } from './client'
 import type { AddressName, AddressNamesQuery, Authority } from './types'
 
@@ -39,7 +45,7 @@ const toNameSummary = (row: AddressName): NameSummary => ({
   isPrimary: row.is_primary,
   isMigrated: row.migrated_at !== undefined,
   registrationStatus: row.registration_status,
-  expiresAt: toDate(row.expires_at),
+  expiresAt: toExpiresAt(row),
   registeredAt: toDate(row.registered_at),
   createdAt: toDate(row.created_at),
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),

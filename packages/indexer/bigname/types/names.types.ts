@@ -2,6 +2,7 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Finality,
   Hex,
@@ -78,6 +79,7 @@ export type NameRecord = Readonly<{
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses
   authority?: Authority
+  ens_v1?: EnsV1Facts
   /** Only while `registration_status` is `released` on an ENSv1 name. */
   lapsed_registration?: LapsedRegistration
   /** Only with `authority=ens_v2` proven by an ENSv1->ENSv2 migration. */

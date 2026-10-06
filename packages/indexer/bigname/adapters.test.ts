@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toDate, toUnixSeconds } from './adapters'
+import { toDate, toExpiresAt, toUnixSeconds } from './adapters'
 
 describe('toUnixSeconds', () => {
   it.each([
@@ -45,5 +45,25 @@ describe('toDate', () => {
   it('returns null instead of an Invalid Date', () => {
     expect(toDate('soon')).toBeNull()
     expect(toDate('9'.repeat(20))).toBeNull()
+  })
+})
+
+describe('toExpiresAt', () => {
+  it('uses the ENSv1 lease over the ENSv2 reservation expiry', () => {
+    expect(
+      toExpiresAt({
+        expires_at: '1819268004',
+        ens_v1: { expires_at: '1813911204' },
+      }),
+    ).toEqual(new Date(1813911204 * 1000))
+  })
+
+  it('falls back to the top-level expiry when there is no lease', () => {
+    expect(
+      toExpiresAt({ expires_at: '1819268004', ens_v1: { expires_at: null } }),
+    ).toEqual(new Date(1819268004 * 1000))
+    expect(toExpiresAt({ expires_at: '1819268004' })).toEqual(
+      new Date(1819268004 * 1000),
+    )
   })
 })
