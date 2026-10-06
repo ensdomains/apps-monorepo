@@ -38,4 +38,23 @@ describe('fitOgChipName', () => {
 
     expect(text).toBe(`${'b'.repeat(45)}…`)
   })
+
+  it('fits to the metrics a card passes in', () => {
+    const metrics = {
+      charWidth: 50,
+      maxLines: 3,
+      textWidth: 500,
+      textWidthWithAvatar: 300,
+    }
+    const name = `${'c'.repeat(20)}.eth` // 24 chars
+
+    expect(fitOgChipName('abcdef.eth', false, metrics).isWide).toBe(false)
+    expect(fitOgChipName('abcdef.eth', true, metrics).isWide).toBe(true)
+    // 6 chars per line beside the avatar, 3 lines: 18 chars at most.
+    expect(fitOgChipName(name, true, metrics).text).toBe(
+      `${'c'.repeat(14)}…eth`,
+    )
+    // 10 per line without it: 24 chars still fit 3 lines.
+    expect(fitOgChipName(name, false, metrics).text).toBe(name)
+  })
 })

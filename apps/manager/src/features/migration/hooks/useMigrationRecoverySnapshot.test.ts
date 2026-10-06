@@ -70,6 +70,7 @@ const makeRecoverySnapshot = (): MigrationRecoverySnapshot => {
     ]),
     ownedPermRes: RESOLVER,
     plannedApprovals: [{ id: 'eth-registry:hca' }],
+    managerRestorationNames: [],
   }
 }
 

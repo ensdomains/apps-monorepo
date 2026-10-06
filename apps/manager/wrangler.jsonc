@@ -4,6 +4,11 @@
   "compatibility_date": "2026-09-02",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
+  // The OG cards read their TTF faces out of `public/og/fonts` through this
+  // binding; a worker can't fetch them back over its own origin.
+  "assets": {
+    "binding": "ASSETS"
+  },
   "preview_urls": true,
   "observability": {
     "enabled": true

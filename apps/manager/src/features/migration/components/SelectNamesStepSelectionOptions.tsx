@@ -38,10 +38,14 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'filteredGroups'
   | 'filteredOrphans'
   | 'filteredGracePeriodNames'
+  | 'isManagerRestorationLocked'
+  | 'managerCandidates'
+  | 'restoredManagers'
   | 'search'
   | 'selected'
   | 'setSearch'
   | 'toggleAll'
+  | 'toggleManagerRestoration'
   | 'toggleName'
   | 'totalSelected'
   | 'visibleCount'
@@ -60,13 +64,17 @@ export const SelectNamesStepSelectionOptions = ({
   filteredGracePeriodNames,
   isCompactLayout,
   isContentHeightCard,
+  isManagerRestorationLocked,
   isPending,
+  managerCandidates,
+  restoredManagers,
   search,
   selected,
   setSearch,
   showBulkSelection,
   showNameSearch,
   toggleAll,
+  toggleManagerRestoration,
   toggleName,
   totalSelected,
   visibleCount,
@@ -164,9 +172,13 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
+              managerCandidates={managerCandidates}
+              restoredManagers={restoredManagers}
               search={search}
               selected={selected}
+              toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
             />
           </div>

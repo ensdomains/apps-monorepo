@@ -22,6 +22,7 @@ describe('getOgPalette', () => {
   it('covers every profile theme', () => {
     for (const theme of PROFILE_THEMES) {
       expect(getOgPalette(theme.value).chipBackground).toBe(theme.value)
+      expect(getOgPalette(theme.value).chipText).toBe('#ffffff')
     }
   })
 })
