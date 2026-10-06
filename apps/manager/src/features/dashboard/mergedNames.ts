@@ -20,8 +20,8 @@ export type MergedItem = {
   readonly kind: RenewalProtocol
   readonly key: string
   readonly sortName: string
-  readonly sortExpiry: number | null
-  readonly sortCreated: number | null
+  readonly sortExpiry: bigint
+  readonly sortCreated: bigint | null
   readonly name: DashboardName
   readonly isMigrationEligible: boolean
 }
@@ -32,17 +32,17 @@ export type ExpiryCta = 'renew' | 'remindMe'
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
 
-const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
-  expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
+const getMergedExpiryDate = (expirySeconds: bigint): Date | null =>
+  expirySeconds === 0n ? null : toDateFromSeconds(Number(expirySeconds))
 
-const getExpirySortValue = (expirySeconds: number | null): number | null =>
-  expirySeconds === 0 ? null : expirySeconds
+const getExpirySortValue = (expirySeconds: bigint): bigint | null =>
+  expirySeconds === 0n ? null : expirySeconds
 
 const formatMergedExpiryDate = (
   displayExpiryDate: Date | null,
-  expirySeconds: number | null,
+  expirySeconds: bigint,
 ): string =>
-  expirySeconds === 0
+  expirySeconds === 0n
     ? NON_EXPIRING_DATE_LABEL
     : formatDashboardDate(displayExpiryDate)
 
@@ -63,7 +63,8 @@ export const compareMerged = (
   if (ax === null && bx === null) return 0
   if (ax === null) return 1
   if (bx === null) return -1
-  return (ax - bx) * mul
+  if (ax === bx) return 0
+  return (ax < bx ? -1 : 1) * mul
 }
 
 const toMergedItem = (

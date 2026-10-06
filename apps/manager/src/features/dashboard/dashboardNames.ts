@@ -2,6 +2,7 @@ import type { AddressName } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ProtocolVersion } from '@ens-apps/indexer/reads'
 import type { Hex } from 'viem'
 import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
+import { toDateFromSeconds } from './utils'
 
 export type DashboardNameRole = 'owner' | 'manager'
 
@@ -10,9 +11,9 @@ export type DashboardName = {
   readonly key: Hex
   readonly name: string
   readonly protocol: ProtocolVersion
-  /** Unix seconds; a number as it only drives display and sorting. `0` never expires. */
-  readonly expiryDate: number
-  readonly createdAt: number | null
+  /** Unix seconds; `0n` when the name does not expire. */
+  readonly expiryDate: bigint
+  readonly createdAt: bigint | null
   readonly nameRoles: readonly DashboardNameRole[]
   /** An ENSv2 name the address held until it expired, still renewable in grace. */
   readonly isLapsed: boolean
@@ -25,8 +26,8 @@ const HIDDEN_STATUSES: readonly NameSummary['registrationStatus'][] = [
   'unregistered',
 ]
 
-const toSeconds = (date: Date | null): number | null =>
-  date ? Math.floor(date.getTime() / 1000) : null
+const toSeconds = (date: Date | null): bigint | null =>
+  date ? BigInt(Math.floor(date.getTime() / 1000)) : null
 
 export const isListedName = (name: NameSummary): boolean =>
   !name.name.endsWith('.reverse') &&
@@ -47,7 +48,7 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
   key: name.namehash,
   name: name.name,
   protocol: name.protocol ?? 'v2',
-  expiryDate: toSeconds(name.expiresAt) ?? 0,
+  expiryDate: toSeconds(name.expiresAt) ?? 0n,
   createdAt: toSeconds(name.createdAt),
   nameRoles: toNameRoles(name.relations),
   isLapsed: false,
@@ -57,12 +58,8 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
 export const isHeldName = (name: DashboardName): boolean =>
   name.nameRoles.includes('owner') || name.isLapsed
 
-const toSafeSeconds = (timestamp: string | undefined): number | null => {
-  const seconds = Number(timestamp)
-  return timestamp !== undefined && Number.isSafeInteger(seconds)
-    ? seconds
-    : null
-}
+const parseSeconds = (timestamp: string | undefined): bigint | null =>
+  timestamp !== undefined && /^\d+$/.test(timestamp) ? BigInt(timestamp) : null
 
 /**
  * An ENSv2 `.eth` name the address held until it expired, still renewable.
@@ -73,22 +70,23 @@ export const toGraceName = (
   address: string,
   now: Date,
 ): DashboardName | null => {
-  const expiryDate = toSafeSeconds(row.expires_at)
+  const expiryDate = parseSeconds(row.expires_at)
+  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
   const isGrace =
     row.authority === 'ens_v2' &&
     row.registration_status === 'released' &&
     row.lapsed_registration?.release_kind === 'expired' &&
     row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
     expiryDate !== null &&
-    expiryDate * 1000 <= now.getTime() &&
-    isRenewableV2EthName(row.name, new Date(expiryDate * 1000), now)
+    expiryDate <= nowSeconds &&
+    isRenewableV2EthName(row.name, toDateFromSeconds(Number(expiryDate)), now)
   if (!isGrace) return null
   return {
     key: row.namehash,
     name: row.name,
     protocol: 'v2',
     expiryDate,
-    createdAt: toSafeSeconds(row.created_at),
+    createdAt: parseSeconds(row.created_at),
     nameRoles: [],
     isLapsed: true,
   }

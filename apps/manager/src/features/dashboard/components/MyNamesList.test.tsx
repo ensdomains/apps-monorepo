@@ -53,8 +53,8 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   key: '0x01',
   name: 'alaska.eth',
   protocol: 'v2',
-  expiryDate: 1811808000,
-  createdAt: 0,
+  expiryDate: 1811808000n,
+  createdAt: 0n,
   nameRoles: ['owner'],
   isLapsed: false,
   ...overrides,
@@ -98,13 +98,13 @@ describe('MyNamesList', () => {
         key: '0x02',
         name: 'fgeorgescu.eth',
         protocol: 'v1',
-        expiryDate: 1793442936,
+        expiryDate: 1793442936n,
       }),
       makeName({
         key: '0x03',
         name: 'pokemon.fgeorgescu.eth',
         protocol: 'v1',
-        expiryDate: 0,
+        expiryDate: 0n,
       }),
     ])
   })
@@ -120,6 +120,24 @@ describe('MyNamesList', () => {
     ])
     expect(rows.every((row) => row.dataset.status === 'ensv1Only')).toBe(true)
     expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
+  })
+
+  it('shows the names while migration eligibility is still loading', () => {
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
+      isPending: true,
+      isError: false,
+    })
+
+    renderList()
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'fgeorgescu.eth',
+      'pokemon.fgeorgescu.eth',
+    ])
+    expect(rows.every((row) => row.dataset.status === '')).toBe(true)
+    expect(rows.every((row) => row.dataset.cta === '')).toBe(true)
   })
 
   it('marks an eligible V1 name for upgrade', () => {
@@ -186,7 +204,7 @@ describe('MyNamesList', () => {
   })
 
   it('offers bulk renewal only for names the accounts hold', () => {
-    const renewable = Math.floor(Date.now() / 1000) + 3 * 86_400
+    const renewable = BigInt(Math.floor(Date.now() / 1000) + 3 * 86_400)
     mockNames([
       makeName({
         key: '0x08',
@@ -198,7 +216,7 @@ describe('MyNamesList', () => {
       makeName({
         key: '0x0a',
         name: 'lapsed.eth',
-        expiryDate: Math.floor(Date.now() / 1000) - 86_400,
+        expiryDate: BigInt(Math.floor(Date.now() / 1000) - 86_400),
         nameRoles: [],
         isLapsed: true,
       }),

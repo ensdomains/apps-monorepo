@@ -10,7 +10,7 @@ const dashboardName = (
   key: '0x01',
   name,
   protocol,
-  expiryDate,
+  expiryDate: BigInt(expiryDate),
   createdAt: null,
   nameRoles: ['owner'],
   isLapsed: false,
