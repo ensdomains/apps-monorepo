@@ -66,9 +66,9 @@ export const ChangeResolverForm = ({
   // its roles to the caller against a V2 registry. A V1 name can still be
   // pointed at any resolver address, so it gets the custom-address path only.
   const isV1 = target.protocol === 'ENSv1'
-  const [customResolverPreference, setUseCustomResolver] = useState(true)
+  const [customResolverPreference, setUseCustomResolver] = useState(false)
   const useCustomResolver = isV1 || customResolverPreference
-  const [deployNewResolver, setDeployNewResolver] = useState(true)
+  const [deployNewResolver, setDeployNewResolver] = useState(false)
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const deployedResolverAddressRef = useRef<Address | null>(null)

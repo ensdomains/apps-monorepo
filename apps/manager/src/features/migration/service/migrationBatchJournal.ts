@@ -117,6 +117,12 @@ export type MigrationRecoverySnapshot = {
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly ownedPermRes: Address | null
   readonly plannedApprovals: readonly MigrationRecoveryApproval[]
+  /**
+   * Names the owner opted in to restore a v1 manager for. Carried durably so a
+   * resumed run grants exactly what the first attempt planned — and, when the
+   * field is absent (a snapshot written before this existed), nothing.
+   */
+  readonly managerRestorationNames: readonly string[]
 }
 
 type MigrationRecoveryApproval = {
@@ -312,6 +318,15 @@ const parseStoredProfile = (value: unknown): StoredRecoveryProfile | null => {
   return value as unknown as StoredRecoveryProfile
 }
 
+/** Absent on snapshots written before the opt-in existed, which restore none. */
+const parseManagerRestorationNames = (value: unknown): string[] | null => {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || !value.every((n) => typeof n === 'string')) {
+    return null
+  }
+  return value
+}
+
 const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   if (
     !isRecord(value) ||
@@ -326,6 +341,10 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   ) {
     return null
   }
+  const managerRestorationNames = parseManagerRestorationNames(
+    value.managerRestorationNames,
+  )
+  if (!managerRestorationNames) return null
   const registryDomains = value.registryDomains.map(parseV1Domain)
   const profiles = value.profiles.map(parseStoredProfile)
   if (registryDomains.some((domain) => domain === null)) return null
@@ -390,6 +409,7 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
     completedOperations,
     profiles: profiles as StoredRecoveryProfile[],
     ownedPermRes: value.ownedPermRes as Address | null,
+    managerRestorationNames,
     plannedApprovals:
       plannedApprovals as StoredRecoverySnapshot['plannedApprovals'],
   }

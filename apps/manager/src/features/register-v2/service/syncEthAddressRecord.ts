@@ -6,6 +6,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { type Address, checksumAddress, type PublicClient } from 'viem'
+import { requireCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
@@ -22,9 +23,6 @@ type SyncEthAddressRecordParams = {
   onTxId?: (txId: string) => void
 }
 
-const withEthSuffix = (name: string) =>
-  name.endsWith('.eth') ? name : `${name}.eth`
-
 export async function startSyncEthAddressRecordTransaction(
   params: SyncEthAddressRecordParams,
 ): Promise<string> {
@@ -39,7 +37,7 @@ export async function startSyncEthAddressRecordTransaction(
     onTxId,
   } = params
 
-  const cleanName = withEthSuffix(name)
+  const cleanName = requireCanonicalPrimaryName(name)
 
   // Encoded for the resolver's setter family: the name-based V2 setters and
   // the node-based public/legacy ones revert on each other's selectors.
