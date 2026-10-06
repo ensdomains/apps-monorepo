@@ -296,6 +296,10 @@ msgstr "An estimate of what the two on-chain transactions that register your nam
 msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
 msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another Registration Is Running"
+msgstr "Another Registration Is Running"
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr "Approve"
@@ -585,6 +589,7 @@ msgid "Complete your profile"
 msgstr "Complete your profile"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
 msgstr "Confirm"
 
@@ -1077,6 +1082,10 @@ msgstr "Featured"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
 msgstr "Fee at this moment"
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
+msgstr "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"
@@ -2193,6 +2202,7 @@ msgstr "Search my names"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
@@ -2237,6 +2247,10 @@ msgstr "Select coin"
 msgid "Select payment"
 msgstr "Select payment"
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
+msgid "Selected: {selectedName}"
+msgstr "Selected: {selectedName}"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Send Verification"
 msgstr "Send Verification"
@@ -2265,6 +2279,7 @@ msgstr "Set it as your primary name from the primary name card on your Dashboard
 msgid "Set primary name"
 msgstr "Set primary name"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Set this as your primary name?"
 msgstr "Set this as your primary name?"

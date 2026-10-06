@@ -4,7 +4,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import {
@@ -17,18 +17,19 @@ import {
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, isAddress, isAddressEqual } from 'viem'
+import { type Address, getAddress, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
-import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
   type getIsPermissionedResolver,
   getIsPermissionedResolverQueryOptions,
 } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { invalidateRolesQueries } from '@/features/roles/utils/invalidateRolesQueries'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import {
   estimateGasForCall,
@@ -42,17 +43,23 @@ import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
 import { isCanonicalName } from '@/utils/token/isNormalized'
 import type { WalletClientWithAccount } from '@/utils/types'
-import { getEthAddressQueryOptions } from '../queries/getEthAddress'
+import {
+  type GetEthAddressError,
+  getEthAddressQueryOptions,
+} from '../queries/getEthAddress'
 import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
 } from '../queries/getOwnResolver'
-import type { TransferSubject, V1TransferActor } from '../types'
+import type { NameRoleGrant, TransferSubject, V1TransferActor } from '../types'
 import {
   buildTransferPlan,
-  STEP_LABELS,
+  describeTransferStep,
+  isRecordAheadOfMove,
   type TransferOptions,
+  type TransferStep,
   type TransferStepKind,
+  transferStepKey,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
 import { canStartStep } from '../utils/canStartStep'
@@ -62,7 +69,11 @@ import {
   getV1NameStateQueryOptions,
   type NameNotNormalizableError,
 } from '../v1/getV1NameState'
-import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
+import {
+  getV1Holder,
+  getV1TransferGate,
+  type V1TransferGate,
+} from '../v1/rules'
 
 export type StartTransferParams = {
   /** The raw name-or-address the user typed; re-resolved at submission. */
@@ -70,6 +81,19 @@ export type StartTransferParams = {
   /** The address the form showed for `recipientInput`. */
   readonly recipient: Address
   readonly options: TransferOptions
+  /**
+   * The third-party registry grants the `revokeRoles` option revokes, resolved
+   * by the form. Empty unless the option is on — the plan only reads it then,
+   * but the two are kept in step here so a stale list can't outlive the toggle.
+   */
+  readonly roleGrants: readonly NameRoleGrant[]
+  /**
+   * Whether anyone but the sender still holds a role on the name once
+   * `roleGrants` are revoked — the option is off, or some grants aren't the
+   * sender's to revoke. The registry only moves such a name through
+   * `unsafeTransfer`.
+   */
+  readonly hasRemainingRoleHolders: boolean
 }
 
 type NameReads = StartTransferParams & {
@@ -85,6 +109,21 @@ type SavedParams = NameReads & {
    * it has none, or when the plan never writes to it.
    */
   readonly isPermissionedResolver: boolean | null
+  /**
+   * The ETH address record before the flow, so a repoint the move never
+   * followed can be undone. Null when the plan doesn't repoint it.
+   */
+  readonly previousEthAddress: Address | null
+}
+
+/**
+ * The ETH address was repointed at the recipient, but the name never moved —
+ * the sender still owns a name that resolves to someone else.
+ */
+export type RecordAheadOfMove = {
+  readonly recipient: Address
+  /** What to restore. Null when there was nothing readable to restore to. */
+  readonly previousEthAddress: Address | null
 }
 
 export type TransferControls = {
@@ -98,6 +137,9 @@ export type TransferControls = {
   readonly transactions: Transaction[]
   readonly isPreparing: boolean
   readonly prepError: Error | null
+  /** Set only once the flow is over (modal closed) with the record stranded. */
+  readonly recordAheadOfMove: RecordAheadOfMove | null
+  readonly restoreEthAddress: () => void
 }
 
 const chainId = sepoliaWithEns.id
@@ -109,12 +151,15 @@ const CARRIES_RECIPIENT: Record<TransferStepKind, boolean> = {
   'set-eth-addr': true,
   'detach-resolver': false,
   'detach-registry': false,
+  'revoke-roles': false,
   'transfer-token': true,
+  'transfer-token-unsafe': true,
   reclaim: true,
   'transfer-erc721': true,
   'transfer-erc1155': true,
   'set-registry-owner': true,
   'set-subnode-owner': true,
+  'restore-eth-addr': false,
 }
 
 type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
@@ -197,6 +242,48 @@ const describeRefusal = (reason: V1TransferRefusedError['reason']): string =>
     )
     .exhaustive()
 
+const recordPointsAt = (
+  record: string | null | undefined,
+  address: Address | undefined,
+): boolean =>
+  !!record && !!address && isAddress(record) && isAddressEqual(record, address)
+
+/**
+ * The token id a step should act on. Granting or revoking a role re-mints the
+ * token under a bumped version, so the id read when the flow was prepared stops
+ * naming it once a revoke step has landed; the step that moves a V2 token
+ * re-reads it. Every other step keeps the prepared one.
+ *
+ * Split out only to keep the step runner under the complexity limit.
+ */
+const getStepTokenId = async (
+  step: TransferStep,
+  {
+    name,
+    subject,
+    tokenId,
+  }: {
+    readonly name: string
+    readonly subject: TransferSubject
+    readonly tokenId: bigint | null
+  },
+): Promise<bigint | null> => {
+  if (
+    subject.kind !== 'v2' ||
+    (step.kind !== 'transfer-token' && step.kind !== 'transfer-token-unsafe')
+  )
+    return tokenId
+  return getEnsTokenId({
+    label: getLabel(name),
+    registryAddress: subject.registryAddress,
+  }).match(
+    (fresh) => fresh,
+    (error) => {
+      throw error
+    },
+  )
+}
+
 /**
  * Runs a transfer plan through the transaction modal, one step per transaction.
  * Every step's calldata comes from `buildTransferStepIntent`, shared between the
@@ -219,13 +306,27 @@ export const useTransferName = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { closeModal, clearTransaction } = useTransactionModal()
+  const { isOpen, closeModal, clearTransaction } = useTransactionModal()
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
   // Names the attempt the modal is showing. Rebuilt every time the flow is
   // prepared, so an attempt abandoned partway can't hand its finished step
   // actors to the next one.
   const attempt = useFlowAttempt()
+  // Which steps of the current flow actually landed. The steps are separate
+  // transactions, so a move that fails after `set-eth-addr` confirmed leaves
+  // the record ahead of the ownership — this is how that gets noticed.
+  const [confirmedSteps, setConfirmedSteps] = useState<
+    ReadonlySet<TransferStepKind>
+  >(new Set())
+  // Steps that were broadcast but whose receipt never came back (polling timed
+  // out, or the wait otherwise gave up after the send). They may still have
+  // landed, so the chain decides — see `isRecordRepointedOnChain` and
+  // `mayHaveMoved`.
+  const [unsettledSteps, setUnsettledSteps] = useState<
+    ReadonlySet<TransferStepKind>
+  >(new Set())
+  const [isRestoring, setIsRestoring] = useState(false)
 
   // Makes each step's `onStart` idempotent — both the modal UI and the prior
   // step's auto-fired `onDone` route into it (as in ConfigureRegistryForm).
@@ -245,6 +346,9 @@ export const useTransferName = ({
     const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
+        // The revoke steps rewrite the name's role table, and the roles page is
+        // where the recipient checks nobody else is left on it.
+        invalidateRolesQueries(queryClient),
         queryClient.invalidateQueries({
           queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
         }),
@@ -260,10 +364,10 @@ export const useTransferName = ({
         ...(parentName
           ? [
               queryClient.invalidateQueries({
-                queryKey: getSubnamesQueryOptions({
+                queryKey: getSubnamesQueryKey({
                   name: parentName,
                   protocolVersion: subject.kind === 'v2' ? 'ENSv2' : 'ENSv1',
-                }).queryKey,
+                }),
               }),
             ]
           : []),
@@ -271,6 +375,19 @@ export const useTransferName = ({
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
     void navigate({ to: '/$name/ownership', params: { name } })
+  }
+
+  const finishRestore = () => {
+    closeModal()
+    clearTransaction()
+    setIsRestoring(false)
+    setSavedParams(null)
+    setConfirmedSteps(new Set())
+    setUnsettledSteps(new Set())
+    attempt.end()
+    void queryClient.invalidateQueries({
+      queryKey: getEthAddressQueryOptions({ name }).queryKey,
+    })
   }
 
   // The V1 read that gates the write. `staleTime: 0` bypasses the cache the
@@ -360,21 +477,42 @@ export const useTransferName = ({
   // is up front, so the step's intent can still be built synchronously.
   const readResolverKind = (
     reads: NameReads,
-  ): ResultAsync<SavedParams, ResolverKindError> => {
+  ): ResultAsync<SavedParams, ResolverKindError | GetEthAddressError> => {
     const { resolverAddress } = reads
     const writesResolver = buildTransferPlan(
       reads.options,
       subject.kind,
       actor,
-    ).includes('set-eth-addr')
+      reads.roleGrants,
+      reads.hasRemainingRoleHolders,
+    ).some((step) => step.kind === 'set-eth-addr')
     if (!resolverAddress || !writesResolver)
-      return okAsync({ ...reads, isPermissionedResolver: null })
+      return okAsync({
+        ...reads,
+        isPermissionedResolver: null,
+        previousEthAddress: null,
+      })
     return fromPromise(
       queryClient.fetchQuery(
         getIsPermissionedResolverQueryOptions({ resolverAddress }),
       ),
       (e) => e as ResolverKindError,
-    ).map((isPermissionedResolver) => ({ ...reads, isPermissionedResolver }))
+    ).andThen((isPermissionedResolver) =>
+      // Fresh, not the form's cached read: this is what a failed move would
+      // have to put back.
+      fromPromise(
+        queryClient.fetchQuery({
+          ...getEthAddressQueryOptions({ name }),
+          staleTime: 0,
+        }),
+        (e) => e as GetEthAddressError,
+      ).map((record) => ({
+        ...reads,
+        isPermissionedResolver,
+        previousEthAddress:
+          record && isAddress(record) ? getAddress(record) : null,
+      })),
+    )
   }
 
   // Simulates the move before anything is sent: the config steps run first
@@ -387,11 +525,26 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const move = buildTransferPlan(params.options, subject.kind, actor).at(
-          -1,
+        const plan = buildTransferPlan(
+          params.options,
+          subject.kind,
+          actor,
+          params.roleGrants,
+          params.hasRemainingRoleHolders,
         )
+        const move = plan.at(-1)
         if (!move) throw new Error('Transfer plan has no move step')
-        const { request } = buildTransferStepIntent(move, {
+        // The revokes haven't been sent yet, so `safeTransferFrom` would revert
+        // here on the very grants the plan is about to remove. `unsafeTransfer`
+        // runs the same move without the registry's safe-transfer checks, so
+        // the receiver hook and the sender's right to transfer are still
+        // exercised.
+        const simulated: TransferStep =
+          move.kind === 'transfer-token' &&
+          plan.some((step) => step.kind === 'revoke-roles')
+            ? { kind: 'transfer-token-unsafe' }
+            : move
+        const { request } = buildTransferStepIntent(simulated, {
           ...params,
           name,
           subject,
@@ -464,7 +617,16 @@ export const useTransferName = ({
         // the ones this plan was built from: it never reaches the modal.
         if (runId !== runIdRef.current) return
         startedStepsRef.current = new Set()
-        setSavedParams(saved)
+        setConfirmedSteps(new Set())
+        setUnsettledSteps(new Set())
+        setIsRestoring(false)
+        // A retry after a stranded attempt re-reads the record *we* repointed;
+        // what to restore is still the value from before the first attempt.
+        setSavedParams({
+          ...saved,
+          previousEthAddress:
+            recordAheadOfMove?.previousEthAddress ?? saved.previousEthAddress,
+        })
         // A fresh scope is what keeps an abandoned attempt's finished step
         // actors from satisfying this one; the manager is deliberately not
         // cleared, since that would also stop unrelated in-flight work.
@@ -481,17 +643,45 @@ export const useTransferName = ({
     prepareMutation.reset()
   }
 
+  // A step that failed after it was sent may still have been mined. Re-read
+  // what it writes rather than trust the cached pre-flow values.
+  const flagIfSent = (step: TransferStepKind, txId: string | undefined) => {
+    if (!txId) return
+    if (!transactionManager.getTransaction(txId)?.getSnapshot().context.hash)
+      return
+    setUnsettledSteps((prev) => new Set(prev).add(step))
+    void Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: getEthAddressQueryOptions({ name }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getV1NameStateQueryOptions({ name }).queryKey,
+      }),
+    ])
+  }
+
   // Built fresh each render (like useRenewalTransactions): the modal holds the
   // array in a ref for auto-advance, so referential stability isn't needed.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const steps = buildTransferPlan(savedParams.options, subject.kind, actor)
+    const steps: readonly TransferStep[] = isRestoring
+      ? [{ kind: 'restore-eth-addr' }]
+      : buildTransferPlan(
+          savedParams.options,
+          subject.kind,
+          actor,
+          savedParams.roleGrants,
+          savedParams.hasRemainingRoleHolders,
+        )
     const stepContext = { ...savedParams, name, subject }
 
     // Idempotent per step: `onStart` may fire twice (modal UI + the prior
     // step's auto-advance `onDone`). Errors clear the guard to allow a retry.
     const runners = steps.map((step) => async () => {
-      const id = transferStepId(name, step, attempt.scope)
+      const id = transferStepId(name, transferStepKey(step), attempt.scope)
       if (
         !canStartStep({
           startedSteps: startedStepsRef.current,
@@ -501,54 +691,148 @@ export const useTransferName = ({
       )
         return
       startedStepsRef.current.add(id)
+      let txId: string | undefined
       try {
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const txId = transactionManager.startTransaction(
+        const tokenId = await getStepTokenId(step, stepContext)
+        txId = transactionManager.startTransaction(
           buildTransferStepIntent(step, {
             ...stepContext,
+            tokenId,
             walletClient: walletClient as WalletClientWithAccount,
             chainId,
           }),
           createEOASigner(walletClient),
           {
             id,
-            description: `${STEP_LABELS[step]} - ${name}`,
+            description: `${describeTransferStep(step)} - ${name}`,
             publicClient,
             timeout: 120_000,
           },
         )
         await waitForTransaction(txId)
+        setConfirmedSteps((prev) => new Set(prev).add(step.kind))
       } catch (err) {
         // Tx reverts surface via the modal's machine state; non-tx failures
         // (e.g. a wallet with no connected account, or the step's actor being
         // stopped) don't, so log those. Deliberately not a `finally`: a step
         // that succeeded must stay guarded, or a stray `onStart` would send it
         // a second time.
-        console.error(`Transfer step "${step}" failed:`, err)
+        console.error(`Transfer step "${transferStepKey(step)}" failed:`, err)
         startedStepsRef.current.delete(id)
+        flagIfSent(step.kind, txId)
       }
     })
 
     return steps.map((step, i) => ({
-      id: transferStepId(name, step, attempt.scope),
-      title: STEP_LABELS[step],
-      transactionName: `${STEP_LABELS[step]} - ${name}`,
+      id: transferStepId(name, transferStepKey(step), attempt.scope),
+      title: describeTransferStep(step),
+      transactionName: `${describeTransferStep(step)} - ${name}`,
       // From the same params the calldata is built from, not the form behind
       // the modal, so what the user confirms is what gets sent.
-      details: CARRIES_RECIPIENT[step]
+      details: CARRIES_RECIPIENT[step.kind]
         ? [{ label: 'To', value: savedParams.recipient }]
         : undefined,
-      // Same builder as the submit path, so the gas estimate is for exactly
-      // the call that gets sent.
+      // Same builder as the submit path, so the modal's live gas estimate is
+      // for the call that will be sent. The one difference is the move after a
+      // revoke: the submit path re-reads the token id (see `getStepTokenId`),
+      // which a synchronous estimate built before the revoke can't know yet.
       intent: {
         prepare: (ctx) =>
           buildTransferStepIntent(step, { ...stepContext, ...ctx }),
       },
       onStart: runners[i],
-      onDone: i < runners.length - 1 ? runners[i + 1] : finishFlow,
+      onDone: match({ hasNext: i < runners.length - 1, isRestoring })
+        .with({ hasNext: true }, () => runners[i + 1])
+        .with({ isRestoring: true }, () => finishRestore)
+        .otherwise(() => finishFlow),
     }))
+  }
+
+  const recipient = savedParams?.recipient
+  const plan = savedParams
+    ? buildTransferPlan(
+        savedParams.options,
+        subject.kind,
+        actor,
+        savedParams.roleGrants,
+        savedParams.hasRemainingRoleHolders,
+      )
+    : []
+  const move = plan.at(-1)
+
+  const isEthAddrUnsettled = unsettledSteps.has('set-eth-addr')
+  const liveEthAddressQuery = useQuery({
+    ...getEthAddressQueryOptions({ name }),
+    enabled: isEthAddrUnsettled && !!recipient,
+    refetchInterval: (query) =>
+      recordPointsAt(query.state.data, recipient) ? false : 15_000,
+  })
+  const isRecordRepointedOnChain =
+    isEthAddrUnsettled &&
+    recordPointsAt(liveEthAddressQuery.data, recipient) &&
+    !recordPointsAt(savedParams?.previousEthAddress, recipient)
+
+  // Who holds the name now, read the way each protocol version defines it:
+  // the V2 token owner, or the V1 holder (registrant for an unwrapped 2LD).
+  const isMoveUnsettled = !!move && unsettledSteps.has(move.kind)
+  const keepPollingUntil = (holder: Address | null | undefined) =>
+    recordPointsAt(holder, recipient) ? false : 15_000
+  const liveV2OwnerQuery = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: isMoveUnsettled && subject.kind === 'v2',
+    refetchInterval: (query) => keepPollingUntil(query.state.data?.owner),
+  })
+  const liveV1StateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name }),
+    enabled: isMoveUnsettled && subject.kind !== 'v2',
+    refetchInterval: (query) => {
+      const live = query.state.data?.subject
+      return keepPollingUntil(live ? getV1Holder(live) : null)
+    },
+  })
+  const liveHolder = match(subject.kind)
+    .with('v2', () => ({
+      isSuccess: liveV2OwnerQuery.isSuccess,
+      holder: liveV2OwnerQuery.data?.owner ?? null,
+    }))
+    .otherwise(() => {
+      const live = liveV1StateQuery.data?.subject
+      return {
+        isSuccess: liveV1StateQuery.isSuccess,
+        holder: live ? getV1Holder(live) : null,
+      }
+    })
+  // Unknown until the read lands: better no alert than a restore the sender
+  // may no longer be able to authorize.
+  const mayHaveMoved =
+    isMoveUnsettled &&
+    (!liveHolder.isSuccess || recordPointsAt(liveHolder.holder, recipient))
+
+  // Only once the modal is closed: mid-flow, the gap between the record landing
+  // and the move landing is expected, not a stranded state. A restore dismissed
+  // before it landed leaves the record stranded, so it shows again.
+  const recordAheadOfMove: RecordAheadOfMove | null =
+    savedParams &&
+    !isOpen &&
+    isRecordAheadOfMove(plan, confirmedSteps, {
+      isRecordRepointedOnChain,
+      mayHaveMoved,
+    })
+      ? {
+          recipient: savedParams.recipient,
+          previousEthAddress: savedParams.previousEthAddress,
+        }
+      : null
+
+  const restoreEthAddress = () => {
+    if (!recordAheadOfMove?.previousEthAddress) return
+    startedStepsRef.current = new Set()
+    clearTransaction()
+    setIsRestoring(true)
+    attempt.start(account)
   }
 
   return {
@@ -557,5 +841,7 @@ export const useTransferName = ({
     transactions: buildTransactions(),
     isPreparing: prepareMutation.isPending,
     prepError: prepareMutation.error,
+    recordAheadOfMove,
+    restoreEthAddress,
   }
 }

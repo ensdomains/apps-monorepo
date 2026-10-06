@@ -301,6 +301,10 @@ msgstr ""
 msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another Registration Is Running"
+msgstr ""
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
@@ -590,6 +594,7 @@ msgid "Complete your profile"
 msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
 msgstr ""
 
@@ -1081,6 +1086,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2198,6 +2207,7 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
@@ -2242,6 +2252,10 @@ msgstr ""
 msgid "Select payment"
 msgstr ""
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
+msgid "Selected: {selectedName}"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Send Verification"
 msgstr ""
@@ -2270,6 +2284,7 @@ msgstr ""
 msgid "Set primary name"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Set this as your primary name?"
 msgstr ""

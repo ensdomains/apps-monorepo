@@ -1,26 +1,15 @@
-import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetResourceErrorType } from '@ensdomains/ensjs/public/v2'
-import { getResource as ensjs_getResource } from '@ensdomains/ensjs/public/v2'
-import { type NormalizeErrorType, normalize } from '@ensdomains/ensjs/utils'
-import { fromPromise, ok } from 'neverthrow'
+import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import {
   getRoleChangeLogs,
   toRoleHistoryEntries,
 } from '@/lib/roles/roleChangeLogs'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getVersionedResource } from './useVersionedResource'
 
 export type { RoleHistoryEntry } from '@/lib/roles/roleChangeLogs'
-
-class NameNotNormalizableError extends TaggedError('NameNotNormalizableError')<{
-  cause: NormalizeErrorType
-}> {}
-
-class GetResourceError extends TaggedError('GetResourceError')<{
-  cause: GetResourceErrorType
-}> {}
 
 type GetRoleHistoryParameters = {
   readonly name: string
@@ -42,20 +31,7 @@ export const getRoleHistory = ResultFn(async function* ({
   registryAddress,
   account,
 }: GetRoleHistoryParameters) {
-  // Normalized before hashing: a raw route parameter would address a resource
-  // the registry never wrote to.
-  const normalized = yield* fromSync(
-    () => normalize(name),
-    (e) => new NameNotNormalizableError({ cause: e as NormalizeErrorType }),
-  )
-  const [label] = normalized.split('.')
-
-  const client = yield* safeGetClient()
-
-  const resource = yield* fromPromise(
-    ensjs_getResource(client, { label, registryAddress }),
-    (e) => new GetResourceError({ cause: e as GetResourceErrorType }),
-  )
+  const resource = yield* getVersionedResource({ name, registryAddress })
 
   const logs = yield* getRoleChangeLogs({ registryAddress, resource, account })
 
