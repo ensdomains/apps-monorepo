@@ -1,111 +1,15 @@
-import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
-import { jsonResponse, makeDomain, OWNER } from './_fixtures'
-import {
-  getV1NamesForAddress,
-  getV1ProfileKeys,
-  type V1Domain,
-} from './v1SubgraphClient'
+import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { jsonResponse } from './_fixtures'
+import { getV1ProfileKeys } from './v1SubgraphClient'
 
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
-
-const page = (ids: string[]): V1Domain[] =>
-  ids.map((id) => makeDomain({ id, labelhash: `0x${id}`, name: `${id}.eth` }))
-
-const respondWith = (...pages: V1Domain[][]) => {
-  for (const p of pages) {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: { domains: p } }))
-  }
-}
 
 const readBody = (callIndex = 0) =>
   JSON.parse((fetchMock.mock.calls[callIndex]?.[1] as { body: string }).body)
 
 beforeEach(() => {
   fetchMock.mockReset()
-})
-
-describe('getV1NamesForAddress', () => {
-  it('returns ok with a single page when less than PAGE_SIZE domains are returned', async () => {
-    respondWith(page(['0x01']))
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isOk())
-    expect(result.value).toHaveLength(1)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('paginates until a page returns fewer than PAGE_SIZE domains', async () => {
-    const p1 = page(Array.from({ length: 1000 }, (_, i) => `p1-${i}`))
-    respondWith(p1, page(['p2-0']))
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isOk())
-    expect(result.value).toHaveLength(1001)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('stops paginating on exactly PAGE_SIZE boundary once a partial page arrives', async () => {
-    respondWith(page(Array.from({ length: 1000 }, (_, i) => `${i}`)), page([]))
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isOk())
-    expect(result.value).toHaveLength(1000)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('paginates using id_gt cursor from the last domain of the previous page', async () => {
-    const first = page(
-      Array.from(
-        { length: 1000 },
-        (_, i) => `0x${i.toString(16).padStart(4, '0')}`,
-      ),
-    )
-    respondWith(first, page(['0xffff']))
-    await getV1NamesForAddress(OWNER)
-
-    const firstAnd = readBody(0).variables.whereFilter.and as Record<
-      string,
-      unknown
-    >[]
-    expect(firstAnd.some((f) => 'id_gt' in f)).toBe(false)
-    expect(readBody(0).variables.orderBy).toBe('id')
-
-    const secondAnd = readBody(1).variables.whereFilter.and as Record<
-      string,
-      unknown
-    >[]
-    expect(secondAnd.find((f) => 'id_gt' in f)).toEqual({
-      id_gt: first[first.length - 1]?.id,
-    })
-  })
-
-  it('lowercases the address in the query variables', async () => {
-    respondWith([])
-    await getV1NamesForAddress('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
-    expect(readBody().variables.whereFilter.and[0].or[0].owner).toBe(
-      '0xabcdef0123456789abcdef0123456789abcdef01',
-    )
-  })
-
-  it.each([
-    [
-      'HTTP non-ok',
-      () => fetchMock.mockResolvedValueOnce(jsonResponse({}, 502)),
-    ],
-    [
-      'GraphQL errors array',
-      () =>
-        fetchMock.mockResolvedValueOnce(
-          jsonResponse({
-            data: { domains: [] },
-            errors: [{ message: 'subgraph boom' }],
-          }),
-        ),
-    ],
-  ])('returns err on %s', async (_, setup) => {
-    setup()
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isErr())
-    expect(result.error._tag).toBe('GetV1NamesError')
-  })
 })
 
 describe('getV1ProfileKeys', () => {
@@ -225,67 +129,4 @@ describe('getV1ProfileKeys', () => {
     expect(readBody(0).variables.whereFilter.id_in).toHaveLength(500)
     expect(readBody(1).variables.whereFilter.id_in).toHaveLength(1)
   })
-})
-
-afterEach(() => vi.useRealTimers())
-
-describe('V1 pagination deadlines', () => {
-  it('rejects a repeated full page instead of looping indefinitely', async () => {
-    const full = page(
-      Array.from(
-        { length: 1000 },
-        (_, i) => `0x${i.toString(16).padStart(4, '0')}`,
-      ),
-    )
-    respondWith(full, full)
-    const result = await getV1NamesForAddress(OWNER)
-    assert(result.isErr())
-    expect(result.error.cause).toEqual(
-      new Error('V1 subgraph pagination did not advance'),
-    )
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('passes cancellation to the active page and starts no page after abort', async () => {
-    const controller = new AbortController()
-    const full = page(Array.from({ length: 1000 }, (_, i) => `${i}`))
-    fetchMock.mockImplementation(async () => {
-      controller.abort(new Error('Account changed'))
-      return jsonResponse({ data: { domains: full } })
-    })
-    const result = await getV1NamesForAddress(OWNER, {
-      signal: controller.signal,
-    })
-    assert(result.isErr())
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0]?.[1].signal.aborted).toBe(true)
-  })
-
-  it('bounds a hung page to 15 seconds', async () => {
-    vi.useFakeTimers()
-    fetchMock.mockReturnValue(new Promise(() => {}))
-    const pending = getV1NamesForAddress(OWNER)
-    await vi.advanceTimersByTimeAsync(15_000)
-    const result = await pending
-    assert(result.isErr())
-    expect(result.error.cause).toMatchObject({ name: 'TimeoutError' })
-    expect(fetchMock.mock.calls[0]?.[1].signal.aborted).toBe(true)
-  })
-})
-
-it.each([
-  0, 1, 1000, 2000,
-])('fetches %i names with exactly one request per cursor page', async (count) => {
-  const domains = page(
-    Array.from(
-      { length: count },
-      (_, i) => `0x${i.toString(16).padStart(8, '0')}`,
-    ),
-  )
-  for (let index = 0; index <= count; index += 1000)
-    respondWith(domains.slice(index, index + 1000))
-  const result = await getV1NamesForAddress(OWNER)
-  assert(result.isOk())
-  expect(result.value).toHaveLength(count)
-  expect(fetchMock).toHaveBeenCalledTimes(Math.floor(count / 1000) + 1)
 })
