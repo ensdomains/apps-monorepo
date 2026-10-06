@@ -9,7 +9,6 @@ export type ListLoaderProps = {
   readonly status: 'idle' | 'loading' | 'error'
   readonly onMore: () => void
   readonly onAll: () => void
-  readonly onStop: () => void
   readonly className?: string
 }
 
@@ -25,7 +24,6 @@ export const ListLoader = ({
   status,
   onMore,
   onAll,
-  onStop,
   className,
 }: ListLoaderProps) => {
   if (!canShowMore && (total === undefined || shown >= total)) return null
@@ -65,19 +63,7 @@ export const ListLoader = ({
           </button>
         </>
       )}
-      {status === 'loading' && (
-        <>
-          <span role="status">Loading…</span>
-          <button
-            type="button"
-            onClick={onStop}
-            title="Stop loading"
-            className={ACTION_CLASS_NAME}
-          >
-            Stop
-          </button>
-        </>
-      )}
+      {status === 'loading' && <span role="status">Loading…</span>}
       {status === 'error' && <span role="alert">Couldn’t load more.</span>}
     </div>
   )

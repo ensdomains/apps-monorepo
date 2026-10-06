@@ -74,6 +74,5 @@ export const useListLoader = ({
       .otherwise(() => 'idle'),
     onMore: () => showUpTo(moreCount),
     onAll: () => showUpTo(Number.POSITIVE_INFINITY),
-    onStop: () => abortRef.current?.abort(),
   } satisfies ListLoaderProps
 }
