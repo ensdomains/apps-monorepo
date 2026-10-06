@@ -19,7 +19,7 @@ const v1SubgraphMock = vi.hoisted(() => ({
 
 vi.mock('@/lib/smart-account', () => smartAccountMock)
 vi.mock('wagmi', () => wagmiMock)
-vi.mock('@/features/migration/service/v1SubgraphClient', () => v1SubgraphMock)
+vi.mock('@/features/migration/service/v1Names', () => v1SubgraphMock)
 
 import { useV1Names } from './useV1Names'
 
