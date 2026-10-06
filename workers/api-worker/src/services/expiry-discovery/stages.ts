@@ -1,56 +1,78 @@
 import {
+  type GraceProtocol,
   SECONDS_PER_DAY,
+  V1_GRACE_PERIOD_DAYS,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import type { ExpiryStageId } from '#types/events/index.js'
 
 export type ExpiryStageConfig = {
-  id: ExpiryStageId
+  readonly id: ExpiryStageId
   /** Days relative to expiry. Positive is before; negative is after. */
-  offsetDays: number
-  includeFavorites: boolean
+  readonly offsetDays: number
+  readonly includeFavorites: boolean
+  /** Whether the stage is timed from the registrar expiry or the grace end. */
+  readonly anchor: 'expiry' | 'grace-end'
 }
 
-const STAGE_DEFINITIONS: ExpiryStageConfig[] = [
+/**
+ * Grace-end stages keep their offsets and cursors in ENSv2 terms: a name sits
+ * at its grace end minus ENSv2's grace, which for ENSv2 is its expiry and for
+ * ENSv1 is 62 days after it.
+ */
+export const GRACE_END_SHIFT_SECONDS: Readonly<Record<GraceProtocol, number>> =
+  {
+    v2: 0,
+    v1: (V1_GRACE_PERIOD_DAYS - V2_GRACE_PERIOD_DAYS) * SECONDS_PER_DAY,
+  }
+
+const STAGE_DEFINITIONS: readonly ExpiryStageConfig[] = [
   {
     id: 'expiry-30d',
     offsetDays: 30,
     includeFavorites: false,
+    anchor: 'expiry',
   },
   {
     id: 'expiry-7d',
     offsetDays: 7,
     includeFavorites: true,
+    anchor: 'expiry',
   },
   {
     id: 'expiry-1d',
     offsetDays: 1,
     includeFavorites: true,
+    anchor: 'expiry',
   },
   {
     id: 'grace-start',
     offsetDays: 0,
     includeFavorites: true,
+    anchor: 'expiry',
   },
   {
     id: 'grace-7d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 7),
     includeFavorites: true,
+    anchor: 'grace-end',
   },
   {
     id: 'grace-1d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 1),
     includeFavorites: true,
+    anchor: 'grace-end',
   },
   {
     id: 'premium-start',
     offsetDays: -V2_GRACE_PERIOD_DAYS,
     includeFavorites: true,
+    anchor: 'grace-end',
   },
 ]
 
 /** Lifecycle order is furthest-future to furthest-past. */
-export const STAGES: ExpiryStageConfig[] = [...STAGE_DEFINITIONS].sort(
+export const STAGES: readonly ExpiryStageConfig[] = [...STAGE_DEFINITIONS].sort(
   (left, right) => right.offsetDays - left.offsetDays,
 )
 

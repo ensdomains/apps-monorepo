@@ -9,7 +9,7 @@ import {
   storeNotificationCursors,
 } from './cursors.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
-import { fetchProcessableExpiringNames } from './page.js'
+import { fetchStageNames, type StageName } from './page.js'
 import {
   type ExpiryStageConfig,
   getLowerBoundForStage,
@@ -46,12 +46,13 @@ type StageRunMetrics = {
 
 function buildExpiryEvents(
   stage: ExpiryStageConfig,
-  domains: { name: string; expiryDate: number; owner?: string }[],
+  domains: readonly StageName[],
 ): ExpiryEvent[] {
   return domains.map((domain) => ({
     type: 'name_expiring',
     name: domain.name,
     expiryDate: domain.expiryDate,
+    protocol: domain.protocol,
     stage: stage.id,
     owner: domain.owner,
     includeFavorites: stage.includeFavorites,
@@ -118,7 +119,7 @@ const processStage = ResultFn(async function* (ctx: {
     lagSec,
   })
 
-  const page = yield* fetchProcessableExpiringNames({
+  const page = yield* fetchStageNames({
     env: ctx.env,
     stage: ctx.stage,
     cursor: queryCursor,

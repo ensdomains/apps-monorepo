@@ -1,4 +1,4 @@
-export { toUnixSeconds } from './adapters'
+export { toProtocol, toUnixSeconds } from './adapters'
 export {
   type BignameClient,
   type BignameClientOptions,

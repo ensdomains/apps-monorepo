@@ -1,16 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  type ExpiringNamesQuery,
   fetchExpiringNamesPage,
   isStaleCursorError,
-  QUERY_PAGE_SIZE,
+  PAGE_SIZE,
 } from './indexer.js'
-import { STAGES } from './stages.js'
 
 const ENV = { CHAIN: 'sepolia' } as CloudflareBindings
 const AS_OF = '1790755200'
 const AS_OF_SEC = 1_790_755_200
 
-const row = (name: string, expires_at: string, owner?: string) => ({
+const QUERY: ExpiringNamesQuery = {
+  env: ENV,
+  stageId: 'expiry-30d',
+  expiresFrom: 101,
+  expiresTo: 200,
+}
+
+const row = (
+  name: string,
+  expires_at: string,
+  extra: Readonly<Record<string, unknown>> = {},
+) => ({
   name,
   display_name: name,
   namespace: 'ens',
@@ -18,17 +29,21 @@ const row = (name: string, expires_at: string, owner?: string) => ({
   authority: 'ens_v2',
   registration_status: 'registered',
   expires_at,
-  ...(owner !== undefined && { owner }),
+  ...extra,
 })
 
-const listing = (rows: unknown[]) => ({
+const listing = (
+  rows: readonly unknown[],
+  page: Readonly<Record<string, unknown>> = {},
+) => ({
   data: rows,
   page: {
     cursor: null,
     next_cursor: null,
-    page_size: QUERY_PAGE_SIZE,
+    page_size: PAGE_SIZE,
     total_count: null,
     has_more: false,
+    ...page,
   },
   meta: {
     as_of: {
@@ -54,188 +69,151 @@ const stubFetch = (...responses: readonly (Response | Error)[]) => {
   return fetchMock
 }
 
-const requestedUrl = (fetchMock: ReturnType<typeof stubFetch>): string =>
-  String(fetchMock.mock.calls[0]?.[0])
+const requestedParams = (
+  fetchMock: ReturnType<typeof stubFetch>,
+): URLSearchParams => new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams
 
 describe('fetchExpiringNamesPage', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
+
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
 
-  it('asks bigname for the window in its inclusive-exclusive terms and maps the rows', async () => {
-    const fetchMock = stubFetch(
-      json(listing([row('alpha.eth', '1700000000', '0xABC')])),
-    )
+  it('asks for .eth names with inclusive bounds on both ends', async () => {
+    const fetchMock = stubFetch(json(listing([])))
 
-    const result = await fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[0],
-      cursor: 100,
-      upperBound: 200,
+    await fetchExpiringNamesPage(QUERY)
+
+    const params = requestedParams(fetchMock)
+    expect(params.get('namespace')).toBe('ens')
+    expect(params.get('parent')).toBe('eth')
+    expect(params.get('expires_after')).toBe('1970-01-01T00:01:41.000Z')
+    expect(params.get('expires_before')).toBe('1970-01-01T00:03:21.000Z')
+    expect(params.get('sort')).toBe('expires_at')
+    expect(params.get('page_size')).toBe(String(PAGE_SIZE))
+    expect(params.get('authority')).toBeNull()
+    expect(params.get('cursor')).toBeNull()
+  })
+
+  it('narrows to the given authorities and passes the page cursor on', async () => {
+    const fetchMock = stubFetch(json(listing([])))
+
+    await fetchExpiringNamesPage({
+      ...QUERY,
+      authorities: ['ens_v0', 'ens_v1'],
+      pageCursor: 'c1',
     })
 
-    const url = requestedUrl(fetchMock)
-    expect(url).toBe(
-      `https://sepolia.api.bigname.sh/v1/names?namespace=ens&parent=eth&expires_after=1970-01-01T00%3A01%3A41.000Z&expires_before=1970-01-01T00%3A03%3A21.000Z&sort=expires_at&order=asc&page_size=${QUERY_PAGE_SIZE}`,
+    const params = requestedParams(fetchMock)
+    expect(params.get('authority')).toBe('ens_v0,ens_v1')
+    expect(params.get('cursor')).toBe('c1')
+  })
+
+  it('maps rows to their registrar expiry, protocol and owner', async () => {
+    stubFetch(
+      json(
+        listing([
+          row('v2.eth', '1700000000', { owner: '0xABC' }),
+          row('v1.eth', '1700000001', { authority: 'ens_v1', owner: '0xDEF' }),
+          row('v0.eth', '1700000002', { authority: 'ens_v0' }),
+        ]),
+      ),
     )
-    expect(result._unsafeUnwrap()).toEqual({
-      domains: [
-        { name: 'alpha.eth', expiryDate: 1_700_000_000, owner: '0xabc' },
+
+    const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
+
+    expect(page).toEqual({
+      names: [
+        {
+          name: 'v2.eth',
+          expiryDate: 1_700_000_000,
+          protocol: 'v2',
+          owner: '0xabc',
+        },
+        {
+          name: 'v1.eth',
+          expiryDate: 1_700_000_001,
+          protocol: 'v1',
+          owner: '0xdef',
+        },
+        {
+          name: 'v0.eth',
+          expiryDate: 1_700_000_002,
+          protocol: 'v1',
+          owner: undefined,
+        },
       ],
-      hasMore: false,
       nextCursor: null,
       indexedAtSec: AS_OF_SEC,
     })
-  })
-
-  it.each(
-    STAGES.map((stage) => ({
-      id: stage.id,
-      stage,
-      authority: stage.offsetDays > 0 ? null : 'ens_v2',
-    })),
-  )('asks for $authority names on $id', async ({ stage, authority }) => {
-    const fetchMock = stubFetch(json(listing([])))
-
-    await fetchExpiringNamesPage({ env: ENV, stage, cursor: 1, upperBound: 2 })
-
-    const url = requestedUrl(fetchMock)
-    const params = new URL(url).searchParams
-    expect(params.get('parent')).toBe('eth')
-    expect(params.get('authority')).toBe(authority)
-  })
-
-  it('recognises a stale cursor rejection', async () => {
-    stubFetch(
-      json(
-        { error: { code: 'stale', message: 'republished', details: {} } },
-        409,
-      ),
-    )
-
-    const result = await fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[0],
-      cursor: 1,
-      upperBound: 2,
-      pageCursor: 'old',
-    })
-
-    expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(true)
-  })
-
-  it('does not treat other rejections as a stale cursor', async () => {
-    stubFetch(
-      json(
-        { error: { code: 'invalid_input', message: 'bad', details: {} } },
-        400,
-      ),
-    )
-
-    const result = await fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[0],
-      cursor: 1,
-      upperBound: 2,
-    })
-
-    expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(false)
   })
 
   it('takes the owner from the lapsed registration once released', async () => {
     stubFetch(
       json(
         listing([
-          {
-            ...row('lapsed.eth', '1700000000'),
+          row('lapsed.eth', '1700000000', {
             registration_status: 'released',
             lapsed_registration: {
               owner: '0xDEF',
               released_at: '1702419200',
               release_kind: 'expired',
             },
-          },
+          }),
         ]),
       ),
     )
 
-    const page = (
-      await fetchExpiringNamesPage({
-        env: ENV,
-        stage: STAGES[0],
-        cursor: 1,
-        upperBound: 2,
-      })
-    )._unsafeUnwrap()
+    const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
 
-    expect(page.domains[0]).toEqual({
-      name: 'lapsed.eth',
-      expiryDate: 1_700_000_000,
-      owner: '0xdef',
-    })
+    expect(page.names[0]?.owner).toBe('0xdef')
   })
 
-  it('leaves the owner unset when bigname knows none', async () => {
-    stubFetch(json(listing([row('lapsed.eth', '1700000000')])))
-
-    const page = (
-      await fetchExpiringNamesPage({
-        env: ENV,
-        stage: STAGES[0],
-        cursor: 1,
-        upperBound: 2,
-      })
-    )._unsafeUnwrap()
-
-    expect(page.domains[0]?.owner).toBeUndefined()
-  })
-
-  it('passes the page cursor on and returns the next one while bigname has more', async () => {
-    const fetchMock = stubFetch(
-      json({
-        ...listing([row('alpha.eth', '1700000000')]),
-        page: {
-          cursor: 'c1',
+  it('returns the next cursor only while bigname has more', async () => {
+    stubFetch(
+      json(
+        listing([row('a.eth', '1700000000')], {
           next_cursor: 'c2',
-          page_size: QUERY_PAGE_SIZE,
-          total_count: null,
           has_more: true,
-        },
-      }),
+        }),
+      ),
+      json(
+        listing([row('b.eth', '1700000001')], {
+          next_cursor: 'c3',
+          has_more: false,
+        }),
+      ),
     )
 
-    const page = (
-      await fetchExpiringNamesPage({
-        env: ENV,
-        stage: STAGES[0],
-        cursor: 1,
-        upperBound: 2,
-        pageCursor: 'c1',
-      })
-    )._unsafeUnwrap()
+    const first = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
+    const last = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
 
-    const url = requestedUrl(fetchMock)
-    expect(new URL(url).searchParams.get('cursor')).toBe('c1')
-    expect(page.nextCursor).toBe('c2')
+    expect(first.nextCursor).toBe('c2')
+    expect(last.nextCursor).toBeNull()
   })
 
-  it('returns no next cursor on the last page', async () => {
-    stubFetch(json(listing([row('alpha.eth', '1700000000')])))
+  it.each([
+    ['without an expiry', { expires_at: undefined }],
+    ['with an unreadable expiry', { expires_at: 'soon' }],
+    ['without an authority', { authority: undefined }],
+  ])('fails on a row %s rather than skipping it', async (_label, extra) => {
+    stubFetch(json(listing([row('bad.eth', '1700000000', extra)])))
 
-    const page = (
-      await fetchExpiringNamesPage({
-        env: ENV,
-        stage: STAGES[0],
-        cursor: 1,
-        upperBound: 2,
-      })
-    )._unsafeUnwrap()
+    const result = await fetchExpiringNamesPage(QUERY)
 
-    expect(page.nextCursor).toBeNull()
+    expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
+  })
+
+  it('fails when the answer carries no chain position', async () => {
+    stubFetch(json({ ...listing([]), meta: {} }))
+
+    const result = await fetchExpiringNamesPage(QUERY)
+
+    expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
   })
 
   it('retries a transient failure and succeeds', async () => {
@@ -244,12 +222,7 @@ describe('fetchExpiringNamesPage', () => {
       json(listing([])),
     )
 
-    const promise = fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[1],
-      cursor: 1,
-      upperBound: 2,
-    })
+    const promise = fetchExpiringNamesPage(QUERY)
     await vi.runAllTimersAsync()
 
     expect((await promise).isOk()).toBe(true)
@@ -266,64 +239,26 @@ describe('fetchExpiringNamesPage', () => {
       ),
     )
 
-    const result = await fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[2],
-      cursor: 1,
-      upperBound: 2,
-    })
+    const result = await fetchExpiringNamesPage(QUERY)
 
     expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_REQUEST_ERROR')
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('fails on a row without an expiry rather than skipping it', async () => {
-    const { expires_at: _, ...bare } = row('bad.eth', '1700000000')
-    stubFetch(json(listing([bare])))
-
-    const result = await fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[0],
-      cursor: 1,
-      upperBound: 2,
-    })
-
-    expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
-  })
-
-  it('fails when the answer carries no chain position', async () => {
-    stubFetch(json({ ...listing([]), meta: {} }))
-
-    const result = await fetchExpiringNamesPage({
-      env: ENV,
-      stage: STAGES[0],
-      cursor: 1,
-      upperBound: 2,
-    })
-
-    expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
-  })
-
-  it('marks hasMore when the lookahead row is present', async () => {
+  it.each([
+    { code: 'stale', status: 409, isStale: true },
+    { code: 'invalid_input', status: 400, isStale: false },
+  ])('recognises a $code rejection as stale: $isStale', async ({
+    code,
+    status,
+    isStale,
+  }) => {
     stubFetch(
-      json(
-        listing(
-          Array.from({ length: QUERY_PAGE_SIZE }, (_, i) =>
-            row(`${i}.eth`, String(1_700_000_000 + i)),
-          ),
-        ),
-      ),
+      json({ error: { code, message: 'rejected', details: {} } }, status),
     )
 
-    const page = (
-      await fetchExpiringNamesPage({
-        env: ENV,
-        stage: STAGES[0],
-        cursor: 1,
-        upperBound: 2,
-      })
-    )._unsafeUnwrap()
+    const result = await fetchExpiringNamesPage({ ...QUERY, pageCursor: 'old' })
 
-    expect(page.hasMore).toBe(true)
+    expect(isStaleCursorError(result._unsafeUnwrapErr())).toBe(isStale)
   })
 })

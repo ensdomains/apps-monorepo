@@ -8,222 +8,255 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 }))
 
 import {
+  type ExpiringName,
+  type ExpiringNamesPage,
   fetchExpiringNamesPage,
   IndexerRequestError,
   isStaleCursorError,
-  MAX_EXACT_TIMESTAMP_PAGES,
-  PROCESS_PAGE_SIZE,
-  QUERY_PAGE_SIZE,
+  PAGE_SIZE,
 } from './indexer.js'
 import {
-  fetchProcessableExpiringNames,
-  planExactTimestampPage,
-  planNormalExpiryPage,
+  fetchStageNames,
+  MAX_PAGES_PER_SOURCE,
+  sourcesForStage,
 } from './page.js'
-import { STAGES } from './stages.js'
+import { GRACE_END_SHIFT_SECONDS, STAGES } from './stages.js'
 
-const uniqueDomains = (count: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    name: `${index}.eth`,
-    expiryDate: 100 + index,
-  }))
-const domainsAt = (count: number, expiryDate: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    name: `tied-${index}.eth`,
-    expiryDate,
-  }))
+const ENV = {} as CloudflareBindings
+const INDEXED_AT = 1_700_000_000
+const V1_SHIFT = GRACE_END_SHIFT_SECONDS.v1
 
-describe('expiry page planning', () => {
+const stage = (id: (typeof STAGES)[number]['id']) => {
+  const value = STAGES.find((candidate) => candidate.id === id)
+  if (!value) throw new Error(`Missing stage: ${id}`)
+  return value
+}
+
+const named = (
+  name: string,
+  expiryDate: number,
+  protocol: ExpiringName['protocol'] = 'v2',
+): ExpiringName => ({ name, expiryDate, protocol })
+
+const page = (
+  names: readonly ExpiringName[],
+  nextCursor: string | null = null,
+  indexedAtSec = INDEXED_AT,
+): ExpiringNamesPage => ({ names, nextCursor, indexedAtSec })
+
+const fullPageAt = (expiryDate: number, prefix: string) =>
+  Array.from({ length: PAGE_SIZE }, (_, index) =>
+    named(`${prefix}-${index}.eth`, expiryDate),
+  )
+
+describe('sourcesForStage', () => {
+  it.each(
+    STAGES.map((value) => ({
+      id: value.id,
+      value,
+      count: value.anchor === 'expiry' ? 1 : 2,
+    })),
+  )('reads $count source(s) for $id', ({ value, count }) => {
+    expect(sourcesForStage(value)).toHaveLength(count)
+  })
+})
+
+describe('fetchStageNames', () => {
   beforeEach(() => {
     vi.mocked(fetchExpiringNamesPage).mockReset()
     vi.mocked(isStaleCursorError).mockReset()
   })
 
-  it.each([
-    50,
-    PROCESS_PAGE_SIZE,
-  ])('completes a normal page of %i rows', (count) => {
-    const plan = planNormalExpiryPage(uniqueDomains(count), 50)
-    expect(plan.type).toBe('complete')
-    if (plan.type !== 'complete') return
-    expect(plan.domains).toHaveLength(count)
-    expect(plan.hasMore).toBe(false)
-  })
-
-  it('uses a unique lookahead as a safe cursor boundary', () => {
-    const plan = planNormalExpiryPage(uniqueDomains(QUERY_PAGE_SIZE), 50)
-    expect(plan.type).toBe('safe-boundary')
-    if (plan.type !== 'safe-boundary') return
-    expect(plan.domains).toHaveLength(PROCESS_PAGE_SIZE)
-    expect(plan.cursorEnd).toBe(100 + PROCESS_PAGE_SIZE - 1)
-    expect(plan.hasMore).toBe(true)
-  })
-
-  it('detects a timestamp split at the process boundary', () => {
-    const plan = planNormalExpiryPage(
-      [...uniqueDomains(PROCESS_PAGE_SIZE - 1), ...domainsAt(2, 10_000)],
-      50,
+  it('reads an expiry stage once, over every authority, at the registrar expiry', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+      okAsync(page([named('a.eth', 150, 'v1'), named('b.eth', 160)])),
     )
-    expect(plan.type).toBe('split-timestamp')
-    if (plan.type !== 'split-timestamp') return
-    expect(plan.timestamp).toBe(10_000)
-    expect(plan.domainsBeforeTimestamp).toHaveLength(PROCESS_PAGE_SIZE - 1)
-  })
 
-  it('reports overflow only while rows are left at the timestamp', () => {
-    const domains = domainsAt(3, 10_000)
-    expect(planExactTimestampPage(domains, 10_000, false)).toEqual({
-      domains,
-      overflow: false,
-      cursorEnd: 10_000,
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
     })
-    expect(planExactTimestampPage(domains, 10_000, true).overflow).toBe(true)
+
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(1)
+    expect(fetchExpiringNamesPage).toHaveBeenCalledWith({
+      env: ENV,
+      stageId: 'expiry-30d',
+      expiresFrom: 101,
+      expiresTo: 200,
+    })
+    expect(result._unsafeUnwrap()).toEqual({
+      domains: [
+        { ...named('a.eth', 150, 'v1'), position: 150 },
+        { ...named('b.eth', 160), position: 160 },
+      ],
+      cursorEnd: 160,
+      hasMore: false,
+      indexedAtSec: INDEXED_AT,
+    })
   })
 
-  it.each([
-    { label: 'one page', exactPages: [2], cursorsLeft: false },
-    {
-      label: 'several pages',
-      exactPages: [QUERY_PAGE_SIZE, QUERY_PAGE_SIZE, 50],
-      cursorsLeft: false,
-    },
-    {
-      label: 'more pages than the limit',
-      exactPages: Array.from(
-        { length: MAX_EXACT_TIMESTAMP_PAGES },
-        () => QUERY_PAGE_SIZE,
-      ),
-      cursorsLeft: true,
-    },
-  ])('pages a split timestamp with the cursor across $label', async ({
-    exactPages,
-    cursorsLeft,
-  }) => {
-    const timestamp = 10_000
-    const beforeTimestamp = uniqueDomains(PROCESS_PAGE_SIZE - 1)
-    const exactDomains = exactPages.map((count, read) =>
-      domainsAt(count, timestamp).map((domain, index) => ({
-        ...domain,
-        name: `${read}-${index}.eth`,
-      })),
+  it('reads a grace-end stage per protocol, with ENSv1 moved back by the grace difference', async () => {
+    const cursor = 10_000_000
+    const upperBound = cursor + 100
+    vi.mocked(fetchExpiringNamesPage)
+      .mockReturnValueOnce(okAsync(page([named('v2.eth', cursor + 50)])))
+      .mockReturnValueOnce(
+        okAsync(page([named('v1.eth', cursor + 20 - V1_SHIFT, 'v1')])),
+      )
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('premium-start'),
+      cursor,
+      upperBound,
+    })
+
+    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(1, {
+      env: ENV,
+      stageId: 'premium-start',
+      expiresFrom: cursor + 1,
+      expiresTo: upperBound,
+      authorities: ['ens_v2'],
+    })
+    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(2, {
+      env: ENV,
+      stageId: 'premium-start',
+      expiresFrom: cursor + 1 - V1_SHIFT,
+      expiresTo: upperBound - V1_SHIFT,
+      authorities: ['ens_v0', 'ens_v1'],
+    })
+    const read = result._unsafeUnwrap()
+    expect(read.domains.map(({ name, position }) => [name, position])).toEqual([
+      ['v1.eth', cursor + 20],
+      ['v2.eth', cursor + 50],
+    ])
+    expect(read.domains[0]?.expiryDate).toBe(cursor + 20 - V1_SHIFT)
+    expect(read.cursorEnd).toBe(cursor + 50)
+  })
+
+  it('leaves the cursor where it was when the window is empty', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(okAsync(page([])))
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-7d'),
+      cursor: 100,
+      upperBound: 200,
+    })
+
+    expect(result._unsafeUnwrap().cursorEnd).toBe(100)
+  })
+
+  it('follows the cursor across pages and reports the oldest index position', async () => {
+    vi.mocked(fetchExpiringNamesPage)
+      .mockReturnValueOnce(okAsync(page([named('a.eth', 110)], 'c1')))
+      .mockReturnValueOnce(
+        okAsync(page([named('b.eth', 120)], null, INDEXED_AT - 30)),
+      )
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
+    })
+
+    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ pageCursor: 'c1' }),
     )
-    const mock = vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
-      okAsync({
-        domains: [...beforeTimestamp, ...domainsAt(2, timestamp)],
-        hasMore: true,
-        nextCursor: null,
-        indexedAtSec: 1_700_000_000,
-      }),
+    const read = result._unsafeUnwrap()
+    expect(read.domains.map(({ name }) => name)).toEqual(['a.eth', 'b.eth'])
+    expect(read.indexedAtSec).toBe(INDEXED_AT - 30)
+    expect(read.hasMore).toBe(false)
+  })
+
+  it('stops just before the second a source was reading when it runs out of pages', async () => {
+    const pages = Array.from({ length: MAX_PAGES_PER_SOURCE }, (_, read) =>
+      page(fullPageAt(110 + read, `p${read}`), `c${read + 1}`),
     )
-    for (const [read, domains] of exactDomains.entries()) {
-      const isLast = read === exactDomains.length - 1
-      mock.mockReturnValueOnce(
-        okAsync({
-          domains,
-          hasMore: domains.length === QUERY_PAGE_SIZE,
-          nextCursor: isLast && !cursorsLeft ? null : `c${read + 1}`,
-          indexedAtSec: 1_700_000_000 - read,
-        }),
+    for (const value of pages) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(okAsync(value))
+    }
+
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
+    })
+
+    const lastSecond = 110 + MAX_PAGES_PER_SOURCE - 1
+    const read = result._unsafeUnwrap()
+    expect(read.cursorEnd).toBe(lastSecond - 1)
+    expect(read.hasMore).toBe(true)
+    expect(read.overflow).toBeUndefined()
+    expect(read.domains.every(({ position }) => position < lastSecond)).toBe(
+      true,
+    )
+    expect(read.domains).toHaveLength(PAGE_SIZE * (MAX_PAGES_PER_SOURCE - 1))
+  })
+
+  it('moves past one second that fills the page budget and reports the overflow', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_SOURCE; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(page(fullPageAt(101, `p${read}`), `c${read + 1}`)),
       )
     }
 
-    const env = {} as CloudflareBindings
-    const stage = STAGES[0]
-    if (!stage) throw new Error('Expected an expiry stage')
-    const result = await fetchProcessableExpiringNames({
-      env,
-      stage,
-      cursor: 50,
-      upperBound: 20_000,
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
     })
 
-    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(exactPages.length + 1)
-    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(2, {
-      env,
-      stage,
-      cursor: timestamp - 1,
-      upperBound: timestamp,
-    })
-    if (exactPages.length > 1) {
-      expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(3, {
-        env,
-        stage,
-        cursor: timestamp - 1,
-        upperBound: timestamp,
-        pageCursor: 'c1',
-      })
-    }
-    const processed = exactDomains.flat()
-    expect(result._unsafeUnwrap()).toEqual({
-      domains: [...beforeTimestamp, ...processed],
-      cursorEnd: timestamp,
-      hasMore: true,
-      indexedAtSec: 1_700_000_000 - (exactPages.length - 1),
-      overflow: cursorsLeft
-        ? { expiryTimestamp: timestamp, processedCount: processed.length }
-        : undefined,
+    const read = result._unsafeUnwrap()
+    expect(read.cursorEnd).toBe(101)
+    expect(read.domains).toHaveLength(PAGE_SIZE * MAX_PAGES_PER_SOURCE)
+    expect(read.overflow).toEqual({
+      expiryTimestamp: 101,
+      processedCount: PAGE_SIZE * MAX_PAGES_PER_SOURCE,
     })
   })
 
   it.each([
-    { label: 'restarts once on a stale cursor', isStale: true },
+    {
+      label: 're-reads a source once when its cursor goes stale',
+      isStale: true,
+    },
     { label: 'fails on any other error', isStale: false },
   ])('$label', async ({ isStale }) => {
-    const timestamp = 10_000
     const failure = new IndexerRequestError({ message: 'rejected', attempt: 1 })
     vi.mocked(isStaleCursorError).mockReturnValue(isStale)
     vi.mocked(fetchExpiringNamesPage)
-      .mockReturnValueOnce(
-        okAsync({
-          domains: [
-            ...uniqueDomains(PROCESS_PAGE_SIZE - 1),
-            ...domainsAt(2, timestamp),
-          ],
-          hasMore: true,
-          nextCursor: null,
-          indexedAtSec: 1_700_000_000,
-        }),
-      )
-      .mockReturnValueOnce(
-        okAsync({
-          domains: domainsAt(QUERY_PAGE_SIZE, timestamp),
-          hasMore: true,
-          nextCursor: 'c1',
-          indexedAtSec: 1_700_000_000,
-        }),
-      )
+      .mockReturnValueOnce(okAsync(page([named('a.eth', 110)], 'c1')))
       .mockReturnValueOnce(errAsync(failure))
       .mockReturnValueOnce(
-        okAsync({
-          domains: domainsAt(3, timestamp),
-          hasMore: false,
-          nextCursor: null,
-          indexedAtSec: 1_700_000_000,
-        }),
+        okAsync(page([named('a.eth', 110), named('b.eth', 120)])),
       )
 
-    const stage = STAGES[0]
-    if (!stage) throw new Error('Expected an expiry stage')
-    const result = await fetchProcessableExpiringNames({
-      env: {} as CloudflareBindings,
-      stage,
-      cursor: 50,
-      upperBound: 20_000,
+    const result = await fetchStageNames({
+      env: ENV,
+      stage: stage('expiry-30d'),
+      cursor: 100,
+      upperBound: 200,
     })
 
     if (!isStale) {
       expect(result._unsafeUnwrapErr()).toBe(failure)
-      expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(3)
       return
     }
     // The partial read before the stale page is dropped, not duplicated.
-    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(4)
-    expect(fetchExpiringNamesPage).not.toHaveBeenNthCalledWith(
-      4,
-      expect.objectContaining({ pageCursor: expect.anything() }),
+    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(
+      3,
+      expect.not.objectContaining({ pageCursor: expect.anything() }),
     )
-    expect(result._unsafeUnwrap().domains).toHaveLength(
-      PROCESS_PAGE_SIZE - 1 + 3,
-    )
+    expect(result._unsafeUnwrap().domains.map(({ name }) => name)).toEqual([
+      'a.eth',
+      'b.eth',
+    ])
   })
 })

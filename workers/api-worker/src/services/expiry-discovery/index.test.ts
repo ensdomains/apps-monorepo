@@ -1,18 +1,15 @@
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('./indexer.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./indexer.js')>()),
-  fetchExpiringNamesPage: vi.fn(),
+vi.mock('./page.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./page.js')>()),
+  fetchStageNames: vi.fn(),
 }))
 
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
-import {
-  fetchExpiringNamesPage,
-  PROCESS_PAGE_SIZE,
-  QUERY_PAGE_SIZE,
-} from './indexer.js'
+import { IndexerRequestError } from './indexer.js'
+import { fetchStageNames, type StageName } from './page.js'
 import {
   getLowerBoundForStage,
   getUpperBoundForStage,
@@ -57,14 +54,37 @@ const makeEnv = (
     EVENT_INGESTION_QUEUE: { sendBatch },
   }) as unknown as CloudflareBindings
 
+const stageName = (
+  name: string,
+  position: number,
+  extra: Partial<StageName> = {},
+): StageName => ({
+  name,
+  expiryDate: position,
+  protocol: 'v2',
+  position,
+  ...extra,
+})
+
+const readOf = (
+  domains: readonly StageName[],
+  cursor: number,
+  indexedAtSec = NOW,
+) => ({
+  domains,
+  cursorEnd: domains.at(-1)?.position ?? cursor,
+  hasMore: false,
+  indexedAtSec,
+})
+
 describe('runExpiryDiscoveryCron', () => {
   beforeEach(() => {
-    vi.mocked(fetchExpiringNamesPage).mockReset()
+    vi.mocked(fetchStageNames).mockReset()
     vi.useFakeTimers()
     vi.setSystemTime(new Date(NOW * 1000))
   })
 
-  it('emits a staged lifecycle event from the clamped exclusive window', async () => {
+  it('emits a staged lifecycle event, with its protocol, from the clamped window', async () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()
     cursors['expiry-30d'] = { expiry_timestamp: NOW - 100 * 86_400 }
@@ -72,43 +92,45 @@ describe('runExpiryDiscoveryCron', () => {
     const sendBatch = vi.fn(
       async (_messages: Array<{ body: unknown }>) => undefined,
     )
-    vi.mocked(fetchExpiringNamesPage).mockImplementation(({ cursor }) =>
-      okAsync({
-        domains: [
-          { name: 'alpha.eth', expiryDate: cursor + 100, owner: '0xabc' },
-        ],
-        hasMore: false,
-        nextCursor: null,
-        indexedAtSec: NOW,
-      }),
+    vi.mocked(fetchStageNames).mockImplementation(({ cursor }) =>
+      okAsync(
+        readOf(
+          [
+            stageName('alpha.eth', cursor + 100, {
+              protocol: 'v1',
+              owner: '0xabc',
+            }),
+          ],
+          cursor,
+        ),
+      ),
     )
 
     const result = await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
 
     expect(result.isOk()).toBe(true)
     const lowerBound = getLowerBoundForStage(stage('expiry-30d'), NOW)
-    expect(fetchExpiringNamesPage).toHaveBeenCalledWith(
+    expect(fetchStageNames).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: lowerBound }),
     )
     expect(sendBatch).toHaveBeenCalledWith([
       {
-        body: expect.objectContaining({
+        body: {
+          type: 'name_expiring',
           name: 'alpha.eth',
+          expiryDate: lowerBound + 100,
+          protocol: 'v1',
           stage: 'expiry-30d',
+          owner: '0xabc',
           includeFavorites: false,
-        }),
+        },
       },
     ])
   })
 
   it('snaps an empty stale stage to its lower bound but leaves an in-window cursor unchanged', async () => {
-    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
-      okAsync({
-        domains: [],
-        hasMore: false,
-        nextCursor: null,
-        indexedAtSec: NOW,
-      }),
+    vi.mocked(fetchStageNames).mockImplementation(({ cursor }) =>
+      okAsync(readOf([], cursor)),
     )
     const kv = new MockKV()
     const cursors = caughtUpCursors()
@@ -129,13 +151,8 @@ describe('runExpiryDiscoveryCron', () => {
   })
 
   it('holds a stage cursor when the indexer is behind, even on an empty window', async () => {
-    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
-      okAsync({
-        domains: [],
-        hasMore: false,
-        nextCursor: null,
-        indexedAtSec: NOW - 2 * 3600,
-      }),
+    vi.mocked(fetchStageNames).mockImplementation(({ cursor }) =>
+      okAsync(readOf([], cursor, NOW - 2 * 3600)),
     )
     const kv = new MockKV()
     const cursors = caughtUpCursors()
@@ -163,17 +180,15 @@ describe('runExpiryDiscoveryCron', () => {
       ),
     )
     const targetExpiry = NOW - 10 * 86_400
-    vi.mocked(fetchExpiringNamesPage).mockImplementation(
-      ({ cursor, upperBound }) =>
-        okAsync({
-          domains:
-            targetExpiry > cursor && targetExpiry <= upperBound
-              ? [{ name: 'catch-up.eth', expiryDate: targetExpiry }]
-              : [],
-          hasMore: false,
-          nextCursor: null,
-          indexedAtSec: NOW,
-        }),
+    vi.mocked(fetchStageNames).mockImplementation(({ cursor, upperBound }) =>
+      okAsync(
+        readOf(
+          targetExpiry > cursor && targetExpiry <= upperBound
+            ? [stageName('catch-up.eth', targetExpiry)]
+            : [],
+          cursor,
+        ),
+      ),
     )
     const sendBatch = vi.fn(
       async (_messages: Array<{ body: unknown }>) => undefined,
@@ -193,17 +208,13 @@ describe('runExpiryDiscoveryCron', () => {
     cursors['expiry-7d'] = { expiry_timestamp: NOW + 2 * 86_400 }
     cursors['expiry-1d'] = { expiry_timestamp: NOW }
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
-    vi.mocked(fetchExpiringNamesPage).mockImplementation(
-      ({ stage: current, cursor }) => {
-        if (current.id === 'expiry-7d')
-          return errAsync(new Error('indexer unavailable') as never)
-        return okAsync({
-          domains: [{ name: 'beta.eth', expiryDate: cursor + 50 }],
-          hasMore: false,
-          nextCursor: null,
-          indexedAtSec: NOW,
-        })
-      },
+    vi.mocked(fetchStageNames).mockImplementation(
+      ({ stage: current, cursor }) =>
+        current.id === 'expiry-7d'
+          ? errAsync(
+              new IndexerRequestError({ message: 'unavailable', attempt: 3 }),
+            )
+          : okAsync(readOf([stageName('beta.eth', cursor + 50)], cursor)),
     )
 
     const result = await runExpiryDiscoveryCron(makeEnv(kv))
@@ -222,13 +233,8 @@ describe('runExpiryDiscoveryCron', () => {
     cursors['expiry-7d'] = { expiry_timestamp: NOW + 2 * 86_400 }
     cursors['expiry-1d'] = { expiry_timestamp: NOW }
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
-    vi.mocked(fetchExpiringNamesPage).mockImplementation(({ cursor }) =>
-      okAsync({
-        domains: [{ name: 'alpha.eth', expiryDate: cursor + 50 }],
-        hasMore: false,
-        nextCursor: null,
-        indexedAtSec: NOW,
-      }),
+    vi.mocked(fetchStageNames).mockImplementation(({ cursor }) =>
+      okAsync(readOf([stageName('alpha.eth', cursor + 50)], cursor)),
     )
     const sendBatch = vi.fn(async (messages: Array<{ body: unknown }>) => {
       const event = messages[0]?.body as { stage?: string } | undefined
@@ -256,16 +262,15 @@ describe('runExpiryDiscoveryCron', () => {
     const cursors = caughtUpCursors()
     cursors['expiry-30d'] = { expiry_timestamp: NOW + 10 * 86_400 }
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
-    vi.mocked(fetchExpiringNamesPage).mockImplementation(({ cursor }) =>
-      okAsync({
-        domains: Array.from({ length: 150 }, (_, index) => ({
-          name: `${index}.eth`,
-          expiryDate: cursor + index + 1,
-        })),
-        hasMore: false,
-        nextCursor: null,
-        indexedAtSec: NOW,
-      }),
+    vi.mocked(fetchStageNames).mockImplementation(({ cursor }) =>
+      okAsync(
+        readOf(
+          Array.from({ length: 150 }, (_, index) =>
+            stageName(`${index}.eth`, cursor + index + 1),
+          ),
+          cursor,
+        ),
+      ),
     )
     const sendBatch = vi.fn(
       async (_messages: Array<{ body: unknown }>) => undefined,
@@ -279,20 +284,20 @@ describe('runExpiryDiscoveryCron', () => {
     ])
   })
 
-  it('reserves one lookahead row and advances to the safe timestamp', async () => {
+  it('stores the cursor the stage read stopped at when more is left', async () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()
     cursors['expiry-30d'] = { expiry_timestamp: NOW + 10 * 86_400 }
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
     const cursor = cursors['expiry-30d'].expiry_timestamp
-    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
+    vi.mocked(fetchStageNames).mockReturnValue(
       okAsync({
-        domains: Array.from({ length: QUERY_PAGE_SIZE }, (_, index) => ({
-          name: `${index}.eth`,
-          expiryDate: cursor + index + 1,
-        })),
+        domains: [
+          stageName('a.eth', cursor + 1),
+          stageName('b.eth', cursor + 2),
+        ],
+        cursorEnd: cursor + 5,
         hasMore: true,
-        nextCursor: null,
         indexedAtSec: NOW,
       }),
     )
@@ -302,9 +307,7 @@ describe('runExpiryDiscoveryCron', () => {
       KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
-    expect(result._unsafeUnwrap().totalEnqueued).toBe(PROCESS_PAGE_SIZE)
-    expect(stored['expiry-30d']?.expiry_timestamp).toBe(
-      cursor + PROCESS_PAGE_SIZE,
-    )
+    expect(result._unsafeUnwrap().totalEnqueued).toBe(2)
+    expect(stored['expiry-30d']?.expiry_timestamp).toBe(cursor + 5)
   })
 })

@@ -1,7 +1,10 @@
 import type { PersonalNotificationPayloads } from '@ens-apps/shared-schema/notifications'
 import { getGraceEndDate, MS_PER_DAY } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
-import type { NameExpiryRenderOptions } from './name-expiry.js'
+import {
+  buildNameExpiryDeliveryContext,
+  type NameExpiryRenderOptions,
+} from './name-expiry.js'
 import { buildNameExpiryPushNotification } from './push.js'
 import { buildNameExpiryTelegramMessage } from './telegram.js'
 
@@ -50,5 +53,23 @@ describe('name expiry lifecycle delivery rendering', () => {
     expect(message.buttons?.[0]?.[0]?.url).toBe(
       'https://app.ens.dev/renew/foo%3Cscript%3E%26.eth',
     )
+  })
+
+  it.each([
+    { protocol: undefined, graceDays: 28 },
+    { protocol: 'v2', graceDays: 28 },
+    { protocol: 'v1', graceDays: 90 },
+  ] as const)('dates the grace end $graceDays days after expiry for $protocol', ({
+    protocol,
+    graceDays,
+  }) => {
+    const context = buildNameExpiryDeliveryContext(
+      payload({ stage: 'grace-start', ...(protocol && { protocol }) }),
+      options(expiry),
+    )
+    expect(context.graceEndDate.getTime()).toBe(
+      expiry.getTime() + graceDays * MS_PER_DAY,
+    )
+    expect(context.daysUntilGraceEnd).toBe(graceDays)
   })
 })

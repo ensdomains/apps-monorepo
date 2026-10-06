@@ -1,14 +1,25 @@
+import type { Authority } from '@ens-apps/indexer/bigname'
+import type { GraceProtocol } from '@ens-apps/utils/gracePeriod'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { errAsync, ok } from 'neverthrow'
 import {
-  type ExpiringDomain,
+  type ExpiringName,
   type ExpiringNamesPage,
   fetchExpiringNamesPage,
   isStaleCursorError,
-  MAX_EXACT_TIMESTAMP_PAGES,
-  PROCESS_PAGE_SIZE,
+  PAGE_SIZE,
 } from './indexer.js'
-import type { ExpiryStageConfig } from './stages.js'
+import { type ExpiryStageConfig, GRACE_END_SHIFT_SECONDS } from './stages.js'
+
+// Pages read per source in one run, the 1,000 names a Panoptes query allowed.
+export const MAX_PAGES_PER_SOURCE = 5
+export const MAX_NAMES_PER_SOURCE = PAGE_SIZE * MAX_PAGES_PER_SOURCE
+
+/** A name placed on its stage's timeline. */
+export type StageName = ExpiringName & {
+  /** Where the stage cursor treats this name as sitting. */
+  readonly position: number
+}
 
 export type ExpiryTimestampOverflow = {
   readonly expiryTimestamp: number
@@ -16,7 +27,7 @@ export type ExpiryTimestampOverflow = {
 }
 
 export type ProcessableExpiryPage = {
-  readonly domains: readonly ExpiringDomain[]
+  readonly domains: readonly StageName[]
   readonly cursorEnd: number
   readonly hasMore: boolean
   readonly overflow?: ExpiryTimestampOverflow
@@ -24,152 +35,131 @@ export type ProcessableExpiryPage = {
   readonly indexedAtSec: number
 }
 
-export type NormalExpiryPagePlan =
-  | {
-      type: 'complete'
-      domains: ExpiringDomain[]
-      cursorEnd: number
-      hasMore: false
-    }
-  | {
-      type: 'safe-boundary'
-      domains: ExpiringDomain[]
-      cursorEnd: number
-      hasMore: true
-    }
-  | {
-      type: 'split-timestamp'
-      domainsBeforeTimestamp: ExpiringDomain[]
-      timestamp: number
-    }
-
-const lastExpiryDate = (
-  domains: readonly ExpiringDomain[],
-  fallback: number,
-): number => domains.at(-1)?.expiryDate ?? fallback
-
-export function planNormalExpiryPage(
-  domains: readonly ExpiringDomain[],
-  queryCursor: number,
-): NormalExpiryPagePlan {
-  if (domains.length <= PROCESS_PAGE_SIZE) {
-    return {
-      type: 'complete',
-      domains: [...domains],
-      cursorEnd: lastExpiryDate(domains, queryCursor),
-      hasMore: false,
-    }
-  }
-
-  const processable = domains.slice(0, PROCESS_PAGE_SIZE)
-  const boundary = processable.at(-1)
-  const lookahead = domains[PROCESS_PAGE_SIZE]
-  if (!boundary || !lookahead) {
-    return {
-      type: 'complete',
-      domains: processable,
-      cursorEnd: lastExpiryDate(processable, queryCursor),
-      hasMore: false,
-    }
-  }
-
-  if (boundary.expiryDate !== lookahead.expiryDate) {
-    return {
-      type: 'safe-boundary',
-      domains: processable,
-      cursorEnd: boundary.expiryDate,
-      hasMore: true,
-    }
-  }
-
-  return {
-    type: 'split-timestamp',
-    domainsBeforeTimestamp: processable.filter(
-      (domain) => domain.expiryDate < boundary.expiryDate,
-    ),
-    timestamp: boundary.expiryDate,
-  }
+type Source = {
+  readonly authorities?: readonly Authority[]
+  readonly shiftSec: number
 }
 
-export function planExactTimestampPage(
-  domains: readonly ExpiringDomain[],
-  timestamp: number,
-  hasMoreAtTimestamp: boolean,
-) {
-  // Rows still left at T after the page limit cannot be reached without
-  // re-reading T; process what was read and surface the saturation.
-  return {
-    domains: [...domains],
-    overflow: hasMoreAtTimestamp,
-    cursorEnd: timestamp,
-  }
+const ENSV1_AUTHORITIES: readonly Authority[] = ['ens_v0', 'ens_v1']
+
+const SOURCES_BY_PROTOCOL: Readonly<Record<GraceProtocol, Source>> = {
+  v2: { authorities: ['ens_v2'], shiftSec: GRACE_END_SHIFT_SECONDS.v2 },
+  v1: { authorities: ENSV1_AUTHORITIES, shiftSec: GRACE_END_SHIFT_SECONDS.v1 },
 }
 
-const readExactTimestamp = ResultFn(async function* (ctx: {
+/**
+ * Expiry stages read every authority at its registrar expiry. bigname cannot
+ * filter on the grace end, so grace-end stages read each protocol over the
+ * expiry window that maps onto the stage window.
+ */
+export const sourcesForStage = (stage: ExpiryStageConfig): readonly Source[] =>
+  stage.anchor === 'expiry'
+    ? [{ shiftSec: 0 }]
+    : [SOURCES_BY_PROTOCOL.v2, SOURCES_BY_PROTOCOL.v1]
+
+type SourceRead = {
+  readonly names: readonly StageName[]
+  readonly isComplete: boolean
+  readonly indexedAtSec: number
+}
+
+const readSource = ResultFn(async function* (ctx: {
   readonly env: CloudflareBindings
   readonly stage: ExpiryStageConfig
-  readonly timestamp: number
+  readonly source: Source
+  readonly cursor: number
+  readonly upperBound: number
 }) {
-  let domains: readonly ExpiringDomain[] = []
+  let names: readonly StageName[] = []
   let indexedAtSec = Number.POSITIVE_INFINITY
   let pageCursor: string | null = null
-  for (let read = 0; read < MAX_EXACT_TIMESTAMP_PAGES; read++) {
+  for (let read = 0; read < MAX_PAGES_PER_SOURCE; read++) {
     const page: ExpiringNamesPage = yield* fetchExpiringNamesPage({
       env: ctx.env,
-      stage: ctx.stage,
-      cursor: ctx.timestamp - 1,
-      upperBound: ctx.timestamp,
+      stageId: ctx.stage.id,
+      expiresFrom: ctx.cursor + 1 - ctx.source.shiftSec,
+      expiresTo: ctx.upperBound - ctx.source.shiftSec,
+      ...(ctx.source.authorities && { authorities: ctx.source.authorities }),
       ...(pageCursor !== null && { pageCursor }),
     })
-    domains = [...domains, ...page.domains]
+    names = [
+      ...names,
+      ...page.names.map((name) => ({
+        ...name,
+        position: name.expiryDate + ctx.source.shiftSec,
+      })),
+    ]
     indexedAtSec = Math.min(indexedAtSec, page.indexedAtSec)
     pageCursor = page.nextCursor
     if (pageCursor === null) break
   }
-  return ok({ domains, indexedAtSec, hasMoreAtTimestamp: pageCursor !== null })
+  return ok({
+    names,
+    isComplete: pageCursor === null,
+    indexedAtSec,
+  } satisfies SourceRead)
 })
 
-export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
+const lastPosition = (read: SourceRead): number =>
+  read.names.at(-1)?.position ?? Number.POSITIVE_INFINITY
+
+/**
+ * Reads every name a stage owes a reminder for in (cursor, upperBound].
+ *
+ * A source that runs out of pages stops the cursor just before the second it
+ * was reading, so that second is read whole next run; reminders are idempotent,
+ * so the overlap is harmless. Only when one second alone fills the page budget
+ * does the stage move past it and report the overflow.
+ */
+export const fetchStageNames = ResultFn(async function* (ctx: {
   readonly env: CloudflareBindings
   readonly stage: ExpiryStageConfig
   readonly cursor: number
   readonly upperBound: number
 }) {
-  const page = yield* fetchExpiringNamesPage(ctx)
-  const plan = planNormalExpiryPage(page.domains, ctx.cursor)
-
-  if (plan.type !== 'split-timestamp') {
-    return ok({
-      domains: plan.domains,
-      cursorEnd: plan.cursorEnd,
-      hasMore: plan.hasMore,
-      overflow: undefined,
-      indexedAtSec: page.indexedAtSec,
-    } satisfies ProcessableExpiryPage)
+  let reads: readonly SourceRead[] = []
+  for (const source of sourcesForStage(ctx.stage)) {
+    const sourceCtx = { ...ctx, source }
+    // A cursor that went stale mid-read is re-read once from the first page.
+    const read = yield* readSource(sourceCtx).orElse((error) =>
+      isStaleCursorError(error) ? readSource(sourceCtx) : errAsync(error),
+    )
+    reads = [...reads, read]
   }
 
-  const exactCtx = { env: ctx.env, stage: ctx.stage, timestamp: plan.timestamp }
-  // A cursor that went stale mid-read is re-read once from the first page,
-  // dropping the partial read so no name is published twice.
-  const exact = yield* readExactTimestamp(exactCtx).orElse((error) =>
-    isStaleCursorError(error) ? readExactTimestamp(exactCtx) : errAsync(error),
-  )
-  const exactPlan = planExactTimestampPage(
-    exact.domains,
-    plan.timestamp,
-    exact.hasMoreAtTimestamp,
-  )
+  const indexedAtSec = Math.min(...reads.map((read) => read.indexedAtSec))
+  const all = reads
+    .flatMap((read) => read.names)
+    .toSorted((left, right) => left.position - right.position)
+  const truncated = reads.filter((read) => !read.isComplete)
 
-  return ok({
-    domains: [...plan.domainsBeforeTimestamp, ...exactPlan.domains],
-    cursorEnd: exactPlan.cursorEnd,
+  if (truncated.length === 0) {
+    // Only as far as the last name seen: a name the index records late, with
+    // an expiry past that point, is still found next run.
+    return ok<ProcessableExpiryPage>({
+      domains: all,
+      cursorEnd: all.at(-1)?.position ?? ctx.cursor,
+      hasMore: false,
+      indexedAtSec,
+    })
+  }
+
+  const stopAt = Math.min(...truncated.map(lastPosition))
+  if (stopAt - 1 > ctx.cursor) {
+    return ok<ProcessableExpiryPage>({
+      domains: all.filter((name) => name.position < stopAt),
+      cursorEnd: stopAt - 1,
+      hasMore: true,
+      indexedAtSec,
+    })
+  }
+
+  const read = all.filter((name) => name.position <= stopAt)
+  return ok<ProcessableExpiryPage>({
+    domains: read,
+    cursorEnd: stopAt,
     hasMore: true,
-    overflow: exactPlan.overflow
-      ? {
-          expiryTimestamp: plan.timestamp,
-          processedCount: exactPlan.domains.length,
-        }
-      : undefined,
-    indexedAtSec: Math.min(page.indexedAtSec, exact.indexedAtSec),
-  } satisfies ProcessableExpiryPage)
+    overflow: { expiryTimestamp: stopAt, processedCount: read.length },
+    indexedAtSec,
+  })
 })
