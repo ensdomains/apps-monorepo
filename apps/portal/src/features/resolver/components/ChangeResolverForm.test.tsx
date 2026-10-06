@@ -119,12 +119,15 @@ vi.mock('@/features/resolver/hooks/useDeployPermissionedResolver', () => ({
   }),
 }))
 
+const EXISTING_RESOLVERS: readonly Address[] = [
+  '0xabcdef123456789012345678901234567890abcd',
+  '0x1234512345123451234512345123451234512345',
+]
+const existingResolversState = { data: EXISTING_RESOLVERS }
+
 vi.mock('@/features/resolver/hooks/useUserPermissionedResolvers', () => ({
   useUserPermissionedResolvers: (_params: { senderAddress?: string }) => ({
-    data: [
-      '0xabcdef123456789012345678901234567890abcd',
-      '0x1234512345123451234512345123451234512345',
-    ],
+    data: existingResolversState.data,
     isLoading: false,
     error: null,
   }),
@@ -146,6 +149,7 @@ describe('ChangeResolverForm', () => {
     transactionsRef.current = []
     changeResolverHookState.isPending = false
     changeResolverHookState.hasWallet = true
+    existingResolversState.data = EXISTING_RESOLVERS
   })
 
   it('renders with neither toggle selected so every option is visible', () => {
@@ -164,6 +168,25 @@ describe('ChangeResolverForm', () => {
       screen.getByLabelText(/Existing permissioned resolver/i),
     ).toHaveValue('0xabcdef123456789012345678901234567890abcd')
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeEnabled()
+  })
+
+  it('keeps save disabled with no deployed resolvers until deploy is selected', async () => {
+    existingResolversState.data = []
+    const user = userEvent.setup()
+
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    expect(
+      screen.getByLabelText(/Existing permissioned resolver/i),
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
+
+    await user.click(
+      screen.getByRole('switch', { name: /Deploy new permissioned resolver/i }),
+    )
+    await user.click(screen.getByRole('button', { name: /Save changes/i }))
+
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
   })
 
   it('shows the contract address input once custom resolver is selected', async () => {
