@@ -17,6 +17,7 @@ import {
 import {
   buildMergedNamesList,
   getMergedNamesCount,
+  type NameVersion,
   type SortDir,
   type SortField,
 } from '../mergedNames'
@@ -65,6 +66,7 @@ export const NamesTable = ({
 }: NamesTableProps) => {
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
+  const [version, setVersion] = useState<NameVersion | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
@@ -89,6 +91,14 @@ export const NamesTable = ({
   const ownedCount = isV1Error
     ? undefined
     : getMergedNamesCount({ v2Names, v1Classified: v1Names })
+  const v1Count = isV1Error
+    ? undefined
+    : getMergedNamesCount({ v2Names, v1Classified: v1Names, version: 'v1' })
+  const v2Count = getMergedNamesCount({
+    v2Names,
+    v1Classified: v1Names,
+    version: 'v2',
+  })
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
@@ -109,13 +119,14 @@ export const NamesTable = ({
         searchQuery,
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
+        version,
       }).flatMap((item) =>
         item.kind === 'v2' &&
         toBulkRenewName(toSelectableDomain(item.domain)) !== null
           ? [selectionKey(item.domain)]
           : [],
       ),
-    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
+    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir, version],
   )
 
   const [isRenewOpen, setIsRenewOpen] = useState(false)
@@ -204,6 +215,12 @@ export const NamesTable = ({
     },
   ]
 
+  // v1 / v2 are mutually exclusive; clicking the active one shows all again
+  const versionChips: FilterChipDef<NameVersion>[] = [
+    { value: 'v1', label: t`V1`, count: v1Count },
+    { value: 'v2', label: t`V2`, count: v2Count },
+  ]
+
   return (
     <div className="w-full">
       <div className="mb-5 flex w-full flex-col items-start gap-5 md:mb-4">
@@ -268,6 +285,14 @@ export const NamesTable = ({
             }}
             value={activeFilter}
           />
+          {activeFilter === 'owned' && (
+            <FilterChips
+              chips={versionChips}
+              onChange={setVersion}
+              onClear={() => setVersion(null)}
+              value={version}
+            />
+          )}
         </div>
 
         {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
@@ -334,6 +359,7 @@ export const NamesTable = ({
                 searchQuery={searchQuery}
                 selectedLabels={selectedLabels}
                 sort={ownedSort}
+                version={version}
               />
             </motion.div>
           ))

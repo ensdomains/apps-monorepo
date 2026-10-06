@@ -48,6 +48,7 @@ export type DashboardV2Name = DomainFragment & {
 }
 
 export type SortField = 'name' | 'created' | 'expiry'
+export type NameVersion = 'v1' | 'v2'
 export type SortDir = 'asc' | 'desc'
 export type ExpiryCta = 'renew' | 'remindMe'
 
@@ -120,13 +121,15 @@ export const buildMergedNamesList = (params: {
   searchQuery: string
   sortField: SortField
   sortDir: SortDir
+  version?: NameVersion | null
 }): MergedItem[] => {
-  const { v2Names, v1Classified, searchQuery, sortField, sortDir } = params
+  const { v2Names, v1Classified, searchQuery, sortField, sortDir, version } =
+    params
   const q = searchQuery.trim().toLowerCase()
   const items: MergedItem[] = []
   const v2NameSet = getV2NameSet(v2Names)
 
-  for (const domain of v2Names) {
+  for (const domain of version === 'v1' ? [] : v2Names) {
     const label = resolveDomainLabel(domain)
     if (q && !label.toLowerCase().includes(q)) continue
     items.push({
@@ -139,7 +142,7 @@ export const buildMergedNamesList = (params: {
     })
   }
 
-  for (const classified of v1Classified) {
+  for (const classified of version === 'v2' ? [] : v1Classified) {
     const label = classified.domain.name
     if (v2NameSet.has(label.toLowerCase())) continue
     if (
@@ -166,12 +169,15 @@ export const buildMergedNamesList = (params: {
 export const getMergedNamesCount = (params: {
   v2Names: readonly DashboardV2Name[]
   v1Classified: readonly DashboardV1Name[]
+  version?: NameVersion | null
 }): number => {
   const v2NameSet = getV2NameSet(params.v2Names)
   const v1OnlyCount = params.v1Classified.filter(
     (classified) => !v2NameSet.has(classified.domain.name.toLowerCase()),
   ).length
 
+  if (params.version === 'v1') return v1OnlyCount
+  if (params.version === 'v2') return params.v2Names.length
   return params.v2Names.length + v1OnlyCount
 }
 
