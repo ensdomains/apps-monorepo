@@ -3,7 +3,8 @@ import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 
 // Reverse records are not migratable names.
-const REVERSE_SUFFIX = '.addr.reverse'
+// Every reverse namespace (`addr.reverse`, `default.reverse`, per-chain ones).
+const REVERSE_SUFFIX = '.reverse'
 
 // Enough rows to step past reverse records at the top of the sort.
 const PAGE_SIZE = 10

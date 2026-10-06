@@ -116,8 +116,12 @@ describe('hasV1Names', () => {
     await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
   })
 
-  it('does not count a reverse record', async () => {
-    mockBigname(page([row('abc.addr.reverse'), row('alice.eth', PAST)]))
+  it.each([
+    'abc.addr.reverse',
+    'abc.default.reverse',
+    'abc.80002105.reverse',
+  ])('does not count the reverse record %s', async (name) => {
+    mockBigname(page([row(name), row('alice.eth', PAST)]))
 
     await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
   })
