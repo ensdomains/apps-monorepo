@@ -11,6 +11,7 @@ import {
   type ClassifiedName,
   type IneligibleName,
   managerRestorationCandidates,
+  registryControllerOf,
 } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
 import { hasManagerRestorationAfterRenewal } from './useNameSelection.helpers'
@@ -119,17 +120,24 @@ export const useNameSelection = ({
     })
   }, [allSelectable, isPending, onNamesChange])
 
-  const managerCandidates = useMemo(
-    () =>
-      new Map<string, Address>(
-        managerRestorationCandidates(eligible).flatMap((name) =>
-          name.registryController
-            ? [[name.domain.name, name.registryController] as const]
-            : [],
-        ),
+  const managerCandidates = useMemo(() => {
+    const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+    return new Map<string, Address>([
+      ...managerRestorationCandidates(eligible).flatMap((name) =>
+        name.registryController
+          ? [[name.domain.name, name.registryController] as const]
+          : [],
       ),
-    [eligible],
-  )
+      // Grace names are classified only after renewal; offer the same choice
+      // for the controller that classification will then record.
+      ...gracePeriodNames.flatMap(({ domain }) => {
+        const controller = hasManagerRestorationAfterRenewal(domain, nowSeconds)
+          ? registryControllerOf(domain)
+          : null
+        return controller ? [[domain.name, controller] as const] : []
+      }),
+    ])
+  }, [eligible, gracePeriodNames])
 
   // On a resumed run the classified names already carry the opt-in replayed
   // from the durable snapshot, so the checkboxes show what will actually be
