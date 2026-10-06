@@ -15,7 +15,7 @@ import {
   type ProfileAddressName,
 } from './buildProfileAddressNames'
 
-export { PROFILE_NAMES_PAGE_SIZE } from './profileOwnedNames'
+export const PROFILE_NAMES_PAGE_SIZE = 5
 
 const V2_NAMES_PAGE_SIZE = 50
 const MANAGED_NAMES_CHUNK_SIZE = 50
