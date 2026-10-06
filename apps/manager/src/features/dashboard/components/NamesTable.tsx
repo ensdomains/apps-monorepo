@@ -16,15 +16,13 @@ import {
 } from '../bulkRenewSelection'
 import {
   buildMergedNamesList,
-  getMergedNamesCount,
   type SortDir,
   type SortField,
 } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import { useDashboardNames } from '../useDashboardNames'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -75,20 +73,14 @@ export const NamesTable = ({
   const isAuthed = useAtom(isBackendAuthed)
   const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
-  const { v2Names } = useOwnedDomains()
+  const { names, isError: isNamesError } = useDashboardNames()
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
   })
 
-  const { v1Names, isError: isV1Error } = useDashboardV1Names({
-    migrationEnabled,
-  })
-
   const favoritesCount = favorites.length
-  const ownedCount = isV1Error
-    ? undefined
-    : getMergedNamesCount({ v2Names, v1Classified: v1Names })
+  const ownedCount = isNamesError ? undefined : names.length
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
@@ -104,18 +96,17 @@ export const NamesTable = ({
   const allOwnedLabels = useMemo(
     () =>
       buildMergedNamesList({
-        v2Names,
-        v1Classified: [],
+        names,
         searchQuery,
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
       }).flatMap((item) =>
         item.kind === 'v2' &&
-        toBulkRenewName(toSelectableDomain(item.domain)) !== null
-          ? [selectionKey(item.domain)]
+        toBulkRenewName(toSelectableDomain(item.name)) !== null
+          ? [selectionKey(item.name)]
           : [],
       ),
-    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
+    [names, searchQuery, ownedSortState.field, ownedSortState.dir],
   )
 
   const [isRenewOpen, setIsRenewOpen] = useState(false)
@@ -128,11 +119,14 @@ export const NamesTable = ({
 
   const selectedNames = useMemo<BulkRenewName[]>(
     () =>
-      v2Names
-        .filter((domain) => selectedLabels.has(selectionKey(domain)))
-        .map((domain) => toBulkRenewName(toSelectableDomain(domain)))
+      names
+        .filter(
+          (name) =>
+            name.protocol === 'v2' && selectedLabels.has(selectionKey(name)),
+        )
+        .map((name) => toBulkRenewName(toSelectableDomain(name)))
         .filter((name): name is BulkRenewName => name !== null),
-    [v2Names, selectedLabels],
+    [names, selectedLabels],
   )
 
   const onToggleSelect = (label: string) => {

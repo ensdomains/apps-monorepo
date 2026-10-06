@@ -8,9 +8,7 @@ const EXPIRY_SECONDS = BigInt(
 )
 
 const domain = (overrides: Partial<SelectableDomain>): SelectableDomain => ({
-  id: '0xdomain',
   name: 'alice.eth',
-  normalizedName: 'alice.eth',
   expiryDate: EXPIRY_SECONDS,
   ...overrides,
 })
@@ -35,7 +33,7 @@ describe('toBulkRenewName', () => {
 
   // A look-alike must never be renewed as its twin, which can be someone else's.
   it('excludes a mixed-case look-alike', () => {
-    const raw = domain({ name: 'ALICE.eth', normalizedName: 'alice.eth' })
+    const raw = domain({ name: 'ALICE.eth' })
     expect(toBulkRenewName(raw)).toBeNull()
   })
 
@@ -43,28 +41,17 @@ describe('toBulkRenewName', () => {
     const raw = domain({
       // U+00AD SOFT HYPHEN — invisible, and stripped by normalization.
       name: 'ali\u00ADce.eth',
-      normalizedName: 'alice.eth',
     })
     expect(toBulkRenewName(raw)).toBeNull()
   })
 
-  it('never falls back to the token id as a label', () => {
-    expect(
-      toBulkRenewName(domain({ name: null, normalizedName: null })),
-    ).toBeNull()
+  it('excludes a row without a name', () => {
+    expect(toBulkRenewName(domain({ name: null }))).toBeNull()
   })
 
   it('excludes subnames and non-.eth names', () => {
-    expect(
-      toBulkRenewName(
-        domain({ name: 'sub.alice.eth', normalizedName: 'sub.alice.eth' }),
-      ),
-    ).toBeNull()
-    expect(
-      toBulkRenewName(
-        domain({ name: 'alice.com', normalizedName: 'alice.com' }),
-      ),
-    ).toBeNull()
+    expect(toBulkRenewName(domain({ name: 'sub.alice.eth' }))).toBeNull()
+    expect(toBulkRenewName(domain({ name: 'alice.com' }))).toBeNull()
   })
 
   it('excludes a name past its grace period', () => {
