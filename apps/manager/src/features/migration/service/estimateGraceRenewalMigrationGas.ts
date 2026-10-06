@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
@@ -16,7 +17,6 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
-import type { V1Domain } from './v1SubgraphClient'
 
 const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 

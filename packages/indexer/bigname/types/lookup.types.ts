@@ -17,7 +17,7 @@ import type {
   Timestamp,
 } from './common.types'
 import type { Relation, RelationFilter } from './permissions.types'
-import type { RecordInventory } from './records.types'
+import type { RecordGroups } from './records.types'
 
 /** `POST /v1/lookup`: field budget; `feed` is the latency path. Defaults to `detail`. */
 export type LookupProfile = 'feed' | 'detail'
@@ -42,12 +42,11 @@ export type LookupAddressInput = Readonly<{
 /** `POST /v1/lookup`: one input, discriminated by the presence of `name` or `address`. */
 export type LookupInput = LookupNameInput | LookupAddressInput
 
-/** `POST /v1/lookup`: request body (batch limit 1000; `include` requires `profile=detail`). */
+/** `POST /v1/lookup`: request body (batch limit 1000). */
 export type LookupRequest = Readonly<{
   inputs: readonly LookupInput[]
   profile?: LookupProfile
   namespace?: Namespace
-  include?: 'inventory'
 }>
 
 /** `POST /v1/lookup`: name-normalization result for an input. */
@@ -75,11 +74,8 @@ export type LookupRecord = Readonly<{
   lapsed_registration?: LapsedRegistration
   resolver?: ResolverRef
   subregistry?: RegistryRef
-  addresses?: Readonly<Record<string, Hex>>
-  text_records?: Readonly<Record<string, string>>
-  content_hash?: Hex
-  /** `profile=detail` name results with `include=inventory` only. */
-  inventory?: RecordInventory
+  /** `profile=detail` results, when a current record inventory is available. */
+  records?: RecordGroups
   primary_name?: string
   primary_address?: Hex
   chain_id?: number

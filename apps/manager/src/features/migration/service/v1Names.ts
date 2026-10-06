@@ -4,19 +4,17 @@ import {
   type BignameClient,
   isStale,
   type LookupRecord,
-  type LookupResponse,
 } from '@ens-apps/indexer/bigname'
 import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { err, ok, type Result } from 'neverthrow'
+import { ok } from 'neverthrow'
 import { labelhash, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
+import { checkNotAborted, lookupNames, retryOnStale } from './bignameLookup'
 
 const FETCH_PAGE_SIZE = 200
-const LOOKUP_BATCH_SIZE = 250
-const MAX_STALE_ATTEMPTS = 3
 
 const NAME_WRAPPER = getChainContractAddress({
   chain: envConfig.chain,
@@ -38,9 +36,6 @@ type ReadOptions = { readonly signal?: AbortSignal }
 
 const toError = (cause: unknown) => new GetV1NamesError({ cause })
 
-const checkNotAborted = (options: ReadOptions) =>
-  options.signal?.aborted ? err(toError(options.signal.reason)) : ok(undefined)
-
 const isListed = (row: AddressName): boolean =>
   !row.name.endsWith('.reverse') &&
   !HIDDEN_STATUSES.includes(row.registration_status)
@@ -53,7 +48,7 @@ const listV1NamesOnce = ResultFn(async function* (
   let names: readonly string[] = []
   let cursor: string | null = null
   do {
-    yield* checkNotAborted(options)
+    yield* checkNotAborted(options.signal, toError)
     const page: AddressNamesResponse = yield* client
       .addressNames(address, {
         namespace: 'ens',
@@ -71,18 +66,6 @@ const listV1NamesOnce = ResultFn(async function* (
   return ok(names)
 })
 
-/** bigname's snapshot can move under a long read; a stale answer is retried from the start. */
-const retryOnStale = async <T, E>(
-  read: () => PromiseLike<Result<T, E>>,
-  isStaleError: (error: E) => boolean,
-  attemptsLeft = MAX_STALE_ATTEMPTS,
-): Promise<Result<T, E>> => {
-  const result = await read()
-  return result.isErr() && attemptsLeft > 1 && isStaleError(result.error)
-    ? retryOnStale(read, isStaleError, attemptsLeft - 1)
-    : result
-}
-
 const listV1Names = (
   client: V1NamesClient,
   address: string,
@@ -93,44 +76,11 @@ const listV1Names = (
     (error) => isStale(error.cause),
   )
 
-/** Every record must come back `ok`: classifying from a partial read could hide or misroute a name. */
-const lookupRecords = ResultFn(async function* (
+const lookupRecords = (
   client: V1NamesClient,
   names: readonly string[],
   options: ReadOptions,
-) {
-  let records: readonly LookupRecord[] = []
-  for (let start = 0; start < names.length; start += LOOKUP_BATCH_SIZE) {
-    yield* checkNotAborted(options)
-    const batch = names.slice(start, start + LOOKUP_BATCH_SIZE)
-    const response: LookupResponse = yield* (
-      await retryOnStale(
-        () =>
-          client.lookup({
-            namespace: 'ens',
-            profile: 'detail',
-            inputs: batch.map((name) => ({ name })),
-          }),
-        isStale,
-      )
-    ).mapErr(toError)
-    const failed = response.data.find(
-      (result) => result.status !== 'ok' || !result.record,
-    )
-    if (failed) {
-      return yield* err(
-        toError(
-          new Error(`bigname lookup returned ${failed.status} for a v1 name`),
-        ),
-      )
-    }
-    records = [
-      ...records,
-      ...response.data.flatMap((result) => result.record ?? []),
-    ]
-  }
-  return ok(records)
-})
+) => lookupNames(client.lookup, names, options).mapErr(toError)
 
 const parentNameOf = (name: string): string | null => {
   const dot = name.indexOf('.')

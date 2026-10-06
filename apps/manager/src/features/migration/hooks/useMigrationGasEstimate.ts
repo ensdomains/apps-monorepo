@@ -1,4 +1,6 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
+
+import type { V1Domain } from '@ens-apps/migration'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
@@ -17,7 +19,6 @@ import {
   migrationPreparationFailure,
   runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
