@@ -123,14 +123,11 @@ const EXISTING_RESOLVERS: readonly Address[] = [
   '0xabcdef123456789012345678901234567890abcd',
   '0x1234512345123451234512345123451234512345',
 ]
-const existingResolversState = { data: EXISTING_RESOLVERS }
+const mockUseUserPermissionedResolvers = vi.fn()
 
 vi.mock('@/features/resolver/hooks/useUserPermissionedResolvers', () => ({
-  useUserPermissionedResolvers: (_params: { senderAddress?: string }) => ({
-    data: existingResolversState.data,
-    isLoading: false,
-    error: null,
-  }),
+  useUserPermissionedResolvers: (params: { senderAddress?: string }) =>
+    mockUseUserPermissionedResolvers(params),
 }))
 
 describe('ChangeResolverForm', () => {
@@ -149,7 +146,11 @@ describe('ChangeResolverForm', () => {
     transactionsRef.current = []
     changeResolverHookState.isPending = false
     changeResolverHookState.hasWallet = true
-    existingResolversState.data = EXISTING_RESOLVERS
+    mockUseUserPermissionedResolvers.mockReset().mockReturnValue({
+      data: EXISTING_RESOLVERS,
+      isLoading: false,
+      error: null,
+    })
   })
 
   it('renders with neither toggle selected so every option is visible', () => {
@@ -171,7 +172,11 @@ describe('ChangeResolverForm', () => {
   })
 
   it('keeps save disabled with no deployed resolvers until deploy is selected', async () => {
-    existingResolversState.data = []
+    mockUseUserPermissionedResolvers.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    })
     const user = userEvent.setup()
 
     render(<ChangeResolverForm name={name} target={target} />)
