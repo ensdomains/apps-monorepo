@@ -172,8 +172,8 @@ const processStage = ResultFn(async function* (ctx: {
 
 /**
  * The windows were planned at the index position read before the sweep; if a
- * page then came from an older publication, no cursor may pass what it saw.
- * Names beyond the cap are read again next run, and reminders are idempotent.
+ * page then came from an older publication, neither the cursor nor the
+ * reminders may pass what it saw. Names beyond the cap are read again next run.
  */
 const capAtSweepTime = (
   plan: StagePlan,
@@ -186,7 +186,12 @@ const capAtSweepTime = (
   )
   return page.cursorEnd <= cap
     ? page
-    : { ...page, cursorEnd: cap, hasMore: true }
+    : {
+        ...page,
+        domains: page.domains.filter(({ position }) => position <= cap),
+        cursorEnd: cap,
+        hasMore: true,
+      }
 }
 
 export const runExpiryDiscoveryCron = ResultFn(async function* (

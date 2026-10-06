@@ -241,9 +241,24 @@ describe('runExpiryDiscoveryCron', () => {
     }
   })
 
-  it('keeps every cursor at or before the time the sweep pages actually read', async () => {
+  it('keeps cursors and reminders at or before the time the sweep pages actually read', async () => {
     const olderRead = NOW - 3600
-    sweepWith((window) => readOf([], window), olderRead)
+    const stage30d = STAGES.find(({ id }) => id === 'expiry-30d')
+    if (!stage30d) throw new Error('Missing stage')
+    const cap = getUpperBoundForStage(stage30d, olderRead)
+    sweepWith(
+      (window) =>
+        readOf(
+          window.stage.id === 'expiry-30d'
+            ? [stageName('seen.eth', cap), stageName('too-new.eth', cap + 1)]
+            : [],
+          window,
+        ),
+      olderRead,
+    )
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
     const kv = new MockKV()
     const cursors = Object.fromEntries(
       STAGES.map((value) => [
@@ -253,8 +268,16 @@ describe('runExpiryDiscoveryCron', () => {
     )
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
 
-    await runExpiryDiscoveryCron(makeEnv(kv))
+    await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
 
+    const queued = sendBatch.mock.calls.flatMap(([messages]) =>
+      messages.map(({ body }) =>
+        typeof body === 'object' && body !== null && 'name' in body
+          ? body.name
+          : undefined,
+      ),
+    )
+    expect(queued).toEqual(['seen.eth'])
     const stored = await readCursors(kv)
     for (const value of STAGES) {
       expect(stored[value.id]?.expiry_timestamp).toBe(
