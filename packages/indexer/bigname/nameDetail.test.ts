@@ -13,9 +13,9 @@ const record = {
   owner: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
   registrant: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
   registration_status: 'registered',
-  registered_at: '2026-09-28T11:29:36Z',
-  created_at: '2026-09-28T11:29:36Z',
-  expires_at: '2029-09-28T11:29:36Z',
+  registered_at: '1790594976',
+  created_at: '1790594976',
+  expires_at: '1885289376',
   resolver: {
     chain_id: 11155111,
     address: '0x6a57f0a929949027f954c66f4889514d5a5fd1d8',
