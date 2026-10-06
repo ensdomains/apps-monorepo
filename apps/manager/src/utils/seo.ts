@@ -31,6 +31,10 @@ export const defaultOgImageUrl = (): string =>
 export const nameOgImageUrl = (name: string): string =>
   new URL(`/og/${encodeURIComponent(name)}.png`, getSiteOrigin()).toString()
 
+/** Social card for an address's profile — served by the same route as names. */
+export const addressOgImageUrl = (address: string): string =>
+  nameOgImageUrl(address)
+
 export const seo = ({
   title,
   description,

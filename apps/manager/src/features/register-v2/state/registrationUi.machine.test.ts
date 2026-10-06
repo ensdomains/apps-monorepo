@@ -128,8 +128,8 @@ vi.mock('../service/syncEthAddressRecord', () => ({
 }))
 
 vi.mock('../../profile/service/setPrimaryName', () => ({
-  submitPrimaryNameForward: vi.fn(() => 'tx-primary-forward'),
-  submitPrimaryNameReverse: vi.fn(() => 'tx-primary-reverse'),
+  submitPrimaryNameForward: vi.fn(async () => 'tx-primary-forward'),
+  submitPrimaryNameReverse: vi.fn(async () => 'tx-primary-reverse'),
   // Default to a clean owner: the cleanup pass is a no-op for anyone who has
   // never set an `addr.reverse` name, which is the common case.
   hasStaleAddrReverse: vi.fn(async () => false),
@@ -314,6 +314,9 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
     expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+    // Nothing started here, so the screen names the blocking run rather than
+    // reporting this one as failed.
+    expect(snapshot.context.isWalletBusy).toBe(true)
 
     // QA's sequence: the block held, then Try Again went straight through.
     actor.send({ type: 'retry' })
@@ -326,6 +329,40 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     actor.send({ type: 'retry' })
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(getChild(actor).getSnapshot().value).toBe('running')
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(false)
+  })
+
+  // A refusal is not a failure, and a later real failure must not keep
+  // presenting itself as one.
+  it('clears the busy notice when the user leaves or something fails', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+
+    const hcaAccount = {
+      signer: { type: 'rhinestone' },
+      accountAddress: HCA_ADDRESS,
+      ownerAddress: EOA_ADDRESS,
+      walletClient: {},
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(true)
+
+    // Going back to the quote drops it, and so does a later real error: both
+    // would otherwise keep showing "another registration is running".
+    actor.send({ type: 'cancel' })
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(false)
+
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: '$error', error: new Error('reverted') })
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.isWalletBusy).toBe(false)
+    expect(snapshot.context.lastErrorMessage).toBe('reverted')
   })
 
   // QA hit this: the block held, then Try Again re-entered `registering`
@@ -431,6 +468,80 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ownerAddress: EOA_ADDRESS,
     walletClient: { account: { address: EOA_ADDRESS } } as any,
   } as unknown as SmartAccountContextValue
+
+  describe.each([
+    'EOA',
+    'HCA',
+  ])('%s canonical primary-name registration', (mode) => {
+    it.each([
+      'ALICE',
+      'cafe\u0301',
+    ])('refuses noncanonical label %s before starting registration', (label) => {
+      const actor = startActorInTokens()
+      actor.send({
+        ...startEvent(mode === 'EOA' ? eoaAccount : smartAccount, {
+          enabled: true,
+        }),
+        label,
+      })
+      expect(actor.getSnapshot().matches('failure')).toBe(true)
+      expect(actor.getSnapshot().context.lastErrorMessage).toMatch(/canonical/)
+      expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
+      expect(startSyncEthRecord).not.toHaveBeenCalled()
+      expect(startPrimaryNameForward).not.toHaveBeenCalled()
+      actor.stop()
+    })
+  })
+
+  it('keeps the registered Unicode label in both EOA primary-name legs', async () => {
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(eoaAccount, { enabled: true }), label: 'café' })
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
+    await flush(24)
+    expect(actor.getSnapshot().context.confirmedData?.label).toBe('café')
+    expect(startPrimaryNameForward).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'café.eth' }),
+    )
+    expect(startPrimaryNameReverse).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'café.eth' }),
+    )
+    actor.stop()
+  })
+
+  it('keeps the registered Unicode label in the HCA primary-name bundle', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      ...startEvent(smartAccount, { enabled: true }),
+      label: 'café',
+    })
+    expect(actor.getSnapshot().context.confirmedData?.label).toBe('café')
+    expect(getChild(actor).getSnapshot().context.primaryName).toBe('café.eth')
+    actor.stop()
+  })
+
+  it('waits for forward verification and preserves registration success when it fails', async () => {
+    const verification = deferred<string>()
+    startPrimaryNameForward.mockReturnValueOnce(verification.promise)
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount, { enabled: true }))
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
+    await flush()
+    expect(
+      actor
+        .getSnapshot()
+        .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
+    ).toBe(true)
+    expect(waitForKnownTransaction).not.toHaveBeenCalled()
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
+    verification.reject(new Error('Name does not resolve to owner'))
+    await flush()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
+    actor.stop()
+  })
 
   it('keeps the existing no-setup success path immediate', async () => {
     const actor = startActorInTokens()

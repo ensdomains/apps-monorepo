@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acquireRegistrationLock,
   getBlockingRegistration,
@@ -197,5 +197,250 @@ describe('registrationLock', () => {
 
     expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
     expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+  })
+})
+
+/**
+ * "Duplicate tab" clones `sessionStorage`, so the copy opens holding the
+ * original's holder id: it used to sweep away that tab's live claim on mount
+ * and then register alongside it.
+ */
+describe('claimTabHolderId', () => {
+  type HolderMessage = {
+    readonly type: string
+    readonly holderId: string
+    readonly claimRank?: string
+  }
+
+  /** The channel the tabs talk over, with the other tab played by the test. */
+  class FakeChannel {
+    static instances: readonly FakeChannel[] = []
+    static posted: readonly HolderMessage[] = []
+    /** Answer a claim for this id the way a settled tab does. */
+    static answerFor: string | null = null
+    private listeners: readonly ((event: MessageEvent<unknown>) => void)[] = []
+
+    constructor() {
+      FakeChannel.instances = [...FakeChannel.instances, this]
+    }
+
+    addEventListener(
+      _type: string,
+      listener: (e: MessageEvent<unknown>) => void,
+    ) {
+      this.listeners = [...this.listeners, listener]
+    }
+
+    postMessage(data: unknown) {
+      const message = data as HolderMessage
+      FakeChannel.posted = [...FakeChannel.posted, message]
+
+      if (
+        message.type === 'claim' &&
+        message.holderId === FakeChannel.answerFor
+      )
+        this.deliver({
+          type: 'taken',
+          holderId: message.holderId,
+          // A reply names the claim it answers, as the real one does.
+          claimRank: message.claimRank,
+        })
+    }
+
+    /** Push a message from the other tab into the one under test. */
+    deliver(message: HolderMessage) {
+      for (const listener of this.listeners) {
+        listener({ data: message } as MessageEvent<unknown>)
+      }
+    }
+  }
+
+  const claimSent = (): HolderMessage => {
+    const claim = FakeChannel.posted.find((message) => message.type === 'claim')
+    if (!claim) throw new Error('no claim was broadcast')
+    return claim
+  }
+
+  const takenSent = (): boolean =>
+    FakeChannel.posted.some((message) => message.type === 'taken')
+
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.resetModules()
+    vi.stubGlobal('BroadcastChannel', FakeChannel)
+    FakeChannel.answerFor = null
+    FakeChannel.instances = []
+    FakeChannel.posted = []
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps the id when no other tab answers for it', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    await expect(lock.claimTabHolderId()).resolves.toBe('only-tab')
+  })
+
+  it('takes a new id when another tab already answers for it', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    const holderId = await lock.claimTabHolderId()
+
+    expect(holderId).not.toBe('original-tab')
+    expect(sessionStorage.getItem('ens-registration-holder')).toBe(holderId)
+  })
+
+  // The bug this exists for: the clone's mount sweep wiped the claim of the
+  // tab it was cloned from, which then had no claim to block a third tab.
+  it('leaves the original tab’s claim alone once it has a new id', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    localStorage.setItem(
+      'ens-registration-locks-v1',
+      JSON.stringify({
+        [WALLET.toLowerCase()]: {
+          name: 'name-one.eth',
+          holderId: 'original-tab',
+          updatedAt: Date.now(),
+        },
+      }),
+    )
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    await lock.claimTabHolderId()
+    lock.releaseHolderLocks()
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+    expect(lock.acquireRegistrationLock(WALLET, 'name-two.eth')).toBe(false)
+  })
+
+  // A reload racing its own duplicate: both hold the inherited id and claim at
+  // the same moment. Exactly one has to yield — if both do, the live lock is
+  // owned by neither tab and the wallet stays blocked until it goes stale.
+  it('keeps the id against a lower-ranked simultaneous claim', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'claim',
+      holderId: 'shared-id',
+      claimRank: `${claimSent().claimRank}z`,
+    })
+
+    await expect(settled).resolves.toBe('shared-id')
+    expect(takenSent()).toBe(true)
+  })
+
+  it('yields the id to a higher-ranked simultaneous claim', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'claim',
+      holderId: 'shared-id',
+      claimRank: `!${claimSent().claimRank}`,
+    })
+    // Silence is the yield: the other tab keeps the id and says so.
+    expect(takenSent()).toBe(false)
+    channel?.deliver({
+      type: 'taken',
+      holderId: 'shared-id',
+      claimRank: claimSent().claimRank,
+    })
+
+    await expect(settled).resolves.not.toBe('shared-id')
+  })
+
+  it('answers a claim on an id it already settled', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+    await lock.claimTabHolderId()
+
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'claim',
+      holderId: 'only-tab',
+      claimRank: 'whatever',
+    })
+
+    expect(takenSent()).toBe(true)
+  })
+
+  // The sweep on the way out has to wait on the same answer the one on the way
+  // in does: a clone that mounts and leaves inside the window would otherwise
+  // sweep with the id it inherited.
+  it('waits for the id before sweeping on the way out', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    localStorage.setItem(
+      'ens-registration-locks-v1',
+      JSON.stringify({
+        [WALLET.toLowerCase()]: {
+          name: 'name-one.eth',
+          holderId: 'original-tab',
+          updatedAt: Date.now(),
+        },
+      }),
+    )
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    await lock.releaseHolderLocksWhenSettled()
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+  })
+
+  // Three tabs on one id: the middle-ranked tab answers the lowest claim, and
+  // that reply reaches everyone. The tab that actually wins must not read it
+  // as its own and step aside, leaving the live lock owned by nobody.
+  it('ignores a reply addressed to another claimant', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'taken',
+      holderId: 'shared-id',
+      claimRank: `${claimSent().claimRank}-someone-else`,
+    })
+
+    await expect(settled).resolves.toBe('shared-id')
+  })
+
+  // The flow can leave and come back inside the claim window: a sweep asked
+  // for on the way out must not take the claim the new run just made.
+  it('keeps a claim made while the sweep was waiting', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    const sweep = lock.releaseHolderLocksWhenSettled()
+    lock.acquireRegistrationLock(WALLET, 'name-one.eth')
+    await sweep
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+  })
+
+  it('falls back to the stored id without a broadcast channel', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined)
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    await expect(lock.claimTabHolderId()).resolves.toBe('only-tab')
   })
 })
