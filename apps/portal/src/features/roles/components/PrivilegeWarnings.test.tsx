@@ -25,9 +25,28 @@ let holders = new Map<Address, Role[]>()
 const fetchHolders = vi.fn(async () => holders)
 
 vi.mock('@/features/roles/hooks/useNameRoleAccounts', () => ({
-  getNameRolesAccountsQueryOptions: (params: unknown) => ({
-    queryKey: ['get-name-roles-accounts', params],
+  getNameRolesAccountsQueryOptions: (params: { resource: bigint | null }) => ({
+    // The real builder stringifies the resource because the default key hash
+    // can't serialise a bigint.
+    queryKey: [
+      'get-name-roles-accounts',
+      { ...params, resource: params.resource?.toString() ?? null },
+    ],
     queryFn: fetchHolders,
+  }),
+}))
+
+// The role read is keyed by the registry's versioned resource (WEB-1458), which
+// the hook resolves itself off the chain. Stub the read; let a test hold it open
+// to assert the warning stays off until the resource is known.
+let resourceRead: Promise<bigint> = Promise.resolve(1n)
+vi.mock('@/features/roles/hooks/useVersionedResource', () => ({
+  getVersionedResourceQueryOptions: (params: {
+    name: string
+    registryAddress: string
+  }) => ({
+    queryKey: ['get-versioned-resource', params],
+    queryFn: async () => resourceRead,
   }),
 }))
 
@@ -58,12 +77,21 @@ const ownerWithout = (...roles: Role[]) =>
 const renderWarning = (ui: React.ReactElement) => {
   const queryClient = createTestQueryClient()
   const view = render(ui, { wrapper: createTestWrapper(queryClient) })
-  /** Resolves once the role read has landed, so an empty render is a verdict. */
+  /**
+   * Resolves once the role read has landed, so an empty render is a verdict.
+   *
+   * Wait on the last role query, not the first: the hook renders once with a
+   * null resource (that query is disabled, so it stays pending forever) and
+   * again once the versioned resource lands.
+   */
   const settled = () =>
     waitFor(() =>
-      expect(queryClient.getQueryCache().getAll()[0]?.state.status).toBe(
-        'success',
-      ),
+      expect(
+        queryClient
+          .getQueryCache()
+          .findAll({ queryKey: ['get-name-roles-accounts'] })
+          .at(-1)?.state.status,
+      ).toBe('success'),
     )
   return { ...view, settled }
 }
@@ -77,6 +105,7 @@ const openTooltip = async () => {
 beforeEach(() => {
   holders = new Map([[OWNER, ALL_TOKEN_ROLES]])
   Object.assign(grace, { isInGrace: false, isLoading: false })
+  resourceRead = Promise.resolve(1n)
   fetchHolders.mockClear()
 })
 
@@ -119,6 +148,21 @@ describe('TransferPrivilegeWarning', () => {
 
     await settled()
     expect(container).toBeEmptyDOMElement()
+  })
+
+  // Role logs are emitted under the registry's current `eacVersionId`, so the
+  // read can't be keyed by label alone (WEB-1458) — and "resource unknown" is
+  // not "no one holds a role".
+  it("doesn't read roles until the name's resource is known", async () => {
+    holders = ownerWithout('ROLE_CAN_TRANSFER_ADMIN')
+    resourceRead = new Promise(() => {})
+
+    const { container } = renderWarning(
+      <TransferPrivilegeWarning name="alice.eth" ownerData={ownerData()} />,
+    )
+
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(fetchHolders).not.toHaveBeenCalled()
   })
 
   // A lapsed name can't be transferred until it's renewed, whatever its roles say.

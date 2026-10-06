@@ -3,6 +3,7 @@ import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import type { TokenRoleHolders } from '@/features/roles/utils/missingPrivileges'
 import { getNameRolesAccountsQueryOptions } from './useNameRoleAccounts'
+import { getVersionedResourceQueryOptions } from './useVersionedResource'
 
 export type TokenRoleWarningParams = {
   readonly name: string
@@ -25,20 +26,35 @@ export const useTokenRoleWarning = <T>(
     protocolVersion: ownerData.protocolVersion,
   })
 
-  const query = useQuery({
-    ...getNameRolesAccountsQueryOptions({
+  // The role read is keyed by the name's EAC resource, not its label (WEB-1458):
+  // `EACRolesChanged` is emitted under the registry's current `eacVersionId`, so
+  // an id hashed from the label matches no log. Read here because the owner
+  // resolution doesn't carry a resource.
+  const resourceQuery = useQuery(
+    getVersionedResourceQueryOptions({
       name,
       registryAddress: ownerData.registryAddress,
     }),
+  )
+  const resource = resourceQuery.data ?? null
+
+  const query = useQuery({
+    ...getNameRolesAccountsQueryOptions({
+      resource,
+      registryAddress: ownerData.registryAddress,
+    }),
     select,
+    // Without a resource there are no rows to read, so the warning stays off
+    // until the resource lands rather than reporting an empty holder set.
     enabled:
       ownerData.protocolVersion === 'ENSv2' &&
+      resource !== null &&
       !grace.isLoading &&
       !grace.isInGrace,
   })
 
   return {
     warning: grace.isInGrace ? undefined : query.data,
-    isLoading: grace.isLoading || query.isLoading,
+    isLoading: grace.isLoading || resourceQuery.isLoading || query.isLoading,
   }
 }
