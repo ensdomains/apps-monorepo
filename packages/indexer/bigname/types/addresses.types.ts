@@ -2,6 +2,7 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Hex,
   LapsedRegistration,
@@ -69,6 +70,7 @@ export type AddressName = Readonly<{
   expires_at?: Timestamp
   grace_ends_at?: Timestamp
   authority?: Authority
+  ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
   /** Only on `released` rows. */
   lapsed_registration?: LapsedRegistration

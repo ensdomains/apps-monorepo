@@ -6,7 +6,7 @@ import type {
 } from '../reads/common.types'
 import { IndexerReadError } from '../reads/errors'
 import type { BignameError } from './errors'
-import type { Authority, Relation, Timestamp } from './types'
+import type { Authority, EnsV1Facts, Relation, Timestamp } from './types'
 
 const UNIX_SECONDS = /^-?\d+$/
 // An explicit zone is required; without one `Date.parse` reads local time.
@@ -56,6 +56,16 @@ export const toProtocol = (
 
 export const toAddress = (value: string | undefined): Address | null =>
   value !== undefined && isAddress(value) ? value : null
+
+/**
+ * An ENSv1 name expires with its registrar lease. Once it holds an ENSv2
+ * reservation the top-level `expires_at` is the reservation's (lease + 62
+ * days); subnames have no lease and use the top-level value.
+ */
+export const toExpiresAt = (row: {
+  readonly expires_at?: Timestamp
+  readonly ens_v1?: EnsV1Facts
+}): Date | null => toDate(row.ens_v1?.expires_at ?? row.expires_at)
 
 const NAME_RELATIONS: readonly Relation[] = ['owner', 'manager', 'registrant']
 
