@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { type FetchMoreResult, fetchUntil } from './fetchUntil'
+import {
+  type FetchMoreResult,
+  fetchUntil,
+  MAX_STALLED_PAGES,
+} from './fetchUntil'
 
 const pagedSource = (total: number, pageSize: number, alreadyLoaded = 0) => {
   let loaded = alreadyLoaded
@@ -81,6 +85,41 @@ describe('fetchUntil', () => {
 
     expect(fetchMore).toHaveBeenCalledTimes(2)
     expect(result).toEqual({ loaded: 160, hasMore: false })
+  })
+
+  it('rejects when the source keeps claiming more without adding rows', async () => {
+    const fetchMore = vi.fn(
+      async (): Promise<FetchMoreResult> => ({ loaded: 100, hasMore: true }),
+    )
+
+    await expect(
+      fetchUntil({
+        target: Number.POSITIVE_INFINITY,
+        loaded: 100,
+        hasMore: true,
+        fetchMore,
+      }),
+    ).rejects.toThrow('stopped returning rows')
+    expect(fetchMore).toHaveBeenCalledTimes(MAX_STALLED_PAGES)
+  })
+
+  it('counts stalled pages in a row, not in total', async () => {
+    let calls = 0
+    const fetchMore = vi.fn(async (): Promise<FetchMoreResult> => {
+      calls += 1
+      const loaded = 100 + Math.floor(calls / MAX_STALLED_PAGES)
+      return { loaded, hasMore: loaded < 103 }
+    })
+
+    const result = await fetchUntil({
+      target: Number.POSITIVE_INFINITY,
+      loaded: 100,
+      hasMore: true,
+      fetchMore,
+    })
+
+    expect(result).toEqual({ loaded: 103, hasMore: false })
+    expect(fetchMore).toHaveBeenCalledTimes(MAX_STALLED_PAGES * 3)
   })
 
   it('rejects when a page fails, after keeping the pages before it', async () => {
