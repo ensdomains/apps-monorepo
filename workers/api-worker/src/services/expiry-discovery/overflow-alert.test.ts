@@ -22,7 +22,7 @@ describe('expiry timestamp overflow reporting', () => {
           TELEGRAM: { ALERT_CHAT_ID: '-123' },
           TELEGRAM_BOT_TOKEN: 'token',
         } as unknown as CloudflareBindings,
-        trackId: 'ens_v1_reserved',
+        trackId: 'eth',
         stageId: 'grace-7d',
         expiryTimestamp: 1_700_000_000,
         processedCount: EXACT_TIMESTAMP_MAX_ROWS,
@@ -32,7 +32,7 @@ describe('expiry timestamp overflow reporting', () => {
     expect(errorLog).toHaveBeenCalledWith(
       'Expiry discovery exact-timestamp bucket saturated',
       expect.objectContaining({
-        track: 'ens_v1_reserved',
+        track: 'eth',
         stage: 'grace-7d',
         expiryTimestamp: 1_700_000_000,
         expiryTimestampIso: expect.any(String),

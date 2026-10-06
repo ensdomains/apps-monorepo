@@ -76,32 +76,24 @@ The faucet scans ENSv1/v0 names until an eligible name or the final page, with n
 app page cap. It excludes reverse, released and unregistered rows and expired
 leases. Read failures remain errors rather than negative eligibility.
 
-The worker runs only after the ENSv2 cutover. Expiry reminders use three tracks:
+The worker runs only after the ENSv2 cutover and sends expiry reminders for
+direct `.eth` names only (`parent=eth`). Registrations and premigration
+reservations share one sweep, using the served expiry and 28-day grace.
+Subname reminders are out of scope.
 
-| Track | Date used for notices | Query offset / grace |
-| --- | --- | --- |
-| ENSv2 `.eth` | Registration expiry | No offset; 28-day grace |
-| ENSv1 `.eth`, reservation served | ENSv1 lease expiry | Reservation is lease +62 days +1 second; 90-day lease grace |
-| Subnames | Served entry expiry, including wrapped subnames | No registrar grace |
+The seven stages are 30/7/1 days before expiry, grace start, 7/1 days before
+grace ends, and premium start. Reserved names follow their reservation expiry,
+not the original ENSv1 lease date; their final renewal deadline is unchanged.
 
-The seven `.eth` stages are 30/7/1 days before expiry, grace start, 7/1 days
-before grace ends, and premium start. Subnames receive 30/7/1-day and expired
-notices, without Renew/Register actions.
-
-Premigration finishes before cutover, and renewals extend the lease and
-reservation equally. The reservation's exclusive release deadline is one second
-after the lease's inclusive 90-day grace deadline. Pre-cutover lease sweeps are
-not supported.
-
-Windows use the earlier of wall time and publication time. Reads batch open
-windows per track, with independent stage checkpoints. Failed track reads hold
-that track's checkpoints; queue failures remain isolated per stage. Recipients
+Windows use the earlier of wall time and publication time. Reads batch all open
+windows into one sweep, with independent stage checkpoints. Failed reads hold
+the open checkpoints; queue failures remain isolated per stage. Recipients
 use the current or lapsed owner, and notification idempotency keys are unchanged.
 
 There is no separate reminder track for an independent wrapper deadline on a
-`.eth` 2LD. Expired ownerless wrapped subnames can notify favourites only.
-Max-value expiries and dates outside the supported track offsets are skipped;
-overflow is reported.
+`.eth` 2LD. Rows whose served grace is not 28 days are skipped and logged;
+unsafe numeric expiries fail the read, and oversized timestamp groups report
+overflow.
 
 ## Collection limits and completeness
 

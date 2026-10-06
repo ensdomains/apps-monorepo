@@ -58,12 +58,7 @@ function getBigname(
 
 export type ExpiringDomain = {
   name: string
-  /**
-   * The row's place in the track's window, in unix seconds: the served
-   * `expires_at` minus the track's shift. Pages and cursors move on it. For a
-   * row in the track it is the registration's own expiry (the lease date for
-   * ENSv1).
-   */
+  /** Served expiry, used by both reminders and pagination cursors. */
   expiryDate: number
   /**
    * Whether the row is one of the track's names and its dates are where the
@@ -78,30 +73,13 @@ export type ExpiringDomain = {
   releaseKind?: 'expired' | 'unregistered'
 }
 
-/** The registration's own expiry: the lease date for an ENSv1 track. */
-const ownExpiry = (row: NameListRow, track: ExpiryTrack) =>
-  timestampToBigInt(
-    track.expirySource === 'ens_v1' ? row.ens_v1?.expires_at : row.expires_at,
-  )
-
-/**
- * Whether the row is one of the track's names. The subname track's unfiltered
- * window also holds every `.eth` second-level name expiring in it.
- */
-const isTrackName = (row: Pick<NameListRow, 'name'>, track: ExpiryTrack) =>
-  isEthSecondLevelName(row.name) === (track.names === 'eth_second_level')
-
-/** Validate the post-cutover expiry relationship before sending a reminder. */
+/** Only direct .eth names with the post-cutover registrar grace qualify. */
 const isInTrack = (row: NameListRow, track: ExpiryTrack, served: bigint) => {
-  const own = ownExpiry(row, track)
   const graceEnd = timestampToBigInt(row.grace_ends_at)
   return (
-    isTrackName(row, track) &&
-    own !== undefined &&
+    isEthSecondLevelName(row.name) &&
     graceEnd !== undefined &&
-    served - own === BigInt(track.servedShiftSeconds) &&
-    graceEnd - own ===
-      BigInt(track.graceSeconds + (track.graceEndInclusive ? 1 : 0))
+    graceEnd - served === BigInt(track.graceSeconds)
   )
 }
 
@@ -111,7 +89,7 @@ const toExpiringDomain = (
   served: number,
 ): ExpiringDomain => ({
   name: row.name,
-  expiryDate: served - track.servedShiftSeconds,
+  expiryDate: served,
   inTrack: isInTrack(row, track, BigInt(served)),
   graceEndDate: timestampToSeconds(row.grace_ends_at),
   // A released row has no owner; its last holder is kept apart (N8).
@@ -121,22 +99,9 @@ const toExpiringDomain = (
 })
 
 /**
- * Names in one track whose own expiry is in `(cursor, upperBound]` (unix
- * seconds), ascending, at most `maxRows` (default `QUERY_PAGE_SIZE`) of them.
- * `hasMore` is true when the window holds more rows than were returned.
- *
- * Reads bigname's `GET /v1/names` expiry sweep over `.eth` second-level names
- * (`parent=eth`) with the track's `authority` or, for the subname track, over
- * every name. Its window is
- * `[expires_after, expires_before)` on the served expiry, which is whole
- * seconds, so the half-open seconds window maps to
- * `[cursor + 1 + shift, upperBound + 1 + shift)`. The client retries
- * transient failures (408/429/5xx, network, `409 stale`).
- *
- * Rows are returned whatever their status or track fit (released names are
- * listed with their lapsed expiry), including the subname track's `.eth`
- * second-level rows; callers filter per stage so page planning still sees
- * every row.
+ * Direct .eth names in `(cursor, upperBound]`, ordered by served expiry.
+ * BigName's half-open bounds are `[cursor + 1, upperBound + 1)`.
+ * Keep non-notifiable rows for pagination; stage processing filters them.
  */
 export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   env: CloudflareBindings
@@ -147,7 +112,6 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   maxRows?: number
 }) {
   const maxRows = ctx.maxRows ?? QUERY_PAGE_SIZE
-  const shift = ctx.track.servedShiftSeconds
   logger.trace('Fetching expiring names page from bigname', {
     trackId: ctx.track.id,
     stageId: ctx.stage.id,
@@ -161,16 +125,15 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   }
 
   const bigname = yield* getBigname(ctx.env)
-  const expires_after = secondsToTimestamp(ctx.cursor + 1 + shift)
-  const expires_before = secondsToTimestamp(ctx.upperBound + 1 + shift)
+  const expires_after = secondsToTimestamp(ctx.cursor + 1)
+  const expires_before = secondsToTimestamp(ctx.upperBound + 1)
 
   const result = yield* fromPromise(
     fetchAllPages(
       (cursor) =>
         bigname.listNames({
           namespace: 'ens',
-          parent: ctx.track.names === 'eth_second_level' ? 'eth' : undefined,
-          authority: ctx.track.authority,
+          parent: 'eth',
           expires_after,
           expires_before,
           sort: 'expires_at',
@@ -215,10 +178,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     lastExpiryDate: domains.at(-1)?.expiryDate,
     hasMore: result.truncated,
   })
-  // The subname sweep also reads .eth names, which belong to another track.
-  const unplaced = domains.filter(
-    (domain) => isTrackName(domain, ctx.track) && !domain.inTrack,
-  )
+  const unplaced = domains.filter((domain) => !domain.inTrack)
   if (unplaced.length > 0) {
     logger.warn('bigname expiry rows fit no expiry track; not notified', {
       trackId: ctx.track.id,
@@ -336,22 +296,19 @@ const windowPageSize = (
 /** Keep this request's window order stable for every continuation. */
 async function readWindowBatch(
   bigname: BignameClient,
-  track: ExpiryTrack,
   windows: readonly ExpiryWindow[],
 ) {
   let state = createWindowReadState(windows)
-  const shift = track.servedShiftSeconds
   const expires_window = windows.map(
     (window) =>
-      `${secondsToTimestamp(window.cursor + 1 + shift)}..${secondsToTimestamp(window.upperBound + 1 + shift)}`,
+      `${secondsToTimestamp(window.cursor + 1)}..${secondsToTimestamp(window.upperBound + 1)}`,
   )
   let exhausted = false
   for await (const response of iteratePages(
     (cursor) =>
       bigname.listNames({
         namespace: 'ens',
-        parent: track.names === 'eth_second_level' ? 'eth' : undefined,
-        authority: track.authority,
+        parent: 'eth',
         expires_window,
         sort: 'expires_at',
         order: 'asc',
@@ -395,9 +352,7 @@ function toWindowPage(
     }
     return toExpiringDomain(row, track, served)
   })
-  const unplaced = domains.filter(
-    (domain) => isTrackName(domain, track) && !domain.inTrack,
-  )
+  const unplaced = domains.filter((domain) => !domain.inTrack)
   if (unplaced.length > 0) {
     logger.warn('bigname expiry rows fit no expiry track; not notified', {
       trackId: track.id,
@@ -417,7 +372,7 @@ async function readExpiringWindows(
   const pages = new Map<string, ExpiringNamesPage>()
   let pending = windows
   while (pending.length > 0) {
-    const batch = await readWindowBatch(bigname, track, pending)
+    const batch = await readWindowBatch(bigname, pending)
     for (const window of pending.slice(0, batch.finishedCount)) {
       pages.set(
         window.stage.id,

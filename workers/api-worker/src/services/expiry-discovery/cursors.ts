@@ -24,20 +24,12 @@ const stageCursorsSchema = v.object({
   'grace-7d': v.optional(cursorValueSchema),
   'grace-1d': v.optional(cursorValueSchema),
   'premium-start': v.optional(cursorValueSchema),
-  expired: v.optional(cursorValueSchema),
 })
 
-type StoredStageCursors = v.InferOutput<typeof stageCursorsSchema>
-
-/**
- * Legacy top-level stage cursors use served expiry and carry over only to
- * ENSv2. ENSv1 cursors use the original lease date; subnames were not swept.
- */
+/** Main's legacy cursors already use served expiry across all .eth names. */
 const cursorSchema = v.object({
   ...stageCursorsSchema.entries,
-  ens_v2: v.optional(stageCursorsSchema),
-  ens_v1_reserved: v.optional(stageCursorsSchema),
-  subname: v.optional(stageCursorsSchema),
+  eth: v.optional(stageCursorsSchema),
 })
 
 /** Cursors for the track's own stages; other stage ids are absent. */
@@ -82,7 +74,7 @@ function createDefaultCursors(nowSec: number): NotificationCursors {
 
 const fillStageCursors = (
   track: ExpiryTrack,
-  stored: StoredStageCursors | undefined,
+  stored: StageCursors | undefined,
   defaults: StageCursors,
 ): StageCursors =>
   Object.fromEntries(
@@ -139,7 +131,8 @@ export const loadNotificationCursors = ResultFn(async function* (
   const defaults = createDefaultCursors(nowSec)
   const normalized = Object.fromEntries(
     TRACKS.map((track) => {
-      const legacy = track.id === 'ens_v2' ? parsed : undefined
+      // Old per-authority cursors cannot cover the combined population.
+      const legacy = parsed
       return [
         track.id,
         fillStageCursors(track, parsed[track.id] ?? legacy, defaults[track.id]),

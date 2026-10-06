@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createBigname } from '#core/bigname/index.js'
 import { makeMockEnv } from '#test-utils/env.js'
-import { logger } from '#utils/logger.js'
 import { runExpiryDiscoveryCron } from './index.js'
 import {
   EXACT_TIMESTAMP_MAX_ROWS,
@@ -33,6 +32,7 @@ type Row = {
   expires_at?: string
   grace_ends_at?: string
   owner?: string
+  authority?: string
   registration_status?: string
   ens_v1?: { expires_at?: string | null }
   lapsed_registration?: { owner?: string; release_kind?: string }
@@ -127,7 +127,7 @@ const firstStage = (trackId: ExpiryTrackId) => {
 const fetchWindow = (
   cursor: number,
   upperBound: number,
-  trackId: ExpiryTrackId = 'ens_v2',
+  trackId: ExpiryTrackId = 'eth',
 ) =>
   fetchExpiringNamesPage({
     env: makeMockEnv(),
@@ -170,7 +170,6 @@ describe('fetchExpiringNamesPage', () => {
     expect(Object.fromEntries(request.searchParams)).toEqual({
       namespace: 'ens',
       parent: 'eth',
-      authority: 'ens_v2',
       // expires_after is inclusive: cursor + 1 keeps `expiry > cursor`.
       expires_after: '1700000000',
       // expires_before is exclusive: upperBound + 1 keeps `expiry <= upperBound`.
@@ -206,181 +205,61 @@ describe('fetchExpiringNamesPage', () => {
     })
   })
 
-  it('shifts the reserved ENSv1 window by the reservation gap and keys rows by lease', async () => {
-    const lease = 1_700_000_000
-    const { url } = mockFetch(
-      page([
-        v1Row('reserved.eth', lease, RESERVATION_GAP, {
-          owner: '0xabc',
-          registration_status: 'wrapped',
-        }),
-        // An unreserved row is outside the post-cutover reservation track.
-        v1Row('unreserved.eth', lease + RESERVATION_GAP, null),
-        // A reservation extended past the lease fits no track.
-        v1Row('extended.eth', lease - DAY, RESERVATION_GAP + DAY),
-      ]),
-    )
-
-    const result = (
-      await fetchWindow(lease - 1, lease + 100, 'ens_v1_reserved')
-    )._unsafeUnwrap()
-
-    const request = url(0)
-    expect(request.searchParams.get('authority')).toBe('ens_v1,ens_v0')
-    expect(request.searchParams.get('parent')).toBe('eth')
-    expect(request.searchParams.get('expires_after')).toBe(
-      ts(lease + RESERVATION_GAP),
-    )
-    expect(request.searchParams.get('expires_before')).toBe(
-      ts(lease + 101 + RESERVATION_GAP),
-    )
-    expect(
-      result.domains.map(({ name, expiryDate, inTrack, graceEndDate }) => ({
-        name,
-        expiryDate,
-        inTrack,
-        graceEndDate,
-      })),
-    ).toEqual([
-      {
-        name: 'reserved.eth',
-        expiryDate: lease,
-        inTrack: true,
-        graceEndDate: lease + 90 * DAY + 1,
-      },
-      {
-        name: 'unreserved.eth',
-        expiryDate: lease,
-        inTrack: false,
-        graceEndDate: lease + RESERVATION_GAP + 90 * DAY,
-      },
-      {
-        name: 'extended.eth',
-        expiryDate: lease,
-        inTrack: false,
-        graceEndDate: lease + RESERVATION_GAP + 28 * DAY,
-      },
-    ])
-  })
-
-  it('rejects the old 62-day offset and missing lease data after cutover', async () => {
-    const lease = 1_700_000_000
-    mockFetch(
-      page([
-        v1Row('old-offset.eth', lease + 1, 62 * DAY),
-        v1Row('no-lease.eth', lease, RESERVATION_GAP, { ens_v1: {} }),
-      ]),
-    )
-    const result = (
-      await fetchWindow(lease - 1, lease + 100, 'ens_v1_reserved')
-    )._unsafeUnwrap()
-    expect(
-      result.domains.map(({ name, inTrack }) => ({ name, inTrack })),
-    ).toEqual([
-      { name: 'old-offset.eth', inTrack: false },
-      { name: 'no-lease.eth', inTrack: false },
-    ])
-  })
-
-  it('sweeps every name for subnames and keeps only the subnames, silently', async () => {
-    const warn = vi.spyOn(logger, 'warn')
+  it('uses the same served-expiry window for registrations and reservations', async () => {
     const expiry = 1_700_000_000
     const { url } = mockFetch(
       page([
-        {
-          name: 'pay.alice.eth',
-          expires_at: ts(expiry),
-          grace_ends_at: ts(expiry),
-          owner: '0xABC',
+        v2Row('registered.eth', expiry, {
+          authority: 'ens_v2',
+          owner: '0xabc',
+        }),
+        v1Row('reserved.eth', expiry - RESERVATION_GAP, RESERVATION_GAP, {
+          authority: 'ens_v1',
+          owner: '0xdef',
           registration_status: 'wrapped',
-          ens_v1: { expires_at: null },
-        },
-        // `.eth` names in the same unfiltered window, ENSv2 and ENSv1.
-        v2Row('alice.eth', expiry + 1, { owner: '0xdef' }),
-        v1Row('bob.eth', expiry + 2, null, { owner: '0xdef' }),
-        {
-          name: 'sub.example.com',
-          expires_at: ts(expiry + 3),
-          grace_ends_at: ts(expiry + 3),
-          registration_status: 'registered',
-        },
+        }),
       ]),
     )
-
-    const result = (
-      await fetchWindow(expiry - 1, expiry + 100, 'subname')
-    )._unsafeUnwrap()
-
-    expect(Object.fromEntries(url(0).searchParams)).toEqual({
-      namespace: 'ens',
-      expires_after: ts(expiry),
-      expires_before: ts(expiry + 101),
-      sort: 'expires_at',
-      order: 'asc',
-      page_size: '200',
-    })
+    const result = (await fetchWindow(expiry - 1, expiry + 100))._unsafeUnwrap()
+    expect(url(0).searchParams.get('parent')).toBe('eth')
+    expect(url(0).searchParams.has('authority')).toBe(false)
+    expect(url(0).searchParams.get('expires_after')).toBe(ts(expiry))
     expect(
-      result.domains.map(({ name, expiryDate, inTrack, owner }) => ({
+      result.domains.map(({ name, expiryDate, graceEndDate, inTrack }) => ({
         name,
         expiryDate,
+        graceEndDate,
         inTrack,
-        owner,
       })),
-    ).toEqual([
-      {
-        name: 'pay.alice.eth',
+    ).toEqual(
+      ['registered.eth', 'reserved.eth'].map((name) => ({
+        name,
         expiryDate: expiry,
+        graceEndDate: expiry + 28 * DAY,
         inTrack: true,
-        owner: '0xabc',
-      },
-      // Kept so the cursor moves past them, but never notified.
-      {
-        name: 'alice.eth',
-        expiryDate: expiry + 1,
-        inTrack: false,
-        owner: '0xdef',
-      },
-      {
-        name: 'bob.eth',
-        expiryDate: expiry + 2,
-        inTrack: false,
-        owner: '0xdef',
-      },
-      {
-        name: 'sub.example.com',
-        expiryDate: expiry + 3,
-        inTrack: true,
-        owner: undefined,
-      },
-    ])
-    expect(warn).not.toHaveBeenCalled()
-    warn.mockRestore()
+      })),
+    )
   })
 
-  it('warns about a subname row whose grace is not its expiry', async () => {
-    const warn = vi.spyOn(logger, 'warn')
+  it('excludes subnames and other namespaces even if returned by the API', async () => {
     const expiry = 1_700_000_000
     mockFetch(
       page([
         v2Row('alice.eth', expiry),
+        v2Row('pay.alice.eth', expiry),
         {
-          name: 'odd.alice.eth',
-          expires_at: ts(expiry + 1),
-          grace_ends_at: ts(expiry + 1 + DAY),
+          name: 'wrapped.alice.eth',
+          expires_at: ts(expiry),
+          grace_ends_at: ts(expiry),
+          registration_status: 'wrapped',
         },
+        v2Row('alice.com', expiry),
       ]),
     )
-
-    const result = (
-      await fetchWindow(expiry - 1, expiry + 100, 'subname')
-    )._unsafeUnwrap()
-
-    expect(result.domains.map(({ inTrack }) => inTrack)).toEqual([false, false])
-    expect(warn).toHaveBeenCalledWith(
-      'bigname expiry rows fit no expiry track; not notified',
-      expect.objectContaining({ count: 1, names: ['odd.alice.eth'] }),
-    )
-    warn.mockRestore()
+    const result = (await fetchWindow(expiry - 1, expiry + 100))._unsafeUnwrap()
+    expect(
+      result.domains.filter(({ inTrack }) => inTrack).map(({ name }) => name),
+    ).toEqual(['alice.eth'])
   })
 
   it('queries a single second for an exact-timestamp window', async () => {
@@ -432,8 +311,8 @@ describe('fetchExpiringNamesPage', () => {
     const result = (
       await fetchExpiringNamesPage({
         env: makeMockEnv(),
-        track: track('ens_v2'),
-        stage: firstStage('ens_v2'),
+        track: track('eth'),
+        stage: firstStage('eth'),
         cursor: 1,
         upperBound: 2_000_000_000,
         maxRows: EXACT_TIMESTAMP_MAX_ROWS,
@@ -569,23 +448,26 @@ describe('batched expiry windows', () => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
   })
-  const secondStage = track('ens_v2').stages[1]
+  const secondStage = track('eth').stages[1]
   if (!secondStage) throw new Error('Missing second ENSv2 stage')
   const windows = [
-    { stage: firstStage('ens_v2'), cursor: 100, upperBound: 200 },
+    { stage: firstStage('eth'), cursor: 100, upperBound: 200 },
     { stage: secondStage, cursor: 300, upperBound: 400 },
   ] as const
   const fetchWindows = () =>
     fetchExpiringNamesPages({
       env: makeMockEnv(),
-      track: track('ens_v2'),
+      track: track('eth'),
       windows,
     })
 
   it('reads multiple reminder bands once and assigns rows by server window index', async () => {
     const { fetchMock, url } = mockFetch(
       page([
-        v2Row('early.eth', 150, { expires_window_index: 0 }),
+        v1Row('early.eth', 150 - RESERVATION_GAP, RESERVATION_GAP, {
+          authority: 'ens_v1',
+          expires_window_index: 0,
+        }),
         v2Row('late.eth', 350, { expires_window_index: 1 }),
       ]),
     )
@@ -596,6 +478,12 @@ describe('batched expiry windows', () => {
       '301..401',
     ])
     expect(url(0).searchParams.has('expires_after')).toBe(false)
+    expect(url(0).searchParams.get('parent')).toBe('eth')
+    expect(url(0).searchParams.has('authority')).toBe(false)
+    expect(result.get(windows[0].stage.id)?.domains[0]).toMatchObject({
+      expiryDate: 150,
+      inTrack: true,
+    })
     expect(
       result.get(windows[0].stage.id)?.domains.map((domain) => domain.name),
     ).toEqual(['early.eth'])
@@ -701,7 +589,7 @@ describe('batched expiry windows', () => {
     expect(result._unsafeUnwrapErr().message).toContain('expires_window_index')
   })
 
-  it('runs all 18 open stages in four HTTP requests including the publication probe', async () => {
+  it('runs all seven open stages in two HTTP requests including the publication probe', async () => {
     const now = 1_700_000_000
     vi.setSystemTime(now * 1000)
     const { fetchMock, url } = mockFetch(
@@ -710,8 +598,6 @@ describe('batched expiry windows', () => {
           '1': { block_number: 1, block_hash: '0x1', timestamp: String(now) },
         },
       }),
-      page([]),
-      page([]),
       page([]),
     )
     const env = makeMockEnv()
@@ -731,19 +617,19 @@ describe('batched expiry windows', () => {
     Object.assign(env.KV, { get: vi.fn(async () => storedCursors) })
     const result = await runExpiryDiscoveryCron(env)
     expect(result._unsafeUnwrap().failedStages).toBe(0)
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(
-      [1, 2, 3].map(
+      [1].map(
         (index) => url(index).searchParams.getAll('expires_window').length,
       ),
-    ).toEqual([7, 7, 4])
+    ).toEqual([7])
   })
 
   it('does not issue a request when every stage is caught up', async () => {
     const { fetchMock } = mockFetch()
     const result = await fetchExpiringNamesPages({
       env: makeMockEnv(),
-      track: track('ens_v2'),
+      track: track('eth'),
       windows: [],
     })
     expect(result._unsafeUnwrap().size).toBe(0)

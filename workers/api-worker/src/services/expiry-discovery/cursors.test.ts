@@ -51,7 +51,7 @@ describe('notification cursors', () => {
   it('fills missing track and stage keys from the defaults', async () => {
     const kv = new MockKV()
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
-      ens_v1_reserved: { 'grace-1d': { expiry_timestamp: 10 } },
+      eth: { 'grace-1d': { expiry_timestamp: 10 } },
     })
     const result = await loadNotificationCursors(
       { KV: kv } as unknown as CloudflareBindings,
@@ -60,8 +60,8 @@ describe('notification cursors', () => {
     const defaults = defaultsAt(100)
     expect(result._unsafeUnwrap()).toEqual({
       ...defaults,
-      ens_v1_reserved: {
-        ...defaults.ens_v1_reserved,
+      eth: {
+        ...defaults.eth,
         'grace-1d': { expiry_timestamp: 10 },
       },
     })
@@ -80,35 +80,22 @@ describe('notification cursors', () => {
     )
     const defaults = defaultsAt(100)
     expect(result._unsafeUnwrap()).toEqual({
-      ens_v2: { ...defaults.ens_v2, 'expiry-30d': { expiry_timestamp: 10 } },
-      ens_v1_reserved: defaults.ens_v1_reserved,
-      subname: defaults.subname,
+      eth: { ...defaults.eth, 'expiry-30d': { expiry_timestamp: 10 } },
     })
   })
 
-  it('starts the subname track from its defaults when an older value has none', async () => {
+  it('starts fresh when old tracks only covered separate populations', async () => {
     const kv = new MockKV()
-    const stored = defaultsAt(50)
-    const { subname: _subname, ...beforeSubnames } = stored
-    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, beforeSubnames)
-    const result = (
-      await loadNotificationCursors(
-        { KV: kv } as unknown as CloudflareBindings,
-        100,
-      )
-    )._unsafeUnwrap()
-
-    expect(result).toEqual({
-      ...beforeSubnames,
-      subname: defaultsAt(100).subname,
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
+      ens_v2: { 'expiry-30d': { expiry_timestamp: 999 } },
+      ens_v1_reserved: { 'expiry-30d': { expiry_timestamp: 888 } },
+      subname: { expired: { expiry_timestamp: 777 } },
     })
-    expect(Object.keys(result.subname)).toEqual([
-      'expiry-30d',
-      'expiry-7d',
-      'expiry-1d',
-      'expired',
-    ])
-    expect(result.ens_v2).not.toHaveProperty('expired')
+    const result = await loadNotificationCursors(
+      { KV: kv } as unknown as CloudflareBindings,
+      100,
+    )
+    expect(result._unsafeUnwrap()).toEqual(defaultsAt(100))
   })
 
   it('rejects invalid cursor values', async () => {

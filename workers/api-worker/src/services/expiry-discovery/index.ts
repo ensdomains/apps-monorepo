@@ -292,8 +292,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
             const isOpen = windows.some(
               (window) => window.stage.id === stage.id,
             )
-            // Failed reads never move the affected track's open checkpoints.
-            // Other tracks and queue publication retain independent outcomes.
+            // Failed reads hold open checkpoints; queue outcomes stay per stage.
             const result =
               isOpen && batch.isErr()
                 ? batch

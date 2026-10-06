@@ -1,17 +1,11 @@
-import type { Authority, RegistrationStatus } from '@ens-apps/bigname'
+import type { RegistrationStatus } from '@ens-apps/bigname'
 import {
   SECONDS_PER_DAY,
-  V1_GRACE_PERIOD_DAYS,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import { EXPIRY_STAGE_IDS, type ExpiryStageId } from '#types/events/index.js'
 
-/**
- * Where a stage sits in a registration's lifecycle, which also decides who it
- * can be sent to (`isNotifiableAtStage`). `expired` is the expiry of a name
- * with no registrar grace, such as a subname.
- */
-type ExpiryPhase = 'pre-expiry' | 'in-grace' | 'grace-ended' | 'expired'
+type ExpiryPhase = 'pre-expiry' | 'in-grace' | 'grace-ended'
 
 export type ExpiryStageConfig = {
   id: ExpiryStageId
@@ -80,111 +74,35 @@ export const REGISTRATION_STAGES: readonly ExpiryStageConfig[] = [
   },
 ]
 
-/**
- * A subname has no registrar grace (bigname serves `grace_ends_at` equal to
- * `expires_at`), so its lifecycle ends with one notice at its expiry.
- */
-export const SUBNAME_STAGES: readonly ExpiryStageConfig[] = [
-  ...PRE_EXPIRY_STAGES,
-  {
-    id: 'expired',
-    phase: 'expired',
-    anchor: 'expiry',
-    daysBefore: 0,
-    includeFavorites: true,
-  },
-]
+export type ExpiryTrackId = 'eth'
 
-export type ExpiryTrackId = 'ens_v2' | 'ens_v1_reserved' | 'subname'
-
-/**
- * Post-cutover expiry sweeps: ENSv2 .eth, premigrated ENSv1 .eth, and subnames.
- * ENSv1 reminders follow the original lease and its inclusive 90-day grace.
- * BigName windows on the reservation expiry: lease +62 days +1 second.
- * The extra second aligns v1's inclusive grace with v2's exclusive deadline.
- * Premigration completes before cutover; renewals extend both dates equally.
- *
- * Each track stores stage cursors in its own expiry time. The API cannot
- * select only subnames, so that sweep discards .eth second-level rows.
- */
 export type ExpiryTrack = {
   id: ExpiryTrackId
-  /**
-   * Which names the track keeps: `.eth` second-level names, which the sweep
-   * selects with `parent=eth`, or every other name in the window.
-   */
-  names: 'eth_second_level' | 'subnames'
-  /** `authority=` filter for the sweep; none reads every authority. */
-  authority?: readonly Authority[]
-  /** The row's own expiry: `expires_at` (ENSv2) or `ens_v1.expires_at`. */
-  expirySource: 'served' | 'ens_v1'
-  /** Seconds the served `expires_at` sits after the row's own expiry. */
-  servedShiftSeconds: number
-  /** Renewal grace after the row's own expiry; v1 includes its last second. */
   graceSeconds: number
-  /**
-   * Whether the last second of grace still renews. An ENSv1 lease is released
-   * only after `grace_ends_at`; an ENSv2 registration is renewable while the
-   * publication time is before it.
-   */
-  graceEndInclusive: boolean
-  /** The track's lifecycle, furthest-future to furthest-past. */
   stages: readonly ExpiryStageConfig[]
 }
 
-const V1_AUTHORITIES = ['ens_v1', 'ens_v0'] as const satisfies Authority[]
-const V1_GRACE_SECONDS = V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY
-const V2_GRACE_SECONDS = V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY
-
+/**
+ * After cutover, .eth registrations and premigration reservations share
+ * the served expiry and 28-day grace. Subnames are outside this sweep.
+ */
 export const TRACKS: readonly ExpiryTrack[] = [
   {
-    id: 'ens_v2',
-    names: 'eth_second_level',
-    authority: ['ens_v2'],
-    expirySource: 'served',
-    servedShiftSeconds: 0,
-    graceSeconds: V2_GRACE_SECONDS,
-    graceEndInclusive: false,
+    id: 'eth',
+    graceSeconds: V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY,
     stages: REGISTRATION_STAGES,
-  },
-  {
-    id: 'ens_v1_reserved',
-    names: 'eth_second_level',
-    authority: V1_AUTHORITIES,
-    expirySource: 'ens_v1',
-    servedShiftSeconds: V1_GRACE_SECONDS - V2_GRACE_SECONDS + 1,
-    graceSeconds: V1_GRACE_SECONDS,
-    graceEndInclusive: true,
-    stages: REGISTRATION_STAGES,
-  },
-  {
-    // A wrapped ENSv1 subname serves its NameWrapper expiry (`ens_v1.expires_at`
-    // is null), an ENSv2 subname its registry entry's.
-    id: 'subname',
-    names: 'subnames',
-    expirySource: 'served',
-    servedShiftSeconds: 0,
-    graceSeconds: 0,
-    graceEndInclusive: false,
-    stages: SUBNAME_STAGES,
   },
 ]
 
 export const MAX_STAGE_CATCH_UP_SECONDS = 2 * SECONDS_PER_DAY
 
-/**
- * Seconds from a row's own expiry to the start of the stage; positive is
- * before the expiry. A grace-ended stage on an inclusive grace starts one
- * second after `grace_ends_at`.
- */
+/** Seconds before the served expiry when this stage starts. */
 export function getStageOffsetSeconds(
   stage: ExpiryStageConfig,
   track: ExpiryTrack,
 ): number {
   const anchor = stage.anchor === 'expiry' ? 0 : -track.graceSeconds
-  const pastInclusiveGrace =
-    stage.phase === 'grace-ended' && track.graceEndInclusive ? 1 : 0
-  return anchor + stage.daysBefore * SECONDS_PER_DAY - pastInclusiveGrace
+  return anchor + stage.daysBefore * SECONDS_PER_DAY
 }
 
 /** Rows whose own expiry is at most this have reached the stage at `nowSec`. */
@@ -273,12 +191,6 @@ export type StageCandidate = {
  *   renewable until `grace_ends_at`. Both are notified.
  * - Once grace has ended, only rows released because they expired. A row
  *   still held was renewed or has not been released yet.
- * - At the expiry of a name with no grace, held rows and rows released because
- *   they expired. A wrapped ENSv1 subname stays `wrapped` past its NameWrapper
- *   expiry and never carries `lapsed_registration`; an emancipated or locked
- *   one also loses its `owner`, so only its favourites are notified. An ENSv2
- *   subname is expected to be released as `expired`, as an ENSv2 `.eth`
- *   registration is (bigname's `RegistryPathExpired` release).
  *
  * A row released for another cause (an ENSv2 unregister, or no
  * `lapsed_registration`) and an `unregistered` row are never notified.
@@ -299,7 +211,5 @@ export function isNotifiableAtStage(
       return isHeld || isExpiredRelease
     case 'grace-ended':
       return isExpiredRelease
-    case 'expired':
-      return isHeld || isExpiredRelease
   }
 }
