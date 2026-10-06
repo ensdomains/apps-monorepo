@@ -9,6 +9,10 @@ import type { ExpiryStageConfig } from './stages.js'
 // bigname serves at most 200 rows a page; one is kept back as lookahead.
 export const PROCESS_PAGE_SIZE = 199
 export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
+// Names sharing one expiry second are paged with bigname's cursor, up to the
+// 1,000 the Panoptes query allowed.
+export const MAX_EXACT_TIMESTAMP_PAGES = 5
+export const MAX_PER_TIMESTAMP = QUERY_PAGE_SIZE * MAX_EXACT_TIMESTAMP_PAGES
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 const MS_PER_SECOND = 1000
@@ -67,17 +71,21 @@ const wait = (ms: number): Promise<void> =>
 const toIso = (seconds: number): string =>
   new Date(seconds * MS_PER_SECOND).toISOString()
 
+// Times here are unix seconds as `number`, not bigint: the whole sweep, its
+// stage maths and the cursors it stores already use them, and they fit exactly.
 export type ExpiringDomain = {
-  name: string
-  expiryDate: number
-  owner?: string
+  readonly name: string
+  readonly expiryDate: number
+  readonly owner?: string
 }
 
 export type ExpiringNamesPage = {
-  domains: ExpiringDomain[]
-  hasMore: boolean
+  readonly domains: readonly ExpiringDomain[]
+  readonly hasMore: boolean
+  /** bigname's cursor for the same window, while it has more rows. */
+  readonly nextCursor: string | null
   /** The chain time the answer belongs to, so a lagging index is visible. */
-  indexedAtSec: number
+  readonly indexedAtSec: number
 }
 
 const executeIndexerQuery = ResultFn(async function* (ctx: {
@@ -85,6 +93,7 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   stage: ExpiryStageConfig
   cursor: number
   upperBound: number
+  pageCursor?: string
   attempt: number
 }) {
   const { client, chainId } = yield* getIndexer(ctx.env)
@@ -104,6 +113,7 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
       sort: 'expires_at',
       order: 'asc',
       page_size: QUERY_PAGE_SIZE,
+      cursor: ctx.pageCursor,
     })
     .mapErr(
       (error) =>
@@ -146,6 +156,9 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   return ok({
     domains,
     hasMore: domains.length === QUERY_PAGE_SIZE,
+    nextCursor: response.page?.has_more
+      ? (response.page.next_cursor ?? null)
+      : null,
     indexedAtSec,
   } satisfies ExpiringNamesPage)
 })
@@ -155,6 +168,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   stage: ExpiryStageConfig
   cursor: number
   upperBound: number
+  pageCursor?: string
 }) {
   logger.trace('Fetching expiring names page from indexer', {
     stageId: ctx.stage.id,
@@ -168,6 +182,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
       stage: ctx.stage,
       cursor: ctx.cursor,
       upperBound: ctx.upperBound,
+      pageCursor: ctx.pageCursor,
       attempt,
     })
 

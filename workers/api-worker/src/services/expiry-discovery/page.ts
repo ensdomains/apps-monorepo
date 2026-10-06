@@ -2,24 +2,25 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ok } from 'neverthrow'
 import {
   type ExpiringDomain,
+  type ExpiringNamesPage,
   fetchExpiringNamesPage,
+  MAX_EXACT_TIMESTAMP_PAGES,
   PROCESS_PAGE_SIZE,
-  QUERY_PAGE_SIZE,
 } from './indexer.js'
 import type { ExpiryStageConfig } from './stages.js'
 
 export type ExpiryTimestampOverflow = {
-  expiryTimestamp: number
-  processedCount: number
+  readonly expiryTimestamp: number
+  readonly processedCount: number
 }
 
 export type ProcessableExpiryPage = {
-  domains: ExpiringDomain[]
-  cursorEnd: number
-  hasMore: boolean
-  overflow?: ExpiryTimestampOverflow
+  readonly domains: readonly ExpiringDomain[]
+  readonly cursorEnd: number
+  readonly hasMore: boolean
+  readonly overflow?: ExpiryTimestampOverflow
   /** The chain time the index had reached when it answered. */
-  indexedAtSec: number
+  readonly indexedAtSec: number
 }
 
 export type NormalExpiryPagePlan =
@@ -92,14 +93,13 @@ export function planNormalExpiryPage(
 export function planExactTimestampPage(
   domains: readonly ExpiringDomain[],
   timestamp: number,
+  hasMoreAtTimestamp: boolean,
 ) {
-  // The normal query reserves one row for lookahead, but an exact-timestamp
-  // query can safely use the indexer's full page capacity. If it saturates that
-  // capacity, there may be additional names at T that we cannot page without a
-  // composite cursor. Process all returned names and surface the saturation.
+  // Rows still left at T after the page limit cannot be reached without
+  // re-reading T; process what was read and surface the saturation.
   return {
-    domains: [...domains.slice(0, QUERY_PAGE_SIZE)],
-    overflow: domains.length >= QUERY_PAGE_SIZE,
+    domains: [...domains],
+    overflow: hasMoreAtTimestamp,
     cursorEnd: timestamp,
   }
 }
@@ -123,12 +123,26 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
     } satisfies ProcessableExpiryPage)
   }
 
-  const exactPage = yield* fetchExpiringNamesPage({
-    ...ctx,
-    cursor: plan.timestamp - 1,
-    upperBound: plan.timestamp,
-  })
-  const exactPlan = planExactTimestampPage(exactPage.domains, plan.timestamp)
+  const exactDomains: ExpiringDomain[] = []
+  let indexedAtSec = page.indexedAtSec
+  let pageCursor: string | null = null
+  for (let read = 0; read < MAX_EXACT_TIMESTAMP_PAGES; read++) {
+    const exactPage: ExpiringNamesPage = yield* fetchExpiringNamesPage({
+      ...ctx,
+      cursor: plan.timestamp - 1,
+      upperBound: plan.timestamp,
+      ...(pageCursor !== null && { pageCursor }),
+    })
+    exactDomains.push(...exactPage.domains)
+    indexedAtSec = Math.min(indexedAtSec, exactPage.indexedAtSec)
+    pageCursor = exactPage.nextCursor
+    if (pageCursor === null) break
+  }
+  const exactPlan = planExactTimestampPage(
+    exactDomains,
+    plan.timestamp,
+    pageCursor !== null,
+  )
 
   return ok({
     domains: [...plan.domainsBeforeTimestamp, ...exactPlan.domains],
@@ -140,6 +154,6 @@ export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
           processedCount: exactPlan.domains.length,
         }
       : undefined,
-    indexedAtSec: Math.min(page.indexedAtSec, exactPage.indexedAtSec),
+    indexedAtSec,
   } satisfies ProcessableExpiryPage)
 })

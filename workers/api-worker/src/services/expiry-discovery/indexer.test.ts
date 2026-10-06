@@ -79,6 +79,7 @@ describe('fetchExpiringNamesPage', () => {
         { name: 'alpha.eth', expiryDate: 1_700_000_000, owner: '0xabc' },
       ],
       hasMore: false,
+      nextCursor: null,
       indexedAtSec: AS_OF_SEC,
     })
   })
@@ -129,6 +130,50 @@ describe('fetchExpiringNamesPage', () => {
     )._unsafeUnwrap()
 
     expect(page.domains[0]?.owner).toBeUndefined()
+  })
+
+  it('passes the page cursor on and returns the next one while bigname has more', async () => {
+    const fetchMock = stubFetch(
+      json({
+        ...listing([row('alpha.eth', '1700000000')]),
+        page: {
+          cursor: 'c1',
+          next_cursor: 'c2',
+          page_size: QUERY_PAGE_SIZE,
+          total_count: null,
+          has_more: true,
+        },
+      }),
+    )
+
+    const page = (
+      await fetchExpiringNamesPage({
+        env: ENV,
+        stage: STAGES[0],
+        cursor: 1,
+        upperBound: 2,
+        pageCursor: 'c1',
+      })
+    )._unsafeUnwrap()
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string]
+    expect(new URL(url).searchParams.get('cursor')).toBe('c1')
+    expect(page.nextCursor).toBe('c2')
+  })
+
+  it('returns no next cursor on the last page', async () => {
+    stubFetch(json(listing([row('alpha.eth', '1700000000')])))
+
+    const page = (
+      await fetchExpiringNamesPage({
+        env: ENV,
+        stage: STAGES[0],
+        cursor: 1,
+        upperBound: 2,
+      })
+    )._unsafeUnwrap()
+
+    expect(page.nextCursor).toBeNull()
   })
 
   it('retries a transient failure and succeeds', async () => {

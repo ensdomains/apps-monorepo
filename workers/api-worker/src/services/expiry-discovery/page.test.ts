@@ -8,6 +8,7 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 
 import {
   fetchExpiringNamesPage,
+  MAX_EXACT_TIMESTAMP_PAGES,
   PROCESS_PAGE_SIZE,
   QUERY_PAGE_SIZE,
 } from './indexer.js'
@@ -63,48 +64,62 @@ describe('expiry page planning', () => {
     expect(plan.domainsBeforeTimestamp).toHaveLength(PROCESS_PAGE_SIZE - 1)
   })
 
-  it('processes a bounded exact timestamp bucket and reports overflow', () => {
-    const fitting = planExactTimestampPage(
-      domainsAt(QUERY_PAGE_SIZE - 1, 10_000),
-      10_000,
-    )
-    expect(fitting.domains).toHaveLength(QUERY_PAGE_SIZE - 1)
-    expect(fitting.overflow).toBe(false)
-
-    const overflow = planExactTimestampPage(
-      domainsAt(QUERY_PAGE_SIZE, 10_000),
-      10_000,
-    )
-    expect(overflow.domains).toHaveLength(QUERY_PAGE_SIZE)
-    expect(overflow.overflow).toBe(true)
-    expect(overflow.cursorEnd).toBe(10_000)
+  it('reports overflow only while rows are left at the timestamp', () => {
+    const domains = domainsAt(3, 10_000)
+    expect(planExactTimestampPage(domains, 10_000, false)).toEqual({
+      domains,
+      overflow: false,
+      cursorEnd: 10_000,
+    })
+    expect(planExactTimestampPage(domains, 10_000, true).overflow).toBe(true)
   })
 
   it.each([
-    { exactCount: 2, expectedOverflow: false },
-    { exactCount: QUERY_PAGE_SIZE, expectedOverflow: true },
-  ])('re-queries a split timestamp with $exactCount exact rows', async ({
-    exactCount,
-    expectedOverflow,
+    { label: 'one page', exactPages: [2], cursorsLeft: false },
+    {
+      label: 'several pages',
+      exactPages: [QUERY_PAGE_SIZE, QUERY_PAGE_SIZE, 50],
+      cursorsLeft: false,
+    },
+    {
+      label: 'more pages than the limit',
+      exactPages: Array.from(
+        { length: MAX_EXACT_TIMESTAMP_PAGES },
+        () => QUERY_PAGE_SIZE,
+      ),
+      cursorsLeft: true,
+    },
+  ])('pages a split timestamp with the cursor across $label', async ({
+    exactPages,
+    cursorsLeft,
   }) => {
     const timestamp = 10_000
     const beforeTimestamp = uniqueDomains(PROCESS_PAGE_SIZE - 1)
-    const exactDomains = domainsAt(exactCount, timestamp)
-    vi.mocked(fetchExpiringNamesPage)
-      .mockReturnValueOnce(
+    const exactDomains = exactPages.map((count, read) =>
+      domainsAt(count, timestamp).map((domain, index) => ({
+        ...domain,
+        name: `${read}-${index}.eth`,
+      })),
+    )
+    const mock = vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+      okAsync({
+        domains: [...beforeTimestamp, ...domainsAt(2, timestamp)],
+        hasMore: true,
+        nextCursor: null,
+        indexedAtSec: 1_700_000_000,
+      }),
+    )
+    for (const [read, domains] of exactDomains.entries()) {
+      const isLast = read === exactDomains.length - 1
+      mock.mockReturnValueOnce(
         okAsync({
-          domains: [...beforeTimestamp, ...exactDomains.slice(0, 2)],
-          hasMore: true,
-          indexedAtSec: 1_700_000_000,
+          domains,
+          hasMore: domains.length === QUERY_PAGE_SIZE,
+          nextCursor: isLast && !cursorsLeft ? null : `c${read + 1}`,
+          indexedAtSec: 1_700_000_000 - read,
         }),
       )
-      .mockReturnValueOnce(
-        okAsync({
-          domains: exactDomains,
-          hasMore: expectedOverflow,
-          indexedAtSec: 1_700_000_000,
-        }),
-      )
+    }
 
     const env = {} as CloudflareBindings
     const stage = STAGES[0]
@@ -116,26 +131,30 @@ describe('expiry page planning', () => {
       upperBound: 20_000,
     })
 
-    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(2)
-    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(1, {
-      env,
-      stage,
-      cursor: 50,
-      upperBound: 20_000,
-    })
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(exactPages.length + 1)
     expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(2, {
       env,
       stage,
       cursor: timestamp - 1,
       upperBound: timestamp,
     })
+    if (exactPages.length > 1) {
+      expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(3, {
+        env,
+        stage,
+        cursor: timestamp - 1,
+        upperBound: timestamp,
+        pageCursor: 'c1',
+      })
+    }
+    const processed = exactDomains.flat()
     expect(result._unsafeUnwrap()).toEqual({
-      domains: [...beforeTimestamp, ...exactDomains.slice(0, QUERY_PAGE_SIZE)],
+      domains: [...beforeTimestamp, ...processed],
       cursorEnd: timestamp,
       hasMore: true,
-      indexedAtSec: 1_700_000_000,
-      overflow: expectedOverflow
-        ? { expiryTimestamp: timestamp, processedCount: QUERY_PAGE_SIZE }
+      indexedAtSec: 1_700_000_000 - (exactPages.length - 1),
+      overflow: cursorsLeft
+        ? { expiryTimestamp: timestamp, processedCount: processed.length }
         : undefined,
     })
   })

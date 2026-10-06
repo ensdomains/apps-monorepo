@@ -14,9 +14,9 @@ const MS_PER_SECOND = 1000
  * name, for the migration-gas drip.
  *
  * One request: the address's v1 names sorted by expiry, latest first. bigname
- * puts names with no expiry ahead of the rest in that order, and keeps
- * released names with their lapsed expiry, so the first non-reverse row
- * decides: live if it has no expiry or expires in the future.
+ * puts names with no expiry ahead of the rest in that order, so the first
+ * row that is neither a reverse record nor released decides: live if it has
+ * no expiry or expires in the future.
  *
  * Throws on any failure so the caller stays fail-closed (no drip).
  */
@@ -37,14 +37,16 @@ export const hasV1Names = async (
   if (result.isErr()) throw result.error
 
   const latest = result.value.data.find(
-    (row) => !row.name.endsWith(REVERSE_SUFFIX),
+    (row) =>
+      !row.name.endsWith(REVERSE_SUFFIX) &&
+      row.registration_status !== 'released',
   )
   const expiry = toUnixSeconds(latest?.expires_at)
-  const owns =
+  const hasLiveV1Name =
     latest !== undefined &&
     (latest.expires_at === undefined ||
       (expiry !== null && expiry > Date.now() / MS_PER_SECOND))
 
-  logger.debug('Checked v1 name ownership', { address: addr, owns })
-  return owns
+  logger.debug('Checked v1 name ownership', { address: addr, hasLiveV1Name })
+  return hasLiveV1Name
 }

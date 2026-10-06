@@ -82,6 +82,17 @@ describe('hasV1Names', () => {
     await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
   })
 
+  it('does not count a released name, even without an expiry', async () => {
+    mockBigname(
+      page([
+        { ...row('gone.eth'), registration_status: 'released' },
+        row('alice.eth', PAST),
+      ]),
+    )
+
+    await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
+  })
+
   it('does not count a reverse record', async () => {
     mockBigname(page([row('abc.addr.reverse'), row('alice.eth', PAST)]))
 

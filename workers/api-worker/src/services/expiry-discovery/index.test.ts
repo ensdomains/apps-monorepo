@@ -78,6 +78,7 @@ describe('runExpiryDiscoveryCron', () => {
           { name: 'alpha.eth', expiryDate: cursor + 100, owner: '0xabc' },
         ],
         hasMore: false,
+        nextCursor: null,
         indexedAtSec: NOW,
       }),
     )
@@ -102,7 +103,12 @@ describe('runExpiryDiscoveryCron', () => {
 
   it('snaps an empty stale stage to its lower bound but leaves an in-window cursor unchanged', async () => {
     vi.mocked(fetchExpiringNamesPage).mockReturnValue(
-      okAsync({ domains: [], hasMore: false, indexedAtSec: NOW }),
+      okAsync({
+        domains: [],
+        hasMore: false,
+        nextCursor: null,
+        indexedAtSec: NOW,
+      }),
     )
     const kv = new MockKV()
     const cursors = caughtUpCursors()
@@ -124,7 +130,12 @@ describe('runExpiryDiscoveryCron', () => {
 
   it('holds a stage cursor when the indexer is behind, even on an empty window', async () => {
     vi.mocked(fetchExpiringNamesPage).mockReturnValue(
-      okAsync({ domains: [], hasMore: false, indexedAtSec: NOW - 2 * 3600 }),
+      okAsync({
+        domains: [],
+        hasMore: false,
+        nextCursor: null,
+        indexedAtSec: NOW - 2 * 3600,
+      }),
     )
     const kv = new MockKV()
     const cursors = caughtUpCursors()
@@ -160,6 +171,7 @@ describe('runExpiryDiscoveryCron', () => {
               ? [{ name: 'catch-up.eth', expiryDate: targetExpiry }]
               : [],
           hasMore: false,
+          nextCursor: null,
           indexedAtSec: NOW,
         }),
     )
@@ -188,6 +200,7 @@ describe('runExpiryDiscoveryCron', () => {
         return okAsync({
           domains: [{ name: 'beta.eth', expiryDate: cursor + 50 }],
           hasMore: false,
+          nextCursor: null,
           indexedAtSec: NOW,
         })
       },
@@ -213,6 +226,7 @@ describe('runExpiryDiscoveryCron', () => {
       okAsync({
         domains: [{ name: 'alpha.eth', expiryDate: cursor + 50 }],
         hasMore: false,
+        nextCursor: null,
         indexedAtSec: NOW,
       }),
     )
@@ -249,6 +263,7 @@ describe('runExpiryDiscoveryCron', () => {
           expiryDate: cursor + index + 1,
         })),
         hasMore: false,
+        nextCursor: null,
         indexedAtSec: NOW,
       }),
     )
@@ -277,6 +292,7 @@ describe('runExpiryDiscoveryCron', () => {
           expiryDate: cursor + index + 1,
         })),
         hasMore: true,
+        nextCursor: null,
         indexedAtSec: NOW,
       }),
     )
