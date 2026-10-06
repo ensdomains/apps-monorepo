@@ -2,7 +2,7 @@ import { logger } from '@ens-apps/utils/logger'
 import type { Address, Hash, PublicClient } from 'viem'
 import { type ActorRefFrom, createActor } from 'xstate'
 import { randomNonce } from '../helpers/flow-identity'
-import { toPersistableRequest } from '../helpers/persistable-request'
+import { toPersistableRequest } from '../helpers/persistableRequest'
 import {
   archiveTransaction,
   clearAllTransactions,

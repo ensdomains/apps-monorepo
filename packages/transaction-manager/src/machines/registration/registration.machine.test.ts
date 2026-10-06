@@ -529,6 +529,7 @@ describe('registrationMachine — losing a same-name race', () => {
       verifyRegistration: vi.fn(async () => ({
         verified: false,
         registeredToOther: false,
+        isUnregistered: true,
         reason: 'label is not REGISTERED (status 0)',
       })),
     })
@@ -1203,6 +1204,7 @@ describe('registrationMachine — intent id capture', () => {
           verifyRegistration: fromPromise(async () => ({
             verified: false,
             registeredToOther: false,
+            isUnregistered: true,
             reason: 'label is not REGISTERED (status 0)',
           })) as never,
         },
@@ -1242,6 +1244,67 @@ describe('registrationMachine — intent id capture', () => {
     expect(context.error?.message).not.toContain('not REGISTERED')
     // Still retryable: the name is free, the intent just has to go again.
     expect(context.nameUnavailable).toBeUndefined()
+    actor.stop()
+  })
+
+  // The other half of that: when the label IS registered, the check has
+  // something to say (wrong resolver, short expiry, a consumed commitment) and
+  // that beats whatever made the poll give up.
+  it('keeps the registry reason when the label is registered', async () => {
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: 1_800_000_000_000,
+          })) as never,
+          waitAfterCommitment: fromPromise(async () => undefined) as never,
+          submitRevealBatch: fromPromise(
+            async () => 'tx-reg-register',
+          ) as never,
+          pollTransactionStatus: fromPromise(async () => {
+            throw new Error('receipt timeout')
+          }) as never,
+          verifyRegistration: fromPromise(async () => ({
+            verified: false,
+            registeredToOther: false,
+            isUnregistered: false,
+            reason: 'resolver is 0xdead, expected the HCA resolver 0xbeef',
+          })) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'malak.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        commitmentTxId: 'tx-reg-commit',
+        registerReadyTimestamp: 1_800_000_000_000,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(actor.getSnapshot().context.error?.message).toContain(
+      'resolver is 0xdead',
+    )
     actor.stop()
   })
 

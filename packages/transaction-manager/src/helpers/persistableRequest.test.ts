@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TransactionRequest } from '../types/transaction.types'
-import { toPersistableRequest } from './persistable-request'
+import { toPersistableRequest } from './persistableRequest'
 
 const rhinestoneRequest = (
   onIntentSubmitted?: (intentId: bigint) => void,
