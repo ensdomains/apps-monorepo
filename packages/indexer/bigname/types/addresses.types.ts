@@ -23,7 +23,7 @@ export type AddressNamesQuery = Readonly<{
   relation?: readonly AuthorityRelation[] | 'any' | 'resolves_to'
   /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
   coin_type?: number | 'evm'
-  authority?: Authority
+  authority?: Authority | readonly Authority[]
   /** Rejected with `relation=resolves_to`. */
   is_migrated?: 'true' | 'false'
   /** ENSIP-15 name prefix; one trailing dot marks a label boundary. */

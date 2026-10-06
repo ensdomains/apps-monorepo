@@ -30,7 +30,7 @@ export const hasV1Names = async (
 
   const result = await bigname.addressNames(addr, {
     relation: 'any',
-    authority: 'ens_v1',
+    authority: ['ens_v1', 'ens_v0'],
     sort: 'expires_at',
     order: 'desc',
     page_size: PAGE_SIZE,

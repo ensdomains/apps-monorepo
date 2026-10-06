@@ -54,7 +54,7 @@ describe('hasV1Names', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url] = fetchMock.mock.calls[0] as [string]
     expect(url).toBe(
-      `https://sepolia.api.bigname.sh/v1/addresses/${ADDRESS.toLowerCase()}/names?relation=any&authority=ens_v1&sort=expires_at&order=desc&page_size=10`,
+      `https://sepolia.api.bigname.sh/v1/addresses/${ADDRESS.toLowerCase()}/names?relation=any&authority=ens_v1%2Cens_v0&sort=expires_at&order=desc&page_size=10`,
     )
   })
 
