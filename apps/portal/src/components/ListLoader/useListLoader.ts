@@ -15,7 +15,7 @@ type UseListLoaderParameters = {
   readonly hasMore?: boolean
   readonly fetchMore?: () => Promise<FetchMoreResult>
   readonly resetKey?: string
-  readonly hasAll?: boolean
+  readonly canShowAll?: boolean
 }
 
 /** Turns an infinite query's `fetchNextPage` into `fetchMore`. */
@@ -45,7 +45,7 @@ export const useListLoader = ({
   hasMore = false,
   fetchMore,
   resetKey,
-  hasAll = true,
+  canShowAll = true,
 }: UseListLoaderParameters) => {
   const [choice, setChoice] = useState<{
     readonly resetKey: string | undefined
@@ -90,7 +90,7 @@ export const useListLoader = ({
     moreCount,
     total: knownTotal,
     canShowMore: shown < loaded || hasMore,
-    canShowAll: hasAll,
+    canShowAll,
     status: match({
       isCurrent: choice?.resetKey === resetKey,
       isPending,

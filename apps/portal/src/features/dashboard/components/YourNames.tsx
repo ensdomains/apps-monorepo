@@ -99,26 +99,24 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
         />
       )}
       {names.length > 0 && (
-        <ul>
-          {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
-            name ? (
-              <li
-                key={name}
-                className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <EntityBadge variant="name" name={name} showAvatar compact>
-                  <span title={name}>{truncateName(name)}</span>
-                </EntityBadge>
-                <Expiry expiryDate={expiryDate} />
-              </li>
-            ) : null,
-          )}
-          {loader.shown < names.length && (
-            <li className="border-t border-neutral-3 py-3">
-              <ListLoader {...loader} />
-            </li>
-          )}
-        </ul>
+        <div>
+          <ul>
+            {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
+              name ? (
+                <li
+                  key={name}
+                  className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <EntityBadge variant="name" name={name} showAvatar compact>
+                    <span title={name}>{truncateName(name)}</span>
+                  </EntityBadge>
+                  <Expiry expiryDate={expiryDate} />
+                </li>
+              ) : null,
+            )}
+          </ul>
+          <ListLoader {...loader} className="border-t border-neutral-3 py-3" />
+        </div>
       )}
       {!isSettled && <LoadingSpinner title="Loading your names" />}
       {isSettled && !hasError && names.length === 0 && (

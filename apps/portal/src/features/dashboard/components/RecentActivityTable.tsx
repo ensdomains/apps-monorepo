@@ -34,11 +34,10 @@ export const RecentActivityTable = () => {
   const loader = useListLoader({
     initialCount: RECENT_ACTIVITY_PAGE_SIZE,
     loaded: events.length,
-    total: data?.pages.at(-1)?.totalCount ?? undefined,
+    total: data?.pages.at(-1)?.totalCount,
     hasMore: hasNextPage,
     fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.events.length),
-    // The feed is every event in the protocol: All would be thousands of pages.
-    hasAll: false,
+    canShowAll: false,
   })
 
   return (

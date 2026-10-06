@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 import { RecentActivityTable } from './RecentActivityTable'
 
@@ -46,7 +46,9 @@ const eventsRef = vi.hoisted(() => ({
   current: [] as readonly RecentActivityEvent[],
 }))
 
-const feedRef = vi.hoisted(() => ({ totalCount: null as number | null }))
+const feedRef = vi.hoisted(() => ({
+  totalCount: undefined as number | undefined,
+}))
 
 vi.mock('../hooks/useRecentActivity', () => ({
   RECENT_ACTIVITY_PAGE_SIZE: 15,
@@ -108,6 +110,10 @@ const linkedNames = () =>
   )
 
 describe('RecentActivityTable', () => {
+  afterEach(() => {
+    feedRef.totalCount = undefined
+  })
+
   it('renders a reverse-record name as an unlinked pill, not a name badge', async () => {
     await renderTable([nameChangedEvent('vitalik.eth')])
 
@@ -138,6 +144,5 @@ describe('RecentActivityTable', () => {
 
     expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
     expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
-    feedRef.totalCount = null
   })
 })

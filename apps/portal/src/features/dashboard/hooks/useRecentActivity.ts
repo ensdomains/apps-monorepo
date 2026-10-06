@@ -23,7 +23,7 @@ export type RecentActivityEvent = {
 /** One page of the protocol-wide feed. */
 export type RecentActivityPage = {
   readonly events: readonly RecentActivityEvent[]
-  readonly totalCount: number | null
+  readonly totalCount: number | undefined
   readonly endCursor: string | null
   readonly hasNextPage: boolean
 }
@@ -88,7 +88,7 @@ const getRecentActivityPage = (after: string | undefined) =>
   ).map(
     ({ eventConnection }): RecentActivityPage => ({
       events: eventConnection?.edges.map(({ node }) => node) ?? [],
-      totalCount: eventConnection?.totalCount ?? null,
+      totalCount: eventConnection?.totalCount ?? undefined,
       endCursor: eventConnection?.pageInfo.endCursor ?? null,
       hasNextPage: eventConnection?.pageInfo.hasNextPage ?? false,
     }),
