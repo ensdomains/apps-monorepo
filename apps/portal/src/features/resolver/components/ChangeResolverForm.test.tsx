@@ -148,7 +148,7 @@ describe('ChangeResolverForm', () => {
     changeResolverHookState.hasWallet = true
   })
 
-  it('renders default custom resolver mode', () => {
+  it('renders with neither toggle selected so every option is visible', () => {
     render(<ChangeResolverForm name={name} target={target} />)
 
     expect(
@@ -156,7 +156,25 @@ describe('ChangeResolverForm', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole('switch', { name: /Use custom resolver/i }),
-    ).toBeChecked()
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('switch', { name: /Deploy new permissioned resolver/i }),
+    ).not.toBeChecked()
+    expect(
+      screen.getByLabelText(/Existing permissioned resolver/i),
+    ).toHaveValue('0xabcdef123456789012345678901234567890abcd')
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeEnabled()
+  })
+
+  it('shows the contract address input once custom resolver is selected', async () => {
+    const user = userEvent.setup()
+
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+
     expect(screen.getByLabelText(/Contract address/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
   })
@@ -166,6 +184,9 @@ describe('ChangeResolverForm', () => {
 
     render(<ChangeResolverForm name={name} target={target} />)
 
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
     await user.type(
       screen.getByPlaceholderText('0x...'),
       '0xabcdef123456789012345678901234567890abcd',
@@ -181,7 +202,7 @@ describe('ChangeResolverForm', () => {
     render(<ChangeResolverForm name={name} target={target} />)
 
     await user.click(
-      screen.getByRole('switch', { name: /Use custom resolver/i }),
+      screen.getByRole('switch', { name: /Deploy new permissioned resolver/i }),
     )
     await user.click(screen.getByRole('button', { name: /Save changes/i }))
 
@@ -193,12 +214,6 @@ describe('ChangeResolverForm', () => {
 
     render(<ChangeResolverForm name={name} target={target} />)
 
-    await user.click(
-      screen.getByRole('switch', { name: /Use custom resolver/i }),
-    )
-    await user.click(
-      screen.getByRole('switch', { name: /Deploy new permissioned resolver/i }),
-    )
     await user.selectOptions(
       screen.getByLabelText(/Existing permissioned resolver/i),
       '0x1234512345123451234512345123451234512345',
@@ -223,6 +238,9 @@ describe('ChangeResolverForm', () => {
     const user = userEvent.setup()
     render(<ChangeResolverForm name={name} target={target} />)
 
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
     await user.type(
       screen.getByPlaceholderText('0x...'),
       '0xabcdef123456789012345678901234567890abcd',
@@ -257,7 +275,7 @@ describe('ChangeResolverForm', () => {
     render(<ChangeResolverForm name={name} target={target} />)
 
     await user.click(
-      screen.getByRole('switch', { name: /Use custom resolver/i }),
+      screen.getByRole('switch', { name: /Deploy new permissioned resolver/i }),
     )
 
     const deployTransaction = transactionById('tx-deploy-permissioned-resolver')
