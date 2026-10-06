@@ -215,11 +215,16 @@ export const NamesTable = ({
     },
   ]
 
-  // v1 / v2 are mutually exclusive; clicking the active one shows all again
+  // v1 / v2 are mutually exclusive; clicking the active one shows all again.
+  // Switching drops the selection so Renew can't include a name that's hidden.
   const versionChips: FilterChipDef<NameVersion>[] = [
     { value: 'v1', label: t`V1`, count: v1Count },
     { value: 'v2', label: t`V2`, count: v2Count },
   ]
+  const changeVersion = (next: NameVersion | null) => {
+    setVersion(next)
+    setSelectedLabels(new Set())
+  }
 
   return (
     <div className="w-full">
@@ -288,8 +293,8 @@ export const NamesTable = ({
           {activeFilter === 'owned' && (
             <FilterChips
               chips={versionChips}
-              onChange={setVersion}
-              onClear={() => setVersion(null)}
+              onChange={changeVersion}
+              onClear={() => changeVersion(null)}
               value={version}
             />
           )}
