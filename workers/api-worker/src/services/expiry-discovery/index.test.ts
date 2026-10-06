@@ -92,13 +92,16 @@ const readOf = (
   hasMore: false,
 })
 
-const sweepWith = (pageFor: (window: StageWindow) => ProcessableExpiryPage) =>
+const sweepWith = (
+  pageFor: (window: StageWindow) => ProcessableExpiryPage,
+  indexedAtSec = NOW,
+) =>
   vi.mocked(fetchSweep).mockImplementation(({ windows }) =>
     okAsync({
       pages: new Map(
         windows.map((window) => [window.stage.id, pageFor(window)]),
       ),
-      indexedAtSec: NOW,
+      indexedAtSec,
     }),
   )
 
@@ -234,6 +237,31 @@ describe('runExpiryDiscoveryCron', () => {
     for (const swept of sweptWindows()) {
       expect(swept.upperBound).toBe(
         getUpperBoundForStage(swept.stage, indexedAt),
+      )
+    }
+  })
+
+  it('keeps every cursor at or before the time the sweep pages actually read', async () => {
+    const olderRead = NOW - 3600
+    sweepWith((window) => readOf([], window), olderRead)
+    const kv = new MockKV()
+    const cursors = Object.fromEntries(
+      STAGES.map((value) => [
+        value.id,
+        { expiry_timestamp: getLowerBoundForStage(value, NOW) },
+      ]),
+    )
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+
+    await runExpiryDiscoveryCron(makeEnv(kv))
+
+    const stored = await readCursors(kv)
+    for (const value of STAGES) {
+      expect(stored[value.id]?.expiry_timestamp).toBe(
+        Math.max(
+          cursors[value.id]?.expiry_timestamp ?? 0,
+          getUpperBoundForStage(value, olderRead),
+        ),
       )
     }
   })
