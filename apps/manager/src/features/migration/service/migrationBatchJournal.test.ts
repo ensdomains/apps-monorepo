@@ -69,6 +69,7 @@ describe('migration batch journal', () => {
         ],
       ]),
       ownedPermRes: '0x0000000000000000000000000000000000000004',
+      managerRestorationNames: [root.name],
       plannedApprovals: [
         { id: 'eth-registry:hca' },
         { id: 'base-registrar:hca-token', tokenId: 123n },
@@ -95,6 +96,7 @@ describe('migration batch journal', () => {
         ],
       ]),
       ownedPermRes: '0x0000000000000000000000000000000000000004',
+      managerRestorationNames: [root.name],
       plannedApprovals: [
         { id: 'eth-registry:hca' },
         { id: 'base-registrar:hca-token', tokenId: 123n },
@@ -309,5 +311,67 @@ describe('scoped journal snapshots', () => {
     } finally {
       unsubscribe()
     }
+  })
+})
+
+describe('recovery snapshot manager restoration (WEB-1528)', () => {
+  const STORAGE_KEY =
+    'ens-apps:atomic-hca-migration:submitted-batches:v1:8d1c893'
+
+  const storeRawRecovery = (recovery: Record<string, unknown>) => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        entries: [
+          {
+            scope: `${scope.chainId}:${scope.owner.toLowerCase()}:${scope.hca.toLowerCase()}`,
+            intents: [],
+            submissions: [],
+            recovery,
+          },
+        ],
+      }),
+    )
+  }
+
+  const baseRecovery = (extra: Record<string, unknown>) => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    return {
+      registryDomains: [domain],
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      completedOperations: [],
+      profiles: [],
+      ownedPermRes: null,
+      plannedApprovals: [],
+      ...extra,
+    }
+  }
+
+  beforeEach(() => localStorage.clear())
+
+  it('restores nobody for a snapshot written before the opt-in existed', () => {
+    storeRawRecovery(baseRecovery({}))
+
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.managerRestorationNames,
+    ).toEqual([])
+  })
+
+  it('carries a recorded opt-in across a reload', () => {
+    storeRawRecovery(baseRecovery({ managerRestorationNames: ['alice.eth'] }))
+
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.managerRestorationNames,
+    ).toEqual(['alice.eth'])
+  })
+
+  it('fails closed when the recorded opt-in is not a list of names', () => {
+    storeRawRecovery(baseRecovery({ managerRestorationNames: [42] }))
+
+    expect(() => loadMigrationRecoverySnapshot(scope)).toThrow(
+      /journal is unreadable/i,
+    )
   })
 })

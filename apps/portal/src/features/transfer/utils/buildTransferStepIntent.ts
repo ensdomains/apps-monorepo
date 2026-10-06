@@ -1,11 +1,18 @@
 import { createSetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { match, P } from 'ts-pattern'
-import { type Address, encodeFunctionData, erc1155Abi, zeroAddress } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  erc1155Abi,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { normalize } from 'viem/ens'
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
 import { prepareSetForwardResolutionTransaction } from '@/features/reverse-resolution/helpers/setForwardResolution'
+import { prepareRevokeRolesTransaction } from '@/features/roles/helpers/revokeRoles'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -17,7 +24,12 @@ import {
   prepareSetV1RegistryOwnerTransaction,
   prepareTransferV1NameTransaction,
 } from '../v1/writes'
-import type { TransferStepKind } from './buildTransferPlan'
+import type { TransferStep } from './buildTransferPlan'
+
+// `IUnsafeTransferable.unsafeTransfer`, which ensjs-abi doesn't export yet.
+const unsafeTransferAbi = parseAbi([
+  'function unsafeTransfer(address to, uint256 tokenId, bytes data)',
+])
 
 export type TransferStepContext = IntentContext & {
   readonly name: string
@@ -38,6 +50,11 @@ export type TransferStepContext = IntentContext & {
    * name has no resolver, or the plan never writes to it.
    */
   readonly isPermissionedResolver: boolean | null
+  /**
+   * The ETH address record before the flow started, for `restore-eth-addr`.
+   * Null when it was never read (the plan doesn't repoint it) or was unset.
+   */
+  readonly previousEthAddress: Address | null
 }
 
 /**
@@ -46,7 +63,7 @@ export type TransferStepContext = IntentContext & {
  * Throws for a step the plan should never have produced for this subject.
  */
 export const buildTransferStepIntent = (
-  step: TransferStepKind,
+  step: TransferStep,
   {
     name: rawName,
     subject,
@@ -54,6 +71,7 @@ export const buildTransferStepIntent = (
     tokenId,
     resolverAddress,
     isPermissionedResolver,
+    previousEthAddress,
     walletClient,
     chainId,
   }: TransferStepContext,
@@ -62,28 +80,54 @@ export const buildTransferStepIntent = (
   // canonical form the reads used, or the write targets a different node.
   const name = normalize(rawName)
   const ctx = { name, recipient, walletClient, chainId }
+
+  const prepareSetEthAddress = (targetAddress: Address) => {
+    // The form only offers this step when the name has its own resolver, so
+    // a null here means the state changed underneath us.
+    if (!resolverAddress)
+      throw new Error(`${name} has no resolver of its own to update`)
+    // Never default the kind: the wrong setter shape hits the other
+    // resolver's fallback and reverts with empty data.
+    if (isPermissionedResolver === null)
+      throw new Error(`Could not tell what kind of resolver ${name} uses`)
+    return prepareSetForwardResolutionTransaction({
+      request: createSetForwardResolutionRequest({
+        name,
+        coinType: MAINNET_COIN_TYPE,
+        resolverAddress,
+        targetAddress,
+        permissioned: isPermissionedResolver,
+      }),
+      from: walletClient.account.address,
+      chainId,
+    })
+  }
+
+  // Handled ahead of the match because it is the one step that carries data of
+  // its own: which account's grant it takes away, and which roles of theirs.
+  if (step.kind === 'revoke-roles') {
+    if (subject.kind !== 'v2')
+      throw new Error(
+        `Step "revoke-roles" does not apply to a ${subject.kind} name`,
+      )
+    return prepareRevokeRolesTransaction({
+      name,
+      resourceId: requireResourceIdForName(name),
+      account: step.grant.account,
+      roles: step.grant.roles,
+      walletClient,
+      chainId,
+      registryAddress: subject.registryAddress,
+    })
+  }
+
   return (
-    match([step, subject] as const)
-      .with(['set-eth-addr', P._], () => {
-        // The form only offers this step when the name has its own resolver, so
-        // a null here means the state changed underneath us.
-        if (!resolverAddress)
-          throw new Error(`${name} has no resolver of its own to update`)
-        // Never default the kind: the wrong setter shape hits the other
-        // resolver's fallback and reverts with empty data.
-        if (isPermissionedResolver === null)
-          throw new Error(`Could not tell what kind of resolver ${name} uses`)
-        return prepareSetForwardResolutionTransaction({
-          request: createSetForwardResolutionRequest({
-            name,
-            coinType: MAINNET_COIN_TYPE,
-            resolverAddress,
-            targetAddress: recipient,
-            permissioned: isPermissionedResolver,
-          }),
-          from: walletClient.account.address,
-          chainId,
-        })
+    match([step.kind, subject] as const)
+      .with(['set-eth-addr', P._], () => prepareSetEthAddress(recipient))
+      .with(['restore-eth-addr', P._], () => {
+        if (!previousEthAddress)
+          throw new Error(`${name} had no ETH address to restore`)
+        return prepareSetEthAddress(previousEthAddress)
       })
       // Same builders the resolver and registry features submit, so the detach
       // steps carry their calldata (and, for setSubregistry, its gas cap).
@@ -129,6 +173,26 @@ export const buildTransferStepIntent = (
           chainId,
         })
       })
+      // The same move without the registry's safe-transfer checks (the sender
+      // is the only role holder, the registry is emancipated), for a name whose
+      // other grants are staying behind. The receiver hook and the sender's
+      // `ROLE_CAN_TRANSFER_ADMIN` are still enforced.
+      .with(
+        ['transfer-token-unsafe', { kind: 'v2' }],
+        ([, { registryAddress }]) => {
+          if (tokenId === null) throw new Error(`${name} has no token id`)
+          return toEoaCustomIntent({
+            from: walletClient.account.address,
+            to: registryAddress,
+            data: encodeFunctionData({
+              abi: unsafeTransferAbi,
+              functionName: 'unsafeTransfer',
+              args: [recipient, tokenId, '0x'],
+            }),
+            chainId,
+          })
+        },
+      )
       .with(['reclaim', { kind: 'v1-registrar' }], () =>
         prepareTransferV1NameTransaction({
           ...ctx,
@@ -156,7 +220,7 @@ export const buildTransferStepIntent = (
       )
       .otherwise(() => {
         throw new Error(
-          `Step "${step}" does not apply to a ${subject.kind} name`,
+          `Step "${step.kind}" does not apply to a ${subject.kind} name`,
         )
       })
   )

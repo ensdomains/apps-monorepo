@@ -174,3 +174,50 @@ describe('/$name client-rendered profile route', () => {
     expect(profileReverseNameQuery).toHaveBeenCalledWith(PROFILE_OWNER)
   })
 })
+
+describe('/$name head', () => {
+  type HeadContext = {
+    loaderData?: { description?: string; name: string }
+    params: { name: string }
+  }
+  type MetaTag = { content?: string; property?: string; title?: string }
+
+  const runHead = (context: HeadContext) => {
+    const head = Route.options.head as unknown as (context: HeadContext) => {
+      meta: MetaTag[]
+    }
+    const { meta } = head(context)
+
+    return {
+      image: meta.find((tag) => tag.property === 'og:image')?.content,
+      title: meta.find((tag) => 'title' in tag)?.title,
+    }
+  }
+
+  it("uses the name's card once the loader has run", () => {
+    expect(
+      runHead({
+        loaderData: { name: 'alice.eth' },
+        params: { name: 'alice.eth' },
+      }),
+    ).toEqual({
+      image: `${window.location.origin}/og/alice.eth.png`,
+      title: 'alice.eth - ENS Profile',
+    })
+  })
+
+  // The route is `ssr: false`, so this is the head a link-preview crawler gets.
+  it("uses the name's card, canonicalised, before the loader has run", () => {
+    expect(runHead({ params: { name: 'Alice.ETH' } })).toEqual({
+      image: `${window.location.origin}/og/alice.eth.png`,
+      title: 'alice.eth - ENS Profile',
+    })
+  })
+
+  it('points a name that cannot be normalised at the invalid-name card', () => {
+    expect(runHead({ params: { name: 'foo..eth' } })).toEqual({
+      image: `${window.location.origin}/og/foo..eth.png`,
+      title: 'ENS App',
+    })
+  })
+})

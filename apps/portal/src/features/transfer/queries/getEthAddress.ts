@@ -9,7 +9,7 @@ import { fromPromise, ok } from 'neverthrow'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-class GetEthAddressError extends TaggedError('GetEthAddressError')<{
+export class GetEthAddressError extends TaggedError('GetEthAddressError')<{
   cause: GetAddressRecordErrorType
 }> {}
 

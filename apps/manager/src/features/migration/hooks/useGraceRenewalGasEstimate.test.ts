@@ -67,6 +67,7 @@ const estimate: GraceRenewalMigrationGasEstimate = {
       count: 2,
       migrateCount: 2,
       copyCount: 0,
+      roleGrants: [],
     },
   ],
 }

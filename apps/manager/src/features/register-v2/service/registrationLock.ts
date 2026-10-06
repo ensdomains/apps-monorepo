@@ -15,6 +15,16 @@ const STORAGE_KEY = 'ens-registration-locks-v1'
 /** Identifies the tab, not the name: `sessionStorage` is per tab and survives reload. */
 const HOLDER_KEY = 'ens-registration-holder'
 
+/** Where tabs settle which of them answers to a holder id. */
+const HOLDER_CHANNEL = 'ens-registration-holder-claim'
+
+/**
+ * How long a live tab has to object to an id another tab just claimed. A
+ * broadcast within one browser is delivered on the next task, so this only has
+ * to outlast a message round trip, and it runs once when the flow mounts.
+ */
+const CLAIM_REPLY_WINDOW_MS = 250
+
 /**
  * A holder that stops refreshing is treated as gone. Long enough to survive a
  * reload and a slow render, short enough that a crashed tab frees the wallet
@@ -77,6 +87,167 @@ export const getHolderId = (): string => {
     // relaxes the guard back to name-based re-entrancy.
     return 'fallback'
   }
+}
+
+type HolderMessage = {
+  readonly type: 'claim' | 'taken'
+  readonly holderId: string
+  /**
+   * On a claim: orders two tabs claiming the same id at once, lower first. A
+   * reload racing its own duplicate would otherwise have both step aside,
+   * leaving the live lock owned by neither tab and the wallet blocked until it
+   * goes stale. Absent from a tab that has already settled, which always keeps
+   * its id.
+   *
+   * On a `taken`: the rank of the claim being answered. With three tabs on one
+   * id, the middle one answers the lowest-ranked claim, and the winner must
+   * not read that reply as its own and step aside too.
+   */
+  readonly claimRank?: string
+}
+
+const isHolderMessage = (data: unknown): data is HolderMessage => {
+  if (!data || typeof data !== 'object') return false
+
+  const message = data as Record<string, unknown>
+  return (
+    (message.type === 'claim' || message.type === 'taken') &&
+    typeof message.holderId === 'string' &&
+    (message.claimRank === undefined || typeof message.claimRank === 'string')
+  )
+}
+
+/**
+ * Whether this tab keeps the id against a tab claiming it at the same moment.
+ * Any total order will do; what matters is that exactly one side yields.
+ */
+const outranksClaim = (theirs: string | undefined, ours: string): boolean =>
+  theirs === undefined ? false : ours < theirs
+
+/**
+ * Whether to tell a claimant the id is taken. A settled tab (no `pendingRank`)
+ * always does; one still claiming answers only the claims it outranks, so that
+ * exactly one side of a simultaneous claim steps aside.
+ */
+const answersClaim = (
+  claim: HolderMessage,
+  pendingRank: string | undefined,
+): boolean =>
+  pendingRank === undefined || outranksClaim(claim.claimRank, pendingRank)
+
+/** Whether a `taken` answers this tab's own outstanding claim. */
+const answersThisTab = (
+  reply: HolderMessage,
+  pendingRank: string | undefined,
+): boolean => pendingRank !== undefined && reply.claimRank === pendingRank
+
+/**
+ * Answer one message on behalf of the tab holding `pendingRank`, and say what
+ * it leaves this tab's own id as.
+ */
+const answerHolderMessage = (
+  channel: BroadcastChannel,
+  message: HolderMessage,
+  pendingRank: string | undefined,
+): 'keep' | 'rotate' => {
+  if (message.holderId !== getHolderId()) return 'keep'
+
+  if (message.type === 'claim') {
+    if (answersClaim(message, pendingRank)) {
+      channel.postMessage({
+        type: 'taken',
+        holderId: getHolderId(),
+        claimRank: message.claimRank,
+      })
+    }
+    return 'keep'
+  }
+
+  // Another live tab already answers to this id, so this tab is the clone.
+  return answersThisTab(message, pendingRank) ? 'rotate' : 'keep'
+}
+
+/** A fresh id for this tab, replacing whatever it inherited. */
+const takeNewHolderId = (): string => {
+  const created = crypto.randomUUID()
+
+  try {
+    window.sessionStorage.setItem(HOLDER_KEY, created)
+  } catch {
+    // Without per-tab storage the id cannot be remembered across a reload,
+    // which only relaxes the guard back to name-based re-entrancy.
+  }
+
+  return created
+}
+
+let holderClaim: Promise<string> | undefined
+
+/**
+ * Settle this tab's holder id, and keep answering for it.
+ *
+ * "Duplicate tab" clones `sessionStorage`, holder id included, so the copy
+ * reads as the tab it was cloned from: it frees that tab's claim on mount and
+ * then registers alongside it, which is the race the lock exists to stop. The
+ * tab already answering to the id says so, and the clone takes a new one.
+ *
+ * Resolved before any claim is released, never before one is read: an id that
+ * cannot be broadcast (no `BroadcastChannel`) is left as it was.
+ */
+export const claimTabHolderId = (): Promise<string> => {
+  holderClaim ??= new Promise<string>((resolve) => {
+    if (
+      typeof window === 'undefined' ||
+      typeof BroadcastChannel === 'undefined'
+    ) {
+      resolve(getHolderId())
+      return
+    }
+
+    let channel: BroadcastChannel
+    try {
+      channel = new BroadcastChannel(HOLDER_CHANNEL)
+    } catch {
+      resolve(getHolderId())
+      return
+    }
+
+    const claimRank = crypto.randomUUID()
+    // Cleared once settled, and a settled tab answers without a rank: it has
+    // held the id long enough that a fresh claim on it is the clone's.
+    let pendingRank: string | undefined = claimRank
+
+    const settle = (holderId: string) => {
+      pendingRank = undefined
+      resolve(holderId)
+    }
+
+    channel.addEventListener('message', (event: MessageEvent<unknown>) => {
+      if (!isHolderMessage(event.data)) return
+      if (answerHolderMessage(channel, event.data, pendingRank) === 'rotate') {
+        settle(takeNewHolderId())
+      }
+    })
+
+    channel.postMessage({ type: 'claim', claimRank, holderId: getHolderId() })
+    // Unanswered means nobody else holds it: a reload, or the first tab.
+    window.setTimeout(() => settle(getHolderId()), CLAIM_REPLY_WINDOW_MS)
+  })
+
+  return holderClaim
+}
+
+/**
+ * Drop this tab's claims once its identity has settled.
+ *
+ * Both ends of the flow's lifecycle go through here: a duplicated tab that
+ * mounts and leaves inside the claim window would otherwise sweep with the id
+ * it inherited, which is the live claim of the tab it was cloned from.
+ */
+export const releaseHolderLocksWhenSettled = (): Promise<void> => {
+  const since = readLocks()
+
+  return claimTabHolderId().then(() => releaseHolderLocks(since))
 }
 
 const readLock = (owner: Address): RegistrationLock | undefined =>
@@ -163,12 +334,25 @@ export const releaseRegistrationLock = (owner: Address): void => {
  * Drop every claim this tab holds. Called when the registration flow mounts or
  * unmounts: a tab that is not mid-registration cannot legitimately hold one, so
  * a reload or a route change frees the wallet instead of waiting out staleness.
+ *
+ * `since` limits the sweep to the claims as they were when it was asked for.
+ * One acquired or refreshed in the meantime is a live registration — the flow
+ * left and came back, or never left — and is kept. Without that, a sweep that
+ * waits for the holder id can land on a claim made during the wait.
  */
-export const releaseHolderLocks = (): void => {
+export const releaseHolderLocks = (since?: RegistrationLocks): void => {
   const holderId = getHolderId()
   const locks = readLocks()
   const rest = Object.fromEntries(
-    Object.entries(locks).filter(([, lock]) => lock.holderId !== holderId),
+    Object.entries(locks).filter(([owner, lock]) => {
+      if (lock.holderId !== holderId) return true
+      if (!since) return false
+
+      const seen = since[owner]
+      return (
+        !seen || seen.name !== lock.name || seen.updatedAt !== lock.updatedAt
+      )
+    }),
   )
   if (Object.keys(rest).length !== Object.keys(locks).length) writeLocks(rest)
 }

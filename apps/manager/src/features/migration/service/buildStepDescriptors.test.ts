@@ -38,6 +38,24 @@ const batches = (
       }) as unknown as AtomicMigrationBatch,
   )
 
+/** A batch whose names carry an opted-in manager, keyed name -> grantee. */
+const batchWithManagers = (
+  managersByName: Readonly<Record<string, Address | null>>,
+): AtomicMigrationBatch => {
+  const names = Object.keys(managersByName)
+  return {
+    names,
+    operations: names.map((name) => ({ name, action: 'migrate' })),
+    nameExecutions: names.map((name) => ({
+      classified: {
+        action: 'migrate',
+        domain: { name },
+        managerAddress: managersByName[name] ?? null,
+      },
+    })),
+  } as unknown as AtomicMigrationBatch
+}
+
 const registrationApprovalTargets = (
   ...targets: readonly (readonly [tokenId: bigint, name: string])[]
 ) => targets.map(([tokenId, name]) => ({ name, tokenId }))
@@ -69,6 +87,7 @@ describe('buildStepDescriptors', () => {
         count: 1,
         migrateCount: 1,
         copyCount: 0,
+        roleGrants: [],
       },
     ])
   })
@@ -90,6 +109,7 @@ describe('buildStepDescriptors', () => {
         count: 2,
         migrateCount: 2,
         copyCount: 0,
+        roleGrants: [],
       },
     ])
   })
@@ -110,6 +130,7 @@ describe('buildStepDescriptors', () => {
         count: 1,
         migrateCount: 1,
         copyCount: 0,
+        roleGrants: [],
       },
     ])
   })
@@ -123,7 +144,12 @@ describe('buildStepDescriptors', () => {
         registrationApprovalTargets: [],
       }),
     ).toEqual([
-      { type: 'approval', approvalId: 'eth-registry:hca', count: undefined },
+      {
+        type: 'approval',
+        approvalId: 'eth-registry:hca',
+        count: undefined,
+        roleGrants: undefined,
+      },
       {
         type: 'atomic-batch',
         index: 0,
@@ -131,6 +157,7 @@ describe('buildStepDescriptors', () => {
         count: 1,
         migrateCount: 1,
         copyCount: 0,
+        roleGrants: [],
       },
       { type: 'cleanup', approvalId: 'eth-registry:hca' },
     ])
@@ -152,6 +179,7 @@ describe('buildStepDescriptors', () => {
         count: 1,
         migrateCount: 1,
         copyCount: 0,
+        roleGrants: [],
       },
       {
         type: 'atomic-batch',
@@ -160,6 +188,7 @@ describe('buildStepDescriptors', () => {
         count: 1,
         migrateCount: 1,
         copyCount: 0,
+        roleGrants: [],
       },
     ])
   })
@@ -206,6 +235,7 @@ describe('buildStepDescriptors', () => {
         count: 2,
         migrateCount: 2,
         copyCount: 0,
+        roleGrants: [],
       },
     ])
   })
@@ -234,7 +264,91 @@ describe('buildStepDescriptors', () => {
         count: 2,
         migrateCount: 1,
         copyCount: 1,
+        roleGrants: [],
       },
     ])
+  })
+})
+
+describe('buildStepDescriptors role grants (WEB-1528)', () => {
+  const MANAGER = '0x0000000000000000000000000000000000000099' as Address
+
+  it('names every account the batch grants a role to', () => {
+    const [descriptor] = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [],
+      atomicBatches: [batchWithManagers({ 'alice.eth': MANAGER })],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptor).toMatchObject({
+      type: 'atomic-batch',
+      roleGrants: [
+        { name: 'alice.eth', account: MANAGER, role: 'set-resolver' },
+      ],
+    })
+  })
+
+  it('lists no grantee for names without an opted-in manager', () => {
+    const [descriptor] = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [],
+      atomicBatches: [
+        batchWithManagers({ 'alice.eth': null, 'bob.eth': MANAGER }),
+      ],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptor).toMatchObject({
+      type: 'atomic-batch',
+      roleGrants: [{ name: 'bob.eth', account: MANAGER }],
+    })
+  })
+
+  it('tells the enabling approval what it will be spent on', () => {
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [operatorApproval('eth-registry:hca')],
+      atomicBatches: [batchWithManagers({ 'alice.eth': MANAGER })],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors[0]).toMatchObject({
+      type: 'approval',
+      approvalId: 'eth-registry:hca',
+      roleGrants: [{ name: 'alice.eth', account: MANAGER }],
+    })
+  })
+
+  it('never advertises grants on an approval whose plan carries none', () => {
+    // A resumed run with no recorded opt-in still plans the approval; it must
+    // not then claim to restore managers it will not restore.
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [operatorApproval('eth-registry:hca')],
+      atomicBatches: [batchWithManagers({ 'alice.eth': null })],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors[0]).toMatchObject({
+      type: 'approval',
+      approvalId: 'eth-registry:hca',
+      roleGrants: undefined,
+    })
+  })
+
+  it('leaves unrelated approvals without a grantee list', () => {
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [operatorApproval('name-wrapper:hca')],
+      atomicBatches: [batchWithManagers({ 'alice.eth': MANAGER })],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors[0]).toMatchObject({
+      type: 'approval',
+      approvalId: 'name-wrapper:hca',
+      roleGrants: undefined,
+    })
   })
 })

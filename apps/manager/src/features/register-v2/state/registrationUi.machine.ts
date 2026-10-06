@@ -24,6 +24,7 @@ import {
   sendTo,
   setup,
 } from 'xstate'
+import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
@@ -103,6 +104,14 @@ type Context = {
    * Nothing to retry — the failure screen offers only a way back.
    */
   nameUnavailable: boolean
+  /**
+   * A start or resume was refused because the wallet is registering elsewhere.
+   * Nothing ran and nothing failed, so the screen says so instead of offering
+   * a retry of a registration that never began. Tracked apart from the name
+   * holding the wallet: that lookup can come back empty if the other tab
+   * finishes in between, and the refusal still happened.
+   */
+  isWalletBusy: boolean
   /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
   pendingStart?: Extract<
     Events,
@@ -188,6 +197,7 @@ type Events =
   | { type: 'cancel' }
   | { type: 'label.changed' }
   | { type: '$error'; error: Error }
+  | { type: '$walletBusy'; blockingName: string | null }
 
 type Input = {
   chainId: number
@@ -282,6 +292,32 @@ const machineSetup = setup({
           chainId: input.chainId,
         }),
     ),
+    submitPrimaryNameTransaction: fromPromise(
+      async ({
+        input,
+      }: {
+        input: {
+          data: PostRegistrationData | undefined
+          leg: 'forward' | 'reverse'
+        }
+      }) => {
+        if (!input.data?.walletClient) {
+          throw new Error('Post-registration data is incomplete')
+        }
+        const { data } = input
+        const submit =
+          input.leg === 'forward'
+            ? submitPrimaryNameForward
+            : submitPrimaryNameReverse
+        return submit({
+          name: asEthName(data.label),
+          signer: { type: 'eoa', walletClient: input.data.walletClient },
+          accountAddress: data.ownerAddress,
+          publicClient: data.publicClient,
+          chainId: data.chainId,
+        })
+      },
+    ),
     waitForKnownTransaction: fromPromise(
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
@@ -321,17 +357,8 @@ const machineSetup = setup({
   },
   guards: {
     hasPendingStart: ({ context }) => context.pendingStart !== undefined,
-    isWalletRegisteringAnotherName: ({ context }) => {
-      const confirmed = context.confirmedData
-      if (!confirmed) return false
-
-      return (
-        getBlockingRegistration(
-          confirmed.ownerAddress,
-          asEthName(confirmed.label),
-        ) !== null
-      )
-    },
+    isWalletRegisteringAnotherName: ({ context }) =>
+      blockingRegistrationFor(context) !== null,
     isDurationValid: ({ context }) =>
       context.duration >= MIN_REGISTER_DURATION_SECONDS,
     hasEthRecordSyncRemaining: ({ context }) =>
@@ -349,7 +376,6 @@ const machineSetup = setup({
       !canSetPrimaryName(context) &&
       !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
-    hasPrimaryNameTxId: ({ context }) => !!context.primaryNameTxId,
     hasAddrReverseClearRemaining: ({ context }) =>
       hasAddrReverseClearRemaining(context),
     // Reads the actor's output, not context: guards run before the
@@ -373,6 +399,7 @@ const machineSetup = setup({
     clearError: assign({
       lastErrorMessage: () => undefined,
       nameUnavailable: () => false,
+      isWalletBusy: () => false,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -390,6 +417,8 @@ const machineSetup = setup({
             ({ nameUnavailable }) => nameUnavailable === true,
           )
           .otherwise(() => false),
+      // A real failure replaces a refusal: something did run this time.
+      isWalletBusy: () => false,
     }),
     setInvokeError: assign({
       lastErrorMessage: ({ event }) => {
@@ -405,18 +434,20 @@ const machineSetup = setup({
     raisePendingStart: enqueueActions(({ enqueue, context }) => {
       if (context.pendingStart) enqueue.raise(context.pendingStart)
     }),
+    setWalletBusy: assign({
+      lastErrorMessage: ({ event }) =>
+        match(event)
+          .with({ type: '$walletBusy' }, ({ blockingName }) =>
+            registrationLockMessage(blockingName),
+          )
+          .otherwise(() => undefined),
+      isWalletBusy: () => true,
+      nameUnavailable: () => false,
+    }),
     setRegistrationLockError: assign({
-      lastErrorMessage: ({ context }) => {
-        const confirmed = context.confirmedData
-        const blocking = confirmed
-          ? getBlockingRegistration(
-              confirmed.ownerAddress,
-              asEthName(confirmed.label),
-            )
-          : null
-
-        return registrationLockMessage(blocking)
-      },
+      lastErrorMessage: ({ context }) =>
+        registrationLockMessage(blockingRegistrationFor(context)),
+      isWalletBusy: () => true,
     }),
     acquireRegistrationLock: ({ context }) => {
       const confirmed = context.confirmedData
@@ -552,6 +583,10 @@ const machineSetup = setup({
       ethRecordSyncTxId: ({ event }) =>
         (event as unknown as { output: string }).output,
     }),
+    storePrimaryNameTxId: assign({
+      primaryNameTxId: ({ event }) =>
+        (event as unknown as { output: string }).output,
+    }),
     markEthRecordSynced: assign({
       postRegistrationProgress: ({ context }) => ({
         ...context.postRegistrationProgress,
@@ -578,8 +613,19 @@ const machineSetup = setup({
 })
 
 /** Names the registration holding this wallet, so the user knows what to finish. */
+/** The name holding this run's wallet, if any. */
+const blockingRegistrationFor = (context: Context): string | null => {
+  const confirmed = context.confirmedData
+  if (!confirmed) return null
+
+  return getBlockingRegistration(
+    confirmed.ownerAddress,
+    asEthName(confirmed.label),
+  )
+}
+
 const registrationLockMessage = (blockingName: string | null): string =>
-  `Cannot register: ${blockingName ?? 'another name'} is already being registered with this wallet, possibly in another tab. Finish or cancel it first.`
+  `${blockingName ?? 'Another name'} is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.`
 
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, event }) => {
@@ -594,6 +640,20 @@ const startRegistrationAction = machineSetup.createAction(
       return enqueue.raise({
         type: '$error',
         error: new Error('Account not ready'),
+      })
+    }
+
+    // A primary claim must use exactly the label passed to registration.
+    // Reject instead of registering one identity and claiming its normalized twin.
+    if (
+      event.postRegistrationSetup?.primaryName?.enabled &&
+      getCanonicalPrimaryName(asEthName(event.label)) !== asEthName(event.label)
+    ) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot set primary name - the name is not ENSIP-15 canonical.',
+        ),
       })
     }
 
@@ -667,11 +727,10 @@ const startRegistrationAction = machineSetup.createAction(
     if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
       enqueue.assign({ pendingStart: event })
       return enqueue.raise({
-        type: '$error',
-        error: new Error(
-          registrationLockMessage(
-            getBlockingRegistration(ownerAddress, asEthName(event.label)),
-          ),
+        type: '$walletBusy',
+        blockingName: getBlockingRegistration(
+          ownerAddress,
+          asEthName(event.label),
         ),
       })
     }
@@ -786,11 +845,10 @@ const resumeRegistrationAction = machineSetup.createAction(
     if (!acquireRegistrationLock(ownerAddress, asEthName(event.label))) {
       enqueue.assign({ pendingStart: event })
       return enqueue.raise({
-        type: '$error',
-        error: new Error(
-          registrationLockMessage(
-            getBlockingRegistration(ownerAddress, asEthName(event.label)),
-          ),
+        type: '$walletBusy',
+        blockingName: getBlockingRegistration(
+          ownerAddress,
+          asEthName(event.label),
         ),
       })
     }
@@ -819,74 +877,6 @@ const resumeRegistrationAction = machineSetup.createAction(
         },
       } satisfies RegistrationEvent),
     )
-  }),
-)
-
-const submitPrimaryNameForwardAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, context }) => {
-    if (!context.postRegistrationData?.walletClient) {
-      return enqueue.raise({
-        type: '$error',
-        error: new Error('Post-registration data is incomplete'),
-      })
-    }
-
-    try {
-      // Sent by the owner EOA: the reverse registrars key on msg.sender.
-      const txId = submitPrimaryNameForward({
-        name: asEthName(context.postRegistrationData.label),
-        signer: {
-          type: 'eoa',
-          walletClient: context.postRegistrationData.walletClient,
-        },
-        accountAddress: context.postRegistrationData.ownerAddress,
-        publicClient: context.postRegistrationData.publicClient,
-        chainId: context.postRegistrationData.chainId,
-      })
-
-      enqueue.assign({
-        primaryNameTxId: txId,
-      })
-    } catch (error) {
-      enqueue.raise({
-        type: '$error',
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
-    }
-  }),
-)
-
-const submitPrimaryNameReverseAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, context }) => {
-    if (!context.postRegistrationData?.walletClient) {
-      return enqueue.raise({
-        type: '$error',
-        error: new Error('Post-registration data is incomplete'),
-      })
-    }
-
-    try {
-      // Sent by the owner EOA: the reverse registrars key on msg.sender.
-      const txId = submitPrimaryNameReverse({
-        name: asEthName(context.postRegistrationData.label),
-        signer: {
-          type: 'eoa',
-          walletClient: context.postRegistrationData.walletClient,
-        },
-        accountAddress: context.postRegistrationData.ownerAddress,
-        publicClient: context.postRegistrationData.publicClient,
-        chainId: context.postRegistrationData.chainId,
-      })
-
-      enqueue.assign({
-        primaryNameTxId: txId,
-      })
-    } catch (error) {
-      enqueue.raise({
-        type: '$error',
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
-    }
   }),
 )
 
@@ -929,6 +919,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     nameUnavailable: false,
+    isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,
@@ -1180,10 +1171,25 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               },
             },
             settingPrimaryNameForward: {
-              entry: ['setPrimaryNameStage', submitPrimaryNameForwardAction],
-              always: {
-                guard: 'hasPrimaryNameTxId',
-                target: 'waitingForPrimaryNameForward',
+              entry: ['setPrimaryNameStage'],
+              invoke: {
+                src: 'submitPrimaryNameTransaction',
+                input: ({ context }) => ({
+                  data: context.postRegistrationData,
+                  leg: 'forward',
+                }),
+                onDone: {
+                  target: 'waitingForPrimaryNameForward',
+                  actions: ['storePrimaryNameTxId'],
+                },
+                onError: {
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
+                  ],
+                },
               },
             },
             waitingForPrimaryNameForward: {
@@ -1213,10 +1219,25 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               },
             },
             settingPrimaryNameReverse: {
-              entry: ['setPrimaryNameStage', submitPrimaryNameReverseAction],
-              always: {
-                guard: 'hasPrimaryNameTxId',
-                target: 'waitingForPrimaryNameReverse',
+              entry: ['setPrimaryNameStage'],
+              invoke: {
+                src: 'submitPrimaryNameTransaction',
+                input: ({ context }) => ({
+                  data: context.postRegistrationData,
+                  leg: 'reverse',
+                }),
+                onDone: {
+                  target: 'waitingForPrimaryNameReverse',
+                  actions: ['storePrimaryNameTxId'],
+                },
+                onError: {
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
+                  ],
+                },
               },
             },
             waitingForPrimaryNameReverse: {
@@ -1323,6 +1344,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     $error: {
       target: '.failure',
       actions: ['setError'],
+    },
+    // Not a failure: the wallet is busy elsewhere and this run never started.
+    $walletBusy: {
+      target: '.failure',
+      actions: ['setWalletBusy'],
     },
     'label.changed': {
       target: '.pricing',
