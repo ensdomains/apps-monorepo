@@ -4,8 +4,8 @@ import { hasV1Names } from './index'
 const ADDRESS = '0xC0794B670346025738EE90D470862BF76727BCF3'
 const ENV = { CHAIN: 'sepolia' } as CloudflareBindings
 
-const FUTURE = '2029-01-01T00:00:00Z'
-const PAST = '2020-01-01T00:00:00Z'
+const FUTURE = '1861920000'
+const PAST = '1577836800'
 
 const row = (name: string, expires_at?: string) => ({
   name,

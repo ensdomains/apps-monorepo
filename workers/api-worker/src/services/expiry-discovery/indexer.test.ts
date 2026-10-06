@@ -3,7 +3,7 @@ import { fetchExpiringNamesPage, QUERY_PAGE_SIZE } from './indexer.js'
 import { STAGES } from './stages.js'
 
 const ENV = { CHAIN: 'sepolia' } as CloudflareBindings
-const AS_OF = '2026-09-30T08:00:00Z'
+const AS_OF = '1790755200'
 const AS_OF_SEC = 1_790_755_200
 
 const row = (name: string, expires_at: string, owner?: string) => ({
@@ -11,6 +11,7 @@ const row = (name: string, expires_at: string, owner?: string) => ({
   display_name: name,
   namespace: 'ens',
   namehash: '0xabc',
+  authority: 'ens_v2',
   registration_status: 'registered',
   expires_at,
   ...(owner !== undefined && { owner }),
@@ -59,7 +60,7 @@ describe('fetchExpiringNamesPage', () => {
 
   it('asks bigname for the window in its inclusive-exclusive terms and maps the rows', async () => {
     const fetchMock = stubFetch(
-      json(listing([row('alpha.eth', '2023-11-14T22:13:20Z', '0xABC')])),
+      json(listing([row('alpha.eth', '1700000000', '0xABC')])),
     )
 
     const result = await fetchExpiringNamesPage({
@@ -71,7 +72,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const [url] = fetchMock.mock.calls[0] as unknown as [string]
     expect(url).toBe(
-      `https://sepolia.api.bigname.sh/v1/names?namespace=ens&expires_after=1970-01-01T00%3A01%3A41.000Z&expires_before=1970-01-01T00%3A03%3A21.000Z&sort=expires_at&order=asc&page_size=${QUERY_PAGE_SIZE}`,
+      `https://sepolia.api.bigname.sh/v1/names?namespace=ens&parent=eth&authority=ens_v2&expires_after=1970-01-01T00%3A01%3A41.000Z&expires_before=1970-01-01T00%3A03%3A21.000Z&sort=expires_at&order=asc&page_size=${QUERY_PAGE_SIZE}`,
     )
     expect(result._unsafeUnwrap()).toEqual({
       domains: [
@@ -82,8 +83,22 @@ describe('fetchExpiringNamesPage', () => {
     })
   })
 
-  it('leaves the owner unset on a released row', async () => {
-    stubFetch(json(listing([row('lapsed.eth', '2023-11-14T22:13:20Z')])))
+  it('takes the owner from the lapsed registration once released', async () => {
+    stubFetch(
+      json(
+        listing([
+          {
+            ...row('lapsed.eth', '1700000000'),
+            registration_status: 'released',
+            lapsed_registration: {
+              owner: '0xDEF',
+              released_at: '1702419200',
+              release_kind: 'expired',
+            },
+          },
+        ]),
+      ),
+    )
 
     const page = (
       await fetchExpiringNamesPage({
@@ -97,8 +112,23 @@ describe('fetchExpiringNamesPage', () => {
     expect(page.domains[0]).toEqual({
       name: 'lapsed.eth',
       expiryDate: 1_700_000_000,
-      owner: undefined,
+      owner: '0xdef',
     })
+  })
+
+  it('leaves the owner unset when bigname knows none', async () => {
+    stubFetch(json(listing([row('lapsed.eth', '1700000000')])))
+
+    const page = (
+      await fetchExpiringNamesPage({
+        env: ENV,
+        stage: STAGES[0],
+        cursor: 1,
+        upperBound: 2,
+      })
+    )._unsafeUnwrap()
+
+    expect(page.domains[0]?.owner).toBeUndefined()
   })
 
   it('retries a transient failure and succeeds', async () => {
@@ -141,7 +171,7 @@ describe('fetchExpiringNamesPage', () => {
   })
 
   it('fails on a row without an expiry rather than skipping it', async () => {
-    const { expires_at: _, ...bare } = row('bad.eth', '2023-11-14T22:13:20Z')
+    const { expires_at: _, ...bare } = row('bad.eth', '1700000000')
     stubFetch(json(listing([bare])))
 
     const result = await fetchExpiringNamesPage({
@@ -172,7 +202,7 @@ describe('fetchExpiringNamesPage', () => {
       json(
         listing(
           Array.from({ length: QUERY_PAGE_SIZE }, (_, i) =>
-            row(`${i}.eth`, new Date((1_700_000_000 + i) * 1000).toISOString()),
+            row(`${i}.eth`, String(1_700_000_000 + i)),
           ),
         ),
       ),

@@ -28,6 +28,9 @@ export type ExpiryWindow =
 export type NamesQuery = ExpiryWindow &
   Readonly<{
     namespace: Namespace
+    /** Direct children of this parent only, e.g. `eth` excludes subnames. */
+    parent?: string
+    authority?: Authority | readonly Authority[]
     sort?: 'expires_at'
     order?: SortOrder
     finality?: 'latest'
@@ -41,12 +44,18 @@ export type NameListingRow = Readonly<{
   display_name: string
   namespace: Namespace
   namehash: Hex
+  authority: Authority
   owner?: Address
+  manager?: Address
   registrant?: Address
   registration_status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  /** End of the registrar grace period, already adjusted for the authority. */
+  grace_ends_at?: Timestamp
+  /** Replaces `owner` once the registration has been released. */
+  lapsed_registration?: LapsedRegistration
 }>
 
 /** `GET /v1/names`: response (`page.total_count` is always null). */
@@ -78,7 +87,7 @@ export type NameRecord = Readonly<{
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses
   authority?: Authority
-  /** Only while `registration_status` is `released` on an ENSv1 name. */
+  /** Only while `registration_status` is `released`. */
   lapsed_registration?: LapsedRegistration
   /** Only with `authority=ens_v2` proven by an ENSv1->ENSv2 migration. */
   migrated_at?: Timestamp

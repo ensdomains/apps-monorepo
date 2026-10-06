@@ -1,4 +1,4 @@
-import { createBignameClient } from '@ens-apps/indexer/bigname'
+import { createBignameClient, toUnixSeconds } from '@ens-apps/indexer/bigname'
 import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 
@@ -7,6 +7,7 @@ const REVERSE_SUFFIX = '.addr.reverse'
 
 // Enough rows to step past reverse records at the top of the sort.
 const PAGE_SIZE = 10
+const MS_PER_SECOND = 1000
 
 /**
  * Whether `address` owns, manages or registered at least one live ENS v1
@@ -38,10 +39,11 @@ export const hasV1Names = async (
   const latest = result.value.data.find(
     (row) => !row.name.endsWith(REVERSE_SUFFIX),
   )
+  const expiry = toUnixSeconds(latest?.expires_at)
   const owns =
     latest !== undefined &&
     (latest.expires_at === undefined ||
-      new Date(latest.expires_at) > new Date())
+      (expiry !== null && expiry > Date.now() / MS_PER_SECOND))
 
   logger.debug('Checked v1 name ownership', { address: addr, owns })
   return owns

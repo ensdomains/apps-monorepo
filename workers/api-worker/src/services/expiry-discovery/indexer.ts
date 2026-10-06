@@ -1,5 +1,5 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
-import { createBignameClient } from '@ens-apps/indexer/bigname'
+import { createBignameClient, toUnixSeconds } from '@ens-apps/indexer/bigname'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok, type Result } from 'neverthrow'
 import { getConfig } from '#core/config.js'
@@ -67,9 +67,6 @@ const wait = (ms: number): Promise<void> =>
 const toIso = (seconds: number): string =>
   new Date(seconds * MS_PER_SECOND).toISOString()
 
-const toSeconds = (iso: string): number =>
-  Math.floor(new Date(iso).getTime() / MS_PER_SECOND)
-
 export type ExpiringDomain = {
   name: string
   expiryDate: number
@@ -98,6 +95,10 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   const response = yield* client
     .names({
       namespace: 'ens',
+      // Stage timings use ENSv2's grace period, and only .eth registrations
+      // have registrar grace at all.
+      parent: 'eth',
+      authority: 'ens_v2',
       expires_after: toIso(ctx.cursor + 1),
       expires_before: toIso(ctx.upperBound + 1),
       sort: 'expires_at',
@@ -114,8 +115,10 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
         }),
     )
 
-  const indexedAt = response.meta.as_of?.[String(chainId)]?.timestamp
-  if (indexedAt === undefined) {
+  const indexedAtSec = toUnixSeconds(
+    response.meta.as_of?.[String(chainId)]?.timestamp,
+  )
+  if (indexedAtSec === null) {
     return yield* new IndexerValidationError({
       message: `Indexer response carried no chain position for stage ${ctx.stage.id}`,
       cause: response.meta,
@@ -126,23 +129,24 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   for (const row of response.data) {
     // The expiry window only lists rows with an expiry; a row without one is
     // a contract change, not a name to skip quietly.
-    if (row.expires_at === undefined) {
+    const expiryDate = toUnixSeconds(row.expires_at)
+    if (expiryDate === null) {
       return yield* new IndexerValidationError({
-        message: `Indexer listed ${row.name} without an expiry for stage ${ctx.stage.id}`,
+        message: `Indexer listed ${row.name} without a readable expiry for stage ${ctx.stage.id}`,
         cause: row,
       })
     }
     domains.push({
       name: row.name,
-      expiryDate: toSeconds(row.expires_at),
-      owner: row.owner?.toLowerCase(),
+      expiryDate,
+      owner: (row.owner ?? row.lapsed_registration?.owner)?.toLowerCase(),
     })
   }
 
   return ok({
     domains,
     hasMore: domains.length === QUERY_PAGE_SIZE,
-    indexedAtSec: toSeconds(indexedAt),
+    indexedAtSec,
   } satisfies ExpiringNamesPage)
 })
 
