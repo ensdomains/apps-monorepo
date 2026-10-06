@@ -30,25 +30,15 @@ const stageCursorsSchema = v.object({
 type StoredStageCursors = v.InferOutput<typeof stageCursorsSchema>
 
 /**
- * Cursors per track, then per stage. A value stored before tracks existed
- * holds the stage keys at the top level: one sweep of every name on the served
- * expiry. Those cursors carry over to the tracks whose window is the served
- * expiry itself (ENSv2 and unreserved ENSv1 leases); a reserved lease's window
- * is 62 days earlier, so that track starts from its defaults, as does the
- * subname track, which those runs did not sweep.
+ * Legacy top-level stage cursors use served expiry and carry over only to
+ * ENSv2. ENSv1 cursors use the original lease date; subnames were not swept.
  */
 const cursorSchema = v.object({
   ...stageCursorsSchema.entries,
   ens_v2: v.optional(stageCursorsSchema),
-  ens_v1_lease: v.optional(stageCursorsSchema),
   ens_v1_reserved: v.optional(stageCursorsSchema),
   subname: v.optional(stageCursorsSchema),
 })
-
-const LEGACY_TRACKS: ReadonlySet<ExpiryTrackId> = new Set([
-  'ens_v2',
-  'ens_v1_lease',
-])
 
 /** Cursors for the track's own stages; other stage ids are absent. */
 export type StageCursors = Partial<
@@ -149,7 +139,7 @@ export const loadNotificationCursors = ResultFn(async function* (
   const defaults = createDefaultCursors(nowSec)
   const normalized = Object.fromEntries(
     TRACKS.map((track) => {
-      const legacy = LEGACY_TRACKS.has(track.id) ? parsed : undefined
+      const legacy = track.id === 'ens_v2' ? parsed : undefined
       return [
         track.id,
         fillStageCursors(track, parsed[track.id] ?? legacy, defaults[track.id]),

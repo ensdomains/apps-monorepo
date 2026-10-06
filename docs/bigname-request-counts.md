@@ -36,7 +36,7 @@ RPC actions are listed separately because providers may batch or split them.
 | Manager dashboard plus migration | One address: **3 → 3**; two addresses: typically **4 → 5** | For `A` addresses, branch list is `2A` walks (authority + grace), plus detail batches for migration. Migration shares its address's authority query and is independent of other accounts/grace failures. |
 | Manager address profile | **3 → 1** for a small owned-only profile | One authority walk with role summaries replaces V1/V2/role reads. No grace walk on this profile. |
 | Portal subname migration status | **1 → 1** | Batches name and possible parent. Only a required parent failure affects classification. |
-| Full small expiry sweep | **7 → 5** | One publication-time probe plus four multi-window tracks, when each track fits one page. Closed windows issue no read; dense windows add pages. |
+| Full small expiry sweep | **7 → 4** | One publication-time probe plus three post-cutover multi-window tracks, when each track fits one page. Closed windows issue no read; dense windows add pages. |
 | Exact-second expiry recovery | Up to **1 → 25** | Conditional reread when a page splits one expiry second. Branch covers up to 5,000 rows versus main's 1,000; overflow is reported. |
 | Migration profile-key inventory | One request / **500 → 1,000** targets | Usually unchanged or fewer requests. Missing ABI inventory adds up to four on-chain ABI probes per name, not necessarily four HTTP calls. |
 | Name-role holders/history | RPC log/timestamp reads → **1 detail + P(permission events)** | Up to 10 event pages; incomplete walks error. Provider-dependent RPC work has no fixed HTTP baseline. |

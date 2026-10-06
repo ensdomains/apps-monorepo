@@ -76,24 +76,22 @@ The faucet scans ENSv1/v0 names until an eligible name or the final page, with n
 app page cap. It excludes reverse, released and unregistered rows and expired
 leases. Read failures remain errors rather than negative eligibility.
 
-Expiry reminders use four tracks:
+The worker runs only after the ENSv2 cutover. Expiry reminders use three tracks:
 
 | Track | Date used for notices | Query offset / grace |
 | --- | --- | --- |
 | ENSv2 `.eth` | Registration expiry | No offset; 28-day grace |
-| ENSv1 `.eth`, lease served | ENSv1 lease expiry | No offset; 90-day grace |
-| ENSv1 `.eth`, reservation served | ENSv1 lease expiry | Reservation is lease +62 days; 90-day lease grace |
+| ENSv1 `.eth`, reservation served | ENSv1 lease expiry | Reservation is lease +62 days +1 second; 90-day lease grace |
 | Subnames | Served entry expiry, including wrapped subnames | No registrar grace |
 
 The seven `.eth` stages are 30/7/1 days before expiry, grace start, 7/1 days
 before grace ends, and premium start. Subnames receive 30/7/1-day and expired
 notices, without Renew/Register actions.
 
-Under the intended migration rollout, ENSv1 lease +90 days and ENSv2
-reservation +28 days reach the same release deadline. The BatchRegistrar is
-disabled before cutover and renewals extend both dates equally
-(contracts-v2 `07e55a05`). **A separate lease-expiry query is not a required
-backend fix for this rollout**; the earlier proposal was withdrawn.
+Premigration finishes before cutover, and renewals extend the lease and
+reservation equally. The reservation's exclusive release deadline is one second
+after the lease's inclusive 90-day grace deadline. Pre-cutover lease sweeps are
+not supported.
 
 Windows use the earlier of wall time and publication time. Reads batch open
 windows per track, with independent stage checkpoints. Failed track reads hold

@@ -81,11 +81,6 @@ describe('notification cursors', () => {
     const defaults = defaultsAt(100)
     expect(result._unsafeUnwrap()).toEqual({
       ens_v2: { ...defaults.ens_v2, 'expiry-30d': { expiry_timestamp: 10 } },
-      ens_v1_lease: {
-        ...defaults.ens_v1_lease,
-        'expiry-30d': { expiry_timestamp: 10 },
-      },
-      // A reserved lease's window sits 62 days before the served expiry.
       ens_v1_reserved: defaults.ens_v1_reserved,
       subname: defaults.subname,
     })

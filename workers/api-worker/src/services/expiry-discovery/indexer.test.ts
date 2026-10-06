@@ -18,7 +18,7 @@ vi.mock('#core/bigname/index.js', async (importOriginal) => {
 })
 
 const DAY = 86_400
-const RESERVATION_GAP = 62 * DAY
+const RESERVATION_GAP = 62 * DAY + 1
 const ts = (seconds: number) => String(seconds)
 
 const track = (id: ExpiryTrackId) => {
@@ -214,7 +214,7 @@ describe('fetchExpiringNamesPage', () => {
           owner: '0xabc',
           registration_status: 'wrapped',
         }),
-        // An unreserved lease served at the same instant is 62 days later.
+        // An unreserved row is outside the post-cutover reservation track.
         v1Row('unreserved.eth', lease + RESERVATION_GAP, null),
         // A reservation extended past the lease fits no track.
         v1Row('extended.eth', lease - DAY, RESERVATION_GAP + DAY),
@@ -246,7 +246,7 @@ describe('fetchExpiringNamesPage', () => {
         name: 'reserved.eth',
         expiryDate: lease,
         inTrack: true,
-        graceEndDate: lease + 90 * DAY,
+        graceEndDate: lease + 90 * DAY + 1,
       },
       {
         name: 'unreserved.eth',
@@ -258,31 +258,26 @@ describe('fetchExpiringNamesPage', () => {
         name: 'extended.eth',
         expiryDate: lease,
         inTrack: false,
-        graceEndDate: lease + 62 * DAY + 28 * DAY,
+        graceEndDate: lease + RESERVATION_GAP + 28 * DAY,
       },
     ])
   })
 
-  it('keeps only unreserved leases on the ENSv1 lease track', async () => {
+  it('rejects the old 62-day offset and missing lease data after cutover', async () => {
     const lease = 1_700_000_000
-    const { url } = mockFetch(
+    mockFetch(
       page([
-        v1Row('unreserved.eth', lease, null),
-        v1Row('reserved.eth', lease - RESERVATION_GAP, RESERVATION_GAP),
-        { name: 'no-lease.eth', expires_at: ts(lease), ens_v1: {} },
+        v1Row('old-offset.eth', lease + 1, 62 * DAY),
+        v1Row('no-lease.eth', lease, RESERVATION_GAP, { ens_v1: {} }),
       ]),
     )
-
     const result = (
-      await fetchWindow(lease - 1, lease + 100, 'ens_v1_lease')
+      await fetchWindow(lease - 1, lease + 100, 'ens_v1_reserved')
     )._unsafeUnwrap()
-
-    expect(url(0).searchParams.get('expires_after')).toBe(ts(lease))
     expect(
       result.domains.map(({ name, inTrack }) => ({ name, inTrack })),
     ).toEqual([
-      { name: 'unreserved.eth', inTrack: true },
-      { name: 'reserved.eth', inTrack: false },
+      { name: 'old-offset.eth', inTrack: false },
       { name: 'no-lease.eth', inTrack: false },
     ])
   })
@@ -706,7 +701,7 @@ describe('batched expiry windows', () => {
     expect(result._unsafeUnwrapErr().message).toContain('expires_window_index')
   })
 
-  it('runs all 25 open stages in five HTTP requests including the publication probe', async () => {
+  it('runs all 18 open stages in four HTTP requests including the publication probe', async () => {
     const now = 1_700_000_000
     vi.setSystemTime(now * 1000)
     const { fetchMock, url } = mockFetch(
@@ -715,7 +710,6 @@ describe('batched expiry windows', () => {
           '1': { block_number: 1, block_hash: '0x1', timestamp: String(now) },
         },
       }),
-      page([]),
       page([]),
       page([]),
       page([]),
@@ -737,12 +731,12 @@ describe('batched expiry windows', () => {
     Object.assign(env.KV, { get: vi.fn(async () => storedCursors) })
     const result = await runExpiryDiscoveryCron(env)
     expect(result._unsafeUnwrap().failedStages).toBe(0)
-    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(
-      [1, 2, 3, 4].map(
+      [1, 2, 3].map(
         (index) => url(index).searchParams.getAll('expires_window').length,
       ),
-    ).toEqual([7, 7, 7, 4])
+    ).toEqual([7, 7, 4])
   })
 
   it('does not issue a request when every stage is caught up', async () => {

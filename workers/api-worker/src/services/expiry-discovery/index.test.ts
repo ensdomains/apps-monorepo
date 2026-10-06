@@ -189,7 +189,7 @@ describe('runExpiryDiscoveryCron', () => {
         ),
       ),
     )
-    expect(fetchExpiringNamesPages).toHaveBeenCalledTimes(4)
+    expect(fetchExpiringNamesPages).toHaveBeenCalledTimes(3)
     expect(runs.filter((run) => run.startsWith('subname/')).sort()).toEqual([
       'subname/expired',
       'subname/expiry-1d',
@@ -468,7 +468,7 @@ describe('runExpiryDiscoveryCron', () => {
                   domain('lease.eth', lease, {
                     owner: '0xabc',
                     registrationStatus: 'wrapped',
-                    graceEndDate: lease + 90 * DAY,
+                    graceEndDate: lease + 90 * DAY + 1,
                   }),
                 ]
               : [],
@@ -486,7 +486,7 @@ describe('runExpiryDiscoveryCron', () => {
         type: 'name_expiring',
         name: 'lease.eth',
         expiryDate: lease,
-        graceEndDate: lease + 90 * DAY,
+        graceEndDate: lease + 90 * DAY + 1,
         stage: 'grace-7d',
         owner: '0xabc',
         includeFavorites: true,

@@ -95,42 +95,17 @@ export const SUBNAME_STAGES: readonly ExpiryStageConfig[] = [
   },
 ]
 
-export type ExpiryTrackId =
-  | 'ens_v2'
-  | 'ens_v1_lease'
-  | 'ens_v1_reserved'
-  | 'subname'
+export type ExpiryTrackId = 'ens_v2' | 'ens_v1_reserved' | 'subname'
 
 /**
- * One `GET /v1/names` sweep of names that share an expiry rule: `.eth`
- * second-level names by registry generation, or every other name with an
- * expiry (subnames). Each track keeps its own stage cursors, in the track's
- * own expiry time (the lease date for ENSv1).
+ * Post-cutover expiry sweeps: ENSv2 .eth, premigrated ENSv1 .eth, and subnames.
+ * ENSv1 reminders follow the original lease and its inclusive 90-day grace.
+ * BigName windows on the reservation expiry: lease +62 days +1 second.
+ * The extra second aligns v1's inclusive grace with v2's exclusive deadline.
+ * Premigration completes before cutover; renewals extend both dates equally.
  *
- * bigname windows `/v1/names` on the served `expires_at`, which is not always
- * the date a reminder follows (bigname expiry-sweep guide, "Expiry, grace and
- * release"):
- *
- * - An ENSv2 registration serves its own expiry, with a 28-day grace.
- * - An ENSv1 lease follows its BaseRegistrar lease (`ens_v1.expires_at`) and
- *   the registrar's 90-day grace. Before the Universal Resolver cutover, and
- *   for a lease with no live ENSv2 reservation, the served expiry is the lease
- *   itself. From the cutover a reserved lease serves its ENSv2 reservation
- *   instead, which is created 62 days after the lease so that the
- *   reservation's 28-day grace ends with the lease's 90-day one. Both kinds
- *   coexist on one network, so each gets its own track, shifted by that gap.
- *
- * These two ENSv1 tracks cover an unreserved lease and the usual 62-day
- * reservation gap. The API also permits a reservation to be extended without
- * its lease, so a different gap need not be inconsistent data. Such a row
- * cannot be discovered reliably through these fixed served-expiry windows;
- * complete lease reminders need a backend window/sort on ens_v1.expires_at.
- * Rows outside the supported gaps are skipped and logged rather than given
- * a reminder for the wrong lease date.
- *
- * bigname can exclude subnames (`parent=eth`) but not select them, so the
- * subname track reads every name in its window, whatever its authority, and
- * drops the `.eth` second-level rows itself.
+ * Each track stores stage cursors in its own expiry time. The API cannot
+ * select only subnames, so that sweep discards .eth second-level rows.
  */
 export type ExpiryTrack = {
   id: ExpiryTrackId
@@ -145,7 +120,7 @@ export type ExpiryTrack = {
   expirySource: 'served' | 'ens_v1'
   /** Seconds the served `expires_at` sits after the row's own expiry. */
   servedShiftSeconds: number
-  /** Renewal grace after the row's own expiry, as `grace_ends_at` serves it. */
+  /** Renewal grace after the row's own expiry; v1 includes its last second. */
   graceSeconds: number
   /**
    * Whether the last second of grace still renews. An ENSv1 lease is released
@@ -173,21 +148,11 @@ export const TRACKS: readonly ExpiryTrack[] = [
     stages: REGISTRATION_STAGES,
   },
   {
-    id: 'ens_v1_lease',
-    names: 'eth_second_level',
-    authority: V1_AUTHORITIES,
-    expirySource: 'ens_v1',
-    servedShiftSeconds: 0,
-    graceSeconds: V1_GRACE_SECONDS,
-    graceEndInclusive: true,
-    stages: REGISTRATION_STAGES,
-  },
-  {
     id: 'ens_v1_reserved',
     names: 'eth_second_level',
     authority: V1_AUTHORITIES,
     expirySource: 'ens_v1',
-    servedShiftSeconds: V1_GRACE_SECONDS - V2_GRACE_SECONDS,
+    servedShiftSeconds: V1_GRACE_SECONDS - V2_GRACE_SECONDS + 1,
     graceSeconds: V1_GRACE_SECONDS,
     graceEndInclusive: true,
     stages: REGISTRATION_STAGES,

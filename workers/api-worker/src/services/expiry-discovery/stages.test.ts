@@ -34,7 +34,6 @@ const getTrack = (id: ExpiryTrackId): ExpiryTrack => {
   return track
 }
 const V2 = getTrack('ens_v2')
-const V1_LEASE = getTrack('ens_v1_lease')
 const V1_RESERVED = getTrack('ens_v1_reserved')
 const SUBNAME = getTrack('subname')
 
@@ -65,10 +64,8 @@ describe('expiry stages', () => {
     ])
   })
 
-  it.each([
-    V1_LEASE,
-    V1_RESERVED,
-  ])('places $id stages on the lease and its 90-day grace', (track) => {
+  it('places reserved ENSv1 stages on the lease and its 90-day grace', () => {
+    const track = V1_RESERVED
     expect(STAGES.map((stage) => getStageOffsetSeconds(stage, track))).toEqual([
       30 * DAY,
       7 * DAY,
@@ -91,7 +88,6 @@ describe('expiry stages', () => {
       ),
     ).toEqual({
       ens_v2: STAGES.map((stage) => stage.id),
-      ens_v1_lease: STAGES.map((stage) => stage.id),
       ens_v1_reserved: STAGES.map((stage) => stage.id),
       subname: ['expiry-30d', 'expiry-7d', 'expiry-1d', 'expired'],
     })
@@ -111,12 +107,10 @@ describe('expiry stages', () => {
     expect(getStage('expired').includeFavorites).toBe(true)
   })
 
-  it('sweeps ENSv1 by authority, shifting reserved leases by 62 days', () => {
+  it('sweeps ENSv1 by authority, shifting reserved leases by 62 days plus one second', () => {
     expect(V2.authority).toEqual(['ens_v2'])
-    expect(V1_LEASE.authority).toEqual(['ens_v1', 'ens_v0'])
     expect(V1_RESERVED.authority).toEqual(['ens_v1', 'ens_v0'])
-    expect(V1_LEASE.servedShiftSeconds).toBe(0)
-    expect(V1_RESERVED.servedShiftSeconds).toBe(62 * DAY)
+    expect(V1_RESERVED.servedShiftSeconds).toBe(62 * DAY + 1)
   })
 
   it('keeps the lifecycle order on every track', () => {
@@ -144,9 +138,9 @@ describe('expiry stages', () => {
         MAX_STAGE_CATCH_UP_SECONDS,
     )
 
-    expect(lower('expiry-1d', V1_LEASE)).toBe(now)
-    expect(lower('grace-start', V1_LEASE)).toBe(now - 83 * DAY)
-    expect(lower('grace-1d', V1_LEASE)).toBe(now - 90 * DAY - 1)
+    expect(lower('expiry-1d', V1_RESERVED)).toBe(now)
+    expect(lower('grace-start', V1_RESERVED)).toBe(now - 83 * DAY)
+    expect(lower('grace-1d', V1_RESERVED)).toBe(now - 90 * DAY - 1)
 
     // The subname track's windows close at its own expiry stage, not at grace.
     expect(lower('expiry-1d', SUBNAME)).toBe(now)
