@@ -1,51 +1,29 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import {
   getDaysSinceExpiry,
   getDisplayExpiryDate,
   getGraceEndDate,
   isInGracePeriod,
 } from '@/features/grace/utils/gracePeriod'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
-import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
+import type { DashboardName } from './dashboardNames'
 import {
   formatDashboardDate,
   getDaysUntil,
   isExpiringSoon,
   NON_EXPIRING_DATE_LABEL,
-  resolveDomainLabel,
   toDateFromSeconds,
 } from './utils'
 
-export type MergedItem =
-  | {
-      readonly kind: 'v2'
-      readonly key: string
-      readonly sortName: string
-      readonly sortExpiry: number | null
-      readonly sortCreated: number | null
-      readonly domain: DashboardV2Name
-    }
-  | {
-      readonly kind: 'v1'
-      readonly key: string
-      readonly sortName: string
-      readonly sortExpiry: number | null
-      readonly sortCreated: number | null
-      readonly classified: DashboardV1Name
-    }
+export type { DashboardName, DashboardNameRole } from './dashboardNames'
 
-export type DashboardV1Name = {
-  readonly domain: V1Domain
-  readonly label: string
-  readonly isMigrationEligible?: boolean
-  readonly nameRoles?: readonly DashboardNameRole[]
-}
-
-export type DashboardNameRole = 'owner' | 'manager'
-
-export type DashboardV2Name = DomainFragment & {
-  readonly nameRoles?: readonly DashboardNameRole[]
+export type MergedItem = {
+  readonly kind: RenewalProtocol
+  readonly key: string
+  readonly sortName: string
+  readonly sortExpiry: number | null
+  readonly sortCreated: number | null
+  readonly name: DashboardName
+  readonly isMigrationEligible: boolean
 }
 
 export type SortField = 'name' | 'created' | 'expiry'
@@ -54,11 +32,6 @@ export type SortDir = 'asc' | 'desc'
 export type ExpiryCta = 'renew' | 'remindMe'
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
-
-const getIsMigrationEligible = (item: MergedItem): boolean =>
-  item.kind === 'v1' && item.classified.isMigrationEligible === true
-
-const protocolFor = (isV1: boolean): RenewalProtocol => (isV1 ? 'v1' : 'v2')
 
 const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
   expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
@@ -73,36 +46,6 @@ const formatMergedExpiryDate = (
   expirySeconds === 0
     ? NON_EXPIRING_DATE_LABEL
     : formatDashboardDate(displayExpiryDate)
-
-const normalizeMergedName = (name: string | null | undefined): string | null =>
-  name ? name.toLowerCase() : null
-
-// Un-normalised names render as the canonical name they resemble (WEB-1730)
-const isDisplayableV2 = (domain: DashboardV2Name): boolean =>
-  !domain.name || isNormalizedName(domain.name)
-
-const isDisplayableV1 = (classified: DashboardV1Name): boolean =>
-  isNormalizedName(classified.domain.name)
-
-const getV2NameSet = (
-  v2Names: readonly DashboardV2Name[],
-): ReadonlySet<string> =>
-  new Set(
-    v2Names
-      .filter(isDisplayableV2)
-      .map((domain) => normalizeMergedName(resolveDomainLabel(domain)))
-      .filter((name): name is string => !!name),
-  )
-
-export const v1ExpirySeconds = (classified: DashboardV1Name): number | null => {
-  const raw =
-    classified.domain.registration?.expiryDate ??
-    classified.domain.wrappedDomain?.expiryDate ??
-    null
-  if (raw === null) return null
-  const n = Number(raw)
-  return Number.isFinite(n) ? n : null
-}
 
 export const compareMerged = (
   a: MergedItem,
@@ -124,76 +67,35 @@ export const compareMerged = (
   return (ax - bx) * mul
 }
 
+const toMergedItem = (
+  name: DashboardName,
+  eligibleKeys: ReadonlySet<string>,
+): MergedItem => ({
+  kind: name.protocol,
+  key: name.key,
+  sortName: name.name,
+  sortExpiry: name.expiryDate,
+  sortCreated: name.createdAt,
+  name,
+  isMigrationEligible:
+    name.protocol === 'v1' && eligibleKeys.has(name.key.toLowerCase()),
+})
+
+/** Substring search stays client-side: bigname's `q` is prefix-only. */
 export const buildMergedNamesList = (params: {
-  v2Names: readonly DashboardV2Name[]
-  v1Classified: readonly DashboardV1Name[]
-  searchQuery: string
-  sortField: SortField
-  sortDir: SortDir
-  version?: NameVersion | null
+  readonly names: readonly DashboardName[]
+  readonly eligibleKeys?: ReadonlySet<string>
+  readonly searchQuery: string
+  readonly sortField: SortField
+  readonly sortDir: SortDir
 }): MergedItem[] => {
-  const { v2Names, v1Classified, searchQuery, sortField, sortDir, version } =
-    params
+  const { names, searchQuery, sortField, sortDir } = params
+  const eligibleKeys = params.eligibleKeys ?? new Set<string>()
   const q = searchQuery.trim().toLowerCase()
-  const items: MergedItem[] = []
-  const v2NameSet = getV2NameSet(v2Names)
-
-  for (const domain of version === 'v1' ? [] : v2Names) {
-    if (!isDisplayableV2(domain)) continue
-    const label = resolveDomainLabel(domain)
-    if (q && !label.toLowerCase().includes(q)) continue
-    items.push({
-      kind: 'v2',
-      key: `v2-${domain.id}`,
-      sortName: label,
-      sortExpiry: domain.expiryDate ?? null,
-      sortCreated: domain.createdAt,
-      domain,
-    })
-  }
-
-  for (const classified of version === 'v2' ? [] : v1Classified) {
-    if (!isDisplayableV1(classified)) continue
-    const label = classified.domain.name
-    if (v2NameSet.has(label.toLowerCase())) continue
-    if (
-      q &&
-      !label.toLowerCase().includes(q) &&
-      !classified.label.toLowerCase().includes(q)
-    ) {
-      continue
-    }
-    items.push({
-      kind: 'v1',
-      key: `v1-${classified.domain.id}`,
-      sortName: label,
-      sortExpiry: v1ExpirySeconds(classified),
-      sortCreated: null,
-      classified,
-    })
-  }
-
-  items.sort((a, b) => compareMerged(a, b, sortField, sortDir))
-  return items
-}
-
-export const getMergedNamesCount = (params: {
-  v2Names: readonly DashboardV2Name[]
-  v1Classified: readonly DashboardV1Name[]
-  version?: NameVersion | null
-}): number => {
-  const v2NameSet = getV2NameSet(params.v2Names)
-  const v1OnlyCount = params.v1Classified.filter(
-    (classified) =>
-      isDisplayableV1(classified) &&
-      !v2NameSet.has(classified.domain.name.toLowerCase()),
-  ).length
-
-  const v2Count = params.v2Names.filter(isDisplayableV2).length
-
-  if (params.version === 'v1') return v1OnlyCount
-  if (params.version === 'v2') return v2Count
-  return v2Count + v1OnlyCount
+  return names
+    .filter((name) => !q || name.name.toLowerCase().includes(q))
+    .map((name) => toMergedItem(name, eligibleKeys))
+    .sort((a, b) => compareMerged(a, b, sortField, sortDir))
 }
 
 export type MergedRowMetadata = {
@@ -224,12 +126,12 @@ export const mergedRowMetadata = (
   const label = item.sortName
   const expiryDate = getMergedExpiryDate(item.sortExpiry)
   const isV1 = item.kind === 'v1'
-  const protocol = protocolFor(isV1)
+  const protocol = item.kind
   const isInGrace = isInGracePeriod(expiryDate, protocol, now)
   const graceEndDate =
     expiryDate && isInGrace ? getGraceEndDate(expiryDate, protocol) : null
   const displayExpiryDate = getDisplayExpiryDate(expiryDate, protocol, now)
-  const isMigrationEligible = getIsMigrationEligible(item)
+  const { isMigrationEligible } = item
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry =
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null

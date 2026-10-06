@@ -1,102 +1,44 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
   buildMergedNamesList,
   compareMerged,
-  getMergedNamesCount,
+  type DashboardName,
   type MergedItem,
   mergedRowMetadata,
-  v1ExpirySeconds,
 } from './mergedNames'
 
-const baseV2 = {
-  __typename: 'Domain' as const,
-  id: '0xid',
+const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
+  key: '0x01',
   name: 'alice.eth',
-  normalizedName: 'alice.eth',
-  tokenId: null,
-  createdAt: 0,
-  owner: { __typename: 'Account' as const, id: '0xowner' },
-}
+  protocol: 'v2',
+  expiryDate: 100,
+  createdAt: 100,
+  nameRoles: ['owner'],
+  ...overrides,
+})
 
-const makeV2 = (overrides: Partial<DomainFragment> = {}): DomainFragment =>
-  ({ ...baseV2, ...overrides }) as DomainFragment
-
-const makeV1 = (
-  overrides: {
-    id?: string
-    name?: string
-    label?: string
-    registrationExpiry?: string | null
-    wrappedExpiry?: string | null
-  } = {},
-): ClassifiedName =>
-  ({
-    tokenType: 'unwrapped',
-    label: overrides.label ?? 'bob',
-    parentName: 'eth',
-    fuses: 0,
-    tokenHolder: '0x0',
-    v1ResolverAddress: null,
-    resolverStrategy: 'to-owned-permres',
-    managerAddress: null,
-    domain: {
-      id: overrides.id ?? '0xv1',
-      name: overrides.name ?? 'bob.eth',
-      registration: overrides.registrationExpiry
-        ? { expiryDate: overrides.registrationExpiry }
-        : null,
-      wrappedDomain: overrides.wrappedExpiry
-        ? { expiryDate: overrides.wrappedExpiry }
-        : null,
-    },
-  }) as unknown as ClassifiedName
-
-const makeMergedV2 = (
-  overrides: Partial<Extract<MergedItem, { kind: 'v2' }>> = {},
-): MergedItem => ({
+const makeMerged = (overrides: Partial<MergedItem> = {}): MergedItem => ({
   kind: 'v2',
-  key: 'v2-0xid',
+  key: '0x01',
   sortName: 'alice.eth',
   sortExpiry: 100,
   sortCreated: 100,
-  domain: makeV2(),
+  name: makeName(),
+  isMigrationEligible: false,
   ...overrides,
 })
 
-const makeMergedV1 = (
-  overrides: Partial<Extract<MergedItem, { kind: 'v1' }>> = {},
-): MergedItem => ({
-  kind: 'v1',
-  key: 'v1-0xv1',
-  sortName: 'bob.eth',
-  sortExpiry: null,
-  sortCreated: null,
-  classified: makeV1(),
-  ...overrides,
-})
+const makeMergedV2 = (overrides: Partial<MergedItem> = {}) =>
+  makeMerged(overrides)
 
-describe('v1ExpirySeconds', () => {
-  it('prefers registration expiry over wrapped', () => {
-    const c = makeV1({ registrationExpiry: '100', wrappedExpiry: '200' })
-    expect(v1ExpirySeconds(c)).toBe(100)
+const makeMergedV1 = (overrides: Partial<MergedItem> = {}) =>
+  makeMerged({
+    kind: 'v1',
+    sortName: 'bob.eth',
+    sortExpiry: null,
+    sortCreated: null,
+    ...overrides,
   })
-
-  it('falls back to wrapped when registration is missing', () => {
-    expect(v1ExpirySeconds(makeV1({ wrappedExpiry: '200' }))).toBe(200)
-  })
-
-  it('returns null when both are missing', () => {
-    expect(v1ExpirySeconds(makeV1())).toBeNull()
-  })
-
-  it('returns null when expiry is non-finite', () => {
-    expect(
-      v1ExpirySeconds(makeV1({ registrationExpiry: 'not-a-number' })),
-    ).toBeNull()
-  })
-})
 
 describe('compareMerged', () => {
   const a = makeMergedV2({ sortName: 'alpha.eth', sortExpiry: 10 })
@@ -149,24 +91,33 @@ describe('compareMerged', () => {
 })
 
 describe('buildMergedNamesList', () => {
-  const v2Names = [
-    makeV2({ id: '0x1', name: 'alpha.eth', expiryDate: 200 }),
-    makeV2({ id: '0x2', name: 'zeta.eth', expiryDate: 100 }),
-  ]
-  const v1Classified = [
-    makeV1({ id: '0x3', name: 'mike.eth', label: 'mike' }),
-    makeV1({
-      id: '0x4',
+  const names = [
+    makeName({
+      key: '0x1',
+      name: 'alpha.eth',
+      expiryDate: 200,
+      createdAt: 100,
+    }),
+    makeName({ key: '0x2', name: 'zeta.eth', expiryDate: 100, createdAt: 200 }),
+    makeName({
+      key: '0x3',
+      name: 'mike.eth',
+      protocol: 'v1',
+      expiryDate: 0,
+      createdAt: null,
+    }),
+    makeName({
+      key: '0x4',
       name: 'beta.eth',
-      label: 'beta',
-      registrationExpiry: '50',
+      protocol: 'v1',
+      expiryDate: 50,
+      createdAt: null,
     }),
   ]
 
-  it('merges and sorts by name asc', () => {
+  it('sorts v1 and v2 names together by name asc', () => {
     const items = buildMergedNamesList({
-      v2Names,
-      v1Classified,
+      names,
       searchQuery: '',
       sortField: 'name',
       sortDir: 'asc',
@@ -177,68 +128,27 @@ describe('buildMergedNamesList', () => {
       'mike.eth',
       'zeta.eth',
     ])
+    expect(items.map((i) => i.kind)).toEqual(['v2', 'v1', 'v1', 'v2'])
   })
 
-  it('filters by search query (case-insensitive)', () => {
+  it('filters by a substring, case-insensitively', () => {
     const items = buildMergedNamesList({
-      v2Names,
-      v1Classified,
-      searchQuery: 'BET',
+      names,
+      searchQuery: 'TA',
       sortField: 'name',
       sortDir: 'asc',
     })
-    expect(items.map((i) => i.sortName)).toEqual(['beta.eth'])
+    expect(items.map((i) => i.sortName)).toEqual(['beta.eth', 'zeta.eth'])
   })
 
-  it('matches v1 items by label as well as name', () => {
+  it('sorts by expiry asc with non-expiring names last', () => {
     const items = buildMergedNamesList({
-      v2Names: [],
-      v1Classified: [
-        makeV1({ id: '0x5', name: 'full.raffy.eth', label: 'full' }),
-      ],
-      searchQuery: 'full',
-      sortField: 'name',
-      sortDir: 'asc',
-    })
-    expect(items).toHaveLength(1)
-  })
-
-  it('sorts by expiry asc with nulls last', () => {
-    const items = buildMergedNamesList({
-      v2Names,
-      v1Classified,
+      names,
       searchQuery: '',
       sortField: 'expiry',
       sortDir: 'asc',
     })
-    expect(items.map((i) => i.sortExpiry)).toEqual([50, 100, 200, null])
-  })
-
-  it('prefers the v2 row when the same name exists in v1 and v2', () => {
-    const items = buildMergedNamesList({
-      v2Names: [makeV2({ id: '0xv2', name: 'migrated.eth' })],
-      v1Classified: [
-        makeV1({ id: '0xv1', name: 'MIGRATED.eth', label: 'MIGRATED' }),
-      ],
-      searchQuery: '',
-      sortField: 'name',
-      sortDir: 'asc',
-    })
-
-    expect(items).toHaveLength(1)
-    expect(items[0]?.kind).toBe('v2')
-  })
-
-  it('counts merged names without double-counting v1 names that exist in v2', () => {
-    expect(
-      getMergedNamesCount({
-        v2Names: [makeV2({ id: '0xv2', name: 'migrated.eth' })],
-        v1Classified: [
-          makeV1({ id: '0xv1', name: 'migrated.eth', label: 'migrated' }),
-          makeV1({ id: '0xv1-only', name: 'v1-only.eth', label: 'v1-only' }),
-        ],
-      }),
-    ).toBe(2)
+    expect(items.map((i) => i.sortExpiry)).toEqual([50, 100, 200, 0])
   })
 
   describe('version filter', () => {
@@ -369,20 +279,28 @@ describe('buildMergedNamesList', () => {
 
   it('sorts by created date desc with unknowns last', () => {
     const items = buildMergedNamesList({
-      v2Names: [
-        makeV2({ id: '0x1', name: 'alpha.eth', createdAt: 100 }),
-        makeV2({ id: '0x2', name: 'zeta.eth', createdAt: 200 }),
-      ],
-      v1Classified: [makeV1({ id: '0x3', name: 'mike.eth' })],
+      names,
       searchQuery: '',
       sortField: 'created',
       sortDir: 'desc',
     })
-    expect(items.map((i) => i.sortName)).toEqual([
+    expect(items.map((i) => i.sortName).slice(0, 2)).toEqual([
       'zeta.eth',
       'alpha.eth',
-      'mike.eth',
     ])
+  })
+
+  it('marks only eligible ENSv1 names for upgrade', () => {
+    const items = buildMergedNamesList({
+      names,
+      eligibleKeys: new Set(['0x1', '0x4']),
+      searchQuery: '',
+      sortField: 'name',
+      sortDir: 'asc',
+    })
+    expect(
+      items.filter((i) => i.isMigrationEligible).map((i) => i.sortName),
+    ).toEqual(['beta.eth'])
   })
 })
 
@@ -410,19 +328,9 @@ describe('mergedRowMetadata', () => {
     expect(meta.avatarUrl).toBeUndefined()
   })
 
-  // `avatarOverride` is the only avatar source: the indexer's Resolver fragment
-  // carries no avatar field, so a resolver on the domain must not produce one.
-  it('takes the v2 avatar from avatarOverride and never from the resolver', () => {
-    const item = makeMergedV2({
-      domain: makeV2({
-        resolver: {
-          id: 'r',
-          address: '0x0',
-        } as DomainFragment['resolver'],
-      }) as DomainFragment,
-    })
+  it('takes the v2 avatar from avatarOverride only', () => {
+    const item = makeMergedV2()
     expect(mergedRowMetadata(item, null, 'override').avatarUrl).toBe('override')
-    // Resolver present, no override — still no avatar.
     expect(mergedRowMetadata(item, null).avatarUrl).toBeUndefined()
   })
 

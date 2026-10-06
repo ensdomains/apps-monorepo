@@ -20,7 +20,12 @@ import type {
 export type Power = string
 
 /** Address-name rows, reverse lookup rows: address-to-name relation values. */
-export type Relation = 'owner' | 'manager' | 'registrant' | 'resolves_to'
+export type Relation =
+  | 'owner'
+  | 'manager'
+  | 'registrant'
+  | 'resolves_to'
+  | 'former_owner'
 
 /** Authority relations that `any` expands to. */
 export type AuthorityRelation = 'owner' | 'manager' | 'registrant'

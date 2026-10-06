@@ -57,13 +57,15 @@ export const toProtocol = (
 export const toAddress = (value: string | undefined): Address | null =>
   value !== undefined && isAddress(value) ? value : null
 
-// `resolves_to` is a record relation, not a control relation.
+const NAME_RELATIONS: readonly Relation[] = ['owner', 'manager', 'registrant']
+
+const isNameRelation = (relation: Relation): relation is NameRelation =>
+  NAME_RELATIONS.includes(relation)
+
+// `resolves_to` is a record relation and `former_owner` a lapsed one, not control relations.
 export const toRelations = (
   relations: readonly Relation[],
-): readonly NameRelation[] =>
-  relations.filter(
-    (relation): relation is NameRelation => relation !== 'resolves_to',
-  )
+): readonly NameRelation[] => relations.filter(isNameRelation)
 
 export const toReadError = (error: BignameError): IndexerReadError => {
   const kind =

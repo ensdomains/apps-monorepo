@@ -4,6 +4,7 @@ import type {
   Cursor,
   Envelope,
   Hex,
+  LapsedRegistration,
   Namespace,
   RegistrationStatus,
   SortOrder,
@@ -19,13 +20,19 @@ import type {
 /** `GET /v1/addresses/{address}/names`: query. */
 export type AddressNamesQuery = Readonly<{
   namespace?: Namespace
-  /** Control relations as a set, `any` for all three, or `resolves_to` on its own. */
-  relation?: readonly AuthorityRelation[] | 'any' | 'resolves_to'
+  /** Control relations as a set, `any` for all three, or `resolves_to` or `former_owner` on its own. */
+  relation?:
+    | readonly AuthorityRelation[]
+    | 'any'
+    | 'resolves_to'
+    | 'former_owner'
   /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
   coin_type?: number | 'evm'
   authority?: Authority
   /** Direct children of this parent only, e.g. `eth` excludes subnames. */
   parent?: string
+  expires_after?: Timestamp
+  expires_before?: Timestamp
   /** Rejected with `relation=resolves_to`. */
   is_migrated?: 'true' | 'false'
   /** ENSIP-15 name prefix; one trailing dot marks a label boundary. */
@@ -60,8 +67,11 @@ export type AddressName = Readonly<{
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  grace_ends_at?: Timestamp
   authority?: Authority
   migrated_at?: Timestamp
+  /** Only on `released` rows. */
+  lapsed_registration?: LapsedRegistration
   /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
   relations: readonly Relation[]
   is_primary: boolean

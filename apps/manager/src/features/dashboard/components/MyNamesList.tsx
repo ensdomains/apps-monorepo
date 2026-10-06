@@ -16,16 +16,14 @@ import type { ProfileRecordsResult } from '@/features/profile/service/profileRec
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
-import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
+import { useDashboardNames } from '../useDashboardNames'
 import { DashboardPagination } from './DashboardPagination'
-import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 import { nameRowRecordsQuery } from './nameRowRecordsQuery'
 
 const PAGE_SIZE = 5
-const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
 
 export type Sort = `${SortField}-${SortDir}`
 
@@ -114,10 +112,7 @@ const AnimatedNameRow = ({
     records: profileRecords,
     isLoading: isProfileRecordsLoading,
   })
-  const nameRoles: readonly NameRole[] =
-    item.kind === 'v1'
-      ? (item.classified.nameRoles ?? OWNER_NAME_ROLES)
-      : (item.domain.nameRoles ?? OWNER_NAME_ROLES)
+  const { nameRoles } = item.name
   const { cta, status } = match({ isV1, isMigrationEligible })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
@@ -205,30 +200,28 @@ export const MyNamesList = ({
   }
 
   const {
-    v1Names,
-    isPending: isV1Pending,
-    isError: isV1Error,
-  } = useDashboardV1Names({
-    migrationEnabled,
-  })
+    eligibleKeys,
+    isPending: isEligibilityPending,
+    isError: isEligibilityError,
+  } = useDashboardMigrationEligibility(migrationEnabled)
 
   const {
-    v2Names,
-    isPending: isV2Pending,
-    isError: isV2Error,
-  } = useOwnedDomains()
+    names,
+    isPending: isNamesPending,
+    isError: isNamesError,
+  } = useDashboardNames()
 
   const mergedSortedFiltered = useMemo(
     () =>
       buildMergedNamesList({
-        v2Names,
-        v1Classified: v1Names,
+        names,
+        eligibleKeys,
         searchQuery,
         sortField,
         sortDir,
         version,
       }),
-    [v2Names, v1Names, searchQuery, sortField, sortDir, version],
+    [names, eligibleKeys, searchQuery, sortField, sortDir],
   )
 
   const total = mergedSortedFiltered.length
@@ -241,17 +234,14 @@ export const MyNamesList = ({
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
-  const isPending = isV2Pending || isV1Pending
-  const hasNames = v2Names.length > 0 || v1Names.length > 0
-  const hasError = isV2Error || isV1Error
+  const isPending = isNamesPending || isEligibilityPending
+  const hasNames = names.length > 0
+  const hasError = isNamesError || isEligibilityError
   const hasPartialError = hasError && hasNames
   const pageRows = pageItems.map((item) => ({
     item,
     metadata: mergedRowMetadata(item, primaryLabel),
-    name:
-      item.kind === 'v2'
-        ? (item.domain.normalizedName ?? item.sortName)
-        : item.sortName,
+    name: item.sortName,
   }))
   const pageProfileRecords = useQueries({
     queries: pageRows.map(({ item, metadata, name }) => ({

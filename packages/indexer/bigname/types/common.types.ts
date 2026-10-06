@@ -162,7 +162,10 @@ export type RegistryRef = Readonly<{
 
 /** `GET /v1/names/{name}`, detail lookup: the holder a released ENSv1 lease had when it lapsed. */
 export type LapsedRegistration = Readonly<{
+  owner?: Address
   registrant?: Address
   held_through?: 'registrar' | 'wrapper'
   released_at?: Timestamp
+  /** `expired` when the registration lapsed rather than being burned or replaced. */
+  release_kind?: string
 }>
