@@ -146,16 +146,29 @@ const EOA_COMMITMENT = {
 } as const
 
 /**
- * Pure-EOA leg: resolver deployment → commitment generation → commit. Only the
- * actors up to the commit are stubbed; the assertions stop there.
+ * Pure-EOA leg: resolver check (→ deployment) → commitment generation →
+ * commit. Only the actors up to the commit are stubbed; the assertions stop
+ * there.
  */
 const startEoaRegistration = (overrides: {
+  checkResolverDeployment?: ReturnType<typeof vi.fn>
+  deployResolver?: ReturnType<typeof vi.fn>
+  resolveResolverDeployment?: ReturnType<typeof vi.fn>
   generateCommitment?: ReturnType<typeof vi.fn>
   submitCommitment?: ReturnType<typeof vi.fn>
   /** Stubbed only by the tests that walk past the commit. */
   submitRegistration?: ReturnType<typeof vi.fn>
   verifyRegistration?: ReturnType<typeof vi.fn>
 }) => {
+  const checkResolverDeployment =
+    overrides.checkResolverDeployment ??
+    vi.fn(async () => ({ resolverAddress: EOA_RESOLVER, deployed: false }))
+  const deployResolver =
+    overrides.deployResolver ??
+    vi.fn(async () => ({ txId: 'resolver-tx', salt: 1n }))
+  const resolveResolverDeployment =
+    overrides.resolveResolverDeployment ??
+    vi.fn(async () => ({ resolverAddress: EOA_RESOLVER }))
   const generateCommitment =
     overrides.generateCommitment ?? vi.fn(async () => EOA_COMMITMENT)
   const submitCommitment =
@@ -170,13 +183,11 @@ const startEoaRegistration = (overrides: {
   const actor = createActor(
     registrationMachine.provide({
       actors: {
-        deployResolver: fromPromise(async () => ({
-          txId: 'resolver-tx',
-          salt: 1n,
-        })) as never,
-        resolveResolverDeployment: fromPromise(async () => ({
-          resolverAddress: EOA_RESOLVER,
-        })) as never,
+        checkResolverDeployment: fromPromise(checkResolverDeployment) as never,
+        deployResolver: fromPromise(deployResolver) as never,
+        resolveResolverDeployment: fromPromise(
+          resolveResolverDeployment,
+        ) as never,
         generateCommitment: fromPromise(generateCommitment) as never,
         submitCommitment: fromPromise(submitCommitment) as never,
         // The cooldown spine: nothing to assert on, so each step resolves
@@ -210,6 +221,8 @@ const startEoaRegistration = (overrides: {
 
   return {
     actor,
+    checkResolverDeployment,
+    deployResolver,
     generateCommitment,
     submitCommitment,
     submitRegistration,
@@ -400,6 +413,63 @@ describe('registrationMachine — pure-EOA commitment retry', () => {
   })
 })
 
+describe('registrationMachine — pure-EOA resolver reuse', () => {
+  it("deploys the wallet's resolver on its first registration", async () => {
+    const { actor, deployResolver, generateCommitment } = startEoaRegistration(
+      {},
+    )
+
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(generateCommitment.mock.calls[0][0].input.resolverAddress).toBe(
+      EOA_RESOLVER,
+    )
+  })
+
+  it('reuses the resolver an earlier registration deployed', async () => {
+    const { actor, deployResolver, generateCommitment } = startEoaRegistration({
+      checkResolverDeployment: vi.fn(async () => ({
+        resolverAddress: EOA_RESOLVER,
+        deployed: true,
+      })),
+    })
+
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(deployResolver).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.resolverTxId).toBeUndefined()
+    expect(generateCommitment.mock.calls[0][0].input.resolverAddress).toBe(
+      EOA_RESOLVER,
+    )
+  })
+
+  it('checks again on retry instead of redeploying a resolver that landed', async () => {
+    // The receipt wait failed, but the deploy went through. Its address is
+    // fixed, so sending it again would revert.
+    const checkResolverDeployment = vi
+      .fn()
+      .mockResolvedValueOnce({ resolverAddress: EOA_RESOLVER, deployed: false })
+      .mockResolvedValue({ resolverAddress: EOA_RESOLVER, deployed: true })
+    const { actor, deployResolver } = startEoaRegistration({
+      checkResolverDeployment,
+      resolveResolverDeployment: vi
+        .fn()
+        .mockRejectedValue(new Error('receipt timeout')),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('checkingResolver')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(actor.getSnapshot().context.resolverAddress).toBe(EOA_RESOLVER)
+  })
+})
+
 describe('registrationMachine — losing a same-name race', () => {
   // Two people register the same name at once: both commits land, then the
   // loser's reveal reverts because the winner already owns the label. Retrying
@@ -442,7 +512,7 @@ describe('registrationMachine — losing a same-name race', () => {
     actor.send({ type: 'RETRY' })
 
     // Without the guard the catch-all RETRY branch restarts at
-    // `deployingResolver`, paying for a fresh commitment on every press.
+    // `checkingResolver`, paying for a fresh commitment on every press.
     expect(actor.getSnapshot().matches('error')).toBe(true)
     expect(submitCommitment.mock.calls.length).toBe(commitsBefore)
     expect(submitRegistration.mock.calls.length).toBe(registersBefore)
@@ -555,6 +625,10 @@ describe('registrationMachine — failed commit send', () => {
     const actor = createActor(
       registrationMachine.provide({
         actors: {
+          checkResolverDeployment: fromPromise(async () => ({
+            resolverAddress: HCA,
+            deployed: false,
+          })) as never,
           deployResolver: fromPromise(async () => ({
             txId: 'deploy',
             salt: 1n,
@@ -968,12 +1042,10 @@ describe('registrationMachine — commit receipt failure', () => {
     const actor = createActor(
       registrationMachine.provide({
         actors: {
-          deployResolver: fromPromise(async () => ({
-            txId: 'tx-reg-deploy-resolver',
-            salt: 1n,
-          })) as never,
-          resolveResolverDeployment: fromPromise(async () => ({
+          // The wallet registered before, so its resolver is already there.
+          checkResolverDeployment: fromPromise(async () => ({
             resolverAddress: RESOLVER,
+            deployed: true,
           })) as never,
           generateCommitment: fromPromise(async () => ({
             commitment: COMMITMENT,

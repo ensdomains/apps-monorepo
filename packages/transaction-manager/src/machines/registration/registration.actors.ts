@@ -6,6 +6,11 @@
 
 import { requireChainId, requireEnsChain } from '@ens-apps/config'
 import {
+  computeResolverSalt,
+  computeVerifiableProxyAddress,
+  getDestinationContracts,
+} from '@ens-apps/smart-account'
+import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
   ethRegistrarGetRegisterPriceSnippet,
@@ -35,9 +40,7 @@ import {
   erc20Abi,
   getChainContractAddress,
   isAddressEqual,
-  keccak256,
   parseAbi,
-  stringToBytes,
   zeroAddress,
   zeroHash,
 } from 'viem'
@@ -86,15 +89,6 @@ function authorizedPaymentAmount(price: bigint): bigint {
 // ============================================================================
 // Helper Functions (only used in this file)
 // ============================================================================
-
-function generateResolverSalt(name: string): bigint {
-  // Use CSPRNG (not `Date.now()`/`Math.random()`) so the resolver salt is
-  // unpredictable. The CREATE2 address is also bound to the deployer via
-  // `keccak256(abi.encode(msg.sender, salt))`, but unpredictable randomness is
-  // the correct hygiene for any on-chain-influencing value.
-  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
-  return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
-}
 
 /**
  * `PermissionedResolver.initialize(Grant[] grants, bytes[] calls)`. The name's
@@ -360,7 +354,63 @@ export function createTransactionRequest(params: {
 // ============================================================================
 
 /**
- * Deploy dedicated resolver proxy through verifiable factory
+ * The address of the wallet's own resolver, deployed or not.
+ *
+ * The salt is fixed per owner and the factory namespaces it by the deployer,
+ * so every registration from one wallet points at the same resolver: the first
+ * deploys it and the rest reuse it. Same salt as manager's resolvers
+ * (`computeResolverSalt`).
+ */
+export function computeDedicatedResolverAddress(input: {
+  readonly chainId: number
+  /** The account that calls `deployProxy`. */
+  readonly deployer: Address
+  /** The account the resolver grants its roles to. */
+  readonly owner: Address
+}): Address {
+  const contracts = getDestinationContracts(input.chainId)
+  return computeVerifiableProxyAddress({
+    factory: contracts.verifiableFactory,
+    proxyLogic: contracts.verifiableFactoryProxyLogic,
+    deployer: input.deployer,
+    salt: computeResolverSalt(input.owner),
+  })
+}
+
+/**
+ * Whether a `getCode` read found a deployed contract. viem answers "no code" as
+ * `undefined`, wagmi as `null`, and some nodes as a bare `0x`; all mean none.
+ */
+export function hasDeployedCode(code: Hex | null | undefined): boolean {
+  return Boolean(code && code !== '0x')
+}
+
+/**
+ * Find the wallet's resolver and whether it still has to be deployed.
+ */
+export function checkResolverDeploymentActor(input: {
+  readonly owner: Address
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+}): ResultAsync<{ resolverAddress: Address; deployed: boolean }, Error> {
+  return fromPromise(
+    (async () => {
+      const resolverAddress = computeDedicatedResolverAddress({
+        chainId: requireChainId(input.publicClient, 'registration'),
+        deployer: getSignerAddress(input.signer),
+        owner: input.owner,
+      })
+      const code = await input.publicClient.getCode({
+        address: resolverAddress,
+      })
+      return { resolverAddress, deployed: hasDeployedCode(code) }
+    })(),
+    (error) => new Error(`Failed to check resolver deployment: ${error}`),
+  )
+}
+
+/**
+ * Deploy the wallet's resolver proxy through the verifiable factory
  */
 export function submitResolverDeploymentActor(input: {
   name: string
@@ -372,7 +422,7 @@ export function submitResolverDeploymentActor(input: {
   return ResultAsync.fromPromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
-      const salt = generateResolverSalt(input.name)
+      const salt = computeResolverSalt(input.owner)
       const chain = requireEnsChain(input.publicClient, 'registration')
 
       const request = createTransactionRequest({
@@ -380,11 +430,7 @@ export function submitResolverDeploymentActor(input: {
         from: accountAddress,
         chainId: chain.id,
         calls: [
-          encodeDeployDedicatedResolverCall({
-            owner: input.owner,
-            salt,
-            chain,
-          }),
+          encodeDeployDedicatedResolverCall({ owner: input.owner, chain }),
         ],
       })
 
@@ -409,16 +455,14 @@ export function submitResolverDeploymentActor(input: {
 }
 
 /**
- * The `VerifiableFactory.deployProxy` call that deploys a name's dedicated
- * resolver. Exported so the app can build the SAME deploy call for its pre-start
- * gas estimate (wrapped as an EOA intent), keeping the estimate byte-identical
- * to what {@link submitResolverDeploymentActor} submits — the encoding lives in
- * one place and can't drift. Deploy gas is independent of the salt value, so the
- * estimate may pass a stable throwaway salt.
+ * The `VerifiableFactory.deployProxy` call that deploys the wallet's resolver.
+ * Exported so the app can build the SAME deploy call for its pre-start gas
+ * estimate (wrapped as an EOA intent), keeping the estimate byte-identical to
+ * what {@link submitResolverDeploymentActor} submits — the encoding lives in
+ * one place and can't drift.
  */
 export function encodeDeployDedicatedResolverCall(input: {
   owner: Address
-  salt: bigint
   chain: Chain
 }): { to: Address; data: Hex; value: bigint } {
   return {
@@ -434,7 +478,7 @@ export function encodeDeployDedicatedResolverCall(input: {
           chain: input.chain,
           contract: 'ensPermissionedResolverImpl',
         }),
-        input.salt,
+        computeResolverSalt(input.owner),
         getResolverInitCalldata(input.owner),
       ],
     }),

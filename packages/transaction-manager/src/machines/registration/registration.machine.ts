@@ -11,6 +11,7 @@ import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
 import {
+  checkResolverDeploymentActor,
   generateCommitmentActor,
   type PermitSignature,
   pollTransactionStatusActor,
@@ -49,7 +50,8 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  * Orchestrates the ENS registration flow for two signer modes:
  *
  * Pure-EOA (portal; old deployment — unchanged):
- * 1. Deploy dedicated resolver → wait → generate commitment → commit → wait
+ * 1. Check for the wallet's resolver → deploy + wait if it has none →
+ *    generate commitment → commit → wait
  * 2. Cooldown spine (fetch age → validate → cooldown), allowance → approve
  * 3. Register → wait → verify
  *
@@ -215,7 +217,7 @@ export type RegistrationContext = {
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
     | 'computingHcaBudget'
-    | 'deployingResolver'
+    | 'checkingResolver'
     | 'submittingSetupBundle'
     | 'preparingCommitment'
     | 'signingFundingPermit'
@@ -403,6 +405,15 @@ export const registrationMachine = setup({
         onIntentSubmitted?: (intentId: bigint) => void
       }) => {
         return submitRevealBatchActor(input)
+      },
+    ),
+    checkResolverDeployment: fromResultAsync(
+      (input: {
+        owner: Address
+        signer: Signer
+        publicClient: PublicClient
+      }) => {
+        return checkResolverDeploymentActor(input)
       },
     ),
     deployResolver: fromResultAsync(
@@ -816,9 +827,9 @@ export const registrationMachine = setup({
           guard: 'isRhinestoneSigner',
           target: 'computingHcaBudget',
         },
-        // Pure-EOA: an EOA can't batch, so deploy the resolver, wait for it,
-        // then commit as separate transactions.
-        { target: 'deployingResolver' },
+        // Pure-EOA: an EOA can't batch, so the resolver (when the wallet has
+        // none yet) and the commit go out as separate transactions.
+        { target: 'checkingResolver' },
       ],
     },
 
@@ -1051,6 +1062,54 @@ export const registrationMachine = setup({
       },
     },
 
+    // The wallet's resolver sits at a fixed address, so only its first
+    // registration deploys it; every later one goes straight to the commit.
+    checkingResolver: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'checkResolverDeployment',
+        input: ({ context }) => ({
+          owner:
+            context.resolverOwnerAddress ??
+            context.ownerAddress ??
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+            context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+        }),
+        onDone: [
+          {
+            guard: ({ event }) => event.output.deployed,
+            target: 'preparingCommitment',
+            actions: assign({
+              resolverAddress: ({ event }) => event.output.resolverAddress,
+            }),
+          },
+          { target: 'deployingResolver' },
+        ],
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'checkingResolver' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Resolver check failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
     deployingResolver: {
       entry: ['logTransition'],
       invoke: {
@@ -1084,7 +1143,9 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'deployingResolver' as const,
+              // A deploy that landed anyway can't be sent again: the address
+              // is fixed, so a repeat reverts. Check first.
+              retryTarget: () => 'checkingResolver' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1117,7 +1178,9 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'deployingResolver' as const,
+              // A deploy that landed anyway can't be sent again: the address
+              // is fixed, so a repeat reverts. Check first.
+              retryTarget: () => 'checkingResolver' as const,
             }),
             ({ event }) => {
               console.error(
@@ -2009,7 +2072,7 @@ export const registrationMachine = setup({
             })),
           },
           {
-            target: 'deployingResolver',
+            target: 'checkingResolver',
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
