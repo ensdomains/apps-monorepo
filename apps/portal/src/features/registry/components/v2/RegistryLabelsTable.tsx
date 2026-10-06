@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { type InfiniteData, useInfiniteQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { SortButton } from '@/components/table/SortButton'
@@ -10,7 +12,9 @@ import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import {
   getRegistryLabelsQueryOptions,
+  REGISTRY_LABELS_PAGE_SIZE,
   type RegistryLabelRow,
+  type RegistryLabelsPage,
 } from '../../hooks/useRegistryLabels'
 
 const columns: ColumnDef<RegistryLabelRow>[] = [
@@ -83,16 +87,40 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
   },
 ]
 
+const toLabels = (data: InfiniteData<RegistryLabelsPage> | undefined) =>
+  data?.pages.flatMap((page) => page.labels) ?? []
+
 export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   const {
-    data: labels,
+    data,
     isLoading,
     error,
-  } = useQuery(getRegistryLabelsQueryOptions({ address }))
+    isFetchNextPageError,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery(getRegistryLabelsQueryOptions({ address }))
+
+  const labels = toLabels(data)
+
+  const { shown, loader } = useListLoader({
+    initialCount: REGISTRY_LABELS_PAGE_SIZE,
+    loaded: labels.length,
+    total: data?.pages.at(-1)?.totalCount,
+    hasMore: hasNextPage,
+    fetchMore: async () => {
+      const next = await fetchNextPage()
+      if (next.isError) throw next.error
+      return {
+        loaded: toLabels(next.data).length,
+        hasMore: next.hasNextPage,
+      }
+    },
+    resetKey: address,
+  })
 
   if (isLoading) return <LoadingSpinner title="Loading labels..." />
 
-  if (error) {
+  if (error && !isFetchNextPageError) {
     return (
       <ErrorMessage
         compact
@@ -101,7 +129,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
     )
   }
 
-  if (!labels || labels.length === 0)
+  if (labels.length === 0)
     return (
       <NoResultsMessage
         title="No labels yet"
@@ -110,5 +138,10 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
       />
     )
 
-  return <DataTable columns={columns} data={labels} />
+  return (
+    <>
+      <DataTable columns={columns} data={labels.slice(0, shown)} />
+      <ListLoader {...loader} />
+    </>
+  )
 }
