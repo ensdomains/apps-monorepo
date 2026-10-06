@@ -1,158 +1,99 @@
-import type { DomainFragment } from '@ens-apps/indexer'
+import type { NameSummary } from '@ens-apps/indexer/reads'
 import { describe, expect, it } from 'vitest'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import {
-  buildProfileAddressNames,
   isDisplayableProfileName,
+  toProfileAddressNames,
 } from './buildProfileAddressNames'
-import { testAddress, testV1Names } from './profileAddressNames.test.helpers'
 
-const makeV1Domain = (
+const summary = (
   name: string,
-  overrides: Partial<V1Domain> = {},
-): V1Domain => ({
-  id: `v1-${name}`,
-  labelName: name.replace('.eth', ''),
-  labelhash: `0x${name}`,
+  overrides: Partial<NameSummary> = {},
+): NameSummary => ({
   name,
-  resolver: null,
-  owner: { id: testAddress.toLowerCase() },
-  registrant: { id: testAddress.toLowerCase() },
-  wrappedOwner: null,
-  parent: null,
-  registration: { expiryDate: '1893456000' },
-  wrappedDomain: null,
+  displayName: name,
+  namehash: `0x${name.length.toString(16)}`,
+  protocol: 'v2',
+  relations: ['owner'],
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'registered',
+  expiresAt: null,
+  registeredAt: null,
+  createdAt: null,
   ...overrides,
 })
 
-const makeV2Domain = (
-  name: string,
-  createdAt = 1_700_000_000,
-): DomainFragment =>
-  ({
-    __typename: 'Domain',
-    id: `v2-${name}`,
-    name,
-    normalizedName: name,
-    tokenId: null,
-    createdAt,
-    registrationDate: null,
-    expiryDate: 1_891_036_800,
-    owner: {
-      __typename: 'Account',
-      id: testAddress.toLowerCase(),
-    },
-    resolver: null,
-  }) as DomainFragment
-
 describe('isDisplayableProfileName', () => {
-  it('filters reverse records', () => {
-    expect(
-      isDisplayableProfileName(
-        '[28a26e44a0fccc45a84d01c90b99a91310b083fb0050af6be1762db4147487a1].addr.reverse',
-      ),
-    ).toBe(false)
-    expect(isDisplayableProfileName('figma.eth')).toBe(true)
+  it.each([
+    ['alice.eth', true],
+    ['abc.addr.reverse', false],
+    ['[1234].eth', false],
+  ])('%s -> %s', (name, expected) => {
+    expect(isDisplayableProfileName(name)).toBe(expected)
   })
 })
 
-describe('buildProfileAddressNames', () => {
-  it('includes v1 and v2 names for the fixture address', () => {
-    const names = buildProfileAddressNames({
-      address: testAddress,
-      v1Domains: testV1Names.map((name) => makeV1Domain(name)),
-      v2Domains: [
-        makeV2Domain('henlo.eth', 1_700_000_300),
-        makeV2Domain('claude.eth', 1_700_000_200),
-        makeV2Domain('alaska.eth', 1_700_000_100),
-      ],
-    })
-
-    expect(names.map((item) => item.label)).toEqual([
-      'henlo.eth',
-      'claude.eth',
-      'alaska.eth',
-      'figma.eth',
-      'sagar.eth',
-      'turbopuffer.eth',
+describe('toProfileAddressNames', () => {
+  it('maps a row to the profile shape', () => {
+    expect(
+      toProfileAddressNames([
+        summary('alice.eth', {
+          namehash: '0xabc',
+          protocol: 'v1',
+          expiresAt: new Date('2030-01-01T00:00:00Z'),
+          createdAt: new Date('2024-01-01T00:00:00Z'),
+        }),
+      ]),
+    ).toEqual([
+      {
+        key: '0xabc',
+        label: 'alice.eth',
+        protocol: 'v1',
+        expiryDate: 1_893_456_000,
+        createdAt: 1_704_067_200,
+        nameRoles: ['owner'],
+        roleCategory: 'owned',
+      },
     ])
   })
 
-  it('labels v1-only names as protocol v1', () => {
-    const names = buildProfileAddressNames({
-      address: testAddress,
-      v1Domains: [makeV1Domain('figma.eth')],
-      v2Domains: [makeV2Domain('henlo.eth')],
-    })
+  it.each([
+    [['owner'], ['owner'], 'owned'],
+    [['registrant'], ['owner'], 'owned'],
+    [['owner', 'manager'], ['owner', 'manager'], 'owned'],
+    [['manager'], ['manager'], 'managed'],
+  ] as const)('maps relations %j to roles %j (%s)', (relations, roles, category) => {
+    const [name] = toProfileAddressNames([summary('a.eth', { relations })])
 
-    expect(names.find((item) => item.label === 'figma.eth')?.protocol).toBe(
-      'v1',
-    )
-    expect(names.find((item) => item.label === 'henlo.eth')?.protocol).toBe(
-      'v2',
-    )
+    expect(name?.nameRoles).toEqual(roles)
+    expect(name?.roleCategory).toBe(category)
   })
 
-  it('prefers the v2 row when the same name exists in both protocols', () => {
-    const names = buildProfileAddressNames({
-      address: testAddress,
-      v1Domains: [makeV1Domain('figma.eth')],
-      v2Domains: [makeV2Domain('figma.eth')],
-    })
-
-    expect(names.filter((item) => item.label === 'figma.eth')).toHaveLength(1)
-    expect(names.find((item) => item.label === 'figma.eth')?.protocol).toBe(
-      'v2',
-    )
-  })
-
-  it('returns an empty list when no names are associated with the address', () => {
+  it('leaves out reverse records, unknown labels and names without a role', () => {
     expect(
-      buildProfileAddressNames({
-        address: testAddress,
-        v1Domains: [],
-        v2Domains: [],
-      }),
-    ).toEqual([])
+      toProfileAddressNames([
+        summary('abc.addr.reverse'),
+        summary('[1234].eth'),
+        summary('none.eth', { relations: [] }),
+        summary('kept.eth'),
+      ]).map(({ label }) => label),
+    ).toEqual(['kept.eth'])
   })
 
-  it('includes managed-only v2 names with manager role and managed category', () => {
-    const names = buildProfileAddressNames({
-      address: testAddress,
-      v1Domains: [],
-      v2Domains: [makeV2Domain('henlo.eth')],
-      managedV2Domains: [
-        {
-          ...makeV2Domain('dom.eth'),
-          owner: { __typename: 'Account', id: '0xother' },
-        } as DomainFragment,
-      ],
-      roleAssignments: [{ name: 'dom.eth', roleBitmap: '1' }],
-    })
-
-    const managed = names.find((item) => item.label === 'dom.eth')
-    expect(managed?.protocol).toBe('v2')
-    expect(managed?.nameRoles).toEqual(['manager'])
-    expect(managed?.roleCategory).toBe('managed')
-
-    const owned = names.find((item) => item.label === 'henlo.eth')
-    expect(owned?.nameRoles).toEqual(['owner'])
-    expect(owned?.roleCategory).toBe('owned')
+  it('lists newest first, undated last, ties by name', () => {
+    expect(
+      toProfileAddressNames([
+        summary('undated.eth'),
+        summary('old.eth', { createdAt: new Date('2020-01-01T00:00:00Z') }),
+        summary('b-new.eth', { createdAt: new Date('2025-01-01T00:00:00Z') }),
+        summary('a-new.eth', { createdAt: new Date('2025-01-01T00:00:00Z') }),
+      ]).map(({ label }) => label),
+    ).toEqual(['a-new.eth', 'b-new.eth', 'old.eth', 'undated.eth'])
   })
 
-  it('marks owned names with role assignments as owner and manager', () => {
-    const names = buildProfileAddressNames({
-      address: testAddress,
-      v1Domains: [],
-      v2Domains: [makeV2Domain('henlo.eth')],
-      roleAssignments: [{ name: 'henlo.eth', roleBitmap: '1' }],
-    })
+  it('treats a name with no deployment answering as ENSv2', () => {
+    const [name] = toProfileAddressNames([summary('a.eth', { protocol: null })])
 
-    expect(names.find((item) => item.label === 'henlo.eth')?.nameRoles).toEqual(
-      ['owner', 'manager'],
-    )
-    expect(names.find((item) => item.label === 'henlo.eth')?.roleCategory).toBe(
-      'owned',
-    )
+    expect(name?.protocol).toBe('v2')
   })
 })
