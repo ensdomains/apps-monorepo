@@ -33,8 +33,9 @@ describe('getOgCardSubject', () => {
   })
 
   it('draws a canonical name card for a spelling that normalises', () => {
-    // A soft hyphen normalises away; the card shows the real name, never the
-    // look-alike string
+    // The card is drawn from the canonical name, never from the URL string, so
+    // this is vitalik.eth's real card reached through a sloppy URL. Same image
+    // as /og/vitalik.eth.png, nothing gained by linking the look-alike.
     expect(getOgCardSubject('vi\u00adtalik.eth.png')).toEqual({
       kind: 'name',
       name: 'vitalik.eth',
