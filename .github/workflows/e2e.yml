@@ -188,7 +188,7 @@ jobs:
           fi
 
           # Core services — Panoptes (indexer + API) is intentionally omitted.
-          # All indexer GraphQL queries are intercepted by Playwright's route mock
+          # The manager's bigname reads are intercepted by Playwright's route mock
           # (E2E_MOCK_INDEXER=true in e2e/.env.ci), so no live indexer is needed.
           # This saves ~1 GB RAM and prevents Anvil OOM in CI.
           SERVICES="anvil alto paymaster"

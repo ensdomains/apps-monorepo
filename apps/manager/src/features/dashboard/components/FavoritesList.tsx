@@ -1,4 +1,3 @@
-import { OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
@@ -6,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import type { SortDir } from '../mergedNames'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -38,12 +38,9 @@ const NameRowSkeleton = () => (
 
 const parseSort = (
   sort: FavoritesSort,
-): { field: FavoritesSortField; direction: OrderDirection } => {
-  const [field, dir] = sort.split('-') as [FavoritesSortField, 'asc' | 'desc']
-  return {
-    field,
-    direction: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
-  }
+): { field: FavoritesSortField; direction: SortDir } => {
+  const [field, direction] = sort.split('-') as [FavoritesSortField, SortDir]
+  return { field, direction }
 }
 
 export const FavoritesList = ({

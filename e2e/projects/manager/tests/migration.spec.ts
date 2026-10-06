@@ -10,7 +10,7 @@
  * Each test:
  * 1. Registers one or more V1 names on the Anvil fork
  * 2. Authenticates with Para wallet
- * 3. Mocks the V1 subgraph to inject the test names
+ * 3. Mocks bigname's V1 view to serve the test names
  * 4. Triggers the migration flow through the UI
  * 5. Verifies the migration completes successfully
  * 6. Checks the behavior specific to each scenario
@@ -30,10 +30,7 @@ import {
   assertLockedMigration,
   assertUnlockedMigration,
 } from '../../../helpers/migration-assertions.js'
-import {
-  type MockV1Name,
-  mockV1Subgraph,
-} from '../../../helpers/mock-v1-subgraph.js'
+import { type MockV1Name, mockV1Names } from '../../../helpers/mock-v1-names.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -147,7 +144,7 @@ test.describe('ENS V1 → V2 Migration', () => {
     const v1Name = await makeV1Name({ label: 'migtest' })
     console.log(`[migration] unwrapped V1 name created: ${v1Name}`)
 
-    await mockV1Subgraph(page, [
+    await mockV1Names(page, [
       { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
     ])
 
@@ -191,7 +188,7 @@ test.describe('ENS V1 → V2 Migration', () => {
       },
       { name: lockedName, ownerAddress: HEADLESS_USER_ADDRESS, type: 'locked' },
     ]
-    await mockV1Subgraph(page, mockNames)
+    await mockV1Names(page, mockNames)
 
     await runMigrationFlow(page, wallet)
     await assertUnlockedMigration(unwrappedName.replace('.eth', ''))
@@ -224,7 +221,7 @@ test.describe('ENS V1 → V2 Migration', () => {
     })
     console.log(`[migration] V1 name with records created: ${v1Name}`)
 
-    await mockV1Subgraph(page, [
+    await mockV1Names(page, [
       {
         name: v1Name,
         ownerAddress: HEADLESS_USER_ADDRESS,
@@ -263,7 +260,7 @@ test.describe('ENS V1 → V2 Migration', () => {
     const v1Name = await makeV1Name({ label: 'migedit' })
     console.log(`[migration] V1 name for edit test created: ${v1Name}`)
 
-    await mockV1Subgraph(page, [
+    await mockV1Names(page, [
       { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
     ])
 
