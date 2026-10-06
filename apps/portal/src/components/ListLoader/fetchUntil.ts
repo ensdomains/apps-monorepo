@@ -1,6 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 
-/** Where a server-paged list stands after one more page. */
 export type FetchMoreResult = {
   readonly loaded: number
   readonly hasMore: boolean
@@ -8,7 +7,6 @@ export type FetchMoreResult = {
 
 class ListStalledError extends TaggedError('ListStalledError')<{
   message: string
-  /** Where the list stood when it stopped advancing. */
   cause: FetchMoreResult
 }> {}
 
@@ -16,7 +14,6 @@ type FetchUntilParameters = FetchMoreResult & {
   readonly target: number
   readonly fetchMore: () => Promise<FetchMoreResult>
   readonly stalledPages?: number
-  /** Aborting stops before the next page; a page in flight still lands. */
   readonly signal?: AbortSignal
 }
 

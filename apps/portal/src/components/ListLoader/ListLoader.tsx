@@ -2,7 +2,6 @@ import { cn } from '@/lib/utils'
 
 export type ListLoaderProps = {
   readonly shown: number
-  /** How many rows `More` will show. */
   readonly moreCount: number
   readonly total: number | undefined
   readonly canShowMore: boolean

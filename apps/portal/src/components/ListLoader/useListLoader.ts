@@ -10,7 +10,6 @@ type UseListLoaderParameters = {
   readonly total?: number
   readonly hasMore?: boolean
   readonly fetchMore?: () => Promise<FetchMoreResult>
-  /** Identifies the list; a new key reopens it at `initialCount`. */
   readonly resetKey?: string
 }
 
