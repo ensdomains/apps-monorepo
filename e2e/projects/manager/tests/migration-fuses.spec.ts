@@ -6,7 +6,7 @@
  *
  * Each test:
  * 1. Registers a locked V1 name on the Anvil fork with the given fuse combo.
- * 2. Mocks the V1 subgraph with the correct full NameWrapper fuse bitmap
+ * 2. Mocks bigname's V1 view with the correct full NameWrapper fuse bitmap
  *    (owner fuses | PARENT_CANNOT_CONTROL | IS_DOT_ETH = owner fuses | 0x30000).
  *    The mock helper ORs these in automatically when `fuses` is provided.
  * 3. Runs the migration UI flow.
@@ -30,7 +30,7 @@ import {
   assertLockedMigration,
   assertV2Resolver,
 } from '../../../helpers/migration-assertions.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
+import { mockV1Names } from '../../../helpers/mock-v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -97,7 +97,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       `[migration-fuses] locked+CANNOT_SET_RESOLVER name created: ${v1Name}`,
     )
 
-    await mockV1Subgraph(page, [
+    await mockV1Names(page, [
       {
         name: v1Name,
         ownerAddress: HEADLESS_USER_ADDRESS,
@@ -144,7 +144,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       `[migration-fuses] locked+all-child-fuses name created: ${v1Name}`,
     )
 
-    await mockV1Subgraph(page, [
+    await mockV1Names(page, [
       {
         name: v1Name,
         ownerAddress: HEADLESS_USER_ADDRESS,

@@ -51,7 +51,7 @@ vi.mock('@/config', async () => {
         return mockEnvConfig.network
       },
       chain: extendChainWithEns(mainnet),
-      endpoints: { indexerGraphql: 'https://indexer.example/graphql' },
+      endpoints: { bignameApi: 'https://bigname.example' },
     },
   }
 })

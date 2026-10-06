@@ -165,13 +165,6 @@ describe('csp', () => {
       expect(header['connect-src']).toContain('https://lb.drpc.org')
     })
 
-    it('allowlists every subgraph origin ensjs resolves internally', async () => {
-      const { ensL1Subgraphs } = await import('@ensdomains/ensjs/chain')
-      for (const { ens } of Object.values(ensL1Subgraphs)) {
-        expect(header['connect-src']).toContain(new URL(ens.url).origin)
-      }
-    })
-
     it('allowlists every fallback RPC the viem transport can reach', () => {
       for (const url of envConfig.rpcFallbacks) {
         expect(header['connect-src']).toContain(new URL(url).origin)
