@@ -4,49 +4,88 @@
  * Business logic kept outside the React component for testability.
  */
 
-import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
+import type { Address } from 'viem'
+import type { PrimaryNamePreparation } from '@/features/profile/service/primaryNamePreparation'
+import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
+import { resolveDomainLabel } from '../utils'
 
-const ETH_COIN_TYPE = 60
+export const PRIMARY_NAME_PAGE_SIZE = 8
 
-export function getEthAddressFromRecords(
-  records: ProfileRecordsResult | undefined,
-): string | undefined {
-  return records?.coins?.find((c) => c.coinType === ETH_COIN_TYPE)?.value
+type PrimaryNameWritePreparation = Extract<
+  PrimaryNamePreparation,
+  { kind: 'update-eth-address' | 'setup-resolver' }
+>
+
+export type PrimaryNameConfirmation = PrimaryNameWritePreparation & {
+  readonly name: string
+  readonly ownerAddress: Address
 }
 
-export function hasMatchingEthAddress(
-  records: ProfileRecordsResult | undefined,
-  walletAddress: string | undefined,
-): boolean {
-  if (!walletAddress) return false
-  const ethAddress = getEthAddressFromRecords(records)
-  if (!ethAddress) return false
-  return ethAddress.toLowerCase() === walletAddress.toLowerCase()
+export const isConfirmationForSelection = (
+  confirmation: PrimaryNameConfirmation,
+  name: string,
+  ownerAddress: Address,
+): boolean =>
+  confirmation.name === name &&
+  confirmation.ownerAddress.toLowerCase() === ownerAddress.toLowerCase()
+
+export const needsPrimaryNameConfirmation = (
+  preparation: PrimaryNamePreparation,
+  confirmed?: PrimaryNameConfirmation,
+): preparation is PrimaryNameWritePreparation =>
+  preparation.kind !== 'ready' &&
+  (!confirmed ||
+    confirmed.kind !== preparation.kind ||
+    confirmed.existingEthAddress?.toLowerCase() !==
+      preparation.existingEthAddress?.toLowerCase())
+
+export function getPrimaryNamePage<
+  TDomain extends Parameters<typeof resolveDomainLabel>[0],
+>(
+  domains: readonly TDomain[],
+  {
+    searchQuery,
+    page,
+    reverseName,
+  }: {
+    readonly searchQuery: string
+    readonly page: number
+    readonly reverseName?: string | null
+  },
+) {
+  const query = searchQuery.trim().normalize('NFC').toLowerCase()
+  const filtered = domains
+    .filter((domain) => resolveDomainLabel(domain).includes(query))
+    .sort(
+      (a, b) =>
+        Number(resolveDomainLabel(b) === reverseName) -
+        Number(resolveDomainLabel(a) === reverseName),
+    )
+  const total = filtered.length
+  const totalPages = Math.max(1, Math.ceil(total / PRIMARY_NAME_PAGE_SIZE))
+  const currentPage = Math.min(Math.max(1, page), totalPages)
+  const offset = (currentPage - 1) * PRIMARY_NAME_PAGE_SIZE
+  return {
+    domains: filtered.slice(offset, offset + PRIMARY_NAME_PAGE_SIZE),
+    total,
+    totalPages,
+    currentPage,
+    rangeStart: total === 0 ? 0 : offset + 1,
+    rangeEnd: Math.min(offset + PRIMARY_NAME_PAGE_SIZE, total),
+  }
 }
 
-/**
- * A forward write is needed: the name's ETH record does not already point at
- * the connected wallet. `recordsSettled` must come from the query's `isSuccess`
- * — a *failed* read leaves `data` undefined exactly as a pending one does, and
- * reading that as "no ETH record" sends the dialog down the resolver-setup
- * branch on nothing more than an RPC blip.
- */
-export function shouldUpdateEthAddress({
-  selectedName,
-  recordsSettled,
-  selectedNameRecords,
-  ownerAddress,
-}: {
-  readonly selectedName: string | null
-  readonly recordsSettled: boolean
-  readonly selectedNameRecords: ProfileRecordsResult | undefined
-  readonly ownerAddress?: string
-}): boolean {
-  return (
-    Boolean(selectedName) &&
-    recordsSettled &&
-    !hasMatchingEthAddress(selectedNameRecords, ownerAddress)
-  )
+/** Never substitute a normalized twin for the raw name of an owned row. */
+export function getPrimaryNameCandidates<
+  TDomain extends Parameters<typeof resolveDomainLabel>[0],
+>(domains: readonly TDomain[]): TDomain[] {
+  return domains.filter((domain) => {
+    const name = domain.name ?? domain.id
+    return (
+      getCanonicalPrimaryName(name) === name &&
+      resolveDomainLabel(domain) === name
+    )
+  })
 }
 
 /**
@@ -74,6 +113,7 @@ export function isConfirmBlocked({
     !resolverAccessSettled ||
     !recordsSettled ||
     !hasChanges ||
-    !selectedName
+    !selectedName ||
+    getCanonicalPrimaryName(selectedName) !== selectedName
   )
 }

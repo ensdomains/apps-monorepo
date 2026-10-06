@@ -29,6 +29,22 @@ export const normalizeProfileName = (name: string): string | null => {
   return normalized
 }
 
+/** Add the suffix for a bare label, but never change the claimed identity. */
+export const getCanonicalPrimaryName = (name: string): string | null => {
+  const fullName = name.includes('.') ? name : `${name}.eth`
+  return normalizeProfileName(fullName) === fullName ? fullName : null
+}
+
+export const requireCanonicalPrimaryName = (name: string): string => {
+  const canonicalName = getCanonicalPrimaryName(name)
+  if (!canonicalName) {
+    throw new Error(
+      'Cannot set primary name - the name is not ENSIP-15 canonical.',
+    )
+  }
+  return canonicalName
+}
+
 export const normalizeEthName = (name: string): EthName | null => {
   const normalized = normalizeProfileName(name)
 

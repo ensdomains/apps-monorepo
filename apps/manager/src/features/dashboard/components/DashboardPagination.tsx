@@ -11,6 +11,7 @@ interface DashboardPaginationProps {
   readonly rangeEnd: number
   readonly total: number
   readonly disabled?: boolean
+  readonly compact?: boolean
 }
 
 export const DashboardPagination = ({
@@ -21,12 +22,18 @@ export const DashboardPagination = ({
   rangeEnd,
   total,
   disabled = false,
+  compact = false,
 }: DashboardPaginationProps) => {
   const { t } = useLingui()
   const pages = getPageWindow(currentPage, totalPages)
 
   return (
-    <div className="flex flex-col gap-3 md:h-14 md:flex-row md:items-center md:justify-between">
+    <div
+      className={cn(
+        'flex flex-col gap-3',
+        !compact && 'md:h-14 md:flex-row md:items-center md:justify-between',
+      )}
+    >
       <div className="flex items-center justify-center gap-3">
         <button
           aria-label={t`Previous page`}
@@ -79,11 +86,13 @@ export const DashboardPagination = ({
         </button>
       </div>
 
-      <span className="font-sans text-ens-quartz-400 text-sm leading-[1.2] tracking-[0.14px]">
-        <Trans>
-          Showing {rangeStart}-{rangeEnd} of {total}
-        </Trans>
-      </span>
+      {!compact && (
+        <span className="font-sans text-ens-quartz-400 text-sm leading-[1.2] tracking-[0.14px]">
+          <Trans>
+            Showing {rangeStart}-{rangeEnd} of {total}
+          </Trans>
+        </span>
+      )}
     </div>
   )
 }
