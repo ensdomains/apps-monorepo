@@ -26,7 +26,7 @@ import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v
 import { parseName } from '@/features/register-v2/utils/name-parser'
 import { getSearchNameKind } from '@/features/search/getSearchNameKind'
 import { isDebugProfileName } from '@/utils/debug-features'
-import { defaultOgImageUrl, nameOgImageUrl, seo } from '@/utils/seo'
+import { nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
 // name isn't free, so every hand off to it is gated on this.
@@ -190,13 +190,29 @@ export const Route = createFileRoute('/$name/')({
       name: normalizedName,
     }
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) {
+      // The route is `ssr: false`, so the loader never runs for the server
+      // render a link-preview crawler reads — the name has to come from the URL.
+      const name = normalizeProfileName(params.name)
+
+      if (name) {
+        return {
+          meta: seo({
+            title: `${name} - ENS Profile`,
+            description: `View the ENS profile for ${name}`,
+            image: nameOgImageUrl(name),
+          }),
+        }
+      }
+
       return {
         meta: seo({
           title: 'ENS App',
           description: 'Manage your ENS names, profiles and records.',
-          image: defaultOgImageUrl(),
+          // A name that fails to normalise gets the card that says so; anything
+          // not name-shaped falls back to the app card on the image route.
+          image: nameOgImageUrl(params.name),
         }),
       }
     }

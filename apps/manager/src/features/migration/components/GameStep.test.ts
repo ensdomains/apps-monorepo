@@ -71,6 +71,7 @@ describe('migration transaction progress', () => {
         count: 22,
         migrateCount: 22,
         copyCount: 0,
+        roleGrants: [],
       },
     ]
     const renewalScene = (

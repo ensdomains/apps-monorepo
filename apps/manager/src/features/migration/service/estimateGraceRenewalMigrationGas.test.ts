@@ -41,6 +41,7 @@ const migrationSteps: readonly MigrationStepDescriptor[] = [
     count: 3,
     migrateCount: 3,
     copyCount: 0,
+    roleGrants: [],
   },
   { type: 'cleanup', approvalId: 'eth-registry:hca' },
 ]

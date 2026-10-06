@@ -1,11 +1,8 @@
 import { getRecords } from '@ensdomains/ensjs/public'
-import { getAddress, isAddress, zeroAddress } from 'viem'
 import { concatBytes } from 'viem/utils'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { publicClient } from '@/lib/wagmi'
 import type { NameOgCard } from './card'
-
-const ETH_COIN_TYPE = 60
 
 /**
  * Cap on the avatar bytes embedded in a card.
@@ -99,25 +96,14 @@ async function fetchAvatarDataUri(name: string): Promise<string | null> {
   }
 }
 
-function normalizeAddress(value: string | undefined): string | null {
-  if (!value || !isAddress(value)) return null
-
-  const address = getAddress(value)
-
-  return address.toLowerCase() === zeroAddress ? null : address
-}
-
 /**
- * Read what a name's card is drawn from: its theme, its avatar and the ETH
- * mainnet address it resolves to.
+ * Read what a name's card is drawn from: its theme and its avatar.
  *
- * A name that resolves to nothing still gets a card — the themed, address-less
- * variant — so a resolution failure degrades the card rather than failing it.
+ * A name whose records can't be read still gets a card — the default theme, no
+ * avatar — so a resolution failure degrades the card rather than failing it.
  */
 export async function fetchNameOgCard(name: string): Promise<NameOgCard> {
   const records = await getRecords(publicClient, {
-    coins: [ETH_COIN_TYPE],
-    ignoreInvalidCoinTypes: true,
     name,
     texts: ['avatar', 'theme'],
   }).catch(() => null)
@@ -126,9 +112,6 @@ export async function fetchNameOgCard(name: string): Promise<NameOgCard> {
     records?.texts.find((text) => text.key === key)?.value.trim() || undefined
 
   return {
-    address: normalizeAddress(
-      records?.coins.find((coin) => coin.coinType === ETH_COIN_TYPE)?.value,
-    ),
     avatar: textRecord('avatar') ? await fetchAvatarDataUri(name) : null,
     name,
     themeColor: textRecord('theme') ?? null,

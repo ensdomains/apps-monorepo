@@ -100,6 +100,7 @@ describe('getResumeTarget', () => {
       'checkingHcaFunding',
       'signingFundingPermit',
       'submittingSetupBundle',
+      'checkingResolver',
       'deployingResolver',
     ]) {
       expect(getResumeTarget({ stage, context: persisted() })).toBe(
@@ -378,7 +379,9 @@ const startParkedActor = () =>
   createActor(
     registrationMachine.provide({
       actors: {
-        deployResolver: fromPromise(() => new Promise(() => {})) as never,
+        checkResolverDeployment: fromPromise(
+          () => new Promise(() => {}),
+        ) as never,
         estimateHcaBudget: fromPromise(() => new Promise(() => {})) as never,
         validateCommitment: fromPromise(() => new Promise(() => {})) as never,
         verifyRegistration: fromPromise(() => new Promise(() => {})) as never,
@@ -392,6 +395,10 @@ const startActorFailingDeploy = (error: Error) =>
   createActor(
     registrationMachine.provide({
       actors: {
+        checkResolverDeployment: fromPromise(async () => ({
+          resolverAddress: OWNER,
+          deployed: false,
+        })) as never,
         deployResolver: fromPromise(
           vi
             .fn()
@@ -446,7 +453,7 @@ describe('subscribeRegistrationPersistence', () => {
     const record = adapter.saved.at(-1)
     expect(record).toBeDefined()
     expect(record?.v).toBe(REGISTRATION_PERSISTENCE_VERSION)
-    expect(record?.stage).toBe('deployingResolver')
+    expect(record?.stage).toBe('checkingResolver')
     expect(record?.context.name).toBe('leon.eth')
     expect(record?.context.duration).toBe(31_536_000n)
     expect(record?.updatedAt).toBeGreaterThan(0)
@@ -512,7 +519,7 @@ describe('subscribeRegistrationPersistence', () => {
     actor.send({ type: 'RETRY' })
 
     expect(adapter.saved).toHaveLength(writes + 1)
-    expect(adapter.saved.at(-1)?.stage).toBe('deployingResolver')
+    expect(adapter.saved.at(-1)?.stage).toBe('checkingResolver')
     actor.stop()
   })
 
@@ -585,7 +592,7 @@ describe('subscribeRegistrationPersistence', () => {
       startRegistration(actor)
     }).not.toThrow()
     expect(onError).toHaveBeenCalled()
-    expect(actor.getSnapshot().value).toBe('deployingResolver')
+    expect(actor.getSnapshot().value).toBe('checkingResolver')
     actor.stop()
   })
 

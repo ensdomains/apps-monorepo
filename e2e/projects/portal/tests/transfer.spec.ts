@@ -493,7 +493,9 @@ test.describe('Portal name transfer', () => {
     // ERC-1155 token transfer. Either way the new owner has to deploy a
     // fresh resolver before they can write records.
     await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
-    await page.getByRole('switch', { name: /Use custom resolver/ }).click()
+    await page
+      .getByRole('switch', { name: /Deploy new permissioned resolver/ })
+      .click()
     await page.getByRole('button', { name: 'Save changes' }).click()
     await driveTransactionsToSuccess(page, wallet, [
       'tx-deploy-permissioned-resolver',

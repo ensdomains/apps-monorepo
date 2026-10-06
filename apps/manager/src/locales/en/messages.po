@@ -23,6 +23,11 @@ msgstr "{0, plural, one {# step} other {# steps}}"
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr "{0, plural, one {# year} other {# years}}"
 
+#. placeholder {0}: roleGrants.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+msgstr "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -151,6 +156,11 @@ msgstr "{value, plural, one {# year} other {# years}}"
 msgid "{years} years"
 msgstr "{years} years"
 
+#. placeholder {0}: truncateAddress(account)
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
+msgstr "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
+
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
 msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
@@ -195,6 +205,10 @@ msgstr "A simple, portable identity that you control"
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
 msgstr "A simpler way to get paid."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
+msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
@@ -261,6 +275,10 @@ msgstr "Agents"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
 msgstr "All Notifications"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow manager changes"
+msgstr "Allow manager changes"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow the renewal contract to use USDC for your renewals."
@@ -455,6 +473,10 @@ msgstr "Cancel Verification"
 msgid "Cannot save profile"
 msgstr "Cannot save profile"
 
+#: src/features/migration/components/NameRow.tsx
+msgid "Carried over from your earlier attempt."
+msgstr "Carried over from your earlier attempt."
+
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Carving your name into the blockchain"
 msgstr "Carving your name into the blockchain"
@@ -493,6 +515,10 @@ msgstr "Checking for an unfinished registration"
 msgid "Checking renewal costs..."
 msgstr "Checking renewal costs..."
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking resolver"
+msgstr "Checking resolver"
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
 msgstr "Checking status…"
@@ -512,6 +538,10 @@ msgstr "Checking wallet connection..."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
 msgstr "Checking whether a payment approval is needed"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking whether your resolver is already deployed"
+msgstr "Checking whether your resolver is already deployed"
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
@@ -567,6 +597,7 @@ msgid "Complete your profile"
 msgstr "Complete your profile"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
 msgstr "Confirm"
 
@@ -1216,6 +1247,11 @@ msgstr "It takes two transactions from your wallet, one to set up the account an
 msgid "Join the community"
 msgstr "Join the community"
 
+#. placeholder {0}: truncateAddress(manager)
+#: src/features/migration/components/NameRow.tsx
+msgid "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
+msgstr "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
@@ -1223,10 +1259,6 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Keep renewal"
 msgstr "Keep renewal"
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Keep the same managers on your names after the upgrade."
-msgstr "Keep the same managers on your names after the upgrade."
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Keep this window open while the transaction confirms."
@@ -2077,8 +2109,8 @@ msgid "Reserving your name"
 msgstr "Reserving your name"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Restore your managers"
-msgstr "Restore your managers"
+msgid "Restore the managers you chose"
+msgstr "Restore the managers you chose"
 
 #: src/features/register-v2/state/useRegistrationResume.ts
 msgid "Resuming your registration."
@@ -2178,6 +2210,7 @@ msgstr "Search my names"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
@@ -2222,6 +2255,10 @@ msgstr "Select coin"
 msgid "Select payment"
 msgstr "Select payment"
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
+msgid "Selected: {selectedName}"
+msgstr "Selected: {selectedName}"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Send Verification"
 msgstr "Send Verification"
@@ -2250,6 +2287,7 @@ msgstr "Set it as your primary name from the primary name card on your Dashboard
 msgid "Set primary name"
 msgstr "Set primary name"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Set this as your primary name?"
 msgstr "Set this as your primary name?"
