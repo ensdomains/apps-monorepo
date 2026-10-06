@@ -26,6 +26,8 @@ type Params = {
   readonly hcaAddress: Address
   readonly publicClient: PublicClient
   readonly wagmiConfig: Config
+  /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
+  readonly managerRestorationNames?: readonly string[]
   readonly signal?: AbortSignal
 }
 
@@ -108,11 +110,13 @@ const estimateProjectedMigration = async (
   domains: readonly V1Domain[],
 ) => {
   const { quote, hcaAddress, publicClient, wagmiConfig, signal } = params
+  const managerRestorationNames = params.managerRestorationNames ?? []
   // Projected expiries must not share the executable preflight cache.
   const preflight = await computeMigrationPreflight({
     eoa: quote.ownerAddress,
     hcaAddress,
     domains,
+    requiresManagerRestoration: managerRestorationNames.length > 0,
     publicClient,
     wagmiConfig,
     signal,
@@ -122,6 +126,7 @@ const estimateProjectedMigration = async (
     domains,
     hcaAddress,
     migrationOwner: quote.ownerAddress,
+    managerRestorationNames,
     publicClient,
     preflight,
     signal,

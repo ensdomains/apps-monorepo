@@ -31,6 +31,7 @@ const graceRenewalGasEstimateQueryKey = createQueryKey<
       readonly ownerAddress: string | undefined
       readonly hcaAddress: string | undefined
       readonly selectedNames: readonly string[]
+      readonly managerRestorationNames: readonly string[]
       readonly domains: readonly V1Domain[]
       readonly renewal:
         | {
@@ -64,6 +65,7 @@ const graceRenewalGasEstimateQueryKey = createQueryKey<
 export const useGraceRenewalGasEstimate = ({
   renewal,
   selectedNames,
+  managerRestorationNames = [],
   v1Names,
   hcaAddress,
   publicClient,
@@ -71,6 +73,7 @@ export const useGraceRenewalGasEstimate = ({
 }: {
   readonly renewal: GraceRenewalQuoteState
   readonly selectedNames: readonly string[]
+  readonly managerRestorationNames?: readonly string[]
   readonly v1Names: readonly V1Domain[]
   readonly hcaAddress: Address | undefined
   readonly publicClient: PublicClient
@@ -87,6 +90,7 @@ export const useGraceRenewalGasEstimate = ({
     ownerAddress: quote?.ownerAddress.toLowerCase(),
     hcaAddress: hcaAddress?.toLowerCase(),
     selectedNames: [...selectedNames].sort(),
+    managerRestorationNames: [...managerRestorationNames].sort(),
     domains,
     renewal: quote && {
       chainId: quote.chainId,
@@ -145,6 +149,7 @@ export const useGraceRenewalGasEstimate = ({
         hcaAddress,
         publicClient,
         wagmiConfig,
+        managerRestorationNames,
         signal,
       })
     },
