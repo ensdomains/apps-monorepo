@@ -19,7 +19,7 @@ const ClientList = ({
   readonly resetKey?: string
 }) => {
   const rows = rowsUpTo(count)
-  const { shown, loader } = useListLoader({
+  const loader = useListLoader({
     initialCount,
     loaded: rows.length,
     resetKey,
@@ -28,7 +28,7 @@ const ClientList = ({
   return (
     <>
       <ul>
-        {rows.slice(0, shown).map((row) => (
+        {rows.slice(0, loader.shown).map((row) => (
           <li key={row}>{row}</li>
         ))}
       </ul>
@@ -54,7 +54,7 @@ const ServerList = ({
 }) => {
   const [loaded, setLoaded] = useState(Math.min(pageSize, total))
   const loadedRef = useRef(loaded)
-  const { shown, loader } = useListLoader({
+  const loader = useListLoader({
     initialCount,
     loaded,
     total: isTotalKnown ? total : undefined,
@@ -72,7 +72,7 @@ const ServerList = ({
   return (
     <>
       <ul>
-        {rowsUpTo(shown).map((row) => (
+        {rowsUpTo(loader.shown).map((row) => (
           <li key={row}>{row}</li>
         ))}
       </ul>

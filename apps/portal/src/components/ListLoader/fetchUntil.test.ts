@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import {
-  type FetchMoreResult,
-  fetchUntil,
-  MAX_STALLED_PAGES,
-} from './fetchUntil'
+import { type FetchMoreResult, fetchUntil } from './fetchUntil'
+
+const MAX_STALLED_PAGES = 5
 
 const pagedSource = (total: number, pageSize: number, alreadyLoaded = 0) => {
   let loaded = alreadyLoaded

@@ -102,7 +102,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
 
   const labels = toLabels(data)
 
-  const { shown, loader } = useListLoader({
+  const loader = useListLoader({
     initialCount: REGISTRY_LABELS_PAGE_SIZE,
     loaded: labels.length,
     total: data?.pages.at(-1)?.totalCount,
@@ -140,7 +140,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
 
   return (
     <>
-      <DataTable columns={columns} data={labels.slice(0, shown)} />
+      <DataTable columns={columns} data={labels.slice(0, loader.shown)} />
       <ListLoader {...loader} />
     </>
   )

@@ -14,7 +14,7 @@ type UseListLoaderParameters = {
   readonly resetKey?: string
 }
 
-/** State for `ListLoader`: render `rows.slice(0, shown)` and spread `loader`. */
+/** Props for `ListLoader`; render `rows.slice(0, shown)` beside it. */
 export const useListLoader = ({
   initialCount,
   loaded,
@@ -30,38 +30,30 @@ export const useListLoader = ({
   const target =
     choice && choice.resetKey === resetKey ? choice.target : initialCount
 
-  const fetching = useMutation({
-    mutationFn: ({
-      resetKey: _resetKey,
-      ...params
-    }: Parameters<typeof fetchUntil>[0] & {
-      readonly resetKey: string | undefined
-    }) => fetchUntil(params),
-  })
-  const isFetchForThisList = fetching.variables?.resetKey === resetKey
+  const { mutate, isPending, isError } = useMutation({ mutationFn: fetchUntil })
 
   const shown = Math.min(target, loaded)
 
   const showUpTo = (next: number) => {
     setChoice({ resetKey, target: next })
     if (fetchMore && hasMore && next > loaded)
-      fetching.mutate({ target: next, loaded, hasMore, fetchMore, resetKey })
+      mutate({ target: next, loaded, hasMore, fetchMore })
   }
 
   return {
     shown,
-    loader: {
-      shown,
-      total: total ?? (hasMore ? undefined : loaded),
-      canShowMore: shown < loaded || hasMore,
-      status: match({ ...fetching, isFetchForThisList })
-        .returnType<ListLoaderProps['status']>()
-        .with({ isFetchForThisList: false }, () => 'idle')
-        .with({ isPending: true }, () => 'loading')
-        .with({ isError: true }, () => 'error')
-        .otherwise(() => 'idle'),
-      onMore: () => showUpTo(Math.max(shown * 2, initialCount, 1)),
-      onAll: () => showUpTo(Number.POSITIVE_INFINITY),
-    } satisfies ListLoaderProps,
-  }
+    total: total ?? (hasMore ? undefined : loaded),
+    canShowMore: shown < loaded || hasMore,
+    status: match({
+      isCurrent: choice?.resetKey === resetKey,
+      isPending,
+      isError,
+    })
+      .returnType<ListLoaderProps['status']>()
+      .with({ isCurrent: true, isPending: true }, () => 'loading')
+      .with({ isCurrent: true, isError: true }, () => 'error')
+      .otherwise(() => 'idle'),
+    onMore: () => showUpTo(Math.max(shown * 2, initialCount, 1)),
+    onAll: () => showUpTo(Number.POSITIVE_INFINITY),
+  } satisfies ListLoaderProps
 }
