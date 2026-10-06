@@ -515,6 +515,10 @@ msgstr "Checking for an unfinished registration"
 msgid "Checking renewal costs..."
 msgstr "Checking renewal costs..."
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking resolver"
+msgstr "Checking resolver"
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
 msgstr "Checking status…"
@@ -534,6 +538,10 @@ msgstr "Checking wallet connection..."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
 msgstr "Checking whether a payment approval is needed"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking whether your resolver is already deployed"
+msgstr "Checking whether your resolver is already deployed"
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
