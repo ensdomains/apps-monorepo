@@ -170,6 +170,7 @@ export const AddressProfileNamesList = ({
     isPagePending,
     isError,
     isPlaceholderData,
+    loadPage,
   } = useProfileAddressNames({
     address,
     scope: isConnectedView ? roleFilter : 'all',
@@ -179,6 +180,10 @@ export const AddressProfileNamesList = ({
     page,
   })
   const isPending = isNamesPending || isPagePending
+  const onPageChange = (next: number) => {
+    setPage(next)
+    void loadPage(next)
+  }
 
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
@@ -368,7 +373,7 @@ export const AddressProfileNamesList = ({
         <DashboardPagination
           currentPage={currentPage}
           disabled={isPending}
-          onPageChange={setPage}
+          onPageChange={onPageChange}
           rangeEnd={rangeEnd}
           rangeStart={rangeStart}
           total={total}

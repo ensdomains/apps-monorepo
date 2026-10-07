@@ -3,7 +3,6 @@ import {
   useInfiniteQuery,
   useQuery,
 } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import type { Address } from 'viem'
 import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
 import {
@@ -26,7 +25,7 @@ type Options = {
 
 /**
  * One page of an address's names, read from bigname in the requested order.
- * More names are read only when a page needs them.
+ * More names are read only when moving to a page that needs them.
  */
 export const useProfileAddressNames = ({
   address,
@@ -67,10 +66,26 @@ export const useProfileAddressNames = ({
     current.names.length < PROFILE_NAMES_PAGE_SIZE &&
     query.hasNextPage &&
     !query.isError
-  const { fetchNextPage, isFetchingNextPage } = query
-  useEffect(() => {
-    if (isPagePending && !isFetchingNextPage) void fetchNextPage()
-  }, [isPagePending, isFetchingNextPage, fetchNextPage])
+
+  const isShortOf = (target: number, data: typeof query.data) => {
+    const loaded = toProfileNamesPage(
+      data?.pages ?? [],
+      target,
+      PROFILE_NAMES_PAGE_SIZE,
+    )
+    return loaded.names.length < PROFILE_NAMES_PAGE_SIZE && !loaded.isComplete
+  }
+  /** Reads on until a page is filled; called when moving to that page. */
+  const loadPage = async (target: number) => {
+    let result: Pick<typeof query, 'data' | 'hasNextPage' | 'isError'> = query
+    while (
+      result.hasNextPage &&
+      !result.isError &&
+      isShortOf(target, result.data)
+    ) {
+      result = await query.fetchNextPage({ cancelRefetch: false })
+    }
+  }
 
   return {
     pageNames: current.names,
@@ -81,6 +96,7 @@ export const useProfileAddressNames = ({
     },
     isPending: query.isPending,
     isPagePending,
+    loadPage,
     isError: query.isError,
     isPlaceholderData: query.isPlaceholderData,
   }

@@ -39,4 +39,18 @@ describe('useAccountSelection', () => {
     act(() => result.current.toggle(name('bob')))
     expect([...result.current.labels]).toEqual(['bob.eth'])
   })
+
+  it('drops names read for accounts that are no longer connected', () => {
+    const { result, rerender } = renderHook(
+      ({ accounts }) => useAccountSelection(accounts),
+      { initialProps: { accounts: '0xa' } },
+    )
+
+    rerender({ accounts: '0xb' })
+    act(() => result.current.toggleAll([name('alice')], '0xa'))
+    expect(result.current.selected.size).toBe(0)
+
+    act(() => result.current.toggleAll([name('bob')], '0xb'))
+    expect([...result.current.labels]).toEqual(['bob.eth'])
+  })
 })

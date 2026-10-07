@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import type { DashboardName } from '../dashboardNames'
@@ -18,7 +18,19 @@ vi.mock('../useDashboardNames', () => ({
 }))
 vi.mock('../useDashboardMigrationEligibility', () => eligibilityMock)
 vi.mock('./DashboardPagination', () => ({
-  DashboardPagination: () => <div data-testid="dashboard-pagination" />,
+  DashboardPagination: ({
+    onPageChange,
+  }: {
+    readonly onPageChange: (page: number) => void
+  }) => (
+    <button
+      data-testid="dashboard-pagination"
+      onClick={() => onPageChange(2)}
+      type="button"
+    >
+      Go to page 2
+    </button>
+  ),
 }))
 vi.mock('./NameRow', () => ({
   NameRow: ({
@@ -74,6 +86,7 @@ const mockNames = (
     hasAddresses: true,
     isPending: false,
     isPagePending: false,
+    loadPage: vi.fn(),
     isError: state.isError ?? false,
     isGraceError: state.isGraceError ?? false,
   })
@@ -135,6 +148,28 @@ describe('MyNamesList', () => {
     })
   })
 
+  it('reads the page it moves to', () => {
+    const loadPage = vi.fn()
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      pageNames: [],
+      total: 12,
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: false,
+      loadPage,
+      isError: false,
+      isGraceError: false,
+    })
+
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
+
+    expect(loadPage).toHaveBeenCalledWith(2)
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2 }),
+    )
+  })
+
   it('shows skeletons while the page is still being read', () => {
     dashboardNamesMock.useDashboardNames.mockReturnValue({
       pageNames: [],
@@ -142,6 +177,7 @@ describe('MyNamesList', () => {
       hasAddresses: true,
       isPending: false,
       isPagePending: true,
+      loadPage: vi.fn(),
       isError: false,
       isGraceError: false,
     })

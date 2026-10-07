@@ -53,9 +53,22 @@ const QUERY: ProfileNamesQuery = {
 
 describe('readProfileNamesChunk', () => {
   it('reads the first chunk in the requested order with an exact total', async () => {
-    const readNames = vi.fn<ReadNamesForAddress>(() =>
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) =>
       okAsync(
-        page([summary('alice.eth'), summary('abc.addr.reverse')], 'next', 12),
+        cursor === undefined
+          ? page(
+              [
+                summary('alice.eth'),
+                summary('bob.eth'),
+                summary('carol.eth'),
+                summary('dave.eth'),
+                summary('erin.eth'),
+                summary('abc.addr.reverse'),
+              ],
+              'next',
+              12,
+            )
+          : page([]),
       ),
     )
 
@@ -71,11 +84,53 @@ describe('readProfileNamesChunk', () => {
       pageSize: PROFILE_NAMES_CHUNK_SIZE,
       includeTotal: true,
     })
+    expect(readNames).toHaveBeenCalledTimes(1)
     expect(chunk).toMatchObject({
-      names: [{ label: 'alice.eth' }],
+      names: [
+        { label: 'alice.eth' },
+        { label: 'bob.eth' },
+        { label: 'carol.eth' },
+        { label: 'dave.eth' },
+        { label: 'erin.eth' },
+      ],
       hiddenCount: 1,
       nextCursor: 'next',
       totalCount: 12,
+    })
+  })
+
+  it('reads on while the managed list hides most of a chunk, keeping the first total', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) =>
+      okAsync(
+        cursor === undefined
+          ? page(
+              [
+                summary('owned.eth', ['owner', 'manager']),
+                summary('one.eth', ['manager']),
+              ],
+              'next',
+              8,
+            )
+          : page([summary('two.eth', ['manager'])], null, null),
+      ),
+    )
+
+    const chunk = (
+      await readProfileNamesChunk(
+        readNames,
+        { ...QUERY, scope: 'managed' },
+        undefined,
+      )
+    )._unsafeUnwrap()
+
+    expect(readNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: 'next' }),
+    )
+    expect(chunk).toMatchObject({
+      names: [{ label: 'one.eth' }, { label: 'two.eth' }],
+      hiddenCount: 1,
+      nextCursor: null,
+      totalCount: 8,
     })
   })
 
