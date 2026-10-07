@@ -29,7 +29,7 @@ export type AddressNamesQuery = Readonly<{
     | 'former_owner'
   /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
   coin_type?: number | 'evm'
-  authority?: Authority
+  authority?: Authority | readonly Authority[]
   /** Direct children of this parent only, e.g. `eth` excludes subnames. */
   parent?: string
   expires_after?: Timestamp
@@ -38,7 +38,9 @@ export type AddressNamesQuery = Readonly<{
   is_migrated?: 'true' | 'false'
   /** ENSIP-15 name prefix; one trailing dot marks a label boundary. */
   q?: string
-  sort?: 'name' | 'expires_at' | 'registered_at'
+  /** ENSIP-15 matching mode for `q`; `prefix` when absent. */
+  match?: 'prefix' | 'contains'
+  sort?: 'name' | 'expires_at' | 'registered_at' | 'created_at'
   order?: SortOrder
   dedupe?: 'name' | 'registration'
   /** `total_count` asks for an exact total, which large results otherwise omit. */

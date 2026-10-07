@@ -5,26 +5,24 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
-  buildMergedNamesList,
   type MergedItem,
   mergedRowMetadata,
   type NameVersion,
   type SortDir,
   type SortField,
+  toMergedItems,
 } from '@/features/dashboard/mergedNames'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
-import { isHeldName } from '../dashboardNames'
+import { type DashboardName, isHeldName } from '../dashboardNames'
 import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
-import { useDashboardNames } from '../useDashboardNames'
+import { DASHBOARD_PAGE_SIZE, useDashboardNames } from '../useDashboardNames'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 import { nameRowRecordsQuery } from './nameRowRecordsQuery'
-
-const PAGE_SIZE = 5
 
 export type Sort = `${SortField}-${SortDir}`
 
@@ -38,7 +36,7 @@ interface MyNamesListProps {
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
   readonly selectedLabels?: ReadonlySet<string>
-  readonly onToggleSelect?: (label: string) => void
+  readonly onToggleSelect?: (name: DashboardName) => void
 }
 
 const EMPTY_SELECTION: ReadonlySet<string> = new Set()
@@ -94,7 +92,7 @@ const AnimatedNameRow = ({
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
   readonly selectedLabels: ReadonlySet<string>
-  readonly onToggleSelect: (label: string) => void
+  readonly onToggleSelect: (name: DashboardName) => void
   readonly isV1Renewable: boolean
   readonly isEligibilityPending: boolean
 }) => {
@@ -176,7 +174,7 @@ const AnimatedNameRow = ({
         label={label}
         nameRoles={nameRoles}
         onToggleFavorite={() => onToggleFavorite(label)}
-        onToggleSelect={() => onToggleSelect(label)}
+        onToggleSelect={() => onToggleSelect(item.name)}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
         selectable={!isV1 && isRenewable && isHeldName(item.name)}
         showFavoriteButton
@@ -218,36 +216,25 @@ export const MyNamesList = ({
   } = useDashboardMigrationEligibility(migrationEnabled)
 
   const {
-    names,
+    pageNames,
+    total,
     isPending: isNamesPending,
+    isPagePending,
     isError: isNamesError,
-  } = useDashboardNames()
+  } = useDashboardNames({ sortField, sortDir, search: searchQuery, page })
 
-  const mergedSortedFiltered = useMemo(
-    () =>
-      buildMergedNamesList({
-        names,
-        eligibleKeys,
-        searchQuery,
-        sortField,
-        sortDir,
-        version,
-      }),
-    [names, eligibleKeys, searchQuery, sortField, sortDir],
-  )
-
-  const total = mergedSortedFiltered.length
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = mergedSortedFiltered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+  const pageItems = useMemo(
+    () => toMergedItems(pageNames, eligibleKeys),
+    [pageNames, eligibleKeys],
   )
-  const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
-  const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
+  const rangeStart =
+    total === 0 ? 0 : (currentPage - 1) * DASHBOARD_PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * DASHBOARD_PAGE_SIZE, total)
 
-  const isPending = isNamesPending
-  const hasNames = names.length > 0
+  const isPending = isNamesPending || isPagePending
+  const hasNames = total > 0
   const hasPartialError = (isNamesError && hasNames) || isEligibilityError
   const pageRows = pageItems.map((item) => ({
     item,

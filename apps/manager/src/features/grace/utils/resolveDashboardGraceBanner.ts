@@ -1,8 +1,9 @@
 import { match, P } from 'ts-pattern'
+import { compareDashboardNames } from '@/features/dashboard/dashboardNames'
 import {
-  buildMergedNamesList,
   type DashboardName,
   mergedRowMetadata,
+  toMergedItems,
 } from '@/features/dashboard/mergedNames'
 import type { GracePeriodBannerVariant } from '@/features/grace/components/GracePeriodBanner'
 import type { NameExpiryStatus } from '@/features/grace/utils/gracePeriod'
@@ -37,12 +38,9 @@ const resolveAnyNameGraceBanner = ({
   DashboardGraceBannerState,
   { show: true }
 > | null => {
-  for (const item of buildMergedNamesList({
-    names,
-    searchQuery: '',
-    sortField: 'expiry',
-    sortDir: 'asc',
-  })) {
+  for (const item of toMergedItems(
+    [...names].sort(compareDashboardNames('expiry', 'asc')),
+  )) {
     const meta = mergedRowMetadata(item, primaryLabel)
     if (
       meta.isV1 ||

@@ -24,11 +24,16 @@ export type Relation =
   | 'owner'
   | 'manager'
   | 'registrant'
+  | 'role_holder'
   | 'resolves_to'
   | 'former_owner'
 
 /** Authority relations that `any` expands to. */
-export type AuthorityRelation = 'owner' | 'manager' | 'registrant'
+export type AuthorityRelation =
+  | 'owner'
+  | 'manager'
+  | 'registrant'
+  | 'role_holder'
 
 /**
  * `relation` query/body filter: one authority relation, a comma-separated set of them,

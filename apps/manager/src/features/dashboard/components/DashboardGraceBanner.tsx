@@ -8,7 +8,7 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
-import { useDashboardNames } from '../useDashboardNames'
+import { useDashboardGraceNames } from '../useDashboardNames'
 
 type DashboardGraceBannerProps = {
   readonly primaryLabel: string | null
@@ -17,7 +17,8 @@ type DashboardGraceBannerProps = {
 export const DashboardGraceBanner = ({
   primaryLabel,
 }: DashboardGraceBannerProps) => {
-  const { names } = useDashboardNames()
+  // Only ENSv2 names in grace are renewed from the dashboard banner.
+  const names = useDashboardGraceNames()
 
   const { data: primaryExpiryData } = useQuery({
     ...profileExpiryQuery(primaryLabel ?? ''),

@@ -2,7 +2,7 @@
  * Mock V1 names — answers the manager's bigname reads for ENSv1 names
  * registered on the local Anvil chain, which no bigname deployment indexes.
  *
- * It serves the `authority=ens_v1` listing the migration reads and the detail
+ * It serves the ENSv1 listing (`authority=ens_v1,ens_v0`) the migration reads and the detail
  * lookups for these names (fields and record keys). Every other bigname
  * request falls through to the next handler, e.g. the shared indexer mock.
  */
@@ -146,7 +146,9 @@ export async function mockV1Names(
     }
 
     const listing = url.pathname.match(/^\/v1\/addresses\/([^/]+)\/names$/)
-    if (listing?.[1] && url.searchParams.get('authority') === 'ens_v1') {
+    const isV1Listing =
+      url.searchParams.get('authority')?.split(',').includes('ens_v1') ?? false
+    if (listing?.[1] && isV1Listing) {
       const address = listing[1].toLowerCase()
       const rows = mockNames
         .filter((n) => n.ownerAddress.toLowerCase() === address)

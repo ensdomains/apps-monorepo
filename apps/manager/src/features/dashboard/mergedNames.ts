@@ -14,7 +14,12 @@ import {
   toDateFromSeconds,
 } from './utils'
 
-export type { DashboardName, DashboardNameRole } from './dashboardNames'
+export type {
+  DashboardName,
+  DashboardNameRole,
+  SortDir,
+  SortField,
+} from './dashboardNames'
 
 export type MergedItem = {
   readonly kind: RenewalProtocol
@@ -26,18 +31,12 @@ export type MergedItem = {
   readonly isMigrationEligible: boolean
 }
 
-export type SortField = 'name' | 'created' | 'expiry'
-export type NameVersion = 'v1' | 'v2'
-export type SortDir = 'asc' | 'desc'
 export type ExpiryCta = 'renew' | 'remindMe'
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
 
 const getMergedExpiryDate = (expirySeconds: bigint): Date | null =>
   expirySeconds === 0n ? null : toDateFromSeconds(Number(expirySeconds))
-
-const getExpirySortValue = (expirySeconds: bigint): bigint | null =>
-  expirySeconds === 0n ? null : expirySeconds
 
 const formatMergedExpiryDate = (
   displayExpiryDate: Date | null,
@@ -46,27 +45,6 @@ const formatMergedExpiryDate = (
   expirySeconds === 0n
     ? NON_EXPIRING_DATE_LABEL
     : formatDashboardDate(displayExpiryDate)
-
-export const compareMerged = (
-  a: MergedItem,
-  b: MergedItem,
-  field: SortField,
-  dir: SortDir,
-): number => {
-  const mul = dir === 'asc' ? 1 : -1
-  if (field === 'name') {
-    return a.sortName.localeCompare(b.sortName) * mul
-  }
-  const ax =
-    field === 'created' ? a.sortCreated : getExpirySortValue(a.sortExpiry)
-  const bx =
-    field === 'created' ? b.sortCreated : getExpirySortValue(b.sortExpiry)
-  if (ax === null && bx === null) return 0
-  if (ax === null) return 1
-  if (bx === null) return -1
-  if (ax === bx) return 0
-  return (ax < bx ? -1 : 1) * mul
-}
 
 const toMergedItem = (
   name: DashboardName,
@@ -82,22 +60,11 @@ const toMergedItem = (
     name.protocol === 'v1' && eligibleKeys.has(name.key.toLowerCase()),
 })
 
-/** Substring search stays client-side: bigname's `q` is prefix-only. */
-export const buildMergedNamesList = (params: {
-  readonly names: readonly DashboardName[]
-  readonly eligibleKeys?: ReadonlySet<string>
-  readonly searchQuery: string
-  readonly sortField: SortField
-  readonly sortDir: SortDir
-}): MergedItem[] => {
-  const { names, searchQuery, sortField, sortDir } = params
-  const eligibleKeys = params.eligibleKeys ?? new Set<string>()
-  const q = searchQuery.trim().toLowerCase()
-  return names
-    .filter((name) => !q || name.name.toLowerCase().includes(q))
-    .map((name) => toMergedItem(name, eligibleKeys))
-    .sort((a, b) => compareMerged(a, b, sortField, sortDir))
-}
+/** Rows for names already in bigname's order. */
+export const toMergedItems = (
+  names: readonly DashboardName[],
+  eligibleKeys: ReadonlySet<string> = new Set(),
+): MergedItem[] => names.map((name) => toMergedItem(name, eligibleKeys))
 
 export type MergedRowMetadata = {
   readonly label: string
