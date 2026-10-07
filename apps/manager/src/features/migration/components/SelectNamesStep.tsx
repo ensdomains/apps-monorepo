@@ -60,9 +60,6 @@ export const SelectNamesStep = ({
     useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
-  const hasNamesNeedingManagerRestoration = eligible.some(
-    ({ managerAddress }) => managerAddress !== null,
-  )
 
   const {
     search,
@@ -92,6 +89,8 @@ export const SelectNamesStep = ({
     onNamesChange,
     onManagerRestorationChange,
   })
+  // The temporary approval is needed only for names the owner opted in.
+  const hasNamesNeedingManagerRestoration = restoredManagers.size > 0
 
   const needsRenewal = renewal.status !== 'idle'
   const isEstimatingGas = needsRenewal

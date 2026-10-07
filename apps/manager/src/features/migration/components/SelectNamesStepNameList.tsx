@@ -194,10 +194,14 @@ const SelectNamesStepNameListComponent = ({
                 <NameRow
                   depth={0}
                   isInGrace
+                  isManagerRestorationLocked={isManagerRestorationLocked}
+                  isManagerRestored={restoredManagers.has(item.domain.name)}
                   isPrimary={item.domain.name === primaryName}
                   isSelected={selected.has(item.domain.name)}
                   item={item}
+                  managerCandidate={managerCandidates.get(item.domain.name)}
                   onToggle={toggleName}
+                  onToggleManagerRestoration={toggleManagerRestoration}
                 />
               </li>
             ))}

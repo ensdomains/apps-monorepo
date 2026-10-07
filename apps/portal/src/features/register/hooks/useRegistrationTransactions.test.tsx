@@ -19,6 +19,7 @@ import {
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useBytecode } from 'wagmi'
 import { waitFor } from 'xstate'
 import { PAYMENT_TOKENS } from '../constants/paymentTokens'
 import { useRegistrationTransactions } from './useRegistrationTransactions'
@@ -36,6 +37,8 @@ vi.mock('wagmi', async (importOriginal) => ({
   useConnection: () => ({ address: OWNER }),
   usePublicClient: () => publicClient,
   useReadContract: () => ({ data: undefined }),
+  // No code at the wallet's resolver address unless a test says otherwise.
+  useBytecode: vi.fn(() => ({ data: null, isSuccess: true })),
 }))
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   useTransactionModal: () => ({
@@ -226,5 +229,57 @@ describe('useRegistrationTransactions retry after a failed step', () => {
       commitTx,
     )
     vi.restoreAllMocks()
+  })
+})
+
+describe('useRegistrationTransactions before a run', () => {
+  const render = () =>
+    renderHook(() =>
+      useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
+    ).result
+
+  afterEach(() => {
+    vi.mocked(useBytecode).mockReset()
+  })
+
+  it("lists the deploy step for the wallet's first registration", () => {
+    const result = render()
+
+    expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.deployResolver,
+      REGISTRATION_TX_IDS.commit,
+      REGISTRATION_TX_IDS.approve,
+      REGISTRATION_TX_IDS.register,
+    ])
+  })
+
+  it('drops the deploy step once the wallet has a resolver', () => {
+    vi.mocked(useBytecode).mockReturnValue({
+      data: '0x6080',
+      isSuccess: true,
+    } as never)
+    const result = render()
+
+    expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.commit,
+      REGISTRATION_TX_IDS.approve,
+      REGISTRATION_TX_IDS.register,
+    ])
+  })
+
+  it('leaves the deploy step out while the resolver read has no answer', () => {
+    // Pending or failed: the wallet may have a resolver already, and an
+    // estimate against it would fail.
+    vi.mocked(useBytecode).mockReturnValue({
+      data: undefined,
+      isSuccess: false,
+    } as never)
+    const result = render()
+
+    expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.commit,
+      REGISTRATION_TX_IDS.approve,
+      REGISTRATION_TX_IDS.register,
+    ])
   })
 })

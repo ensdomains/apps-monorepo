@@ -14,6 +14,7 @@ export const REGISTRATION_STAGE_PROGRESS = {
   idle: 0,
   settingUpRegistration: 5,
   // Pure-EOA spine
+  checkingResolver: 6,
   deployingResolver: 8,
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,

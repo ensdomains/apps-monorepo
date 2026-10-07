@@ -11,8 +11,11 @@ export const prepareGraceRenewalMigration = async (params: {
   readonly hcaAddress: Address
   readonly publicClient: PublicClient
   readonly wagmiConfig: Config
+  /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
+  readonly managerRestorationNames?: readonly string[]
   readonly signal?: AbortSignal
 }) => {
+  const managerRestorationNames = params.managerRestorationNames ?? []
   const refreshed = new Map(
     params.renewedDomains.map((domain) => [domain.id, domain]),
   )
@@ -24,6 +27,7 @@ export const prepareGraceRenewalMigration = async (params: {
     eoa: params.ownerAddress,
     hcaAddress: params.hcaAddress,
     domains,
+    requiresManagerRestoration: managerRestorationNames.length > 0,
     wagmiConfig: params.wagmiConfig,
     publicClient: params.publicClient,
     signal: params.signal,
@@ -32,6 +36,7 @@ export const prepareGraceRenewalMigration = async (params: {
     domains,
     hcaAddress: params.hcaAddress,
     migrationOwner: params.ownerAddress,
+    managerRestorationNames,
     publicClient: params.publicClient,
     preflight,
     signal: params.signal,
