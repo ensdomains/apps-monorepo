@@ -41,7 +41,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import {
+  NodeDetailSheet,
+  type NodeRolesStatus,
+} from '@/features/resolver/components/NodeDetailSheet'
 import { getResolverNodesQueryOptions } from '@/features/resolver/hooks/useResolverNodes'
 import {
   getResolverOverviewQueryOptions,
@@ -125,18 +128,14 @@ const createNodesColumns = (
 ]
 
 function RouteComponent() {
-  const { address } = Route.useParams()
+  const { address } = Route.useParams() as { address: Address }
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const nodesQuery = useInfiniteQuery(
-    getResolverNodesQueryOptions({ address: address as Address }),
-  )
-  const overviewQuery = useQuery(
-    getResolverOverviewQueryOptions({ address: address as Address }),
-  )
+  const nodesQuery = useInfiniteQuery(getResolverNodesQueryOptions({ address }))
+  const overviewQuery = useQuery(getResolverOverviewQueryOptions({ address }))
 
   const loadedNodes = useMemo(
     () => nodesQuery.data?.pages.flatMap((page) => page.nodes) ?? [],
@@ -197,9 +196,7 @@ function RouteComponent() {
   if (loadedNodes.length === 0)
     return (
       <div className="flex flex-col gap-8">
-        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-          Nodes
-        </PageHeading>
+        <PageHeading parent={{ type: 'resolver', address }}>Nodes</PageHeading>
         <NoResultsMessage
           title="No nodes yet"
           description="Names that resolve through this resolver will appear here."
@@ -210,9 +207,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-        Nodes
-      </PageHeading>
+      <PageHeading parent={{ type: 'resolver', address }}>Nodes</PageHeading>
 
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>
@@ -235,7 +230,7 @@ function RouteComponent() {
         node={selectedNode}
         roles={rolesForNode}
         rolesStatus={match(overviewQuery)
-          .returnType<'loading' | 'error' | 'ready'>()
+          .returnType<NodeRolesStatus>()
           .with({ isLoading: true }, () => 'loading')
           .with({ isError: true }, () => 'error')
           .otherwise(() => 'ready')}

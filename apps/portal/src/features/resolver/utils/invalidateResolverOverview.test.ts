@@ -36,4 +36,14 @@ describe('invalidateResolverOverview', () => {
     )
     expect(queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(false)
   })
+
+  it('skips a scoped query whose key carries no address', async () => {
+    const queryClient = new QueryClient()
+    const bareKey = ['get-resolver-nodes']
+    queryClient.setQueryData(bareKey, {})
+
+    await invalidateResolverOverview(queryClient, getAddress(RESOLVER))
+
+    expect(queryClient.getQueryState(bareKey)?.isInvalidated).toBe(false)
+  })
 })
