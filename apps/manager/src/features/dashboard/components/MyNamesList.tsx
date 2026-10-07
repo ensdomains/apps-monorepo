@@ -221,6 +221,7 @@ export const MyNamesList = ({
     isPending: isNamesPending,
     isPagePending,
     isError: isNamesError,
+    isGraceError,
   } = useDashboardNames({ sortField, sortDir, search: searchQuery, page })
 
   const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE))
@@ -235,7 +236,8 @@ export const MyNamesList = ({
 
   const isPending = isNamesPending || isPagePending
   const hasNames = total > 0
-  const hasPartialError = (isNamesError && hasNames) || isEligibilityError
+  const hasPartialError =
+    ((isNamesError || isGraceError) && hasNames) || isEligibilityError
   const pageRows = pageItems.map((item) => ({
     item,
     metadata: mergedRowMetadata(item, primaryLabel),

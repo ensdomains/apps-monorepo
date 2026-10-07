@@ -246,14 +246,18 @@ describe('mergeDashboardChunks', () => {
     names: readonly string[],
     nextCursor: string | null,
     extra: Partial<AddressNamesChunk> = {},
-  ): AddressNamesChunk => ({
-    address,
-    names: names.map((name) => dashboardName({ name, key: `0x${name}` })),
-    hiddenCount: 0,
-    nextCursor,
-    totalCount: null,
-    ...extra,
-  })
+  ): AddressNamesChunk => {
+    const rows = names.map((name) => dashboardName({ name, key: `0x${name}` }))
+    return {
+      address,
+      names: rows,
+      hiddenCount: 0,
+      lastRead: rows.at(-1) ?? null,
+      nextCursor,
+      totalCount: null,
+      ...extra,
+    }
+  }
   const merge = (
     chunks: readonly AddressNamesChunk[],
     graceNames: readonly DashboardName[] = [],
@@ -286,6 +290,27 @@ describe('mergeDashboardChunks', () => {
       'm.eth',
     ])
     expect(result).toMatchObject({ isComplete: false, total: 7 })
+  })
+
+  it('holds names back to where an address read only hidden rows', () => {
+    const result = merge([
+      chunk('eoa', [], 'more', {
+        hiddenCount: 1,
+        lastRead: dashboardName({ name: 'b.addr.reverse', key: '0xrev' }),
+      }),
+      chunk('hca', ['a.eth', 'c.eth'], null),
+    ])
+
+    expect(result.names.map(({ name }) => name)).toEqual(['a.eth'])
+  })
+
+  it('shows nothing while an address with more to read has read no row yet', () => {
+    const result = merge([
+      chunk('eoa', [], 'more'),
+      chunk('hca', ['a.eth'], null),
+    ])
+
+    expect(result.names).toEqual([])
   })
 
   it('merges a name both addresses hold and folds in names in grace', () => {
