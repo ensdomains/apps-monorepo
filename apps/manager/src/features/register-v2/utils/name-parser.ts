@@ -128,6 +128,21 @@ export const parseName = (
     wasRewritten ? ParseNameError.err('NOT_NORMALIZED') : ok(parsed),
   )
 
+const ENCODED_LABELHASH = /^\[[0-9a-f]{64}\]$/
+
+// Stored names come from the indexer as registered, so `ALICE.eth` or a
+// soft-hyphen look-alike can exist. `[labelhash]` labels pass: not a look-alike.
+export const isNormalizedName = (name: string): boolean =>
+  name.split('.').every(
+    (label) =>
+      label.length > 0 &&
+      (ENCODED_LABELHASH.test(label) ||
+        fromSync(
+          () => normalize(label) === label,
+          () => false,
+        ).unwrapOr(false)),
+  )
+
 /**
  * Correctly calculates the length of a ENS label by iterating over the string iterator and counting the number of code points.
  */
