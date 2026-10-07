@@ -49,6 +49,7 @@ import {
 } from '@/features/renew/hooks/useRenewalTransactions'
 import {
   getNameLength,
+  getNameRowId,
   getNameStatus,
   getSelectedNames,
   isExtendable2LD,
@@ -326,6 +327,7 @@ function RouteComponent() {
   const table = useReactTable({
     data: filteredData,
     columns,
+    getRowId: getNameRowId,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),

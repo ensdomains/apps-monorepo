@@ -9,13 +9,16 @@ export const GRACE_PERIOD_DAYS = 90
 export const V2_GRACE_PERIOD_DAYS = 28
 export const PREMIUM_PERIOD_DAYS = 21
 
+/** A row's selection key: its name, not its position, which shifts as rows load. */
+export const getNameRowId = (row: NameRow, index: number): string =>
+  row.name === null ? String(index) : `${row.protocolVersion}:${row.name}`
+
 export const getSelectedNames = (
   rowSelection: RowSelectionState,
   filteredData: NameRow[],
 ): readonly SelectedName[] =>
-  Object.keys(rowSelection)
-    .map((idx) => filteredData[Number(idx)])
-    .filter((row): row is NameRow => Boolean(row))
+  filteredData
+    .filter((row, index) => rowSelection[getNameRowId(row, index)])
     .filter((row): row is NameRow & { name: string } => row.name !== null)
     .map((row) => ({
       name: row.name,
