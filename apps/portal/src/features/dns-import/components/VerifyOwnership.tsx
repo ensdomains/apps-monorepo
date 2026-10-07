@@ -5,6 +5,8 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { DnssecDebugLink } from '@/features/dnssec-debug/components/DnssecDebugLink'
+import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { EstimatedGasCost } from '@/features/transaction-manager/components/EstimatedGasCost'
@@ -34,6 +36,7 @@ import { getDnsOwnerQueryOptions } from '../queries/getDnsOwner'
 import { getIsPublicSuffixQueryOptions } from '../queries/getIsPublicSuffix'
 import type { DnsImportType } from '../types'
 import { DnsRecordTable } from './DnsRecordTable'
+import { EnableDnssec } from './EnableDnssec'
 import { SupportLinkList } from './SupportLinkList'
 import {
   RefreshButton,
@@ -46,6 +49,8 @@ import {
 
 /** What the DNS check found, unified across the offchain and onchain paths. */
 type FoundState =
+  /** No wallet yet, so there is no address to check the record against. */
+  | { readonly kind: 'disconnected' }
   | { readonly kind: 'loading' }
   | { readonly kind: 'none' }
   | { readonly kind: 'invalid'; readonly reason: DnsErrorKind }
@@ -116,7 +121,7 @@ const deriveFound = ({
   readonly offchainQuery: Parameters<typeof deriveOffchainFound>[0]
   readonly dnsOwnerQuery: Parameters<typeof deriveOnchainFound>[0]
 }): FoundState => {
-  if (!connectedAddress) return { kind: 'loading' }
+  if (!connectedAddress) return { kind: 'disconnected' }
   return type === 'offchain'
     ? deriveOffchainFound(offchainQuery, connectedAddress)
     : deriveOnchainFound(dnsOwnerQuery, connectedAddress)
@@ -125,20 +130,20 @@ const deriveFound = ({
 const buildRecord = (
   type: DnsImportType,
   connectedAddress: Address | undefined,
-): DnsRecordSpec | null => {
-  if (!connectedAddress) return null
-  return type === 'offchain'
+): DnsRecordSpec =>
+  type === 'offchain'
     ? getOffchainVerificationRecord(sepoliaWithEns.id, connectedAddress)
     : getOnchainVerificationRecord(connectedAddress)
-}
 
 /** Record table + found chip + per-state messages while ownership is unverified. */
 const VerificationDetails = ({
+  name,
   found,
   record,
   onRefresh,
   isRefreshing,
 }: {
+  readonly name: string
   readonly found: FoundState
   readonly record: DnsRecordSpec
   readonly onRefresh: () => void
@@ -151,6 +156,11 @@ const VerificationDetails = ({
         <div className="flex w-full items-center gap-3">
           <div className="flex-1">
             {match(found)
+              .with({ kind: 'disconnected' }, () => (
+                <span className="text-muted-foreground">
+                  Connect a wallet to check this record
+                </span>
+              ))
               .with({ kind: 'loading' }, () => (
                 <span className="text-muted-foreground">Checking…</span>
               ))
@@ -171,14 +181,21 @@ const VerificationDetails = ({
               ))
               .otherwise(() => null)}
           </div>
-          <RefreshButton onClick={onRefresh} isRefreshing={isRefreshing} />
+          <RefreshButton
+            label="Refresh record check"
+            onClick={onRefresh}
+            isRefreshing={isRefreshing}
+          />
         </div>
       }
     />
     {found.kind === 'invalid' && (
-      <p className="text-sm text-message-danger-text">
-        {DNS_ERROR_MESSAGES[found.reason]}
-      </p>
+      <>
+        <p className="text-sm text-message-danger-text">
+          {DNS_ERROR_MESSAGES[found.reason]}
+        </p>
+        <DnssecDebugLink name={name} source="import" />
+      </>
     )}
     {found.kind === 'mismatch' && found.unofficialResolver && (
       <p className="text-sm text-message-warning-text">
@@ -224,6 +241,10 @@ export const VerifyOwnership = ({
     ...getIsPublicSuffixQueryOptions({ tld: getTLD(name) }),
     enabled: type === 'onchain',
   })
+  // Shares its cache entry with the DNSSEC section rendered below; read here
+  // so the final action can be gated on it (neither path resolves without it).
+  const dnssecQuery = useQuery(getDnsSecEnabledQueryOptions({ tld: name }))
+  const isDnssecEnabled = dnssecQuery.data === true
 
   const activeQuery = type === 'offchain' ? offchainQuery : dnsOwnerQuery
 
@@ -242,8 +263,9 @@ export const VerifyOwnership = ({
           title="Domain not supported"
           description={
             <>
-              The <strong>.{getTLD(name)}</strong> domain ending is not
-              supported by the DNS registrar for onchain import.
+              The <strong className="font-medium">.{getTLD(name)}</strong>{' '}
+              domain ending is not supported by the DNS registrar for onchain
+              import.
             </>
           }
         />
@@ -255,7 +277,7 @@ export const VerifyOwnership = ({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {found.kind === 'verified' ? (
         <StepSuccessCard
           title="Ownership verified"
@@ -263,42 +285,56 @@ export const VerifyOwnership = ({
         />
       ) : (
         <StepHeadingCard
-          title="Verify ownership"
-          description="Add the DNS record below to verify your ownership of this domain."
+          title="Set up your domain"
+          description="DNSSEC and the ownership record are both configured at your DNS provider, so set them up together in one visit."
         />
       )}
 
-      {!isConnected ? (
-        <>
-          <StatusChip tone="warning">
-            Connect your wallet to verify ownership of this domain.
-          </StatusChip>
-          <Button className="w-full" onClick={() => openConnectModal()}>
-            Connect
-          </Button>
-        </>
-      ) : (
-        <>
-          {found.kind !== 'verified' && record && (
-            <VerificationDetails
-              found={found}
-              record={record}
-              onRefresh={() => void activeQuery.refetch()}
-              isRefreshing={activeQuery.isRefetching}
-            />
-          )}
+      <EnableDnssec name={name} />
 
-          {type === 'offchain' ? (
-            <OffchainActions name={name} found={found} onBack={onBack} />
-          ) : (
-            <OnchainImportActions
-              name={name}
-              found={found}
-              dnsOwner={dnsOwnerQuery.data ?? null}
-              onBack={onBack}
-            />
-          )}
-        </>
+      {found.kind !== 'verified' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="font-medium">2. Add the ownership record</h3>
+            <p className="text-sm text-muted-foreground">
+              {isConnected
+                ? 'Add this TXT record at your DNS provider to prove you own this domain.'
+                : 'Add this TXT record at your DNS provider, using an Ethereum address you control. Connect that wallet to check it.'}
+            </p>
+          </div>
+
+          <VerificationDetails
+            name={name}
+            found={found}
+            record={record}
+            onRefresh={() => void activeQuery.refetch()}
+            isRefreshing={activeQuery.isRefetching}
+          />
+        </div>
+      )}
+
+      {isConnected ? (
+        type === 'offchain' ? (
+          <OffchainActions
+            name={name}
+            found={found}
+            isDnssecEnabled={isDnssecEnabled}
+            onBack={onBack}
+          />
+        ) : (
+          <OnchainImportActions
+            name={name}
+            found={found}
+            isDnssecEnabled={isDnssecEnabled}
+            dnsOwner={dnsOwnerQuery.data ?? null}
+            onBack={onBack}
+          />
+        )
+      ) : (
+        <StepActions
+          onBack={onBack}
+          primary={{ label: 'Connect', onClick: () => openConnectModal() }}
+        />
       )}
     </div>
   )
@@ -312,10 +348,12 @@ export const VerifyOwnership = ({
 const OffchainActions = ({
   name,
   found,
+  isDnssecEnabled,
   onBack,
 }: {
   readonly name: string
   readonly found: FoundState
+  readonly isDnssecEnabled: boolean
   readonly onBack: () => void
 }) => {
   const queryClient = useQueryClient()
@@ -335,10 +373,14 @@ const OffchainActions = ({
         .with({ kind: 'verified' }, () => ({
           label: 'Finish',
           onClick: finishOffchain,
+          // The gasless resolver only trusts a DNSSEC-signed answer, so a
+          // verified record on an unsigned domain still won't resolve.
+          disabled: !isDnssecEnabled,
         }))
         .with({ kind: 'mismatch' }, () => ({
           label: 'Finish',
           onClick: finishOffchain,
+          disabled: !isDnssecEnabled,
           tone: 'danger' as const,
         }))
         .otherwise(() => ({
@@ -358,22 +400,25 @@ const OffchainActions = ({
 const OnchainImportActions = ({
   name,
   found,
+  isDnssecEnabled,
   dnsOwner,
   onBack,
 }: {
   readonly name: string
   readonly found: FoundState
+  readonly isDnssecEnabled: boolean
   readonly dnsOwner: Address | null
   readonly onBack: () => void
 }) => {
   const isActionable = found.kind === 'verified' || found.kind === 'mismatch'
   const mode = found.kind === 'verified' ? 'claim' : 'importWithoutOwnership'
 
-  const { transactions, startImport, isReady } = useDnsImportTransactions({
-    name,
-    mode,
-    enabled: isActionable,
-  })
+  const { transactions, startImport, isReady, isProofError } =
+    useDnsImportTransactions({
+      name,
+      mode,
+      enabled: isActionable,
+    })
 
   const ownerQuery = useQuery(getPrimaryNameQueryOptions(dnsOwner ?? undefined))
   const claimStep = transactions[transactions.length - 1]
@@ -400,18 +445,28 @@ const OnchainImportActions = ({
           </div>
         </div>
       )}
+      {isActionable && isProofError && (
+        <div className="flex flex-col gap-2">
+          <StatusChip tone="danger">
+            Could not prepare the DNSSEC proof for this import.
+          </StatusChip>
+          <DnssecDebugLink name={name} source="import" />
+        </div>
+      )}
       <StepActions
         onBack={onBack}
         primary={match(found)
           .with({ kind: 'verified' }, () => ({
             label: 'Import',
             onClick: startImport,
-            disabled: !isReady,
+            // The registrar verifies a DNSSEC proof on-chain; without DNSSEC
+            // the import transaction reverts.
+            disabled: !isReady || !isDnssecEnabled,
           }))
           .with({ kind: 'mismatch' }, () => ({
             label: 'Import without ownership',
             onClick: startImport,
-            disabled: !isReady,
+            disabled: !isReady || !isDnssecEnabled,
             tone: 'danger' as const,
           }))
           .otherwise(() => ({

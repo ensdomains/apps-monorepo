@@ -6,7 +6,20 @@ export type DnsRecordSpec = {
   /** DNS record name relative to the domain (`@` = the domain itself). */
   readonly name: string
   readonly value: string
+  /**
+   * The value still carries {@link ADDRESS_PLACEHOLDER} because no wallet is
+   * connected. It illustrates the record's shape; pasting it into a DNS
+   * manager verbatim produces a record that can never verify.
+   */
+  readonly isSample: boolean
 }
+
+/**
+ * Stands in for the address while no wallet is connected, so the record can be
+ * shown up front — the user configures DNSSEC and this record in one visit to
+ * their DNS manager, and connecting first is not a prerequisite for either.
+ */
+export const ADDRESS_PLACEHOLDER = '<your address>'
 
 /**
  * The record required by the onchain import path: the DNSRegistrar's
@@ -15,11 +28,12 @@ export type DnsRecordSpec = {
  * check (the contract itself is case-insensitive).
  */
 export const getOnchainVerificationRecord = (
-  connectedAddress: Address,
+  connectedAddress: Address | undefined,
 ): DnsRecordSpec => ({
   type: 'TXT',
   name: '_ens',
-  value: `a=${connectedAddress}`,
+  value: `a=${connectedAddress ?? ADDRESS_PLACEHOLDER}`,
+  isSample: !connectedAddress,
 })
 
 /**
@@ -30,9 +44,12 @@ export const getOnchainVerificationRecord = (
  */
 export const getOffchainVerificationRecord = (
   chainId: number,
-  connectedAddress: Address,
+  connectedAddress: Address | undefined,
 ): DnsRecordSpec => ({
   type: 'TXT',
   name: '@',
-  value: `ENS1 ${getOffchainResolverDisplay(chainId)} ${connectedAddress}`,
+  value: `ENS1 ${getOffchainResolverDisplay(chainId)} ${
+    connectedAddress ?? ADDRESS_PLACEHOLDER
+  }`,
+  isSample: !connectedAddress,
 })
