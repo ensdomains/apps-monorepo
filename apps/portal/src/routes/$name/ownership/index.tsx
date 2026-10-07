@@ -20,6 +20,7 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
+import { TransferPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { useCanTransfer } from '@/features/transfer/hooks/useCanTransfer'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
@@ -150,6 +151,7 @@ function RouteComponent() {
           label={ownerLabel}
           owner={data.owner}
           protocolVersion={data.protocolVersion}
+          badge={<TransferPrivilegeWarning name={name} ownerData={data} />}
         />
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />

@@ -4,6 +4,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { getEnsName } from 'viem/actions'
+import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class ReverseResolverError extends TaggedError('ReverseResolverError')<{
@@ -25,7 +26,8 @@ class ReverseResolverError extends TaggedError('ReverseResolverError')<{
  * correct coin type for L1 testnets like Sepolia per ENSIP-19.
  *
  * Returns `null` when the address has no verified primary name (including
- * when the reverse claim does not forward-resolve back to the address).
+ * when the reverse claim does not forward-resolve back to the address), or
+ * when that name is not normalised (WEB-1730).
  */
 export const getReverseName = ResultFn(async function* (address?: Address) {
   if (!address) return ok(null)
@@ -36,6 +38,8 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
     getEnsName(client, { address }),
     (e) => new ReverseResolverError({ cause: e }),
   ).orElse(() => okAsync<string | null, never>(null))
+
+  if (name !== null && !isNormalizedName(name)) return ok(null)
 
   return ok(name)
 })
