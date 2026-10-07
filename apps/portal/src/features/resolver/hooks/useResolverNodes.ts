@@ -31,10 +31,13 @@ const getResolverNodesPage = ResultFn(async function* ({
 }: GetResolverNodesParameters & { readonly after: string | undefined }) {
   const { domainConnection } = yield* fromPromise(
     graphqlIndexerClient.request<{
-      domainConnection: {
-        totalCount: number
-        pageInfo: { hasNextPage: boolean; endCursor: string | null }
-        edges: { node: ResolverNode }[]
+      readonly domainConnection: {
+        readonly totalCount: number
+        readonly pageInfo: {
+          readonly hasNextPage: boolean
+          readonly endCursor: string | null
+        }
+        readonly edges: readonly { readonly node: ResolverNode }[]
       }
     }>(
       gql`

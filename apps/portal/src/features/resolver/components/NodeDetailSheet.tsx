@@ -38,6 +38,7 @@ import { recordsToTableData } from '@/utils/records/recordsToTableData'
 type NodeDetailSheetProps = PropsWithChildren & {
   readonly node: ResolverNode | null
   readonly roles: readonly ResolverRole[]
+  readonly rolesStatus: 'loading' | 'error' | 'ready'
   readonly resolverAddress: string
   readonly open: boolean
   readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
@@ -49,6 +50,7 @@ export const NodeDetailSheet = ({
   children,
   node,
   roles,
+  rolesStatus,
   resolverAddress,
   open,
   setOpen,
@@ -147,11 +149,20 @@ export const NodeDetailSheet = ({
                     </Link>
                   </Button>
                 </div>
-                {roles.length === 0 ? (
+                {rolesStatus === 'loading' && (
+                  <Skeleton className="h-8 w-full" />
+                )}
+                {rolesStatus === 'error' && (
+                  <p className="text-sm text-danger">
+                    Failed to load roles. Please refresh the page.
+                  </p>
+                )}
+                {rolesStatus === 'ready' && roles.length === 0 && (
                   <p className="text-sm text-muted-foreground">
                     No roles assigned for this node.
                   </p>
-                ) : (
+                )}
+                {rolesStatus === 'ready' && roles.length > 0 && (
                   <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <Table>
                       <TableHeader>

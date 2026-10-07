@@ -12,6 +12,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -133,7 +134,7 @@ function RouteComponent() {
   const nodesQuery = useInfiniteQuery(
     getResolverNodesQueryOptions({ address: address as Address }),
   )
-  const { data: resolver } = useQuery(
+  const overviewQuery = useQuery(
     getResolverOverviewQueryOptions({ address: address as Address }),
   )
 
@@ -158,7 +159,7 @@ function RouteComponent() {
     () => loadedNodes.slice(0, loader.shown),
     [loadedNodes, loader.shown],
   )
-  const roles = resolver?.roles ?? []
+  const roles = overviewQuery.data?.roles ?? []
 
   const rolesForNode = selectedNode
     ? roles.filter((r) => r.resource === selectedNode.id)
@@ -233,6 +234,11 @@ function RouteComponent() {
       <NodeDetailSheet
         node={selectedNode}
         roles={rolesForNode}
+        rolesStatus={match(overviewQuery)
+          .returnType<'loading' | 'error' | 'ready'>()
+          .with({ isLoading: true }, () => 'loading')
+          .with({ isError: true }, () => 'error')
+          .otherwise(() => 'ready')}
         resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}
