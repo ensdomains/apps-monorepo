@@ -3,6 +3,8 @@ import { ArrowRight, ArrowRightFromLineIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import {
   EventsSidebar,
@@ -134,6 +136,8 @@ const RoleHistoryMobileCard = ({
   </div>
 )
 
+const ROLE_HISTORY_INITIAL_COUNT = 10
+
 export const RoleHistoryTable = ({
   name,
   registryAddress,
@@ -155,6 +159,12 @@ export const RoleHistoryTable = ({
       registryAddress,
     }),
   )
+
+  const loader = useListLoader({
+    initialCount: ROLE_HISTORY_INITIAL_COUNT,
+    loaded: data?.length ?? 0,
+    resetKey: `${registryAddress}:${name}:${account}`,
+  })
 
   const handleMoreClick = (entry: RoleHistoryEntry) => {
     setSelectedEntry(entry)
@@ -180,6 +190,8 @@ export const RoleHistoryTable = ({
     )
   }
 
+  const entries = data.slice(0, loader.shown)
+
   return (
     <EventsSidebar
       transaction={
@@ -191,7 +203,7 @@ export const RoleHistoryTable = ({
     >
       {/* Mobile view - card layout */}
       <div className="md:hidden border rounded-sm overflow-hidden">
-        {data.map((entry) => (
+        {entries.map((entry) => (
           <RoleHistoryMobileCard
             key={`${entry.transactionHash}-${entry.account}`}
             entry={entry}
@@ -213,7 +225,7 @@ export const RoleHistoryTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((entry) => (
+            {entries.map((entry) => (
               <TableRow key={`${entry.transactionHash}-${entry.account}`}>
                 <TableCell className="px-4 sm:px-6 h-10 py-1 text-sm text-muted-foreground">
                   {formatTimestamp(entry.timestamp)}
@@ -237,6 +249,7 @@ export const RoleHistoryTable = ({
           </TableBody>
         </Table>
       </div>
+      <ListLoader {...loader} className="pt-3" />
     </EventsSidebar>
   )
 }
