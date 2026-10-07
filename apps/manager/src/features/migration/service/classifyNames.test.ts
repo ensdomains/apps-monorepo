@@ -103,7 +103,7 @@ describe('classifyName — expired wrap', () => {
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
   })
 
-  it('keeps a wrapped-owner candidate when subgraph wrapper expiry is stale', () => {
+  it('keeps a wrapped-owner candidate when the indexed wrapper expiry is stale', () => {
     const n = classified(
       classify({
         isWrapped: true,

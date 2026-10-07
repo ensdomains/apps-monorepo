@@ -312,10 +312,10 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
     expect(result.skipFetchProfilesPhase).toBe(false)
   })
 
-  it('defaults to false when the subgraph query returns an Err', async () => {
+  it('defaults to false when the bigname read returns an Err', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: err(new Error('subgraph down')),
+      profileKeys: err(new Error('bigname down')),
     })
     expect(result.skipFetchProfilesPhase).toBe(false)
   })

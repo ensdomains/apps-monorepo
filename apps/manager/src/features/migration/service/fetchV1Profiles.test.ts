@@ -67,10 +67,10 @@ describe('fetchV1Profiles', () => {
 
   it.each([
     [
-      'subgraph',
+      'indexer',
       () =>
         getV1ProfileKeysMock.mockReturnValueOnce(
-          ok(undefined).andThen(() => err(new Error('subgraph 500'))) as never,
+          ok(undefined).andThen(() => err(new Error('bigname 500'))) as never,
         ),
       clientWith(() => []),
     ],
@@ -88,7 +88,7 @@ describe('fetchV1Profiles', () => {
     )
   })
 
-  it('returns empty-profile entries when subgraph reports no keys', async () => {
+  it('returns empty-profile entries when bigname reports no keys', async () => {
     mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
     const result = await run(
       [A],
@@ -146,7 +146,7 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
-  it('uses supplied profile keys without querying the subgraph again', async () => {
+  it('uses supplied profile keys without querying bigname again', async () => {
     const result = await fetchV1Profiles({
       names: [A],
       publicClient: clientWith(() => [okCall('a@b.c')]),
@@ -243,11 +243,11 @@ describe('fetchV1Profiles', () => {
       ),
     ).rejects.toSatisfy(
       (error) =>
-        error instanceof ProfileFetchError && error.phase === 'subgraph',
+        error instanceof ProfileFetchError && error.phase === 'indexer',
     )
   })
 
-  it('matches subgraph entries to names via lowercase node id', async () => {
+  it('matches indexed entries to names via lowercase node id', async () => {
     mockKeys([{ id: NODE_A.toUpperCase(), texts: ['email'], coinTypes: [] }])
     const result = await run(
       [A],

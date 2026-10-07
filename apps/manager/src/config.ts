@@ -1,5 +1,6 @@
 import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
+import { MANAGER_ENDPOINTS } from './endpoints'
 
 /**
  * The manager's composition root for configuration: the only module in the
@@ -49,6 +50,7 @@ export const envConfig = buildConfig({
   rpcUrl:
     resolveRpcOverride() ??
     (isEnsNetwork(network) ? MANAGER_RPC_URLS[network] : undefined),
+  endpoints: MANAGER_ENDPOINTS,
   overrides: {
     bignameApi: import.meta.env?.VITE_BIGNAME_API_URL,
   },

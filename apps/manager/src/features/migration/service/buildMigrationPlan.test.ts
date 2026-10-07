@@ -238,7 +238,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
       ),
     ).rejects.toMatchObject({ reason: 'inventory-missing' })
 
-    const cause = new Error('subgraph unavailable')
+    const cause = new Error('bigname unavailable')
     getV1ProfileKeysMock.mockReturnValueOnce(err(cause) as never)
     await expect(
       assertLockedResolverReplacementRecordSafety(
