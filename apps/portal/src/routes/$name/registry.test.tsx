@@ -153,6 +153,12 @@ vi.mock('@tanstack/react-query', async () => {
       isFetchingNextPage: false,
       fetchNextPage: () => Promise.resolve(),
     }),
+    useMutation: () => ({
+      mutate: () => {},
+      reset: () => {},
+      isPending: false,
+      isError: false,
+    }),
   }
 })
 
