@@ -8,12 +8,15 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { fetchIndexedAtSec, fetchIndexReadiness } from './indexer.js'
+import {
+  type ExpiringName,
+  fetchIndexedAtSec,
+  fetchIndexReadiness,
+} from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 import {
   fetchSweep,
   type ProcessableExpiryPage,
-  type StageName,
   type StageWindow,
 } from './page.js'
 import {
@@ -52,13 +55,12 @@ type StageRunMetrics = {
 
 function buildExpiryEvents(
   stage: ExpiryStageConfig,
-  domains: readonly StageName[],
+  domains: readonly ExpiringName[],
 ): ExpiryEvent[] {
   return domains.map((domain) => ({
     type: 'name_expiring',
     name: domain.name,
     expiryDate: domain.expiryDate,
-    protocol: domain.protocol,
     stage: stage.id,
     owner: domain.owner,
     includeFavorites: stage.includeFavorites,
@@ -188,7 +190,7 @@ const capAtSweepTime = (
     ? page
     : {
         ...page,
-        domains: page.domains.filter(({ position }) => position <= cap),
+        domains: page.domains.filter(({ expiryDate }) => expiryDate <= cap),
         cursorEnd: cap,
         hasMore: true,
       }

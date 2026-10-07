@@ -1,7 +1,6 @@
+import type { RegistrationStatus } from '@ens-apps/indexer/bigname'
 import {
-  type GraceProtocol,
   SECONDS_PER_DAY,
-  V1_GRACE_PERIOD_DAYS,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import type { ExpiryStageId } from '#types/events/index.js'
@@ -11,72 +10,55 @@ export type ExpiryStageConfig = {
   /** Days relative to expiry. Positive is before; negative is after. */
   readonly offsetDays: number
   readonly includeFavorites: boolean
-  /** Whether the stage is timed from the registrar expiry or the grace end. */
-  readonly anchor: 'expiry' | 'grace-end'
-  /** Whether released names belong here, notified at their last holder. */
-  readonly includeReleased: boolean
+  /** Where the stage sits in a registration's lifecycle. */
+  readonly phase: 'pre-expiry' | 'in-grace' | 'grace-ended'
 }
 
-/**
- * Grace-end stages keep their offsets and cursors in ENSv2 terms: a name sits
- * at its grace end minus ENSv2's grace, which for ENSv2 is its expiry and for
- * ENSv1 is 62 days after it.
- */
-export const GRACE_END_SHIFT_SECONDS: Readonly<Record<GraceProtocol, number>> =
-  {
-    v2: 0,
-    v1: (V1_GRACE_PERIOD_DAYS - V2_GRACE_PERIOD_DAYS) * SECONDS_PER_DAY,
-  }
+// After the cutover, .eth registrations and premigration reservations share
+// the served expiry and the 28-day grace, so every offset is from that expiry.
 
 const STAGE_DEFINITIONS: readonly ExpiryStageConfig[] = [
   {
     id: 'expiry-30d',
     offsetDays: 30,
     includeFavorites: false,
-    anchor: 'expiry',
-    includeReleased: false,
+    phase: 'pre-expiry',
   },
   {
     id: 'expiry-7d',
     offsetDays: 7,
     includeFavorites: true,
-    anchor: 'expiry',
-    includeReleased: false,
+    phase: 'pre-expiry',
   },
   {
     id: 'expiry-1d',
     offsetDays: 1,
     includeFavorites: true,
-    anchor: 'expiry',
-    includeReleased: false,
+    phase: 'pre-expiry',
   },
   {
     id: 'grace-start',
     offsetDays: 0,
     includeFavorites: true,
-    anchor: 'expiry',
-    includeReleased: false,
+    phase: 'in-grace',
   },
   {
     id: 'grace-7d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 7),
     includeFavorites: true,
-    anchor: 'grace-end',
-    includeReleased: false,
+    phase: 'in-grace',
   },
   {
     id: 'grace-1d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 1),
     includeFavorites: true,
-    anchor: 'grace-end',
-    includeReleased: false,
+    phase: 'in-grace',
   },
   {
     id: 'premium-start',
     offsetDays: -V2_GRACE_PERIOD_DAYS,
     includeFavorites: true,
-    anchor: 'grace-end',
-    includeReleased: true,
+    phase: 'grace-ended',
   },
 ]
 
@@ -136,4 +118,40 @@ export function getDefaultCursorForStage(
 
 export function getExpiryStageRank(stageId: ExpiryStageId): number {
   return STAGES.findIndex((stage) => stage.id === stageId)
+}
+
+const HELD_STATUSES: ReadonlySet<RegistrationStatus> = new Set([
+  'active',
+  'wrapped',
+  'registered',
+])
+
+export type StageCandidate = {
+  readonly registrationStatus: RegistrationStatus
+  readonly releaseKind?: string
+}
+
+/**
+ * Whether a row in this stage's window should be notified, from what the row
+ * shows (bigname expiry-sweep guide, section 3). Before expiry only held names
+ * are; in grace, an ENSv1 lease is still held while an ENSv2 registration is
+ * served `released` as `expired`, and both are; after grace only rows released
+ * because they expired. Any other release, and `unregistered`, never is.
+ */
+export function isNotifiableAtStage(
+  stage: ExpiryStageConfig,
+  candidate: StageCandidate,
+): boolean {
+  const isHeld = HELD_STATUSES.has(candidate.registrationStatus)
+  const isExpiredRelease =
+    candidate.registrationStatus === 'released' &&
+    candidate.releaseKind === 'expired'
+  switch (stage.phase) {
+    case 'pre-expiry':
+      return isHeld
+    case 'in-grace':
+      return isHeld || isExpiredRelease
+    case 'grace-ended':
+      return isExpiredRelease
+  }
 }

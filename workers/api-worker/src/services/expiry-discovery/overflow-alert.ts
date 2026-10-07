@@ -1,7 +1,7 @@
 import { makeTelegramRequest } from '#services/telegram/utils.js'
 import type { ExpiryStageId } from '#types/events/index.js'
 import { logger } from '#utils/logger.js'
-import { MAX_NAMES_PER_SOURCE } from './page.js'
+import { MAX_NAMES_PER_READ } from './page.js'
 
 export type ExpiryOverflowAlertContext = {
   env: CloudflareBindings
@@ -23,7 +23,7 @@ const buildOverflowFields = (ctx: Omit<ExpiryOverflowAlertContext, 'env'>) => ({
   expiryTimestamp: ctx.expiryTimestamp,
   expiryTimestampIso: toIsoTimestamp(ctx.expiryTimestamp),
   processedCount: ctx.processedCount,
-  maxPerTimestamp: MAX_NAMES_PER_SOURCE,
+  maxPerTimestamp: MAX_NAMES_PER_READ,
   detail:
     'Names sharing one expiry second filled the page budget; additional names may have been skipped so discovery can continue.',
 })

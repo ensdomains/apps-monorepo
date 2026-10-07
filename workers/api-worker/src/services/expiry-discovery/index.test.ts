@@ -14,6 +14,7 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
 import {
+  type ExpiringName,
   fetchIndexedAtSec,
   fetchIndexReadiness,
   IndexerRequestError,
@@ -21,7 +22,6 @@ import {
 import {
   fetchSweep,
   type ProcessableExpiryPage,
-  type StageName,
   type StageWindow,
 } from './page.js'
 import {
@@ -70,21 +70,18 @@ const makeEnv = (
 
 const stageName = (
   name: string,
-  position: number,
-  extra: Partial<StageName> = {},
-): StageName => ({
+  expiryDate: number,
+  extra: Partial<ExpiringName> = {},
+): ExpiringName => ({
   name,
-  expiryDate: position,
-  listedAt: position,
-  protocol: 'v2',
-  isReleased: false,
-  position,
+  expiryDate,
+  registrationStatus: 'registered',
   ...extra,
 })
 
 // A complete read ends at the window's end, as the sweep does.
 const readOf = (
-  domains: readonly StageName[],
+  domains: readonly ExpiringName[],
   window: StageWindow,
 ): ProcessableExpiryPage => ({
   domains,
@@ -129,7 +126,7 @@ describe('runExpiryDiscoveryCron', () => {
     vi.setSystemTime(new Date(NOW * 1000))
   })
 
-  it('emits a staged lifecycle event, with its protocol, from the clamped window', async () => {
+  it('emits a staged lifecycle event from the clamped window', async () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()
     cursors['expiry-30d'] = { expiry_timestamp: NOW - 100 * 86_400 }
@@ -139,12 +136,7 @@ describe('runExpiryDiscoveryCron', () => {
     )
     sweepWith((window) =>
       readOf(
-        [
-          stageName('alpha.eth', window.cursor + 100, {
-            protocol: 'v1',
-            owner: '0xabc',
-          }),
-        ],
+        [stageName('alpha.eth', window.cursor + 100, { owner: '0xabc' })],
         window,
       ),
     )
@@ -162,7 +154,6 @@ describe('runExpiryDiscoveryCron', () => {
           type: 'name_expiring',
           name: 'alpha.eth',
           expiryDate: lowerBound + 100,
-          protocol: 'v1',
           stage: 'expiry-30d',
           owner: '0xabc',
           includeFavorites: false,

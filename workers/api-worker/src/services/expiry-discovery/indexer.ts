@@ -1,11 +1,9 @@
 import {
-  type Authority,
   BignameError,
   createBignameClient,
-  toProtocol,
+  type RegistrationStatus,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
-import type { GraceProtocol } from '@ens-apps/utils/gracePeriod'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok, type Result } from 'neverthrow'
 import { getConfig } from '#core/config.js'
@@ -15,8 +13,6 @@ import { logger } from '#utils/logger.js'
 export const PAGE_SIZE = 200
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
-const MS_PER_SECOND = 1000
-const SATURATED_LEASE = '9223372036854775807'
 // How old the served state may be before notices from it are held.
 export const MAX_INDEX_STALENESS_SECONDS = 15 * 60
 
@@ -77,20 +73,16 @@ const isRetryable = (error: BignameError): boolean =>
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
-const toIso = (seconds: number): string =>
-  new Date(seconds * MS_PER_SECOND).toISOString()
-
 // Times here are unix seconds as `number`, not bigint: the whole sweep, its
 // stage maths and the cursors it stores already use them, and they fit exactly.
 export type ExpiringName = {
   readonly name: string
-  /** The registrar expiry: for an ENSv1 name its lease, not an ENSv2 reservation. */
+  /** The served expiry, which a reserved ENSv1 name takes from its reservation. */
   readonly expiryDate: number
-  /** The served `expires_at` the listing is sorted and windowed by. */
-  readonly listedAt: number
-  readonly protocol: GraceProtocol
-  /** Past its grace period; `owner` is then the last holder. */
-  readonly isReleased: boolean
+  readonly registrationStatus: RegistrationStatus
+  /** Why a released registration ended; `expired` when it lapsed. */
+  readonly releaseKind?: string
+  /** The holder, or the last holder once released. */
   readonly owner?: string
 }
 
@@ -106,13 +98,18 @@ export type ExpiringNamesQuery = {
   readonly env: CloudflareBindings
   /** What the read is for, in logs and errors. */
   readonly label: string
-  /** Inclusive bounds on the registrar expiry. */
-  readonly expiresFrom: number
-  readonly expiresTo: number
-  /** Every authority when absent. */
-  readonly authorities?: readonly Authority[]
+  /** Disjoint windows of inclusive bounds on the served expiry, ascending. */
+  readonly windows: readonly ExpiryInterval[]
   readonly pageCursor?: string
 }
+
+export type ExpiryInterval = {
+  readonly from: number
+  readonly to: number
+}
+
+// bigname takes at most this many windows in one request.
+export const MAX_WINDOWS_PER_READ = 32
 
 const executeIndexerQuery = ResultFn(async function* (
   ctx: ExpiringNamesQuery & { readonly attempt: number },
@@ -124,10 +121,8 @@ const executeIndexerQuery = ResultFn(async function* (
       namespace: 'ens',
       // Only .eth registrations have registrar grace.
       parent: 'eth',
-      ...(ctx.authorities && { authority: ctx.authorities }),
-      // bigname's window is inclusive below and exclusive above.
-      expires_after: toIso(ctx.expiresFrom),
-      expires_before: toIso(ctx.expiresTo + 1),
+      // bigname's windows are inclusive below and exclusive above.
+      expires_window: ctx.windows.map(({ from, to }) => `${from}..${to + 1}`),
       sort: 'expires_at',
       order: 'asc',
       page_size: PAGE_SIZE,
@@ -153,50 +148,33 @@ const executeIndexerQuery = ResultFn(async function* (
     })
   }
 
-  const rows = response.data.flatMap((row) => {
-    const protocol = toProtocol(row.authority)
-    const lease = row.ens_v1?.expires_at
-    // A saturated lease no longer carries its own date, so it has none to notify.
-    if (protocol === 'v1' && lease === SATURATED_LEASE) return []
-    return [
-      {
-        row,
-        expiryDate: toUnixSeconds(
-          protocol === 'v1' ? (lease ?? row.expires_at) : row.expires_at,
-        ),
-        listedAt: toUnixSeconds(row.expires_at),
-        protocol,
-      },
-    ]
-  })
-  // The expiry window only lists rows with an expiry and an authority; a row
-  // without either is a contract change, not a name to skip quietly.
-  const unreadable = rows.find(
-    ({ expiryDate, listedAt, protocol }) =>
-      expiryDate === null || listedAt === null || protocol === null,
-  )
+  const rows = response.data.map((row) => ({
+    row,
+    expiryDate: toUnixSeconds(row.expires_at),
+  }))
+  // The expiry window only lists rows with an expiry; a row without one is a
+  // contract change, not a name to skip quietly.
+  const unreadable = rows.find(({ expiryDate }) => expiryDate === null)
   if (unreadable) {
     return yield* new IndexerValidationError({
-      message: `Indexer listed ${unreadable.row.name} without a readable expiry or authority for ${ctx.label}`,
+      message: `Indexer listed ${unreadable.row.name} without a readable expiry for ${ctx.label}`,
       cause: unreadable.row,
     })
   }
-  const names = rows.flatMap(
-    ({ row, expiryDate, listedAt, protocol }): ExpiringName[] =>
-      expiryDate === null || listedAt === null || protocol === null
-        ? []
-        : [
-            {
-              name: row.name,
-              expiryDate,
-              listedAt,
-              protocol,
-              isReleased: row.registration_status === 'released',
-              owner: (
-                row.owner ?? row.lapsed_registration?.owner
-              )?.toLowerCase(),
-            },
-          ],
+  const names = rows.flatMap(({ row, expiryDate }): ExpiringName[] =>
+    expiryDate === null
+      ? []
+      : [
+          {
+            name: row.name,
+            expiryDate,
+            registrationStatus: row.registration_status,
+            ...(row.lapsed_registration?.release_kind && {
+              releaseKind: row.lapsed_registration.release_kind,
+            }),
+            owner: (row.owner ?? row.lapsed_registration?.owner)?.toLowerCase(),
+          },
+        ],
   )
 
   return ok<ExpiringNamesPage>({
@@ -213,9 +191,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
 ) {
   logger.trace('Fetching expiring names page from indexer', {
     label: ctx.label,
-    expiresFrom: ctx.expiresFrom,
-    expiresTo: ctx.expiresTo,
-    authorities: ctx.authorities,
+    windows: ctx.windows,
   })
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -267,8 +243,7 @@ export const fetchExpiringNamesPage = ResultFn(async function* (
   logger.error('Indexer query exhausted retries', {
     label: ctx.label,
     attempts: MAX_RETRIES,
-    expiresFrom: ctx.expiresFrom,
-    expiresTo: ctx.expiresTo,
+    windows: ctx.windows,
   })
   return yield* new IndexerRequestError({
     message: `Indexer query exhausted retries for ${ctx.label}`,
@@ -282,8 +257,7 @@ export const fetchIndexedAtSec = (env: CloudflareBindings, nowSec: number) =>
   fetchExpiringNamesPage({
     env,
     label: 'index position',
-    expiresFrom: nowSec,
-    expiresTo: nowSec,
+    windows: [{ from: nowSec, to: nowSec }],
   }).map((page) => page.indexedAtSec)
 
 export type IndexReadiness =

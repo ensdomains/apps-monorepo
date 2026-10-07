@@ -24,6 +24,8 @@ import type {
 export type ExpiryWindow =
   | Readonly<{ expires_after: Timestamp; expires_before?: Timestamp }>
   | Readonly<{ expires_after?: Timestamp; expires_before: Timestamp }>
+  /** 1 to 32 disjoint `after..before` windows, read as one sorted walk. */
+  | Readonly<{ expires_window: readonly string[] }>
 
 /** `GET /v1/names`: query; one expiry bound is required. */
 export type NamesQuery = ExpiryWindow &

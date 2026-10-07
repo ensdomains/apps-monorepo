@@ -15,8 +15,7 @@ const AS_OF_SEC = 1_790_755_200
 const QUERY: ExpiringNamesQuery = {
   env: ENV,
   label: 'a test read',
-  expiresFrom: 101,
-  expiresTo: 200,
+  windows: [{ from: 101, to: 200 }],
 }
 
 const row = (
@@ -93,35 +92,41 @@ describe('fetchExpiringNamesPage', () => {
     const params = requestedParams(fetchMock)
     expect(params.get('namespace')).toBe('ens')
     expect(params.get('parent')).toBe('eth')
-    expect(params.get('expires_after')).toBe('1970-01-01T00:01:41.000Z')
-    expect(params.get('expires_before')).toBe('1970-01-01T00:03:21.000Z')
+    expect(params.getAll('expires_window')).toEqual(['101..201'])
+    expect(params.get('expires_after')).toBeNull()
     expect(params.get('sort')).toBe('expires_at')
     expect(params.get('page_size')).toBe(String(PAGE_SIZE))
     expect(params.get('authority')).toBeNull()
     expect(params.get('cursor')).toBeNull()
   })
 
-  it('narrows to the given authorities and passes the page cursor on', async () => {
+  it('sends each window as its own parameter and passes the page cursor on', async () => {
     const fetchMock = stubFetch(json(listing([])))
 
     await fetchExpiringNamesPage({
       ...QUERY,
-      authorities: ['ens_v0', 'ens_v1'],
+      windows: [
+        { from: 101, to: 200 },
+        { from: 301, to: 400 },
+      ],
       pageCursor: 'c1',
     })
 
     const params = requestedParams(fetchMock)
-    expect(params.get('authority')).toBe('ens_v0,ens_v1')
+    expect(params.getAll('expires_window')).toEqual(['101..201', '301..401'])
     expect(params.get('cursor')).toBe('c1')
   })
 
-  it('maps rows to their registrar expiry, protocol and owner', async () => {
+  it('maps rows to their served expiry, status and owner', async () => {
     stubFetch(
       json(
         listing([
           row('v2.eth', '1700000000', { owner: '0xABC' }),
-          row('v1.eth', '1700000001', { authority: 'ens_v1', owner: '0xDEF' }),
-          row('v0.eth', '1700000002', { authority: 'ens_v0' }),
+          row('v1.eth', '1700000001', {
+            authority: 'ens_v1',
+            registration_status: 'active',
+            owner: '0xDEF',
+          }),
         ]),
       ),
     )
@@ -133,26 +138,14 @@ describe('fetchExpiringNamesPage', () => {
         {
           name: 'v2.eth',
           expiryDate: 1_700_000_000,
-          listedAt: 1_700_000_000,
-          protocol: 'v2',
-          isReleased: false,
+          registrationStatus: 'registered',
           owner: '0xabc',
         },
         {
           name: 'v1.eth',
           expiryDate: 1_700_000_001,
-          listedAt: 1_700_000_001,
-          protocol: 'v1',
-          isReleased: false,
+          registrationStatus: 'active',
           owner: '0xdef',
-        },
-        {
-          name: 'v0.eth',
-          expiryDate: 1_700_000_002,
-          listedAt: 1_700_000_002,
-          protocol: 'v1',
-          isReleased: false,
-          owner: undefined,
         },
       ],
       nextCursor: null,
@@ -179,7 +172,11 @@ describe('fetchExpiringNamesPage', () => {
     const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
 
     expect(page.names[0]).toEqual(
-      expect.objectContaining({ isReleased: true, owner: '0xdef' }),
+      expect.objectContaining({
+        registrationStatus: 'released',
+        releaseKind: 'expired',
+        owner: '0xdef',
+      }),
     )
   })
 
@@ -209,7 +206,6 @@ describe('fetchExpiringNamesPage', () => {
   it.each([
     ['without an expiry', { expires_at: undefined }],
     ['with an unreadable expiry', { expires_at: 'soon' }],
-    ['without an authority', { authority: undefined }],
   ])('fails on a row %s rather than skipping it', async (_label, extra) => {
     stubFetch(json(listing([row('bad.eth', '1700000000', extra)])))
 
@@ -272,21 +268,13 @@ describe('fetchExpiringNamesPage', () => {
     ).toEqual(['next', 'next'])
   })
 
-  it('dates an ENSv1 name by its lease, not its ENSv2 reservation', async () => {
+  it('dates a reserved ENSv1 name by its served reservation expiry', async () => {
     stubFetch(
       json(
         listing([
-          row('reserved.eth', '1705356800', {
+          row('reserved.eth', '1705356801', {
             authority: 'ens_v1',
             ens_v1: { expires_at: '1700000000' },
-          }),
-          row('unreserved.eth', '1700000001', {
-            authority: 'ens_v1',
-            ens_v1: { expires_at: '1700000001' },
-          }),
-          row('saturated.eth', '1705356800', {
-            authority: 'ens_v1',
-            ens_v1: { expires_at: '9223372036854775807' },
           }),
         ]),
       ),
@@ -294,24 +282,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
 
-    expect(
-      page.names.map(({ name, expiryDate, listedAt }) => ({
-        name,
-        expiryDate,
-        listedAt,
-      })),
-    ).toEqual([
-      {
-        name: 'reserved.eth',
-        expiryDate: 1_700_000_000,
-        listedAt: 1_705_356_800,
-      },
-      {
-        name: 'unreserved.eth',
-        expiryDate: 1_700_000_001,
-        listedAt: 1_700_000_001,
-      },
-    ])
+    expect(page.names[0]?.expiryDate).toBe(1_705_356_801)
   })
 
   it('probes the index position with a one-second window', async () => {
@@ -321,8 +292,7 @@ describe('fetchExpiringNamesPage', () => {
 
     expect(indexedAt._unsafeUnwrap()).toBe(AS_OF_SEC)
     const params = requestedParams(fetchMock)
-    expect(params.get('expires_after')).toBe('2023-11-14T22:13:20.000Z')
-    expect(params.get('expires_before')).toBe('2023-11-14T22:13:21.000Z')
+    expect(params.getAll('expires_window')).toEqual(['1700000000..1700000001'])
   })
 })
 
