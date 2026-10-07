@@ -119,8 +119,24 @@ describe('useGraceRenewalGasEstimate', () => {
       hcaAddress: HCA,
       publicClient: params.publicClient,
       wagmiConfig,
+      managerRestorationNames: [],
       signal,
     })
+    unmount()
+  })
+
+  it('estimates with the manager restoration choice and re-estimates when it changes', async () => {
+    const { rerender, unmount } = renderHook(useGraceRenewalGasEstimate, {
+      initialProps: params,
+    })
+    const initialKey = queryOptions().queryKey
+
+    rerender({ ...params, managerRestorationNames: [graceDomain.name] })
+    expect(queryOptions().queryKey).not.toEqual(initialKey)
+    await queryOptions().queryFn({ signal: new AbortController().signal })
+    expect(mocks.estimate).toHaveBeenCalledWith(
+      expect.objectContaining({ managerRestorationNames: [graceDomain.name] }),
+    )
     unmount()
   })
 
