@@ -18,7 +18,6 @@ import {
   TIMELINE_WINDOW_SIZE,
   useNameHistoryTimeline,
 } from '../hooks/useHistoryTimeline'
-import type { TimelineEventType } from '../summarize/descriptors'
 import { ActionTimeline } from './ActionTimeline'
 import { TimelineBreak } from './TimelineBreak'
 
@@ -179,7 +178,7 @@ export const HistoryTimelineView = ({
 interface HistoryTimelineProps
   extends Omit<HistoryTimelineViewProps, 'model' | 'filters' | 'breakContent'> {
   readonly name: string
-  readonly scope?: readonly TimelineEventType[]
+  readonly scope?: readonly string[]
   readonly showFilters?: boolean
   readonly canLoadMore?: boolean
 }
