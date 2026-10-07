@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, ChevronDown, History } from 'lucide-react'
+import { Calendar, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -19,7 +19,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
-import { PrimaryBadge } from './PrimaryBadge'
+import { PrimaryNameButton } from './PrimaryNameButton'
 
 type PrimaryNameCardProps = {
   readonly primaryName?: string | null
@@ -118,7 +118,9 @@ export const PrimaryNameCard = ({
       )}
       style={isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
-      <PrimaryBadge className="self-start bg-ens-lapis-tint" />
+      <ChoosePrimaryNameDialog>
+        <PrimaryNameButton className="self-start" />
+      </ChoosePrimaryNameDialog>
 
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
@@ -151,21 +153,10 @@ export const PrimaryNameCard = ({
             </ImageFallback.Root>
           </motion.div>
           <div className="flex min-h-0 flex-col justify-between gap-4 md:h-50">
-            <ChoosePrimaryNameDialog>
-              <button
-                className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
-                type="button"
-              >
-                <PrimaryNameNameplate
-                  displayName={displayName}
-                  isInGrace={isInGrace}
-                />
-                <ChevronDown
-                  className="size-6 shrink-0 text-ens-quartz-400"
-                  strokeWidth={2}
-                />
-              </button>
-            </ChoosePrimaryNameDialog>
+            <PrimaryNameNameplate
+              displayName={displayName}
+              isInGrace={isInGrace}
+            />
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
                 <Calendar
