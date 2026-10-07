@@ -1,12 +1,15 @@
-import { okAsync } from 'neverthrow'
+import { keepPreviousData } from '@tanstack/react-query'
+import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   estimateHcaBudgetActor: vi.fn(),
   readHcaUsdcBalanceActor: vi.fn(),
+  warn: vi.fn(),
 }))
 
 vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
+vi.mock('@ens-apps/utils/logger', () => ({ logger: { warn: mocks.warn } }))
 vi.mock(
   '@ens-apps/transaction-manager/machines/registration/registration.hca.actors',
   () => ({
@@ -25,6 +28,14 @@ const BUDGET = {
   source: 'quote' as const,
 }
 
+/** Calls the adapted `queryFn` the way TanStack would, minus the cache around it. */
+const callQueryFn = (queryFn: unknown): Promise<unknown> => {
+  if (typeof queryFn !== 'function') throw new Error('queryFn was not adapted')
+
+  const run = queryFn as (context: unknown) => Promise<unknown>
+  return run({})
+}
+
 const baseParams = {
   label: 'jeff',
   durationInSeconds: 31_536_000,
@@ -41,8 +52,7 @@ const runQueryFn = async (
   mocks.estimateHcaBudgetActor.mockReturnValue(okAsync(BUDGET))
   mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(0n))
   const options = getHcaBudgetQueryOptions(params)
-  // biome-ignore lint/suspicious/noExplicitAny: exercising the queryFn directly
-  const quote = await (options.queryFn as any)({})
+  const quote = await callQueryFn(options.queryFn)
   const estimatorInput = mocks.estimateHcaBudgetActor.mock.calls.at(0)?.at(0)
   return { quote, estimatorInput }
 }
@@ -97,9 +107,54 @@ describe('getHcaBudgetQueryOptions', () => {
     mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(20_000_000n))
 
     const options = getHcaBudgetQueryOptions(baseParams)
-    // biome-ignore lint/suspicious/noExplicitAny: exercising the queryFn directly
-    const quote = await (options.queryFn as any)({})
+    const quote = await callQueryFn(options.queryFn)
 
     expect(quote).toEqual({ ...BUDGET, hcaBalance: 20_000_000n })
+  })
+  // The app default is 0, under which every mount and every window focus
+  // re-runs two orchestrator round trips while the sheet is open.
+  // On screen a refused quote only reads as an unknown fee, so without this
+  // the reason it was refused leaves no trace anywhere.
+  it('records why the orchestrator refused', async () => {
+    const cause = new Error('orchestrator said no')
+    mocks.estimateHcaBudgetActor.mockReturnValue(errAsync(cause))
+
+    const options = getHcaBudgetQueryOptions(baseParams)
+    await expect(callQueryFn(options.queryFn)).rejects.toBeInstanceOf(Error)
+
+    expect(mocks.warn).toHaveBeenCalledWith(
+      'HCA budget quote failed',
+      expect.objectContaining({ cause }),
+    )
+  })
+
+  // The other way a quote dies: both legs are signed with this payload, so
+  // failing to resolve it is just as much "no quote" as a refused estimate.
+  it('records a session payload it could not resolve', async () => {
+    const cause = new Error('session enable failed')
+    mocks.estimateHcaBudgetActor.mockReturnValue(okAsync(BUDGET))
+
+    const options = getHcaBudgetQueryOptions({
+      ...baseParams,
+      getSessionEnablePayload: () => Promise.reject(cause),
+    })
+    await expect(callQueryFn(options.queryFn)).rejects.toBeInstanceOf(Error)
+
+    expect(mocks.warn).toHaveBeenCalledWith(
+      'HCA budget quote failed',
+      expect.objectContaining({ cause }),
+    )
+  })
+
+  it('keeps a quote fresh for a minute', () => {
+    expect(getHcaBudgetQueryOptions(baseParams).staleTime).toBe(60_000)
+  })
+
+  // Toggling the opt-in starts a fresh query. Without a placeholder the
+  // breakdown empties out and refills while the new quote runs.
+  it('carries the last quote into the next one', () => {
+    expect(getHcaBudgetQueryOptions(baseParams).placeholderData).toBe(
+      keepPreviousData,
+    )
   })
 })

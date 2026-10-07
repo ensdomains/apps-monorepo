@@ -17,11 +17,11 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { EXPLORER_URL } from '@/constants'
 import { useCheckAvailability } from '@/features/landing/check-availability/useCheckAvailability'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -136,9 +136,10 @@ export const CheckAvailability = ({
     (text) => text.key === 'theme',
   )?.value
 
-  const profileAvatar = profileName
-    ? buildNameAvatarUrl(profileName)
-    : undefined
+  const avatarRecord = profileRecords?.texts
+    .find((text) => text.key === 'avatar')
+    ?.value.trim()
+  const { data: profileAvatar } = useQuery(imageRecordQuery(avatarRecord))
 
   const { data: profileExpiry } = useQuery({
     ...profileExpiryQuery(profileName ?? ''),
@@ -221,7 +222,7 @@ export const CheckAvailability = ({
                     {primaryName && (
                       <Link params={{ name: primaryName }} to="/$name">
                         <DomainProfileCard
-                          avatarUrl={profileAvatar}
+                          avatarUrl={profileAvatar ?? undefined}
                           clickable
                           domainName={primaryName}
                           expiryDate={
@@ -285,7 +286,7 @@ export const CheckAvailability = ({
                 >
                   <Link params={{ name: state.domainName }} to="/$name">
                     <DomainResultCard
-                      avatarUrl={profileAvatar}
+                      avatarUrl={profileAvatar ?? undefined}
                       clickable
                       domainName={state.domainName}
                       status={domainResultStatusFromGrace(
