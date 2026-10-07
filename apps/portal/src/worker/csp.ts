@@ -77,6 +77,9 @@ const DEFAULT_CONNECT_HOSTS = [
   // page then shows "Invalid TLD" for perfectly valid DNS names).
   'https://cloudflare-dns.com',
   'https://1.1.1.1',
+  // Google's DoH resolver — the DNSSEC debugger (/$name/dnssec) lets users
+  // compare resolvers to rule out a stale cache.
+  'https://dns.google',
   // Etherscan API — proxy-contract verification fetch in
   // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
   // Host comes from the viem chain's blockExplorers.default.apiUrl: Sepolia

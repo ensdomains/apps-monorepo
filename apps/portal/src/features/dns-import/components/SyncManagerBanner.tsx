@@ -1,5 +1,6 @@
 import { CircleAlert, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DnssecDebugLink } from '@/features/dnssec-debug/components/DnssecDebugLink'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useSyncManagerTransaction } from '../hooks/useSyncManagerTransaction'
 
@@ -31,10 +32,13 @@ export const SyncManagerBanner = ({ name }: { readonly name: string }) => {
         </Button>
       </div>
       {prepareError && (
-        <p className="text-sm text-message-danger-text">
-          Could not prepare the sync — the DNS record may have changed. Refresh
-          and try again.
-        </p>
+        <>
+          <p className="text-sm text-message-danger-text">
+            Could not prepare the sync — the DNS record may have changed.
+            Refresh and try again.
+          </p>
+          <DnssecDebugLink name={name} source="sync" />
+        </>
       )}
       <TransactionModal transactions={transactions} />
     </div>

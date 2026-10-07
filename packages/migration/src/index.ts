@@ -16,6 +16,7 @@ export {
   type MigrationTokenType,
   managerRestorationCandidates,
   type ResolverStrategy,
+  registryControllerOf,
   withManagerRestorationOptIn,
 } from './service/classifyNames'
 export {

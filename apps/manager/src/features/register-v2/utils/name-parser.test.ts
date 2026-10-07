@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from 'vitest'
-import { parseCanonicalName, parseName } from './name-parser'
+import { isNormalizedName, parseCanonicalName, parseName } from './name-parser'
 
 describe('parseName', () => {
   it('parses a plain label as an .eth name', () => {
@@ -257,5 +257,28 @@ describe('parseCanonicalName', () => {
 
     assert(result.isErr())
     expect(result.error).toMatchObject({ reason: 'INVALID_CHARACTER' })
+  })
+})
+
+describe('isNormalizedName', () => {
+  it.each([
+    ['a plain name', 'alice.eth'],
+    ['a subname', 'sub.alice.eth'],
+    ['an emoji name', '\u{1f680}\u{1f680}\u{1f680}.eth'],
+    ['a whole-script Cyrillic name', '\u0455\u0441\u0430\u043c.eth'],
+    ['an encoded labelhash (unknown label)', `[${'ab'.repeat(32)}].eth`],
+  ])('accepts %s', (_case, name) => {
+    expect(isNormalizedName(name)).toBe(true)
+  })
+
+  it.each([
+    ['uppercase', 'ALICE.eth'],
+    ['a soft hyphen', 'ali\u00adce.eth'],
+    ['a fullwidth look-alike', '\uff41lice.eth'],
+    ['Cyrillic letters mixed into a Latin label', '\u0430lice.eth'],
+    ['a bidi override', 'al\u202eice.eth'],
+    ['an empty label', '.alice.eth'],
+  ])('refuses a stored name with %s', (_case, name) => {
+    expect(isNormalizedName(name)).toBe(false)
   })
 })

@@ -170,6 +170,21 @@ type ClassifyResult =
 const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
 const MAX_UINT64 = (1n << 64n) - 1n
 
+/**
+ * The ENSv1 registry controller of an unwrapped `.eth` name when it is someone
+ * other than the registrant; null when they agree or the record was cleared.
+ */
+export const registryControllerOf = (domain: V1Domain): Address | null => {
+  const registrant = domain.registrant?.id
+  const registryOwner = toAddress(domain.owner.id)
+  return registrant &&
+    registryOwner &&
+    registryOwner !== zeroAddress &&
+    registryOwner.toLowerCase() !== registrant.toLowerCase()
+    ? registryOwner
+    : null
+}
+
 const hasUnknownLabel = (domain: V1Domain): boolean => {
   if (!domain.labelName) return true
   if (UNKNOWN_LABEL_PATTERN.test(domain.labelName)) return true
@@ -282,7 +297,6 @@ const classifyWithoutActiveWrapper = (
 
   const tokenHolder = toAddress(registrant.id)
   if (!tokenHolder) return null
-  const registryOwnerAddress = toAddress(domain.owner.id)
   // Recorded, never granted. The registrant owns the name; a controller that is
   // someone else may be a manager the registrant appointed, or the seller a
   // marketplace `transferFrom` left behind. Only the owner can tell the two
@@ -291,12 +305,7 @@ const classifyWithoutActiveWrapper = (
   // A cleared v1 registry record reads back as the zero address, which is not a
   // manager and must never be offered as one — granting a role to it would put
   // a meaningless call into an all-or-nothing batch.
-  const registryController =
-    registryOwnerAddress &&
-    registryOwnerAddress !== zeroAddress &&
-    registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
-      ? registryOwnerAddress
-      : null
+  const registryController = registryControllerOf(domain)
 
   return {
     type: 'classified',
