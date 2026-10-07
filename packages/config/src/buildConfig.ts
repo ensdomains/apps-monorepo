@@ -43,25 +43,30 @@ export type EnsChain = Extract<
   { id: 11155111 }
 >
 
-export type BuildConfigInput = {
+export type EndpointKey = keyof NetworkEndpoints
+
+export type BuildConfigInput<K extends EndpointKey = EndpointKey> = {
   /** Network name, typically from env. No default: absent or unknown throws. */
   readonly network: string | undefined
   /** The app's own RPC endpoint. The network's public fallbacks follow it. */
   readonly rpcUrl?: string | undefined
+  /**
+   * The endpoints this app reads; only these must be configured. Defaults to
+   * every endpoint, so an app that does not say still fails closed.
+   */
+  readonly endpoints?: readonly K[]
   /** Per-endpoint overrides, typically from env. Empty or absent falls back. */
-  readonly overrides?: Partial<
-    Record<keyof NetworkEndpoints, string | undefined>
-  >
+  readonly overrides?: Partial<Record<K, string | undefined>>
 }
 
-export type EnsAppConfig = Readonly<{
+export type EnsAppConfig<K extends EndpointKey = EndpointKey> = Readonly<{
   network: EnsNetwork
   isTestnet: boolean
   chain: EnsChain
   /** Primary first, then the network's public fallbacks, deduped. */
   rpcUrls: readonly string[]
   rpcFallbacks: readonly string[]
-  endpoints: Readonly<Record<keyof NetworkEndpoints, string>>
+  endpoints: Readonly<Record<K, string>>
 }>
 
 // Absolute http(s), or root-relative like `/rpc` for the e2e proxy.
@@ -95,13 +100,13 @@ const resolveNetwork = (network: string | undefined): EnsNetwork => {
   return network
 }
 
-const resolveEndpoints = (
+const resolveEndpoints = <K extends EndpointKey>(
   network: EnsNetwork,
-  overrides: BuildConfigInput['overrides'],
-): Record<keyof NetworkEndpoints, string> => {
+  keys: readonly K[],
+  overrides: BuildConfigInput<K>['overrides'],
+): Record<K, string> => {
   const profile = NETWORKS[network].endpoints
-  const keys = Object.keys(profile) as (keyof NetworkEndpoints)[]
-  const resolved: Partial<Record<keyof NetworkEndpoints, string>> = {}
+  const resolved: Partial<Record<K, string>> = {}
   const missing: string[] = []
   for (const key of keys) {
     // `||`: an override that is set but empty must fall through. A supplied
@@ -116,7 +121,7 @@ const resolveEndpoints = (
       `Network ${network} has no endpoint configured for: ${missing.join(', ')}. Deploy the service and add it to NETWORKS, or pass an override.`,
     )
   }
-  return resolved as Record<keyof NetworkEndpoints, string>
+  return resolved as Record<K, string>
 }
 
 const assertEnsV2Deployed = (
@@ -147,17 +152,22 @@ export const orderedRpcUrls = (
  * Resolve the app configuration for one network. Pure: reads no env and
  * creates no clients, so it runs in the browser, both workers and tests.
  */
-export const buildConfig = ({
+export const buildConfig = <K extends EndpointKey = EndpointKey>({
   network: requestedNetwork,
   rpcUrl,
+  endpoints: endpointKeys,
   overrides,
-}: BuildConfigInput): EnsAppConfig => {
+}: BuildConfigInput<K>): EnsAppConfig<K> => {
   const network = resolveNetwork(requestedNetwork)
   const profile = NETWORKS[network]
 
   const primaryRpcUrl = rpcUrl ? requireUrl(rpcUrl, 'rpcUrl') : undefined
   const rpcUrls = orderedRpcUrls(primaryRpcUrl, profile.rpcFallbacks)
-  const endpoints = resolveEndpoints(network, overrides)
+  const endpoints = resolveEndpoints(
+    network,
+    endpointKeys ?? (Object.keys(profile.endpoints) as K[]),
+    overrides,
+  )
   const chain = buildEnsChain(network, rpcUrls)
 
   assertEnsV2Deployed(network, chain.contracts)

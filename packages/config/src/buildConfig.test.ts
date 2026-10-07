@@ -125,6 +125,26 @@ describe('buildConfig', () => {
   })
 
   describe('endpoints', () => {
+    it('resolves only the endpoints the app reads', () => {
+      const config = buildConfig({
+        network: 'sepolia',
+        endpoints: ['bignameApi'],
+        overrides: { bignameApi: 'http://127.0.0.1:4010' },
+      })
+
+      expect(config.endpoints).toEqual({ bignameApi: 'http://127.0.0.1:4010' })
+    })
+
+    it('names only the missing endpoints the app reads', () => {
+      expect(() =>
+        buildConfig({
+          network: 'mainnet',
+          rpcUrl: 'https://rpc.example',
+          endpoints: ['bignameApi'],
+        }),
+      ).toThrow(/no endpoint configured for: bignameApi\./)
+    })
+
     it('falls back to the network profile when no override is given', () => {
       expect(buildSepolia().endpoints.indexerGraphql).toBe(
         NETWORKS.sepolia.endpoints.indexerGraphql,

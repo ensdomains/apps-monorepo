@@ -161,7 +161,7 @@ const computeProfilePreflight = async (
   ].filter((id) => !returnedIds.has(id))
   if (missingIds.length > 0) {
     throw new ProfileFetchError({
-      phase: 'subgraph',
+      phase: 'indexer',
       cause: new Error(
         `Profile key inventory omitted ${missingIds.length} requested resolver-backed node${missingIds.length === 1 ? '' : 's'}`,
       ),

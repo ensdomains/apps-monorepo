@@ -22,7 +22,7 @@ export { profileMapKey } from './fetchV1Profiles.helpers'
 
 export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
   cause: unknown
-  phase: 'subgraph' | 'onchain'
+  phase: 'indexer' | 'onchain'
 }> {}
 
 export type Profile = {
@@ -113,7 +113,7 @@ export const fetchV1Profiles = async (params: {
     profileKeysResult?.match(
       (value) => value,
       (error) => {
-        throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
+        throw new ProfileFetchError({ cause: error, phase: 'indexer' })
       },
     ) ??
     []
@@ -126,7 +126,7 @@ export const fetchV1Profiles = async (params: {
   )
   if (missingNodes.length > 0) {
     throw new ProfileFetchError({
-      phase: 'subgraph',
+      phase: 'indexer',
       cause: new Error(
         `Profile key inventory omitted ${missingNodes.length} requested node${missingNodes.length === 1 ? '' : 's'}`,
       ),

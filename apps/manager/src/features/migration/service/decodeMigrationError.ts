@@ -13,7 +13,7 @@ export type MigrationError =
   | { type: 'cleanup-failed' }
   | {
       type: 'profile-fetch-failed'
-      phase: 'subgraph' | 'onchain'
+      phase: 'indexer' | 'onchain'
       message: string
     }
   | { type: 'user-rejected' }
