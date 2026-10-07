@@ -95,7 +95,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           description="Error fetching ENSv2 names. Please refresh the page."
         />
       )}
-      {names.length > 0 && (
+      {(names.length > 0 || hasMore) && (
         <div>
           <ul>
             {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
@@ -116,7 +116,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
         </div>
       )}
       {!isSettled && <LoadingSpinner title="Loading your names" />}
-      {isSettled && !hasError && names.length === 0 && (
+      {isSettled && !hasError && names.length === 0 && !hasMore && (
         <p className="border-t border-neutral-3 py-3 text-sm text-neutral-7">
           No names yet
         </p>

@@ -1,7 +1,9 @@
+import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import type { FetchMoreResult } from '@/components/ListLoader/fetchUntil'
+import type { V2NameWithRoles } from '@/utils/names/mergeNamesData'
 import { settleOwnedNames } from '../utils/settleOwnedNames'
 import { getV1NamesPagesForAddressQueryOptions } from './useV1NamesForAddress'
 import { getV2NamesPagesForAddressQueryOptions } from './useV2NamesWithRolesForAddress'
@@ -15,11 +17,16 @@ type NamesPage<TName> = { readonly names: readonly TName[] }
 
 type FetchableNamesPagesQuery<TName> = NamesPagesQuery<TName> & {
   readonly fetchNextPage: () => Promise<
-    NamesPagesQuery<TName> & {
+    FetchableNamesPagesQuery<TName> & {
       readonly isError: boolean
       readonly error: unknown
     }
   >
+}
+
+type OwnedNamesQueries = {
+  readonly v1: FetchableNamesPagesQuery<NameWithRelation>
+  readonly v2: FetchableNamesPagesQuery<V2NameWithRoles>
 }
 
 const toSource = <TName>({ data, hasNextPage }: NamesPagesQuery<TName>) => ({
@@ -29,11 +36,37 @@ const toSource = <TName>({ data, hasNextPage }: NamesPagesQuery<TName>) => ({
 
 const fetchNextNamesPage = async <TName>(
   query: FetchableNamesPagesQuery<TName>,
-): Promise<NamesPagesQuery<TName>> => {
+): Promise<FetchableNamesPagesQuery<TName>> => {
   if (!query.hasNextPage) return query
   const next = await query.fetchNextPage()
   if (next.isError) throw next.error
   return next
+}
+
+const countLoaded = ({ v1, v2 }: OwnedNamesQueries) =>
+  toSource(v1).names.length + toSource(v2).names.length
+
+const countSettled = ({ v1, v2 }: OwnedNamesQueries) =>
+  settleOwnedNames({ v1: toSource(v1), v2: toSource(v2) }).length
+
+/** Fetches pages until one settles more names, the sources end, or a page comes back empty. */
+const fetchMoreSettledNames = async (
+  queries: OwnedNamesQueries,
+): Promise<FetchMoreResult> => {
+  const [v1, v2] = await Promise.all([
+    fetchNextNamesPage(queries.v1),
+    fetchNextNamesPage(queries.v2),
+  ])
+  const next = { v1, v2 }
+  const hasMore = v1.hasNextPage || v2.hasNextPage
+  const isWaitingOnLaterPages =
+    hasMore &&
+    countSettled(next) === countSettled(queries) &&
+    countLoaded(next) > countLoaded(queries)
+
+  return isWaitingOnLaterPages
+    ? fetchMoreSettledNames(next)
+    : { loaded: countSettled(next), hasMore }
 }
 
 /** The names an address owns across ENSv1 and ENSv2, soonest expiry first, loaded in pages. */
@@ -72,19 +105,7 @@ export const useOwnedNames = ({
         ? undefined
         : toSource(v1Query).names.length + v2Total,
     hasMore: v1Query.hasNextPage || v2Query.hasNextPage,
-    fetchMore: async (): Promise<FetchMoreResult> => {
-      const [v1Next, v2Next] = await Promise.all([
-        fetchNextNamesPage(v1Query),
-        fetchNextNamesPage(v2Query),
-      ])
-      return {
-        loaded: settleOwnedNames({
-          v1: toSource(v1Next),
-          v2: toSource(v2Next),
-        }).length,
-        hasMore: v1Next.hasNextPage || v2Next.hasNextPage,
-      }
-    },
+    fetchMore: () => fetchMoreSettledNames({ v1: v1Query, v2: v2Query }),
     v1Query,
     v2Query,
   }

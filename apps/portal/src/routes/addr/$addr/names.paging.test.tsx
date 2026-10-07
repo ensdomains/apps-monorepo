@@ -144,6 +144,29 @@ describe('addr names route paging', { timeout: 60_000 }, () => {
     expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument()
   })
 
+  it('keeps loading through pages that settle no names yet', async () => {
+    const user = userEvent.setup()
+    const expiry = Date.now() + 400 * MS_PER_DAY
+    // Subnames sharing one expiry are held back until ENSv1 ends.
+    v1Pages.mockImplementation((page: number) => ({
+      names: [0, 1].map((i) => ({
+        name: `sub-${page}-${i}.parent.eth`,
+        parentName: 'parent.eth',
+        expiryDate: { date: new Date(expiry), value: expiry },
+        relation: { wrappedOwner: true },
+      })),
+      hasNextPage: page < 7,
+    }))
+    v2Pages.mockResolvedValue(v2Page(0, 0, 0, false))
+    renderRoute()
+    expect(await screen.findByText('Showing 0', {}, SLOW)).toBeInTheDocument()
+
+    await user.click(more())
+    expect(await screen.findByText('Names (16)', {}, SLOW)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(v1Pages).toHaveBeenCalledTimes(8)
+  })
+
   it('keeps the rows shown when a later page fails, and loads them on retry', async () => {
     const user = userEvent.setup()
     v1Pages.mockResolvedValue(v1Page(0, 10, false))
