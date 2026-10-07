@@ -72,7 +72,9 @@ export const NavSection = ({
   return (
     <div className="flex flex-col gap-0.5">
       {navItems.map(({ id, icon, label, link }) =>
-        id === 'profile' && !reverseNameQuery.data ? (
+        id === 'profile' &&
+        reverseNameQuery.isSuccess &&
+        !reverseNameQuery.data ? (
           <button
             className="flex w-full cursor-pointer items-center gap-2 rounded border-ens-quartz-100 border-b p-3 text-ens-quartz-500 transition-all hover:bg-ens-quartz-50 hover:font-[450] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
             key={id}

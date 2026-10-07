@@ -18,7 +18,10 @@ import { PrimaryNameCard } from './components/PrimaryNameCard'
 const wallet = vi.hoisted(() => ({ reverseName: null as string | null }))
 
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
-  useConnectedReverseName: () => ({ data: wallet.reverseName }),
+  useConnectedReverseName: () => ({
+    data: wallet.reverseName,
+    isSuccess: true,
+  }),
 }))
 
 vi.mock('./components/ChoosePrimaryNameDialog', () => ({
