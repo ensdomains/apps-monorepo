@@ -1,5 +1,5 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
-import { useQueries } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
@@ -18,8 +18,8 @@ import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
-import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
+import { getV1NamesPagesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
+import { getV2NamesPagesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
 interface NameListProps {
   readonly address: Address
@@ -109,12 +109,12 @@ const columns: ColumnDef<column>[] = [
 ]
 
 export const NameList = ({ address, limit }: NameListProps) => {
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
+  const v1NamesQuery = useInfiniteQuery(
+    getV1NamesPagesForAddressQueryOptions({ address }),
+  )
+  const v2NamesQuery = useInfiniteQuery(
+    getV2NamesPagesForAddressQueryOptions({ address }),
+  )
 
   const v1Pending = v1NamesQuery.isLoading
   const v2Pending = v2NamesQuery.isLoading
@@ -132,8 +132,13 @@ export const NameList = ({ address, limit }: NameListProps) => {
   // Registry ownership alone does not make a name the address's: any parent owner
   // can point a subname at any address. Names granted that way are kept visible, but
   // in their own group rather than among the names the address holds.
+  // The cache is shared with the names page, which may have loaded more pages;
+  // only the first page of each source is read here, so nothing is held back.
   const { acquired: allData, assigned } = partitionOwnedNames(
-    mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
+    mergeNamesData(
+      v1NamesQuery.data?.pages[0]?.names,
+      v2NamesQuery.data?.pages[0]?.names,
+    ),
   )
   const data = limit ? allData.slice(0, limit) : allData
   // The assigned section is hidden in the limited (preview) view, so it only
