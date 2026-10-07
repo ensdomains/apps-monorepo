@@ -1032,12 +1032,18 @@ export function verifyHcaRegistrationActor(
     ) => Promise<string | null>
   } & VerifyPollOptions,
 ): ResultAsync<
-  { verified: boolean; registeredToOther: boolean; reason?: string },
+  {
+    verified: boolean
+    registeredToOther: boolean
+    isUnregistered: boolean
+    reason?: string
+  },
   Error
 > {
   const readRegistryState = async (): Promise<{
     verified: boolean
     registeredToOther: boolean
+    isUnregistered: boolean
     reason?: string
   }> => {
     const chainId = requireChainId(input.publicClient, 'HCA registration')
@@ -1113,8 +1119,15 @@ export function verifyHcaRegistrationActor(
     ])
 
     return reason
-      ? { verified: false, registeredToOther, reason }
-      : { verified: true, registeredToOther: false }
+      ? {
+          verified: false,
+          registeredToOther,
+          // Nothing holds the label: the reveal never landed, so `reason` can
+          // only restate that. Callers then keep the failure that stopped it.
+          isUnregistered: Number(state.status) !== STATUS_REGISTERED,
+          reason,
+        }
+      : { verified: true, registeredToOther: false, isUnregistered: false }
   }
 
   // A definitive FAILED / EXPIRED from the orchestrator means the fill can
