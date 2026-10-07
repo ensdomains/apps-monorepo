@@ -2,7 +2,7 @@ import { logger } from '@ens-apps/utils/logger'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { gql } from '@urql/core'
-import { err, fromPromise, ok, type Result } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 import { type Address, getAddress, type Hex, isAddressEqual, isHex } from 'viem'
 import { type GetLogsErrorType, getLogs } from 'viem/actions'
 import { getAction } from 'viem/utils'
@@ -198,30 +198,33 @@ const getIndexedRoleEventsPage = ResultFn(async function* (
 })
 
 /** Every page of the indexed history, oldest first. */
-const getIndexedRoleEventRows = async (
+const getIndexedRoleEventRows = ResultFn(async function* (
   request: IndexedRoleEventsRequest,
-  after?: string,
-  pagesRead = 0,
-): Promise<Result<readonly unknown[], IndexedRoleChangeLogsError>> => {
-  if (pagesRead >= INDEXED_ROLE_EVENTS_MAX_PAGES)
-    return err(
-      new IndexedRoleChangeLogsError({ reason: 'truncated', cause: undefined }),
-    )
+) {
+  const rows: unknown[] = []
+  let after: string | undefined
 
-  const page = await getIndexedRoleEventsPage({ ...request, after })
-  if (page.isErr()) return err(page.error)
+  for (let page = 0; page < INDEXED_ROLE_EVENTS_MAX_PAGES; page++) {
+    const { edges, pageInfo } = yield* getIndexedRoleEventsPage({
+      ...request,
+      after,
+    })
+    rows.push(...edges.map(({ node }) => node))
+    if (!pageInfo.hasNextPage) return ok<readonly unknown[]>(rows)
+    if (!pageInfo.endCursor) {
+      return yield* new IndexedRoleChangeLogsError({
+        reason: 'failed',
+        cause: pageInfo,
+      }).toErr()
+    }
+    after = pageInfo.endCursor
+  }
 
-  const { edges, pageInfo } = page.value
-  const rows = edges.map(({ node }) => node)
-  if (!pageInfo.hasNextPage || !pageInfo.endCursor) return ok(rows)
-
-  const rest = await getIndexedRoleEventRows(
-    request,
-    pageInfo.endCursor,
-    pagesRead + 1,
-  )
-  return rest.map((restRows) => [...rows, ...restRows])
-}
+  return yield* new IndexedRoleChangeLogsError({
+    reason: 'truncated',
+    cause: undefined,
+  }).toErr()
+})
 
 /**
  * The indexed history for one resource. Errs, with the reason, when the node
@@ -238,7 +241,7 @@ const getIndexedRoleChangeLogs = ResultFn(async function* ({
   account,
   fromBlock,
 }: GetRoleChangeLogsParameters & { readonly fromBlock: bigint }) {
-  const rows = yield* await getIndexedRoleEventRows({
+  const rows = yield* getIndexedRoleEventRows({
     contractAddress: registryAddress.toLowerCase(),
     resource: toResourceHex(resource),
     // Same lower bound the node read applies, so both sources answer the

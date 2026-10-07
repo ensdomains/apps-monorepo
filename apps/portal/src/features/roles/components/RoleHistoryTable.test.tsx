@@ -6,10 +6,14 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RoleHistoryEntry } from '@/features/roles/hooks/useRoleHistory'
 
 vi.mock('@/components/table/EventsDataTable', () => ({
-  EventsSidebar: ({ children }: { children: ReactNode }) => <>{children}</>,
+  EventsSidebar: ({ children }: { readonly children: ReactNode }) => (
+    <>{children}</>
+  ),
 }))
 vi.mock('@/components/table/EventsDataTable/AddressDisplay', () => ({
-  AddressDisplay: ({ address }: { address: string }) => <span>{address}</span>,
+  AddressDisplay: ({ address }: { readonly address: string }) => (
+    <span>{address}</span>
+  ),
 }))
 
 const history = vi.fn()

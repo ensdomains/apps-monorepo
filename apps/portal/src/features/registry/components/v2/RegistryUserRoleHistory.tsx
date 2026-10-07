@@ -87,12 +87,11 @@ export const RegistryUserRoleHistory = ({
     loaded: entries.length,
     resetKey: `${registryAddress}:${account}`,
   })
-  const shownEntries = entries.slice(0, loader.shown)
 
-  const transactionHashes = shownEntries.map((e) => e.transactionHash)
+  const transactionHashes = entries.map((e) => e.transactionHash)
   const { data: sendersMap } = useTransactionSenders({ transactionHashes })
 
-  const rows: EnrichedEntry[] = shownEntries.map((entry) => ({
+  const rows: EnrichedEntry[] = entries.slice(0, loader.shown).map((entry) => ({
     ...entry,
     sender: sendersMap?.get(entry.transactionHash) ?? null,
   }))

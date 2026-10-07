@@ -229,6 +229,23 @@ describe('getRoleChangeLogs via the indexer', () => {
     expect(mockGetLogs).toHaveBeenCalledTimes(1)
   })
 
+  it('falls back to the node when more pages are promised without a cursor', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      eventConnection: {
+        pageInfo: { hasNextPage: true, endCursor: null },
+        edges: [{ node: row({ block: 1 }) }],
+      },
+    })
+    mockGetLogs.mockResolvedValue([{ blockNumber: 10n }])
+
+    const result = await getRoleChangeLogs({
+      registryAddress: REGISTRY,
+      resource: 0n,
+    })
+
+    expect(result._unsafeUnwrap()).toEqual([{ blockNumber: 10n }])
+  })
+
   it('falls back to the node when the response has no event feed', async () => {
     mockGraphqlRequest.mockResolvedValue({})
 
