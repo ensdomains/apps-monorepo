@@ -38,6 +38,8 @@ export type CopySource = 'name-wrapper' | 'registry'
 export type IneligibleReason =
   | 'unlocked-subname'
   | 'expired-registration'
+  | 'missing-registration'
+  | 'not-reserved'
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
@@ -232,6 +234,25 @@ const hasExpiredDotEthRegistration = (
   return false
 }
 
+/**
+ * Why a `.eth` 2LD cannot be moved now, if it cannot. A lease in grace comes
+ * before a missing reservation: a reservation lapses 62 days after the lease
+ * while ENSv1 grace lasts 90, and ETHRenewerV1 still renews it for 28 days
+ * after that, so the name stays on the renewal path.
+ */
+const unavailableDotEthReason = (
+  domain: V1Domain,
+  parentName: string | null,
+  nowSeconds: bigint,
+): IneligibleReason | null => {
+  if (parentName !== 'eth') return null
+  if (domain.isLeaseMissing) return 'missing-registration'
+  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+    return 'expired-registration'
+  }
+  return domain.isUnreserved ? 'not-reserved' : null
+}
+
 type ClassificationContext = {
   readonly chainId: SupportedL1ChainId
   readonly domain: V1Domain
@@ -291,9 +312,8 @@ const classifyWithoutActiveWrapper = (
   const registrant = domain.registrant
   if (registrant?.id.toLowerCase() !== ownerAddressLower) return null
   if (parentName !== 'eth') return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return ineligible(domain, 'expired-registration')
-  }
+  const unavailable = unavailableDotEthReason(domain, parentName, nowSeconds)
+  if (unavailable) return ineligible(domain, unavailable)
 
   const tokenHolder = toAddress(registrant.id)
   if (!tokenHolder) return null
@@ -471,9 +491,8 @@ const classifyActiveWrapper = (
   }
   const wrappedHolder = toAddress(wrappedOwner.id)
   if (!wrappedHolder) return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return ineligible(domain, 'expired-registration')
-  }
+  const unavailable = unavailableDotEthReason(domain, parentName, nowSeconds)
+  if (unavailable) return ineligible(domain, unavailable)
 
   const fuses = BigInt(wrappedDomain.fuses)
   return hasFuse(fuses, FUSES.CANNOT_UNWRAP)

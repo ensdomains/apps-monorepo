@@ -18,4 +18,14 @@ export type V1Domain = {
     expiryDate: string
     fuses: number
   } | null
+  /**
+   * A `.eth` 2LD the index lists without a registrar lease. Absent in plans
+   * saved before the flag existed.
+   */
+  isLeaseMissing?: true
+  /**
+   * The name holds no live ENSv2 reservation, which the migration controllers
+   * claim. Absent in plans saved before the flag existed.
+   */
+  isUnreserved?: true
 }

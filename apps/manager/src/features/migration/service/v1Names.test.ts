@@ -131,6 +131,57 @@ describe('toV1Domain', () => {
   })
 })
 
+describe('toV1Domain migration availability', () => {
+  it('flags a name bigname reports without a live ENSv2 entry as unreserved', () => {
+    const domain = toV1Domain(
+      unwrapped2ld('alice.eth', {
+        unresolvable_reason: 'no_live_ens_v2_entry',
+      }),
+      NO_PARENTS,
+      NAME_WRAPPER,
+    )
+    expect(domain.isUnreserved).toBe(true)
+    expect(domain.isLeaseMissing).toBeUndefined()
+  })
+
+  it('flags a .eth name without a lease, but never a subname', () => {
+    expect(
+      toV1Domain(
+        record('alice.eth', { ens_v1: { expires_at: null } }),
+        NO_PARENTS,
+        NAME_WRAPPER,
+      ).isLeaseMissing,
+    ).toBe(true)
+    expect(
+      toV1Domain(
+        record('sub.alice.eth', { ens_v1: { expires_at: null } }),
+        NO_PARENTS,
+        NAME_WRAPPER,
+      ).isLeaseMissing,
+    ).toBeUndefined()
+  })
+
+  it('leaves a reserved name with a lease unflagged', () => {
+    const domain = toV1Domain(
+      unwrapped2ld('alice.eth'),
+      NO_PARENTS,
+      NAME_WRAPPER,
+    )
+    expect(domain).not.toHaveProperty('isUnreserved')
+    expect(domain).not.toHaveProperty('isLeaseMissing')
+  })
+
+  it('offers no upgrade for an unreserved name through the adapter', () => {
+    const { classified, ineligible } = classify([
+      unwrapped2ld('alice.eth', {
+        unresolvable_reason: 'no_live_ens_v2_entry',
+      }),
+    ])
+    expect(classified).toEqual([])
+    expect(ineligible.map(({ reason }) => reason)).toEqual(['not-reserved'])
+  })
+})
+
 describe('classification through the adapter', () => {
   it('migrates an unwrapped 2LD and records a distinct registry controller', () => {
     const { classified } = classify([
