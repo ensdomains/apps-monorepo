@@ -30,7 +30,17 @@ import {
   type Web3ProviderBackend,
 } from '@ensdomains/headless-web3-provider'
 import { expect, type Page, type Request, type Route } from '@playwright/test'
-import { type Address, type Hex, isAddressEqual, keccak256, toHex } from 'viem'
+import {
+  type Address,
+  encodeAbiParameters,
+  formatUnits,
+  type Hex,
+  isAddressEqual,
+  keccak256,
+  pad,
+  parseAbi,
+  toHex,
+} from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { createMakeName } from '../../../fixtures/makeName.js'
@@ -1182,5 +1192,385 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
       .poll(() => readClaim(page, owner), { timeout: 10_000 })
       .toBeNull()
     expect(await readHolderId(page)).toBe(originalId)
+  })
+})
+
+/**
+ * WEB-1483 (PR #1303): the payment sheet when an earlier attempt left USDC in
+ * the HCA.
+ *
+ * The bug: an attempt that funded the HCA but never finished leaves USDC behind,
+ * and the next attempt's sheet set it against the cost without naming either
+ * figure. The headline still read "Total" while showing the full cost, the token
+ * row's balance was labelled "available", and the two messages that did explain
+ * the subtraction called the HCA "your account", a word support has ruled out.
+ *
+ * The fix itemises the cost as "Registration fee" and "Network fee". When there
+ * is one, it adds a muted "Left from your last attempt -$x" deduction and
+ * relabels the headline "You pay now". It says "in your wallet" on the token
+ * row and rewords both messages. Flipping the primary-name toggle now carries
+ * the last quote through (`placeholderData`) and holds checkout until the new
+ * one lands.
+ *
+ * The PR's unit tests cover the rounding helper and the component with
+ * hand-made numbers. These run the real quote against a real HCA balance on
+ * the fork: the leftover is seeded with `setStorageAt` on the USDC balance slot
+ * and read back as the oracle, and the lines on screen must subtract to the
+ * headline to the cent. The HCA is counterfactual (undeployed) here, which the
+ * app's balance read does not care about. The manager suite runs with
+ * `workers: 1`, so nothing else sees the seeded balance, and every test puts
+ * the original back in a `finally`.
+ */
+test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', () => {
+  const USDC = ensL1Contracts[supportedL1Chains.sepolia].usdc.address as Address
+  const USDC_DECIMALS = 6
+  /** OZ ERC20: the balances mapping is slot 0. */
+  const balanceSlot = (holder: Address) =>
+    keccak256(
+      encodeAbiParameters(
+        [{ type: 'address' }, { type: 'uint256' }],
+        [holder, 0n],
+      ),
+    )
+  const usdcAbi = parseAbi([
+    'function balanceOf(address) view returns (uint256)',
+  ])
+
+  const readUsdc = (holder: Address) =>
+    publicClient.readContract({
+      address: USDC,
+      abi: usdcAbi,
+      functionName: 'balanceOf',
+      args: [holder],
+    })
+
+  const setUsdc = (holder: Address, raw: bigint) =>
+    testClient.setStorageAt({
+      address: USDC,
+      index: balanceSlot(holder),
+      value: pad(toHex(raw)),
+    })
+
+  /** `$1,234.56` → 1234.56. Parsed from the DOM, compared in whole cents. */
+  const toCents = (text: string) =>
+    Math.round(Number(text.replace(/[^0-9.]/g, '')) * 100)
+
+  /** USDC base units → whole cents, rounded as the sheet rounds. */
+  const rawToCents = (raw: bigint) =>
+    Math.round(Number(formatUnits(raw, USDC_DECIMALS)) * 100)
+
+  const LEFTOVER_LABEL = 'Left from your last attempt'
+  const FEE_LABEL = /^Network (fee|cost)$/
+
+  /**
+   * The HCA the picker quotes for, from the account on its `/intents/route`
+   * requests. Session-enable is the first of them, so it is known once the
+   * picker has opened at least once.
+   */
+  const captureHca = (page: Page) => {
+    const seen: { hca?: Address } = {}
+    page.on('request', (req) => {
+      if (!req.url().endsWith('/orchestrator/intents/route')) return
+      try {
+        seen.hca = JSON.parse(req.postData() ?? '').account.address
+      } catch {}
+    })
+    return seen
+  }
+
+  /**
+   * Open the token picker on USDC and wait for a settled quote. A full
+   * navigation each time, so the budget query (and the HCA balance read inside
+   * it) starts from an empty cache.
+   */
+  async function openPicker(
+    page: Page,
+    label: string,
+    { selectUsdc = true }: { selectUsdc?: boolean } = {},
+  ) {
+    await page.goto(`/register/${label}`)
+    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await clickThroughEnableSessions(page)
+    // USDC is the only option, so it is selected for us; a click is only the
+    // user's own path, and a wallet short of the debit cannot make it (the row
+    // is disabled).
+    if (selectUsdc) await page.getByText('USDC', { exact: true }).click()
+    const picker = page.getByRole('dialog')
+    // Positive sign the quote landed: the fee line shows a figure, not the
+    // pending em dash. Either label, so the pre-fix build ("Network cost")
+    // gets as far as the assertions that encode the bug.
+    await expect(rowAmount(picker, FEE_LABEL)).toHaveText(/^\$[\d,]+\.\d\d$/, {
+      timeout: 30_000,
+    })
+    return picker
+  }
+
+  /** The figure on a breakdown line, found by the line's label. */
+  const rowAmount = (
+    picker: ReturnType<Page['getByRole']>,
+    label: string | RegExp,
+  ) =>
+    picker
+      .getByText(label, { exact: true })
+      .locator('xpath=..')
+      .locator('.tabular-nums')
+
+  /** The headline: its label, and its figure. */
+  const headline = (picker: ReturnType<Page['getByRole']>) => ({
+    label: picker.getByText(/^(Total|You pay now)$/),
+    amount: picker
+      .getByText('USD', { exact: true })
+      .locator('xpath=..')
+      .locator('.tabular-nums'),
+  })
+
+  /** Open once so the HCA is known, then run `body` with its USDC put back after. */
+  async function withSeededHca(
+    page: Page,
+    label: string,
+    body: (hca: Address) => Promise<void>,
+  ) {
+    const seen = captureHca(page)
+    await openPicker(page, label)
+    expect(seen.hca, 'picker quoted for an HCA').toBeTruthy()
+    const hca = seen.hca as Address
+    const original = await readUsdc(hca)
+    try {
+      await body(hca)
+    } finally {
+      await setUsdc(hca, original)
+    }
+  }
+
+  test('names what the last attempt left and makes the headline what the wallet pays now', {
+    tag: ['@smoke'],
+  }, async ({ connectedPage: page, accounts }) => {
+    const label = `leftover-${Date.now().toString(36)}`
+    const wallet = accounts.getAddress('user')
+
+    await withSeededHca(page, label, async (hca) => {
+      // Guard (the common case, unchanged in shape): an empty HCA leaves
+      // nothing to deduct, so the headline is the plain total.
+      await setUsdc(hca, 0n)
+      let picker = await openPicker(page, label)
+      await expect(headline(picker).label).toHaveText('Total')
+      const total = toCents(await headline(picker).amount.innerText())
+      const fee = toCents(await rowAmount(picker, FEE_LABEL).innerText())
+      expect(total, 'the name has a price').toBeGreaterThan(fee)
+      await expect(
+        picker.getByText(LEFTOVER_LABEL, { exact: true }),
+      ).toHaveCount(0)
+
+      // The report: an earlier attempt left $1.82 in the HCA.
+      const leftoverRaw = 1_820_000n
+      await setUsdc(hca, leftoverRaw)
+      picker = await openPicker(page, label)
+
+      // The bug: the deduction had no line of its own, and the headline still
+      // said "Total" over a figure that was no longer the total.
+      const leftover = rowAmount(picker, LEFTOVER_LABEL)
+      await expect(leftover).toHaveText(/^-\$/)
+      // Oracle: the deduction is the HCA's balance on chain.
+      expect(toCents(await leftover.innerText())).toBe(
+        rawToCents(await readUsdc(hca)),
+      )
+      await expect(headline(picker).label).toHaveText('You pay now')
+      // The lines on screen subtract to the headline, to the cent.
+      const registration = toCents(
+        await rowAmount(picker, 'Registration fee').innerText(),
+      )
+      expect(registration + fee).toBe(total)
+      expect(toCents(await headline(picker).amount.innerText())).toBe(
+        registration + fee - rawToCents(leftoverRaw),
+      )
+      await expect(
+        picker.getByRole('button', {
+          name: 'Why is there money left from your last attempt?',
+        }),
+      ).toBeVisible()
+      await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
+      await expect(
+        picker.getByRole('button', { name: /register name/i }),
+      ).toBeEnabled()
+
+      // The token row's balance is the wallet's, and says so, so it can't be
+      // read as the leftover. Oracle: the wallet's USDC on chain.
+      const tokenRow = picker
+        .getByText('in your wallet', { exact: true })
+        .locator('xpath=..')
+      await expect(tokenRow).toBeVisible()
+      expect(toCents(await tokenRow.locator('p').first().innerText())).toBe(
+        rawToCents(await readUsdc(wallet)),
+      )
+      await expect(picker.getByText('available', { exact: true })).toHaveCount(
+        0,
+      )
+    })
+  })
+
+  test('a leftover that covers the whole registration says so, without calling it an account', async ({
+    connectedPage: page,
+  }) => {
+    const label = `leftover-all-${Date.now().toString(36)}`
+
+    await withSeededHca(page, label, async (hca) => {
+      // More than any name costs: the wallet owes nothing.
+      await setUsdc(hca, 1_000_000_000n)
+      const picker = await openPicker(page, label)
+
+      // The bug: this said "Your account already holds the … USDC".
+      const covered = picker.getByText(
+        /^What was left from your last attempt covers the [\d.]+ USDC this registration needs, so you won't be asked to approve a payment\.$/,
+      )
+      await expect(covered).toBeVisible()
+      await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
+
+      // The figure it quotes is the two lines' total, and the HCA is credited
+      // only that much, not its whole balance.
+      const total =
+        toCents(await rowAmount(picker, 'Registration fee').innerText()) +
+        toCents(await rowAmount(picker, FEE_LABEL).innerText())
+      const [, coveredUsdc] = (await covered.innerText()).match(
+        /covers the ([\d.]+) USDC/,
+      ) as RegExpMatchArray
+      expect(toCents(coveredUsdc as string)).toBe(total)
+      expect(toCents(await rowAmount(picker, LEFTOVER_LABEL).innerText())).toBe(
+        total,
+      )
+      await expect(headline(picker).label).toHaveText('You pay now')
+      expect(toCents(await headline(picker).amount.innerText())).toBe(0)
+      // A debit of zero is a legitimate state, not a missing quote.
+      await expect(
+        picker.getByRole('button', { name: /register name/i }),
+      ).toBeEnabled()
+    })
+  })
+
+  test('a wallet short of the remainder is told what the leftover covers and what it still needs', async ({
+    connectedPage: page,
+    accounts,
+  }) => {
+    const label = `leftover-short-${Date.now().toString(36)}`
+    const wallet = accounts.getAddress('user')
+    const walletOriginal = await readUsdc(wallet)
+
+    try {
+      await withSeededHca(page, label, async (hca) => {
+        const leftoverRaw = 1_820_000n
+        const walletRaw = 5_000_000n
+        await setUsdc(hca, leftoverRaw)
+        await setUsdc(wallet, walletRaw)
+        const picker = await openPicker(page, label, { selectUsdc: false })
+        await expect(
+          picker.getByRole('button', { name: 'Select USDC' }),
+        ).toBeDisabled()
+
+        // The bug: this said "…and your account already holds 1.82…".
+        const shortfall = picker.getByText(
+          /^Not enough USDC\. This registration costs ([\d.]+) USDC and ([\d.]+) is left from your last attempt, so you need ([\d.]+) more, but your wallet holds ([\d.]+) USDC\.$/,
+        )
+        await expect(shortfall).toBeVisible()
+
+        // Every figure in it is checkable against the lines and the chain.
+        const [, costs, left, need, holds] = (
+          await shortfall.innerText()
+        ).match(
+          /costs ([\d.]+) USDC and ([\d.]+) is left.*need ([\d.]+) more.*holds ([\d.]+) USDC/,
+        ) as RegExpMatchArray
+        const total =
+          toCents(await rowAmount(picker, 'Registration fee').innerText()) +
+          toCents(await rowAmount(picker, FEE_LABEL).innerText())
+        expect(toCents(costs as string)).toBe(total)
+        expect(toCents(left as string)).toBe(rawToCents(leftoverRaw))
+        expect(toCents(need as string)).toBe(total - rawToCents(leftoverRaw))
+        expect(toCents(holds as string)).toBe(rawToCents(walletRaw))
+        await expect(
+          picker.getByRole('button', { name: /register name/i }),
+        ).toBeDisabled()
+        await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
+
+        // Positive control: a wallet that covers the remainder clears the gate,
+        // so the block above was the shortfall, not the leftover.
+        await setUsdc(wallet, walletOriginal)
+        const funded = await openPicker(page, label)
+        await expect(
+          funded.getByRole('button', { name: /register name/i }),
+        ).toBeEnabled()
+        await expect(funded.getByText(/^Not enough USDC/)).toHaveCount(0)
+      })
+    } finally {
+      await setUsdc(wallet, walletOriginal)
+    }
+  })
+
+  test('flipping the primary-name toggle keeps the breakdown and holds Register until the new quote lands', async ({
+    connectedPage: page,
+  }) => {
+    const label = `leftover-toggle-${Date.now().toString(36)}`
+    /** `setNameWithHCA(...)`: in the register leg only when the toggle is on. */
+    const SET_PRIMARY_NAME_SELECTOR = 'ab863445'
+    const REGISTER_SELECTOR = 'cff3e7c2'
+
+    // The opt-in defaults off once the wallet has a primary name, so read the
+    // default first, on another label.
+    const startsOn = await (await openPicker(page, `${label}-x`))
+      .getByRole('switch', { name: /as your primary name/i })
+      .isChecked()
+
+    // With the opt-in on, opening the sheet quotes both states at once, so a
+    // flip after they land would be served from cache. Hold the other state's
+    // quote from the start, whether it goes out on open or on the flip: the
+    // flip then lands on a quote still in flight, the state the fix's
+    // `placeholderData` and `isQuoteStale` exist for.
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let heldCount = 0
+    const holdOffQuote = async (route: Route) => {
+      const data = route.request().postData() ?? ''
+      if (
+        data.includes(REGISTER_SELECTOR) &&
+        data.includes(SET_PRIMARY_NAME_SELECTOR) !== startsOn
+      ) {
+        heldCount++
+        await held
+      }
+      return route.fallback()
+    }
+    await page.route('**/orchestrator/intents/route', holdOffQuote)
+
+    try {
+      const picker = await openPicker(page, label)
+      const toggle = picker.getByRole('switch', {
+        name: /as your primary name/i,
+      })
+      const registerButton = picker.getByRole('button', {
+        name: /register name/i,
+      })
+      await expect(toggle).toBeChecked({ checked: startsOn })
+      await expect(registerButton).toBeEnabled()
+      const feeBefore = await rowAmount(picker, FEE_LABEL).innerText()
+
+      await toggle.click()
+      await expect(toggle).toBeChecked({ checked: !startsOn })
+      await expect.poll(() => heldCount, { timeout: 15_000 }).toBeGreaterThan(0)
+
+      // The bug: the fee line emptied out while the new quote loaded, and
+      // Register stayed live on the rent alone.
+      await expect(registerButton).toBeDisabled()
+      await expect(rowAmount(picker, FEE_LABEL)).toHaveText(feeBefore)
+      // Still disabled a beat later: the gate is the pending quote, not a
+      // re-render in passing.
+      await page.waitForTimeout(2_000)
+      await expect(registerButton).toBeDisabled()
+
+      // Positive control: once the quote for the new state lands, checkout opens.
+      release()
+      await expect(registerButton).toBeEnabled({ timeout: 30_000 })
+    } finally {
+      release()
+      await page.unroute('**/orchestrator/intents/route', holdOffQuote)
+    }
   })
 })
