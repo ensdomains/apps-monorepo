@@ -1,45 +1,103 @@
+import {
+  createPlainClient,
+  type GraphqlRequestError,
+  graphqlRequest,
+} from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type {
-  GetResolvedNamesForAddressErrorType,
-  GetResolvedNamesForAddressParameters,
-} from '@ensdomains/ensjs/subgraph'
-import { getResolvedNamesForAddress as ensjs_getResolvedNamesForAddress } from '@ensdomains/ensjs/subgraph'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
+import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import type { ForwardName } from '../ForwardNamesTable/columns'
 
-export class GetResolvedNamesForAddressError extends TaggedError(
+class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: GetResolvedNamesForAddressErrorType
+  cause: GraphqlRequestError
 }> {}
 
-export const getResolvedNamesForAddress = ResultFn(async function* (
-  params: GetResolvedNamesForAddressParameters,
-) {
+type GetResolvedNamesForAddressParameters = {
+  readonly address: Address
+}
+
+type ResolvedNamesPage = {
+  readonly names: readonly ForwardName[]
+  readonly endCursor: string | undefined
+  readonly hasNextPage: boolean
+}
+
+const RESOLVED_NAMES_PAGE_SIZE = 100
+
+const getResolvedNamesPage = ResultFn(async function* ({
+  address,
+  after,
+}: GetResolvedNamesForAddressParameters & { readonly after: string }) {
   const client = yield* safeGetClient()
 
-  const result = yield* fromPromise(
-    ensjs_getResolvedNamesForAddress(client, params),
+  const { domains } = yield* fromPromise(
+    graphqlRequest<{
+      domains: {
+        id: string
+        name: string
+        resolver: { coinTypes: string[] | null } | null
+      }[]
+    }>(
+      createPlainClient(client.chain.subgraphs.ens.url),
+      gql`
+        query getResolvedNamesForAddress(
+          $address: String!
+          $first: Int!
+          $after: String!
+        ) {
+          domains(
+            first: $first
+            orderBy: id
+            where: { resolvedAddress: $address, id_gt: $after }
+          ) {
+            id
+            name
+            resolver {
+              coinTypes
+            }
+          }
+        }
+      `,
+      {
+        address: address.toLowerCase(),
+        first: RESOLVED_NAMES_PAGE_SIZE,
+        after,
+      },
+    ),
     (e) =>
-      new GetResolvedNamesForAddressError({
-        cause: e as GetResolvedNamesForAddressErrorType,
-      }),
+      new GetResolvedNamesForAddressError({ cause: e as GraphqlRequestError }),
   )
 
-  return ok(result)
+  return ok<ResolvedNamesPage>({
+    names: domains.map(({ name, resolver }) => ({
+      name,
+      coinTypes: resolver?.coinTypes ?? [],
+    })),
+    endCursor: domains.at(-1)?.id,
+    hasNextPage: domains.length === RESOLVED_NAMES_PAGE_SIZE,
+  })
 })
 
-export const getResolvedNamesForAddressQueryKey = createQueryKey<
+const getResolvedNamesForAddressQueryKey = createQueryKey<
   'get-resolved-names-for-address',
   GetResolvedNamesForAddressParameters
 >('get-resolved-names-for-address')
 
+/** ENSv1 names that resolve to an address, in pages. */
 export const getResolvedNamesForAddressQueryOptions = (
   params: GetResolvedNamesForAddressParameters,
 ) =>
-  resultQueryOptions({
+  resultInfiniteQueryOptions({
     queryKey: getResolvedNamesForAddressQueryKey(params),
-    queryFn: () => getResolvedNamesForAddress(params),
+    queryFn: ({ queryKey: [, { address }], pageParam }) =>
+      getResolvedNamesPage({ address, after: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (last: ResolvedNamesPage) =>
+      last.hasNextPage ? last.endCursor : undefined,
   })
