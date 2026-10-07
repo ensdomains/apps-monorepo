@@ -18,6 +18,10 @@ const QUERY: ExpiringNamesQuery = {
   windows: [{ from: 101, to: 200 }],
 }
 
+const DAY = 86_400
+const graceAfter = (expires_at: string, days: number) =>
+  String(Number(expires_at) + days * DAY)
+
 const row = (
   name: string,
   expires_at: string,
@@ -30,6 +34,7 @@ const row = (
   authority: 'ens_v2',
   registration_status: 'registered',
   expires_at,
+  grace_ends_at: graceAfter(expires_at, 28),
   ...extra,
 })
 
@@ -139,18 +144,41 @@ describe('fetchExpiringNamesPage', () => {
           name: 'v2.eth',
           expiryDate: 1_700_000_000,
           registrationStatus: 'registered',
+          hasV2Grace: true,
           owner: '0xabc',
         },
         {
           name: 'v1.eth',
           expiryDate: 1_700_000_001,
           registrationStatus: 'active',
+          hasV2Grace: true,
           owner: '0xdef',
         },
       ],
       nextCursor: null,
       indexedAtSec: AS_OF_SEC,
     })
+  })
+
+  it('marks a lease still on the 90-day ENSv1 grace as off the 28-day track', async () => {
+    stubFetch(
+      json(
+        listing([
+          row('unreserved.eth', '1700000000', {
+            authority: 'ens_v1',
+            grace_ends_at: graceAfter('1700000000', 90),
+          }),
+          row('no-grace.eth', '1700000001', { grace_ends_at: undefined }),
+        ]),
+      ),
+    )
+
+    const page = (await fetchExpiringNamesPage(QUERY))._unsafeUnwrap()
+
+    expect(page.names.map(({ hasV2Grace }) => hasV2Grace)).toEqual([
+      false,
+      false,
+    ])
   })
 
   it('takes the owner from the lapsed registration once released', async () => {

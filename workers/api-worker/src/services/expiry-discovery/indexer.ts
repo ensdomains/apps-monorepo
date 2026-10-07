@@ -4,6 +4,10 @@ import {
   type RegistrationStatus,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok, type Result } from 'neverthrow'
 import { getConfig } from '#core/config.js'
@@ -15,6 +19,7 @@ const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 // How old the served state may be before notices from it are held.
 export const MAX_INDEX_STALENESS_SECONDS = 15 * 60
+const V2_GRACE_SECONDS = V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY
 
 export class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
   cause: unknown
@@ -80,6 +85,8 @@ export type ExpiringName = {
   /** The served expiry, which a reserved ENSv1 name takes from its reservation. */
   readonly expiryDate: number
   readonly registrationStatus: RegistrationStatus
+  /** Whether the served grace is the 28 days every stage is timed from. */
+  readonly hasV2Grace: boolean
   /** Why a released registration ended; `expired` when it lapsed. */
   readonly releaseKind?: string
   /** The holder, or the last holder once released. */
@@ -169,6 +176,9 @@ const executeIndexerQuery = ResultFn(async function* (
             name: row.name,
             expiryDate,
             registrationStatus: row.registration_status,
+            hasV2Grace:
+              toUnixSeconds(row.grace_ends_at) ===
+              expiryDate + V2_GRACE_SECONDS,
             ...(row.lapsed_registration?.release_kind && {
               releaseKind: row.lapsed_registration.release_kind,
             }),
@@ -176,6 +186,14 @@ const executeIndexerQuery = ResultFn(async function* (
           },
         ],
   )
+  const offTrack = names.filter(({ hasV2Grace }) => !hasV2Grace)
+  if (offTrack.length > 0) {
+    logger.debug('Skipping names whose served grace is not 28 days', {
+      label: ctx.label,
+      count: offTrack.length,
+      names: offTrack.slice(0, 10).map(({ name }) => name),
+    })
+  }
 
   return ok<ExpiringNamesPage>({
     names,

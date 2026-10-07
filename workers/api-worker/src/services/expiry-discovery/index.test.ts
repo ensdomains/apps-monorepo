@@ -76,6 +76,7 @@ const stageName = (
   name,
   expiryDate,
   registrationStatus: 'registered',
+  hasV2Grace: true,
   ...extra,
 })
 

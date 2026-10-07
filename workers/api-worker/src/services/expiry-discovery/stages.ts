@@ -128,6 +128,7 @@ const HELD_STATUSES: ReadonlySet<RegistrationStatus> = new Set([
 
 export type StageCandidate = {
   readonly registrationStatus: RegistrationStatus
+  readonly hasV2Grace: boolean
   readonly releaseKind?: string
 }
 
@@ -142,6 +143,9 @@ export function isNotifiableAtStage(
   stage: ExpiryStageConfig,
   candidate: StageCandidate,
 ): boolean {
+  // Stages and templates assume a 28-day grace; a lease that still runs on
+  // ENSv1's 90 days (no ENSv2 reservation) would be told the wrong dates.
+  if (!candidate.hasV2Grace) return false
   const isHeld = HELD_STATUSES.has(candidate.registrationStatus)
   const isExpiredRelease =
     candidate.registrationStatus === 'released' &&
