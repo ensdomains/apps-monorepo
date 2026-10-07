@@ -71,6 +71,23 @@ vi.mock('@/features/dns-import/components/DnsClaimableMessage', () => ({
 vi.mock('@/features/history/components/HistoryTimeline', () => ({
   HistoryTimeline: () => null,
 }))
+// The warning's own rules are covered in PrivilegeWarnings.test.tsx; the route
+// only has to place it and hand it the owner.
+vi.mock('@/features/roles/components/PrivilegeWarnings', () => ({
+  ResolverPrivilegeWarning: ({
+    name,
+    ownerData,
+  }: {
+    name: string
+    ownerData: { owner: string }
+  }) => (
+    <div
+      data-testid="resolver-warning"
+      data-name={name}
+      data-owner={ownerData.owner}
+    />
+  ),
+}))
 vi.mock('@/components/EntityBadge', () => ({
   EntityBadge: ({ children }: { children?: React.ReactNode }) => (
     <span>{children}</span>
@@ -170,5 +187,51 @@ describe('resolver route', () => {
     render(<ResolverRoute />)
 
     expect(screen.queryByText('Change resolver')).not.toBeInTheDocument()
+  })
+
+  describe('missing resolver privileges (contracts-v2#432)', () => {
+    const V2_OWNER = '0x55e55C649895940826a852820d9e1A076Ec47b09'
+    const v2Name = () => {
+      routeName = 'alice.eth'
+      ownerResult = settled({
+        owner: V2_OWNER,
+        registryAddress: '0x1111111111111111111111111111111111111111',
+        protocolVersion: 'ENSv2',
+      })
+    }
+
+    it("flags the owner's resolver privileges beside the contract", () => {
+      v2Name()
+
+      render(<ResolverRoute />)
+
+      const warning = screen.getByTestId('resolver-warning')
+      expect(warning).toHaveAttribute('data-name', 'alice.eth')
+      expect(warning).toHaveAttribute('data-owner', V2_OWNER)
+      expect(screen.getByText(ENS_V1_RESOLVER)).toBeInTheDocument()
+    })
+
+    it('flags them on a name with no resolver at all', () => {
+      v2Name()
+      resolverResult = settled('0x0000000000000000000000000000000000000000')
+
+      render(<ResolverRoute />)
+
+      expect(
+        screen.getByText('This name does not have a resolver set.'),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('resolver-warning')).toBeInTheDocument()
+    })
+
+    it('has nothing to flag on a name without a registry entry', () => {
+      offchain = {
+        isLoading: false,
+        resolvedAddress: '0x55e55C649895940826a852820d9e1A076Ec47b09',
+      }
+
+      render(<ResolverRoute />)
+
+      expect(screen.queryByTestId('resolver-warning')).not.toBeInTheDocument()
+    })
   })
 })

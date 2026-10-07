@@ -15,6 +15,17 @@ export type PostHogEvents = {
   'wallet:disconnect': undefined
 
   'intercom:booted': undefined
+
+  'dnssec_debug:opened': {
+    name: string
+    source: 'sidebar' | 'import' | 'sync' | 'direct'
+  }
+
+  'dnssec_debug:result': {
+    name: string
+    verdict: string
+    failed_step: string | null
+  }
 }
 
 export type PostHogEvent = keyof PostHogEvents

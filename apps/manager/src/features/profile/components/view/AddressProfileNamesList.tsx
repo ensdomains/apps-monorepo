@@ -140,7 +140,7 @@ const AddressNameRow = ({
     >
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
-        avatarUrl={profilePreview.avatarUrl}
+        avatarRecord={profilePreview.avatarRecord}
         canRenew={canRenew}
         cta={canRenew ? 'renew' : null}
         expiryLabel={formatExpiryLabel(name.expiryDate)}

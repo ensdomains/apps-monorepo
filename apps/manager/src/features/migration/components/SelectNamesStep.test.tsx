@@ -267,6 +267,18 @@ describe('SelectNamesStep manager restoration (WEB-1528)', () => {
     ])
   })
 
+  it('explains the temporary permission only once a name is opted in', async () => {
+    const utils = renderStep()
+    const notice = /requires temporary\s+permission/
+    expect(utils.queryByText(notice)).not.toBeInTheDocument()
+
+    const checkbox = managerCheckbox(utils)
+    if (!checkbox) throw new Error('manager opt-in not found')
+    fireEvent.click(checkbox)
+
+    await waitFor(() => expect(utils.getByText(notice)).toBeInTheDocument())
+  })
+
   it('withdraws the opt-in when the name is deselected', async () => {
     const utils = renderStep()
     const checkbox = managerCheckbox(utils)

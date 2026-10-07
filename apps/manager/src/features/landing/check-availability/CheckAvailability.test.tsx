@@ -2,7 +2,6 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EXPLORER_URL } from '@/constants'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { render, stubImagePreload } from '@/utils/test-utils'
 
 const dnsSecLookups = vi.hoisted(() => [] as string[])
@@ -40,7 +39,13 @@ vi.mock('@/features/shared/service/checkNameAvailabilityService', () => ({
 vi.mock('@/features/profile/service/profileRecords', () => ({
   profileRecordsQuery: (name: string) => ({
     queryKey: ['test-records', name],
-    queryFn: async () => ({ texts: [{ key: 'theme', value: '#112233' }] }),
+    queryFn: async () => ({
+      texts: [
+        { key: 'theme', value: '#112233' },
+        { key: 'avatar', value: `https://example.com/${name}.png` },
+      ],
+      coins: [],
+    }),
   }),
 }))
 
@@ -118,11 +123,11 @@ describe('CheckAvailability', () => {
       isNonExpiring: false,
       protocol: 'v2',
     }
-    const expectedAvatarUrl = buildNameAvatarUrl('alien.eth')
+    const expectedAvatarUrl = 'https://example.com/alien.eth.png'
     const { container } = render(<CheckAvailability />)
 
     // The raw input differs from the resolved name on purpose: the avatar
-    // url must be built from the availability result's normalized name.
+    // record must be read for the availability result's normalized name.
     searchFor('alien')
 
     await waitFor(() => {
@@ -131,8 +136,10 @@ describe('CheckAvailability', () => {
       ).toBeInTheDocument()
     })
 
+    await waitFor(() => {
+      expect(probes.some((p) => p.src === expectedAvatarUrl)).toBe(true)
+    })
     const probe = probes.find((p) => p.src === expectedAvatarUrl)
-    expect(probe).toBeDefined()
     expect(screen.queryByText('Grace period')).not.toBeInTheDocument()
 
     act(() => {
@@ -150,7 +157,7 @@ describe('CheckAvailability', () => {
       isNonExpiring: false,
       protocol: 'v2',
     }
-    const expectedAvatarUrl = buildNameAvatarUrl('alien.eth')
+    const expectedAvatarUrl = 'https://example.com/alien.eth.png'
     render(<CheckAvailability />)
 
     searchFor('alien')
@@ -159,7 +166,9 @@ describe('CheckAvailability', () => {
       expect(screen.getByText('Grace period')).toBeInTheDocument()
     })
 
-    expect(probes.some((p) => p.src === expectedAvatarUrl)).toBe(true)
+    await waitFor(() => {
+      expect(probes.some((p) => p.src === expectedAvatarUrl)).toBe(true)
+    })
   })
 
   it('does not mark a deep subname as not supported', async () => {

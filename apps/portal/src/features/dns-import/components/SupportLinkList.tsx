@@ -1,28 +1,26 @@
-import { ExternalLink } from 'lucide-react'
+import { Fragment } from 'react'
 
 type SupportLinkListProps = {
   readonly title: string
   readonly items: readonly { readonly label: string; readonly href: string }[]
 }
 
-/** Registrar help links shown under a DNS check ("Need help? …"). */
+/** Registrar help links shown under a DNS check, as one sentence. */
 export const SupportLinkList = ({ title, items }: SupportLinkListProps) => (
-  <div className="flex flex-col gap-2">
-    <p className="text-sm text-muted-foreground">{title}</p>
-    <ul className="flex flex-wrap gap-x-4 gap-y-1">
-      {items.map((item) => (
-        <li key={item.label}>
-          <a
-            href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm underline underline-offset-2 hover:opacity-80"
-          >
-            {item.label}
-            <ExternalLink className="size-3" />
-          </a>
-        </li>
-      ))}
-    </ul>
-  </div>
+  <p className="text-sm text-muted-foreground">
+    {title}{' '}
+    {items.map((item, index) => (
+      <Fragment key={item.label}>
+        {index > 0 && ', '}
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:opacity-80"
+        >
+          {item.label}
+        </a>
+      </Fragment>
+    ))}
+  </p>
 )

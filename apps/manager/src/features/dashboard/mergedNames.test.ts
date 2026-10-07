@@ -281,6 +281,92 @@ describe('buildMergedNamesList', () => {
     })
   })
 
+  describe('un-normalised stored names', () => {
+    const LABELHASH = `[${'ab'.repeat(32)}]`
+
+    it('hides v2 and v1 names that are not their own ENSIP-15 spelling', () => {
+      const items = buildMergedNamesList({
+        v2Names: [
+          makeV2({ id: '0x1', name: 'alpha.eth' }),
+          makeV2({ id: '0x2', name: 'ALPHA.eth' }),
+          makeV2({ id: '0x3', name: 'vi\u00adtalik.eth' }),
+        ],
+        v1Classified: [
+          makeV1({ id: '0x4', name: 'mike.eth', label: 'mike' }),
+          makeV1({ id: '0x5', name: 'MIKE.eth', label: 'MIKE' }),
+        ],
+        searchQuery: '',
+        sortField: 'name',
+        sortDir: 'asc',
+      })
+      expect(items.map((i) => i.sortName)).toEqual(['alpha.eth', 'mike.eth'])
+    })
+
+    it('keeps names the indexer has no label for', () => {
+      const items = buildMergedNamesList({
+        v2Names: [
+          makeV2({ id: '0x1', name: null, normalizedName: null }),
+          makeV2({ id: '0x2', name: `${LABELHASH}.eth` }),
+          makeV2({ id: '0x3', name: '\u{1f680}\u{1f680}\u{1f680}.eth' }),
+        ],
+        v1Classified: [],
+        searchQuery: '',
+        sortField: 'name',
+        sortDir: 'asc',
+      })
+      expect(items).toHaveLength(3)
+    })
+
+    it('leaves hidden names out of the count', () => {
+      expect(
+        getMergedNamesCount({
+          v2Names: [
+            makeV2({ id: '0x1', name: 'alpha.eth' }),
+            makeV2({ id: '0x2', name: 'ALPHA.eth' }),
+          ],
+          v1Classified: [
+            makeV1({ id: '0x3', name: 'mike.eth', label: 'mike' }),
+            makeV1({ id: '0x4', name: 'MIKE.eth', label: 'MIKE' }),
+          ],
+        }),
+      ).toBe(2)
+    })
+
+    it('keeps a canonical v1 name whose only v2 twin is hidden', () => {
+      const params = {
+        v2Names: [makeV2({ id: '0x1', name: 'ALPHA.eth' })],
+        v1Classified: [
+          makeV1({ id: '0x2', name: 'alpha.eth', label: 'alpha' }),
+        ],
+      }
+      const items = buildMergedNamesList({
+        ...params,
+        searchQuery: '',
+        sortField: 'name',
+        sortDir: 'asc',
+      })
+      expect(items.map((i) => [i.kind, i.sortName])).toEqual([
+        ['v1', 'alpha.eth'],
+      ])
+      expect(getMergedNamesCount(params)).toBe(1)
+    })
+
+    it('leaves hidden names out of each version count', () => {
+      const params = {
+        v2Names: [
+          makeV2({ id: '0x1', name: 'alpha.eth' }),
+          makeV2({ id: '0x2', name: 'ZETA.eth' }),
+        ],
+        v1Classified: [
+          makeV1({ id: '0x3', name: 'mike.eth', label: 'mike' }),
+          makeV1({ id: '0x4', name: 'MIKE.eth', label: 'MIKE' }),
+        ],
+      }
+      expect(getMergedNamesCount({ ...params, version: 'v2' })).toBe(1)
+      expect(getMergedNamesCount({ ...params, version: 'v1' })).toBe(1)
+    })
+  })
+
   it('sorts by created date desc with unknowns last', () => {
     const items = buildMergedNamesList({
       v2Names: [
