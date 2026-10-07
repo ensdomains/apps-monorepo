@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
-import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
   getProfileNameExpiryStatus,
@@ -12,9 +12,9 @@ import {
 } from '@/features/profile/service/profileExpiry'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import type { ProfileRecords } from '@/features/profile/types'
+import { getNameDetailQueryOptions } from '@/features/shared/service/nameDetail'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
-import { findPrimaryAddressName } from './addressProfilePrimary'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
 
@@ -65,28 +65,27 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   )
 }
 
-const useAddressProfileAvatar = ({
-  addressNames,
-  primaryName,
-  isNamesPending,
-  records,
-}: {
-  readonly addressNames: readonly ProfileAddressName[]
-  readonly primaryName?: string
-  readonly isNamesPending: boolean
-  readonly records: ProfileRecords | null
-}) => {
-  const primaryEntry = findPrimaryAddressName(addressNames, primaryName)
-  const isV1Primary = primaryEntry?.protocol === 'v1'
+const MS_PER_SECOND = 1000
+
+// An ENSv1 primary name's grace follows its lease, which name detail serves.
+const useAddressProfileAvatarUrl = (primaryName: string | undefined) => {
+  const { data: detail, isPending: isDetailPending } = useQuery(
+    getNameDetailQueryOptions(primaryName),
+  )
+  const isV1Primary = detail?.protocol === 'v1'
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(primaryName ?? ''),
-    enabled: !!primaryName && !isNamesPending && !isV1Primary,
+    enabled: !!primaryName && !isDetailPending && !isV1Primary,
   })
 
-  const isInGrace =
-    isV1Primary && primaryEntry
-      ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1').isInGrace
-      : getProfileExpiryResultStatus(expiryData).isInGrace
+  const isInGrace = isV1Primary
+    ? getProfileNameExpiryStatus(
+        detail.expiresAt
+          ? Math.floor(detail.expiresAt.getTime() / MS_PER_SECOND)
+          : null,
+        'v1',
+      ).isInGrace
+    : getProfileExpiryResultStatus(expiryData).isInGrace
 
   return useQuery(
     imageRecordQuery(
@@ -97,24 +96,14 @@ const useAddressProfileAvatar = ({
 
 export const AddressProfileHeader = ({
   address,
-  addressNames,
   primaryName,
-  isNamesPending = false,
   records,
 }: {
   readonly address: Address
-  readonly addressNames: readonly ProfileAddressName[]
   readonly primaryName?: string
-  readonly isNamesPending?: boolean
   readonly records: ProfileRecords | null
 }) => {
-  const avatar = useAddressProfileAvatar({
-    addressNames,
-    primaryName,
-    isNamesPending,
-    records,
-  })
-  const avatarUrl = avatar.data ?? undefined
+  const avatarUrl = useAddressProfileAvatarUrl(primaryName)
 
   return (
     <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">

@@ -6,18 +6,28 @@ import type {
 import { IndexerReadError } from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
-import { getProfileAddressNames } from './profileAddressNames'
+import {
+  getProfileNameCounts,
+  PROFILE_NAMES_CHUNK_SIZE,
+  type ProfileNamesChunk,
+  type ProfileNamesQuery,
+  readProfileNamesChunk,
+  toProfileNamesPage,
+} from './profileAddressNames'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
 const ADDRESS = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 
-const summary = (name: string): NameSummary => ({
+const summary = (
+  name: string,
+  relations: NameSummary['relations'] = ['owner'],
+): NameSummary => ({
   name,
   displayName: name,
   namehash: `0x${name.length.toString(16)}`,
   protocol: 'v2',
-  relations: ['owner'],
+  relations,
   isPrimary: false,
   isMigrated: false,
   registrationStatus: 'registered',
@@ -30,54 +40,188 @@ const summary = (name: string): NameSummary => ({
 const page = (
   items: readonly NameSummary[],
   nextCursor: string | null = null,
-): Page<NameSummary> => ({ items, nextCursor, totalCount: null })
+  totalCount: number | null = null,
+): Page<NameSummary> => ({ items, nextCursor, totalCount })
 
-describe('getProfileAddressNames', () => {
-  it('reads every relation, newest registration first, in one stream', async () => {
+const QUERY: ProfileNamesQuery = {
+  address: ADDRESS,
+  scope: 'all',
+  sortField: 'created',
+  sortDir: 'desc',
+  search: '',
+}
+
+describe('readProfileNamesChunk', () => {
+  it('reads the first chunk in the requested order with an exact total', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(() =>
-      okAsync(page([summary('alice.eth')])),
+      okAsync(
+        page([summary('alice.eth'), summary('abc.addr.reverse')], 'next', 12),
+      ),
     )
 
-    const result = await getProfileAddressNames(readNames, ADDRESS)
+    const chunk = (
+      await readProfileNamesChunk(readNames, QUERY, undefined)
+    )._unsafeUnwrap()
 
-    expect(result._unsafeUnwrap().map(({ label }) => label)).toEqual([
-      'alice.eth',
-    ])
     expect(readNames).toHaveBeenCalledWith({
       address: ADDRESS,
-      sort: 'registered',
+      relations: undefined,
+      sort: 'created',
       order: 'desc',
-      pageSize: 200,
+      pageSize: PROFILE_NAMES_CHUNK_SIZE,
+      includeTotal: true,
+    })
+    expect(chunk).toMatchObject({
+      names: [{ label: 'alice.eth' }],
+      hiddenCount: 1,
+      nextCursor: 'next',
+      totalCount: 12,
     })
   })
 
-  it('follows the cursor until every page is read', async () => {
-    const pages = [page([summary('a.eth')], 'c1'), page([summary('bb.eth')])]
-    let call = 0
+  it('continues from the cursor without asking for the total again', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() => okAsync(page([])))
+
+    await readProfileNamesChunk(
+      readNames,
+      { ...QUERY, scope: 'owned', search: 'al' },
+      'next',
+    )
+
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relations: ['owner'],
+        contains: 'al',
+        cursor: 'next',
+      }),
+    )
+    expect(readNames.mock.calls[0]?.[0]).not.toHaveProperty('includeTotal')
+  })
+
+  it('lists only names the address manages without owning on the managed list', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(() =>
-      okAsync(pages[call++] ?? page([])),
+      okAsync(
+        page([
+          summary('both.eth', ['owner', 'manager']),
+          summary('managed.eth', ['manager']),
+          summary('role.eth', ['role_holder']),
+        ]),
+      ),
     )
 
-    const result = await getProfileAddressNames(readNames, ADDRESS)
+    const chunk = (
+      await readProfileNamesChunk(
+        readNames,
+        { ...QUERY, scope: 'managed' },
+        undefined,
+      )
+    )._unsafeUnwrap()
 
-    expect(result._unsafeUnwrap()).toHaveLength(2)
-    expect(readNames).toHaveBeenLastCalledWith(
-      expect.objectContaining({ cursor: 'c1' }),
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({ relations: ['manager', 'role_holder'] }),
     )
+    expect(chunk.names.map(({ label }) => label)).toEqual([
+      'managed.eth',
+      'role.eth',
+    ])
+    expect(chunk.hiddenCount).toBe(1)
   })
 
-  it('passes a read failure on', async () => {
-    const failure = new IndexerReadError({
-      message: 'unavailable',
-      kind: 'unavailable',
-      cause: new Error('down'),
+  it('matches nothing for a search bigname rejects, and fails on any other error', async () => {
+    const rejected = await readProfileNamesChunk(
+      () => errAsync(new IndexerReadError({ kind: 'rejected', cause: null })),
+      { ...QUERY, search: '%' },
+      undefined,
+    )
+    expect(rejected._unsafeUnwrap()).toMatchObject({
+      names: [],
+      nextCursor: null,
+      totalCount: 0,
     })
 
-    const result = await getProfileAddressNames(
-      vi.fn<ReadNamesForAddress>(() => errAsync(failure)),
+    const failed = await readProfileNamesChunk(
+      () =>
+        errAsync(new IndexerReadError({ kind: 'unavailable', cause: null })),
+      QUERY,
+      undefined,
+    )
+    expect(failed._unsafeUnwrapErr()._tag).toBe('GetProfileAddressNamesError')
+  })
+})
+
+describe('toProfileNamesPage', () => {
+  const chunk = (
+    labels: readonly string[],
+    nextCursor: string | null,
+    extra: Partial<ProfileNamesChunk> = {},
+  ): ProfileNamesChunk => ({
+    names: labels.map((label) => ({
+      key: label,
+      label,
+      protocol: 'v2',
+      expiryDate: null,
+      createdAt: null,
+      nameRoles: ['owner'],
+      roleCategory: 'owned',
+    })),
+    hiddenCount: 0,
+    nextCursor,
+    totalCount: null,
+    ...extra,
+  })
+
+  it('counts bigname totals less hidden rows until every chunk is read, then exactly', () => {
+    expect(
+      toProfileNamesPage(
+        [chunk(['a.eth'], 'more', { totalCount: 10, hiddenCount: 1 })],
+        1,
+        5,
+      ),
+    ).toMatchObject({ total: 9, isComplete: false })
+
+    expect(
+      toProfileNamesPage([chunk(['a.eth', 'b.eth'], null)], 1, 5),
+    ).toMatchObject({ total: 2, isComplete: true })
+  })
+
+  it('shows the last page when the total shrinks below the requested one', () => {
+    const result = toProfileNamesPage(
+      [chunk(['a.eth', 'b.eth', 'c.eth', 'd.eth', 'e.eth', 'f.eth'], null)],
+      3,
+      5,
+    )
+
+    expect(result.names.map(({ label }) => label)).toEqual(['f.eth'])
+    expect(result.needed).toBe(10)
+  })
+})
+
+describe('getProfileNameCounts', () => {
+  it('counts managed names as every relation less the owned ones', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ relations }) =>
+      okAsync(page([], null, relations ? 7 : 10)),
+    )
+
+    const counts = (
+      await getProfileNameCounts(readNames, ADDRESS)
+    )._unsafeUnwrap()
+
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relations: ['owner'],
+        pageSize: 1,
+        includeTotal: true,
+      }),
+    )
+    expect(counts).toEqual({ owned: 7, managed: 3 })
+  })
+
+  it('has no counts when bigname gives no exact total', async () => {
+    const counts = await getProfileNameCounts(
+      () => okAsync(page([], null, null)),
       ADDRESS,
     )
 
-    expect(result._unsafeUnwrapErr()).toBe(failure)
+    expect(counts._unsafeUnwrap()).toBeNull()
   })
 })

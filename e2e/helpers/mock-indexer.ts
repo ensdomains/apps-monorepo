@@ -99,6 +99,10 @@ export function createIndexerMock() {
     const isV1Only =
       params.get('authority')?.split(',').includes('ens_v1') ?? false
     const isMigratedOnly = params.get('is_migrated') === 'true'
+    const q = params.get('q')?.toLowerCase() ?? ''
+    const isContains = params.get('match') === 'contains'
+    const matchesQuery = (name: string) =>
+      !q || (isContains ? name.includes(q) : name.startsWith(q))
     const rows =
       relation === 'former_owner' || isV1Only || isMigratedOnly
         ? []
@@ -109,6 +113,7 @@ export function createIndexerMock() {
                 params.get('parent') !== 'eth' ||
                 d.name.split('.').length === 2,
             )
+            .filter((d) => matchesQuery(d.name))
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((d) => ({
               ...nameFields(d),
