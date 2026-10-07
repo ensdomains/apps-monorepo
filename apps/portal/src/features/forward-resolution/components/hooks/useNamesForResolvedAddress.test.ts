@@ -3,15 +3,17 @@ import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const mockClient = { chain: { id: 11155111 } }
 vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () =>
-    ok({ chain: { subgraphs: { ens: { url: 'https://subgraph.test' } } } }),
+  safeGetClient: () => ok(mockClient),
 }))
 
+// The read goes through ensjs's subgraph client, which replaces any name that
+// does not hash to its id before the portal sees it.
 const mockGraphqlRequest = vi.fn()
-vi.mock('@ens-apps/indexer/urql', () => ({
-  createPlainClient: (url: string) => ({ url }),
-  graphqlRequest: mockGraphqlRequest,
+const mockCreateSubgraphClient = vi.fn(() => ({ request: mockGraphqlRequest }))
+vi.mock('@ensdomains/ensjs/subgraph', () => ({
+  createSubgraphClient: mockCreateSubgraphClient,
 }))
 
 const { getResolvedNamesForAddressQueryOptions } = await import(
@@ -44,15 +46,13 @@ describe('getResolvedNamesForAddressQueryOptions', () => {
       pages: 2,
     })
 
-    expect(mockGraphqlRequest.mock.calls[0]?.[0]).toEqual({
-      url: 'https://subgraph.test',
-    })
-    expect(mockGraphqlRequest.mock.calls[0]?.[2]).toEqual({
+    expect(mockCreateSubgraphClient).toHaveBeenCalledWith(mockClient)
+    expect(mockGraphqlRequest.mock.calls[0]?.[1]).toEqual({
       address: ADDRESS.toLowerCase(),
       first: 100,
       after: '',
     })
-    expect(mockGraphqlRequest.mock.calls[1]?.[2]).toMatchObject({
+    expect(mockGraphqlRequest.mock.calls[1]?.[1]).toMatchObject({
       after: first[99]?.id,
     })
     expect(data.pages.flatMap((page) => page.names)).toHaveLength(101)

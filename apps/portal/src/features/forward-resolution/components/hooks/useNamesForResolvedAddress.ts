@@ -1,21 +1,17 @@
-import {
-  createPlainClient,
-  type GraphqlRequestError,
-  graphqlRequest,
-} from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { gql } from '@urql/core'
+import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { gql } from '@/utils/subgraph/gql'
 import type { ForwardName } from '../ForwardNamesTable/columns'
 
 class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: GraphqlRequestError
+  cause: unknown
 }> {}
 
 type GetResolvedNamesForAddressParameters = {
@@ -36,15 +32,19 @@ const getResolvedNamesPage = ResultFn(async function* ({
 }: GetResolvedNamesForAddressParameters & { readonly after: string }) {
   const client = yield* safeGetClient()
 
+  // ensjs's client replaces a name that does not hash to its id, so a
+  // misreported name is never shown as if it were the real one.
   const { domains } = yield* fromPromise(
-    graphqlRequest<{
-      domains: {
-        id: string
-        name: string
-        resolver: { coinTypes: string[] | null } | null
-      }[]
-    }>(
-      createPlainClient(client.chain.subgraphs.ens.url),
+    createSubgraphClient(client).request<
+      {
+        readonly domains: readonly {
+          readonly id: string
+          readonly name: string
+          readonly resolver: { readonly coinTypes: string[] | null } | null
+        }[]
+      },
+      { address: string; first: number; after: string }
+    >(
       gql`
         query getResolvedNamesForAddress(
           $address: String!
@@ -70,8 +70,7 @@ const getResolvedNamesPage = ResultFn(async function* ({
         after,
       },
     ),
-    (e) =>
-      new GetResolvedNamesForAddressError({ cause: e as GraphqlRequestError }),
+    (e) => new GetResolvedNamesForAddressError({ cause: e }),
   )
 
   return ok<ResolvedNamesPage>({
