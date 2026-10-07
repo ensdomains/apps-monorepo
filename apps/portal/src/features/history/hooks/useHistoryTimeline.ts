@@ -10,10 +10,7 @@ import {
 import { useState } from 'react'
 import type { Hex } from 'viem'
 import type { ListLoaderProps } from '@/components/ListLoader/ListLoader'
-import {
-  infiniteFetchMore,
-  useListLoader,
-} from '@/components/ListLoader/useListLoader'
+import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { dropPagedDuplicates, mergeTimeline } from '../mergeTimeline'
 import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
@@ -136,16 +133,27 @@ const useTimelineModel = (
   const hasNextPage = pagesQuery.hasNextPage
 
   const pagedEvents = pages.flatMap((page) => page.events)
-  const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
 
-  const summarized = summarizeEvents(events, { includeSubjectName })
   const kept = selectedTypes?.length && new Set(selectedTypes)
-  const allActions = kept
-    ? summarized.filter((action) =>
-        action.events.some((event) => kept.has(event.type)),
-      )
-    : summarized
-  const loadedCount = countEvents(allActions)
+  const toActions = (
+    paged: readonly TimelineIndexerEvent[],
+    hasNext: boolean,
+  ) => {
+    const summarized = summarizeEvents(
+      mergeTimeline({
+        pagedEvents: paged,
+        auxiliaryEvents,
+        hasNextPage: hasNext,
+      }),
+      { includeSubjectName },
+    )
+    return kept
+      ? summarized.filter((action) =>
+          action.events.some((event) => kept.has(event.type)),
+        )
+      : summarized
+  }
+  const allActions = toActions(pagedEvents, hasNextPage)
 
   // Withheld when a source is known short, rather than presenting a lower
   // bound as an exact count.
@@ -167,13 +175,24 @@ const useTimelineModel = (
 
   const loader = useListLoader({
     initialCount: windowSize ?? Number.POSITIVE_INFINITY,
-    loaded: loadedCount,
+    loaded: countEvents(allActions),
     total: totalCount,
     hasMore: hasNextPage,
-    fetchMore: infiniteFetchMore(
-      pagesQuery.fetchNextPage,
-      (page) => page.events.length,
-    ),
+    // Counted like the window: a page's raw events include the boundary
+    // transaction the timeline withholds.
+    fetchMore: async () => {
+      const next = await pagesQuery.fetchNextPage()
+      if (next.isError) throw next.error
+      return {
+        loaded: countEvents(
+          toActions(
+            next.data?.pages.flatMap((page) => page.events) ?? [],
+            next.hasNextPage,
+          ),
+        ),
+        hasMore: next.hasNextPage,
+      }
+    },
     resetKey,
   })
 
@@ -197,7 +216,14 @@ const useTimelineModel = (
       ).at(-1),
     totalCount,
     hasMore,
-    loader: { ...loader, shown: countEvents(actions), canShowMore: hasMore },
+    loader: {
+      ...loader,
+      shown: countEvents(actions),
+      canShowMore: hasMore,
+      // A total withheld above stays withheld once the feed ends.
+      total: totalCount,
+      canShowAll: totalCount !== undefined && loader.canShowAll,
+    },
     // The sources gate first paint too, or a paged-only history would render
     // and then have older rows pushed in underneath it.
     isLoading: pagesQuery.isLoading || isLoadingSources,

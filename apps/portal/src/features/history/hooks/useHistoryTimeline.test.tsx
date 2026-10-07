@@ -107,6 +107,42 @@ describe('useTimelinePagesModel', () => {
     )
   })
 
+  // Each page withholds its boundary transaction while more remain, so four
+  // 100-event pages show 399, not the 400 the third doubling asks for.
+  it('keeps fetching until the window is filled with visible events', async () => {
+    const { result, queryFn } = renderFeed([
+      page(events(100), '1'),
+      page(events(100, 100), '2'),
+      page(events(100, 200), '3'),
+      page(events(100, 300), '4'),
+      page(events(100, 400), '5'),
+      page(events(100, 500)),
+    ])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    act(() => result.current.loader.onMore())
+    await waitFor(() => expect(result.current.loader.shown).toBe(100))
+    act(() => result.current.loader.onMore())
+    await waitFor(() => expect(result.current.loader.shown).toBe(200))
+    act(() => result.current.loader.onMore())
+
+    await waitFor(() => expect(result.current.loader.shown).toBe(400))
+    expect(queryFn).toHaveBeenCalledTimes(5)
+  })
+
+  // The feed gives no total here; reaching its end must not turn the loaded
+  // count into one.
+  it('keeps an unknown total unknown once the feed ends', async () => {
+    const { result } = renderFeed([page(events(TIMELINE_WINDOW_SIZE * 2))])
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.totalCount).toBeUndefined()
+    expect(result.current.loader.total).toBeUndefined()
+    expect(result.current.loader.canShowAll).toBe(false)
+    expect(result.current.loader.canShowMore).toBe(true)
+  })
+
   it('closes a widened window when the feed changes subject', async () => {
     // These surfaces are reused across subjects — one registry page navigating
     // to another — so a window widened on the last one must not carry over.
