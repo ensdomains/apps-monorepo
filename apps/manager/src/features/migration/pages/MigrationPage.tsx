@@ -255,6 +255,7 @@ export const MigrationPage = () => {
   const renewalGasEstimate = useGraceRenewalGasEstimate({
     renewal,
     selectedNames,
+    managerRestorationNames,
     v1Names,
     hcaAddress: hcaAddress as Address | undefined,
     publicClient: migrationExecutionClient as PublicClient,

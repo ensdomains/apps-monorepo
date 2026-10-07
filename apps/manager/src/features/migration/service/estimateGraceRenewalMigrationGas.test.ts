@@ -125,6 +125,26 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('estimateGraceRenewalMigrationGas', () => {
+  it.each([
+    { optedIn: ['grace.eth'], requiresManagerRestoration: true },
+    { optedIn: [], requiresManagerRestoration: false },
+  ])("estimates with the owner's manager restoration choice: $optedIn", async ({
+    optedIn,
+    requiresManagerRestoration,
+  }) => {
+    await estimateGraceRenewalMigrationGas({
+      ...params(),
+      managerRestorationNames: optedIn,
+    })
+
+    expect(computeMigrationPreflight).toHaveBeenCalledWith(
+      expect.objectContaining({ requiresManagerRestoration }),
+    )
+    expect(buildMigrationPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ managerRestorationNames: optedIn }),
+    )
+  })
+
   it('includes the entire selection and renewal with one fee rate, without exposing a plan', async () => {
     const input = params()
     const result = await estimateGraceRenewalMigrationGas(input)

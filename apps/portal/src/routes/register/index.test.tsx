@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react'
 import type { Address } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fromPromise } from 'xstate'
 import type { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
@@ -20,6 +20,11 @@ vi.mock('@tanstack/react-router', () => ({
 // A test that needs the flow to go on past it resolves the spy once; the later
 // steps then succeed until register, which the wallet rejects.
 const deploy = vi.hoisted(() => ({ finish: () => {} }))
+// Whether the wallet's resolver is already on-chain from an earlier
+// registration. Read both by the page (step list) and the machine.
+const walletResolverDeployed = vi.hoisted(() => vi.fn(() => false))
+// Whether the page's read of that resolver fails instead of answering.
+const walletResolverReadFails = vi.hoisted(() => vi.fn(() => false))
 const waitForResolverDeployment = vi.hoisted(() =>
   vi.fn(() => new Promise(() => {})),
 )
@@ -30,6 +35,10 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
     ...actual,
     registrationMachine: actual.registrationMachine.provide({
       actors: {
+        checkResolverDeployment: fromPromise(async () => ({
+          resolverAddress: '0xbbbb000000000000000000000000000000000002',
+          deployed: walletResolverDeployed(),
+        })) as never,
         deployResolver: fromPromise(
           () =>
             new Promise((resolve) => {
@@ -74,6 +83,12 @@ vi.mock('wagmi', async (importOriginal) => ({
     data: undefined,
     refetch: async () => ({ data: undefined }),
   }),
+  useBytecode: () => {
+    const isSuccess = !walletResolverReadFails()
+    const code = walletResolverDeployed() ? '0x6080' : null
+    const data = isSuccess ? code : undefined
+    return { data, isSuccess, refetch: async () => ({ data, isSuccess }) }
+  },
 }))
 
 vi.mock('@wagmi/core/actions', () => ({
@@ -130,6 +145,11 @@ const RegisterRoute = (Route as unknown as { component: () => React.ReactNode })
   .component
 
 describe('/register', () => {
+  afterEach(() => {
+    walletResolverDeployed.mockReset()
+    walletResolverReadFails.mockReset()
+  })
+
   it('stops the flow for the old name when ?name= changes', async () => {
     search.name = 'expensive.eth'
     const { rerender } = render(<RegisterRoute />)
@@ -207,8 +227,9 @@ describe('/register', () => {
     const cancel = vi.spyOn(transactionManager, 'cancelTransaction')
     const clear = vi.spyOn(transactionManager, 'clear')
 
-    // "Try again" on the register step.
-    act(() => flow.transactions.at(-1)?.onStart?.())
+    // "Try again" on the register step. `onStart` is async, and an act() left
+    // un-awaited holds back every later test's renders.
+    await act(async () => flow.transactions.at(-1)?.onStart?.())
 
     // The overview reads each step's status from the manager, so the steps
     // that landed must stay there; only the rejected attempt is retired.
@@ -218,5 +239,48 @@ describe('/register', () => {
     get.mockRestore()
     cancel.mockRestore()
     clear.mockRestore()
+  })
+
+  it('reuses the resolver an earlier registration deployed', async () => {
+    search.name = 'second.eth'
+    walletResolverDeployed.mockReturnValue(true)
+    waitForResolverDeployment.mockClear()
+    render(<RegisterRoute />)
+
+    act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
+    expect(flow.transactions.map(({ id }) => id)).not.toContain(
+      REGISTRATION_TX_IDS.deployResolver,
+    )
+
+    // The commit step is first now, so it starts the run.
+    await act(() => flow.transactions[0].onStart?.())
+    await vi.waitFor(() =>
+      expect(flow.actor.getSnapshot().context.retryTarget).toBe(
+        'registeringDomain',
+      ),
+    )
+
+    expect(flow.actor.getSnapshot().context.resolverAddress).toBe(
+      '0xbbbb000000000000000000000000000000000002',
+    )
+    expect(waitForResolverDeployment).not.toHaveBeenCalled()
+  })
+
+  it("won't start while the wallet's resolver can't be read", async () => {
+    search.name = 'unread.eth'
+    walletResolverReadFails.mockReturnValue(true)
+    render(<RegisterRoute />)
+
+    act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
+    expect(flow.transactions.map(({ id }) => id)).not.toContain(
+      REGISTRATION_TX_IDS.deployResolver,
+    )
+
+    // Starting would leave the machine to deploy a resolver the step list
+    // never showed.
+    await expect(
+      act(async () => flow.transactions[0].onStart?.()),
+    ).rejects.toThrow("Failed to check the wallet's resolver")
+    expect(flow.actor.getSnapshot().value).toBe('idle')
   })
 })
