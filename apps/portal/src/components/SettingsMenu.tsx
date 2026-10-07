@@ -1,12 +1,16 @@
-import { usePostHog } from '@posthog/react'
-import { MessageSquareTextIcon } from 'lucide-react'
-import type { ComponentProps } from 'react'
+import { MessageSquareTextIcon, ServerIcon } from 'lucide-react'
+import { type ComponentProps, useState } from 'react'
 import { ProfileSettingsIcon } from '@/assets/icons'
+import { useTelemetryEnabled } from '@/hooks/useTelemetryEnabled'
+import { getCustomRpcUrl } from '@/lib/customRpc'
+import { displayFeedbackSurvey } from '@/lib/posthog/feedback'
 import { cn } from '@/lib/utils'
+import { RpcSettingsDialog } from './RpcSettingsDialog'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -18,14 +22,12 @@ const FEEDBACK_SURVEY_ID = import.meta.env
   .VITE_PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID
 
 const FeedbackMenuItem = () => {
-  const posthog = usePostHog()
-
   if (!FEEDBACK_SURVEY_ID) return null
 
   return (
     <DropdownMenuItem
       onSelect={() =>
-        posthog.displaySurvey(FEEDBACK_SURVEY_ID, {
+        displayFeedbackSurvey(FEEDBACK_SURVEY_ID, {
           displayType: 'popover',
           ignoreConditions: true,
           ignoreDelay: true,
@@ -38,37 +40,62 @@ const FeedbackMenuItem = () => {
   )
 }
 
+const TelemetryToggle = () => {
+  const [isEnabled, setIsEnabled] = useTelemetryEnabled()
+
+  return (
+    <DropdownMenuCheckboxItem
+      checked={isEnabled}
+      onCheckedChange={setIsEnabled}
+      onSelect={(event) => event.preventDefault()}
+    >
+      Share usage data
+    </DropdownMenuCheckboxItem>
+  )
+}
+
 export const SettingsMenu = ({
   side = 'right',
   className,
 }: Pick<ComponentProps<typeof DropdownMenuContent>, 'side'> & {
   readonly className?: string
 }) => {
+  const [rpcOpen, setRpcOpen] = useState(false)
+  const customRpc = getCustomRpcUrl()
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            'size-8 shrink-0 text-muted-foreground hover:text-foreground',
-            className,
-          )}
-          aria-label="Settings"
-        >
-          <ProfileSettingsIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side={side} align="end" className="min-w-52">
-        <ThemeToggle />
-        <FeedbackMenuItem />
-        {/* <DropdownMenuItem asChild>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'size-8 shrink-0 text-muted-foreground hover:text-foreground',
+              className,
+            )}
+            aria-label="Settings"
+          >
+            <ProfileSettingsIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side={side} align="end" className="min-w-52">
+          <ThemeToggle />
+          <TelemetryToggle />
+          <DropdownMenuItem onSelect={() => setRpcOpen(true)}>
+            <ServerIcon className="size-4" />
+            RPC: {customRpc ? new URL(customRpc).host : 'Default'}
+          </DropdownMenuItem>
+          <FeedbackMenuItem />
+          {/* <DropdownMenuItem asChild>
           <ExternalLink href="https://sepolia.etherscan.io">
             <ChipLinkIcon className="size-3" />
             Sepolia explorer
           </ExternalLink>
         </DropdownMenuItem> */}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <RpcSettingsDialog open={rpcOpen} onOpenChange={setRpcOpen} />
+    </>
   )
 }

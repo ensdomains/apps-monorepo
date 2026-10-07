@@ -374,6 +374,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return withSecurityHeaders(await handle(request, env))
+    return withSecurityHeaders(await handle(request, env), request)
   },
 }

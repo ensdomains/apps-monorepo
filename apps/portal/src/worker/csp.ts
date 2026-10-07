@@ -12,7 +12,13 @@
  * so the meta variant omits it — hence the two exported strings.
  *
  * Violations are reported to PostHog (see `POSTHOG_CSP_REPORT_ENDPOINT`) via the
- * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
+ * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header —
+ * but only for visitors who opted into telemetry. The toggle lives in
+ * localStorage, which the worker can't see, so the app mirrors it into a
+ * `telemetry=1` cookie (see `useTelemetryEnabled`) and `withSecurityHeaders`
+ * omits the reporting directives without it. Without this gating, an
+ * opted-out visitor would still send page URLs to PostHog on any violation
+ * (browser extensions trigger these routinely).
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
@@ -133,6 +139,15 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://*.intercom-messenger.com',
   'wss://*.intercom-messenger.com',
   'https://uploads.intercomusercontent.com',
+  // User-chosen RPC (Settings → RPC, lib/customRpc.ts) can be any host, so
+  // secure schemes are open; plaintext only for a local node. The page is
+  // https, so bare http:/ws: would be blocked as mixed content anyway.
+  'https:',
+  'wss:',
+  'http://localhost:*',
+  'http://127.0.0.1:*',
+  'ws://localhost:*',
+  'ws://127.0.0.1:*',
 ] as const
 
 // Static defaults plus any deployment-specific override origins. Deduped so an
@@ -230,11 +245,14 @@ const BASE_DIRECTIVES = [
 const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
 
 // Directives the browser ignores inside a <meta> tag, so they're header-only:
-// frame-ancestors is invalid there, and report-to/report-uri only fire from the
-// HTTP header. `report-to posthog` names the `Reporting-Endpoints` endpoint set
-// in `withSecurityHeaders`; `report-uri` is the legacy fallback.
-const HEADER_ONLY_DIRECTIVES = [
-  "frame-ancestors 'none'",
+// frame-ancestors is invalid there, and report-to/report-uri only fire from
+// the HTTP header. `report-to posthog` names the `Reporting-Endpoints`
+// endpoint set in `withSecurityHeaders`; `report-uri` is the legacy fallback.
+const HEADER_ONLY_DIRECTIVES = ["frame-ancestors 'none'"] as const
+
+// Violation reporting to PostHog. Kept separate so opted-out visitors get a
+// policy without it (see withSecurityHeaders).
+const REPORTING_DIRECTIVES = [
   'report-to posthog',
   `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
 ] as const
@@ -243,22 +261,53 @@ const HEADER_ONLY_DIRECTIVES = [
 export const cspWithoutFrameAncestors = BASE_DIRECTIVES.join('; ')
 
 /** Full CSP for the HTTP header. */
-export const cspWithFrameAncestors = `${[...BASE_DIRECTIVES, ...HEADER_ONLY_DIRECTIVES].join('; ')};`
+export const cspWithFrameAncestors = `${[...BASE_DIRECTIVES, ...HEADER_ONLY_DIRECTIVES, ...REPORTING_DIRECTIVES].join('; ')};`
+
+/** CSP without violation reporting, for visitors who opted out of telemetry. */
+const cspWithoutReporting = `${[...BASE_DIRECTIVES, ...HEADER_ONLY_DIRECTIVES].join('; ')};`
+
+const TELEMETRY_COOKIE_RE = /(?:^|;\s*)telemetry=1(?=;|$)/
+
+/** The Settings telemetry toggle, mirrored into a cookie (useTelemetryEnabled). */
+const hasTelemetryCookie = (request?: Request): boolean =>
+  TELEMETRY_COOKIE_RE.test(request?.headers.get('Cookie') ?? '')
 
 /** A `<meta>` tag carrying the CSP, for injection into every HTML `<head>`. */
 export const cspMetaTag = `<meta http-equiv="Content-Security-Policy" content="${cspWithoutFrameAncestors}" />`
 
-/** Apply CSP + standard security headers to any response the worker returns. */
-export function withSecurityHeaders(response: Response): Response {
+/**
+ * Apply CSP + standard security headers to any response the worker returns.
+ *
+ * Violation reporting is opt-in: only HTML documents (the only reporting
+ * source — reporting directives on subresource responses are inert) served to
+ * a visitor with the telemetry cookie get `report-to` / `report-uri` and the
+ * `Reporting-Endpoints` header. Everything else keeps today's bytes exactly,
+ * so cached assets never vary by cookie.
+ */
+export function withSecurityHeaders(
+  response: Response,
+  request?: Request,
+): Response {
   // Responses from `env.ASSETS.fetch()` have immutable headers; re-wrap so the
   // headers are mutable (HTMLRewriter / `new Response` results pass through too).
   const result = new Response(response.body, response)
-  result.headers.set('Content-Security-Policy', cspWithFrameAncestors)
-  // Names the `posthog` endpoint that the `report-to` CSP directive targets.
-  result.headers.set(
-    'Reporting-Endpoints',
-    `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,
+  const isDocument = (result.headers.get('Content-Type') ?? '').includes(
+    'text/html',
   )
+  const shouldReport = !isDocument || hasTelemetryCookie(request)
+  result.headers.set(
+    'Content-Security-Policy',
+    shouldReport ? cspWithFrameAncestors : cspWithoutReporting,
+  )
+  if (shouldReport) {
+    // Names the `posthog` endpoint that the `report-to` CSP directive targets.
+    result.headers.set(
+      'Reporting-Endpoints',
+      `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,
+    )
+  } else {
+    result.headers.delete('Reporting-Endpoints')
+  }
   result.headers.set('X-Frame-Options', 'DENY')
   result.headers.set('X-Content-Type-Options', 'nosniff')
   result.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')

@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const displaySurvey = vi.fn()
 
-vi.mock('@posthog/react', () => ({
-  usePostHog: () => ({ displaySurvey }),
+vi.mock('@/lib/posthog/feedback', () => ({
+  displayFeedbackSurvey: displaySurvey,
 }))
 
 vi.mock('./ThemeToggle', () => ({
