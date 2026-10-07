@@ -532,7 +532,7 @@ Use named fake-service scenarios when useful for pagination/error cases.
 
 ### Current ENS indexer state
 
-Expiry-discovery orchestration mocks the owned `fetchStageNames()` boundary rather than the bigname client or `fetch`. That is the preferred orchestration-test shape.
+Expiry-discovery orchestration mocks the owned `fetchSweep()` boundary rather than the bigname client or `fetch`. That is the preferred orchestration-test shape.
 
 The API worker does **not currently have a runnable fake-indexer contract harness** that exercises `fetchExpiringNamesPage()` through the real HTTP transport. The fake-indexer example in this document is therefore a preferred future pattern, not an existing test command or service.
 

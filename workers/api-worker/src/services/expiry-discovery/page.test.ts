@@ -41,6 +41,7 @@ const held = (name: string, expiryDate: number): ExpiringName => ({
   name,
   expiryDate,
   registrationStatus: 'registered',
+  hasV2Grace: true,
 })
 
 /** An ENSv2 registration past its expiry, still renewable in grace. */
@@ -48,6 +49,7 @@ const expiredRelease = (name: string, expiryDate: number): ExpiringName => ({
   name,
   expiryDate,
   registrationStatus: 'released',
+  hasV2Grace: true,
   releaseKind: 'expired',
 })
 
@@ -162,12 +164,20 @@ describe('fetchSweep', () => {
         name: 'unregistered.eth',
         expiryDate: 10_000_070,
         registrationStatus: 'released',
+        hasV2Grace: true,
         releaseKind: 'unregistered',
       },
       {
         name: 'never.eth',
         expiryDate: 10_000_080,
         registrationStatus: 'unregistered',
+        hasV2Grace: true,
+      },
+      {
+        name: 'unreserved-v1.eth',
+        expiryDate: 10_000_090,
+        registrationStatus: 'registered',
+        hasV2Grace: false,
       },
     ])
 
@@ -233,6 +243,29 @@ describe('fetchSweep', () => {
     expect(read?.overflow).toEqual({
       expiryTimestamp: 101,
       processedCount: PAGE_SIZE * MAX_PAGES_PER_READ,
+    })
+  })
+
+  it('leaves a later window whole when earlier rows used the budget and the walk stopped at its first second', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_READ - 1; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(page(fullPageAt(110 + read, `p${read}`), `c${read + 1}`)),
+      )
+    }
+    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+      okAsync(page(fullPageAt(901, 'late'), 'more')),
+    )
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-1d', 100, 200), window('expiry-30d', 900, 1000)],
+    })
+
+    expect(result._unsafeUnwrap().pages.get('expiry-1d')?.cursorEnd).toBe(200)
+    expect(result._unsafeUnwrap().pages.get('expiry-30d')).toEqual({
+      domains: [],
+      cursorEnd: 900,
+      hasMore: true,
     })
   })
 

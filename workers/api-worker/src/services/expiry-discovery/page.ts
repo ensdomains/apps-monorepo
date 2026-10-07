@@ -136,6 +136,11 @@ const pageForWindow = (
       hasMore: true,
     }
   }
+  // `stopAt` is this window's first second. Unless it alone filled the budget,
+  // earlier rows used part of it, so it is read again next run.
+  if (read.rows[0]?.expiryDate !== stopAt) {
+    return { domains: [], cursorEnd: window.cursor, hasMore: true }
+  }
   const domains = seen.filter(
     (name) => name.expiryDate <= stopAt && isWanted(name),
   )
