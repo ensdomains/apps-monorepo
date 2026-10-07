@@ -15,7 +15,8 @@ import {
   toBulkRenewName,
   toSelectableDomain,
 } from '../bulkRenewSelection'
-import { type DashboardName, isHeldName } from '../dashboardNames'
+import { isHeldName } from '../dashboardNames'
+import { useAccountSelection } from '../hooks/useAccountSelection'
 import type { SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
@@ -93,15 +94,18 @@ export const NamesTable = ({
     [favorites],
   )
 
-  const [selected, setSelected] = useState<ReadonlyMap<string, DashboardName>>(
-    new Map(),
-  )
-  const selectedLabels = useMemo(() => new Set(selected.keys()), [selected])
+  const addresses = useDashboardAddresses()
+  const {
+    selected,
+    labels: selectedLabels,
+    toggle: onToggleSelect,
+    toggleAll,
+    clear: clearSelection,
+  } = useAccountSelection(addresses.join(','))
 
   // Select-all covers every renewable name, not just the loaded pages, so the
   // list is read from bigname when it is first asked for.
   const queryClient = useQueryClient()
-  const addresses = useDashboardAddresses()
   const renewableOptions = getRenewableDashboardNamesQueryOptions(
     addresses,
     search,
@@ -130,31 +134,12 @@ export const NamesTable = ({
     [selected],
   )
 
-  const onToggleSelect = (name: DashboardName) => {
-    const key = selectionKey(name)
-    setSelected((prev) => {
-      const next = new Map(prev)
-      if (next.has(key)) next.delete(key)
-      else next.set(key, name)
-      return next
-    })
-  }
-
   // Toggle every renewable name under the current search, preserving any
   // selections made under a different search.
-  const onToggleSelectAll = async () => {
-    const names = await queryClient.fetchQuery(renewableOptions).catch(() => [])
-    setSelected((prev) => {
-      const allIn =
-        names.length > 0 && names.every((name) => prev.has(selectionKey(name)))
-      const next = new Map(prev)
-      for (const name of names) {
-        if (allIn) next.delete(selectionKey(name))
-        else next.set(selectionKey(name), name)
-      }
-      return next
-    })
-  }
+  const selectAll = useMutation({
+    mutationFn: () => queryClient.fetchQuery(renewableOptions),
+    onSuccess: toggleAll,
+  })
 
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -272,7 +257,7 @@ export const NamesTable = ({
                 }
                 checked={allSelected}
                 indeterminate={someSelected && !allSelected}
-                onToggle={onToggleSelectAll}
+                onToggle={() => selectAll.mutate()}
               />
               <span className="font-sans text-[#232222] text-sm tracking-[0.28px]">
                 {selectedCount > 0 ? (
@@ -281,6 +266,11 @@ export const NamesTable = ({
                   <Trans>Select all</Trans>
                 )}
               </span>
+              {selectAll.isError && (
+                <span className="font-sans text-red-600 text-sm" role="alert">
+                  <Trans>Names could not be loaded</Trans>
+                </span>
+              )}
             </div>
             {someSelected && (
               <button
@@ -358,7 +348,7 @@ export const NamesTable = ({
       <BulkRenewDialog
         names={selectedNames}
         onOpenChange={setIsRenewOpen}
-        onRenewed={() => setSelected(new Map())}
+        onRenewed={clearSelection}
         open={isRenewOpen}
       />
     </div>

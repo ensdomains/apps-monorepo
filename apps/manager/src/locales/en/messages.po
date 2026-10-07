@@ -1461,6 +1461,10 @@ msgstr "Name owner is not available yet. Try again in a moment."
 msgid "Names"
 msgstr "Names"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Names could not be loaded"
+msgstr "Names could not be loaded"
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"

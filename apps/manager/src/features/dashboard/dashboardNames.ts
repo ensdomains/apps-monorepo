@@ -164,6 +164,8 @@ export type AddressNamesChunk = {
   readonly names: readonly DashboardName[]
   /** Rows bigname listed that the dashboard hides, such as reverse records. */
   readonly hiddenCount: number
+  /** The last row bigname returned, hidden or not: how far the read has reached. */
+  readonly lastRead: DashboardName | null
   readonly nextCursor: string | null
   readonly totalCount: number | null
 }
@@ -214,19 +216,22 @@ export const mergeDashboardChunks = ({
       hiddenCount: own.reduce((sum, chunk) => sum + chunk.hiddenCount, 0),
       isExhausted: own.at(-1)?.nextCursor === null,
       totalCount: own[0]?.totalCount ?? null,
+      lastRead: own.flatMap((chunk) => chunk.lastRead ?? []).at(-1) ?? null,
     }
   })
-  const frontiers = perAddress.flatMap(({ names, isExhausted }) => {
-    const last = names.at(-1)
-    return isExhausted || !last ? [] : [last]
-  })
-  const bound = frontiers.sort(compare)[0]
+  // Each address with more to read has reached its last row read, hidden rows
+  // included; one that has read nothing yet holds every name back.
+  const frontiers = perAddress.filter(({ isExhausted }) => !isExhausted)
+  const isBlocked = frontiers.some(({ lastRead }) => lastRead === null)
+  const bound = frontiers
+    .flatMap(({ lastRead }) => lastRead ?? [])
+    .sort(compare)[0]
   const loaded = [...perAddress.flatMap(({ names }) => names), ...graceNames]
   const merged = [...mergeDashboardNames(loaded)].sort(compare)
   const isComplete = perAddress.every(({ isExhausted }) => isExhausted)
-  const names = bound
-    ? merged.filter((name) => compare(name, bound) <= 0)
-    : merged
+  const names = isBlocked
+    ? []
+    : merged.filter((name) => !bound || compare(name, bound) <= 0)
   const shared = loaded.length - merged.length
   const listed = perAddress.reduce(
     (sum, { totalCount, hiddenCount, names: own }) =>

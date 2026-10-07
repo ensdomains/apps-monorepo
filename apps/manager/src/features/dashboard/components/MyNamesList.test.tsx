@@ -66,7 +66,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
 
 const mockNames = (
   names: readonly DashboardName[],
-  state: { readonly isError?: boolean } = {},
+  state: { readonly isError?: boolean; readonly isGraceError?: boolean } = {},
 ) =>
   dashboardNamesMock.useDashboardNames.mockReturnValue({
     pageNames: names,
@@ -75,6 +75,7 @@ const mockNames = (
     isPending: false,
     isPagePending: false,
     isError: state.isError ?? false,
+    isGraceError: state.isGraceError ?? false,
   })
 
 const renderList = (
@@ -142,6 +143,7 @@ describe('MyNamesList', () => {
       isPending: false,
       isPagePending: true,
       isError: false,
+      isGraceError: false,
     })
 
     renderList()
@@ -235,6 +237,17 @@ describe('MyNamesList', () => {
       isPending: false,
       isError: true,
     })
+
+    renderList()
+
+    expect(
+      screen.getByText('Some names could not be loaded'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('alaska.eth')).toBeInTheDocument()
+  })
+
+  it('shows a partial error when the names in grace fail to load', () => {
+    mockNames([makeName({ name: 'alaska.eth' })], { isGraceError: true })
 
     renderList()
 

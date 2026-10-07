@@ -132,10 +132,12 @@ const readChunk = (
   })
     .map((page): AddressNamesChunk => {
       const listed = page.items.filter(isListedName)
+      const last = page.items.at(-1)
       return {
         address,
         names: listed.map(toDashboardName),
         hiddenCount: page.items.length - listed.length,
+        lastRead: last ? toDashboardName(last) : null,
         nextCursor: page.nextCursor,
         totalCount: page.totalCount,
       }
@@ -147,6 +149,7 @@ const readChunk = (
             address,
             names: [],
             hiddenCount: 0,
+            lastRead: null,
             nextCursor: null,
             totalCount: 0,
           })
