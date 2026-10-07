@@ -12,9 +12,11 @@ export interface FilterChipDef<T extends string> {
 }
 
 interface FilterChipsProps<T extends string> {
-  readonly value: T
+  readonly value: T | null
   readonly chips: readonly FilterChipDef<T>[]
   readonly onChange: (value: T) => void
+  /** Clicking the active chip clears the selection */
+  readonly onClear?: () => void
 }
 
 const chipVariants = cva(
@@ -45,6 +47,7 @@ export const FilterChips = <T extends string>({
   value,
   chips,
   onChange,
+  onClear,
 }: FilterChipsProps<T>) => (
   <div className="flex flex-wrap items-center gap-3">
     {chips.map((chip) => {
@@ -59,7 +62,9 @@ export const FilterChips = <T extends string>({
           )}
           disabled={chip.disabled}
           key={chip.value}
-          onClick={() => onChange(chip.value)}
+          onClick={() =>
+            isActive && onClear ? onClear() : onChange(chip.value)
+          }
           type="button"
         >
           <span>{chip.label}</span>
