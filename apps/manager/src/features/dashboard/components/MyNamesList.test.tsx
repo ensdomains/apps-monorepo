@@ -12,7 +12,10 @@ const eligibilityMock = vi.hoisted(() => ({
   useDashboardMigrationEligibility: vi.fn(),
 }))
 
-vi.mock('../useDashboardNames', () => dashboardNamesMock)
+vi.mock('../useDashboardNames', () => ({
+  ...dashboardNamesMock,
+  DASHBOARD_PAGE_SIZE: 5,
+}))
 vi.mock('../useDashboardMigrationEligibility', () => eligibilityMock)
 vi.mock('./DashboardPagination', () => ({
   DashboardPagination: () => <div data-testid="dashboard-pagination" />,
@@ -54,6 +57,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   name: 'alaska.eth',
   protocol: 'v2',
   expiryDate: 1811808000n,
+  expiresAfterAnyDate: false,
   createdAt: 0n,
   nameRoles: ['owner'],
   isLapsed: false,
@@ -65,9 +69,11 @@ const mockNames = (
   state: { readonly isError?: boolean } = {},
 ) =>
   dashboardNamesMock.useDashboardNames.mockReturnValue({
-    names,
+    pageNames: names,
+    total: names.length,
     hasAddresses: true,
     isPending: false,
+    isPagePending: false,
     isError: state.isError ?? false,
   })
 
@@ -107,6 +113,41 @@ describe('MyNamesList', () => {
         expiryDate: 0n,
       }),
     ])
+  })
+
+  it('asks the hook for the page in the chosen order and search', () => {
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        onToggleFavorite={() => undefined}
+        searchQuery="ali"
+        sort="expiry-desc"
+      />,
+    )
+
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenCalledWith({
+      sortField: 'expiry',
+      sortDir: 'desc',
+      search: 'ali',
+      page: 1,
+    })
+  })
+
+  it('shows skeletons while the page is still being read', () => {
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      pageNames: [],
+      total: 12,
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: true,
+      isError: false,
+    })
+
+    renderList()
+
+    expect(screen.queryByTestId('name-row')).not.toBeInTheDocument()
+    expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
   })
 
   it('renders owned V1 names when migration is disabled', () => {
@@ -207,19 +248,19 @@ describe('MyNamesList', () => {
     const renewable = BigInt(Math.floor(Date.now() / 1000) + 3 * 86_400)
     mockNames([
       makeName({
-        key: '0x08',
-        name: 'managed.eth',
-        expiryDate: renewable,
-        nameRoles: ['manager'],
-      }),
-      makeName({ key: '0x09', name: 'owned.eth', expiryDate: renewable }),
-      makeName({
         key: '0x0a',
         name: 'lapsed.eth',
         expiryDate: BigInt(Math.floor(Date.now() / 1000) - 86_400),
         nameRoles: [],
         isLapsed: true,
       }),
+      makeName({
+        key: '0x08',
+        name: 'managed.eth',
+        expiryDate: renewable,
+        nameRoles: ['manager'],
+      }),
+      makeName({ key: '0x09', name: 'owned.eth', expiryDate: renewable }),
     ])
 
     renderList()

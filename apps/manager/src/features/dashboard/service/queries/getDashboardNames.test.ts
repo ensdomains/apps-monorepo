@@ -4,14 +4,21 @@ import type {
   BignameClient,
 } from '@ens-apps/indexer/bigname'
 import { BignameError } from '@ens-apps/indexer/bigname'
-import type {
-  NameSummary,
-  Page,
-  ReadNamesForAddress,
+import {
+  IndexerReadError,
+  type NameSummary,
+  type Page,
+  type ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
-import { describe, expect, it, vi } from 'vitest'
-import { getDashboardNames } from './getDashboardNames'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  DASHBOARD_CHUNK_SIZE,
+  type DashboardNamesQuery,
+  getDashboardGraceNames,
+  getRenewableDashboardNames,
+  readDashboardChunks,
+} from './getDashboardNames'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
@@ -34,6 +41,7 @@ const summary = (
   isMigrated: false,
   registrationStatus: 'active',
   expiresAt: new Date('2027-01-01T00:00:00Z'),
+  expiresAfterAnyDate: false,
   registeredAt: null,
   createdAt: null,
   ...overrides,
@@ -42,7 +50,15 @@ const summary = (
 const page = (
   items: readonly NameSummary[],
   nextCursor: string | null = null,
-): Page<NameSummary> => ({ items, nextCursor, totalCount: null })
+  totalCount: number | null = null,
+): Page<NameSummary> => ({ items, nextCursor, totalCount })
+
+const QUERY: DashboardNamesQuery = {
+  addresses: [EOA, SMART_ACCOUNT],
+  sortField: 'expiry',
+  sortDir: 'desc',
+  search: '',
+}
 
 const graceRow: AddressName = {
   name: 'lapsed.eth',
@@ -72,56 +88,115 @@ const graceResponse = (
   meta: { as_of: {} },
 })
 
-const noGrace = vi.fn<BignameClient['addressNames']>(() =>
-  okAsync(graceResponse([])),
-)
-
-describe('getDashboardNames', () => {
-  it('reads every page of every address and merges their roles', async () => {
-    const readNames = vi.fn<ReadNamesForAddress>(({ address, cursor }) =>
+describe('readDashboardChunks', () => {
+  it('reads the first chunk of every address in the requested order, with totals', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ address }) =>
       okAsync(
         address === EOA
-          ? cursor
-            ? page([summary('zed.eth', '0x03')])
-            : page([summary('alice.eth', '0x01')], 'next')
-          : page([
-              summary('alice.eth', '0x01', { relations: ['manager'] }),
-              summary('abc.addr.reverse', '0x04'),
-            ]),
+          ? page(
+              [
+                summary('alice.eth', '0x01'),
+                summary('abc.addr.reverse', '0x04'),
+              ],
+              'next',
+              12,
+            )
+          : page([summary('bob.eth', '0x02', { relations: ['manager'] })]),
       ),
     )
 
-    const result = await getDashboardNames(
-      readNames,
-      noGrace,
-      [EOA, SMART_ACCOUNT],
-      NOW,
-    )
+    const chunks = (
+      await readDashboardChunks(readNames, QUERY, {})
+    )._unsafeUnwrap()
 
-    expect(readNames).toHaveBeenCalledWith(
-      expect.objectContaining({ address: EOA, sort: 'name', pageSize: 200 }),
-    )
+    expect(readNames).toHaveBeenCalledWith({
+      address: EOA,
+      sort: 'expiry',
+      order: 'desc',
+      pageSize: DASHBOARD_CHUNK_SIZE,
+      includeTotal: true,
+    })
     expect(
-      result
-        ._unsafeUnwrap()
-        .map(({ name, nameRoles }) => ({ name, nameRoles })),
+      chunks.map(({ address, names, hiddenCount, nextCursor, totalCount }) => ({
+        address,
+        names: names.map(({ name, nameRoles }) => [name, nameRoles]),
+        hiddenCount,
+        nextCursor,
+        totalCount,
+      })),
     ).toEqual([
-      { name: 'alice.eth', nameRoles: ['owner', 'manager'] },
-      { name: 'zed.eth', nameRoles: ['owner'] },
+      {
+        address: EOA,
+        names: [['alice.eth', ['owner']]],
+        hiddenCount: 1,
+        nextCursor: 'next',
+        totalCount: 12,
+      },
+      {
+        address: SMART_ACCOUNT,
+        names: [['bob.eth', ['manager']]],
+        hiddenCount: 0,
+        nextCursor: null,
+        totalCount: null,
+      },
     ])
   })
 
-  it('adds ENSv2 names in grace from the former-owner read', async () => {
+  it('continues only the addresses with more, from their cursors', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() => okAsync(page([])))
+
+    await readDashboardChunks(readNames, QUERY, {
+      [EOA]: 'next',
+      [SMART_ACCOUNT]: null,
+    })
+
+    expect(readNames).toHaveBeenCalledTimes(1)
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({ address: EOA, cursor: 'next' }),
+    )
+    expect(readNames.mock.calls[0]?.[0]).not.toHaveProperty('includeTotal')
+  })
+
+  it('searches by fragment, and a fragment bigname rejects matches nothing', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() =>
+      errAsync(new IndexerReadError({ kind: 'rejected', cause: null })),
+    )
+
+    const chunks = (
+      await readDashboardChunks(
+        readNames,
+        { ...QUERY, addresses: [EOA], search: 'al' },
+        {},
+      )
+    )._unsafeUnwrap()
+
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({ contains: 'al' }),
+    )
+    expect(chunks).toEqual([
+      expect.objectContaining({ names: [], nextCursor: null, totalCount: 0 }),
+    ])
+  })
+
+  it('fails when a read fails', async () => {
+    const result = await readDashboardChunks(
+      () =>
+        errAsync(new IndexerReadError({ kind: 'unavailable', cause: null })),
+      QUERY,
+      {},
+    )
+
+    expect(result._unsafeUnwrapErr()._tag).toBe('GetDashboardNamesError')
+  })
+})
+
+describe('getDashboardGraceNames', () => {
+  it('reads ENSv2 names in grace from the former-owner read', async () => {
     const addressNames = vi.fn<BignameClient['addressNames']>(() =>
       okAsync(graceResponse([graceRow])),
     )
 
-    const result = await getDashboardNames(
-      () => okAsync(page([])),
-      addressNames,
-      [EOA],
-      NOW,
-    )
+    const result = await getDashboardGraceNames(addressNames, [EOA], NOW)
 
     expect(addressNames).toHaveBeenCalledWith(EOA, {
       namespace: 'ens',
@@ -139,13 +214,62 @@ describe('getDashboardNames', () => {
   })
 
   it('fails when the grace read fails', async () => {
-    const result = await getDashboardNames(
-      () => okAsync(page([])),
+    const result = await getDashboardGraceNames(
       () => errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
       [EOA],
       NOW,
     )
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetDashboardNamesError')
+  })
+})
+
+describe('getRenewableDashboardNames', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('reads every held ENSv2 .eth name matching the search, plus names in grace', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) =>
+      okAsync(
+        cursor
+          ? page([summary('alpha.eth', '0x02')])
+          : page([summary('alice.eth', '0x01')], 'next'),
+      ),
+    )
+    const addressNames = vi.fn<BignameClient['addressNames']>(() =>
+      okAsync(
+        graceResponse([
+          { ...graceRow, name: 'alapsed.eth', display_name: 'alapsed.eth' },
+          graceRow,
+        ]),
+      ),
+    )
+
+    const result = await getRenewableDashboardNames(
+      readNames,
+      addressNames,
+      [EOA],
+      'al',
+    )
+
+    expect(readNames).toHaveBeenCalledWith({
+      address: EOA,
+      relations: ['owner'],
+      protocol: 'v2',
+      parent: 'eth',
+      contains: 'al',
+      pageSize: 200,
+    })
+    expect(
+      result
+        ._unsafeUnwrap()
+        .map(({ name }) => name)
+        .sort(),
+    ).toEqual(['alapsed.eth', 'alice.eth', 'alpha.eth'])
   })
 })

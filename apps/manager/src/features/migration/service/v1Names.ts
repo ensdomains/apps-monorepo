@@ -53,7 +53,7 @@ const listV1NamesOnce = ResultFn(async function* (
       .addressNames(address, {
         namespace: 'ens',
         relation: 'any',
-        authority: 'ens_v1',
+        authority: ['ens_v1', 'ens_v0'],
         sort: 'name',
         order: 'asc',
         page_size: FETCH_PAGE_SIZE,

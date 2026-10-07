@@ -18,6 +18,7 @@ const summary = (
   isMigrated: false,
   registrationStatus: 'registered',
   expiresAt: null,
+  expiresAfterAnyDate: false,
   registeredAt: null,
   createdAt: null,
   ...overrides,

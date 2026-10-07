@@ -96,7 +96,8 @@ export function createIndexerMock() {
 
   function addressNames(address: string, params: URLSearchParams) {
     const relation = params.get('relation') ?? 'any'
-    const isV1Only = params.get('authority') === 'ens_v1'
+    const isV1Only =
+      params.get('authority')?.split(',').includes('ens_v1') ?? false
     const isMigratedOnly = params.get('is_migrated') === 'true'
     const rows =
       relation === 'former_owner' || isV1Only || isMigratedOnly

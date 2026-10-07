@@ -266,7 +266,10 @@ describe('readV1NamesForAddress', () => {
 
     expect(addressNames).toHaveBeenCalledWith(
       USER,
-      expect.objectContaining({ relation: 'any', authority: 'ens_v1' }),
+      expect.objectContaining({
+        relation: 'any',
+        authority: ['ens_v1', 'ens_v0'],
+      }),
     )
     expect(lookupFromFixtures.mock.calls.map(([body]) => body.inputs)).toEqual([
       [{ name: 'alice.eth' }, { name: 'bob.eth' }, { name: 'sub.bob.eth' }],
