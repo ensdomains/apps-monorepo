@@ -86,6 +86,18 @@ describe('isListedName', () => {
     { name: 'alice.eth', registrationStatus: 'released', listed: false },
     { name: 'alice.eth', registrationStatus: 'unregistered', listed: false },
     { name: 'abc.addr.reverse', registrationStatus: 'active', listed: false },
+    { name: 'ALICE.eth', registrationStatus: 'active', listed: false },
+    { name: 'ali\u00adce.eth', registrationStatus: 'active', listed: false },
+    {
+      name: `[${'ab'.repeat(32)}].eth`,
+      registrationStatus: 'active',
+      listed: true,
+    },
+    {
+      name: '\u{1f680}\u{1f680}\u{1f680}.eth',
+      registrationStatus: 'active',
+      listed: true,
+    },
   ] as const)('$name $registrationStatus listed: $listed', ({
     name,
     registrationStatus,
@@ -122,6 +134,7 @@ describe('toGraceName', () => {
   it.each([
     { case: 'an ENSv1 name', row: lapsed({ authority: 'ens_v1' }) },
     { case: 'a subname', row: lapsed({ name: 'sub.grace.eth' }) },
+    { case: 'an un-normalised name', row: lapsed({ name: 'GRACE.eth' }) },
     {
       case: 'another owner',
       row: lapsed({
