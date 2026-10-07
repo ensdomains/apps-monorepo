@@ -491,6 +491,26 @@ describe('walkDnssecChain', () => {
       })
     })
 
+    // Greptile on #1312: both imports reject an answer without the AD flag.
+    it('does not count an unauthenticated record as a working import', async () => {
+      const hierarchy = await createTestHierarchy()
+      await breakEnsZone(hierarchy)
+      const unauthenticated = hierarchy.responses.get('example.xyz TXT')
+      if (!unauthenticated) throw new Error('example.xyz TXT missing')
+      hierarchy.validated.set('example.xyz TXT', unauthenticated)
+
+      const report = await walk(hierarchy)
+
+      expect(
+        getCheck(getRecord(report, 'offchain'), 'resolver-validation')?.status,
+      ).toBe('warn')
+      expect(deriveVerdict(report)).toMatchObject({
+        kind: 'broken',
+        path: 'onchain',
+        step: '_ens.example.xyz.',
+      })
+    })
+
     it('reports a plain break, naming the import, when no other record works', async () => {
       const hierarchy = await createTestHierarchy()
       await breakEnsZone(hierarchy)

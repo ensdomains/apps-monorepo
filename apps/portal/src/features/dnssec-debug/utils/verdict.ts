@@ -3,6 +3,7 @@ import type {
   DnssecReport,
   DnssecStep,
   RecordPurpose,
+  RecordStep,
 } from '../types'
 import type { OracleOutcome } from './oracle'
 import { isProperAncestor } from './wire'
@@ -100,6 +101,17 @@ const findOracleOutcome = (
     (result) => result.outcome.status === status && isRelevant(result.label),
   )
 
+/**
+ * A record an import can act on. Both imports (ensjs `getDnsOwner`,
+ * `getDnsOffchainData`) reject an answer without the AD flag, so a record the
+ * resolver didn't authenticate is no use whatever else it passes.
+ */
+const isUsable = (record: RecordStep): boolean =>
+  record.status !== 'fail' &&
+  record.checks.some(
+    (check) => check.id === 'resolver-validation' && check.status === 'pass',
+  )
+
 const toBreak = (step: DnssecStep | undefined) => {
   const check = step?.checks.find((c) => c.status === 'fail')
   return step && check ? { step: getStepLabel(step), check } : null
@@ -161,9 +173,7 @@ export const deriveVerdict = (
   })
   const brokenPaths = pathBreaks.map(({ path }) => path)
   const hasWorkingPath = report.records.some(
-    (record) =>
-      !brokenPaths.includes(record.purpose) &&
-      (record.status === 'pass' || record.status === 'warn'),
+    (record) => !brokenPaths.includes(record.purpose) && isUsable(record),
   )
   const [firstBreak] = pathBreaks
   if (firstBreak && !hasWorkingPath) return { kind: 'broken', ...firstBreak }
