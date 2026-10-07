@@ -25,7 +25,6 @@ export type RegistryInfo = {
   labelCount: number
   roleCount: number
   eventCount: number
-  referencedBy: { name: string | null }[]
 }
 
 const getRegistryInfo = ResultFn(async function* ({
@@ -44,9 +43,6 @@ const getRegistryInfo = ResultFn(async function* ({
             labelCount
             roleCount
             eventCount
-            referencedBy {
-              name
-            }
           }
         }
       `,

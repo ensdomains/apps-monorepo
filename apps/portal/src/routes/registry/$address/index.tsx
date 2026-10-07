@@ -1,5 +1,5 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ChevronRight,
@@ -15,6 +15,11 @@ import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -29,6 +34,7 @@ import { RegistryHistoryByAddress } from '@/features/registry/components/v2/Regi
 import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
+import { getRegistryReferencedByQueryOptions } from '@/features/registry/hooks/useRegistryReferencedBy'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -81,10 +87,6 @@ function RouteComponent() {
   const deployedDate = registry.createdAt
     ? formatTimestampDate(registry.createdAt)
     : null
-
-  const referencedByNames = registry.referencedBy
-    .map((domain) => domain.name)
-    .filter((name): name is string => !!name)
 
   return (
     <div className="flex flex-col gap-8">
@@ -154,16 +156,8 @@ function RouteComponent() {
           <dt className="text-ui text-muted-foreground flex items-center h-10 self-start">
             Referenced by
           </dt>
-          <dd className="flex flex-wrap items-center gap-x-2 gap-y-2 min-h-10 self-start">
-            {referencedByNames.length > 0 ? (
-              referencedByNames.map((name) => (
-                <EntityBadge key={name} variant="name" name={name} showAvatar>
-                  {name}
-                </EntityBadge>
-              ))
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
+          <dd className="flex flex-col justify-center gap-2 min-h-10 self-start">
+            <ReferencedByCell address={address} />
           </dd>
         </dl>
 
@@ -302,6 +296,51 @@ const CanonicalNameCell = ({ address }: { readonly address: Address }) => {
       </EntityBadge>
     ))
     .otherwise(() => <span className="text-muted-foreground">—</span>)
+}
+
+const REFERENCED_BY_INITIAL_COUNT = 10
+
+const ReferencedByCell = ({ address }: { readonly address: Address }) => {
+  const {
+    data,
+    isLoading,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchNextPageError,
+  } = useInfiniteQuery(getRegistryReferencedByQueryOptions({ address }))
+
+  const names = data?.pages.flatMap((page) => page.names) ?? []
+
+  const loader = useListLoader({
+    initialCount: REFERENCED_BY_INITIAL_COUNT,
+    loaded: names.length,
+    total: data?.pages.at(-1)?.totalCount,
+    hasMore: hasNextPage,
+    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.names.length),
+    resetKey: address,
+  })
+
+  if (isLoading) return <Skeleton className="h-5 w-32" />
+  if (error && !isFetchNextPageError) return <FailedToLoad />
+  if (names.length === 0)
+    return <span className="text-muted-foreground">—</span>
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {names
+          .slice(0, loader.shown)
+          .filter((name) => name !== null)
+          .map((name) => (
+            <EntityBadge key={name} variant="name" name={name} showAvatar>
+              {name}
+            </EntityBadge>
+          ))}
+      </div>
+      <ListLoader {...loader} />
+    </>
+  )
 }
 
 const FailedToLoad = () => (
