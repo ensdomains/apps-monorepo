@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnDef,
@@ -15,6 +15,11 @@ import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -36,6 +41,7 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import { getResolverNodesQueryOptions } from '@/features/resolver/hooks/useResolverNodes'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
@@ -46,14 +52,13 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address as Address,
-      }),
-    )
-  },
+  loader: ({ params }) =>
+    queryClient.prefetchInfiniteQuery(
+      getResolverNodesQueryOptions({ address: params.address as Address }),
+    ),
 })
+
+const NODES_INITIAL_COUNT = 100
 
 const createNodesColumns = (
   resolverAddress: string,
@@ -125,13 +130,34 @@ function RouteComponent() {
   const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const {
-    data: resolver,
-    isLoading,
-    error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  const nodesQuery = useInfiniteQuery(
+    getResolverNodesQueryOptions({ address: address as Address }),
+  )
+  const { data: resolver } = useQuery(
+    getResolverOverviewQueryOptions({ address: address as Address }),
+  )
 
-  const nodes = resolver?.nodes ?? []
+  const loadedNodes = useMemo(
+    () => nodesQuery.data?.pages.flatMap((page) => page.nodes) ?? [],
+    [nodesQuery.data],
+  )
+
+  const loader = useListLoader({
+    initialCount: NODES_INITIAL_COUNT,
+    loaded: loadedNodes.length,
+    total: nodesQuery.data?.pages.at(-1)?.totalCount,
+    hasMore: nodesQuery.hasNextPage,
+    fetchMore: infiniteFetchMore(
+      nodesQuery.fetchNextPage,
+      (page) => page.nodes.length,
+    ),
+    resetKey: address,
+  })
+
+  const nodes = useMemo(
+    () => loadedNodes.slice(0, loader.shown),
+    [loadedNodes, loader.shown],
+  )
   const roles = resolver?.roles ?? []
 
   const rolesForNode = selectedNode
@@ -141,7 +167,7 @@ function RouteComponent() {
   const columns = useMemo(() => createNodesColumns(address), [address])
 
   const table = useReactTable({
-    data: nodes as ResolverNode[],
+    data: nodes,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -158,8 +184,8 @@ function RouteComponent() {
     },
   })
 
-  if (isLoading) return <LoadingMessage />
-  if (error)
+  if (nodesQuery.isLoading) return <LoadingMessage />
+  if (nodesQuery.error && !nodesQuery.isFetchNextPageError)
     return (
       <ErrorMessage
         compact
@@ -167,7 +193,7 @@ function RouteComponent() {
       />
     )
 
-  if (nodes.length === 0)
+  if (loadedNodes.length === 0)
     return (
       <div className="flex flex-col gap-8">
         <PageHeading parent={{ type: 'resolver', address: address as Address }}>
@@ -197,6 +223,12 @@ function RouteComponent() {
           onChange={(e) => setGlobalFilter(e.target.value)}
         />
       </InputGroup>
+      {loader.canShowMore && globalFilter && (
+        <p className="text-sm text-muted-foreground">
+          Search covers the {nodes.length} nodes shown so far. Show more to
+          include the rest.
+        </p>
+      )}
 
       <NodeDetailSheet
         node={selectedNode}
@@ -309,6 +341,7 @@ function RouteComponent() {
           </Table>
         </div>
       </NodeDetailSheet>
+      <ListLoader {...loader} />
     </div>
   )
 }
