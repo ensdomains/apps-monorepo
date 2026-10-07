@@ -47,7 +47,7 @@ describe('readNamesForAddress', () => {
     })
 
     expect(requestOf(fetch).url).toBe(
-      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?relation=owner%2Cmanager&authority=ens_v1%2Cens_v0&is_migrated=true&q=ali&sort=expires_at&order=desc&include=counts&page_size=25&cursor=c1',
+      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?namespace=ens&relation=owner%2Cmanager&authority=ens_v1%2Cens_v0&is_migrated=true&q=ali&sort=expires_at&order=desc&include=counts&page_size=25&cursor=c1',
     )
   })
 
@@ -65,7 +65,7 @@ describe('readNamesForAddress', () => {
     })
 
     expect(requestOf(fetch).url).toBe(
-      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?relation=any&authority=ens_v2&parent=eth&q=lic&match=contains&sort=created_at&include=counts%2Ctotal_count',
+      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?namespace=ens&relation=any&authority=ens_v2&parent=eth&q=lic&match=contains&sort=created_at&include=counts%2Ctotal_count',
     )
   })
 
@@ -80,7 +80,7 @@ describe('readNamesForAddress', () => {
       relations,
     })
 
-    expect(requestOf(fetch).url).toMatch(/names\?relation=any$/)
+    expect(requestOf(fetch).url).toMatch(/names\?namespace=ens&relation=any$/)
   })
 
   it('renders the wire rows the way the dashboards need them, with the page', async () => {
