@@ -12,8 +12,9 @@ const COMMEMORATIVE_NFT_ADDRESSES: Record<EnsNetwork, Address | null> = {
   sepolia: getAddress('0xa55605c6242CbFc27117b63466B423fbc092a2A9'),
 }
 
-const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://nft.ens.dev'
-const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN = 'https://nft-assets.ens.dev'
+const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://v2.nft.ens.domains'
+const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
+  'https://v2.nft-assets.ens.domains'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 

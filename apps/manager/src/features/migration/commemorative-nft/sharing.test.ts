@@ -109,7 +109,7 @@ describe('commemorative NFT sharing', () => {
   })
 
   it.each([
-    'https://nft.ens.dev',
+    'https://v2.nft.ens.domains',
     'https://renderer.example/',
     'http://localhost:4000',
   ])('builds the standalone NFT URL on %s', (rendererOrigin) => {

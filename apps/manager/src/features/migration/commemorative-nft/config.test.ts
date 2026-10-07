@@ -93,8 +93,8 @@ describe('commemorative NFT config', () => {
   })
 
   it.each([
-    'https://nft-assets.ens.dev',
-    'https://nft-assets.ens.dev///',
+    'https://v2.nft-assets.ens.domains',
+    'https://v2.nft-assets.ens.domains///',
   ])('matches the contract metadata path and published image path at %s', (assetOrigin) => {
     expect(
       buildCommemorativeNftAssets(
@@ -103,9 +103,9 @@ describe('commemorative NFT config', () => {
       ),
     ).toEqual({
       metadataUrl:
-        'https://nft-assets.ens.dev/token/46455108410614081663945406319915307572171076188378075311311703967581922008221.json',
+        'https://v2.nft-assets.ens.domains/token/46455108410614081663945406319915307572171076188378075311311703967581922008221.json',
       imageUrl:
-        'https://nft-assets.ens.dev/token/46455108410614081663945406319915307572171076188378075311311703967581922008221/image.webp',
+        'https://v2.nft-assets.ens.domains/token/46455108410614081663945406319915307572171076188378075311311703967581922008221/image.webp',
     })
   })
 })

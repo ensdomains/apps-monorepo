@@ -10,7 +10,11 @@ import { logger } from '#utils/logger.js'
 import { addUserIfNotExists } from '../users'
 import { safeParseSiweMessage, safeVerifySiweMessage } from './helpers'
 
-const ALLOWED_SIWE_DOMAINS = ['app.ens.dev', 'app.ens.domains'] as const
+const ALLOWED_SIWE_DOMAINS = [
+  'sepolia.app.ens.domains',
+  'app.ens.dev',
+  'app.ens.domains',
+] as const
 type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
 
 class InvalidNonceError extends TaggedError('INVALID_NONCE')<{
