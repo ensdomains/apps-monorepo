@@ -89,7 +89,9 @@ describe('WEB-656 blind primary-name control oracle', () => {
   })
 
   it('offers a native enabled chooser action in navigation without a primary name', async () => {
-    await renderSurface(<NavSection onAction={vi.fn()} />)
+    await renderSurface(
+      <NavSection onAction={vi.fn()} onChoosePrimaryName={vi.fn()} />,
+    )
 
     const action = await screen.findByRole('button', {
       name: 'Primary Name Profile',
@@ -106,7 +108,9 @@ describe('WEB-656 blind primary-name control oracle', () => {
 
   it('keeps configured-primary navigation as a correct profile link', async () => {
     wallet.reverseName = 'alaska.eth'
-    await renderSurface(<NavSection onAction={vi.fn()} />)
+    await renderSurface(
+      <NavSection onAction={vi.fn()} onChoosePrimaryName={vi.fn()} />,
+    )
 
     const link = await screen.findByRole('link', {
       name: /Primary Name Profile/,
