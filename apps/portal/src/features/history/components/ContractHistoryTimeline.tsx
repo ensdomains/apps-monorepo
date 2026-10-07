@@ -13,10 +13,12 @@ import {
 } from '../timelineEventPage'
 import { HistoryTimelineView } from './HistoryTimeline'
 
+export const CONTRACT_HISTORY_TIMELINE = 'get-contract-history-timeline'
+
 const contractHistoryTimelineQueryKey = createQueryKey<
-  'get-contract-history-timeline',
+  typeof CONTRACT_HISTORY_TIMELINE,
   { readonly address: Address }
->('get-contract-history-timeline')
+>(CONTRACT_HISTORY_TIMELINE)
 
 /** Everything a contract emitted, newest first, paged — a registry or a resolver. */
 export const ContractHistoryTimeline = ({

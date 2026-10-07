@@ -6,6 +6,7 @@ import {
   type ResolverGrantScope,
 } from '@/features/resolver/helpers/grantResolverRoles'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
 
 interface UseGrantResolverRolesOptions {
   readonly resolverAddress: Address
@@ -49,11 +50,7 @@ export const useGrantResolverRoles = ({
     },
     onSuccess: async () => {
       await pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            queryKey: ['resolver-overview'],
-            refetchType: 'all',
-          }),
+        invalidateQueries: () => invalidateResolverOverview(queryClient),
       })
       onSuccess?.()
     },

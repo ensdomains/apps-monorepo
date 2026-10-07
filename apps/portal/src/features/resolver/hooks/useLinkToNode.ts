@@ -3,6 +3,7 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { linkToNode } from '@/features/resolver/helpers/linkRecords'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
 
 interface UseLinkToNodeOptions {
   readonly resolverAddress: Address
@@ -46,11 +47,7 @@ export const useLinkToNode = ({
     },
     onSuccess: async () => {
       await pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            queryKey: ['resolver-overview'],
-            refetchType: 'all',
-          }),
+        invalidateQueries: () => invalidateResolverOverview(queryClient),
       })
       onSuccess?.()
     },

@@ -8,6 +8,7 @@ import {
   type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
 
 interface UseUnlinkOptions {
   readonly resolverAddress: Address
@@ -56,11 +57,7 @@ export const useUnlink = ({
       )
 
       await pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            queryKey: ['resolver-overview'],
-            refetchType: 'all',
-          }),
+        invalidateQueries: () => invalidateResolverOverview(queryClient),
       })
     },
   })
