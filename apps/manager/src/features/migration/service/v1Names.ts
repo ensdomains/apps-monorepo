@@ -147,6 +147,10 @@ export const toV1Domain = (
           fuses: wrapperFuses.fuses,
         }
       : null,
+    ...(isDotEth2ld && !ensV1?.expires_at && { isLeaseMissing: true }),
+    ...(record.unresolvable_reason === 'no_live_ens_v2_entry' && {
+      isUnreserved: true,
+    }),
   }
 }
 

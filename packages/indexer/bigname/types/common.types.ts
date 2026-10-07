@@ -158,6 +158,11 @@ export type EnsV1Facts = Readonly<{
 /** Name-shaped rows: where the chain reads the current registration fields from. */
 export type Authority = 'ens_v0' | 'ens_v1' | 'ens_v2'
 
+/** Name detail, detail lookup: why a name provably resolves to nothing after the cutover. */
+export type UnresolvableReason =
+  | 'no_live_ens_v2_entry'
+  | 'ens_v2_path_no_resolver'
+
 /** Name-shaped rows: `resolver` `{chain_id, address}`. */
 export type ResolverRef = Readonly<{
   chain_id: number

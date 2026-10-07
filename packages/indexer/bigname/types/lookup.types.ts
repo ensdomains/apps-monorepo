@@ -15,6 +15,7 @@ import type {
   ResolverRef,
   ResultStatus,
   Timestamp,
+  UnresolvableReason,
 } from './common.types'
 import type { Relation, RelationFilter } from './permissions.types'
 import type { RecordGroups } from './records.types'
@@ -94,6 +95,13 @@ export type LookupRecord = Readonly<{
   failure_reason?: string
   /** Omitted when empty. */
   unsupported_fields?: readonly string[]
+  /**
+   * A proven absence of resolution after the Universal Resolver cutover;
+   * `no_live_ens_v2_entry` means an ENSv1 name holds no ENSv2 reservation or registration.
+   */
+  unresolvable_reason?: UnresolvableReason
+  /** Resolution could not be proven either way; not an absence claim. */
+  resolution_unsupported_reason?: string
 }>
 
 /** `POST /v1/lookup`: one result per input, in caller order; `input` echoes the request input. */

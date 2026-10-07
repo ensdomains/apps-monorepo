@@ -16,6 +16,7 @@ import type {
   SortOrder,
   Source,
   Timestamp,
+  UnresolvableReason,
   WrapperFuses,
   WrapperState,
 } from './common.types'
@@ -106,6 +107,13 @@ export type NameRecord = Readonly<{
   failure_reason?: string
   /** Omitted when empty. */
   unsupported_fields?: readonly string[]
+  /**
+   * A proven absence of resolution after the Universal Resolver cutover;
+   * `no_live_ens_v2_entry` means an ENSv1 name holds no ENSv2 reservation or registration.
+   */
+  unresolvable_reason?: UnresolvableReason
+  /** Resolution could not be proven either way; not an absence claim. */
+  resolution_unsupported_reason?: string
 }>
 
 /** `GET /v1/names/{name}`: response. */
