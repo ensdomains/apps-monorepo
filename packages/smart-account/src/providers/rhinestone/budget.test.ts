@@ -8,12 +8,15 @@ import {
   HCA_RESOLVER_DEPLOY_GAS,
   HcaBudgetExceedsMaximumError,
   hcaBudgetMaximum,
+  legFeeUsdc,
   primaryNameGas,
   type QuoteLegResult,
   type QuoteMarketData,
   registerLegGasLimit,
   withBudgetDrift,
 } from './budget'
+import { getDestinationContracts } from './manifest'
+import type { QuotedGasRefund } from './refund-caps'
 
 const USDC = (whole: number) => BigInt(whole) * 1_000_000n
 
@@ -313,5 +316,96 @@ describe('registerLegGasLimit', () => {
   it('stays at or above the measured on-chain cost of the deploy', () => {
     // Measured on Sepolia; the constant must not drift below it.
     expect(HCA_RESOLVER_DEPLOY_GAS).toBeGreaterThanOrEqual(185_904n)
+  })
+})
+
+describe('legFeeUsdc', () => {
+  const REFUND_TOKEN = getDestinationContracts(sepolia.id).usdc
+
+  /**
+   * The refund signed into Sepolia commit `0xc42423ad…` (2026-10-07, ~1 Mwei
+   * gas): its overhead is almost all relay fee. That commit pulled 10_017
+   * units, while the quoted spends for both legs came to 7_681.
+   */
+  const cheapGasRefund: QuotedGasRefund = {
+    token: REFUND_TOKEN,
+    exchangeRate: 2_560_716_071n,
+    refundAmount: 21_717n,
+    gasOverhead: 2_597_034n,
+  }
+
+  it('covers the relay fee the quoted spend leaves out', () => {
+    const fee = legFeeUsdc({
+      spendUsdc: 3_765n,
+      gasLimit: HCA_LEG_GAS_LIMITS.commit,
+      gasPriceWei: 1_100_031n,
+      gasRefund: cheapGasRefund,
+    })
+    // (450k + 2 × 2,597,034) gas × 1.1 Mwei × the exchange rate, rounded up.
+    expect(fee).toBe(15_899n)
+    expect(fee).toBeGreaterThan(10_017n)
+  })
+
+  it('never budgets above the signed refund ceiling', () => {
+    expect(
+      legFeeUsdc({
+        spendUsdc: 3_765n,
+        gasLimit: HCA_LEG_GAS_LIMITS.commit,
+        gasPriceWei: 1_100_031n,
+        gasRefund: { ...cheapGasRefund, refundAmount: 12_000n },
+      }),
+    ).toBe(12_000n)
+  })
+
+  // At ~1 gwei the overhead is ~52k gas and the quoted spend already covers
+  // it: the budget must not grow there.
+  it('keeps the quoted spend when it is the larger figure', () => {
+    expect(
+      legFeeUsdc({
+        spendUsdc: 1_840_000n,
+        gasLimit: HCA_LEG_GAS_LIMITS.register,
+        gasPriceWei: 1_000_000_000n,
+        gasRefund: {
+          token: REFUND_TOKEN,
+          exchangeRate: 2_697_889_577n,
+          refundAmount: 9_029_670n,
+          gasOverhead: 52_321n,
+        },
+      }),
+    ).toBe(1_840_000n)
+  })
+
+  it('falls back to the quoted spend without a refund or a gas price', () => {
+    expect(legFeeUsdc({ spendUsdc: 3_765n, gasLimit: 450_000n })).toBe(3_765n)
+    expect(
+      legFeeUsdc({
+        spendUsdc: 3_765n,
+        gasLimit: 450_000n,
+        gasRefund: cheapGasRefund,
+      }),
+    ).toBe(3_765n)
+  })
+
+  it('sizes the registration legs from it', async () => {
+    const quote = (spendUsdc: bigint): QuoteLegResult => ({
+      spendUsdc,
+      market: market(1_100_031n),
+      gasRefund: cheapGasRefund,
+    })
+
+    // A first registration, as in the failed run: the reveal deploys the
+    // resolver, so its leg is priced on a larger gas limit than the commit.
+    const breakdown = await estimateHcaBudget({
+      ...baseParams(8_005_501n),
+      isResolverDeployed: false,
+      quoteLegCostUsdc: async (leg) =>
+        quote(leg === 'commit' ? 3_765n : 3_916n),
+    })
+
+    expect(breakdown.commitCost).toBe(15_899n)
+    // The register leg's gas limit, not the commit's, prices its share.
+    expect(breakdown.registerCost).toBeGreaterThan(breakdown.commitCost)
+    // Covers the 10_017 the commit pulled plus a reveal of the same shape.
+    expect(breakdown.total - 8_005_501n).toBeGreaterThan(2n * 10_017n)
   })
 })

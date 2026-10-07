@@ -5,6 +5,7 @@ import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import {
   isUserRejectionError,
+  SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
@@ -77,6 +78,64 @@ type CommitmentData = {
   commitment: Hash
   secret: Hex
 }
+
+/** A replacement session for a run, from the host app's wallet prompt. */
+export interface SessionReauthorization {
+  /** The signer with the new session attached. */
+  readonly signer: Signer
+  /** The new session's authorization, attached to every leg from here on. */
+  readonly hcaSessionEnable: HcaSessionEnableParams
+}
+
+/**
+ * Authorize a new session whose gas-overhead cap allows at least
+ * `minGasOverhead`. Costs the owner one wallet signature. Rejects when the
+ * owner declines or no session can be authorized.
+ */
+export type ReauthorizeSession = (request: {
+  readonly minGasOverhead: bigint
+}) => Promise<SessionReauthorization>
+
+/**
+ * Re-authorizations allowed per run. A session is sized with headroom from
+ * the very quote that outgrew the last one, so a second miss means fees are
+ * moving faster than a prompt can follow; stop asking.
+ */
+const MAX_SESSION_REAUTHORIZATIONS = 2
+
+/** The leg a re-authorization returns to. */
+type SessionReauthTarget =
+  | 'submittingSetupBundle'
+  | 'submittingRhinestoneBundle'
+
+/**
+ * How long a funding permit must still be valid to be resent: it is checked
+ * when the commit intent FILLS, not when it is submitted.
+ */
+const PERMIT_RESEND_MARGIN_SECONDS = 5n * 60n
+
+/**
+ * Whether the funding permit can no longer carry a commit. A re-authorization
+ * can outlast it: Retry after a declined signature may come hours later, past
+ * the permit's one-hour deadline.
+ */
+const isPermitStale = (permit: PermitSignature | undefined): boolean =>
+  permit !== undefined &&
+  permit.deadline <=
+    BigInt(Math.floor(Date.now() / 1000)) + PERMIT_RESEND_MARGIN_SECONDS
+
+/**
+ * Whether `error` is a quote a new session would accept, and this run can
+ * still ask for one.
+ */
+const canReauthorizeSession = (
+  context: RegistrationContext,
+  error: unknown,
+): error is SessionRefundCapExceededError =>
+  error instanceof SessionRefundCapExceededError &&
+  error.isFixableByNewSession &&
+  !!context.reauthorizeSession &&
+  (context.sessionReauthorizations ?? 0) < MAX_SESSION_REAUTHORIZATIONS
 
 // Fallback wait used when the machine can't read MIN_COMMITMENT_AGE from the
 // registrar (e.g. RPC error). The production v2 ETHRegistrar is configured
@@ -159,6 +218,18 @@ export type RegistrationContext = {
    * outside revocation.
    */
   hcaSessionEnable?: HcaSessionEnableParams
+  /**
+   * Standalone-HCA: asks the host app for a new session when a leg's quoted
+   * gas refund outgrows the current one's caps. Runtime dep injected on
+   * START_REGISTRATION and RESUME, never persisted; absent, such a leg fails.
+   */
+  reauthorizeSession?: ReauthorizeSession
+  /** The leg `reauthorizingSession` returns to. */
+  sessionReauthTarget?: SessionReauthTarget
+  /** The quoted gas overhead the replacement session must allow. */
+  requiredGasOverhead?: bigint
+  /** Re-authorizations this run has asked for. */
+  sessionReauthorizations?: number
   /** Standalone-HCA: when set, the reveal batch also sets the primary name. */
   primaryName?: string
 
@@ -224,6 +295,7 @@ export type RegistrationContext = {
     | 'approvingToken'
     | 'registeringDomain'
     | 'submittingRhinestoneBundle'
+    | 'reauthorizingSession'
 
   /**
    * Set by SUSPEND: the run was stopped because the wallet that owns it went
@@ -269,6 +341,8 @@ export type RegistrationEvent =
         intentId: bigint,
         signal?: AbortSignal,
       ) => Promise<string | null>
+      /** See `RegistrationContext.reauthorizeSession`. */
+      reauthorizeSession?: ReauthorizeSession
       accountAddress: Address
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
@@ -304,6 +378,8 @@ export type RegistrationEvent =
           intentId: bigint,
           signal?: AbortSignal,
         ) => Promise<string | null>
+        /** See `RegistrationContext.reauthorizeSession`. */
+        reauthorizeSession?: ReauthorizeSession
       }
     }
   | {
@@ -497,6 +573,16 @@ export const registrationMachine = setup({
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
+    reauthorizeSession: fromPromise(
+      ({
+        input,
+      }: {
+        input: {
+          readonly reauthorize: ReauthorizeSession
+          readonly minGasOverhead: bigint
+        }
+      }) => input.reauthorize({ minGasOverhead: input.minGasOverhead }),
+    ),
     waitAfterCommitment: fromPromise(
       async ({
         input,
@@ -630,6 +716,10 @@ export const registrationMachine = setup({
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
         fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
+        reauthorizeSession: event.deps.reauthorizeSession,
+        sessionReauthTarget: undefined,
+        requiredGasOverhead: undefined,
+        sessionReauthorizations: undefined,
         permit: undefined,
         hcaBudget: undefined,
         hcaBudgetBreakdown: undefined,
@@ -637,6 +727,21 @@ export const registrationMachine = setup({
         error: undefined,
         retryTarget: undefined,
         suspended: undefined,
+      }
+    }),
+
+    /** Swap in the session `reauthorizingSession` obtained. */
+    applySessionReauthorization: assign(({ context, event }) => {
+      const output = (event as unknown as { output: SessionReauthorization })
+        .output
+      return {
+        ...context,
+        signer: output.signer,
+        hcaSessionEnable: output.hcaSessionEnable,
+        error: undefined,
+        retryTarget: undefined,
+        sessionReauthTarget: undefined,
+        requiredGasOverhead: undefined,
       }
     }),
 
@@ -739,6 +844,7 @@ export const registrationMachine = setup({
             // assigner, so TS drops the `event` inference.
             assign(({ event }) => ({
               fetchRegistrationIntentStatus: event.fetchIntentStatus,
+              reauthorizeSession: event.reauthorizeSession,
             })),
             assign({
               name: ({ event }) => event.name,
@@ -780,6 +886,9 @@ export const registrationMachine = setup({
               retryTarget: () => undefined,
               nameUnavailable: () => undefined,
               revealSubmitFailed: () => undefined,
+              sessionReauthTarget: () => undefined,
+              requiredGasOverhead: () => undefined,
+              sessionReauthorizations: () => undefined,
             }),
           ],
         },
@@ -1309,6 +1418,26 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
+          // The quoted refund outgrew the session's caps, so the commit was
+          // refused before signing. A session sized from that quote accepts it.
+          {
+            guard: ({ context, event }) =>
+              canReauthorizeSession(context, event.error),
+            target: 'reauthorizingSession',
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+              sessionReauthTarget: () => 'submittingSetupBundle' as const,
+              requiredGasOverhead: ({ event }) =>
+                (event.error as SessionRefundCapExceededError)
+                  .requiredGasOverhead,
+              sessionReauthorizations: ({ context }) =>
+                (context.sessionReauthorizations ?? 0) + 1,
+              // Assigned when the request was queued, but nothing reached the
+              // chain: a resume must not go looking for this commitment.
+              commitment: () => undefined,
+              commitmentTxId: () => undefined,
+            }),
+          },
           // A commit that never reached the chain has nothing to verify.
           // Validating anyway would keep the user waiting out its retries and
           // then replace the real error with a "not found" one, hiding from
@@ -1572,14 +1701,115 @@ export const registrationMachine = setup({
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
-        // Receipt polling can flake after the reveal actually landed. Check
-        // the registry before declaring failure — the user may already own
-        // the name.
+        onError: [
+          // Refused before signing because the quoted refund outgrew the
+          // session's caps. Nothing was submitted, so there is nothing to
+          // verify; a session sized from that quote accepts it.
+          {
+            guard: ({ context, event }) =>
+              canReauthorizeSession(context, event.error),
+            target: 'reauthorizingSession',
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+              sessionReauthTarget: () => 'submittingRhinestoneBundle' as const,
+              requiredGasOverhead: ({ event }) =>
+                (event.error as SessionRefundCapExceededError)
+                  .requiredGasOverhead,
+              sessionReauthorizations: ({ context }) =>
+                (context.sessionReauthorizations ?? 0) + 1,
+              // Assigned when the request was queued. A resume reads a
+              // reveal-side id as "the register may be out" and verifies.
+              registrationTxId: () => undefined,
+              registrationIntentId: () => undefined,
+            }),
+          },
+          // Refused before signing for a cap a new session would not raise.
+          // Nothing was submitted, so skip the on-chain grace poll.
+          {
+            guard: ({ event }) =>
+              event.error instanceof SessionRefundCapExceededError,
+            target: 'error',
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'submittingRhinestoneBundle' as const,
+              registrationTxId: () => undefined,
+              registrationIntentId: () => undefined,
+            }),
+          },
+          // Receipt polling can flake after the reveal actually landed. Check
+          // the registry before declaring failure — the user may already own
+          // the name.
+          {
+            target: 'verifyingRegistration',
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+            }),
+          },
+        ],
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // A leg's quoted refund outgrew the session's caps. Ask the host app for a
+    // session sized from that quote (one wallet signature), then send the leg
+    // again under it. The commit leg goes straight back to its request while
+    // its funding permit is still good — it was never used, so it is not
+    // signed again. A permit that expired meanwhile is dropped, and the commit
+    // re-runs the funding check like an ordinary commit retry.
+    reauthorizingSession: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'reauthorizeSession',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guarded on entry
+          reauthorize: context.reauthorizeSession!,
+          minGasOverhead: context.requiredGasOverhead ?? 0n,
+        }),
+        onDone: [
+          {
+            guard: ({ context }) =>
+              context.sessionReauthTarget === 'submittingRhinestoneBundle',
+            target: 'submittingRhinestoneBundle',
+            actions: 'applySessionReauthorization',
+          },
+          {
+            guard: ({ context }) => isPermitStale(context.permit),
+            target: 'checkingHcaFunding',
+            actions: [
+              'applySessionReauthorization',
+              assign({
+                permit: () => undefined,
+                resolverAddress: () => undefined,
+                resolverTxId: () => undefined,
+                resolverSalt: () => undefined,
+                commitment: () => undefined,
+                commitmentTxId: () => undefined,
+                registrationIntentId: () => undefined,
+                registerReadyTimestamp: () => undefined,
+              }),
+            ],
+          },
+          {
+            target: 'submittingSetupBundle',
+            actions: 'applySessionReauthorization',
+          },
+        ],
         onError: {
-          target: 'verifyingRegistration',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'reauthorizingSession' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Session re-authorization failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -1957,6 +2187,16 @@ export const registrationMachine = setup({
                 context.name,
               )
             },
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'reauthorizingSession',
+            target: 'reauthorizingSession',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+            })),
           },
           {
             guard: ({ context }) => context.retryTarget === 'registeringDomain',

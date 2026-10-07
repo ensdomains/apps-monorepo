@@ -609,6 +609,10 @@ msgstr "Confirm purchase"
 msgid "Confirm renewal"
 msgstr "Confirm renewal"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Confirm updated network fees"
+msgstr "Confirm updated network fees"
+
 #: src/features/migration/components/GameStep.tsx
 msgid "Confirming renewal payment approval..."
 msgstr "Confirming renewal payment approval..."
@@ -1481,6 +1485,10 @@ msgstr "Network cost"
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Network fee"
 msgstr "Network fee"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Network fees changed since you authorized this registration. Sign once more in your wallet to continue."
+msgstr "Network fees changed since you authorized this registration. Sign once more in your wallet to continue."
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
