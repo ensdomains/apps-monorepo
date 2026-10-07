@@ -1,8 +1,7 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import type { CSSProperties } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
-import { profileAddressNamesQuery } from '@/features/profile/service/profileAddressNames'
 import { buildNameHeaderUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
@@ -31,15 +30,6 @@ export const AddressProfileView = ({
     ownerAddress: smartAccount?.ownerAddress,
   })
 
-  const {
-    data: addressNames = [],
-    isPending,
-    isError,
-    isPlaceholderData,
-  } = useQuery({
-    ...profileAddressNamesQuery(address),
-    placeholderData: keepPreviousData,
-  })
   const { data: profileRecords } = useQuery({
     ...profileRecordsQuery(primaryName ?? ''),
     enabled: !!primaryName,
@@ -72,17 +62,12 @@ export const AddressProfileView = ({
         <div className="relative z-10 mx-auto -mt-21 w-[calc(100%-40px)] max-w-[809.257px] space-y-6 lg:landscape:-mt-11.25">
           <AddressProfileHeader
             address={address}
-            addressNames={addressNames}
-            isNamesPending={isPending}
             primaryName={primaryName}
             records={records}
           />
           <AddressProfileNamesList
-            addressNames={addressNames}
+            address={address}
             isConnectedView={isConnectedView}
-            isError={isError}
-            isPending={isPending}
-            isPlaceholderData={isPlaceholderData}
             primaryName={primaryName}
           />
         </div>

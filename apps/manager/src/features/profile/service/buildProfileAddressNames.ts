@@ -32,31 +32,20 @@ const toNameRoles = (
     : []),
 ]
 
-const byCreatedDesc = (
-  left: ProfileAddressName,
-  right: ProfileAddressName,
-): number =>
-  (right.createdAt ?? Number.NEGATIVE_INFINITY) -
-    (left.createdAt ?? Number.NEGATIVE_INFINITY) ||
-  left.label.localeCompare(right.label)
-
-/** Every name the address owns or manages, newest first, as the profile lists them. */
-export const toProfileAddressNames = (
-  names: readonly NameSummary[],
-): readonly ProfileAddressName[] =>
-  names
-    .filter((name) => isDisplayableProfileName(name.name))
-    .map((name): ProfileAddressName => {
-      const nameRoles = toNameRoles(name.relations)
-      return {
-        key: name.namehash,
-        label: name.name,
-        protocol: name.protocol ?? 'v2',
-        expiryDate: toSeconds(name.expiresAt),
-        createdAt: toSeconds(name.createdAt),
-        nameRoles,
-        roleCategory: nameRoles.includes('owner') ? 'owned' : 'managed',
-      }
-    })
-    .filter((name) => name.nameRoles.length > 0)
-    .sort(byCreatedDesc)
+/** A row as the profile lists it, or null for one it hides. */
+export const toProfileAddressName = (
+  name: NameSummary,
+): ProfileAddressName | null => {
+  if (!isDisplayableProfileName(name.name)) return null
+  const nameRoles = toNameRoles(name.relations)
+  if (nameRoles.length === 0) return null
+  return {
+    key: name.namehash,
+    label: name.name,
+    protocol: name.protocol ?? 'v2',
+    expiryDate: toSeconds(name.expiresAt),
+    createdAt: toSeconds(name.createdAt),
+    nameRoles,
+    roleCategory: nameRoles.includes('owner') ? 'owned' : 'managed',
+  }
+}
