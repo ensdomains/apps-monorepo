@@ -2,7 +2,7 @@ import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
-import { normalize } from 'viem/ens'
+import { type NormalizeErrorType, normalize } from 'viem/ens'
 import { asciiEncode } from '@/utils/token/ascii'
 import { DNS_RESOLVERS, type DnsResolverId } from '../constants'
 import type { DnssecReport } from '../types'
@@ -16,7 +16,7 @@ export class DnssecLookupError extends TaggedError('DnssecLookupError')<{
 export class InvalidDnssecNameError extends TaggedError(
   'InvalidDnssecNameError',
 )<{
-  cause: unknown
+  cause: NormalizeErrorType
 }> {}
 
 type GetDnssecReportParameters = {
@@ -37,7 +37,7 @@ export const getDnssecReport = ResultFn(async function* ({
   // The chain that matters is the one ENS reads, which is the normalized name's.
   const normalized = yield* fromSync(
     () => normalize(name),
-    (e) => new InvalidDnssecNameError({ cause: e }),
+    (e) => new InvalidDnssecNameError({ cause: e as NormalizeErrorType }),
   )
   const report = yield* fromPromise(
     walkDnssecChain({
