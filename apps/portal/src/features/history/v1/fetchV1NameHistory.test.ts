@@ -72,6 +72,12 @@ describe('scopedCollections', () => {
     expect(scopedCollections(['AddressChanged', 'NewResolver'])).toBeNull()
   })
 
+  it('stays scoped when the scope also names ENSv2-only events', () => {
+    expect(
+      scopedCollections(['AddressUpdated', 'AddressChanged', 'AddrChanged']),
+    ).toEqual(scopedCollections(['AddressChanged', 'AddrChanged']))
+  })
+
   it('dedupes types that share a collection', () => {
     expect(scopedCollections(['TextChanged', 'TextChanged'])).toHaveLength(1)
   })

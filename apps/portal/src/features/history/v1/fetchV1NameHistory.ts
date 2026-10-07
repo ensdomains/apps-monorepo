@@ -126,6 +126,14 @@ const V1_SCOPED_RESOLVER_EVENTS: Record<
   TextChanged: { collection: 'textChangeds', fields: 'key value' },
 }
 
+/** ENSv2 resolver events, which no ENSv1 collection can hold. */
+const V2_ONLY_RESOLVER_EVENTS = new Set([
+  'AddressUpdated',
+  'TextUpdated',
+  'ContenthashUpdated',
+  'ABIUpdated',
+])
+
 /** Every record type in one window — what an unscoped read selects. */
 const allResolverEvents = `events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
             id
@@ -154,7 +162,9 @@ export const scopedCollections = (
   eventTypes: readonly string[] | undefined,
 ) => {
   if (!eventTypes) return null
-  const entries = eventTypes.map((type) => V1_SCOPED_RESOLVER_EVENTS[type])
+  const entries = eventTypes
+    .filter((type) => !V2_ONLY_RESOLVER_EVENTS.has(type))
+    .map((type) => V1_SCOPED_RESOLVER_EVENTS[type])
   const known = entries.filter((entry) => entry !== undefined)
   if (known.length !== entries.length) return null
   return [...new Map(known.map((entry) => [entry.collection, entry])).values()]
