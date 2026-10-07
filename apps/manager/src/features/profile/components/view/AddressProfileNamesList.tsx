@@ -203,7 +203,7 @@ export const AddressProfileNamesList = ({
     }
   }
 
-  const filterKey = `${searchQuery}:${sort}:${roleFilter}:${isConnectedView}`
+  const filterKey = `${address}:${searchQuery}:${sort}:${roleFilter}:${isConnectedView}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)

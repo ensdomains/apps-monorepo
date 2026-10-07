@@ -11,7 +11,10 @@ import type {
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
-import { V2_GRACE_PERIOD_DAYS } from '@ens-apps/utils/gracePeriod'
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
@@ -39,7 +42,7 @@ import {
 } from '../../dashboardNames'
 
 const FETCH_PAGE_SIZE = 200
-const SECONDS_PER_DAY = 86_400
+const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
 export class GetDashboardNamesError extends TaggedError(
   'GetDashboardNamesError',
@@ -68,7 +71,7 @@ const getGraceNames = ResultFn(async function* (
   address: Address,
   now: Date,
 ) {
-  const nowSeconds = Math.floor(now.getTime() / 1000)
+  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
   let rows: readonly AddressName[] = []
   let cursor: string | null = null
   do {
@@ -78,10 +81,8 @@ const getGraceNames = ResultFn(async function* (
       parent: 'eth',
       sort: 'expires_at',
       order: 'asc',
-      expires_after: String(
-        nowSeconds - V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY,
-      ),
-      expires_before: String(nowSeconds + 1),
+      expires_after: String(nowSeconds - V2_GRACE_SECONDS),
+      expires_before: String(nowSeconds + 1n),
       page_size: FETCH_PAGE_SIZE,
       ...(cursor !== null && { cursor }),
     }

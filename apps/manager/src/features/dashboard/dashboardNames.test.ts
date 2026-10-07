@@ -109,6 +109,16 @@ describe('toGraceName', () => {
     })
   })
 
+  it('lists a name in the last second of its grace', () => {
+    expect(
+      toGraceName(
+        lapsed({ expires_at: String(nowSeconds - 86_400 * 28 + 1) }),
+        OWNER,
+        NOW,
+      ),
+    ).not.toBeNull()
+  })
+
   it.each([
     { case: 'an ENSv1 name', row: lapsed({ authority: 'ens_v1' }) },
     { case: 'a subname', row: lapsed({ name: 'sub.grace.eth' }) },
@@ -130,6 +140,10 @@ describe('toGraceName', () => {
     {
       case: 'a name past grace',
       row: lapsed({ expires_at: String(nowSeconds - 86_400 * 60) }),
+    },
+    {
+      case: 'a name whose grace ends now',
+      row: lapsed({ expires_at: String(nowSeconds - 86_400 * 28) }),
     },
   ])('skips $case', ({ row }) => {
     expect(toGraceName(row, OWNER, NOW)).toBeNull()

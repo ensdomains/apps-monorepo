@@ -83,6 +83,7 @@ const mockNames = (
   dashboardNamesMock.useDashboardNames.mockReturnValue({
     pageNames: names,
     total: names.length,
+    addresses: [],
     hasAddresses: true,
     isPending: false,
     isPagePending: false,
@@ -153,6 +154,7 @@ describe('MyNamesList', () => {
     dashboardNamesMock.useDashboardNames.mockReturnValue({
       pageNames: [],
       total: 12,
+      addresses: [],
       hasAddresses: true,
       isPending: false,
       isPagePending: false,
@@ -170,10 +172,52 @@ describe('MyNamesList', () => {
     )
   })
 
+  it('goes back to the first page when the connected accounts change', () => {
+    const state = {
+      pageNames: [],
+      total: 12,
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: false,
+      loadPage: vi.fn(),
+      isError: false,
+      isGraceError: false,
+    }
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      ...state,
+      addresses: ['0xa'],
+    })
+
+    const { rerender } = renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2 }),
+    )
+
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      ...state,
+      addresses: ['0xb'],
+    })
+    rerender(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        migrationEnabled={false}
+        onToggleFavorite={() => undefined}
+        sort="name-asc"
+      />,
+    )
+
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1 }),
+    )
+  })
+
   it('shows skeletons while the page is still being read', () => {
     dashboardNamesMock.useDashboardNames.mockReturnValue({
       pageNames: [],
       total: 12,
+      addresses: [],
       hasAddresses: true,
       isPending: false,
       isPagePending: true,
