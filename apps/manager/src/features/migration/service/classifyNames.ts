@@ -12,6 +12,7 @@ export {
   type IneligibleName,
   type MigrationTokenType,
   managerRestorationCandidates,
+  registryControllerOf,
   withManagerRestorationOptIn,
 } from '@ens-apps/migration'
 
