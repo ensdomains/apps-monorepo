@@ -80,8 +80,8 @@ export const getV2ExpiryDate = ({ expiryDate }: Pick<V2Name, 'expiryDate'>) =>
  * // ]
  */
 export const mergeNamesData = (
-  v1Names: V1Name[] | undefined,
-  v2Names: (V2Name | V2NameWithRoles)[] | undefined,
+  v1Names: readonly V1Name[] | undefined,
+  v2Names: readonly (V2Name | V2NameWithRoles)[] | undefined,
 ): MergedName[] => {
   const v1Transformed: MergedName[] = (v1Names || []).map(
     ({ name, expiryDate, relation }) => ({

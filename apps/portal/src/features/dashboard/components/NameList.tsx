@@ -132,11 +132,12 @@ export const NameList = ({ address, limit }: NameListProps) => {
   // Registry ownership alone does not make a name the address's: any parent owner
   // can point a subname at any address. Names granted that way are kept visible, but
   // in their own group rather than among the names the address holds.
-  // Only the first page of each source is read here, so nothing is held back.
+  // The cache is shared with the names page, which may have loaded more pages;
+  // only the first page of each source is read here, so nothing is held back.
   const { acquired: allData, assigned } = partitionOwnedNames(
     mergeNamesData(
-      v1NamesQuery.data?.pages.flatMap((page) => page.names),
-      v2NamesQuery.data?.pages.flatMap((page) => page.names),
+      v1NamesQuery.data?.pages[0]?.names,
+      v2NamesQuery.data?.pages[0]?.names,
     ),
   )
   const data = limit ? allData.slice(0, limit) : allData
