@@ -13,7 +13,7 @@ type UseListLoaderParameters = {
   readonly loaded: number
   readonly total?: number
   readonly hasMore?: boolean
-  readonly fetchMore?: () => Promise<FetchMoreResult>
+  readonly fetchMore?: (signal?: AbortSignal) => Promise<FetchMoreResult>
   readonly resetKey?: string
 }
 

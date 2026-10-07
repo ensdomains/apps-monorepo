@@ -49,9 +49,10 @@ const countLoaded = ({ v1, v2 }: OwnedNamesQueries) =>
 const countSettled = ({ v1, v2 }: OwnedNamesQueries) =>
   settleOwnedNames({ v1: toSource(v1), v2: toSource(v2) }).length
 
-/** Fetches pages until one settles more names, the sources end, or a page comes back empty. */
+/** Fetches pages until one settles more names, the sources end, a page comes back empty, or it is aborted. */
 const fetchMoreSettledNames = async (
   queries: OwnedNamesQueries,
+  signal?: AbortSignal,
 ): Promise<FetchMoreResult> => {
   const [v1, v2] = await Promise.all([
     fetchNextNamesPage(queries.v1),
@@ -61,11 +62,12 @@ const fetchMoreSettledNames = async (
   const hasMore = v1.hasNextPage || v2.hasNextPage
   const isWaitingOnLaterPages =
     hasMore &&
+    !signal?.aborted &&
     countSettled(next) === countSettled(queries) &&
     countLoaded(next) > countLoaded(queries)
 
   return isWaitingOnLaterPages
-    ? fetchMoreSettledNames(next)
+    ? fetchMoreSettledNames(next, signal)
     : { loaded: countSettled(next), hasMore }
 }
 
@@ -105,7 +107,8 @@ export const useOwnedNames = ({
         ? undefined
         : toSource(v1Query).names.length + v2Total,
     hasMore: v1Query.hasNextPage || v2Query.hasNextPage,
-    fetchMore: () => fetchMoreSettledNames({ v1: v1Query, v2: v2Query }),
+    fetchMore: (signal?: AbortSignal) =>
+      fetchMoreSettledNames({ v1: v1Query, v2: v2Query }, signal),
     v1Query,
     v2Query,
   }
