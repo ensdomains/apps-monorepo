@@ -241,6 +241,46 @@ describe('buildMergedNamesList', () => {
     ).toBe(2)
   })
 
+  describe('version filter', () => {
+    const v2Names = [
+      makeV2({ id: '0x1', name: 'alpha.eth' }),
+      makeV2({ id: '0x2', name: 'migrated.eth' }),
+    ]
+    const v1Classified = [
+      makeV1({ id: '0x3', name: 'mike.eth', label: 'mike' }),
+      makeV1({ id: '0x4', name: 'migrated.eth', label: 'migrated' }),
+    ]
+    const list = (version: 'v1' | 'v2' | null) =>
+      buildMergedNamesList({
+        v2Names,
+        v1Classified,
+        searchQuery: '',
+        sortField: 'name',
+        sortDir: 'asc',
+        version,
+      }).map((i) => i.sortName)
+
+    it('shows only v2 names', () => {
+      expect(list('v2')).toEqual(['alpha.eth', 'migrated.eth'])
+    })
+
+    it('shows only names that are still v1', () => {
+      expect(list('v1')).toEqual(['mike.eth'])
+    })
+
+    it('shows everything when no version is selected', () => {
+      expect(list(null)).toEqual(['alpha.eth', 'migrated.eth', 'mike.eth'])
+    })
+
+    it('counts per version the same way', () => {
+      const count = (version: 'v1' | 'v2' | null) =>
+        getMergedNamesCount({ v2Names, v1Classified, version })
+      expect(count('v2')).toBe(2)
+      expect(count('v1')).toBe(1)
+      expect(count(null)).toBe(3)
+    })
+  })
+
   describe('un-normalised stored names', () => {
     const LABELHASH = `[${'ab'.repeat(32)}]`
 
@@ -309,6 +349,21 @@ describe('buildMergedNamesList', () => {
         ['v1', 'alpha.eth'],
       ])
       expect(getMergedNamesCount(params)).toBe(1)
+    })
+
+    it('leaves hidden names out of each version count', () => {
+      const params = {
+        v2Names: [
+          makeV2({ id: '0x1', name: 'alpha.eth' }),
+          makeV2({ id: '0x2', name: 'ZETA.eth' }),
+        ],
+        v1Classified: [
+          makeV1({ id: '0x3', name: 'mike.eth', label: 'mike' }),
+          makeV1({ id: '0x4', name: 'MIKE.eth', label: 'MIKE' }),
+        ],
+      }
+      expect(getMergedNamesCount({ ...params, version: 'v2' })).toBe(1)
+      expect(getMergedNamesCount({ ...params, version: 'v1' })).toBe(1)
     })
   })
 

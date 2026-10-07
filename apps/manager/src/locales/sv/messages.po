@@ -2912,6 +2912,14 @@ msgstr ""
 msgid "uses an unsupported TLD"
 msgstr ""
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "V1"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "V2"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Validating commitment"
 msgstr ""
