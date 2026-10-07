@@ -254,7 +254,7 @@ type UseNameHistoryTimelineParameters = {
   readonly from?: number
   readonly to?: number
   readonly limit?: number
-  /** Events per click; omitted on the surfaces that offer no break. */
+  /** Events in the first window; omitted on the surfaces that offer no break. */
   readonly windowSize?: number
   readonly shouldFetchAnchor?: boolean
   /** The Event chip's options; skipped on the surfaces that render no chips. */
