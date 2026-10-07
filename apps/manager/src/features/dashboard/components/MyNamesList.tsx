@@ -155,7 +155,7 @@ const AnimatedNameRow = ({
     >
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
-        avatarUrl={profilePreview.avatarUrl}
+        avatarRecord={profilePreview.avatarRecord}
         canRenew={isRenewable}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}

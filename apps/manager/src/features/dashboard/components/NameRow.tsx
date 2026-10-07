@@ -1,6 +1,7 @@
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useLingui as useCoreLingui } from '@lingui/react'
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
 import { Check, Heart, History } from 'lucide-react'
@@ -28,6 +29,7 @@ import {
   getFavoriteActionDisabled,
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import {
   getRenewalRoute,
@@ -49,7 +51,7 @@ export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
 
 interface NameRowProps {
   readonly label: string
-  readonly avatarUrl?: string
+  readonly avatarRecord?: string
   readonly avatarPending?: boolean
   readonly themeColor?: string | null
   readonly verified?: boolean
@@ -297,7 +299,7 @@ const getNameRoles = ({
 
 const NameAvatar = ({
   label,
-  avatarUrl,
+  avatarRecord,
   isPending,
   themeColor,
   selectable = false,
@@ -305,7 +307,7 @@ const NameAvatar = ({
   onToggleSelect,
 }: {
   readonly label: string
-  readonly avatarUrl?: string
+  readonly avatarRecord?: string
   readonly isPending?: boolean
   readonly themeColor?: string
   readonly selectable?: boolean
@@ -313,6 +315,7 @@ const NameAvatar = ({
   readonly onToggleSelect?: () => void
 }) => {
   const { t } = useLingui()
+  const avatar = useQuery(imageRecordQuery(avatarRecord))
 
   if (isPending) {
     return (
@@ -329,7 +332,7 @@ const NameAvatar = ({
         <ImageFallback.Image
           alt={t`${label} avatar`}
           className="size-full object-cover"
-          src={avatarUrl}
+          src={avatar.data ?? undefined}
         />
         <ImageFallback.Fallback>
           <PatternAvatar
@@ -479,7 +482,7 @@ const ExpiryDetails = ({
 
 export const NameRow = ({
   label,
-  avatarUrl,
+  avatarRecord,
   avatarPending = false,
   themeColor,
   verified = false,
@@ -526,7 +529,7 @@ export const NameRow = ({
             showFavoriteButton={showFavoriteButton}
           />
           <NameAvatar
-            avatarUrl={avatarUrl}
+            avatarRecord={avatarRecord}
             isPending={avatarPending}
             label={label}
             onToggleSelect={onToggleSelect}
