@@ -1786,6 +1786,7 @@ msgid "Primary name"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
+#: src/features/dashboard/components/PrimaryNameButton.tsx
 msgid "Primary Name"
 msgstr "Primärt namn"
 
@@ -2312,10 +2313,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Set up this name’s resolver?"
 msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Set which ENS name displays as your identity across apps and wallets."
-msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
 
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
@@ -3357,6 +3354,10 @@ msgstr ""
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your upgrades still need to be verified. Check again to continue."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

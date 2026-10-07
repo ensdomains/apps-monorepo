@@ -98,12 +98,13 @@ export const DashboardPage = () => {
               </span>
               <ChoosePrimaryNameDialog>
                 <button
-                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
                   type="button"
                 >
                   <MSymbol
+                    aria-hidden="true"
                     className="ms-opsz-20 ms-wght-500 text-sm"
-                    symbol="badge"
+                    symbol="published_with_changes"
                   />
                   <span className="whitespace-nowrap font-medium font-sans text-xs">
                     <Trans>Set primary name</Trans>

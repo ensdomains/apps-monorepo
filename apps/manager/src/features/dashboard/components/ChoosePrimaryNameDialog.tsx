@@ -70,6 +70,11 @@ import {
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
   readonly children?: React.ReactNode
+  readonly open?: boolean
+  readonly onOpenChange?: (open: boolean) => void
+  readonly onCloseAutoFocus?: React.ComponentProps<
+    typeof DialogContent
+  >['onCloseAutoFocus']
 }
 
 type PrimaryNameDomain = DomainsQuery['domains'][number]
@@ -412,9 +417,17 @@ const useSetupResolverMutation = ({
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
+  open: controlledOpen,
+  onOpenChange,
+  onCloseAutoFocus,
 }: ChoosePrimaryNameDialogProps) => {
   const { t } = useLingui()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = (nextOpen: boolean) => {
+    setInternalOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [confirmation, setConfirmation] =
     useState<PrimaryNameConfirmation | null>(null)
@@ -663,15 +676,19 @@ export const ChoosePrimaryNameDialog = ({
   return (
     <>
       <Dialog onOpenChange={setOpen} open={open}>
-        <DialogTrigger asChild>{children}</DialogTrigger>
-        <DialogContent className="flex max-h-[90dvh] max-w-125 flex-col overflow-hidden sm:h-[min(90dvh,50rem)]">
+        {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
+        <DialogContent
+          className="flex max-h-[90dvh] max-w-125 flex-col overflow-hidden sm:h-[min(90dvh,50rem)]"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <DialogHeader>
             <DialogTitle className="text-[24px] text-foreground">
               <Trans>Choose Primary Name</Trans>
             </DialogTitle>
             <DialogDescription className="font-sans text-muted-foreground text-sm">
               <Trans>
-                Set which ENS name displays as your identity across apps and
+                Your wallet address can only have one primary ENS name, which
+                will display instead of your wallet address across apps and
                 wallets.
               </Trans>
             </DialogDescription>
