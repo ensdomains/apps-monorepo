@@ -96,6 +96,7 @@ const getGraceNames = ResultFn(async function* (
   return ok(rows.flatMap((row) => toGraceName(row, address, now) ?? []))
 })
 
+export const DASHBOARD_PAGE_SIZE = 5
 // Rows per read: a page of the dashboard is five, so this covers several pages.
 export const DASHBOARD_CHUNK_SIZE = 50
 
@@ -156,6 +157,36 @@ const readChunk = (
         : errAsync(new GetDashboardNamesError({ cause: error })),
     )
 
+// Reads on while a chunk lists less than a page, so every read releases at
+// least a page of names and a page is short only once the names run out.
+const readListedChunk = ResultFn(async function* (
+  readNames: ReadNamesForAddress,
+  query: DashboardNamesQuery,
+  address: Address,
+  cursor: string | undefined,
+) {
+  let chunk = yield* readChunk(readNames, query, address, cursor)
+  while (
+    chunk.names.length < DASHBOARD_PAGE_SIZE &&
+    chunk.nextCursor !== null
+  ) {
+    const next: AddressNamesChunk = yield* readChunk(
+      readNames,
+      query,
+      address,
+      chunk.nextCursor,
+    )
+    chunk = {
+      ...next,
+      names: [...chunk.names, ...next.names],
+      hiddenCount: chunk.hiddenCount + next.hiddenCount,
+      lastRead: next.lastRead ?? chunk.lastRead,
+      totalCount: chunk.totalCount,
+    }
+  }
+  return ok(chunk)
+})
+
 /** The next chunk of every address that has more, read side by side. */
 export const readDashboardChunks = (
   readNames: ReadNamesForAddress,
@@ -167,7 +198,7 @@ export const readDashboardChunks = (
       const cursor = cursors[address]
       return cursor === null
         ? []
-        : [readChunk(readNames, query, address, cursor)]
+        : [readListedChunk(readNames, query, address, cursor)]
     }),
   )
 

@@ -89,19 +89,21 @@ const graceResponse = (
 })
 
 describe('readDashboardChunks', () => {
-  it('reads the first chunk of every address in the requested order, with totals', async () => {
-    const readNames = vi.fn<ReadNamesForAddress>(({ address }) =>
+  it('reads the first chunk of every address in the requested order, with totals, until it lists a page', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ address, cursor }) =>
       okAsync(
-        address === EOA
-          ? page(
-              [
-                summary('alice.eth', '0x01'),
-                summary('abc.addr.reverse', '0x04'),
-              ],
-              'next',
-              12,
-            )
-          : page([summary('bob.eth', '0x02', { relations: ['manager'] })]),
+        cursor === 'next'
+          ? page([summary('carol.eth', '0x05')])
+          : address === EOA
+            ? page(
+                [
+                  summary('alice.eth', '0x01'),
+                  summary('abc.addr.reverse', '0x04'),
+                ],
+                'next',
+                12,
+              )
+            : page([summary('bob.eth', '0x02', { relations: ['manager'] })]),
       ),
     )
 
@@ -116,6 +118,9 @@ describe('readDashboardChunks', () => {
       pageSize: DASHBOARD_CHUNK_SIZE,
       includeTotal: true,
     })
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({ address: EOA, cursor: 'next' }),
+    )
     expect(
       chunks.map(({ address, names, hiddenCount, nextCursor, totalCount }) => ({
         address,
@@ -127,9 +132,12 @@ describe('readDashboardChunks', () => {
     ).toEqual([
       {
         address: EOA,
-        names: [['alice.eth', ['owner']]],
+        names: [
+          ['alice.eth', ['owner']],
+          ['carol.eth', ['owner']],
+        ],
         hiddenCount: 1,
-        nextCursor: 'next',
+        nextCursor: null,
         totalCount: 12,
       },
       {

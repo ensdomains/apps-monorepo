@@ -4,14 +4,14 @@ import type {
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
   resultQueryOptions,
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
-import { errAsync, okAsync, ResultAsync } from 'neverthrow'
+import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
 import { readNamesPage } from '@/features/shared/service/readNamePages'
@@ -77,7 +77,7 @@ const EMPTY_CHUNK: ProfileNamesChunk = {
   totalCount: 0,
 }
 
-export const readProfileNamesChunk = (
+const readChunk = (
   readNames: ReadNamesForAddress,
   query: ProfileNamesQuery,
   cursor: string | undefined,
@@ -108,6 +108,35 @@ export const readProfileNamesChunk = (
         ? okAsync<ProfileNamesChunk, GetProfileAddressNamesError>(EMPTY_CHUNK)
         : errAsync(new GetProfileAddressNamesError({ cause: error })),
     )
+
+/**
+ * Reads on while the chunk lists less than a page, so a page is short only
+ * once the names run out. The managed list can hide most of a chunk.
+ */
+export const readProfileNamesChunk = ResultFn(async function* (
+  readNames: ReadNamesForAddress,
+  query: ProfileNamesQuery,
+  cursor: string | undefined,
+) {
+  let chunk = yield* readChunk(readNames, query, cursor)
+  while (
+    chunk.names.length < PROFILE_NAMES_PAGE_SIZE &&
+    chunk.nextCursor !== null
+  ) {
+    const next: ProfileNamesChunk = yield* readChunk(
+      readNames,
+      query,
+      chunk.nextCursor,
+    )
+    chunk = {
+      ...next,
+      names: [...chunk.names, ...next.names],
+      hiddenCount: chunk.hiddenCount + next.hiddenCount,
+      totalCount: chunk.totalCount,
+    }
+  }
+  return ok(chunk)
+})
 
 export const profileNamesInfiniteQueryOptions = (query: ProfileNamesQuery) =>
   resultInfiniteQueryOptions({

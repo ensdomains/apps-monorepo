@@ -32,8 +32,15 @@ export const useAccountSelection = (accountsKey: string) => {
       return next
     })
 
-  /** Selects every name, or deselects them all when every one is already in. */
-  const toggleAll = (names: readonly DashboardName[]) =>
+  /**
+   * Selects every name, or deselects them all when every one is already in.
+   * Names read for other accounts than the current ones are dropped.
+   */
+  const toggleAll = (
+    names: readonly DashboardName[],
+    namesAccountsKey: string = accountsKey,
+  ) => {
+    if (namesAccountsKey !== accountsKey) return
     update((prev) => {
       const isAllIn =
         names.length > 0 && names.every((name) => prev.has(selectionKey(name)))
@@ -44,6 +51,7 @@ export const useAccountSelection = (accountsKey: string) => {
       }
       return next
     })
+  }
 
   const clear = () => update(() => NO_SELECTION)
 

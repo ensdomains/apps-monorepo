@@ -219,7 +219,12 @@ export const MyNamesList = ({
     isPagePending,
     isError: isNamesError,
     isGraceError,
+    loadPage,
   } = useDashboardNames({ sortField, sortDir, search: searchQuery, page })
+  const onPageChange = (next: number) => {
+    setPage(next)
+    void loadPage(next)
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -335,7 +340,7 @@ export const MyNamesList = ({
         <DashboardPagination
           currentPage={currentPage}
           disabled={isPending}
-          onPageChange={setPage}
+          onPageChange={onPageChange}
           rangeEnd={rangeEnd}
           rangeStart={rangeStart}
           total={total}

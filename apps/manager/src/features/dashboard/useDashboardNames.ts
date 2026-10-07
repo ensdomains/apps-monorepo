@@ -1,9 +1,10 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { type Address, getAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import {
+  type AddressNamesChunk,
   type DashboardName,
   mergeDashboardChunks,
   type SortDir,
@@ -11,11 +12,12 @@ import {
   toDashboardPage,
 } from './dashboardNames'
 import {
+  DASHBOARD_PAGE_SIZE,
   getDashboardGraceNamesQueryOptions,
   getDashboardNamesInfiniteQueryOptions,
 } from './service/queries/getDashboardNames'
 
-export const DASHBOARD_PAGE_SIZE = 5
+export { DASHBOARD_PAGE_SIZE }
 
 const NO_NAMES: readonly DashboardName[] = []
 
@@ -41,6 +43,13 @@ export const useDashboardGraceNames = () => {
   const { data } = useQuery(getDashboardGraceNamesQueryOptions(addresses))
   return data ?? NO_NAMES
 }
+
+const mergePages = (
+  pages: readonly (readonly AddressNamesChunk[])[] = [],
+  graceNames: readonly DashboardName[],
+  field: SortField,
+  dir: SortDir,
+) => mergeDashboardChunks({ chunks: pages.flat(), graceNames, field, dir })
 
 type Options = {
   readonly sortField?: SortField
@@ -70,17 +79,16 @@ export const useDashboardNames = ({
   const grace = useQuery(getDashboardGraceNamesQueryOptions(addresses))
 
   const searchLower = search.trim().toLowerCase()
-  const merged = useMemo(
+  const graceNames = useMemo(
     () =>
-      mergeDashboardChunks({
-        chunks: query.data?.pages.flat() ?? [],
-        graceNames: (grace.data ?? NO_NAMES).filter((name) =>
-          name.name.includes(searchLower),
-        ),
-        field: sortField,
-        dir: sortDir,
-      }),
-    [query.data, grace.data, searchLower, sortField, sortDir],
+      (grace.data ?? NO_NAMES).filter((name) =>
+        name.name.includes(searchLower),
+      ),
+    [grace.data, searchLower],
+  )
+  const merged = useMemo(
+    () => mergePages(query.data?.pages, graceNames, sortField, sortDir),
+    [query.data, graceNames, sortField, sortDir],
   )
 
   const { names: pageNames, needed } = toDashboardPage(
@@ -90,10 +98,25 @@ export const useDashboardNames = ({
   )
   const needsMore =
     merged.names.length < needed && query.hasNextPage && !query.isError
-  const { fetchNextPage, isFetchingNextPage } = query
-  useEffect(() => {
-    if (needsMore && !isFetchingNextPage) void fetchNextPage()
-  }, [needsMore, isFetchingNextPage, fetchNextPage])
+
+  const isShortOf = (target: number, data: typeof query.data) => {
+    const loaded = mergePages(data?.pages, graceNames, sortField, sortDir)
+    return (
+      loaded.names.length <
+      toDashboardPage(loaded, target, DASHBOARD_PAGE_SIZE).needed
+    )
+  }
+  /** Reads on until a page is filled; called when moving to that page. */
+  const loadPage = async (target: number) => {
+    let result: Pick<typeof query, 'data' | 'hasNextPage' | 'isError'> = query
+    while (
+      result.hasNextPage &&
+      !result.isError &&
+      isShortOf(target, result.data)
+    ) {
+      result = await query.fetchNextPage({ cancelRefetch: false })
+    }
+  }
 
   return {
     addresses,
@@ -102,6 +125,7 @@ export const useDashboardNames = ({
     total: merged.total,
     isPending: hasAddresses && query.isPending,
     isPagePending: needsMore,
+    loadPage,
     isError: query.isError,
     isGraceError: grace.isError,
   }

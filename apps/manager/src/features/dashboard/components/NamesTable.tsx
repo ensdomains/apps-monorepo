@@ -95,13 +95,14 @@ export const NamesTable = ({
   )
 
   const addresses = useDashboardAddresses()
+  const accountsKey = addresses.join(',')
   const {
     selected,
     labels: selectedLabels,
     toggle: onToggleSelect,
     toggleAll,
     clear: clearSelection,
-  } = useAccountSelection(addresses.join(','))
+  } = useAccountSelection(accountsKey)
 
   // Select-all covers every renewable name, not just the loaded pages, so the
   // list is read from bigname when it is first asked for.
@@ -135,10 +136,12 @@ export const NamesTable = ({
   )
 
   // Toggle every renewable name under the current search, preserving any
-  // selections made under a different search.
+  // selections made under a different search. A read that finishes after the
+  // wallet changed is dropped.
   const selectAll = useMutation({
-    mutationFn: () => queryClient.fetchQuery(renewableOptions),
-    onSuccess: toggleAll,
+    mutationFn: (_forAccounts: string) =>
+      queryClient.fetchQuery(renewableOptions),
+    onSuccess: (names, forAccounts) => toggleAll(names, forAccounts),
   })
 
   const addMutation = useMutation(addFavoriteMutationOptions)
@@ -257,7 +260,7 @@ export const NamesTable = ({
                 }
                 checked={allSelected}
                 indeterminate={someSelected && !allSelected}
-                onToggle={() => selectAll.mutate()}
+                onToggle={() => selectAll.mutate(accountsKey)}
               />
               <span className="font-sans text-[#232222] text-sm tracking-[0.28px]">
                 {selectedCount > 0 ? (
