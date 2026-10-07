@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FlameIcon, WalletIcon } from 'lucide-react'
+import { FlameIcon, LockKeyholeIcon, WalletIcon } from 'lucide-react'
 import {
   CardsStackIcon,
   GraphIcon,
@@ -17,7 +17,7 @@ import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { isRegistrable } from '@/utils/ens/tldHelpers'
+import { isClaimable, isRegistrable } from '@/utils/ens/tldHelpers'
 import { createDefineLinkItem } from '@/utils/tsr'
 import type { ProtocolVersion } from '@/utils/types'
 import { SettingsMenu } from './SettingsMenu'
@@ -117,6 +117,19 @@ const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
       params: { name },
     },
   }),
+  ...(isClaimable(name)
+    ? [
+        defineProfileSidebarItem({
+          title: 'DNSSEC',
+          icon: LockKeyholeIcon,
+          link: {
+            to: '/$name/dnssec',
+            params: { name },
+            search: { from: 'sidebar' },
+          },
+        }),
+      ]
+    : []),
   defineProfileSidebarItem({
     title: 'Token info',
     icon: TollIcon,
