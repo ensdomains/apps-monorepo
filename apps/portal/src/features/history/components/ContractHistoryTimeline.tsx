@@ -34,10 +34,6 @@ export const ContractHistoryTimeline = ({
   readonly errorTitle: string
   readonly emptyDescription: string
 }) => {
-  // The top-level connection filtered on `contractAddress`, not
-  // `registry(address:) { eventConnection }`: same feed (verified — identical
-  // totalCount and first 200 ids), but the nested field drops variable arguments,
-  // so `first` fell back to the default and `after` was ignored.
   const model = useTimelinePagesModel(
     resultInfiniteQueryOptions({
       queryKey: contractHistoryTimelineQueryKey({ address }),
@@ -67,7 +63,6 @@ export const ContractHistoryTimeline = ({
       breakContent="load-more"
       heading={heading}
       action={action}
-      // The contract is the subject, not the actor, so each row says who did it.
       showActor
       emptyTitle="No history yet"
       emptyDescription={emptyDescription}
