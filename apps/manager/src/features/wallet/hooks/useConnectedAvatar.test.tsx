@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 import { useConnectedAvatar } from './useConnectedAvatar'
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQuery: vi.fn(),
 }))
 
@@ -33,11 +34,18 @@ const mockProfileRecords = ({
   readonly data?: { readonly texts: Array<{ key: string; value: string }> }
   readonly isLoading?: boolean
 }) => {
-  vi.mocked(useQuery).mockReturnValue({
-    data,
-    error: null,
-    isLoading,
-  } as unknown as ReturnType<typeof useQuery>)
+  vi.mocked(useQuery).mockImplementation(
+    (options) =>
+      ({
+        data:
+          (options.queryKey[0] as { readonly $action?: string })?.$action ===
+          'image_record'
+            ? undefined
+            : data,
+        error: null,
+        isLoading,
+      }) as unknown as ReturnType<typeof useQuery>,
+  )
 }
 
 describe('useConnectedAvatar', () => {

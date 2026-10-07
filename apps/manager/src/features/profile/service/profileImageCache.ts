@@ -8,6 +8,7 @@ import {
   isUploadedProfileImageUrl,
   profileImageVersionQuery,
 } from './profileImageVersion'
+import type { ProfileRecordsResult } from './profileRecords'
 
 export interface SignedProfileImageUpload {
   readonly kind: ImageType
@@ -17,6 +18,45 @@ export interface SignedProfileImageUpload {
 interface RefreshProfileImageCachesParams {
   readonly images: readonly SignedProfileImageUpload[]
   readonly queryClient: QueryClient
+}
+
+const PROFILE_IMAGE_TEXT_KEYS = ['avatar', 'header', 'theme'] as const
+
+export const updateProfileImageRecords = async ({
+  name,
+  records,
+  queryClient,
+}: {
+  readonly name: string
+  readonly records: ProfileRecords
+  readonly queryClient: QueryClient
+}) => {
+  const filters = {
+    queryKey: $qk({ $scope: 'profile', $action: 'get_records', name }),
+  }
+  // A read started before the save must not restore the previous image records.
+  await queryClient.cancelQueries(filters)
+
+  const texts = PROFILE_IMAGE_TEXT_KEYS.flatMap((key) => {
+    const value = records.base[key]?.trim()
+    return value ? [{ key, value }] : []
+  })
+  queryClient.setQueriesData<Pick<ProfileRecordsResult, 'texts'>>(
+    filters,
+    (previous) =>
+      previous
+        ? {
+            ...previous,
+            texts: [
+              ...previous.texts.filter(
+                ({ key }) =>
+                  !PROFILE_IMAGE_TEXT_KEYS.some((imageKey) => imageKey === key),
+              ),
+              ...texts,
+            ],
+          }
+        : undefined,
+  )
 }
 
 const getQueryMeta = (queryKey: QueryKey): Record<string, unknown> | null => {
