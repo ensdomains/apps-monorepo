@@ -18,7 +18,7 @@ const summary = (
   isMigrated: false,
   registrationStatus: 'registered',
   expiresAt: null,
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   registeredAt: null,
   createdAt: null,
   ...overrides,
@@ -60,7 +60,7 @@ describe('toProfileAddressNames', () => {
 
   it.each([
     [['owner'], ['owner'], 'owned'],
-    [['registrant'], ['owner'], 'owned'],
+    [['role_holder'], ['manager'], 'managed'],
     [['owner', 'manager'], ['owner', 'manager'], 'owned'],
     [['manager'], ['manager'], 'managed'],
   ] as const)('maps relations %j to roles %j (%s)', (relations, roles, category) => {

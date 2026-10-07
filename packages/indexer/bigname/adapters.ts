@@ -31,11 +31,6 @@ const toEpochMs = (value: Timestamp | undefined): number | null => {
   return Number.isFinite(ms) && Math.abs(ms) <= MAX_DATE_MS ? ms : null
 }
 
-export const isPastAnyDate = (value: Timestamp | undefined): boolean =>
-  value !== undefined &&
-  UNIX_SECONDS.test(value) &&
-  Number(value) * MS_PER_SECOND > MAX_DATE_MS
-
 export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
   const ms = toEpochMs(value)
   return ms === null ? null : Math.floor(ms / MS_PER_SECOND)
@@ -72,17 +67,14 @@ export const toExpiresAt = (row: {
   readonly ens_v1?: EnsV1Facts
 }): Date | null => toDate(row.ens_v1?.expires_at ?? row.expires_at)
 
-export const expiresAfterAnyDate = (row: {
-  readonly expires_at?: Timestamp
-  readonly ens_v1?: EnsV1Facts
-}): boolean => isPastAnyDate(row.ens_v1?.expires_at ?? row.expires_at)
+/** Exact unix seconds, including values past what a Date or a number holds. */
+export const toExactSeconds = (value: Timestamp | undefined): bigint | null => {
+  if (value !== undefined && UNIX_SECONDS.test(value)) return BigInt(value)
+  const seconds = toUnixSeconds(value)
+  return seconds === null ? null : BigInt(seconds)
+}
 
-const NAME_RELATIONS: readonly Relation[] = [
-  'owner',
-  'manager',
-  'registrant',
-  'role_holder',
-]
+const NAME_RELATIONS: readonly Relation[] = ['owner', 'manager', 'role_holder']
 
 const isNameRelation = (relation: Relation): relation is NameRelation =>
   NAME_RELATIONS.includes(relation)

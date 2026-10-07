@@ -20,7 +20,7 @@ const summary = (name: string): NameSummary => ({
   isMigrated: false,
   registrationStatus: 'active',
   expiresAt: null,
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   registeredAt: null,
   createdAt: null,
 })

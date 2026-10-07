@@ -41,7 +41,7 @@ const summary = (
   isMigrated: false,
   registrationStatus: 'active',
   expiresAt: new Date('2027-01-01T00:00:00Z'),
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   registeredAt: null,
   createdAt: null,
   ...overrides,

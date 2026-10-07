@@ -9,6 +9,7 @@ import {
   mergeDashboardChunks,
   mergeDashboardNames,
   toDashboardName,
+  toDashboardPage,
   toGraceName,
 } from './dashboardNames'
 
@@ -26,7 +27,7 @@ const summary = (overrides: Partial<NameSummary> = {}): NameSummary => ({
   isMigrated: false,
   registrationStatus: 'active',
   expiresAt: new Date('2027-01-01T00:00:00Z'),
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   registeredAt: null,
   createdAt: new Date('2025-01-01T00:00:00Z'),
   ...overrides,
@@ -52,7 +53,7 @@ const dashboardName = (
   key: '0x01',
   name: 'alice.eth',
   protocol: 'v2',
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   expiryDate: 100n,
   createdAt: null,
   nameRoles: ['owner'],
@@ -61,11 +62,13 @@ const dashboardName = (
 })
 
 describe('toDashboardName', () => {
-  it('maps registrant to owner and keeps manager', () => {
+  it('maps owner, and both a controller and a role holder to manager', () => {
     expect(
-      toDashboardName(summary({ relations: ['registrant', 'manager'] }))
-        .nameRoles,
+      toDashboardName(summary({ relations: ['owner', 'manager'] })).nameRoles,
     ).toEqual(['owner', 'manager'])
+    expect(
+      toDashboardName(summary({ relations: ['role_holder'] })).nameRoles,
+    ).toEqual(['manager'])
     expect(
       toDashboardName(summary({ relations: ['manager'] })).nameRoles,
     ).toEqual(['manager'])
@@ -99,7 +102,7 @@ describe('toGraceName', () => {
       name: 'grace.eth',
       protocol: 'v2',
       expiryDate: BigInt(nowSeconds - 86_400 * 3),
-      expiresAfterAnyDate: false,
+      servedExpiry: BigInt(nowSeconds - 86_400 * 3),
       createdAt: null,
       nameRoles: [],
       isLapsed: true,
@@ -179,9 +182,9 @@ describe('compareDashboardNames', () => {
 
   it('breaks timestamp ties by namehash ascending in both directions', () => {
     const names = [
-      dashboardName({ key: '0x02', name: 'a.eth', expiryDate: 200n }),
-      dashboardName({ key: '0x03', name: 'none.eth', expiryDate: 0n }),
-      dashboardName({ key: '0x01', name: 'b.eth', expiryDate: 200n }),
+      dashboardName({ key: '0x02', name: 'a.eth', servedExpiry: 200n }),
+      dashboardName({ key: '0x03', name: 'none.eth', servedExpiry: null }),
+      dashboardName({ key: '0x01', name: 'b.eth', servedExpiry: 200n }),
     ]
     expect(
       [...names]
@@ -201,16 +204,39 @@ describe('compareDashboardNames', () => {
         key: '0x01',
         name: 'forever.eth',
         expiryDate: 0n,
-        expiresAfterAnyDate: true,
+        servedExpiry: 9_223_372_036_854_775_807n,
       }),
-      dashboardName({ key: '0x02', name: 'dated.eth', expiryDate: 200n }),
-      dashboardName({ key: '0x03', name: 'none.eth', expiryDate: 0n }),
+      dashboardName({ key: '0x02', name: 'dated.eth', servedExpiry: 200n }),
+      dashboardName({ key: '0x03', name: 'none.eth', servedExpiry: null }),
     ]
     expect(
       [...names]
         .sort(compareDashboardNames('expiry', 'desc'))
         .map((n) => n.name),
     ).toEqual(['forever.eth', 'dated.eth', 'none.eth'])
+  })
+
+  it('sorts a reserved ENSv1 name by its served reservation, not the lease it shows', () => {
+    const day = 86_400n
+    const names = [
+      dashboardName({
+        key: '0x01',
+        name: 'reserved.eth',
+        expiryDate: 1_000n * day,
+        servedExpiry: 1_062n * day,
+      }),
+      dashboardName({
+        key: '0x02',
+        name: 'unreserved.eth',
+        expiryDate: 1_030n * day,
+        servedExpiry: 1_030n * day,
+      }),
+    ]
+    expect(
+      [...names]
+        .sort(compareDashboardNames('expiry', 'asc'))
+        .map((n) => n.name),
+    ).toEqual(['unreserved.eth', 'reserved.eth'])
   })
 })
 
@@ -297,5 +323,27 @@ describe('mergeDashboardChunks', () => {
     ])
 
     expect(result.total).toBe(9)
+  })
+})
+
+describe('toDashboardPage', () => {
+  const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((label, index) =>
+    dashboardName({ key: `0x0${index}`, name: `${label}.eth` }),
+  )
+  const pageOf = (page: number, total: number) =>
+    toDashboardPage({ names, isComplete: true, total }, page, 5)
+
+  it('slices the requested page', () => {
+    expect(pageOf(2, 7).names.map(({ name }) => name)).toEqual([
+      'f.eth',
+      'g.eth',
+    ])
+  })
+
+  it('shows the last page when the total shrinks below the requested one', () => {
+    const result = pageOf(3, 7)
+
+    expect(result.names.map(({ name }) => name)).toEqual(['f.eth', 'g.eth'])
+    expect(result.needed).toBe(10)
   })
 })

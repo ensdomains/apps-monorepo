@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toDate, toExpiresAt, toUnixSeconds } from './adapters'
+import { toDate, toExactSeconds, toExpiresAt, toUnixSeconds } from './adapters'
 
 describe('toUnixSeconds', () => {
   it.each([
@@ -65,5 +65,22 @@ describe('toExpiresAt', () => {
     expect(toExpiresAt({ expires_at: '1819268004' })).toEqual(
       new Date(1819268004 * 1000),
     )
+  })
+})
+
+describe('toExactSeconds', () => {
+  it('keeps every digit, past what a Date or a number holds', () => {
+    expect(toExactSeconds('9223372036854775807')).toBe(
+      9_223_372_036_854_775_807n,
+    )
+    expect(toExactSeconds('18446744073709551615')).toBe(
+      18_446_744_073_709_551_615n,
+    )
+  })
+
+  it('reads RFC 3339 and returns null for anything else', () => {
+    expect(toExactSeconds('2026-10-30T22:33:48Z')).toBe(1_793_399_628n)
+    expect(toExactSeconds(undefined)).toBeNull()
+    expect(toExactSeconds('soon')).toBeNull()
   })
 })

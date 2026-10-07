@@ -11,7 +11,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   name: 'alice.eth',
   protocol: 'v2',
   expiryDate: 100n,
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   createdAt: 100n,
   nameRoles: ['owner'],
   isLapsed: false,
