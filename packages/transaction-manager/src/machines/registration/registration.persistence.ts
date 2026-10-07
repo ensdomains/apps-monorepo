@@ -205,8 +205,8 @@ export function getResumeTarget(record: {
   }
 
   // Pre-commit, including mid-setup: nothing is on-chain that we know the
-  // secret for, so start the flow over. Any resolver deployed by the abandoned
-  // run is orphaned but harmless.
+  // secret for, so start the flow over. A resolver the abandoned run deployed
+  // is the wallet's own, so the restarted run picks it up.
   return 'settingUpRegistration'
 }
 
