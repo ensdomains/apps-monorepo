@@ -47,7 +47,8 @@ export const useLinkToNode = ({
     },
     onSuccess: async () => {
       await pollForIndexerSync({
-        invalidateQueries: () => invalidateResolverOverview(queryClient),
+        invalidateQueries: () =>
+          invalidateResolverOverview(queryClient, resolverAddress),
       })
       onSuccess?.()
     },

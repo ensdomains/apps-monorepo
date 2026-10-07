@@ -45,7 +45,8 @@ export const useResolverRolesMutations = (resolverAddress: Address) => {
 
   const syncOverview = () =>
     pollForIndexerSync({
-      invalidateQueries: () => invalidateResolverOverview(queryClient),
+      invalidateQueries: () =>
+        invalidateResolverOverview(queryClient, resolverAddress),
     })
 
   const saveMutation = useMutation({

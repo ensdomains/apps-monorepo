@@ -57,7 +57,8 @@ export const useUnlink = ({
       )
 
       await pollForIndexerSync({
-        invalidateQueries: () => invalidateResolverOverview(queryClient),
+        invalidateQueries: () =>
+          invalidateResolverOverview(queryClient, resolverAddress),
       })
     },
   })

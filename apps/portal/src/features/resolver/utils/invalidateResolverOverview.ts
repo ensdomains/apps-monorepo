@@ -1,14 +1,25 @@
-import type { QueryClient } from '@tanstack/react-query'
+import type { QueryClient, QueryKey } from '@tanstack/react-query'
+import { type Address, isAddressEqual } from 'viem'
 import { CONTRACT_HISTORY_TIMELINE } from '@/features/history/components/ContractHistoryTimeline'
 
-const resolverOverviewQueryKeys = new Set<unknown>([
-  'resolver-overview',
-  CONTRACT_HISTORY_TIMELINE,
-])
+const isHistoryOf = (
+  [name, params]: QueryKey,
+  resolverAddress: Address,
+): boolean =>
+  name === CONTRACT_HISTORY_TIMELINE &&
+  isAddressEqual(
+    (params as { readonly address: Address }).address,
+    resolverAddress,
+  )
 
-/** Refetches a resolver's overview and its history after a write to it. */
-export const invalidateResolverOverview = (queryClient: QueryClient) =>
+/** Refetches the resolver overviews and this resolver's history after a write to it. */
+export const invalidateResolverOverview = (
+  queryClient: QueryClient,
+  resolverAddress: Address,
+) =>
   queryClient.invalidateQueries({
-    predicate: (query) => resolverOverviewQueryKeys.has(query.queryKey[0]),
+    predicate: ({ queryKey }) =>
+      queryKey[0] === 'resolver-overview' ||
+      isHistoryOf(queryKey, resolverAddress),
     refetchType: 'all',
   })
