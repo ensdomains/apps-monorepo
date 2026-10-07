@@ -32,8 +32,10 @@ import {
   encodeFunctionData,
   type Hash,
   parseAbi,
+  zeroAddress,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAddress } from 'viem/accounts'
+import { attachSubregistry } from '../../../fixtures/makeSubname.js'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
@@ -44,6 +46,7 @@ import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { waitForIndexedRoles } from '../../../helpers/indexer-sync.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
+  accountHasRoles,
   assertRoleBitmap,
   ETH_REGISTRY,
   grantNameRoles,
@@ -1390,5 +1393,623 @@ test.describe('Portal name roles — Remove user keeps the transfer role (WEB-14
 
     await assertRoleBitmap({ label }, manager, [])
     await assertRoleBitmap({ label }, owner, ownerBefore)
+  })
+})
+
+/**
+ * Missing-privilege warnings on a v2 name (WEB-1469, #1311).
+ *
+ * Gap: a v2 name whose owner had lost token roles looked like any other name.
+ * Nothing said that a transfer would revert (no `ROLE_CAN_TRANSFER_ADMIN`),
+ * that it would revert `TransferUnsafeWithMultipleAssignees` (another account
+ * holds roles on the token), or that the resolver or subregistry slot could no
+ * longer be changed by anyone. The empty registry slot still offered
+ * "Configure registry" to an owner who could not set it.
+ *
+ * Change: Ownership, Resolver and Registry read the token's role holders and
+ * render a red badge with the missing roles in a tooltip, and the never-
+ * configured registry slot becomes a locked notice unless the connected wallet
+ * can set it anyway. A subregistry equal to the name's derived WrapperRegistry
+ * is exempt.
+ *
+ * What these reach that the unit tests don't: real revocations on the fork,
+ * read back through the app's own resource lookup and role-log read (the unit
+ * tests mock that read); the badges' placement on the real routes; a delegate
+ * holding the role on chain; and the WrapperRegistry derivation checked
+ * against a subregistry a real locked migration deployed. Every badge is
+ * matched to the chain: the role bitmap, and where the badge makes a claim
+ * about transfers, a simulated `safeTransferFrom`.
+ *
+ * Two local-stack workarounds, neither of which changes what the app reads:
+ * - Local Panoptes answers `RoleChangeEvents` with `null`, which the reader
+ *   can't recover from, so that query is aborted and the app reads the logs
+ *   from the node, as it would in an indexer outage.
+ * - Anvil forwards the pre-fork part of that `eth_getLogs` upstream. When the
+ *   upstream errors, the app's retry can get `[]` back with no error, and the
+ *   badges then read "owner holds nothing" (see the test plan's findings). So
+ *   a page is only asserted on once its role read for the name came back
+ *   without an error; a degraded load is reloaded, never accepted.
+ */
+test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () => {
+  test.describe.configure({ timeout: 300_000 })
+
+  const EAC_ROLES_CHANGED =
+    '0x0d35bf721a39b614de00ca5038e1deb0cb0c69a278645e83405a7226cf80ba3c'
+  const ZERO_TOPIC = `0x${'0'.repeat(64)}`
+
+  const useNodeForRoleEvents = (page: Page) =>
+    page.route('**/graphql', (route) =>
+      (route.request().postData() ?? '').includes('RoleChangeEvents')
+        ? route.abort()
+        : route.fallback(),
+    )
+
+  type RpcCall = {
+    id: number
+    method: string
+    params?: [{ address?: string; topics?: (string | null)[] }]
+  }
+  type RpcReply = { id: number; error?: unknown }
+
+  /** An `eth_getLogs` for one name's role changes on the .eth registry. */
+  const isNameRoleRead = (call: RpcCall) => {
+    const filter = call.params?.[0]
+    const resource = filter?.topics?.[1]
+    return (
+      call.method === 'eth_getLogs' &&
+      filter?.address?.toLowerCase() === ETH_REGISTRY.toLowerCase() &&
+      filter.topics?.[0] === EAC_ROLES_CHANGED &&
+      Boolean(resource) &&
+      resource !== ZERO_TOPIC
+    )
+  }
+
+  /** How many of a response's name role reads answered, and how many errored. */
+  async function tallyRoleReads(response: import('@playwright/test').Response) {
+    const tally = { clean: 0, degraded: 0 }
+    const body = response.request().postData() ?? ''
+    if (!body.includes('eth_getLogs') || !body.includes(EAC_ROLES_CHANGED))
+      return tally
+    let calls: RpcCall[]
+    let replies: RpcReply[]
+    try {
+      calls = [JSON.parse(body)].flat()
+      replies = [await response.json()].flat()
+    } catch {
+      return tally
+    }
+    for (const call of calls.filter(isNameRoleRead)) {
+      const reply = replies.find((r) => r.id === call.id)
+      if (reply?.error) tally.degraded++
+      else if (reply) tally.clean++
+    }
+    return tally
+  }
+
+  /**
+   * Load `url` and wait for the app's role-log read for a name on the .eth
+   * registry. Reloads (up to three times) if any such read in the load came
+   * back with an error, since the retry after it can't be trusted locally.
+   *
+   * A page that makes no such read (any page before #1311 but Ownership) is
+   * let through after the wait: with nothing read there is nothing degraded,
+   * and the test then fails on its own badge assertion, not here.
+   */
+  async function gotoWithCleanRoleRead(page: Page, url: string) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const reads = { clean: 0, degraded: 0 }
+      const onResponse = async (
+        response: import('@playwright/test').Response,
+      ) => {
+        const tally = await tallyRoleReads(response)
+        reads.clean += tally.clean
+        reads.degraded += tally.degraded
+      }
+      page.on('response', onResponse)
+      try {
+        await page.goto(url)
+        await expect
+          .poll(() => reads.clean + reads.degraded, { timeout: 20_000 })
+          .toBeGreaterThan(0)
+          .catch(() =>
+            console.log(`[WEB-1469] no role read on ${url}; asserting as is`),
+          )
+        // An errored read is retried; let the retry land before judging.
+        await page.waitForTimeout(1_500)
+      } finally {
+        page.off('response', onResponse)
+      }
+      if (reads.degraded === 0) return
+      console.log(
+        `[WEB-1469] role read on ${url} hit ${reads.degraded} upstream error(s); reloading (attempt ${attempt})`,
+      )
+    }
+    throw new Error(`no clean role read for ${url} in three loads`)
+  }
+
+  /**
+   * Badge absence is only meaningful once the role read has landed and the
+   * page has had time to render from it: the positive tests render the same
+   * badge from the same read well inside this window.
+   */
+  const RENDER_SETTLE_MS = 2_000
+
+  const badge = (page: Page, label: string) =>
+    page.locator('main').getByRole('button', { name: label, exact: true })
+
+  async function expectTooltip(page: Page, label: string, text: string) {
+    await badge(page, label).hover()
+    await expect(page.getByRole('tooltip')).toHaveText(text)
+  }
+
+  const ownerRow = (page: Page, owner: Address) =>
+    page.locator('main').getByText(truncate(owner), { exact: true }).first()
+
+  const readState = (label: string) =>
+    publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: permissionedRegistryGetStateSnippet,
+      functionName: 'getState',
+      args: [labelToCanonicalId(label)],
+    })
+
+  const readSubregistry = (label: string) =>
+    publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: parseAbi([
+        'function getSubregistry(string label) view returns (address)',
+      ]),
+      functionName: 'getSubregistry',
+      args: [label],
+    })
+
+  /**
+   * Whether the owner can move the name right now: `null` if a
+   * `safeTransferFrom` to a fresh EOA simulates cleanly, else the revert. The
+   * token id is read back because a revoke re-mints it.
+   */
+  async function simulateOwnerTransfer(
+    label: string,
+    owner: Address,
+  ): Promise<string | null> {
+    const { tokenId } = await readState(label)
+    try {
+      await publicClient.simulateContract({
+        account: owner,
+        address: ETH_REGISTRY,
+        abi: REGISTRY_WRITE_ABI,
+        functionName: 'safeTransferFrom',
+        args: [
+          owner,
+          privateKeyToAddress(generatePrivateKey()),
+          tokenId,
+          1n,
+          '0x',
+        ],
+      })
+      return null
+    } catch (error) {
+      return (error as Error).message
+    }
+  }
+
+  /** Whether `account` could point the name's resolver somewhere, simulated. */
+  async function simulateSetResolver(
+    label: string,
+    account: Address,
+  ): Promise<boolean> {
+    try {
+      await publicClient.simulateContract({
+        account,
+        address: ETH_REGISTRY,
+        abi: REGISTRY_WRITE_ABI,
+        functionName: 'setResolver',
+        args: [labelToCanonicalId(label), account],
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  test('flags "Cannot transfer" once the owner loses ROLE_CAN_TRANSFER_ADMIN, and the registry agrees the transfer reverts', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, makeName, wallets }) => {
+    // Disconnected: the warning is about the name, not the viewer.
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-transfer', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+
+    // Control: the full role set a fresh 2LD gets raises nothing.
+    expect(await simulateOwnerTransfer(label, owner)).toBeNull()
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
+    await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
+
+    await revokeNameRoles(
+      { label },
+      owner,
+      ['ROLE_CAN_TRANSFER_ADMIN'],
+      wallets.account('owner'),
+    )
+    expect(
+      await accountHasRoles({ label }, owner, ['ROLE_CAN_TRANSFER_ADMIN']),
+    ).toBe(false)
+    expect(
+      await simulateOwnerTransfer(label, owner),
+      'without ROLE_CAN_TRANSFER_ADMIN the registry should refuse the transfer',
+    ).not.toBeNull()
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(
+      badge(page, 'Cannot transfer'),
+      'the owner row should warn that the name cannot be transferred',
+    ).toBeVisible({ timeout: 20_000 })
+    await expectTooltip(
+      page,
+      'Cannot transfer',
+      'Missing token ROLE_CAN_TRANSFER_ADMIN',
+    )
+  })
+
+  test('flags "Cannot transfer safely" while another account holds roles on the token, and clears it once they hold none', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    const owner = wallets.address('owner')
+    const manager = wallets.address('manager')
+    const name = await makeName({ label: 'priv-unsafe', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+    // Someone else's name, from a connected wallet that holds nothing on it.
+    await connectWithHeadlessWallet(page, wallet)
+    await wallets.switchTo('stranger')
+
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER'],
+      wallets.account('owner'),
+    )
+    // The owner still holds the transfer role, so this is the other warning.
+    expect(
+      await accountHasRoles({ label }, owner, ['ROLE_CAN_TRANSFER_ADMIN']),
+    ).toBe(true)
+    expect(
+      await simulateOwnerTransfer(label, owner),
+      'a plain transfer should revert TransferUnsafeWithMultipleAssignees',
+    ).toContain('0x677f1c18')
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(badge(page, 'Cannot transfer safely')).toBeVisible({
+      timeout: 20_000,
+    })
+    await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
+    await expectTooltip(
+      page,
+      'Cannot transfer safely',
+      'Another address holds roles on this token',
+    )
+
+    // Once the other holder is gone, the transfer is clean and so is the row.
+    await revokeNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER'],
+      wallets.account('owner'),
+    )
+    expect(await simulateOwnerTransfer(label, owner)).toBeNull()
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
+    await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
+  })
+
+  test('flags "Resolver locked" next to the resolver contract when only the admin role is gone, naming just that role', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-resolver', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+    const contractRow = page
+      .locator('main')
+      .getByText('Contract', { exact: true })
+      .first()
+
+    // Control.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/resolver`)
+    await expect(contractRow).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(badge(page, 'Resolver locked')).toHaveCount(0)
+
+    // Only the admin variant gone: the owner can still set the resolver but
+    // can't hand that power on. Same label; the tooltip says which role.
+    // (The owner can't then revoke ROLE_SET_RESOLVER without the admin, so the
+    // both-missing tooltip is covered by the next test.)
+    await revokeNameRoles(
+      { label },
+      owner,
+      ['ROLE_SET_RESOLVER_ADMIN'],
+      wallets.account('owner'),
+    )
+    expect(
+      await accountHasRoles({ label }, owner, ['ROLE_SET_RESOLVER_ADMIN']),
+    ).toBe(false)
+    expect(
+      await simulateSetResolver(label, owner),
+      'the owner should still be able to set the resolver',
+    ).toBe(true)
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/resolver`)
+    await expect(contractRow).toBeVisible({ timeout: 20_000 })
+    await expect(badge(page, 'Resolver locked')).toBeVisible({
+      timeout: 20_000,
+    })
+    await expectTooltip(
+      page,
+      'Resolver locked',
+      'Missing token ROLE_SET_RESOLVER_ADMIN',
+    )
+
+    // Scoped to its own role: the transfer role is untouched, so Ownership
+    // stays clean.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
+  })
+
+  test('flags "Resolver locked" on the "no resolver set" panel when the owner can never set one', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-noresolver', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+
+    await registryWrite(
+      wallets.account('owner'),
+      encodeFunctionData({
+        abi: REGISTRY_WRITE_ABI,
+        functionName: 'setResolver',
+        args: [labelToCanonicalId(label), zeroAddress],
+      }),
+    )
+    await revokeNameRoles(
+      { label },
+      owner,
+      ['ROLE_SET_RESOLVER', 'ROLE_SET_RESOLVER_ADMIN'],
+      wallets.account('owner'),
+    )
+    expect(
+      await simulateSetResolver(label, owner),
+      'the owner should no longer be able to set the resolver',
+    ).toBe(false)
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/resolver`)
+    await expect(
+      page.locator('main').getByText('This name does not have a resolver set.'),
+    ).toBeVisible({ timeout: 20_000 })
+    await expect(badge(page, 'Resolver locked')).toBeVisible({
+      timeout: 20_000,
+    })
+    await expectTooltip(
+      page,
+      'Resolver locked',
+      'Missing token ROLE_SET_RESOLVER and ROLE_SET_RESOLVER_ADMIN',
+    )
+  })
+
+  test('replaces "Configure registry" with a locked notice when the owner holds neither subregistry role', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-registry', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const configure = page
+      .locator('main')
+      .getByRole('button', { name: 'Configure registry' })
+    const lockedNotice = page
+      .locator('main')
+      .getByRole('alert')
+      // The unlocked empty state carries the same title; this line is the
+      // locked notice's own.
+      .filter({ hasText: 'Subregistry is locked.' })
+
+    // Control: an owner with the roles is offered the form.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(configure).toBeVisible({ timeout: 30_000 })
+    await expect(lockedNotice).toHaveCount(0)
+
+    await revokeNameRoles(
+      { label },
+      owner,
+      ['ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN'],
+      wallets.account('owner'),
+    )
+    expect(await readSubregistry(label)).toBe(zeroAddress)
+    for (const role of [
+      'ROLE_SET_SUBREGISTRY',
+      'ROLE_SET_SUBREGISTRY_ADMIN',
+    ] as const)
+      expect(await accountHasRoles({ label }, owner, [role])).toBe(false)
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(lockedNotice).toBeVisible({ timeout: 30_000 })
+    await expect(lockedNotice).toContainText(
+      'Subregistry is locked. Missing ROLE_SET_SUBREGISTRY and ROLE_SET_SUBREGISTRY_ADMIN',
+    )
+    await expect(
+      configure,
+      'an owner who cannot set the slot should not be offered the form',
+    ).toHaveCount(0)
+  })
+
+  test('keeps "Configure registry" for a delegate who holds ROLE_SET_SUBREGISTRY when the owner holds neither', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    const owner = wallets.address('owner')
+    const manager = wallets.address('manager')
+    const name = await makeName({ label: 'priv-delegate', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const configure = page
+      .locator('main')
+      .getByRole('button', { name: 'Configure registry' })
+    const lockedNotice = page
+      .locator('main')
+      .getByRole('alert')
+      // The unlocked empty state carries the same title; this line is the
+      // locked notice's own.
+      .filter({ hasText: 'Subregistry is locked.' })
+
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_SUBREGISTRY'],
+      wallets.account('owner'),
+    )
+    await revokeNameRoles(
+      { label },
+      owner,
+      ['ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN'],
+      wallets.account('owner'),
+    )
+    expect(
+      await accountHasRoles({ label }, manager, ['ROLE_SET_SUBREGISTRY']),
+    ).toBe(true)
+    expect(
+      await accountHasRoles({ label }, owner, ['ROLE_SET_SUBREGISTRY']),
+    ).toBe(false)
+
+    // The owner can't set the slot: locked.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(lockedNotice).toBeVisible({ timeout: 30_000 })
+    await expect(configure).toHaveCount(0)
+
+    // The delegate can, so the form it can use stays.
+    await wallets.switchTo('manager')
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(
+      configure,
+      'a wallet holding ROLE_SET_SUBREGISTRY should keep the form',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(lockedNotice).toHaveCount(0)
+  })
+
+  test('flags "Subregistry locked" on a configured subregistry once the owner holds neither subregistry role', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-subreg', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+
+    const subregistry = await attachSubregistry(
+      { label },
+      wallets.account('owner'),
+    )
+    expect(await readSubregistry(label)).toBe(subregistry)
+    const row = page.locator('main').getByText(truncate(subregistry)).first()
+
+    // Control: a configured slot the owner controls raises nothing.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(row).toBeVisible({ timeout: 30_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(badge(page, 'Subregistry locked')).toHaveCount(0)
+
+    await revokeNameRoles(
+      { label },
+      owner,
+      ['ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN'],
+      wallets.account('owner'),
+    )
+    for (const role of [
+      'ROLE_SET_SUBREGISTRY',
+      'ROLE_SET_SUBREGISTRY_ADMIN',
+    ] as const)
+      expect(await accountHasRoles({ label }, owner, [role])).toBe(false)
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(row).toBeVisible({ timeout: 30_000 })
+    await expect(badge(page, 'Subregistry locked')).toBeVisible({
+      timeout: 20_000,
+    })
+    await expectTooltip(
+      page,
+      'Subregistry locked',
+      'Missing token ROLE_SET_SUBREGISTRY and ROLE_SET_SUBREGISTRY_ADMIN',
+    )
+  })
+
+  test('raises nothing for a locked migrated name: its subregistry is the WrapperRegistry the migration deployed', async ({
+    portalPage: page,
+    makeMigratedName,
+    wallets,
+  }) => {
+    // Guard: pre-fix there are no badges at all, so this stays green there.
+    // On the PR build it fails if the derived WrapperRegistry doesn't match
+    // the one a real locked migration deploys on this chain.
+    const owner = wallets.address('owner')
+    const name = await makeMigratedName({
+      label: 'priv-locked',
+      type: 'locked',
+    })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+
+    // The exact state the exemption exists for: a subregistry the owner holds
+    // no subregistry role over, and a transfer role it does hold.
+    const subregistry = await readSubregistry(label)
+    expect(subregistry).not.toBe(zeroAddress)
+    for (const role of [
+      'ROLE_SET_SUBREGISTRY',
+      'ROLE_SET_SUBREGISTRY_ADMIN',
+    ] as const)
+      expect(await accountHasRoles({ label }, owner, [role])).toBe(false)
+    expect(
+      await accountHasRoles({ label }, owner, ['ROLE_CAN_TRANSFER_ADMIN']),
+    ).toBe(true)
+    expect(await simulateOwnerTransfer(label, owner)).toBeNull()
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(
+      page.locator('main').getByText(truncate(subregistry)).first(),
+    ).toBeVisible({ timeout: 30_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(
+      badge(page, 'Subregistry locked'),
+      'the canonical WrapperRegistry should be exempt',
+    ).toHaveCount(0)
+
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
+    await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
   })
 })
