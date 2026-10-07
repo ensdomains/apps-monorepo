@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20260421.1 2025-09-24 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
+		ASSETS: Fetcher;
 		VITE_RHINESTONE_API_KEY: string;
 		VITE_ALCHEMY_NFT_API_KEY: string;
 		VITE_API_URL: string;

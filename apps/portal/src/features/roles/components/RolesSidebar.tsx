@@ -1,3 +1,4 @@
+import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
@@ -9,15 +10,6 @@ import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -27,9 +19,11 @@ import {
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import { RemoveUserConfirmDialog } from '@/features/roles/components/RemoveUserConfirmDialog'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
+import { useRemoveUserPlan } from '@/features/roles/hooks/useRemoveUserPlan'
 import { useRevokeRoles } from '@/features/roles/hooks/useRevokeRoles'
 import type {
   PendingRemove,
@@ -58,6 +52,8 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     readonly name: string
     readonly canManageRoles: boolean
     readonly registryAddress: Address
+    /** Every account holding roles on the name — needed to spot last-admin revokes. */
+    readonly roleHolders: GetNameRolesAccountsReturnType
   }>
 
 export const RolesSidebar = <
@@ -70,6 +66,7 @@ export const RolesSidebar = <
   name,
   canManageRoles,
   registryAddress,
+  roleHolders,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -78,6 +75,7 @@ export const RolesSidebar = <
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
 
   const { data: walletClient } = useWalletClient()
+  const callerAddress = walletClient?.account?.address
   const { closeModal, clearTransaction } = useTransactionModal()
   // Names the attempt currently in the modal, so a second change in the same
   // session can't be served by the first one's finished actor.
@@ -102,6 +100,16 @@ export const RolesSidebar = <
     () => (row?.original.items ?? []) as Role[],
     [row],
   )
+
+  const removePlan = useRemoveUserPlan({
+    name,
+    registryAddress,
+    account: selectedAccount,
+    currentRoles: originalRoles,
+    roleHolders,
+    ownerAddress: ownerData?.owner,
+    callerAddress,
+  })
 
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
 
@@ -138,17 +146,21 @@ export const RolesSidebar = <
   }
 
   const handleRemoveUser = () => {
-    const signer = walletClient?.account?.address
-    if (!selectedAccount || originalRoles.length === 0 || !signer) return
+    if (
+      !selectedAccount ||
+      removePlan.rolesToRevoke.length === 0 ||
+      !callerAddress
+    )
+      return
 
     setConfirmOpen(false)
     setOpen(false)
     setPendingRemove({
       account: selectedAccount,
-      roles: originalRoles,
+      roles: removePlan.rolesToRevoke,
     })
     setPendingSave(null)
-    attempt.start(signer)
+    attempt.start(callerAddress)
   }
 
   const handlePermissionChange = (
@@ -215,7 +227,10 @@ export const RolesSidebar = <
                 {canManageRoles && selectedAccount && (
                   <Button
                     variant="outline"
-                    disabled={!isWalletConnected}
+                    disabled={
+                      !isWalletConnected ||
+                      removePlan.rolesToRevoke.length === 0
+                    }
                     onClick={() => setConfirmOpen(true)}
                   >
                     <Trash2 className="size-4" />
@@ -353,32 +368,14 @@ export const RolesSidebar = <
             </div>
           </div>
 
-          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Remove user</DialogTitle>
-                <DialogDescription>
-                  {isOwnerRole
-                    ? 'You are trying to delete the owner of this name. Deleting it would prohibit you from adding more users. Are you sure?'
-                    : 'Are you sure you want to remove this user from all roles? This action cannot be undone.'}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    setConfirmOpen(false)
-                    handleRemoveUser()
-                  }}
-                >
-                  Remove
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <RemoveUserConfirmDialog
+            isOpen={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            onConfirm={handleRemoveUser}
+            name={name}
+            account={selectedAccount}
+            plan={removePlan}
+          />
         </SheetContent>
       </Sheet>
 

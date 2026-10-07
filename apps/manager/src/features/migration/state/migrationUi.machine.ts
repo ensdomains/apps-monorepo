@@ -80,6 +80,11 @@ const renewalProgress = (
 type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
+  /**
+   * Names whose ENSv1 registry controller the owner chose to keep as a manager.
+   * Empty by default: nothing is re-granted unless it is asked for by name.
+   */
+  managerRestorationNames: string[]
   plan?: MigrationPlan
   signer?: Signer
   hcaClient?: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
@@ -102,6 +107,7 @@ type Context = {
 
 type Events =
   | { type: 'selection.set'; names: string[] }
+  | { type: 'managerRestoration.set'; names: string[] }
   | {
       type: 'migration.renewAndStart'
       renewal: RenewalPreparation
@@ -142,6 +148,7 @@ type Events =
 const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   wagmiConfig,
   selectedNames: [],
+  managerRestorationNames: [],
   plan: undefined,
   reconcileBeforeSubmit: false,
   completedOperations: [],
@@ -226,6 +233,7 @@ export const migrationUiMachine = setup({
       {
         renewal: RenewalPreparation
         renewedDomains: readonly V1Domain[]
+        managerRestorationNames: readonly string[]
         wagmiConfig: WagmiConfig
       }
     >(({ input, signal }) =>
@@ -236,6 +244,7 @@ export const migrationUiMachine = setup({
         hcaAddress: input.renewal.hcaAddress,
         publicClient: defaultPublicClient as PublicClient,
         wagmiConfig: input.wagmiConfig,
+        managerRestorationNames: input.managerRestorationNames,
         signal,
       }),
     ),
@@ -339,6 +348,12 @@ export const migrationUiMachine = setup({
     setSelection: assign({
       selectedNames: ({ event, context }) =>
         event.type === 'selection.set' ? event.names : context.selectedNames,
+    }),
+    setManagerRestoration: assign({
+      managerRestorationNames: ({ event, context }) =>
+        event.type === 'managerRestoration.set'
+          ? event.names
+          : context.managerRestorationNames,
     }),
     captureMigrationStart: assign(({ event }) => {
       if (event.type !== 'migration.start') return {}
@@ -479,6 +494,9 @@ export const migrationUiMachine = setup({
         selectedNames: context.selectedNames.filter(
           (name) => !completedSet.has(name),
         ),
+        managerRestorationNames: context.managerRestorationNames.filter(
+          (name) => !completedSet.has(name),
+        ),
         reconcileBeforeSubmit: true,
         lastError: undefined,
         progress: context.renewedDomains
@@ -509,6 +527,9 @@ export const migrationUiMachine = setup({
       on: {
         'selection.set': {
           actions: 'setSelection',
+        },
+        'managerRestoration.set': {
+          actions: 'setManagerRestoration',
         },
         'migration.start': {
           target: 'migrate',
@@ -581,6 +602,7 @@ export const migrationUiMachine = setup({
               return {
                 renewal: context.renewal,
                 renewedDomains: context.renewedDomains,
+                managerRestorationNames: context.managerRestorationNames,
                 wagmiConfig: context.wagmiConfig,
               }
             },

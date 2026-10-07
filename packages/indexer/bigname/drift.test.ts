@@ -1,5 +1,6 @@
 import type { ResultAsync } from 'neverthrow'
 import { describe, expect, it } from 'vitest'
+import { toUnixSeconds } from './adapters'
 import { createBignameClient } from './client'
 import { type BignameError, isStale } from './errors'
 import type { Address } from './types'
@@ -19,7 +20,7 @@ const integration = (
 ).process?.env?.BIGNAME_INTEGRATION
 
 // An ENSv2-native Sepolia name registered until 2029, with records and history.
-const NAME = 'stellularly.eth'
+const NAME = 'juveniles.eth'
 
 const RESULT_STATUSES = [
   'ok',
@@ -69,6 +70,31 @@ const ownerOf = (owner: Address | undefined): Address => {
   return owner as Address
 }
 
+// A string is not enough: the docs and the wire have disagreed on the format.
+const expectTimestamp = (value: unknown, label: string) => {
+  expect(value, label).toBeTypeOf('string')
+  expect(toUnixSeconds(value as string), `${label} does not parse`).toBeTypeOf(
+    'number',
+  )
+}
+
+// The dates the shared reads convert. Optional on the wire, so only checked
+// when present.
+const READ_DATES = [
+  'expires_at',
+  'registered_at',
+  'created_at',
+  'migrated_at',
+] as const
+
+const expectReadDates = (value: object) => {
+  for (const key of READ_DATES) {
+    if (key in value) {
+      expectTimestamp((value as Record<string, unknown>)[key], key)
+    }
+  }
+}
+
 // A current-state collection's first page answers 409 when the publication
 // moves mid-read. Retrying is the caller's job, and here the caller is us.
 const once = async <T>(
@@ -111,12 +137,14 @@ describe.skipIf(!integration)(
       expect(AUTHORITIES).toContain(data.authority)
       expect(REGISTRATION_STATUSES).toContain(data.registration_status)
       expectShape(data.resolver, { chain_id: 'number', address: 'string' })
-      expect(data.registered_at).toBeTypeOf('string')
+      expectTimestamp(data.registered_at, 'registered_at')
+      expectTimestamp(data.expires_at, 'expires_at')
+      expectReadDates(data)
       expectShape(meta.as_of?.['11155111'], {
         block_number: 'number',
         block_hash: 'string',
-        timestamp: 'string',
       })
+      expectTimestamp(meta.as_of?.['11155111']?.timestamp, 'as_of.timestamp')
     })
 
     it('records with inventory', async () => {
@@ -154,8 +182,8 @@ describe.skipIf(!integration)(
           name: 'string',
           namehash: 'string',
           registration_status: 'string',
-          expires_at: 'string',
         })
+        expectTimestamp(row.expires_at, 'expires_at')
       }
     })
 
@@ -220,6 +248,7 @@ describe.skipIf(!integration)(
           subname_count: 'number',
         })
         expect(AUTHORITIES).toContain(row.authority)
+        expectReadDates(row)
       }
     })
 

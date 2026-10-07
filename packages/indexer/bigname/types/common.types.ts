@@ -9,7 +9,11 @@
 export type Address = `0x${string}`
 /** Lower-cased `0x`-prefixed hex string (hashes, contenthash, multicoin address bytes). */
 export type Hex = `0x${string}`
-/** RFC 3339 UTC timestamp, e.g. `2026-06-10T00:00:00Z`. */
+/**
+ * A point in time. The docs promise RFC 3339 with a `Z` suffix, but every
+ * route currently answers with unix seconds as a decimal string. Parse with
+ * `toDate`/`toUnixSeconds`, never `new Date(value)`.
+ */
 export type Timestamp = string
 /** Opaque, versioned pagination cursor. */
 export type Cursor = string

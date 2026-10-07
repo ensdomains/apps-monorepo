@@ -85,8 +85,29 @@ vi.mock('@/features/ownership/components/V1NameManagerRecord', () => ({
 // The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx; this
 // route only has to hand it the name and the protocol it resolved.
 vi.mock('@/features/ownership/components/NameOwnerRow', () => ({
-  NameOwnerRow: (props: Record<string, unknown>) => (
-    <div data-testid="owner-row">{JSON.stringify(props)}</div>
+  NameOwnerRow: ({
+    badge,
+    ...props
+  }: Record<string, unknown> & { badge?: React.ReactNode }) => (
+    <div>
+      <div data-testid="owner-row">{JSON.stringify(props)}</div>
+      {badge}
+    </div>
+  ),
+}))
+vi.mock('@/features/roles/components/PrivilegeWarnings', () => ({
+  TransferPrivilegeWarning: ({
+    name,
+    ownerData,
+  }: {
+    name: string
+    ownerData: { owner: string }
+  }) => (
+    <div
+      data-testid="transfer-warning"
+      data-name={name}
+      data-owner={ownerData.owner}
+    />
   ),
 }))
 
@@ -164,5 +185,15 @@ describe('ownership route — Owner row', () => {
       }),
     )
     expect(screen.queryByTestId('manager-row')).not.toBeInTheDocument()
+  })
+
+  it('flags missing transfer privileges beside the owner', () => {
+    resolveAs('ENSv2')
+
+    render(<OwnershipRoute />)
+
+    const warning = screen.getByTestId('transfer-warning')
+    expect(warning).toHaveAttribute('data-name', 'alice.eth')
+    expect(warning).toHaveAttribute('data-owner', CONTROLLER)
   })
 })

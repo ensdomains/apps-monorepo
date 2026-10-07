@@ -3,6 +3,11 @@ import { CopyableButton } from '@/components/atoms/CopyableButton'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Card } from '@/components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn, truncateAddress } from '@/lib/utils'
@@ -54,6 +59,30 @@ const ChainAddressValue = ({ value }: { readonly value: string }) => (
   </span>
 )
 
+const ChainIconTooltip = ({
+  chain,
+  iconClassName,
+  triggerClassName,
+}: {
+  readonly chain: ProfileAddressItem
+  readonly iconClassName: string
+  readonly triggerClassName?: string
+}) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span
+        aria-label={chain.label}
+        className={triggerClassName}
+        role="img"
+        title=""
+      >
+        <IconRenderer className={iconClassName} icon={chain.icon} />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent>{chain.label}</TooltipContent>
+  </Tooltip>
+)
+
 const ReceivingChainIcons = ({
   chains,
 }: {
@@ -65,10 +94,11 @@ const ReceivingChainIcons = ({
   return (
     <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1 lg:landscape:min-w-50">
       {withIcon.map((chain) => (
-        <IconRenderer
-          className="size-4.5 object-contain lg:landscape:size-6.5"
-          icon={chain.icon}
+        <ChainIconTooltip
+          chain={chain}
+          iconClassName="size-4.5 object-contain lg:landscape:size-6.5"
           key={`${chain.coinType}-${chain.value}`}
+          triggerClassName="inline-flex shrink-0"
         />
       ))}
     </div>
@@ -154,12 +184,11 @@ const ChainAddressCard = ({
       variant="ghost"
     >
       <div className="flex min-w-0 flex-1 items-center gap-0.5 lg:landscape:gap-0">
-        <div className="flex size-6 shrink-0 items-center justify-center lg:landscape:size-10 lg:landscape:p-2">
-          <IconRenderer
-            className="size-6 object-contain lg:landscape:size-7"
-            icon={address.icon}
-          />
-        </div>
+        <ChainIconTooltip
+          chain={address}
+          iconClassName="size-6 object-contain lg:landscape:size-7"
+          triggerClassName="flex size-6 shrink-0 items-center justify-center lg:landscape:size-10 lg:landscape:p-2"
+        />
         <ChainAddressValue value={address.value} />
       </div>
     </CopyableButton>

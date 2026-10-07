@@ -36,6 +36,7 @@ import { useMigrationUiContext } from '@/features/migration/state/migrationUi.co
 import {
   useMigrationCompletedOperations,
   useMigrationLastError,
+  useMigrationManagerRestorationNames,
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
@@ -213,6 +214,7 @@ export const MigrationPage = () => {
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
+  const managerRestorationNames = useMigrationManagerRestorationNames(uiActor)
   const completedOperations = useMigrationCompletedOperations(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
@@ -253,12 +255,14 @@ export const MigrationPage = () => {
     hcaAddress: hcaAddress as Address | undefined,
     accountError: hcaError,
     selectedNames,
+    managerRestorationNames,
     v1Names,
     enabled: step === 'select' && graceDomains.length === 0,
   })
   const renewalGasEstimate = useGraceRenewalGasEstimate({
     renewal,
     selectedNames,
+    managerRestorationNames,
     v1Names,
     hcaAddress: hcaAddress as Address | undefined,
     publicClient: migrationExecutionClient as PublicClient,
@@ -318,6 +322,12 @@ export const MigrationPage = () => {
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
+    [uiActor],
+  )
+
+  const handleManagerRestorationChange = useCallback(
+    (names: string[]) =>
+      uiActor.send({ type: 'managerRestoration.set', names }),
     [uiActor],
   )
 
@@ -421,6 +431,7 @@ export const MigrationPage = () => {
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
+            onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
             renewal={renewal}
