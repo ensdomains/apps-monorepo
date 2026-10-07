@@ -13,6 +13,7 @@ export type AvailableNameMessageProps = {
     href?: string
     external?: boolean
   }
+  className?: string
 }
 
 export function AvailableNameMessage({
@@ -20,6 +21,7 @@ export function AvailableNameMessage({
   description,
   badge,
   actionButton,
+  className,
 }: AvailableNameMessageProps) {
   // Determine if this is a .eth name (registration) or DNS name (import)
   const isEthName = name.endsWith('.eth')
@@ -51,6 +53,7 @@ export function AvailableNameMessage({
       description={description || defaultDescription}
       badge={badge}
       actionButton={actionButton || defaultActionButton}
+      className={className}
     />
   )
 }
