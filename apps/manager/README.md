@@ -30,7 +30,7 @@ cp .env.example .env
 pnpm dev                 # http://localhost:3000
 ```
 
-The example env targets Sepolia and the hosted backend at `app-api.ens.dev`;
+The example env targets Sepolia and the hosted backend at `sepolia.app-api.ens.domains`;
 to run the backend too, see [`workers/api-worker`](../../workers/api-worker).
 
 `VITE_ENS_NETWORK` is required and the build fails without it. Every other

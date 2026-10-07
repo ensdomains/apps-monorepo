@@ -94,7 +94,7 @@
 
   "vars": {
     "CHAIN": "sepolia",
-    "BASE_URL": "https://app-api.ens.dev",
+    "BASE_URL": "https://sepolia.app-api.ens.domains",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "MANAGER_APP_URL": "https://app.ens.dev",
     "POSTHOG": {

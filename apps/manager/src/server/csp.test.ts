@@ -66,7 +66,7 @@ describe('csp', () => {
     it('collapses ENS hosts into wildcards rather than listing them bare', () => {
       // The wildcard is the single source of truth in the static defaults.
       // Build-time VITE_API_URL may still append an exact origin via
-      // OVERRIDE_CONNECT_ORIGINS (e.g. app-api.ens.dev from .env) — that's fine.
+      // OVERRIDE_CONNECT_ORIGINS (e.g. sepolia.app-api.ens.domains from .env) — that's fine.
       expect(connectSrc).toContain('https://*.ens.dev')
       expect(connectSrc).not.toContain('https://graphql.ens.dev')
 
