@@ -5,6 +5,7 @@ import {
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import type { Hex } from 'viem'
+import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 
 export type DashboardNameRole = 'owner' | 'manager'
 export type SortField = 'name' | 'created' | 'expiry'
@@ -35,9 +36,11 @@ const HIDDEN_STATUSES: readonly NameSummary['registrationStatus'][] = [
 const toSeconds = (date: Date | null): bigint | null =>
   date ? BigInt(Math.floor(date.getTime() / 1000)) : null
 
+// An un-normalised name would render as the canonical name it resembles.
 export const isListedName = (name: NameSummary): boolean =>
   !name.name.endsWith('.reverse') &&
-  !HIDDEN_STATUSES.includes(name.registrationStatus)
+  !HIDDEN_STATUSES.includes(name.registrationStatus) &&
+  isNormalizedName(name.name)
 
 // bigname's `owner` is the token holder; a registry controller or an ENSv2
 // role holder manages.
@@ -90,7 +93,8 @@ export const toGraceName = (
     expiryDate !== null &&
     expiryDate <= nowSeconds &&
     nowSeconds < expiryDate + V2_GRACE_SECONDS &&
-    ETH_2LD.test(row.name)
+    ETH_2LD.test(row.name) &&
+    isNormalizedName(row.name)
   if (!isGrace) return null
   return {
     key: row.namehash,
