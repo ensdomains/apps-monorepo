@@ -9,7 +9,7 @@ import {
   expectSettled,
   renderWithCommitCounter,
 } from '@/test-utils'
-import type { V1Name, V2NameWithRoles } from '@/utils/names/mergeNamesData'
+import type { V2NameWithRoles } from '@/utils/names/mergeNamesData'
 
 const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
 const V1_NAME = 'sugh004.eth'
@@ -56,13 +56,18 @@ vi.mock('@/utils/names/mergeNamesData', async (importOriginal) => {
 // 90-day v1 grace — a fixed date would eventually fall outside it and quietly
 // stop exercising the renewable path while still passing. `mergeNamesData`
 // sorts ascending by expiry, so the shorter v1 expiry keeps that name at row 0.
+const V1_EXPIRY = Date.now() + 365 * MS_PER_DAY
 const V1_NAMES = [
   {
     name: V1_NAME,
-    expiryDate: { date: new Date(Date.now() + 365 * MS_PER_DAY) },
+    parentName: 'eth',
+    expiryDate: {
+      date: new Date(V1_EXPIRY),
+      value: V1_EXPIRY,
+    },
     relation: { registrant: true, owner: true, wrappedOwner: false },
   },
-] satisfies V1Name[]
+]
 
 const V2_NAMES = [
   {
@@ -73,9 +78,22 @@ const V2_NAMES = [
   },
 ] satisfies V2NameWithRoles[]
 
+// One loaded page per source, with a stable identity like the query cache's.
 const QUERY_DATA: Record<string, unknown> = {
-  'get-names-for-address': V1_NAMES,
-  'get-v2-names-with-roles-for-address': V2_NAMES,
+  ENSv1: {
+    pages: [{ names: V1_NAMES, hasNextPage: false }],
+    pageParams: [undefined],
+  },
+  ENSv2: {
+    pages: [
+      {
+        names: V2_NAMES,
+        totalCount: V2_NAMES.length,
+        nextCursor: undefined,
+      },
+    ],
+    pageParams: [undefined],
+  },
 }
 
 /** Every query key the route handed to `useQueries`, in request order. */
@@ -98,6 +116,18 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
           error: null,
         }
       }),
+    useInfiniteQuery: ({
+      queryKey,
+    }: {
+      queryKey: readonly [string, { protocolVersion: string }]
+    }) => ({
+      data: QUERY_DATA[queryKey[1].protocolVersion],
+      isLoading: false,
+      error: null,
+      isFetchNextPageError: false,
+      hasNextPage: false,
+      fetchNextPage: () => Promise.resolve(),
+    }),
   }
 })
 
