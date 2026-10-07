@@ -1,8 +1,10 @@
 import type { AddressName } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ProtocolVersion } from '@ens-apps/indexer/reads'
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import type { Hex } from 'viem'
-import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
-import { toDateFromSeconds } from './utils'
 
 export type DashboardNameRole = 'owner' | 'manager'
 export type SortField = 'name' | 'created' | 'expiry'
@@ -63,6 +65,9 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
 export const isHeldName = (name: DashboardName): boolean =>
   name.nameRoles.includes('owner') || name.isLapsed
 
+const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
+const ETH_2LD = /^[^.]+\.eth$/
+
 const parseSeconds = (timestamp: string | undefined): bigint | null =>
   timestamp !== undefined && /^\d+$/.test(timestamp) ? BigInt(timestamp) : null
 
@@ -84,7 +89,8 @@ export const toGraceName = (
     row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
     expiryDate !== null &&
     expiryDate <= nowSeconds &&
-    isRenewableV2EthName(row.name, toDateFromSeconds(Number(expiryDate)), now)
+    nowSeconds < expiryDate + V2_GRACE_SECONDS &&
+    ETH_2LD.test(row.name)
   if (!isGrace) return null
   return {
     key: row.namehash,

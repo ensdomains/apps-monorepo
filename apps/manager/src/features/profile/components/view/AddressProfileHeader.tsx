@@ -4,10 +4,10 @@ import { Link } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { getNameExpiryStatus } from '@/features/grace/utils/gracePeriod'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
-  getProfileNameExpiryStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
@@ -65,8 +65,6 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   )
 }
 
-const MS_PER_SECOND = 1000
-
 // An ENSv1 primary name's grace follows its lease, which name detail serves.
 const useAddressProfileAvatarUrl = (primaryName: string | undefined) => {
   const { data: detail, isPending: isDetailPending } = useQuery(
@@ -79,12 +77,7 @@ const useAddressProfileAvatarUrl = (primaryName: string | undefined) => {
   })
 
   const isInGrace = isV1Primary
-    ? getProfileNameExpiryStatus(
-        detail.expiresAt
-          ? Math.floor(detail.expiresAt.getTime() / MS_PER_SECOND)
-          : null,
-        'v1',
-      ).isInGrace
+    ? getNameExpiryStatus(detail.expiresAt, 'v1').isInGrace
     : getProfileExpiryResultStatus(expiryData).isInGrace
 
   return useQuery(

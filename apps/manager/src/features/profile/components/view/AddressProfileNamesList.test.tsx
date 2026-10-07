@@ -132,6 +132,35 @@ describe('AddressProfileNamesList', () => {
     expect(lastRequest()).toMatchObject({ page: 2 })
   })
 
+  it('goes back to the first page on another address', () => {
+    namesMock.useProfileAddressNames.mockReturnValue({
+      pageNames: PAGE,
+      total: 12,
+      counts: { owned: 12, managed: 0 },
+      isPending: false,
+      isPagePending: false,
+      isError: false,
+      isPlaceholderData: false,
+      loadPage: vi.fn(),
+    })
+
+    const { rerender } = renderList(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
+    expect(lastRequest()).toMatchObject({ page: 2 })
+
+    rerender(
+      <AddressProfileNamesList
+        address="0x0000000000000000000000000000000000000001"
+        isConnectedView={false}
+      />,
+    )
+
+    expect(lastRequest()).toMatchObject({
+      address: '0x0000000000000000000000000000000000000001',
+      page: 1,
+    })
+  })
+
   it('shows skeletons rather than an empty list while a page is still being read', () => {
     namesMock.useProfileAddressNames.mockReturnValue({
       pageNames: [],

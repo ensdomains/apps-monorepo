@@ -202,13 +202,6 @@ export const MyNamesList = ({
   const [page, setPage] = useState(1)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const filterKey = `${searchQuery}:${version ?? 'all'}:${sort}`
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
-  if (filterKey !== prevFilterKey) {
-    setPrevFilterKey(filterKey)
-    setPage(1)
-  }
-
   const {
     eligibleKeys,
     isPending: isEligibilityPending,
@@ -223,7 +216,15 @@ export const MyNamesList = ({
     isError: isNamesError,
     isGraceError,
     loadPage,
+    addresses,
   } = useDashboardNames({ sortField, sortDir, search: searchQuery, page })
+
+  const filterKey = `${addresses.join(',')}:${searchQuery}:${sort}`
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey)
+    setPage(1)
+  }
   const onPageChange = (next: number) => {
     setPage(next)
     void loadPage(next)
