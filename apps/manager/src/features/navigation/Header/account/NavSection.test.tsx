@@ -6,6 +6,7 @@ import { NavSection } from './NavSection'
 
 const reverseNameMock = vi.hoisted(() => ({
   data: undefined as string | undefined,
+  status: 'success' as 'pending' | 'error' | 'success',
 }))
 
 vi.mock('@/features/dashboard/components/ChoosePrimaryNameDialog', () => ({
@@ -13,7 +14,10 @@ vi.mock('@/features/dashboard/components/ChoosePrimaryNameDialog', () => ({
 }))
 
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
-  useConnectedReverseName: () => ({ data: reverseNameMock.data }),
+  useConnectedReverseName: () => ({
+    data: reverseNameMock.data,
+    isSuccess: reverseNameMock.status === 'success',
+  }),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -41,6 +45,7 @@ vi.mock('@tanstack/react-router', () => ({
 describe('NavSection primary name profile action', () => {
   beforeEach(() => {
     reverseNameMock.data = undefined
+    reverseNameMock.status = 'success'
   })
 
   it('is an enabled configuration button when no primary name exists', () => {
@@ -59,6 +64,28 @@ describe('NavSection primary name profile action', () => {
     expect(action).toHaveClass('focus-visible:ring-2')
     fireEvent.click(action)
     expect(onChoosePrimaryName).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    'pending',
+    'error',
+  ] as const)('does not offer the chooser while reverse-name state is %s', (status) => {
+    reverseNameMock.status = status
+    const onChoosePrimaryName = vi.fn()
+    const onAction = vi.fn()
+    render(
+      <NavSection
+        onAction={onAction}
+        onChoosePrimaryName={onChoosePrimaryName}
+      />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Primary Name Profile' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Primary Name Profile'))
+    expect(onChoosePrimaryName).not.toHaveBeenCalled()
+    expect(onAction).not.toHaveBeenCalled()
   })
 
   it('remains a profile link when a primary name exists', () => {
