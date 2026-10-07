@@ -47,12 +47,25 @@ Oracles, all on chain:
 | `keeps "Configure registry" for a delegate who holds ROLE_SET_SUBREGISTRY when the owner holds neither` | User2 holds `ROLE_SET_SUBREGISTRY` on chain, the owner holds neither. As the owner: locked notice, no form. Switched to user2: the form stays, no notice. | **FAIL** on the owner's notice (the delegate half is a guard) | pass |
 | `flags "Subregistry locked" on a configured subregistry once the owner holds neither subregistry role` | A real UserRegistry attached via `attachSubregistry`. Control: no badge. After revoking both subregistry roles, the row (`permissioned registry 0x…`) shows "Subregistry locked" with both roles in the tooltip. This placement was covered by unit tests only in the PR. | **FAIL** on the badge | pass |
 | `raises nothing for a locked migrated name: its subregistry is the WrapperRegistry the migration deployed` | **Guard.** `makeMigratedName({ type: 'locked' })` through the real `MigrationHelper`. On chain: non-zero subregistry, the owner holds neither subregistry role, holds the transfer role, and the transfer simulates. No "Subregistry locked" on Registry, and no transfer badge on Ownership. On the PR build this fails if `computeWrapperRegistryAddress` stops matching the deployed wrapper on Sepolia. | pass (guard: no badges exist) | pass |
+| `suppresses every privilege warning while the name is in grace, and brings them back once the owner renews it` | Owner revokes all five roles. Active: Cannot transfer, Resolver locked and the locked registry notice all show (positive control). One day past expiry: the chain moves the name to a new resource version and the owner's `safeTransferFrom` reverts `TransferDisallowed`; the profile shows "This name has expired… grace period ends on…", and no warning appears on the profile, Ownership, Resolver or Registry. Renewed through the portal's own Extend modal (approve + renew): the resource returns, the revoked roles stay revoked, the transfer still reverts, and all three warnings are back. | **FAIL** on the active-state badge | pass |
+| `raises nothing for a fully privileged name once it is renewed from grace, though the resource it is read under moved and moved back` | **Guard.** Fresh name, Ownership opened while active. In grace the chain reports no roles under the new resource version; in-app Ownership shows no warning. Renewed through Extend: the original resource and the full role set are back and the transfer simulates. Ownership (which must have read the roles), Resolver and Registry raise nothing, and "Configure registry" is offered. Fails on the PR build if the warning reads the grace-era resource (no logs under it, so "owner holds nothing"). | pass (guard) | pass |
 
 **Negatives:** every absence check waits for the page's own role read and a positive sign that the page loaded (owner row, Contract row, registry row, or the configure button). It then settles 2s before asserting. The same tests render the badge from the same read on the same page well inside that window.
 
+**Grace, measured on the fork.**
+
+| Stage | `getResource(labelhash)` | Owner's roles | Owner transfer | Portal |
+|---|---|---|---|---|
+| Active | `…00000000` | full set | simulates | normal tabs |
+| Grace (expiry + 1 day) | `…00000001` | `0` | reverts `TransferDisallowed` (`0xe58f6d5a`) | profile: "This name has expired"; Ownership, Resolver and Registry: "Name not registered" |
+| Renewed | `…00000000` | the pre-expiry set | as before expiry | normal tabs, after a reload (Finding 5) |
+
+**Mutation check.** Removing the grace gate from `useTokenRoleWarning` (enabled regardless of grace, warning not cleared) leaves the grace test green. On v2 the routes already render "Name not registered" in grace, so the badge components never mount; the gate is defence in depth, reachable only if a route renders an owner in grace. The tests pin the user-facing outcome.
+
+**The grace tests move the shared anvil clock** forward about 29 days each (expiry of a 28-day registration plus a day). There is no snapshot revert: `evm_revert` permanently breaks Panoptes (see `fixtures/chain-snapshot.ts`).
+
 **Not covered by e2e:**
 - **ENSv1 names:** the badge prop is V2-only in `NameOwnerRow`, and that's unit-tested.
-- **Grace gating:** reaching grace means warping the shared anvil clock. That's unit-tested in the PR.
 - **"Cannot grant" on Subregistry:** same rule as Resolver, unit-tested.
 
 ---
@@ -63,11 +76,11 @@ Build: PR head `cb15fffa2` merged onto `e2e-tests-coverage` (`e495cf2da`). Pre-f
 
 | Check | PR build | Pre-fix |
 |---|---|---|
-| New WEB-1469 e2e (8) | 8/8 | 7 **FAIL**, each on its badge/notice assertion; locked-migration guard passes |
+| New WEB-1469 e2e (10) | 10/10 | 8 **FAIL**, each on its badge/notice assertion; the locked-migration and renewal guards pass |
 | PR unit tests (portal roles/registry/ownership/routes: 272; smart-account `wrapper-registry`: 6; manager migration service: 587) | all pass | n/a |
 | `pnpm typecheck` (portal, manager, smart-account, e2e) | clean | n/a |
 | `biome check` on PR files and the spec | no new warnings | n/a |
-| Full `roles.spec.ts` (24) | 17 passed (all 8 WEB-1469), 7 failed | n/a |
+| Full `roles.spec.ts` (24, before the grace tests) | 17 passed (all 8 WEB-1469 at the time), 7 failed | n/a |
 | `pnpm test:portal-smoke` (18) | 13 passed (incl. the new `@smoke`), 5 failed | F10 re-run: fails the same way |
 
 None of the failures involve #1311. They are the same sets the [WEB-1487 plan](./roles-remove-user-web1487-test-plan.md#3-results) records on `main`:
@@ -154,6 +167,20 @@ Use a fresh seeded name for each section; revoking is one-way for the owner. Che
 1. `npx tsx e2e/scripts/seed-transfer-names.ts` and open the **locked** name it prints, on `/registry`. **Pass:** a `permissioned registry 0x…` row with no **Subregistry locked** badge, although `roles` shows the owner has no subregistry role.
 2. Its `/ownership`. **Pass:** no badge.
 
+### G. Grace (moves the shared anvil clock about 29 days)
+
+1. On a fresh name, `revoke` all five roles (sum of the five bits, or one `revoke` each). Check A, C and D show their warnings.
+2. Read the expiry and warp one day past it:
+   ```sh
+   EXP=$(cast call $REG "getState(uint256)((uint8,uint64,address,uint256,uint256))" $(cast keccak <label>) --rpc-url $RPC | tr -d '()' | awk -F', ' '{print $2}' | awk '{print $1}')
+   NOW=$(cast block latest -f timestamp --rpc-url $RPC)
+   cast rpc evm_increaseTime $((EXP - NOW + 86400)) --rpc-url $RPC && cast rpc evm_mine --rpc-url $RPC
+   ```
+   Reload the page so the browser picks up the chain time.
+3. Open `/<name>`. **Pass:** "This name has expired" and "The grace period for this name ends on …". Open Ownership, Resolver, Registry. **Pass:** no red badge and no locked notice anywhere.
+4. On `/<name>` press **Extend**, then **I Understand**, **Next**, **USDC**, **Confirm**, and complete both transactions. Reload, then open Ownership, Resolver, Registry. **Pass:** the warnings from step 1 are back.
+5. Repeat 2–4 on a fresh name with no revokes. **Pass:** no warning at any step, and Registry offers Configure registry after renewal.
+
 ---
 
 ## 5. Findings
@@ -164,3 +191,5 @@ Use a fresh seeded name for each section; revoking is one-way for the owner. Che
 | 2 | Resolved | `b83350da1` didn't build: `useTokenRoleWarning` passed `name` where #1216 expects `resource`, so the read would have thrown and every badge would have stayed hidden. The PR's unit tests mocked the read and stayed green. Fixed in `cb15fffa2`. |
 | 3 | Info | `useTokenRoleWarning` runs the versioned-resource read for ENSv1 names too (only the role read is gated on ENSv2). Harmless, but it's one wasted RPC per V1 page. |
 | 4 | Info (test design) | An owner who revokes its own `_ADMIN` can no longer revoke the matching role (`0xa604e318`), so the admin-only and both-missing states can't be reached in sequence on one name. The e2e tests use one name per state. |
+| 5 | Medium (pre-existing, not #1311) | **After renewing from grace, the portal keeps showing the name as unregistered until a reload.** Straight after a successful Extend in grace (chain expiry already in the future), the profile shows "Name not found / Could not retrieve info", and in-app Ownership still shows "Name not registered" 20 seconds later; a reload shows the name correctly. Reproduced the same on the pre-#1311 build. For this PR it means the warnings come back only after a reload. The grace tests load each tab fresh after renewal for that reason. |
+| 6 | Info | The PR's grace gate in `useTokenRoleWarning` is unreachable on v2 today: the routes render "Name not registered" in grace, so no badge mounts (mutation check above). Harmless; worth knowing if the routes are changed to show an owner in grace, because the grace-era resource has no role logs and every badge would fire without the gate. |

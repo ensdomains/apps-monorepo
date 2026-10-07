@@ -18,6 +18,7 @@
  *    Set Subregistry — which is precisely the pair the owner has admin over.
  */
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import {
   grantRolesWriteParameters,
@@ -31,6 +32,7 @@ import {
   type Address,
   encodeFunctionData,
   type Hash,
+  labelhash,
   parseAbi,
   zeroAddress,
 } from 'viem'
@@ -43,7 +45,10 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
-import { waitForIndexedRoles } from '../../../helpers/indexer-sync.js'
+import {
+  waitForIndexedName,
+  waitForIndexedRoles,
+} from '../../../helpers/indexer-sync.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
   accountHasRoles,
@@ -1415,8 +1420,10 @@ test.describe('Portal name roles — Remove user keeps the transfer role (WEB-14
  * What these reach that the unit tests don't: real revocations on the fork,
  * read back through the app's own resource lookup and role-log read (the unit
  * tests mock that read); the badges' placement on the real routes; a delegate
- * holding the role on chain; and the WrapperRegistry derivation checked
- * against a subregistry a real locked migration deployed. Every badge is
+ * holding the role on chain; the WrapperRegistry derivation checked
+ * against a subregistry a real locked migration deployed; and a real grace
+ * period and renewal through the portal's Extend modal, across which the
+ * name's EAC resource changes and changes back. Every badge is
  * matched to the chain: the role bitmap, and where the badge makes a claim
  * about transfers, a simulated `safeTransferFrom`.
  *
@@ -1487,15 +1494,21 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
   }
 
   /**
-   * Load `url` and wait for the app's role-log read for a name on the .eth
-   * registry. Reloads (up to three times) if any such read in the load came
-   * back with an error, since the retry after it can't be trusted locally.
+   * Run `navigate` (a page load or an in-app click) and wait for the app's
+   * role-log read for a name on the .eth registry. If any such read came back
+   * with an error, the page is reloaded (up to three loads in all), since the
+   * retry after it can't be trusted locally. Resolves to the number of clean
+   * reads in the accepted load.
    *
    * A page that makes no such read (any page before #1311 but Ownership) is
    * let through after the wait: with nothing read there is nothing degraded,
    * and the test then fails on its own badge assertion, not here.
    */
-  async function gotoWithCleanRoleRead(page: Page, url: string) {
+  async function navigateWithCleanRoleRead(
+    page: Page,
+    navigate: () => Promise<unknown>,
+    where: string,
+  ): Promise<number> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       const reads = { clean: 0, degraded: 0 }
       const onResponse = async (
@@ -1507,25 +1520,28 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
       }
       page.on('response', onResponse)
       try {
-        await page.goto(url)
+        await (attempt === 1 ? navigate() : page.reload())
         await expect
           .poll(() => reads.clean + reads.degraded, { timeout: 20_000 })
           .toBeGreaterThan(0)
           .catch(() =>
-            console.log(`[WEB-1469] no role read on ${url}; asserting as is`),
+            console.log(`[WEB-1469] no role read on ${where}; asserting as is`),
           )
         // An errored read is retried; let the retry land before judging.
         await page.waitForTimeout(1_500)
       } finally {
         page.off('response', onResponse)
       }
-      if (reads.degraded === 0) return
+      if (reads.degraded === 0) return reads.clean
       console.log(
-        `[WEB-1469] role read on ${url} hit ${reads.degraded} upstream error(s); reloading (attempt ${attempt})`,
+        `[WEB-1469] role read on ${where} hit ${reads.degraded} upstream error(s); reloading (attempt ${attempt})`,
       )
     }
-    throw new Error(`no clean role read for ${url} in three loads`)
+    throw new Error(`no clean role read for ${where} in three loads`)
   }
+
+  const gotoWithCleanRoleRead = (page: Page, url: string) =>
+    navigateWithCleanRoleRead(page, () => page.goto(url), url)
 
   /**
    * Badge absence is only meaningful once the role read has landed and the
@@ -2011,5 +2027,334 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     await page.waitForTimeout(RENDER_SETTLE_MS)
     await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
     await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
+  })
+
+  // ── Grace (expiry < now < expiry + 28 days) ──────────────────────────────
+  //
+  // Measured on the fork: at expiry the registry hands the name a new EAC
+  // resource version (`getResource` goes from …00 to …01) under which nobody
+  // holds anything, so the chain reports the owner with no roles and
+  // `safeTransferFrom` reverts `TransferDisallowed` (0xe58f6d5a). Renewing
+  // switches back to the original resource, roles intact. A name in grace is
+  // therefore not "missing privileges" in the sense these badges mean, and
+  // the PR suppresses them; after renewal they must reflect the roles again.
+
+  const SEPOLIA = ensL1Contracts[supportedL1Chains.sepolia]
+  const TRANSFER_DISALLOWED = '0xe58f6d5a'
+  const ALL_OWNER_ROLES = [
+    'ROLE_CAN_TRANSFER_ADMIN',
+    'ROLE_SET_RESOLVER',
+    'ROLE_SET_RESOLVER_ADMIN',
+    'ROLE_SET_SUBREGISTRY',
+    'ROLE_SET_SUBREGISTRY_ADMIN',
+  ] as const satisfies readonly Role[]
+
+  const readResource = (label: string) =>
+    publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: parseAbi(['function getResource(uint256) view returns (uint256)']),
+      functionName: 'getResource',
+      args: [BigInt(labelhash(label))],
+    })
+
+  /** Move the chain (and the page clock) to one day past `label`'s expiry. */
+  async function warpIntoGrace(
+    label: string,
+    time: import('../../../fixtures/time.js').Time,
+  ) {
+    const { expiry } = await readState(label)
+    const now = (await publicClient.getBlock()).timestamp
+    await time.increaseTime({ seconds: Number(expiry - now) + 86_400 })
+    const block = await publicClient.getBlock()
+    expect(
+      block.timestamp,
+      'the name should be past its expiry',
+    ).toBeGreaterThan(expiry)
+    expect(
+      block.timestamp,
+      'and still inside the 28-day grace period',
+    ).toBeLessThan(expiry + 28n * 86_400n)
+  }
+
+  /** Every privilege warning this PR can render, scoped to `main`. */
+  async function expectNoPrivilegeWarnings(page: Page) {
+    await page.waitForTimeout(RENDER_SETTLE_MS)
+    for (const label of [
+      'Cannot transfer',
+      'Cannot transfer safely',
+      'Resolver locked',
+      'Subregistry locked',
+    ])
+      await expect(badge(page, label), `no "${label}" badge`).toHaveCount(0)
+    await expect(
+      page.locator('main').getByText('Subregistry is locked.'),
+    ).toHaveCount(0)
+  }
+
+  /**
+   * The tab body that loaded: either the tab itself (its owner row or its
+   * heading row) or the "not registered" placeholder the routes show for a
+   * name in grace. Either way, the page has finished deciding what to render.
+   */
+  const tabLoaded = (page: Page, tab: 'ownership' | 'resolver' | 'registry') =>
+    page
+      .locator('main')
+      .getByText(`so there is no ${tab} data to display`)
+      .or(
+        page.locator('main').getByText(
+          {
+            ownership: 'Owner',
+            resolver: 'Contract',
+            registry: 'root registry',
+          }[tab],
+          { exact: true },
+        ),
+      )
+      .first()
+
+  /** Open `tab` from the name's sidebar, without a page load. */
+  const clickTab = (
+    page: Page,
+    name: string,
+    tab: 'Ownership' | 'Resolver' | 'Registry',
+  ) =>
+    page
+      .locator(`a[href="/${name}/${tab.toLowerCase()}"]`)
+      .filter({ visible: true })
+      .first()
+      .click()
+
+  /**
+   * Renew `name` through the portal's own Extend modal on its profile page,
+   * as an owner in grace would. The registrar allowance is zeroed first so the
+   * flow is always approve, then renew.
+   */
+  async function extendFromProfile(
+    page: Page,
+    wallet: Web3ProviderBackend,
+    name: string,
+    owner: Account,
+  ) {
+    const approve = await walletClient.sendTransaction({
+      account: owner,
+      to: SEPOLIA.usdc.address,
+      data: encodeFunctionData({
+        abi: parseAbi(['function approve(address,uint256) returns (bool)']),
+        functionName: 'approve',
+        args: [SEPOLIA.ensEthRegistrar.address, 0n],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash: approve })
+
+    await page
+      .locator('main')
+      .getByRole('button', { name: 'Extend', exact: true })
+      .first()
+      .click()
+    const extendDialog = page.getByRole('dialog')
+    // In grace the modal first warns that extending doesn't change the owner.
+    const acknowledge = extendDialog.getByRole('button', {
+      name: 'I Understand',
+    })
+    await expect(
+      acknowledge.or(extendDialog.getByText('Extend name')),
+    ).toBeVisible()
+    if (await acknowledge.isVisible()) await acknowledge.click()
+    await expect(extendDialog.getByText('Extend name')).toBeVisible()
+    await extendDialog.getByRole('button', { name: 'Next' }).click()
+    await expect(extendDialog.getByText('Confirm extension')).toBeVisible()
+    await extendDialog.getByRole('button', { name: /^USDC/ }).click()
+    await extendDialog.getByRole('button', { name: 'Confirm' }).click()
+    // The Extend dialog's close animation overlaps the transaction modal.
+    await expect(
+      page.locator('[data-slot="dialog-content"][data-state="closed"]'),
+    ).toHaveCount(0, { timeout: 15_000 })
+    await driveTransactionsToSuccess(page, wallet, [
+      `renewal-approve-${SEPOLIA.ensEthRegistrar.address}`,
+      `renewal-renew-${name}`,
+    ])
+    // Its close animation can leave a dialog in the DOM briefly.
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[data-slot="dialog-content"]')).toHaveCount(0, {
+      timeout: 15_000,
+    })
+  }
+
+  test('suppresses every privilege warning while the name is in grace, and brings them back once the owner renews it', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+    time,
+  }) => {
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-grace', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+    await connectWithHeadlessWallet(page, wallet)
+
+    await revokeNameRoles(
+      { label },
+      owner,
+      [...ALL_OWNER_ROLES],
+      wallets.account('owner'),
+    )
+    const activeResource = await readResource(label)
+    for (const role of ALL_OWNER_ROLES)
+      expect(await accountHasRoles({ label }, owner, [role])).toBe(false)
+
+    // Positive control while active: every warning shows.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(badge(page, 'Cannot transfer')).toBeVisible({
+      timeout: 20_000,
+    })
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/resolver`)
+    await expect(badge(page, 'Resolver locked')).toBeVisible({
+      timeout: 20_000,
+    })
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(
+      page.locator('main').getByText('Subregistry is locked.'),
+    ).toBeVisible({ timeout: 30_000 })
+
+    // ── Into grace ──
+    await warpIntoGrace(label, time)
+    expect(
+      await readResource(label),
+      'expiry should move the name to a new resource version',
+    ).not.toBe(activeResource)
+    expect(await simulateOwnerTransfer(label, owner)).toContain(
+      TRANSFER_DISALLOWED,
+    )
+
+    // The profile says it's in grace, and offers the way out.
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expect(
+      page.locator('main').getByText('This name has expired'),
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.locator('main').getByText(/The grace period for this name ends on/),
+    ).toBeVisible()
+    await expectNoPrivilegeWarnings(page)
+
+    for (const tab of ['ownership', 'resolver', 'registry'] as const) {
+      await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/${tab}`)
+      await expect(tabLoaded(page, tab)).toBeVisible({ timeout: 30_000 })
+      await expectNoPrivilegeWarnings(page)
+    }
+
+    // ── Renewed through the portal ──
+    await waitForIndexedName(name)
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expect(
+      page.locator('main').getByText('This name has expired'),
+    ).toBeVisible({ timeout: 30_000 })
+    await extendFromProfile(page, wallet, name, wallets.account('owner'))
+    await expect
+      .poll(async () => (await readState(label)).expiry, { timeout: 30_000 })
+      .toBeGreaterThan((await publicClient.getBlock()).timestamp)
+    expect(await readResource(label)).toBe(activeResource)
+    // Renewal restores the resource, not the roles the owner gave up.
+    for (const role of ALL_OWNER_ROLES)
+      expect(await accountHasRoles({ label }, owner, [role])).toBe(false)
+    expect(await simulateOwnerTransfer(label, owner)).not.toBeNull()
+
+    // The warnings are back. Each tab is loaded fresh: in-app navigation
+    // after a renewal from grace still shows the grace-era "Name not
+    // registered" until a reload (see the test plan's findings), which hides
+    // every badge whatever this PR does.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(badge(page, 'Cannot transfer')).toBeVisible({
+      timeout: 20_000,
+    })
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/resolver`)
+    await expect(badge(page, 'Resolver locked')).toBeVisible({
+      timeout: 20_000,
+    })
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/registry`)
+    await expect(
+      page.locator('main').getByText('Subregistry is locked.'),
+    ).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('raises nothing for a fully privileged name once it is renewed from grace, though the resource it is read under moved and moved back', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+    time,
+  }) => {
+    // Guard: pre-fix there are no badges at all. On the PR build it fails if
+    // the warning keeps the grace-era resource (no role logs under it) after
+    // renewal, which would read as "owner holds nothing".
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'priv-renewed', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await useNodeForRoleEvents(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const activeResource = await readResource(label)
+
+    // Warm the session's cache on the active name.
+    await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expectNoPrivilegeWarnings(page)
+
+    await warpIntoGrace(label, time)
+    expect(await readResource(label)).not.toBe(activeResource)
+    expect(
+      await accountHasRoles({ label }, owner, ['ROLE_CAN_TRANSFER_ADMIN']),
+      'in grace the chain reports no roles',
+    ).toBe(false)
+
+    // Same session, in-app: the profile in grace, then the tabs.
+    await waitForIndexedName(name)
+    await page.getByRole('link', { name, exact: true }).first().click()
+    await expect(
+      page.locator('main').getByText('This name has expired'),
+    ).toBeVisible({ timeout: 30_000 })
+    await navigateWithCleanRoleRead(
+      page,
+      () => clickTab(page, name, 'Ownership'),
+      'Ownership in grace',
+    )
+    await expect(tabLoaded(page, 'ownership')).toBeVisible({ timeout: 30_000 })
+    await expectNoPrivilegeWarnings(page)
+
+    await page.goBack()
+    await expect(
+      page.locator('main').getByText('This name has expired'),
+    ).toBeVisible({ timeout: 30_000 })
+    await extendFromProfile(page, wallet, name, wallets.account('owner'))
+    await expect
+      .poll(() => readResource(label), { timeout: 30_000 })
+      .toBe(activeResource)
+    for (const role of ALL_OWNER_ROLES)
+      expect(await accountHasRoles({ label }, owner, [role])).toBe(true)
+    expect(
+      await simulateOwnerTransfer(label, owner),
+      'after renewal the owner can transfer again',
+    ).toBeNull()
+
+    // Loaded fresh (see the first grace test for why not in-app), and nothing
+    // may be flagged. Ownership reads the roles on either build, so it must
+    // have read them here; the first grace test shows the other two tabs
+    // render their badges from a fresh load after renewal.
+    for (const tab of ['ownership', 'resolver', 'registry'] as const) {
+      const reads = await gotoWithCleanRoleRead(
+        page,
+        `${PORTAL_APP_URL}/${name}/${tab}`,
+      )
+      if (tab === 'ownership')
+        expect(
+          reads,
+          'Ownership should read the roles after renewal',
+        ).toBeGreaterThan(0)
+      await expect(tabLoaded(page, tab)).toBeVisible({ timeout: 30_000 })
+      await expectNoPrivilegeWarnings(page)
+    }
+    await expect(
+      page.locator('main').getByRole('button', { name: 'Configure registry' }),
+      'an owner holding the subregistry roles keeps the form',
+    ).toBeVisible({ timeout: 30_000 })
   })
 })
