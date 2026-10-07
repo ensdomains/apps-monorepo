@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { getNameRowId } from '@/features/names/components/NamesTable/columns'
 import type { ProtocolVersion } from '@/utils/types'
 import {
   GRACE_PERIOD_DAYS,
-  getNameRowId,
   getSelectedNames,
   isExtendable2LD,
   isNonCanonicalEthName,

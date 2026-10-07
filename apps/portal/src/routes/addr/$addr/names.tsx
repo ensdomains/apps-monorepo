@@ -19,7 +19,10 @@ import { useId, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  ListLoader,
+  type ListLoaderProps,
+} from '@/components/ListLoader/ListLoader'
 import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -37,6 +40,7 @@ import { getV1NamesPagesForAddressQueryOptions } from '@/features/dashboard/hook
 import { getV2NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
 import {
   columns,
+  getNameRowId,
   type NameRow,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
@@ -49,7 +53,6 @@ import {
 } from '@/features/renew/hooks/useRenewalTransactions'
 import {
   getNameLength,
-  getNameRowId,
   getNameStatus,
   getSelectedNames,
   isExtendable2LD,
@@ -118,53 +121,6 @@ const fetchMoreNames =
     }
   }
 
-/** ENSv1 has no total, so the count is only known once its last page is in. */
-const toTotalCount = ({
-  hasMoreV1,
-  v1Count,
-  v2TotalCount,
-}: {
-  readonly hasMoreV1: boolean
-  readonly v1Count: number
-  readonly v2TotalCount: number | undefined
-}) =>
-  hasMoreV1 || v2TotalCount === undefined ? undefined : v1Count + v2TotalCount
-
-const isNarrowingPartialList = ({
-  canShowMore,
-  hasActiveFilters,
-  search,
-}: {
-  readonly canShowMore: boolean
-  readonly hasActiveFilters: boolean
-  readonly search: unknown
-}) => canShowMore && (hasActiveFilters || Boolean(search))
-
-const hasFailedToLoad = ({
-  error,
-  isFetchNextPageError,
-}: {
-  readonly error: unknown
-  readonly isFetchNextPageError: boolean
-}) => Boolean(error) && !isFetchNextPageError
-
-const toHeading = ({
-  totalCount,
-  filteredCount,
-  hasActiveFilters,
-}: {
-  readonly totalCount: number | undefined
-  readonly filteredCount: number
-  readonly hasActiveFilters: boolean
-}) =>
-  match({ totalCount, hasActiveFilters })
-    .with({ totalCount: undefined }, () => 'Names')
-    .with(
-      { hasActiveFilters: true },
-      () => `Names (${filteredCount} of ${totalCount})`,
-    )
-    .otherwise(() => `Names (${totalCount})`)
-
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -213,9 +169,16 @@ function useRenewableNames(candidates: readonly SelectedName[]): {
   return { names, isLoading }
 }
 
-function RouteComponent() {
-  const { addr: address } = Route.useParams() as { addr: Address }
-
+const NamesList = ({
+  address,
+  names,
+  loader,
+}: {
+  readonly address: Address
+  /** The names shown so far. */
+  readonly names: NameRow[]
+  readonly loader: ListLoaderProps
+}) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -247,48 +210,9 @@ function RouteComponent() {
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedLengths, setSelectedLengths] = useState<string[]>([])
-  const v1NamesQuery = useInfiniteQuery(
-    getV1NamesPagesForAddressQueryOptions({ address }),
-  )
-  const v2NamesQuery = useInfiniteQuery(
-    getV2NamesPagesForAddressQueryOptions({ address }),
-  )
-
-  const loadedNames: NameRow[] = useMemo(
-    () =>
-      mergeNamesData(
-        v1NamesQuery.data?.pages.flatMap((page) => page.names),
-        v2NamesQuery.data?.pages.flatMap((page) => page.names),
-      ),
-    [v1NamesQuery.data, v2NamesQuery.data],
-  )
-
-  const loader = useListLoader({
-    initialCount: NAMES_INITIAL_COUNT,
-    loaded: loadedNames.length,
-    total: toTotalCount({
-      hasMoreV1: v1NamesQuery.hasNextPage,
-      v1Count: countNames(v1NamesQuery.data),
-      v2TotalCount: v2NamesQuery.data?.pages.at(-1)?.totalCount,
-    }),
-    hasMore: v1NamesQuery.hasNextPage || v2NamesQuery.hasNextPage,
-    fetchMore: fetchMoreNames(
-      v1NamesQuery.fetchNextPage,
-      v2NamesQuery.fetchNextPage,
-    ),
-    resetKey: address,
-  })
-
-  // Must be memoised: a fresh array makes the table recompute its row model,
-  // which auto-resets the page index, which re-renders — forever.
-  const data = useMemo(
-    () => loadedNames.slice(0, loader.shown),
-    [loadedNames, loader.shown],
-  )
-
   // Apply filters to data
   const filteredData = useMemo(() => {
-    let filtered = data
+    let filtered = names
 
     // Filter by expiry date range
     if (expiryDateRange.from || expiryDateRange.to) {
@@ -322,7 +246,7 @@ function RouteComponent() {
     }
 
     return filtered
-  }, [data, expiryDateRange, selectedStatuses, selectedLengths])
+  }, [names, expiryDateRange, selectedStatuses, selectedLengths])
 
   const table = useReactTable({
     data: filteredData,
@@ -359,64 +283,26 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (v1NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (v2NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (hasFailedToLoad(v1NamesQuery)) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching names. Please refresh the page."
-      />
-    )
-  }
-
-  if (hasFailedToLoad(v2NamesQuery)) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching names. Please refresh the page."
-      />
-    )
-  }
-
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     expiryDateRange.from ||
-    expiryDateRange.to ||
-    selectedStatuses.length > 0 ||
-    selectedLengths.length > 0
-
-  if (loadedNames.length === 0)
-    return (
-      <>
-        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
-          <PageHeading parent={{ type: 'addr', addr: address }}>
-            Names
-          </PageHeading>
-        </header>
-        <NoResultsMessage
-          title="No names yet"
-          description="Names owned by this address will appear here."
-          className="mx-0"
-        />
-      </>
-    )
+      expiryDateRange.to ||
+      selectedStatuses.length > 0 ||
+      selectedLengths.length > 0,
+  )
+  const isSearching = Boolean(table.getState().globalFilter)
 
   return (
     <>
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
-            {toHeading({
-              totalCount: loader.total,
-              filteredCount: filteredData.length,
-              hasActiveFilters: Boolean(hasActiveFilters),
-            })}
+            {match({ total: loader.total, hasActiveFilters })
+              .with(
+                { hasActiveFilters: true },
+                () => `Names (${filteredData.length} of ${names.length} shown)`,
+              )
+              .with({ total: undefined }, () => 'Names')
+              .otherwise(({ total }) => `Names (${total})`)}
           </PageHeading>
         </div>
         {rowCount > 0 ? (
@@ -480,13 +366,9 @@ function RouteComponent() {
                 <Search />
               </InputGroupAddon>
             </InputGroup>
-            {isNarrowingPartialList({
-              canShowMore: loader.canShowMore,
-              hasActiveFilters: Boolean(hasActiveFilters),
-              search: table.getState().globalFilter,
-            }) && (
+            {loader.canShowMore && (hasActiveFilters || isSearching) && (
               <p className="text-sm text-muted-foreground">
-                Search and filters cover the {data.length} names shown so far.
+                Search and filters cover the {names.length} names shown so far.
                 Show more to include the rest.
               </p>
             )}
@@ -545,4 +427,92 @@ function RouteComponent() {
       <TransactionModal transactions={renewalTransactions} />
     </>
   )
+}
+
+function RouteComponent() {
+  const { addr: address } = Route.useParams() as { addr: Address }
+
+  const v1NamesQuery = useInfiniteQuery(
+    getV1NamesPagesForAddressQueryOptions({ address }),
+  )
+  const v2NamesQuery = useInfiniteQuery(
+    getV2NamesPagesForAddressQueryOptions({ address }),
+  )
+
+  const loadedNames: NameRow[] = useMemo(
+    () =>
+      mergeNamesData(
+        v1NamesQuery.data?.pages.flatMap((page) => page.names),
+        v2NamesQuery.data?.pages.flatMap((page) => page.names),
+      ),
+    [v1NamesQuery.data, v2NamesQuery.data],
+  )
+
+  const v2TotalCount = v2NamesQuery.data?.pages.at(-1)?.totalCount
+  const loader = useListLoader({
+    initialCount: NAMES_INITIAL_COUNT,
+    loaded: loadedNames.length,
+    // ENSv1 has no total, so the count is only known once its last page is in.
+    total:
+      v1NamesQuery.hasNextPage || v2TotalCount === undefined
+        ? undefined
+        : countNames(v1NamesQuery.data) + v2TotalCount,
+    hasMore: v1NamesQuery.hasNextPage || v2NamesQuery.hasNextPage,
+    fetchMore: fetchMoreNames(
+      v1NamesQuery.fetchNextPage,
+      v2NamesQuery.fetchNextPage,
+    ),
+    resetKey: address,
+  })
+
+  // Must be memoised: a fresh array makes the table recompute its row model,
+  // which auto-resets the page index, which re-renders — forever.
+  const names = useMemo(
+    () => loadedNames.slice(0, loader.shown),
+    [loadedNames, loader.shown],
+  )
+
+  if (v1NamesQuery.isLoading) {
+    return <LoadingMessage />
+  }
+
+  if (v2NamesQuery.isLoading) {
+    return <LoadingMessage />
+  }
+
+  if (v1NamesQuery.error && !v1NamesQuery.isFetchNextPageError) {
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching names. Please refresh the page."
+      />
+    )
+  }
+
+  if (v2NamesQuery.error && !v2NamesQuery.isFetchNextPageError) {
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching names. Please refresh the page."
+      />
+    )
+  }
+
+  if (loadedNames.length === 0)
+    return (
+      <>
+        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Names
+          </PageHeading>
+        </header>
+        <NoResultsMessage
+          title="No names yet"
+          description="Names owned by this address will appear here."
+          className="mx-0"
+        />
+      </>
+    )
+
+  return <NamesList address={address} names={names} loader={loader} />
 }

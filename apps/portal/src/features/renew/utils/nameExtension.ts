@@ -1,5 +1,8 @@
 import type { RowSelectionState } from '@tanstack/react-table'
-import type { NameRow } from '@/features/names/components/NamesTable/columns'
+import {
+  getNameRowId,
+  type NameRow,
+} from '@/features/names/components/NamesTable/columns'
 import type { SelectedName } from '@/features/renew/hooks/useRenewalTransactions'
 import { isCanonicalName, isNormalizedLabel } from '@/utils/token/isNormalized'
 
@@ -8,10 +11,6 @@ export const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
 export const GRACE_PERIOD_DAYS = 90
 export const V2_GRACE_PERIOD_DAYS = 28
 export const PREMIUM_PERIOD_DAYS = 21
-
-/** A row's selection key: its name, not its position, which shifts as rows load. */
-export const getNameRowId = (row: NameRow, index: number): string =>
-  row.name === null ? String(index) : `${row.protocolVersion}:${row.name}`
 
 export const getSelectedNames = (
   rowSelection: RowSelectionState,
