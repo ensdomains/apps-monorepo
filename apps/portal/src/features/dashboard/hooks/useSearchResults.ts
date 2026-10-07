@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
@@ -25,7 +25,7 @@ import {
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
 import { useSuggestionTlds } from './useSuggestionTlds'
-import { getV1NamesForAddressQueryOptions } from './useV1NamesForAddress'
+import { getV1NamesPagesForAddressQueryOptions } from './useV1NamesForAddress'
 import { getV2NamesForAddressQueryOptions } from './useV2NamesForAddress'
 
 const MAX_OWNED_NAMES = 5
@@ -120,23 +120,19 @@ export const useSearchResults = ({
 
   const addressForOwned = connectedAddress ?? zeroAddress
 
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      {
-        ...getV1NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-      {
-        ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-    ],
+  const v1NamesQuery = useInfiniteQuery({
+    ...getV1NamesPagesForAddressQueryOptions({ address: addressForOwned }),
+    enabled: Boolean(connectedAddress),
+  })
+  const v2NamesQuery = useQuery({
+    ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
+    enabled: Boolean(connectedAddress),
   })
 
   const ownedNamesMerged = useMemo(
     () =>
       mergeOwnedNames(
-        v1NamesQuery.data ?? [],
+        v1NamesQuery.data?.pages.flatMap((page) => page.names) ?? [],
         (v2NamesQuery.data ?? []).flatMap((d) => [
           { name: d.name },
           ...(d.subdomains ?? []).map((s) => ({ name: s.name })),

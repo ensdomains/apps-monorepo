@@ -1,9 +1,4 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import {
-  type InfiniteData,
-  type InfiniteQueryObserverResult,
-  useInfiniteQuery,
-} from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
@@ -36,6 +31,8 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { ALL_OWNED_NAMES_QUERY_KEY } from '@/features/dashboard/hooks/ownedNamesQueryKey'
+import { useOwnedNames } from '@/features/dashboard/hooks/useOwnedNames'
 import { getV1NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
 import { getV2NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
 import {
@@ -66,7 +63,6 @@ import {
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { queryClient } from '@/utils/queryClient'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
@@ -100,26 +96,6 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
 ]
 
 const NAMES_INITIAL_COUNT = 100
-
-type NamesPages = InfiniteData<{ readonly names: readonly unknown[] }>
-type FetchNamesPage = () => Promise<
-  InfiniteQueryObserverResult<NamesPages, unknown>
->
-
-const countNames = (data: NamesPages | undefined) =>
-  data?.pages.reduce((sum, page) => sum + page.names.length, 0) ?? 0
-
-/** Fetches the next page of both sources; one that has ended returns as is. */
-const fetchMoreNames =
-  (fetchV1Page: FetchNamesPage, fetchV2Page: FetchNamesPage) => async () => {
-    const [v1Next, v2Next] = await Promise.all([fetchV1Page(), fetchV2Page()])
-    if (v1Next.isError) throw v1Next.error
-    if (v2Next.isError) throw v2Next.error
-    return {
-      loaded: countNames(v1Next.data) + countNames(v2Next.data),
-      hasMore: v1Next.hasNextPage || v2Next.hasNextPage,
-    }
-  }
 
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
@@ -195,10 +171,7 @@ const NamesList = ({
       setRowSelection({})
       setExtendModalOpen(false)
       void queryClient.invalidateQueries({
-        queryKey: ['get-names-for-address'],
-      })
-      void queryClient.invalidateQueries({
-        queryKey: ['get-v2-names-with-roles-for-address'],
+        queryKey: ALL_OWNED_NAMES_QUERY_KEY,
       })
     },
   })
@@ -432,42 +405,27 @@ const NamesList = ({
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
 
-  const v1NamesQuery = useInfiniteQuery(
-    getV1NamesPagesForAddressQueryOptions({ address }),
-  )
-  const v2NamesQuery = useInfiniteQuery(
-    getV2NamesPagesForAddressQueryOptions({ address }),
-  )
+  const {
+    names: loadedNames,
+    total,
+    hasMore,
+    fetchMore,
+    v1Query: v1NamesQuery,
+    v2Query: v2NamesQuery,
+  } = useOwnedNames({ address })
 
-  const loadedNames: NameRow[] = useMemo(
-    () =>
-      mergeNamesData(
-        v1NamesQuery.data?.pages.flatMap((page) => page.names),
-        v2NamesQuery.data?.pages.flatMap((page) => page.names),
-      ),
-    [v1NamesQuery.data, v2NamesQuery.data],
-  )
-
-  const v2TotalCount = v2NamesQuery.data?.pages.at(-1)?.totalCount
   const loader = useListLoader({
     initialCount: NAMES_INITIAL_COUNT,
     loaded: loadedNames.length,
-    // ENSv1 has no total, so the count is only known once its last page is in.
-    total:
-      v1NamesQuery.hasNextPage || v2TotalCount === undefined
-        ? undefined
-        : countNames(v1NamesQuery.data) + v2TotalCount,
-    hasMore: v1NamesQuery.hasNextPage || v2NamesQuery.hasNextPage,
-    fetchMore: fetchMoreNames(
-      v1NamesQuery.fetchNextPage,
-      v2NamesQuery.fetchNextPage,
-    ),
+    total,
+    hasMore,
+    fetchMore,
     resetKey: address,
   })
 
   // Must be memoised: a fresh array makes the table recompute its row model,
   // which auto-resets the page index, which re-renders — forever.
-  const names = useMemo(
+  const names: NameRow[] = useMemo(
     () => loadedNames.slice(0, loader.shown),
     [loadedNames, loader.shown],
   )
@@ -498,7 +456,7 @@ function RouteComponent() {
     )
   }
 
-  if (loadedNames.length === 0)
+  if (loadedNames.length === 0 && !hasMore)
     return (
       <>
         <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">

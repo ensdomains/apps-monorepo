@@ -53,13 +53,15 @@ const NamesRoute = (Route as unknown as { component: () => ReactNode })
 
 /** `count` ENSv1 names for page `page`, later pages expiring later. */
 const v1Page = (page: number, count: number, hasNextPage: boolean) => ({
-  names: Array.from({ length: count }, (_, i) => ({
-    name: `v1-${page}-${i}.eth`,
-    expiryDate: {
-      date: new Date(Date.now() + (400 + page * PAGE_SIZE + i) * MS_PER_DAY),
-    },
-    relation: { registrant: true, owner: true, wrappedOwner: false },
-  })),
+  names: Array.from({ length: count }, (_, i) => {
+    const expiry = Date.now() + (400 + page * PAGE_SIZE + i) * MS_PER_DAY
+    return {
+      name: `v1-${page}-${i}.eth`,
+      parentName: 'eth',
+      expiryDate: { date: new Date(expiry), value: expiry },
+      relation: { registrant: true, owner: true, wrappedOwner: false },
+    }
+  }),
   hasNextPage,
 })
 
@@ -78,7 +80,6 @@ const v2Page = (
     subdomainCount: 0,
   })),
   totalCount,
-  endCursor: null,
   hasNextPage,
 })
 
@@ -114,7 +115,7 @@ describe('addr names route paging', { timeout: 60_000 }, () => {
     v2Pages.mockReset()
   })
 
-  it('loads successive pages of both sources and shows the total once ENSv1 ends', async () => {
+  it('holds back names a later page could precede, and shows the total once ENSv1 ends', async () => {
     const user = userEvent.setup()
     v1Pages.mockImplementation((page: number) =>
       page === 0 ? v1Page(0, 100, true) : v1Page(1, 20, false),
@@ -124,13 +125,17 @@ describe('addr names route paging', { timeout: 60_000 }, () => {
     )
     renderRoute()
 
+    // The ENSv2 page expires after ENSv1 names that are not loaded yet.
     expect(await screen.findByText('Showing 100', {}, SLOW)).toBeInTheDocument()
     expect(screen.getByRole('heading')).toHaveTextContent(/Names$/)
+    expect(screen.queryByText('v2-0-0.eth')).not.toBeInTheDocument()
 
-    // Both first pages are already in, so this reveals rows without a request.
     await user.click(more())
-    expect(await screen.findByText('Showing 200', {}, SLOW)).toBeInTheDocument()
-    expect(v1Pages).toHaveBeenCalledTimes(1)
+    expect(
+      await screen.findByText('Showing 200 of 270', {}, SLOW),
+    ).toBeInTheDocument()
+    expect(v1Pages).toHaveBeenCalledTimes(2)
+    expect(v2Pages).toHaveBeenCalledTimes(2)
 
     await user.click(more())
     expect(await screen.findByText('Names (270)', {}, SLOW)).toBeInTheDocument()
@@ -162,7 +167,7 @@ describe('addr names route paging', { timeout: 60_000 }, () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('keeps a ticked name ticked when loading more reorders the rows', async () => {
+  it('keeps a ticked name ticked when the rows are reordered', async () => {
     const user = userEvent.setup()
     v1Pages.mockResolvedValue(v1Page(0, 0, false))
     v2Pages.mockImplementation((page: number) =>

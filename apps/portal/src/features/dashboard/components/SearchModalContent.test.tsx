@@ -60,9 +60,11 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
   }),
 }))
 vi.mock('../hooks/useV1NamesForAddress', () => ({
-  getV1NamesForAddressQueryOptions: (params: { address: string }) => ({
+  getV1NamesPagesForAddressQueryOptions: (params: { address: string }) => ({
     queryKey: ['get-v1-names-for-address', params],
-    queryFn: () => Promise.resolve([]),
+    queryFn: () => Promise.resolve({ names: [], hasNextPage: false }),
+    initialPageParam: undefined,
+    getNextPageParam: () => undefined,
   }),
 }))
 let ownedNamesOverride: { name: string }[] | null = null

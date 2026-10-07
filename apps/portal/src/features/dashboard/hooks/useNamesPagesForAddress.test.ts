@@ -48,6 +48,8 @@ describe('getV1NamesPagesForAddressQueryOptions', () => {
 
     expect(mockEnsjsGetNamesForAddress.mock.calls[0]?.[1]).toEqual({
       address: ADDRESS,
+      orderBy: 'expiryDate',
+      orderDirection: 'asc',
       previousPage: undefined,
       pageSize: 100,
     })
@@ -64,31 +66,41 @@ describe('getV2NamesPagesForAddressQueryOptions', () => {
     mockGraphqlRequest.mockReset()
   })
 
+  const ACCOUNT = ADDRESS.toLowerCase()
+  const WITH_EXPIRY = { owner: ACCOUNT, expiry_gt: 0 }
+  const WITHOUT_EXPIRY = { owner: ACCOUNT, expiry_lte: 0 }
+
   const options = getV2NamesPagesForAddressQueryOptions({ address: ADDRESS })
   const indexerPage = ({
     names,
-    totalCount,
-    endCursor,
+    expiryDate = 1900000000,
+    totalCount = names.length,
+    restCount = 0,
+    endCursor = null,
   }: {
     names: readonly string[]
-    totalCount: number
-    endCursor: string | null
+    expiryDate?: number | null
+    totalCount?: number
+    restCount?: number
+    endCursor?: string | null
   }) => ({
     roles: [{ name: names[0], roleBitmap: '0x5' }],
-    domainConnection: {
+    page: {
       totalCount,
       pageInfo: { hasNextPage: endCursor !== null, endCursor },
       edges: names.map((name) => ({
-        node: { name, expiryDate: 1900000000, subdomainCount: 0 },
+        node: { name, expiryDate, subdomainCount: 0 },
       })),
     },
+    rest: { totalCount: restCount },
   })
 
-  it('loads the first page with the total and each name’s roles', async () => {
+  it('loads expiring names first, with the total and each name’s roles', async () => {
     mockGraphqlRequest.mockResolvedValue(
       indexerPage({
         names: ['a.eth', 'b.eth'],
-        totalCount: 29296,
+        totalCount: 28020,
+        restCount: 1276,
         endCursor: 'c1',
       }),
     )
@@ -96,9 +108,11 @@ describe('getV2NamesPagesForAddressQueryOptions', () => {
     const data = await new QueryClient().fetchInfiniteQuery(options)
 
     expect(mockGraphqlRequest).toHaveBeenCalledWith(expect.anything(), {
-      account: ADDRESS.toLowerCase(),
+      account: ACCOUNT,
       first: 100,
       after: undefined,
+      where: WITH_EXPIRY,
+      rest: WITHOUT_EXPIRY,
     })
     expect(data.pages[0]?.totalCount).toBe(29296)
     expect(data.pages[0]?.names).toEqual([
@@ -122,8 +136,40 @@ describe('getV2NamesPagesForAddressQueryOptions', () => {
       .mockResolvedValueOnce(
         indexerPage({ names: ['a.eth'], totalCount: 2, endCursor: 'c1' }),
       )
+      .mockResolvedValueOnce(indexerPage({ names: ['b.eth'], totalCount: 2 }))
+
+    const data = await new QueryClient().fetchInfiniteQuery({
+      ...options,
+      pages: 2,
+    })
+
+    expect(mockGraphqlRequest.mock.calls[1]?.[1]).toMatchObject({
+      after: 'c1',
+      where: WITH_EXPIRY,
+    })
+    expect(data.pages[1]?.nextCursor).toBeUndefined()
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(2)
+  })
+
+  it('moves on to names without an expiry once the expiring ones end', async () => {
+    mockGraphqlRequest
+      .mockResolvedValueOnce(indexerPage({ names: ['a.eth'], restCount: 101 }))
       .mockResolvedValueOnce(
-        indexerPage({ names: ['b.eth'], totalCount: 2, endCursor: null }),
+        indexerPage({
+          names: ['sub.a.eth'],
+          expiryDate: null,
+          totalCount: 101,
+          restCount: 1,
+          endCursor: 'c1',
+        }),
+      )
+      .mockResolvedValueOnce(
+        indexerPage({
+          names: ['other.a.eth'],
+          expiryDate: null,
+          totalCount: 101,
+          restCount: 1,
+        }),
       )
 
     const data = await new QueryClient().fetchInfiniteQuery({
@@ -131,7 +177,17 @@ describe('getV2NamesPagesForAddressQueryOptions', () => {
       pages: 2,
     })
 
-    expect(mockGraphqlRequest.mock.calls[1]?.[1]).toMatchObject({ after: 'c1' })
-    expect(data.pages[1]?.hasNextPage).toBe(false)
+    expect(mockGraphqlRequest.mock.calls[1]?.[1]).toMatchObject({
+      after: undefined,
+      where: WITHOUT_EXPIRY,
+    })
+    expect(mockGraphqlRequest.mock.calls[2]?.[1]).toMatchObject({
+      after: 'c1',
+      where: WITHOUT_EXPIRY,
+    })
+    expect(
+      data.pages.map((page) => page.names.map(({ name }) => name)),
+    ).toEqual([['a.eth', 'sub.a.eth'], ['other.a.eth']])
+    expect(data.pages.map((page) => page.totalCount)).toEqual([102, 102])
   })
 })

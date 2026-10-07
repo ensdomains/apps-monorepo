@@ -1,4 +1,3 @@
-import { useQueries } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -13,10 +12,8 @@ import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
-import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
+import { useOwnedNames } from '../hooks/useOwnedNames'
 
 const INITIAL_COUNT = 4
 const WARNING_DAYS = 30
@@ -53,26 +50,26 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
 }
 
 export const YourNames = ({ address }: { readonly address: Address }) => {
-  const [v1Query, v2Query] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
-
   // Every name the wallet owns, granted subnames included, soonest expiry first.
-  const names = mergeNamesData(v1Query.data, v2Query.data)
+  const { names, total, hasMore, fetchMore, v1Query, v2Query } = useOwnedNames({
+    address,
+  })
 
   const loader = useListLoader({
     initialCount: INITIAL_COUNT,
     loaded: names.length,
+    total,
+    hasMore,
+    fetchMore,
     resetKey: address,
   })
 
   // Each source reports its own state, so a slow or failed one never hides
   // the names the other already returned.
   const isSettled = !v1Query.isPending && !v2Query.isPending
-  const hasError = Boolean(v1Query.error || v2Query.error)
+  const hasV1Error = v1Query.isError && !v1Query.isFetchNextPageError
+  const hasV2Error = v2Query.isError && !v2Query.isFetchNextPageError
+  const hasError = hasV1Error || hasV2Error
 
   return (
     <div className="flex flex-col gap-6 rounded-md border border-neutral-3 px-6 pt-6 pb-3">
@@ -86,13 +83,13 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <WalletMenu isPill />
         </div>
       </div>
-      {v1Query.error && (
+      {hasV1Error && (
         <ErrorMessage
           compact
           description="Error fetching ENSv1 names. Please refresh the page."
         />
       )}
-      {v2Query.error && (
+      {hasV2Error && (
         <ErrorMessage
           compact
           description="Error fetching ENSv2 names. Please refresh the page."
