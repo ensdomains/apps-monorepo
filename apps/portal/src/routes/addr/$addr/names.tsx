@@ -1,5 +1,9 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { useQueries } from '@tanstack/react-query'
+import {
+  type InfiniteData,
+  type InfiniteQueryObserverResult,
+  useInfiniteQuery,
+} from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
@@ -12,8 +16,11 @@ import {
 } from '@tanstack/react-table'
 import { FastForward, Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -26,8 +33,8 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { getV1NamesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
+import { getV1NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
+import { getV2NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
 import {
   columns,
   type NameRow,
@@ -88,18 +95,87 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
   },
 ]
 
+const NAMES_INITIAL_COUNT = 100
+
+type NamesPages = InfiniteData<{ readonly names: readonly unknown[] }>
+type FetchNamesPage = () => Promise<
+  InfiniteQueryObserverResult<NamesPages, unknown>
+>
+
+const countNames = (data: NamesPages | undefined) =>
+  data?.pages.reduce((sum, page) => sum + page.names.length, 0) ?? 0
+
+/** Fetches the next page of both sources; one that has ended returns as is. */
+const fetchMoreNames =
+  (fetchV1Page: FetchNamesPage, fetchV2Page: FetchNamesPage) => async () => {
+    const [v1Next, v2Next] = await Promise.all([fetchV1Page(), fetchV2Page()])
+    if (v1Next.isError) throw v1Next.error
+    if (v2Next.isError) throw v2Next.error
+    return {
+      loaded: countNames(v1Next.data) + countNames(v2Next.data),
+      hasMore: v1Next.hasNextPage || v2Next.hasNextPage,
+    }
+  }
+
+/** ENSv1 has no total, so the count is only known once its last page is in. */
+const toTotalCount = ({
+  hasMoreV1,
+  v1Count,
+  v2TotalCount,
+}: {
+  readonly hasMoreV1: boolean
+  readonly v1Count: number
+  readonly v2TotalCount: number | undefined
+}) =>
+  hasMoreV1 || v2TotalCount === undefined ? undefined : v1Count + v2TotalCount
+
+const isNarrowingPartialList = ({
+  canShowMore,
+  hasActiveFilters,
+  search,
+}: {
+  readonly canShowMore: boolean
+  readonly hasActiveFilters: boolean
+  readonly search: unknown
+}) => canShowMore && (hasActiveFilters || Boolean(search))
+
+const hasFailedToLoad = ({
+  error,
+  isFetchNextPageError,
+}: {
+  readonly error: unknown
+  readonly isFetchNextPageError: boolean
+}) => Boolean(error) && !isFetchNextPageError
+
+const toHeading = ({
+  totalCount,
+  filteredCount,
+  hasActiveFilters,
+}: {
+  readonly totalCount: number | undefined
+  readonly filteredCount: number
+  readonly hasActiveFilters: boolean
+}) =>
+  match({ totalCount, hasActiveFilters })
+    .with({ totalCount: undefined }, () => 'Names')
+    .with(
+      { hasActiveFilters: true },
+      () => `Names (${filteredCount} of ${totalCount})`,
+    )
+    .otherwise(() => `Names (${totalCount})`)
+
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
     Promise.all([
-      queryClient.prefetchQuery(
-        getV1NamesForAddressQueryOptions({
+      queryClient.prefetchInfiniteQuery(
+        getV1NamesPagesForAddressQueryOptions({
           address: params.addr as Address,
         }),
       ),
-      queryClient.prefetchQuery(
-        getV2NamesWithRolesForAddressQueryOptions({
+      queryClient.prefetchInfiniteQuery(
+        getV2NamesPagesForAddressQueryOptions({
           address: params.addr as Address,
         }),
       ),
@@ -170,18 +246,43 @@ function RouteComponent() {
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedLengths, setSelectedLengths] = useState<string[]>([])
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
+  const v1NamesQuery = useInfiniteQuery(
+    getV1NamesPagesForAddressQueryOptions({ address }),
+  )
+  const v2NamesQuery = useInfiniteQuery(
+    getV2NamesPagesForAddressQueryOptions({ address }),
+  )
+
+  const loadedNames: NameRow[] = useMemo(
+    () =>
+      mergeNamesData(
+        v1NamesQuery.data?.pages.flatMap((page) => page.names),
+        v2NamesQuery.data?.pages.flatMap((page) => page.names),
+      ),
+    [v1NamesQuery.data, v2NamesQuery.data],
+  )
+
+  const loader = useListLoader({
+    initialCount: NAMES_INITIAL_COUNT,
+    loaded: loadedNames.length,
+    total: toTotalCount({
+      hasMoreV1: v1NamesQuery.hasNextPage,
+      v1Count: countNames(v1NamesQuery.data),
+      v2TotalCount: v2NamesQuery.data?.pages.at(-1)?.totalCount,
+    }),
+    hasMore: v1NamesQuery.hasNextPage || v2NamesQuery.hasNextPage,
+    fetchMore: fetchMoreNames(
+      v1NamesQuery.fetchNextPage,
+      v2NamesQuery.fetchNextPage,
+    ),
+    resetKey: address,
   })
 
   // Must be memoised: a fresh array makes the table recompute its row model,
   // which auto-resets the page index, which re-renders — forever.
-  const data: NameRow[] = useMemo(
-    () => mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
-    [v1NamesQuery.data, v2NamesQuery.data],
+  const data = useMemo(
+    () => loadedNames.slice(0, loader.shown),
+    [loadedNames, loader.shown],
   )
 
   // Apply filters to data
@@ -264,7 +365,7 @@ function RouteComponent() {
     return <LoadingMessage />
   }
 
-  if (v1NamesQuery.error) {
+  if (hasFailedToLoad(v1NamesQuery)) {
     return (
       <ErrorMessage
         compact
@@ -273,7 +374,7 @@ function RouteComponent() {
     )
   }
 
-  if (v2NamesQuery.error) {
+  if (hasFailedToLoad(v2NamesQuery)) {
     return (
       <ErrorMessage
         compact
@@ -282,15 +383,13 @@ function RouteComponent() {
     )
   }
 
-  const nameCount = filteredData.length
-  const totalCount = data.length
   const hasActiveFilters =
     expiryDateRange.from ||
     expiryDateRange.to ||
     selectedStatuses.length > 0 ||
     selectedLengths.length > 0
 
-  if (totalCount === 0)
+  if (loadedNames.length === 0)
     return (
       <>
         <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
@@ -311,9 +410,11 @@ function RouteComponent() {
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
-            {hasActiveFilters
-              ? `Names (${nameCount} of ${totalCount})`
-              : `Names (${totalCount})`}
+            {toHeading({
+              totalCount: loader.total,
+              filteredCount: filteredData.length,
+              hasActiveFilters: Boolean(hasActiveFilters),
+            })}
           </PageHeading>
         </div>
         {rowCount > 0 ? (
@@ -377,6 +478,16 @@ function RouteComponent() {
                 <Search />
               </InputGroupAddon>
             </InputGroup>
+            {isNarrowingPartialList({
+              canShowMore: loader.canShowMore,
+              hasActiveFilters: Boolean(hasActiveFilters),
+              search: table.getState().globalFilter,
+            }) && (
+              <p className="text-sm text-muted-foreground">
+                Search and filters cover the {data.length} names shown so far.
+                Show more to include the rest.
+              </p>
+            )}
             <div className="flex flex-row gap-2 flex-wrap">
               <TableDateRangeFilter
                 label="Expiry"
@@ -402,6 +513,7 @@ function RouteComponent() {
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
+      <ListLoader {...loader} className="py-4" />
       {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}

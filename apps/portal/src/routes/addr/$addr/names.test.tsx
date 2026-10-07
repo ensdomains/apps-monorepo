@@ -73,9 +73,23 @@ const V2_NAMES = [
   },
 ] satisfies V2NameWithRoles[]
 
+// One loaded page per source, with a stable identity like the query cache's.
 const QUERY_DATA: Record<string, unknown> = {
-  'get-names-for-address': V1_NAMES,
-  'get-v2-names-with-roles-for-address': V2_NAMES,
+  'get-names-for-address': {
+    pages: [{ names: V1_NAMES, hasNextPage: false }],
+    pageParams: [undefined],
+  },
+  'get-v2-names-with-roles-for-address': {
+    pages: [
+      {
+        names: V2_NAMES,
+        totalCount: V2_NAMES.length,
+        endCursor: null,
+        hasNextPage: false,
+      },
+    ],
+    pageParams: [undefined],
+  },
 }
 
 /** Every query key the route handed to `useQueries`, in request order. */
@@ -98,6 +112,14 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
           error: null,
         }
       }),
+    useInfiniteQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => ({
+      data: QUERY_DATA[queryKey[0] as string],
+      isLoading: false,
+      error: null,
+      isFetchNextPageError: false,
+      hasNextPage: false,
+      fetchNextPage: () => Promise.resolve(),
+    }),
   }
 })
 
