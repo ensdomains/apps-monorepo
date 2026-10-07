@@ -12,7 +12,7 @@ class ListStalledError extends TaggedError('ListStalledError')<{
 
 type FetchUntilParameters = FetchMoreResult & {
   readonly target: number
-  readonly fetchMore: () => Promise<FetchMoreResult>
+  readonly fetchMore: (signal?: AbortSignal) => Promise<FetchMoreResult>
   readonly stalledPages?: number
   readonly signal?: AbortSignal
 }
@@ -39,7 +39,7 @@ export const fetchUntil = async ({
       cause: { loaded, hasMore },
     })
 
-  const next = await fetchMore()
+  const next = await fetchMore(signal)
 
   return fetchUntil({
     ...next,

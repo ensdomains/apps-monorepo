@@ -26,22 +26,26 @@ const v2Ref = vi.hoisted(() => ({
 const v1Ref = vi.hoisted(() => ({ current: [] as [] | Error }))
 
 vi.mock('../hooks/useV1NamesForAddress', () => ({
-  getV1NamesForAddressQueryOptions: () => ({
+  getV1NamesPagesForAddressQueryOptions: () => ({
     queryKey: ['v1-names-mock'],
     queryFn: async () => {
       if (v1Ref.current instanceof Error) throw v1Ref.current
-      return v1Ref.current
+      return { names: v1Ref.current, hasNextPage: false }
     },
+    initialPageParam: undefined,
+    getNextPageParam: () => undefined,
   }),
 }))
 
 vi.mock('../hooks/useV2NamesWithRolesForAddress', () => ({
-  getV2NamesWithRolesForAddressQueryOptions: () => ({
+  getV2NamesPagesForAddressQueryOptions: () => ({
     queryKey: ['v2-names-mock'],
     queryFn: async () => {
       if (v2Ref.current instanceof Error) throw v2Ref.current
-      return v2Ref.current
+      return { names: v2Ref.current, totalCount: v2Ref.current.length }
     },
+    initialPageParam: undefined,
+    getNextPageParam: () => undefined,
   }),
 }))
 
