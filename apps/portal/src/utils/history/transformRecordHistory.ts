@@ -1,6 +1,5 @@
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { match } from 'ts-pattern'
-import type { V2NameHistoryEvent } from '@/features/profile/hooks/useV2NameHistory'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
 /**
@@ -23,39 +22,19 @@ export type HistoryEvent = {
  *
  * @example
  * getV2EventTypesForRecord({ type: 'text', key: 'name', value: 'John' })
- * // ['TextChanged']
+ * // ['TextUpdated', 'TextChanged']
  *
  * @example
  * getV2EventTypesForRecord({ type: 'address', key: 'ETH', value: '0x...', id: 60 })
- * // ['AddressChanged']
+ * // ['AddressUpdated', 'AddressChanged']
  */
 export const getV2EventTypesForRecord = (record: NameRecord): string[] =>
   match(record.type)
-    .with('text', () => ['TextChanged'])
-    .with('address', () => ['AddressChanged'])
-    .with('contentHash', () => ['ContenthashChanged'])
-    .with('abi', () => ['ABIChanged'])
+    .with('text', () => ['TextUpdated', 'TextChanged'])
+    .with('address', () => ['AddressUpdated', 'AddressChanged'])
+    .with('contentHash', () => ['ContenthashUpdated', 'ContenthashChanged'])
+    .with('abi', () => ['ABIUpdated', 'ABIChanged'])
     .exhaustive()
-
-/**
- * Filters V2 name history events to only include resolver events matching the record type.
- * Note: V2 events don't have detailed key/coinType info, so we can only filter by event type.
- *
- * @param events - Array of V2 name history events
- * @param record - The record to filter events for
- * @returns Filtered events matching the record's type
- *
- * @example
- * filterV2EventsByRecord(events, { type: 'text', key: 'name', value: 'John' })
- * // Returns only events with type 'TextChanged'
- */
-export const filterV2EventsByRecord = (
-  events: V2NameHistoryEvent[],
-  record: NameRecord,
-): V2NameHistoryEvent[] => {
-  const eventTypes = getV2EventTypesForRecord(record)
-  return events.filter((event) => eventTypes.includes(event.type))
-}
 
 /**
  * Extracts the display value from a V1 resolver event.
@@ -98,29 +77,6 @@ export const transformV1Events = (
       value: extractV1EventValue(event),
     }
   })
-
-/**
- * Transforms V2 name history events to the unified HistoryEvent format.
- * V2 events include timestamps but not detailed value info (the indexer schema
- * doesn't include key, value, addr, contentHash fields on events).
- *
- * @param events - Array of V2 name history events
- * @returns Array of unified history events
- *
- * @example
- * transformV2Events([{ type: 'TextChanged', blockNumber: 12345, timestamp: 1700000000, name: 'test.eth', transactionHash: '0x...' }])
- * // [{ blockNumber: 12345, timestamp: 1700000000, type: 'TextChanged', value: undefined }]
- */
-export const transformV2Events = (
-  events: V2NameHistoryEvent[],
-): HistoryEvent[] =>
-  events.map((event) => ({
-    blockNumber: event.blockNumber,
-    timestamp: event.timestamp,
-    transactionHash: event.transactionHash,
-    type: event.type,
-    value: undefined,
-  }))
 
 /**
  * Sorts history events by timestamp (descending), falling back to block number.
