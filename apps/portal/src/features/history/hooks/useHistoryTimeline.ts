@@ -155,14 +155,8 @@ const useTimelineModel = (
   }
   const allActions = toActions(pagedEvents, hasNextPage)
 
-  // Withheld when a source is known short, rather than presenting a lower
-  // bound as an exact count.
-  //
-  // The sum is only exact once the feed is fully loaded, because the auxiliary
-  // sources overlap the paged one (see `dropPagedDuplicates`) and an overlap
-  // on a page still unfetched cannot be seen. While pages remain, a name with
-  // auxiliary events gets no count at all rather than one inflated by its own
-  // duplicates — fox.eth printed 251 for 73 real events.
+  // Withheld when it would be a lower bound, or inflated by duplicates that
+  // unfetched pages still hide (fox.eth printed 251 for 73 real events).
   const totalCount =
     pagedTotalCount === undefined ||
     isTruncated ||
@@ -178,8 +172,7 @@ const useTimelineModel = (
     loaded: countEvents(allActions),
     total: totalCount,
     hasMore: hasNextPage,
-    // Counted like the window: a page's raw events include the boundary
-    // transaction the timeline withholds.
+    // Not `page.events.length`: that counts the withheld boundary transaction.
     fetchMore: async () => {
       const next = await pagesQuery.fetchNextPage()
       if (next.isError) throw next.error
@@ -220,7 +213,6 @@ const useTimelineModel = (
       ...loader,
       shown: countEvents(actions),
       canShowMore: hasMore,
-      // A total withheld above stays withheld once the feed ends.
       total: totalCount,
       canShowAll: totalCount !== undefined && loader.canShowAll,
     },

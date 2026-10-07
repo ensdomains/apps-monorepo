@@ -98,8 +98,6 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(queryFn).toHaveBeenCalledOnce()
 
-    // The next doubling runs past everything loaded, so the next page is worth
-    // fetching.
     act(() => result.current.loader.onMore())
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2))
     await waitFor(() =>
@@ -107,8 +105,6 @@ describe('useTimelinePagesModel', () => {
     )
   })
 
-  // Each page withholds its boundary transaction while more remain, so four
-  // 100-event pages show 399, not the 400 the third doubling asks for.
   it('keeps fetching until the window is filled with visible events', async () => {
     const { result, queryFn } = renderFeed([
       page(events(100), '1'),
@@ -130,8 +126,6 @@ describe('useTimelinePagesModel', () => {
     expect(queryFn).toHaveBeenCalledTimes(5)
   })
 
-  // The feed gives no total here; reaching its end must not turn the loaded
-  // count into one.
   it('keeps an unknown total unknown once the feed ends', async () => {
     const { result } = renderFeed([page(events(TIMELINE_WINDOW_SIZE * 2))])
 
