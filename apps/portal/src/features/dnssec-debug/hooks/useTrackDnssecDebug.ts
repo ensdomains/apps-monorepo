@@ -19,6 +19,7 @@ export const useTrackDnssecDebugOpened = ({
 const getFailedStep = (verdict: DnssecVerdict): string | null => {
   switch (verdict.kind) {
     case 'broken':
+    case 'path-broken':
     case 'oracle-rejected':
     case 'oracle-unavailable':
       return verdict.step

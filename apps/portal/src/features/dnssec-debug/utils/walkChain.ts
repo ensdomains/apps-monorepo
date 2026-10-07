@@ -204,6 +204,7 @@ export const walkDnssecChain = async ({
     resolver,
     checkedAt: now,
     nameExists: getResponseCode(offchain) !== 'NXDOMAIN',
+    apexZone,
     zones: steps,
     records,
   }

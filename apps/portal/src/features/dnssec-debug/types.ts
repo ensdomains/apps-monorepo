@@ -124,6 +124,11 @@ export type DnssecReport = {
   /** Unix seconds — signature validity is evaluated at this instant. */
   readonly checkedAt: number
   readonly nameExists: boolean
+  /**
+   * The zone answering the name's apex. Zones below it are `_ens.<name>`'s
+   * own, so only the onchain import depends on them.
+   */
+  readonly apexZone: string
   readonly zones: readonly ZoneStep[]
   readonly records: readonly RecordStep[]
 }

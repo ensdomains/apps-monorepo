@@ -16,6 +16,7 @@ const getTone = (verdict: DnssecVerdict): Tone =>
       { kind: 'valid' },
       { kind: 'no-records' },
       { kind: 'oracle-unavailable' },
+      { kind: 'path-broken' },
       () => 'warning' as const,
     )
     .otherwise(() => 'danger' as const)
@@ -32,10 +33,14 @@ const TONE_ICON = {
   danger: ShieldX,
 } as const
 
-/** Registrar guides help when the fix is at the registrar: enabling DNSSEC or the DS record. */
+/**
+ * Registrar guides help when the fix is at the registrar: enabling DNSSEC or
+ * the DS record. A delegated `_ens` zone's DS lives with the DNS provider.
+ */
 const needsRegistrarHelp = (verdict: DnssecVerdict): boolean =>
   verdict.kind === 'not-enabled' ||
   (verdict.kind === 'broken' &&
+    verdict.path === null &&
     (verdict.check.id === 'ds-records' || verdict.check.id === 'ds-match'))
 
 type DnssecSummaryProps = {

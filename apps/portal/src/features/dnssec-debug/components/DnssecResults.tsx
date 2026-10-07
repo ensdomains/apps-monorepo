@@ -5,18 +5,35 @@ import { Button } from '@/components/ui/button'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { useTrackDnssecDebugResult } from '../hooks/useTrackDnssecDebug'
 import { getDnssecOracleCheckQueryOptions } from '../queries/getDnssecOracleCheck'
-import type { DnssecReport, DnssecStep } from '../types'
+import type { DnssecReport, DnssecStep, RecordPurpose } from '../types'
 import { formatReport } from '../utils/formatReport'
 import { buildOracleRequest } from '../utils/oracle'
-import { deriveVerdict, type OracleState } from '../utils/verdict'
+import { deriveVerdict, getStepPath, type OracleState } from '../utils/verdict'
 import { DnssecOracleSection } from './DnssecOracleSection'
 import { DnssecStepItem } from './DnssecStepItem'
 import { DnssecSummary } from './DnssecSummary'
 
-/** Steps after the first broken zone can't be trusted, whatever they say. */
-const getUntrustedFrom = (report: DnssecReport): number => {
-  const index = report.zones.findIndex((zone) => zone.status === 'fail')
-  return index === -1 ? Number.POSITIVE_INFINITY : index + 1
+/**
+ * Steps after a broken zone they depend on can't be trusted, whatever they
+ * say. A broken `_ens` zone leaves the apex record alone.
+ */
+const getUntrusted = (
+  report: DnssecReport,
+  steps: readonly DnssecStep[],
+): readonly boolean[] => {
+  const firstBroken = (path: RecordPurpose | null) => {
+    const index = report.zones.findIndex(
+      (zone) => zone.status === 'fail' && getStepPath(report, zone) === path,
+    )
+    return index === -1 ? Number.POSITIVE_INFINITY : index
+  }
+  const shared = firstBroken(null)
+  const onchain = firstBroken('onchain')
+  return steps.map(
+    (step, index) =>
+      index > shared ||
+      (index > onchain && getStepPath(report, step) === 'onchain'),
+  )
 }
 
 const copyReport = async (text: string) => {
@@ -51,7 +68,7 @@ export const DnssecResults = ({ name, report }: DnssecResultsProps) => {
   })
 
   const steps: readonly DnssecStep[] = [...report.zones, ...report.records]
-  const untrustedFrom = getUntrustedFrom(report)
+  const untrusted = getUntrusted(report, steps)
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,7 +100,7 @@ export const DnssecResults = ({ name, report }: DnssecResultsProps) => {
               }
               step={step}
               isLast={index === steps.length - 1}
-              isUntrusted={index >= untrustedFrom}
+              isUntrusted={untrusted[index] ?? false}
             />
           ))}
         </ol>

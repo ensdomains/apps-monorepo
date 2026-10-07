@@ -14,7 +14,7 @@ import {
   type TestHierarchy,
   txt,
 } from './testZones'
-import { deriveVerdict } from './verdict'
+import { deriveVerdict, describeVerdict } from './verdict'
 import { walkDnssecChain } from './walkChain'
 
 const walk = (hierarchy: TestHierarchy, name = 'example.xyz') =>
@@ -203,7 +203,8 @@ describe('walkDnssecChain', () => {
       title: 'Signature does not verify',
     })
     expect(deriveVerdict(report)).toMatchObject({
-      kind: 'broken',
+      kind: 'path-broken',
+      path: 'onchain',
       step: '_ens.example.xyz TXT',
     })
   })
@@ -370,8 +371,97 @@ describe('walkDnssecChain', () => {
 
     expect(getCheck(onchain, 'resolver-validation')?.status).toBe('fail')
     expect(deriveVerdict(report)).toMatchObject({
-      kind: 'broken',
+      kind: 'path-broken',
+      path: 'onchain',
       step: '_ens.example.xyz TXT',
+    })
+  })
+
+  // Greptile on #1312: a broken `_ens` path must not hide a working ENS1 one.
+  describe('with a separately delegated _ens zone whose chain is broken', () => {
+    const breakEnsZone = async (hierarchy: TestHierarchy) => {
+      const ensKey = await createEcdsaKey('_ens.example.xyz')
+      const ensDs = await makeDs(ensKey)
+      const record = txt('_ens.example.xyz', `a=${ADDRESS}`)
+      hierarchy.responses.set(
+        '_ens.example.xyz DS',
+        answer([
+          ensDs,
+          await sign([ensDs], hierarchy.keys.example, {
+            inception: NOW - 30 * 24 * 3600,
+            expiration: NOW - 3 * 24 * 3600,
+          }),
+        ]),
+      )
+      hierarchy.responses.set(
+        '_ens.example.xyz DNSKEY',
+        answer([ensKey.record, await sign([ensKey.record], ensKey)]),
+      )
+      hierarchy.responses.set(
+        '_ens.example.xyz TXT',
+        answer([record, await sign([record], ensKey)]),
+      )
+    }
+
+    it('reports the onchain import as broken and the gasless one as working', async () => {
+      const hierarchy = await createTestHierarchy()
+      await breakEnsZone(hierarchy)
+
+      const report = await walk(hierarchy)
+      const verdict = deriveVerdict(report)
+
+      expect(getZone(report, '_ens.example.xyz').status).toBe('fail')
+      expect(getRecord(report, 'offchain').status).toBe('pass')
+      expect(verdict).toMatchObject({
+        kind: 'path-broken',
+        path: 'onchain',
+        step: '_ens.example.xyz.',
+        check: { id: 'ds-signature' },
+      })
+      expect(describeVerdict(verdict, report.name).description).toContain(
+        'can still be used gaslessly',
+      )
+    })
+
+    it('ignores what the oracle says about the broken path, but not the shared one', async () => {
+      const hierarchy = await createTestHierarchy()
+      await breakEnsZone(hierarchy)
+      const report = await walk(hierarchy)
+      const rejected = (label: string) =>
+        deriveVerdict(report, {
+          status: 'checked',
+          result: {
+            steps: [
+              {
+                label,
+                outcome: { status: 'fail', errorName: null, message: 'No.' },
+              },
+            ],
+            records: [],
+          },
+        })
+
+      expect(rejected('_ens.example.xyz. DS')).toMatchObject({
+        kind: 'path-broken',
+      })
+      expect(rejected('example.xyz. DNSKEY')).toMatchObject({
+        kind: 'oracle-rejected',
+        step: 'example.xyz. DNSKEY',
+      })
+    })
+
+    it('reports a plain break, naming the import, when no other record works', async () => {
+      const hierarchy = await createTestHierarchy()
+      await breakEnsZone(hierarchy)
+      hierarchy.responses.set('example.xyz TXT', negative('example.xyz'))
+
+      const report = await walk(hierarchy)
+
+      expect(deriveVerdict(report)).toMatchObject({
+        kind: 'broken',
+        path: 'onchain',
+        step: '_ens.example.xyz.',
+      })
     })
   })
 

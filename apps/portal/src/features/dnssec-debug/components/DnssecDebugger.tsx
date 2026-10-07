@@ -103,7 +103,13 @@ export const DnssecDebugger = ({
       {reportQuery.isLoading && (
         <LoadingSpinner title="Walking the DNSSEC chain…" />
       )}
-      {reportQuery.isError && (
+      {reportQuery.error?._tag === 'InvalidDnssecNameError' && (
+        <ErrorMessage
+          title={`${name} is not a valid ENS name`}
+          description={`${extractErrorMessage(reportQuery.error.cause, 'The name could not be normalized.')} Only a name that normalizes can be imported into ENS.`}
+        />
+      )}
+      {reportQuery.error?._tag === 'DnssecLookupError' && (
         <ErrorMessage
           title={`Could not reach ${DNS_RESOLVERS[resolver].label}`}
           description={`${extractErrorMessage(reportQuery.error, 'The DNS lookup failed.')} Check your connection, or try another resolver.`}

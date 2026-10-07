@@ -1,5 +1,11 @@
-import type { DnssecCheck, DnssecReport, DnssecStep } from '../types'
+import type {
+  DnssecCheck,
+  DnssecReport,
+  DnssecStep,
+  RecordPurpose,
+} from '../types'
 import type { OracleOutcome } from './oracle'
+import { isProperAncestor } from './wire'
 
 export type OracleStepResult = {
   readonly label: string
@@ -18,8 +24,18 @@ export type DnssecVerdict =
   | { readonly kind: 'not-enabled'; readonly zone: string }
   | {
       readonly kind: 'broken'
+      /** The import the break is confined to, or null when both depend on it. */
+      readonly path: RecordPurpose | null
       readonly step: string
       readonly check: DnssecCheck
+    }
+  | {
+      /** One import breaks while the other's record validates. */
+      readonly kind: 'path-broken'
+      readonly path: RecordPurpose
+      readonly step: string
+      readonly check: DnssecCheck
+      readonly warnings: number
     }
   | {
       readonly kind: 'oracle-rejected'
@@ -43,13 +59,45 @@ export const getStepLabel = (step: DnssecStep): string => {
 const isNotEnabled = (step: DnssecStep): boolean =>
   step.kind === 'zone' && step.ds.length === 0 && step.dnskeys.length === 0
 
+const PATHS: readonly RecordPurpose[] = ['onchain', 'offchain']
+
+const getZonePath = (
+  report: DnssecReport,
+  zone: string,
+): RecordPurpose | null =>
+  isProperAncestor(report.apexZone, zone) ? 'onchain' : null
+
+/**
+ * The import a step serves, or null for a link both depend on. A zone below
+ * the apex is `_ens.<name>`'s own, which only the onchain import reads.
+ */
+export const getStepPath = (
+  report: DnssecReport,
+  step: DnssecStep,
+): RecordPurpose | null =>
+  step.kind === 'record' ? step.purpose : getZonePath(report, step.zone)
+
+/** Oracle results are labelled `<zone>. DS|DNSKEY` or `<owner> TXT`. */
+const getOracleLabelPath = (
+  report: DnssecReport,
+  label: string,
+): RecordPurpose | null =>
+  report.records.find((record) => getStepLabel(record) === label)?.purpose ??
+  getZonePath(report, label.replace(/ (DS|DNSKEY)$/, ''))
+
 const findOracleOutcome = (
   oracle: OracleCheckResult | undefined,
   status: 'fail' | 'error',
+  isRelevant: (label: string) => boolean = () => true,
 ): OracleStepResult | undefined =>
   [...(oracle?.steps ?? []), ...(oracle?.records ?? [])].find(
-    (result) => result.outcome.status === status,
+    (result) => result.outcome.status === status && isRelevant(result.label),
   )
+
+const toBreak = (step: DnssecStep | undefined) => {
+  const check = step?.checks.find((c) => c.status === 'fail')
+  return step && check ? { step: getStepLabel(step), check } : null
+}
 
 /** What the oracle check came back with: its result, or why there is none. */
 export type OracleState =
@@ -60,8 +108,9 @@ export type OracleState =
 /**
  * The headline answer: the first link that fails, in chain order — later
  * links can't be trusted once an earlier one breaks, so that's the one to fix.
- * Once DNS validates, an oracle that couldn't answer leaves the verdict
- * unknown rather than valid.
+ * A break confined to one import doesn't hide the other when its record
+ * validates. Once DNS validates, an oracle that couldn't answer leaves the
+ * verdict unknown rather than valid.
  */
 export const deriveVerdict = (
   report: DnssecReport,
@@ -72,16 +121,36 @@ export const deriveVerdict = (
   if (!report.nameExists) return { kind: 'name-not-found' }
 
   const steps: readonly DnssecStep[] = [...report.zones, ...report.records]
-  const broken = steps.find((step) => step.status === 'fail')
-  if (broken) {
-    if (isNotEnabled(broken) && broken.kind === 'zone') {
-      return { kind: 'not-enabled', zone: broken.zone }
-    }
-    const check = broken.checks.find((c) => c.status === 'fail')
-    if (check) return { kind: 'broken', step: getStepLabel(broken), check }
-  }
+  const failing = steps.filter((step) => step.status === 'fail')
 
-  const oracleFailure = findOracleOutcome(oracle, 'fail')
+  const shared = failing.find((step) => getStepPath(report, step) === null)
+  if (shared?.kind === 'zone' && isNotEnabled(shared)) {
+    return { kind: 'not-enabled', zone: shared.zone }
+  }
+  const sharedBreak = toBreak(shared)
+  if (sharedBreak) return { kind: 'broken', path: null, ...sharedBreak }
+
+  // In chain order: `_ens`'s own zones and record come before the apex record.
+  const pathBreaks = PATHS.flatMap((path) => {
+    const pathBreak = toBreak(
+      failing.find((step) => getStepPath(report, step) === path),
+    )
+    return pathBreak ? [{ path, ...pathBreak }] : []
+  })
+  const brokenPaths = pathBreaks.map(({ path }) => path)
+  const hasWorkingPath = report.records.some(
+    (record) =>
+      !brokenPaths.includes(record.purpose) &&
+      (record.status === 'pass' || record.status === 'warn'),
+  )
+  const [firstBreak] = pathBreaks
+  if (firstBreak && !hasWorkingPath) return { kind: 'broken', ...firstBreak }
+
+  // What the oracle says about a path already reported broken changes nothing.
+  const oracleFailure = findOracleOutcome(oracle, 'fail', (label) => {
+    const path = getOracleLabelPath(report, label)
+    return path === null || !brokenPaths.includes(path)
+  })
   if (oracleFailure && oracleFailure.outcome.status === 'fail') {
     return {
       kind: 'oracle-rejected',
@@ -93,6 +162,8 @@ export const deriveVerdict = (
   const warnings = steps
     .flatMap((step) => step.checks)
     .filter((check) => check.status === 'warn').length
+
+  if (firstBreak) return { kind: 'path-broken', ...firstBreak, warnings }
 
   if (oracleState.status === 'unavailable') {
     return {
@@ -123,6 +194,21 @@ const warningSuffix = (warnings: number): string =>
   warnings === 0
     ? ''
     : ` ${warnings} ${warnings === 1 ? 'warning needs' : 'warnings need'} attention.`
+
+const PATH_LABEL: Readonly<Record<RecordPurpose, string>> = {
+  onchain: 'onchain import',
+  offchain: 'gasless import',
+}
+
+const STILL_WORKS: Readonly<Record<RecordPurpose, string>> = {
+  onchain:
+    'The "ENS1" record validates, so the name can still be used gaslessly.',
+  offchain:
+    'The "_ens" record validates, so the name can still be imported onchain.',
+}
+
+const describeBreak = (check: DnssecCheck): string =>
+  `${check.title.replace(/\.$/, '')}. ${check.detail ?? ''}`.trim()
 
 export const describeVerdict = (
   verdict: DnssecVerdict,
@@ -156,8 +242,14 @@ export const describeVerdict = (
     case 'broken':
       return {
         title: `Chain breaks at ${verdict.step}`,
-        description:
-          `${verdict.check.title.replace(/\.$/, '')}. ${verdict.check.detail ?? ''}`.trim(),
+        description: verdict.path
+          ? `${describeBreak(verdict.check)} Only the ${PATH_LABEL[verdict.path]} depends on this link.`
+          : describeBreak(verdict.check),
+      }
+    case 'path-broken':
+      return {
+        title: `The ${PATH_LABEL[verdict.path]} breaks at ${verdict.step}`,
+        description: `${describeBreak(verdict.check)} ${STILL_WORKS[verdict.path]}${warningSuffix(verdict.warnings)}`,
       }
     case 'oracle-rejected':
       return {
