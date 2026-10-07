@@ -1,27 +1,6 @@
-import { Check, Copy } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import type { ReactNode } from 'react'
+import { EntityBadge } from '@/components/EntityBadge'
 import type { DnsRecordSpec } from '../helpers/records'
-
-const CopyValue = ({ value }: { readonly value: string }) => {
-  const [copied, setCopied] = useState(false)
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-6"
-      aria-label={`Copy ${value}`}
-      onClick={() => {
-        void navigator.clipboard.writeText(value).then(() => {
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        })
-      }}
-    >
-      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-    </Button>
-  )
-}
 
 const Row = ({
   label,
@@ -50,20 +29,33 @@ export const DnsRecordTable = ({
   <div className="rounded-xl border p-6 flex flex-col gap-4 text-sm">
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-12">
       <Row label="Type">
-        <span className="font-mono">{record.type}</span>
+        <span className="inline-flex h-5 items-center px-1 text-entity-base">
+          {record.type}
+        </span>
       </Row>
       <Row label="Name">
-        <span className="inline-flex items-center gap-1 font-mono">
+        <EntityBadge
+          type="content"
+          variant="default"
+          copyValue={record.name}
+          compact
+        >
           {record.name}
-          <CopyValue value={record.name} />
-        </span>
+        </EntityBadge>
       </Row>
     </div>
     <Row label="Value">
-      <span className="inline-flex items-start gap-1 font-mono break-all">
+      <EntityBadge
+        type="content"
+        variant="default"
+        format="wrap"
+        // A sample value holds a placeholder, not an address — copying it
+        // would only produce a record that can never verify.
+        copyValue={record.isSample ? undefined : record.value}
+        compact
+      >
         {record.value}
-        <CopyValue value={record.value} />
-      </span>
+      </EntityBadge>
     </Row>
     <div className="border-t pt-4">
       <Row label="Found">{foundRow}</Row>

@@ -45,6 +45,28 @@ describe('getReverseName', () => {
     expect(result._unsafeUnwrap()).toBeNull()
   })
 
+  // WEB-1730
+  it.each([
+    ['uppercase', 'FGEORGESCU.eth'],
+    ['a soft hyphen', 'fgeor\u00adgescu.eth'],
+    ['Cyrillic letters mixed into a Latin label', 'fge\u043ergescu.eth'],
+  ])('returns null when the verified name has %s', async (_case, name) => {
+    viemActionMocks.getEnsName.mockResolvedValue(name)
+
+    const result = await getReverseName(ADDRESS)
+
+    expect(result._unsafeUnwrap()).toBeNull()
+  })
+
+  it('keeps an emoji primary name, which is canonical', async () => {
+    const rockets = '\u{1f680}\u{1f680}\u{1f680}.eth'
+    viemActionMocks.getEnsName.mockResolvedValue(rockets)
+
+    const result = await getReverseName(ADDRESS)
+
+    expect(result._unsafeUnwrap()).toBe(rockets)
+  })
+
   it('returns null when reverse resolution throws', async () => {
     viemActionMocks.getEnsName.mockRejectedValue(new Error('rpc down'))
 

@@ -8,7 +8,6 @@ import { getTLD, isClaimable } from '@/utils/ens/tldHelpers'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import type { DnsImportStep, DnsImportType } from '../types'
 import { CustomTldMessage } from './CustomTldMessage'
-import { EnableDnssec } from './EnableDnssec'
 import { SelectImportType } from './SelectImportType'
 import { VerifyOwnership } from './VerifyOwnership'
 
@@ -18,9 +17,10 @@ export type DnsImportSearch = {
 }
 
 /**
- * The DNS import flow (WEB-126): select import type → enable DNSSEC → verify
- * ownership (→ import transaction for the onchain path). The step and type
- * live in the URL search params, so a reload resumes where the user left off —
+ * The DNS import flow (WEB-126): select import type → set up the domain
+ * (DNSSEC + the ownership TXT record, which are configured together at the DNS
+ * provider) → import transaction for the onchain path. The step and type live
+ * in the URL search params, so a reload resumes where the user left off —
  * every step's completion state is re-derived from live DNS/chain queries.
  */
 export const DnsImportFlow = ({
@@ -46,8 +46,9 @@ export const DnsImportFlow = ({
         title="Not importable"
         description={
           <p>
-            Only second-level DNS names (like <strong>example.com</strong>) can
-            be imported to ENS.
+            Only second-level DNS names (like{' '}
+            <strong className="font-medium">example.com</strong>) can be
+            imported to ENS.
           </p>
         }
       />
@@ -71,7 +72,8 @@ export const DnsImportFlow = ({
         title="Already imported"
         description={
           <p>
-            <strong>{name}</strong> has already been imported to ENS.
+            <strong className="font-medium">{name}</strong> has already been
+            imported to ENS.
           </p>
         }
         actionButton={{ label: 'View name', href: `/${name}` }}
@@ -85,23 +87,17 @@ export const DnsImportFlow = ({
       {match(search.step)
         .with('start', () => (
           <SelectImportType
+            name={name}
             type={search.type}
             onTypeChange={(type) => onSearchChange({ type })}
-            onBegin={() => onSearchChange({ step: 'dnssec' })}
+            onBegin={() => onSearchChange({ step: 'setup' })}
           />
         ))
-        .with('dnssec', () => (
-          <EnableDnssec
-            name={name}
-            onBack={() => onSearchChange({ step: 'start' })}
-            onNext={() => onSearchChange({ step: 'verify' })}
-          />
-        ))
-        .with('verify', () => (
+        .with('setup', () => (
           <VerifyOwnership
             name={name}
             type={search.type}
-            onBack={() => onSearchChange({ step: 'dnssec' })}
+            onBack={() => onSearchChange({ step: 'start' })}
           />
         ))
         .exhaustive()}

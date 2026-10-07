@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { BadgeCheck } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -10,6 +11,19 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { useDnsOffchainName } from '../hooks/useDnsOffchainName'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import { CustomTldMessage } from './CustomTldMessage'
+
+/**
+ * Matches the import form these cards lead into (`DnsImportFlow`): same
+ * 576px column, same top offset, so the hand-off doesn't shift the content.
+ */
+const IMPORT_COLUMN_CLASS = 'max-w-xl mt-6'
+
+/** The record's parts, highlighted the way the design calls them out. */
+const InlineCode = ({ children }: { readonly children: ReactNode }) => (
+  <code className="rounded-sm bg-current/10 px-1 font-mono text-sm">
+    {children}
+  </code>
+)
 
 /**
  * Shown for a DNS name that is already live through the gasless path. It has
@@ -46,6 +60,7 @@ const DnsOffchainNameMessage = ({
             search: { type: 'onchain', step: 'start' },
           }),
       }}
+      className={IMPORT_COLUMN_CLASS}
     />
   )
 }
@@ -87,20 +102,32 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
     <AvailableNameMessage
       name={name}
       description={
+        // Both prerequisites are stated up front: they are set in the same DNS
+        // manager, so a user who learns about them one step at a time makes two
+        // trips to their provider.
         <p>
-          This DNS name can be imported to ENS — free off-chain, or onchain with
-          a token.
+          This domain can be imported into ENS and used like a .eth name. First,
+          enable DNSSEC with your DNS provider. Then add a TXT record named{' '}
+          <InlineCode>_ens</InlineCode> with the value{' '}
+          <InlineCode>a=&lt;your address&gt;</InlineCode> using an Ethereum
+          address you control. Sign a transaction to verify. Once imported, the
+          owner can set ENS records for {name}, such as an ETH address to
+          receive funds.
         </p>
       }
       actionButton={{
         label: 'Import name',
         onClick: () =>
+          // The description above is the onchain record (`_ens`, a signing
+          // step, editable records afterwards), so that's the route this
+          // preselects — the next screen still lets them switch to offchain.
           void navigate({
             to: '/import/$name',
             params: { name },
-            search: { type: 'offchain', step: 'start' },
+            search: { type: 'onchain', step: 'start' },
           }),
       }}
+      className={IMPORT_COLUMN_CLASS}
     />
   )
 }

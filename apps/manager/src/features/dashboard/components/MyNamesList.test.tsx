@@ -270,7 +270,7 @@ describe('MyNamesList', () => {
     expect(screen.getByText('alaska.eth')).toBeInTheDocument()
   })
 
-  it('selects only the name whose exact label is selected', () => {
+  it('hides an un-normalised look-alike and selects only the canonical name', () => {
     ownedDomainsMock.useOwnedDomains.mockReturnValue({
       v2Names: [
         makeV2Domain({ id: '0xalice', name: 'alice.eth' }),
@@ -301,10 +301,8 @@ describe('MyNamesList', () => {
     )
 
     const rows = screen.getAllByTestId('name-row')
-    const byLabel = new Map(rows.map((row) => [row.textContent, row] as const))
 
-    expect(byLabel.get('alice.eth')?.dataset.selected).toBe('true')
-    expect(byLabel.get('ALICE.eth')?.dataset.selected).toBe('false')
-    expect(byLabel.get('ALICE.eth')?.dataset.selectable).toBe('false')
+    expect(rows.map((row) => row.textContent)).toEqual(['alice.eth'])
+    expect(rows[0]?.dataset.selected).toBe('true')
   })
 })
