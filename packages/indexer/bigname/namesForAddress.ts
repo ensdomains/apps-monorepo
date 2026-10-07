@@ -4,8 +4,8 @@ import type {
   ReadNamesForAddress,
 } from '../reads/namesForAddress.types'
 import {
-  expiresAfterAnyDate,
   toDate,
+  toExactSeconds,
   toExpiresAt,
   toProtocol,
   toReadError,
@@ -61,7 +61,7 @@ const toNameSummary = (row: AddressName): NameSummary => ({
   isMigrated: row.migrated_at !== undefined,
   registrationStatus: row.registration_status,
   expiresAt: toExpiresAt(row),
-  expiresAfterAnyDate: expiresAfterAnyDate(row),
+  servedExpiry: toExactSeconds(row.expires_at),
   registeredAt: toDate(row.registered_at),
   createdAt: toDate(row.created_at),
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),

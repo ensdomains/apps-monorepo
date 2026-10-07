@@ -8,6 +8,7 @@ import {
   mergeDashboardChunks,
   type SortDir,
   type SortField,
+  toDashboardPage,
 } from './dashboardNames'
 import {
   getDashboardGraceNamesQueryOptions,
@@ -82,7 +83,11 @@ export const useDashboardNames = ({
     [query.data, grace.data, searchLower, sortField, sortDir],
   )
 
-  const needed = page * DASHBOARD_PAGE_SIZE
+  const { names: pageNames, needed } = toDashboardPage(
+    merged,
+    page,
+    DASHBOARD_PAGE_SIZE,
+  )
   const needsMore =
     merged.names.length < needed && query.hasNextPage && !query.isError
   const { fetchNextPage, isFetchingNextPage } = query
@@ -93,7 +98,7 @@ export const useDashboardNames = ({
   return {
     addresses,
     hasAddresses,
-    pageNames: merged.names.slice(needed - DASHBOARD_PAGE_SIZE, needed),
+    pageNames,
     total: merged.total,
     isPending: hasAddresses && query.isPending,
     isPagePending: needsMore,

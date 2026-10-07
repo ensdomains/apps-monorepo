@@ -21,16 +21,15 @@ export const isDisplayableProfileName = (name: string): boolean =>
 const toSeconds = (date: Date | null): number | null =>
   date ? Math.floor(date.getTime() / MS_PER_SECOND) : null
 
-// bigname's `owner` is the token holder and `registrant` the ENSv1 registrar
-// holder, both owners here; `manager` is the registry controller or an ENSv2
-// role holder.
+// bigname's `owner` is the token holder; a registry controller or an ENSv2
+// role holder manages.
 const toNameRoles = (
   relations: NameSummary['relations'],
 ): ProfileAddressName['nameRoles'] => [
-  ...(relations.includes('owner') || relations.includes('registrant')
-    ? (['owner'] as const)
+  ...(relations.includes('owner') ? (['owner'] as const) : []),
+  ...(relations.includes('manager') || relations.includes('role_holder')
+    ? (['manager'] as const)
     : []),
-  ...(relations.includes('manager') ? (['manager'] as const) : []),
 ]
 
 const byCreatedDesc = (

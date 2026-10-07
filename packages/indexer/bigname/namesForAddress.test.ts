@@ -16,7 +16,7 @@ const row = {
   expires_at: '1885289376',
   authority: 'ens_v2',
   migrated_at: '1790640000',
-  relations: ['owner', 'registrant', 'resolves_to'],
+  relations: ['owner', 'role_holder', 'resolves_to'],
   is_primary: true,
   subname_count: 2,
 } satisfies AddressName
@@ -97,12 +97,12 @@ describe('readNamesForAddress', () => {
           displayName: 'alice.eth',
           namehash: '0xabc',
           protocol: 'v2',
-          relations: ['owner', 'registrant'],
+          relations: ['owner', 'role_holder'],
           isPrimary: true,
           isMigrated: true,
           registrationStatus: 'registered',
           expiresAt: new Date('2029-09-28T11:29:36Z'),
-          expiresAfterAnyDate: false,
+          servedExpiry: 1_885_289_376n,
           registeredAt: new Date('2026-09-28T11:29:36Z'),
           createdAt: new Date('2026-09-28T11:29:36Z'),
           subnameCount: 2,
@@ -113,7 +113,7 @@ describe('readNamesForAddress', () => {
     })
   })
 
-  it('flags an expiry past any date, which bigname sorts after every dated name', async () => {
+  it('keeps a served expiry past any date exactly, for the backend order', async () => {
     const { client } = clientWith(
       envelope([{ ...row, expires_at: '9223372036854775807' }], page),
     )
@@ -125,7 +125,7 @@ describe('readNamesForAddress', () => {
     )._unsafeUnwrap().items
 
     expect(summary?.expiresAt).toBeNull()
-    expect(summary?.expiresAfterAnyDate).toBe(true)
+    expect(summary?.servedExpiry).toBe(9_223_372_036_854_775_807n)
   })
 
   it('treats an omitted expiry as no expiry and an omitted migration as not migrated', async () => {
@@ -146,7 +146,7 @@ describe('readNamesForAddress', () => {
     )._unsafeUnwrap().items
 
     expect(summary?.expiresAt).toBeNull()
-    expect(summary?.expiresAfterAnyDate).toBe(false)
+    expect(summary?.servedExpiry).toBeNull()
     expect(summary?.isMigrated).toBe(false)
     expect(summary?.protocol).toBe('v1')
 

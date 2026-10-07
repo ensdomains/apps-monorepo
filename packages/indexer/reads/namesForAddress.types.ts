@@ -45,8 +45,11 @@ export type NameSummary = Readonly<{
   registrationStatus: NameRegistrationStatus
   /** Null when the name does not expire. */
   expiresAt: Date | null
-  /** The served expiry is past any date; bigname sorts it after every dated name. */
-  expiresAfterAnyDate: boolean
+  /**
+   * The served expiry in exact unix seconds, which the backend sorts by. A
+   * reserved ENSv1 name serves its ENSv2 reservation here; `expiresAt` keeps the lease.
+   */
+  servedExpiry: bigint | null
   registeredAt: Date | null
   createdAt: Date | null
   /** Only with `includeCounts`. */

@@ -25,7 +25,7 @@ const summary = (
   isMigrated: false,
   registrationStatus,
   expiresAt: null,
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   registeredAt: null,
   createdAt: null,
 })

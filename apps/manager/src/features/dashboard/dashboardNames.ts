@@ -15,7 +15,8 @@ export type DashboardName = {
   readonly protocol: ProtocolVersion
   /** Unix seconds; `0n` when the name does not expire. */
   readonly expiryDate: bigint
-  readonly expiresAfterAnyDate: boolean
+  /** Exact served expiry bigname sorts by; a reserved ENSv1 name's reservation. */
+  readonly servedExpiry: bigint | null
   readonly createdAt: bigint | null
   readonly nameRoles: readonly DashboardNameRole[]
   /** An ENSv2 name the address held until it expired, still renewable in grace. */
@@ -36,14 +37,14 @@ export const isListedName = (name: NameSummary): boolean =>
   !name.name.endsWith('.reverse') &&
   !HIDDEN_STATUSES.includes(name.registrationStatus)
 
-// bigname's `owner` is the token holder and `registrant` the ENSv1 registrar
-// holder, both owners here; a registry controller or an ENSv2 role holder manages.
+// bigname's `owner` is the token holder; a registry controller or an ENSv2
+// role holder manages.
 const toNameRoles = (
   relations: NameSummary['relations'],
 ): readonly DashboardNameRole[] =>
   DASHBOARD_ROLES.filter((role) =>
     role === 'owner'
-      ? relations.includes('owner') || relations.includes('registrant')
+      ? relations.includes('owner')
       : relations.includes('manager') || relations.includes('role_holder'),
   )
 
@@ -52,7 +53,7 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
   name: name.name,
   protocol: name.protocol ?? 'v2',
   expiryDate: toSeconds(name.expiresAt) ?? 0n,
-  expiresAfterAnyDate: name.expiresAfterAnyDate,
+  servedExpiry: name.servedExpiry,
   createdAt: toSeconds(name.createdAt),
   nameRoles: toNameRoles(name.relations),
   isLapsed: false,
@@ -90,7 +91,7 @@ export const toGraceName = (
     name: row.name,
     protocol: 'v2',
     expiryDate,
-    expiresAfterAnyDate: false,
+    servedExpiry: expiryDate,
     createdAt: parseSeconds(row.created_at),
     nameRoles: [],
     isLapsed: true,
@@ -128,8 +129,6 @@ export const mergeDashboardNames = (
 const NAME_COLLATOR = new Intl.Collator('en', { sensitivity: 'variant' })
 const collationKey = (name: string) => name.replace(/[^\p{L}\p{N}]/gu, '')
 
-const INT64_MAX = 2n ** 63n - 1n
-
 const compareNames = (left: string, right: string): number =>
   NAME_COLLATOR.compare(collationKey(left), collationKey(right)) ||
   NAME_COLLATOR.compare(left, right) ||
@@ -142,9 +141,6 @@ const compareTimes = (left: bigint | null, right: bigint | null): number => {
   return a === b ? 0 : a < b ? -1 : 1
 }
 
-const expirySortValue = (name: DashboardName): bigint =>
-  name.expiresAfterAnyDate ? INT64_MAX : name.expiryDate
-
 /** bigname's order for a sort: the field, then the namehash ascending in both directions. */
 export const compareDashboardNames =
   (field: SortField, dir: SortDir) =>
@@ -154,7 +150,7 @@ export const compareDashboardNames =
       field === 'name'
         ? compareNames(left.name, right.name)
         : field === 'expiry'
-          ? compareTimes(expirySortValue(left), expirySortValue(right))
+          ? compareTimes(left.servedExpiry, right.servedExpiry)
           : compareTimes(left.createdAt, right.createdAt)
     return (
       byField * sign ||
@@ -178,6 +174,22 @@ export type MergedDashboardNames = {
   readonly isComplete: boolean
   /** Exact once complete; until then bigname's totals less what was hidden or shared. */
   readonly total: number
+}
+
+/**
+ * The names a one-based page shows, and how many merged names it needs. The
+ * page is clamped to the last one: until every chunk is read the total can
+ * count rows that later turn out hidden, so the pager may offer a page that
+ * no longer exists.
+ */
+export const toDashboardPage = (
+  merged: MergedDashboardNames,
+  page: number,
+  pageSize: number,
+): { readonly names: readonly DashboardName[]; readonly needed: number } => {
+  const lastPage = Math.max(1, Math.ceil(merged.total / pageSize))
+  const needed = Math.min(page, lastPage) * pageSize
+  return { names: merged.names.slice(needed - pageSize, needed), needed }
 }
 
 // A name is shown once every address with more to read has reached it, so a

@@ -76,7 +76,7 @@ export type AddressName = Readonly<{
   migrated_at?: Timestamp
   /** Only on `released` rows. */
   lapsed_registration?: LapsedRegistration
-  /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
+  /** Matched subset of `owner`/`manager`/`role_holder`, or `["resolves_to"]`. */
   relations: readonly Relation[]
   is_primary: boolean
   /** `relation=resolves_to` with one decimal `coin_type` only. */

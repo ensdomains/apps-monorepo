@@ -11,7 +11,7 @@ const dashboardName = (
   name,
   protocol,
   expiryDate: BigInt(expiryDate),
-  expiresAfterAnyDate: false,
+  servedExpiry: null,
   createdAt: null,
   nameRoles: ['owner'],
   isLapsed: false,
