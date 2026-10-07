@@ -203,6 +203,39 @@ describe('NameOwnerRow', () => {
     expect(ownerRow()).toHaveTextContent('0xf39F…2266')
   })
 
+  it('puts the badge beside a V2 owner', () => {
+    renderRow(
+      <NameOwnerRow
+        name="alice.eth"
+        owner={CONTROLLER}
+        protocolVersion="ENSv2"
+        badge={<span>Cannot transfer</span>}
+      />,
+    )
+
+    expect(ownerRow()).toHaveTextContent('Cannot transfer')
+  })
+
+  // A V1 name has no token roles, so there is nothing for the badge to say.
+  it('leaves the badge off a V1 owner', () => {
+    v1StateQuery.data = v1State({
+      kind: 'v1-registrar',
+      registrant: REGISTRANT,
+      controller: CONTROLLER,
+    })
+
+    renderRow(
+      <NameOwnerRow
+        name="alice.eth"
+        owner={CONTROLLER}
+        protocolVersion="ENSv1"
+        badge={<span>Cannot transfer</span>}
+      />,
+    )
+
+    expect(screen.queryByText('Cannot transfer')).not.toBeInTheDocument()
+  })
+
   // WEB-125: for an imported DNS name the v1 registry entry is the *manager*,
   // a role the `_ens` address can reclaim at any time. Naming it "Owner"
   // overstated it, so the row names the DNS Owner under its own label.
