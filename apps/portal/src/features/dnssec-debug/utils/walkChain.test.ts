@@ -450,6 +450,47 @@ describe('walkDnssecChain', () => {
       })
     })
 
+    // Greptile on #1312: an oracle that couldn't answer must not read as working.
+    it("leaves the working import unknown until the oracle's check succeeds", async () => {
+      const hierarchy = await createTestHierarchy()
+      await breakEnsZone(hierarchy)
+      const report = await walk(hierarchy)
+      const errored = (label: string) =>
+        deriveVerdict(report, {
+          status: 'checked',
+          result: {
+            steps: [],
+            records: [
+              { label, outcome: { status: 'error', message: 'RPC timed out' } },
+            ],
+          },
+        })
+
+      const unreachable = deriveVerdict(report, {
+        status: 'unavailable',
+        message: 'HTTP 503',
+      })
+      expect(unreachable).toMatchObject({
+        kind: 'path-broken',
+        path: 'onchain',
+        oracleUnavailable: { step: null, message: 'HTTP 503' },
+      })
+      const { description } = describeVerdict(unreachable, report.name)
+      expect(description).toContain(
+        'Whether the name can still be used gaslessly is unknown.',
+      )
+      expect(description).not.toContain('so the name can still')
+
+      expect(errored('example.xyz TXT')).toMatchObject({
+        kind: 'path-broken',
+        oracleUnavailable: { step: 'example.xyz TXT' },
+      })
+      expect(errored('_ens.example.xyz TXT')).toMatchObject({
+        kind: 'path-broken',
+        oracleUnavailable: null,
+      })
+    })
+
     it('reports a plain break, naming the import, when no other record works', async () => {
       const hierarchy = await createTestHierarchy()
       await breakEnsZone(hierarchy)

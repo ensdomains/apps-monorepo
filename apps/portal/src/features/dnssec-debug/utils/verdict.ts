@@ -17,6 +17,13 @@ export type OracleCheckResult = {
   readonly records: readonly OracleStepResult[]
 }
 
+/** Why the oracle's verdict on links still in play is unknown. */
+type OracleUnavailable = {
+  /** The link the oracle couldn't evaluate, or null when it wasn't reached at all. */
+  readonly step: string | null
+  readonly message: string
+}
+
 export type DnssecVerdict =
   | { readonly kind: 'valid'; readonly warnings: number }
   | { readonly kind: 'no-records'; readonly warnings: number }
@@ -35,6 +42,8 @@ export type DnssecVerdict =
       readonly path: RecordPurpose
       readonly step: string
       readonly check: DnssecCheck
+      /** Set when the other import validates in DNS but not, yet, in the oracle. */
+      readonly oracleUnavailable: OracleUnavailable | null
       readonly warnings: number
     }
   | {
@@ -42,14 +51,11 @@ export type DnssecVerdict =
       readonly step: string
       readonly message: string
     }
-  | {
+  | ({
       /** DNS validates, but the oracle's verdict is unknown — not an acceptance. */
       readonly kind: 'oracle-unavailable'
-      /** The link the oracle couldn't evaluate, or null when it wasn't reached at all. */
-      readonly step: string | null
-      readonly message: string
       readonly warnings: number
-    }
+    } & OracleUnavailable)
 
 export const getStepLabel = (step: DnssecStep): string => {
   if (step.kind === 'record') return `${step.owner} TXT`
@@ -105,6 +111,22 @@ export type OracleState =
   | { readonly status: 'unavailable'; readonly message: string }
   | { readonly status: 'not-checked' }
 
+/** Why the oracle has no verdict on the links `isLive` keeps, if it hasn't. */
+const getOracleUnavailable = (
+  oracleState: OracleState,
+  isLive: (label: string) => boolean,
+): OracleUnavailable | null => {
+  if (oracleState.status === 'unavailable') {
+    return { step: null, message: oracleState.message }
+  }
+  const oracle =
+    oracleState.status === 'checked' ? oracleState.result : undefined
+  const error = findOracleOutcome(oracle, 'error', isLive)
+  return error && error.outcome.status === 'error'
+    ? { step: error.label, message: error.outcome.message }
+    : null
+}
+
 /**
  * The headline answer: the first link that fails, in chain order — later
  * links can't be trusted once an earlier one breaks, so that's the one to fix.
@@ -147,10 +169,11 @@ export const deriveVerdict = (
   if (firstBreak && !hasWorkingPath) return { kind: 'broken', ...firstBreak }
 
   // What the oracle says about a path already reported broken changes nothing.
-  const oracleFailure = findOracleOutcome(oracle, 'fail', (label) => {
+  const isLive = (label: string) => {
     const path = getOracleLabelPath(report, label)
     return path === null || !brokenPaths.includes(path)
-  })
+  }
+  const oracleFailure = findOracleOutcome(oracle, 'fail', isLive)
   if (oracleFailure && oracleFailure.outcome.status === 'fail') {
     return {
       kind: 'oracle-rejected',
@@ -163,24 +186,13 @@ export const deriveVerdict = (
     .flatMap((step) => step.checks)
     .filter((check) => check.status === 'warn').length
 
-  if (firstBreak) return { kind: 'path-broken', ...firstBreak, warnings }
+  const oracleUnavailable = getOracleUnavailable(oracleState, isLive)
 
-  if (oracleState.status === 'unavailable') {
-    return {
-      kind: 'oracle-unavailable',
-      step: null,
-      message: oracleState.message,
-      warnings,
-    }
+  if (firstBreak) {
+    return { kind: 'path-broken', ...firstBreak, oracleUnavailable, warnings }
   }
-  const oracleError = findOracleOutcome(oracle, 'error')
-  if (oracleError && oracleError.outcome.status === 'error') {
-    return {
-      kind: 'oracle-unavailable',
-      step: oracleError.label,
-      message: oracleError.outcome.message,
-      warnings,
-    }
+  if (oracleUnavailable) {
+    return { kind: 'oracle-unavailable', ...oracleUnavailable, warnings }
   }
   const hasRecord = report.records.some(
     (record) => record.status === 'pass' || record.status === 'warn',
@@ -200,15 +212,29 @@ const PATH_LABEL: Readonly<Record<RecordPurpose, string>> = {
   offchain: 'gasless import',
 }
 
-const STILL_WORKS: Readonly<Record<RecordPurpose, string>> = {
-  onchain:
-    'The "ENS1" record validates, so the name can still be used gaslessly.',
-  offchain:
-    'The "_ens" record validates, so the name can still be imported onchain.',
+/** Keyed by the broken import: the record and use the other one leaves. */
+const OTHER_PATH: Readonly<
+  Record<RecordPurpose, { readonly record: string; readonly use: string }>
+> = {
+  onchain: { record: '"ENS1"', use: 'be used gaslessly' },
+  offchain: { record: '"_ens"', use: 'be imported onchain' },
 }
 
 const describeBreak = (check: DnssecCheck): string =>
   `${check.title.replace(/\.$/, '')}. ${check.detail ?? ''}`.trim()
+
+const describeOracleUnavailable = ({ step, message }: OracleUnavailable) =>
+  `the onchain DNSSEC oracle ${step ? `could not evaluate ${step}` : 'could not be reached'}: ${message.replace(/\.$/, '')}`
+
+const describeOtherPath = (
+  path: RecordPurpose,
+  oracleUnavailable: OracleUnavailable | null,
+): string => {
+  const { record, use } = OTHER_PATH[path]
+  return oracleUnavailable
+    ? `The ${record} record validates in DNS, but ${describeOracleUnavailable(oracleUnavailable)}. Whether the name can still ${use} is unknown.`
+    : `The ${record} record validates, so the name can still ${use}.`
+}
 
 export const describeVerdict = (
   verdict: DnssecVerdict,
@@ -249,7 +275,7 @@ export const describeVerdict = (
     case 'path-broken':
       return {
         title: `The ${PATH_LABEL[verdict.path]} breaks at ${verdict.step}`,
-        description: `${describeBreak(verdict.check)} ${STILL_WORKS[verdict.path]}${warningSuffix(verdict.warnings)}`,
+        description: `${describeBreak(verdict.check)} ${describeOtherPath(verdict.path, verdict.oracleUnavailable)}${warningSuffix(verdict.warnings)}`,
       }
     case 'oracle-rejected':
       return {
@@ -259,7 +285,7 @@ export const describeVerdict = (
     case 'oracle-unavailable':
       return {
         title: 'DNS validates, but the ENS oracle could not be checked',
-        description: `Every DNS link validates, but the onchain DNSSEC oracle ${verdict.step ? `could not evaluate ${verdict.step}` : 'could not be reached'}: ${verdict.message.replace(/\.$/, '')}. Whether it accepts the proof is unknown.${warningSuffix(verdict.warnings)}`,
+        description: `Every DNS link validates, but ${describeOracleUnavailable(verdict)}. Whether it accepts the proof is unknown.${warningSuffix(verdict.warnings)}`,
       }
   }
 }
