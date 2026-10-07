@@ -115,33 +115,6 @@ it('selects the most advanced overlapping stage and merges routing data', () => 
   ])
 })
 
-it('keeps a protocol known on only one of the merged events', () => {
-  expect(
-    collapseExpiryEvents([
-      { ...event, stage: 'grace-start' },
-      { ...event, stage: 'expiry-30d', protocol: 'v1' },
-    ]),
-  ).toEqual([expect.objectContaining({ stage: 'grace-start', protocol: 'v1' })])
-})
-
-it('stores the protocol on the notification payload', async () => {
-  const db = controlledDb()
-  vi.mocked(getDatabase).mockReturnValue(db as never)
-
-  await runQueue(
-    'app-api-worker-event-ingestion',
-    [{ ...event, protocol: 'v1' }],
-    makeMockEnv(),
-  )
-
-  const values = db.insert.mock.results[0]?.value.values
-  expect(values).toHaveBeenCalledWith([
-    expect.objectContaining({
-      payload: expect.objectContaining({ protocol: 'v1' }),
-    }),
-  ])
-})
-
 it('processes overlapping messages once and ACKs every source message', async () => {
   const db = controlledDb()
   vi.mocked(getDatabase).mockReturnValue(db as never)

@@ -35,11 +35,7 @@ const fallbackNoticeKind = (
   payload: NameExpiryPayload,
   now: Date,
 ): NameExpiryNoticeKind => {
-  const state = getNameLifecycleState(
-    new Date(payload.expiryDate),
-    payload.protocol ?? 'v2',
-    now,
-  )
+  const state = getNameLifecycleState(new Date(payload.expiryDate), 'v2', now)
   if (state === 'expiring') return 'pre-expiry'
   if (state === 'grace') return 'grace-start'
   return 'premium-start'
@@ -51,7 +47,7 @@ export const buildNameExpiryDeliveryContext = (
 ): NameExpiryDeliveryContext => {
   const now = options.now ?? new Date()
   const expiryDate = new Date(payload.expiryDate)
-  const graceEndDate = getGraceEndDate(expiryDate, payload.protocol ?? 'v2')
+  const graceEndDate = getGraceEndDate(expiryDate, 'v2')
   const name = normalizeNotificationName(payload.name)
   const nameSegment = encodeNamePathSegment(name)
   const renewPath = `/renew/${nameSegment}`

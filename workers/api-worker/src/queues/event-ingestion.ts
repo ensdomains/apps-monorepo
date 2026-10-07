@@ -312,7 +312,6 @@ const reconcileNotifications = ResultFn(async function* (ctx: {
       name: ctx.event.name,
       expiryDate: ctx.event.expiryDate * 1000,
       stage: ctx.event.stage,
-      ...(ctx.event.protocol && { protocol: ctx.event.protocol }),
       isOwner: recipient.watchReason === 'owned',
       watchReason: recipient.watchReason,
     },
@@ -768,7 +767,6 @@ const mergeExpiryEvents = (
     ...selected,
     includeFavorites: current.includeFavorites || candidate.includeFavorites,
     owner: selected.owner ?? other.owner,
-    protocol: selected.protocol ?? other.protocol,
   }
 }
 

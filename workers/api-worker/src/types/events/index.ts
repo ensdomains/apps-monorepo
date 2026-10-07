@@ -21,8 +21,6 @@ export const expiryEventSchema = v.object({
   type: v.literal('name_expiring'),
   name: v.string(),
   expiryDate: v.number(),
-  // Absent on events queued before ENSv1 names were told apart.
-  protocol: v.optional(v.picklist(['v1', 'v2'])),
   stage: expiryStageIdSchema,
   owner: v.optional(v.string()),
   includeFavorites: v.boolean(),

@@ -55,8 +55,6 @@ export const nameExpiryDefinition = {
     watchReason: nameExpiryWatchReasonSchema,
     // Existing beta inbox rows predate lifecycle stages. New writes include it.
     stage: v.optional(nameExpiryStageSchema),
-    // Sets the grace length; rows written before it was recorded are ENSv2.
-    protocol: v.optional(v.picklist(['v1', 'v2'])),
   }),
   metadata: {
     category: 'Domain Lifecycle',

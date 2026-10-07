@@ -2,6 +2,7 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Hex,
   Namespace,
@@ -60,6 +61,7 @@ export type AddressName = Readonly<{
   /** End of the registrar grace period, already adjusted for the authority. */
   grace_ends_at?: Timestamp
   authority?: Authority
+  ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
   /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
   relations: readonly Relation[]
