@@ -171,6 +171,51 @@ export const createBignameClient = (
       ),
     lookup: (body: T.LookupRequest) =>
       request<readonly T.LookupResult[]>('/v1/lookup', undefined, body),
+    search: (query: T.SearchQuery) =>
+      request<readonly T.NameRecord[]>('/v1/search', query),
+    registry: (chainId: number, address: string, query?: T.RegistryQuery) =>
+      request<T.Registry>(`/v1/registries/${chainId}/${seg(address)}`, query),
+    registryLabels: (
+      chainId: number,
+      address: string,
+      query?: T.RegistryLabelsQuery,
+    ) =>
+      request<readonly T.RegistryLabel[]>(
+        `/v1/registries/${chainId}/${seg(address)}/labels`,
+        query,
+      ),
+    resolver: (chainId: number, address: string, query?: T.ResolverQuery) =>
+      request<T.ResolverOverview>(
+        `/v1/resolvers/${chainId}/${seg(address)}`,
+        query,
+      ),
+    resolverLinks: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+    ) =>
+      request<readonly T.ResolverLink[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/links`,
+        query,
+      ),
+    resolverRoles: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+    ) =>
+      request<readonly T.ResolverRole[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/roles`,
+        query,
+      ),
+    resolverAliases: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+    ) =>
+      request<readonly T.ResolverAlias[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/aliases`,
+        query,
+      ),
   }
 }
 
