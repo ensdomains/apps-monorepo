@@ -41,12 +41,23 @@ type V1NamesPage = {
 /** ENSv1 names of an address in pages, soonest expiry first. */
 export const getV1NamesPagesForAddressQueryOptions = ({
   address,
-}: Pick<GetNamesForAddressParameters, 'address'>) =>
+  search,
+}: Pick<GetNamesForAddressParameters, 'address'> & {
+  readonly search?: string
+}) =>
   resultInfiniteQueryOptions({
-    queryKey: getOwnedNamesQueryKey({ address, protocolVersion: 'ENSv1' }),
+    queryKey: getOwnedNamesQueryKey({
+      address,
+      protocolVersion: 'ENSv1',
+      search,
+    }),
     queryFn: ({ pageParam }) =>
       getV1NamesForAddress({
         address,
+        // The subgraph's `_contains` is case-sensitive and names are stored lowercase.
+        filter: search
+          ? { searchString: search.toLowerCase(), searchType: 'name' }
+          : undefined,
         orderBy: 'expiryDate',
         orderDirection: 'asc',
         previousPage: pageParam,

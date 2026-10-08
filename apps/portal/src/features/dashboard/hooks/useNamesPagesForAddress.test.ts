@@ -61,6 +61,36 @@ describe('getV1NamesPagesForAddressQueryOptions', () => {
   })
 })
 
+describe('getV1NamesPagesForAddressQueryOptions with a search', () => {
+  beforeEach(() => {
+    mockEnsjsGetNamesForAddress.mockReset()
+    mockEnsjsGetNamesForAddress.mockResolvedValue([])
+  })
+
+  it('asks the subgraph for names containing the text, lowercased', async () => {
+    await new QueryClient().fetchInfiniteQuery(
+      getV1NamesPagesForAddressQueryOptions({
+        address: ADDRESS,
+        search: 'CoCo',
+      }),
+    )
+
+    expect(mockEnsjsGetNamesForAddress.mock.calls[0]?.[1]).toMatchObject({
+      filter: { searchString: 'coco', searchType: 'name' },
+    })
+  })
+
+  it('keeps searches apart from the unfiltered list in the cache', () => {
+    const plain = getV1NamesPagesForAddressQueryOptions({ address: ADDRESS })
+    const searched = getV1NamesPagesForAddressQueryOptions({
+      address: ADDRESS,
+      search: 'coco',
+    })
+
+    expect(searched.queryKey).not.toEqual(plain.queryKey)
+  })
+})
+
 describe('getV2NamesPagesForAddressQueryOptions', () => {
   beforeEach(() => {
     mockGraphqlRequest.mockReset()
@@ -189,5 +219,21 @@ describe('getV2NamesPagesForAddressQueryOptions', () => {
       data.pages.map((page) => page.names.map(({ name }) => name)),
     ).toEqual([['a.eth', 'sub.a.eth'], ['other.a.eth']])
     expect(data.pages.map((page) => page.totalCount)).toEqual([102, 102])
+  })
+
+  it('filters both expiry phases by the search text', async () => {
+    mockGraphqlRequest.mockResolvedValue(indexerPage({ names: ['coco.eth'] }))
+
+    await new QueryClient().fetchInfiniteQuery(
+      getV2NamesPagesForAddressQueryOptions({
+        address: ADDRESS,
+        search: 'coco',
+      }),
+    )
+
+    expect(mockGraphqlRequest.mock.calls[0]?.[1]).toMatchObject({
+      where: { ...WITH_EXPIRY, name_contains_nocase: 'coco' },
+      rest: { ...WITHOUT_EXPIRY, name_contains_nocase: 'coco' },
+    })
   })
 })
