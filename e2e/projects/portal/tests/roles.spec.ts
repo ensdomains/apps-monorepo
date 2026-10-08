@@ -19,6 +19,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { getOwner } from '@ensdomains/ensjs/public/v2'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import {
   grantRolesWriteParameters,
@@ -32,8 +33,12 @@ import {
   type Address,
   encodeFunctionData,
   type Hash,
+  type Hex,
+  keccak256,
   labelhash,
   parseAbi,
+  parseAbiItem,
+  toHex,
   zeroAddress,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAddress } from 'viem/accounts'
@@ -2356,5 +2361,598 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
       page.locator('main').getByRole('button', { name: 'Configure registry' }),
       'an owner holding the subregistry roles keeps the form',
     ).toBeVisible({ timeout: 30_000 })
+  })
+})
+
+/**
+ * WEB-1484 (#1313) — role holders replayed from the indexer, checked against
+ * the registry.
+ *
+ * The bug: the "parent registry / roles" list is a replay of the name's
+ * `EACRolesChanged` history, and any history the indexer answered was taken as
+ * complete. A short or empty one (indexer lag, missing rows, a resource
+ * mismatch) rendered "No role holders yet" with no revoke control, left the
+ * ownership page's Managers row blank, and gave the transfer form a holder list
+ * missing someone: no revoke step was offered, the registry then refused the
+ * transfer because another account still held roles, and the owner was told
+ * "The transfer itself would fail" with a hint about contract recipients.
+ * Separately, a history longer than one 1,000-row page went straight to the
+ * slow node scan.
+ *
+ * The fix pins a block, checks the replay against `roleCount` and `roles` on
+ * the registry at that block, re-reads the node when they disagree, and flags
+ * the result unverified when it still can't be confirmed. The indexed read now
+ * pages by block.
+ *
+ * What these reach that the unit tests don't: the real registry's `roleCount`
+ * packing on a real name, the real node fallback through the portal's RPC
+ * proxy, the three UIs that render the list, and a real transfer.
+ *
+ * Local Panoptes can't serve the typed `RoleChangeEvents` query (it answers
+ * `null`), so each test serves that query itself, from the chain's own logs for
+ * the name, with rows dropped or padded to make the history the bug needs. The
+ * served rows page the way the indexer does: `blockNumber >= fromBlock`,
+ * ordered by block, cut at `first`. Every oracle is the chain.
+ */
+test.describe('Portal name roles — role holders checked against the registry (WEB-1484)', () => {
+  test.describe.configure({ timeout: 300_000 })
+
+  const ROLES_FROM_BLOCK = 11_820_291n
+  const EAC_ROLES_CHANGED = parseAbiItem(
+    'event EACRolesChanged(uint256 indexed resource, address indexed account, uint256 oldRoleBitmap, uint256 newRoleBitmap)',
+  )
+
+  type IndexedRow = {
+    id: string
+    blockNumber: string
+    timestamp: string
+    transactionHash: Hex
+    asEACRolesChanged: {
+      resource: Hex
+      account: Address
+      oldRoleBitmap: Hex
+      newRoleBitmap: Hex
+    }
+  }
+
+  const resourceHex = (resource: bigint) =>
+    `0x${resource.toString(16).padStart(64, '0')}` as Hex
+
+  /** The name's current EAC resource, as the registry reports it. */
+  const readResource = (label: string) =>
+    publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: parseAbi(['function getResource(uint256) view returns (uint256)']),
+      functionName: 'getResource',
+      args: [labelToCanonicalId(label)],
+    })
+
+  /**
+   * The name's role history as indexer rows, read from the chain. Bounded to
+   * the recent blocks the name was made in, since a pre-fork range is
+   * forwarded upstream by Anvil and can come back empty.
+   */
+  async function chainRoleRows(resource: bigint): Promise<IndexedRow[]> {
+    const head = await publicClient.getBlockNumber()
+    const logs = await publicClient.getLogs({
+      address: ETH_REGISTRY,
+      event: EAC_ROLES_CHANGED,
+      args: { resource },
+      fromBlock: head - 300n,
+      strict: true,
+    })
+    const timestamps = new Map<bigint, bigint>()
+    for (const { blockNumber } of logs) {
+      if (!timestamps.has(blockNumber))
+        timestamps.set(
+          blockNumber,
+          (await publicClient.getBlock({ blockNumber })).timestamp,
+        )
+    }
+    return logs.map((log) => ({
+      id: `${log.transactionHash}-${log.logIndex}`,
+      blockNumber: log.blockNumber.toString(),
+      timestamp: String(timestamps.get(log.blockNumber)),
+      transactionHash: log.transactionHash,
+      asEACRolesChanged: {
+        resource: resourceHex(log.args.resource),
+        account: log.args.account.toLowerCase() as Address,
+        oldRoleBitmap: toHex(log.args.oldRoleBitmap),
+        newRoleBitmap: toHex(log.args.newRoleBitmap),
+      },
+    }))
+  }
+
+  const rowsFor = (rows: IndexedRow[], account: Address) =>
+    rows.filter(
+      (row) =>
+        row.asEACRolesChanged.account.toLowerCase() === account.toLowerCase(),
+    )
+
+  /**
+   * Serves `RoleChangeEvents` from `rows` and records each request's
+   * variables. Pages like the indexer: `first` rows from `fromBlock` on, in
+   * block order.
+   */
+  async function serveIndexedHistory(page: Page, rows: IndexedRow[]) {
+    const requests: { fromBlock: number; first: number; resource: string }[] =
+      []
+    const ordered = [...rows].sort(
+      (a, b) =>
+        Number(BigInt(a.blockNumber) - BigInt(b.blockNumber)) ||
+        Number(a.id.split('-')[1]) - Number(b.id.split('-')[1]),
+    )
+    await page.route('**/graphql', (route) => {
+      const body = route.request().postData() ?? ''
+      if (!body.includes('RoleChangeEvents')) return route.fallback()
+      const { variables } = JSON.parse(body) as {
+        variables: { fromBlock: number; first: number; resource: string }
+      }
+      requests.push(variables)
+      const page = ordered
+        .filter(
+          (row) =>
+            row.asEACRolesChanged.resource === variables.resource &&
+            Number(row.blockNumber) >= variables.fromBlock,
+        )
+        .slice(0, variables.first)
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { eacRolesChangeds: page } }),
+      })
+    })
+    return requests
+  }
+
+  type RpcCall = {
+    id: number
+    method: string
+    params?: [{ topics?: (string | null)[] }]
+  }
+
+  /** A node read of this resource's role history. */
+  const isResourceRoleRead = (call: RpcCall, resource: bigint) =>
+    call.method === 'eth_getLogs' &&
+    call.params?.[0]?.topics?.[1]?.toLowerCase() === resourceHex(resource)
+
+  /** The resource's role-history reads in one JSON-RPC request, if any. */
+  const roleReadsIn = (
+    request: import('@playwright/test').Request,
+    resource: bigint,
+  ): RpcCall[] => {
+    const body = request.method() === 'POST' ? (request.postData() ?? '') : ''
+    if (!body.includes('eth_getLogs')) return []
+    try {
+      return ([JSON.parse(body)].flat() as RpcCall[]).filter((call) =>
+        isResourceRoleRead(call, resource),
+      )
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Counts the page's node reads of the resource's role history. With
+   * `fail`, each one is answered with an RPC error, as a node that can't serve
+   * the range would; every other call in the batch gets the node's answer.
+   *
+   * Every endpoint, not just the portal's `/rpc` proxy: the app's transport
+   * fails over to Sepolia's public nodes, which can't see this fork and answer
+   * an empty history, so failing only the proxy would test a node that
+   * answered "nobody" rather than one that was down.
+   */
+  async function watchNodeRoleReads(
+    page: Page,
+    resource: bigint,
+    { fail = false } = {},
+  ) {
+    const reads = { count: 0 }
+    await page.route('**/*', async (route) => {
+      const matching = roleReadsIn(route.request(), resource)
+      if (matching.length === 0) return route.fallback()
+      reads.count += matching.length
+      if (!fail) return route.fallback()
+
+      const response = await route.fetch()
+      const answer: unknown = await response.json()
+      const isBatch = Array.isArray(answer)
+      const replies = [answer].flat() as { id: number }[]
+      const failed = replies.map((reply) =>
+        matching.some((call) => call.id === reply.id)
+          ? {
+              jsonrpc: '2.0',
+              id: reply.id,
+              error: { code: -32000, message: 'e2e: node unavailable' },
+            }
+          : reply,
+      )
+      return route.fulfill({
+        response,
+        body: JSON.stringify(isBatch ? failed : failed[0]),
+      })
+    })
+    return reads
+  }
+
+  const UNVERIFIED =
+    "Couldn't confirm this list against the registry, so some role holders may be missing."
+
+  /** Owner plus a manager holding Set Resolver: two holders on chain. */
+  async function nameWithManager(
+    makeName: (o: { label: string; owner: 'user' }) => Promise<string>,
+    wallets: {
+      address: (who: 'owner' | 'manager') => Address
+      account: (who: 'owner') => Account
+    },
+    labelPrefix: string,
+  ) {
+    const owner = wallets.address('owner')
+    const manager = wallets.address('manager')
+    const name = await makeName({ label: labelPrefix, owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER'],
+      wallets.account('owner'),
+    )
+    expect(
+      (await readNameRoles({ label }, manager)).decoded,
+      'setup: the manager holds Set Resolver on chain',
+    ).toEqual(['ROLE_SET_RESOLVER'])
+    expect(
+      (await readNameRoles({ label }, owner)).decoded.length,
+      'setup: the owner holds roles on chain',
+    ).toBeGreaterThan(0)
+    const resource = await readResource(label)
+    const rows = await chainRoleRows(resource)
+    expect(
+      rowsFor(rows, manager).length,
+      "setup: the chain has the manager's grant log",
+    ).toBeGreaterThan(0)
+    return { name, label, owner, manager, resource, rows }
+  }
+
+  /**
+   * The panel's list: the table or the empty state. Unlike
+   * {@link parentRegistryRolesPanel} it steps over the unverified warning,
+   * which the fix renders between the heading row and the table.
+   */
+  const rolesList = (page: Page) =>
+    page
+      .locator('h3', { hasText: 'parent registry / roles' })
+      .locator('xpath=parent::div/following-sibling::*[not(@role="alert")][1]')
+
+  /** The panel has settled: the table, the empty state or the warning. */
+  async function panelSettled(page: Page) {
+    const panel = rolesList(page)
+    await expect(
+      page
+        .locator('main')
+        .getByText('No role holders yet')
+        .or(page.locator('main').getByText(UNVERIFIED))
+        .or(panel.locator('tbody tr').first())
+        .first(),
+    ).toBeVisible({ timeout: 60_000 })
+    return panel
+  }
+
+  test('an empty indexed history still lists every holder on chain (the report repro, disconnected)', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, makeName, wallets }) => {
+    const { name, owner, manager, resource } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-empty',
+    )
+
+    // The indexer has nothing for the name, as one lagging behind it would.
+    const indexed = await serveIndexedHistory(page, [])
+    const node = await watchNodeRoleReads(page, resource)
+    await page.goto(rolesPage(name))
+    const panel = await panelSettled(page)
+
+    await expect(
+      page.locator('main').getByText('No role holders yet'),
+      'pre-fix: an empty indexed history was taken as complete',
+    ).toHaveCount(0)
+    for (const account of [owner, manager])
+      await expect(
+        panel.locator('tr', { hasText: truncate(account) }),
+        `${account} holds roles on chain and must be listed`,
+      ).toHaveCount(1, { timeout: 30_000 })
+    await expect(panel.locator('tbody tr')).toHaveCount(2)
+    // The node answered and agreed with the registry, so nothing is flagged.
+    await expect(page.locator('main').getByText(UNVERIFIED)).toHaveCount(0)
+    expect(indexed.length, 'the indexer was asked first').toBeGreaterThan(0)
+    expect(
+      node.count,
+      'the mismatch sent the read to the node',
+    ).toBeGreaterThan(0)
+  })
+
+  test("a grant the indexer hasn't caught up with is listed, with its edit control", async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    const { name, owner, manager, resource, rows } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-short',
+    )
+
+    // The registration's grants are indexed; the manager's later grant isn't.
+    await serveIndexedHistory(page, rowsFor(rows, owner))
+    const node = await watchNodeRoleReads(page, resource)
+    await page.goto(rolesPage(name))
+    const panel = await panelSettled(page)
+
+    // Positive control: the indexed holder is there, so the page loaded.
+    await expect(panel.locator('tr', { hasText: truncate(owner) })).toHaveCount(
+      1,
+      { timeout: 30_000 },
+    )
+    const managerRow = panel.locator('tr', { hasText: truncate(manager) })
+    await expect(
+      managerRow,
+      'pre-fix: a manager missing from the indexer was missing from the list',
+    ).toHaveCount(1, { timeout: 30_000 })
+    await expect(
+      managerRow.getByText('Set Resolver', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      managerRow.getByRole('button', { name: 'Edit user roles' }),
+      'the owner can act on the missing grant',
+    ).toBeVisible()
+    await expect(page.locator('main').getByText(UNVERIFIED)).toHaveCount(0)
+    expect(node.count).toBeGreaterThan(0)
+  })
+
+  test('an empty indexed history with the node down shows a warning, never "No role holders yet"', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const { name, resource } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-down',
+    )
+
+    await serveIndexedHistory(page, [])
+    const node = await watchNodeRoleReads(page, resource, { fail: true })
+    await page.goto(rolesPage(name))
+    await panelSettled(page)
+
+    await expect(
+      page.locator('main').getByText('No role holders yet'),
+      'pre-fix: the unverifiable empty list read as "nobody holds anything"',
+    ).toHaveCount(0)
+    await expect(page.locator('main').getByText(UNVERIFIED)).toBeVisible()
+    // Nothing was found, so there is no table to show alongside the warning.
+    await expect(rolesList(page).locator('tbody tr')).toHaveCount(0)
+    expect(node.count, 'the node was asked, and failed').toBeGreaterThan(0)
+  })
+
+  test('a short indexed history with the node down is flagged on the roles, profile and ownership pages', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const { name, owner, manager, resource, rows } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-flag',
+    )
+
+    await serveIndexedHistory(page, rowsFor(rows, owner))
+    await watchNodeRoleReads(page, resource, { fail: true })
+
+    // Roles: the warning, plus the holders that were found.
+    await page.goto(rolesPage(name))
+    const panel = await panelSettled(page)
+    await expect(
+      page.locator('main').getByText(UNVERIFIED),
+      'pre-fix: a short list was shown as complete',
+    ).toBeVisible()
+    await expect(panel.locator('tr', { hasText: truncate(owner) })).toHaveCount(
+      1,
+    )
+
+    // Profile: the counter can't claim a number it couldn't check.
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    const counter = page
+      .locator('main')
+      .getByRole('link', { name: /Role holders/ })
+    await expect(counter).toBeVisible({ timeout: 60_000 })
+    await expect(
+      counter,
+      'pre-fix: the counter showed the short count (1)',
+    ).toContainText('?', { timeout: 30_000 })
+
+    // Ownership: the owner's own row isn't a third party's, so with nothing
+    // else found the row says it couldn't check rather than vanishing.
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(page.locator('main').getByText('Managers')).toBeVisible({
+      timeout: 60_000,
+    })
+    await expect(
+      page
+        .locator('main')
+        .getByText('Couldn’t check who else holds permissions on this name'),
+      'pre-fix: no Managers row, hiding a live grant',
+    ).toBeVisible()
+    await expect(
+      page.locator('main').getByText(truncate(manager)),
+      'the manager the indexer missed is still unknown to the page',
+    ).toHaveCount(0)
+  })
+
+  test('a live grant behind more than a page of role events is listed from the indexer, without the node', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const { name, owner, manager, resource, rows } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-paged',
+    )
+
+    // A thousand older changes on the same resource, ahead of the real ones:
+    // a throwaway account granted and revoked, two changes a block, ending
+    // revoked. It holds nothing, so the registry agrees with the replay.
+    const churner = privateKeyToAddress(generatePrivateKey()).toLowerCase()
+    const resourceTopic = resourceHex(resource)
+    const noise: IndexedRow[] = Array.from({ length: 1_000 }, (_, i) => ({
+      id: `${keccak256(toHex(`web-1484-${churner}-${i >> 1}`))}-${i % 2}`,
+      blockNumber: String(ROLES_FROM_BLOCK + BigInt(i >> 1)),
+      timestamp: '1700000000',
+      transactionHash: keccak256(toHex(`web-1484-${churner}-${i >> 1}`)),
+      asEACRolesChanged: {
+        resource: resourceTopic,
+        account: churner as Address,
+        oldRoleBitmap: i % 2 === 0 ? '0x0' : '0x1',
+        newRoleBitmap: i % 2 === 0 ? '0x1' : '0x0',
+      },
+    }))
+    const lastNoiseBlock = Number(ROLES_FROM_BLOCK) + 499
+
+    const indexed = await serveIndexedHistory(page, [...noise, ...rows])
+    const node = await watchNodeRoleReads(page, resource)
+    await page.goto(rolesPage(name))
+    const panel = await panelSettled(page)
+
+    for (const account of [owner, manager])
+      await expect(
+        panel.locator('tr', { hasText: truncate(account) }),
+      ).toHaveCount(1, { timeout: 30_000 })
+    await expect(panel.locator('tbody tr')).toHaveCount(2)
+    await expect(page.locator('main').getByText(UNVERIFIED)).toHaveCount(0)
+
+    // The second page starts at the last block the first one read, so the
+    // two rows straddling it are re-read and deduped rather than skipped.
+    const pages = indexed.filter((r) => r.resource === resourceTopic)
+    expect(
+      pages.map((r) => r.fromBlock).slice(0, 2),
+      'pre-fix: one full page and no second request',
+    ).toEqual([Number(ROLES_FROM_BLOCK), lastNoiseBlock])
+    expect(
+      node.count,
+      'pre-fix: a full first page went straight to the node scan',
+    ).toBe(0)
+  })
+
+  test('the transfer form revokes a manager the indexer missed, and the transfer goes through', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+    wallets,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    const { name, label, owner, manager, rows } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-xfer',
+    )
+    const recipient = accounts.getAddress('user4')
+
+    await serveIndexedHistory(page, rowsFor(rows, owner))
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByRole('heading', { name: 'Transfer ownership' }),
+    ).toBeVisible({ timeout: 30_000 })
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    await expect(
+      page.getByRole('switch', { name: /Revoke everyone else’s permissions/ }),
+      'pre-fix: no revoke step, and the transfer dead-ended at "The transfer itself would fail"',
+    ).toBeChecked({ timeout: 30_000 })
+    await expect(
+      page.locator('main').getByText(truncate(manager)),
+      'the revoke step names the manager',
+    ).toBeVisible()
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 30_000 })
+    await transferButton.click()
+    await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-detach-resolver`,
+      `transfer-${name}-revoke-roles-${manager.toLowerCase()}`,
+      `transfer-${name}-transfer-token`,
+    ])
+
+    expect(
+      (
+        (await getOwner(publicClient as never, { name } as never)) as Address
+      ).toLowerCase(),
+      'the transfer landed',
+    ).toBe(recipient.toLowerCase())
+    expect(
+      (await readNameRoles({ label }, manager)).decoded,
+      'the manager holds nothing over the new owner’s name',
+    ).toEqual([])
+  })
+
+  test("with the list unconfirmed, the transfer form won't build a plan that might miss someone", async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+    wallets,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    const { name, owner, resource, rows } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-xfer-down',
+    )
+
+    await serveIndexedHistory(page, rowsFor(rows, owner))
+    await watchNodeRoleReads(page, resource, { fail: true })
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByRole('heading', { name: 'Transfer ownership' }),
+    ).toBeVisible({ timeout: 30_000 })
+    await page
+      .getByPlaceholder('ENS name or address')
+      .fill(accounts.getAddress('user4'))
+
+    await expect(
+      page
+        .locator('main')
+        .getByText('Couldn’t check who else holds permissions on this name'),
+      'pre-fix: the short list was planned from as if complete',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: 'Transfer name' }),
+    ).toBeDisabled()
+  })
+
+  test('guard: a complete indexed history is verified without the node', async ({
+    portalPage: page,
+    makeName,
+    wallets,
+  }) => {
+    const { name, owner, manager, resource, rows } = await nameWithManager(
+      makeName,
+      wallets,
+      'roles-1484-guard',
+    )
+
+    await serveIndexedHistory(page, rows)
+    const node = await watchNodeRoleReads(page, resource)
+    await page.goto(rolesPage(name))
+    const panel = await panelSettled(page)
+
+    for (const account of [owner, manager])
+      await expect(
+        panel.locator('tr', { hasText: truncate(account) }),
+      ).toHaveCount(1, { timeout: 30_000 })
+    await expect(page.locator('main').getByText(UNVERIFIED)).toHaveCount(0)
+    expect(node.count, 'a matching replay never reaches the node').toBe(0)
   })
 })
