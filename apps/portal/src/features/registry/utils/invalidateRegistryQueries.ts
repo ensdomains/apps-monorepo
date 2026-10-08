@@ -34,9 +34,6 @@ export const invalidateRegistryQueries = (
 ): Promise<void> =>
   invalidate(queryClient, new Set([...ROOT_ROLE_KEYS, ...INDEXER_BACKED_KEYS]))
 
-/** The indexed subset. Call once bigname has caught up with the transaction. */
-export const invalidateIndexedRegistryQueries = invalidateRegistryQueries
-
 /** Read from bigname, and changed when a label is created or deleted. */
 const LABEL_BACKED_KEYS = new Set<string>([
   // Overview `counts.labels` and `counts.events`.

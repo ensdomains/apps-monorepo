@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
+import { invalidateRegistryLabelQueries } from '@/features/registry/utils/invalidateRegistryQueries'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -106,12 +107,17 @@ export const useDeleteSubname = ({
         refetchType: 'all',
       })
 
+      // The registry's label count, table, feed and occupancy change too.
       pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            queryKey: subnamesQueryKey,
-            refetchType: 'all',
-          }),
+        invalidateQueries: async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: subnamesQueryKey,
+              refetchType: 'all',
+            }),
+            invalidateRegistryLabelQueries(queryClient),
+          ])
+        },
       })
     },
   })

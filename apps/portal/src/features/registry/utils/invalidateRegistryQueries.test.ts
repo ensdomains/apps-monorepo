@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 import {
-  invalidateIndexedRegistryQueries,
+  invalidateRegistryLabelQueries,
   invalidateRegistryQueries,
 } from './invalidateRegistryQueries'
 
@@ -22,18 +22,31 @@ const seed = (keys: readonly (readonly unknown[])[]) => {
 }
 
 describe('registry role invalidation', () => {
-  it.each([
-    ['on confirmation', invalidateRegistryQueries],
-    ['after indexing', invalidateIndexedRegistryQueries],
-  ])('refreshes holders, history and registry reads %s without a capability flag', async (_, invalidate) => {
+  it('refreshes holders, history and registry reads', async () => {
     const untouched = [
       'get-registry-label-count',
       { registryAddress: '0x1' },
     ] as const
     const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS, untouched])
-    await invalidate(queryClient)
+    await invalidateRegistryQueries(queryClient)
     for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS])
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(untouched)?.isInvalidated).toBe(false)
+  })
+})
+
+describe('registry label invalidation', () => {
+  it('refreshes what a subname created or deleted changes, and not the roles', async () => {
+    const labelKeys = [
+      ['get-registry-label-count', { registryAddress: '0x1' }],
+      ['get-registry-occupants', { address: '0x1' }],
+      ['get-registry-history-timeline', { address: '0x1' }],
+    ] as const
+    const queryClient = seed([...labelKeys, ...ROLE_KEYS])
+    await invalidateRegistryLabelQueries(queryClient)
+    for (const key of labelKeys)
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+    for (const key of ROLE_KEYS)
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false)
   })
 })
