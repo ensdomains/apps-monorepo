@@ -549,6 +549,115 @@ export async function assertLockedTokenRoute(
   ).toBe(wrapperImpl.toLowerCase())
 }
 
+/** The V2 owner of a migrated 2LD and the exact role bitmap it holds on its token. */
+export async function readV2TokenRoles(label: string): Promise<{
+  owner: Address
+  tokenRoles: bigint
+}> {
+  const tokenId = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_TOKEN_ABI,
+    functionName: 'getTokenId',
+    args: [labelHashBigInt(label)],
+  })
+  const owner = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_TOKEN_ABI,
+    functionName: 'ownerOf',
+    args: [tokenId],
+  })
+  const tokenRoles = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_TOKEN_ABI,
+    functionName: 'roles',
+    args: [tokenId, owner],
+  })
+  return { owner, tokenRoles }
+}
+
+// ---------------------------------------------------------------------------
+// Unwrapped and emancipated 2LDs (`UnlockedMigrationController`)
+// ---------------------------------------------------------------------------
+
+const V2_UNLOCKED_MIGRATION_CONTROLLER = ensL1Contracts[
+  supportedL1Chains.sepolia
+].ensUnlockedMigrationController.address as Address
+const V1_BASE_REGISTRAR_ADDRESS = ensL1Contracts[supportedL1Chains.sepolia]
+  .ensBaseRegistrarImplementation.address as Address
+const V1_LEGACY_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia]
+  .ensLegacyRegistry.address as Address
+
+const V1_ROUTE_ABI = parseAbi([
+  'function GRAVEYARD() view returns (address)',
+  'function ownerOf(uint256 id) view returns (address)',
+  'function owner(bytes32 node) view returns (address)',
+  'function resolver(bytes32 node) view returns (address)',
+])
+
+/**
+ * Assert a 2LD took the unlocked route (`UnlockedMigrationController`): the
+ * BaseRegistrar ERC-721 and the legacy registry slot both end with the
+ * Graveyard, the V1 resolver is cleared, and — for a wrapped name — the
+ * NameWrapper token no longer exists. The name is REGISTERED in V2 with no
+ * subregistry.
+ */
+export async function assertUnlockedTokenRoute(
+  label: string,
+  node: `0x${string}`,
+  options: { wrapped: boolean },
+): Promise<void> {
+  await assertUnlockedMigration(label)
+  const graveyard = await publicClient.readContract({
+    address: V2_UNLOCKED_MIGRATION_CONTROLLER,
+    abi: V1_ROUTE_ABI,
+    functionName: 'GRAVEYARD',
+  })
+  const [registrant, registryOwner, v1Resolver] = await Promise.all([
+    publicClient.readContract({
+      address: V1_BASE_REGISTRAR_ADDRESS,
+      abi: V1_ROUTE_ABI,
+      functionName: 'ownerOf',
+      args: [labelHashBigInt(label)],
+    }),
+    publicClient.readContract({
+      address: V1_LEGACY_REGISTRY,
+      abi: V1_ROUTE_ABI,
+      functionName: 'owner',
+      args: [node],
+    }),
+    publicClient.readContract({
+      address: V1_LEGACY_REGISTRY,
+      abi: V1_ROUTE_ABI,
+      functionName: 'resolver',
+      args: [node],
+    }),
+  ])
+  expect(
+    registrant.toLowerCase(),
+    `${label}.eth's ERC-721 should be in the Graveyard`,
+  ).toBe(graveyard.toLowerCase())
+  expect(
+    registryOwner.toLowerCase(),
+    `${label}.eth's legacy registry slot should belong to the Graveyard`,
+  ).toBe(graveyard.toLowerCase())
+  expect(v1Resolver, `${label}.eth's V1 resolver should be cleared`).toBe(
+    zeroAddress,
+  )
+  if (options.wrapped) {
+    const wrappedHolder = await publicClient
+      .readContract({
+        address: V1_NAME_WRAPPER_ADDRESS,
+        abi: NAME_WRAPPER_OWNER_ABI,
+        functionName: 'ownerOf',
+        args: [BigInt(node)],
+      })
+      .catch(() => zeroAddress)
+    expect(wrappedHolder, `${label}.eth should have been unwrapped`).toBe(
+      zeroAddress,
+    )
+  }
+}
+
 /**
  * The V2 owner of a migrated 2LD, the exact role bitmap it holds on its token,
  * and the root roles its WrapperRegistry grants the .eth registry (which is

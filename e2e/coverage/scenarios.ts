@@ -873,7 +873,10 @@ const registrationA: Scenario[] = [
     'registration',
     'manager',
     'Register a reserved (premigrated) name',
-    'test_register_premigrated — "not yet migrated" reason',
+    // Reworded 2026-10-08: the contract revert (test_register_premigrated) is
+    // never reached from the app — /register/$name checks availability first
+    // and sends a reserved name to its profile.
+    'RESERVED in V2 and isAvailable() false (test_register_premigrated); the app offers no registration and shows the name as owned by its V1 owner',
   ),
   s(
     'A12',
@@ -1146,7 +1149,10 @@ const migrationGW: Scenario[] = suite('G.GW', 'migration', 'manager', 'P3', [
   [
     'GW2',
     'Emancipated 2LD (PARENT_CANNOT_CONTROL only)',
-    'classified `unlocked`; ERC-1155 → UnlockedMigrationController; unwrapped to Graveyard, NameWrapper is ENSRegistry owner, resolver cleared',
+    // Corrected 2026-10-08 against UnlockedMigrationController._migrateWrapped:
+    // `unwrapETH2LD(label, GRAVEYARD, GRAVEYARD)` hands the registry slot to the
+    // Graveyard too, so the NameWrapper is NOT left as the ENSRegistry owner.
+    'classified `unlocked`; ERC-1155 → UnlockedMigrationController; unwrapped with ERC-721 and ENSRegistry slot both in the Graveyard, resolver cleared',
     { planId: 'G2' },
   ],
   [

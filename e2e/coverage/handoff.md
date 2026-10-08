@@ -5,6 +5,57 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 30 — 2026-10-08 · `migration.spec.ts` adopted: unwrapped and emancipated 2LDs, records, batching, edit-after, A11
+
+**Batch:** R0 §G migration, at the user's direction ("migration needs to be
+covered first"). Rewrote the never-run `migration.spec.ts` against the
+contract and the scenario oracles and added it to the migration config.
+
+**Result:** PASS GW1, GW2, GA4, GR1, GU4, A11 · DEFECT 0 · EXEMPT 0. Terminal
+397 → 403; ratchet raised.
+
+**Verified:** two clean full `manager-migration` runs (39 tests). Run 1 39/39;
+run 2 36/39 with three failures in untouched specs (two grace tests, GS3) on a
+slow upstream ("The request took too long to respond" in setup, 16 min vs
+12) — all three green on an immediate re-run. The six new tests passed in
+both runs.
+
+### Ground truth (contracts-v2 `UnlockedMigrationController`)
+
+- Unwrapped: `reclaim` to the controller, then `setRecord(node, GRAVEYARD, 0,
+  0)` and the ERC-721 to the Graveyard. Emancipated: resolver cleared, then
+  `unwrapETH2LD(label, GRAVEYARD, GRAVEYARD)`. Both land in V2 with
+  `REGISTRATION_ROLE_BITMAP` (+ `ROLE_WAS_RESERVED`). New helpers:
+  `assertUnlockedTokenRoute`, `readV2TokenRoles`.
+- GW2's oracle said the NameWrapper stays the ENSRegistry owner; the contract
+  hands the slot to the Graveyard. Oracle corrected.
+- A11's oracle quoted the contract revert, which the app never reaches:
+  `/register/$name` checks availability and redirects a reserved name to its
+  profile (owned by its V1 owner). Oracle reworded to that.
+
+### Learned
+
+- The owner's PermissionedResolver (`0xe545…7fbc` on this fork) **reverts on a
+  direct `text(node, key)`**; reading through the UniversalResolver
+  (`getTextRecord` / `getAddressRecord`) works. F11's comment found the
+  opposite for a freshly deployed resolver — the right instrument depends on
+  the resolver; not investigated further.
+- Profile editing is a dialog now (`goToEditProfile` / `saveProfileChanges` in
+  `helpers/profile-helpers.ts`); the old `/p/$name/edit` route is a 404 since
+  #898.
+- Never start a verification loop with a shell `&`: it outlived the tool call,
+  raced a second loop on account 0 and the results directory, and produced a
+  run that had to be thrown away.
+
+**In flight:** nothing.
+
+**Next:** (1) `migration-premium.spec.ts` — the last migration file no config
+runs (GA7/GA8 candidates, grace day 45/89 and after grace); (2) GA1–GA3
+(approval rows) and GU1–GU3 (list totality, predicted vs actual
+confirmations, nonce delta); (3) V1 roles-tab cells.
+
+---
+
 ## Iteration 29 — 2026-10-08 · portal smoke green again; roles table locator; V1 manager carried into V2 (GM1–GM4)
 
 **Batch:** iteration 28's "Next" (0)–(3): triage the portal smoke failures,
