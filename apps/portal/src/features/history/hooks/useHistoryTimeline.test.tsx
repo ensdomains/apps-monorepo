@@ -76,13 +76,13 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE)
     expect(result.current.hasMore).toBe(true)
 
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(result.current.hasMore).toBe(false)
   })
 
   it('reveals loaded rows before asking the network for more', async () => {
-    // Three windows' worth in the first page, so the first two clicks are free.
+    // Three windows' worth in the first page, so the first doubling is free.
     const loaded = TIMELINE_WINDOW_SIZE * 3
     const { result, queryFn } = renderFeed([
       page(events(loaded), '1'),
@@ -94,18 +94,108 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE)
 
     // Loaded rows are still hidden, so this click costs no request.
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(queryFn).toHaveBeenCalledOnce()
 
-    // The window has now run past everything loaded — one short of the page,
-    // whose boundary transaction is trimmed rather than split across the two —
-    // so the next page is worth fetching.
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2))
     await waitFor(() =>
-      expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 3),
+      expect(result.current.actions).toHaveLength(loaded + 10),
     )
+  })
+
+  it('keeps fetching until the window is filled with visible events', async () => {
+    const { result, queryFn } = renderFeed([
+      page(events(100), '1'),
+      page(events(100, 100), '2'),
+      page(events(100, 200), '3'),
+      page(events(100, 300), '4'),
+      page(events(100, 400), '5'),
+      page(events(100, 500)),
+    ])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    act(() => result.current.loader.onMore())
+    await waitFor(() => expect(result.current.loader.shown).toBe(100))
+    act(() => result.current.loader.onMore())
+    await waitFor(() => expect(result.current.loader.shown).toBe(200))
+    act(() => result.current.loader.onMore())
+
+    await waitFor(() => expect(result.current.loader.shown).toBe(400))
+    expect(queryFn).toHaveBeenCalledTimes(5)
+  })
+
+  it('keeps an unknown total unknown once the feed ends', async () => {
+    const { result } = renderFeed([page(events(TIMELINE_WINDOW_SIZE * 2))])
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.totalCount).toBeUndefined()
+    expect(result.current.loader.total).toBeUndefined()
+    expect(result.current.loader.canShowAll).toBe(false)
+    expect(result.current.loader.canShowMore).toBe(true)
+  })
+
+  it('keeps the loaded rows and reports the failure on the loader when a later page fails', async () => {
+    const { result, queryFn } = renderFeed([
+      page(events(TIMELINE_WINDOW_SIZE), '1'),
+    ])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const loadedActions = result.current.actions
+    queryFn.mockRejectedValueOnce(new Error('503'))
+
+    act(() => result.current.loader.onMore())
+
+    await waitFor(() => expect(result.current.loader.status).toBe('error'))
+    expect(result.current.error).toBeNull()
+    expect(result.current.actions).toEqual(loadedActions)
+    expect(result.current.loader.canShowMore).toBe(true)
+  })
+
+  it('doubles from the events on screen when a transaction carries the window past its size', async () => {
+    const bulk = events(120).map((event) => ({
+      ...event,
+      transactionHash: `0x${'b'.repeat(40)}` as const,
+      blockNumber: 2000,
+      timestamp: 2000,
+    }))
+    const { result } = renderFeed([page([...bulk, ...events(200)])])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.loader.shown).toBe(120)
+    expect(result.current.loader.moreCount).toBe(240)
+
+    act(() => result.current.loader.onMore())
+
+    expect(result.current.loader.shown).toBe(240)
+  })
+
+  it('reads through a batch longer than several pages without calling the feed stalled', async () => {
+    const BATCH_PAGES = 7
+    const batchPage = (index: number) =>
+      page(
+        events(100, 1000 + index * 100).map((event) => ({
+          ...event,
+          transactionHash: `0x${'c'.repeat(40)}` as const,
+          blockNumber: 500,
+          timestamp: 500,
+        })),
+        String(index + 2),
+      )
+    const { result } = renderFeed([
+      page(events(TIMELINE_WINDOW_SIZE), '1'),
+      ...Array.from({ length: BATCH_PAGES }, (_, index) => batchPage(index)),
+      page(events(10, 5000).map((event) => ({ ...event, timestamp: 1 }))),
+    ])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const shownBefore = result.current.loader.shown
+
+    act(() => result.current.loader.onMore())
+
+    await waitFor(() =>
+      expect(result.current.loader.shown).toBeGreaterThan(shownBefore),
+    )
+    expect(result.current.loader.status).toBe('idle')
   })
 
   it('closes a widened window when the feed changes subject', async () => {
@@ -116,7 +206,7 @@ describe('useTimelinePagesModel', () => {
     ])
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
-    act(() => result.current.loadMore())
+    act(() => result.current.loader.onMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
 
     rerender({ subject: 'b' })
