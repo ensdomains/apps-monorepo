@@ -1409,9 +1409,9 @@ describe('registrationMachine — session refund caps', () => {
   }
 
   const startCommit = (options: {
-    pollTransactionStatus: ReturnType<typeof vi.fn>
-    reauthorizeSession?: ReturnType<typeof vi.fn>
-    signFundingPermit?: ReturnType<typeof vi.fn>
+    readonly pollTransactionStatus: ReturnType<typeof vi.fn>
+    readonly reauthorizeSession?: ReturnType<typeof vi.fn>
+    readonly signFundingPermit?: ReturnType<typeof vi.fn>
   }) => {
     const signFundingPermit =
       options.signFundingPermit ?? vi.fn(async () => permit)
@@ -1468,8 +1468,8 @@ describe('registrationMachine — session refund caps', () => {
   }
 
   const startReveal = (options: {
-    pollTransactionStatus: ReturnType<typeof vi.fn>
-    reauthorizeSession?: ReturnType<typeof vi.fn>
+    readonly pollTransactionStatus: ReturnType<typeof vi.fn>
+    readonly reauthorizeSession?: ReturnType<typeof vi.fn>
   }) => {
     const submitRevealBatch = vi.fn(async () => 'tx-reg-register')
     const verifyRegistration = vi.fn(() => new Promise(() => {}))

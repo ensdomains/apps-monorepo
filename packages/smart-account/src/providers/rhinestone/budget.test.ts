@@ -377,6 +377,30 @@ describe('registerLegGasLimit', () => {
   })
 })
 
+describe('the funds declared to the quote', () => {
+  // The planner refuses to price an account it sees as below the fee, and a
+  // leg it will not price leaves the budget unquotable, which the registration
+  // machine treats as fatal. So the declaration has to cover the most this
+  // route could fund, not a flat guess: a first registration's reveal leg
+  // alone outgrew the old price + 10 USDC.
+  it('declares the whole ceiling, not a flat per-leg guess', async () => {
+    const declared: (bigint | undefined)[] = []
+    await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      hcaBalanceUsdc: USDC(2),
+      quoteLegCostUsdc: async (_leg, incomingUsdc) => {
+        declared.push(incomingUsdc)
+        return { spendUsdc: USDC(1), market: market(2_000_000_000n) }
+      },
+    })
+
+    const expected = hcaBudgetMaximum(USDC(5)) - USDC(2)
+    expect(declared).toEqual([expected, expected])
+    // Clears two legs at the per-leg floor cap (15 USDC each).
+    expect(expected).toBeGreaterThan(USDC(5) + 30_000_000n - USDC(2))
+  })
+})
+
 describe('the per-chain gas-price floor', () => {
   // 1.8 x 1.55M x 2 gwei = 0.00558 ETH, which at $3000/ETH is 16.74 USDC, over
   // the 15 USDC per-leg cap. Measured on Sepolia: a reveal whose refund the

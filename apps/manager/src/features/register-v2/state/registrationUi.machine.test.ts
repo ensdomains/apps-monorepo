@@ -1029,9 +1029,11 @@ describe('registrationV2UiMachine — registration.resume', () => {
     actor.send(resumeEvent({ ...hcaAccount, reauthorizeSession }))
 
     const child = getChild(actor).getSnapshot() as unknown as {
-      context: {
-        resumed?: {
-          deps: { readonly reauthorizeSession?: typeof reauthorizeSession }
+      readonly context: {
+        readonly resumed?: {
+          readonly deps: {
+            readonly reauthorizeSession?: typeof reauthorizeSession
+          }
         }
       }
     }

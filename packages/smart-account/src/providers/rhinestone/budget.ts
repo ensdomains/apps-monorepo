@@ -595,13 +595,15 @@ export async function estimateHcaBudget(
   // the planner as auxiliary funds so it will price the legs at all.
   //
   // Chicken-and-egg: the exact inflow is `total - balance`, but `total` is what
-  // these quotes produce. The price dominates the total and is already known
-  // exactly, so price + the flat per-leg fallbacks is a close upper-ish bound —
-  // and it only has to be good enough for the planner to see the HCA covered.
-  // The permit itself is sized from the FINAL budget, not from this.
+  // these quotes produce. So declare the most this route could ever fund, the
+  // same ceiling the finished budget is checked against. Under-declaring is
+  // the dangerous direction: the planner refuses to price an account it sees
+  // as below the fee, which leaves the budget unquotable and the registration
+  // refused rather than merely mis-sized. The permit itself is sized from the
+  // FINAL budget, not from this.
   const balance = params.hcaBalanceUsdc ?? 0n
   const declaredInflow = bigintMax(
-    registrationPrice + FALLBACK_LEG_FEE_6DP * 2n - balance,
+    hcaBudgetMaximum(registrationPrice) - balance,
     0n,
   )
 

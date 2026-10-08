@@ -51,7 +51,10 @@ beforeEach(() => {
   mocks.quoteSessionRefundCaps.mockReset()
   mocks.createDestinationSession.mockReset()
   mocks.createDestinationSession.mockImplementation(
-    (params: { refundCaps: typeof quotedCaps; validUntil: bigint }) =>
+    (params: {
+      readonly refundCaps: typeof quotedCaps
+      readonly validUntil: bigint
+    }) =>
       okAsync({
         permissionId: `0x${'22'.repeat(32)}`,
         validUntil: params.validUntil,
