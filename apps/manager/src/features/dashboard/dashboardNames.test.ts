@@ -5,6 +5,7 @@ import {
   type AddressNamesChunk,
   compareDashboardNames,
   type DashboardName,
+  isAwaitingMigratedNames,
   isListedName,
   mergeDashboardChunks,
   mergeDashboardNames,
@@ -397,5 +398,29 @@ describe('toDashboardPage', () => {
 
     expect(result.names.map(({ name }) => name)).toEqual(['f.eth', 'g.eth'])
     expect(result.needed).toBe(10)
+  })
+})
+
+describe('isAwaitingMigratedNames', () => {
+  const chunkOf = (names: readonly DashboardName[]): AddressNamesChunk => ({
+    address: OWNER,
+    names,
+    hiddenCount: 0,
+    lastRead: names.at(-1) ?? null,
+    nextCursor: null,
+    totalCount: null,
+  })
+  const v1 = dashboardName({ key: '0x0a', name: 'agent.eth', protocol: 'v1' })
+  const v2 = dashboardName({ key: '0x0b', name: 'agent.eth', protocol: 'v2' })
+
+  it('waits while a just-migrated name is still listed only as ENSv1', () => {
+    expect(isAwaitingMigratedNames([chunkOf([v1])], ['agent'])).toBe(true)
+    expect(isAwaitingMigratedNames([chunkOf([v1])], ['Agent.eth'])).toBe(true)
+  })
+
+  it('stops once bigname lists it as ENSv2, or with nothing migrated', () => {
+    expect(isAwaitingMigratedNames([chunkOf([v1, v2])], ['agent'])).toBe(false)
+    expect(isAwaitingMigratedNames([chunkOf([v2])], ['agent'])).toBe(false)
+    expect(isAwaitingMigratedNames([chunkOf([v1])], [])).toBe(false)
   })
 })

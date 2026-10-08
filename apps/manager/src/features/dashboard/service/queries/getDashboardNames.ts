@@ -35,6 +35,7 @@ import {
   type DashboardName,
   isListedName,
   mergeDashboardNames,
+  type NameVersion,
   type SortDir,
   type SortField,
   toDashboardName,
@@ -42,6 +43,13 @@ import {
 } from '../../dashboardNames'
 
 const FETCH_PAGE_SIZE = 200
+
+/** The dashboard queries that list the connected accounts' names. */
+export const DASHBOARD_NAME_ACTIONS = [
+  'names',
+  'grace_names',
+  'renewable_names',
+] as const
 const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
 export class GetDashboardNamesError extends TaggedError(
@@ -113,6 +121,8 @@ export type DashboardNamesQuery = {
   readonly sortDir: SortDir
   /** A fragment the names contain; empty lists everything. */
   readonly search: string
+  /** Only ENSv1 or only ENSv2 names; `null` lists both. */
+  readonly version: NameVersion | null
 }
 
 /** Each address's cursor; an address not yet read has none, an exhausted one `null`. */
@@ -130,6 +140,7 @@ const readChunk = (
     order: query.sortDir,
     pageSize: DASHBOARD_CHUNK_SIZE,
     ...(query.search && { contains: query.search }),
+    ...(query.version && { protocol: query.version }),
     ...(cursor === undefined ? { includeTotal: true } : { cursor }),
   })
     .map((page): AddressNamesChunk => {
@@ -229,6 +240,7 @@ export const getDashboardNamesInfiniteQueryOptions = (
       sortField: query.sortField,
       sortDir: query.sortDir,
       search: query.search,
+      version: query.version,
     }),
     initialPageParam: START,
     queryFn: ({ pageParam }) =>

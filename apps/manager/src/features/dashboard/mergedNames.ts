@@ -17,6 +17,7 @@ import {
 export type {
   DashboardName,
   DashboardNameRole,
+  NameVersion,
   SortDir,
   SortField,
 } from './dashboardNames'

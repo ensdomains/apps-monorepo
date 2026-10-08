@@ -217,9 +217,15 @@ export const MyNamesList = ({
     isGraceError,
     loadPage,
     addresses,
-  } = useDashboardNames({ sortField, sortDir, search: searchQuery, page })
+  } = useDashboardNames({
+    sortField,
+    sortDir,
+    search: searchQuery,
+    version,
+    page,
+  })
 
-  const filterKey = `${addresses.join(',')}:${searchQuery}:${sort}`
+  const filterKey = `${addresses.join(',')}:${searchQuery}:${version ?? 'all'}:${sort}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)

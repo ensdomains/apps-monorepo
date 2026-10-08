@@ -58,6 +58,7 @@ const QUERY: DashboardNamesQuery = {
   sortField: 'expiry',
   sortDir: 'desc',
   search: '',
+  version: null,
 }
 
 const graceRow: AddressName = {
@@ -184,6 +185,20 @@ describe('readDashboardChunks', () => {
     expect(chunks).toEqual([
       expect.objectContaining({ names: [], nextCursor: null, totalCount: 0 }),
     ])
+  })
+
+  it('asks bigname for only the chosen version', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() => okAsync(page([])))
+
+    await readDashboardChunks(
+      readNames,
+      { ...QUERY, addresses: [EOA], version: 'v1' },
+      {},
+    )
+    await readDashboardChunks(readNames, { ...QUERY, addresses: [EOA] }, {})
+
+    expect(readNames.mock.calls[0]?.[0]).toMatchObject({ protocol: 'v1' })
+    expect(readNames.mock.calls[1]?.[0]).not.toHaveProperty('protocol')
   })
 
   it('fails when a read fails', async () => {

@@ -2,11 +2,14 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, getAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { getRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import {
   type AddressNamesChunk,
   type DashboardName,
+  isAwaitingMigratedNames,
   mergeDashboardChunks,
+  type NameVersion,
   type SortDir,
   type SortField,
   toDashboardPage,
@@ -20,6 +23,9 @@ import {
 export { DASHBOARD_PAGE_SIZE }
 
 const NO_NAMES: readonly DashboardName[] = []
+
+// A just-migrated name is listed as ENSv1 until bigname indexes the migration.
+const MIGRATED_NAME_POLL_MS = 3_000
 
 /** The connected wallet, its smart account and that account's owner. */
 export const useDashboardAddresses = (): readonly Address[] => {
@@ -55,6 +61,7 @@ type Options = {
   readonly sortField?: SortField
   readonly sortDir?: SortDir
   readonly search?: string
+  readonly version?: NameVersion | null
   /** One-based. */
   readonly page?: number
 }
@@ -64,27 +71,39 @@ export const useDashboardNames = ({
   sortField = 'name',
   sortDir = 'asc',
   search = '',
+  version = null,
   page = 1,
 }: Options = {}) => {
   const addresses = useDashboardAddresses()
   const hasAddresses = addresses.length > 0
-  const query = useInfiniteQuery(
-    getDashboardNamesInfiniteQueryOptions({
+  const query = useInfiniteQuery({
+    ...getDashboardNamesInfiniteQueryOptions({
       addresses,
       sortField,
       sortDir,
       search: search.trim(),
+      version,
     }),
-  )
+    refetchInterval: ({ state }) =>
+      isAwaitingMigratedNames(
+        state.data?.pages.flat() ?? [],
+        getRecentlyMigratedNames(),
+      )
+        ? MIGRATED_NAME_POLL_MS
+        : false,
+  })
   const grace = useQuery(getDashboardGraceNamesQueryOptions(addresses))
 
   const searchLower = search.trim().toLowerCase()
+  // Names in grace are ENSv2 only.
   const graceNames = useMemo(
     () =>
-      (grace.data ?? NO_NAMES).filter((name) =>
-        name.name.includes(searchLower),
-      ),
-    [grace.data, searchLower],
+      version === 'v1'
+        ? NO_NAMES
+        : (grace.data ?? NO_NAMES).filter((name) =>
+            name.name.includes(searchLower),
+          ),
+    [grace.data, searchLower, version],
   )
   const merged = useMemo(
     () => mergePages(query.data?.pages, graceNames, sortField, sortDir),

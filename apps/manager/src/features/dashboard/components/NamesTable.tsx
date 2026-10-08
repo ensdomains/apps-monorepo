@@ -17,7 +17,7 @@ import {
 } from '../bulkRenewSelection'
 import { isHeldName } from '../dashboardNames'
 import { useAccountSelection } from '../hooks/useAccountSelection'
-import type { SortDir, SortField } from '../mergedNames'
+import type { NameVersion, SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { getRenewableDashboardNamesQueryOptions } from '../service/queries/getDashboardNames'
@@ -81,6 +81,16 @@ export const NamesTable = ({
   const { total: ownedTotal, isError: isNamesError } = useDashboardNames({
     sortField: ownedSortState.field,
     sortDir: ownedSortState.dir,
+  })
+  const v1Names = useDashboardNames({
+    sortField: ownedSortState.field,
+    sortDir: ownedSortState.dir,
+    version: 'v1',
+  })
+  const v2Names = useDashboardNames({
+    sortField: ownedSortState.field,
+    sortDir: ownedSortState.dir,
+    version: 'v2',
   })
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
@@ -189,12 +199,20 @@ export const NamesTable = ({
   // v1 / v2 are mutually exclusive; clicking the active one shows all again.
   // Switching drops the selection so Renew can't include a name that's hidden.
   const versionChips: FilterChipDef<NameVersion>[] = [
-    { value: 'v1', label: t`V1`, count: v1Count },
-    { value: 'v2', label: t`V2`, count: v2Count },
+    {
+      value: 'v1',
+      label: t`V1`,
+      count: v1Names.isError ? undefined : v1Names.total,
+    },
+    {
+      value: 'v2',
+      label: t`V2`,
+      count: v2Names.isError ? undefined : v2Names.total,
+    },
   ]
   const changeVersion = (next: NameVersion | null) => {
     setVersion(next)
-    setSelectedLabels(new Set())
+    clearSelection()
   }
 
   return (
@@ -271,7 +289,7 @@ export const NamesTable = ({
           )}
         </div>
 
-        {activeFilter === 'owned' && ownedTotal > 0 && (
+        {activeFilter === 'owned' && ownedTotal > 0 && version !== 'v1' && (
           <div className="flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <SelectionCheckbox

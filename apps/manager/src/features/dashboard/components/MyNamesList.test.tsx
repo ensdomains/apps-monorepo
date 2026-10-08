@@ -130,7 +130,7 @@ describe('MyNamesList', () => {
     ])
   })
 
-  it('asks the hook for the page in the chosen order and search', () => {
+  it('asks the hook for the page in the chosen order, search and version', () => {
     render(
       <MyNamesList
         favoriteLabels={new Set()}
@@ -138,6 +138,7 @@ describe('MyNamesList', () => {
         onToggleFavorite={() => undefined}
         searchQuery="ali"
         sort="expiry-desc"
+        version="v1"
       />,
     )
 
@@ -145,6 +146,7 @@ describe('MyNamesList', () => {
       sortField: 'expiry',
       sortDir: 'desc',
       search: 'ali',
+      version: 'v1',
       page: 1,
     })
   })

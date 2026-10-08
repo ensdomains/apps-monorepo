@@ -5,7 +5,6 @@ import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { getNameExpiryStatus } from '@/features/grace/utils/gracePeriod'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
@@ -66,7 +65,10 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
 }
 
 // An ENSv1 primary name's grace follows its lease, which name detail serves.
-const useAddressProfileAvatarUrl = (primaryName: string | undefined) => {
+const useAddressProfileAvatar = (
+  primaryName: string | undefined,
+  records: ProfileRecords | null,
+) => {
   const { data: detail, isPending: isDetailPending } = useQuery(
     getNameDetailQueryOptions(primaryName),
   )
@@ -96,7 +98,8 @@ export const AddressProfileHeader = ({
   readonly primaryName?: string
   readonly records: ProfileRecords | null
 }) => {
-  const avatarUrl = useAddressProfileAvatarUrl(primaryName)
+  const avatar = useAddressProfileAvatar(primaryName, records)
+  const avatarUrl = avatar.data ?? undefined
 
   return (
     <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">

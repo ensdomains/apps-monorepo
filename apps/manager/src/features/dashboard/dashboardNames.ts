@@ -10,6 +10,7 @@ import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 export type DashboardNameRole = 'owner' | 'manager'
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
+export type NameVersion = ProtocolVersion
 
 /** One name related to the connected addresses, as the dashboard lists it. */
 export type DashboardName = {
@@ -253,4 +254,30 @@ export const mergeDashboardChunks = ({
     isComplete,
     total: isComplete ? merged.length : listed + graceNames.length - shared,
   }
+}
+
+const toComparableName = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/\.eth$/, '')
+
+/** A just-migrated name that bigname still lists only as ENSv1. */
+export const isAwaitingMigratedNames = (
+  chunks: readonly AddressNamesChunk[],
+  migratedNames: readonly string[],
+): boolean => {
+  if (migratedNames.length === 0) return false
+  const names = chunks.flatMap((chunk) => chunk.names)
+  const byProtocol = (protocol: NameVersion) =>
+    new Set(
+      names
+        .filter((name) => name.protocol === protocol)
+        .map((name) => toComparableName(name.name)),
+    )
+  const v1 = byProtocol('v1')
+  const v2 = byProtocol('v2')
+  return migratedNames
+    .map(toComparableName)
+    .some((name) => v1.has(name) && !v2.has(name))
 }
