@@ -72,7 +72,9 @@ you are responsible for obtaining your own license from the foundry.
 unless it is served from one of these origins:**
 
 - https://app.ens.domains
+- https://sepolia.app.ens.domains
 - https://app.ens.dev
+- https://sepolia.explorer.ens.domains
 - https://explorer.ens.dev
 
 A deployment not listed here is not ours, regardless of how it presents itself,

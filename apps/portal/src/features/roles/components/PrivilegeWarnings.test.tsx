@@ -1,9 +1,10 @@
+import { normalize } from '@ensdomains/ensjs/utils'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { getExpectedWrapperRegistry } from '@/features/registry/utils/wrapperRegistry'
 import { createTestQueryClient, createTestWrapper } from '@/test-utils'
@@ -22,7 +23,7 @@ const ALL_TOKEN_ROLES: Role[] = [
 ]
 
 let holders = new Map<Address, Role[]>()
-const fetchHolders = vi.fn(async () => holders)
+const fetchHolders = vi.fn(async () => ({ holders, isVerified: true }))
 
 vi.mock('@/features/roles/hooks/useNameRoleAccounts', () => ({
   getNameRolesAccountsQueryOptions: (params: { resource: bigint | null }) => ({
@@ -101,6 +102,11 @@ const openTooltip = async () => {
   await userEvent.tab()
   return screen.findByRole('tooltip')
 }
+
+// The first normalize call builds its tables, slow enough on CI to outlast findByText.
+beforeAll(() => {
+  normalize('alice.eth')
+})
 
 beforeEach(() => {
   holders = new Map([[OWNER, ALL_TOKEN_ROLES]])

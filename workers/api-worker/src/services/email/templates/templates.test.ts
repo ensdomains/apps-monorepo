@@ -7,7 +7,7 @@ import { renderNameTransferredEmail } from './NameTransferredEmail.js'
 import { renderVerificationEmail } from './VerificationEmail.js'
 import { renderWelcomeEmail } from './WelcomeEmail.js'
 
-const managerAppUrl = 'https://app.ens.dev'
+const managerAppUrl = 'https://sepolia.app.ens.domains'
 const expiry = new Date('2026-03-13T12:00:00Z')
 const expiryPayload = (
   overrides: Partial<PersonalNotificationPayloads['name-expiry']> = {},
