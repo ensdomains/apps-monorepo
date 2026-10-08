@@ -249,7 +249,7 @@ export const RoleHistoryTable = ({
           </TableBody>
         </Table>
       </div>
-      <ListLoader {...loader} className="pt-3" />
+      <ListLoader {...loader} className="px-4 py-3" />
     </EventsSidebar>
   )
 }
