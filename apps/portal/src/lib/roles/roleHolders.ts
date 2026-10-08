@@ -1,13 +1,9 @@
-import { logger } from '@ens-apps/utils/logger'
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, getAddress, isHex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
-import {
-  getNodeRoleChangeLogs,
-  INDEXED_ROLE_EVENTS_TIMEOUT_MS,
-} from '@/lib/roles/roleChangeLogs'
+import { INDEXED_ROLE_EVENTS_TIMEOUT_MS } from '@/lib/roles/roleChangeLogs'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 
 type GetRoleHoldersParameters = {
@@ -21,14 +17,14 @@ export type RoleHolder = {
   readonly roleBitmap: bigint
 }
 
-class IndexedRoleHoldersError extends TaggedError('IndexedRoleHoldersError')<{
+class GetRoleHoldersError extends TaggedError('GetRoleHoldersError')<{
   reason: 'failed' | 'timeout' | 'truncated'
   cause: unknown
 }> {}
 
 const ROLE_HOLDERS_PAGE_SIZE = 1000
 
-/** Past this many pages the node answers instead of the indexer. */
+/** Past this many pages the read fails rather than keep going. */
 const ROLE_HOLDERS_MAX_PAGES = 20
 
 const ROLE_HOLDERS_QUERY = gql`
@@ -76,7 +72,7 @@ type IndexedRoleHoldersRequest = {
 
 type IndexedRoleHolder = RoleHolder & { readonly blockNumber: bigint }
 
-/** Throws on a malformed row, so the node answers instead. */
+/** Throws on a malformed row, which fails the read. */
 const toIndexedRoleHolder = (raw: unknown): IndexedRoleHolder => {
   if (raw === null || typeof raw !== 'object')
     throw new Error('Indexed role holder: row is not an object')
@@ -108,16 +104,16 @@ const getIndexedRoleHoldersPage = ResultFn(async function* (
 
   const page = yield* fromPromise(
     Promise.race([request, timeout]).finally(() => clearTimeout(timer)),
-    (cause) => new IndexedRoleHoldersError({ reason: 'failed', cause }),
+    (cause) => new GetRoleHoldersError({ reason: 'failed', cause }),
   )
   if (page === null) {
-    return yield* new IndexedRoleHoldersError({
+    return yield* new GetRoleHoldersError({
       reason: 'timeout',
       cause: undefined,
     }).toErr()
   }
   if (!page.roleConnection) {
-    return yield* new IndexedRoleHoldersError({
+    return yield* new GetRoleHoldersError({
       reason: 'failed',
       cause: page,
     }).toErr()
@@ -140,8 +136,7 @@ const getIndexedRoleHolders = ResultFn(async function* (
     })
     rows.push(...edges.map(({ node }) => node))
     if (!pageInfo.hasNextPage) {
-      // The indexer returns assignments in no stated order; oldest first
-      // matches the order the node replay produces.
+      // The indexer returns assignments in no stated order.
       const holders = yield* fromSync(
         () =>
           rows
@@ -157,12 +152,12 @@ const getIndexedRoleHolders = ResultFn(async function* (
                 roleBitmap,
               }),
             ),
-        (cause) => new IndexedRoleHoldersError({ reason: 'failed', cause }),
+        (cause) => new GetRoleHoldersError({ reason: 'failed', cause }),
       )
       return ok<readonly RoleHolder[]>(holders)
     }
     if (!pageInfo.endCursor) {
-      return yield* new IndexedRoleHoldersError({
+      return yield* new GetRoleHoldersError({
         reason: 'failed',
         cause: pageInfo,
       }).toErr()
@@ -170,38 +165,18 @@ const getIndexedRoleHolders = ResultFn(async function* (
     after = pageInfo.endCursor
   }
 
-  return yield* new IndexedRoleHoldersError({
+  return yield* new GetRoleHoldersError({
     reason: 'truncated',
     cause: undefined,
   }).toErr()
 })
 
-/**
- * Each account's current role bitmap on one resource of one registry. The node
- * cannot list holders, so its fallback replays the role logs oldest-first.
- */
-export const getRoleHolders = ResultFn(async function* ({
+/** Each account's current role bitmap on one resource of one registry, from the indexer. */
+export const getRoleHolders = ({
   registryAddress,
   resource,
-}: GetRoleHoldersParameters) {
-  const indexed = await getIndexedRoleHolders({
+}: GetRoleHoldersParameters) =>
+  getIndexedRoleHolders({
     contract: registryAddress.toLowerCase(),
     resource: toResourceHex(resource),
   })
-  if (indexed.isOk()) return ok(indexed.value)
-
-  logger.warn('Role holders read fell back to the node', {
-    registryAddress,
-    resource: toResourceHex(resource),
-    reason: indexed.error.reason,
-    cause: indexed.error.cause,
-  })
-
-  const logs = yield* getNodeRoleChangeLogs({ registryAddress, resource })
-  const latest = new Map<Address, bigint>()
-  for (const log of logs) latest.set(log.args.account, log.args.newRoleBitmap)
-
-  return ok<readonly RoleHolder[]>(
-    [...latest].map(([account, roleBitmap]) => ({ account, roleBitmap })),
-  )
-})
