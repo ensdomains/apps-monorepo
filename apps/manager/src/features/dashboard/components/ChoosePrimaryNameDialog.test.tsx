@@ -1,3 +1,4 @@
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -11,6 +12,18 @@ import { NavSection } from '@/features/navigation/Header/account/NavSection'
 import { render } from '@/utils/test-utils'
 import { DashboardPage } from '../pages/DashboardPage'
 import { MyNamesList } from './MyNamesList'
+
+type NameQueryParams = { readonly name: string }
+
+const recordsQueryKey = createQueryKey<'records', NameQueryParams>('records')
+const accessQueryKey = createQueryKey<'access', NameQueryParams>('access')
+const registrationQueryKey = createQueryKey<'registration', NameQueryParams>(
+  'registration',
+)
+const expiryQueryKey = createQueryKey<'expiry', NameQueryParams>('expiry')
+const rowRecordsQueryKey = createQueryKey<'row-records', NameQueryParams>(
+  'row-records',
+)
 
 const chain = vi.hoisted(() => ({
   primaryName: 'alpha.eth' as string | null,
@@ -33,7 +46,7 @@ vi.mock('@/lib/smart-account', () => ({
   }),
 }))
 vi.mock('@/features/profile/service/setPrimaryName', () => ({
-  setPrimaryName: (args: { name: string }) => chain.submit(args),
+  setPrimaryName: (args: { readonly name: string }) => chain.submit(args),
   setPrimaryNameWithHca: vi.fn(),
 }))
 vi.mock('@/features/profile/service/primaryNamePreparation', () => ({
@@ -41,25 +54,25 @@ vi.mock('@/features/profile/service/primaryNamePreparation', () => ({
 }))
 vi.mock('@/features/profile/service/profileRecords', () => ({
   profileRecordsQuery: (name: string) => ({
-    queryKey: ['records', name],
+    queryKey: recordsQueryKey({ name }),
     queryFn: async () => ({ texts: [] }),
   }),
 }))
 vi.mock('@/features/profile/service/resolverWriteAccess', () => ({
   resolverWriteAccessQuery: (name: string) => ({
-    queryKey: ['access', name],
+    queryKey: accessQueryKey({ name }),
     queryFn: async () => true,
   }),
 }))
 vi.mock('@/features/profile/service/profileRegistration', () => ({
   profileRegistrationQuery: (name: string) => ({
-    queryKey: ['registration', name],
+    queryKey: registrationQueryKey({ name }),
     queryFn: async () => null,
   }),
 }))
 vi.mock('@/features/profile/service/profileExpiry', () => ({
   profileExpiryQuery: (name: string) => ({
-    queryKey: ['expiry', name],
+    queryKey: expiryQueryKey({ name }),
     queryFn: async () => null,
   }),
   getProfileExpiryResultStatus: () => ({
@@ -69,7 +82,7 @@ vi.mock('@/features/profile/service/profileExpiry', () => ({
 }))
 vi.mock('./nameRowRecordsQuery', () => ({
   nameRowRecordsQuery: (name: string) => ({
-    queryKey: ['row-records', name],
+    queryKey: rowRecordsQueryKey({ name }),
     queryFn: async () => ({ texts: [] }),
   }),
 }))
@@ -116,7 +129,7 @@ vi.mock('../useDashboardV1Names', () => ({
   }),
 }))
 vi.mock('./NamesTable', () => ({
-  NamesTable: ({ primaryLabel }: { primaryLabel: string | null }) => (
+  NamesTable: ({ primaryLabel }: { readonly primaryLabel: string | null }) => (
     <section aria-label="My Names">
       <MyNamesList
         favoriteLabels={new Set()}
@@ -183,7 +196,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
       .mockReset()
-      .mockImplementation(async ({ name }: { name: string }) => {
+      .mockImplementation(async ({ name }: { readonly name: string }) => {
         chain.primaryName = name
       })
   })

@@ -11,7 +11,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 
 vi.mock('motion/react', () => ({
   motion: {
-    div: ({ children, ...props }: { children: ReactNode }) => (
+    div: ({ children, ...props }: { readonly children: ReactNode }) => (
       <div {...props}>{children}</div>
     ),
   },
@@ -19,13 +19,14 @@ vi.mock('motion/react', () => ({
 }))
 
 vi.mock('@/components/ui/button', () => ({
-  LinkButton: ({ children }: { children: ReactNode }) => (
+  LinkButton: ({ children }: { readonly children: ReactNode }) => (
     <a href="/alpha.eth">{children}</a>
   ),
 }))
 
 vi.mock('./ChoosePrimaryNameDialog', () => ({
-  ChoosePrimaryNameDialog: ({ children }: { children?: ReactNode }) => children,
+  ChoosePrimaryNameDialog: ({ children }: { readonly children?: ReactNode }) =>
+    children,
 }))
 
 describe('PrimaryNameCard', () => {

@@ -1,3 +1,4 @@
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -15,6 +16,15 @@ import { PrimaryNameCard } from './components/PrimaryNameCard'
 // Written before either implementation lane starts. Observe existing rendered
 // interfaces, not a proposed shared component, prop, class, or state mechanism.
 // Dialog internals and browser hover/focus require the separate journey checks.
+type NameQueryParams = { readonly name: string }
+const registrationQueryKey = createQueryKey<
+  'oracle-registration',
+  NameQueryParams
+>('oracle-registration')
+const expiryQueryKey = createQueryKey<'oracle-expiry', NameQueryParams>(
+  'oracle-expiry',
+)
+
 const wallet = vi.hoisted(() => ({ reverseName: null as string | null }))
 
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
@@ -25,19 +35,20 @@ vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
 }))
 
 vi.mock('./components/ChoosePrimaryNameDialog', () => ({
-  ChoosePrimaryNameDialog: ({ children }: { children: ReactNode }) => children,
+  ChoosePrimaryNameDialog: ({ children }: { readonly children: ReactNode }) =>
+    children,
 }))
 
 vi.mock('@/features/profile/service/profileRegistration', () => ({
   profileRegistrationQuery: (name: string) => ({
-    queryKey: ['oracle-registration', name],
+    queryKey: registrationQueryKey({ name }),
     queryFn: async () => ({ registrationDate: 1_700_000_000 }),
   }),
 }))
 
 vi.mock('@/features/profile/service/profileExpiry', () => ({
   profileExpiryQuery: (name: string) => ({
-    queryKey: ['oracle-expiry', name],
+    queryKey: expiryQueryKey({ name }),
     queryFn: async () => null,
   }),
   getProfileExpiryResultStatus: () => ({
