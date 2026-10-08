@@ -54,7 +54,7 @@ export const ReferencedByCell = ({
         <ul className="flex flex-wrap items-center gap-2">
           {names.slice(0, loader.shown).map((name, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: unnamed references have nothing else to key on, and the list only grows at the end
-            <li key={index}>
+            <li key={index} className="flex">
               {name === null ? (
                 <span className="text-muted-foreground">Unnamed</span>
               ) : (
