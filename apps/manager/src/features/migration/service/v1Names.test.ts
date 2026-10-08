@@ -7,11 +7,11 @@ import type {
   WrapperFuses,
 } from '@ens-apps/indexer/bigname'
 import { BignameError } from '@ens-apps/indexer/bigname'
-import { classifyNames } from '@ens-apps/migration'
+import { classifyNames, toV1Domain } from '@ens-apps/migration'
 import { errAsync, okAsync } from 'neverthrow'
 import { namehash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
-import { readV1NamesForAddress, toV1Domain } from './v1Names'
+import { readV1NamesForAddress } from './v1Names'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 

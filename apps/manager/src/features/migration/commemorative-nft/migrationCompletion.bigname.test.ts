@@ -26,7 +26,7 @@ vi.mock('viem/actions', async (importOriginal) => ({
   multicall: vi.fn(),
 }))
 
-import { toV1Domain } from '../service/v1Names'
+import { toV1Domain } from '@ens-apps/migration'
 import { fetchCommemorativeNftMigrationCompletion } from './migrationCompletion'
 
 const OWNER: Address = '0x1111111111111111111111111111111111111111'
