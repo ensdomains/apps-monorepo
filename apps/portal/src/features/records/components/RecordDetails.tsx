@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import { match } from 'ts-pattern'
 import type { Hash } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
@@ -121,20 +122,14 @@ const ResolverView = ({ name }: ResolverViewProps) => {
 }
 
 /** The bigname record key (or family) a table row's history is filed under. */
-const recordHistoryKey = (
-  record: NameRecord,
-): RecordHistoryParameters['key'] => {
-  switch (record.type) {
-    case 'address':
-      return `addr:${record.id}`
-    case 'text':
-      return `text:${record.key}`
-    case 'contentHash':
-      return 'contenthash'
-    case 'abi':
-      return 'abi'
-  }
-}
+const recordHistoryKey = (record: NameRecord): RecordHistoryParameters['key'] =>
+  match(record)
+    .returnType<RecordHistoryParameters['key']>()
+    .with({ type: 'address' }, ({ id }) => `addr:${id}`)
+    .with({ type: 'text' }, ({ key }) => `text:${key}`)
+    .with({ type: 'contentHash' }, () => 'contenthash')
+    .with({ type: 'abi' }, () => 'abi')
+    .exhaustive()
 
 const columns: ColumnDef<RecordHistoryEvent>[] = [
   {

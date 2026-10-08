@@ -17,6 +17,7 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -229,41 +230,35 @@ const toNamedResource = (
   const reading = readingOf(resource)
   if (!reading) return undefined
   const base = { resource: BigInt(resource.hash).toString() }
-  switch (reading.kind) {
-    case 'address':
-      return {
-        ...base,
-        recordKind: 'addr',
-        recordKey: null,
-        coinType:
-          reading.coin_type?.toString() ?? reading.coin_type_decimal ?? null,
-      }
-    case 'text':
-    case 'data':
-      return {
-        ...base,
-        recordKind: reading.kind,
-        recordKey: reading.key ?? reading.key_bytes ?? null,
-        coinType: null,
-      }
-    case 'abi':
-      return {
-        ...base,
-        recordKind: 'ABI content type',
-        recordKey:
-          reading.content_type?.toString() ??
-          reading.content_type_decimal ??
-          null,
-        coinType: null,
-      }
-    case 'interface':
-      return {
-        ...base,
-        recordKind: 'interface',
-        recordKey: reading.interface_id,
-        coinType: null,
-      }
-  }
+  return match(reading)
+    .returnType<ResolverNamedResource>()
+    .with({ kind: 'address' }, (address) => ({
+      ...base,
+      recordKind: 'addr',
+      recordKey: null,
+      coinType:
+        address.coin_type?.toString() ?? address.coin_type_decimal ?? null,
+    }))
+    .with({ kind: P.union('text', 'data') }, (keyed) => ({
+      ...base,
+      recordKind: keyed.kind,
+      recordKey: keyed.key ?? keyed.key_bytes ?? null,
+      coinType: null,
+    }))
+    .with({ kind: 'abi' }, (abi) => ({
+      ...base,
+      recordKind: 'ABI content type',
+      recordKey:
+        abi.content_type?.toString() ?? abi.content_type_decimal ?? null,
+      coinType: null,
+    }))
+    .with({ kind: 'interface' }, (iface) => ({
+      ...base,
+      recordKind: 'interface',
+      recordKey: iface.interface_id,
+      coinType: null,
+    }))
+    .exhaustive()
 }
 
 /**
@@ -444,8 +439,7 @@ const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
 type ResolverNodes = {
   readonly nodes: readonly ResolverNode[]
   /** True when a continuation failure left more names unread. */
-  readonly truncated: boolean
-  readonly partial: boolean
+  readonly isPartial: boolean
 }
 
 // A failed continuation keeps the names already read, marked incomplete.
@@ -462,22 +456,19 @@ const readBoundNames = (
         ? readBoundNames(resolver, next, all)
         : okAsync<ResolverNodes, BignameError>({
             nodes: all.map(toResolverNode(resolver)),
-            truncated: false,
-            partial: false,
+            isPartial: false,
           })
     })
     .orElse((error) => {
       if (cursor !== undefined)
         return okAsync<ResolverNodes, BignameError>({
           nodes: rows.map(toResolverNode(resolver)),
-          truncated: true,
-          partial: true,
+          isPartial: true,
         })
       return error.code === 'not_found'
         ? okAsync<ResolverNodes, BignameError>({
             nodes: [],
-            truncated: false,
-            partial: false,
+            isPartial: false,
           })
         : errAsync(error)
     })

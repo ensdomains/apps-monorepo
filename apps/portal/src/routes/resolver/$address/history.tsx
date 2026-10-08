@@ -50,6 +50,12 @@ function RouteComponent() {
         {eventCount > 0 ? `History (${eventCount})` : 'History'}
       </PageHeading>
 
+      {events.length < eventCount && (
+        <p className="text-sm text-muted-foreground">
+          {`Showing the newest ${events.length.toLocaleString()} of ${eventCount.toLocaleString()} events.`}
+        </p>
+      )}
+
       {events.length > 0 ? (
         <ResolverEventsTable events={events} enableSidebar />
       ) : (

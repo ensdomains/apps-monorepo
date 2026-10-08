@@ -35,7 +35,7 @@ export type RegistryOccupants = {
   readonly thirdPartyCount: number
 }
 
-/** A one-row page read for its `total_count`; null when bigname did not count it. */
+/** A one-row page read for its `total_count`; null when bigname cannot count it. */
 const countLabels = (
   address: Address,
   filter: { readonly exclude_owner?: string },
@@ -45,7 +45,7 @@ const countLabels = (
       ...filter,
       page_size: 1,
     }),
-  ).map((page) => (page ? (page.page?.total_count ?? null) : 0))
+  ).map((page) => page?.page?.total_count ?? null)
 
 /**
  * A complete first page gives both counts in one read. When the registry is
@@ -54,7 +54,8 @@ const countLabels = (
  *
  * Always read a fresh page here rather than reusing the registry-list cache:
  * an old empty page must not let a destructive detach bypass its guard.
- * Counts bigname declines to give remain unknown to the caller.
+ * Counts bigname declines to give, or a registry it has not indexed yet,
+ * remain unknown to the caller.
  */
 const getRegistryOccupants = ({
   address,
@@ -66,9 +67,8 @@ const getRegistryOccupants = ({
     }),
   )
     .andThen((page): ResultAsync<RegistryOccupants | null, BignameError> => {
-      if (!page) return okAsync({ count: 0, thirdPartyCount: 0 })
-      const count = page.page?.total_count ?? null
-      if (count === null) return okAsync(null)
+      const count = page?.page?.total_count ?? null
+      if (!page || count === null) return okAsync(null)
       if (!page.page?.has_more && page.data.length === count) {
         return okAsync({
           count,

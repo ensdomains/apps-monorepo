@@ -54,7 +54,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       }
       return (
         <span className="text-muted-foreground">
-          {formatExpiryDuration(unixSecondsToPlainDateUtc(expiryDate))}
+          {formatExpiryDuration(unixSecondsToPlainDateUtc(Number(expiryDate)))}
         </span>
       )
     },

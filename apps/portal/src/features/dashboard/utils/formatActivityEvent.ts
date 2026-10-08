@@ -1,4 +1,5 @@
 import { parseRecordKey } from '@ens-apps/indexer/bigname'
+import { match } from 'ts-pattern'
 import { type Address, isAddress } from 'viem'
 import {
   formatPower,
@@ -109,73 +110,73 @@ const formatRootPermissionEvent = (
 
 /**
  * One feed row, worded by bigname's friendly type. A type bigname added after
- * this switch reads as its raw kind (or the type), so the feed never breaks on
+ * this table reads as its raw kind (or the type), so the feed never breaks on
  * one.
  */
 export const formatActivityEvent = (
   event: RecentActivityEvent,
-): FormattedActivity => {
-  switch (event.type) {
-    case 'registration':
-      return activity({
+): FormattedActivity =>
+  match(event)
+    .returnType<FormattedActivity>()
+    .with({ type: 'registration' }, ({ data }) =>
+      activity({
         text: 'Registered by',
-        actor: asAddress(event.data.registrant ?? event.data.owner),
-      })
-    case 'renewal':
-      return { text: 'Name renewed' }
-    case 'release':
-      return { text: 'Name released' }
-    case 'expiry':
-      return { text: 'Expiry extended' }
-    case 'transfer':
-      return activity({
+        actor: asAddress(data.registrant ?? data.owner),
+      }),
+    )
+    .with({ type: 'renewal' }, () => ({ text: 'Name renewed' }))
+    .with({ type: 'release' }, () => ({ text: 'Name released' }))
+    .with({ type: 'expiry' }, () => ({ text: 'Expiry extended' }))
+    .with({ type: 'transfer' }, ({ data }) =>
+      activity({
         text: 'Ownership transferred to',
-        actor: asAddress(event.data.to),
-      })
-    case 'authority':
-      return activity({
+        actor: asAddress(data.to),
+      }),
+    )
+    .with({ type: 'authority' }, ({ data }) =>
+      activity({
         text: 'Ownership transferred to',
-        actor: asAddress(event.data.owner),
-      })
-    case 'resolver':
-      return activity({
+        actor: asAddress(data.owner),
+      }),
+    )
+    .with({ type: 'resolver' }, ({ data }) =>
+      activity({
         text: 'Resolver updated to',
-        actor: asAddress(event.data.resolver?.address),
-      })
-    case 'record':
-      return formatRecordEvent(event)
+        actor: asAddress(data.resolver?.address),
+      }),
+    )
+    .with({ type: 'record' }, formatRecordEvent)
     // The claimed name is the reverse record's unverified claim, so it is a
     // neutral value pill, not a name badge; a cleared claim has none.
-    case 'primary_name':
-      return activity({
+    .with({ type: 'primary_name' }, ({ data }) =>
+      activity({
         text: 'Primary name updated',
-        value:
-          event.data.name_status === 'set'
-            ? asValue(event.data.name)
-            : undefined,
-      })
-    case 'permission':
-      if (event.data.grant_scope?.kind === 'root')
-        return formatRootPermissionEvent(event)
-      return event.data.powers === undefined && event.data.fuses !== undefined
+        value: data.name_status === 'set' ? asValue(data.name) : undefined,
+      }),
+    )
+    .with(
+      { type: 'permission', data: { grant_scope: { kind: 'root' } } },
+      formatRootPermissionEvent,
+    )
+    .with({ type: 'permission' }, ({ data }) =>
+      data.powers === undefined && data.fuses !== undefined
         ? { text: 'Fuses updated' }
         : activity({
             text: 'Roles updated',
-            entityFromData: asAddress(event.data.address),
-          })
-    case 'subregistry':
-      return { text: 'Subregistry updated' }
+            entityFromData: asAddress(data.address),
+          }),
+    )
+    .with({ type: 'subregistry' }, () => ({ text: 'Subregistry updated' }))
     // What the name was in ENSv1 (unwrapped, wrapped, locked …) rides along
     // as a value pill.
-    case 'migration':
-      return activity({
+    .with({ type: 'migration' }, ({ data }) =>
+      activity({
         text: 'Migrated from ENSv1 to ENSv2',
-        value: migrationPathLabel(event.data.migration_path),
-      })
-    default: {
-      // `never` to the compiler; at runtime a type newer than this switch.
-      const { kind, type } = event as { kind?: string; type: string }
+        value: migrationPathLabel(data.migration_path),
+      }),
+    )
+    .otherwise((unknown) => {
+      // `never` to the compiler; at runtime a type newer than this table.
+      const { kind, type } = unknown as { kind?: string; type: string }
       return { text: humanizeType(kind ?? type) }
-    }
-  }
-}
+    })

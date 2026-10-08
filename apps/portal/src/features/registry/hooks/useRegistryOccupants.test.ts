@@ -141,7 +141,7 @@ describe('getRegistryOccupants', () => {
     expect(listRegistryLabels).toHaveBeenCalledTimes(1)
   })
 
-  it('has no occupants in a registry bigname has not indexed', async () => {
+  it('cannot size a registry bigname has not indexed', async () => {
     listRegistryLabels.mockRejectedValue(
       new BignameError({
         status: 404,
@@ -149,10 +149,7 @@ describe('getRegistryOccupants', () => {
         message: 'registry not found',
       }),
     )
-    await expect(fetchOccupants()).resolves.toEqual({
-      count: 0,
-      thirdPartyCount: 0,
-    })
+    await expect(fetchOccupants()).resolves.toBeNull()
     expect(listRegistryLabels).toHaveBeenCalledTimes(1)
   })
 

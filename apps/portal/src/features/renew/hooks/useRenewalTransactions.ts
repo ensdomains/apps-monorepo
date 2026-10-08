@@ -20,6 +20,7 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { buildRenewIntent, type RenewParams } from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
@@ -385,6 +386,19 @@ export const useRenewalTransactions = ({
         }).queryKey,
       })
     }
+    // The expiry rows read bigname, which may not have indexed the renewal yet.
+    pollForIndexerSync({
+      invalidateQueries: async () => {
+        await Promise.all(
+          renewedNames.map((renewedName) =>
+            queryClient.invalidateQueries({
+              queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
+                .queryKey,
+            }),
+          ),
+        )
+      },
+    })
     onComplete?.(flowType)
   }
 

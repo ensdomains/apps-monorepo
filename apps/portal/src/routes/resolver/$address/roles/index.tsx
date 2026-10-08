@@ -108,7 +108,7 @@ const ResolverRoles = ({ address }: { readonly address: Address }) => {
       ) : (
         <ResolverRolesTable
           roles={roles}
-          complete={resolver?.rolesStatus === 'full'}
+          isComplete={resolver?.rolesStatus === 'full'}
           namedResources={resolver?.namedResources ?? []}
           resolverAddress={address}
           canManageRoles={canManageRoles}

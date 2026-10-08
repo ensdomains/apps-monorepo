@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern'
 import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
 import {
   type EventType,
@@ -49,22 +50,13 @@ const isRecord = (
   event: TimelineEvent,
 ): event is TimelineEventOfType<'record'> => event.type === 'record'
 
-const recordLabel = (event: TimelineEventOfType<'record'>): string => {
-  switch (recordFamily(event)) {
-    case 'text':
-      return recordTextKey(event)
-    case 'contenthash':
-      return 'content hash'
-    case 'address':
-      return 'address'
-    case 'name':
-      return 'name'
-    case 'abi':
-      return 'ABI'
-    default:
-      return 'record'
-  }
-}
+const recordLabel = (event: TimelineEventOfType<'record'>): string =>
+  match(recordFamily(event))
+    .with('text', () => recordTextKey(event))
+    .with('contenthash', () => 'content hash')
+    .with('address', 'name', (family) => family)
+    .with('abi', () => 'ABI')
+    .otherwise(() => 'record')
 
 const multiRecordRecipe = (
   group: readonly TimelineEvent[],

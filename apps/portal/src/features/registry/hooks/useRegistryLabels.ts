@@ -25,7 +25,7 @@ export type RegistryLabelRow = {
   /** Null on the rare row bigname serves without one. */
   labelhash: string | null
   /** Unix seconds; null means the label does not expire. */
-  expiryDate: number | null
+  expiryDate: bigint | null
   /** Distinct accounts holding a label-scoped role on this label. */
   roleHoldersCount: number
 }
@@ -45,7 +45,7 @@ const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
     labelName: named ? (row.display_name.split('.')[0] ?? null) : null,
     labelhash: row.labelhash ?? null,
     // Null for no expiry (or one too large to date): it does not expire.
-    expiryDate: servedExpiry(row).expiry,
+    expiryDate: servedExpiry(row),
     roleHoldersCount: row.role_holder_count ?? 0,
   }
 }

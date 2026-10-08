@@ -15,6 +15,7 @@ export { readNameDetail } from './nameDetail'
 export { readNamesForAddress } from './namesForAddress'
 export { type ParsedRecordKey, parseRecordKey } from './recordKeys'
 export {
+  MAX_DATE_SECONDS,
   MAX_PAGE_SIZE,
   parseTimestamp,
   secondsToTimestamp,

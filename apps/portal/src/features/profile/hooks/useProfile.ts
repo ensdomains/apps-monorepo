@@ -44,13 +44,10 @@ const NO_KEYS: Pick<RecordInventory, 'known_keys' | 'unsupported_keys'> = {
 
 /** The text keys and coin types in bigname's `text:`/`addr:` record keys. */
 export const parseRecordKeys = (keys: readonly string[]) => ({
-  texts: keys.flatMap((key) =>
-    key === 'avatar'
-      ? ['avatar']
-      : key.startsWith('text:')
-        ? [key.slice('text:'.length)]
-        : [],
-  ),
+  texts: keys.flatMap((key) => {
+    if (key === 'avatar') return ['avatar']
+    return key.startsWith('text:') ? [key.slice('text:'.length)] : []
+  }),
   coins: keys.flatMap((key) => {
     const coinType = key.startsWith('addr:')
       ? Number(key.slice('addr:'.length))

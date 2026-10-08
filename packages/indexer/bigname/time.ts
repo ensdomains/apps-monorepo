@@ -5,7 +5,7 @@ export const MAX_PAGE_SIZE = 200
 
 const DECIMAL_SECONDS = /^(0|[1-9][0-9]*)$/
 /** The largest instant a Date can hold, in seconds. */
-const MAX_DATE_SECONDS = 8_640_000_000_000n
+export const MAX_DATE_SECONDS = 8_640_000_000_000n
 
 /** Decimal unix seconds, exact; undefined when missing or malformed. */
 export const timestampToBigInt = (

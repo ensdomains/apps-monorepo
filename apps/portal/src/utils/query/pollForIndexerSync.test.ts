@@ -52,7 +52,23 @@ describe('pollForIndexerSync', () => {
       initialDelay: 1000,
       retryInterval: 2000,
       maxAttempts: 30,
+      maxWait: 60_000,
     })
+  })
+
+  it('stops at the deadline when status checks are slow', async () => {
+    let now = 0
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    getStatus.mockImplementation(async () => {
+      now += 15_000
+      return status(1)
+    })
+
+    await pollForIndexerSync({ invalidateQueries, blockNumber: 100n })
+
+    expect(getStatus).toHaveBeenCalledTimes(4)
+    expect(invalidateQueries).toHaveBeenCalledTimes(1)
+    clock.mockRestore()
   })
 
   it('invalidates once, as soon as the write block is indexed', async () => {

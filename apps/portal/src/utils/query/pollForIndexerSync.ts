@@ -14,6 +14,8 @@ export type IndexerSyncConfig = {
   retryInterval: number
   /** Maximum number of status checks before refetching anyway */
   maxAttempts: number
+  /** Longest the whole wait may take, however slow each check is (ms) */
+  maxWait: number
 }
 
 /**
@@ -24,6 +26,7 @@ export const DEFAULT_INDEXER_SYNC_CONFIG: IndexerSyncConfig = {
   initialDelay: 1000,
   retryInterval: 2000,
   maxAttempts: 30,
+  maxWait: 60_000,
 }
 
 /**
@@ -65,7 +68,7 @@ const readIndexedBlock = async (): Promise<bigint | undefined> => {
  *
  * Polls `GET /v1/status` until the app chain's `indexed_block` reaches the
  * write's block, then invalidates once. The wait is bounded: after
- * `maxAttempts` checks (or when the target block can't be read) it invalidates
+ * `maxAttempts` checks or `maxWait` (or when the target block can't be read) it invalidates
  * anyway, so the screen shows whatever bigname has.
  *
  * @example
@@ -81,7 +84,7 @@ export async function pollForIndexerSync(
 ): Promise<void> {
   const { invalidateQueries, onAttempt, config = {} } = params
 
-  const { initialDelay, retryInterval, maxAttempts } = {
+  const { initialDelay, retryInterval, maxAttempts, maxWait } = {
     ...DEFAULT_INDEXER_SYNC_CONFIG,
     ...config,
   }
@@ -92,12 +95,15 @@ export async function pollForIndexerSync(
       : await readHeadBlock()
 
   if (target !== undefined) {
+    const deadline = Date.now() + maxWait
     await sleep(initialDelay)
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       onAttempt?.(attempt, maxAttempts)
       const indexed = await readIndexedBlock()
       if (indexed !== undefined && indexed >= target) break
-      if (attempt < maxAttempts) await sleep(retryInterval)
+      if (attempt === maxAttempts || Date.now() + retryInterval >= deadline)
+        break
+      await sleep(retryInterval)
     }
   }
 

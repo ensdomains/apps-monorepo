@@ -67,9 +67,9 @@ export type Action = {
 }
 
 export type DescriptorResult = {
-  icon?: ActionIcon
-  label: string
-  slots: ActionSlot[]
+  readonly icon?: ActionIcon
+  readonly label: string
+  readonly slots: readonly ActionSlot[]
 }
 
 /**

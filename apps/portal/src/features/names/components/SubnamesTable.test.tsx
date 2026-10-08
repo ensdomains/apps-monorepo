@@ -59,7 +59,7 @@ vi.mock('@/components/EntityBadge', () => ({
     variant?: string
     showAvatar?: boolean
   }) => (
-    <span data-testid="entity-badge">
+    <span data-testid="entity-badge" data-name={name}>
       {showAvatar && variant === 'name' && name ? (
         <span data-testid="name-avatar">{name}</span>
       ) : null}
@@ -171,6 +171,26 @@ describe('SubnamesTable', () => {
 
     const avatars = screen.getAllByTestId('name-avatar')
     expect(avatars.length).toBeGreaterThan(0)
+  })
+
+  it('shows a child with an unknown label without linking to it', () => {
+    const placeholder = `[${'ab'.repeat(32)}].test.eth`
+    render(
+      <SubnamesTable
+        subnames={[
+          createMockSubname(placeholder),
+          createMockSubname('sub.test.eth'),
+        ]}
+        name="test.eth"
+      />,
+    )
+
+    const linkedNames = screen
+      .getAllByTestId('entity-badge')
+      .map((badge) => badge.getAttribute('data-name'))
+    expect(screen.getAllByText(placeholder).length).toBeGreaterThan(0)
+    expect(linkedNames).toContain('sub.test.eth')
+    expect(linkedNames).not.toContain(placeholder)
   })
 
   it('renders create button when canCreateSubname is true', () => {

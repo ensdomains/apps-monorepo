@@ -116,7 +116,7 @@ const ResolverRolesOverview = ({
       ) : (
         <ResolverRolesTable
           roles={roles}
-          complete={overview?.rolesStatus === 'full'}
+          isComplete={overview?.rolesStatus === 'full'}
           namedResources={overview?.namedResources ?? []}
           resolverAddress={resolverAddress}
           canManageRoles={false}

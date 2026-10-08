@@ -34,6 +34,22 @@ import {
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
+
+// A child bigname cannot label is shown as `[labelhash].parent`, never linked.
+const SubnameBadge = ({ name }: { readonly name: string }) => {
+  const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
+  return (
+    <EntityBadge
+      variant="name"
+      name={isLabelled ? name : undefined}
+      copyValue={name}
+      showAvatar
+    >
+      {name}
+    </EntityBadge>
+  )
+}
 
 export interface SubnameRow {
   readonly name: string
@@ -118,14 +134,7 @@ function buildColumns(
           Subname
         </SortButton>
       ),
-      cell: ({ row }) => {
-        const name = row.original.name
-        return (
-          <EntityBadge variant="name" name={name} showAvatar>
-            {name}
-          </EntityBadge>
-        )
-      },
+      cell: ({ row }) => <SubnameBadge name={row.original.name} />,
     },
     {
       accessorKey: 'owner',
@@ -325,13 +334,7 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <EntityBadge
-                      variant="name"
-                      name={row.original.name}
-                      showAvatar
-                    >
-                      {row.original.name}
-                    </EntityBadge>
+                    <SubnameBadge name={row.original.name} />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"

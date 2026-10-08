@@ -4,6 +4,7 @@ import {
   parseRecordKey,
   type RegistryRef,
 } from '@ens-apps/indexer/bigname'
+import { match } from 'ts-pattern'
 import { isAddress, zeroAddress } from 'viem'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -121,20 +122,27 @@ const describeRecord = (
   primary: TimelineEventOfType<'record'>,
 ): DescriptorResult => {
   const value = recordValueText(primary.data.value)
-  switch (recordFamily(primary)) {
-    case 'cleared':
-      return { label: 'cleared records', slots: [] }
-    case 'text': {
-      const slots: ActionSlot[] = [
-        { kind: 'text', value: recordTextKey(primary) },
-      ]
-      const text = sanitizeOnChainText(value ?? '')
-      if (text)
-        slots.push({ kind: 'glyph', value: '→' }, { kind: 'text', value: text })
-      return { icon: 'text', label: 'set text record', slots }
-    }
-    case 'address':
-      return {
+  return (
+    match(recordFamily(primary))
+      .returnType<DescriptorResult>()
+      .with('cleared', () => ({ label: 'cleared records', slots: [] }))
+      .with('text', () => {
+        const text = sanitizeOnChainText(value ?? '')
+        return {
+          icon: 'text',
+          label: 'set text record',
+          slots: [
+            { kind: 'text', value: recordTextKey(primary) },
+            ...(text
+              ? ([
+                  { kind: 'glyph', value: '→' },
+                  { kind: 'text', value: text },
+                ] as const)
+              : []),
+          ],
+        }
+      })
+      .with('address', () => ({
         icon: 'address',
         label: 'set address to',
         slots: [
@@ -142,30 +150,26 @@ const describeRecord = (
             ? addressSlot(value)
             : valueSlot(value),
         ],
-      }
-    case 'contenthash':
-      return {
+      }))
+      .with('contenthash', () => ({
         icon: 'contenthash',
         label: 'set content hash to',
         slots: [valueSlot(value)],
-      }
-    case 'name':
+      }))
       // History keeps the key of a `name()` write but not the name itself.
-      return value
-        ? {
-            icon: 'primary',
-            label: 'set primary name to',
-            slots: [nameSlot(value)],
-          }
-        : { icon: 'primary', label: 'set reverse name record', slots: [] }
-    case 'abi':
-      return { label: 'changed ABI', slots: [] }
-    case 'pubkey':
-      return { label: 'changed public key', slots: [] }
-    case 'interface':
-      return { label: 'set interface', slots: [] }
-    case 'other':
-      return {
+      .with('name', () =>
+        value
+          ? {
+              icon: 'primary',
+              label: 'set primary name to',
+              slots: [nameSlot(value)],
+            }
+          : { icon: 'primary', label: 'set reverse name record', slots: [] },
+      )
+      .with('abi', () => ({ label: 'changed ABI', slots: [] }))
+      .with('pubkey', () => ({ label: 'changed public key', slots: [] }))
+      .with('interface', () => ({ label: 'set interface', slots: [] }))
+      .with('other', () => ({
         label: 'set record',
         slots: [
           {
@@ -173,8 +177,9 @@ const describeRecord = (
             value: sanitizeOnChainText(primary.data.key ?? '') || '—',
           },
         ],
-      }
-  }
+      }))
+      .exhaustive()
+  )
 }
 
 const powerList = (powers: readonly Power[]): ActionSlot => ({

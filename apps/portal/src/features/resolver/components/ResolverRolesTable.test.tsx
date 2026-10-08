@@ -345,7 +345,7 @@ describe('ResolverRolesTable unknown scopes', () => {
         roles={[role(alice, SET_TEXT, avatar)]}
         resolverAddress={resolverAddress}
         canManageRoles
-        complete={false}
+        isComplete={false}
       />,
     )
     await editRow(0)

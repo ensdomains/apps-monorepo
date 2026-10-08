@@ -38,7 +38,7 @@ type ResolverRolesTableProps = {
   /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
   readonly disableEdit?: boolean
   /** Whole-account removal requires a complete enumeration. */
-  readonly complete?: boolean
+  readonly isComplete?: boolean
 }
 
 /** One entry per held resolver permission, with its Admin / User (manager) state. */
@@ -97,7 +97,7 @@ export const ResolverRolesTable = ({
   resolverAddress,
   canManageRoles,
   disableEdit = false,
-  complete = true,
+  isComplete = true,
 }: ResolverRolesTableProps) => {
   // The selection is an identity, not a row object: the row it names is looked
   // up in the current data on every render, so a refetch can't leave the
@@ -123,7 +123,7 @@ export const ResolverRolesTable = ({
   const editingGroup =
     data.find((group) => resolverRoleGroupId(group) === editingId) ?? null
   const removalPlan = editingGroup
-    ? complete
+    ? isComplete
       ? planAccountRemoval(roles, editingGroup.account, revealed)
       : { type: 'unreadable' as const, reason: 'incomplete' as const }
     : null

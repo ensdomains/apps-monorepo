@@ -333,7 +333,7 @@ describe('getResolverNodesQueryOptions', () => {
     const result = await readNodes()
 
     expect(result.nodes.map(({ name }) => name)).toEqual(['a.eth', 'b.eth'])
-    expect(result).toMatchObject({ truncated: false, partial: false })
+    expect(result).toMatchObject({ isPartial: false })
     expect(bigname.resolver).toHaveBeenLastCalledWith(
       11155111,
       RESOLVER,
@@ -353,7 +353,7 @@ describe('getResolverNodesQueryOptions', () => {
     const result = await readNodes()
 
     expect(result.nodes.map(({ name }) => name)).toEqual(['a.eth'])
-    expect(result).toMatchObject({ truncated: true, partial: true })
+    expect(result).toMatchObject({ isPartial: true })
   })
 
   it('lists no nodes for a resolver bigname does not know', async () => {

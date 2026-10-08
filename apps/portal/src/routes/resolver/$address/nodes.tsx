@@ -200,8 +200,7 @@ function RouteComponent() {
 
       <ResolverNodesNotice
         count={nodes.length}
-        truncated={boundNames?.truncated}
-        partial={boundNames?.partial}
+        isPartial={boundNames?.isPartial}
       />
 
       <InputGroup className="bg-background rounded-sm">
