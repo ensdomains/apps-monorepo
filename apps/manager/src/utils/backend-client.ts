@@ -103,9 +103,13 @@ export const isBackendAuthed = backendAuthStore.select(
 
 export const DEFAULT_BACKEND_API_URL = import.meta.env.VITE_API_URL ?? '/api'
 
-export const ALLOWED_SIWE_DOMAINS = ['app.ens.dev', 'app.ens.domains'] as const
+export const ALLOWED_SIWE_DOMAINS = [
+  'sepolia.app.ens.domains',
+  'app.ens.dev',
+  'app.ens.domains',
+] as const
 export type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
-export const DEFAULT_SIWE_DOMAIN: AllowedSiweDomain = 'app.ens.dev'
+export const DEFAULT_SIWE_DOMAIN: AllowedSiweDomain = 'sepolia.app.ens.domains'
 
 export const getSiweDomain = (): AllowedSiweDomain => {
   if (typeof window !== 'undefined') {
