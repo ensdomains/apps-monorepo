@@ -1,6 +1,10 @@
+import {
+  type GasRefundViolation,
+  isFixableByNewSession,
+} from '@ens-apps/smart-account'
 import { YieldableError } from '@ens-apps/utils/neverthrow'
 import type { ITaggedError } from '@ens-apps/utils/neverthrow/error-classes'
-import type { Address, Chain, Hash } from 'viem'
+import { type Address, type Chain, formatUnits, type Hash } from 'viem'
 import type { TransactionRequest } from '../types/transaction.types'
 
 // Base error class for transaction errors
@@ -108,6 +112,59 @@ export class TransactionSubmissionError
         : 'Failed to submit transaction'
     super(`${baseMessage}${formatOrchestratorContext(orchestrator)}`, cause)
     this.orchestrator = orchestrator
+  }
+}
+
+/** One violation in words, for a message a person reads. */
+function describeRefundViolation(v: GasRefundViolation): string {
+  switch (v.field) {
+    case 'refundToken':
+      return 'the fee is quoted in a token this session does not pay in'
+    case 'exchangeRate':
+      return `the quoted ETH price (${formatUnits(v.quoted, 6)} USDC) is above the session limit (${formatUnits(v.cap, 6)} USDC)`
+    case 'refundAmount':
+      return `the quoted fee ceiling (${formatUnits(v.quoted, 6)} USDC) is above the session limit (${formatUnits(v.cap, 6)} USDC)`
+    case 'gasOverhead':
+      return `the quoted gas overhead (${v.quoted}) is above the session limit (${v.cap})`
+  }
+}
+
+/**
+ * The orchestrator quoted a gas refund the session's authorization does not
+ * allow, so the validator would reject the intent (`GasRefundNotAllowed()`).
+ * Raised BEFORE signing — nothing was submitted.
+ *
+ * `isFixableByNewSession` when only the gas overhead is over: that cap is sized
+ * per session from a quote, and a session sized from this quote accepts it.
+ * Any other violation is a fixed bound a new session would not raise.
+ */
+export class SessionRefundCapExceededError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'SessionRefundCapExceededError'
+  readonly isFixableByNewSession: boolean
+  /** The largest quoted overhead, which a replacement session must allow. */
+  readonly requiredGasOverhead: bigint
+
+  constructor(
+    public readonly request: TransactionRequest,
+    public readonly violations: readonly GasRefundViolation[],
+  ) {
+    const canFixWithNewSession = isFixableByNewSession(violations)
+    super(
+      canFixWithNewSession
+        ? 'Network fees changed since this session was authorized. A new session authorization is needed to continue.'
+        : `Network fees are outside the limits this session allows: ${violations
+            .map(describeRefundViolation)
+            .join('; ')}. Please try again later.`,
+    )
+    this.isFixableByNewSession = canFixWithNewSession
+    this.requiredGasOverhead = violations.reduce(
+      (max, v) =>
+        v.field === 'gasOverhead' && v.quoted > max ? v.quoted : max,
+      0n,
+    )
   }
 }
 
