@@ -26,6 +26,36 @@ const openDashboard = async (page: Page, search: string) => {
   await page.getByPlaceholder('Search my names').fill(search)
 }
 
+// More than one bigname read (50 rows), so the last page needs the cursor.
+const NAME_COUNT = 55
+const LAST_PAGE = 11
+const numberedNames = (prefix: string) =>
+  Array.from(
+    { length: NAME_COUNT },
+    (_, index) => `${prefix}${String(index).padStart(2, '0')}.eth`,
+  )
+
+/** The page's rows, in order, are exactly these names. */
+const expectRows = async (
+  page: Page,
+  prefix: string,
+  names: readonly string[],
+) => {
+  const rows = page
+    .getByText(new RegExp(`^${prefix}\\d+\\.eth$`))
+    .filter({ visible: true })
+  await expect
+    .poll(
+      async () => {
+        const texts = await rows.allTextContents()
+        // A row can render its name more than once for different screen sizes.
+        return texts.filter((text, index) => text !== texts[index - 1])
+      },
+      { timeout: 20_000 },
+    )
+    .toEqual(names)
+}
+
 const expectListed = async (
   page: Page,
   shown: readonly string[],
@@ -59,27 +89,25 @@ test.describe('Names read from bigname', () => {
     accounts,
   }) => {
     const prefix = uniquePrefix('pg')
-    const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(
-      (letter) => `${prefix}${letter}.eth`,
-    )
-    // The later the letter, the sooner it expires.
+    const names = numberedNames(prefix)
+    // The later the name, the sooner it expires.
     names.forEach((name, index) => {
       addName(mockIndexer, {
         name,
         owner: accounts.getAddress('user'),
-        expiryDate: nowSeconds() + (400 - index * 10) * DAY,
+        expiryDate: nowSeconds() + (600 - index * 5) * DAY,
       })
     })
 
     await openDashboard(page, prefix)
-    await expectListed(page, names.slice(0, 5), names.slice(5))
+    await expectRows(page, prefix, names.slice(0, 5))
 
-    await page.getByRole('button', { name: 'Go to page 2' }).click()
-    await expectListed(page, names.slice(5), names.slice(0, 5))
+    await page.getByRole('button', { name: `Go to page ${LAST_PAGE}` }).click()
+    await expectRows(page, prefix, names.slice(50))
 
     await page.getByRole('button', { name: /^Sort by/ }).click()
     await page.getByRole('menuitemradio', { name: 'Expiry Date' }).click()
-    await expectListed(page, names.slice(2).reverse(), names.slice(0, 2))
+    await expectRows(page, prefix, names.slice(50).reverse())
   })
 
   test('the version chips list only ENSv1 or only ENSv2 names', async ({
@@ -160,10 +188,8 @@ test.describe('Names read from bigname', () => {
   }) => {
     const prefix = uniquePrefix('prof')
     const address = accounts.getAddress('user2')
-    const names = ['a', 'b', 'c', 'd', 'e', 'f'].map(
-      (letter) => `${prefix}${letter}.eth`,
-    )
-    // The later the letter, the newer the name.
+    const names = numberedNames(prefix)
+    // The later the name, the newer it is.
     names.forEach((name, index) => {
       addName(mockIndexer, {
         name,
@@ -176,9 +202,9 @@ test.describe('Names read from bigname', () => {
     await page.goto(`${MANAGER_APP_URL}/${address}`)
     await page.waitForLoadState('networkidle')
     await page.getByPlaceholder('Search names').fill(prefix)
-    await expectListed(page, newestFirst.slice(0, 5), newestFirst.slice(5))
+    await expectRows(page, prefix, newestFirst.slice(0, 5))
 
-    await page.getByRole('button', { name: 'Go to page 2' }).click()
-    await expectListed(page, newestFirst.slice(5), newestFirst.slice(0, 5))
+    await page.getByRole('button', { name: `Go to page ${LAST_PAGE}` }).click()
+    await expectRows(page, prefix, newestFirst.slice(50))
   })
 })

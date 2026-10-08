@@ -31,9 +31,9 @@ export type MockDomain = {
   createdAt?: number
   records?: { key: string; value: string }[]
   /** Defaults to ENSv2. */
-  protocol?: 'v1' | 'v2'
+  readonly protocol?: 'v1' | 'v2'
   /** How `owner` relates to the name; defaults to owner and manager. */
-  relations?: readonly MockRelation[]
+  readonly relations?: readonly MockRelation[]
 }
 
 /**

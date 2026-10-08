@@ -198,7 +198,7 @@ type ManagerFixtures = {
    */
   mockIndexer: {
     addName: (domain: MockDomain) => void
-    removeName: (name: string) => void
+    readonly removeName: (name: string) => void
     enabled: boolean
   }
 }
