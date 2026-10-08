@@ -42,14 +42,13 @@ type RoleChangeLog = {
   }
 }
 
-/**
- * Page size for the indexed read. A page this full may have been cut, so the
- * caller falls back to the node rather than fold an incomplete history.
- */
-const INDEXED_ROLE_EVENTS_LIMIT = 1000
+const INDEXED_ROLE_EVENTS_PAGE_SIZE = 1000
+
+/** Past this many pages the node answers instead of the indexer. */
+const INDEXED_ROLE_EVENTS_MAX_PAGES = 20
 
 /**
- * How long the indexed read may take before the node answers instead. A stalled
+ * How long one indexed page may take before the node answers instead. A stalled
  * connection that never rejects would otherwise leave the roles page loading
  * with a working fallback sitting idle.
  */
@@ -61,29 +60,50 @@ const ROLE_CHANGE_EVENTS_QUERY = gql`
     $resource: String!
     $fromBlock: Int!
     $first: Int!
+    $after: String
   ) {
-    eacRolesChangeds(
+    eventConnection(
       where: {
+        type: "EACRolesChanged"
         contractAddress: $contractAddress
         resource: $resource
         blockNumber_gte: $fromBlock
       }
       first: $first
+      after: $after
       orderBy: blockNumber
       orderDirection: asc
     ) {
-      blockNumber
-      timestamp
-      transactionHash
-      asEACRolesChanged {
-        resource
-        account
-        oldRoleBitmap
-        newRoleBitmap
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          blockNumber
+          timestamp
+          transactionHash
+          asEACRolesChanged {
+            resource
+            account
+            oldRoleBitmap
+            newRoleBitmap
+          }
+        }
       }
     }
   }
 `
+
+type IndexedRoleEventsPage = {
+  readonly eventConnection?: {
+    readonly pageInfo: {
+      readonly hasNextPage: boolean
+      readonly endCursor: string | null
+    }
+    readonly edges: readonly { readonly node: unknown }[]
+  }
+}
 
 class IndexedRoleChangeLogsError extends TaggedError(
   'IndexedRoleChangeLogsError',
@@ -136,35 +156,24 @@ const toRoleChangeLog = (raw: unknown): RoleChangeLog | undefined => {
   }
 }
 
-/**
- * The indexed history for one resource. Errs, with the reason, when the node
- * has to answer instead: the indexer failed or stalled, a row would not map,
- * or the page came back full and may hide older changes.
- *
- * The indexer has no filter on the changed account (`involved` is a different
- * field), so `account` narrows the rows here. Rows come oldest-first, matching
- * the node, since callers fold `newRoleBitmap` in that order.
- */
-const getIndexedRoleChangeLogs = ResultFn(async function* ({
-  registryAddress,
-  resource,
-  account,
-  fromBlock,
-}: GetRoleChangeLogsParameters & { readonly fromBlock: bigint }) {
+type IndexedRoleEventsRequest = {
+  readonly contractAddress: string
+  readonly resource: string
+  readonly fromBlock: number
+}
+
+/** One page of the indexed history, or the reason the node has to answer instead. */
+const getIndexedRoleEventsPage = ResultFn(async function* (
+  variables: IndexedRoleEventsRequest & { readonly after: string | undefined },
+) {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS)
   })
-  const request = graphqlIndexerClient.request<{
-    eacRolesChangeds: readonly unknown[]
-  }>(ROLE_CHANGE_EVENTS_QUERY, {
-    contractAddress: registryAddress.toLowerCase(),
-    resource: toResourceHex(resource),
-    // Same lower bound the node read applies, so both sources answer the
-    // same question for a caller that narrows the range.
-    fromBlock: Number(fromBlock),
-    first: INDEXED_ROLE_EVENTS_LIMIT,
-  })
+  const request = graphqlIndexerClient.request<IndexedRoleEventsPage>(
+    ROLE_CHANGE_EVENTS_QUERY,
+    { ...variables, first: INDEXED_ROLE_EVENTS_PAGE_SIZE },
+  )
 
   const page = yield* fromPromise(
     Promise.race([request, timeout]).finally(() => clearTimeout(timer)),
@@ -176,16 +185,73 @@ const getIndexedRoleChangeLogs = ResultFn(async function* ({
       cause: undefined,
     }).toErr()
   }
-  if (page.eacRolesChangeds.length >= INDEXED_ROLE_EVENTS_LIMIT) {
+
+  // Not trusted as typed: a response without the feed is a failed read.
+  if (!page.eventConnection) {
     return yield* new IndexedRoleChangeLogsError({
-      reason: 'truncated',
-      cause: undefined,
+      reason: 'failed',
+      cause: page,
     }).toErr()
   }
 
+  return ok(page.eventConnection)
+})
+
+/** Every page of the indexed history, oldest first. */
+const getIndexedRoleEventRows = ResultFn(async function* (
+  request: IndexedRoleEventsRequest,
+) {
+  const rows: unknown[] = []
+  let after: string | undefined
+
+  for (let page = 0; page < INDEXED_ROLE_EVENTS_MAX_PAGES; page++) {
+    const { edges, pageInfo } = yield* getIndexedRoleEventsPage({
+      ...request,
+      after,
+    })
+    rows.push(...edges.map(({ node }) => node))
+    if (!pageInfo.hasNextPage) return ok<readonly unknown[]>(rows)
+    if (!pageInfo.endCursor) {
+      return yield* new IndexedRoleChangeLogsError({
+        reason: 'failed',
+        cause: pageInfo,
+      }).toErr()
+    }
+    after = pageInfo.endCursor
+  }
+
+  return yield* new IndexedRoleChangeLogsError({
+    reason: 'truncated',
+    cause: undefined,
+  }).toErr()
+})
+
+/**
+ * The indexed history for one resource. Errs, with the reason, when the node
+ * has to answer instead: the indexer failed or stalled, a row would not map,
+ * or the history runs past the page budget.
+ *
+ * The indexer has no filter on the changed account (`involved` is a different
+ * field), so `account` narrows the rows here. Rows come oldest-first, matching
+ * the node, since callers fold `newRoleBitmap` in that order.
+ */
+const getIndexedRoleChangeLogs = ResultFn(async function* ({
+  registryAddress,
+  resource,
+  account,
+  fromBlock,
+}: GetRoleChangeLogsParameters & { readonly fromBlock: bigint }) {
+  const rows = yield* getIndexedRoleEventRows({
+    contractAddress: registryAddress.toLowerCase(),
+    resource: toResourceHex(resource),
+    // Same lower bound the node read applies, so both sources answer the
+    // same question for a caller that narrows the range.
+    fromBlock: Number(fromBlock),
+  })
+
   const logs = yield* fromSync(
     () =>
-      page.eacRolesChangeds
+      rows
         .map(toRoleChangeLog)
         .filter((log): log is RoleChangeLog => log !== undefined)
         .filter((log) => !account || isAddressEqual(log.args.account, account)),
@@ -202,7 +268,7 @@ const getIndexedRoleChangeLogs = ResultFn(async function* ({
  * block since `ROLES_FROM_BLOCK`, which drpc answers in 7 to 20 seconds, and
  * because the transport batches JSON-RPC, every other read in the same batch
  * waits on it (WEB-1540). The node remains the fallback for an indexer outage
- * or a resource with more history than one page holds; each fallback is
+ * or a resource with more history than the page budget; each fallback is
  * logged with its reason so a failing indexer does not go unnoticed.
  *
  * The node read is filtered on the single event rather than ensjs's
