@@ -23,6 +23,36 @@ describe('getOgCardSubject', () => {
     expect(getOgCardSubject('foo..eth.png')).toEqual({ kind: 'invalid' })
   })
 
+  // WEB-334: a look-alike must never be drawn as a title
+  it.each([
+    ['Cyrillic letters mixed into a Latin label', 'v\u0456t\u0430lik.eth.png'],
+    ['a right-to-left override', 'ev\u202eil.eth.png'],
+    ['a zero-width joiner outside an emoji sequence', 'vi\u200dtalik.eth.png'],
+  ])('draws the invalid card for %s', (_case, segment) => {
+    expect(getOgCardSubject(segment)).toEqual({ kind: 'invalid' })
+  })
+
+  it('draws a canonical name card for a spelling that normalises', () => {
+    // The card is drawn from the canonical name, never from the URL string, so
+    // this is vitalik.eth's real card reached through a sloppy URL. Same image
+    // as /og/vitalik.eth.png, nothing gained by linking the look-alike.
+    expect(getOgCardSubject('vi\u00adtalik.eth.png')).toEqual({
+      kind: 'name',
+      name: 'vitalik.eth',
+    })
+  })
+
+  it('keeps emoji and whole-script names, which are canonical', () => {
+    expect(getOgCardSubject('\u{1f680}\u{1f680}\u{1f680}.eth.png')).toEqual({
+      kind: 'name',
+      name: '\u{1f680}\u{1f680}\u{1f680}.eth',
+    })
+    expect(getOgCardSubject('\u0455\u0441\u0430\u043c.eth.png')).toEqual({
+      kind: 'name',
+      name: '\u0455\u0441\u0430\u043c.eth',
+    })
+  })
+
   it('falls back to the generic card for anything not name-shaped', () => {
     expect(getOgCardSubject('settings.png')).toEqual({ kind: 'generic' })
     expect(getOgCardSubject('0x1234.png')).toEqual({ kind: 'generic' })

@@ -57,6 +57,18 @@ describe('parseSearchQuery', () => {
     })
   })
 
+  // WEB-334: look-alikes must never reach the availability check
+  it.each([
+    ['a right-to-left override', 'ev\u202eil.eth'],
+    ['a zero-width joiner outside an emoji sequence', 'vi\u200dtalik.eth'],
+    ['a control character', 'vita\u0001lik.eth'],
+    ['Cyrillic letters mixed into a Latin label', 'v\u0456t\u0430lik.eth'],
+    ['a leading dot', '.vitalik.eth'],
+    ['a trailing dot', 'vitalik.eth.'],
+  ])('returns invalid for a name with %s', (_case, input) => {
+    expect(parseSearchQuery(input).type).toBe('invalid')
+  })
+
   it('parses a valid address', () => {
     const address = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
     const result = parseSearchQuery(address)
