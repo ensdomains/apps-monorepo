@@ -4,9 +4,6 @@ import { ok } from 'neverthrow'
 import { bigname } from '@/lib/bigname'
 import { lookupNames } from './bignameLookup'
 
-/** Every ABI content type a resolver can store, probed when bigname cannot list them. */
-const ALL_ABI_CONTENT_TYPES: readonly bigint[] = [1n, 2n, 4n, 8n]
-
 export type V1ProfileKeys = {
   readonly id: string
   readonly texts: readonly string[]
@@ -27,12 +24,13 @@ export const hasV1ProfileRecords = (keys: V1ProfileKeys): boolean =>
 
 /**
  * Seen keys include ones whose indexed value is null: the chain read decides
- * what is copied. A record without an inventory is left out, so callers treat
- * the name as missing.
+ * what is copied. A record without a complete inventory is left out, so callers
+ * fail closed. Missing seen_abis is unknown, while [] is known empty: probing
+ * only the four conventional encodings can silently lose other uint256 types.
  */
 export const toV1ProfileKeys = (record: LookupRecord): V1ProfileKeys[] => {
   const { records } = record
-  if (!records) return []
+  if (!records?.seen_abis) return []
   return [
     {
       id: record.namehash.toLowerCase(),
@@ -42,10 +40,8 @@ export const toV1ProfileKeys = (record: LookupRecord): V1ProfileKeys[] => {
         .filter((coinType) => Number.isSafeInteger(coinType)),
       hasContentHash: records.seen_singletons.includes('contenthash'),
       abiContentTypes: records.seen_abis
-        ? records.seen_abis
-            .filter((contentType) => /^\d+$/.test(contentType))
-            .map((contentType) => BigInt(contentType))
-        : ALL_ABI_CONTENT_TYPES,
+        .filter((contentType) => /^\d+$/.test(contentType))
+        .map((contentType) => BigInt(contentType)),
     },
   ]
 }
