@@ -74,20 +74,24 @@ describe('getRoleHistory', () => {
 
   it('reads indexed history with its own timestamps, no node calls', async () => {
     mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [
-        {
-          id: `0x${'a'.padStart(64, '0')}-0`,
-          blockNumber: 10,
-          timestamp: 120,
-          transactionHash: `0x${'a'.padStart(64, '0')}`,
-          asEACRolesChanged: {
-            resource: `0x${RESOURCE.toString(16).padStart(64, '0')}`,
-            account: ACCOUNT,
-            oldRoleBitmap: '0x0',
-            newRoleBitmap: `0x${registryRoles.ROLE_RENEW.toString(16)}`,
+      eventConnection: {
+        pageInfo: { hasNextPage: false, endCursor: null },
+        edges: [
+          {
+            node: {
+              blockNumber: 10,
+              timestamp: 120,
+              transactionHash: `0x${'a'.padStart(64, '0')}`,
+              asEACRolesChanged: {
+                resource: `0x${RESOURCE.toString(16).padStart(64, '0')}`,
+                account: ACCOUNT,
+                oldRoleBitmap: '0x0',
+                newRoleBitmap: `0x${registryRoles.ROLE_RENEW.toString(16)}`,
+              },
+            },
           },
-        },
-      ],
+        ],
+      },
     })
 
     const entries = (await run())._unsafeUnwrap()
