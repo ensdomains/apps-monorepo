@@ -31,13 +31,23 @@ const RESOLVED_NAMES = [
   { name: 'ensv2sg2.eth', coinTypes: ['60'] },
 ] satisfies ForwardName[]
 
-const LOADED = { data: RESOLVED_NAMES, error: null, isLoading: false }
+const LOADED = {
+  data: {
+    pages: [{ names: RESOLVED_NAMES, hasNextPage: false }],
+    pageParams: [''],
+  },
+  error: null,
+  isLoading: false,
+  hasNextPage: false,
+  isFetchNextPageError: false,
+  fetchNextPage: () => Promise.resolve(),
+}
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    useQuery: () => LOADED,
+    useInfiniteQuery: () => LOADED,
   }
 })
 
@@ -56,15 +66,6 @@ const ResolutionRoute = (Route as unknown as { component: () => ReactNode })
 const MAX_SETTLED_COMMITS = 10
 
 describe('addr resolution route', () => {
-  /**
-   * Only the loaded state is worth measuring here. The route returns
-   * `LoadingMessage` / `ErrorMessage` / `NoResultsMessage` before it renders the
-   * table, so its `data ?? NO_ROWS` fallback is never the array a rendered table
-   * reads: with no rows the row models are never computed and the auto-reset
-   * that drives the loop never registers. `NO_ROWS` is hardening, not a live
-   * fix, and a test aimed at those states could not fail. What this guards is
-   * the reachable shape — the rows the table actually renders staying stable.
-   */
   it('stops re-rendering once the resolved names are shown', async () => {
     const counter = renderWithCommitCounter(() => <ResolutionRoute />, {
       wrapper: createTestWrapper(),

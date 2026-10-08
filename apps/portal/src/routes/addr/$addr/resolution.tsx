@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   getCoreRowModel,
@@ -8,9 +8,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Search } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -26,15 +31,13 @@ import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resol
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
-// Stable identity: a fresh `[]` each render makes the table recompute its row
-// model, which auto-resets the page index and re-renders.
-const NO_ROWS: never[] = []
+const RESOLVED_NAMES_INITIAL_COUNT = 100
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
-    queryClient.prefetchQuery(
+    queryClient.prefetchInfiniteQuery(
       getResolvedNamesForAddressQueryOptions({
         address: params.addr as Address,
       }),
@@ -46,14 +49,36 @@ function RouteComponent() {
 
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const { data, error, isLoading } = useQuery(
-    getResolvedNamesForAddressQueryOptions({
-      address,
-    }),
+  const {
+    data,
+    error,
+    isLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchNextPageError,
+  } = useInfiniteQuery(getResolvedNamesForAddressQueryOptions({ address }))
+
+  const loadedNames = useMemo(
+    () => data?.pages.flatMap((page) => page.names) ?? [],
+    [data],
+  )
+
+  const loader = useListLoader({
+    initialCount: RESOLVED_NAMES_INITIAL_COUNT,
+    loaded: loadedNames.length,
+    hasMore: hasNextPage,
+    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.names.length),
+    resetKey: address,
+  })
+
+  // Memoised: a fresh array makes the table recompute its row model and re-render.
+  const names = useMemo(
+    () => loadedNames.slice(0, loader.shown),
+    [loadedNames, loader.shown],
   )
 
   const table = useReactTable({
-    data: data ?? NO_ROWS,
+    data: names,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -69,7 +94,7 @@ function RouteComponent() {
 
   if (isLoading) return <LoadingMessage />
 
-  if (error) {
+  if (error && !isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Data unavailable"
@@ -78,7 +103,7 @@ function RouteComponent() {
     )
   }
 
-  if (!data || data.length === 0) {
+  if (loadedNames.length === 0) {
     return (
       <>
         <header className="flex flex-col gap-4">
@@ -114,8 +139,15 @@ function RouteComponent() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
+        {loader.canShowMore && Boolean(table.getState().globalFilter) && (
+          <p className="text-sm text-muted-foreground">
+            Search covers the {names.length} names shown so far. Show more to
+            include the rest.
+          </p>
+        )}
       </header>
       <ForwardNamesTable table={table} />
+      <ListLoader {...loader} className="py-4" />
     </>
   )
 }

@@ -81,8 +81,8 @@ vi.mock('@/components/EntityBadge', () => ({
     <span>{children}</span>
   ),
 }))
-vi.mock('@/components/table/EventsDataTable', () => ({
-  EventsDataTable: () => null,
+vi.mock('@/features/history/components/HistoryTimeline', () => ({
+  HistoryTimeline: () => null,
 }))
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => (

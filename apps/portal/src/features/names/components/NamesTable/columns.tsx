@@ -19,6 +19,10 @@ export type NameRow = {
   protocolVersion: ProtocolVersion
 }
 
+/** A row's selection key: its name, not its position, which shifts as rows load. */
+export const getNameRowId = (row: NameRow, index: number): string =>
+  row.name === null ? String(index) : `${row.protocolVersion}:${row.name}`
+
 const NameCell = ({ name }: { name: string }) => (
   <EntityBadge variant="name" name={name} showAvatar>
     {name}

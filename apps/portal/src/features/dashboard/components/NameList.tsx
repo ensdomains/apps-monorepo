@@ -1,5 +1,5 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
-import { useQueries } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
@@ -16,10 +16,14 @@ import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
+import {
+  type MergedName,
+  mergeNamesData,
+  type V2NameWithRoles,
+} from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
-import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
+import { getV1NamesPagesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
+import { getV2NamesPagesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
 interface NameListProps {
   readonly address: Address
@@ -108,13 +112,35 @@ const columns: ColumnDef<column>[] = [
   },
 ]
 
+type NamesPagesQuery<TName> = {
+  readonly data?: {
+    readonly pages: readonly { readonly names: readonly TName[] }[]
+  }
+  readonly hasNextPage: boolean
+}
+
+/** The count is the acquired names of every page, so it is left off until all are loaded. */
+const getFullListLabel = (
+  v1: NamesPagesQuery<NameWithRelation>,
+  v2: NamesPagesQuery<V2NameWithRoles>,
+) => {
+  if (v1.hasNextPage || v2.hasNextPage) return 'Go to full list'
+  const { acquired } = partitionOwnedNames(
+    mergeNamesData(
+      v1.data?.pages.flatMap((page) => page.names),
+      v2.data?.pages.flatMap((page) => page.names),
+    ),
+  )
+  return `Go to full list (${acquired.length})`
+}
+
 export const NameList = ({ address, limit }: NameListProps) => {
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
+  const v1NamesQuery = useInfiniteQuery(
+    getV1NamesPagesForAddressQueryOptions({ address }),
+  )
+  const v2NamesQuery = useInfiniteQuery(
+    getV2NamesPagesForAddressQueryOptions({ address }),
+  )
 
   const v1Pending = v1NamesQuery.isLoading
   const v2Pending = v2NamesQuery.isLoading
@@ -132,8 +158,13 @@ export const NameList = ({ address, limit }: NameListProps) => {
   // Registry ownership alone does not make a name the address's: any parent owner
   // can point a subname at any address. Names granted that way are kept visible, but
   // in their own group rather than among the names the address holds.
+  // The cache is shared with the names page, which may have loaded more pages;
+  // only the first page of each source is read here, so nothing is held back.
   const { acquired: allData, assigned } = partitionOwnedNames(
-    mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
+    mergeNamesData(
+      v1NamesQuery.data?.pages[0]?.names,
+      v2NamesQuery.data?.pages[0]?.names,
+    ),
   )
   const data = limit ? allData.slice(0, limit) : allData
   // The assigned section is hidden in the limited (preview) view, so it only
@@ -235,7 +266,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
           className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripHorizontal className="size-4" />
-          Go to full list ({allData.length})
+          {getFullListLabel(v1NamesQuery, v2NamesQuery)}
         </Link>
       )}
     </div>
