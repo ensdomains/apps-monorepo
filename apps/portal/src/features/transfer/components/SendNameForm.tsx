@@ -814,7 +814,7 @@ const RecipientPreview = ({ address }: { address: Address }) => {
         <CopyableRecord
           value={address}
           displayValue={address}
-          textClassName="text-muted-foreground sm:text-xs"
+          textClassName="text-muted-foreground sm:text-xs break-all"
           truncate={false}
         />
       </div>
