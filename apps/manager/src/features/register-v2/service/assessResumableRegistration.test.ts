@@ -1,5 +1,8 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { buildRegistrationRecord } from '@ens-apps/transaction-manager'
+import {
+  buildRegistrationRecord,
+  getResumeTarget,
+} from '@ens-apps/transaction-manager'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
@@ -336,6 +339,95 @@ describe('assessResumableRegistration', () => {
     const result = await assess({ stored: storedRegistration({ stage }) })
 
     expect(result).toEqual({ status: 'stale', reason: 'already-finished' })
+  })
+
+  describe('a failed run', () => {
+    /** A run whose register failed after its commitment landed. */
+    const failedRun = (
+      overrides: Parameters<typeof storedRegistration>[0] = {},
+    ): StoredRegistration => {
+      const stored = storedRegistration({ stage: 'error', ...overrides })
+      return {
+        ...stored,
+        record: {
+          ...stored.record,
+          context: {
+            ...stored.record.context,
+            registrationTxId: 'tx-reg-register',
+            registrationIntentId: 7n,
+          },
+        },
+      }
+    }
+
+    it('comes back with its commitment, for Try Again to continue from', async () => {
+      // A failed register does not mean a failed commitment. Discarding it
+      // would make the user pay for a second one.
+      const result = await assess({ stored: failedRun() })
+
+      expect(result.status).toBe('failed')
+      if (result.status !== 'failed') return
+      expect(result.stored.record.context.commitment).toEqual({
+        commitment: COMMITMENT,
+        secret: SECRET,
+      })
+      expect(result.confirmedData.basePriceNumber).toBe(4)
+    })
+
+    it('continues from the commitment rather than re-checking the failed register', async () => {
+      // With the failed register's ids left in, the resume would verify that
+      // same register again and land straight back on the failure screen.
+      const result = await assess({ stored: failedRun() })
+
+      if (result.status !== 'failed') throw new Error(result.status)
+      expect(result.stored.record.context.registrationTxId).toBeUndefined()
+      expect(result.stored.record.context.registrationIntentId).toBeUndefined()
+      expect(getResumeTarget(result.stored.record)).toBe('validatingCommitment')
+    })
+
+    it('keeps its commitment when the chain read fails', async () => {
+      const result = await assess({
+        stored: failedRun(),
+        publicClient: publicClientWith(new Error('rpc down')),
+      })
+
+      expect(result.status).toBe('failed')
+    })
+
+    it('starts over when it failed before holding a commitment', async () => {
+      const publicClient = publicClientWith(NOW)
+      const result = await assess({
+        stored: failedRun({ withCommitment: false }),
+        publicClient,
+      })
+
+      expect(result).toEqual({
+        status: 'stale',
+        reason: 'failed-before-commit',
+      })
+      expect(publicClient.readContract).not.toHaveBeenCalled()
+    })
+
+    it('starts over when its commitment never reached the chain', async () => {
+      const result = await assess({
+        stored: failedRun(),
+        publicClient: publicClientWith(0n),
+      })
+
+      expect(result).toEqual({
+        status: 'stale',
+        reason: 'failed-before-commit',
+      })
+    })
+
+    it('starts over once its commitment has expired', async () => {
+      const result = await assess({
+        stored: failedRun(),
+        publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
+      })
+
+      expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+    })
   })
 
   it('keeps the stored price when the re-quote fails', async () => {

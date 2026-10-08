@@ -21,6 +21,7 @@ import {
   getDestinationContracts,
   readCommitmentAges,
 } from '@ens-apps/smart-account'
+import type { PersistedRegistrationRecord } from '@ens-apps/transaction-manager'
 import { type Address, type PublicClient, parseAbi } from 'viem'
 import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -31,6 +32,7 @@ import {
 } from '../data/queries/pricing.query'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 import {
+  isFailedRegistrationRecord,
   loadStoredRegistration,
   type StoredRegistration,
 } from './registrationPersistence'
@@ -62,21 +64,34 @@ export type ResumeStaleReason =
   | 'commitment-expired'
   /** A finished run whose record outlived its own cleanup. */
   | 'already-finished'
+  /**
+   * A run that failed with no commitment on-chain to continue from: it never
+   * landed, or a register already used it. It starts over.
+   */
+  | 'failed-before-commit'
+
+type ContinuableRegistration = {
+  readonly stored: StoredRegistration
+  /**
+   * The stored `confirmedData` with pricing refreshed at preflight time.
+   * Feeds both the registering screen and the machine's `tokenPrice`.
+   */
+  readonly confirmedData: RegistrationConfirmedData
+  /** True when the re-quote failed and the stored price was kept. */
+  readonly priceIsStale: boolean
+}
 
 export type ResumeAssessment =
   | { readonly status: 'none' }
   | { readonly status: 'stale'; readonly reason: ResumeStaleReason }
-  | {
-      readonly status: 'resumable'
-      readonly stored: StoredRegistration
-      /**
-       * The stored `confirmedData` with pricing refreshed at preflight time.
-       * Feeds both the registering screen and the machine's `tokenPrice`.
-       */
-      readonly confirmedData: RegistrationConfirmedData
-      /** True when the re-quote failed and the stored price was kept. */
-      readonly priceIsStale: boolean
-    }
+  | ({ readonly status: 'resumable' } & ContinuableRegistration)
+  /**
+   * A run that failed with its commitment on-chain. It goes back on the
+   * failure screen rather than resuming, and continues from that commitment
+   * only when the user presses Try Again. `stored.record` is already prepared
+   * for that continuation (see {@link toRetryRecord}).
+   */
+  | ({ readonly status: 'failed' } & ContinuableRegistration)
 
 /**
  * Chain time, not wall-clock: `commitmentAt` is a block timestamp, and the e2e
@@ -226,36 +241,94 @@ export async function assessResumableRegistration(params: {
     return { status: 'stale', reason: 'already-finished' }
   }
 
-  const commitment = stored.record.context.commitment?.commitment
-  if (commitment) {
-    try {
-      const age = await readCommitmentAge({
-        publicClient: params.publicClient,
-        chainId: params.chainId,
-        commitment,
-        registrar: registrarForRecord(params.chainId),
-      })
+  const isFailedRun = isFailedRegistrationRecord(stored.record)
 
-      // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
-      // and the reveal necessarily runs later than this assessment — a
-      // commitment at the boundary is already doomed to `CommitmentTooOld`.
-      if (age && age.ageSeconds >= age.maxAgeSeconds) {
-        return { status: 'stale', reason: 'commitment-expired' }
-      }
-    } catch {
-      // An RPC blip must not discard a commitment the user paid for. Resuming
-      // is recoverable (a genuinely expired commitment reverts and the user
-      // restarts); discarding is not.
-    }
-  }
+  const staleReason = await commitmentStaleReason({
+    publicClient: params.publicClient,
+    chainId: params.chainId,
+    commitment: stored.record.context.commitment?.commitment,
+    isFailedRun,
+  })
+  if (staleReason) return { status: 'stale', reason: staleReason }
 
   const { confirmedData, stale } = await requoteConfirmedData(stored)
 
+  return isFailedRun
+    ? {
+        status: 'failed',
+        stored: { ...stored, record: toRetryRecord(stored.record) },
+        confirmedData,
+        priceIsStale: stale,
+      }
+    : {
+        status: 'resumable',
+        stored,
+        confirmedData,
+        priceIsStale: stale,
+      }
+}
+
+/**
+ * Why a stored run can no longer continue from its commitment, or `null` when
+ * it can.
+ */
+async function commitmentStaleReason(params: {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly commitment: `0x${string}` | undefined
+  readonly isFailedRun: boolean
+}): Promise<ResumeStaleReason | null> {
+  // A live run that has not committed yet simply resumes into its commit. A
+  // failed one has nothing paid to continue from.
+  if (!params.commitment) {
+    return params.isFailedRun ? 'failed-before-commit' : null
+  }
+
+  try {
+    const age = await readCommitmentAge({
+      publicClient: params.publicClient,
+      chainId: params.chainId,
+      commitment: params.commitment,
+      registrar: registrarForRecord(params.chainId),
+    })
+
+    // Not recorded. A live run's commit may still be landing, which
+    // `validatingCommitment` waits for. A failed run's never landed (its own
+    // retry would have committed afresh anyway), or a register used it up.
+    if (!age) return params.isFailedRun ? 'failed-before-commit' : null
+
+    // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
+    // and the reveal necessarily runs later than this assessment — a
+    // commitment at the boundary is already doomed to `CommitmentTooOld`.
+    return age.ageSeconds >= age.maxAgeSeconds ? 'commitment-expired' : null
+  } catch {
+    // An RPC blip must not discard a commitment the user paid for. Resuming
+    // is recoverable (a genuinely expired commitment reverts and the user
+    // restarts); discarding is not.
+    return null
+  }
+}
+
+/**
+ * A failed run's record, ready to continue from its commitment.
+ *
+ * The reveal-side ids belong to the register that failed. Left in, they route
+ * the resume to `verifyingRegistration`, which re-checks that same failed
+ * register and lands straight back on the failure screen. Without them,
+ * `getResumeTarget` routes to `validatingCommitment`: the commitment is read
+ * back from the chain, then revealed again, which is what Try Again does
+ * within the same session.
+ */
+function toRetryRecord(
+  record: PersistedRegistrationRecord,
+): PersistedRegistrationRecord {
   return {
-    status: 'resumable',
-    stored,
-    confirmedData,
-    priceIsStale: stale,
+    ...record,
+    context: {
+      ...record.context,
+      registrationTxId: undefined,
+      registrationIntentId: undefined,
+    },
   }
 }
 

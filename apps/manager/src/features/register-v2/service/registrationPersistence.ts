@@ -200,6 +200,33 @@ export function clearStoredRegistration(
 }
 
 /**
+ * Clear the stored record only if it belongs to `label`. A record for another
+ * name belongs to that name's run, which may hold a paid commitment.
+ */
+export function clearStoredRegistrationFor(
+  label: string,
+  storage: StorageLike | null = getBrowserStorage(),
+): void {
+  if (loadStoredRegistration(storage)?.label !== label) return
+  clearStoredRegistration(storage)
+}
+
+/**
+ * Whether a record was written by a run that ended in failure.
+ *
+ * The package keeps such a record, minus a run the user declined, because a
+ * failed register does not mean a failed commitment: the record still holds
+ * the secret that reveals one already on-chain. The Manager restores it to the
+ * failure screen rather than resuming it, so nothing re-runs until the user
+ * presses Try Again.
+ */
+export function isFailedRegistrationRecord(
+  record: Pick<PersistedRegistrationRecord, 'stage'>,
+): boolean {
+  return record.stage === 'error'
+}
+
+/**
  * Build the adapter that `subscribeRegistrationPersistence` writes through.
  *
  * `getConfirmedData` is a callback rather than a value because the subscriber

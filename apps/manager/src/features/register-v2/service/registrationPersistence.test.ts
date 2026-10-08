@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 import {
   clearStoredRegistration,
+  clearStoredRegistrationFor,
   createRegistrationPersistenceAdapter,
   loadStoredRegistration,
   REGISTRATION_RESUME_VERSION,
@@ -128,6 +129,18 @@ describe('registration persistence adapter', () => {
     adapterFor().save(record())
     clearStoredRegistration(storage)
 
+    expect(loadStoredRegistration(storage)).toBeNull()
+  })
+
+  it("clears a name's record only for that name", () => {
+    // Another name's record belongs to that run, which may hold a paid
+    // commitment.
+    adapterFor().save(record())
+
+    clearStoredRegistrationFor('bob', storage)
+    expect(loadStoredRegistration(storage)?.label).toBe('leon')
+
+    clearStoredRegistrationFor('leon', storage)
     expect(loadStoredRegistration(storage)).toBeNull()
   })
 

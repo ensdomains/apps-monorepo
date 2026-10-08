@@ -148,6 +148,10 @@ vi.mock('@/utils/router/root-context', () => ({
   getQueryClient: () => undefined,
 }))
 
+vi.mock('../service/registrationPersistence', () => ({
+  clearStoredRegistrationFor: vi.fn(),
+}))
+
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
@@ -156,6 +160,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import { clearStoredRegistrationFor } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import {
   getRegistrationV2ChildActor,
@@ -1159,6 +1164,173 @@ describe('registrationV2UiMachine — registration.suspend', () => {
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
     expect(isChildSuspended(actor)).toBe(true)
+  })
+})
+
+describe('registrationV2UiMachine — a failed run restored after a reload', () => {
+  const hcaAccount = {
+    signer: { type: 'rhinestone' },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: {},
+  } as unknown as SmartAccountContextValue
+
+  /** A fresh mount, as a reload leaves it, with a stored failure restored. */
+  const startRestoredFailure = () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+    actor.send({
+      type: 'registration.failure.restore',
+      confirmedData: resumeEvent(hcaAccount).confirmedData,
+    })
+    return actor
+  }
+
+  const childResumed = (actor: ReturnType<typeof startActorInTokens>) =>
+    (
+      getChild(actor).getSnapshot() as unknown as {
+        context: { resumed?: unknown }
+      }
+    ).context.resumed
+
+  it('shows the failure screen without re-running the registration', () => {
+    const actor = startRestoredFailure()
+
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(actor.getSnapshot().context.restoredFailure).toBe(true)
+    // Nothing reaches the child until the user asks for it.
+    expect(getChild(actor).getSnapshot().value).toBe('idle')
+    expect(childResumed(actor)).toBeUndefined()
+  })
+
+  it('belongs to its owner, so a wallet switch suspends it', () => {
+    const actor = startRestoredFailure()
+
+    expect(getSuspendableRunOwner(actor.getSnapshot())).toBe(EOA_ADDRESS)
+
+    actor.send({ type: 'registration.suspend' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    // Kept for its owner, who gets the failure screen back on reconnect.
+    expect(clearStoredRegistrationFor).not.toHaveBeenCalled()
+  })
+
+  it('leaves Try Again to the resume, since the child never resumed', () => {
+    const actor = startRestoredFailure()
+
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  it('continues from the stored commitment once resumed', () => {
+    const actor = startRestoredFailure()
+
+    actor.send(resumeEvent(hcaAccount, { stage: 'error' }))
+
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+    expect(childResumed(actor)).toMatchObject({
+      context: { commitment: { secret: `0x${'cd'.repeat(32)}` } },
+    })
+  })
+
+  it('discards the stored run on Back to Quote', () => {
+    const actor = startRestoredFailure()
+
+    actor.send({ type: 'cancel' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+    expect(clearStoredRegistrationFor).toHaveBeenCalledExactlyOnceWith(
+      'example',
+    )
+  })
+
+  it('stays restored when the wallet lock refuses the resume', async () => {
+    // Nothing reached the child, so Back to Quote must still discard the
+    // record, and Try Again must still go through the resume.
+    const { acquireRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    const actor = startRestoredFailure()
+
+    actor.send(resumeEvent(hcaAccount, { stage: 'error' }))
+
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(true)
+    expect(actor.getSnapshot().context.restoredFailure).toBe(true)
+    expect(getChild(actor).getSnapshot().value).toBe('idle')
+
+    actor.send({ type: 'cancel' })
+
+    expect(clearStoredRegistrationFor).toHaveBeenCalledExactlyOnceWith(
+      'example',
+    )
+  })
+
+  it('stays restored when the account is not ready to resume', () => {
+    const actor = startRestoredFailure()
+
+    actor.send(
+      resumeEvent(
+        {
+          signer: null,
+          accountAddress: null,
+          ownerAddress: null,
+          walletClient: null,
+        } as unknown as SmartAccountContextValue,
+        { stage: 'error' },
+      ),
+    )
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(actor.getSnapshot().context.restoredFailure).toBe(true)
+
+    // A machine retry would forward RETRY to an idle child and park the
+    // screen on registering.
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().value).toBe('failure')
+  })
+
+  it('keeps the stored run when the user moves to another name', () => {
+    const actor = startRestoredFailure()
+
+    actor.send({ type: 'label.changed' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+    expect(clearStoredRegistrationFor).not.toHaveBeenCalled()
+  })
+
+  it("leaves a live failure's record to the persistence subscriber", () => {
+    // A live child cancels to idle, which clears its own record.
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: new Error('boom') })
+    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+
+    actor.send({ type: 'cancel' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(clearStoredRegistrationFor).not.toHaveBeenCalled()
+  })
+
+  it('is not restored over a registration already running', () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+
+    actor.send({
+      type: 'registration.failure.restore',
+      confirmedData: resumeEvent(hcaAccount).confirmedData,
+    })
+
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
   })
 })
 

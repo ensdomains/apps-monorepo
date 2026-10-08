@@ -43,6 +43,7 @@ import {
   getBlockingRegistration,
   releaseRegistrationLock,
 } from '../service/registrationLock'
+import { clearStoredRegistrationFor } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
 import {
@@ -112,6 +113,16 @@ type Context = {
    * finishes in between, and the refusal still happened.
    */
   isWalletBusy: boolean
+  /**
+   * The failure screen is showing a run that failed before this page loaded,
+   * restored from storage. Its child machine never resumed, so `retry` and
+   * `cancel` have nothing to forward to: Try Again resumes it through
+   * `useRegistrationResume`, which owns the session gate, and Back to Quote
+   * discards its record. Cleared only once the child takes the run, so a
+   * retry the wallet lock or an unready account refuses lands back here with
+   * the screen still restored.
+   */
+  restoredFailure: boolean
   /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
   pendingStart?: Extract<
     Events,
@@ -181,6 +192,16 @@ type Events =
       postRegistrationSetup?: RegistrationPostRegistrationSetup
       account: SmartAccountContextValue
       hcaSessionEnable?: HcaSessionEnablePayload
+    }
+  | {
+      /**
+       * Show a stored run that failed with its commitment on-chain, without
+       * resuming it. Re-entering it on load would replay the failure, or put a
+       * wallet prompt up before the user asked for one; this waits for Try
+       * Again instead, which continues from the same commitment.
+       */
+      type: 'registration.failure.restore'
+      confirmedData: RegistrationConfirmedData
     }
   | {
       /**
@@ -356,6 +377,7 @@ const machineSetup = setup({
     ),
   },
   guards: {
+    isRestoredFailure: ({ context }) => context.restoredFailure,
     hasPendingStart: ({ context }) => context.pendingStart !== undefined,
     isWalletRegisteringAnotherName: ({ context }) =>
       blockingRegistrationFor(context) !== null,
@@ -464,8 +486,25 @@ const machineSetup = setup({
 
       releaseRegistrationLock(confirmed.ownerAddress)
     },
+    // A live run's record is cleared by the persistence subscriber once its
+    // child cancels to idle. A restored failure has no live child, so its
+    // record has to be discarded here.
+    discardStoredRegistration: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return
+
+      clearStoredRegistrationFor(confirmed.label)
+    },
+    restoreFailure: assign({
+      confirmedData: ({ event, context }) =>
+        event.type === 'registration.failure.restore'
+          ? event.confirmedData
+          : context.confirmedData,
+      restoredFailure: () => true,
+    }),
     clearRegistrationData: assign({
       pendingStart: () => undefined,
+      restoredFailure: () => false,
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
       postRegistrationData: () => undefined,
@@ -735,7 +774,9 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
-    enqueue.assign({ pendingStart: undefined })
+    // The child takes the run from here, so a restored failure is no longer
+    // what the failure screen would show.
+    enqueue.assign({ pendingStart: undefined, restoredFailure: false })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -855,7 +896,9 @@ const resumeRegistrationAction = machineSetup.createAction(
       })
     }
 
-    enqueue.assign({ pendingStart: undefined })
+    // The child takes the run from here, so a restored failure is no longer
+    // what the failure screen would show.
+    enqueue.assign({ pendingStart: undefined, restoredFailure: false })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -923,6 +966,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     lastErrorMessage: undefined,
     nameUnavailable: false,
     isWalletBusy: false,
+    restoredFailure: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,
@@ -942,6 +986,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         'registration.resume': {
           target: '#registrationV2Ui.registering',
           actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
+        },
+        // Scoped to `pricing` for the same reason as the resume above.
+        'registration.failure.restore': {
+          target: '#registrationV2Ui.failure',
+          actions: ['clearError', 'clearMaxProgress', 'restoreFailure'],
         },
       },
       states: {
@@ -1300,6 +1349,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       on: {
         retry: [
           {
+            // Nothing to forward to: the child never resumed. Try Again on a
+            // restored failure resumes it through `useRegistrationResume`.
+            guard: 'isRestoredFailure',
+          },
+          {
             // Retry re-enters `registering` directly, so it needs the same
             // wallet guard the initial start has.
             guard: 'isWalletRegisteringAnotherName',
@@ -1326,15 +1380,28 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           target: 'registering',
           actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
         },
-        cancel: {
-          target: 'pricing',
-          actions: [
-            'releaseRegistrationLock',
-            'clearRegistrationData',
-            'clearError',
-            'forwardCancel',
-          ],
-        },
+        cancel: [
+          {
+            // Back to Quote abandons the stored run, commitment included: the
+            // user has chosen to start over.
+            guard: 'isRestoredFailure',
+            target: 'pricing',
+            actions: [
+              'discardStoredRegistration',
+              'clearRegistrationData',
+              'clearError',
+            ],
+          },
+          {
+            target: 'pricing',
+            actions: [
+              'releaseRegistrationLock',
+              'clearRegistrationData',
+              'clearError',
+              'forwardCancel',
+            ],
+          },
+        ],
         // "Try Again" would carry on with the previous wallet's signer.
         'registration.suspend': {
           target: 'pricing',
