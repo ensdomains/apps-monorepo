@@ -1,6 +1,6 @@
 import type { LookupRecord, WrapperFuses } from '@ens-apps/indexer/bigname'
 import { labelhash, zeroAddress } from 'viem'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Domain.types'
 
 const MAX_WRAPPER_EXPIRY = (1n << 64n) - 1n
 

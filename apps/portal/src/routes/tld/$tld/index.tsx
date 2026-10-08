@@ -10,7 +10,7 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
+import { NameEventsHistory } from '@/components/table/NameEventsHistory/NameEventsHistory'
 import { Button } from '@/components/ui/button'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
@@ -26,7 +26,7 @@ import {
   getTldDataQueryOptions,
 } from '@/features/profile/hooks/useTldData'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { historyEventsToSubgraphEvents } from '@/utils/history/historyEventsToSubgraphEvents'
+import { historyEventsToTableEvents } from '@/utils/history/historyEventsToTableEvents'
 import { queryClient } from '@/utils/queryClient'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
@@ -109,7 +109,7 @@ const HistorySection = ({ tld }: { tld: string }) => {
     }),
   )
   const events = useMemo(
-    () => historyEventsToSubgraphEvents(historyQuery.data ?? []),
+    () => historyEventsToTableEvents(historyQuery.data ?? []),
     [historyQuery.data],
   )
 
@@ -136,7 +136,7 @@ const HistorySection = ({ tld }: { tld: string }) => {
           </Button>
         }
       />
-      <NameSubgraphHistory name={tld} v2Events={events} enableHeader={false} />
+      <NameEventsHistory name={tld} v2Events={events} enableHeader={false} />
     </div>
   )
 }

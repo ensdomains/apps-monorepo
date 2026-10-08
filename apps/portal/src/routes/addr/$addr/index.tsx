@@ -9,7 +9,7 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
-import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
+import { NameEventsHistory } from '@/components/table/NameEventsHistory/NameEventsHistory'
 import { Button } from '@/components/ui/button'
 import { getAddressHistoryQueryOptions } from '@/features/address/hooks/useAddressHistory'
 import { selectAcquiredNames } from '@/features/address/nameAttribution'
@@ -100,7 +100,7 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
           </Button>
         }
       />
-      <NameSubgraphHistory
+      <NameEventsHistory
         name={address}
         category="domain"
         v2Events={recentEvents}

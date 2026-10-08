@@ -4,7 +4,7 @@ import {
   parseTimestamp,
   timestampToSeconds,
 } from '@ens-apps/indexer/bigname'
-import type { SubgraphEvent } from './groupEventsByTransactionId'
+import type { HistoryTableEvent } from './groupEventsByTransactionId'
 import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
 import { rootPermissionRegistry } from './rootPermission'
 
@@ -74,9 +74,9 @@ export const historyEventLogId = (row: NameHistoryRow | EventRow): string =>
  * (see `withoutDuplicateCharges`). A row with no transaction (a state-derived
  * lapse) has nothing to group under and is left out.
  */
-export const historyEventsToSubgraphEvents = (
+export const historyEventsToTableEvents = (
   rows: readonly NameHistoryRow[],
-): (SubgraphEvent & Record<string, unknown>)[] =>
+): (HistoryTableEvent & Record<string, unknown>)[] =>
   withoutDuplicateCharges(rows).flatMap((row) => {
     const timestamp = timestampToSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null) return []

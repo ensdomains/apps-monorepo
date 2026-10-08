@@ -3,7 +3,7 @@ import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Domain.types'
 
 const toAddress = (s: string | null | undefined): Address | null => {
   if (!s) return null

@@ -15,7 +15,7 @@ import { readAllPages } from '@/utils/bigname/readAllPages'
 import {
   flattenHistoryData,
   historyEventLogId,
-} from '@/utils/history/historyEventsToSubgraphEvents'
+} from '@/utils/history/historyEventsToTableEvents'
 import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
 import type {
   AddressHistoryEvent,

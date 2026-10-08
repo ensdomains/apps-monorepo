@@ -25,7 +25,7 @@ import {
   encodeResolverRoleBitmap,
   type ResolverRole as ResolverRoleName,
 } from '@/lib/roles/resolverRoles'
-import { flattenHistoryData } from '@/utils/history/historyEventsToSubgraphEvents'
+import { flattenHistoryData } from '@/utils/history/historyEventsToTableEvents'
 
 /**
  * A name that shares its record with at least one other name on this resolver.

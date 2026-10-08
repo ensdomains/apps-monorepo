@@ -8,7 +8,7 @@ import type {
   DirectClassifiedName,
   MigrationTokenType,
 } from '../classifyNames'
-import type { V1Domain } from '../v1SubgraphClient'
+import type { V1Domain } from '../v1Domain.types'
 
 export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'
