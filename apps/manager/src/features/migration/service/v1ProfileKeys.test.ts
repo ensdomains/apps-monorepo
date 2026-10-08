@@ -5,12 +5,14 @@ import type {
 } from '@ens-apps/indexer/bigname'
 import { BignameError } from '@ens-apps/indexer/bigname'
 import { errAsync, okAsync } from 'neverthrow'
+import type { PublicClient } from 'viem'
 import { namehash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { lookup } = vi.hoisted(() => ({ lookup: vi.fn() }))
 vi.mock('@/lib/bigname', () => ({ bigname: { lookup } }))
 
+import { fetchV1Profiles, ProfileFetchError } from './fetchV1Profiles'
 import { getV1ProfileKeys, hasV1ProfileRecords } from './v1ProfileKeys'
 
 const groups = (overrides: Partial<RecordGroups> = {}): RecordGroups => ({
@@ -95,16 +97,81 @@ describe('getV1ProfileKeys', () => {
     expect(keys.some(hasV1ProfileRecords)).toBe(false)
   })
 
-  it('probes every ABI content type when bigname cannot list them', async () => {
+  it('leaves out names with unavailable ABI inventories so migration fails closed', async () => {
     const { seen_abis: _, ...withoutAbis } = groups({
       abi_unsupported_reason: 'inventory_not_available',
     })
     lookup.mockReturnValue(okAsync(respond([record('alice.eth', withoutAbis)])))
 
-    const [keys] = (await getV1ProfileKeys(['alice.eth']))._unsafeUnwrap()
+    const keys = (await getV1ProfileKeys(['alice.eth']))._unsafeUnwrap()
 
-    expect(keys?.abiContentTypes).toEqual([1n, 2n, 4n, 8n])
-    expect(keys && hasV1ProfileRecords(keys)).toBe(true)
+    expect(keys).toEqual([])
+    const multicall = vi.fn(async () => [])
+    await expect(
+      fetchV1Profiles({
+        names: [
+          {
+            name: 'alice.eth',
+            nodeHex: namehash('alice.eth'),
+            v1ResolverAddress: '0x0000000000000000000000000000000000000001',
+          },
+        ],
+        publicClient: { multicall } as unknown as PublicClient,
+      }),
+    ).rejects.toBeInstanceOf(ProfileFetchError)
+    expect(multicall).not.toHaveBeenCalled()
+  })
+
+  it('copies enumerated ABI types beyond the four conventional encodings', async () => {
+    lookup.mockReturnValue(
+      okAsync(
+        respond([
+          record(
+            'alice.eth',
+            groups({
+              seen_abis: [
+                '16',
+                '57896044618658097711785492504343953926634992332820282019728792003956564819968',
+              ],
+            }),
+          ),
+        ]),
+      ),
+    )
+    const multicall = vi.fn(async () => [
+      { status: 'success', result: [16n, '0x1234'] },
+      { status: 'success', result: [1n << 255n, '0xabcd'] },
+    ])
+
+    const profiles = await fetchV1Profiles({
+      names: [
+        {
+          name: 'alice.eth',
+          nodeHex: namehash('alice.eth'),
+          v1ResolverAddress: '0x0000000000000000000000000000000000000001',
+        },
+      ],
+      publicClient: { multicall } as unknown as PublicClient,
+    })
+
+    expect(profiles.get(namehash('alice.eth'))?.abis).toEqual([
+      { contentType: 16n, value: '0x1234' },
+      { contentType: 1n << 255n, value: '0xabcd' },
+    ])
+    expect(multicall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contracts: [
+          expect.objectContaining({
+            functionName: 'ABI',
+            args: [namehash('alice.eth'), 16n],
+          }),
+          expect.objectContaining({
+            functionName: 'ABI',
+            args: [namehash('alice.eth'), 1n << 255n],
+          }),
+        ],
+      }),
+    )
   })
 
   it('fails when bigname cannot answer', async () => {

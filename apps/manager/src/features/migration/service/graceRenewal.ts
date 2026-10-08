@@ -10,6 +10,7 @@ import {
   ethRegistrarGetRenewPriceSnippet,
   ethRegistrarIsRenewableSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { fromPromise } from 'neverthrow'
 import {
   type Address,
@@ -45,6 +46,7 @@ import {
 const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 export const GRACE_RENEWAL_EXTENSION = 7n * BigInt(SECONDS_PER_DAY)
 const QUOTE_LIFETIME = 300n
+const RESERVED_STATUS = 1
 
 // TODO(ensjs): upstream the batch and minimum-duration snippets. ETHRenewerV1
 // implements IETHRenewer.renewBatch and syncs NameWrapper within that transaction.
@@ -145,29 +147,37 @@ const readDomains = async (
       const label = getLabel(domain)
       const tokenId = BigInt(labelhash(label))
       const node = namehash(domain.name)
-      const [expiry, wrapperData, registryOwner] = await Promise.all([
-        publicClient.readContract({
-          address: V1_CONTRACTS.BaseRegistrar,
-          abi: baseRegistrarNameExpiresSnippet,
-          functionName: 'nameExpires',
-          args: [tokenId],
-          blockNumber: block.number,
-        }),
-        publicClient.readContract({
-          address: V1_CONTRACTS.NameWrapper,
-          abi: nameWrapperGetDataSnippet,
-          functionName: 'getData',
-          args: [BigInt(node)],
-          blockNumber: block.number,
-        }),
-        publicClient.readContract({
-          address: V1_CONTRACTS.LegacyRegistry,
-          abi: REGISTRY_OWNER_ABI,
-          functionName: 'owner',
-          args: [node],
-          blockNumber: block.number,
-        }),
-      ])
+      const [expiry, wrapperData, registryOwner, reservationStatus] =
+        await Promise.all([
+          publicClient.readContract({
+            address: V1_CONTRACTS.BaseRegistrar,
+            abi: baseRegistrarNameExpiresSnippet,
+            functionName: 'nameExpires',
+            args: [tokenId],
+            blockNumber: block.number,
+          }),
+          publicClient.readContract({
+            address: V1_CONTRACTS.NameWrapper,
+            abi: nameWrapperGetDataSnippet,
+            functionName: 'getData',
+            args: [BigInt(node)],
+            blockNumber: block.number,
+          }),
+          publicClient.readContract({
+            address: V1_CONTRACTS.LegacyRegistry,
+            abi: REGISTRY_OWNER_ABI,
+            functionName: 'owner',
+            args: [node],
+            blockNumber: block.number,
+          }),
+          publicClient.readContract({
+            address: chain.contracts.ensRegistry.address,
+            abi: permissionedRegistryGetStatusSnippet,
+            functionName: 'getStatus',
+            args: [tokenId],
+            blockNumber: block.number,
+          }),
+        ])
       if (expiry === 0n || block.timestamp >= expiry + GRACE_PERIOD) {
         throw new Error(`${domain.name} is no longer in its grace period.`)
       }
@@ -198,6 +208,10 @@ const readDomains = async (
       })
       return {
         ...domain,
+        // Renewal can restore a reservation that expired during late grace.
+        // Refresh it at the same block as ownership/expiry, including retries
+        // and names renewed elsewhere, rather than retaining the indexer flag.
+        isUnreserved: reservationStatus === RESERVED_STATUS ? undefined : true,
         owner: { id: registryOwner },
         registrant: registrant ? { id: registrant } : null,
         registration: { expiryDate: expiry.toString() },

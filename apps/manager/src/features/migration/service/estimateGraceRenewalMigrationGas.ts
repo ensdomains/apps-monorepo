@@ -94,6 +94,9 @@ const projectSelectedDomains = ({
     if (item.duration === 0n) return item.domain
     return {
       ...item.domain,
+      // ETHRenewerV1 extends the ENSv2 reservation as well as the v1 lease.
+      // Only project this for a renewal; execution rechecks it on chain.
+      isUnreserved: undefined,
       registration: { expiryDate: item.targetExpiry.toString() },
       wrappedDomain: item.domain.wrappedDomain
         ? {
