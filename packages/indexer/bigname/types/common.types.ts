@@ -151,8 +151,10 @@ export type EnsV1Facts = Readonly<{
   expires_at?: Timestamp | null
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses
-  /** Null when the wrapper never set one. */
+  /** Null for unlimited or unset expiry; omitted without a current wrapper entry. */
   wrapper_expires_at?: Timestamp | null
+  /** Explains a null wrapper expiry. */
+  wrapper_expires_at_reason?: 'no_expiry' | 'not_set'
 }>
 
 /** Name-shaped rows: where the chain reads the current registration fields from. */

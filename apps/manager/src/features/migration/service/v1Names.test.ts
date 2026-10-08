@@ -118,7 +118,7 @@ describe('toV1Domain', () => {
         expires_at: null,
         wrapper_fuses: fuses(0),
         wrapper_expires_at: null,
-        ...{ wrapper_expires_at_reason: 'not_set' },
+        wrapper_expires_at_reason: 'not_set',
       },
     })
     expect(
@@ -213,7 +213,7 @@ describe('classification through the adapter', () => {
         wrapper_state: 'emancipated',
         wrapper_fuses: fuses(PARENT_CANNOT_CONTROL),
         wrapper_expires_at: null,
-        ...{ wrapper_expires_at_reason: 'no_expiry' },
+        wrapper_expires_at_reason: 'no_expiry',
       },
     })
     const { classified, ineligible } = classify([

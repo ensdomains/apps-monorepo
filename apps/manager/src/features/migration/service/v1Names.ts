@@ -100,9 +100,7 @@ const currentWrapperFuses = (record: LookupRecord): WrapperFuses | undefined =>
 
 const wrapperExpiryOf = (ensV1: LookupRecord['ens_v1']): string =>
   ensV1?.wrapper_expires_at ??
-  (ensV1 &&
-  'wrapper_expires_at_reason' in ensV1 &&
-  ensV1.wrapper_expires_at_reason === 'no_expiry'
+  (ensV1?.wrapper_expires_at_reason === 'no_expiry'
     ? MAX_WRAPPER_EXPIRY.toString()
     : '0')
 
