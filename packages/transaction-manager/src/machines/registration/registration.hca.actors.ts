@@ -352,10 +352,13 @@ async function isResolverDeployed(params: {
 }
 
 async function readDeploymentState(params: {
-  publicClient: PublicClient
-  chainId: number
-  hca?: Address
-}): Promise<{ isResolverDeployed: boolean; isHcaDeployed: boolean }> {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly hca?: Address
+}): Promise<{
+  readonly isResolverDeployed: boolean
+  readonly isHcaDeployed: boolean
+}> {
   const { publicClient, chainId, hca } = params
   if (!hca) return { isResolverDeployed: false, isHcaDeployed: false }
   const [isResolverDeployed, isHcaDeployed] = await Promise.all([
@@ -406,7 +409,7 @@ export function estimateHcaBudgetActor(input: {
 
   // Takes the deployment flags rather than reading them per call, so the batch
   // and the gas limit that funds it are built from one value.
-  const makeQuoter = (resolverDeployed: boolean, hcaDeployed: boolean) =>
+  const makeQuoter = (isResolverDeployed: boolean, isHcaDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
@@ -435,7 +438,7 @@ export function estimateHcaBudgetActor(input: {
               rhinestone.account,
               chain,
               calls,
-              commitLegGasLimit({ isHcaDeployed: hcaDeployed }),
+              commitLegGasLimit({ isHcaDeployed }),
               signers,
               incomingUsdc,
             )
@@ -452,7 +455,7 @@ export function estimateHcaBudgetActor(input: {
             chainId,
             hca,
             resolver,
-            resolverDeployed,
+            resolverDeployed: isResolverDeployed,
             label,
             // The name recipient (wallet). A placeholder is fine for a gas/cost
             // quote — the orchestrator prices the intent by size, not by owner.
@@ -475,7 +478,7 @@ export function estimateHcaBudgetActor(input: {
             chain,
             toCalls(revealCalls),
             registerLegGasLimit({
-              isResolverDeployed: resolverDeployed,
+              isResolverDeployed,
               ...(input.primaryName ? { primaryName: input.primaryName } : {}),
             }),
             signers,
