@@ -15,6 +15,8 @@ type UseListLoaderParameters = {
   readonly hasMore?: boolean
   readonly fetchMore?: (signal?: AbortSignal) => Promise<FetchMoreResult>
   readonly resetKey?: string
+  /** Rows on screen for a given window, when the list rounds it up to whole groups. */
+  readonly countShown?: (window: number) => number
 }
 
 /** Lists longer than this, or of unknown length, offer `More` only. */
@@ -47,11 +49,13 @@ export const useListLoader = ({
   hasMore = false,
   fetchMore,
   resetKey,
+  countShown,
 }: UseListLoaderParameters) => {
   const [choice, setChoice] = useState<{
     readonly resetKey: string | undefined
     readonly target: number
   } | null>(null)
+  if (choice && choice.resetKey !== resetKey) setChoice(null)
   const target =
     choice && choice.resetKey === resetKey ? choice.target : initialCount
 
@@ -63,7 +67,8 @@ export const useListLoader = ({
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new list, or leaving the page, stops the fetch in flight
   useEffect(() => () => abortRef.current?.abort(), [resetKey])
 
-  const shown = Math.min(target, loaded)
+  const window = Math.min(target, loaded)
+  const shown = countShown ? countShown(window) : window
 
   const showUpTo = (next: number) => {
     setChoice({ resetKey, target: next })

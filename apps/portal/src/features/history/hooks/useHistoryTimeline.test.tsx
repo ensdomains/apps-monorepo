@@ -137,6 +137,67 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.loader.canShowMore).toBe(true)
   })
 
+  it('keeps the loaded rows and reports the failure on the loader when a later page fails', async () => {
+    const { result, queryFn } = renderFeed([
+      page(events(TIMELINE_WINDOW_SIZE), '1'),
+    ])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const loadedActions = result.current.actions
+    queryFn.mockRejectedValueOnce(new Error('503'))
+
+    act(() => result.current.loader.onMore())
+
+    await waitFor(() => expect(result.current.loader.status).toBe('error'))
+    expect(result.current.error).toBeNull()
+    expect(result.current.actions).toEqual(loadedActions)
+    expect(result.current.loader.canShowMore).toBe(true)
+  })
+
+  it('doubles from the events on screen when a transaction carries the window past its size', async () => {
+    const bulk = events(120).map((event) => ({
+      ...event,
+      transactionHash: `0x${'b'.repeat(40)}` as const,
+      blockNumber: 2000,
+      timestamp: 2000,
+    }))
+    const { result } = renderFeed([page([...bulk, ...events(200)])])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.loader.shown).toBe(120)
+    expect(result.current.loader.moreCount).toBe(240)
+
+    act(() => result.current.loader.onMore())
+
+    expect(result.current.loader.shown).toBe(240)
+  })
+
+  it('reads through a batch longer than several pages without calling the feed stalled', async () => {
+    const BATCH_PAGES = 7
+    const batchPage = (index: number) =>
+      page(
+        events(100, 1000 + index * 100).map((event) => ({
+          ...event,
+          transactionHash: `0x${'c'.repeat(40)}` as const,
+          blockNumber: 500,
+          timestamp: 500,
+        })),
+        String(index + 2),
+      )
+    const { result } = renderFeed([
+      page(events(TIMELINE_WINDOW_SIZE), '1'),
+      ...Array.from({ length: BATCH_PAGES }, (_, index) => batchPage(index)),
+      page(events(10, 5000).map((event) => ({ ...event, timestamp: 1 }))),
+    ])
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const shownBefore = result.current.loader.shown
+
+    act(() => result.current.loader.onMore())
+
+    await waitFor(() =>
+      expect(result.current.loader.shown).toBeGreaterThan(shownBefore),
+    )
+    expect(result.current.loader.status).toBe('idle')
+  })
+
   it('closes a widened window when the feed changes subject', async () => {
     // These surfaces are reused across subjects — one registry page navigating
     // to another — so a window widened on the last one must not carry over.

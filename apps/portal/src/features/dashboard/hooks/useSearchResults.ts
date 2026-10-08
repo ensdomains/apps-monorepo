@@ -17,6 +17,7 @@ import {
 } from '../utils/buildSearchSuggestions'
 import {
   filterAndSortOwnedNames,
+  getOwnedNamesMatchQuery,
   mergeOwnedNames,
 } from '../utils/ownedNamesUtils'
 import {
@@ -24,6 +25,7 @@ import {
   type SearchResultItem,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
+import { keepPreviousSearch } from './useOwnedNames'
 import { useSuggestionTlds } from './useSuggestionTlds'
 import { getV1NamesPagesForAddressQueryOptions } from './useV1NamesForAddress'
 import { getV2NamesForAddressQueryOptions } from './useV2NamesForAddress'
@@ -120,9 +122,16 @@ export const useSearchResults = ({
 
   const addressForOwned = connectedAddress ?? zeroAddress
 
+  // Matched by the subgraph, not over loaded pages: a wallet's first page is
+  // 100 names, and a match past it would never be found.
+  const ownedNamesMatchQuery = getOwnedNamesMatchQuery(searchValue)
   const v1NamesQuery = useInfiniteQuery({
-    ...getV1NamesPagesForAddressQueryOptions({ address: addressForOwned }),
-    enabled: Boolean(connectedAddress),
+    ...getV1NamesPagesForAddressQueryOptions({
+      address: addressForOwned,
+      search: ownedNamesMatchQuery,
+    }),
+    enabled: Boolean(connectedAddress) && ownedNamesMatchQuery !== '',
+    placeholderData: keepPreviousSearch(addressForOwned),
   })
   const v2NamesQuery = useQuery({
     ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),

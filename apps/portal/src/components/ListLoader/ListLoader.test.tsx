@@ -142,6 +142,21 @@ describe('ListLoader on a client-side list', () => {
     expect(screen.getByText('Showing 4 of 50')).toBeInTheDocument()
   })
 
+  it('opens a list at its initial count again when the reader comes back to it', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderList(
+      <ClientList count={30} initialCount={4} resetKey="alice.eth" />,
+    )
+    await user.click(all())
+    expect(screen.getAllByRole('listitem')).toHaveLength(30)
+
+    rerender(<ClientList count={50} initialCount={4} resetKey="bob.eth" />)
+    rerender(<ClientList count={30} initialCount={4} resetKey="alice.eth" />)
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(4)
+    expect(screen.getByText('Showing 4 of 30')).toBeInTheDocument()
+  })
+
   it('keeps the reader’s choice while the same list refreshes', async () => {
     const user = userEvent.setup()
     const { rerender } = renderList(
