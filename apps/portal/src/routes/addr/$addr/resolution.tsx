@@ -73,7 +73,11 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Data unavailable"
-        description={extractErrorMessage(error)}
+        description={
+          error._tag === 'TooManyResolvedNamesError'
+            ? 'More than 100 names point their address records at this address, which is more than can be listed.'
+            : extractErrorMessage(error)
+        }
       />
     )
   }
@@ -88,7 +92,7 @@ function RouteComponent() {
         </header>
         <NoResultsMessage
           title="No names found"
-          description="This address doesn't resolve to any ENS names yet."
+          description="No ENS name has an address record on an EVM network that points at this address."
           className="mx-0"
         />
       </>
