@@ -2,6 +2,7 @@
 // Errors
 export {
   ChainIdMismatchError,
+  SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,
   TransactionSubmissionError,
@@ -57,9 +58,11 @@ export {
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
 export type {
+  ReauthorizeSession,
   RegistrationContext,
   RegistrationEvent,
   RegistrationInput,
+  SessionReauthorization,
 } from './machines/registration/registration.machine'
 export {
   REGISTRATION_TX_IDS,

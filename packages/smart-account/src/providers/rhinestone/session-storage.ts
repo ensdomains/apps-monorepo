@@ -29,6 +29,10 @@
  *            the HCA no longer holds. The validator + HCA implementation were
  *            also redeployed (contracts-v2 #409) so the validator accepts that
  *            token. Sessions are bound to the validator and HCA addresses.
+ *
+ *   (no bump) records gained an optional `refundCaps`. A v9 row without it
+ *            was signed with `LEGACY_REFUND_CAPS`, which is what it rebuilds
+ *            with, so old rows stay valid.
  */
 
 import type { Address } from 'viem'

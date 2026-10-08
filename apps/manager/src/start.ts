@@ -6,12 +6,7 @@
 
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
-import {
-  buildCsp,
-  CSP_HEADER_NAME,
-  POSTHOG_CSP_REPORT_ENDPOINT,
-  SECURITY_HEADER_VALUES,
-} from './server/csp'
+import { buildCsp, CSP_HEADER_NAME, SECURITY_HEADER_VALUES } from './server/csp'
 
 declare module '@tanstack/router-core' {
   interface Register {
@@ -44,10 +39,11 @@ const securityHeadersMiddleware = createMiddleware().server(
 
     // Report-Only until the build sets VITE_CSP_ENFORCE=1 (see csp.ts).
     setResponseHeader(CSP_HEADER_NAME, buildCsp(cspNonce))
-    setResponseHeader(
-      'Reporting-Endpoints',
-      `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,
-    )
+    // POSTHOG_LAUNCH_PAUSE: reporting paused. Restore POSTHOG_CSP_REPORT_ENDPOINT import and the endpoint/directives in server/csp.ts together.
+    // setResponseHeader(
+    //   'Reporting-Endpoints',
+    //   `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,
+    // )
 
     return next({
       context: { cspNonce, origin },

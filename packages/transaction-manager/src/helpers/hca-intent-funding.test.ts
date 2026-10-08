@@ -100,6 +100,41 @@ beforeEach(() => {
 })
 
 describe('planHcaIntentFunding', () => {
+  // At ~1 Mwei the quoted spend leaves out most of the relay fee the refund
+  // overhead carries; the permit has to cover what will actually be pulled.
+  it('funds the relay fee carried in the refund overhead, not just the spend', async () => {
+    readContract.mockResolvedValue(0n)
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        ...quoteOf(3_000n).intentRoute,
+        intentOp: {
+          signedMetadata: { gasPrices: { [String(sepolia.id)]: '1100031' } },
+          elements: [
+            {
+              mandate: {
+                qualifier: {
+                  settlementContext: {
+                    gasRefund: {
+                      token: C.usdc,
+                      exchangeRate: '2560716071',
+                      overhead: ((21_717n << 128n) | 2_597_034n).toString(),
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    })
+
+    const funding = await planHcaIntentFunding(params)
+
+    // (300k + 2 × 2,597,034) gas × 1.1 Mwei × the exchange rate, rounded up.
+    expect(funding.quotedFeeUsdc).toBe(15_477n)
+    expect(funding.incomingUsdc).toBe(15_477n)
+  })
+
   it('funds the shortfall when the HCA cannot cover the fee', async () => {
     // Registration leaves the HCA with ~nothing, so this is the normal case.
     readContract.mockResolvedValue(0n)
