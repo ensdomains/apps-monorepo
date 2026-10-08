@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
@@ -11,6 +11,10 @@ export const useConnectedAvatar = () => {
     ...profileRecordsQuery(name ?? ''),
     enabled: !!name,
   })
+  const avatarRecord = profileRecords.data?.texts
+    .find((record) => record.key === 'avatar')
+    ?.value.trim()
+  const avatar = useQuery(imageRecordQuery(avatarRecord))
   const savedTheme = profileRecords.data?.texts.find(
     (record) => record.key === 'theme',
   )?.value
@@ -19,9 +23,12 @@ export const useConnectedAvatar = () => {
     : undefined
 
   return {
-    url: name ? buildNameAvatarUrl(name) : undefined,
+    url: avatar.data ?? undefined,
     themeColor,
-    isLoading: reverseNameQuery.isLoading,
-    error: reverseNameQuery.error ?? profileRecords.error,
+    isLoading:
+      reverseNameQuery.isLoading ||
+      profileRecords.isLoading ||
+      avatar.isLoading,
+    error: reverseNameQuery.error ?? profileRecords.error ?? avatar.error,
   }
 }

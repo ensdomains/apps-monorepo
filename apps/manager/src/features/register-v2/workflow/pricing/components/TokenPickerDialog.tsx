@@ -45,6 +45,12 @@ export const PaymentDialogBase = ({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
         className="flex max-h-[90vh] min-h-[500px] flex-col"
+        // Focus the sheet itself, not its first control: that is a tooltip
+        // trigger, and a tooltip opening on focus looks like a glitch.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          ;(event.currentTarget as HTMLElement | null)?.focus()
+        }}
         showCloseButton={true}
       >
         <DialogHeader>

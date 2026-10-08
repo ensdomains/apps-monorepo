@@ -15,6 +15,7 @@ import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as TldTldRouteImport } from './routes/tld/$tld'
 import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
+import { Route as NameDnssecRouteImport } from './routes/$name/dnssec'
 import { Route as RegistryAddressRouteImport } from './routes/registry/$address'
 import { Route as ImportNameRouteImport } from './routes/import/$name'
 import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
@@ -123,6 +124,11 @@ const NameRecordsRoute = NameRecordsRouteImport.update({
 const NameHistoryRoute = NameHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameDnssecRoute = NameDnssecRouteImport.update({
+  id: '/dnssec',
+  path: '/dnssec',
   getParentRoute: () => NameRoute,
 } as any)
 const NameEditRecordsRoute = NameEditRecordsRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
+  '/$name/dnssec': typeof NameDnssecRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/records': typeof NameRecordsRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
+  '/$name/dnssec': typeof NameDnssecRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/records': typeof NameRecordsRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
+  '/$name/dnssec': typeof NameDnssecRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/records': typeof NameRecordsRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
+    | '/$name/dnssec'
     | '/$name/edit-records'
     | '/$name/history'
     | '/$name/records'
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
     | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
+    | '/$name/dnssec'
     | '/$name/edit-records'
     | '/$name/history'
     | '/$name/records'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
+    | '/$name/dnssec'
     | '/$name/edit-records'
     | '/$name/history'
     | '/$name/records'
@@ -616,6 +628,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/$name/history'
       preLoaderRoute: typeof NameHistoryRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/dnssec': {
+      id: '/$name/dnssec'
+      path: '/dnssec'
+      fullPath: '/$name/dnssec'
+      preLoaderRoute: typeof NameDnssecRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/edit-records': {
@@ -800,6 +819,7 @@ interface NameRouteChildren {
   NameAddressRoute: typeof NameAddressRoute
   NameChangeResolverRoute: typeof NameChangeResolverRoute
   NameCreateSubnameRoute: typeof NameCreateSubnameRoute
+  NameDnssecRoute: typeof NameDnssecRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
   NameHistoryRoute: typeof NameHistoryRoute
   NameRecordsRoute: typeof NameRecordsRoute
@@ -819,6 +839,7 @@ const NameRouteChildren: NameRouteChildren = {
   NameAddressRoute: NameAddressRoute,
   NameChangeResolverRoute: NameChangeResolverRoute,
   NameCreateSubnameRoute: NameCreateSubnameRoute,
+  NameDnssecRoute: NameDnssecRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
   NameHistoryRoute: NameHistoryRoute,
   NameRecordsRoute: NameRecordsRoute,

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CircleHelp } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ShieldPersonIcon } from '@/assets/icons'
@@ -150,21 +151,24 @@ const V1OwnerRow = ({
  * addresses for the same name (WEB-1468).
  *
  * `owner` is what `resolveEnsOwner` reported; it is used as-is for V2 and as
- * the lapsed-name fallback for V1.
+ * the lapsed-name fallback for V1. `badge` follows the owner on V2 only, where
+ * token roles exist.
  */
 export const NameOwnerRow = ({
   name,
   label = 'Owner',
   owner,
   protocolVersion,
+  badge,
 }: {
   readonly name: string
   readonly label?: string
   readonly owner: Address
   readonly protocolVersion: ProtocolVersion
+  readonly badge?: ReactNode
 }) =>
   protocolVersion === 'ENSv1' ? (
     <V1OwnerRow name={name} label={label} registryOwner={owner} />
   ) : (
-    <Owner asRow label={label} owner={owner} />
+    <Owner asRow label={label} owner={owner} badge={badge} />
   )

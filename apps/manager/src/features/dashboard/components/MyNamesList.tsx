@@ -8,6 +8,7 @@ import {
   buildMergedNamesList,
   type MergedItem,
   mergedRowMetadata,
+  type NameVersion,
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
@@ -34,6 +35,7 @@ interface MyNamesListProps {
   readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
+  readonly version?: NameVersion | null
   readonly sort: Sort
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
@@ -159,7 +161,7 @@ const AnimatedNameRow = ({
     >
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
-        avatarUrl={profilePreview.avatarUrl}
+        avatarRecord={profilePreview.avatarRecord}
         canRenew={isRenewable}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
@@ -188,6 +190,7 @@ export const MyNamesList = ({
   migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
+  version = null,
   sort,
   favoriteLabels,
   onToggleFavorite,
@@ -203,7 +206,7 @@ export const MyNamesList = ({
   const hasUpdatedPrimaryNameRef = useRef(false)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const filterKey = `${searchQuery}:${sort}`
+  const filterKey = `${searchQuery}:${version ?? 'all'}:${sort}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -232,8 +235,9 @@ export const MyNamesList = ({
         searchQuery,
         sortField,
         sortDir,
+        version,
       }),
-    [v2Names, v1Names, searchQuery, sortField, sortDir],
+    [v2Names, v1Names, searchQuery, sortField, sortDir, version],
   )
 
   const total = mergedSortedFiltered.length
