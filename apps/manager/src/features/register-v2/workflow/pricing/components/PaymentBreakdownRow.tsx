@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
@@ -13,47 +12,46 @@ import { tw } from '@/utils/tailwind'
  * card, per design (node 3867:125909).
  */
 type PaymentBreakdownRowProps = {
-  readonly label: ReactNode
-  /**
-   * Undefined renders an em dash. That IS the pending state: the quote is
-   * re-run often enough that animating the line reads as the sheet flickering.
-   */
+  readonly label: React.ReactNode
+  /** Undefined renders an em dash, for a figure still being quoted. */
   readonly amount: number | undefined
+  readonly isLoading: boolean
   /**
-   * Renders the line as a deduction: money already paid in, set against the
-   * charges above it. Muted and off the white card so it does not read as
+   * Renders the line as a deduction: money that has already moved, set against
+   * the charges above it. Muted and off the white card so it does not read as
    * another thing being charged.
    */
-  readonly isDeduction?: boolean
-} & PaymentBreakdownRowTooltip
-
-/** A tooltip always travels with the accessible name for its trigger. */
-export type PaymentBreakdownRowTooltip =
+  readonly isCredit?: boolean
+} & (
   | {
-      readonly tooltip: ReactNode
+      readonly tooltip: React.ReactNode
       /** Accessible name for the tooltip trigger. */
       readonly tooltipLabel: string
     }
   | { readonly tooltip?: never; readonly tooltipLabel?: never }
+)
 
 export const PaymentBreakdownRow = ({
   label,
   amount,
-  isDeduction = false,
+  isLoading,
+  isCredit = false,
   tooltip,
   tooltipLabel,
 }: PaymentBreakdownRowProps) => (
   <div
     className={tw(
       'w-full rounded-xl',
-      isDeduction ? 'px-4 pt-1 pb-1.5' : 'bg-ens-quartz-0 px-4 py-3',
+      isCredit ? 'px-4 pt-1 pb-2' : 'bg-ens-quartz-0 p-4',
     )}
   >
     <div
       className={tw(
         'flex w-full items-start justify-between gap-2',
-        isDeduction ? 'text-ens-quartz-500' : 'text-ens-quartz-900',
-        'text-base',
+        isCredit
+          ? 'text-ens-quartz-500 text-sm'
+          : 'text-base text-ens-quartz-900',
+        isLoading && 'animate-pulse',
       )}
     >
       <span>{label}</span>
@@ -61,7 +59,7 @@ export const PaymentBreakdownRow = ({
         <span className="tabular-nums">
           {amount === undefined
             ? '—'
-            : `${isDeduction ? '-' : ''}${formatUsd(amount)}`}
+            : `${isCredit ? '-' : ''}${formatUsd(amount)}`}
         </span>
         {tooltip && (
           <Tooltip>
