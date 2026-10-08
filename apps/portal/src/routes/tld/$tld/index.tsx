@@ -64,13 +64,7 @@ const TldCounterCard = ({
 )
 
 const TldRecordCount = ({ tld }: { tld: string }) => {
-  const tldDataQuery = useQuery(getTldDataQueryOptions({ tld }))
-  const profileQuery = useQuery(
-    getProfileQueryOptions({
-      name: tld,
-      protocolVersion: tldDataQuery.data?.protocolVersion,
-    }),
-  )
+  const profileQuery = useQuery(getProfileQueryOptions({ name: tld }))
 
   const recordCount = useMemo(() => {
     if (profileQuery.data?.records)

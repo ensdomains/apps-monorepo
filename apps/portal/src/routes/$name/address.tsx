@@ -83,10 +83,7 @@ function RouteComponent() {
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
   const profileQuery = useQuery({
-    ...getProfileQueryOptions({
-      name,
-      protocolVersion: ownerQuery.data?.protocolVersion,
-    }),
+    ...getProfileQueryOptions({ name }),
   })
   // Addresses come from resolution, not the registry, so a gasless DNS name —
   // which has no registry entry by design — still has a full table to show.

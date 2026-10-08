@@ -43,7 +43,24 @@ describe('readNameDetail', () => {
       registeredAt: new Date('2026-09-28T11:29:36Z'),
       createdAt: new Date('2026-09-28T11:29:36Z'),
       migratedAt: null,
+      unresolvableReason: null,
     })
+  })
+
+  it('says why an ENSv1 name provably resolves to nothing', async () => {
+    const { client } = clientWith(
+      envelope({
+        ...record,
+        authority: 'ens_v1',
+        unresolvable_reason: 'no_live_ens_v2_entry',
+      }),
+    )
+
+    const detail = (
+      await readNameDetail(client)({ name: 'alice.eth' })
+    )._unsafeUnwrap()
+
+    expect(detail?.unresolvableReason).toBe('no_live_ens_v2_entry')
   })
 
   it('keeps an unsupported name identifiable with no protocol', async () => {

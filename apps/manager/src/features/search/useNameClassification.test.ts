@@ -95,6 +95,7 @@ describe('isHeldInIndex', () => {
     registeredAt: null,
     createdAt: null,
     migratedAt: null,
+    unresolvableReason: null,
   })
 
   it.each([
