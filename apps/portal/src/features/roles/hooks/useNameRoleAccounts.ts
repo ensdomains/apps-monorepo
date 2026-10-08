@@ -7,7 +7,7 @@ import { ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
-import { getRoleChangeLogs } from '@/lib/roles/roleChangeLogs'
+import { getRoleHolders } from '@/lib/roles/roleHolders'
 
 type NameRolesAccountsParameters = {
   /**
@@ -21,14 +21,12 @@ type NameRolesAccountsParameters = {
 }
 
 /**
- * Current `account -> roles[]` state for a name, read from indexed logs.
+ * Current `account -> roles[]` state for a name.
  *
  * The resource comes from the registry, so it carries the name's current
- * `eacVersionId` and the node returns only this registration's grants: a
- * previous owner's sit under the pre-bump resource. `newRoleBitmap` is absolute
- * state at each log and logs arrive oldest-first, so writing each account as it
- * is seen leaves its latest bitmap; an account that decodes to nothing has been
- * revoked and is dropped.
+ * `eacVersionId` and only this registration's grants are returned: a previous
+ * owner's sit under the pre-bump resource. An account whose bitmap decodes to
+ * nothing has been revoked and is dropped.
  */
 export const getNameRolesAccounts = ResultFn(async function* ({
   resource,
@@ -38,18 +36,16 @@ export const getNameRolesAccounts = ResultFn(async function* ({
   // defence rather than a path anything relies on.
   if (resource === null) return ok(new Map() as GetNameRolesAccountsReturnType)
 
-  const logs = yield* getRoleChangeLogs({ registryAddress, resource })
-
-  const latest = new Map<Address, Role[]>()
-
-  for (const log of logs) {
-    const account = log.args.account
-    if (account === zeroAddress) continue
-    latest.set(account, decodeRoleBitmap(log.args.newRoleBitmap))
-  }
+  const holders = yield* getRoleHolders({ registryAddress, resource })
 
   const result: GetNameRolesAccountsReturnType = new Map(
-    [...latest].filter(([, roles]) => roles.length > 0),
+    holders
+      .filter(({ account }) => account !== zeroAddress)
+      .map(({ account, roleBitmap }): [Address, Role[]] => [
+        account,
+        decodeRoleBitmap(roleBitmap),
+      ])
+      .filter(([, roles]) => roles.length > 0),
   )
 
   return ok(result)

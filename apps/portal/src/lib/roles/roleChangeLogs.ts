@@ -298,6 +298,22 @@ export const getRoleChangeLogs = ResultFn(async function* ({
     cause: indexed.error.cause,
   })
 
+  const logs = yield* getNodeRoleChangeLogs({
+    registryAddress,
+    resource,
+    account,
+    fromBlock,
+  })
+  return ok(logs)
+})
+
+/** The same logs read from the node alone, for when the indexer cannot answer. */
+export const getNodeRoleChangeLogs = ResultFn(async function* ({
+  registryAddress,
+  resource,
+  account,
+  fromBlock = ROLES_FROM_BLOCK,
+}: GetRoleChangeLogsParameters) {
   const client = yield* safeGetClient()
 
   const logs = yield* fromPromise(
@@ -315,7 +331,7 @@ export const getRoleChangeLogs = ResultFn(async function* ({
     (e) => new GetRoleChangeLogsError({ cause: e as GetLogsErrorType }),
   )
 
-  return ok(logs)
+  return ok<readonly RoleChangeLog[]>(logs)
 })
 
 /** One `EACRolesChanged` log, decoded for display. */
