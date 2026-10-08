@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_THEME_COLOR,
   PROFILE_THEMES,
   THEME_COLOR_ALIASES,
   THEME_COLORS,
@@ -58,6 +59,43 @@ const expectedButtonThemes = {
 } as const
 
 describe('getThemeVars', () => {
+  it.each([
+    '#FFFFFF',
+    '#ffffff',
+    '#112233',
+    '#FF0000',
+    ' #FFFFFF ',
+  ])('uses the unthemed default for unsupported custom color %s', (hex) => {
+    expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
+    expect(getThemeVars(hex)).toEqual(getThemeVars())
+    expect(getProfileTheme(hex)).toBe(getProfileTheme())
+  })
+
+  it.each([
+    undefined,
+    null,
+    '',
+    'red',
+    '#FF',
+    '#FFF',
+    '#FFFFFFFF',
+    '#GGGGGG',
+  ])('uses the unthemed default for missing or malformed color %s', (hex) => {
+    expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
+    expect(getThemeVars(hex)).toEqual(getThemeVars())
+  })
+
+  it('normalizes supported presets and saved aliases before applying them', () => {
+    for (const theme of PROFILE_THEMES) {
+      for (const hex of [theme.value, ...theme.aliases]) {
+        const paddedHex = ` ${hex.toLowerCase()} `
+
+        expect(resolveThemeColor(paddedHex)).toBe(theme.value)
+        expect(getThemeVars(paddedHex)).toEqual(getThemeVars(theme.value))
+      }
+    }
+  })
+
   it('derives exported theme colors from the profile theme registry', () => {
     expect(THEME_COLORS).toEqual(
       PROFILE_THEMES.map(({ label, value }) => ({ label, value })),
