@@ -74,7 +74,7 @@ type IndexedRoleHoldersRequest = {
   readonly resource: string
 }
 
-type IndexedRoleHolder = RoleHolder & { readonly blockNumber: number }
+type IndexedRoleHolder = RoleHolder & { readonly blockNumber: bigint }
 
 /** Throws on a malformed row, so the node answers instead. */
 const toIndexedRoleHolder = (raw: unknown): IndexedRoleHolder => {
@@ -90,7 +90,7 @@ const toIndexedRoleHolder = (raw: unknown): IndexedRoleHolder => {
   return {
     account: getAddress(account),
     roleBitmap: BigInt(roleBitmap),
-    blockNumber,
+    blockNumber: BigInt(blockNumber),
   }
 }
 
@@ -146,7 +146,11 @@ const getIndexedRoleHolders = ResultFn(async function* (
         () =>
           rows
             .map(toIndexedRoleHolder)
-            .toSorted((a, b) => a.blockNumber - b.blockNumber)
+            .toSorted((a, b) =>
+              a.blockNumber < b.blockNumber
+                ? -1
+                : Number(a.blockNumber > b.blockNumber),
+            )
             .map(
               ({ account, roleBitmap }): RoleHolder => ({
                 account,
