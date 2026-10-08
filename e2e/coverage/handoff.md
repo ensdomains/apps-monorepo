@@ -5,6 +5,107 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 28 — 2026-10-08 · migration suite unblocked; locked-2LD fuse matrix (GW) with exact role bitmaps
+
+**Batch:** R0 §G migration. The user's priority order: regenerate the ledger,
+then grace/fuse migration (GA6, GW*), then V1 roles. The whole
+`manager-migration` project was red, so the unblock came first.
+
+**Result:** PASS GW3, GW6, GW8, GW10, GW11, GA6, B17 · DEFECT GW5, GW12
+(E2E-020, S3) · EXEMPT GW9 (not constructible; signed off by sugh01) ·
+PRODUCT-GAP 0. Ledger hygiene: E2E-017's 34
+withdrawn matrix cells now count as PASS. Verified: two consecutive green runs
+of `manager-migration` (29/29 each) and portal `@scenario:GW8`.
+
+**Ratchet:** raised with `--update` (not raised since 2026-09-09): HW 5→8,
+R0 26→112, R1 8→9, R2 27→100, R3 6→162, R4 1→1; total 73→392 of 689. Most of
+that is catch-up, not this batch: this batch moved 382→392 (GW3/5/6/8/9/10/11/12,
+GA6, B17), plus 34 R3 cells released by honouring E2E-017's withdrawal and five
+transfer rows by verifying E2E-001/012/013/014 (F1, F33, F35, F37, F39 and
+VT32 re-run green today, no `test.fail`).
+
+**Smoke:** manager 8/8. Portal smoke 15/19 — four failures, identical on a
+re-run, all in specs and helpers this batch did not touch (the code they run is
+byte-identical to HEAD): `registration.spec.ts:201` (name switch, "old actor is
+still alive"), `roles.spec.ts:1636` (WEB-1469 "Cannot transfer" warning),
+`transfer.spec.ts:1049` and `:1171` (registry-detach consent). Not triaged.
+Local `apps/portal/.env` points `VITE_API_URL` at a feature worker
+(`feat-registration-gasless-permit…`) — check that before calling them app bugs.
+
+### What was broken, and why the ledger said otherwise
+
+The ledger is **static** evidence: a tag plus a config that runs it counts as
+PASS. Every `G*` test was in fact red, for three stacked reasons:
+
+1. **The local PostHog host is dead.** `apps/manager/.env` and `.env.local`
+   (local, uncommitted) set `VITE_PUBLIC_POSTHOG_HOST=https://jakob.ens.domains`,
+   which no longer resolves. `/upgrade`'s `beforeLoad` evaluates the `migration`
+   flag **server-side** (`get-feature-flag.ts`); the lookup fails, `?? false`
+   makes it "off", and every test is redirected to /dashboard. The committed
+   value, `https://edge.ens.domains`, returns `migration: enabled` for anvil
+   account 0. Run the dev servers with
+   `VITE_PUBLIC_POSTHOG_HOST=https://edge.ens.domains pnpm dev` (or fix the
+   local env files). Not committed: the env files are the user's.
+2. **Stale selection locators.** #1229 made the root rows checkboxes;
+   `rootRow`/`selectOnlyRoots` still wanted `aria-pressed` buttons. The success
+   button is now "Go to dashboard". Fixed in `helpers/migration-flow.ts` and GS7.
+3. **Runner clock.** GS3 seeded the child expiry from `Date.now()`; the fork is
+   in 2028, so the copy reverted `CannotSetPastExpiry`. Now chain time.
+
+Reconciler: a status cell's markdown (`**withdrawn**`, `**fixed**`) is now
+stripped, and `withdrawn` no longer counts as an open defect.
+
+### Ground truth for the GW rows (contracts-v2, `LockedWrapperReceiver` + `LockedMigrationFuseMatrix.t.sol`)
+
+- Every migrated token also carries **`ROLE_WAS_RESERVED`** (bit 32), added by
+  `PermissionedRegistry._register` for anything registered out of RESERVED.
+  Not part of the fuse mapping; the oracles add it explicitly.
+- Root roles on the WrapperRegistry are granted to the **.eth registry**;
+  `WrapperRegistry._getRoles` lends them to the parent name's owner. That is
+  why the portal offers "Create subname" on a migrated locked name.
+- **CANNOT_TRANSFER** can never migrate (the NameWrapper refuses the transfer).
+  `migration-fuses.spec.ts` used to assert the opposite; rewritten.
+- **CANNOT_SET_RESOLVER**: the controller keeps the V1 resolver, swapping a
+  `PublicResolverSet`-certified one for the V2 PublicResolver. The app refuses
+  an uncertified one up front ("The upgrade contracts don't match this account").
+  GW6's oracle text corrected accordingly.
+- **CAN_EXTEND_EXPIRY** can never be set on a .eth 2LD
+  (`test_wrappedETH2LD_neverHasCanExtendExpiry`) → GW9 EXEMPT.
+
+**In flight:** nothing.
+
+**Parked:**
+- GW7 — product intent: the portal shows "Add user" to any admin-role holder
+  (`NameRolesOverviewTable` `canManageRoles`). A CANNOT_BURN_FUSES name keeps
+  only `ROLE_CAN_TRANSFER_ADMIN`, whose grantable counterpart (bit 28) is no
+  defined role. Should the portal hide role management? The bitmap half is
+  asserted (untagged) in `migration-fuses.spec.ts`. Owner: sugh01. Expires
+  2026-10-15.
+
+**Environment finding (not an app defect):** Sepolia's `PublicResolverSet`
+(`0x5B2b…14F2`) does not certify `0x8FADE66B…` — ensjs's `ensPublicResolver`,
+which most Sepolia names use. Every locked name with CANNOT_SET_RESOLVER on that
+resolver is refused with "contact support". `0xE99638b4…` is certified. Worth
+raising with contracts.
+
+**Learned:**
+- `roles.spec.ts`'s `nameRolesSection` (line ~118) still matches
+  `'parent registry roles'`; the heading has been `'parent registry / roles'`
+  since #1105 (2026-08-27). Every C* test built on it is likely red while the
+  static ledger says PASS. **Next batch should run `roles.spec.ts` for real.**
+- F2 (`transfer.spec.ts`) seeds `makeMigratedName({ fuses: CANNOT_TRANSFER })`,
+  which cannot migrate; its role assertion passes only because no V2 token
+  exists. It is testing a V1 locked name. Re-scope it.
+- The static ledger hid a fully red migration project. Before trusting a row,
+  run it; consider `pnpm e2e:coverage --results <json>` in CI.
+
+**Next:** (0) triage the four portal smoke failures above; (1) run
+`roles.spec.ts` and fix `nameRolesSection`; (2) answer
+GW7; (3) GM1/GM3/GM4 (roles after migration) — the `readLockedMigrationRoles`
+helper added here is the oracle; (4) adopt `migration.spec.ts` (GW1, GW2, A11).
+
+---
+
 ## Iteration 27 — 2026-08-31 · E2E-004 withdrawn — the real fix was the local indexer mock, not an app bug
 
 **Batch:** correction to iteration 26. The user flagged from memory that

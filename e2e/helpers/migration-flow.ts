@@ -29,15 +29,14 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 // ---------------------------------------------------------------------------
 
 /**
- * A selectable (depth-0) row in the name tree.
+ * A selectable (depth-0) row in the name tree: its checkbox.
  *
- * Since the subname-migration PR, only depth-0 rows are buttons, and they carry
- * `aria-label={fullName}` and `aria-pressed`. Before that PR the toggle had no
- * accessible name at all, which is the main reason subname coverage was not
- * practical to write.
+ * `NameRow` renders a depth-0 row as a `<label title={name}>` wrapping a
+ * checkbox with `aria-label={name}`. It was a button with `aria-pressed` until
+ * the bulk-selection rework (#1229); this locator followed it on 2026-10-08.
  */
 export function rootRow(page: Page, fullName: string) {
-  return page.getByRole('button', { name: fullName, exact: true })
+  return page.getByRole('checkbox', { name: fullName, exact: true })
 }
 
 /**
@@ -80,31 +79,32 @@ export async function openMigrationFlow(page: Page): Promise<void> {
  * Leave exactly `roots` selected.
  *
  * The selection seeds itself with every eligible name, and toggling a root
- * toggles its whole subtree, so this reads `aria-pressed` per root and clicks
- * only the ones that disagree. It never clicks a descendant — descendants are
- * not buttons.
+ * toggles its whole subtree, so this reads each root checkbox and clicks only
+ * the ones that disagree. It never clicks a descendant — descendants have no
+ * checkbox. The input is visually hidden, so the click goes to its label.
  */
 export async function selectOnlyRoots(
   page: Page,
   roots: readonly string[],
 ): Promise<void> {
   const wanted = new Set(roots)
-  const buttons = page.getByRole('button', { name: /\.eth$/ })
-  const count = await buttons.count()
+  const checkboxes = page.getByRole('checkbox', { name: /\.eth$/ })
+  const count = await checkboxes.count()
 
   for (let i = 0; i < count; i++) {
-    const button = buttons.nth(i)
-    const name = await button.getAttribute('aria-label')
+    const checkbox = checkboxes.nth(i)
+    const name = await checkbox.getAttribute('aria-label')
     if (!name) continue
-    const pressed = (await button.getAttribute('aria-pressed')) === 'true'
-    if (wanted.has(name) !== pressed) await button.click()
+    if (wanted.has(name) !== (await checkbox.isChecked())) {
+      await checkbox.locator('xpath=..').click()
+    }
   }
 
   for (const name of roots) {
     await expect(
       rootRow(page, name),
       `expected ${name} to end up selected`,
-    ).toHaveAttribute('aria-pressed', 'true')
+    ).toBeChecked()
   }
 }
 
@@ -144,7 +144,7 @@ export async function confirmAndAuthorize(
   migrationComplete = true
   await authorizeAll
 
-  const doneButton = page.getByRole('button', { name: 'Open Dashboard' })
+  const doneButton = page.getByRole('button', { name: 'Go to dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
   await doneButton.click()
 }

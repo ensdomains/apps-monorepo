@@ -331,11 +331,9 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await qaShot(page, 'list-2-migration')
   })
 
-  test('renews then upgrades a grace-period name, charging the USDC the dialog quoted', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
+  test('renews then upgrades a grace-period name, charging the USDC the dialog quoted', {
+    tag: ['@scenario:GA6', '@scenario:B17'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const grace = await makeGraceV1Name({ label: 'mg-renew', owner })

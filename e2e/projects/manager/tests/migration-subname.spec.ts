@@ -39,6 +39,7 @@ import {
   readWrapperExpiry,
 } from '../../../fixtures/makeV1Subname.js'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
+import { publicClient } from '../../../helpers/anvil-client.js'
 import {
   assertCopyExpiry,
   assertCopyRegistered,
@@ -169,7 +170,11 @@ test.describe('ENS V1 → V2 subname migration', () => {
     // Wrapped but NOT locked. A locked parent would put the child on the
     // detached-child/locked-child token route instead of the copy route.
     const parent = await makeV1Name({ label: 'migcopywrap', type: 'wrapped' })
-    const childExpiry = BigInt(Math.floor(Date.now() / 1000) + 180 * 24 * 3600)
+    // From the chain's clock, never the runner's: the suite moves the fork
+    // months ahead, so `Date.now() + 180 days` lands in the chain's past and the
+    // copy reverts `CannotSetPastExpiry`.
+    const { timestamp: chainNow } = await publicClient.getBlock()
+    const childExpiry = chainNow + 180n * 24n * 3600n
     const child = await makeV1Subname({
       parentName: parent.replace(/\.eth$/, ''),
       childLabel: 'sub',
@@ -314,23 +319,22 @@ test.describe('ENS V1 → V2 subname migration', () => {
 
     const parentRow = rootRow(page, parent)
     await expect(parentRow).toBeVisible({ timeout: 30_000 })
-    await expect(parentRow).toHaveAttribute('aria-pressed', 'true')
+    await expect(parentRow).toBeChecked()
     await expect(nestedRow(page, child)).toBeVisible()
 
-    // The child is a passenger: no button, so nothing to click.
-    await expect(
-      page.getByRole('button', { name: child, exact: true }),
-    ).toHaveCount(0)
+    // The child is a passenger: no checkbox, so nothing to toggle.
+    await expect(rootRow(page, child)).toHaveCount(0)
 
     // Deselecting the root takes the whole subtree with it, and leaves the
-    // unrelated 2LD alone.
-    await parentRow.click()
-    await expect(parentRow).toHaveAttribute('aria-pressed', 'false')
-    await expect(rootRow(page, other)).toHaveAttribute('aria-pressed', 'true')
+    // unrelated 2LD alone. The input is visually hidden; its label takes the
+    // click.
+    await parentRow.locator('xpath=..').click()
+    await expect(parentRow).not.toBeChecked()
+    await expect(rootRow(page, other)).toBeChecked()
 
     // Reselecting restores it.
-    await parentRow.click()
-    await expect(parentRow).toHaveAttribute('aria-pressed', 'true')
+    await parentRow.locator('xpath=..').click()
+    await expect(parentRow).toBeChecked()
   })
 
   // -------------------------------------------------------------------------

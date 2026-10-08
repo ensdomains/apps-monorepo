@@ -293,12 +293,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VF20` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VL20` | R2 | [roles](/<name>/roles) | _no expectation written_ | open |
 | `VE20` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD20` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD20` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS20` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR20` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK20` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH20` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA20` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA20` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 | `VC20` | R2 | [create-subname](/<name>/create-subname) | _no expectation written_ | open |
 | `VG20` | R2 | [change-resolver](/<name>/change-resolver) | _no expectation written_ | open |
 
@@ -319,12 +319,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT21` | R0 | [transfer](/<name>/ownership/transfer) | offers the parent the reassign path #1144 added | asserted |
 | `VF21` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE21` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD21` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD21` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS21` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR21` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK21` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH21` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA21` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA21` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 22 · `3ld-registry+unwrapped-2ld:stranger`
 
@@ -343,12 +343,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT22` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wallet holding neither the subname nor its parent | asserted |
 | `VF22` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE22` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD22` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD22` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS22` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR22` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK22` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH22` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA22` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA22` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 23 · `3ld-wrapped+emancipated-2ld:owner`
 
@@ -367,12 +367,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT23` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder of a wrapped subname the form | asserted |
 | `VF23` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
 | `VE23` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD23` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD23` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS23` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR23` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK23` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH23` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA23` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA23` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 24 · `3ld-wrapped+emancipated-2ld:parent`
 
@@ -391,12 +391,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT24` | R0 | [transfer](/<name>/ownership/transfer) | lets the parent reassign a wrapped subname it does not hold | asserted |
 | `VF24` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
 | `VE24` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD24` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD24` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS24` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR24` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK24` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH24` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA24` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA24` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 25 · `3ld-emancipated+locked-2ld:owner`
 
@@ -415,12 +415,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT25` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder of an emancipated subname the form | asserted |
 | `VF25` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control burnt, and the rest unburnt | asserted |
 | `VE25` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD25` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD25` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS25` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR25` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK25` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH25` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA25` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA25` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 26 · `3ld-emancipated+locked-2ld:parent`
 
@@ -439,12 +439,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT26` | R0 | [transfer](/<name>/ownership/transfer) | refuses the parent once the subname has burned PARENT_CANNOT_CONTROL | asserted |
 | `VF26` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control burnt, and the rest unburnt | asserted |
 | `VE26` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD26` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD26` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS26` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR26` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK26` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH26` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA26` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA26` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 27 · `3ld-locked+locked-2ld:owner`
 
@@ -463,12 +463,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT27` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder of a locked subname the form | asserted |
 | `VF27` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
 | `VE27` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD27` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD27` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS27` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR27` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK27` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH27` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA27` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA27` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 28 · `3ld-registry+emancipated-2ld:parent`
 
@@ -487,12 +487,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT28` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wrapped parent over an unwrapped subname | asserted |
 | `VF28` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE28` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD28` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD28` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS28` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR28` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK28` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH28` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA28` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA28` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 29 · `3ld-wrapped+unwrapped-2ld:owner`
 
@@ -512,12 +512,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT29` | R0 | [transfer](/<name>/ownership/transfer) | lets the holder move it, whatever the parent is wrapped in | asserted |
 | `VF29` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
 | `VE29` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD29` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD29` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS29` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR29` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK29` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH29` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA29` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA29` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 30 · `3ld-wrapped+unwrapped-2ld:parent`
 
@@ -537,12 +537,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT30` | R0 | [transfer](/<name>/ownership/transfer) | refuses an unwrapped parent over a wrapped subname | asserted |
 | `VF30` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
 | `VE30` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD30` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD30` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS30` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR30` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK30` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH30` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA30` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA30` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 31 · `3ld-registry+unwrapped-2ld:parent-registrant-only`
 
@@ -562,12 +562,12 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT31` | R0 | [transfer](/<name>/ownership/transfer) | tells the parent registrant to reclaim the manager role first | asserted |
 | `VF31` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE31` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD31` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD31` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS31` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR31` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK31` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH31` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA31` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA31` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 60 · `3ld-pcc-expired`
 
@@ -603,12 +603,12 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 | `VT40` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder the form at depth four | asserted |
 | `VF40` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
 | `VE40` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD40` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD40` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS40` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR40` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK40` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH40` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA40` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA40` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 41 · `4ld-locked+locked-3ld:parent`
 
@@ -627,12 +627,12 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 | `VT41` | R0 | [transfer](/<name>/ownership/transfer) | refuses a parent that is itself a subname, on the same grounds | asserted |
 | `VF41` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
 | `VE41` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD41` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD41` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS41` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR41` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK41` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
 | `VH41` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA41` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA41` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 42 · `4ld-registry+registry-3ld+unwrapped-2ld:owner`
 
@@ -651,12 +651,12 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 | `VT42` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder the form two levels below the 2LD | asserted |
 | `VF42` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE42` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD42` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD42` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS42` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR42` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK42` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH42` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA42` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA42` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 43 · `4ld-registry+registry-3ld:parent`
 
@@ -675,12 +675,12 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 | `VT43` | R0 | [transfer](/<name>/ownership/transfer) | lets a parent reassign a subname two levels below the 2LD | asserted |
 | `VF43` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE43` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD43` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD43` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS43` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR43` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK43` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH43` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA43` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA43` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ### 45 · `4ld-registry+wrapped-3ld:parent`
 
@@ -699,12 +699,12 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 | `VT45` | R0 | [transfer](/<name>/ownership/transfer) | refuses the mismatch when neither level is a 2LD | asserted |
 | `VF45` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE45` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
-| `VD45` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | **E2E-017** — says "No records set" — the same record on a V1 2LD renders correctly |
+| `VD45` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS45` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR45` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
 | `VK45` | R3 | [token](/<name>/token) | does not claim a BaseRegistrar token for a name that has none | **E2E-016** — claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered |
 | `VH45` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
-| `VA45` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | **E2E-017** — the Mainnet row is empty for a subname whose resolver has addr(60) |
+| `VA45` | R3 | [address](/<name>/address) | resolves a V1 subname to the ETH address its resolver holds | asserted |
 
 ## Lapsed — grace and expired
 

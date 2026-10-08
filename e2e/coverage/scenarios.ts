@@ -1169,7 +1169,11 @@ const migrationGW: Scenario[] = suite('G.GW', 'migration', 'manager', 'P3', [
   [
     'GW6',
     'Locked + CANNOT_SET_RESOLVER burnt alone',
-    'migrates with strategy `keep-v1`; assertV2Resolver(label, v1Resolver) — the V1 resolver is preserved; no ROLE_SET_RESOLVER granted',
+    // Corrected 2026-10-08 against `LockedWrapperReceiver` (CANNOT_SET_RESOLVER
+    // branch): the controller ignores the app's resolver and carries the V1 one
+    // across, but swaps a PublicResolverSet-certified resolver for the V2
+    // PublicResolver. The app refuses an uncertified one before signing.
+    'migrates keeping the V1 resolver choice — a certified V1 public resolver becomes the V2 PublicResolver, an uncertified one is refused before signing; no ROLE_SET_RESOLVER granted',
     { planId: 'GB3' },
   ],
   [
@@ -1188,7 +1192,15 @@ const migrationGW: Scenario[] = suite('G.GW', 'migration', 'manager', 'P3', [
     'GW9',
     'Locked + CAN_EXTEND_EXPIRY burnt alone',
     'ROLE_RENEW granted on the V2 token; extend offered to the name owner',
-    { planId: 'GB5' },
+    {
+      planId: 'GB5',
+      exempt: {
+        reason:
+          'Not constructible. CAN_EXTEND_EXPIRY is parent-controlled and the parent of a .eth 2LD is the .eth node, so a wrapped 2LD can never carry it (contracts-v2 LockedMigrationFuseMatrix.t.sol test_wrappedETH2LD_neverHasCanExtendExpiry); a migrated locked 2LD never receives ROLE_RENEW and renews through the ETHRegistrar. The fuse only exists on subnames, which take the emancipated-child route (test_emancipatedChild_withCanExtendExpiry_gainsRenewal).',
+        approvedBy: 'sugh01',
+        date: '2026-10-08',
+      },
+    },
   ],
   [
     'GW10',

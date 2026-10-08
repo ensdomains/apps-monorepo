@@ -451,3 +451,170 @@ export async function assertCopyResolver(
 
 /** `2^64 - 1` — the expiry a `registry-child` copy is created with. */
 export const MAX_UINT64 = (1n << 64n) - 1n
+
+// ---------------------------------------------------------------------------
+// Locked 2LDs (`LockedMigrationController`)
+// ---------------------------------------------------------------------------
+//
+// A locked 2LD is not unwrapped: the wrapper token goes to the Graveyard, a
+// WrapperRegistry is deployed as its V2 subregistry, and the V2 roles are
+// derived from its fuses (`LockedWrapperReceiver._tokenRoleBitmapFromFuses`
+// and `_subregistryRoleBitmapFromFuses`). The controller's own immutables are
+// read off the fork rather than restated, so these oracles describe the
+// deployment the app actually migrates into.
+
+const V2_LOCKED_MIGRATION_CONTROLLER = ensL1Contracts[supportedL1Chains.sepolia]
+  .ensLockedMigrationController.address as Address
+const V1_NAME_WRAPPER_ADDRESS = ensL1Contracts[supportedL1Chains.sepolia]
+  .ensNameWrapper.address as Address
+
+const LOCKED_CONTROLLER_ABI = parseAbi([
+  'function WRAPPER_REGISTRY_IMPL() view returns (address)',
+  'function GRAVEYARD() view returns (address)',
+  'function PUBLIC_RESOLVER() view returns (address)',
+  'function PUBLIC_RESOLVER_SET() view returns (address)',
+])
+const ADDRESS_SET_ABI = parseAbi([
+  'function includes(address) view returns (bool)',
+])
+const V2_TOKEN_ABI = parseAbi([
+  'function getTokenId(uint256 anyId) view returns (uint256)',
+  'function ownerOf(uint256 tokenId) view returns (address)',
+  'function roles(uint256 resource, address account) view returns (uint256)',
+])
+const WRAPPER_REGISTRY_ABI = parseAbi([
+  'function ROOT_RESOURCE() view returns (uint256)',
+  'function roles(uint256 resource, address account) view returns (uint256)',
+])
+const NAME_WRAPPER_OWNER_ABI = parseAbi([
+  'function ownerOf(uint256 id) view returns (address)',
+])
+
+const readLockedController = (
+  functionName:
+    | 'WRAPPER_REGISTRY_IMPL'
+    | 'GRAVEYARD'
+    | 'PUBLIC_RESOLVER'
+    | 'PUBLIC_RESOLVER_SET',
+) =>
+  publicClient.readContract({
+    address: V2_LOCKED_MIGRATION_CONTROLLER,
+    abi: LOCKED_CONTROLLER_ABI,
+    functionName,
+  })
+
+/**
+ * Assert a 2LD took the locked token route: still wrapped, held by the
+ * Graveyard (NOT unwrapped), with a WrapperRegistry — certified by the
+ * VerifiableFactory against the controller's implementation — as its V2
+ * subregistry.
+ */
+export async function assertLockedTokenRoute(
+  label: string,
+  wrappedNode: `0x${string}`,
+): Promise<void> {
+  await assertV2Registered(label)
+
+  const [graveyard, wrapperImpl] = await Promise.all([
+    readLockedController('GRAVEYARD'),
+    readLockedController('WRAPPER_REGISTRY_IMPL'),
+  ])
+
+  const wrappedHolder = await publicClient.readContract({
+    address: V1_NAME_WRAPPER_ADDRESS,
+    abi: NAME_WRAPPER_OWNER_ABI,
+    functionName: 'ownerOf',
+    args: [BigInt(wrappedNode)],
+  })
+  expect(
+    wrappedHolder.toLowerCase(),
+    `Expected ${label}.eth to stay wrapped and sit in the Graveyard, not be unwrapped`,
+  ).toBe(graveyard.toLowerCase())
+
+  const subregistry = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: ETH_REGISTRY_ABI,
+    functionName: 'getSubregistry',
+    args: [label],
+  })
+  const implementation = await publicClient.readContract({
+    address: V2_VERIFIABLE_FACTORY,
+    abi: FACTORY_ABI,
+    functionName: 'verifyContract',
+    args: [subregistry],
+  })
+  expect(
+    implementation.toLowerCase(),
+    `Expected ${label}.eth's V2 subregistry to be a WrapperRegistry`,
+  ).toBe(wrapperImpl.toLowerCase())
+}
+
+/**
+ * The V2 owner of a migrated 2LD, the exact role bitmap it holds on its token,
+ * and the root roles its WrapperRegistry grants the .eth registry (which is
+ * where `LockedWrapperReceiver` puts them — see
+ * `LockedMigrationFuseMatrix.t.sol`).
+ */
+export async function readLockedMigrationRoles(label: string): Promise<{
+  owner: Address
+  tokenRoles: bigint
+  rootRoles: bigint
+}> {
+  const tokenId = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_TOKEN_ABI,
+    functionName: 'getTokenId',
+    args: [labelHashBigInt(label)],
+  })
+  const owner = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_TOKEN_ABI,
+    functionName: 'ownerOf',
+    args: [tokenId],
+  })
+  const tokenRoles = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_TOKEN_ABI,
+    functionName: 'roles',
+    args: [tokenId, owner],
+  })
+  const subregistry = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: ETH_REGISTRY_ABI,
+    functionName: 'getSubregistry',
+    args: [label],
+  })
+  const rootResource = await publicClient.readContract({
+    address: subregistry,
+    abi: WRAPPER_REGISTRY_ABI,
+    functionName: 'ROOT_RESOURCE',
+  })
+  const rootRoles = await publicClient.readContract({
+    address: subregistry,
+    abi: WRAPPER_REGISTRY_ABI,
+    functionName: 'roles',
+    args: [rootResource, V2_ETH_REGISTRY],
+  })
+  return { owner, tokenRoles, rootRoles }
+}
+
+/**
+ * The resolver `LockedWrapperReceiver` keeps for a name whose
+ * CANNOT_SET_RESOLVER is burnt: the V1 resolver, except that a known V1 public
+ * resolver is swapped for the V2 PublicResolver.
+ */
+export async function expectedKeptResolver(
+  v1Resolver: Address,
+): Promise<Address> {
+  const [resolverSet, publicResolver] = await Promise.all([
+    readLockedController('PUBLIC_RESOLVER_SET'),
+    readLockedController('PUBLIC_RESOLVER'),
+  ])
+  const isPublic = await publicClient.readContract({
+    address: resolverSet,
+    abi: ADDRESS_SET_ABI,
+    functionName: 'includes',
+    args: [v1Resolver],
+  })
+  return isPublic ? publicResolver : v1Resolver
+}

@@ -396,8 +396,10 @@ function loadDefects(): Defect[] {
   const defects: Defect[] = []
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (!line.trim().startsWith('|')) continue
+    // `\|` is a literal pipe inside a cell (E2E-011's repro quotes a grep
+    // pattern), not a column break.
     const cells = line
-      .split('|')
+      .split(/(?<!\\)\|/)
       .slice(1, -1)
       .map((c) => c.trim())
     if (cells.length < 9) continue
@@ -413,7 +415,12 @@ function loadDefects(): Defect[] {
         app,
         severity,
         summary,
-        status: status.toLowerCase(),
+        // The register bolds or strikes through a status it wants noticed
+        // (`**withdrawn**`); the state is the word, not the markup.
+        status: status
+          .replace(/[*~_`]/g, '')
+          .trim()
+          .toLowerCase(),
       })
     }
   }
@@ -571,7 +578,12 @@ for (const t of taggedTests) {
 const rows: Row[] = scenarios.map((scenario) => {
   const tests = taggedTests.filter((t) => t.tags.includes(scenario.id))
   const open = defects.filter(
-    (d) => d.scenario === scenario.id && d.status !== 'verified',
+    // `verified`: fixed and the original assertion passes. `withdrawn`: not a
+    // defect after all — the scenario stands on its tests alone.
+    (d) =>
+      d.scenario === scenario.id &&
+      d.status !== 'verified' &&
+      d.status !== 'withdrawn',
   )
 
   if (scenario.exempt) {
