@@ -12,6 +12,10 @@
  * - Uses `waitForExecution` to get the fill receipt
  */
 
+import {
+  findGasRefundViolations,
+  readQuotedGasRefunds,
+} from '@ens-apps/smart-account'
 import { logger } from '@ens-apps/utils/logger'
 import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
@@ -19,10 +23,14 @@ import type { Hash } from 'viem'
 import {
   ChainIdMismatchError,
   extractOrchestratorErrorContext,
+  SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
-import type { TransactionRequest } from '../types/transaction.types'
+import type {
+  SessionEnableData,
+  TransactionRequest,
+} from '../types/transaction.types'
 
 /**
  * The ONLY sponsorship value this codebase ever sends.
@@ -43,9 +51,64 @@ export interface SubmitWarpTransactionInput {
   readonly signer: RhinestoneSigner
 }
 
+/**
+ * Check a session-signed intent's quoted gas refund against the caps its
+ * session was authorized with, exactly as `HCAOwnerAndSessionValidator` will.
+ *
+ * The SDK signs whatever refund the orchestrator quotes, and an over-cap one
+ * is accepted for submission and only fails at fill time — reported back as a
+ * bare `Intent failed (errorType=Unknown)`. Checking first turns that into an
+ * error that says which cap, before anything is signed.
+ *
+ * Skipped when the proof carries no session config: the SDK then decodes the
+ * caps from an enable call in the batch, which this cannot see.
+ */
+export function checkSessionRefundCaps(
+  request: TransactionRequest,
+  intentRoute: unknown,
+  enableData: SessionEnableData | undefined,
+): SessionRefundCapExceededError | undefined {
+  const config = enableData?.hcaSessionConfig
+  if (!config) return undefined
+  const caps = {
+    maxRefundExchangeRate: BigInt(config.maxRefundExchangeRate),
+    maxRefundGasOverhead: BigInt(config.maxRefundGasOverhead),
+    maxRefundAmount: BigInt(config.maxRefundAmount),
+  }
+  const violations = readQuotedGasRefunds(intentRoute).flatMap((refund) =>
+    findGasRefundViolations(refund, caps, config.refundToken),
+  )
+  return violations.length > 0
+    ? new SessionRefundCapExceededError(request, violations)
+    : undefined
+}
+
+/** {@link checkSessionRefundCaps}, logged and thrown. */
+function assertWithinSessionRefundCaps(
+  request: TransactionRequest,
+  intentRoute: unknown,
+  enableData: SessionEnableData | undefined,
+): void {
+  const capError = checkSessionRefundCaps(request, intentRoute, enableData)
+  if (!capError) return
+  logger.error('🛑 [WARP] Quoted gas refund exceeds the session caps', {
+    violations: capError.violations.map((v) => ({
+      field: v.field,
+      quoted: v.quoted.toString(),
+      cap: v.cap.toString(),
+    })),
+  })
+  throw capError
+}
+
 export function submitWarpTransaction(
   input: SubmitWarpTransactionInput,
-): ResultAsync<Hash, TransactionSubmissionError | ChainIdMismatchError> {
+): ResultAsync<
+  Hash,
+  | TransactionSubmissionError
+  | ChainIdMismatchError
+  | SessionRefundCapExceededError
+> {
   const { request, signer } = input
   const { account, config } = signer
 
@@ -219,6 +282,11 @@ export function submitWarpTransaction(
       // Not `sendTransaction`: the SDK's one-shot helper drops `auxiliaryFunds`
       // from the route request, so a fresh HCA funded inside this intent is refused.
       const prepared = await account.prepareTransaction(sdkParams)
+      assertWithinSessionRefundCaps(
+        request,
+        prepared.intentRoute,
+        sessionSigners?.enableData,
+      )
       const signed = await account.signTransaction(prepared)
       const transaction = await account.submitTransaction(signed)
       const sendLatencyMs = nowMs() - sendStart
@@ -293,6 +361,9 @@ export function submitWarpTransaction(
       return txHash
     })(),
     (error: unknown) => {
+      // Already explains itself, and callers branch on its type.
+      if (error instanceof SessionRefundCapExceededError) return error
+
       // Surface full orchestrator error context. The Rhinestone SDK
       // throws `SimulationFailedError` / `OrchestratorError` instances
       // that carry `context`, `errorType`, `traceId`, `statusCode`,

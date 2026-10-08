@@ -14,6 +14,7 @@ import {
   buildHcaSessionEnablePayload,
   type RhinestoneStoredSession,
   rebuildDestinationSession,
+  storedRefundCaps,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSessionContext } from '@ens-apps/transaction-manager'
 import type { Address, Chain } from 'viem'
@@ -30,6 +31,7 @@ export function buildSessionContext(params: {
     hcaSessionNonce: BigInt(params.session.hcaSessionNonce),
     validUntil: BigInt(params.session.validUntil),
     sessionPrivateKey: params.session.sessionPrivateKey,
+    refundCaps: storedRefundCaps(params.session),
   })
   return {
     session,
