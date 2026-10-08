@@ -5,6 +5,7 @@ import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
+import { escapeSearchWildcards } from '../utils/escapeSearchWildcards'
 import { getOwnedNamesQueryKey } from './ownedNamesQueryKey'
 
 type RoleAssignment = {
@@ -71,14 +72,18 @@ const FIRST_V2_NAMES_CURSOR: V2NamesCursor = {
   after: undefined,
 }
 
-const toDomainFilter = (
-  account: string,
-  hasExpiry: boolean,
-  search: string | undefined,
-) => ({
+const toDomainFilter = ({
+  account,
+  hasExpiry,
+  search,
+}: {
+  readonly account: string
+  readonly hasExpiry: boolean
+  readonly search: string | undefined
+}) => ({
   owner: account,
   ...(hasExpiry ? { expiry_gt: 0 } : { expiry_lte: 0 }),
-  ...(search && { name_contains_nocase: search }),
+  ...(search && { name_contains_nocase: escapeSearchWildcards(search) }),
 })
 
 const requestV2NamesPage = ResultFn(async function* ({
@@ -140,8 +145,8 @@ const requestV2NamesPage = ResultFn(async function* ({
         account,
         first: V2_NAMES_PAGE_SIZE,
         after,
-        where: toDomainFilter(account, hasExpiry, search),
-        rest: toDomainFilter(account, !hasExpiry, search),
+        where: toDomainFilter({ account, hasExpiry, search }),
+        rest: toDomainFilter({ account, hasExpiry: !hasExpiry, search }),
       },
     ),
     (e) =>

@@ -80,6 +80,19 @@ describe('getV1NamesPagesForAddressQueryOptions with a search', () => {
     })
   })
 
+  it('escapes wildcard characters, so an underscore matches only an underscore', async () => {
+    await new QueryClient().fetchInfiniteQuery(
+      getV1NamesPagesForAddressQueryOptions({
+        address: ADDRESS,
+        search: '_dns',
+      }),
+    )
+
+    expect(mockEnsjsGetNamesForAddress.mock.calls[0]?.[1]).toMatchObject({
+      filter: { searchString: '\\_dns' },
+    })
+  })
+
   it('keeps searches apart from the unfiltered list in the cache', () => {
     const plain = getV1NamesPagesForAddressQueryOptions({ address: ADDRESS })
     const searched = getV1NamesPagesForAddressQueryOptions({
@@ -234,6 +247,21 @@ describe('getV2NamesPagesForAddressQueryOptions', () => {
     expect(mockGraphqlRequest.mock.calls[0]?.[1]).toMatchObject({
       where: { ...WITH_EXPIRY, name_contains_nocase: 'coco' },
       rest: { ...WITHOUT_EXPIRY, name_contains_nocase: 'coco' },
+    })
+  })
+
+  it('escapes wildcard characters in the search text', async () => {
+    mockGraphqlRequest.mockResolvedValue(indexerPage({ names: ['_x.eth'] }))
+
+    await new QueryClient().fetchInfiniteQuery(
+      getV2NamesPagesForAddressQueryOptions({
+        address: ADDRESS,
+        search: '_x',
+      }),
+    )
+
+    expect(mockGraphqlRequest.mock.calls[0]?.[1]).toMatchObject({
+      where: { name_contains_nocase: '\\_x' },
     })
   })
 })
