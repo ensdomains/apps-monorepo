@@ -129,6 +129,8 @@ export type PermissionsSubject =
       registration_id?: RegistrationId
       address: Address
     }>
+  /** One registry's grants, as `<chain_id>:<address>`. */
+  | Readonly<{ registry: `${number}:${string}` }>
 
 /** `GET /v1/permissions`: query. */
 export type PermissionsQuery = PermissionsSubject &
@@ -193,11 +195,12 @@ export type PermissionRow = Readonly<{
   grant_relation?: GrantRelation
   grant_scope: GrantScope
   powers: readonly Power[]
-  registration_id: RegistrationId
+  /** Absent on a registry's root rows. */
+  registration_id?: RegistrationId
   /** ENSv2 record-ID resolver grants only. */
   record_resource?: RecordResource
   name?: string
-  authority_context: AuthorityContext
+  authority_context?: AuthorityContext
   /** Present exactly when `wrapper_fuses` is present (current ENSv1 wrapper registrations). */
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses

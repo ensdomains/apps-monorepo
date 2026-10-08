@@ -22,9 +22,12 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
+import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
 import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
 import {
+  getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
@@ -38,13 +41,17 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/resolver/$address/create-link')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address as Address,
-      }),
-    )
-  },
+  loader: ({ params }) =>
+    Promise.all([
+      queryClient.prefetchQuery(
+        getResolverNodesQueryOptions({ address: params.address as Address }),
+      ),
+      queryClient.prefetchQuery(
+        getResolverOverviewQueryOptions({
+          address: params.address as Address,
+        }),
+      ),
+    ]),
 })
 
 interface PageHeaderProps {
@@ -107,11 +114,16 @@ function RouteComponent() {
   const attempt = useFlowAttempt()
   const createLinkTxId = scopeTransactionId(CREATE_LINK_TX_ID, attempt.scope)
 
+  // The picker offers every bound name, not only the overview's first page.
   const {
-    data: resolver,
+    data: boundNames,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverNodesQueryOptions({ address: address as Address }))
+  // Only the existing links come from the overview.
+  const { data: resolver } = useQuery(
+    getResolverOverviewQueryOptions({ address: address as Address }),
+  )
 
   const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
@@ -124,7 +136,7 @@ function RouteComponent() {
 
   const canLink = Boolean(hasLinkRole)
 
-  const nodes = resolver?.nodes ?? []
+  const nodes = boundNames?.nodes ?? []
   const existingLinks = resolver?.links ?? []
 
   const nameOptions = nodes.map((n) => n.name)
@@ -184,6 +196,17 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
+
+      <ResolverNodesNotice
+        count={nodes.length}
+        truncated={boundNames?.truncated}
+        partial={boundNames?.partial}
+      />
+
+      <ResolverCollectionNotice
+        collection="links"
+        status={resolver?.linksStatus}
+      />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field data-invalid={isAlreadyLinked}>

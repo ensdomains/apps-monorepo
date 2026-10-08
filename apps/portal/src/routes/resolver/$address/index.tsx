@@ -17,7 +17,10 @@ import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
-import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import {
+  getResolverOverviewQueryOptions,
+  resolverCollectionCount,
+} from '@/features/resolver/hooks/useResolverOverview'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
@@ -75,7 +78,10 @@ function RouteComponent() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
           <CounterCardRow icon={GridIcon}>
-            <span className="font-medium">{resolver?.nodeCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolver?.nodeCount ?? 0}
+              {resolver?.nodeCountIsLowerBound && '+'}
+            </span>{' '}
             nodes
           </CounterCardRow>
         </CounterCard>
@@ -83,7 +89,10 @@ function RouteComponent() {
         <CounterCard to="/resolver/$address/roles" params={{ address }}>
           <CounterCardRow icon={UserRoundCog}>
             <span className="font-medium">
-              {resolver?.roleHolderCount ?? 0}
+              {resolverCollectionCount(
+                resolver?.roleHolderCount,
+                resolver?.rolesStatus,
+              )}
             </span>{' '}
             roles
           </CounterCardRow>
@@ -91,7 +100,12 @@ function RouteComponent() {
 
         <CounterCard to="/resolver/$address/links" params={{ address }}>
           <CounterCardRow icon={SplitIcon}>
-            <span className="font-medium">{resolver?.linkCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolverCollectionCount(
+                resolver?.linkCount,
+                resolver?.linksStatus,
+              )}
+            </span>{' '}
             links
           </CounterCardRow>
         </CounterCard>

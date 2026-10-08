@@ -41,11 +41,13 @@ function RouteComponent() {
     )
 
   const events = resolver?.events ?? []
+  // The overview loads the newest 200 events; the heading counts them all.
+  const eventCount = resolver?.eventCount ?? events.length
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-        {events.length > 0 ? `History (${events.length})` : 'History'}
+        {eventCount > 0 ? `History (${eventCount})` : 'History'}
       </PageHeading>
 
       {events.length > 0 ? (

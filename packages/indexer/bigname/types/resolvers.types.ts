@@ -10,7 +10,7 @@ import type {
   Timestamp,
 } from './common.types'
 import type { NameRecord } from './names.types'
-import type { Power } from './permissions.types'
+import type { Power, RecordResource } from './permissions.types'
 
 /** Every resolver route: query. */
 export type ResolverQuery = Readonly<{
@@ -62,6 +62,8 @@ export type ResolverRole = Readonly<{
   powers: readonly Power[]
   /** Decimal EAC resource the grant targets. */
   eac_resource?: string
+  /** ENSv2 record-ID resolver grants scoped to one record. */
+  record_resource?: RecordResource
   name?: string
   grant_event?: EventPosition
 }>

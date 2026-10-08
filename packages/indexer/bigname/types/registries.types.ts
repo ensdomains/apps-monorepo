@@ -57,6 +57,10 @@ export type Registry = Readonly<{
 
 /** `GET /v1/registries/{chain_id}/{address}/labels`: query. */
 export type RegistryLabelsQuery = Readonly<{
+  /** Only labels this address owns. */
+  owner?: string
+  /** Every label this address does not own, ownerless ones included. */
+  exclude_owner?: string
   include?: readonly 'counts'[]
   finality?: 'latest'
   cursor?: Cursor

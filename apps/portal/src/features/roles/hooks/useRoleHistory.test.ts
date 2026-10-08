@@ -1,5 +1,6 @@
+import { BignameError } from '@ens-apps/indexer/bigname'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
-import { ok, okAsync } from 'neverthrow'
+import { errAsync, ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,15 +13,17 @@ const RESOURCE = 0xabcd_0000_0007n
 const mockGetLogs = vi.fn()
 const mockGetResource = vi.fn()
 const mockGetBlockTimestamps = vi.fn()
-const mockGraphqlRequest = vi.fn()
+const mockName = vi.fn()
+const mockEvents = vi.fn()
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
 }))
 
-vi.mock('@/lib/indexer', () => ({
-  graphqlIndexerClient: {
-    request: (...args: unknown[]) => mockGraphqlRequest(...args),
+vi.mock('@/lib/bigname', () => ({
+  bigname: {
+    name: (...args: unknown[]) => mockName(...args),
+    events: (...args: unknown[]) => mockEvents(...args),
   },
 }))
 
@@ -67,28 +70,49 @@ describe('getRoleHistory', () => {
     mockGetResource.mockResolvedValue(RESOURCE)
     mockGetBlockTimestamps.mockReset()
     mockGetBlockTimestamps.mockReturnValue(okAsync(new Map<bigint, bigint>()))
-    // Most cases pin the node path; the indexer is the first source now.
-    mockGraphqlRequest.mockReset()
-    mockGraphqlRequest.mockRejectedValue(new Error('indexer unavailable'))
+    // Most cases pin the node path; bigname is the first source now.
+    mockEvents.mockReset()
+    mockName.mockReset()
+    mockName.mockReturnValue(
+      errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
+    )
   })
 
   it('reads indexed history with its own timestamps, no node calls', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [
-        {
-          id: `0x${'a'.padStart(64, '0')}-0`,
-          blockNumber: 10,
-          timestamp: 120,
-          transactionHash: `0x${'a'.padStart(64, '0')}`,
-          asEACRolesChanged: {
-            resource: `0x${RESOURCE.toString(16).padStart(64, '0')}`,
-            account: ACCOUNT,
-            oldRoleBitmap: '0x0',
-            newRoleBitmap: `0x${registryRoles.ROLE_RENEW.toString(16)}`,
+    mockName.mockReturnValue(
+      okAsync({ data: { registration_id: 'registration-1' }, meta: {} }),
+    )
+    mockEvents.mockReturnValue(
+      okAsync({
+        data: [
+          {
+            id: 'row-10',
+            type: 'permission',
+            name: 'test.chakri.eth',
+            namespace: 'ens',
+            registration_id: 'registration-1',
+            block_number: 10,
+            timestamp: '120',
+            transaction_hash: `0x${'a'.padStart(64, '0')}`,
+            log_index: 0,
+            contract_address: REGISTRY,
+            data: {
+              address: ACCOUNT,
+              grant_scope: { kind: 'registry', detail: {} },
+              powers: ['renew'],
+            },
           },
+        ],
+        page: {
+          cursor: null,
+          next_cursor: null,
+          page_size: 1,
+          total_count: null,
+          has_more: false,
         },
-      ],
-    })
+        meta: {},
+      }),
+    )
 
     const entries = (await run())._unsafeUnwrap()
 

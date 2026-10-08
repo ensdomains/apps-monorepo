@@ -1,92 +1,44 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { timestampToSeconds } from '@ens-apps/indexer/bigname'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hash } from 'viem'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import { envConfig } from '@/config'
+import { bigname } from '@/lib/bigname'
+import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
 
 class GetRegistryLabelCountError extends TaggedError(
   'GetRegistryLabelCountError',
 )<{
-  cause: GraphqlRequestError
+  cause: unknown
 }> {}
 
 type GetRegistryLabelCountParameters = {
   address: Address
 }
 
-export type RegistryLabel = {
-  name: string | null
-  labelName: string | null
-  labelhash: string
-}
-
 export type RegistrySummary = {
   labelCount: number
+  /** Unix seconds; 0 when bigname has no creation position. */
   createdAt: number
   creationTransactionHash: Hash | null
-  labels: RegistryLabel[]
 }
 
-const LABELS_SAMPLE_SIZE = 20
-
-const getRegistryLabelCount = ResultFn(async function* ({
-  address,
-}: GetRegistryLabelCountParameters) {
-  const { registry } = yield* fromPromise(
-    graphqlIndexerClient.request<{
-      registry: {
-        labelCount: number
-        createdAt: number
-        creationEvent: { edges: { node: { transactionHash: Hash } }[] }
-        labels: RegistryLabel[]
-      } | null
-    }>(
-      gql`
-        query getRegistryLabelCount($address: String!, $first: Int!) {
-          registry(address: $address) {
-            labelCount
-            createdAt
-            creationEvent: eventConnection(
-              first: 1
-              orderBy: timestamp
-              orderDirection: asc
-            ) {
-              edges {
-                node {
-                  transactionHash
-                }
-              }
-            }
-            labels(first: $first, orderBy: name, orderDirection: asc) {
-              name
-              labelName
-              labelhash
-            }
-          }
-        }
-      `,
-      { address: address.toLowerCase(), first: LABELS_SAMPLE_SIZE },
-    ),
-    (e) => new GetRegistryLabelCountError({ cause: e as GraphqlRequestError }),
-  )
-
-  // null = indexer has no record for this registry address (not yet indexed,
-  // or contract doesn't exist). Distinct from a registry with 0 labels.
-  if (!registry) return ok(null)
-
-  const summary: RegistrySummary = {
-    labelCount: registry.labelCount,
-    createdAt: registry.createdAt,
-    creationTransactionHash:
-      registry.creationEvent?.edges[0]?.node.transactionHash ?? null,
-    labels: registry.labels,
-  }
-
-  return ok(summary)
-})
+/** The registry tree's summary line: label count and creation, from the overview. */
+const getRegistryLabelCount = ({ address }: GetRegistryLabelCountParameters) =>
+  nullOnNotFound(bigname.registry(envConfig.chain.id, address.toLowerCase()))
+    .mapErr((cause) => new GetRegistryLabelCountError({ cause }))
+    .map((response): RegistrySummary | null => {
+      // null = bigname has no record for this registry address (not yet indexed,
+      // or contract doesn't exist). Distinct from a registry with 0 labels.
+      if (!response) return null
+      const registry = response.data
+      return {
+        labelCount: registry.counts.labels ?? 0,
+        createdAt: timestampToSeconds(registry.created_at) ?? 0,
+        creationTransactionHash: registry.created_transaction_hash,
+      }
+    })
 
 const getRegistryLabelCountQueryKey = createQueryKey<
   'get-registry-label-count',

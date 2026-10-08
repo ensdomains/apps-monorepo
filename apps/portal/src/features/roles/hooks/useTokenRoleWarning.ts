@@ -40,6 +40,7 @@ export const useTokenRoleWarning = <T>(
 
   const query = useQuery({
     ...getNameRolesAccountsQueryOptions({
+      name,
       resource,
       registryAddress: ownerData.registryAddress,
     }),

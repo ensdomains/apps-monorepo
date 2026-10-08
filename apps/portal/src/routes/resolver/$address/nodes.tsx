@@ -36,7 +36,9 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import {
+  getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
@@ -46,13 +48,17 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address as Address,
-      }),
-    )
-  },
+  loader: ({ params }) =>
+    Promise.all([
+      queryClient.prefetchQuery(
+        getResolverNodesQueryOptions({ address: params.address as Address }),
+      ),
+      queryClient.prefetchQuery(
+        getResolverOverviewQueryOptions({
+          address: params.address as Address,
+        }),
+      ),
+    ]),
 })
 
 const createNodesColumns = (
@@ -125,13 +131,18 @@ function RouteComponent() {
   const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
+  // Every bound name, paged past the overview's first page.
   const {
-    data: resolver,
+    data: boundNames,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverNodesQueryOptions({ address: address as Address }))
+  // Only the role rows the detail sheet shows come from the overview.
+  const { data: resolver } = useQuery(
+    getResolverOverviewQueryOptions({ address: address as Address }),
+  )
 
-  const nodes = resolver?.nodes ?? []
+  const nodes = boundNames?.nodes ?? []
   const roles = resolver?.roles ?? []
 
   const rolesForNode = selectedNode
@@ -187,6 +198,12 @@ function RouteComponent() {
         Nodes
       </PageHeading>
 
+      <ResolverNodesNotice
+        count={nodes.length}
+        truncated={boundNames?.truncated}
+        partial={boundNames?.partial}
+      />
+
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>
           <Search />
@@ -201,6 +218,13 @@ function RouteComponent() {
       <NodeDetailSheet
         node={selectedNode}
         roles={rolesForNode}
+        rolesStatus={
+          resolver?.rolesStatus === 'unsupported'
+            ? 'unsupported'
+            : roles.some((role) => role.resource === null)
+              ? 'partial'
+              : resolver?.rolesStatus
+        }
         resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}

@@ -1,17 +1,27 @@
+import {
+  type EventRow,
+  MAX_PAGE_SIZE,
+  type Power,
+  timestampToBigInt,
+} from '@ens-apps/indexer/bigname'
 import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
-import { type Address, getAddress, type Hex, isAddressEqual, isHex } from 'viem'
+import { err, errAsync, fromPromise, ok, okAsync } from 'neverthrow'
+import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
 import { type GetLogsErrorType, getLogs } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import { bigname } from '@/lib/bigname'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
+import { previousPowers } from '@/lib/roles/permissionPowers'
+import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { readAllPages } from '@/utils/bigname/readAllPages'
+import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 
 /** Roles held here apply to every name in the registry rather than to one. */
 export const ROOT_RESOURCE = 0n
@@ -42,11 +52,8 @@ type RoleChangeLog = {
   }
 }
 
-/** Page size for the indexed read. */
-export const INDEXED_ROLE_EVENTS_PAGE_SIZE = 1000
-
-/** Pages the indexed read walks before handing over to the node. */
-export const INDEXED_ROLE_EVENTS_MAX_PAGES = 10
+/** Rows the indexed read takes before handing over to the node. */
+export const INDEXED_ROLE_EVENTS_MAX_ROWS = 2000
 
 /**
  * How long the indexed read may take, across every page, before the node
@@ -55,210 +62,116 @@ export const INDEXED_ROLE_EVENTS_MAX_PAGES = 10
  */
 export const INDEXED_ROLE_EVENTS_TIMEOUT_MS = 8_000
 
-const ROLE_CHANGE_EVENTS_QUERY = gql`
-  query RoleChangeEvents(
-    $contractAddress: String!
-    $resource: String!
-    $fromBlock: Int!
-    $first: Int!
-  ) {
-    eacRolesChangeds(
-      where: {
-        contractAddress: $contractAddress
-        resource: $resource
-        blockNumber_gte: $fromBlock
-      }
-      first: $first
-      orderBy: blockNumber
-      orderDirection: asc
-    ) {
-      id
-      blockNumber
-      timestamp
-      transactionHash
-      asEACRolesChanged {
-        resource
-        account
-        oldRoleBitmap
-        newRoleBitmap
-      }
-    }
-  }
-`
-
 class IndexedRoleChangeLogsError extends TaggedError(
   'IndexedRoleChangeLogsError',
 )<{
   /** Why the node has to answer instead. */
-  reason: 'failed' | 'timeout' | 'truncated'
+  reason: 'failed' | 'timeout' | 'truncated' | 'unindexed'
   cause: unknown
 }> {}
 
-// Rows are JSON from the indexer and are not trusted as typed. Each field is
-// checked and converted here, so a block number or timestamp never exists as a
-// `number` past this point, and a malformed row fails the read rather than
-// folding garbage into the role state.
-const asRecord = (value: unknown, name: string): Record<string, unknown> => {
-  if (value !== null && typeof value === 'object') {
-    return value as Record<string, unknown>
-  }
-  throw new Error(`Indexed role event: ${name} is not an object`)
-}
+type PermissionRow = Extract<EventRow, { type: 'permission' }>
 
-const asHex = (value: unknown, name: string): Hex => {
-  if (typeof value === 'string' && isHex(value)) return value
-  throw new Error(`Indexed role event: ${name} is not hex`)
-}
+const encodeRoles = (roles: readonly Role[]): bigint =>
+  roles.reduce((bitmap, role) => bitmap | registryRoles[role], 0n)
 
-const asBigInt = (value: unknown, name: string): bigint => {
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
-    return BigInt(value)
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value)
-  throw new Error(`Indexed role event: ${name} is not an integer`)
-}
-
-const toRoleChangeLog = (
-  row: Record<string, unknown>,
-): RoleChangeLog | undefined => {
-  if (row.asEACRolesChanged == null) return undefined
-  const change = asRecord(row.asEACRolesChanged, 'asEACRolesChanged')
-
-  return {
-    blockNumber: asBigInt(row.blockNumber, 'blockNumber'),
-    transactionHash: asHex(row.transactionHash, 'transactionHash'),
-    timestamp: asBigInt(row.timestamp, 'timestamp'),
-    args: {
-      resource: BigInt(asHex(change.resource, 'resource')),
-      // Checksummed like a node log, so Map keys and zero-address checks match.
-      account: getAddress(asHex(change.account, 'account')),
-      oldRoleBitmap: BigInt(asHex(change.oldRoleBitmap, 'oldRoleBitmap')),
-      newRoleBitmap: BigInt(asHex(change.newRoleBitmap, 'newRoleBitmap')),
-    },
-  }
-}
-
-type IndexedRow = {
-  readonly id: string
-  readonly blockNumber: bigint
-  readonly logIndex: bigint
-  readonly log: RoleChangeLog | undefined
-}
-
-/** Row ids are `<transactionHash>-<logIndex>`. */
-const toIndexedRow = (raw: unknown): IndexedRow => {
-  const row = asRecord(raw, 'row')
-  const id = typeof row.id === 'string' ? row.id : ''
-  const logIndex = /^0x[0-9a-fA-F]{64}-(\d+)$/.exec(id)?.[1]
-  if (logIndex === undefined) {
-    throw new Error('Indexed role event: id has no log index')
-  }
-
-  return {
-    id,
-    blockNumber: asBigInt(row.blockNumber, 'blockNumber'),
-    logIndex: BigInt(logIndex),
-    log: toRoleChangeLog(row),
-  }
-}
-
-const byChainOrder = (a: IndexedRow, b: IndexedRow) =>
-  a.blockNumber === b.blockNumber
-    ? Number(a.logIndex - b.logIndex)
-    : Number(a.blockNumber - b.blockNumber)
-
-type IndexedRoleChangeLogs = {
-  readonly logs: readonly RoleChangeLog[]
-  readonly complete: boolean
-}
+const isRegistryRoleChange =
+  (registryAddress: Address) =>
+  (row: EventRow): row is PermissionRow =>
+    row.type === 'permission' &&
+    !!row.data?.address &&
+    row.data.grant_scope?.kind === 'registry' &&
+    !!row.contract_address &&
+    isAddressEqual(row.contract_address, registryAddress)
 
 /**
- * Pages by block rather than offset, since the indexer orders only by block:
- * each page restarts at the last block seen and drops rows already read, so
- * ties straddling a page boundary are neither lost nor repeated.
+ * The rows as `EACRolesChanged` logs, oldest first. bigname states each
+ * change as named powers; they are encoded back into role bitmaps, and the
+ * set before a change is its stated diff, or else the account's previous row.
  */
-const fetchIndexedRoleChangeLogs = async ({
-  variables,
-  signal,
-}: {
-  readonly variables: {
-    readonly contractAddress: string
-    readonly resource: string
-    readonly fromBlock: number
-  }
-  readonly signal: AbortSignal
-}): Promise<IndexedRoleChangeLogs> => {
-  const seen = new Set<string>()
-  let rows: readonly IndexedRow[] = []
-  let cursor = variables.fromBlock
-
-  const result = (complete: boolean): IndexedRoleChangeLogs => ({
-    logs: rows.toSorted(byChainOrder).flatMap(({ log }) => (log ? [log] : [])),
-    complete,
+const toRoleChangeLogs = (
+  rows: readonly EventRow[],
+  registryAddress: Address,
+  resource: bigint,
+): RoleChangeLog[] => {
+  const lastSeen = new Map<Address, readonly Power[]>()
+  return rows.filter(isRegistryRoleChange(registryAddress)).flatMap((row) => {
+    const data = row.data ?? {}
+    const account = getAddress(data.address ?? '')
+    const powers = data.powers ?? []
+    const before = previousPowers(data, lastSeen.get(account))
+    lastSeen.set(account, powers)
+    const timestamp = timestampToBigInt(row.timestamp)
+    if (!row.transaction_hash || row.block_number === null || !timestamp)
+      return []
+    return [
+      {
+        blockNumber: BigInt(row.block_number),
+        transactionHash: row.transaction_hash,
+        timestamp,
+        args: {
+          resource,
+          account,
+          oldRoleBitmap: encodeRoles(registryPowersToRoles(before)),
+          newRoleBitmap: encodeRoles(registryPowersToRoles(powers)),
+        },
+      },
+    ]
   })
-
-  for (let page = 0; page < INDEXED_ROLE_EVENTS_MAX_PAGES; page += 1) {
-    if (signal.aborted) return result(false)
-
-    const { eacRolesChangeds } = await graphqlIndexerClient.request<{
-      eacRolesChangeds: readonly unknown[]
-    }>(ROLE_CHANGE_EVENTS_QUERY, {
-      ...variables,
-      fromBlock: cursor,
-      first: INDEXED_ROLE_EVENTS_PAGE_SIZE,
-    })
-    const pageRows = eacRolesChangeds.map(toIndexedRow)
-
-    rows = rows.concat(pageRows.filter(({ id }) => !seen.has(id)))
-    for (const { id } of pageRows) seen.add(id)
-
-    if (pageRows.length < INDEXED_ROLE_EVENTS_PAGE_SIZE) return result(true)
-
-    const last = Number(pageRows[pageRows.length - 1].blockNumber)
-    // One block fills the page, so the cursor cannot move past it.
-    if (last === cursor) return result(false)
-    cursor = last
-  }
-
-  return result(false)
 }
 
+const readRegistrationRoleRows = ResultFn(async function* (name: string) {
+  const toError = (cause: unknown) =>
+    new IndexedRoleChangeLogsError({ reason: 'failed', cause })
+  const registration = yield* bigname
+    .name(normalizeOrLower(name))
+    .map(({ data }) => data.registration_id)
+    .orElse((error) =>
+      error.code === 'not_found'
+        ? okAsync(undefined)
+        : errAsync(toError(error)),
+    )
+  if (!registration)
+    return err(
+      new IndexedRoleChangeLogsError({ reason: 'unindexed', cause: name }),
+    )
+  const rows = yield* readAllPages<EventRow>((cursor) =>
+    bigname.events({
+      registration_id: registration,
+      type: ['permission'],
+      include: ['data', 'raw'],
+      order: 'asc',
+      page_size: MAX_PAGE_SIZE,
+      ...(cursor && { cursor }),
+    }),
+  ).mapErr(toError)
+  if (rows.length > INDEXED_ROLE_EVENTS_MAX_ROWS)
+    return err(
+      new IndexedRoleChangeLogsError({ reason: 'truncated', cause: undefined }),
+    )
+  return ok(rows)
+})
+
 /**
- * The indexed history for one resource. Errs, with the reason, when the node
- * has to answer instead: the indexer failed or stalled, a row would not map,
- * or the history ran past the page budget and may hide older changes.
- *
- * The indexer has no filter on the changed account (`involved` is a different
- * field), so `account` narrows the rows here. Rows come oldest-first, matching
- * the node, since callers fold `newRoleBitmap` in that order.
+ * The indexed history for one name's current registration, from bigname.
+ * Anchored on the registration, as the node read is on the versioned
+ * resource: a previous owner's grants belong to an earlier registration.
+ * Errs, with the reason, when the node has to answer instead.
  */
 export const getIndexedRoleChangeLogs = ResultFn(async function* ({
+  name,
   registryAddress,
   resource,
   account,
-  fromBlock = ROLES_FROM_BLOCK,
-}: GetRoleChangeLogsParameters) {
-  const controller = new AbortController()
+}: GetRoleChangeLogsParameters & { readonly name: string }) {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => {
-      controller.abort()
-      resolve(null)
-    }, INDEXED_ROLE_EVENTS_TIMEOUT_MS)
+    timer = setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS)
   })
-  const request = fetchIndexedRoleChangeLogs({
-    variables: {
-      contractAddress: registryAddress.toLowerCase(),
-      resource: toResourceHex(resource),
-      // Same lower bound the node read applies, so both sources answer the
-      // same question for a caller that narrows the range.
-      fromBlock: Number(fromBlock),
-    },
-    signal: controller.signal,
-  })
-
   const fetched = yield* fromPromise(
-    Promise.race([request, timeout]).finally(() => clearTimeout(timer)),
+    Promise.race([readRegistrationRoleRows(name), timeout]).finally(() =>
+      clearTimeout(timer),
+    ),
     (cause) => new IndexedRoleChangeLogsError({ reason: 'failed', cause }),
   )
   if (fetched === null) {
@@ -267,15 +180,9 @@ export const getIndexedRoleChangeLogs = ResultFn(async function* ({
       cause: undefined,
     }).toErr()
   }
-  if (!fetched.complete) {
-    return yield* new IndexedRoleChangeLogsError({
-      reason: 'truncated',
-      cause: undefined,
-    }).toErr()
-  }
-
+  const rows = yield* fetched
   return ok(
-    fetched.logs.filter(
+    toRoleChangeLogs(rows, registryAddress, resource).filter(
       (log) => !account || isAddressEqual(log.args.account, account),
     ),
   )
@@ -321,7 +228,7 @@ export const getNodeRoleChangeLogs = ResultFn(async function* ({
 /**
  * `EACRolesChanged` logs for one resource on one registry.
  *
- * Read from the indexer first: the node path is a single `getLogs` over every
+ * Read from bigname first: the node path is a single `getLogs` over every
  * block since `ROLES_FROM_BLOCK`, which drpc answers in 7 to 20 seconds, and
  * because the transport batches JSON-RPC, every other read in the same batch
  * waits on it (WEB-1540). The node remains the fallback for an indexer outage
@@ -329,16 +236,17 @@ export const getNodeRoleChangeLogs = ResultFn(async function* ({
  * is logged with its reason so a failing indexer does not go unnoticed.
  */
 export const getRoleChangeLogs = ResultFn(async function* ({
+  name,
   registryAddress,
   resource,
   account,
   fromBlock = ROLES_FROM_BLOCK,
-}: GetRoleChangeLogsParameters) {
+}: GetRoleChangeLogsParameters & { readonly name: string }) {
   const indexed = await getIndexedRoleChangeLogs({
+    name,
     registryAddress,
     resource,
     account,
-    fromBlock,
   })
   if (indexed.isOk()) return ok(indexed.value)
 

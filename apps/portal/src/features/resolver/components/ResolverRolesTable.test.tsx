@@ -20,6 +20,14 @@ const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
 const SET_ADDRESS = 1n << 0n
 const SET_TEXT = 1n << 4n
 
+// This component drives mocked mutation callbacks, not the wallet SDK. Keep
+// real flow identities without booting the transaction manager's SDK barrel.
+vi.mock('@ens-apps/transaction-manager', async () => ({
+  ...(await import('@ens-apps/transaction-manager/helpers/flow-identity')),
+  transactionManager: { startTransaction: vi.fn() },
+  waitForTransaction: vi.fn(),
+}))
+
 vi.mock('@/components/EntityBadge', () => ({
   EntityBadge: ({ children }: { children: React.ReactNode }) => (
     <span>{children}</span>
@@ -298,5 +306,49 @@ describe('ResolverRolesTable Remove user', () => {
     expect(
       screen.getByText(/holds a grant whose scope can't be read/),
     ).toBeInTheDocument()
+  })
+})
+
+describe('ResolverRolesTable unknown scopes', () => {
+  it('shows the grant without a root label or edit action', () => {
+    renderTable([
+      {
+        ...role(alice, SET_TEXT),
+        resource: null,
+        registrationId: 'opaque-handle',
+      },
+    ])
+    expect(screen.getByText('Scope unavailable')).toBeInTheDocument()
+    expect(screen.getByText(truncateAddress(alice, 6, 4))).toBeInTheDocument()
+    expect(screen.queryByText('All names')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Edit user roles' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps known scopes editable but prevents removing an account with unknown grants', async () => {
+    renderTable([
+      role(alice, SET_TEXT, avatar),
+      { ...role(alice, SET_ADDRESS), resource: null },
+    ])
+    expect(
+      screen.getAllByRole('button', { name: 'Edit user roles' }),
+    ).toHaveLength(1)
+    await editRow(0)
+    expect(screen.getByRole('button', { name: 'Remove user' })).toBeDisabled()
+    expect(removeMutate).not.toHaveBeenCalled()
+  })
+
+  it('prevents whole-account removal when role enumeration is incomplete', async () => {
+    render(
+      <ResolverRolesTable
+        roles={[role(alice, SET_TEXT, avatar)]}
+        resolverAddress={resolverAddress}
+        canManageRoles
+        complete={false}
+      />,
+    )
+    await editRow(0)
+    expect(screen.getByRole('button', { name: 'Remove user' })).toBeDisabled()
   })
 })

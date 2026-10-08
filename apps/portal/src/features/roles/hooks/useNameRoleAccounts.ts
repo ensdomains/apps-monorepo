@@ -29,6 +29,8 @@ class ReadRegistryRolesError extends TaggedError('ReadRegistryRolesError')<{
 }> {}
 
 type NameRolesAccountsParameters = {
+  /** The full name, whose current registration bigname reads the history of. */
+  readonly name: string
   /**
    * The name's EAC resource, resolved by the caller. Not derived from the name
    * here: a label rendered `[<64 hex>]` does not say which name it is, and the
@@ -143,6 +145,7 @@ const matchesRegistry = ResultFn(async function* ({
  * disagrees is unverified.
  */
 export const getNameRolesAccounts = ResultFn(async function* ({
+  name,
   resource,
   registryAddress,
 }: NameRolesAccountsParameters) {
@@ -170,7 +173,11 @@ export const getNameRolesAccounts = ResultFn(async function* ({
           bitmaps,
         })
 
-  const indexed = await getIndexedRoleChangeLogs({ registryAddress, resource })
+  const indexed = await getIndexedRoleChangeLogs({
+    name,
+    registryAddress,
+    resource,
+  })
   const fromIndexer = indexed.isOk() ? foldRoleBitmaps(indexed.value) : null
 
   if (fromIndexer) {

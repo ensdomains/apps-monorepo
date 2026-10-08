@@ -1,10 +1,10 @@
+import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { ok } from 'neverthrow'
-import { type Address, getAddress, toHex, zeroAddress } from 'viem'
+import { errAsync, ok, okAsync } from 'neverthrow'
+import { type Address, getAddress, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
-import { toResourceHex } from '@/lib/roles/toResourceHex'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const OWNER = getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
@@ -19,7 +19,8 @@ const BLOCK = 12_000_000n
 const mockGetLogs = vi.fn()
 const mockGetBlockNumber = vi.fn()
 const mockReadContract = vi.fn()
-const mockGraphqlRequest = vi.fn()
+const mockName = vi.fn()
+const mockEvents = vi.fn()
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () =>
@@ -31,16 +32,17 @@ vi.mock('@/lib/wagmi/helpers', () => ({
     }),
 }))
 
-vi.mock('@/lib/indexer', () => ({
-  graphqlIndexerClient: {
-    request: (...args: unknown[]) => mockGraphqlRequest(...args),
+vi.mock('@/lib/bigname', () => ({
+  bigname: {
+    name: (...args: unknown[]) => mockName(...args),
+    events: (...args: unknown[]) => mockEvents(...args),
   },
 }))
 
 const { getNameRolesAccounts } = await import('./useNameRoleAccounts')
-const { INDEXED_ROLE_EVENTS_PAGE_SIZE } = await import(
-  '@/lib/roles/roleChangeLogs'
-)
+
+const NAME = 'alice.eth'
+const REGISTRATION = 'registration-1'
 
 const log = ({
   block,
@@ -56,6 +58,12 @@ const log = ({
   args: { resource: RESOURCE, account, oldRoleBitmap: 0n, newRoleBitmap },
 })
 
+const POWER_BY_ROLE = new Map<bigint, string>([
+  [registryRoles.ROLE_SET_RESOLVER, 'set_resolver'],
+  [registryRoles.ROLE_UNREGISTER, 'unregister'],
+])
+
+// One bigname permission row: the account's whole set after the change.
 const row = ({
   block,
   account = OWNER,
@@ -64,18 +72,57 @@ const row = ({
   block: number
   account?: Address
   newRoleBitmap?: bigint
-}) => ({
-  id: `0x${block.toString(16).padStart(64, '0')}-0`,
-  blockNumber: block,
-  timestamp: block * 12,
-  transactionHash: `0x${block.toString(16).padStart(64, '0')}`,
-  asEACRolesChanged: {
-    resource: toResourceHex(RESOURCE),
-    account: account.toLowerCase(),
-    oldRoleBitmap: '0x0',
-    newRoleBitmap: toHex(newRoleBitmap),
-  },
-})
+}): EventRow =>
+  ({
+    id: `row-${block}`,
+    type: 'permission',
+    name: NAME,
+    namespace: 'ens',
+    registration_id: REGISTRATION,
+    block_number: block,
+    timestamp: String(block * 12),
+    transaction_hash: `0x${block.toString(16).padStart(64, '0')}`,
+    log_index: 0,
+    contract_address: REGISTRY,
+    data: {
+      address: account.toLowerCase(),
+      grant_scope: { kind: 'registry', detail: {} },
+      powers: [...POWER_BY_ROLE].flatMap(([bit, power]) =>
+        (newRoleBitmap & bit) === 0n ? [] : [power],
+      ),
+    },
+  }) as EventRow
+
+const pageOf = (rows: readonly EventRow[], next: string | null = null) =>
+  okAsync({
+    data: rows,
+    page: {
+      cursor: null,
+      next_cursor: next,
+      page_size: rows.length,
+      total_count: null,
+      has_more: next !== null,
+    },
+    meta: { as_of: {} },
+  })
+
+/** bigname serves these rows for the name's current registration, a page each. */
+const indexed = (...pages: readonly (readonly EventRow[])[]) => {
+  mockName.mockReturnValue(
+    okAsync({ data: { registration_id: REGISTRATION }, meta: { as_of: {} } }),
+  )
+  mockEvents.mockReset()
+  for (const [index, rows] of pages.entries()) {
+    mockEvents.mockReturnValueOnce(
+      pageOf(rows, index < pages.length - 1 ? `page-${index + 1}` : null),
+    )
+  }
+}
+
+const unindexed = () =>
+  mockName.mockReturnValue(
+    errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
+  )
 
 const SET_RESOLVER = registryRoles.ROLE_SET_RESOLVER
 
@@ -98,6 +145,7 @@ const onChain = (roles: Partial<Record<Address, bigint>>) =>
 
 const run = (resource: bigint | null = RESOURCE) =>
   getNameRolesAccounts({
+    name: NAME,
     resource: resource as never,
     registryAddress: REGISTRY,
   })
@@ -110,18 +158,17 @@ describe('getNameRolesAccounts', () => {
     mockGetBlockNumber.mockResolvedValue(BLOCK)
     mockReadContract.mockReset()
     onChain({})
-    mockGraphqlRequest.mockReset()
-    mockGraphqlRequest.mockResolvedValue({ eacRolesChangeds: [] })
+    mockName.mockReset()
+    indexed([])
   })
 
   // The caller resolves the resource and hands it over, version bits included,
   // so the rows are about the same resource the writes address (WEB-1458).
-  it('reads logs for the resource it was given, version bits included', async () => {
+  it('reads the name’s current registration and checks the resource it was given', async () => {
     await run()
 
-    expect(mockGraphqlRequest).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ resource: toResourceHex(RESOURCE) }),
+    expect(mockEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ registration_id: REGISTRATION }),
     )
     expect(mockReadContract).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -138,14 +185,12 @@ describe('getNameRolesAccounts', () => {
 
     expect(holders.size).toBe(0)
     expect(isVerified).toBe(false)
-    expect(mockGraphqlRequest).not.toHaveBeenCalled()
+    expect(mockEvents).not.toHaveBeenCalled()
     expect(mockGetLogs).not.toHaveBeenCalled()
   })
 
   it('trusts an indexed replay that matches the registry', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [row({ block: 10 })],
-    })
+    indexed([row({ block: 10 })])
     onChain({ [OWNER]: SET_RESOLVER })
 
     const { holders, isVerified } = (await run())._unsafeUnwrap()
@@ -156,25 +201,18 @@ describe('getNameRolesAccounts', () => {
   })
 
   // WEB-1484
-  it('still lists a live grant behind more than a page of role events', async () => {
-    const churn = Array.from(
-      { length: INDEXED_ROLE_EVENTS_PAGE_SIZE - 1 },
-      (_, i) =>
-        row({
-          block: 100 + i,
-          account: OTHER,
-          newRoleBitmap: i % 2 === 0 ? SET_RESOLVER : 0n,
-        }),
+  it('still lists a live grant behind more than a page of role changes', async () => {
+    const churn = Array.from({ length: 199 }, (_, i) =>
+      row({
+        block: 100 + i,
+        account: OTHER,
+        newRoleBitmap: i % 2 === 0 ? SET_RESOLVER : 0n,
+      }),
     )
-    mockGraphqlRequest
-      .mockResolvedValueOnce({
-        eacRolesChangeds: [row({ block: 10 }), ...churn],
-      })
-      .mockResolvedValueOnce({
-        eacRolesChangeds: [
-          row({ block: 5000, account: OTHER, newRoleBitmap: 0n }),
-        ],
-      })
+    indexed(
+      [row({ block: 10 }), ...churn],
+      [row({ block: 5000, account: OTHER, newRoleBitmap: 0n })],
+    )
     onChain({ [OWNER]: SET_RESOLVER })
 
     const { holders, isVerified } = (await run())._unsafeUnwrap()
@@ -204,9 +242,7 @@ describe('getNameRolesAccounts', () => {
 
   // The count alone can't tell a role moving from one account to another.
   it('re-reads from the node when a role moved to an account the indexer missed', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [row({ block: 10 })],
-    })
+    indexed([row({ block: 10 })])
     onChain({ [OTHER]: SET_RESOLVER })
     mockGetLogs.mockResolvedValue([
       log({ block: 10n }),
@@ -230,9 +266,7 @@ describe('getNameRolesAccounts', () => {
   })
 
   it('keeps the indexed holders, unverified, when the node read fails', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [row({ block: 10 })],
-    })
+    indexed([row({ block: 10 })])
     onChain({ [OWNER]: SET_RESOLVER, [OTHER]: SET_RESOLVER })
     mockGetLogs.mockRejectedValue(new Error('query returns too many logs'))
 
@@ -243,9 +277,7 @@ describe('getNameRolesAccounts', () => {
   })
 
   it('reports the list unverified when the registry cannot be read', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [row({ block: 10 })],
-    })
+    indexed([row({ block: 10 })])
     mockReadContract.mockRejectedValue(new Error('execution reverted'))
 
     const { holders, isVerified } = (await run())._unsafeUnwrap()
@@ -256,9 +288,7 @@ describe('getNameRolesAccounts', () => {
   })
 
   it('keeps the indexed holders, unverified, when the block number cannot be read', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [row({ block: 10 })],
-    })
+    indexed([row({ block: 10 })])
     onChain({ [OWNER]: SET_RESOLVER })
     mockGetBlockNumber.mockRejectedValue(new Error('rpc unavailable'))
 
@@ -271,13 +301,11 @@ describe('getNameRolesAccounts', () => {
   })
 
   it('reads on-chain roles only for accounts that still hold some', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: [
-        row({ block: 10, account: OTHER }),
-        row({ block: 20, account: OTHER, newRoleBitmap: 0n }),
-        row({ block: 30 }),
-      ],
-    })
+    indexed([
+      row({ block: 10, account: OTHER }),
+      row({ block: 20, account: OTHER, newRoleBitmap: 0n }),
+      row({ block: 30 }),
+    ])
     onChain({ [OWNER]: SET_RESOLVER })
 
     const { holders, isVerified } = (await run())._unsafeUnwrap()
@@ -294,7 +322,7 @@ describe('getNameRolesAccounts', () => {
 
   describe('replay', () => {
     beforeEach(() => {
-      mockGraphqlRequest.mockRejectedValue(new Error('indexer unavailable'))
+      unindexed()
     })
 
     it('keeps the latest bitmap per account', async () => {

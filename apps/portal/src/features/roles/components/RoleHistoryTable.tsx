@@ -46,7 +46,7 @@ const roleHistoryEntryToTransaction = (
       type: 'EACRolesChanged',
       category: 'domain',
       details: {
-        resource: entry.resource,
+        ...(entry.resource && { resource: entry.resource }),
         account: entry.account,
         oldRoles: [...entry.oldRoles],
         newRoles: [...entry.newRoles],

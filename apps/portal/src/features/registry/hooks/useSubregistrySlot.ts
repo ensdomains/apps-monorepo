@@ -1,62 +1,78 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
+import { okAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
-import { namehash } from 'viem'
 import { normalize } from 'viem/ens'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import { bigname } from '@/lib/bigname'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 class GetSubregistryHistoryError extends TaggedError(
   'GetSubregistryHistoryError',
 )<{
-  cause: GraphqlRequestError
+  cause: unknown
 }> {}
 
 type GetSubregistryHistoryParameters = {
   readonly name: string
 }
 
-export const getSubregistryHistory = ResultFn(async function* ({
+/**
+ * The ENSv1 registries. bigname files an ENSv1 `NewOwner` (`setSubnodeOwner`)
+ * as a `subregistry` row too, and that is not an ENSv2 subregistry link, so
+ * rows these contracts emitted do not count.
+ */
+const ENS_V1_REGISTRIES = new Set(
+  [
+    sepoliaWithEns.contracts.ensRegistry?.address,
+    sepoliaWithEns.contracts.ensLegacyRegistry?.address,
+  ].flatMap((address) => (address ? [address.toLowerCase()] : [])),
+)
+
+/**
+ * Rows read to find an ENSv2 link. A name's ENSv1 `NewOwner` rows are few, so
+ * a page this wide that holds no ENSv2 link but has more behind it is unknown
+ * rather than a zero.
+ */
+const SUBREGISTRY_HISTORY_WINDOW = 50
+
+/**
+ * How many times the name's ENSv2 subregistry slot has been written, or `null`
+ * when that cannot be told.
+ */
+export const getSubregistryHistory = ({
   name,
-}: GetSubregistryHistoryParameters) {
+}: GetSubregistryHistoryParameters) => {
   // The `$name` route param is never normalized. A spelling that doesn't
-  // normalize has no canonical node to look up, and hashing a fallback spelling
+  // normalize has no canonical node to look up, and reading a fallback spelling
   // would miss the real node's events and read as `never-configured` — the one
   // verdict that offers the write. Unknown instead, which the hook fails closed.
   let normalizedName: string
   try {
     normalizedName = normalize(name)
   } catch {
-    return ok(null)
+    return okAsync<number | null, GetSubregistryHistoryError>(null)
   }
 
-  const { eventConnection } = yield* fromPromise(
-    graphqlIndexerClient.request<{
-      eventConnection: { totalCount: number | null }
-    }>(
-      gql`
-        query getSubregistryUpdateCount($namehash: String!) {
-          eventConnection(
-            first: 1
-            where: { namehash: $namehash, type: "SubregistryUpdated" }
-          ) {
-            totalCount
-          }
-        }
-      `,
-      { namehash: namehash(normalizedName) },
-    ),
-    (e) => new GetSubregistryHistoryError({ cause: e as GraphqlRequestError }),
-  )
-
-  // A connection that reports no count at all is not a name with no history —
-  // the caller must be able to tell those apart, so the absence is preserved.
-  return ok(eventConnection.totalCount)
-})
+  return bigname
+    .nameHistory(normalizedName, {
+      type: ['subregistry'],
+      include: ['data'],
+      page_size: SUBREGISTRY_HISTORY_WINDOW,
+    })
+    .mapErr((cause) => new GetSubregistryHistoryError({ cause }))
+    .map(({ data, page }): number | null => {
+      // A state-derived row names no contract; counted, since an unknown write
+      // must not read as `never-configured`.
+      const links = data.filter(
+        (row) =>
+          !row.contract_address ||
+          !ENS_V1_REGISTRIES.has(row.contract_address.toLowerCase()),
+      ).length
+      return links === 0 && page?.has_more ? null : links
+    })
+}
 
 const getSubregistryHistoryQueryKey = createQueryKey<
   'get-subregistry-history',

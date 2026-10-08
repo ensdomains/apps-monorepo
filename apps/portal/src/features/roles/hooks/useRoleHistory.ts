@@ -33,7 +33,12 @@ export const getRoleHistory = ResultFn(async function* ({
 }: GetRoleHistoryParameters) {
   const resource = yield* getVersionedResource({ name, registryAddress })
 
-  const logs = yield* getRoleChangeLogs({ registryAddress, resource, account })
+  const logs = yield* getRoleChangeLogs({
+    name,
+    registryAddress,
+    resource,
+    account,
+  })
 
   const entries = yield* toRoleHistoryEntries({ logs, resource })
 

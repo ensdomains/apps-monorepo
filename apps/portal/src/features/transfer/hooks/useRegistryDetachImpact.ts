@@ -25,12 +25,9 @@ import type { RegistryDetachImpact } from '../types'
  * what it is showing still describes what the write would destroy.
  */
 export const useRegistryDetachImpact = ({
-  name,
   subregistryAddress,
   owner,
 }: {
-  /** The name being transferred; only its own subnames are counted. */
-  readonly name: string
   /** The name's own subregistry, or null when it has none to detach. */
   readonly subregistryAddress: Address | null
   /** The account doing the transfer — everyone else in the registry is a third party. */
@@ -39,7 +36,6 @@ export const useRegistryDetachImpact = ({
   const { data, isError, isFetching } = useQuery({
     ...getRegistryOccupantsQueryOptions({
       address: subregistryAddress ?? zeroAddress,
-      name,
       account: owner,
     }),
     enabled: subregistryAddress !== null,

@@ -46,7 +46,11 @@ export const V2NameManagersRow = ({
   })
 
   const { data, isLoading, error } = useQuery({
-    ...getNameRolesAccountsQueryOptions({ resource, registryAddress }),
+    ...getNameRolesAccountsQueryOptions({
+      name,
+      resource,
+      registryAddress,
+    }),
     enabled: resource !== null,
     // Opted out of the app-wide one-hour staleTime: this row exists to disclose
     // a live write authority over the name, and an hour-old "nobody" is exactly

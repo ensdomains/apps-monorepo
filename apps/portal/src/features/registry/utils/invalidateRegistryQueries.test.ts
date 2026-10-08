@@ -1,23 +1,39 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
-import { invalidateRegistryQueries } from './invalidateRegistryQueries'
+import {
+  invalidateIndexedRegistryQueries,
+  invalidateRegistryQueries,
+} from './invalidateRegistryQueries'
 
-// The role holder and history reads come from the indexer, which lags a
-// confirmed grant or revoke. If they drop out of the polled set the holders
-// table can keep showing revoked permissions until the next unrelated refetch.
-describe('invalidateRegistryQueries', () => {
-  it('polls the role holder and history reads', async () => {
-    const queryClient = new QueryClient()
-    const keys = [
-      ['get-registry-root-role-holders', { registryAddress: '0x1' }],
-      ['get-registry-role-history-for-account', { registryAddress: '0x1' }],
+const ROLE_KEYS = [
+  ['get-registry-root-role-holders', { registryAddress: '0x1' }],
+  ['get-registry-role-history-for-account', { registryAddress: '0x1' }],
+] as const
+
+const BIGNAME_KEYS = [
+  ['get-registry-info', { registryAddress: '0x1' }],
+  ['get-registry-labels', { registryAddress: '0x1' }],
+] as const
+
+const seed = (keys: readonly (readonly unknown[])[]) => {
+  const queryClient = new QueryClient()
+  for (const key of keys) queryClient.setQueryData(key, [])
+  return queryClient
+}
+
+describe('registry role invalidation', () => {
+  it.each([
+    ['on confirmation', invalidateRegistryQueries],
+    ['after indexing', invalidateIndexedRegistryQueries],
+  ])('refreshes holders, history and registry reads %s without a capability flag', async (_, invalidate) => {
+    const untouched = [
+      'get-registry-label-count',
+      { registryAddress: '0x1' },
     ] as const
-    for (const key of keys) queryClient.setQueryData(key, [])
-
-    await invalidateRegistryQueries(queryClient)
-
-    for (const key of keys) {
+    const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS, untouched])
+    await invalidate(queryClient)
+    for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS])
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
-    }
+    expect(queryClient.getQueryState(untouched)?.isInvalidated).toBe(false)
   })
 })

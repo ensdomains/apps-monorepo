@@ -1,24 +1,29 @@
 import { sleep } from '@ens-apps/utils/sleep'
+import { getBlockNumber } from 'viem/actions'
+import { envConfig } from '@/config'
+import { bigname } from '@/lib/bigname'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 /**
  * Configuration for indexer sync polling.
  */
 export type IndexerSyncConfig = {
-  /** Delay before first refetch attempt (ms) */
+  /** Delay before the first status check (ms) */
   initialDelay: number
-  /** Interval between refetch attempts (ms) */
+  /** Interval between status checks (ms) */
   retryInterval: number
-  /** Maximum number of refetch attempts */
+  /** Maximum number of status checks before refetching anyway */
   maxAttempts: number
 }
 
 /**
- * Default configuration for indexer sync polling.
+ * Default configuration for indexer sync polling: a status check every 2s for
+ * up to a minute.
  */
 export const DEFAULT_INDEXER_SYNC_CONFIG: IndexerSyncConfig = {
-  initialDelay: 5000,
-  retryInterval: 3000,
-  maxAttempts: 5,
+  initialDelay: 1000,
+  retryInterval: 2000,
+  maxAttempts: 30,
 }
 
 /**
@@ -27,23 +32,47 @@ export const DEFAULT_INDEXER_SYNC_CONFIG: IndexerSyncConfig = {
 export type PollForIndexerSyncParams = {
   /** Function to invalidate queries */
   invalidateQueries: () => Promise<void>
-  /** Optional callback for each attempt (for logging) */
+  /**
+   * Block the write landed in (the receipt's `blockNumber`). Omitted, the chain
+   * head at call time stands in for it: the write is mined by then, so the
+   * head is at or past its block.
+   */
+  blockNumber?: bigint | number
+  /** Optional callback for each status check (for logging) */
   onAttempt?: (attempt: number, maxAttempts: number) => void
   /** Configuration override */
   config?: Partial<IndexerSyncConfig>
 }
 
+const readHeadBlock = async (): Promise<bigint | undefined> => {
+  const client = safeGetClient()
+  if (client.isErr()) return undefined
+  return getBlockNumber(client.value).catch(() => undefined)
+}
+
+/** bigname's indexed block for the app chain, or `undefined` if it can't say. */
+const readIndexedBlock = async (): Promise<bigint | undefined> => {
+  const status = await bigname.status()
+  const indexed = status.isOk()
+    ? status.value.data.chains[String(envConfig.chain.id)]?.indexed_block
+    : undefined
+  return indexed == null ? undefined : BigInt(indexed)
+}
+
 /**
- * Poll for indexer sync after a blockchain transaction.
+ * Refresh indexed reads after a blockchain transaction, once bigname has
+ * indexed the transaction's block.
  *
- * Handles indexer lag by waiting before the first attempt,
- * then retrying multiple times with intervals between attempts.
+ * Polls `GET /v1/status` until the app chain's `indexed_block` reaches the
+ * write's block, then invalidates once. The wait is bounded: after
+ * `maxAttempts` checks (or when the target block can't be read) it invalidates
+ * anyway, so the screen shows whatever bigname has.
  *
  * @example
  * ```ts
  * await pollForIndexerSync({
  *   invalidateQueries: () => queryClient.invalidateQueries({ queryKey }),
- *   onAttempt: (attempt, max) => console.log(`Attempt ${attempt}/${max}`),
+ *   blockNumber: receipt.blockNumber,
  * })
  * ```
  */
@@ -57,18 +86,20 @@ export async function pollForIndexerSync(
     ...config,
   }
 
-  // Wait for indexer to catch up
-  await sleep(initialDelay)
+  const target =
+    params.blockNumber !== undefined
+      ? BigInt(params.blockNumber)
+      : await readHeadBlock()
 
-  // Refetch with retries
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    onAttempt?.(attempt, maxAttempts)
-
-    await invalidateQueries()
-
-    // Wait between retries (but not after the last one)
-    if (attempt < maxAttempts) {
-      await sleep(retryInterval)
+  if (target !== undefined) {
+    await sleep(initialDelay)
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      onAttempt?.(attempt, maxAttempts)
+      const indexed = await readIndexedBlock()
+      if (indexed !== undefined && indexed >= target) break
+      if (attempt < maxAttempts) await sleep(retryInterval)
     }
   }
+
+  await invalidateQueries()
 }

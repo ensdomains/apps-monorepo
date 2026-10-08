@@ -1,3 +1,4 @@
+import type { Completeness } from '@ens-apps/indexer/bigname'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
@@ -25,6 +26,7 @@ import {
   type NameRecord,
   columns as recordColumns,
 } from '@/features/records/components/RecordsTable/columns'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import type {
   ResolverNode,
   ResolverRole,
@@ -38,6 +40,7 @@ import { recordsToTableData } from '@/utils/records/recordsToTableData'
 type NodeDetailSheetProps = PropsWithChildren & {
   readonly node: ResolverNode | null
   readonly roles: readonly ResolverRole[]
+  readonly rolesStatus?: Completeness
   readonly resolverAddress: string
   readonly open: boolean
   readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
@@ -49,6 +52,7 @@ export const NodeDetailSheet = ({
   children,
   node,
   roles,
+  rolesStatus = 'full',
   resolverAddress,
   open,
   setOpen,
@@ -147,10 +151,16 @@ export const NodeDetailSheet = ({
                     </Link>
                   </Button>
                 </div>
+                <ResolverCollectionNotice
+                  collection="roles"
+                  status={rolesStatus}
+                />
                 {roles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No roles assigned for this node.
-                  </p>
+                  rolesStatus !== 'full' ? null : (
+                    <p className="text-sm text-muted-foreground">
+                      No roles assigned for this node.
+                    </p>
+                  )
                 ) : (
                   <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <Table>
