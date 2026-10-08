@@ -6,7 +6,11 @@ const OWNED_NAMES = 'owned-names'
 
 export const getOwnedNamesQueryKey = createQueryKey<
   typeof OWNED_NAMES,
-  { readonly address: Address; readonly protocolVersion: ProtocolVersion }
+  {
+    readonly address: Address
+    readonly protocolVersion: ProtocolVersion
+    readonly search?: string
+  }
 >(OWNED_NAMES)
 
 /** Matches the owned-names queries of every address and protocol version. */
