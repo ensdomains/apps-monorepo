@@ -5,39 +5,40 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
-import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
+  type AddressNameHistory,
   groupAddressHistoryByName,
-  type V1NameHistory,
-  type V2NameHistory,
 } from '@/utils/history/transformAddressHistory'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { partitionAddressHistory } from '../nameAttribution'
-
-type AddressHistoryData = {
-  readonly v1Events?: readonly V1NameHistory[]
-  readonly v2Events?: readonly V2NameHistory[]
-}
 
 const defaultNetwork = {
   name: 'Sepolia',
   icon: '/icons/eth.svg',
 }
 
+/** Each transaction row with its sender from the receipt, where one was read. */
+const withSenders = <T extends { transactionID: string; from: Address | null }>(
+  rows: readonly T[],
+  senders: ReadonlyMap<Hash, Address> | undefined,
+): T[] =>
+  senders
+    ? rows.map((tx) => ({
+        ...tx,
+        from: senders.get(tx.transactionID as Hash) || tx.from,
+      }))
+    : []
+
 export const AddressHistoryDataTable = ({
   address,
   history,
 }: {
   readonly address: Address
-  readonly history: AddressHistoryData
+  readonly history: readonly AddressNameHistory[]
 }) => {
   // One group per name, so each name's provenance survives until it is judged
-  const groups = useMemo(
-    () => groupAddressHistoryByName(history.v1Events, history.v2Events),
-    [history.v1Events, history.v2Events],
-  )
+  const groups = useMemo(() => groupAddressHistoryByName(history), [history])
 
   // Metadata is fetched for every name, acquired or not: the transaction senders
   // are themselves one of the signals the attribution depends on.
@@ -46,26 +47,10 @@ export const AddressHistoryDataTable = ({
     [groups],
   )
 
-  const blocksNeedingTimestamps = useMemo(
-    () =>
-      allEvents
-        .filter((event) => !event.timestamp)
-        .map((event) => BigInt(event.blockNumber)),
-    [allEvents],
-  )
-
   const transactionHashes = useMemo(
     () => allEvents.map((event) => event.transactionID as Hash),
     [allEvents],
   )
-
-  const {
-    data: timestampsData,
-    isLoading: isLoadingTimestamps,
-    error: timestampsError,
-  } = useBlockTimestamps({
-    blocks: blocksNeedingTimestamps,
-  })
 
   // Fetch senders for all transactions
   const {
@@ -81,34 +66,21 @@ export const AddressHistoryDataTable = ({
     [groups, address, sendersData],
   )
 
+  // bigname dates every row, so only the sender comes from the chain.
   const acquiredEvents = useMemo(
-    () => enrichEventsWithMetadata(acquired, timestampsData, sendersData),
-    [acquired, timestampsData, sendersData],
+    () => withSenders(acquired, sendersData),
+    [acquired, sendersData],
   )
 
   const assignedEvents = useMemo(
-    () => enrichEventsWithMetadata(assigned, timestampsData, sendersData),
-    [assigned, timestampsData, sendersData],
+    () => withSenders(assigned, sendersData),
+    [assigned, sendersData],
   )
 
-  if (isLoadingTimestamps && isLoadingSenders) {
-    return <LoadingMessage title="Loading transaction data" />
-  }
-  if (isLoadingTimestamps) {
-    return <LoadingMessage title="Loading timestamps" />
-  }
   if (isLoadingSenders) {
     return <LoadingMessage title="Loading transaction senders" />
   }
 
-  if (timestampsError) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching timestamps. Please refresh the page."
-      />
-    )
-  }
   if (sendersError) {
     return (
       <ErrorMessage

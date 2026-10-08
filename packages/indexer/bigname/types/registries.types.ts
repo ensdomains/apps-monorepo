@@ -66,8 +66,6 @@ export type RegistryLabelsQuery = Readonly<{
 /** `GET /v1/registries/{chain_id}/{address}/labels`: one label, in the subnames row shape. */
 export type RegistryLabel = Subname &
   Readonly<{
-    manager?: Address
-    grace_ends_at?: Timestamp
     /** `include=counts` only: distinct accounts with a declared assignment on the label. */
     role_holder_count?: number
   }>

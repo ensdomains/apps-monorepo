@@ -7,7 +7,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
-import type { ProtocolVersion } from '@/utils/types'
 import { RecordDetails } from '../RecordDetails'
 import type { NameRecord } from './columns'
 
@@ -17,9 +16,8 @@ export const RecordSidebar: FC<
     name: string
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
-    protocolVersion?: ProtocolVersion
   }>
-> = ({ children, row, name, open, setOpen, protocolVersion }) => {
+> = ({ children, row, name, open, setOpen }) => {
   const isMobile = useIsMobile()
 
   return (
@@ -39,11 +37,7 @@ export const RecordSidebar: FC<
 
         <div className="flex-1 overflow-y-auto">
           {row ? (
-            <RecordDetails
-              record={row.original}
-              name={name}
-              protocolVersion={protocolVersion}
-            />
+            <RecordDetails record={row.original} name={name} />
           ) : (
             <div className="text-muted-foreground text-center py-12">
               No record selected

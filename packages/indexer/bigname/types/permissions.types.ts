@@ -5,6 +5,7 @@ import type {
   Hex,
   Namespace,
   RegistrationId,
+  RegistryRef,
   ResolverRef,
   Timestamp,
   WrapperFuses,
@@ -55,9 +56,11 @@ export type GrantScopeKind =
 /** `GET /v1/permissions`, `include=role_summary`: `grant_scope` `{kind, detail}`. */
 export type GrantScope =
   | Readonly<{
-      kind: 'root' | 'registry' | 'registration'
+      kind: 'registry' | 'registration'
       detail: Readonly<Record<never, never>>
     }>
+  /** A registry's root resource; history rows name the registry. */
+  | Readonly<{ kind: 'root'; detail: Readonly<{ registry?: RegistryRef }> }>
   | Readonly<{ kind: 'resolver'; detail: Readonly<{ resolver: ResolverRef }> }>
   | Readonly<{
       kind: 'record_manager'

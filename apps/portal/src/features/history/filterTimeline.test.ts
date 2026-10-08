@@ -36,21 +36,13 @@ describe('dateRangeToTimestamps', () => {
 })
 
 describe('buildEventTypeGroups', () => {
-  it('returns one sorted, de-duplicated group of the types present', () => {
-    const groups = buildEventTypeGroups([
-      'TextChanged',
-      'AddrChanged',
-      'TextChanged',
-    ])
+  it('returns one group of the given types in canonical order, de-duplicated', () => {
+    const groups = buildEventTypeGroups(['record', 'registration', 'record'])
     expect(groups).toHaveLength(1)
-    expect(groups[0].options.map((o) => o.value)).toEqual([
-      'AddrChanged',
-      'TextChanged',
+    expect(groups[0].options).toEqual([
+      { label: 'Registration', value: 'registration' },
+      { label: 'Record', value: 'record' },
     ])
-  })
-
-  it('omits types the timeline never renders', () => {
-    expect(buildEventTypeGroups(['CommitmentMade'])).toEqual([])
   })
 
   it('returns no group when there is nothing to filter by', () => {

@@ -22,8 +22,6 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
   const model = useNameHistoryTimeline({
     name,
     limit: RECENT_ACTION_LIMIT,
-    // The preview renders no filter chips, so their vocabulary is not read.
-    shouldFetchEventTypes: false,
   })
 
   const heading = (

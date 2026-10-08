@@ -1,6 +1,8 @@
 import type {
   Address,
+  Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Hex,
   Namespace,
@@ -33,11 +35,15 @@ export type Subname = Readonly<{
   namehash: Hex
   labelhash?: Hex
   owner?: Address
+  manager?: Address
   registrant?: Address
   registration_status: RegistrationStatus
+  authority?: Authority
+  ens_v1?: EnsV1Facts
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  grace_ends_at?: Timestamp
   subregistry?: RegistryRef
   /** `include=counts` only. */
   subname_count?: number

@@ -65,6 +65,7 @@ export type AddressName = Readonly<{
   /** Handle for `GET /v1/permissions?registration_id=`; omitted on a serving-resource-only `resolves_to` row. */
   permission_resource_id?: string
   owner?: Address
+  manager?: Address
   registrant?: Address
   registration_status: RegistrationStatus
   registered_at?: Timestamp

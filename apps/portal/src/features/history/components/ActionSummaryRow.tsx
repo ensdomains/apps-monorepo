@@ -51,13 +51,18 @@ export const ActionSummaryRow = ({
         entityBadgeLeadingPadScope,
       )}
     >
-      {showActor && (
+      {showActor && action.txHash && (
         <ActionSlots
           slots={[{ kind: 'actor', txHash: action.txHash }]}
           senders={senders}
         />
       )}
-      <span className={cn('text-neutral-7 text-p', showActor && '-ml-2')}>
+      <span
+        className={cn(
+          'text-neutral-7 text-p',
+          showActor && action.txHash && '-ml-2',
+        )}
+      >
         {action.label}
       </span>
       <ActionSlots slots={action.slots} senders={senders} />
@@ -72,7 +77,7 @@ export const ActionSummaryRow = ({
           {` ${eventCount === 1 ? 'event' : 'events'}`}
         </span>
       </EntityBadge>
-      <EntityBadge variant="tx">1 tx</EntityBadge>
+      {action.txHash && <EntityBadge variant="tx">1 tx</EntityBadge>}
     </div>
   )
 
@@ -84,7 +89,13 @@ export const ActionSummaryRow = ({
       connectRailBelow={connectRailBelow}
       disclosure={
         <div className="flex flex-col gap-y-2 pt-2">
-          <TransactionHeaderRow event={action.events[0]} senders={senders} />
+          {action.txHash && (
+            <TransactionHeaderRow
+              event={action.events[0]}
+              txHash={action.txHash}
+              senders={senders}
+            />
+          )}
           {action.events.map((event) => (
             <EventRow key={event.id} event={event} />
           ))}

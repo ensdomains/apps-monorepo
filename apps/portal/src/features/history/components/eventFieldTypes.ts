@@ -1,146 +1,167 @@
-import { parseEventData } from '../summarize/decodeRawData'
-import type { TimelineDecoded, TimelineIndexerEvent } from '../timelineEvent'
+import { parseTimestamp } from '@ens-apps/indexer/bigname'
+import { formatHistoryAmount } from '@/utils/history/historyPayment'
+import { rootPermissionRegistry } from '@/utils/history/rootPermission'
+import { historyTokenId } from '../historyTokenId'
+import {
+  type EventType,
+  isKnownHistoryEventType,
+  type TimelineEvent,
+} from '../timelineEvent'
 
 /**
- * Solidity types for the indexer's decoded event payloads, keyed by event type.
- * Field names mirror the `as*` payloads fetched by the history timeline query
- * (plus EACRolesChanged, whose canonical fields arrive via the raw data blob).
+ * Types of the fields bigname's `include=data` payload carries, per friendly
+ * type. `data` is translated state, not the raw log, so these describe the
+ * served value (`expires_at` is a decimal Unix-seconds instant, shown as a
+ * date; a contract is its address). `token_id` is served on ENSv2 registry
+ * rows after v0.4.1 and derived from the name on ENSv1 ones (see
+ * `historyTokenId`); `canonical_id`, the payment fields and `operator` are
+ * served after v0.4.1 only.
  */
-const FIELD_TYPES: Record<string, Record<string, string>> = {
-  AddressChanged: {
-    address: 'bytes',
-    coinType: 'uint256',
-    resolver: 'address',
-    namehash: 'bytes32',
-  },
-  // AddrChanged shares the asAddressChanged payload.
-  AddrChanged: {
-    address: 'bytes',
-    coinType: 'uint256',
-    resolver: 'address',
-    namehash: 'bytes32',
-  },
-  TextChanged: {
-    key: 'string',
-    value: 'string',
-    resolver: 'address',
-    namehash: 'bytes32',
-  },
-  Transfer: {
-    from: 'address',
-    to: 'address',
-    id: 'uint256',
-    operator: 'address',
-    value: 'uint256',
-  },
-  RegistryTransfer: { node: 'bytes32', owner: 'address' },
-  LabelRegistered: {
-    name: 'string',
-    owner: 'address',
-    registry: 'address',
-    tokenId: 'uint256',
-    sender: 'address',
-    canonicalId: 'uint256',
-    expiry: 'uint64',
-  },
-  NameRegistered: {
-    name: 'string',
-    label: 'bytes32',
-    owner: 'address',
-    cost: 'uint256',
-    baseCost: 'uint256',
-    premium: 'uint256',
-    referrer: 'bytes32',
-    expires: 'uint64',
-  },
-  NameRenewed: { id: 'uint256', expires: 'uint64' },
-  ResolverUpdated: {
-    resolver: 'address',
-    sender: 'address',
-    tokenId: 'uint256',
-  },
-  ReverseClaimed: { address: 'address', node: 'bytes32' },
-  NameWrapped: {
-    node: 'bytes32',
-    owner: 'address',
-    fuses: 'uint32',
-    expiry: 'uint64',
-  },
-  NameUnwrapped: { node: 'bytes32', owner: 'address' },
-  FusesSet: { node: 'bytes32', fuses: 'uint32' },
-  ExpiryUpdated: { node: 'bytes32', tokenId: 'uint256', expiry: 'uint64' },
-  EACRolesChanged: {
-    resource: 'uint256',
-    account: 'address',
-    oldRoleBitmap: 'uint256',
-    newRoleBitmap: 'uint256',
-  },
-  NewOwner: { owner: 'address', node: 'bytes32', parent: 'string' },
-  NewTTL: { node: 'bytes32', ttl: 'uint64' },
-  WrappedTransfer: { node: 'bytes32', owner: 'address' },
-  NameTransferred: { node: 'bytes32', newOwner: 'address' },
-  AbiChanged: { node: 'bytes32', resolver: 'address', contentType: 'uint256' },
-  PubkeyChanged: {
-    node: 'bytes32',
-    resolver: 'address',
-    x: 'bytes32',
-    y: 'bytes32',
-  },
-  InterfaceChanged: {
-    node: 'bytes32',
-    resolver: 'address',
-    interfaceID: 'bytes4',
-    implementer: 'address',
-  },
-  AuthorisationChanged: {
-    node: 'bytes32',
-    resolver: 'address',
-    owner: 'address',
-    target: 'address',
-    isAuthorized: 'bool',
-  },
-  VersionChanged: { node: 'bytes32', resolver: 'address', version: 'uint64' },
-  ContenthashChanged: { node: 'bytes32', resolver: 'address', hash: 'bytes' },
-  NameChanged: { node: 'bytes32', resolver: 'address', name: 'string' },
-  SubregistryUpdated: {
-    name: 'string',
-    canonicalId: 'uint256',
-    tokenId: 'uint256',
-    subregistry: 'address',
-    registry: 'address',
-    sender: 'address',
-  },
+const PAYMENT_FIELD_TYPES = {
+  cost: 'uint256',
+  payment_token: 'address',
+  referrer: 'bytes32',
 }
 
-const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
-  AddressChanged: 'asAddressChanged',
-  AddrChanged: 'asAddressChanged',
-  TextChanged: 'asTextChanged',
-  Transfer: 'asTransfer',
-  RegistryTransfer: 'asRegistryTransfer',
-  LabelRegistered: 'asLabelRegistered',
-  NameRegistered: 'asNameRegistered',
-  NameRenewed: 'asNameRenewed',
-  ResolverUpdated: 'asResolverUpdated',
-  ReverseClaimed: 'asReverseClaimed',
-  NameWrapped: 'asNameWrapped',
-  NameUnwrapped: 'asNameUnwrapped',
-  FusesSet: 'asFusesSet',
-  ExpiryUpdated: 'asExpiryUpdated',
+const FIELD_TYPES: Record<EventType, Record<string, string>> = {
+  registration: {
+    registrant: 'address',
+    owner: 'address',
+    expires_at: 'timestamp',
+    expires_at_reason: 'string',
+    resolver: 'address',
+    subregistry: 'address',
+    action_id: 'string',
+    action_role: 'string',
+    token_id: 'uint256',
+    canonical_id: 'uint256',
+    base_cost: 'uint256',
+    premium: 'uint256',
+    ...PAYMENT_FIELD_TYPES,
+  },
+  renewal: {
+    expires_at: 'timestamp',
+    expires_at_reason: 'string',
+    canonical_id: 'uint256',
+    ...PAYMENT_FIELD_TYPES,
+  },
+  release: {
+    expires_at: 'timestamp',
+    expires_at_reason: 'string',
+    canonical_id: 'uint256',
+  },
+  expiry: {
+    expires_at: 'timestamp',
+    expires_at_reason: 'string',
+    fuses: 'uint32',
+    canonical_id: 'uint256',
+  },
+  transfer: {
+    from: 'address',
+    to: 'address',
+    fuses: 'uint32',
+    operator: 'address',
+    token_id: 'uint256',
+    canonical_id: 'uint256',
+  },
+  authority: { owner: 'address', from: 'address' },
+  resolver: { resolver: 'address', canonical_id: 'uint256' },
+  record: {
+    key: 'string',
+    value: 'string | bytes',
+    coin_type: 'uint256',
+    resolver: 'address',
+    node: 'bytes32',
+    record_id: 'uint256',
+  },
+  primary_name: {
+    address: 'address',
+    coin_type: 'uint256',
+    name: 'string',
+    name_status: 'string',
+  },
+  permission: {
+    address: 'address',
+    grant_scope: 'string',
+    powers: 'string[]',
+    added_powers: 'string[]',
+    removed_powers: 'string[]',
+    approved: 'bool',
+    fuses: 'uint32',
+    token_id: 'uint256',
+    canonical_id: 'uint256',
+    // Not a served field: a root row's `grant_scope.detail.registry`.
+    registry: 'address',
+  },
+  subregistry: { subregistry: 'address', canonical_id: 'uint256' },
+  migration: { migration_path: 'string' },
 }
 
 export const getTimelineFieldType = (
   eventType: string,
   fieldKey: string,
-): string => FIELD_TYPES[eventType]?.[fieldKey] ?? 'unknown'
+): string =>
+  (isKnownHistoryEventType(eventType)
+    ? FIELD_TYPES[eventType][fieldKey]
+    : undefined) ?? 'unknown'
 
-/** Typed `as*` payload for `event.type`, else the raw `data` blob. */
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/**
+ * A payload value as one string: a contract pointer by its address, a grant
+ * scope by its kind, a record value's object form by its bytes, a list
+ * comma-joined.
+ */
+const stringify = (value: unknown): string => {
+  if (Array.isArray(value)) return value.map(String).join(', ')
+  if (!isObject(value)) return String(value)
+  if (typeof value.address === 'string') return value.address
+  if (typeof value.kind === 'string') return value.kind
+  // Record values: raw bytes, or a DNS zonehash change by its new bytes.
+  if (typeof value.bytes === 'string') return value.bytes
+  if (isObject(value.current) && typeof value.current.bytes === 'string')
+    return value.current.bytes
+  return JSON.stringify(value)
+}
+
+/**
+ * A timestamp field as an ISO instant and an amount in its currency (see
+ * `formatHistoryAmount`); a value the client cannot read is shown as served.
+ */
+const formatField = (
+  event: TimelineEvent,
+  key: string,
+  value: unknown,
+): string => {
+  if (
+    getTimelineFieldType(event.type, key) === 'timestamp' &&
+    typeof value === 'string'
+  )
+    return parseTimestamp(value)?.toISOString() ?? value
+  return formatHistoryAmount(key, value, event.data) ?? stringify(value)
+}
+
+/**
+ * The row's `data` fields, flattened for the decoded-parameter table. Two
+ * fields can follow them: the registry of a root role change, which its
+ * flattened `grant_scope` would otherwise lose, and the token id the row is
+ * about when bigname did not serve one and it can be derived exactly.
+ */
 export const getDecodedParamEntries = (
-  event: TimelineIndexerEvent,
+  event: TimelineEvent,
 ): ReadonlyArray<readonly [string, string]> => {
-  const payloadKey = PAYLOAD_KEY_BY_TYPE[event.type]
-  const source = (payloadKey && event[payloadKey]) || parseEventData(event.data)
-  return Object.entries(source)
+  const served = Object.entries(event.data)
     .filter(([, value]) => value != null && value !== '')
-    .map(([key, value]) => [key, String(value)] as const)
+    .map(([key, value]) => [key, formatField(event, key, value)] as const)
+  const registry =
+    event.type === 'permission'
+      ? rootPermissionRegistry(event.data.grant_scope)
+      : undefined
+  const token = 'token_id' in event.data ? undefined : historyTokenId(event)
+  return [
+    ...served,
+    ...(registry ? [['registry', registry.address] as const] : []),
+    ...(token ? [['token_id', token.tokenId] as const] : []),
+  ]
 }

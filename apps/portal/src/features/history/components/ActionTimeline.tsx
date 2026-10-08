@@ -1,4 +1,3 @@
-import type { Hex } from 'viem'
 import type { RailConnection } from '@/components/ui/timeline'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { formatTimelineDate } from '../formatTimelineDate'
@@ -7,8 +6,8 @@ import { ActionSummaryRow } from './ActionSummaryRow'
 
 interface ActionTimelineProps {
   readonly actions: readonly Action[]
-  readonly openIds: ReadonlySet<Hex>
-  readonly onToggle: (txHash: Hex) => void
+  readonly openIds: ReadonlySet<string>
+  readonly onToggle: (actionId: string) => void
   /** Lead each row with the transaction sender — see `ActionSummaryRow`. */
   readonly showActor?: boolean
   /**
@@ -35,20 +34,22 @@ export const ActionTimeline = ({
   connectBelow = false,
 }: ActionTimelineProps) => {
   const senders = useTransactionSenders({
-    transactionHashes: actions.map((action) => action.txHash),
-    enabled: showActor || actions.some((action) => openIds.has(action.txHash)),
+    transactionHashes: actions.flatMap((action) =>
+      action.txHash ? [action.txHash] : [],
+    ),
+    enabled: showActor || actions.some((action) => openIds.has(action.id)),
   })
 
   return (
     <div className="relative flex flex-col">
       {actions.map((action, index) => (
         <ActionSummaryRow
-          key={action.txHash}
+          key={action.id}
           action={action}
           senders={senders}
           showActor={showActor}
-          isOpen={openIds.has(action.txHash)}
-          onToggle={() => onToggle(action.txHash)}
+          isOpen={openIds.has(action.id)}
+          onToggle={() => onToggle(action.id)}
           connectRailAbove={index > 0 || connectAbove}
           connectRailBelow={index < actions.length - 1 || connectBelow}
           showDate={

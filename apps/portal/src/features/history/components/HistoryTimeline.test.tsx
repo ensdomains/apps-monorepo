@@ -37,6 +37,7 @@ const rowCount = () =>
   document.querySelectorAll('[role="button"][tabindex="0"]').length
 
 const action = (tx: string, label: string, timestamp: number): Action => ({
+  id: `0x${tx}`,
   txHash: `0x${tx}`,
   icon: 'default',
   label,
@@ -45,10 +46,14 @@ const action = (tx: string, label: string, timestamp: number): Action => ({
   events: [
     {
       id: `${tx}-1`,
-      type: 'TextChanged',
+      type: 'record',
+      name: 'alice.eth',
+      registrationId: null,
       transactionHash: `0x${tx}`,
       blockNumber: timestamp,
+      logIndex: 0,
       timestamp,
+      data: { key: 'text:url' },
     },
   ],
 })
@@ -66,7 +71,6 @@ const model = (
   isLoading: false,
   error: null,
   sourcesError: null,
-  isTruncated: false,
   openIds: new Set(),
   toggleAction: vi.fn(),
   setAllOpen: vi.fn(),
@@ -78,8 +82,8 @@ describe('HistoryTimelineView', () => {
     const register: Action = {
       ...action('r', 'registered', 5),
       events: [
-        { type: 'NameRegistered', id: 'r-1' },
-        { type: 'TextChanged', id: 'r-2' },
+        { type: 'registration', id: 'r-1', data: {} },
+        { type: 'record', id: 'r-2', data: {} },
       ] as never,
     }
     render(<HistoryTimelineView model={model({ actions: [register] })} />)
@@ -198,19 +202,20 @@ describe('HistoryTimelineView', () => {
       <HistoryTimelineView
         model={model({
           actions: [],
-          sourcesError: Object.assign(new Error('subgraph down'), {
-            cause: { message: 'subgraph down' },
+          sourcesError: Object.assign(new Error('bigname down'), {
+            cause: { message: 'bigname down' },
           }),
         })}
       />,
     )
     expect(screen.getByText(/No history yet/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Couldn't load all of this name's history/),
+      screen.getByText(/Couldn't load this name's first event/),
     ).toBeInTheDocument()
   })
 
-  it('withholds the total when a source is known short', () => {
+  it('shows no total when bigname does not count the feed', () => {
+    // Past 10,000 rows, or on a contract feed, `total_count` is null.
     const truncated = model({ hasMore: true, totalCount: undefined })
     render(<HistoryTimelineView model={truncated} breakContent="load-more" />)
     // A lower bound must not render as "(N total)".
@@ -222,35 +227,16 @@ describe('HistoryTimelineView', () => {
     render(
       <HistoryTimelineView
         model={model({
-          sourcesError: Object.assign(new Error('subgraph down'), {
-            cause: { message: 'subgraph down' },
+          sourcesError: Object.assign(new Error('bigname down'), {
+            cause: { message: 'bigname down' },
           }),
           totalCount: 9,
         })}
       />,
     )
     expect(
-      screen.getByText(/Couldn't load all of this name's history/),
+      screen.getByText(/Couldn't load this name's first event/),
     ).toBeInTheDocument()
-  })
-
-  it('discloses a capped source and withholds the total', () => {
-    // Any bounded whole-read source — the v1 window, the 25-child cap — makes
-    // the total a lower bound, so it must not render as exact.
-    render(
-      <HistoryTimelineView
-        model={model({
-          isTruncated: true,
-          hasMore: true,
-          totalCount: undefined,
-        })}
-        breakContent="load-more"
-      />,
-    )
-    expect(
-      screen.getByText(/too large to read in one request/),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/total\)/)).toBeNull()
   })
 
   it('expands and collapses every loaded row at once', async () => {

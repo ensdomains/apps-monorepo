@@ -1,126 +1,382 @@
+import type { EventDataByType, MigrationPath } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
-import type { TimelineIndexerEvent } from '../timelineEvent'
-import { DESCRIPTORS, humanizeType } from './descriptors'
+import { mockEventRootPermissionChanged } from '@/test-utils/bigname/postV041.mock'
+import { mockHistoryRootPermission } from '@/test-utils/bigname/v041.mock'
+import {
+  type EventType,
+  type TimelineEvent,
+  toTimelineEvents,
+} from '../timelineEvent'
+import { describeEvent, formatPower, humanizeType } from './descriptors'
+
+const event = <TType extends EventType>(
+  type: TType,
+  data: EventDataByType[TType],
+  extra: Partial<Omit<TimelineEvent, 'type' | 'data'>> = {},
+): TimelineEvent =>
+  ({
+    id: '1',
+    type,
+    name: 'collector.eth',
+    registrationId: null,
+    transactionHash: '0xabc',
+    blockNumber: 1,
+    logIndex: 0,
+    timestamp: 1,
+    data,
+    ...extra,
+  }) as TimelineEvent
+
+const ADDRESS = '0x801d2e48d378f161dba7ad7ad002ad557714c191'
+const CONTRACT = '0xb88b00000000000000000000000000000000fa98'
 
 describe('humanizeType', () => {
-  it('sentence-cases camel-cased event types', () => {
-    expect(humanizeType('NameRegistered')).toBe('Name registered')
-    expect(humanizeType('SubregistryUpdated')).toBe('Subregistry updated')
-    expect(humanizeType('AddrChanged')).toBe('Addr changed')
+  it('sentence-cases camel-cased raw kinds', () => {
+    expect(humanizeType('LabelRegistered')).toBe('Label registered')
+    expect(humanizeType('RecordVersionChanged')).toBe('Record version changed')
   })
 
   it('preserves acronyms', () => {
     expect(humanizeType('EACRolesChanged')).toBe('EAC roles changed')
   })
+
+  it('reads snake-cased types as words', () => {
+    expect(humanizeType('primary_name')).toBe('Primary name')
+  })
+})
+
+describe('formatPower', () => {
+  it('words a power and marks its admin variant', () => {
+    expect(formatPower('set_addr')).toBe('Set addr')
+    expect(formatPower('admin_set_text')).toBe('Set text Admin')
+  })
 })
 
 describe('history labels', () => {
-  const base = {
-    id: '1',
-    transactionHash: '0xabc',
-    blockNumber: 1,
-    timestamp: 1,
-    name: 'collector.eth',
-  } as const
-
-  it('AddressChanged reads "set address to"', () => {
-    const built = DESCRIPTORS.AddressChanged.build({
-      ...base,
-      type: 'AddressChanged',
-      asAddressChanged: {
-        address: '0x801d2e48d378f161dba7ad7ad002ad557714c191',
-        coinType: 60,
-      },
-    } as TimelineIndexerEvent)
-    expect(built).toMatchObject({
+  it('an addr record reads "set address to" with an address badge', () => {
+    expect(
+      describeEvent(
+        event('record', { key: 'addr:60', coin_type: 60, value: ADDRESS }),
+      ),
+    ).toEqual({
+      icon: 'address',
       label: 'set address to',
+      slots: [{ kind: 'address', value: ADDRESS }],
+    })
+  })
+
+  it('a text record names its key and value', () => {
+    expect(
+      describeEvent(event('record', { key: 'text:url', value: 'https://x' })),
+    ).toEqual({
+      icon: 'text',
+      label: 'set text record',
       slots: [
-        {
-          kind: 'address',
-          value: '0x801d2e48d378f161dba7ad7ad002ad557714c191',
-        },
+        { kind: 'text', value: 'url' },
+        { kind: 'glyph', value: '→' },
+        { kind: 'text', value: 'https://x' },
       ],
     })
   })
 
-  it('NameRegistered names what was registered and leaves the actor to the row', () => {
-    const built = DESCRIPTORS.NameRegistered.build({
-      ...base,
-      type: 'NameRegistered',
-      asNameRegistered: {
-        name: 'collector.eth',
-        owner: '0xowner000000000000000000000000000000000001',
-      },
-    } as TimelineIndexerEvent)
-    expect(built).toEqual({
+  it('a record-version reset reads as clearing the records', () => {
+    expect(
+      describeEvent(event('record', {}, { kind: 'RecordVersionChanged' })),
+    ).toEqual({ label: 'cleared records', slots: [] })
+  })
+
+  it('a registration names what was registered and leaves the actor to the row', () => {
+    expect(describeEvent(event('registration', { owner: ADDRESS }))).toEqual({
       label: 'registered',
       slots: [{ kind: 'name', value: 'collector.eth' }],
     })
   })
 
-  it('ResolverUpdated includes a resolver contract badge', () => {
-    const built = DESCRIPTORS.ResolverUpdated.build({
-      ...base,
-      type: 'ResolverUpdated',
-      asResolverUpdated: {
-        resolver: '0xb88b00000000000000000000000000000000Fa98',
-      },
-    } as TimelineIndexerEvent)
-    expect(built).toEqual({
+  it('a child registration reads as a subname', () => {
+    expect(
+      describeEvent(
+        event(
+          'registration',
+          {},
+          { name: 'sub.collector.eth', subject: 'child' },
+        ),
+      ),
+    ).toEqual({
+      icon: 'subname',
+      label: 'registered subname',
+      slots: [{ kind: 'name', value: 'sub.collector.eth' }],
+    })
+  })
+
+  it('a resolver change carries a resolver contract badge', () => {
+    expect(
+      describeEvent(
+        event('resolver', {
+          resolver: { chain_id: 11155111, address: CONTRACT },
+        }),
+      ),
+    ).toEqual({
       label: 'updated resolver to',
-      slots: [
-        {
-          kind: 'contract',
-          value: '0xb88b00000000000000000000000000000000Fa98',
-          label: 'resolver',
-        },
-      ],
+      slots: [{ kind: 'contract', value: CONTRACT, label: 'resolver' }],
     })
   })
 
-  it('SubregistryUpdated marks the contract slot as a registry', () => {
-    const built = DESCRIPTORS.SubregistryUpdated.build({
-      ...base,
-      type: 'SubregistryUpdated',
-      data: JSON.stringify({
-        registry: '0x541C00000000000000000000000000000000976F',
-      }),
-    } as TimelineIndexerEvent)
-    expect(built).toEqual({
-      label: 'deployed and linked subregistry',
-      slots: [
-        {
-          kind: 'contract',
-          value: '0x541C00000000000000000000000000000000976F',
-          isRegistry: true,
-        },
-      ],
+  it('a resolver row without a resolver is a clearing', () => {
+    expect(describeEvent(event('resolver', {}))).toEqual({
+      label: 'cleared resolver',
+      slots: [],
     })
   })
 
-  it('NameRenewed names the renewed name so the row does not end on the verb', () => {
-    const built = DESCRIPTORS.NameRenewed.build({
-      ...base,
-      type: 'NameRenewed',
-    } as TimelineIndexerEvent)
-    expect(built).toEqual({
+  it('a subregistry link marks the contract slot as a registry', () => {
+    expect(
+      describeEvent(
+        event('subregistry', {
+          subregistry: { chain_id: 11155111, address: CONTRACT },
+        }),
+      ),
+    ).toEqual({
+      label: 'linked subregistry',
+      slots: [{ kind: 'contract', value: CONTRACT, isRegistry: true }],
+    })
+  })
+
+  it('a renewal names the renewed name so the row does not end on the verb', () => {
+    expect(describeEvent(event('renewal', {}))).toEqual({
       label: 'renewed',
       slots: [{ kind: 'name', value: 'collector.eth' }],
     })
   })
 
-  it('v2 NameWrapped reads as the upgrade of the name', () => {
-    const built = DESCRIPTORS.NameWrapped.build({
-      ...base,
-      type: 'NameWrapped',
-      protocol: 'v2',
-    } as TimelineIndexerEvent)
-    expect(built).toEqual({
-      label: 'upgraded',
+  it('a permission row lists the powers the subject holds', () => {
+    expect(
+      describeEvent(
+        event('permission', {
+          address: ADDRESS,
+          powers: ['set_addr', 'set_text'],
+        }),
+      ),
+    ).toEqual({
+      label: 'set roles',
+      slots: [
+        { kind: 'text', value: 'Set addr, Set text' },
+        { kind: 'connective', value: 'for' },
+        { kind: 'actor', txHash: '0xabc', address: ADDRESS },
+      ],
+    })
+  })
+
+  it('a permission row with no powers left reads as a revocation', () => {
+    expect(
+      describeEvent(event('permission', { address: ADDRESS, powers: [] })),
+    ).toMatchObject({ icon: 'revoke', label: 'revoked roles from' })
+  })
+
+  it('a mint transfer describes as nothing', () => {
+    expect(describeEvent(event('transfer', { to: ADDRESS }))).toBeNull()
+  })
+})
+
+describe('bigname v0.4.1 rows', () => {
+  it('a migration reads "migrated {name} to ENSv2" with its path', () => {
+    expect(
+      describeEvent(event('migration', { migration_path: 'unlocked_wrapped' })),
+    ).toEqual({
+      label: 'migrated',
+      slots: [
+        { kind: 'name', value: 'collector.eth' },
+        { kind: 'connective', value: 'to ENSv2' },
+        { kind: 'connective', value: '(wrapped)' },
+      ],
+    })
+  })
+
+  it('a migration words every path bigname serves', () => {
+    const pathSlot = (path: MigrationPath) =>
+      describeEvent(event('migration', { migration_path: path }))?.slots.at(-1)
+    const connective = (value: string) => ({ kind: 'connective', value })
+    expect(pathSlot('unwrapped')).toEqual(connective('(unwrapped)'))
+    expect(pathSlot('locked_wrapped')).toEqual(connective('(locked)'))
+    expect(pathSlot('locked_child')).toEqual(connective('(locked subname)'))
+    expect(pathSlot('emancipated_child')).toEqual(
+      connective('(emancipated subname)'),
+    )
+  })
+
+  it('a migration with no path, or one newer than the client, reads without one', () => {
+    const expected = {
+      label: 'migrated',
       slots: [
         { kind: 'name', value: 'collector.eth' },
         { kind: 'connective', value: 'to ENSv2' },
       ],
+    }
+    expect(describeEvent(event('migration', {}))).toEqual(expected)
+    expect(
+      describeEvent(
+        event('migration', {
+          migration_path: 'future_path' as MigrationPath,
+        }),
+      ),
+    ).toEqual(expected)
+  })
+
+  it('a type newer than the client renders by its raw kind instead of throwing', () => {
+    const future = {
+      ...event('record', {}),
+      type: 'future_type',
+      kind: 'FutureThingChanged',
+    } as unknown as TimelineEvent
+    expect(describeEvent(future)).toEqual({
+      label: 'future thing changed',
+      slots: [{ kind: 'name', value: 'collector.eth' }],
     })
+  })
+
+  it('an ENSv2 role grant reads the powers it added', () => {
+    const result = describeEvent(
+      event('permission', {
+        address: ADDRESS,
+        grant_scope: { kind: 'registry', detail: {} },
+        powers: ['set_resolver', 'renew'],
+        added_powers: ['renew'],
+        removed_powers: [],
+      }),
+    )
+    expect(result?.label).toBe('granted roles')
+    expect(result?.slots[0]).toEqual({ kind: 'text', value: 'Renew' })
+  })
+
+  it('an ENSv2 role revoke reads the powers it removed', () => {
+    const result = describeEvent(
+      event('permission', {
+        address: ADDRESS,
+        grant_scope: { kind: 'registry', detail: {} },
+        powers: ['set_resolver'],
+        added_powers: [],
+        removed_powers: ['renew'],
+      }),
+    )
+    expect(result).toMatchObject({ icon: 'revoke', label: 'revoked roles' })
+    expect(result?.slots[0]).toEqual({ kind: 'text', value: 'Renew' })
+  })
+
+  it('a registrar controller change is not read as a role revoke', () => {
+    expect(
+      describeEvent(
+        event('permission', {
+          address: ADDRESS,
+          grant_scope: {
+            kind: 'registrar_controller',
+            detail: { registrar: { chain_id: 11155111, address: CONTRACT } },
+          },
+          approved: true,
+        }),
+      )?.label,
+    ).toBe('added registrar controller')
+  })
+
+  it('a record value served as raw bytes reads by its bytes', () => {
+    const result = describeEvent(
+      event('record', {
+        key: 'contenthash',
+        value: { encoding: 'hex', bytes: '0xe30101701220abcdef0123456789' },
+      }),
+    )
+    expect(result?.label).toBe('set content hash to')
+    expect(result?.slots[0]).toMatchObject({ kind: 'text' })
+  })
+})
+
+describe('root role changes (after v0.4.1)', () => {
+  const REGISTRY = mockEventRootPermissionChanged.contract_address
+  const root = { chain_id: 11155111, address: REGISTRY } as const
+  const onRegistry = [
+    { kind: 'connective', value: 'on' },
+    { kind: 'contract', value: REGISTRY, isRegistry: true },
+  ]
+
+  it('a root revoke names the registry instead of the name it lacks', () => {
+    const [row] = toTimelineEvents([mockEventRootPermissionChanged])
+    expect(row.name).toBe('')
+    expect(describeEvent(row)).toEqual({
+      icon: 'revoke',
+      label: 'revoked root roles',
+      slots: [
+        { kind: 'text', value: 'Registrar Admin' },
+        { kind: 'connective', value: 'from' },
+        {
+          kind: 'actor',
+          txHash: mockEventRootPermissionChanged.transaction_hash,
+          address: mockEventRootPermissionChanged.data.address,
+        },
+        ...onRegistry,
+      ],
+    })
+  })
+
+  it('a root grant, a mixed change and an emptied set read as root roles', () => {
+    const scope = { kind: 'root', detail: { registry: root } } as const
+    const change = (
+      powers: readonly ('registrar' | 'renew')[],
+      added: readonly ('registrar' | 'renew')[],
+      removed: readonly ('registrar' | 'renew')[],
+    ) =>
+      describeEvent(
+        event(
+          'permission',
+          {
+            address: ADDRESS,
+            grant_scope: scope,
+            powers,
+            added_powers: added,
+            removed_powers: removed,
+          },
+          { name: '' },
+        ),
+      )
+    expect(change(['registrar'], ['registrar'], [])).toMatchObject({
+      label: 'granted root roles',
+    })
+    expect(change(['registrar'], ['registrar'], ['renew'])).toMatchObject({
+      label: 'set root roles',
+    })
+    const emptied = change([], [], [])
+    expect(emptied).toMatchObject({
+      icon: 'revoke',
+      label: 'revoked root roles from',
+    })
+    expect(emptied?.slots.slice(1)).toEqual(onRegistry)
+  })
+
+  it('a root row that names no registry still reads, without one', () => {
+    // v0.4.1 serves `detail: {}` on the root scopes it knows.
+    expect(
+      describeEvent(
+        event(
+          'permission',
+          {
+            address: ADDRESS,
+            grant_scope: { kind: 'root', detail: {} },
+            powers: ['registrar'],
+          },
+          { name: '' },
+        ),
+      ),
+    ).toEqual({
+      label: 'set root roles',
+      slots: [
+        { kind: 'text', value: 'Registrar' },
+        { kind: 'connective', value: 'for' },
+        { kind: 'actor', txHash: '0xabc', address: ADDRESS },
+      ],
+    })
+  })
+
+  it('a v0.4.1 role change on a registry token keeps its wording', () => {
+    const [row] = toTimelineEvents([mockHistoryRootPermission])
+    const result = describeEvent(row)
+    expect(result).toMatchObject({ icon: 'revoke', label: 'revoked roles' })
+    expect(result?.slots).toHaveLength(3)
   })
 })

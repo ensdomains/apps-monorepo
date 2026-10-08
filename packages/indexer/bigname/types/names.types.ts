@@ -20,6 +20,7 @@ import type {
   WrapperFuses,
   WrapperState,
 } from './common.types'
+import type { ExpiryReason } from './history.types'
 import type { RecordGroups } from './records.types'
 
 /** `GET /v1/names`: an expiry window; `expires_after` is inclusive, `expires_before` exclusive. */
@@ -45,11 +46,16 @@ export type NameListingRow = Readonly<{
   namespace: Namespace
   namehash: Hex
   owner?: Address
+  manager?: Address
   registrant?: Address
   registration_status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  grace_ends_at?: Timestamp
+  authority?: Authority
+  ens_v1?: EnsV1Facts
+  lapsed_registration?: LapsedRegistration
 }>
 
 /** `GET /v1/names`: response (`page.total_count` is always null). */
@@ -75,7 +81,11 @@ export type NameRecord = Readonly<{
   registrant?: Address
   registered_at?: Timestamp
   created_at?: Timestamp
-  expires_at?: Timestamp
+  /** Null with `expires_at_reason` when the name never expires, never set one, or was released. */
+  expires_at?: Timestamp | null
+  expires_at_reason?: ExpiryReason
+  /** When the registrar grace ends; null alongside a null expiry. */
+  grace_ends_at?: Timestamp | null
   registration_status?: RegistrationStatus
   /** Present exactly when `wrapper_fuses` is present. */
   wrapper_state?: WrapperState

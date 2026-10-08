@@ -158,12 +158,12 @@ export const createBignameClient = (
         query,
       ),
     addressHistory: (address: string, query?: T.AddressHistoryQuery) =>
-      request<readonly T.AddressHistoryRow[]>(
+      request<readonly T.EventRow[]>(
         `/v1/addresses/${seg(address)}/history`,
         query,
       ),
     events: (query?: T.EventsQuery) =>
-      request<readonly T.EventsRow[]>('/v1/events', query),
+      request<readonly T.EventRow[]>('/v1/events', query),
     permissions: (query: T.PermissionsQuery) =>
       request<readonly T.PermissionRow[], T.PermissionsResponse>(
         '/v1/permissions',

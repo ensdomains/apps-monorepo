@@ -1,54 +1,38 @@
-import type { BaseEventCategory } from '@/components/table/EventsDataTable/types'
 import type { SubgraphEvent } from './groupEventsByTransactionId'
 
 /**
- * V1 event types from subgraph
- */
-export type V1EventBase = {
-  readonly id: string
-  readonly transactionID: string
-  readonly blockNumber: number
-  readonly type: string
-}
-
-/**
- * Provenance signals shared by both protocol versions, carried alongside a
- * single name's events so that attribution can be decided per name.
+ * Provenance signals carried alongside a single name's events so that
+ * attribution can be decided per name.
  */
 type NameProvenance = {
   readonly name: string | null
   /**
    * Who holds the name at the registrar level — the NameWrapper owner or registrar
-   * token holder on V1, the registry owner on V2.
+   * token holder on ENSv1, the token holder on ENSv2.
    */
   readonly registrarHolder: string | null
 }
 
 /**
- * One V1 name's history, as returned by the address history subgraph query
+ * One address-history event, as `getAddressHistoryQueryOptions` reads it from
+ * bigname (ENSv1 and ENSv2 alike).
  */
-export type V1NameHistory = NameProvenance & {
-  readonly domainEvents: readonly V1EventBase[]
-  readonly registrationEvents: readonly V1EventBase[]
-  readonly resolverEvents: readonly V1EventBase[]
-}
-
-/**
- * V2 event type from the indexer
- */
-export type V2Event = {
+export type AddressHistoryEvent = {
   readonly transactionHash: string
   readonly blockNumber: number
   readonly name: string
+  /** The raw storage kind, else bigname's friendly type. */
   readonly type: string
   readonly timestamp: number
+  /** `{txHash}-{logIndex}`, how the events table finds the event's log. */
+  readonly id?: string
+  /** The event's decoded payload, flat and printable. */
+  readonly data?: Readonly<Record<string, unknown>>
 }
 
-/**
- * One V2 name's history, as returned by the address history indexer query
- */
-export type V2NameHistory = NameProvenance & {
-  readonly events: readonly V2Event[]
+/** One name's history from bigname's address history, with its provenance. */
+export type AddressNameHistory = NameProvenance & {
+  readonly events: readonly AddressHistoryEvent[]
 }
 
 /**
@@ -59,48 +43,31 @@ export type V2NameHistory = NameProvenance & {
  * judged would carry a stranger's events into a row about the address's own name.
  */
 export type NameHistoryGroup = NameProvenance & {
-  readonly events: readonly (SubgraphEvent & {
-    readonly category?: BaseEventCategory
-  })[]
+  readonly events: readonly SubgraphEvent[]
 }
 
 /**
- * Transforms the V1 and V2 history of every name the registry associates with an
- * address, keeping one group per name.
+ * Transforms the history of every name associated with an address into the
+ * events table's shape, keeping one group per name.
  *
  * Deliberately does *not* merge the groups: registry ownership alone does not make
  * a name's history the address's own, and that judgement needs each name's
  * provenance, which a flattened list no longer carries.
  */
 export const groupAddressHistoryByName = (
-  v1Names?: readonly V1NameHistory[],
-  v2Names?: readonly V2NameHistory[],
-): NameHistoryGroup[] => [
-  ...(v1Names || []).map(
-    ({ name, registrarHolder, ...events }): NameHistoryGroup => ({
-      name,
-      registrarHolder,
-      events: [
-        ...events.domainEvents.map((e) => ({ ...e, category: 'domain' })),
-        ...events.registrationEvents.map((e) => ({
-          ...e,
-          category: 'registration',
-        })),
-        ...events.resolverEvents.map((e) => ({ ...e, category: 'resolver' })),
-      ],
-    }),
-  ),
-  ...(v2Names || []).map(
+  names?: readonly AddressNameHistory[],
+): NameHistoryGroup[] =>
+  (names || []).map(
     ({ name, registrarHolder, events }): NameHistoryGroup => ({
       name,
       registrarHolder,
       events: events.map((event) => ({
+        ...event.data,
         transactionID: event.transactionHash,
         blockNumber: event.blockNumber,
-        id: event.name,
+        id: event.id ?? event.name,
         type: event.type,
         timestamp: BigInt(event.timestamp),
       })),
     }),
-  ),
-]
+  )

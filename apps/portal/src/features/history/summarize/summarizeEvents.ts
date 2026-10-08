@@ -1,74 +1,77 @@
-import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
-import type { TimelineIndexerEvent } from '../timelineEvent'
-import { DESCRIPTORS, humanizeType } from './descriptors'
-import type { Action, ActionSlot, Descriptor } from './summarize.types'
-
-/** Event types that never surface as their own action (nor as filter options). */
-export const IGNORED_TYPES = new Set(['CommitmentMade'])
+import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
+import {
+  type EventType,
+  isKnownHistoryEventType,
+  type TimelineEvent,
+  type TimelineEventOfType,
+  timelineGroupKey,
+} from '../timelineEvent'
+import {
+  describeEvent,
+  descriptorIcon,
+  humanizeType,
+  recordFamily,
+  recordTextKey,
+} from './descriptors'
+import type { Action, ActionSlot } from './summarize.types'
 
 /**
- * Significance ranking used to pick the "primary" event that drives an action's
- * label when several events share a transaction (e.g. a subname registration bundles
- * LabelRegistered + Transfer + RolesChanged → the register is primary).
+ * Significance ranking used to pick the "primary" row that drives an action's
+ * label when several rows share a transaction (a subname registration bundles
+ * registration + transfer + permission rows → the registration is primary).
  */
-const TYPE_RANK: Record<string, number> = {
-  NameRegistered: 100,
-  LabelRegistered: 95,
-  NameRenewed: 90,
-  SubregistryUpdated: 80,
-  RegistryTransfer: 78,
-  Transfer: 70,
-  ResolverUpdated: 60,
-  EACRolesChanged: 55,
-  NameWrapped: 50,
-  NameUnwrapped: 50,
-  ReverseClaimed: 46,
-  NameChanged: 44,
-  AddressChanged: 40,
-  AddrChanged: 40,
-  TextChanged: 30,
-  ContenthashChanged: 30,
-  FusesSet: 20,
-  ExpiryUpdated: 20,
-  // ENS v1 types with no v2 counterpart (see `v1/adaptV1Events.ts`).
-  NameTransferred: 72,
-  WrappedTransfer: 70,
-  NewOwner: 15,
+const TYPE_RANK: Record<EventType, number> = {
+  // A migration re-registers the name in ENSv2 in the same transaction; the
+  // headline is the migration, not the registration rows it writes.
+  migration: 110,
+  registration: 100,
+  renewal: 90,
+  subregistry: 80,
+  authority: 78,
+  transfer: 70,
+  release: 65,
+  resolver: 60,
+  permission: 55,
+  primary_name: 46,
+  record: 30,
+  expiry: 20,
 }
 
 /**
- * Rank at or above which an event outranks the multi-record recipe: a
- * transaction that both registers a name and seeds its records is one
- * "registered", not "set 5 records". Deliberately above `ResolverUpdated` (60) — "set
- * the resolver and write records" is still best headlined by the records.
- *
- * This is protocol-agnostic on purpose: v2 registrations that seed records in
- * the same transaction headline as "registered" too, which is the label
- * those rows should have had all along.
+ * Rank at or above which a row outranks the multi-record recipe: a transaction
+ * that both registers a name and seeds its records is one "registered", not
+ * "set 5 records". Deliberately above `resolver` (60) — "set the resolver and
+ * write records" is still best headlined by the records.
  */
 const STRUCTURAL_RANK = 70
 
-const RECORD_TYPES = new Set([
-  'TextChanged',
-  'AddressChanged',
-  'AddrChanged',
-  'ContenthashChanged',
-])
+const isRecord = (
+  event: TimelineEvent,
+): event is TimelineEventOfType<'record'> => event.type === 'record'
 
-const recordLabel = (event: TimelineIndexerEvent): string => {
-  if (event.type === 'TextChanged')
-    // The key is attacker-authored; sanitize before it reaches a text slot.
-    return (
-      sanitizeOnChainText(event.asTextChanged?.key ?? event.key ?? '') || 'text'
-    )
-  if (event.type === 'ContenthashChanged') return 'content hash'
-  return 'address'
+const recordLabel = (event: TimelineEventOfType<'record'>): string => {
+  switch (recordFamily(event)) {
+    case 'text':
+      return recordTextKey(event)
+    case 'contenthash':
+      return 'content hash'
+    case 'address':
+      return 'address'
+    case 'name':
+      return 'name'
+    case 'abi':
+      return 'ABI'
+    default:
+      return 'record'
+  }
 }
 
 const multiRecordRecipe = (
-  group: readonly TimelineIndexerEvent[],
+  group: readonly TimelineEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> | null => {
-  const records = group.filter((event) => RECORD_TYPES.has(event.type))
+  const records = group
+    .filter(isRecord)
+    .filter((event) => recordFamily(event) !== 'cleared')
   if (records.length < 2) return null
 
   const MAX_SHOWN = 4
@@ -85,16 +88,17 @@ const multiRecordRecipe = (
   return { icon: 'records', label: `set ${records.length} records`, slots }
 }
 
-const rankOf = (event: TimelineIndexerEvent): number =>
-  TYPE_RANK[event.type] ?? 0
+/** A type newer than this table ranks lowest: it can only headline alone. */
+const rankOf = (event: TimelineEvent): number =>
+  isKnownHistoryEventType(event.type) ? TYPE_RANK[event.type] : 0
 
-/** Group events by transaction hash, preserving encounter order. */
+/** Group rows by transaction (a state-derived row alone), preserving encounter order. */
 const groupByTransaction = (
-  events: readonly TimelineIndexerEvent[],
-): TimelineIndexerEvent[][] => {
-  const groups = new Map<string, TimelineIndexerEvent[]>()
+  events: readonly TimelineEvent[],
+): TimelineEvent[][] => {
+  const groups = new Map<string, TimelineEvent[]>()
   for (const event of events) {
-    const key = event.transactionHash.toLowerCase()
+    const key = timelineGroupKey(event)
     const group = groups.get(key)
     if (group) group.push(event)
     else groups.set(key, [event])
@@ -104,23 +108,16 @@ const groupByTransaction = (
 
 /**
  * Build the label/slots/icon for a group: the multi-record recipe first, then the
- * highest-ranked event whose descriptor produces a result, else a humanized fallback.
+ * highest-ranked row whose descriptor produces a result, else a humanized fallback.
  */
 const describeGroup = (
-  group: readonly TimelineIndexerEvent[],
-  byRank: readonly TimelineIndexerEvent[],
+  group: readonly TimelineEvent[],
+  byRank: readonly TimelineEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
   const built = byRank.flatMap((primary) => {
-    // Indexed by a runtime type, not a known key: the object's own key type is
-    // what `TimelineEventType` is derived from, so the lookup takes the wider
-    // view of it.
-    const descriptor = (DESCRIPTORS as Record<string, Descriptor | undefined>)[
-      primary.type
-    ]
-    if (!descriptor) return []
-    const result = descriptor.build(primary)
+    const result = describeEvent(primary)
     return result
-      ? [{ primary, ...result, icon: result.icon ?? descriptor.icon }]
+      ? [{ primary, ...result, icon: result.icon ?? descriptorIcon(primary) }]
       : []
   })
 
@@ -134,18 +131,23 @@ const describeGroup = (
     return action
   }
 
-  // Every type either source emits has a descriptor; this only reads on from
-  // the actor for one the indexer adds before the portal does.
+  // Only a group of mints reaches here: every type has a descriptor (an
+  // unknown one the generic fallback), and only the transfer one declines.
+  const [first] = byRank
   return {
     icon: 'default',
-    label: `emitted ${humanizeType(byRank[0].type).toLowerCase()}`,
+    label: `emitted ${humanizeType(first.kind ?? first.type).toLowerCase()}`,
     slots: [],
   }
 }
 
-/** Turn a flat list of raw indexer events into tier-1 semantic actions, one per transaction. */
+/**
+ * Turn a flat list of history rows into tier-1 semantic actions, one per
+ * transaction. A registration's charge is stated on one of its rows only (see
+ * `withoutDuplicateCharges`), so an action never shows one payment twice.
+ */
 export const summarizeEvents = (
-  events: readonly TimelineIndexerEvent[],
+  events: readonly TimelineEvent[],
   /**
    * `includeSubjectName` leads each row with the name it concerns, for feeds
    * whose rows have different subjects (a registry's labels) — see
@@ -155,32 +157,34 @@ export const summarizeEvents = (
     includeSubjectName = false,
   }: { readonly includeSubjectName?: boolean } = {},
 ): Action[] => {
-  const relevant = events.filter((event) => !IGNORED_TYPES.has(event.type))
-
-  const actions = groupByTransaction(relevant).map((group): Action => {
-    const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
-    const { slots, ...described } = describeGroup(group, byRank)
-    return {
-      txHash: group[0].transactionHash,
-      timestamp: Math.max(...group.map((event) => event.timestamp)),
-      events: group,
-      ...described,
-      slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
-    }
-  })
+  const actions = groupByTransaction(withoutDuplicateCharges(events)).map(
+    (group): Action => {
+      const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
+      const { slots, ...described } = describeGroup(group, byRank)
+      const txHash = group[0].transactionHash
+      return {
+        id: timelineGroupKey(group[0]),
+        ...(txHash && { txHash }),
+        timestamp: Math.max(...group.map((event) => event.timestamp)),
+        events: group,
+        ...described,
+        slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
+      }
+    },
+  )
 
   return actions.sort((a, b) => b.timestamp - a.timestamp)
 }
 
 /**
- * Close the row with the name it concerns — "granted role … on zinc.eth" —
+ * Close the row with the name it concerns — "set roles … on zinc.eth" —
  * unless the descriptor already named something: an anonymous row in a
  * multi-subject feed is the only ambiguous case, and suffixing the others would
  * read as a duplicate.
  */
 const withSubjectName = (
   slots: readonly ActionSlot[],
-  primary: TimelineIndexerEvent,
+  primary: TimelineEvent,
 ): readonly ActionSlot[] => {
   if (!primary.name) return slots
   if (slots.some((slot) => slot.kind === 'name')) return slots
