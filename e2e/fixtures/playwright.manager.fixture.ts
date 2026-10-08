@@ -227,7 +227,7 @@ async function connectHeadless(
 
 export const test = base.extend<ManagerFixtures>({
   // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
-  // This prevents connection-refused errors in CI where Panoptes isn't running.
+  // Nothing indexes the local chain, so bigname reads are answered from the mock.
   page: async ({ page }, use) => {
     await indexerMock.installIfEnabled(page)
     await use(page)
