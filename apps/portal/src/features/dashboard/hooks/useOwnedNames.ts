@@ -71,21 +71,36 @@ const fetchMoreSettledNames = async (
     : { loaded: countSettled(next), hasMore }
 }
 
+/** Keeps the last results up while a new search for the same address loads. */
+const keepPreviousSearch =
+  (address: Address) =>
+  <TData>(
+    previousData: TData | undefined,
+    previousQuery:
+      | { readonly queryKey: readonly [unknown, { address?: Address }?] }
+      | undefined,
+  ) =>
+    previousQuery?.queryKey[1]?.address === address ? previousData : undefined
+
 /** The names an address owns across ENSv1 and ENSv2, soonest expiry first, loaded in pages. */
 export const useOwnedNames = ({
   address,
+  search,
   enabled = true,
 }: {
   readonly address: Address
+  readonly search?: string
   readonly enabled?: boolean
 }) => {
   const v1Query = useInfiniteQuery({
-    ...getV1NamesPagesForAddressQueryOptions({ address }),
+    ...getV1NamesPagesForAddressQueryOptions({ address, search }),
     enabled,
+    placeholderData: keepPreviousSearch(address),
   })
   const v2Query = useInfiniteQuery({
-    ...getV2NamesPagesForAddressQueryOptions({ address }),
+    ...getV2NamesPagesForAddressQueryOptions({ address, search }),
     enabled,
+    placeholderData: keepPreviousSearch(address),
   })
 
   const names = useMemo(

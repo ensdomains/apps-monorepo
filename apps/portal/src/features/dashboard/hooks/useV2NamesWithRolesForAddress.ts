@@ -5,6 +5,7 @@ import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
+import { escapeSearchWildcards } from '../utils/escapeSearchWildcards'
 import { getOwnedNamesQueryKey } from './ownedNamesQueryKey'
 
 type RoleAssignment = {
@@ -35,6 +36,7 @@ type GetV2NamesWithRolesForAddressErrorType = GraphqlRequestError
 
 type GetV2NamesWithRolesForAddressParameters = {
   address: Address
+  readonly search?: string
 }
 
 /** Domain name -> role bitmap, keeping the highest when a name has several. */
@@ -70,13 +72,23 @@ const FIRST_V2_NAMES_CURSOR: V2NamesCursor = {
   after: undefined,
 }
 
-const toDomainFilter = (account: string, hasExpiry: boolean) =>
-  hasExpiry
-    ? { owner: account, expiry_gt: 0 }
-    : { owner: account, expiry_lte: 0 }
+const toDomainFilter = ({
+  account,
+  hasExpiry,
+  search,
+}: {
+  readonly account: string
+  readonly hasExpiry: boolean
+  readonly search: string | undefined
+}) => ({
+  owner: account,
+  ...(hasExpiry ? { expiry_gt: 0 } : { expiry_lte: 0 }),
+  ...(search && { name_contains_nocase: escapeSearchWildcards(search) }),
+})
 
 const requestV2NamesPage = ResultFn(async function* ({
   address,
+  search,
   hasExpiry,
   after,
 }: GetV2NamesWithRolesForAddressParameters & V2NamesCursor) {
@@ -133,8 +145,8 @@ const requestV2NamesPage = ResultFn(async function* ({
         account,
         first: V2_NAMES_PAGE_SIZE,
         after,
-        where: toDomainFilter(account, hasExpiry),
-        rest: toDomainFilter(account, !hasExpiry),
+        where: toDomainFilter({ account, hasExpiry, search }),
+        rest: toDomainFilter({ account, hasExpiry: !hasExpiry, search }),
       },
     ),
     (e) =>
@@ -163,11 +175,12 @@ const requestV2NamesPage = ResultFn(async function* ({
 
 const getV2NamesPageForAddress = ResultFn(async function* ({
   address,
+  search,
   cursor,
 }: GetV2NamesWithRolesForAddressParameters & {
   readonly cursor: V2NamesCursor
 }) {
-  const page = yield* requestV2NamesPage({ address, ...cursor })
+  const page = yield* requestV2NamesPage({ address, search, ...cursor })
   const isLastWithExpiry = cursor.hasExpiry && !page.nextCursor
   if (!isLastWithExpiry || page.restCount === 0)
     return ok<V2NamesPage>({
@@ -178,6 +191,7 @@ const getV2NamesPageForAddress = ResultFn(async function* ({
 
   const withoutExpiry = yield* requestV2NamesPage({
     address,
+    search,
     hasExpiry: false,
     after: undefined,
   })
@@ -192,11 +206,16 @@ const getV2NamesPageForAddress = ResultFn(async function* ({
 /** ENSv2 names of an address in pages, soonest expiry first, no expiry last. */
 export const getV2NamesPagesForAddressQueryOptions = ({
   address,
+  search,
 }: GetV2NamesWithRolesForAddressParameters) =>
   resultInfiniteQueryOptions({
-    queryKey: getOwnedNamesQueryKey({ address, protocolVersion: 'ENSv2' }),
+    queryKey: getOwnedNamesQueryKey({
+      address,
+      protocolVersion: 'ENSv2',
+      search,
+    }),
     queryFn: ({ pageParam }) =>
-      getV2NamesPageForAddress({ address, cursor: pageParam }),
+      getV2NamesPageForAddress({ address, search, cursor: pageParam }),
     initialPageParam: FIRST_V2_NAMES_CURSOR,
     getNextPageParam: (last: V2NamesPage) => last.nextCursor,
   })
