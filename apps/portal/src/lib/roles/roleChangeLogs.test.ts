@@ -14,12 +14,10 @@ vi.mock('@/lib/indexer', () => ({
   },
 }))
 
-const {
-  getRoleChangeLogs,
-  INDEXED_ROLE_EVENTS_TIMEOUT_MS,
-  ROOT_RESOURCE,
-  toRoleHistoryEntries,
-} = await import('./roleChangeLogs')
+const { getRoleChangeLogs, ROOT_RESOURCE, toRoleHistoryEntries } = await import(
+  './roleChangeLogs'
+)
+const { INDEXED_ROLES_TIMEOUT_MS } = await import('./indexedRoles')
 
 const ROOT_HEX = `0x${'0'.repeat(64)}`
 
@@ -158,7 +156,7 @@ describe('getRoleChangeLogs', () => {
       mockGraphqlRequest.mockReturnValue(new Promise(() => {}))
 
       const pending = run()
-      await vi.advanceTimersByTimeAsync(INDEXED_ROLE_EVENTS_TIMEOUT_MS)
+      await vi.advanceTimersByTimeAsync(INDEXED_ROLES_TIMEOUT_MS)
 
       expect((await pending)._unsafeUnwrapErr()).toMatchObject({
         reason: 'timeout',

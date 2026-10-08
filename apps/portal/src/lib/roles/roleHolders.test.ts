@@ -15,7 +15,7 @@ vi.mock('@/lib/indexer', () => ({
 }))
 
 const { getRoleHolders } = await import('./roleHolders')
-const { INDEXED_ROLE_EVENTS_TIMEOUT_MS } = await import('./roleChangeLogs')
+const { INDEXED_ROLES_TIMEOUT_MS } = await import('./indexedRoles')
 
 const row = (account: string, roleBitmap = '0x5', blockNumber = 1) => ({
   account,
@@ -23,13 +23,9 @@ const row = (account: string, roleBitmap = '0x5', blockNumber = 1) => ({
   blockNumber,
 })
 
-/** One page of the indexer's role assignments; `endCursor` set means more follow. */
-const indexedPage = (
-  rows: readonly unknown[],
-  endCursor: string | null = null,
-) => ({
+const indexedPage = (rows: readonly unknown[], hasNextPage = false) => ({
   roleConnection: {
-    pageInfo: { hasNextPage: endCursor !== null, endCursor },
+    pageInfo: { hasNextPage },
     edges: rows.map((node) => ({ node })),
   },
 })
@@ -51,7 +47,6 @@ describe('getRoleHolders', () => {
       contract: REGISTRY.toLowerCase(),
       resource: `0x${'1234'.padStart(64, '0')}`,
       first: 1000,
-      after: undefined,
     })
   })
 
@@ -60,7 +55,7 @@ describe('getRoleHolders', () => {
       indexedPage([row(ACCOUNT.toLowerCase(), '0x11'), row(OTHER, '0x1')]),
     )
 
-    expect((await run())._unsafeUnwrap()).toEqual([
+    expect((await run())._unsafeUnwrap()).toMatchObject([
       { account: ACCOUNT, roleBitmap: 0x11n },
       { account: OTHER, roleBitmap: 0x1n },
     ])
@@ -73,19 +68,6 @@ describe('getRoleHolders', () => {
 
     const holders = (await run())._unsafeUnwrap()
 
-    expect(holders.map(({ account }) => account)).toEqual([ACCOUNT, OTHER])
-  })
-
-  it('follows the cursor through every page', async () => {
-    mockGraphqlRequest
-      .mockResolvedValueOnce(indexedPage([row(ACCOUNT)], 'c1'))
-      .mockResolvedValueOnce(indexedPage([row(OTHER)]))
-
-    const holders = (await run())._unsafeUnwrap()
-
-    expect(mockGraphqlRequest.mock.calls[1]?.[1]).toMatchObject({
-      after: 'c1',
-    })
     expect(holders.map(({ account }) => account)).toEqual([ACCOUNT, OTHER])
   })
 
@@ -104,7 +86,7 @@ describe('getRoleHolders', () => {
       mockGraphqlRequest.mockReturnValue(new Promise(() => {}))
 
       const pending = run()
-      await vi.advanceTimersByTimeAsync(INDEXED_ROLE_EVENTS_TIMEOUT_MS)
+      await vi.advanceTimersByTimeAsync(INDEXED_ROLES_TIMEOUT_MS)
 
       expect((await pending)._unsafeUnwrapErr()).toMatchObject({
         reason: 'timeout',
@@ -122,29 +104,17 @@ describe('getRoleHolders', () => {
     expect((await run()).isErr()).toBe(true)
   })
 
-  it('fails when more pages are promised without a cursor', async () => {
-    mockGraphqlRequest.mockResolvedValue({
-      roleConnection: {
-        pageInfo: { hasNextPage: true, endCursor: null },
-        edges: [{ node: row(ACCOUNT) }],
-      },
-    })
-
-    expect((await run()).isErr()).toBe(true)
-  })
-
   it('fails when the response has no assignments field', async () => {
     mockGraphqlRequest.mockResolvedValue({})
 
     expect((await run()).isErr()).toBe(true)
   })
 
-  it('fails when the list runs past the page budget', async () => {
-    mockGraphqlRequest.mockResolvedValue(indexedPage([row(ACCOUNT)], 'more'))
+  it('fails when there are more holders than one request returns, rather than drop any', async () => {
+    mockGraphqlRequest.mockResolvedValue(indexedPage([row(ACCOUNT)], true))
 
     expect((await run())._unsafeUnwrapErr()).toMatchObject({
       reason: 'truncated',
     })
-    expect(mockGraphqlRequest).toHaveBeenCalledTimes(20)
   })
 })

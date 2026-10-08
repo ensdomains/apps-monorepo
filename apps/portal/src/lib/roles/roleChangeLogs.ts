@@ -1,9 +1,14 @@
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, getAddress, type Hex, isAddressEqual, isHex } from 'viem'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
+import {
+  asBigInt,
+  asHex,
+  asRecord,
+  requestIndexedRoles,
+} from '@/lib/roles/indexedRoles'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 
@@ -35,13 +40,6 @@ const INDEXED_ROLE_EVENTS_PAGE_SIZE = 1000
 
 /** Past this many pages the read fails rather than keep going. */
 const INDEXED_ROLE_EVENTS_MAX_PAGES = 20
-
-/**
- * How long one indexed page may take before the read fails. A stalled
- * connection that never rejects would otherwise leave the roles page loading
- * with a working fallback sitting idle.
- */
-export const INDEXED_ROLE_EVENTS_TIMEOUT_MS = 8_000
 
 const ROLE_CHANGE_EVENTS_QUERY = gql`
   query RoleChangeEvents(
@@ -99,30 +97,6 @@ class GetRoleChangeLogsError extends TaggedError('GetRoleChangeLogsError')<{
   cause: unknown
 }> {}
 
-// Rows are JSON from the indexer and are not trusted as typed. Each field is
-// checked and converted here, so a block number or timestamp never exists as a
-// `number` past this point, and a malformed row fails the read rather than
-// folding garbage into the role state.
-const asRecord = (value: unknown, name: string): Record<string, unknown> => {
-  if (value !== null && typeof value === 'object') {
-    return value as Record<string, unknown>
-  }
-  throw new Error(`Indexed role event: ${name} is not an object`)
-}
-
-const asHex = (value: unknown, name: string): Hex => {
-  if (typeof value === 'string' && isHex(value)) return value
-  throw new Error(`Indexed role event: ${name} is not hex`)
-}
-
-const asBigInt = (value: unknown, name: string): bigint => {
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
-    return BigInt(value)
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value)
-  throw new Error(`Indexed role event: ${name} is not an integer`)
-}
-
 const toRoleChangeLog = (raw: unknown): RoleChangeLog | undefined => {
   const row = asRecord(raw, 'row')
   if (row.asEACRolesChanged == null) return undefined
@@ -152,17 +126,11 @@ type IndexedRoleEventsRequest = {
 const getIndexedRoleEventsPage = ResultFn(async function* (
   variables: IndexedRoleEventsRequest & { readonly after: string | undefined },
 ) {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS)
-  })
-  const request = graphqlIndexerClient.request<IndexedRoleEventsPage>(
-    ROLE_CHANGE_EVENTS_QUERY,
-    { ...variables, first: INDEXED_ROLE_EVENTS_PAGE_SIZE },
-  )
-
   const page = yield* fromPromise(
-    Promise.race([request, timeout]).finally(() => clearTimeout(timer)),
+    requestIndexedRoles<IndexedRoleEventsPage>(ROLE_CHANGE_EVENTS_QUERY, {
+      ...variables,
+      first: INDEXED_ROLE_EVENTS_PAGE_SIZE,
+    }),
     (cause) => new GetRoleChangeLogsError({ reason: 'failed', cause }),
   )
   if (page === null) {
