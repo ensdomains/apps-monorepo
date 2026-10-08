@@ -4,12 +4,18 @@
  * Tests for submitWarpTransaction — the Warp intent-based transport.
  */
 
+import {
+  buildHcaSessionConfig,
+  getDestinationContracts,
+  sizeRefundCaps,
+} from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Hash, Hex } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ChainIdMismatchError,
+  SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
@@ -347,5 +353,124 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrapErr().message).toContain(
       'No transaction hash returned',
     )
+  })
+})
+
+describe('submitWarpTransaction — session refund caps', () => {
+  const USDC = getDestinationContracts(sepolia.id).usdc
+
+  /** A session's proof, carrying the caps it was authorized with. */
+  const enableDataWithCaps = (quotedOverhead?: bigint) =>
+    ({
+      userSignature: '0x',
+      hashesAndChainIds: [],
+      sessionToEnableIndex: 0,
+      hcaSessionNonce: 0n,
+      hcaSessionConfig: buildHcaSessionConfig({
+        chainId: sepolia.id,
+        sessionKey: '0x5555555555555555555555555555555555555555',
+        validUntil: 1_800_000_000n,
+        resolver: '0x3333333333333333333333333333333333333333',
+        refundCaps: sizeRefundCaps(quotedOverhead),
+      }),
+    }) as never
+
+  /** A prepared intent quoting `gasOverhead` and `refundAmount`. */
+  const preparedQuoting = (gasOverhead: bigint, refundAmount = 20_660n) => ({
+    intentRoute: {
+      intentOp: {
+        elements: [
+          {
+            mandate: {
+              qualifier: {
+                settlementContext: {
+                  gasRefund: {
+                    token: USDC,
+                    exchangeRate: '2568073614',
+                    overhead: ((refundAmount << 128n) | gasOverhead).toString(),
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  })
+
+  function sessionSignerPreparing(prepared: unknown, quotedOverhead?: bigint) {
+    const signer = createMockSigner()
+    signer.session = {
+      session: MOCK_SESSION,
+      enableData: enableDataWithCaps(quotedOverhead),
+    }
+    ;(
+      signer.account.prepareTransaction as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(prepared)
+    return signer
+  }
+
+  it('refuses to sign a quote whose overhead outgrew the session, as fixable', async () => {
+    // Legacy session (500k cap) against the 2.97M overhead Sepolia quoted.
+    const signer = sessionSignerPreparing(preparedQuoting(2_972_344n))
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(SessionRefundCapExceededError)
+    const capError = error as SessionRefundCapExceededError
+    expect(capError.isFixableByNewSession).toBe(true)
+    expect(capError.requiredGasOverhead).toBe(2_972_344n)
+    expect(signer.account.signTransaction).not.toHaveBeenCalled()
+    expect(signer.account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('signs a quote within the caps the session was sized with', async () => {
+    const signer = sessionSignerPreparing(
+      preparedQuoting(2_972_344n),
+      2_972_344n,
+    )
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(signer.account.signTransaction).toHaveBeenCalled()
+  })
+
+  it('reports a refund amount over its fixed cap as not fixable', async () => {
+    const signer = sessionSignerPreparing(
+      preparedQuoting(100_000n, 200_000_000n),
+    )
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    const error = result._unsafeUnwrapErr() as SessionRefundCapExceededError
+    expect(error).toBeInstanceOf(SessionRefundCapExceededError)
+    expect(error.isFixableByNewSession).toBe(false)
+    expect(error.message).toContain('fee ceiling (200 USDC)')
+    expect(signer.account.signTransaction).not.toHaveBeenCalled()
+  })
+
+  it('does not check owner-signed intents, which carry no session caps', async () => {
+    const signer = createMockSigner()
+    ;(
+      signer.account.prepareTransaction as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(preparedQuoting(2_972_344n))
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result.isOk()).toBe(true)
   })
 })

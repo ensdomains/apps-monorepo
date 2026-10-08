@@ -93,6 +93,10 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Approve payment`,
       stageDescription: msg`Sign the gasless payment approval in your wallet`,
     }))
+    .with({ stage: 'reauthorizingSession' }, () => ({
+      stageLabel: msg`Confirm updated network fees`,
+      stageDescription: msg`Network fees changed since you authorized this registration. Sign once more in your wallet to continue.`,
+    }))
     .with({ stage: 'submittingRhinestoneBundle' }, () => ({
       stageLabel: msg`Submitting approval and registration`,
       stageDescription: msg`Authorizing payment and registering your name`,

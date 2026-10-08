@@ -34,7 +34,9 @@ export {
   type HcaBudgetParams,
   type HcaLeg,
   hcaBudgetMaximum,
+  legFeeUsdc,
   primaryNameGas,
+  QUOTED_GAS_OVERHEAD_HEADROOM,
   type QuoteLegCostUsdc,
   type QuoteLegResult,
   type QuoteMarketData,
@@ -82,6 +84,22 @@ export {
   type BuildHcaOwnerExecutionCallParams,
   buildHcaOwnerExecutionCall,
 } from './owner-execution'
+export {
+  findGasRefundViolations,
+  type GasRefundField,
+  type GasRefundViolation,
+  isFixableByNewSession,
+  LEGACY_REFUND_CAPS,
+  MAX_REFUND_GAS_OVERHEAD_CEILING,
+  maxQuotedGasOverhead,
+  type QuotedGasRefund,
+  quoteSessionRefundCaps,
+  REFUND_GAS_OVERHEAD_HEADROOM,
+  type RefundCaps,
+  readQuotedGasRefunds,
+  type SessionRefundCapsQuote,
+  sizeRefundCaps,
+} from './refund-caps'
 export {
   buildCommitCall,
   buildRevealBatch,
@@ -138,4 +156,6 @@ export {
   isRhinestoneSession,
   type RhinestoneStoredSession,
   serializeChainDigests,
+  serializeRefundCaps,
+  storedRefundCaps,
 } from './types'

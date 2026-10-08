@@ -13,12 +13,15 @@
  * There is NO percentage buffer — see the `total` computation for why one would
  * be a guess layered on a derived number.
  *
- * PREFERRED sizing (`quoteLegCostUsdc`): each leg's USDC cost comes straight
- * from Rhinestone's own quote — `account.prepareTransaction(...)` returns
- * `intentRoute.intentOp.elements[0].spendTokens`, the exact USDC the
- * orchestrator will pull for that intent. This is immune to the caller's local
- * gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei even when the
- * tx settles at ~1-2 gwei, which massively over-sizes a gas×price model).
+ * PREFERRED sizing (`quoteLegCostUsdc`): each leg's USDC cost comes from
+ * Rhinestone's own quote — `account.prepareTransaction(...)` returns the
+ * quoted spend AND the gas refund the intent will be signed with, and
+ * {@link legFeeUsdc} budgets the larger of the spend and what that refund lets
+ * the executor pull. The spend alone leaves out the relay fee carried in the
+ * refund overhead, which dominates when gas is cheap. This is immune to the
+ * caller's local gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei
+ * even when the tx settles at ~1-2 gwei, which massively over-sizes a
+ * gas×price model).
  *
  * A quote is only as good as the gas LIMIT it is taken at, since the rail never
  * inspects the calls — so {@link HCA_LEG_GAS_LIMITS} and
@@ -40,12 +43,13 @@
  */
 
 import type { PublicClient } from 'viem'
-import { formatUnits } from 'viem'
+import { formatUnits, isAddressEqual, zeroAddress } from 'viem'
 import {
   BASE_SEPOLIA_CHAIN_ID,
   getDestinationContracts,
   SEPOLIA_CHAIN_ID,
 } from './manifest'
+import type { QuotedGasRefund } from './refund-caps'
 import { readRegisterPrice } from './registration-calls'
 
 /**
@@ -370,15 +374,75 @@ export interface QuoteMarketData {
 }
 
 /**
- * One leg's quote. `spendUsdc` is the exact USDC the orchestrator will pull
- * (`null` when the route could not be priced — e.g. an unfunded account).
- * `market` is present whenever the quote round-trip succeeded, so the fallback
- * model can be driven off the orchestrator's own prices instead of a separate
- * (browser-unreachable) price service.
+ * One leg's quote. `spendUsdc` is the orchestrator's quoted spend
+ * (`intentCost.tokensSpent`; `null` when the route could not be priced — e.g.
+ * an unfunded account). `market` is present whenever the quote round-trip
+ * succeeded, so the fallback model can be driven off the orchestrator's own
+ * prices instead of a separate (browser-unreachable) price service.
+ * `gasRefund` is the refund the intent would be signed with; see
+ * {@link legFeeUsdc} for why the spend alone is not enough.
  */
 export interface QuoteLegResult {
   readonly spendUsdc: bigint | null
   readonly market?: QuoteMarketData
+  readonly gasRefund?: QuotedGasRefund
+}
+
+/**
+ * Multiplier on the quoted gas overhead in {@link legFeeUsdc}. The overhead is
+ * charged at the RELAYER's gas price, which has run 10-20% above the quoted
+ * one (1.2 Mwei filled against 1.0-1.1 quoted), and its fixed part moved from
+ * ~49.5k to 170k gas overnight on 2026-10-07. Doubling it covers both, and it
+ * only costs anything when the overhead is large — i.e. when it is mostly the
+ * relay fee (~$0.0075), so the worst case is about one relay fee per leg.
+ */
+export const QUOTED_GAS_OVERHEAD_HEADROOM = 2n
+
+/** Round-up division, so a budget is never a unit short. */
+const divCeil = (a: bigint, b: bigint): bigint => (a + b - 1n) / b
+
+/**
+ * The USDC (6dp) to budget for one intent's fee.
+ *
+ * The orchestrator's quoted spend prices the gas limit plus a fixed allowance,
+ * but NOT the relay fee it charges through `gasRefund.overhead`, which it
+ * encodes as `fee ÷ gas price` gas units. At ~1 gwei that overhead is ~52k gas
+ * and the allowance covers it; at Sepolia's ~1 Mwei it is ~2.6M gas, and a
+ * first commit pulled 0.010017 USDC against 0.007681 quoted for BOTH legs —
+ * stranding the reveal 0.0023 USDC short of the price.
+ *
+ * The executor pulls `(measured gas + gasOverhead) × gas price × exchangeRate`,
+ * and never more than the signed `refundAmount`. So the same quote also bounds
+ * the pull — the leg's gas limit plus {@link QUOTED_GAS_OVERHEAD_HEADROOM}× the
+ * overhead, at the quoted gas price, capped at `refundAmount` — and the larger
+ * of that and the quoted spend is budgeted. At normal gas prices the spend is
+ * the larger, so this changes nothing there.
+ */
+export function legFeeUsdc(params: {
+  readonly spendUsdc: bigint
+  readonly gasLimit: bigint
+  readonly gasPriceWei?: bigint
+  readonly gasRefund?: QuotedGasRefund
+}): bigint {
+  const { spendUsdc, gasLimit, gasPriceWei, gasRefund } = params
+  if (
+    !gasRefund ||
+    !gasPriceWei ||
+    isAddressEqual(gasRefund.token, zeroAddress)
+  ) {
+    return spendUsdc
+  }
+  const pullBound = divCeil(
+    (gasLimit + QUOTED_GAS_OVERHEAD_HEADROOM * gasRefund.gasOverhead) *
+      gasPriceWei *
+      gasRefund.exchangeRate,
+    10n ** 18n,
+  )
+  const capped =
+    gasRefund.refundAmount > 0n && pullBound > gasRefund.refundAmount
+      ? gasRefund.refundAmount
+      : pullBound
+  return capped > spendUsdc ? capped : spendUsdc
 }
 
 /**
@@ -591,15 +655,34 @@ export async function estimateHcaBudget(
         : FALLBACK_LEG_FEE_6DP
   }
 
-  // Never fund a leg below what the orchestrator would pull at this chain's
-  // floor gas price. A quote taken while gas is briefly near zero is not wrong
-  // about the gas, it is just priced at a moment the fill will not land in.
+  // Two bounds on what a leg may be funded for, covering opposite ends of the
+  // gas range. `legFeeUsdc` tracks the refund the orchestrator could pull at
+  // the gas price it quoted at; the floor covers the case that quote cannot,
+  // a price so low the fill will not land anywhere near it.
   const floor = refundFloor6dp(
     params.chainId,
     quotedCommit.market ?? quotedRegister.market,
   )
-  const commitCost = legCost(quotedCommit.value, fallbackCommit, floor)
-  const registerCost = legCost(quotedRegister.value, fallbackRegister, floor)
+  const quotedCommitFee =
+    quotedCommit.value === null
+      ? null
+      : legFeeUsdc({
+          spendUsdc: quotedCommit.value,
+          gasLimit: commitGasLimit,
+          gasPriceWei: quotedCommit.market?.gasPriceWei,
+          gasRefund: quotedCommit.gasRefund,
+        })
+  const quotedRegisterFee =
+    quotedRegister.value === null
+      ? null
+      : legFeeUsdc({
+          spendUsdc: quotedRegister.value,
+          gasLimit: registerGasLimit,
+          gasPriceWei: quotedRegister.market?.gasPriceWei,
+          gasRefund: quotedRegister.gasRefund,
+        })
+  const commitCost = legCost(quotedCommitFee, fallbackCommit, floor)
+  const registerCost = legCost(quotedRegisterFee, fallbackRegister, floor)
 
   // No percentage buffer: each leg is priced from a gas limit already derived
   // from the batch that will be submitted. A multiplier on a limit that misses
@@ -669,6 +752,7 @@ async function tryQuote(
 ): Promise<{
   value: bigint | null
   market?: QuoteMarketData
+  gasRefund?: QuotedGasRefund
   reason?: string
 }> {
   if (!quoter) return { value: null, reason: `${leg}: no quoter available` }
@@ -682,7 +766,11 @@ async function tryQuote(
           ...market,
           reason: `${leg}: quote returned no spend amount`,
         }
-      : { value: result.spendUsdc, ...market }
+      : {
+          value: result.spendUsdc,
+          ...market,
+          ...(result.gasRefund ? { gasRefund: result.gasRefund } : {}),
+        }
   } catch (error) {
     return {
       value: null,

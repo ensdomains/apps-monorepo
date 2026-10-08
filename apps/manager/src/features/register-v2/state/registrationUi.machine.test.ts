@@ -1022,6 +1022,24 @@ describe('registrationV2UiMachine — registration.resume', () => {
     expect(child.context.resumed?.deps.publicClient).toBeDefined()
   })
 
+  it('hands the resumed run a way to re-authorize the session', () => {
+    const reauthorizeSession = vi.fn()
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent({ ...hcaAccount, reauthorizeSession }))
+
+    const child = getChild(actor).getSnapshot() as unknown as {
+      context: {
+        resumed?: {
+          deps: { readonly reauthorizeSession?: typeof reauthorizeSession }
+        }
+      }
+    }
+    expect(child.context.resumed?.deps.reauthorizeSession).toBe(
+      reauthorizeSession,
+    )
+  })
+
   it('restores the confirmed pricing so the registering screen can render', () => {
     const actor = startActorInTokens()
 

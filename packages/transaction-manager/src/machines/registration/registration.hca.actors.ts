@@ -34,6 +34,7 @@ import {
   type HcaLeg,
   type QuoteLegResult,
   readCommitment,
+  readQuotedGasRefunds,
   readRegisterPrice,
   registerLegGasLimit,
   withBudgetDrift,
@@ -243,6 +244,13 @@ async function quoteIntentSpendUsdc(
         }
       : undefined
 
+  // The refund the intent would be signed with. The spend leaves out the
+  // relay fee carried in its overhead, so the budget sizes the leg from both
+  // (`legFeeUsdc`).
+  const gasRefund = readQuotedGasRefunds(route).find(
+    (refund) => !isAddressEqual(refund.token, zeroAddress),
+  )
+
   return {
     // `readUsdcSpend` already encodes readability: `null` means the quote could
     // not be priced, `0n` means it was priced at nothing. Re-testing `> 0n`
@@ -252,6 +260,7 @@ async function quoteIntentSpendUsdc(
     // orchestrator that settles for free.
     spendUsdc: spend,
     ...(market ? { market } : {}),
+    ...(gasRefund ? { gasRefund } : {}),
   }
 }
 
