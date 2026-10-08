@@ -9,10 +9,12 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { EXPLORER_URL } from '@/constants'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { useNameClassification } from '@/features/search/useNameClassification'
 import { getNamePricingQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
@@ -34,13 +36,47 @@ const LINK_OPTIONS = {
 
 type NameSuggestionItemProps = {
   readonly name: string
-  readonly avatarUrl?: string
   readonly onNavigate?: () => void
+}
+
+const NameSuggestionAvatar = ({
+  name,
+  avatarRecord,
+}: {
+  readonly name: string
+  readonly avatarRecord?: string
+}) => {
+  const { data: avatarUrl } = useQuery(imageRecordQuery(avatarRecord))
+
+  return (
+    <ImageFallback.Root className="contents">
+      <ImageFallback.Image
+        alt={`${name} avatar`}
+        className="size-full object-cover"
+        src={avatarUrl ?? undefined}
+      />
+      <ImageFallback.Fallback>
+        <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
+      </ImageFallback.Fallback>
+    </ImageFallback.Root>
+  )
+}
+
+const RegisteredNameSuggestionAvatar = ({
+  name,
+}: {
+  readonly name: string
+}) => {
+  const { data: avatarRecords } = useQuery(profileAvatarRecordsQuery(name))
+  const avatarRecord = avatarRecords?.texts
+    .find((record) => record.key === 'avatar')
+    ?.value.trim()
+
+  return <NameSuggestionAvatar avatarRecord={avatarRecord} name={name} />
 }
 
 export const NameSuggestionItem = ({
   name,
-  avatarUrl,
   onNavigate,
 }: NameSuggestionItemProps) => {
   const { kind, outcome } = useNameClassification(name)
@@ -80,16 +116,11 @@ export const NameSuggestionItem = ({
   const content = (
     <>
       <div className="relative size-8 shrink-0 overflow-hidden rounded bg-slate-100">
-        <ImageFallback.Root className="contents">
-          <ImageFallback.Image
-            alt={`${name} avatar`}
-            className="size-full object-cover"
-            src={avatarUrl}
-          />
-          <ImageFallback.Fallback>
-            <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
-          </ImageFallback.Fallback>
-        </ImageFallback.Root>
+        {isOwned && !isInGrace ? (
+          <RegisteredNameSuggestionAvatar name={name} />
+        ) : (
+          <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
+        )}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">

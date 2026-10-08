@@ -1860,18 +1860,21 @@ export const registrationMachine = setup({
             target: 'error',
             actions: [
               assign({
-                // After a polling failure, prefer why the check refused over the
-                // polling error — only the former means the name is now taken.
-                // A reveal rejected at submission never reached the chain, so
-                // the check's reason (nothing registered yet) says nothing and
-                // the submission error is kept.
+                // Prefer why the check refused: a wrong owner, resolver or
+                // expiry is the useful answer, whatever went wrong first.
+                // The exception is an unregistered label, where the check can
+                // only restate that nothing landed — then the failure that
+                // stopped the reveal (a declined prompt, a rejected intent) is
+                // what the user needs to see.
                 error: ({ context, event }) =>
-                  event.output.reason && !context.revealSubmitFailed
-                    ? new Error(
-                        `This registration could not be confirmed as yours: ${event.output.reason}`,
-                        { cause: context.error },
-                      )
-                    : context.error,
+                  event.output.isUnregistered && context.error
+                    ? context.error
+                    : event.output.reason
+                      ? new Error(
+                          `This registration could not be confirmed as yours: ${event.output.reason}`,
+                          { cause: context.error },
+                        )
+                      : context.error,
                 retryTarget: ({ context }) =>
                   context.signer?.type === 'rhinestone'
                     ? ('submittingRhinestoneBundle' as const)

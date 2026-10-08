@@ -71,7 +71,7 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://graphql.ens.dev')
 
       expect(connectSrc).toContain('https://*.ens.domains')
-      expect(connectSrc).not.toContain('https://jakob.ens.domains')
+      expect(connectSrc).not.toContain('https://edge.ens.domains')
     })
 
     it('allowlists Rhinestone and Intercom hosts', () => {

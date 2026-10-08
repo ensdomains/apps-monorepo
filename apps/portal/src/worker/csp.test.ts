@@ -82,7 +82,7 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://app-api.ens.dev')
 
       expect(connectSrc).toContain('https://*.ens.domains')
-      expect(connectSrc).not.toContain('https://jakob.ens.domains')
+      expect(connectSrc).not.toContain('https://edge.ens.domains')
     })
 
     it('keeps image-only hosts out of connect-src', () => {
@@ -151,7 +151,7 @@ describe('csp', () => {
         'https://js.intercomcdn.com',
         "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
       ])
-      expect(header['script-src']).not.toContain('https://jakob.ens.domains')
+      expect(header['script-src']).not.toContain('https://edge.ens.domains')
     })
 
     it('allowlists Intercom fonts, frames, media, and form targets', () => {

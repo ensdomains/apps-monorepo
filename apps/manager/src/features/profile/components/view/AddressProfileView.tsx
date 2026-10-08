@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { profileAddressNamesQuery } from '@/features/profile/service/profileAddressNames'
-import { buildNameHeaderUrl } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -14,6 +14,28 @@ import { AddressProfileNamesList } from './AddressProfileNamesList'
 import { isViewingConnectedAddress } from './connectedAccounts.helpers'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileThemeColorProvider } from './ProfileThemeColor'
+
+const AddressProfileBanner = ({
+  defaultHeaderUrl,
+  headerRecord,
+  name,
+}: {
+  readonly defaultHeaderUrl: string
+  readonly headerRecord?: string
+  readonly name: string
+}) => {
+  const header = useQuery(imageRecordQuery(headerRecord))
+
+  return (
+    <ProfileBanner
+      defaultHeaderUrl={defaultHeaderUrl}
+      fadeClassName="bottom-0"
+      headerLoading={header.isLoading}
+      headerUrl={header.data ?? undefined}
+      name={name}
+    />
+  )
+}
 
 export const AddressProfileView = ({
   address,
@@ -48,10 +70,6 @@ export const AddressProfileView = ({
     ? transformProfileRecords(profileRecords)
     : null
   const themeVars = getThemeVars(records?.base.theme)
-  const headerUrl =
-    primaryName && records?.base.header?.trim()
-      ? buildNameHeaderUrl(primaryName)
-      : undefined
   const defaultHeaderUrl = getDefaultHeaderCover({
     themeColor: records?.base.theme,
   })
@@ -62,11 +80,9 @@ export const AddressProfileView = ({
       style={themeVars as CSSProperties}
     >
       <ProfileThemeColorProvider value={themeVars['--theme-color']}>
-        <ProfileBanner
+        <AddressProfileBanner
           defaultHeaderUrl={defaultHeaderUrl}
-          fadeClassName="bottom-0"
-          headerLoading={false}
-          headerUrl={headerUrl}
+          headerRecord={records?.base.header?.trim()}
           name={primaryName ?? address}
         />
         <div className="relative z-10 mx-auto -mt-21 w-[calc(100%-40px)] max-w-[809.257px] space-y-6 lg:landscape:-mt-11.25">

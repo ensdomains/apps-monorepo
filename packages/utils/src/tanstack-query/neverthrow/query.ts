@@ -118,8 +118,6 @@ export function resultQueryOptions<
 }
 
 export function resultQueryOptions({
-  gcTime: rawGcTime,
-  staleTime: rawStaleTime,
   queryFn: rawQueryFn,
   queryKey,
   ...rest

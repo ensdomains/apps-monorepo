@@ -14,7 +14,7 @@ import type { PostHog } from 'posthog-js'
 // exception autocapture) at runtime. The default `posthog-js` build injects
 // those via runtime <script> tags + an inline loader, both of which our strict
 // CSP blocks (no 'unsafe-inline'; script-src is host/hash-pinned) — and our
-// PostHog reverse proxy (jakob.ens.domains) doesn't serve the /static/*.js
+// PostHog reverse proxy (edge.ens.domains) doesn't serve the /static/*.js
 // asset paths anyway. Pre-bundling sidesteps both problems. This disables the
 // Toolbar (a dev-only feature we don't use in prod). See PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy

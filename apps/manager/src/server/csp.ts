@@ -64,7 +64,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // per-deployment / per-env *.ens.dev hosts don't silently break a flow.
   'https://*.ens.dev',
   // ENS-owned *.ens.domains: metadata avatar gateway, PostHog analytics host
-  // (jakob.ens.domains — VITE_PUBLIC_POSTHOG_HOST).
+  // (edge.ens.domains — VITE_PUBLIC_POSTHOG_HOST).
   'https://*.ens.domains',
   // Etherscan API — proxy-contract verification
   // (src/utils/blockExplorer/verifyProxyContract.ts).
@@ -126,7 +126,9 @@ const FRAME_HOSTS = [
 ]
 
 // POSTHOG_LAUNCH_PAUSE: CSP reporting paused while PostHog is used only for flags. Restore endpoint, directives, and Reporting-Endpoints together; enforcement is unchanged.
-// Direct EU endpoint: the proxy cannot serve /report/. Keep the trailing slash.
+// PostHog CSP-violation reporting endpoint. Points at PostHog EU cloud (the
+// edge.ens.domains analytics proxy can't serve /report/). Trailing slash is
+// required; token is the public client key.
 // export const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
 
 /**

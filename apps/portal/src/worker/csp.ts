@@ -64,7 +64,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // here fails closed in the browser.
   new URL(envConfig.chain.subgraphs.ens.url).origin,
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)
-  // and the PostHog analytics host (jakob.ens.domains — .env
+  // and the PostHog analytics host (edge.ens.domains — .env
   // VITE_PUBLIC_POSTHOG_HOST). Wildcarded for the same reason as *.ens.dev.
   // NOTE: PostHog's script bundle is allowed separately via SCRIPT_HOSTS, which
   // stays an exact host — script-src must not use a wildcard.
@@ -77,6 +77,9 @@ const DEFAULT_CONNECT_HOSTS = [
   // page then shows "Invalid TLD" for perfectly valid DNS names).
   'https://cloudflare-dns.com',
   'https://1.1.1.1',
+  // Google's DoH resolver — the DNSSEC debugger (/$name/dnssec) lets users
+  // compare resolvers to rule out a stale cache.
+  'https://dns.google',
   // Etherscan API — proxy-contract verification fetch in
   // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
   // Host comes from the viem chain's blockExplorers.default.apiUrl: Sepolia
@@ -219,7 +222,12 @@ const BASE_DIRECTIVES = [
 ] as const
 
 // POSTHOG_LAUNCH_PAUSE: CSP reporting paused while PostHog is used only for flags. Restore endpoint, directives, and Reporting-Endpoints together; enforcement is unchanged.
-// Direct EU endpoint: the proxy cannot serve /report/. Keep the trailing slash.
+// PostHog CSP-violation reporting endpoint, visualized by PostHog's "CSP
+// violations" dashboard template. Points directly at PostHog's EU cloud, not our
+// edge.ens.domains analytics proxy — that proxy can't serve /report/ (confirmed
+// with its maintainer), at the cost of a few reports lost to ad-blockers. The
+// token is the public client key (VITE_PUBLIC_POSTHOG_KEY); the trailing slash
+// is required.
 // const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
 
 // Directives the browser ignores inside a <meta> tag, so they're header-only:

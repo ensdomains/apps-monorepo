@@ -233,6 +233,7 @@ export const migrationUiMachine = setup({
       {
         renewal: RenewalPreparation
         renewedDomains: readonly V1Domain[]
+        managerRestorationNames: readonly string[]
         wagmiConfig: WagmiConfig
       }
     >(({ input, signal }) =>
@@ -243,6 +244,7 @@ export const migrationUiMachine = setup({
         hcaAddress: input.renewal.hcaAddress,
         publicClient: defaultPublicClient as PublicClient,
         wagmiConfig: input.wagmiConfig,
+        managerRestorationNames: input.managerRestorationNames,
         signal,
       }),
     ),
@@ -600,6 +602,7 @@ export const migrationUiMachine = setup({
               return {
                 renewal: context.renewal,
                 renewedDomains: context.renewedDomains,
+                managerRestorationNames: context.managerRestorationNames,
                 wagmiConfig: context.wagmiConfig,
               }
             },

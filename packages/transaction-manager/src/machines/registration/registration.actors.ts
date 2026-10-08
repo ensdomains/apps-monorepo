@@ -852,7 +852,12 @@ export function verifyRegistrationActor(
     registrarAddress?: Address
   } & VerifyPollOptions,
 ): ResultAsync<
-  { verified: boolean; registeredToOther: boolean; reason?: string },
+  {
+    verified: boolean
+    registeredToOther: boolean
+    isUnregistered: boolean
+    reason?: string
+  },
   Error
 > {
   const registrarAddress =
@@ -866,6 +871,7 @@ export function verifyRegistrationActor(
   const readRegistryEntry = async (): Promise<{
     verified: boolean
     registeredToOther: boolean
+    isUnregistered: boolean
     reason?: string
   }> => {
     // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
@@ -918,6 +924,11 @@ export function verifyRegistrationActor(
     const registeredToOther =
       !isAddressEqual(owner, zeroAddress) && !isAddressEqual(owner, input.owner)
 
+    // Nobody holds the label: the register never landed, so every `reason`
+    // below can only restate that. Callers then keep the failure that
+    // stopped it instead.
+    const isUnregistered = isAddressEqual(owner, zeroAddress)
+
     if (
       isAddressEqual(resolver, zeroAddress) ||
       !isAddressEqual(resolver, input.resolverAddress)
@@ -925,6 +936,7 @@ export function verifyRegistrationActor(
       return {
         verified: false,
         registeredToOther,
+        isUnregistered,
         reason: `resolver is ${resolver}, expected ${input.resolverAddress}`,
       }
     }
@@ -935,6 +947,7 @@ export function verifyRegistrationActor(
       return {
         verified: false,
         registeredToOther,
+        isUnregistered,
         reason: `owner is ${owner}, expected ${input.owner}`,
       }
     }
@@ -943,6 +956,7 @@ export function verifyRegistrationActor(
       return {
         verified: false,
         registeredToOther,
+        isUnregistered,
         reason: `subregistry is ${subregistry}, expected none — this registration is not ours`,
       }
     }
@@ -950,11 +964,12 @@ export function verifyRegistrationActor(
       return {
         verified: false,
         registeredToOther,
+        isUnregistered,
         reason: `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
       }
     }
 
-    return { verified: true, registeredToOther: false }
+    return { verified: true, registeredToOther: false, isUnregistered: false }
   }
 
   return fromPromise(pollUntilVerified(readRegistryEntry, input), (error) =>

@@ -1,11 +1,12 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
+import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -16,6 +17,7 @@ import {
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
+import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
 export type FavoritesSortField = 'name' | 'addedAt'
 export type FavoritesSort = `${FavoritesSortField}-${'asc' | 'desc'}`
@@ -44,6 +46,37 @@ const parseSort = (
     field,
     direction: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
   }
+}
+
+const FavoriteNameRow = ({
+  label,
+  profileRecords,
+  isProfileRecordsLoading,
+  onToggleFavorite,
+}: {
+  readonly label: string
+  readonly profileRecords?: Pick<ProfileRecordsResult, 'texts'> | null
+  readonly isProfileRecordsLoading: boolean
+  readonly onToggleFavorite: () => void
+}) => {
+  const preview = getNameRowProfilePreview({
+    label,
+    records: profileRecords,
+    isLoading: isProfileRecordsLoading,
+  })
+
+  return (
+    <NameRow
+      avatarPending={preview.isAvatarPending}
+      avatarRecord={preview.avatarRecord}
+      isAuthenticated
+      isFavorite
+      label={label}
+      onToggleFavorite={onToggleFavorite}
+      showFavoriteButton
+      themeColor={preview.themeColor}
+    />
+  )
 }
 
 export const FavoritesList = ({
@@ -88,6 +121,16 @@ export const FavoritesList = ({
     PAGE_SIZE,
   )
   const paginatedFavorites = paginatedData.favorites
+  const pageProfileRecords = useQueries({
+    queries: paginatedFavorites.map(({ label }) =>
+      profileAvatarRecordsQuery(label),
+    ),
+    combine: (results) =>
+      results.map((result) => ({
+        records: result.data,
+        isLoading: result.isLoading,
+      })),
+  })
 
   return (
     <div className="w-full">
@@ -145,13 +188,13 @@ export const FavoritesList = ({
                       },
                     })}
               >
-                <NameRow
-                  avatarUrl={buildNameAvatarUrl(fav.label)}
-                  isAuthenticated
-                  isFavorite
+                <FavoriteNameRow
+                  isProfileRecordsLoading={
+                    pageProfileRecords[index]?.isLoading ?? false
+                  }
                   label={fav.label}
                   onToggleFavorite={() => toggleFavorite(fav.label)}
-                  showFavoriteButton
+                  profileRecords={pageProfileRecords[index]?.records}
                 />
               </motion.div>
             )),
