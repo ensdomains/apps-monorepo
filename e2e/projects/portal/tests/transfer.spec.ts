@@ -26,10 +26,18 @@ async function driveTransactionsToSuccess(
   await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
 
   const succeeded = new Set<string>()
+  // Multi-step flows append an attempt scope to each step's id (see
+  // `scopeTransactionId`), so the logged id is the id named here plus an
+  // optional `--<account>-<nonce>` suffix. Anchored on that exact shape so a
+  // step id that merely prefixes another still cannot mark it succeeded.
+  const succeededLine = (id: string) =>
+    new RegExp(
+      `Transaction ${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(--\\S+)? state: success`,
+    )
   const onConsole = (msg: { text(): string }) => {
     const text = msg.text()
     for (const id of successTxIds) {
-      if (text.includes(`Transaction ${id} state: success`)) succeeded.add(id)
+      if (succeededLine(id).test(text)) succeeded.add(id)
     }
   }
   page.on('console', onConsole)
@@ -388,7 +396,9 @@ test.describe
       // they can write records (see buildTransferPlan.ts: "the recipient
       // deploys their own afterward").
       await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
-      await page.getByRole('switch', { name: /Use custom resolver/ }).click()
+      await page
+        .getByRole('switch', { name: /Deploy new permissioned resolver/ })
+        .click()
       await page.getByRole('button', { name: 'Save changes' }).click()
       await driveTransactionsToSuccess(page, wallet, [
         'tx-deploy-permissioned-resolver',

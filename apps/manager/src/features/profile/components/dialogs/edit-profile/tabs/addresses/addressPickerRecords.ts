@@ -1,3 +1,8 @@
+import {
+  getCoinTypeForReverseRegistrarChainId,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
+import { envConfig } from '@/config'
 import { addressRecords } from '@/features/profile/data/records'
 import type { AddressRecordDef } from '@/features/profile/data/records/types'
 
@@ -18,10 +23,15 @@ const EVM_COIN_TYPE_OFFSET = 0x80000000
 export const BNB_COIN_TYPE = 714
 export const BSC_COIN_TYPE = 2147483704
 
+// Shared with the explorer, so both key these L2s on the same coin type. The
+// other chains have no reverse registrar and keep their canonical coin type.
+const l2CoinType = (chainId: ReverseRegistrarChainId) =>
+  getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network)
+
 export const evmChainOptions: readonly AddressOption[] = [
-  { coinType: 2147483658, label: 'Optimism' },
-  { coinType: 2147492101, label: 'Base' },
-  { coinType: 2147525809, label: 'Arbitrum' },
+  { coinType: l2CoinType(10), label: 'Optimism' },
+  { coinType: l2CoinType(8453), label: 'Base' },
+  { coinType: l2CoinType(42161), label: 'Arbitrum' },
   { coinType: 2147483972, label: 'ZKsync' },
   { coinType: 2147483785, label: 'Polygon' },
   { coinType: BSC_COIN_TYPE, label: 'BNB' },
@@ -36,8 +46,8 @@ export const otherNetworkOptions: readonly AddressOption[] = [
 const POPULAR_PICKER_RECORD_COUNT = 5
 const EVM_PICKER_POPULAR_COIN_TYPES = [
   2155261425, // Zora
-  2148018000, // Scroll
-  2147542792, // Linea
+  l2CoinType(534352), // Scroll
+  l2CoinType(59144), // Linea
   2147525868, // Celo
   2147483748, // Gnosis
 ] as const

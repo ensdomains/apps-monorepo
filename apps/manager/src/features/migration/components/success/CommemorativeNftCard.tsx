@@ -1,29 +1,44 @@
-import {
-  type IconType,
-  SiOpensea,
-  SiTelegram,
-  SiX,
-} from '@icons-pack/react-simple-icons'
+import { SiOpensea, SiTelegram, SiX } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
-import { type ReactNode, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
+import {
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useReducer,
+  useState,
+} from 'react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn } from '@/lib/utils'
-import { startCommemorativeNftAssetDownload } from '../../commemorative-nft/assets'
 import {
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftConfig,
 } from '../../commemorative-nft/config'
+import { trackNftEvent } from '../../commemorative-nft/diagnostics'
 import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
+import { CommemorativeNftSurpriseCard } from './CommemorativeNftSurpriseCard'
+import { CommemorativeNftTraitsTooltip } from './CommemorativeNftTraitsTooltip'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
 } from './MigrationSuccessDialog.types'
+import { useNftArtworkLoading } from './useNftArtworkLoading'
+import { useNftArtworkVisibility } from './useNftArtworkVisibility'
+import { useNftAssetDownload } from './useNftAssetDownload'
+import { useNftReveal } from './useNftReveal'
+import { useNftShareEntrance } from './useNftShareEntrance'
 
 type SocialControlProps = {
+  readonly isDisabled: boolean
   readonly href?: string
-  readonly icon: IconType
-  readonly onClick?: () => void
+  readonly icon: ReactNode
   readonly children: ReactNode
 }
 
@@ -39,20 +54,21 @@ const hasCardData = (
 ): state is CardDialogState => 'card' in state && !!state.card
 
 const SocialControl = ({
+  isDisabled,
   href,
-  icon: Icon,
-  onClick,
+  icon,
   children,
 }: SocialControlProps) => {
-  if (href) {
+  if (href && !isDisabled) {
     return (
       <a
         className={socialControlClassName}
+        data-nft-share-action
         href={href}
         rel="noreferrer"
         target="_blank"
       >
-        <Icon aria-hidden className="size-4.5" />
+        {icon}
         <span className="sr-only">{children}</span>
       </a>
     )
@@ -61,196 +77,470 @@ const SocialControl = ({
   return (
     <button
       className={socialControlClassName}
-      disabled={!onClick}
-      onClick={onClick}
+      data-nft-share-action
+      disabled
       type="button"
     >
-      <Icon aria-hidden className="size-4.5" />
+      {icon}
       <span className="sr-only">{children}</span>
     </button>
   )
 }
 
-const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
-  const { copy } = useCopyFeedback()
-  const externalUrl = state.card.shareUrls.external
-  const hasDownload = state.status === 'minted' && !!state.card.assets.imageUrl
-
-  return (
-    <fieldset className="relative z-10 flex shrink-0 flex-col border-0 p-0">
-      <legend className="sr-only">
-        <Trans>NFT actions</Trans>
-      </legend>
-      <SocialControl href={state.card.shareUrls.x} icon={SiX}>
-        <Trans>Share on X</Trans>
-      </SocialControl>
-      <SocialControl href={state.card.shareUrls.telegram} icon={SiTelegram}>
-        <Trans>Share on Telegram</Trans>
-      </SocialControl>
-      {state.card.marketplaceUrl ? (
-        <SocialControl href={state.card.marketplaceUrl} icon={SiOpensea}>
-          <Trans>View on OpenSea</Trans>
-        </SocialControl>
-      ) : null}
-      <button
-        className={socialControlClassName}
-        disabled={!externalUrl}
-        onClick={() => externalUrl && void copy(externalUrl)}
-        type="button"
-      >
-        <MSymbol
-          aria-hidden
-          className="ms-wght-500 text-[20px]"
-          symbol="content_copy"
-        />
-        <span className="sr-only">
-          <Trans>Copy link</Trans>
-        </span>
-      </button>
-      <button
-        className={socialControlClassName}
-        disabled={!hasDownload}
-        onClick={() => {
-          const assetUrl = state.card.assets.imageUrl
-          if (!assetUrl) return
-          startCommemorativeNftAssetDownload({
-            assetUrl,
-            filename: 'ensv2-commemorative-nft.webp',
-          })
-        }}
-        type="button"
-      >
-        <MSymbol
-          aria-hidden
-          className="ms-wght-500 text-[20px]"
-          symbol="download"
-        />
-        <span className="sr-only">
-          <Trans>Download WebP</Trans>
-        </span>
-      </button>
-    </fieldset>
-  )
-}
-
-type CardVariant = 'dialog' | 'profile'
-
-const ArtworkCard = ({
-  interactive,
+const SharingRail = ({
+  isDisabled,
   state,
   variant,
 }: {
-  readonly interactive: boolean
+  readonly isDisabled: boolean
   readonly state: CardDialogState
   readonly variant: CardVariant
 }) => {
-  const [artworkFailed, setArtworkFailed] = useState(false)
-  const [imageFailed, setImageFailed] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [attempt, setAttempt] = useState(0)
-  const rendererUrl = buildCommemorativeNftRendererUrl({
-    eligibility: state.card.eligibility,
-    rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
-  })
-  const showImage =
-    artworkFailed && !!state.card.assets.imageUrl && !imageFailed
+  const { copy } = useCopyFeedback()
+  const externalUrl = state.card.shareUrls.external
+  const hasDownload = !!state.card.assets.imageUrl
+  const { download, pending } = useNftAssetDownload(state.card.assets.imageUrl)
+  const stackedActionClassName =
+    variant === 'dialog'
+      ? 'relative z-10 flex basis-full justify-center md:basis-auto md:justify-start'
+      : 'relative z-10'
 
   return (
-    <fieldset
-      aria-label={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
-      className={cn(
-        'flex items-center justify-center border-0 p-0',
+    <div
+      className={
         variant === 'dialog'
-          ? 'h-[310px] w-[250px] min-w-0 shrink'
-          : 'h-[308px] w-[236px] shrink-0',
-      )}
+          ? 'contents md:flex md:flex-col md:gap-2'
+          : 'flex flex-col'
+      }
     >
-      <div
+      <fieldset
         className={cn(
-          'relative rounded-lg bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
-          variant === 'dialog' ? 'h-68.25 w-48.25' : 'h-70.5 w-50',
+          'relative z-10 flex shrink-0 border-0 p-0',
+          variant === 'dialog'
+            ? 'flex-row items-center gap-2 md:flex-col'
+            : 'flex-col',
         )}
       >
-        <CommemorativeNftRendererSurface
-          eligibility={state.card.eligibility}
-          interactive={interactive}
-          key={attempt}
-          onError={() => {
-            setArtworkFailed(true)
-          }}
-          onReady={() => {
-            setArtworkFailed(false)
-          }}
-          rendererUrl={rendererUrl}
-        />
-        {showImage ? (
-          <img
-            alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
-            className="absolute inset-0 z-30 h-full w-full rounded-lg object-contain"
-            onError={() => setImageFailed(true)}
-            onLoad={() => setImageLoaded(true)}
-            src={state.card.assets.imageUrl}
-          />
-        ) : null}
-        {artworkFailed && (!showImage || !imageLoaded) ? (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100 p-4 text-center text-ens-garnet-900 text-sm">
-            <p role="status">
-              {showImage ? (
-                <Trans>Loading NFT artwork…</Trans>
-              ) : (
-                <Trans>Artwork could not be loaded.</Trans>
-              )}
-            </p>
-            <button
-              className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
-              onClick={() => {
-                setArtworkFailed(false)
-                setImageFailed(false)
-                setImageLoaded(false)
-                setAttempt((current) => current + 1)
-              }}
-              type="button"
+        <legend className="sr-only">
+          <Trans>NFT actions</Trans>
+        </legend>
+        {state.status === 'minted' ? (
+          <>
+            <SocialControl
+              href={state.card.shareUrls.x}
+              icon={<SiX aria-hidden className="size-4.5" />}
+              isDisabled={isDisabled}
             >
-              <Trans>Retry artwork</Trans>
-            </button>
-          </div>
+              <Trans>Share on X</Trans>
+            </SocialControl>
+            <SocialControl
+              href={state.card.shareUrls.telegram}
+              icon={<SiTelegram aria-hidden className="size-4.5" />}
+              isDisabled={isDisabled}
+            >
+              <Trans>Share on Telegram</Trans>
+            </SocialControl>
+          </>
         ) : null}
-      </div>
-    </fieldset>
+      </fieldset>
+      {state.status === 'minted' && state.card.marketplaceUrl ? (
+        <div className={stackedActionClassName}>
+          <SocialControl
+            href={state.card.marketplaceUrl}
+            icon={<SiOpensea aria-hidden className="size-4.5" />}
+            isDisabled={isDisabled}
+          >
+            <Trans>View on OpenSea</Trans>
+          </SocialControl>
+        </div>
+      ) : null}
+      {state.status === 'minted' ? (
+        <div className={stackedActionClassName}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={socialControlClassName}
+                data-nft-share-action
+                disabled={isDisabled || (!externalUrl && !hasDownload)}
+                type="button"
+              >
+                <MSymbol
+                  aria-hidden
+                  className="ms-wght-500 text-xl/none"
+                  symbol="more_horiz"
+                />
+                <span className="sr-only">
+                  <Trans>More NFT actions</Trans>
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44" side="left">
+              <DropdownMenuItem
+                aria-busy={pending}
+                disabled={!hasDownload || pending}
+                onSelect={() => void download()}
+              >
+                <MSymbol aria-hidden className="text-lg" symbol="download" />
+                {pending ? (
+                  <Trans>Downloading artwork…</Trans>
+                ) : (
+                  <Trans>Download WebP</Trans>
+                )}
+              </DropdownMenuItem>
+              {externalUrl ? (
+                <>
+                  <DropdownMenuItem asChild>
+                    <a href={externalUrl} rel="noreferrer" target="_blank">
+                      <MSymbol
+                        aria-hidden
+                        className="text-lg"
+                        symbol="arrow_outward"
+                      />
+                      <Trans>Open NFT in a new tab</Trans>
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void copy(externalUrl)}>
+                    <MSymbol
+                      aria-hidden
+                      className="text-lg"
+                      symbol="content_copy"
+                    />
+                    <Trans>Copy link</Trans>
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
-export const CommemorativeNftCard = ({
-  interactive = true,
+type CardVariant = 'dialog' | 'profile' | 'dashboard'
+export type CommemorativeNftArtworkStatus = 'loading' | 'ready' | 'error'
+
+type ArtworkStatusCallback = (status: CommemorativeNftArtworkStatus) => void
+
+const ArtworkActions = ({
+  isDisabled,
   state,
-  variant = 'profile',
+  variant,
 }: {
-  readonly interactive?: boolean
-  readonly state: MigrationSuccessDialogState
-  readonly variant?: CardVariant
+  readonly isDisabled: boolean
+  readonly state: CardDialogState
+  readonly variant: CardVariant
 }) => {
-  const cardState = hasCardData(state) ? state : undefined
+  const actionsRef = useNftShareEntrance(state.status)
 
   return (
     <div
       className={cn(
-        'flex w-full items-center justify-center',
-        variant === 'dialog' ? 'h-[310px]' : 'h-[308px] gap-1',
+        variant === 'dialog'
+          ? 'flex w-full flex-wrap items-center justify-center gap-2 md:col-start-3 md:ml-3 md:w-auto md:flex-col md:flex-nowrap md:self-stretch md:justify-self-start'
+          : 'absolute left-full ml-3 flex flex-col',
+        variant === 'dialog' &&
+          (state.status === 'minted' ? 'md:justify-between' : 'md:justify-end'),
+        variant === 'profile'
+          ? 'top-1/2 -translate-y-1/2'
+          : variant === 'dashboard'
+            ? 'bottom-0 min-h-full justify-between gap-3'
+            : undefined,
+      )}
+      ref={actionsRef}
+    >
+      {state.status === 'minted' ? (
+        <SharingRail isDisabled={isDisabled} state={state} variant={variant} />
+      ) : null}
+      {variant === 'profile' ? null : (
+        <CommemorativeNftTraitsTooltip
+          learnMoreUrl={state.card.learnMoreUrl}
+          marketplaceUrl={
+            state.status === 'minted' ? state.card.marketplaceUrl : undefined
+          }
+          traits={state.card.eligibility.traits}
+        />
+      )}
+    </div>
+  )
+}
+
+const cardFrameStyles = {
+  dialog: {
+    frame: 'flex-col gap-3 md:grid md:grid-cols-[1fr_240px_1fr] md:gap-0',
+    artwork: 'aspect-nft-card max-w-[240px]',
+  },
+  profile: {
+    frame: 'h-77',
+    artwork: 'aspect-nft-card-profile max-w-50',
+  },
+  dashboard: {
+    frame: 'h-92',
+    artwork: 'aspect-nft-card max-w-56',
+  },
+} as const
+
+const CardFrame = ({
+  children,
+  frameRef,
+  variant,
+  actions,
+}: {
+  readonly children: ReactNode
+  readonly frameRef?: Ref<HTMLDivElement>
+  readonly variant: CardVariant
+  readonly actions?: ReactNode
+}) => (
+  <div
+    className={cn(
+      'flex w-full items-center justify-center',
+      cardFrameStyles[variant].frame,
+    )}
+    ref={frameRef}
+  >
+    <div
+      className={cn(
+        'group/nft-card relative',
+        variant === 'dialog' ? 'w-full md:col-start-2' : 'w-[calc(100%-7rem)]',
+        cardFrameStyles[variant].artwork,
       )}
     >
-      {cardState ? (
-        <ArtworkCard
-          interactive={interactive}
-          key={`${cardState.card.eligibility.ownerAddress}:${cardState.card.eligibility.rendererName}`}
-          state={cardState}
-          variant={variant}
-        />
-      ) : (
-        <p className="font-sans text-ens-garnet-500 text-sm" role="status">
-          <Trans>Loading NFT details…</Trans>
-        </p>
-      )}
-      {cardState ? <SharingRail state={cardState} /> : null}
+      {children}
+      {variant === 'dialog' ? null : actions}
     </div>
+    {variant === 'dialog' ? actions : null}
+  </div>
+)
+
+const ArtworkLoading = () => (
+  <div className="absolute inset-0" role="status">
+    <CommemorativeNftSurpriseCard className="w-full" />
+    <span className="sr-only">
+      <Trans>Loading NFT artwork…</Trans>
+    </span>
+  </div>
+)
+
+const shouldAnimateReveal = (
+  variant: CardVariant,
+  status: MigrationSuccessDialogState['status'],
+  reducedMotion: boolean | null,
+) => variant === 'dialog' && status !== 'minted' && !reducedMotion
+
+const useRevealedArtwork = (
+  params: Parameters<typeof useNftArtworkLoading>[0] & {
+    readonly revealEnabled: boolean
+    readonly visible: boolean
+  },
+) => {
+  const [revealFinished, finishReveal] = useReducer(() => true, false)
+  const artwork = useNftArtworkLoading({
+    ...params,
+    deferAnimation: params.revealEnabled && !revealFinished,
+  })
+  const reveal = useNftReveal({
+    enabled: params.revealEnabled && !artwork.imageFailed,
+    onComplete: finishReveal,
+    status: artwork.status,
+    visible: params.visible,
+  })
+  return { artwork, reveal }
+}
+
+const ArtworkCard = ({
+  active,
+  interactive,
+  onStatusChange,
+  onRetry,
+  rendererUrl,
+  state,
+  variant,
+}: {
+  readonly active: boolean
+  readonly interactive: boolean
+  readonly onStatusChange?: ArtworkStatusCallback
+  readonly onRetry: () => void
+  readonly rendererUrl: string | undefined
+  readonly state: CardDialogState
+  readonly variant: CardVariant
+}) => {
+  const visibility = useNftArtworkVisibility(active)
+  const shouldReduceMotion = useReducedMotion()
+  const [playArtwork, setPlayArtwork] = useState(false)
+  const reducedMotionStill = !!shouldReduceMotion && !playArtwork
+  const imageUrl = state.card.assets.imageUrl
+  const revealEnabled = shouldAnimateReveal(
+    variant,
+    state.status,
+    shouldReduceMotion,
+  )
+  const { artwork, reveal } = useRevealedArtwork({
+    imageUrl,
+    revealEnabled,
+    visible: visibility.visible,
+    animate: visibility.visible && !reducedMotionStill,
+    waitingForVisibility: active && !reducedMotionStill && !visibility.resolved,
+  })
+  const { status } = artwork
+  const artworkReady = status === 'ready'
+  const artworkFailed = status === 'error'
+  const {
+    ready: presentationReady,
+    showArtwork,
+    status: presentationStatus,
+  } = reveal
+
+  useEffect(() => {
+    onStatusChange?.(presentationStatus)
+  }, [onStatusChange, presentationStatus])
+
+  useEffect(() => {
+    if (shouldReduceMotion)
+      trackNftEvent('nft:renderer_fallback', { reason: 'reduced_motion' })
+  }, [shouldReduceMotion])
+
+  return (
+    <CardFrame
+      actions={
+        presentationReady ? (
+          <ArtworkActions
+            isDisabled={!artworkReady}
+            state={state}
+            variant={variant}
+          />
+        ) : null
+      }
+      frameRef={visibility.ref}
+      variant={variant}
+    >
+      <div
+        aria-hidden={showArtwork || artworkFailed}
+        className={cn(
+          'pointer-events-none absolute inset-0 z-10 transition-opacity duration-600 ease-out motion-reduce:transition-none',
+          showArtwork ? 'opacity-0' : 'opacity-100',
+        )}
+      >
+        <ArtworkLoading />
+      </div>
+      {/* Let outside taps dismiss traits before interacting with the iframe. */}
+      <div
+        className={cn(
+          'absolute inset-0 transition-opacity duration-600 ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none data-[revealing=true]:overflow-hidden data-[revealing=true]:rounded-lg motion-reduce:transition-none',
+          showArtwork ? 'opacity-100' : 'opacity-0',
+        )}
+        data-revealing={reveal.running}
+      >
+        {artwork.imageReady ? (
+          <img
+            alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
+            aria-hidden={!artworkReady}
+            className={cn(
+              'pointer-events-none absolute inset-0 h-full w-full select-none rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)] transition-opacity duration-300 ease-out motion-reduce:transition-none',
+              artworkReady && !artwork.animationReady
+                ? 'opacity-100'
+                : 'opacity-0',
+            )}
+            decoding="async"
+            draggable={false}
+            src={imageUrl}
+          />
+        ) : null}
+        {artwork.renderAnimation ? (
+          <CommemorativeNftRendererSurface
+            eligibility={state.card.eligibility}
+            interactive={interactive}
+            onError={artwork.onRendererError}
+            onReady={artwork.onRendererReady}
+            placeholder={false}
+            rendererUrl={rendererUrl}
+          />
+        ) : null}
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-lg"
+        ref={reveal.host}
+      />
+      {reducedMotionStill && artworkReady ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <button
+            className="pointer-events-auto min-h-11 rounded-lg border border-ens-garnet-900 bg-ens-garnet-100 px-4 py-2 text-ens-garnet-900 text-sm focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
+            onClick={() => setPlayArtwork(true)}
+            type="button"
+          >
+            <Trans>Play artwork</Trans>
+          </button>
+        </div>
+      ) : null}
+      {artworkFailed ? (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100/95 p-4 text-center text-ens-garnet-900 text-sm">
+          <p role="status">
+            <Trans>Artwork could not be loaded.</Trans>
+          </p>
+          <button
+            className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
+            onClick={onRetry}
+            type="button"
+          >
+            <Trans>Retry artwork</Trans>
+          </button>
+        </div>
+      ) : null}
+    </CardFrame>
+  )
+}
+
+const RetryableArtworkCard = (
+  props: Omit<Parameters<typeof ArtworkCard>[0], 'onRetry'>,
+) => {
+  const [attempt, setAttempt] = useState(0)
+  return (
+    <ArtworkCard
+      {...props}
+      key={attempt}
+      onRetry={() => setAttempt((current) => current + 1)}
+    />
+  )
+}
+
+export const CommemorativeNftCard = ({
+  active = true,
+  interactive = true,
+  onStatusChange,
+  state,
+  variant = 'profile',
+}: {
+  readonly active?: boolean
+  readonly interactive?: boolean
+  readonly onStatusChange?: ArtworkStatusCallback
+  readonly state: MigrationSuccessDialogState
+  readonly variant?: CardVariant
+}) => {
+  const cardState = hasCardData(state) ? state : undefined
+  const rendererOrigin = getCommemorativeNftConfig().rendererOrigin
+  const rendererUrl = cardState
+    ? buildCommemorativeNftRendererUrl({
+        eligibility: cardState.card.eligibility,
+        rendererOrigin,
+      })
+    : undefined
+
+  if (!cardState)
+    return (
+      <CardFrame variant={variant}>
+        <ArtworkLoading />
+      </CardFrame>
+    )
+
+  return (
+    <RetryableArtworkCard
+      active={active}
+      interactive={interactive}
+      key={`${rendererUrl}:${cardState.card.eligibility.rendererName}:${cardState.card.assets.imageUrl}`}
+      onStatusChange={onStatusChange}
+      rendererUrl={rendererUrl}
+      state={cardState}
+      variant={variant}
+    />
   )
 }

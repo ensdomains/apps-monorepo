@@ -1,9 +1,14 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
-import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import type { ProfileRecords } from '@/features/profile/types'
+import { imageRecordQuery } from './profileImageRecord'
 import type { ImageType } from './profileImageUpload'
-import { profileRecordsQuery } from './profileRecords'
+import {
+  getVersionedProfileImageUrl,
+  isUploadedProfileImageUrl,
+  profileImageVersionQuery,
+} from './profileImageVersion'
+import type { ProfileRecordsResult } from './profileRecords'
 
 export interface SignedProfileImageUpload {
   readonly kind: ImageType
@@ -12,8 +17,46 @@ export interface SignedProfileImageUpload {
 
 interface RefreshProfileImageCachesParams {
   readonly images: readonly SignedProfileImageUpload[]
-  readonly name: string
   readonly queryClient: QueryClient
+}
+
+const PROFILE_IMAGE_TEXT_KEYS = ['avatar', 'header', 'theme'] as const
+
+export const updateProfileImageRecords = async ({
+  name,
+  records,
+  queryClient,
+}: {
+  readonly name: string
+  readonly records: ProfileRecords
+  readonly queryClient: QueryClient
+}) => {
+  const filters = {
+    queryKey: $qk({ $scope: 'profile', $action: 'get_records', name }),
+  }
+  // A read started before the save must not restore the previous image records.
+  await queryClient.cancelQueries(filters)
+
+  const texts = PROFILE_IMAGE_TEXT_KEYS.flatMap((key) => {
+    const value = records.base[key]?.trim()
+    return value ? [{ key, value }] : []
+  })
+  queryClient.setQueriesData<Pick<ProfileRecordsResult, 'texts'>>(
+    filters,
+    (previous) =>
+      previous
+        ? {
+            ...previous,
+            texts: [
+              ...previous.texts.filter(
+                ({ key }) =>
+                  !PROFILE_IMAGE_TEXT_KEYS.some((imageKey) => imageKey === key),
+              ),
+              ...texts,
+            ],
+          }
+        : undefined,
+  )
 }
 
 const getQueryMeta = (queryKey: QueryKey): Record<string, unknown> | null => {
@@ -36,21 +79,6 @@ const getQueryMetaString = (
 
 const normalizeImageUrl = (imageUrl: string) => imageUrl.trim()
 
-const isGaslessProfileImageUrl = (imageUrl: string) =>
-  normalizeImageUrl(imageUrl).startsWith(AVATAR_UPLOAD_BASE_URL)
-
-const getCacheBustedImageUrl = (imageUrl: string, version: number) => {
-  const normalizedImageUrl = normalizeImageUrl(imageUrl)
-
-  if (!isGaslessProfileImageUrl(normalizedImageUrl)) {
-    return imageUrl
-  }
-
-  const url = new URL(normalizedImageUrl)
-  url.searchParams.set('v', String(version))
-  return url.toString()
-}
-
 export const getActiveSignedProfileImageUploads = <
   TImage extends SignedProfileImageUpload,
 >({
@@ -66,62 +94,35 @@ export const getActiveSignedProfileImageUploads = <
       normalizeImageUrl(imageUrl),
   )
 
-const refreshParsedAvatarCaches = ({
-  images,
-  queryClient,
-  version,
-}: {
-  readonly images: readonly SignedProfileImageUpload[]
-  readonly queryClient: QueryClient
-  readonly version: number
-}) => {
-  const imageUrlByRecord = new Map(
-    images.map(({ imageUrl }) => [
-      normalizeImageUrl(imageUrl),
-      getCacheBustedImageUrl(imageUrl, version),
-    ]),
-  )
-
-  for (const query of queryClient.getQueryCache().findAll({
-    queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
-  })) {
-    const record = getQueryMetaString(query.queryKey, 'record')
-    const imageUrl = record
-      ? imageUrlByRecord.get(normalizeImageUrl(record))
-      : undefined
-
-    if (imageUrl) {
-      queryClient.setQueryData(query.queryKey, imageUrl)
-    }
-  }
-}
-
 export const refreshProfileImageCaches = async ({
   images,
-  name,
   queryClient,
 }: RefreshProfileImageCachesParams) => {
-  const gaslessImages = images.filter(({ imageUrl }) =>
-    isGaslessProfileImageUrl(imageUrl),
+  await Promise.all(
+    images
+      .filter(({ imageUrl }) => isUploadedProfileImageUrl(imageUrl))
+      .map(async ({ imageUrl }) => {
+        const record = normalizeImageUrl(imageUrl)
+        const filters = {
+          queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
+          predicate: (query: { readonly queryKey: QueryKey }) =>
+            getQueryMetaString(query.queryKey, 'record')?.trim() === record,
+        }
+        await queryClient.cancelQueries(filters)
+
+        const { queryKey, ...defaults } = profileImageVersionQuery(record)
+        queryClient.setQueryDefaults(queryKey, defaults)
+        const version = Math.max(
+          Date.now(),
+          (queryClient.getQueryData(queryKey) ?? 0) + 1,
+        )
+        queryClient.setQueryData(queryKey, version)
+
+        const url = getVersionedProfileImageUrl(record, version)
+        queryClient.setQueriesData(filters, url)
+        // Seed the default query even when the editor has only shown a local
+        // preview and no image-record observer has mounted yet.
+        queryClient.setQueryData(imageRecordQuery(record).queryKey, url)
+      }),
   )
-
-  if (gaslessImages.length === 0) {
-    return
-  }
-
-  await Promise.all([
-    queryClient.invalidateQueries({
-      queryKey: profileRecordsQuery(name).queryKey,
-    }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
-    }),
-  ])
-
-  const version = Date.now()
-  refreshParsedAvatarCaches({
-    images: gaslessImages,
-    queryClient,
-    version,
-  })
 }

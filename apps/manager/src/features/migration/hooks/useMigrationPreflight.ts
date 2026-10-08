@@ -16,6 +16,8 @@ type HookParams = {
 type EnsureOptions = {
   readonly signal?: AbortSignal
   readonly staleTime?: number
+  /** Whether any name was opted in to manager restoration. */
+  readonly requiresManagerRestoration?: boolean
 }
 
 export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
@@ -35,18 +37,27 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
       .map((d) => d.id)
       .sort()
       .join(',')
+    // Part of the key, but only as a boolean: restoring a manager adds an
+    // ETHRegistry operator approval, so a preflight taken without it would plan
+    // the wrong approvals — yet *which* names were picked changes nothing here,
+    // so ticking a second name reuses this (on-chain) result instead of
+    // re-running it.
+    const requiresManagerRestoration =
+      options.requiresManagerRestoration ?? false
     const preflight = await queryClient.fetchQuery({
       queryKey: [
         'migration-preflight',
         eoa.toLowerCase(),
         hcaAddress?.toLowerCase() ?? '',
         ids,
+        requiresManagerRestoration,
       ] as const,
       queryFn: () =>
         computeMigrationPreflight({
           eoa,
           hcaAddress,
           domains,
+          requiresManagerRestoration,
           wagmiConfig,
           publicClient: publicClient as unknown as PublicClient,
           signal: options.signal,

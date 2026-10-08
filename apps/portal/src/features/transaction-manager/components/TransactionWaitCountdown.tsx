@@ -1,5 +1,5 @@
 import { Hourglass } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useWaitRemaining } from '../hooks/useWaitRemaining'
 
 type TransactionWaitCountdownProps = {
   /** Unix ms timestamp at which the wait ends */
@@ -17,22 +17,7 @@ export const TransactionWaitCountdown = ({
   waitUntil,
   className,
 }: TransactionWaitCountdownProps) => {
-  const [remainingMs, setRemainingMs] = useState(() =>
-    Math.max(0, waitUntil - Date.now()),
-  )
-
-  useEffect(() => {
-    setRemainingMs(Math.max(0, waitUntil - Date.now()))
-    if (waitUntil <= Date.now()) return
-
-    const interval = setInterval(() => {
-      const next = Math.max(0, waitUntil - Date.now())
-      setRemainingMs(next)
-      if (next <= 0) clearInterval(interval)
-    }, 500)
-
-    return () => clearInterval(interval)
-  }, [waitUntil])
+  const remainingMs = useWaitRemaining(waitUntil)
 
   if (remainingMs <= 0) return null
 

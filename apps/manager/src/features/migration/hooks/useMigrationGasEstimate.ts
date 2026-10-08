@@ -7,10 +7,16 @@ import {
   buildMigrationPlan,
   buildMigrationRecoveryPlan,
   type MigrationPlan,
+  MigrationRecoveryPlanError,
 } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
 import { estimateMigrationGasCost } from '@/features/migration/service/estimateMigrationGasCost'
 import type { MigrationRecoverySnapshot } from '@/features/migration/service/migrationBatchJournal'
+import {
+  type MigrationPreparationFailure,
+  migrationPreparationFailure,
+  runMigrationPreparationStage,
+} from '@/features/migration/service/migrationPreparationError'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
@@ -26,13 +32,15 @@ export type MigrationGasEstimateState =
       readonly transactionCount: number
       readonly plan: MigrationPlan
     }
-  | { readonly status: 'error'; readonly message?: string }
+  | ({ readonly status: 'error' } & MigrationPreparationFailure)
 
 type UseMigrationGasEstimateParams = {
   readonly ownerAddress: Address | undefined
   readonly hcaAddress: Address | undefined
   readonly accountError?: string | null
   readonly selectedNames: readonly string[]
+  /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
+  readonly managerRestorationNames?: readonly string[]
   readonly v1Names: readonly V1Domain[]
   readonly enabled?: boolean
 }
@@ -77,55 +85,79 @@ const buildEstimate = async (params: {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
+  readonly managerRestorationNames: readonly string[]
   readonly signal: AbortSignal
   readonly ensurePreflight: (
     domains: readonly V1Domain[],
     options: {
       readonly signal: AbortSignal
       readonly staleTime: number
+      readonly requiresManagerRestoration: boolean
     },
   ) => Promise<MigrationPreflight>
 }) => {
   const { ownerAddress, hcaAddress, publicClient } = params
   params.signal.throwIfAborted()
   if (!ownerAddress || !hcaAddress || !publicClient) {
-    throw new Error(
-      'Cannot estimate migration gas without a wallet and HCA address',
+    return runMigrationPreparationStage('account', () =>
+      Promise.reject(new Error('Account setup incomplete')),
     )
   }
-  if (params.recoverySnapshot) {
+  const recoverySnapshot = params.recoverySnapshot
+  if (recoverySnapshot) {
     if (!params.recoverySelectionMatches) {
-      throw new Error(
-        'Select every remaining name to safely resume this migration.',
+      return runMigrationPreparationStage('recovery', () =>
+        Promise.reject(
+          new MigrationRecoveryPlanError({
+            message: 'Select every remaining name to continue your upgrade.',
+            reason: 'operation-mismatch',
+          }),
+        ),
       )
     }
-    const plan = await buildMigrationRecoveryPlan({
-      snapshot: params.recoverySnapshot,
-      hcaAddress,
-      migrationOwner: ownerAddress,
-      publicClient,
-      signal: params.signal,
-    })
+    const plan = await runMigrationPreparationStage('recovery', () =>
+      buildMigrationRecoveryPlan({
+        snapshot: recoverySnapshot,
+        hcaAddress,
+        migrationOwner: ownerAddress,
+        publicClient,
+        signal: params.signal,
+      }),
+    )
     params.signal.throwIfAborted()
-    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+    const estimate = await runMigrationPreparationStage('fee', async () => {
+      const result = await estimateMigrationGasCost({ plan, publicClient })
+      if (result.status === 'error') throw result.error
+      return result
+    })
     params.signal.throwIfAborted()
     return { estimate, plan }
   }
-  const preflight = await params.ensurePreflight(params.domains, {
-    signal: params.signal,
-    staleTime: 0,
-  })
+  const preflight = await runMigrationPreparationStage('preflight', () =>
+    params.ensurePreflight(params.domains, {
+      signal: params.signal,
+      staleTime: 0,
+      requiresManagerRestoration: params.managerRestorationNames.length > 0,
+    }),
+  )
   params.signal.throwIfAborted()
-  const plan = await buildMigrationPlan({
-    domains: params.domains,
-    hcaAddress,
-    migrationOwner: ownerAddress,
-    publicClient,
-    preflight,
-    signal: params.signal,
-  })
+  const plan = await runMigrationPreparationStage('plan', () =>
+    buildMigrationPlan({
+      domains: params.domains,
+      hcaAddress,
+      migrationOwner: ownerAddress,
+      managerRestorationNames: params.managerRestorationNames,
+      publicClient,
+      preflight,
+      signal: params.signal,
+    }),
+  )
   params.signal.throwIfAborted()
-  const estimate = await estimateMigrationGasCost({ plan, publicClient })
+  const estimate = await runMigrationPreparationStage('fee', async () => {
+    const result = await estimateMigrationGasCost({ plan, publicClient })
+    if (result.status === 'error') throw result.error
+    return result
+  })
   params.signal.throwIfAborted()
   return { estimate, plan }
 }
@@ -135,6 +167,7 @@ export const useMigrationGasEstimate = ({
   hcaAddress,
   accountError,
   selectedNames,
+  managerRestorationNames,
   v1Names,
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
@@ -149,6 +182,12 @@ export const useMigrationGasEstimate = ({
   const selectedNamesKey = useMemo(
     () => [...selectedNames].sort(),
     [selectedNames],
+  )
+  // A per-name opt-in changes the calls inside the batch, so it has to key the
+  // estimate the same way the selection does.
+  const managerRestorationKey = useMemo(
+    () => [...(managerRestorationNames ?? [])].sort(),
+    [managerRestorationNames],
   )
   const domains = useMemo(
     () =>
@@ -190,6 +229,7 @@ export const useMigrationGasEstimate = ({
         hcaAddress: hcaAddress?.toLowerCase() ?? '',
         domainIds,
         selectedNames: selectedNamesKey,
+        managerRestorationNames: managerRestorationKey,
         recoveryOperations,
       },
     ] as const,
@@ -207,6 +247,7 @@ export const useMigrationGasEstimate = ({
         recoverySnapshot,
         recoverySelectionMatches,
         domains,
+        managerRestorationNames: managerRestorationKey,
         ensurePreflight,
         signal,
       })
@@ -215,7 +256,10 @@ export const useMigrationGasEstimate = ({
 
   if (!enabled) {
     if (selectedNames.length > 0 && accountError) {
-      return { status: 'error', message: accountError }
+      return {
+        status: 'error',
+        ...migrationPreparationFailure(accountError, 'account'),
+      }
     }
     if (
       selectedNames.length > 0 &&
@@ -229,8 +273,8 @@ export const useMigrationGasEstimate = ({
     return { status: 'idle' }
   }
   if (query.isPending || query.isFetching) return { status: 'loading' }
-  if (query.isError || query.data?.estimate.status === 'error')
-    return { status: 'error' }
+  if (query.isError)
+    return { status: 'error', ...migrationPreparationFailure(query.error) }
   if (!query.data) return { status: 'idle' }
 
   return {

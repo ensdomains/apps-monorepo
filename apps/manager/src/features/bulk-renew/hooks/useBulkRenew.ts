@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addSeconds } from 'date-fns'
 import { useMemo } from 'react'
@@ -17,6 +13,7 @@ import {
   type StablecoinBalance,
   useSmartAccountContext,
 } from '@/lib/smart-account'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { hasInsufficientBalance } from '@/utils/payment'
 import type {

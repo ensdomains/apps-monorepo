@@ -33,19 +33,26 @@ export const isTransactionInFlight = (
   IN_FLIGHT_STATES.has(state.machineState)
 
 /**
- * Derives the state of the most recent active transaction from the transaction
- * manager. Subscribes to the active actor so state transitions (pending →
- * success / error) trigger a re-render — the transactions Map itself only
- * notifies on add/remove.
+ * Derives the state of an active transaction from the transaction manager.
+ * Subscribes to the active actor so state transitions (pending → success /
+ * error) trigger a re-render — the transactions Map itself only notifies on
+ * add/remove.
+ *
+ * Defaults to the most recent transaction, which is what the app-wide modal
+ * renders. Pass `id` to read one specific flow's entry instead, so a caller
+ * that acts on the state — cancelling a stale entry before starting afresh —
+ * can't touch a transaction belonging to another flow.
  */
-export function useActiveTransactionState():
-  | ActiveTransactionState
-  | undefined {
+export function useActiveTransactionState(
+  id?: string,
+): ActiveTransactionState | undefined {
   const transactions = useActiveTransactions()
 
   const entries = Array.from(transactions.entries())
-  const lastEntry = entries[entries.length - 1]
-  const [txId, actor] = lastEntry ?? []
+  const entry = id
+    ? entries.find(([entryId]) => entryId === id)
+    : entries[entries.length - 1]
+  const [txId, actor] = entry ?? []
 
   const snapshot = useSyncExternalStore(
     (onChange) => {

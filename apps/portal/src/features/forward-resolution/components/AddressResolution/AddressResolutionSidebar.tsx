@@ -1,4 +1,5 @@
 import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQueryClient } from '@tanstack/react-query'
@@ -32,7 +33,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { envConfig } from '@/config'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
@@ -40,6 +43,7 @@ import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution
 import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -171,6 +175,7 @@ const CoinTypeRow = ({
 
 const AddressField = ({
   address,
+  addressSource,
   canEdit,
   addressInput,
   setAddressInput,
@@ -180,6 +185,7 @@ const AddressField = ({
   onSave,
 }: {
   address: string | null
+  addressSource: AddressResolutionRow['addressSource']
   canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
@@ -190,6 +196,12 @@ const AddressField = ({
 }) => (
   <InfoRow label="Address">
     <div className="flex-1 flex flex-col gap-2">
+      {addressSource === 'default' && (
+        <span className="text-sm text-muted-foreground">
+          No record is set for this network — showing the ENSIP-19 default (
+          <code className="font-mono">0x80000000</code>).
+        </span>
+      )}
       {address ? (
         isAddress(address) ? (
           <EntityBadge variant="address" address={address} format="wrap">
@@ -393,6 +405,7 @@ const ResolutionDetails = ({
         <CoinTypeRow coinType={coinType} icon={icon} label={label} />
         <AddressField
           address={address}
+          addressSource={row.addressSource}
           canEdit={canEdit}
           addressInput={addressInput}
           setAddressInput={setAddressInput}
@@ -437,7 +450,11 @@ const useAddressRecordEditor = (
 ) => {
   const { address: connectedAddress, isConnected } = useConnection()
   const queryClient = useQueryClient()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names the attempt the modal is showing. Both flows here reuse one fixed id
+  // per action, so without this an edit abandoned mid-flight leaves a settled
+  // actor behind and the next attempt shows the step as already done.
+  const attempt = useFlowAttempt()
   const {
     saveRecords,
     isWriting,
@@ -448,25 +465,10 @@ const useAddressRecordEditor = (
     switchToRequiredNetwork,
   } = useSaveRecords()
 
-  // "Set primary name" sets the reverse record that actually controls the
-  // selected row via `setName(string)` (which sets `msg.sender`'s own record):
-  //   - Default row (0x80000000) → ENSv1 `DefaultReverseRegistrar` (default.reverse)
-  //   - Mainnet row (coin 60)    → ENSv1 `ReverseRegistrar` (addr.reverse)
-  //   - L2 rows                  → that chain's L2 reverse registrar
-  // Per-row routing matters because a chain-specific record shadows
-  // `default.reverse` (ENSIP-19) — a default write could succeed on-chain
-  // while leaving the selected row unresolved.
-  // Offered only when the connected wallet *is* this address (setName is
-  // msg.sender-scoped).
-  const canSetPrimaryName =
-    !!connectedAddress &&
-    !!data?.address &&
-    isAddress(data.address, { strict: false }) &&
-    isAddressEqual(connectedAddress, data.address)
-
+  const setPrimaryTxId = scopeTransactionId(SET_PRIMARY_TX_ID, attempt.scope)
   const { setReverseResolution } = useSetReverseResolution({
     chainId: sepoliaWithEns.id,
-    id: SET_PRIMARY_TX_ID,
+    id: setPrimaryTxId,
   })
   const { setL2ReverseNameAsync, isPending: isSettingL2PrimaryName } =
     useSetL2ReverseName()
@@ -489,15 +491,56 @@ const useAddressRecordEditor = (
     if (data) setEdit({ coinType: data.coinType, value })
   }
 
+  // Root `ROLE_SET_ADDRESS`, or the role scoped to this row's coin type.
   const { canEdit } = useCanEditRecords({
     name,
-    roles: ['ROLE_SET_ADDR'],
+    roles: ['ROLE_SET_ADDRESS'],
+    scope: data
+      ? { kind: 'address', coinType: BigInt(data.coinType) }
+      : undefined,
   })
 
-  const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
+  const { isOwner } = useIsNameOwner({ name })
+
+  // "Set primary name" sets the reverse record that actually controls the
+  // selected row via `setName(string)` (which sets `msg.sender`'s own record):
+  //   - Default row (0x80000000) → ENSv1 `DefaultReverseRegistrar` (default.reverse)
+  //   - Mainnet row (coin 60)    → ENSv1 `ReverseRegistrar` (addr.reverse)
+  //   - L2 rows                  → that chain's L2 reverse registrar
+  // Per-row routing matters because a chain-specific record shadows
+  // `default.reverse` (ENSIP-19) — a default write could succeed on-chain
+  // while leaving the selected row unresolved.
+  //
+  // Two conditions, and both are load-bearing:
+  //   - the connected wallet owns this name — the address in the row is the
+  //     name's own `addr(coinType)` record, which its owner points wherever
+  //     they like, so to a visitor it is attacker-controlled. Without this
+  //     check any visitor the record points at sees a red mismatch banner
+  //     whose only action hands their primary name to someone else's name.
+  //     `useIsNameOwner` rather than `useCanEditRecords`'s `isOwner`: for an
+  //     unwrapped V1 `.eth` 2LD the latter is the registry controller, which
+  //     would hide the action from the registrant who actually holds the token.
+  //   - the connected wallet *is* this address — `setName` is msg.sender-scoped,
+  //     so nobody else's reverse record can be written from here anyway.
+  // Non-owners still see the banner; it is information about the name, with no
+  // action attached.
+  const canSetPrimaryName =
+    isOwner &&
+    !!connectedAddress &&
+    !!data?.address &&
+    isAddress(data.address, { strict: false }) &&
+    isAddressEqual(connectedAddress, data.address)
+
+  // The set-addr id is derived from the coin type rather than hard-coded, but
+  // it is still stable across attempts, so it needs the same scoping.
+  const txId = scopeTransactionId(
+    data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr',
+    attempt.scope,
+  )
   const onTransactionDone = () => {
     closeModal()
     clearTransaction()
+    attempt.end()
   }
   const onPrimaryNameDone = () => {
     // The resolved addresses didn't change — only the reverse record did — so
@@ -536,7 +579,7 @@ const useAddressRecordEditor = (
     // `addr.reverse` via the ENSv1 `ReverseRegistrar`; the Default row writes
     // `default.reverse`. Both are `setName(string)` on Sepolia L1.
     if (data?.coinType === MAINNET_COIN_TYPE) {
-      const registrarAddress = getRegistrarAddress(60, 'sepolia')
+      const registrarAddress = getRegistrarAddress(60, envConfig.network)
       if (!registrarAddress) return
       setReverseResolution({
         name,
@@ -593,15 +636,16 @@ const useAddressRecordEditor = (
 
   const openFlow = (flow: 'addr' | 'primary') => {
     if (isWrongChain) return switchToRequiredNetwork()
+    if (!connectedAddress) return
     setActiveFlow(flow)
-    openModal()
+    attempt.start(connectedAddress)
   }
 
   const transactions =
     activeFlow === 'primary'
       ? [
           {
-            id: SET_PRIMARY_TX_ID,
+            id: setPrimaryTxId,
             title: 'Set primary name',
             transactionName: `Set ${name} as the primary name`,
             estimatedGasCost: 0.0001,

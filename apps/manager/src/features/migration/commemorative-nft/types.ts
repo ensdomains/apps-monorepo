@@ -23,7 +23,7 @@ export type CommemorativeNftAssets = {
   readonly externalUrl?: string
 }
 
-export type CommemorativeNftEligibilitySource = 'static' | 'preview'
+type CommemorativeNftEligibilitySource = 'static' | 'preview'
 
 export type CommemorativeNftEligibility = {
   readonly ownerAddress: Address
@@ -47,4 +47,5 @@ export type CommemorativeNftShareUrls = {
   readonly x?: string
   readonly telegram?: string
   readonly external?: string
+  readonly message?: string
 }

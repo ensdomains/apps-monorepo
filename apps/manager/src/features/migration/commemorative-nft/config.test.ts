@@ -1,12 +1,40 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { EnsNetwork } from '@ens-apps/config'
+import { QueryClient } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
+  getCommemorativeNftContractAddress,
 } from './config'
+import { commemorativeNftEligibilityQueryOptions } from './queries'
+
+const { config } = vi.hoisted(() => ({
+  config: { network: 'sepolia' as EnsNetwork },
+}))
+
+vi.mock('@/config', () => ({ envConfig: config }))
 
 describe('commemorative NFT config', () => {
+  beforeEach(() => {
+    config.network = 'sepolia'
+  })
+
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('uses the resolved ENS network for the deployed Sepolia contract', () => {
+    vi.stubEnv('VITE_ENS_NETWORK', 'mainnet')
+    expect(getCommemorativeNftContractAddress()).toBe(
+      '0xa55605c6242CbFc27117b63466B423fbc092a2A9',
+    )
+  })
+
+  it('keeps undeployed mainnet unavailable without a Sepolia fallback', () => {
+    config.network = 'mainnet'
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    expect(getCommemorativeNftContractAddress()).toBeUndefined()
   })
 
   it('uses the configured renderer origin', () => {
@@ -20,20 +48,48 @@ describe('commemorative NFT config', () => {
     )
   })
 
-  it('falls back to the default renderer origin', () => {
-    vi.stubEnv('VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN', '')
-
-    expect(getCommemorativeNftConfig().rendererOrigin).toBe(
-      'https://nft.ens.dev',
-    )
+  it.each([
+    'not a URL',
+    'javascript:alert(1)',
+    'https://user:password@assets.example',
+    'https://assets.example/path',
+    'https://assets.example?debug=1',
+    'https://assets.example#fragment',
+    'http://assets.example',
+  ])('disables malformed or unsafe origins without throwing: %s', (origin) => {
+    vi.stubEnv('VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN', origin)
+    expect(getCommemorativeNftConfig()).toMatchObject({ isValid: false })
+    expect(() => new URL(getCommemorativeNftConfig().assetOrigin)).not.toThrow()
   })
 
-  it('uses the immutable R2 origin by default', () => {
-    vi.stubEnv('VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN', '')
-
-    expect(getCommemorativeNftConfig().assetOrigin).toBe(
-      'https://nft-assets.ens.dev',
+  it('only allows local HTTP in development', () => {
+    vi.stubEnv(
+      'VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN',
+      'http://localhost:4000',
     )
+    vi.stubEnv('DEV', false)
+    expect(getCommemorativeNftConfig().isValid).toBe(false)
+    vi.stubEnv('DEV', true)
+    expect(getCommemorativeNftConfig()).toMatchObject({
+      isValid: true,
+      rendererOrigin: 'http://localhost:4000',
+    })
+  })
+
+  it('never fetches default assets after an invalid configuration, even on manual refetch', async () => {
+    vi.stubEnv('VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN', 'invalid')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    const client = new QueryClient()
+    await expect(
+      client.fetchQuery(
+        commemorativeNftEligibilityQueryOptions({
+          ownerAddress: '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF',
+        }),
+      ),
+    ).resolves.toEqual({ status: 'unavailable' })
+    expect(fetcher).not.toHaveBeenCalled()
+    client.clear()
   })
 
   it.each([

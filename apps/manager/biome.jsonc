@@ -18,6 +18,8 @@
       // Biome parses them as JSX/HTML and emits noise (parse errors,
       // a11y/noSvgWithoutTitle, useSortedAttributes). Exclude them.
       "!**/*.svg",
+      // Generated Lottie animation data.
+      "!**/walk-animations/*.json",
       // Generated files
       "!**/*.gen.ts",
       "!**/*.gen.d.ts",

@@ -1,9 +1,7 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
-import type { Address, Hex } from 'viem'
-import { getStorageAt } from 'viem/actions'
+import type { Address } from 'viem'
 
-import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
+import { isVerifiedPermissionedResolver } from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { resolveAvatarRecord } from './avatar'
 import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
@@ -18,6 +16,13 @@ export interface EnsData {
 
 /** Cap the avatar payload to avoid memory-exhaustion / amplification abuse. */
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
+
+/**
+ * Cap the attacker-controlled description at the source: the meta block escapes
+ * it into two tags, so an uncapped record sits in memory at ~12x its size.
+ * Generous next to the ~200 chars OG readers show.
+ */
+const DESCRIPTION_MAX_CHARS = 300
 
 /**
  * Base64-encode bytes via the runtime's native `btoa`.
@@ -137,43 +142,24 @@ export async function resolveOwner(
 }
 
 /** EIP-1967 implementation slot — mirrors `useIsPermissionedResolver`. */
-const EIP1967_IMPLEMENTATION_SLOT: Hex =
-  '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
-
 /**
  * Determine whether a resolver is an ENS Permissioned Resolver, so the OG card
  * can render the "Permissioned Resolver" subtitle.
  *
- * Worker-side mirror of {@link useIsPermissionedResolver}: read the EIP-1967
- * implementation slot and compare against the known permissioned-resolver
- * implementation for the chain. Any failure resolves to `false` so the card
- * still renders (just as a plain "Resolver").
+ * Worker-side mirror of {@link useIsPermissionedResolver}: the EIP-1967 slot
+ * must name the known implementation and the VerifiableFactory must vouch for
+ * the proxy. Any failure resolves to `false` so the card still renders (just as
+ * a plain "Resolver").
  */
 export async function fetchIsPermissionedResolver(
   env: Env,
   address: string,
 ): Promise<boolean> {
   try {
-    const client = createClient(env)
-
-    const knownImpl = getChainContractAddress({
-      chain: client.chain,
-      contract: 'ensPermissionedResolverImpl',
-    })?.toLowerCase()
-    if (!knownImpl) return false
-
-    const normalized = address.toLowerCase()
-    if (normalized === knownImpl) return true
-
-    const slotValue = await getStorageAt(client, {
+    return await isVerifiedPermissionedResolver({
+      client: createClient(env),
       address: address as Address,
-      slot: EIP1967_IMPLEMENTATION_SLOT,
     })
-
-    const implementation = decodeImplementationAddress(slotValue)
-    if (!implementation) return false
-
-    return implementation.toLowerCase() === knownImpl
   } catch {
     return false
   }
@@ -212,7 +198,12 @@ export async function fetchEnsData(
     return {
       avatar,
       description:
-        records.texts.find((r) => r.key === 'description')?.value ?? null,
+        records.texts
+          .find((r) => r.key === 'description')
+          // Drop a trailing lone high surrogate the cap may have split off an
+          // emoji, which would otherwise render as a replacement character.
+          ?.value?.slice(0, DESCRIPTION_MAX_CHARS)
+          .replace(/[\uD800-\uDBFF]$/, '') ?? null,
       owner,
     }
   } catch {

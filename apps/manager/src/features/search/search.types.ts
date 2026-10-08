@@ -1,0 +1,61 @@
+import type { Address } from 'viem'
+
+export type ParsedSearchQuery =
+  | { readonly type: 'empty' }
+  | { readonly type: 'address'; readonly value: Address }
+  | { readonly type: 'name'; readonly value: string }
+  | { readonly type: 'invalid'; readonly value: string }
+
+export type SearchNameInvalidReason = 'too-short' | 'invalid-format'
+
+export type SearchNameKind =
+  | { readonly type: 'eth-2ld'; readonly name: string; readonly label: string }
+  | { readonly type: 'eth-subname'; readonly name: string }
+  | {
+      readonly type: 'dns-name'
+      readonly name: string
+      readonly isSubname: boolean
+    }
+  | {
+      readonly type: 'invalid'
+      readonly name: string
+      readonly reason: SearchNameInvalidReason
+    }
+
+export type ExistenceSignal =
+  | { readonly status: 'pending' }
+  | { readonly status: 'owned' }
+  | { readonly status: 'unowned' }
+  | { readonly status: 'unknown' }
+
+export type AvailabilitySignal =
+  | { readonly status: 'pending' }
+  | { readonly status: 'available' }
+  | { readonly status: 'unavailable' }
+  | { readonly status: 'skipped' }
+  | { readonly status: 'error' }
+
+/** Whether a DNS TLD has DNSSEC enabled, i.e. names under it can be imported */
+export type TldSupportSignal =
+  | { readonly status: 'pending' }
+  | { readonly status: 'supported' }
+  | { readonly status: 'unsupported' }
+  | { readonly status: 'skipped' }
+  | { readonly status: 'error' }
+
+export type NameSearchOutcome =
+  | {
+      readonly type: 'invalid'
+      readonly name: string
+      readonly reason: SearchNameInvalidReason
+    }
+  | { readonly type: 'loading'; readonly name: string }
+  | { readonly type: 'available'; readonly name: string }
+  | { readonly type: 'owned'; readonly name: string }
+  | { readonly type: 'error'; readonly name: string }
+  | { readonly type: 'not-found'; readonly name: string }
+  /**
+   * An unowned DNS 2LD under a TLD that isn't known to be unsupported;
+   * Explorer decides whether/how it can be imported
+   */
+  | { readonly type: 'not-imported'; readonly name: string }

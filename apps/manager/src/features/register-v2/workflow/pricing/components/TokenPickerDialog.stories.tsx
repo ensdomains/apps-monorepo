@@ -1,10 +1,10 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import type { StablecoinBalance } from '@/lib/smart-account'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {

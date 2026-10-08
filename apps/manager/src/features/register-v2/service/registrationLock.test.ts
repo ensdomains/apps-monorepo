@@ -1,0 +1,446 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  acquireRegistrationLock,
+  getBlockingRegistration,
+  refreshRegistrationLock,
+  releaseHolderLocks,
+  releaseRegistrationLock,
+} from './registrationLock'
+
+const WALLET = '0x1111111111111111111111111111111111111111' as const
+const OTHER_WALLET = '0x2222222222222222222222222222222222222222' as const
+
+/** Run as a second tab: same storage, its own stable holder id. */
+const asAnotherTab = <T>(run: () => T): T => {
+  const held = sessionStorage.getItem('ens-registration-holder')
+  sessionStorage.setItem('ens-registration-holder', 'other-tab')
+  try {
+    return run()
+  } finally {
+    if (held) sessionStorage.setItem('ens-registration-holder', held)
+    else sessionStorage.removeItem('ens-registration-holder')
+  }
+}
+
+describe('registrationLock', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  it('lets the first tab through and blocks a second one', () => {
+    expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(false)
+      expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
+    })
+  })
+
+  // Re-entrancy is per tab, not per name: the same registration resuming after
+  // a reload must pass, a second tab on the same name must not.
+  it('is re-entrant for the tab holding it', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+    expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
+  })
+
+  it('blocks a second tab registering the same name', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(false)
+    })
+  })
+
+  // The permit nonce is per wallet, so another wallet must be free to register
+  // without evicting the first wallet's claim.
+  it('keeps a separate claim per wallet', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(OTHER_WALLET, 'tab02.eth')).toBe(true)
+    })
+
+    expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab03.eth')).toBe(false)
+    })
+  })
+
+  it('is case-insensitive about the wallet', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    asAnotherTab(() => {
+      expect(
+        acquireRegistrationLock(
+          WALLET.toUpperCase() as typeof WALLET,
+          'tab02.eth',
+        ),
+      ).toBe(false)
+    })
+  })
+
+  it('frees the wallet once released', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+    releaseRegistrationLock(WALLET)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(true)
+    })
+  })
+
+  it('will not let one tab release another tab’s claim', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    asAnotherTab(() => releaseRegistrationLock(WALLET))
+
+    asAnotherTab(() => {
+      expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
+    })
+  })
+
+  // A tab that crashes mid-registration must not hold the wallet forever.
+  it('treats a holder that stopped refreshing as gone', () => {
+    const start = 1_000_000
+    acquireRegistrationLock(WALLET, 'tab01.eth', start)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth', start + 59_000)).toBe(
+        false,
+      )
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth', start + 60_000)).toBe(
+        true,
+      )
+    })
+  })
+
+  it('keeps a refreshed holder alive past the stale window', () => {
+    const start = 1_000_000
+    acquireRegistrationLock(WALLET, 'tab01.eth', start)
+    refreshRegistrationLock(WALLET, 'tab01.eth', start + 50_000)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth', start + 90_000)).toBe(
+        false,
+      )
+    })
+  })
+
+  it('ignores a refresh from a tab that does not hold it', () => {
+    const start = 1_000_000
+    acquireRegistrationLock(WALLET, 'tab01.eth', start)
+
+    asAnotherTab(() =>
+      refreshRegistrationLock(WALLET, 'tab02.eth', start + 50_000),
+    )
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth', start + 61_000)).toBe(
+        true,
+      )
+    })
+  })
+
+  // Same tab, different name: a second registration started while the first
+  // commit is still pending shares the tab id but is not the same attempt.
+  it('blocks a different name in the same tab', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(false)
+    expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
+  })
+
+  it('releases whatever name this tab holds', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+    releaseRegistrationLock(WALLET)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(true)
+    })
+  })
+
+  // A reload or route change leaves no live registration in this tab, so its
+  // claims must not keep blocking it for the stale window.
+  it('drops every claim this tab holds and nothing else', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+    asAnotherTab(() => acquireRegistrationLock(OTHER_WALLET, 'tab02.eth'))
+
+    releaseHolderLocks()
+
+    expect(acquireRegistrationLock(WALLET, 'tab03.eth')).toBe(true)
+    asAnotherTab(() => {
+      expect(getBlockingRegistration(OTHER_WALLET, 'tab04.eth')).toBe(
+        'tab02.eth',
+      )
+    })
+  })
+
+  // Storage that refuses writes must not turn the guard into a wall.
+  it('grants the claim when storage cannot be written', () => {
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('QuotaExceededError')
+      })
+    try {
+      expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+    } finally {
+      setItem.mockRestore()
+    }
+  })
+
+  it('survives corrupt storage', () => {
+    localStorage.setItem('ens-registration-locks-v1', 'not json')
+
+    expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
+    expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+  })
+})
+
+/**
+ * "Duplicate tab" clones `sessionStorage`, so the copy opens holding the
+ * original's holder id: it used to sweep away that tab's live claim on mount
+ * and then register alongside it.
+ */
+describe('claimTabHolderId', () => {
+  type HolderMessage = {
+    readonly type: string
+    readonly holderId: string
+    readonly claimRank?: string
+  }
+
+  /** The channel the tabs talk over, with the other tab played by the test. */
+  class FakeChannel {
+    static instances: readonly FakeChannel[] = []
+    static posted: readonly HolderMessage[] = []
+    /** Answer a claim for this id the way a settled tab does. */
+    static answerFor: string | null = null
+    private listeners: readonly ((event: MessageEvent<unknown>) => void)[] = []
+
+    constructor() {
+      FakeChannel.instances = [...FakeChannel.instances, this]
+    }
+
+    addEventListener(
+      _type: string,
+      listener: (e: MessageEvent<unknown>) => void,
+    ) {
+      this.listeners = [...this.listeners, listener]
+    }
+
+    postMessage(data: unknown) {
+      const message = data as HolderMessage
+      FakeChannel.posted = [...FakeChannel.posted, message]
+
+      if (
+        message.type === 'claim' &&
+        message.holderId === FakeChannel.answerFor
+      )
+        this.deliver({
+          type: 'taken',
+          holderId: message.holderId,
+          // A reply names the claim it answers, as the real one does.
+          claimRank: message.claimRank,
+        })
+    }
+
+    /** Push a message from the other tab into the one under test. */
+    deliver(message: HolderMessage) {
+      for (const listener of this.listeners) {
+        listener({ data: message } as MessageEvent<unknown>)
+      }
+    }
+  }
+
+  const claimSent = (): HolderMessage => {
+    const claim = FakeChannel.posted.find((message) => message.type === 'claim')
+    if (!claim) throw new Error('no claim was broadcast')
+    return claim
+  }
+
+  const takenSent = (): boolean =>
+    FakeChannel.posted.some((message) => message.type === 'taken')
+
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.resetModules()
+    vi.stubGlobal('BroadcastChannel', FakeChannel)
+    FakeChannel.answerFor = null
+    FakeChannel.instances = []
+    FakeChannel.posted = []
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps the id when no other tab answers for it', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    await expect(lock.claimTabHolderId()).resolves.toBe('only-tab')
+  })
+
+  it('takes a new id when another tab already answers for it', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    const holderId = await lock.claimTabHolderId()
+
+    expect(holderId).not.toBe('original-tab')
+    expect(sessionStorage.getItem('ens-registration-holder')).toBe(holderId)
+  })
+
+  // The bug this exists for: the clone's mount sweep wiped the claim of the
+  // tab it was cloned from, which then had no claim to block a third tab.
+  it('leaves the original tab’s claim alone once it has a new id', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    localStorage.setItem(
+      'ens-registration-locks-v1',
+      JSON.stringify({
+        [WALLET.toLowerCase()]: {
+          name: 'name-one.eth',
+          holderId: 'original-tab',
+          updatedAt: Date.now(),
+        },
+      }),
+    )
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    await lock.claimTabHolderId()
+    lock.releaseHolderLocks()
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+    expect(lock.acquireRegistrationLock(WALLET, 'name-two.eth')).toBe(false)
+  })
+
+  // A reload racing its own duplicate: both hold the inherited id and claim at
+  // the same moment. Exactly one has to yield — if both do, the live lock is
+  // owned by neither tab and the wallet stays blocked until it goes stale.
+  it('keeps the id against a lower-ranked simultaneous claim', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'claim',
+      holderId: 'shared-id',
+      claimRank: `${claimSent().claimRank}z`,
+    })
+
+    await expect(settled).resolves.toBe('shared-id')
+    expect(takenSent()).toBe(true)
+  })
+
+  it('yields the id to a higher-ranked simultaneous claim', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'claim',
+      holderId: 'shared-id',
+      claimRank: `!${claimSent().claimRank}`,
+    })
+    // Silence is the yield: the other tab keeps the id and says so.
+    expect(takenSent()).toBe(false)
+    channel?.deliver({
+      type: 'taken',
+      holderId: 'shared-id',
+      claimRank: claimSent().claimRank,
+    })
+
+    await expect(settled).resolves.not.toBe('shared-id')
+  })
+
+  it('answers a claim on an id it already settled', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+    await lock.claimTabHolderId()
+
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'claim',
+      holderId: 'only-tab',
+      claimRank: 'whatever',
+    })
+
+    expect(takenSent()).toBe(true)
+  })
+
+  // The sweep on the way out has to wait on the same answer the one on the way
+  // in does: a clone that mounts and leaves inside the window would otherwise
+  // sweep with the id it inherited.
+  it('waits for the id before sweeping on the way out', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    localStorage.setItem(
+      'ens-registration-locks-v1',
+      JSON.stringify({
+        [WALLET.toLowerCase()]: {
+          name: 'name-one.eth',
+          holderId: 'original-tab',
+          updatedAt: Date.now(),
+        },
+      }),
+    )
+    FakeChannel.answerFor = 'original-tab'
+    const lock = await import('./registrationLock')
+
+    await lock.releaseHolderLocksWhenSettled()
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+  })
+
+  // Three tabs on one id: the middle-ranked tab answers the lowest claim, and
+  // that reply reaches everyone. The tab that actually wins must not read it
+  // as its own and step aside, leaving the live lock owned by nobody.
+  it('ignores a reply addressed to another claimant', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'shared-id')
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    const [channel] = FakeChannel.instances
+    channel?.deliver({
+      type: 'taken',
+      holderId: 'shared-id',
+      claimRank: `${claimSent().claimRank}-someone-else`,
+    })
+
+    await expect(settled).resolves.toBe('shared-id')
+  })
+
+  // The flow can leave and come back inside the claim window: a sweep asked
+  // for on the way out must not take the claim the new run just made.
+  it('keeps a claim made while the sweep was waiting', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    const sweep = lock.releaseHolderLocksWhenSettled()
+    lock.acquireRegistrationLock(WALLET, 'name-one.eth')
+    await sweep
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+  })
+
+  it('falls back to the stored id without a broadcast channel', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined)
+    sessionStorage.setItem('ens-registration-holder', 'only-tab')
+    const lock = await import('./registrationLock')
+
+    await expect(lock.claimTabHolderId()).resolves.toBe('only-tab')
+  })
+})

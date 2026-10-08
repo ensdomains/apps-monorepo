@@ -11,8 +11,8 @@
  * This is the STANDALONE-HCA surface. Registration is prompt-free via a scoped
  * ERC-7579 SmartSession on the standalone validator
  * (`HCAOwnerAndSessionValidator`): the wallet signs ONE multi-chain session
- * authorization up front, and the session is enabled lazily inside the first
- * HCA action via `enableSessionWithRefund(...)`. The old ephemeral-OWNER model
+ * authorization up front and presents it with every session-signed intent (the
+ * validator keeps no session state). The old ephemeral-OWNER model
  * (`updateConfig` add-owner) is gone.
  *
  * Exports: `initialize-account` (create/adopt the standalone HCA), `manifest`
@@ -23,16 +23,22 @@
 export {
   estimateHcaBudget,
   HCA_LEG_GAS_LIMITS,
+  HCA_MAX_LEG_FEES_USDC,
   HCA_PRIMARY_NAME_BASE_GAS,
   HCA_PRIMARY_NAME_WORD_GAS,
+  HCA_RESOLVER_DEPLOY_GAS,
   type HcaBudgetBreakdown,
+  HcaBudgetExceedsMaximumError,
   type HcaBudgetParams,
   type HcaLeg,
+  hcaBudgetMaximum,
   primaryNameGas,
   type QuoteLegCostUsdc,
   type QuoteLegResult,
   type QuoteMarketData,
+  type RegisterLegShape,
   registerLegGasLimit,
+  withBudgetDrift,
 } from './budget'
 export {
   type BuildHcaDeploymentCallParams,
@@ -50,6 +56,10 @@ export {
   type VerifyStandaloneHcaParams,
   verifyStandaloneHca,
 } from './initialize-account'
+export {
+  fetchIntentOperationStatus,
+  type IntentOperationStatus,
+} from './intent-status'
 export {
   computeResolverSalt,
   DEFAULT_SESSION_VALIDITY_SECONDS,
@@ -84,13 +94,20 @@ export {
   readRegisterPrice,
 } from './registration-calls'
 export {
-  buildEnableSessionWithRefundCall,
+  buildRevokeSessionsCall,
+  type RevokeSessionsParams,
+  type RevokeSessionsResult,
+  revokeSessionsOnChain,
+} from './revoke-sessions'
+export {
+  buildHcaSessionConfig,
   type ChainDigest,
   computeDestinationSessionSalt,
   computeSourceSessionSalt,
   createDestinationSession,
   type DestinationSessionParams,
   type DestinationSessionResult,
+  type HcaSessionConfig,
   rebuildDestinationSession,
   type SessionEnableData,
 } from './session'

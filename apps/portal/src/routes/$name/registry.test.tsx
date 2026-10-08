@@ -1,3 +1,4 @@
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -109,16 +110,67 @@ const nameRegistriesResult: {
   isLoading: false,
 }
 
+// Whether the name was ever pointed at a registry. An empty slot is only
+// "never configured" when this is false; true means the pointer was zeroed and
+// the name is damaged, not new. See `useSubregistrySlot`.
+type SubregistryHistoryResult = {
+  readonly data: number | null | undefined
+  readonly isError: boolean
+}
+
+// Replaced wholesale per test rather than mutated field-by-field, so no case
+// can leak a half-reset fixture into the next one.
+let subregistryHistoryResult: SubregistryHistoryResult = {
+  data: 0,
+  isError: false,
+}
+
+const setSubregistryHistory = (result: Partial<SubregistryHistoryResult>) => {
+  subregistryHistoryResult = { data: 0, isError: false, ...result }
+}
+
+// The token's role holders. The owner (see `ownerData`) holds every token role
+// unless a test takes some away.
+const OWNER = '0x1111111111111111111111111111111111111111'
+const ALL_TOKEN_ROLES: readonly Role[] = [
+  'ROLE_SET_SUBREGISTRY',
+  'ROLE_SET_SUBREGISTRY_ADMIN',
+  'ROLE_SET_RESOLVER',
+  'ROLE_SET_RESOLVER_ADMIN',
+  'ROLE_CAN_TRANSFER_ADMIN',
+]
+let nameRoleAccounts = new Map<string, readonly Role[]>()
+const ownerHoldsAllBut = (...missing: Role[]) => {
+  nameRoleAccounts = new Map([
+    [OWNER, ALL_TOKEN_ROLES.filter((role) => !missing.includes(role))],
+  ])
+}
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
     '@tanstack/react-query',
   )
   return {
     ...actual,
-    useQuery: (options: { queryKey: readonly unknown[] }) => {
+    useQuery: (options: {
+      queryKey: readonly unknown[]
+      select?: (data: unknown) => unknown
+    }) => {
       const key = options.queryKey[0]
       if (key === 'nameRegistries') {
         return nameRegistriesResult
+      }
+      if (key === 'get-name-roles-accounts') {
+        return {
+          data: options.select
+            ? options.select(nameRoleAccounts)
+            : nameRoleAccounts,
+          error: null,
+          isLoading: false,
+        }
+      }
+      if (key === 'get-subregistry-history') {
+        return subregistryHistoryResult
       }
       return { data: undefined, error: undefined, isLoading: false }
     },
@@ -139,7 +191,7 @@ const { V2RegistryInfo } = await import(
 )
 
 const ownerData = {
-  owner: '0x1111111111111111111111111111111111111111',
+  owner: OWNER,
   registryAddress: '0x1111111111111111111111111111111111111111',
   protocolVersion: 'ENSv2' as const,
 } as const
@@ -159,6 +211,8 @@ describe('V2RegistryInfo', () => {
     setRegistries(undefined)
     mockHasSetSubregistryRole.hasRole = false
     mockHasSetSubregistryRole.error = null
+    setSubregistryHistory({})
+    ownerHoldsAllBut()
   })
 
   const configuredLeaf = (subregistry: string) =>
@@ -196,6 +250,91 @@ describe('V2RegistryInfo', () => {
     ).not.toBeInTheDocument()
     // The deployed subregistry renders as a row.
     expect(screen.getByText(truncated(subregistry))).toBeInTheDocument()
+  })
+
+  describe('a subregistry slot that was zeroed, not never set (immunefi #93026)', () => {
+    const detachedLeaf = () => {
+      setRegistries([
+        zeroAddress, // foo.eth's subregistry — detached, not virgin
+        '0x1111111111111111111111111111111111111111', // .eth registry
+        '0x0000000000000000000000000000000000000000', // root
+      ])
+      setSubregistryHistory({ data: 1 })
+    }
+
+    it('does not offer the configure form on a detached slot', () => {
+      detachedLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      // Deploying a fresh registry here would let the holder re-mint a
+      // victim's label into it and strand the original token.
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('explains that the name is damaged and points at the repair', () => {
+      detachedLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByText(/registry detached/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/point this name back at that registry/i),
+      ).toBeInTheDocument()
+    })
+
+    it('withholds the configure form while the history lookup is in flight', () => {
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      setSubregistryHistory({ data: undefined })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('treats a missing history count as unknown, not as "never configured"', () => {
+      // The indexer declining to count is not a name with no history; reading
+      // it as zero would hand back the re-mint surface.
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      setSubregistryHistory({ data: null })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('withholds the configure form when the history lookup fails', () => {
+      // Fail closed: "we couldn't check" must never read as "never configured".
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      setSubregistryHistory({ data: undefined, isError: true })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByText(/couldn't check this name's registry history/i),
+      ).toBeInTheDocument()
+    })
   })
 
   it('shows the configure form for a 2LD without a deployed subregistry', () => {
@@ -316,5 +455,69 @@ describe('V2RegistryInfo', () => {
     expect(
       screen.getByText(/couldn't verify reconfigure permissions/i),
     ).toBeVisible()
+  })
+
+  describe('missing subregistry privileges (contracts-v2#432)', () => {
+    const unconfiguredLeaf = () =>
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+
+    it('replaces the configure form when nobody can ever set the subregistry', () => {
+      ownerHoldsAllBut('ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN')
+      unconfiguredLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByText('No registry configured')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Subregistry is locked. Missing ROLE_SET_SUBREGISTRY and ROLE_SET_SUBREGISTRY_ADMIN',
+      )
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('keeps the configure form for a connected wallet that can set it anyway', () => {
+      // A delegate, or a registry-root holder: the owner's lock doesn't bind them.
+      ownerHoldsAllBut('ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN')
+      mockHasSetSubregistryRole.hasRole = true
+      unconfiguredLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByTestId('configure-registry-form')).toBeInTheDocument()
+      expect(
+        screen.queryByText(/subregistry is locked/i),
+      ).not.toBeInTheDocument()
+    })
+
+    it('keeps the configure form when the owner can still set it', () => {
+      ownerHoldsAllBut('ROLE_SET_SUBREGISTRY_ADMIN')
+      unconfiguredLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByTestId('configure-registry-form')).toBeInTheDocument()
+    })
+
+    it('flags a configured subregistry the owner cannot change', () => {
+      ownerHoldsAllBut('ROLE_SET_SUBREGISTRY', 'ROLE_SET_SUBREGISTRY_ADMIN')
+      configuredLeaf('0x2222222222222222222222222222222222222222')
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByText('Subregistry locked')).toBeInTheDocument()
+    })
+
+    it('flags nothing when the owner holds the subregistry roles', () => {
+      configuredLeaf('0x2222222222222222222222222222222222222222')
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.queryByText('Subregistry locked')).not.toBeInTheDocument()
+    })
   })
 })

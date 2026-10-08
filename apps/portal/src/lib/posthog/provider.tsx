@@ -15,7 +15,7 @@ import type { PostHog } from 'posthog-js'
 // exception autocapture) at runtime. The default `posthog-js` build injects
 // those via runtime <script> tags + an inline loader, both of which our strict
 // CSP blocks (no 'unsafe-inline'; script-src is host/hash-pinned) — and our
-// PostHog reverse proxy (jakob.ens.domains) doesn't serve the /static/*.js
+// PostHog reverse proxy (edge.ens.domains) doesn't serve the /static/*.js
 // asset paths anyway. Pre-bundling sidesteps both problems. This disables the
 // Toolbar (a dev-only feature we don't use in prod). See PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
@@ -34,13 +34,19 @@ export const PHProvider = ({
     // Non-critical analytics init; Intercom can throw on blocked domains (403)
     // and this runs in an effect, so an unguarded throw would crash the app.
     try {
-      posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
-        api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-        capture_pageview: 'history_change',
-        disable_session_recording: !!import.meta.env.DEV,
-        defaults: '2025-11-30',
-        person_profiles: 'identified_only',
-      })
+      // Analytics is optional: deployments without a key (local dev, e2e)
+      // skip init rather than sending events to an undefined project.
+      // Intercom still boots either way.
+      const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY
+      if (posthogKey) {
+        posthog.init(posthogKey, {
+          api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+          capture_pageview: 'history_change',
+          disable_session_recording: !!import.meta.env.DEV,
+          defaults: '2025-11-30',
+          person_profiles: 'identified_only',
+        })
+      }
 
       bootIntercom({
         app_id: INTERCOM_APP_ID,

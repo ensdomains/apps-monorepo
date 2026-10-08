@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
@@ -9,7 +10,6 @@ import {
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { V2RegistryInfo } from '@/features/registry/components/v2/RegistryInfo'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
-import { NotFoundMessage } from '../../components/NotFoundMessage'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -64,8 +64,8 @@ function RouteComponent() {
     )
   if (availabilityQuery.data?.isAvailable || !ownerData)
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there is no registry

@@ -44,7 +44,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => ({
     accountAddress: '0x0000000000000000000000000000000000000001',
     ownerAddress: null,
-    signer: null,
+    signer: { type: 'rhinestone' },
     stablecoinBalances: [
       {
         address: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
@@ -83,8 +83,10 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
       if (key.includes('hca-budget')) {
         return {
           data: containerMocks.renderBudget,
+          isError: false,
           isLoading: false,
           isFetching: false,
+          isPlaceholderData: false,
         }
       }
       return { data: undefined, isLoading: false }
@@ -431,12 +433,51 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
   })
 
-  it('preserves the rent-only fallback when the fee quote is unavailable', () => {
+  it('leaves the EOA route alone when there is no budget to quote', () => {
     renderPicker({ selectedToken: 'USDC' })
 
     expect(screen.getByText('Mainnet est. fee: —')).toBeVisible()
     expect(screen.getByText('$330.00')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(screen.queryByText('up to')).not.toBeInTheDocument()
+  })
+
+  it('blocks checkout when the required budget quote failed', () => {
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(screen.getByText('up to')).toBeVisible()
+  })
+
+  it('holds checkout while a stale quote is on screen', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 164.32,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      isQuoteStale: true,
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+  })
+
+  it('suppresses a funded note when there is a global error', () => {
+    renderPicker({
+      globalErrorMessage: 'Could not quote the registration.',
+      infoMessage: 'What was left from your last attempt covers the cost.',
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Could not quote the registration.')).toBeVisible()
+    expect(
+      screen.queryByText(/left from your last attempt covers/i),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the name-price target when an unquoted wallet is empty', () => {

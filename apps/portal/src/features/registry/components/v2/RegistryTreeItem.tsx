@@ -1,23 +1,31 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, ArrowUpRight, TriangleAlert } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment, type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { SubregistryPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { useHasSetSubregistryRole } from '../../hooks/useHasSetSubregistryRole'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
-import { ConfigureRegistryForm } from './ConfigureRegistryForm'
+import {
+  type SubregistrySlot,
+  useSubregistrySlot,
+} from '../../hooks/useSubregistrySlot'
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
+import { RegistryPanel } from './RegistryPanel'
+import { UnconfiguredRegistry } from './UnconfiguredRegistry'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -79,9 +87,32 @@ export const RegistryTreeItem = ({
       enabled: isLastConfigured,
     })
 
+  // An empty slot is only an invitation to configure one when it has *always*
+  // been empty. A slot that once pointed at a registry and now reads zero is a
+  // damaged name: its subnames still exist in the detached registry, and
+  // offering "Configure registry" here lets whoever holds the name deploy a
+  // fresh registry and re-mint someone else's label to an address of their
+  // choosing, stranding the original token. `unknown` (still loading, or the
+  // lookup failed) withholds the offer too — see `useSubregistrySlotState`.
+  const slot = useSubregistrySlot(name, { enabled: isLastUnconfigured })
+
   const emptyState = isLastUnconfigured ? (
-    <RegistryEmptyState name={name} ownerData={ownerData} />
+    <RegistryEmptyState name={name} ownerData={ownerData} slot={slot} />
   ) : null
+
+  const privilegeWarning = isLastConfigured ? (
+    <SubregistryPrivilegeWarning
+      name={name}
+      ownerData={ownerData}
+      subregistry={address}
+      chainId={chainId}
+    />
+  ) : null
+
+  const onReconfigure =
+    isLastConfigured && canReconfigure === true
+      ? () => setIsReconfiguring(true)
+      : undefined
 
   return (
     <Fragment>
@@ -108,11 +139,8 @@ export const RegistryTreeItem = ({
               isDeployedRegistry={isDeployedRegistry}
               tld={isEthRegistry ? levelName : undefined}
               showInlineMeta={!isLastConfigured}
-              onReconfigure={
-                isLastConfigured && canReconfigure === true
-                  ? () => setIsReconfiguring(true)
-                  : undefined
-              }
+              privilegeWarning={privilegeWarning}
+              onReconfigure={onReconfigure}
             />
           ) : null}
         </div>
@@ -144,6 +172,7 @@ const RegistryContractRow = ({
   isDeployedRegistry,
   tld,
   showInlineMeta,
+  privilegeWarning,
   onReconfigure,
 }: {
   address: Address
@@ -153,6 +182,7 @@ const RegistryContractRow = ({
   isDeployedRegistry: boolean
   tld: string | undefined
   showInlineMeta: boolean
+  readonly privilegeWarning: ReactNode
   onReconfigure?: () => void
 }) => (
   <Fragment>
@@ -166,6 +196,7 @@ const RegistryContractRow = ({
     >
       {truncateAddress(address, 6, 4)}
     </EntityBadge>
+    {privilegeWarning}
     {showInlineMeta ? (
       <div className="flex flex-row items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
         <span className="text-sm text-muted-foreground font-mono">
@@ -286,15 +317,64 @@ const RegistrySummaryDetails = ({
 const RegistryEmptyState = ({
   name,
   ownerData,
+  slot,
 }: {
   name: string
   ownerData: NonNullable<GetEnsOwnerReturnType>
-}) =>
-  ownerData.protocolVersion === 'ENSv1' ? (
-    <MigrateRegistryPrompt name={name} />
-  ) : (
-    <ConfigureRegistryForm name={name} />
+  slot: SubregistrySlot
+}) => {
+  if (ownerData.protocolVersion === 'ENSv1')
+    return <MigrateRegistryPrompt name={name} />
+
+  return (
+    match(slot)
+      .with({ status: 'detached' }, () => <DetachedRegistryNotice />)
+      .with({ status: 'error' }, () => (
+        <div className="pt-4 pl-1 lg:pl-14 max-w-xl">
+          <ErrorMessage
+            compact
+            description="Couldn't check this name's registry history. Refresh the page before configuring a registry."
+          />
+        </div>
+      ))
+      // Claim nothing while the lookup is in flight, and above all don't offer
+      // the write.
+      .with({ status: 'loading' }, () => (
+        <LoadingSpinner title="Checking registry history..." />
+      ))
+      .with({ status: 'never-configured' }, () => (
+        <UnconfiguredRegistry name={name} ownerData={ownerData} />
+      ))
+      .exhaustive()
   )
+}
+
+/**
+ * Shown where "Configure registry" would otherwise be, on a name whose
+ * subregistry pointer was zeroed after having been set. Deploying a new
+ * registry here is a re-mint surface, not a setup step, so the path out is
+ * restoring the old pointer rather than creating a replacement.
+ */
+const DetachedRegistryNotice = () => (
+  <RegistryPanel>
+    <Alert className="p-5 gap-2" variant="warning">
+      <TriangleAlert className="size-4" />
+      <AlertTitle>Registry detached</AlertTitle>
+      <AlertDescription>
+        <p>
+          This name pointed at a registry and no longer does, so its subnames
+          have stopped resolving. They still exist in the old registry — point
+          this name back at that registry to restore them.
+        </p>
+        <p>
+          Configuring a new registry here won't recover them: it would create a
+          second, empty namespace in which the old subnames can be re-issued to
+          someone else.
+        </p>
+      </AlertDescription>
+    </Alert>
+  </RegistryPanel>
+)
 
 const SummaryLoadError = () => (
   <span className="inline-flex items-center gap-1 text-destructive">

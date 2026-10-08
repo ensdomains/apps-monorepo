@@ -2,11 +2,16 @@ import { Trans } from '@lingui/react/macro'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { Card } from '@/components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn, truncateAddress } from '@/lib/utils'
 import {
-  cardSurfaceClassName,
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
@@ -28,6 +33,8 @@ type ProfileAddressesSectionProps = {
 
 const addressCardPaddingClassName =
   'has-[>svg]:px-4 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
+const addressCardSurfaceClassName =
+  'flex-row items-center rounded-[14px] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl'
 
 const AddressValue = ({
   className = '',
@@ -45,11 +52,35 @@ const AddressValue = ({
 
 const ChainAddressValue = ({ value }: { readonly value: string }) => (
   <span
-    className="w-19.75 whitespace-nowrap text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] lg:landscape:w-21.25 lg:landscape:text-sm lg:landscape:leading-[1.1] lg:landscape:tracking-[-0.28px]"
+    className="min-w-0 truncate text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] lg:landscape:w-21.25 lg:landscape:text-sm lg:landscape:leading-[1.1] lg:landscape:tracking-[-0.28px]"
     title={value}
   >
     {formatChainSpecificAddress(value)}
   </span>
+)
+
+const ChainIconTooltip = ({
+  chain,
+  iconClassName,
+  triggerClassName,
+}: {
+  readonly chain: ProfileAddressItem
+  readonly iconClassName: string
+  readonly triggerClassName?: string
+}) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span
+        aria-label={chain.label}
+        className={triggerClassName}
+        role="img"
+        title=""
+      >
+        <IconRenderer className={iconClassName} icon={chain.icon} />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent>{chain.label}</TooltipContent>
+  </Tooltip>
 )
 
 const ReceivingChainIcons = ({
@@ -63,10 +94,11 @@ const ReceivingChainIcons = ({
   return (
     <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1 lg:landscape:min-w-50">
       {withIcon.map((chain) => (
-        <IconRenderer
-          className="size-4.5 object-contain lg:landscape:size-6.5"
-          icon={chain.icon}
+        <ChainIconTooltip
+          chain={chain}
+          iconClassName="size-4.5 object-contain lg:landscape:size-6.5"
           key={`${chain.coinType}-${chain.value}`}
+          triggerClassName="inline-flex shrink-0"
         />
       ))}
     </div>
@@ -87,40 +119,48 @@ const MainAddressCard = ({
   const themeColor = useProfileThemeColor()
 
   return (
-    <CopyableButton
-      className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-auto min-h-13.75 w-full justify-between gap-2 py-4 lg:landscape:max-w-132.75`}
-      iconClassName={profileCardCopyIconClassName}
-      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-      value={address.value}
+    <Card
+      asChild
+      className={`${addressCardSurfaceClassName} ${addressCardPaddingClassName} h-auto min-h-13.75 w-full justify-between gap-2 py-4 lg:landscape:max-w-141`}
     >
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <div className="flex min-w-0 items-center gap-2 lg:landscape:h-6.5 lg:landscape:gap-4">
-          <div className="flex min-w-0 items-center gap-1">
-            <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-sm">
-              <ImageFallback.Root className="contents">
-                <ImageFallback.Image
-                  alt={`${name} avatar`}
-                  className="size-full object-cover"
-                  src={avatarUrl}
-                />
-                <ImageFallback.Fallback>
-                  <PatternAvatar
-                    className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
-                    color={themeColor}
-                    name={name}
+      <CopyableButton
+        iconClassName={profileCardCopyIconClassName}
+        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        value={address.value}
+        variant="ghost"
+      >
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2 lg:landscape:h-6.5 lg:landscape:gap-4">
+            <div className="flex min-w-0 items-center gap-1">
+              <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-sm">
+                <ImageFallback.Root className="contents">
+                  <ImageFallback.Image
+                    alt={`${name} avatar`}
+                    className="size-full object-cover"
+                    src={avatarUrl}
                   />
-                </ImageFallback.Fallback>
-              </ImageFallback.Root>
+                  <ImageFallback.Fallback>
+                    <PatternAvatar
+                      className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+                      color={themeColor}
+                      name={name}
+                    />
+                  </ImageFallback.Fallback>
+                </ImageFallback.Root>
+              </div>
+              <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 lg:landscape:text-sm lg:landscape:leading-[0.96] lg:landscape:tracking-[-0.28px]">
+                {name}
+              </span>
             </div>
-            <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 lg:landscape:text-sm lg:landscape:leading-[0.96] lg:landscape:tracking-[-0.28px]">
-              {name}
-            </span>
+            <AddressValue
+              className="text-ens-quartz-900"
+              value={address.value}
+            />
           </div>
-          <AddressValue className="text-ens-quartz-900" value={address.value} />
+          <ReceivingChainIcons chains={chains} />
         </div>
-        <ReceivingChainIcons chains={chains} />
-      </div>
-    </CopyableButton>
+      </CopyableButton>
+    </Card>
   )
 }
 
@@ -129,26 +169,30 @@ const ChainAddressCard = ({
 }: {
   readonly address: ProfileAddressItem
 }) => (
-  <CopyableButton
+  <Card
+    asChild
     className={cn(
-      cardSurfaceClassName,
+      addressCardSurfaceClassName,
       addressCardPaddingClassName,
-      'h-16.25 w-full justify-between gap-1 px-3 py-0 has-[>svg]:px-3 lg:landscape:h-auto lg:landscape:min-h-[88.5px] lg:landscape:gap-2 lg:landscape:px-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]',
+      'h-16.25 w-full justify-between gap-1 px-2 py-0 has-[>svg]:px-2 lg:landscape:h-auto lg:landscape:min-h-[88.5px] lg:landscape:gap-2 lg:landscape:px-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]',
     )}
-    iconClassName={profileCardCopyIconClassName}
-    iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-    value={address.value}
   >
-    <div className="flex min-w-0 items-center gap-1 lg:landscape:gap-0">
-      <div className="flex size-7 shrink-0 items-center justify-center lg:landscape:size-10 lg:landscape:p-2">
-        <IconRenderer
-          className="size-6 object-contain lg:landscape:size-7"
-          icon={address.icon}
+    <CopyableButton
+      iconClassName={profileCardCopyIconClassName}
+      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+      value={address.value}
+      variant="ghost"
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-0.5 lg:landscape:gap-0">
+        <ChainIconTooltip
+          chain={address}
+          iconClassName="size-6 object-contain lg:landscape:size-7"
+          triggerClassName="flex size-6 shrink-0 items-center justify-center lg:landscape:size-10 lg:landscape:p-2"
         />
+        <ChainAddressValue value={address.value} />
       </div>
-      <ChainAddressValue value={address.value} />
-    </div>
-  </CopyableButton>
+    </CopyableButton>
+  </Card>
 )
 
 export const ProfileAddressesSection = ({

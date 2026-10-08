@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { HistoryIcon, ResolverIcon, ShieldIcon } from '@/assets/icons'
-import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
+import { LogoSVG } from '@/assets/logo'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -57,10 +57,10 @@ const getItems = (address: string) => [
     },
   }),
   defineResolverSidebarItem({
-    title: 'Aliases',
+    title: 'Links',
     icon: SplitIcon,
     link: {
-      to: '/resolver/$address/aliases',
+      to: '/resolver/$address/links',
       params: { address },
     },
   }),
@@ -112,11 +112,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
           <div className="px-6 pt-6 flex flex-col gap-6">
             <div className="flex items-center min-h-8">
               <Link to="/" className="flex items-center">
-                <LogoWithTextSVG
-                  width={97}
-                  height={30}
-                  className="text-foreground"
-                />
+                <LogoSVG height={30} className="text-foreground" />
               </Link>
             </div>
             <div className="flex items-center gap-2">

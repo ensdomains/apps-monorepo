@@ -1,38 +1,78 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { type Address, getAddress, keccak256 } from 'viem'
-import { sepolia } from 'viem/chains'
+import { envConfig } from '@/config'
 import type {
   CommemorativeNftAssets,
   CommemorativeNftEligibility,
 } from './types'
 
-export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
-  '0xe49A9D706FCD82AA575496352B5633F80fBBC449',
-)
+const COMMEMORATIVE_NFT_ADDRESSES: Record<EnsNetwork, Address | null> = {
+  // No mainnet CommemorativeNFT deployment exists yet.
+  mainnet: null,
+  sepolia: getAddress('0xa55605c6242CbFc27117b63466B423fbc092a2A9'),
+}
 
-export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://nft.ens.dev'
-export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
-  'https://nft-assets.ens.dev'
+const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://nft.ens.dev'
+const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN = 'https://nft-assets.ens.dev'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
-const optionalOrigin = (value: string | undefined): string | undefined => {
-  const trimmed = value?.trim()
-  return trimmed ? trimTrailingSlash(trimmed) : undefined
+const parseOrigin = (
+  value: string,
+  canUseLocalHttp: boolean,
+): string | undefined => {
+  if (!URL.canParse(value)) return undefined
+  const url = new URL(value)
+  const isLocalHttp =
+    canUseLocalHttp &&
+    url.protocol === 'http:' &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  if (
+    (url.protocol !== 'https:' && !isLocalHttp) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !/^\/*$/.test(url.pathname)
+  )
+    return undefined
+  return url.origin
 }
 
-export const getCommemorativeNftConfig = () => ({
-  assetOrigin:
-    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN) ??
-    DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
-  rendererOrigin:
-    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
-    DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
-})
+type NftConfig = {
+  readonly assetOrigin: string
+  readonly rendererOrigin: string
+  readonly isValid: boolean
+}
+let cachedConfig:
+  | { readonly key: string; readonly value: NftConfig }
+  | undefined
 
-export const getCommemorativeNftContractAddress = (
-  chainId: number,
-): Address | undefined =>
-  chainId === sepolia.id ? COMMEMORATIVE_NFT_SEPOLIA_ADDRESS : undefined
+export const getCommemorativeNftConfig = (): NftConfig => {
+  const assetValue =
+    import.meta.env.VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN?.trim() ||
+    DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN
+  const rendererValue =
+    import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN?.trim() ||
+    DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN
+  const key = JSON.stringify([assetValue, rendererValue, import.meta.env.DEV])
+  if (cachedConfig?.key === key) return cachedConfig.value
+  const assetOrigin = parseOrigin(assetValue, import.meta.env.DEV === true)
+  const rendererOrigin = parseOrigin(
+    rendererValue,
+    import.meta.env.DEV === true,
+  )
+  const value = {
+    assetOrigin: assetOrigin ?? DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
+    rendererOrigin: rendererOrigin ?? DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
+    isValid: !!assetOrigin && !!rendererOrigin,
+  }
+  cachedConfig = { key, value }
+  return value
+}
+
+export const getCommemorativeNftContractAddress = (): Address | undefined =>
+  COMMEMORATIVE_NFT_ADDRESSES[envConfig.network] ?? undefined
 
 export const getCommemorativeNftTokenId = (ownerAddress: Address): bigint =>
   BigInt(keccak256(ownerAddress))

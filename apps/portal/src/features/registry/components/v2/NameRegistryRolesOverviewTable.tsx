@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 
 /**
  * Read-only registry roles for a name's own registry, for embedding on the name
@@ -39,20 +40,24 @@ export const NameRegistryRolesOverviewTable = ({ name }: { name: string }) => {
   const address = registries?.at(0)
   if (!address || address === zeroAddress) return null
 
+  // The name's owner picks this pointer, so it can name any contract. Only
+  // show (and link to) registry roles when it really is a registry.
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h3 className="text-caps leading-none min-w-0 break-words">
-          {name} registry / roles
-        </h3>
-        <Button className="text-muted-foreground" variant="ghost" asChild>
-          <Link params={{ address }} to="/registry/$address/roles">
-            <ArrowUpRight className="size-5" />
-            View and manage
-          </Link>
-        </Button>
+    <RoleContractGate address={address} expected="registry" variant="embedded">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h3 className="text-caps leading-none min-w-0 break-words">
+            {name} registry / roles
+          </h3>
+          <Button className="text-muted-foreground" variant="ghost" asChild>
+            <Link params={{ address }} to="/registry/$address/roles">
+              <ArrowUpRight className="size-5" />
+              View and manage
+            </Link>
+          </Button>
+        </div>
+        <RegistryRolesTable address={address} disableEdit />
       </div>
-      <RegistryRolesTable address={address} disableEdit />
-    </div>
+    </RoleContractGate>
   )
 }

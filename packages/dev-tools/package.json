@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/dev-tools",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "DEV-only unified developer tooling drawer for ENS apps.",
   "type": "module",
   "private": true,
@@ -21,7 +22,7 @@
     "react": "^19"
   },
   "devDependencies": {
-    "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-query": "^5.104.0",
     "@types/react": "^19.2.7",
     "react": "^19.2.5",
     "typescript": "catalog:"

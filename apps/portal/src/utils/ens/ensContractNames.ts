@@ -19,7 +19,11 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensLegacyRegistry: 'LegacyENSRegistry',
   ensReverseRegistrar: 'ReverseRegistrar',
   ensUniversalResolver: 'UniversalResolver',
+  ensUniversalHelper: 'UniversalHelper',
   ensDefaultReverseResolver: 'DefaultReverseResolver',
+  ensDefaultReverseRegistrar: 'DefaultReverseRegistrar',
+  ensDefaultReverseRegistrarAdapter: 'DefaultReverseRegistrarAdapter',
+  ensReverseRegistrarAdapter: 'ReverseRegistrarAdapter',
   ensPermissionedResolverImpl: 'PermissionedResolver',
   ensVerifiableFactory: 'VerifiableFactory',
   ensEthRegistrar: 'ETHRegistrar',
@@ -35,7 +39,7 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
 }
 
 const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
-  ensRegistry: 'root registry',
+  ensRegistry: 'eth registry',
   ensLegacyRegistry: 'legacy registry',
   ensUserRegistryImpl: 'permissioned registry',
   ensPublicResolver: 'public resolver',

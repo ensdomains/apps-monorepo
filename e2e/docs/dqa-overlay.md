@@ -101,11 +101,13 @@ Builds Git integration) — no separate project, no GitHub Actions workflow. It 
 enabled only for **preview (non-production) builds**.
 
 In each app's Workers Builds project, on the **preview environment** set the
-build command to `pnpm --filter <app> build:dqa` (forces `VITE_DQA=1`) — or keep
-`build` and add a preview-only `VITE_DQA=1` build variable — plus
+build command to `pnpm --filter <app> build:dqa` (forces `VITE_DQA=1` and, for
+manager, `VITE_ENABLE_DEBUG_FEATURES=true`) — or keep `build` and add preview-only
+`VITE_DQA=1` / `VITE_ENABLE_DEBUG_FEATURES=true` build variables — plus
 `VITE_DQA_URL=https://<dqa-host>`. The **production** environment stays on the
-normal `build` with no `VITE_DQA`. Add the preview host to the dqa-server's
-`DQA_ALLOWED_ORIGINS` (wildcards allowed, e.g. `https://*.workers.dev`).
+normal `build` with no `VITE_DQA` or `VITE_ENABLE_DEBUG_FEATURES`. Add the
+preview host to the dqa-server's `DQA_ALLOWED_ORIGINS` (wildcards allowed, e.g.
+`https://*.workers.dev`).
 
 Cloudflare already builds a preview per PR; this flips DQA on for those builds.
 Full setup: `packages/dqa-server/MANUAL.md` §3.

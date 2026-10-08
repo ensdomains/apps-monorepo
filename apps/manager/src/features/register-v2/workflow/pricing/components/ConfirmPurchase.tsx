@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -16,6 +12,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -94,8 +91,8 @@ export const ConfirmPurchase = () => {
         return
       }
 
-      // Resolve the session-enable payload up front (checks on-chain
-      // enablement so an already-enabled session skips the enable call).
+      // Resolve the session-enable payload up front; both legs are signed
+      // with it.
       const hcaSessionEnable = await account.getSessionEnablePayload()
 
       uiActor.send({

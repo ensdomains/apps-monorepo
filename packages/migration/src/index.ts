@@ -14,7 +14,10 @@ export {
   type IneligibleName,
   type IneligibleReason,
   type MigrationTokenType,
+  managerRestorationCandidates,
   type ResolverStrategy,
+  registryControllerOf,
+  withManagerRestorationOptIn,
 } from './service/classifyNames'
 export {
   type EligibilityResult,

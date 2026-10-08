@@ -33,3 +33,7 @@ export const useMigrationLastError = createMigrationUiSelector(
 export const useMigrationSelectedNames = createMigrationUiSelector(
   (state) => state.context.selectedNames,
 )
+
+export const useMigrationManagerRestorationNames = createMigrationUiSelector(
+  (state) => state.context.managerRestorationNames,
+)

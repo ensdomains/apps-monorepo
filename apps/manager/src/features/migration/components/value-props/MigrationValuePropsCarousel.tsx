@@ -207,7 +207,7 @@ export const MigrationValuePropsCarousel = () => {
   )
 
   return (
-    <section aria-label={t`Migration value propositions`} className="w-full">
+    <section aria-label={t`Upgrade benefits`} className="w-full">
       <div className="mb-2 flex items-center justify-center gap-0.5">
         {slides.map((slide, index) => (
           <button

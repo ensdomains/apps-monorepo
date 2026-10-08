@@ -14,16 +14,10 @@ describe('getDefaultGlobalBackButtonConfig', () => {
       '/example.eth/',
       '/0x0000000000000000000000000000000000000000',
       '/0x0000000000000000000000000000000000000000/',
-      '/payment/add',
-      '/payment/list',
       '/notifications',
       '/notifications/',
       '/notifications/settings',
       '/notifications/settings/',
-      '/auto-renewal',
-      '/auto-renewal/',
-      '/wallet',
-      '/wallet/',
     ]
 
     for (const route of visibleRoutes) {
@@ -38,7 +32,8 @@ describe('getDefaultGlobalBackButtonConfig', () => {
     const hiddenRoutes = [
       '/',
       '/dashboard',
-      '/migration',
+      '/upgrade',
+      '/upgrade-permissions',
       '/register',
       '/register/example.eth',
       '/renew/example.eth',

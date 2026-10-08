@@ -8,15 +8,13 @@ import {
   buildMergedNamesList,
   type MergedItem,
   mergedRowMetadata,
+  type NameVersion,
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
-import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
-import {
-  type ProfileRecordsResult,
-  profileRecordsQuery,
-} from '@/features/profile/service/profileRecords'
+import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
+import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
@@ -24,6 +22,7 @@ import { DashboardPagination } from './DashboardPagination'
 import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
+import { nameRowRecordsQuery } from './nameRowRecordsQuery'
 
 const PAGE_SIZE = 5
 const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
@@ -34,6 +33,7 @@ interface MyNamesListProps {
   readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
+  readonly version?: NameVersion | null
   readonly sort: Sort
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
@@ -87,7 +87,7 @@ const AnimatedNameRow = ({
   readonly item: MergedItem
   readonly name: string
   readonly index: number
-  readonly profileRecords?: ProfileRecordsResult | null
+  readonly profileRecords?: Pick<ProfileRecordsResult, 'texts'> | null
   readonly isProfileRecordsLoading: boolean
   readonly shouldReduceMotion: boolean | null
   readonly favoriteLabels: ReadonlySet<string>
@@ -134,11 +134,11 @@ const AnimatedNameRow = ({
     }))
     .exhaustive()
 
-  // V1 rows use the authoritative renewer read; V2 rows use their grace window.
-  // Only V2 names can expose the bulk-selection checkbox.
+  // V1 rows use the authoritative renewer read; V2 rows use the renewal
+  // routes' check, so a row only offers renewal for the label it displays.
   const isRenewable = isV1
     ? isV1Renewable
-    : isRenewableV2EthName(label, metadata.expiryDate)
+    : canRenewV2Name(label, metadata.expiryDate)
 
   return (
     <motion.div
@@ -157,7 +157,7 @@ const AnimatedNameRow = ({
     >
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
-        avatarUrl={profilePreview.avatarUrl}
+        avatarRecord={profilePreview.avatarRecord}
         canRenew={isRenewable}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
@@ -165,10 +165,9 @@ const AnimatedNameRow = ({
         isAuthenticated={isAuthenticated}
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
-        isSelected={selectedLabels.has(label.toLowerCase())}
+        isSelected={selectedLabels.has(label)}
         label={label}
         nameRoles={nameRoles}
-        nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
@@ -186,6 +185,7 @@ export const MyNamesList = ({
   migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
+  version = null,
   sort,
   favoriteLabels,
   onToggleFavorite,
@@ -197,7 +197,7 @@ export const MyNamesList = ({
   const [page, setPage] = useState(1)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const filterKey = `${searchQuery}:${sort}`
+  const filterKey = `${searchQuery}:${version ?? 'all'}:${sort}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -226,8 +226,9 @@ export const MyNamesList = ({
         searchQuery,
         sortField,
         sortDir,
+        version,
       }),
-    [v2Names, v1Names, searchQuery, sortField, sortDir],
+    [v2Names, v1Names, searchQuery, sortField, sortDir, version],
   )
 
   const total = mergedSortedFiltered.length
@@ -254,7 +255,7 @@ export const MyNamesList = ({
   }))
   const pageProfileRecords = useQueries({
     queries: pageRows.map(({ item, metadata, name }) => ({
-      ...profileRecordsQuery(name),
+      ...nameRowRecordsQuery(name),
       enabled: item.kind === 'v2' && !metadata.isInGrace,
     })),
     combine: (results) =>

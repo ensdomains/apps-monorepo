@@ -20,6 +20,7 @@ import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
 import { makeClassified } from './_fixtures'
+import { TARGET_GAS } from './batchMigrate.constants'
 import {
   AtomicMigrationNameGasLimitExceededError,
   buildAtomicMigrationBatches,
@@ -136,6 +137,147 @@ const decodeOwnerExecutions = (data: Hex): readonly OwnerExecution[] => {
   const [executions] = decoded.args as [readonly OwnerExecution[]]
   return executions
 }
+
+const ADMIN_ROLE_BITS = ((1n << 128n) - 1n) << 128n
+
+const grantRolesAbi = parseAbi([
+  'function grantRoles(uint256 resource, uint256 roleBitmap, address account) returns (bool)',
+])
+
+const decodeGrants = (batch: {
+  readonly innerExecutions: readonly {
+    readonly phase: string
+    readonly call: { readonly data: Hex }
+  }[]
+}) =>
+  batch.innerExecutions
+    .filter((execution) => execution.phase === 'manager-role-grant')
+    .map((execution) => {
+      const [resource, roleBitmap, account] = decodeFunctionData({
+        abi: grantRolesAbi,
+        data: execution.call.data,
+      }).args as [bigint, bigint, Address]
+      return { resource, roleBitmap, account: account.toLowerCase() }
+    })
+
+describe('manager role restoration (WEB-1528)', () => {
+  it('emits no role grant for a name whose registrant and controller differ but was not opted in', async () => {
+    // What classification now produces on its own: the divergent controller is
+    // recorded, and `managerAddress` stays null until the owner opts in.
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: null,
+        }),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    expect(
+      batch.innerExecutions.map((execution) => execution.phase),
+    ).not.toContain('manager-role-grant')
+    expect(decodeGrants(batch)).toEqual([])
+  })
+
+  it('leaves a migrated name with no third-party ROLE_SET_RESOLVER holder when nothing is opted in', async () => {
+    const plan = await buildPlan({
+      classified: [makeName('alice.eth', { registryController: MANAGER })],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const roleHolders = batch.verificationExpectations
+      .filter((expectation) => 'account' in expectation)
+      .map((expectation) => (expectation as { account: Address }).account)
+      .map((account) => account.toLowerCase())
+
+    expect(roleHolders).not.toContain(MANAGER.toLowerCase())
+    expect(
+      batch.verificationExpectations.some(
+        (expectation) => expectation.type === 'manager-role',
+      ),
+    ).toBe(false)
+  })
+
+  it('grants the opted-in manager exactly one role and nothing else', async () => {
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: MANAGER,
+        }),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const grants = decodeGrants(batch)
+    expect(grants).toHaveLength(1)
+    const [managerGrant] = grants
+    assert(managerGrant)
+
+    expect(managerGrant.roleBitmap).toBe(ROLE_SET_RESOLVER)
+    expect(managerGrant.account).toBe(MANAGER.toLowerCase())
+  })
+
+  it('emits no admin-role grant, which would revert the whole batch', async () => {
+    // An `_ADMIN` role administers itself, so granting one requires already
+    // holding it. Emitting one here could only succeed where it was already a
+    // no-op, and would otherwise revert every name packed into the batch.
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: MANAGER,
+        }),
+        makeName('bob.eth'),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    for (const grant of decodeGrants(batch)) {
+      expect(grant.roleBitmap & ADMIN_ROLE_BITS).toBe(0n)
+    }
+    expect(
+      batch.verificationExpectations
+        .filter((expectation) => expectation.type === 'manager-role')
+        .map(
+          (expectation) => (expectation as { roleBitmap: bigint }).roleBitmap,
+        )
+        .every((roleBitmap) => (roleBitmap & ADMIN_ROLE_BITS) === 0n),
+    ).toBe(true)
+  })
+
+  it('verifies the manager role for the grantee only', async () => {
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: MANAGER,
+        }),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const managerRoles = batch.verificationExpectations
+      .filter((expectation) => expectation.type === 'manager-role')
+      .map((expectation) => {
+        const { account, roleBitmap } = expectation as {
+          account: Address
+          roleBitmap: bigint
+        }
+        return { account: account.toLowerCase(), roleBitmap }
+      })
+
+    expect(managerRoles).toEqual([
+      { account: MANAGER.toLowerCase(), roleBitmap: ROLE_SET_RESOLVER },
+    ])
+  })
+})
 
 describe('buildAtomicMigrationBatches', () => {
   it('keeps parent-before-child order and wraps complete per-name executions', async () => {
@@ -976,6 +1118,41 @@ describe('buildAtomicMigrationBatches', () => {
     expect(
       estimateOuterGas.mock.calls.map(([{ names }]) => names.length),
     ).toEqual([2])
+  })
+
+  it('keeps an 85-name migration batched while splitting an oversized live estimate', async () => {
+    const classified = Array.from({ length: 85 }, (_, index) =>
+      makeName(`name-${index}.eth`, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+    const first = await buildPlan({
+      classified,
+      maxOuterGas: TARGET_GAS,
+      firstBatchOnly: true,
+      initialBatchSize: 85,
+      estimateOuterGas: ({ names }) => BigInt(names.length) * 300_000n,
+    })
+    const firstBatch = first.batches[0]
+    assert(firstBatch)
+    expect(firstBatch.names).toHaveLength(50)
+    expect(firstBatch.estimatedGas).toBe(15_000_000n)
+
+    const remaining = classified.filter(
+      ({ domain }) => !firstBatch.names.includes(domain.name),
+    )
+    const second = await buildPlan({
+      classified: remaining,
+      maxOuterGas: TARGET_GAS,
+      firstBatchOnly: true,
+      initialBatchSize: remaining.length,
+      estimateOuterGas: ({ names }) => BigInt(names.length) * 300_000n,
+    })
+    expect(second.batches[0]?.names).toHaveLength(35)
+    expect([...firstBatch.names, ...(second.batches[0]?.names ?? [])]).toEqual(
+      classified.map(({ domain }) => domain.name),
+    )
   })
 
   it('uses a bounded downward search when the preview exceeds the live limit', async () => {

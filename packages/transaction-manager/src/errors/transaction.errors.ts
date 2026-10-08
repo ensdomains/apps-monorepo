@@ -1,6 +1,6 @@
 import { YieldableError } from '@ens-apps/utils/neverthrow'
 import type { ITaggedError } from '@ens-apps/utils/neverthrow/error-classes'
-import type { Address, Hash, UserRejectedRequestError } from 'viem'
+import type { Address, Chain, Hash } from 'viem'
 import type { TransactionRequest } from '../types/transaction.types'
 
 // Base error class for transaction errors
@@ -118,10 +118,34 @@ export class TransactionUserRejectedError
   readonly _tag = 'TransactionUserRejectedError'
   constructor(
     public readonly request: TransactionRequest,
-    cause?: UserRejectedRequestError,
+    cause?: unknown,
   ) {
     super('User rejected transaction', cause)
   }
+}
+
+/**
+ * Whether `error` is the user declining a wallet request.
+ *
+ * Narrows viem errors by `name`, as viem documents
+ * (https://viem.sh/docs/error-handling), not by `instanceof`. The wallet client
+ * is built by the app, and its errors are instances of the viem classes
+ * imported here only while the app and this package share one viem copy. pnpm
+ * keys viem copies by their resolved peers (see the `zod` catalog entry), so a
+ * dependency change can split them again, and nothing fails loudly when that
+ * happens. `BaseError.walk` sits behind the same `instanceof`, so the `cause`
+ * chain is followed directly; that also reaches through our own wrappers.
+ */
+export function isUserRejectionError(error: unknown): boolean {
+  let current: unknown = error
+
+  while (current instanceof Error) {
+    if (current instanceof TransactionUserRejectedError) return true
+    if (current.name === 'UserRejectedRequestError') return true
+    current = current.cause
+  }
+
+  return false
 }
 
 export class TransactionTimeoutError
@@ -142,6 +166,27 @@ export class TransactionRevertedError
   implements ITaggedError
 {
   readonly _tag = 'TransactionRevertedError'
+}
+
+/**
+ * The transaction's actor was stopped before it reached success or error, so
+ * nothing more will ever be learned about it here.
+ *
+ * Waiters have to be told: a stopped actor emits no further snapshots, so a
+ * caller awaiting one would otherwise hang forever — its mutation stuck
+ * pending, its invalidation and history reporting never running — while the
+ * transaction itself may well be on-chain.
+ */
+export class TransactionStoppedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'TransactionStoppedError'
+  constructor(public readonly txId: string) {
+    super(
+      `Transaction ${txId} stopped before completing. It may still be on-chain.`,
+    )
+  }
 }
 
 export class EthCallFallbackError
@@ -194,5 +239,56 @@ export class SignerAddressMismatchError
     super(
       `Signer address mismatch: presented ${expected} but signer is ${actual ?? 'unknown'}`,
     )
+  }
+}
+
+/**
+ * Raised when the chain a request was built for is not provably the chain the
+ * signer will submit on.
+ *
+ * `TransactionRequest.chainId` is fixed when the request is prepared — the
+ * calldata, the quoted price and the contract addresses all belong to that one
+ * chain. Nothing downstream re-derives it, so if the signer is pointed
+ * somewhere else the transaction is simply wrong: on the EOA path it is
+ * broadcast (and paid for) on whatever chain the wallet happens to be on.
+ *
+ * Both transports therefore fail closed here rather than submitting:
+ *
+ *   - EOA: `walletClient.chain` must be defined and equal `request.chainId`.
+ *     Undefined is the dangerous case, not a benign one — wagmi resolves
+ *     `chain` by looking the connection's live chainId up in `config.chains`,
+ *     so a wallet switched to a chain the app does not declare yields
+ *     `undefined`. Handing that to viem as `chain: null` skips viem's own
+ *     `assertCurrentChain`, which is exactly when it is needed.
+ *   - Rhinestone/Warp: `config.chain` must be defined and equal
+ *     `request.chainId`. It is passed to the orchestrator as both source and
+ *     target chain, so defaulting it silently re-routes the intent.
+ *
+ * The message is read by people, not just logs: portal renders `error.message`
+ * verbatim as the transaction modal's summary
+ * (`TransactionStateContent.tsx`). Hence the signer's `Chain` rather than its
+ * id — "your wallet is on Ethereum" beats "signer is on 1". The ids stay on
+ * `expected`/`actual` for callers that need to branch.
+ */
+export class ChainIdMismatchError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'ChainIdMismatchError'
+  /** The chain the request was prepared for (`request.chainId`). */
+  readonly expected: number
+  /** The chain the signer would actually submit on, if it declares one. */
+  readonly actual: number | undefined
+
+  constructor(expected: number, actual: Chain | undefined) {
+    super(
+      `Chain mismatch: this transaction is for chain ${expected}, but your wallet is on ${
+        actual
+          ? `${actual.name} (${actual.id})`
+          : 'a network this app does not support'
+      }.`,
+    )
+    this.expected = expected
+    this.actual = actual?.id
   }
 }

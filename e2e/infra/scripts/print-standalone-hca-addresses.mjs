@@ -30,9 +30,9 @@
 // `usdc` is ensjs' MockUSDC: the orchestrator accepts it as payment token and
 // the faucet can mint it, so the whole route runs on one token.
 const STANDALONE = {
-  usdc: '0x768F42455A2D082E23ceeF7d51e5787C82d67a39',
-  ethRegistrar: '0xa88553F454b77203B0D036A05c894d555EAAa2Cc',
-  ethRegistry: '0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2',
+  usdc: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
+  ethRegistrar: '0xf633e7FC17e2bbE0D0965D18ec1821dcB754a3d3',
+  ethRegistry: '0xD4eBcbBdF463C9c45784603Db0dDD499BC44A8B4',
 }
 
 process.stdout.write(

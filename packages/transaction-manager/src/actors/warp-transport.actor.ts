@@ -16,8 +16,8 @@ import { logger } from '@ens-apps/utils/logger'
 import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
-import { sepolia } from 'viem/chains'
 import {
+  ChainIdMismatchError,
   extractOrchestratorErrorContext,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
@@ -45,7 +45,7 @@ export interface SubmitWarpTransactionInput {
 
 export function submitWarpTransaction(
   input: SubmitWarpTransactionInput,
-): ResultAsync<Hash, TransactionSubmissionError> {
+): ResultAsync<Hash, TransactionSubmissionError | ChainIdMismatchError> {
   const { request, signer } = input
   const { account, config } = signer
 
@@ -60,6 +60,27 @@ export function submitWarpTransaction(
     )
   }
 
+  // The signer's chain is handed to the orchestrator as BOTH `sourceChains` and
+  // `targetChain`, so it decides where the intent is planned, quoted and
+  // filled. It used to fall back to `sepolia` when `config.chain` was unset,
+  // which silently re-routed the whole intent away from the chain the calls
+  // were built for. Assert instead — the session digest binds a chain on-chain
+  // and would fail with an opaque `InvalidSignature()` at best.
+  //
+  // This cannot fire today: manager is the only warp consumer and sets
+  // `config.chain` to `customSepolia` unconditionally, with `request.chainId`
+  // derived from the same constant. So this states the invariant rather than
+  // closing a live hole — the EOA guard is the one that bites — and keeps the
+  // next signer wiring from quietly reintroducing the default.
+  const chain = config.chain
+  if (!chain || chain.id !== request.chainId) {
+    logger.error('Warp intent chain mismatch', {
+      requestChainId: request.chainId,
+      signerChainId: chain?.id,
+    })
+    return errAsync(new ChainIdMismatchError(request.chainId, chain))
+  }
+
   const { calls, feeAsset, sessionEnableData, tokenRequests, auxiliaryFunds } =
     request.rhinestoneParams
 
@@ -69,6 +90,22 @@ export function submitWarpTransaction(
         request,
         new Error(
           'rhinestoneParams.sessionEnableData requires a signer with an active session',
+        ),
+      ),
+    )
+  }
+
+  // The validator is stateless: a session signature without the owner's
+  // authorization (envelope 0x01/0x02) reverts InvalidSessionData(), which the
+  // router surfaces as an opaque UnclassifiedRevert. Refuse it here instead.
+  const enableData = sessionEnableData ?? signer.session?.enableData
+  if (signer.session && !enableData) {
+    return errAsync(
+      new TransactionSubmissionError(
+        request,
+        new Error(
+          'A session-signed intent needs the session enable data: the ' +
+            'standalone HCA validator rejects session signatures without it',
         ),
       ),
     )
@@ -106,19 +143,18 @@ export function submitWarpTransaction(
 
   // Authorization: if the signer carries an active scoped session, the SDK
   // signs this Intent with the ephemeral SESSION KEY (no wallet prompt) via
-  // `experimental_session`. `enableData` is attached ONLY on the request that
-  // also carries the on-chain `enableSessionWithRefund` call (the first HCA
-  // action); afterwards it is omitted per the standalone-HCA spec. Without a
-  // session we omit `signers` and the SDK uses the connected owner
+  // `experimental_session`, always with `enableData` (checked above). Without
+  // a session we omit `signers` and the SDK uses the connected owner
   // (owner-signed).
-  const sessionSigners = signer.session
-    ? ({
-        type: 'experimental_session' as const,
-        session: signer.session.session,
-        ...(sessionEnableData ? { enableData: sessionEnableData } : {}),
-        verifyExecutions: true,
-      } satisfies NonNullable<Transaction['signers']>)
-    : undefined
+  const sessionSigners =
+    signer.session && enableData
+      ? ({
+          type: 'experimental_session' as const,
+          session: signer.session.session,
+          enableData,
+          verifyExecutions: true,
+        } satisfies NonNullable<Transaction['signers']>)
+      : undefined
 
   // Funds arriving DURING this intent (the HCA's `permit` + `transferFrom`
   // pair). The planner only credits balances it can already see, so without
@@ -128,8 +164,9 @@ export function submitWarpTransaction(
 
   return fromPromise(
     (async () => {
-      const chain = config.chain || sepolia
-
+      // `chain` is the one asserted above: it is a `const`, so TypeScript keeps
+      // the non-undefined narrowing from the guard into this closure, and there
+      // is no fallback here to paper over an absent `config.chain`.
       const sendStart = nowMs()
 
       // Log raw call data before SDK processes it
@@ -196,6 +233,17 @@ export function submitWarpTransaction(
       const intentId =
         (transaction as { id?: bigint } | undefined)?.id?.toString() ??
         'unknown'
+
+      // Hand the id to the caller before waiting on the fill: a tab closed
+      // mid-fill is precisely the case the observer exists for.
+      const rawIntentId = (transaction as { id?: bigint } | undefined)?.id
+      if (rawIntentId !== undefined) {
+        try {
+          request.rhinestoneParams.onIntentSubmitted?.(rawIntentId)
+        } catch (error) {
+          logger.debug('⚠️ [WARP] onIntentSubmitted observer threw:', error)
+        }
+      }
       // NOTE: no `gasLimit` to report — submitted intents deliberately carry
       // none, so the ceiling on a filled intent is the orchestrator's own
       // estimate, not something this app sets. (`gasLimit` is passed only to

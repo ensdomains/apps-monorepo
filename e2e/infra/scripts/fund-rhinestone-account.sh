@@ -37,7 +37,7 @@ ETH_AMOUNT_HEX=$(cast to-hex 10000000000000000000)
 # + userSalt(0), so it MOVES with every implementation redeploy. Recompute with:
 #   cast call <StandaloneHCAFactory> 'deploy(address,address,uint256)(address)' <owner> <impl> 0
 KNOWN_ADDRESSES=(
-  "0x48B9c6898baFc8A3D3a495BF7c44CF3351486628"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
+  "0xF1554d7361E0663896F57A121C83638856f0ED91"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
   "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"  # Anvil account 0 (E2E headless wallet EOA — USDC permit source)
   "0xc9eec1b174a646d7c282820afe94acfba6c00a12"  # EOA for test1@test.getpara.com
 )

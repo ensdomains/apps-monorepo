@@ -5,12 +5,14 @@ import {
   type HcaSessionEnableParams,
   readHcaUsdcBalanceActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
+import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { keepPreviousData } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
+import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 
 /**
@@ -89,9 +91,8 @@ export interface HcaBudgetQueryParams {
    */
   readonly primaryName: string | undefined
   /**
-   * Resolves the session-enable payload. The commit leg's cost depends on
-   * whether the batch carries `enableSessionWithRefund`, so the quote must be
-   * taken against the same shape the machine will submit.
+   * Resolves the session-enable payload. Both legs are signed with it, so the
+   * quote must be taken against the same envelope the machine will submit.
    */
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnableParams | undefined
@@ -110,7 +111,7 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
     name: params.label,
     duration: BigInt(Math.ceil(params.durationInSeconds)),
     publicClient,
-    chainId: sepolia.id,
+    chainId: chain.id,
     ...(params.signer ? { signer: params.signer } : {}),
     ...(sessionEnable ? { sessionEnable } : {}),
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
@@ -124,12 +125,41 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
     ? await readHcaUsdcBalanceActor({
         hca: params.hca,
         publicClient,
-        chainId: sepolia.id,
+        chainId: chain.id,
       }).unwrapOr(0n)
     : 0n
 
   return ok({ ...budget, hcaBalance } satisfies HcaBudgetQuote)
 })
+
+/**
+ * Does this registration have a funding budget to quote at all? Only the
+ * standalone-HCA route does; a pure-EOA signer pays the registrar directly.
+ *
+ * Exported because `fetchQuery` ignores `enabled`, so a caller that refuses to
+ * proceed without a budget must ask this first or it blocks the EOA route too.
+ */
+export const isHcaBudgetQuoteRequired = (
+  params: Pick<
+    HcaBudgetQueryParams,
+    'hca' | 'signer' | 'label' | 'durationInSeconds'
+  >,
+): boolean =>
+  Boolean(params.hca) &&
+  params.signer?.type === 'rhinestone' &&
+  params.label.length > 0 &&
+  params.durationInSeconds > 0
+
+/**
+ * On screen a refused quote only reads as an unknown fee, so the reason it was
+ * refused would otherwise leave no trace. Wraps the whole pipeline: a session
+ * payload that cannot be resolved fails the quote just as an estimate can.
+ */
+const getLoggedHcaBudget = (params: HcaBudgetQueryParams) =>
+  getHcaBudget(params).mapErr((error) => {
+    logger.warn('HCA budget quote failed', error)
+    return error
+  })
 
 export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
   resultQueryOptions({
@@ -143,17 +173,16 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       // quote, so it has to refetch rather than serve the other variant.
       primaryName: params.primaryName ?? null,
     }),
-    queryFn: () => getHcaBudget(params),
-    // Only the HCA route has a funding budget; a pure-EOA signer pays the
-    // registrar directly and the estimator has nothing to quote against.
-    enabled:
-      Boolean(params.hca) &&
-      params.signer?.type === 'rhinestone' &&
-      params.label.length > 0 &&
-      params.durationInSeconds > 0,
-    staleTime: HCA_BUDGET_STALE_TIME_MS,
-    // A flaky orchestrator must not strand the user on the confirm screen:
-    // callers treat "no budget" as "show the price alone and let the machine
-    // surface any failure", never as a hard block.
+    queryFn: () => getLoggedHcaBudget(params),
+    enabled: isHcaBudgetQuoteRequired(params),
+    // One retry for a flaky orchestrator. If it still fails the caller must
+    // surface that: here "no budget" means "the permit cannot be sized", not
+    // "show the rent alone".
     retry: 1,
+    staleTime: HCA_BUDGET_STALE_TIME_MS,
+    // The primary-name toggle is part of the key, so flipping it starts a
+    // fresh query. Carrying the last quote through keeps the figures on screen
+    // instead of the breakdown emptying out and refilling. Callers must treat
+    // placeholder data as not-yet-quoted: it belongs to the other toggle state.
+    placeholderData: keepPreviousData,
   })

@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { revokeRoles } from '../helpers/revokeRoles'
@@ -17,6 +18,7 @@ import { invalidateRolesQueries } from '../utils/invalidateRolesQueries'
 
 type UseRevokeRolesParameters = {
   readonly name: string
+  readonly resourceId: ResourceId
   readonly account: Address
   readonly roles: Role[]
   readonly id: string

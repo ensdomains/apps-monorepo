@@ -8,11 +8,16 @@ import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
-import { isRenewableV2Domain } from '@/features/renew/utils/renewableName'
 import { isBackendAuthed } from '@/utils/backend-client'
+import {
+  selectionKey,
+  toBulkRenewName,
+  toSelectableDomain,
+} from '../bulkRenewSelection'
 import {
   buildMergedNamesList,
   getMergedNamesCount,
+  type NameVersion,
   type SortDir,
   type SortField,
 } from '../mergedNames'
@@ -21,7 +26,6 @@ import { removeFavoriteMutationOptions } from '../service/mutations/removeFavori
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
-import { resolveDomainLabel } from '../utils'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -56,48 +60,13 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
-type SelectableDomain = {
-  readonly id: string
-  readonly name?: string | null
-  readonly normalizedName?: string | null
-  readonly expiryDate?: number | null
-}
-
-// Single source of truth for bulk selection, shared by the select-all set and
-// the selected-names lookup so they can't drift apart.
-
-/** The canonical key a selection is stored under. */
-const selectionKey = (domain: SelectableDomain): string =>
-  resolveDomainLabel(domain).toLowerCase()
-
-/** A domain is selectable when it's a renewable v2 `.eth` 2LD (within grace). */
-const isSelectableDomain = (domain: SelectableDomain): boolean =>
-  isRenewableV2Domain(
-    domain.normalizedName ?? domain.name ?? '',
-    domain.expiryDate,
-  )
-
-/** Map a selectable domain to its bulk-renew payload, or `null` if ineligible. */
-const toBulkRenewName = (domain: SelectableDomain): BulkRenewName | null => {
-  if (!isSelectableDomain(domain)) return null
-  const displayName = resolveDomainLabel(domain)
-  // Use the canonical normalized name for the on-chain label — the display name
-  // may be unnormalized (e.g. mixed case) and would hash to the wrong label.
-  const name = domain.normalizedName ?? displayName
-  return {
-    displayName,
-    label: name.replace(/\.eth$/i, ''),
-    name,
-    currentExpiry: BigInt(domain.expiryDate as number),
-  }
-}
-
 export const NamesTable = ({
   migrationEnabled = false,
   primaryLabel,
 }: NamesTableProps) => {
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
+  const [version, setVersion] = useState<NameVersion | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
@@ -122,6 +91,14 @@ export const NamesTable = ({
   const ownedCount = isV1Error
     ? undefined
     : getMergedNamesCount({ v2Names, v1Classified: v1Names })
+  const v1Count = isV1Error
+    ? undefined
+    : getMergedNamesCount({ v2Names, v1Classified: v1Names, version: 'v1' })
+  const v2Count = getMergedNamesCount({
+    v2Names,
+    v1Classified: v1Names,
+    version: 'v2',
+  })
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
@@ -142,12 +119,14 @@ export const NamesTable = ({
         searchQuery,
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
+        version,
       }).flatMap((item) =>
-        item.kind === 'v2' && isSelectableDomain(item.domain)
+        item.kind === 'v2' &&
+        toBulkRenewName(toSelectableDomain(item.domain)) !== null
           ? [selectionKey(item.domain)]
           : [],
       ),
-    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
+    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir, version],
   )
 
   const [isRenewOpen, setIsRenewOpen] = useState(false)
@@ -162,19 +141,18 @@ export const NamesTable = ({
     () =>
       v2Names
         .filter((domain) => selectedLabels.has(selectionKey(domain)))
-        .map(toBulkRenewName)
+        .map((domain) => toBulkRenewName(toSelectableDomain(domain)))
         .filter((name): name is BulkRenewName => name !== null),
     [v2Names, selectedLabels],
   )
 
   const onToggleSelect = (label: string) => {
-    const key = label.toLowerCase()
     setSelectedLabels((prev) => {
       const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
+      if (next.has(label)) {
+        next.delete(label)
       } else {
-        next.add(key)
+        next.add(label)
       }
       return next
     })
@@ -236,6 +214,17 @@ export const NamesTable = ({
       activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
     },
   ]
+
+  // v1 / v2 are mutually exclusive; clicking the active one shows all again.
+  // Switching drops the selection so Renew can't include a name that's hidden.
+  const versionChips: FilterChipDef<NameVersion>[] = [
+    { value: 'v1', label: t`V1`, count: v1Count },
+    { value: 'v2', label: t`V2`, count: v2Count },
+  ]
+  const changeVersion = (next: NameVersion | null) => {
+    setVersion(next)
+    setSelectedLabels(new Set())
+  }
 
   return (
     <div className="w-full">
@@ -301,6 +290,14 @@ export const NamesTable = ({
             }}
             value={activeFilter}
           />
+          {activeFilter === 'owned' && (
+            <FilterChips
+              chips={versionChips}
+              onChange={changeVersion}
+              onClear={() => changeVersion(null)}
+              value={version}
+            />
+          )}
         </div>
 
         {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
@@ -367,6 +364,7 @@ export const NamesTable = ({
                 searchQuery={searchQuery}
                 selectedLabels={selectedLabels}
                 sort={ownedSort}
+                version={version}
               />
             </motion.div>
           ))

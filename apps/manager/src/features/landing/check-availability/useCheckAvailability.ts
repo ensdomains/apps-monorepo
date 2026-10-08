@@ -1,21 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { type Address, isAddress } from 'viem'
+import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import {
-  getPremiumLabel,
-  normalizeQuery,
-  validateENSName,
-} from '@/features/shared/registration/nameUtils'
+import { getSearchNameKind } from '@/features/search/getSearchNameKind'
+import { parseSearchQuery } from '@/features/search/parseSearchQuery'
+import type {
+  NameSearchOutcome,
+  ParsedSearchQuery,
+  SearchNameKind,
+} from '@/features/search/search.types'
+import { useNameClassification } from '@/features/search/useNameClassification'
+import { getPremiumLabel } from '@/features/shared/registration/nameUtils'
 import {
   INITIAL_PRICING_OPTIONS,
   PRICING_DURATIONS,
 } from '@/features/shared/registration/pricing'
 import type { PricingOptions } from '@/features/shared/registration/pricingTypes'
-import {
-  getNamePricingQueryOptions,
-  getSearchNameQueryOptions,
-} from '@/features/shared/service/checkNameAvailabilityService'
+import { getNamePricingQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
 
 export type DisplayState =
   | { type: 'idle' }
@@ -23,7 +25,119 @@ export type DisplayState =
   | { type: 'searching'; domainName: string }
   | { type: 'available'; domainName: string }
   | { type: 'unavailable'; domainName: string }
+  | { type: 'not-found'; domainName: string }
+  | { type: 'not-imported'; domainName: string }
   | { type: 'not-supported'; domainName: string }
+  | { type: 'error'; domainName: string }
+
+type ToDisplayStateParams = {
+  readonly trimmedInput: string
+  readonly parsedInput: ParsedSearchQuery
+  readonly instantName: string | null
+  readonly instantKind: SearchNameKind | null
+  readonly isDebouncing: boolean
+  readonly outcome: NameSearchOutcome
+}
+
+export const toDisplayState = ({
+  trimmedInput,
+  parsedInput,
+  instantName,
+  instantKind,
+  isDebouncing,
+  outcome,
+}: ToDisplayStateParams): DisplayState => {
+  if (!trimmedInput) return { type: 'idle' }
+  if (parsedInput.type === 'address') {
+    return { type: 'address', address: parsedInput.value }
+  }
+  if (parsedInput.type === 'invalid') {
+    return { type: 'not-supported', domainName: parsedInput.value }
+  }
+  if (!instantName) return { type: 'idle' }
+  if (instantKind?.type === 'invalid') {
+    return { type: 'not-supported', domainName: instantName }
+  }
+  if (
+    isDebouncing ||
+    outcome.type === 'loading' ||
+    outcome.name !== instantName
+  ) {
+    return { type: 'searching', domainName: instantName }
+  }
+
+  return match(outcome)
+    .with({ type: 'available' }, ({ name }) => ({
+      type: 'available' as const,
+      domainName: name,
+    }))
+    .with({ type: 'owned' }, ({ name }) => ({
+      type: 'unavailable' as const,
+      domainName: name,
+    }))
+    .with({ type: 'error' }, ({ name }) => ({
+      type: 'error' as const,
+      domainName: name,
+    }))
+    .with({ type: 'not-found' }, ({ name }) => ({
+      type: 'not-found' as const,
+      domainName: name,
+    }))
+    .with({ type: 'not-imported' }, ({ name }) => ({
+      type: 'not-imported' as const,
+      domainName: name,
+    }))
+    .with({ type: 'invalid' }, ({ name }) => ({
+      type: 'not-supported' as const,
+      domainName: name,
+    }))
+    .otherwise(() => ({ type: 'idle' as const }))
+}
+
+const toPricingOptions = (
+  pricingData: {
+    readonly usdc?: { readonly formatted: string }
+  } | null,
+): PricingOptions => {
+  if (!pricingData?.usdc) return INITIAL_PRICING_OPTIONS
+
+  const basePerYear = parseFloat(pricingData.usdc.formatted)
+  const newPricing = { ...INITIAL_PRICING_OPTIONS }
+
+  for (const duration of PRICING_DURATIONS) {
+    const discount = INITIAL_PRICING_OPTIONS[duration].discount
+    const discountMultiplier = 1 - discount / 100
+    const perYearPrice = basePerYear * discountMultiplier
+    const totalPrice = Math.ceil(perYearPrice * duration)
+
+    newPricing[duration] = {
+      ...INITIAL_PRICING_OPTIONS[duration],
+      price: perYearPrice,
+      discount,
+      total: totalPrice,
+    }
+  }
+
+  return newPricing
+}
+
+const parsedName = (parsed: ParsedSearchQuery): string | null =>
+  parsed.type === 'name' ? parsed.value : null
+
+const parsedAddress = (parsed: ParsedSearchQuery): Address | undefined =>
+  parsed.type === 'address' ? parsed.value : undefined
+
+const resultNameFromDisplayState = (
+  displayState: DisplayState,
+): string | undefined =>
+  match(displayState)
+    .with(
+      { type: 'available' },
+      { type: 'unavailable' },
+      { type: 'searching' },
+      ({ domainName }) => domainName,
+    )
+    .otherwise(() => undefined)
 
 interface UseCheckAvailabilityParams {
   /** Current input value (for instant validation) */
@@ -42,166 +156,81 @@ export const useCheckAvailability = ({
   initialName,
   autoSearch = false,
 }: UseCheckAvailabilityParams = {}) => {
-  // For auto-search mode (registration page), use initialName for everything
-  const effectiveInput = autoSearch && initialName ? initialName : inputValue
-  const effectiveDebouncedInput =
-    autoSearch && initialName ? initialName : debouncedInput
+  const autoSearchName = autoSearch ? initialName : undefined
+  const trimmedInput = (autoSearchName ?? inputValue).trim()
+  const trimmedDebouncedInput = (autoSearchName ?? debouncedInput).trim()
 
-  const trimmedInput = effectiveInput.trim()
-  const trimmedDebouncedInput = effectiveDebouncedInput.trim()
-
-  const isAddressInput = useMemo(
-    () => trimmedInput.length > 0 && isAddress(trimmedInput, { strict: false }),
+  const parsedInput = useMemo(
+    () => parseSearchQuery(trimmedInput),
     [trimmedInput],
   )
+  const parsedDebouncedInput = useMemo(
+    () => parseSearchQuery(trimmedDebouncedInput),
+    [trimmedDebouncedInput],
+  )
 
-  // Fetch primary ENS name for address input
+  const instantName = parsedName(parsedInput)
+  const instantKind = instantName ? getSearchNameKind(instantName) : null
+  const debouncedName = parsedName(parsedDebouncedInput) ?? ''
+  const searchedAddress = parsedAddress(parsedInput)
+
+  const { outcome } = useNameClassification(debouncedName)
+
   const primaryNameQuery = useQuery({
-    ...profileReverseNameQuery(
-      isAddressInput ? (trimmedInput as Address) : undefined,
-    ),
-    enabled: isAddressInput,
+    ...profileReverseNameQuery(searchedAddress),
+    enabled: !!searchedAddress,
   })
 
-  // Instant validation on current input (not debounced) - skip for addresses
-  const validation = useMemo(
-    () =>
-      trimmedInput && !isAddressInput ? validateENSName(trimmedInput) : null,
-    [trimmedInput, isAddressInput],
-  )
-
-  // Only normalize debounced input if validation passes and not an address
-  const normalizedName = useMemo(
-    () =>
-      !validation && trimmedDebouncedInput && !isAddressInput
-        ? normalizeQuery(trimmedDebouncedInput)
-        : null,
-    [validation, trimmedDebouncedInput, isAddressInput],
-  )
-
-  // Is currently debouncing (input changed but debounce hasn't fired yet)
   const isDebouncing =
     trimmedInput !== trimmedDebouncedInput && trimmedInput.length > 0
 
-  // Availability query - only runs if validation passes and we have input
-  const availabilityQuery = useQuery({
-    ...getSearchNameQueryOptions(normalizedName ?? ''),
-    enabled: !!normalizedName && trimmedInput.length >= 3,
-  })
-
-  // Pricing query - only runs if name is available
   const pricingQuery = useQuery({
-    ...getNamePricingQueryOptions(availabilityQuery.data?.name),
-    enabled: availabilityQuery.data?.isAvailable === true,
+    ...getNamePricingQueryOptions(
+      outcome.type === 'available' ? outcome.name : undefined,
+    ),
+    enabled: outcome.type === 'available' && !isDebouncing,
   })
 
-  // Compute pricing options from query data
-  const pricing = useMemo((): PricingOptions => {
-    const pricingData = pricingQuery.data
-    if (!pricingData?.usdc) return INITIAL_PRICING_OPTIONS
-
-    const basePerYear = parseFloat(pricingData.usdc.formatted)
-    const newPricing = { ...INITIAL_PRICING_OPTIONS }
-
-    for (const duration of PRICING_DURATIONS) {
-      const discount = INITIAL_PRICING_OPTIONS[duration].discount
-      const discountMultiplier = 1 - discount / 100
-      const perYearPrice = basePerYear * discountMultiplier
-      const totalPrice = Math.ceil(perYearPrice * duration)
-
-      newPricing[duration] = {
-        ...INITIAL_PRICING_OPTIONS[duration],
-        price: perYearPrice,
-        discount,
-        total: totalPrice,
-      }
-    }
-
-    return newPricing
-  }, [pricingQuery.data])
-
-  // Derive display state
-  const displayState = useMemo((): DisplayState => {
-    // No input
-    if (!trimmedInput) return { type: 'idle' }
-
-    // Address input → show address profile card
-    if (isAddressInput) {
-      return { type: 'address', address: trimmedInput as Address }
-    }
-
-    // Validation error - show as "not supported"
-    if (validation) {
-      return {
-        type: 'not-supported',
-        domainName: normalizeQuery(trimmedInput),
-      }
-    }
-
-    // Loading
-    if (availabilityQuery.isFetching && normalizedName) {
-      return { type: 'searching', domainName: normalizedName }
-    }
-
-    // Has result
-    const data = availabilityQuery.data
-    if (data && !availabilityQuery.isFetching) {
-      // Check if result matches current input
-      const inputMatches =
-        trimmedInput.toLowerCase() ===
-          data.name.replace('.eth', '').toLowerCase() ||
-        trimmedInput.toLowerCase() === data.name.toLowerCase()
-
-      if (inputMatches) {
-        if (data.isAvailable) {
-          return { type: 'available', domainName: data.name }
-        }
-        return { type: 'unavailable', domainName: data.name }
-      }
-    }
-
-    return { type: 'idle' }
-  }, [
-    trimmedInput,
-    isAddressInput,
-    validation,
-    availabilityQuery.isFetching,
-    availabilityQuery.data,
-    normalizedName,
-  ])
-
-  // Premium label
-  const premiumLabel = useMemo(
-    () =>
-      availabilityQuery.data?.name
-        ? getPremiumLabel(availabilityQuery.data.name)
-        : undefined,
-    [availabilityQuery.data?.name],
+  const pricing = useMemo(
+    () => toPricingOptions(pricingQuery.data ?? null),
+    [pricingQuery.data],
   )
 
-  // `pricingQuery` already runs for available names, so we can read the
-  // on-chain premium for free to drive the cooldown pill.
+  const displayState = useMemo(
+    () =>
+      toDisplayState({
+        trimmedInput,
+        parsedInput,
+        instantName,
+        instantKind,
+        isDebouncing,
+        outcome,
+      }),
+    [
+      trimmedInput,
+      parsedInput,
+      instantName,
+      instantKind,
+      isDebouncing,
+      outcome,
+    ],
+  )
+
+  const resultName = resultNameFromDisplayState(displayState)
+
+  const premiumLabel = useMemo(
+    () => (resultName ? getPremiumLabel(resultName) : undefined),
+    [resultName],
+  )
+
   const premiumUsdc = pricingQuery.data?.usdc?.premium
   const isInCooldown = typeof premiumUsdc === 'bigint' && premiumUsdc > 0n
 
-  // Error message extraction
-  const errorMessage = useMemo(() => {
-    const err = availabilityQuery.error
-    if (!err) return null
-    if (err instanceof Error) return err.message
-    if (typeof err === 'object' && err !== null && 'message' in err) {
-      return String((err as { message: unknown }).message)
-    }
-    return 'An error occurred'
-  }, [availabilityQuery.error])
-
-  // Show loading when debouncing or fetching (but not if there's a validation error)
   const isLoading =
-    !validation && (isDebouncing || availabilityQuery.isFetching)
+    instantKind?.type !== 'invalid' &&
+    (isDebouncing || outcome.type === 'loading')
 
   return {
-    validation,
-    availabilityQuery,
     pricingQuery,
     pricing,
     displayState,
@@ -209,11 +238,9 @@ export const useCheckAvailability = ({
     isInCooldown,
     primaryName: primaryNameQuery.data ?? null,
     isPrimaryNameLoading: primaryNameQuery.isLoading,
-    isAvailable: availabilityQuery.data?.isAvailable ?? false,
-    isSearching: availabilityQuery.isFetching,
+    isAvailable: outcome.type === 'available',
+    isSearching: outcome.type === 'loading',
     isDebouncing,
     isLoading,
-    error: availabilityQuery.error,
-    errorMessage,
   }
 }

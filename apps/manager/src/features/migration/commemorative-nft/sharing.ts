@@ -1,27 +1,24 @@
 import type { Address } from 'viem'
-import { mainnet } from 'viem/chains'
 import {
   getCommemorativeNftContractAddress,
   getCommemorativeNftTokenId,
 } from './config'
-import type { CommemorativeNftShareUrls } from './types'
+import type { CommemorativeNftShareUrls, RendererTraits } from './types'
 
 const normalizedProfileName = (name: string) =>
   name.trim().replace(/\.$/, '').toLowerCase()
 
-const getManagerOrigin = (): string =>
-  typeof window === 'undefined'
-    ? 'https://app.ens.domains'
-    : window.location.origin
-
-export const buildCommemorativeNftProfileUrl = (
-  profileName: string,
-  origin = getManagerOrigin(),
-): string =>
-  new URL(
-    `/p/${encodeURIComponent(normalizedProfileName(profileName))}`,
-    origin,
-  ).toString()
+export const buildCommemorativeNftPublicUrl = (params: {
+  readonly ownerAddress: Address
+  readonly rendererOrigin: string
+}): string => {
+  const url = new URL('/nft/', params.rendererOrigin)
+  url.searchParams.set(
+    'tokenId',
+    getCommemorativeNftTokenId(params.ownerAddress).toString(),
+  )
+  return url.toString()
+}
 
 export const isCommemorativeNftCanonicalProfile = (
   routeName: string,
@@ -29,31 +26,46 @@ export const isCommemorativeNftCanonicalProfile = (
 ): boolean =>
   normalizedProfileName(routeName) === normalizedProfileName(profileName)
 
+const getShareTraitLine = (traits: RendererTraits): string => {
+  if (traits.Gasveteran === 'Battle-Scarred')
+    return "I'm a Battle-Scarred holder."
+  if (traits.Rarity === 'Elemental') return "I'm an Elemental holder."
+  if (traits.Rarity === 'Rare') return "I'm a Rare holder."
+  if (traits.Era === 'Founding') return "I'm a Founding-Era holder."
+  if (traits.Era === 'Pioneer') return "I'm a Pioneer Age holder."
+  if (traits.Depth === 'Domainer') return "I'm a Domainer."
+  const eraName = {
+    DeFi: 'DeFi Summer',
+    NFT: 'NFT Mania',
+    Merge: 'Merge Era',
+    Surge: 'Surge Era',
+  }[traits.Era]
+  return `I'm a ${eraName} holder.`
+}
+
 export const buildCommemorativeNftShareUrls = (
   externalUrl: string | undefined,
   minted: boolean,
+  traits: RendererTraits,
 ): CommemorativeNftShareUrls => {
-  if (!externalUrl) return {}
+  if (!externalUrl || !minted) return {}
 
-  const text = minted
-    ? 'I upgraded to ENSv2 and minted my commemorative NFT.'
-    : 'I upgraded to ENSv2. Take a look at my commemorative NFT.'
+  const introduction = 'Upgraded to ENSv2 and minted my card.'
+  const text = `${introduction}\n${getShareTraitLine(traits)}`
+  const message = `${text}\n${externalUrl}`
   return {
     external: externalUrl,
-    x: `https://x.com/intent/post?${new URLSearchParams({ text, url: externalUrl })}`,
+    message,
+    // X inserts a space before a separate url parameter, so keep the URL in text.
+    x: `https://x.com/intent/post?${new URLSearchParams({ text: message })}`,
     telegram: `https://t.me/share/url?${new URLSearchParams({ text, url: externalUrl })}`,
   }
 }
 
 export const buildCommemorativeNftMarketplaceUrl = (params: {
-  readonly chainId: number
   readonly ownerAddress: Address
-  readonly minted: boolean
 }): string | undefined => {
-  // OpenSea discontinued testnets: https://support.opensea.io/en/articles/11833955-farewell-testnets
-  if (!params.minted || params.chainId !== mainnet.id) return undefined
-
-  const contractAddress = getCommemorativeNftContractAddress(params.chainId)
+  const contractAddress = getCommemorativeNftContractAddress()
   if (!contractAddress) return undefined
 
   const tokenId = getCommemorativeNftTokenId(params.ownerAddress).toString()

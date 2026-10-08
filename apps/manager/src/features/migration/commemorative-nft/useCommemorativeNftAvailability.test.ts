@@ -1,3 +1,4 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import {
@@ -14,7 +15,9 @@ import { useChainId, useConfig } from 'wagmi'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
+  getCommemorativeNftContractAddress,
 } from './config'
+import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import { readCommemorativeNftClaimed } from './contract'
 import { fetchCommemorativeNftEligibility } from './eligibility'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
@@ -27,6 +30,14 @@ import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailabili
 
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
+const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
+  network: 'mainnet',
+}))
+vi.mock('@/config', () => ({ envConfig: mockEnvConfig }))
+vi.mock('./config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./config')>()),
+  getCommemorativeNftContractAddress: vi.fn(),
+}))
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   readCommemorativeNftClaimed: vi.fn(),
@@ -58,7 +69,7 @@ const claimQueryKey = (
 ) =>
   commemorativeNftClaimedQueryOptions({
     ownerAddress: params.ownerAddress ?? ownerAddress,
-    chainId: params.chainId ?? sepolia.id,
+    chainId: params.chainId ?? mainnet.id,
     wagmiConfig,
   }).queryKey
 
@@ -86,9 +97,13 @@ const deferred = <T>() => {
 describe('commemorative NFT availability observer', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockEnvConfig.network = 'mainnet'
+    vi.mocked(getCommemorativeNftContractAddress).mockReturnValue(
+      MAINNET_NFT_TEST_ADDRESS,
+    )
     vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     onlineManager.setOnline(true)
-    vi.mocked(useChainId).mockReturnValue(sepolia.id)
+    vi.mocked(useChainId).mockReturnValue(mainnet.id)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
     fetchEligibility.mockImplementation(async (params) => ({
       status: 'eligible',
@@ -107,6 +122,22 @@ describe('commemorative NFT availability observer', () => {
     for (const client of clients.splice(0)) client.clear()
     onlineManager.setOnline(true)
     vi.restoreAllMocks()
+  })
+
+  it('disables Sepolia reads even with both flags enabled and cached NFT data', async () => {
+    mockEnvConfig.network = 'sepolia'
+    vi.mocked(useChainId).mockReturnValue(sepolia.id)
+    const client = createClient()
+    client.setQueryData(claimQueryKey({ chainId: sepolia.id }), true)
+    const { result } = mountAvailability(client, { pollClaimed: true })
+
+    await act(async () => client.invalidateQueries())
+
+    expect(result.current.featureEnabled).toBe(false)
+    expect(result.current.hasResolvedEligibility).toBe(false)
+    expect(result.current.hasFreshClaimedResult).toBe(false)
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -157,24 +188,17 @@ describe('commemorative NFT availability observer', () => {
     expect(readClaimed).toHaveBeenCalledTimes(1)
   })
 
-  it('exposes cached minted status immediately and confirms it after refetch', async () => {
-    const pendingRead = deferred<boolean>()
-    readClaimed.mockReturnValueOnce(pendingRead.promise)
+  it('keeps receipt-confirmed mint state on navigation despite a lagging RPC', () => {
+    readClaimed.mockResolvedValue(false)
     const client = createClient()
     client.setQueryData(claimQueryKey(), true)
     const { result } = mountAvailability(client)
 
     expect(result.current.claimed.data).toBe(true)
-    expect(result.current.claimed.fetchStatus).toBe('fetching')
+    expect(result.current.claimed.fetchStatus).toBe('idle')
     expect(result.current.hasFreshClaimedResult).toBe(false)
     expect(result.current.isConfirmedUnclaimed).toBe(false)
-
-    await act(async () => pendingRead.resolve(true))
-    await waitFor(() => expect(result.current.hasFreshClaimedResult).toBe(true))
-
-    expect(result.current.claimed.data).toBe(true)
-    expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(readClaimed).toHaveBeenCalledTimes(1)
+    expect(readClaimed).not.toHaveBeenCalled()
   })
 
   it('waits for this observer to successfully refetch cached unclaimed status', async () => {
@@ -234,24 +258,26 @@ describe('commemorative NFT availability observer', () => {
 
   it.each([
     {
-      name: 'unsupported network',
+      name: 'undeployed contract',
       chainId: mainnet.id,
       ownerAddress,
       enabled: true,
     },
     {
       name: 'disconnected wallet',
-      chainId: sepolia.id,
+      chainId: mainnet.id,
       ownerAddress,
       enabled: false,
     },
     {
       name: 'missing owner',
-      chainId: sepolia.id,
+      chainId: mainnet.id,
       ownerAddress: undefined,
       enabled: true,
     },
   ] as const)('keeps $name gated even with cached unclaimed status', (params) => {
+    if (params.name === 'undeployed contract')
+      vi.mocked(getCommemorativeNftContractAddress).mockReturnValue(undefined)
     vi.mocked(useChainId).mockReturnValue(params.chainId)
     const client = createClient()
     client.setQueryData(
@@ -301,7 +327,8 @@ describe('commemorative NFT availability observer', () => {
 
     expect(result.current.claimed.data).toBeUndefined()
     expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(client.getQueryData(claimQueryKey())).toBe(false)
+    expect(readClaimed.mock.calls[0]?.[0].signal?.aborted).toBe(true)
+    expect(client.getQueryData(claimQueryKey())).toBeUndefined()
 
     await act(async () => newOwnerRead.resolve(true))
     await waitFor(() => expect(result.current.hasFreshClaimedResult).toBe(true))
@@ -314,16 +341,17 @@ describe('commemorative NFT availability observer', () => {
     )
   })
 
-  it('isolates network caches and refetches when returning to the supported chain', async () => {
+  it('isolates network caches and refetches when returning to mainnet', async () => {
     const client = createClient()
     const { result, rerender } = mountAvailability(client)
     await waitFor(() => expect(result.current.isConfirmedUnclaimed).toBe(true))
-    client.setQueryData(claimQueryKey({ chainId: mainnet.id }), true)
+    client.setQueryData(claimQueryKey({ chainId: sepolia.id }), true)
 
-    vi.mocked(useChainId).mockReturnValue(mainnet.id)
+    mockEnvConfig.network = 'sepolia'
+    vi.mocked(useChainId).mockReturnValue(sepolia.id)
     rerender({ ownerAddress, enabled: true })
 
-    expect(result.current.supported).toBe(false)
+    expect(result.current.featureEnabled).toBe(false)
     expect(result.current.claimed.data).toBe(true)
     expect(result.current.hasFreshClaimedResult).toBe(false)
     expect(result.current.isConfirmedUnclaimed).toBe(false)
@@ -331,7 +359,8 @@ describe('commemorative NFT availability observer', () => {
 
     const pendingRead = deferred<boolean>()
     readClaimed.mockReturnValueOnce(pendingRead.promise)
-    vi.mocked(useChainId).mockReturnValue(sepolia.id)
+    mockEnvConfig.network = 'mainnet'
+    vi.mocked(useChainId).mockReturnValue(mainnet.id)
     rerender({ ownerAddress, enabled: true })
 
     expect(result.current.claimed.data).toBe(false)
@@ -352,7 +381,7 @@ describe('commemorative NFT availability observer', () => {
       invalidateCommemorativeNftStatus({
         queryClient: client,
         ownerAddress,
-        chainId: sepolia.id,
+        chainId: mainnet.id,
       }),
     )
     await waitFor(() => expect(result.current.claimed.data).toBe(true))

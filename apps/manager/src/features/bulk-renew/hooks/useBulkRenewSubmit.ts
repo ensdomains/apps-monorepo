@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -8,9 +7,10 @@ import {
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
-import { useCallback, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
@@ -188,18 +188,17 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const completedRef = useRef<Set<string>>(new Set())
   // Monotonic id for the active submission. Bumped on every `submit` and on
-  // `reset`, so a submission that resolves after the dialog was closed/reopened
-  // (which calls `reset`) can detect it's stale and skip its UI updates — e.g.
-  // no phantom "success" screen landing on a freshly reopened dialog.
+  // `reset`, so a superseded submission can detect it's stale and skip its UI
+  // updates.
   const runIdRef = useRef(0)
 
-  const reset = useCallback(() => {
+  const reset = () => {
     runIdRef.current += 1
     completedRef.current = new Set()
     setPhase('idle')
     setStatuses({})
     setErrorMessage(undefined)
-  }, [])
+  }
 
   const markStatus = (label: string, status: RowStatus) =>
     setStatuses((prev) => ({ ...prev, [label]: status }))

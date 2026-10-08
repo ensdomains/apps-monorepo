@@ -1,5 +1,6 @@
+import type { SupportedL1ChainId } from '@ensdomains/ensjs/chain'
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
-import { type Address, isAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1SubgraphClient'
@@ -66,6 +67,20 @@ export type DirectClassifiedName = ClassifiedNameBase & {
   readonly action: 'migrate'
   readonly tokenType: MigrationTokenType
   readonly resolverStrategy: ResolverStrategy
+  /**
+   * The live ENSv1 registry controller, recorded only when it differs from the
+   * registrant. V1 keeps the two separate and a plain `transferFrom` moves the
+   * token without touching the controller, so a divergence is evidence of a
+   * stale controller just as often as of an appointed manager — the two are
+   * indistinguishable on-chain. Held for display and for an explicit per-name
+   * opt-in; it is never an authority the migration carries forward on its own.
+   */
+  readonly registryController: Address | null
+  /**
+   * The account that will be granted `ROLE_SET_RESOLVER` on the migrated name.
+   * Only ever set by {@link withManagerRestorationOptIn}, never by
+   * classification — see `registryController`.
+   */
   readonly managerAddress: Address | null
 }
 
@@ -75,10 +90,47 @@ export type CopyClassifiedName = ClassifiedNameBase & {
   readonly copySource: CopySource
   readonly sourceExpiry: bigint
   readonly resolverStrategy: 'to-owned-permres'
+  readonly registryController: null
   readonly managerAddress: null
 }
 
 export type ClassifiedName = DirectClassifiedName | CopyClassifiedName
+
+const nameKey = (name: string): string => name.toLowerCase()
+
+/**
+ * Names whose ENSv1 registrant and registry controller disagree, so the owner
+ * can be asked — per name, with the address shown — whether that controller
+ * should keep managing the name after the upgrade.
+ */
+export const managerRestorationCandidates = (
+  names: readonly ClassifiedName[],
+): readonly DirectClassifiedName[] =>
+  names.filter(
+    (name): name is DirectClassifiedName =>
+      name.action === 'migrate' && name.registryController !== null,
+  )
+
+/**
+ * Carry the ENSv1 registry controller forward as a v2 manager, but only for the
+ * names the owner explicitly opted in. Classification deliberately leaves
+ * `managerAddress` null so that nothing is granted by default.
+ */
+export const withManagerRestorationOptIn = <T extends ClassifiedName>(
+  names: readonly T[],
+  optedInNames: Iterable<string>,
+): T[] => {
+  const optedIn = new Set([...optedInNames].map(nameKey))
+  if (optedIn.size === 0) return [...names]
+
+  return names.map((name) =>
+    name.action === 'migrate' &&
+    name.registryController !== null &&
+    optedIn.has(nameKey(name.domain.name))
+      ? { ...name, managerAddress: name.registryController }
+      : name,
+  )
+}
 
 export const hasFuse = (fuses: bigint, fuse: bigint): boolean =>
   (fuses & fuse) !== 0n
@@ -87,8 +139,9 @@ const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
   fuses: bigint
   v1ResolverAddress: string | null
+  chainId: SupportedL1ChainId
 }): ResolverStrategy => {
-  const { tokenType, fuses, v1ResolverAddress } = params
+  const { tokenType, fuses, v1ResolverAddress, chainId } = params
 
   const cannotSetResolverLocked =
     (tokenType === 'locked-2ld' || tokenType === 'locked-child') &&
@@ -102,7 +155,7 @@ const resolverStrategyFor = (params: {
     return 'keep-v1'
   }
 
-  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress)) {
+  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress, chainId)) {
     return 'keep-v1'
   }
 
@@ -116,6 +169,21 @@ type ClassifyResult =
 
 const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
 const MAX_UINT64 = (1n << 64n) - 1n
+
+/**
+ * The ENSv1 registry controller of an unwrapped `.eth` name when it is someone
+ * other than the registrant; null when they agree or the record was cleared.
+ */
+export const registryControllerOf = (domain: V1Domain): Address | null => {
+  const registrant = domain.registrant?.id
+  const registryOwner = toAddress(domain.owner.id)
+  return registrant &&
+    registryOwner &&
+    registryOwner !== zeroAddress &&
+    registryOwner.toLowerCase() !== registrant.toLowerCase()
+    ? registryOwner
+    : null
+}
 
 const hasUnknownLabel = (domain: V1Domain): boolean => {
   if (!domain.labelName) return true
@@ -137,8 +205,11 @@ const isDotEthSubname = (
   parentName !== 'eth' &&
   domain.name.toLowerCase().endsWith('.eth')
 
-const hasSupportedCopyResolver = (resolverAddress: string | null): boolean =>
-  resolverAddress === null || isKnownPublicResolver(resolverAddress)
+const hasSupportedCopyResolver = (
+  resolverAddress: string | null,
+  chainId: SupportedL1ChainId,
+): boolean =>
+  resolverAddress === null || isKnownPublicResolver(resolverAddress, chainId)
 
 const hasExpiredDotEthRegistration = (
   domain: V1Domain,
@@ -162,6 +233,7 @@ const hasExpiredDotEthRegistration = (
 }
 
 type ClassificationContext = {
+  readonly chainId: SupportedL1ChainId
   readonly domain: V1Domain
   readonly label: string
   readonly ownerAddressLower: string
@@ -179,6 +251,7 @@ const classifyWithoutActiveWrapper = (
   context: ClassificationContext,
 ): ClassifyResult => {
   const {
+    chainId,
     domain,
     label,
     ownerAddressLower,
@@ -192,7 +265,7 @@ const classifyWithoutActiveWrapper = (
     if (!registryOwner || registryOwner.toLowerCase() !== ownerAddressLower) {
       return null
     }
-    if (!hasSupportedCopyResolver(v1ResolverAddress)) {
+    if (!hasSupportedCopyResolver(v1ResolverAddress, chainId)) {
       return ineligible(domain, 'unsupported-resolver')
     }
     return {
@@ -209,6 +282,7 @@ const classifyWithoutActiveWrapper = (
         tokenHolder: registryOwner,
         v1ResolverAddress,
         resolverStrategy: 'to-owned-permres',
+        registryController: null,
         managerAddress: null,
       },
     }
@@ -223,12 +297,15 @@ const classifyWithoutActiveWrapper = (
 
   const tokenHolder = toAddress(registrant.id)
   if (!tokenHolder) return null
-  const registryOwnerAddress = toAddress(domain.owner.id)
-  const managerAddress =
-    registryOwnerAddress &&
-    registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
-      ? registryOwnerAddress
-      : null
+  // Recorded, never granted. The registrant owns the name; a controller that is
+  // someone else may be a manager the registrant appointed, or the seller a
+  // marketplace `transferFrom` left behind. Only the owner can tell the two
+  // apart, so the decision is deferred to an explicit per-name opt-in.
+  //
+  // A cleared v1 registry record reads back as the zero address, which is not a
+  // manager and must never be offered as one — granting a role to it would put
+  // a meaningless call into an all-or-nothing batch.
+  const registryController = registryControllerOf(domain)
 
   return {
     type: 'classified',
@@ -245,8 +322,10 @@ const classifyWithoutActiveWrapper = (
         tokenType: 'unwrapped',
         fuses: 0n,
         v1ResolverAddress,
+        chainId,
       }),
-      managerAddress,
+      registryController,
+      managerAddress: null,
     },
   }
 }
@@ -257,7 +336,8 @@ const classifyUnlockedWrapper = (
   wrappedHolder: Address,
   fuses: bigint,
 ): ClassifyResult => {
-  const { domain, label, parentName, v1ResolverAddress, nowSeconds } = context
+  const { chainId, domain, label, parentName, v1ResolverAddress, nowSeconds } =
+    context
   if (parentName === 'eth') {
     return {
       type: 'classified',
@@ -274,7 +354,9 @@ const classifyUnlockedWrapper = (
           tokenType: 'unlocked',
           fuses,
           v1ResolverAddress,
+          chainId,
         }),
+        registryController: null,
         managerAddress: null,
       },
     }
@@ -302,7 +384,9 @@ const classifyUnlockedWrapper = (
           tokenType: 'detached-child',
           fuses,
           v1ResolverAddress,
+          chainId,
         }),
+        registryController: null,
         managerAddress: null,
       },
     }
@@ -317,7 +401,7 @@ const classifyUnlockedWrapper = (
   if (!hasNoIndependentExpiry && sourceExpiry <= nowSeconds) {
     return ineligible(domain, 'expired-registration')
   }
-  if (!hasSupportedCopyResolver(v1ResolverAddress)) {
+  if (!hasSupportedCopyResolver(v1ResolverAddress, chainId)) {
     return ineligible(domain, 'unsupported-resolver')
   }
   return {
@@ -334,6 +418,7 @@ const classifyUnlockedWrapper = (
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
       resolverStrategy: 'to-owned-permres',
+      registryController: null,
       managerAddress: null,
     },
   }
@@ -344,7 +429,7 @@ const classifyLockedWrapper = (
   wrappedHolder: Address,
   fuses: bigint,
 ): ClassifyResult => {
-  const { domain, label, parentName, v1ResolverAddress } = context
+  const { chainId, domain, label, parentName, v1ResolverAddress } = context
   if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
     return ineligible(domain, 'not-transferable')
   }
@@ -367,7 +452,9 @@ const classifyLockedWrapper = (
         tokenType,
         fuses,
         v1ResolverAddress,
+        chainId,
       }),
+      registryController: null,
       managerAddress: null,
     },
   }
@@ -397,6 +484,7 @@ const classifyActiveWrapper = (
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
+  chainId: SupportedL1ChainId,
 ): ClassifyResult => {
   if (hasUnknownLabel(domain)) return ineligible(domain, 'unknown-label')
   const label = domain.labelName
@@ -408,6 +496,7 @@ export const classifyName = (
   const ownerAddressLower = ownerAddress.toLowerCase()
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
   const context: ClassificationContext = {
+    chainId,
     domain,
     label,
     ownerAddressLower,
@@ -435,10 +524,13 @@ export type ClassifyNamesResult = {
 }
 
 export const classifyNames = (
-  domains: V1Domain[],
+  domains: readonly V1Domain[],
   ownerAddress: Address,
+  chainId: SupportedL1ChainId,
 ): ClassifyNamesResult => {
-  const results = domains.map((domain) => classifyName(domain, ownerAddress))
+  const results = domains.map((domain) =>
+    classifyName(domain, ownerAddress, chainId),
+  )
   const classifiedByName = new Map<string, ClassifiedName>()
 
   for (const result of results) {

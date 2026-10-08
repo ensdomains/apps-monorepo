@@ -10,5 +10,6 @@ fragment Domain on Domain {
     ...Account
   }
   createdAt
+  registrationDate
   expiryDate
 }

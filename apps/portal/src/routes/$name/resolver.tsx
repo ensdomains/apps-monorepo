@@ -5,17 +5,18 @@ import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import {
@@ -23,9 +24,10 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { ResolverPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURES,
@@ -52,29 +54,14 @@ const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
 )
 
 interface EditButtonsProps {
-  address: Address
   name: string
   resolverAddress?: Address
-  registryAddress: Address
 }
 
-const EditButtons = ({
-  address,
-  name,
-  resolverAddress,
-  registryAddress,
-}: EditButtonsProps) => {
-  const label = name.split('.')[0]
-  const { data: hasSetResolverRole } = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress,
-      label,
-      roles: ['ROLE_SET_RESOLVER'],
-      account: address,
-    }),
-  })
+const EditButtons = ({ name, resolverAddress }: EditButtonsProps) => {
+  const { canSet } = useCanSetResolver({ name })
 
-  if (!hasSetResolverRole) return null
+  if (!canSet) return null
   if (!resolverAddress || resolverAddress === zeroAddress) return null
 
   return (
@@ -148,14 +135,32 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   )
 }
 
+/**
+ * Flags an owner who can't change the name's own resolver slot. Shown even when
+ * the resolver above is inherited from an ancestor: a locked, empty slot means
+ * the name is stuck with that inherited one.
+ */
+const ResolverWarning = ({
+  name,
+  ownerData,
+}: {
+  readonly name: string
+  readonly ownerData: GetEnsOwnerReturnType | undefined
+}) =>
+  ownerData ? (
+    <ResolverPrivilegeWarning name={name} ownerData={ownerData} />
+  ) : null
+
 const ResolverInfoList = ({
   resolverAddress,
   name,
+  ownerData,
   type,
   docsHref,
 }: {
   resolverAddress: Address
   name: string
+  readonly ownerData: GetEnsOwnerReturnType | undefined
   type: string
   /** Official-resolver docs link — renders the audited notice in the Type row. */
   docsHref?: string
@@ -163,7 +168,7 @@ const ResolverInfoList = ({
   const { data: resolver } = useQuery(
     getResolverOverviewQueryOptions({ address: resolverAddress }),
   )
-  const isAliased = resolver?.aliases.some((a) => a.fromName === name) ?? false
+  const isLinked = resolver?.links.some((l) => l.name === name) ?? false
   const nodeHash = namehash(name)
 
   return (
@@ -182,14 +187,17 @@ const ResolverInfoList = ({
         )}
       </InfoRow>
       <InfoRow label="Contract">
-        <ResolverAddressValue address={resolverAddress} />
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <ResolverAddressValue address={resolverAddress} />
+          <ResolverWarning name={name} ownerData={ownerData} />
+        </div>
       </InfoRow>
       <InfoRow label="Node">
         <div className="flex items-center gap-2">
           <EntityBadge variant="name" name={name} showAvatar>
             {name}
           </EntityBadge>
-          {isAliased && <Badge variant="outline">Aliased</Badge>}
+          {isLinked && <Badge variant="outline">Linked</Badge>}
         </div>
       </InfoRow>
       <InfoRow label="Namehash">
@@ -217,16 +225,15 @@ const RESOLVER_HISTORY_EVENT_TYPES = [
 
 interface ResolverViewProps {
   name: string
-  ownerData: NonNullable<GetEnsOwnerReturnType>
   resolverAddress: Address
+  readonly ownerData: GetEnsOwnerReturnType | undefined
 }
 
 const ResolverView = ({
   name,
-  ownerData,
   resolverAddress,
+  ownerData,
 }: ResolverViewProps) => {
-  const { address } = useConnection()
   const permissionedResolverQuery = useQuery(
     getIsPermissionedResolverQueryOptions({ resolverAddress }),
   )
@@ -253,20 +260,14 @@ const ResolverView = ({
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
-        {address ? (
-          <EditButtons
-            address={address}
-            name={name}
-            resolverAddress={resolverAddress}
-            registryAddress={ownerData.registryAddress}
-          />
-        ) : null}
+        <EditButtons name={name} resolverAddress={resolverAddress} />
       </div>
 
       {permissionedResolverQuery.data ? (
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          ownerData={ownerData}
           type="ENS Permissioned Resolver"
           docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
         />
@@ -274,6 +275,7 @@ const ResolverView = ({
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          ownerData={ownerData}
           type="ENS Public Resolver"
           docsHref="https://docs.ens.domains/resolvers/public/"
         />
@@ -281,6 +283,7 @@ const ResolverView = ({
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          ownerData={ownerData}
           type="Custom Resolver"
         />
       )}
@@ -305,26 +308,10 @@ const ResolverView = ({
   )
 }
 
-const SetResolverButton = ({
-  account,
-  registryAddress,
-  name,
-}: {
-  account: Address
-  registryAddress: Address
-  name: string
-}) => {
-  const label = name.split('.')[0]
-  const { data: hasSetResolverRole } = useQuery(
-    getHasRolesQueryOptions({
-      registryAddress,
-      label,
-      roles: ['ROLE_SET_RESOLVER'],
-      account,
-    }),
-  )
+const SetResolverButton = ({ name }: { name: string }) => {
+  const { canSet } = useCanSetResolver({ name })
 
-  if (!hasSetResolverRole) return null
+  if (!canSet) return null
 
   return (
     <Button variant="default" className="flex items-center gap-2" asChild>
@@ -338,13 +325,11 @@ const SetResolverButton = ({
 
 const NoResolverSet = ({
   name,
-  registryAddress,
+  ownerData,
 }: {
-  name: string
-  registryAddress: Address
+  readonly name: string
+  readonly ownerData: GetEnsOwnerReturnType | undefined
 }) => {
-  const { address: account } = useConnection()
-
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
@@ -352,13 +337,8 @@ const NoResolverSet = ({
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.
         </p>
-        {account && (
-          <SetResolverButton
-            name={name}
-            account={account}
-            registryAddress={registryAddress}
-          />
-        )}
+        <ResolverWarning name={name} ownerData={ownerData} />
+        <SetResolverButton name={name} />
       </div>
     </div>
   )
@@ -395,6 +375,10 @@ function RouteComponent() {
     enabled: isRegistrable(name),
   })
 
+  // A gasless DNS name has no registry entry by design, yet the
+  // UniversalResolver still finds a resolver for it (by wildcard).
+  const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
+
   if (ownerQuery.error) {
     return (
       <ErrorMessage
@@ -418,6 +402,7 @@ function RouteComponent() {
   if (
     ownerQuery.isLoading ||
     resolverQuery.isLoading ||
+    offchain.isLoading ||
     (availabilityQuery.isLoading && isRegistrable(name))
   )
     return <LoadingMessage />
@@ -434,10 +419,13 @@ function RouteComponent() {
     )
   }
 
-  if (availabilityQuery.data?.isAvailable || !ownerQuery.data)
+  if (
+    availabilityQuery.data?.isAvailable ||
+    (!ownerQuery.data && !offchain.resolvedAddress)
+  )
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there is no resolver
@@ -451,18 +439,13 @@ function RouteComponent() {
 
   if (resolverAddress) {
     if (resolverAddress === zeroAddress) {
-      return (
-        <NoResolverSet
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-        />
-      )
+      return <NoResolverSet name={name} ownerData={ownerQuery.data} />
     }
     return (
       <ResolverView
         name={name}
-        ownerData={ownerQuery.data}
         resolverAddress={resolverAddress}
+        ownerData={ownerQuery.data}
       />
     )
   }

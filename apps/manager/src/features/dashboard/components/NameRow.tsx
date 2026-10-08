@@ -1,9 +1,10 @@
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useLingui as useCoreLingui } from '@lingui/react'
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
-import { ArrowRight, Check, Heart, History } from 'lucide-react'
+import { Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
@@ -28,6 +29,7 @@ import {
   getFavoriteActionDisabled,
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import {
   getRenewalRoute,
@@ -41,16 +43,17 @@ import {
   type NameRole,
   RolePill,
 } from './DashboardPills'
+import { NamePill } from './NamePill'
+import { PrimaryBadge } from './PrimaryBadge'
 
 export type NameStatus = 'eligibleUpgrade' | 'ensv1Only'
 export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
 
 interface NameRowProps {
   readonly label: string
-  readonly avatarUrl?: string
+  readonly avatarRecord?: string
   readonly avatarPending?: boolean
   readonly themeColor?: string | null
-  readonly nameVariant?: 'primary' | 'secondary'
   readonly verified?: boolean
   readonly nameRole?: NameRole | null
   readonly nameRoles?: readonly NameRole[] | null
@@ -64,6 +67,7 @@ interface NameRowProps {
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
   readonly canRenew?: boolean
+  readonly showNotificationsAction?: boolean
   readonly selectable?: boolean
   readonly isSelected?: boolean
   readonly onToggleSelect?: () => void
@@ -71,54 +75,6 @@ interface NameRowProps {
 }
 
 const explorerUrl = (label: string) => `${EXPLORER_URL}/${label}`
-
-const namePillVariants = cva(
-  'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',
-  {
-    variants: {
-      variant: {
-        primary: 'bg-ens-lapis-core text-ens-lapis-bg',
-        secondary: 'bg-ens-quartz-200 text-ens-quartz-450',
-      },
-    },
-  },
-)
-
-const NamePill = ({
-  label,
-  variant,
-  selected = false,
-}: {
-  readonly label: string
-  readonly variant: 'primary' | 'secondary'
-  readonly selected?: boolean
-}) => {
-  const className = cn(
-    namePillVariants({ variant }),
-    selected && 'bg-ens-lapis-core text-ens-quartz-0',
-  )
-  const textClassName =
-    'min-w-0 break-all font-medium font-semi-mono text-base leading-none tracking-[-0.32px] [text-wrap:pretty]'
-
-  const inner = (
-    <>
-      <span className={textClassName}>{label}</span>
-      <ArrowRight className="size-5 shrink-0" strokeWidth={2} />
-    </>
-  )
-
-  return (
-    <Link className={className} params={{ name: label }} to="/$name">
-      {inner}
-    </Link>
-  )
-}
-
-const VerifiedCheck = () => (
-  <span className="flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-ens-lapis-500">
-    <Check className="size-[9px] text-white" strokeWidth={4} />
-  </span>
-)
 
 const SelectedCheck = () => (
   <span className="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-ens-lapis-core">
@@ -298,11 +254,15 @@ const NameRowTop = ({
   nameRoles,
   isInGrace,
   expiringInDays,
-}: Pick<NameRowProps, 'status' | 'isInGrace' | 'expiringInDays'> & {
+  verified,
+}: Pick<
+  NameRowProps,
+  'status' | 'isInGrace' | 'expiringInDays' | 'verified'
+> & {
   readonly nameRoles: readonly NameRole[]
 }) => {
   const hasTopRow = Boolean(
-    isInGrace || status || nameRoles.length > 0 || expiringInDays,
+    isInGrace || status || nameRoles.length > 0 || expiringInDays || verified,
   )
   if (!hasTopRow) return null
 
@@ -314,6 +274,7 @@ const NameRowTop = ({
         {nameRoles.map((role) => (
           <RolePill key={role} role={role} />
         ))}
+        {verified ? <PrimaryBadge className="bg-ens-lapis-tint" /> : null}
       </div>
       {isInGrace ? (
         <GracePeriodBadge />
@@ -338,7 +299,7 @@ const getNameRoles = ({
 
 const NameAvatar = ({
   label,
-  avatarUrl,
+  avatarRecord,
   isPending,
   themeColor,
   selectable = false,
@@ -346,7 +307,7 @@ const NameAvatar = ({
   onToggleSelect,
 }: {
   readonly label: string
-  readonly avatarUrl?: string
+  readonly avatarRecord?: string
   readonly isPending?: boolean
   readonly themeColor?: string
   readonly selectable?: boolean
@@ -354,6 +315,7 @@ const NameAvatar = ({
   readonly onToggleSelect?: () => void
 }) => {
   const { t } = useLingui()
+  const avatar = useQuery(imageRecordQuery(avatarRecord))
 
   if (isPending) {
     return (
@@ -370,7 +332,7 @@ const NameAvatar = ({
         <ImageFallback.Image
           alt={t`${label} avatar`}
           className="size-full object-cover"
-          src={avatarUrl}
+          src={avatar.data ?? undefined}
         />
         <ImageFallback.Fallback>
           <PatternAvatar
@@ -412,12 +374,16 @@ const NameOptionsMenu = ({
   canRenew,
   label,
   renewalProtocol,
+  showNotificationsAction,
 }: {
   readonly canRenew: boolean
   readonly label: string
   readonly renewalProtocol: RenewalProtocol
+  readonly showNotificationsAction: boolean
 }) => {
   const { t } = useLingui()
+
+  if (!canRenew && !showNotificationsAction) return null
 
   return (
     <DropdownMenu>
@@ -453,18 +419,20 @@ const NameOptionsMenu = ({
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          <Link
-            className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
-            to="/notifications/settings"
-          >
-            <Trans>Manage notifications</Trans>
-            <MSymbol
-              className="ms-opsz-20 text-ens-quartz-900 text-xl leading-none"
-              symbol="notification_settings"
-            />
-          </Link>
-        </DropdownMenuItem>
+        {showNotificationsAction ? (
+          <DropdownMenuItem asChild>
+            <Link
+              className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
+              to="/notifications/settings"
+            >
+              <Trans>Manage notifications</Trans>
+              <MSymbol
+                className="ms-opsz-20 text-ens-quartz-900 text-xl leading-none"
+                symbol="notification_settings"
+              />
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -514,10 +482,9 @@ const ExpiryDetails = ({
 
 export const NameRow = ({
   label,
-  avatarUrl,
+  avatarRecord,
   avatarPending = false,
   themeColor,
-  nameVariant = 'secondary',
   verified = false,
   nameRole = null,
   nameRoles = null,
@@ -531,6 +498,7 @@ export const NameRow = ({
   isAuthenticated = true,
   isInGrace = false,
   canRenew = true,
+  showNotificationsAction = true,
   selectable = false,
   isSelected = false,
   onToggleSelect,
@@ -548,6 +516,7 @@ export const NameRow = ({
         isInGrace={isInGrace}
         nameRoles={resolvedNameRoles}
         status={status}
+        verified={verified}
       />
 
       <div className="flex items-center justify-between gap-3">
@@ -560,7 +529,7 @@ export const NameRow = ({
             showFavoriteButton={showFavoriteButton}
           />
           <NameAvatar
-            avatarUrl={avatarUrl}
+            avatarRecord={avatarRecord}
             isPending={avatarPending}
             label={label}
             onToggleSelect={onToggleSelect}
@@ -568,14 +537,15 @@ export const NameRow = ({
             selected={isSelected}
             themeColor={resolvedThemeColor}
           />
-          <NamePill label={label} selected={isSelected} variant={nameVariant} />
-          {isSelected ? <SelectedCheck /> : verified && <VerifiedCheck />}
+          <NamePill isSelected={isSelected} label={label} />
+          {isSelected ? <SelectedCheck /> : null}
         </div>
 
         <NameOptionsMenu
           canRenew={canRenew}
           label={label}
           renewalProtocol={renewalProtocol}
+          showNotificationsAction={showNotificationsAction}
         />
       </div>
 

@@ -16,16 +16,16 @@ export const RenewFailureStep = () => {
 
   return (
     <RenewPageLayout>
-      <div className="flex items-start gap-3 rounded-lg border border-ens-garnet-dust bg-ens-garnet-dust/15 p-4">
+      <div className="flex items-start gap-3 rounded-lg border border-ens-lapis-dust bg-ens-lapis-tint p-4">
         <XCircle
           aria-hidden="true"
-          className="mt-0.5 h-4 w-4 shrink-0 text-ens-garnet-dense"
+          className="mt-0.5 h-4 w-4 shrink-0 text-ens-lapis-dense"
         />
-        <div className="flex flex-col gap-1">
-          <p className="font-medium text-ens-garnet-dense text-sm leading-5">
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="font-medium text-ens-lapis-dense text-sm leading-5">
             <Trans>Renewal Failed</Trans>
           </p>
-          <p className="text-ens-garnet-dense/70 text-sm leading-5">
+          <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
             {message ??
               t`The renewal for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
           </p>
@@ -34,7 +34,7 @@ export const RenewFailureStep = () => {
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
         <div className="w-full lg:w-1/2">
-          <DomainCard domainName={`${label}.eth`} variant="garnet" />
+          <DomainCard domainName={`${label}.eth`} variant="lapis" />
         </div>
 
         <div className="flex w-full flex-col gap-6 lg:w-1/2">

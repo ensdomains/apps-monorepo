@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import type { SummaryRow } from '../types'
@@ -38,7 +39,9 @@ vi.mock('./PaymentMethodSection', () => ({
   PaymentMethodSection: () => <div />,
 }))
 vi.mock('./NamesBreakdown', () => ({ NamesBreakdown: () => <div /> }))
-vi.mock('./RenewingStep', () => ({ RenewingStep: () => <div /> }))
+vi.mock('./RenewingStep', () => ({
+  RenewingStep: () => <div data-testid="renewing" />,
+}))
 vi.mock('./FailureStep', () => ({ FailureStep: () => <div /> }))
 vi.mock('./SuccessStep', () => ({
   SuccessStep: ({ rows }: { rows: readonly SummaryRow[] }) => (
@@ -126,5 +129,68 @@ describe('BulkRenewDialog success receipt', () => {
     expect(row).toHaveTextContent('2040-06-12')
     expect(row).toHaveTextContent('2040-07-20')
     expect(row).not.toHaveTextContent('2040-08-17')
+  })
+})
+
+const Harness = () => {
+  const [open, setOpen] = useState(true)
+  return (
+    <>
+      <button onClick={() => setOpen(true)} type="button">
+        reopen
+      </button>
+      <BulkRenewDialog names={[]} onOpenChange={setOpen} open={open} />
+    </>
+  )
+}
+
+const closeDialog = () =>
+  fireEvent.click(screen.getByRole('button', { name: /close/i }))
+
+describe('BulkRenewDialog close/reopen', () => {
+  beforeEach(() => {
+    hooks.useBulkRenew.mockImplementation(() =>
+      bulkRenewResult([
+        makeRow('2040-06-12T00:00:00.000Z', '2040-07-20T00:00:00.000Z'),
+      ]),
+    )
+  })
+
+  it('resumes the in-flight renewal when reopened mid-flow', () => {
+    const { rerender } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    submitPhase = 'renewing'
+    rerender(<Harness />)
+    expect(screen.getByTestId('renewing')).toBeInTheDocument()
+
+    closeDialog()
+    expect(screen.queryByTestId('renewing')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'reopen' }))
+
+    expect(reset).not.toHaveBeenCalled()
+    expect(screen.getByTestId('renewing')).toBeInTheDocument()
+  })
+
+  it('shows the outcome of a run that finished while closed', () => {
+    const { rerender } = render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    submitPhase = 'renewing'
+    rerender(<Harness />)
+    closeDialog()
+
+    submitPhase = 'success'
+    fireEvent.click(screen.getByRole('button', { name: 'reopen' }))
+
+    expect(reset).not.toHaveBeenCalled()
+    expect(screen.getByTestId('success')).toBeInTheDocument()
+  })
+
+  it('starts fresh after closing a finished run', () => {
+    submitPhase = 'success'
+    render(<Harness />)
+    closeDialog()
+    expect(reset).toHaveBeenCalledOnce()
   })
 })

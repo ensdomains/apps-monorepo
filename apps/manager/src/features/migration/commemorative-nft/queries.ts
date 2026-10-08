@@ -5,6 +5,7 @@ import type { Address } from 'viem'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
+  getCommemorativeNftContractAddress,
 } from './config'
 import { readCommemorativeNftClaimed } from './contract'
 import { fetchCommemorativeNftEligibility } from './eligibility'
@@ -30,11 +31,14 @@ export const commemorativeNftEligibilityQueryOptions = (params: {
       // Published metadata determines eligibility; discard prior WebP checks.
       validationVersion: 3,
     }),
-    queryFn: () =>
-      fetchCommemorativeNftEligibility({
-        ownerAddress: params.ownerAddress,
-        assetOrigin: config.assetOrigin,
-      }),
+    queryFn: ({ signal }) =>
+      config.isValid
+        ? fetchCommemorativeNftEligibility({
+            ownerAddress: params.ownerAddress,
+            assetOrigin: config.assetOrigin,
+            signal,
+          })
+        : Promise.resolve({ status: 'unavailable' as const }),
     staleTime: (query) =>
       query.state.data?.status === 'eligible'
         ? Number.POSITIVE_INFINITY
@@ -52,15 +56,19 @@ export const commemorativeNftClaimedQueryOptions = (params: {
   queryOptions({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
+      contractAddress: getCommemorativeNftContractAddress(),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
-    queryFn: () => readCommemorativeNftClaimed(params),
+    queryFn: ({ signal }) => readCommemorativeNftClaimed({ ...params, signal }),
     refetchInterval: (query) =>
       getCommemorativeNftClaimedRefetchInterval({
         poll: params.poll === true,
         claimed: query.state.data,
       }),
-    staleTime: 0,
+    // Keep receipt-verified claims stable in this owner/contract cache entry;
+    // a lagging latest-block read must not undo the mint on navigation.
+    staleTime: (query) =>
+      query.state.data === true ? Number.POSITIVE_INFINITY : 0,
   })
 
 export const invalidateCommemorativeNftStatus = async (params: {
@@ -71,6 +79,7 @@ export const invalidateCommemorativeNftStatus = async (params: {
   await params.queryClient.invalidateQueries({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
+      contractAddress: getCommemorativeNftContractAddress(),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
   })

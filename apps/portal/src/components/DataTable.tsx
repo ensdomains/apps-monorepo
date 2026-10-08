@@ -28,16 +28,24 @@ declare module '@tanstack/react-table' {
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  /**
+   * Stable identity for a row. Without it rows are keyed by index, so after a
+   * removal or a reordered refetch a different record takes over the index,
+   * and anything keyed on `row.id` follows the index, not the record.
+   */
+  getRowId?: (originalRow: TData, index: number) => string
 }
 
 export const DataTable = <TData, TValue>({
   columns,
   data,
+  getRowId,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const table = useReactTable({
     data,
     columns,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),

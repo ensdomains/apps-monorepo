@@ -33,6 +33,7 @@ import { waitForTransactionReceipt } from '@wagmi/core'
 import type { Hex } from 'viem'
 import { normalize } from 'viem/ens'
 import { useSwitchChain, useWriteContract } from 'wagmi'
+import { envConfig } from '@/config'
 import { type L2ChainId, l2WagmiConfig } from '@/lib/wagmiL2'
 import { useEnsureL2Connection } from './useEnsureL2Connection'
 
@@ -70,12 +71,12 @@ export function useSetL2ReverseName({
     }: SetL2ReverseNameParams): Promise<SetL2ReverseNameResult> => {
       const targetChainId = getChainIdForReverseRegistrarChainId(
         reverseRegistrarChainId,
-        'sepolia',
+        envConfig.network,
       ) as L2ChainId
 
       const registrarAddress = getRegistrarAddress(
         reverseRegistrarChainId,
-        'sepolia',
+        envConfig.network,
       )
       if (!registrarAddress) {
         throw new Error(

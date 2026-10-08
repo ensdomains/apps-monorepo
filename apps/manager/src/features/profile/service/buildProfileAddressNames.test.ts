@@ -36,6 +36,7 @@ const makeV2Domain = (
     normalizedName: name,
     tokenId: null,
     createdAt,
+    registrationDate: null,
     expiryDate: 1_891_036_800,
     owner: {
       __typename: 'Account',

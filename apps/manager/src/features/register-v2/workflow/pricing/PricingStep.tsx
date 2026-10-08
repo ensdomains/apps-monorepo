@@ -9,6 +9,7 @@ import { PaymentCard } from './components/PaymentCard'
 import { PriceCooldownBannerSection } from './components/PriceCooldownBanner'
 import { PricingDomainHeader } from './components/PricingDomainHeader'
 import { PricingSummaryCard } from './components/PricingSummaryCard'
+import { ResumeConnectWalletBanner } from './components/ResumeConnectWalletBanner'
 import { TokenPickerDialog } from './components/TokenPickerDialog'
 
 const useAvailabilityGuard = () => {
@@ -39,8 +40,9 @@ export const PricingStep = () => {
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
-      <PricingDomainHeader label={label} />
       <PriceCooldownBannerSection />
+      <PricingDomainHeader label={label} />
+      <ResumeConnectWalletBanner />
 
       <div className="grid grid-cols-1 gap-1.5 md:gap-2 lg:grid-cols-[2fr_420px] lg:items-stretch">
         <DurationSelector />

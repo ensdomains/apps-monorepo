@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
@@ -12,10 +13,12 @@ import {
 } from '../../EditProfileDialog.context'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {
+  DESCRIPTION_MAX_LENGTH,
   type GeneralField,
   generalShortcuts,
   getGeneralUrlErrorMessage,
   getTextRecordValue,
+  isDescriptionOverLimit,
   removeGeneralFieldValue,
 } from './fields'
 import { ProfileImageField, type ProfileImageKind } from './ProfileImageField'
@@ -23,11 +26,24 @@ import { profileLanguageOptions } from './profileLanguages'
 
 type BaseGeneralField = Extract<GeneralField, keyof ProfileRecords['base']>
 
-const timezoneSelectOptions = Array.from({ length: 27 }, (_, index) => {
-  const offset = index - 12
-  const value = `UTC${offset >= 0 ? `+${offset}` : offset}`
-  return { label: value, value }
-})
+// Include fractional UTC offsets used by IANA timezones, including seasonal
+// offsets such as Newfoundland's UTC-2:30 and Chatham's UTC+13:45.
+const fractionalTimezoneOffsets = [
+  -570, -210, -150, 210, 270, 330, 345, 390, 525, 570, 630, 765, 825,
+]
+
+const timezoneSelectOptions = [
+  ...Array.from({ length: 27 }, (_, index) => (index - 12) * 60),
+  ...fractionalTimezoneOffsets,
+]
+  .sort((left, right) => left - right)
+  .map((offsetMinutes) => {
+    const hours = Math.floor(Math.abs(offsetMinutes) / 60)
+    const minutes = Math.abs(offsetMinutes) % 60
+    const offset = `${offsetMinutes >= 0 ? '+' : '-'}${hours}${minutes ? `:${String(minutes).padStart(2, '0')}` : ''}`
+    const value = `UTC${offset}`
+    return { label: value, value }
+  })
 
 const setTextRecordValue = (
   records: readonly TextRecordValue[],
@@ -41,6 +57,8 @@ const setTextRecordValue = (
 const fieldClassName =
   'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
 
+const descriptionCharacterCountId = 'profile-description-character-count'
+const descriptionErrorMessageId = 'profile-description-error-message'
 const urlErrorMessageId = 'general-url-error-message'
 const mobileHiddenShortcutFields: ReadonlySet<GeneralField> = new Set([
   'name',
@@ -139,6 +157,66 @@ const SelectField = ({
   )
 }
 
+interface DescriptionFieldProps {
+  readonly description: string
+  readonly disabled: boolean
+  readonly onChange: (value: string) => void
+  readonly savedDescription?: string
+}
+
+const DescriptionField = ({
+  description,
+  disabled,
+  onChange,
+  savedDescription,
+}: DescriptionFieldProps) => {
+  const { t } = useLingui()
+  const hasDescriptionError = isDescriptionOverLimit(
+    description,
+    savedDescription,
+  )
+
+  return (
+    <div className="w-full">
+      <textarea
+        aria-describedby={`${descriptionCharacterCountId}${hasDescriptionError ? ` ${descriptionErrorMessageId}` : ''}`}
+        aria-invalid={hasDescriptionError}
+        aria-label={t`Description`}
+        className={cn(
+          fieldClassName,
+          'min-h-[101px] resize-none',
+          hasDescriptionError &&
+            'border-destructive focus-visible:border-destructive',
+        )}
+        disabled={disabled}
+        maxLength={DESCRIPTION_MAX_LENGTH}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={t`Description`}
+        value={description}
+      />
+      <p
+        className="text-right text-ens-quartz-400 text-xs"
+        id={descriptionCharacterCountId}
+      >
+        <Trans>
+          {description.length} / {DESCRIPTION_MAX_LENGTH} characters
+        </Trans>
+      </p>
+      {hasDescriptionError ? (
+        <p
+          className="text-ens-signal-danger-600 text-xs"
+          id={descriptionErrorMessageId}
+          role="alert"
+        >
+          <Trans>
+            Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer
+          </Trans>
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 interface GeneralTabProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
@@ -146,6 +224,7 @@ interface GeneralTabProps {
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly owner?: Address
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
+  readonly savedDescription?: string
   readonly values: ProfileRecords
 }
 
@@ -156,6 +235,7 @@ export const GeneralTab = ({
   onImageUploadPrepared,
   owner,
   preparedImageUploads,
+  savedDescription,
   values,
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
@@ -182,6 +262,7 @@ export const GeneralTab = ({
     preparedImageUploads.find(
       (upload) => upload.kind === kind && upload.imageUrl === values.base[kind],
     )?.dataURL
+  const description = values.base.description ?? ''
   const urlErrorMessage = getGeneralUrlErrorMessage(values.base.url)
   const getShortcutLabel = (field: GeneralField, label: string) => {
     if (field === 'avatar') {
@@ -289,14 +370,11 @@ export const GeneralTab = ({
         />
 
         {isVisible('description') && (
-          <textarea
-            className={cn(fieldClassName, 'min-h-[101px] resize-none')}
+          <DescriptionField
+            description={description}
             disabled={isSaving}
-            onChange={(event) =>
-              setBaseValue('description', event.target.value)
-            }
-            placeholder="Description"
-            value={values.base.description ?? ''}
+            onChange={(value) => setBaseValue('description', value)}
+            savedDescription={savedDescription}
           />
         )}
 

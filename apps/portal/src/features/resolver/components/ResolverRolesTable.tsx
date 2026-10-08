@@ -1,11 +1,11 @@
-import type { ColumnDef, Row } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
 import type {
-  ResolverNode,
+  ResolverNamedResource,
   ResolverRole,
 } from '@/features/resolver/hooks/useResolverOverview'
 import {
@@ -18,16 +18,20 @@ import {
 } from '@/features/roles/components/roleTableColumns'
 import {
   type AccountRoleGroup,
-  buildResourceToNameMap,
+  buildResourceLabels,
   groupRolesByAccount,
+  planAccountRemoval,
   resolverPermissions,
+  resolverRoleGroupId,
 } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
-  readonly nodes: readonly ResolverNode[]
+  /** Resource preimages from `ResourceArgument`, for labelling scoped grants. */
+  readonly namedResources?: readonly ResolverNamedResource[]
   readonly resolverAddress: Address
   readonly canManageRoles: boolean
   /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
@@ -64,25 +68,20 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
     ),
   },
   {
-    id: 'name',
+    id: 'scope',
+    accessorKey: 'resourceLabel',
     meta: { width: ROLE_COLUMN_WIDTH.name },
-    header: () => <span className="text-muted-foreground">Name</span>,
-    cell: ({ row }) => {
-      const names = row.original.resolvedNames
-      if (names.length === 0) return null
-      return (
-        <div className="flex flex-wrap gap-1">
-          {names.map((name) => (
-            <span
-              key={name}
-              className="font-mono text-sm text-muted-foreground"
-            >
-              {name}
-            </span>
-          ))}
-        </div>
-      )
-    },
+    header: () => <span className="text-muted-foreground">Scope</span>,
+    cell: ({ row }) => (
+      <span
+        className={cn(
+          'text-sm',
+          row.original.isRoot ? 'text-muted-foreground' : 'font-mono',
+        )}
+      >
+        {row.original.resourceLabel}
+      </span>
+    ),
   },
   ...buildRoleColumns<AccountRoleGroup>((row) =>
     toRoleEntries(row.decodedRoles),
@@ -91,20 +90,32 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
 
 export const ResolverRolesTable = ({
   roles,
-  nodes,
+  namedResources,
   resolverAddress,
   canManageRoles,
   disableEdit = false,
 }: ResolverRolesTableProps) => {
-  const [editingRow, setEditingRow] = useState<Row<AccountRoleGroup> | null>(
-    null,
-  )
+  // The selection is an identity, not a row object: the row it names is looked
+  // up in the current data on every render, so a refetch can't leave the
+  // editor on stale roles, and a removed row closes the editor instead of
+  // handing its place to the next account.
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
 
-  const data = useMemo(
-    () => groupRolesByAccount(roles, buildResourceToNameMap(nodes)),
-    [roles, nodes],
+  const revealed = useMemo(
+    () => buildResourceLabels(namedResources ?? []),
+    [namedResources],
   )
+  const data = useMemo(
+    () => groupRolesByAccount(roles, revealed),
+    [roles, revealed],
+  )
+
+  const editingGroup =
+    data.find((group) => resolverRoleGroupId(group) === editingId) ?? null
+  const removalPlan = editingGroup
+    ? planAccountRemoval(roles, editingGroup.account, revealed)
+    : null
 
   const showActions = canManageRoles && !disableEdit
 
@@ -112,7 +123,7 @@ export const ResolverRolesTable = ({
     ? [
         ...baseColumns,
         buildEditActionColumn<AccountRoleGroup>((row) => {
-          setEditingRow(row)
+          setEditingId(resolverRoleGroupId(row.original))
           setOpen(true)
         }),
       ]
@@ -120,7 +131,7 @@ export const ResolverRolesTable = ({
 
   const table = (
     <div className={rolesTableClassName(showActions)}>
-      <DataTable columns={columns} data={data} />
+      <DataTable columns={columns} data={data} getRowId={resolverRoleGroupId} />
     </div>
   )
 
@@ -129,7 +140,8 @@ export const ResolverRolesTable = ({
 
   return (
     <ResolverRolesSidebar
-      row={editingRow}
+      group={editingGroup}
+      removalPlan={removalPlan}
       open={open}
       setOpen={setOpen}
       resolverAddress={resolverAddress}

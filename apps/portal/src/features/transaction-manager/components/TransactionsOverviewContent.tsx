@@ -1,5 +1,7 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   ExternalLink,
@@ -7,15 +9,18 @@ import {
   PlayCircle,
   XCircle,
 } from 'lucide-react'
+import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import { useChainId } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DialogTitle } from '@/components/ui/dialog'
+import { MessageCard } from '@/components/ui/message-card'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
+import { useFlowGasAffordability } from '../hooks/useFlowGasAffordability'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
@@ -40,6 +45,14 @@ export const TransactionsOverviewContent = ({
 }: TransactionsOverviewContentProps) => {
   const chainId = useChainId()
 
+  // Every step here is EOA-paid, so a wallet that covers the first one but not
+  // the rest strands the user mid-flow. Checked across the remaining steps
+  // rather than per step, and before the wallet is ever asked.
+  const gasAffordability = useFlowGasAffordability({
+    transactions,
+    activeTransactionsMap,
+  })
+
   const activeTransaction = getActiveTransaction(transactions, txState)
   const activeIndex = transactions.findIndex(
     (t) => t.id === activeTransaction.id,
@@ -55,8 +68,19 @@ export const TransactionsOverviewContent = ({
   return (
     <>
       <DialogTitle className="sr-only">Transaction overview</DialogTitle>
+      {match(gasAffordability)
+        .with({ status: 'short' }, (shortfall) => (
+          <MessageCard
+            variant="warning"
+            icon={<AlertTriangle className="size-6" />}
+            title="Not enough ETH for gas"
+            className="mb-2"
+            description={`These steps need about ${formatGasEth(shortfall.requiredWei)} ETH in gas and your wallet holds ${formatGasEth(shortfall.balanceWei)} ETH. Top up before you start, or the flow will stop partway.`}
+          />
+        ))
+        .otherwise(() => null)}
       <div className="space-y-2 min-w-0">
-        {transactions.map((transaction, index) => {
+        {transactions.map((transaction) => {
           const activeTxSnapshot = activeTransactionsMap
             .get(transaction.id)
             ?.getSnapshot()
@@ -101,8 +125,6 @@ export const TransactionsOverviewContent = ({
                     </h4>
                     {shouldShowWaitCountdown(
                       transaction,
-                      index,
-                      transactions,
                       activeTransactionsMap,
                     ) && transaction.waitUntil ? (
                       <TransactionWaitCountdown
@@ -168,6 +190,12 @@ export const TransactionsOverviewContent = ({
                   </Button>
                 </div>
                 <dl className="grid grid-cols-2 gap-1 place-items-start">
+                  {transaction.details?.map(({ label, value }) => (
+                    <Fragment key={label}>
+                      <dt className="text-base font-medium">{label}</dt>
+                      <dd className="text-base font-mono break-all">{value}</dd>
+                    </Fragment>
+                  ))}
                   <dt className="text-base font-medium">
                     {getStatus(transaction.id, activeTransactionsMap) ===
                     'success'

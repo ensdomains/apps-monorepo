@@ -21,14 +21,14 @@ const SelectedCountLabel = ({
     <Trans>
       <span>All </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase"> eligible names selected</span>
+      <span className="font-semi-mono uppercase"> names selected</span>
     </Trans>
   ) : (
     <Trans>
       <span>{totalSelected}</span>
       <span> out of </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase"> eligible names selected</span>
+      <span className="font-semi-mono uppercase"> names selected</span>
     </Trans>
   )
 
@@ -37,10 +37,15 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'allSelected'
   | 'filteredGroups'
   | 'filteredOrphans'
+  | 'filteredGracePeriodNames'
+  | 'isManagerRestorationLocked'
+  | 'managerCandidates'
+  | 'restoredManagers'
   | 'search'
   | 'selected'
   | 'setSearch'
   | 'toggleAll'
+  | 'toggleManagerRestoration'
   | 'toggleName'
   | 'totalSelected'
   | 'visibleCount'
@@ -56,15 +61,20 @@ export const SelectNamesStepSelectionOptions = ({
   allSelected,
   filteredGroups,
   filteredOrphans,
+  filteredGracePeriodNames,
   isCompactLayout,
   isContentHeightCard,
+  isManagerRestorationLocked,
   isPending,
+  managerCandidates,
+  restoredManagers,
   search,
   selected,
   setSearch,
   showBulkSelection,
   showNameSearch,
   toggleAll,
+  toggleManagerRestoration,
   toggleName,
   totalSelected,
   visibleCount,
@@ -117,7 +127,8 @@ export const SelectNamesStepSelectionOptions = ({
               strokeWidth={1.8}
             />
             <Trans>
-              Your names, text records, and addresses will migrate automatically
+              Your names, text records, and addresses will be carried over
+              during the upgrade
             </Trans>
           </p>
         </div>
@@ -156,13 +167,18 @@ export const SelectNamesStepSelectionOptions = ({
             isContentHeightCard && 'md:flex-none md:overflow-visible',
           )}
         >
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pt-4">
             <SelectNamesStepNameList
+              filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
+              managerCandidates={managerCandidates}
+              restoredManagers={restoredManagers}
               search={search}
               selected={selected}
+              toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
             />
           </div>

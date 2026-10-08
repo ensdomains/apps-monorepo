@@ -1,6 +1,7 @@
 import { BadgeCheck } from 'lucide-react'
 import type * as React from 'react'
 import { MessageCard } from '@/components/ui/message-card'
+import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 
 export type AvailableNameMessageProps = {
   name: string
@@ -12,6 +13,7 @@ export type AvailableNameMessageProps = {
     href?: string
     external?: boolean
   }
+  className?: string
 }
 
 export function AvailableNameMessage({
@@ -19,12 +21,13 @@ export function AvailableNameMessage({
   description,
   badge,
   actionButton,
+  className,
 }: AvailableNameMessageProps) {
   // Determine if this is a .eth name (registration) or DNS name (import)
   const isEthName = name.endsWith('.eth')
   const actionUrl = isEthName
     ? `/register?name=${name}`
-    : `https://app.ens.domains/${name}/import`
+    : `${LEGACY_APP_BASE_URL}/${name}/import`
 
   const defaultDescription = (
     <div>
@@ -50,6 +53,7 @@ export function AvailableNameMessage({
       description={description || defaultDescription}
       badge={badge}
       actionButton={actionButton || defaultActionButton}
+      className={className}
     />
   )
 }

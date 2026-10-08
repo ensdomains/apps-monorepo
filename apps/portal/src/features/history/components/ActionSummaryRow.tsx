@@ -15,6 +15,8 @@ import { TransactionHeaderRow } from './TransactionHeaderRow'
 interface ActionSummaryRowProps {
   readonly action: Action
   readonly senders: TransactionSenders
+  /** Lead the row with the tx sender — for feeds whose subject is not the actor. */
+  readonly showActor?: boolean
   readonly showDate?: boolean
   readonly isOpen: boolean
   readonly onToggle: () => void
@@ -25,6 +27,7 @@ interface ActionSummaryRowProps {
 export const ActionSummaryRow = ({
   action,
   senders,
+  showActor = false,
   showDate = true,
   isOpen,
   onToggle,
@@ -48,11 +51,15 @@ export const ActionSummaryRow = ({
         entityBadgeLeadingPadScope,
       )}
     >
-      <ActionSlots
-        slots={[{ kind: 'actor', txHash: action.txHash }]}
-        senders={senders}
-      />
-      <span className="-ml-2 text-neutral-7 text-p">{action.label}</span>
+      {showActor && (
+        <ActionSlots
+          slots={[{ kind: 'actor', txHash: action.txHash }]}
+          senders={senders}
+        />
+      )}
+      <span className={cn('text-neutral-7 text-p', showActor && '-ml-2')}>
+        {action.label}
+      </span>
       <ActionSlots slots={action.slots} senders={senders} />
     </div>
   )

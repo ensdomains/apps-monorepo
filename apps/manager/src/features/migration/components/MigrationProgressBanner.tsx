@@ -1,14 +1,16 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
-import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
+import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
+import { MigrationUpgradeButton } from '@/features/migration/components/MigrationUpgradeButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const MigrationProgressBanner = () => {
-  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
+  const { eligibility: nftEligibility, isConfirmedUnclaimed } =
+    useVisibleCommemorativeNftStatus()
+  const nftCopyEnabled = !!nftEligibility
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1Pending } =
@@ -66,13 +68,14 @@ export const MigrationProgressBanner = () => {
               )}
             </p>
           </div>
-          <MigrationPrimaryButton
+          <MigrationUpgradeButton
             className="w-full shrink-0 md:w-[338px]"
-            onClick={() => navigate({ to: '/migration' })}
+            onClick={() => navigate({ to: '/upgrade' })}
+            showNftPlaceholder={nftCopyEnabled && isConfirmedUnclaimed}
             type="button"
           >
             <Trans>Complete Upgrade</Trans>
-          </MigrationPrimaryButton>
+          </MigrationUpgradeButton>
         </div>
       </div>
     </div>

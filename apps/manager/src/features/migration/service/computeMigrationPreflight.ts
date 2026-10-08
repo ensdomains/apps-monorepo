@@ -1,5 +1,6 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
+import { envConfig } from '@/config'
 import {
   type ClassifiedName,
   classifyNames,
@@ -15,15 +16,19 @@ import { approvalNeedsFor } from '@/features/migration/service/migrationApproval
 import {
   checkMigrationApprovals,
   type MigrationApproval,
+  type MigrationCleanupApproval,
   planMigrationApprovals,
+  requiresMigrationApprovalCleanup,
+  temporaryMigrationHcaApproval,
 } from '@/features/migration/service/migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
+  assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
   getMigrationResolverAddress,
+  getRequiredMigrationContracts,
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
 } from '@/features/migration/service/migrationInvariants'
@@ -40,6 +45,8 @@ export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
   /** Missing grants only; confirmed operator entries remain available to the HCA. */
   migrationApprovals?: readonly MigrationApproval[]
+  /** HCA permissions to budget for cleanup, independent of missing grants. */
+  migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
   hcaResolverAddress?: Address
@@ -91,6 +98,7 @@ const computeApprovalPreflight = async (params: {
   readonly wagmiConfig: WagmiConfig
 }): Promise<{
   readonly migrationApprovals?: readonly MigrationApproval[]
+  readonly migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
 }> => {
   const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
     params
@@ -107,8 +115,14 @@ const computeApprovalPreflight = async (params: {
     needs: { ...needs, requiresManagerRestoration },
     status: hcaApprovalStatus,
   })
+  const migrationCleanupApprovals =
+    hcaApprovalStatus.ethRegistryHcaApproved ||
+    migrationApprovals.some(requiresMigrationApprovalCleanup)
+      ? [temporaryMigrationHcaApproval(hcaAddress)]
+      : []
   return {
     migrationApprovals,
+    migrationCleanupApprovals,
   }
 }
 
@@ -163,23 +177,39 @@ export const computeMigrationPreflight = async (params: {
   eoa: Address
   hcaAddress?: Address
   domains: readonly V1Domain[]
+  /**
+   * Whether the owner opted at least one name in to manager restoration. Only
+   * the boolean matters here — it decides whether the ETHRegistry operator
+   * approval is needed — so which names were picked is deliberately not part
+   * of this (cached) computation.
+   */
+  requiresManagerRestoration?: boolean
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
 }): Promise<MigrationPreflight> => {
-  const { eoa, hcaAddress, domains, wagmiConfig, publicClient, signal } = params
+  const {
+    eoa,
+    hcaAddress,
+    domains,
+    requiresManagerRestoration = false,
+    wagmiConfig,
+    publicClient,
+    signal,
+  } = params
   signal?.throwIfAborted()
 
-  const { classified } = classifyNames([...domains], eoa)
+  const classified = classifyNames(
+    [...domains],
+    eoa,
+    envConfig.chain.id,
+  ).classified
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
   const groups = groupClassifiedNames(classified)
 
   const needs = approvalNeedsFor(groups)
-  const requiresManagerRestoration = classified.some(
-    (name) => name.managerAddress !== null,
-  )
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )
@@ -209,11 +239,11 @@ export const computeMigrationPreflight = async (params: {
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {
-          await assertRequiredMigrationContractCode({ publicClient })
-          if (directNames.length > 0) {
-            await assertMigrationHelperRuntimeCode({ publicClient })
-          }
           await assertLockedPublicResolverSetMembership({
+            publicClient,
+            names: classified,
+          })
+          await assertNoLiveSubregistryOverwrite({
             publicClient,
             names: classified,
           })
@@ -226,6 +256,20 @@ export const computeMigrationPreflight = async (params: {
       : Promise.resolve(undefined),
   ])
   signal?.throwIfAborted()
+  if (hcaReadiness) {
+    await assertRequiredMigrationContractCode({
+      publicClient,
+      contracts: getRequiredMigrationContracts({
+        remaining: classified,
+        registryContext: classified,
+        directRoutes: directMigrationRoutes,
+        hcaReadiness,
+        resolverReadiness: resolverPreflight.hcaResolverReadiness,
+        ownedResolver: resolverPreflight.hcaResolverAddress ?? null,
+      }),
+    })
+    signal?.throwIfAborted()
+  }
 
   return {
     ...resolverPreflight,

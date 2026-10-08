@@ -1,12 +1,19 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Hex, PublicClient } from 'viem'
-import { assign, fromCallback, type SnapshotFrom, setup } from 'xstate'
+import type { Address, Hex, PublicClient } from 'viem'
+import {
+  assign,
+  fromCallback,
+  fromPromise,
+  type SnapshotFrom,
+  setup,
+} from 'xstate'
 import {
   adjustPlanForRetry,
   type MigrationPlan,
 } from '@/features/migration/service/buildMigrationPlan'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import {
   decodeMigrationError,
   type MigrationError,
@@ -16,15 +23,68 @@ import {
   executeMigration,
   type MigrationProgress,
   type MigrationResult,
-  type MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import {
+  executeGraceRenewal,
+  type GraceRenewalQuote,
+  type GraceRenewalStatus,
+} from '../service/graceRenewal'
+import type { PendingGraceRenewal } from '../service/graceRenewalPending'
+import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
+import type { V1Domain } from '../service/v1SubgraphClient'
+import {
+  FINAL_STAGE_FILL_MS,
+  REUNION_HOLD_MS,
+  REUNION_SLIDE_MS,
+} from './migrationAnimationTiming'
 
 const FAILURE_HOLD_MS = 1500
+
+type RenewalPreparation = {
+  readonly quote: GraceRenewalQuote
+  readonly domains: readonly V1Domain[]
+  readonly hcaAddress: Address
+  readonly requestSteps?: readonly MigrationWalletRequestDescriptor[]
+}
+
+const renewalStepsOf = (steps: readonly MigrationWalletRequestDescriptor[]) =>
+  steps.filter(
+    ({ type }) => type === 'renewal-approval' || type === 'renew-grace',
+  )
+
+const withRenewalApproval = (
+  steps: readonly MigrationWalletRequestDescriptor[],
+  required: boolean,
+): readonly MigrationWalletRequestDescriptor[] => {
+  const withoutApproval = steps.filter(
+    ({ type }) => type !== 'renewal-approval',
+  )
+  return required
+    ? [{ type: 'renewal-approval' }, ...withoutApproval]
+    : withoutApproval
+}
+
+const renewalProgress = (
+  steps: readonly MigrationWalletRequestDescriptor[],
+  currentStep: number,
+  isAwaitingConfirmation = false,
+): MigrationProgress => ({
+  currentStep,
+  // Keep room for migration while its executable plan is prepared after renewal.
+  totalSteps: Math.max(steps.length, renewalStepsOf(steps).length + 1),
+  description: '',
+  isAwaitingConfirmation,
+})
 
 type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
+  /**
+   * Names whose ENSv1 registry controller the owner chose to keep as a manager.
+   * Empty by default: nothing is re-granted unless it is asked for by name.
+   */
+  managerRestorationNames: string[]
   plan?: MigrationPlan
   signer?: Signer
   hcaClient?: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
@@ -33,12 +93,36 @@ type Context = {
   completedOperations: MigrationJournalOperation[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
-  stepDescriptors: readonly MigrationStepDescriptor[]
+  stepDescriptors: readonly MigrationWalletRequestDescriptor[]
   lastError?: MigrationError
+  renewal?: RenewalPreparation
+  renewalHash?: Hex
+  renewedDomains?: readonly V1Domain[]
+  renewalApprovalCompleted: boolean
+  renewalDiscardConfirmation?: {
+    readonly pending: PendingGraceRenewal
+    readonly resolve: (confirmed: boolean) => void
+  }
 }
 
 type Events =
   | { type: 'selection.set'; names: string[] }
+  | { type: 'managerRestoration.set'; names: string[] }
+  | {
+      type: 'migration.renewAndStart'
+      renewal: RenewalPreparation
+      signer: Signer
+      hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+      refreshAccount: () => Promise<void>
+    }
+  | {
+      type: 'renewal.discardConfirmation'
+      confirmation: NonNullable<Context['renewalDiscardConfirmation']>
+    }
+  | { type: 'renewal.submitted'; hash: Hex }
+  | { type: 'renewal.approvalRequired'; required: boolean }
+  | { type: 'renewal.status'; status: GraceRenewalStatus }
+  | { type: 'renewal.complete'; domains: readonly V1Domain[] }
   | {
       type: 'migration.start'
       plan: MigrationPlan
@@ -64,6 +148,7 @@ type Events =
 const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   wagmiConfig,
   selectedNames: [],
+  managerRestorationNames: [],
   plan: undefined,
   reconcileBeforeSubmit: false,
   completedOperations: [],
@@ -71,6 +156,10 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   progress: undefined,
   stepDescriptors: [],
   lastError: undefined,
+  renewal: undefined,
+  renewalHash: undefined,
+  renewedDomains: undefined,
+  renewalApprovalCompleted: false,
 })
 
 export const migrationUiMachine = setup({
@@ -82,8 +171,83 @@ export const migrationUiMachine = setup({
   },
   delays: {
     failureHold: FAILURE_HOLD_MS,
+    finalFill: FINAL_STAGE_FILL_MS,
+    reunionHold: REUNION_SLIDE_MS + REUNION_HOLD_MS,
   },
   actors: {
+    renewGraceNames: fromCallback<
+      Events,
+      {
+        renewal: RenewalPreparation
+        signer: Signer
+        renewalHash?: Hex
+      }
+    >(({ input, sendBack }) => {
+      const controller = new AbortController()
+      if (input.signer.type !== 'eoa') {
+        sendBack({
+          type: 'migration.failed',
+          error: {
+            type: 'generic',
+            message: 'Connect your wallet to renew these names.',
+          },
+        })
+        return
+      }
+      void executeGraceRenewal({
+        quote: input.renewal.quote,
+        walletClient: input.signer.walletClient,
+        publicClient: defaultPublicClient as PublicClient,
+        renewalHash: input.renewalHash,
+        signal: controller.signal,
+        confirmDiscardUnsubmittedRenewal: (pending) =>
+          new Promise<boolean>((resolve) => {
+            controller.signal.addEventListener('abort', () => resolve(false), {
+              once: true,
+            })
+            sendBack({
+              type: 'renewal.discardConfirmation',
+              confirmation: { pending, resolve },
+            })
+          }),
+        onRenewalSubmitted: (hash) =>
+          sendBack({ type: 'renewal.submitted', hash }),
+        onApprovalRequired: (required) =>
+          sendBack({ type: 'renewal.approvalRequired', required }),
+        onStatus: (status) => sendBack({ type: 'renewal.status', status }),
+      }).then((result) => {
+        if (controller.signal.aborted) return
+        if (result.isErr()) {
+          sendBack({
+            type: 'migration.failed',
+            error: decodeMigrationError(result.error),
+          })
+        } else {
+          sendBack({ type: 'renewal.complete', domains: result.value })
+        }
+      })
+      return () => controller.abort()
+    }),
+    prepareRenewedMigration: fromPromise<
+      MigrationPlan,
+      {
+        renewal: RenewalPreparation
+        renewedDomains: readonly V1Domain[]
+        managerRestorationNames: readonly string[]
+        wagmiConfig: WagmiConfig
+      }
+    >(({ input, signal }) =>
+      prepareGraceRenewalMigration({
+        domains: input.renewal.domains,
+        renewedDomains: input.renewedDomains,
+        ownerAddress: input.renewal.quote.ownerAddress,
+        hcaAddress: input.renewal.hcaAddress,
+        publicClient: defaultPublicClient as PublicClient,
+        wagmiConfig: input.wagmiConfig,
+        managerRestorationNames: input.managerRestorationNames,
+        signal,
+      }),
+    ),
     runMigration: fromCallback<
       Events,
       {
@@ -93,13 +257,21 @@ export const migrationUiMachine = setup({
         hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
         refreshAccount: () => Promise<void>
         reconcileBeforeSubmit: boolean
+        renewalStepCount: number
       }
     >(({ input, sendBack }) => {
       let cancelled = false
 
       const onProgress = (progress: MigrationProgress) => {
         if (cancelled) return
-        sendBack({ type: 'migration.progress', progress })
+        sendBack({
+          type: 'migration.progress',
+          progress: {
+            ...progress,
+            currentStep: progress.currentStep + input.renewalStepCount,
+            totalSteps: progress.totalSteps + input.renewalStepCount,
+          },
+        })
       }
 
       const onBatchComplete = (
@@ -148,9 +320,40 @@ export const migrationUiMachine = setup({
       context.completedOperations.length === 0,
   },
   actions: {
+    captureRenewalStart: assign(({ event }) => {
+      if (event.type !== 'migration.renewAndStart') return {}
+      const stepDescriptors = event.renewal.requestSteps ?? [
+        {
+          type: 'renew-grace' as const,
+          count: event.renewal.quote.items.filter(
+            ({ duration }) => duration > 0n,
+          ).length,
+        },
+      ]
+      return {
+        renewal: event.renewal,
+        signer: event.signer,
+        hcaClient: event.hcaClient,
+        refreshAccount: event.refreshAccount,
+        selectedNames: event.renewal.domains.map(({ name }) => name),
+        plan: undefined,
+        renewalHash: undefined,
+        renewedDomains: undefined,
+        renewalApprovalCompleted: false,
+        lastError: undefined,
+        progress: renewalProgress(stepDescriptors, 0),
+        stepDescriptors,
+      }
+    }),
     setSelection: assign({
       selectedNames: ({ event, context }) =>
         event.type === 'selection.set' ? event.names : context.selectedNames,
+    }),
+    setManagerRestoration: assign({
+      managerRestorationNames: ({ event, context }) =>
+        event.type === 'managerRestoration.set'
+          ? event.names
+          : context.managerRestorationNames,
     }),
     captureMigrationStart: assign(({ event }) => {
       if (event.type !== 'migration.start') return {}
@@ -164,6 +367,47 @@ export const migrationUiMachine = setup({
         progress: undefined,
         lastError: undefined,
         txHashes: [] as readonly Hex[],
+        renewal: undefined,
+        renewalHash: undefined,
+        renewedDomains: undefined,
+        renewalApprovalCompleted: false,
+      }
+    }),
+    setRenewalApprovalRequired: assign(({ context, event }) => {
+      if (event.type !== 'renewal.approvalRequired') return {}
+      const stepDescriptors = withRenewalApproval(
+        context.stepDescriptors,
+        event.required || context.renewalApprovalCompleted,
+      )
+      return {
+        stepDescriptors,
+        progress: renewalProgress(
+          stepDescriptors,
+          context.renewalApprovalCompleted ? 1 : 0,
+        ),
+      }
+    }),
+    setRenewalStatus: assign(({ context, event }) => {
+      if (event.type !== 'renewal.status') return {}
+      const isApproving =
+        event.status === 'approving' || event.status === 'approval-confirming'
+      const stepDescriptors =
+        isApproving || event.status === 'approval-complete'
+          ? withRenewalApproval(context.stepDescriptors, true)
+          : context.stepDescriptors
+      const hasApproval = stepDescriptors.some(
+        ({ type }) => type === 'renewal-approval',
+      )
+      return {
+        stepDescriptors,
+        renewalApprovalCompleted:
+          context.renewalApprovalCompleted || (!isApproving && hasApproval),
+        progress: renewalProgress(
+          stepDescriptors,
+          isApproving ? 0 : hasApproval ? 1 : 0,
+          event.status === 'approval-confirming' ||
+            event.status === 'confirming',
+        ),
       }
     }),
     setProgress: assign({
@@ -241,15 +485,27 @@ export const migrationUiMachine = setup({
       const completedNames = context.completedOperations.map(({ name }) => name)
       const nextPlan = adjustPlanForRetry(context.plan, completedNames)
       const completedSet = new Set(completedNames)
+      const renewalSteps = context.renewedDomains
+        ? renewalStepsOf(context.stepDescriptors)
+        : []
       return {
         plan: nextPlan,
-        stepDescriptors: nextPlan.stepDescriptors,
+        stepDescriptors: [...renewalSteps, ...nextPlan.stepDescriptors],
         selectedNames: context.selectedNames.filter(
+          (name) => !completedSet.has(name),
+        ),
+        managerRestorationNames: context.managerRestorationNames.filter(
           (name) => !completedSet.has(name),
         ),
         reconcileBeforeSubmit: true,
         lastError: undefined,
-        progress: undefined,
+        progress: context.renewedDomains
+          ? {
+              currentStep: renewalSteps.length,
+              totalSteps: nextPlan.stepDescriptors.length + renewalSteps.length,
+              description: '',
+            }
+          : undefined,
       }
     }),
     resetAll: assign(({ context }) => ({
@@ -272,16 +528,111 @@ export const migrationUiMachine = setup({
         'selection.set': {
           actions: 'setSelection',
         },
+        'managerRestoration.set': {
+          actions: 'setManagerRestoration',
+        },
         'migration.start': {
           target: 'migrate',
           guard: 'hasSelection',
           actions: 'captureMigrationStart',
+        },
+        'migration.renewAndStart': {
+          target: 'migrate.renewing',
+          guard: ({ event }) =>
+            event.renewal.quote.items.length > 0 &&
+            event.renewal.domains.length > 0 &&
+            event.renewal.quote.balance >= event.renewal.quote.totalAmount,
+          actions: 'captureRenewalStart',
         },
       },
     },
     migrate: {
       initial: 'running',
       states: {
+        renewing: {
+          tags: 'running',
+          exit: assign({ renewalDiscardConfirmation: undefined }),
+          invoke: {
+            src: 'renewGraceNames',
+            input: ({ context }) => {
+              if (!context.renewal || !context.signer)
+                throw new Error('Renewal context is incomplete')
+              return {
+                renewal: context.renewal,
+                signer: context.signer,
+                renewalHash: context.renewalHash,
+              }
+            },
+          },
+          on: {
+            'renewal.discardConfirmation': {
+              actions: assign({
+                renewalDiscardConfirmation: ({ event }) => event.confirmation,
+              }),
+            },
+            'migration.progress': { actions: 'setProgress' },
+            'renewal.approvalRequired': {
+              actions: 'setRenewalApprovalRequired',
+            },
+            'renewal.status': { actions: 'setRenewalStatus' },
+            'renewal.submitted': {
+              actions: assign({ renewalHash: ({ event }) => event.hash }),
+            },
+            'renewal.complete': {
+              target: 'preparing',
+              actions: assign({
+                renewedDomains: ({ event }) => event.domains,
+                progress: ({ context }) =>
+                  renewalProgress(
+                    context.stepDescriptors,
+                    renewalStepsOf(context.stepDescriptors).length,
+                  ),
+              }),
+            },
+            'migration.failed': { target: 'failing', actions: 'setError' },
+          },
+        },
+        preparing: {
+          tags: 'running',
+          invoke: {
+            src: 'prepareRenewedMigration',
+            input: ({ context }) => {
+              if (!context.renewal || !context.renewedDomains)
+                throw new Error('Renewed names are required')
+              return {
+                renewal: context.renewal,
+                renewedDomains: context.renewedDomains,
+                managerRestorationNames: context.managerRestorationNames,
+                wagmiConfig: context.wagmiConfig,
+              }
+            },
+            onDone: {
+              target: 'running',
+              actions: assign(({ context, event }) => {
+                const renewalSteps = renewalStepsOf(context.stepDescriptors)
+                return {
+                  plan: event.output,
+                  stepDescriptors: [
+                    ...renewalSteps,
+                    ...event.output.stepDescriptors,
+                  ],
+                  progress: {
+                    currentStep: renewalSteps.length,
+                    totalSteps:
+                      event.output.stepDescriptors.length + renewalSteps.length,
+                    description: '',
+                  },
+                }
+              }),
+            },
+            onError: {
+              target: 'failing',
+              actions: assign({
+                lastError: ({ event }) => decodeMigrationError(event.error),
+              }),
+            },
+          },
+        },
         running: {
           tags: 'running',
           invoke: {
@@ -303,6 +654,9 @@ export const migrationUiMachine = setup({
                 hcaClient: context.hcaClient,
                 refreshAccount: context.refreshAccount,
                 reconcileBeforeSubmit: context.reconcileBeforeSubmit,
+                renewalStepCount: context.renewedDomains
+                  ? renewalStepsOf(context.stepDescriptors).length
+                  : 0,
               }
             },
           },
@@ -319,7 +673,7 @@ export const migrationUiMachine = setup({
                 guard: 'isOnlyFailures',
               },
               {
-                target: '#migrationUi.success',
+                target: 'landing',
                 actions: 'recordCompletion',
               },
             ],
@@ -328,6 +682,14 @@ export const migrationUiMachine = setup({
               actions: 'setError',
             },
           },
+        },
+        landing: {
+          tags: 'running',
+          after: { finalFill: { target: 'reuniting' } },
+        },
+        reuniting: {
+          tags: 'running',
+          after: { reunionHold: { target: '#migrationUi.success' } },
         },
         failing: {
           tags: 'running',
@@ -349,10 +711,23 @@ export const migrationUiMachine = setup({
     failure: {
       tags: 'result',
       on: {
-        retry: {
-          target: 'migrate',
-          actions: 'resetForRetry',
-        },
+        retry: [
+          {
+            guard: ({ context }) => !!context.plan,
+            target: 'migrate.running',
+            actions: 'resetForRetry',
+          },
+          {
+            guard: ({ context }) => !!context.renewedDomains,
+            target: 'migrate.preparing',
+            actions: assign({ lastError: undefined }),
+          },
+          {
+            guard: ({ context }) => !!context.renewal,
+            target: 'migrate.renewing',
+            actions: assign({ lastError: undefined }),
+          },
+        ],
         cancel: {
           target: 'select',
           actions: 'resetAll',

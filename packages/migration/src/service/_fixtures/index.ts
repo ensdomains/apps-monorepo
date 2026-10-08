@@ -1,4 +1,6 @@
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import type { Address, PublicClient } from 'viem'
+import { sepolia } from 'viem/chains'
 import type {
   ClassifiedName,
   CopyClassifiedName,
@@ -11,7 +13,12 @@ import type { V1Domain } from '../v1SubgraphClient'
 export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'
 
-export const publicClient = {} as PublicClient
+// The preflight checks resolve their contracts from the client's chain, so the
+// fixture has to carry the ENS-extended one. A chainless client is rejected
+// by design.
+export const publicClient = {
+  chain: extendChainWithEns(sepolia),
+} as unknown as PublicClient
 
 export const ok = <T>(result: T) => ({ status: 'success' as const, result })
 export const fail = () => ({
@@ -34,6 +41,7 @@ export type ClassifiedOverrides = {
   fuses?: bigint
   label?: string
   managerAddress?: Address | null
+  registryController?: Address | null
   tokenHolder?: Address
 }
 
@@ -85,6 +93,7 @@ export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
         (tokenType === 'registry-child' ? 'registry' : 'name-wrapper'),
       sourceExpiry: o.sourceExpiry ?? 4_102_444_800n,
       resolverStrategy: 'to-owned-permres',
+      registryController: null,
       managerAddress: null,
     }
   }
@@ -99,6 +108,7 @@ export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
         ? o.tokenType
         : 'unwrapped',
     resolverStrategy: o.resolverStrategy ?? 'to-owned-permres',
+    registryController: o.registryController ?? null,
     managerAddress: o.managerAddress ?? null,
   }
 }

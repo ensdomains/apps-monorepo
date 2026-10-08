@@ -45,16 +45,22 @@ Notes:
 
 ## 3. Decode the selector against the validator source
 
-`HCAOwnerAndSessionValidator.sol` is **not on contracts-v2 `main`** — it lives on
-the HCA PR branch. Fetch that one file; do not grep the repo (it will match
-thousands of lines in `deployments/` and `lib/`):
+Read the source the validator was **built from**, not a contracts-v2 branch —
+branches carry variants that differ. Each deployment artifact names its
+build-info, which embeds every source file verbatim. Do not grep the repo (it
+will match thousands of lines in `deployments/` and `lib/`):
 
 ```bash
-git -C ../contracts-v2 fetch origin 'refs/pull/362/head:refs/remotes/pr/362'
-git -C ../contracts-v2 show refs/remotes/pr/362:contracts/src/hca/HCAOwnerAndSessionValidator.sol > /tmp/HCAV.sol
+NS=contracts/deployments/sepolia
+BI=$(git -C ../contracts-v2 show "HEAD:$NS/HCAOwnerAndSessionValidator.json" | jq -r .buildInfoId)
+git -C ../contracts-v2 show "HEAD:$NS/build-info/$BI.json" \
+  | jq -r '.input.sources["project/src/hca/HCAOwnerAndSessionValidator.sol"].content' > /tmp/HCAV.sol
 rg -o "error \w+\([^)]*\);" /tmp/HCAV.sol | sed 's/error //; s/;//' \
   | while read -r s; do printf "%-42s %s\n" "$s" "$(cast sig "$s")"; done
 ```
+
+The policy libraries (`HCAResolverPolicyLib.sol`, `HCARegistrarPolicyLib.sol`)
+are in the same build-info under `project/src/hca/libraries/`.
 
 Known selectors:
 
@@ -64,9 +70,13 @@ Known selectors:
 | `0xde1834f2` | `ActionNotAllowed(address,bytes4)` | target/selector outside the allowlist |
 | `0x0672e151` | `GasRefundNotAllowed()` | quoted executor refund exceeded the session caps |
 | `0x815e1d64` | `InvalidSigner()` | a bad key **or** a session that was never enabled — see below |
-| `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form |
+| `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form, or the enable proof is expired (`validUntil`), carries a stale session nonce, or has zero refund caps |
 | `0x037b5679` | `CallerNotIntentExecutor()` | presented by someone other than the IntentExecutor |
-| `0x1fd05a4a` | `SessionExpired()` | `validUntil` elapsed |
+| `0xf679d4db` | `InvalidOperationEncoding()` | operation data is not an ERC-7579 operation payload |
+| `0xbff8a462` | `OwnerUnavailable()` | the account returned no owner from `ownerAndSessionNonce` |
+
+The previous validator reverted `SessionExpired()` (`0x1fd05a4a`) for an elapsed
+`validUntil`; the 2026-09-15 one folds that into `InvalidSessionData()`.
 
 A trace only ever reveals the **first** violation. After fixing one, re-check
 the remaining calls against the policy loop rather than assuming.
@@ -80,27 +90,55 @@ recovered and it is the very first check,
 
 ## 4. The policy pins exact calldata — not just arguments
 
-`_checkResolverDeployment` does not inspect `deployProxy`'s arguments. It
-**reconstructs the whole calldata and compares keccak hashes**:
+`HCAResolverPolicyLib.checkDeployment` decodes `deployProxy`'s arguments,
+checks them, then **re-encodes the call around its own constants and compares
+keccak hashes** (validator `0x4bf64159`, the 2026-10-01 Sepolia deployment):
 
 ```solidity
-bytes[] memory setters = new bytes[](0);            // hardcoded EMPTY
-expectedInitData = abi.encodeCall(initialize, (account, ALL_ROLES, setters));
-expectedCallData = abi.encodeCall(deployProxy, (PERMITTED_RESOLVER_IMPL, salt, expectedInitData));
-if (keccak256(callData) != keccak256(expectedCallData)) revert PolicyRuleFailed();
+(address impl, uint256 salt, bytes memory initData) = abi.decode(args, ...);
+if (impl != implementation || selector(initData) != initialize.selector) revert PolicyRuleFailed();
+(Grant[] memory grants, bytes[] memory calls) = abi.decode(args(initData), ...);
+if (grants.length != 2 ||
+    grants[0] != (account, ALL_ROLES) ||          // the HCA
+    grants[1] != (owner,   ALL_ROLES)             // the wallet
+) revert PolicyRuleFailed();
+_checkCalls(calls);                                // each must be a record setter
+expectedCallData = abi.encodeCall(deployProxy,
+    (implementation, salt, abi.encodeCall(initialize, (grants, calls))));
+if (keccak256(callData) != keccak256(expectedCallData) ||
+    resolverAddress(account, salt, factory, proxyLogic) != resolver
+) revert PolicyRuleFailed();
 ```
 
-`authorizeNameRoles` is pinned the same way, to
-`(hex"00", ALL_ROLES, owner, true)` — which is why the root grant cannot be
-narrowed to a per-name resource even though the resolver supports it.
+The wallet's roles are granted **here**, as `grants[1]` — there is no trailing
+`authorizeNameRoles` call any more. That function is gone from
+`PermissionedResolver` (`0xbbd9abb5`) and the policy does not accept it.
 
 Consequences:
-- Record writes (`setAddr` `0x8b95dd71`, `setText` `0x10f13a8c`, …) **must** be
-  standalone calls. Folding them into `initialize`'s `setters` is rejected
-  before the resolver ever executes, even though the resolver would happily run
-  them during initialization.
+- The grants array is exactly two entries in that order. The older single-grant
+  form reverts `PolicyRuleFailed()`.
+- `initialize`'s `calls` may carry record setters — `checkCall` accepts
+  `setAddress`, `setText`, `setContenthash`, `setABI`, `setData`,
+  `setInterface`, `setName`, `linkToNode`, `linkToRecord` and a `multicall` of
+  those. The previous (hackathon) validator hardcoded `calls` empty, so do not
+  assume either without reading the deployed source (§3). We send it empty and
+  write records as standalone calls, which both validators accept.
+- The CREATE2 address derived from the salt must equal the session's resolver, so
+  a stale `verifiableFactoryProxyLogic` fails here even when the calldata matches.
+- Record setters are the **V2** shapes, which take the DNS-encoded name:
+  `setAddress` `0xb4436dde`, `setText` `0xc7279f88`. The v1 `PublicResolver`
+  shapes (`setAddr` `0x8b95dd71`, `setText` `0x10f13a8c`) are rejected twice
+  over — not accepted by the policy, and not implemented by the resolver.
 - Any change to how the resolver is deployed or initialized breaks this check.
-  Assert new calldata against a policy-derived keccak in tests.
+  `registration-calls.test.ts` reconstructs the policy's expected calldata and
+  asserts keccak equality; keep that in step.
+
+The validator exposes its pinned addresses as public getters
+(`VERIFIABLE_PROXY_LOGIC()`, `PERMITTED_RESOLVER_IMPL()`, `VERIFIABLE_FACTORY()`,
+`ETH_REGISTRY()`, `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()`,
+`REVERSE_REGISTRAR_HCA_ADAPTER()`), so after any redeploy read them off chain
+rather than trusting the manifest. Selectors are not exposed; they come from the
+interfaces in the source.
 
 ## 5. Reproduce end-to-end with a real signed intent
 
@@ -121,12 +159,12 @@ const sess = await createDestinationSession({
   alreadyDeployed: init.value.alreadyDeployed,
 })
 
-// leg 1: enable + commit (carries enableData), leg 2: reveal (session only)
+// leg 1: commit, leg 2: reveal — BOTH carry enableData (§7)
 const tx = await account.sendTransaction({
   sourceChains: [sepolia], targetChain: sepolia,
   calls, sponsored: { gas: false, bridging: false, swaps: false },
   feeAsset: 'USDC', tokenRequests: [], gasLimit: HCA_LEG_GAS_LIMITS.register,
-  signers: { type: 'experimental_session', session, enableData?, verifyExecutions: true },
+  signers: { type: 'experimental_session', session, enableData: sess.enableData, verifyExecutions: true },
 })
 await account.waitForExecution(tx, false)
 ```
@@ -155,129 +193,99 @@ When reading a failing intent's fields, note the big `uint256` next to the
 account address is the **nonce**, not the salt. Confirm with `cast to-dec`
 before comparing it against anything.
 
-## 7. The session-enable proof belongs on EVERY commit
+## 7. Every session signature carries the owner's authorization
 
-`enableData` (the `SessionEnableProof`) is what selects the validator's
-first-use policy path. It is tempting to omit it once the session is enabled
-on-chain — the handoff doc says to, and `experimental_isSessionEnabled` exists
-to check. Doing so has broken production twice, in two *different* ways, both
-arriving as `InvalidSignature()`:
-
-| batch | without the proof | inner revert |
-|---|---|---|
-| carries `permit` + `transferFrom` | falls through to `_checkRegistrationExecutions`, whose payment-token branch allows only `approve` | `ActionNotAllowed(USDC, 0xd505accf)` `0xde1834f2` |
-| no funding pair | SDK signs mode `0x02`, but `_sessions[hca][permissionId]` is still empty on a session's first use | `InvalidSigner()` `0x815e1d64` |
-
-Two independent conditions require the proof — *"we are funding"* and *"the
-session is not enabled yet"* — so gating on either one alone leaves the other
-broken. That is exactly how the second bug was introduced while fixing the
-first. **Attach it unconditionally:**
-
-- **idempotent** — `_enableSessionFor` rewrites the same slot with identical
-  values; there is no "already enabled" revert.
-- **reusable** — `_validateSessionEnableProof` checks only `validUntil` and the
-  account's session nonce, and nothing increments that nonce outside
-  `revokeSessions()`.
-- **no wallet prompt** — `buildHcaSessionEnablePayload` rebuilds it from the
-  authorization signature captured once at the session gate. The user still
-  signs the authorization exactly once.
-
-The only cost is one extra `enableSessionWithRefund` per commit, over mostly
-warm slots.
-
-### Read the mode byte first
-
-`data[0]` of the validator signature tells you which path the failing intent
-took:
+The deployed validator (`0x4bf64159`, contracts-v2 #426) is **stateless**.
+There is no `enableSessionWithRefund`, no `revokeSessions()`, and
+`isPermissionEnabled` always returns `false`. The only session envelopes it
+accepts carry the owner's multi-chain authorization inline:
 
 | mode | constant | meaning |
 |---|---|---|
-| `0x01` | `FIXED_SESSION_MODE` | session only |
-| `0x02` | `FIXED_SESSION_REFUND_MODE` | session + gas refund — assumes ALREADY enabled |
-| `0x03` | `FIXED_SESSION_PERMIT2_MODE` | cross-chain, session only |
-| `0x04` | `FIXED_SESSION_PERMIT2_ENABLE_MODE` | cross-chain first use, carries the proof |
-| `0x05` | `FIXED_SESSION_REFUND_ENABLE_MODE` | same-chain first use, carries the proof |
+| `0x04` | `FIXED_SESSION_PERMIT2_ENABLE_MODE` | cross-chain (Permit2), with proof |
+| `0x05` | `FIXED_SESSION_REFUND_ENABLE_MODE` | same-chain, with proof |
 
-`0x02` against a session that was never enabled is the `InvalidSigner()` row
-above. The permissionId is `data[1:33]` of the same envelope, so check it
-directly:
+Anything else — including the old `0x01`/`0x02` steady-state modes — reverts
+`InvalidSessionData()` in `_validateFixedSession`. So:
 
-```bash
-cast call <validator> 'isPermissionEnabled(address,bytes32)(bool)' <hca> <permissionId> \
-  --block <details.blockNumber> --rpc-url "$ARCHIVE_RPC"
-```
+- **`enableData` goes on every session-signed intent**, commit and reveal
+  alike. The Warp transport attaches the session's own proof
+  (`RhinestoneSessionContext.enableData`) and refuses to submit a
+  session-signed intent without one.
+- **`enableData.hcaSessionConfig` is required.** The SDK patch packs the
+  session config into the proof; without it, it falls back to decoding an
+  `enableSessionWithRefund` call from the batch, and the policy rejects any
+  execution that targets the validator.
+- **No validator call in the batch.** `_checkRegistrationExecutions` has no
+  branch for the validator itself, so such a call reverts `ActionNotAllowed`.
 
-**`false` at the failing block and `true` at `latest` is the signature of this
-bug**, and explains why it looks intermittent: some later run enables the
-session, so every subsequent commit passes and only the first one under a fresh
-session fails. A registration funded entirely from leftover HCA balance is the
-usual trigger, because it needs no permit and so never took the funding branch.
+The SDK patch (`patches/@rhinestone%2Fsdk@1.8.0.patch`) must be the one
+contracts-v2 ships for this validator (`patches/` at the deployment commit).
+A stale patch still signs a valid-looking envelope, just in the wrong layout,
+and the validator bails out after ~2k gas.
 
-### The SDK strips the proof once the session is enabled
+### Read the envelope before anything else
 
-Attaching `enableData` app-side is necessary but **not sufficient**. The exact
-inverse of the bug above also exists, and it fails on the SECOND registration
-rather than the first:
+The validator signature starts after the 20-byte zero prefix. For mode
+`0x05`, `_decodeSessionEnableProof` and `_validateFixedRefundSessionEnablePayload`
+read it tightly packed:
 
-```js
-// dist/src/execution/utils.js — resolveSignersForChain
-const enabled = await isSessionEnabled(...)
-const enableData = enabled ? undefined : resolved.enableData   // discards it
-```
+| bytes | field |
+|---|---|
+| 1 | mode `0x05` |
+| 32 | permissionId |
+| 20 · 6 · 12 | sessionKey · validUntil (uint48) · sessionNonce (uint96) |
+| 20 · 20 | resolver · refundToken |
+| 12 · 6 · 12 | maxRefundExchangeRate · maxRefundGasOverhead · maxRefundAmount |
+| 1 · 1 | sessionToEnableIndex · chainCount |
+| 40 × n | chainId (uint64) ‖ sessionDigest, per chain |
+| 65 | owner signature over the multi-chain authorization |
+| 32 | intent nonce |
+| 20 · 12 · 12 · 6 | refund token · exchangeRate · refundAmount · gasOverhead |
+| … | packed ERC-7579 operation |
+| 65 | session-key signature |
 
-Registration 1 enables the session, so registration 2 sees `enabled === true`,
-the SDK drops the proof the app correctly supplied, and
-`packStandaloneHcaFixedSessionSignature` picks the mode purely from
-`signers.enableData`:
+An ABI-encoded proof (32-byte words, a 4-byte length after the permissionId)
+is the previous validator's layout: `chainCount` then reads a padding zero,
+the decoder returns `proofEnd = 0`, and the call reverts `InvalidSessionData()`
+almost immediately — the 2026-09-16 manager failure.
 
-| `enableData` | gas refund | mode |
-|---|---|---|
-| truthy | — | `0x05` (carries proof) |
-| falsy | yes | `0x02` |
-| falsy | no | `0x01` |
+The previous (stateful) validator enabled sessions on-chain via
+`enableSessionWithRefund` and accepted proof-less `0x01`/`0x02` envelopes
+afterwards; its failure modes (and the SDK stripping the proof once a session
+was enabled) are in this file's git history.
 
-A funded commit then signs `0x01`/`0x02`, the validator takes the non-first-use
-path, and `permit` is rejected — `ActionNotAllowed(USDC, 0xd505accf)` masked as
-`InvalidSignature()`. The app-side guard in `submitFundingAndCommitActor`
-cannot catch it: by then the proof has already been handed to the SDK.
-
-Note the trap in our own patch — teaching `isSessionEnabled` about the
-standalone-HCA validator (passing `config.account.validator`) makes it *more*
-accurate, which is what starts returning `true` and triggers the strip. The
-patch therefore also pins the line above to keep the proof for standalone HCA:
-
-```js
-const enableData = enabled && !isStandaloneHca(config) ? undefined : resolved.enableData
-```
-
-Symptom to recognise: first registration succeeds, every later one fails, and
-`isPermissionEnabled` is `true` at the failing block (not `false`, as in §7).
-Read the mode byte before anything else — `0x01`/`0x02` on a batch that also
-contains `enableSessionWithRefund` means the call and the signature disagree.
-
-## 8. `UnclassifiedRevert` is NOT a policy failure — read the batch's own state
+## 8. `UnclassifiedRevert` — replay it before guessing
 
 ```
 Simulation failed: UnclassifiedRevert
   errorSelector: 0x00000000  category: UNCLASSIFIED_REVERT  retryable: false
 ```
 
-Everything above this section is about `InvalidSignature()` (`0x8baa579f`), which
-is the validator rejecting the intent. `UnclassifiedRevert` with a **zero
-selector** is the opposite: the validator passed, execution began, and one of
-the batched calls reverted with data the orchestrator could not classify. A
-plain `Error(string)` from an ERC-20 lands here — `0x08c379a0` is not in its
-table — so do not go looking for a policy bug.
+A zero selector only means the orchestrator could not classify the revert
+data it saw, and the router (`0x000000000004598d…`) re-reverts **empty** when
+the IntentExecutor fails. So this can be either:
 
-Decode `simulations[].signedIntentOp.…destinationOps` and check each call
-against **live chain state for that user** before anything else. The ops decode
+- a validator rejection — the IntentExecutor reverts `InvalidSignature()`
+  (`0x8baa579f`) with the validator's error one frame below it, and the router
+  swallows both; or
+- a batched call reverting with data the orchestrator does not know (a plain
+  `Error(string)` from an ERC-20, say).
+
+Replay the `fill` call from §2 with the error's `details.stateOverride` and
+read the deepest revert. On 2026-09-16 this was `InvalidSessionData()` from
+`isValidSignatureWithSender` after 2338 gas — a stale SDK patch (§7), not a
+batch problem.
+
+If the validator passed, decode `simulations[].call.data` and check each
+destination op against **live chain state for that user**. The ops decode
 straightforwardly:
 
 | `to` | selector | call |
 |---|---|---|
+| USDC | `0x095ea7b3` | `approve(paymaster, refund)` — the gas refund |
 | USDC | `0xd505accf` | `permit(owner, spender, value, deadline, v, r, s)` |
 | USDC | `0x23b872dd` | `transferFrom(wallet, HCA, value)` |
-| validator | `0x4a9b6c49` | `enableSessionWithRefund(...)` |
 | registrar | `0xf14fcbc8` | `commit(bytes32)` |
 
 ```bash

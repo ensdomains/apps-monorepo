@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 
 /**
  * Read-only resolver roles for a name's resolver, for embedding on a name page.
@@ -41,7 +42,17 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
       />
     )
 
-  return <ResolverRolesOverview name={name} resolverAddress={resolverAddress} />
+  // The resolver pointer can name any contract; only a PermissionedResolver
+  // has resolver roles to show (and a resolver roles page to link to).
+  return (
+    <RoleContractGate
+      address={resolverAddress}
+      expected="permissioned-resolver"
+      variant="embedded"
+    >
+      <ResolverRolesOverview name={name} resolverAddress={resolverAddress} />
+    </RoleContractGate>
+  )
 }
 
 /**
@@ -98,7 +109,7 @@ const ResolverRolesOverview = ({
       ) : (
         <ResolverRolesTable
           roles={roles}
-          nodes={overview?.nodes ?? []}
+          namedResources={overview?.namedResources ?? []}
           resolverAddress={resolverAddress}
           canManageRoles={false}
           disableEdit

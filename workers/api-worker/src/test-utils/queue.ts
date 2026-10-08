@@ -1,35 +1,28 @@
-import { vi } from 'vitest'
+/// <reference types="@cloudflare/vitest-pool-workers/types" />
+import {
+  createExecutionContext,
+  createMessageBatch,
+  getQueueResult,
+} from 'cloudflare:test'
+import worker from '#worker.js'
 
-export type TestQueueMessage<T = unknown> = Message<T> & {
-  ack: ReturnType<typeof vi.fn>
-  retry: ReturnType<typeof vi.fn>
-}
-
-export function makeQueueMessage<T>(
-  body: T,
-  options?: { attempts?: number; id?: string },
-): TestQueueMessage<T> {
-  const ack = vi.fn()
-  const retry = vi.fn()
-
-  return {
-    id: options?.id ?? `msg-${Math.random().toString(16).slice(2)}`,
-    timestamp: new Date(),
-    body,
-    attempts: options?.attempts ?? 0,
-    ack,
-    retry,
-  } as unknown as TestQueueMessage<T>
-}
-
-export function makeQueueBatch<T>(
-  queue: string,
-  messages: Array<TestQueueMessage<T>>,
-): MessageBatch<T> {
-  return {
-    queue,
-    messages: messages as unknown as Message<T>[],
-    ackAll: vi.fn(),
-    retryAll: vi.fn(),
-  } as unknown as MessageBatch<T>
+// Only transport is substituted by callers; ACK/retry semantics are workerd's.
+export const runQueue = async (
+  queueName: string,
+  bodies: readonly unknown[],
+  env: CloudflareBindings,
+) => {
+  const batch = createMessageBatch(
+    queueName,
+    bodies.map((body, index) => ({
+      id: `message-${index}`,
+      timestamp: new Date(),
+      attempts: 1,
+      body,
+    })),
+  )
+  const ctx = createExecutionContext()
+  const handler: ExportedHandlerQueueHandler<CloudflareBindings> = worker.queue
+  await handler(batch, env, ctx)
+  return getQueueResult(batch, ctx)
 }

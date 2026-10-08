@@ -2,7 +2,7 @@
  * Pure async function to change the resolver for an ENS V2 name.
  *
  * Follows the same pattern as saveRecords and deploySubregistry/setSubregistry:
- * 1. Compute labelToCanonicalId from name label
+ * 1. Take the name's id from the caller (never re-derive it from the name)
  * 2. Encode setResolver call with ensjs ABI snippet
  * 3. Submit via transaction manager
  */
@@ -14,7 +14,6 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs/contracts'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -23,14 +22,44 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { prepareSetV1ResolverTransaction } from '@/features/transfer/v1/writes'
+import {
+  assertCalldataResourceId,
+  canonicalResourceId,
+  type ResourceId,
+} from '@/lib/resource/resourceId'
 
 // ============================================================================
 // Types
 // ============================================================================
 
+/**
+ * Where a `setResolver` has to be sent, which differs by protocol version:
+ * V2 keys the pointer by canonical label id on the parent's
+ * PermissionedRegistry, V1 by namehash on the legacy registry (or the
+ * NameWrapper, which owns the registry slot of a wrapped name).
+ */
+export type ResolverWriteTarget =
+  | {
+      readonly protocol: 'ENSv2'
+      readonly registryAddress: Address
+      /**
+       * The name's on-chain id, resolved once when the target is derived and
+       * carried down. `setResolver` is addressed with this, never with a label
+       * split off the displayed name: `labelhash` leaves an encoded
+       * (`[<64 hex>]`) label unhashed, which would point the call at a
+       * different name (WEB-1458). A V2 target without one is not derivable,
+       * so no write can reach the registry guessing.
+       */
+      readonly resourceId: ResourceId
+    }
+  | { readonly protocol: 'ENSv1'; readonly isWrapped: boolean }
+
 export interface ChangeResolverTransactionParameters {
-  /** The ENS name (e.g., 'sub.parent.eth') */
+  /** The ENS name (e.g., 'sub.parent.eth'). Used for the description only. */
   readonly name: string
+  /** The name's on-chain id, taken from the V2 {@link ResolverWriteTarget}. */
+  readonly resourceId: ResourceId
   /** The registry address that manages this name (parent's registry) */
   readonly registryAddress: Address
   /** The new resolver address to set */
@@ -42,8 +71,11 @@ export interface ChangeResolverTransactionParameters {
 
 // Same call inputs as the transaction builder, but `from` is derived from the
 // wallet client at submit time rather than passed in.
-export interface ChangeResolverParameters
-  extends Omit<ChangeResolverTransactionParameters, 'from'> {
+export interface ChangeResolverParameters {
+  readonly name: string
+  readonly target: ResolverWriteTarget
+  readonly resolverAddress: Address
+  readonly chainId: number
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -62,18 +94,25 @@ export interface ChangeResolverResult {
 /** The setResolver intent, shared by the gas estimate and `changeResolver`. */
 export const prepareChangeResolverTransaction = ({
   name,
+  resourceId,
   registryAddress,
   resolverAddress,
   from,
   chainId,
 }: ChangeResolverTransactionParameters): CustomTransactionIntent => {
-  const label = name.split('.')[0]
-  const anyId = labelToCanonicalId(label)
+  const anyId = canonicalResourceId(resourceId)
 
   const data = encodeFunctionData({
     abi: permissionedRegistrySetResolverSnippet,
     functionName: 'setResolver',
     args: [anyId, resolverAddress],
+  })
+
+  assertCalldataResourceId({
+    abi: permissionedRegistrySetResolverSnippet,
+    data,
+    expected: anyId,
+    action: `Setting the resolver for ${name}`,
   })
 
   return toEoaCustomIntent({
@@ -83,6 +122,40 @@ export const prepareChangeResolverTransaction = ({
     chainId,
   })
 }
+
+/**
+ * The `setResolver` intent for either protocol version, shared by the gas
+ * estimate and the submitted transaction.
+ */
+export const prepareSetResolverTransaction = ({
+  name,
+  target,
+  resolverAddress,
+  from,
+  chainId,
+}: {
+  readonly name: string
+  readonly target: ResolverWriteTarget
+  readonly resolverAddress: Address
+  readonly from: Address
+  readonly chainId: number
+}): CustomTransactionIntent =>
+  target.protocol === 'ENSv2'
+    ? prepareChangeResolverTransaction({
+        name,
+        resourceId: target.resourceId,
+        registryAddress: target.registryAddress,
+        resolverAddress,
+        from,
+        chainId,
+      })
+    : prepareSetV1ResolverTransaction({
+        name,
+        isWrapped: target.isWrapped,
+        resolver: resolverAddress,
+        from,
+        chainId,
+      })
 
 // ============================================================================
 // Public API
@@ -97,7 +170,7 @@ export const prepareChangeResolverTransaction = ({
  * ```ts
  * const result = await changeResolver({
  *   name: 'myname.eth',
- *   registryAddress: parentRegistry,
+ *   target: { protocol: 'ENSv2', registryAddress: parentRegistry, resourceId },
  *   resolverAddress: newResolverAddress,
  *   walletClient,
  *   publicClient,
@@ -108,7 +181,7 @@ export const prepareChangeResolverTransaction = ({
  */
 export const changeResolver = async ({
   name,
-  registryAddress,
+  target,
   resolverAddress,
   walletClient,
   publicClient,
@@ -121,9 +194,9 @@ export const changeResolver = async ({
   }
 
   const txId = transactionManager.startTransaction(
-    prepareChangeResolverTransaction({
+    prepareSetResolverTransaction({
       name,
-      registryAddress,
+      target,
       resolverAddress,
       from: walletClient.account.address,
       chainId,

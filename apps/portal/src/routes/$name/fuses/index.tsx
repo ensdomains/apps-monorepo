@@ -23,6 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { formatFuseExpiry } from '@/features/fuses/utils/formatFuseExpiry'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { MigrateForRolesBanner } from '@/features/migration/components/MigrateForRolesBanner'
 import { MigrateForRolesMessage } from '@/features/migration/components/MigrateForRolesMessage'
@@ -140,7 +141,7 @@ function RouteComponent() {
   const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
 
   // Gated because the read is not cheap, and a v2 name never needs it.
-  const { isMigratableByConnectedOwner } = useMigrationStatus(name, {
+  const { isMigratableByConnectedOwner, isWrapped } = useMigrationStatus(name, {
     enabled: isV1Name,
   })
 
@@ -198,6 +199,7 @@ function RouteComponent() {
 
   const fuses = wrapperData.fuses as DecodedFuses | undefined
   const expiry = wrapperData.expiry
+  const expiryLabel = formatFuseExpiry(expiry)
   const hasBurnedFuses =
     fuses?.parent &&
     Object.values(fuses.parent).some((v) => typeof v === 'boolean' && v)
@@ -212,7 +214,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       {isV1Name && isMigratableByConnectedOwner && (
-        <MigrateForRolesBanner name={name} />
+        <MigrateForRolesBanner name={name} isWrapped={isWrapped} />
       )}
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
@@ -260,21 +262,11 @@ function RouteComponent() {
         </p>
       </div>
 
-      {hasBurnedFuses && expiry && (
+      {hasBurnedFuses && expiry && expiryLabel && (
         <div className="border border-border rounded-sm p-6 flex gap-4 items-center">
           <p className="font-medium whitespace-nowrap">Fuse expiry</p>
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="font-mono text-sm truncate">
-              {new Date(Number(expiry) * 1000).toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short',
-              })}
-            </span>
+            <span className="font-mono text-sm truncate">{expiryLabel}</span>
             <CopyableRecord value={expiry.toString()} />
           </div>
         </div>

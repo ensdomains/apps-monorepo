@@ -7,7 +7,7 @@ import {
 } from '@ens-apps/smart-account'
 import type { Call } from '@ens-apps/transaction-manager'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { permissionedResolverGrantRootRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
@@ -62,7 +62,7 @@ const ROLE_CAN_NAME = 1n << 120n
 const ROLE_UPGRADE = 1n << 124n
 const ROLE_CAN_TRANSFER_ADMIN = 1n << 156n
 
-export type AtomicMigrationExecutionPhase =
+type AtomicMigrationExecutionPhase =
   | 'resolver-deployment'
   | 'wallet-co-admin-grant'
   | 'user-registry-deployment'
@@ -328,13 +328,13 @@ export type AtomicMigrationBatchPlan = {
   readonly batches: readonly AtomicMigrationBatch[]
 }
 
-export type AtomicMigrationOuterGasEstimateRequest = {
+type AtomicMigrationOuterGasEstimateRequest = {
   readonly call: Call
   readonly names: readonly string[]
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
 }
 
-export type EstimateAtomicMigrationOuterGas = (
+type EstimateAtomicMigrationOuterGas = (
   request: AtomicMigrationOuterGasEstimateRequest,
 ) => bigint | Promise<bigint>
 
@@ -529,7 +529,7 @@ const buildResolverDeploymentCall = (params: {
   const initializeData = encodeFunctionData({
     abi: PERMISSIONED_RESOLVER_ABI,
     functionName: 'initialize',
-    args: [params.hca, ROLES_ALL, []],
+    args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
   })
 
   return {
@@ -547,15 +547,20 @@ const buildResolverDeploymentCall = (params: {
   }
 }
 
+/**
+ * Grants the wallet every role on the resolver's root resource, alongside the
+ * HCA. `authorizeNameRoles(ROOT_NAME, ...)` did this before; the V2 resolver
+ * scopes roles to the root resource or to a setter argument, never to a name.
+ */
 const buildWalletCoAdminCall = (params: {
   readonly resolver: Address
   readonly wallet: Address
 }): Call => ({
   to: params.resolver,
   data: encodeFunctionData({
-    abi: permissionedResolverAuthorizeNameRolesSnippet,
-    functionName: 'authorizeNameRoles',
-    args: [ROOT_NAME, ROLES_ALL, params.wallet, true],
+    abi: permissionedResolverGrantRootRolesSnippet,
+    functionName: 'grantRootRoles',
+    args: [ROLES_ALL, params.wallet],
   }),
   value: 0n,
 })
@@ -913,6 +918,10 @@ const buildNameStateExpectations = (params: {
   ]
 }
 
+/**
+ * A manager role is only ever restored for a name the owner opted in for, which
+ * is the only thing that sets `managerAddress` — see `classifyNames`.
+ */
 const buildManagerRoleFragment = (
   classified: ClassifiedName,
 ): NameExecutionFragment => {
@@ -954,8 +963,9 @@ const buildProfileReplayFragment = (params: {
   if (!profileEntry) return EMPTY_NAME_EXECUTION_FRAGMENT
 
   const name = params.classified.domain.name
+  // Keyed by name: the V2 setters take the DNS-encoded name, not the node.
   const profileCalls = flattenProfileInnerCalls(
-    new Map([[profileEntry.node, profileEntry.profile]]),
+    new Map([[name, profileEntry.profile]]),
   )
   return {
     innerExecutions: [

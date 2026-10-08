@@ -1,4 +1,5 @@
 import { computeResolverAddress } from '@ens-apps/smart-account'
+import { Storage } from 'happy-dom'
 import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,6 +18,7 @@ import {
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
+import { assertRequiredMigrationContractCode } from './migrationInvariants'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
 vi.mock('./v1SubgraphClient', async (importActual) => ({
@@ -33,7 +35,6 @@ vi.mock('./copyMigrationReadiness', () => ({
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
-  assertMigrationHelperRuntimeCode: vi.fn(() => Promise.resolve()),
   assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
   checkMigrationHcaReadiness: vi.fn(({ hca }) =>
     Promise.resolve({ status: 'verified', hca, implementation: HCA }),
@@ -67,7 +68,11 @@ const publicClientWithProfileResults = (
   }[] = [],
 ): PublicClient =>
   ({
+    // The recovery plan resolves its chain from the client and refuses a
+    // client without one.
+    chain: { id: 11155111 },
     multicall: vi.fn(() => Promise.resolve(results)),
+    readContract: vi.fn().mockResolvedValue(false),
   }) as unknown as PublicClient
 
 const lockedKnownResolver = () =>
@@ -122,12 +127,13 @@ const makeRecoveryTree = () => {
       hca: HCA,
     }),
     plannedApprovals: [{ id: 'eth-registry:hca' }],
+    managerRestorationNames: [],
   } satisfies MigrationRecoverySnapshot
   return { root, copy, snapshot }
 }
 
 beforeEach(() => {
-  localStorage.clear()
+  vi.stubGlobal('localStorage', new Storage())
   getV1ProfileKeysMock.mockReset()
   buildAtomicMigrationBatchesMock.mockReset()
   buildAtomicMigrationBatchesMock.mockResolvedValue({
@@ -292,12 +298,40 @@ describe('buildMigrationPlan resolver preservation', () => {
     expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         classified: [expect.objectContaining({ resolverStrategy: 'keep-v1' })],
+        maxOuterGas: 15_000_000n,
       }),
     )
   })
 })
 
 describe('buildMigrationRecoveryPlan', () => {
+  it('converts a saved collection-wide registration grant to token approvals', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+    const recoverySnapshot: MigrationRecoverySnapshot = {
+      ...snapshot,
+      remainingOperations: [
+        { name: root.name, action: 'migrate' },
+        { name: copy.name, action: 'copy' },
+      ],
+      completedOperations: [],
+      plannedApprovals: [{ id: 'base-registrar:hca' }],
+    }
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: recoverySnapshot,
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+
+    expect(plan.preflight.migrationApprovals).toEqual([
+      expect.objectContaining({
+        kind: 'erc721-token',
+        id: 'base-registrar:hca-token',
+      }),
+    ])
+  })
+
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
 
@@ -308,6 +342,13 @@ describe('buildMigrationRecoveryPlan', () => {
       publicClient: { chain: { id: 11155111 } } as PublicClient,
     })
 
+    const checkedContracts = vi.mocked(assertRequiredMigrationContractCode).mock
+      .lastCall?.[0].contracts
+    expect(checkedContracts).toContain('UserRegistryImpl')
+    expect(checkedContracts).toContain('ETHRegistry')
+    expect(checkedContracts).not.toContain('MigrationHelper')
+    expect(checkedContracts).not.toContain('UnlockedMigrationController')
+    expect(checkedContracts).not.toContain('VerifiableFactoryProxyLogic')
     expect(plan.classified).toEqual([
       expect.objectContaining({
         action: 'copy',
@@ -333,6 +374,7 @@ describe('buildMigrationRecoveryPlan', () => {
     expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         classified: [expect.objectContaining({ action: 'copy' })],
+        maxOuterGas: 15_000_000n,
         registryContext: [
           expect.objectContaining({ action: 'migrate' }),
           expect.objectContaining({ action: 'copy' }),
@@ -395,5 +437,72 @@ describe('buildMigrationRecoveryPlan', () => {
       reason: 'operation-mismatch',
     })
     expect(assertCopyMigrationReadinessMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
+  const CONTROLLER: Address = '0x00000000000000000000000000000000000000c1'
+
+  const makeResumedRoot = (managerRestorationNames: readonly string[]) => {
+    const root = makeDomain({
+      id: namehash('alice.eth'),
+      name: 'alice.eth',
+      labelName: 'alice',
+      resolverAddress: null,
+      ownerId: CONTROLLER,
+    })
+    const snapshot = {
+      registryDomains: [root],
+      registryOperations: [{ name: root.name, action: 'migrate' as const }],
+      remainingOperations: [{ name: root.name, action: 'migrate' as const }],
+      completedOperations: [],
+      profiles: new Map([
+        [
+          namehash(root.name),
+          { texts: [], addresses: [], contentHash: null, abis: [] },
+        ],
+      ]),
+      ownedPermRes: computeResolverAddress({ chainId: 11155111, hca: HCA }),
+      plannedApprovals: [{ id: 'eth-registry:hca' as const }],
+      managerRestorationNames,
+    } satisfies MigrationRecoverySnapshot
+    return { root, snapshot }
+  }
+
+  const resume = (snapshot: MigrationRecoverySnapshot) =>
+    buildMigrationRecoveryPlan({
+      snapshot,
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: { chain: { id: 11155111 } } as PublicClient,
+    })
+
+  it('replays the opt-in recorded on the durable snapshot', async () => {
+    const { root, snapshot } = makeResumedRoot(['alice.eth'])
+    const plan = await resume(snapshot)
+
+    expect(plan.classified).toEqual([
+      expect.objectContaining({
+        domain: expect.objectContaining({ name: root.name }),
+        managerAddress: CONTROLLER,
+      }),
+    ])
+  })
+
+  it('restores nobody when the snapshot recorded no opt-in', async () => {
+    const { snapshot } = makeResumedRoot([])
+    const plan = await resume(snapshot)
+
+    expect(plan.classified[0]?.managerAddress).toBeNull()
+  })
+
+  it('does not re-derive an opt-in from the live v1 controller', async () => {
+    // The controller still differs from the registrant on resume, so a plan
+    // that re-derived the grant would silently reinstate it.
+    const { snapshot } = makeResumedRoot([])
+    const plan = await resume(snapshot)
+
+    expect(plan.classified[0]?.registryController).toBe(CONTROLLER)
+    expect(plan.classified[0]?.managerAddress).toBeNull()
   })
 })

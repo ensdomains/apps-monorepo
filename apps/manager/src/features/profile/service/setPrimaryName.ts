@@ -1,7 +1,7 @@
 import {
   type Call,
-  ENS_SEPOLIA_CONTRACTS,
   getSmartAccountAddress,
+  type HcaFundingPrompt,
   planHcaIntentFunding,
   type RhinestoneSigner,
   type RhinestoneTransactionRequest,
@@ -25,7 +25,9 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
-import { normalize } from 'viem/ens'
+import { envConfig } from '@/config'
+import { assertPrimaryNameForwardResolution } from './primaryNameForwardAddress'
+import { requireCanonicalPrimaryName } from './profileName'
 
 export interface SetPrimaryNameParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -42,11 +44,6 @@ export interface SetPrimaryNameParams {
   /** Called with each submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
 }
-
-// Normalized claim string: a non-canonical name would fail the bidirectional
-// check at resolution time and read as "no primary name".
-const withEthSuffix = (name: string) =>
-  normalize(name.endsWith('.eth') ? name : `${name}.eth`)
 
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
@@ -86,7 +83,7 @@ export async function hasStaleAddrReverse(input: {
   ownerAddress: Address
 }): Promise<boolean> {
   const resolver = await input.publicClient.readContract({
-    address: ENS_SEPOLIA_CONTRACTS.LegacyRegistry,
+    address: envConfig.chain.contracts.ensLegacyRegistry.address,
     abi: registryResolverAbi,
     functionName: 'resolver',
     args: [addrReverseNode(input.ownerAddress)],
@@ -111,6 +108,13 @@ export interface SetPrimaryNameWithHcaParams {
   chainId: number
   /** Called with the submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
+  /**
+   * Show the USDC amount the funding permit will authorize and wait for the
+   * user to accept it. Called only when the HCA cannot cover its own fee, and
+   * always before the wallet is asked to sign. Declining aborts the whole
+   * action with `HcaFundingDeclinedError`.
+   */
+  confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
 }
 
 /**
@@ -136,8 +140,9 @@ export async function setPrimaryNameWithHca(
     publicClient,
     chainId,
     onTxId,
+    confirmFunding,
   } = params
-  const cleanName = withEthSuffix(name)
+  const cleanName = requireCanonicalPrimaryName(name)
 
   if (
     !walletClient.account ||
@@ -148,6 +153,12 @@ export async function setPrimaryNameWithHca(
     )
   }
 
+  await assertPrimaryNameForwardResolution(
+    publicClient,
+    cleanName,
+    ownerAddress,
+  )
+
   const clearsStaleAddrReverse = await hasStaleAddrReverse({
     publicClient,
     ownerAddress,
@@ -155,7 +166,7 @@ export async function setPrimaryNameWithHca(
 
   const calls: readonly Call[] = [
     {
-      to: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrarAdapter,
+      to: envConfig.chain.contracts.ensDefaultReverseRegistrarAdapter.address,
       value: 0n,
       data: encodeFunctionData({
         abi: reverseAdapterAbi,
@@ -166,7 +177,7 @@ export async function setPrimaryNameWithHca(
     ...(clearsStaleAddrReverse
       ? [
           {
-            to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+            to: envConfig.chain.contracts.ensReverseRegistrarAdapter.address,
             value: 0n,
             data: encodeFunctionData({
               abi: reverseAdapterAbi,
@@ -195,6 +206,9 @@ export async function setPrimaryNameWithHca(
     publicClient,
     chainId,
     calls,
+    // The USDC cost is quoted here, not at any earlier screen, so this is the
+    // only place it can be shown before the permit signature is requested.
+    ...(confirmFunding ? { confirmFunding } : {}),
   })
 
   const request: RhinestoneTransactionRequest = {
@@ -227,14 +241,19 @@ export async function setPrimaryNameWithHca(
 }
 
 /** EOA forward leg: setName on the default reverse registrar. */
-export function submitPrimaryNameForward(input: {
+export async function submitPrimaryNameForward(input: {
   name: string
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
   chainId: number
-}): string {
-  const cleanName = withEthSuffix(input.name)
+}): Promise<string> {
+  const cleanName = requireCanonicalPrimaryName(input.name)
+  await assertPrimaryNameForwardResolution(
+    input.publicClient,
+    cleanName,
+    input.accountAddress,
+  )
   const data = encodeFunctionData({
     abi: defaultReverseRegistrarSetNameSnippet,
     functionName: 'setName',
@@ -244,7 +263,7 @@ export function submitPrimaryNameForward(input: {
   const request: TransactionRequest = {
     type: 'eoa',
     from: input.accountAddress,
-    to: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+    to: envConfig.chain.contracts.ensDefaultReverseRegistrar.address,
     data,
     value: 0n,
     chainId: input.chainId,
@@ -293,7 +312,7 @@ export function submitClearAddrReverse(input: {
   const request: TransactionRequest = {
     type: 'eoa',
     from: input.ownerAddress,
-    to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+    to: envConfig.chain.contracts.ensReverseRegistrarAdapter.address,
     data,
     value: 0n,
     chainId: input.chainId,
@@ -312,14 +331,19 @@ export function submitClearAddrReverse(input: {
 }
 
 /** EOA reverse leg: setName on the reverse registrar. */
-export function submitPrimaryNameReverse(input: {
+export async function submitPrimaryNameReverse(input: {
   name: string
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
   chainId: number
-}): string {
-  const cleanName = withEthSuffix(input.name)
+}): Promise<string> {
+  const cleanName = requireCanonicalPrimaryName(input.name)
+  await assertPrimaryNameForwardResolution(
+    input.publicClient,
+    cleanName,
+    input.accountAddress,
+  )
   const data = encodeFunctionData({
     abi: reverseRegistrarSetNameSnippet,
     functionName: 'setName',
@@ -329,7 +353,7 @@ export function submitPrimaryNameReverse(input: {
   const request: TransactionRequest = {
     type: 'eoa',
     from: input.accountAddress,
-    to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrar,
+    to: envConfig.chain.contracts.ensReverseRegistrar.address,
     data,
     value: 0n,
     chainId: input.chainId,
@@ -374,7 +398,7 @@ export async function setPrimaryName(
 
   const signer: Signer = { type: 'eoa', walletClient }
 
-  const forwardTxId = submitPrimaryNameForward({
+  const forwardTxId = await submitPrimaryNameForward({
     name,
     signer,
     accountAddress: ownerAddress,
@@ -384,7 +408,7 @@ export async function setPrimaryName(
   onTxId?.(forwardTxId)
   await waitForTransaction(forwardTxId)
 
-  const reverseTxId = submitPrimaryNameReverse({
+  const reverseTxId = await submitPrimaryNameReverse({
     name,
     signer,
     accountAddress: ownerAddress,

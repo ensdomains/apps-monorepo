@@ -27,16 +27,20 @@ export type TransactionOperation = v.InferOutput<
   typeof TransactionOperationSchema
 >
 
-export const TransactionPayloadSchema = v.record(v.string(), v.unknown())
+export const TransactionPayloadSchema = v.strictObject({
+  to: v.optional(v.pipe(v.string(), v.maxLength(128))),
+  value: v.optional(v.pipe(v.string(), v.maxLength(128))),
+  error: v.optional(v.pipe(v.string(), v.maxLength(16 * 1024))),
+})
 export type TransactionPayload = v.InferOutput<typeof TransactionPayloadSchema>
 
 export const UpsertTransactionSchema = v.object({
-  txId: v.pipe(v.string(), v.minLength(1)),
+  txId: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
   chainId: v.number(),
-  hash: v.optional(v.nullable(v.string())),
+  hash: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(128)))),
   status: TransactionStatusSchema,
   operation: v.optional(v.nullable(TransactionOperationSchema)),
-  name: v.optional(v.nullable(v.string())),
+  name: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(1024)))),
   payload: v.optional(v.nullable(TransactionPayloadSchema)),
 })
 export type UpsertTransaction = v.InferOutput<typeof UpsertTransactionSchema>

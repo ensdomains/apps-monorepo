@@ -4,6 +4,7 @@ import {
   generalShortcuts,
   getDefaultVisibleFields,
   getGeneralValidationIssues,
+  isDescriptionOverLimit,
   removeGeneralFieldValue,
 } from './fields'
 
@@ -87,5 +88,17 @@ describe('general profile fields', () => {
         message: 'Enter a valid URL (e.g. https://example.com)',
       },
     ])
+  })
+
+  it('rejects an edited legacy description until it is within the limit', () => {
+    const savedDescription = 'A'.repeat(700)
+
+    expect(isDescriptionOverLimit(savedDescription, savedDescription)).toBe(
+      false,
+    )
+    expect(isDescriptionOverLimit('A'.repeat(699), savedDescription)).toBe(true)
+    expect(isDescriptionOverLimit('A'.repeat(500), savedDescription)).toBe(
+      false,
+    )
   })
 })

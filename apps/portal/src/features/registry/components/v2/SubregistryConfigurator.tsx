@@ -1,22 +1,31 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
+import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { prepareDeploySubregistryTransaction } from '@/features/registry/helpers/deploySubregistry'
+import {
+  generateSubregistrySalt,
+  prepareDeploySubregistryTransaction,
+} from '@/features/registry/helpers/deploySubregistry'
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import type { ResourceId } from '@/lib/resource/resourceId'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -80,25 +89,51 @@ type SubregistryConfiguratorProps = {
   name: string
   onCancel: () => void
   onComplete?: () => void
+  /**
+   * Run immediately before each write, which is skipped when this resolves
+   * `false`. The configure flow uses it to prove the name still has no registry
+   * (WEB-1249). Required so that skipping it is a decision a caller writes down:
+   * only a flow where replacing the registry is the whole point passes `null`.
+   */
+  assertWritable: (() => Promise<boolean>) | null
 }
 
-export const SubregistryConfigurator = ({
+/**
+ * The form proper, which only exists once the name has a usable on-chain id.
+ * Splitting the guard out keeps that id non-null everywhere below.
+ */
+const SubregistryConfiguratorForm = ({
   name,
+  resourceId,
   onCancel,
   onComplete,
-}: SubregistryConfiguratorProps) => {
+  assertWritable,
+}: SubregistryConfiguratorProps & { resourceId: ResourceId }) => {
   const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  // Drawn again at every submit, so a retry after a deploy that landed (but
+  // whose set never did) targets a fresh address instead of reverting on the
+  // one it already occupies.
+  const [deploySalt, setDeploySalt] = useState(generateSubregistrySalt)
   const deployedSubregistryAddressRef = useRef<Address | null>(null)
 
   const useCustomRegistry = registryOption === 'use-existing'
 
-  const {
-    openModal: openTransactionModal,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
+  const { closeModal: closeTransactionModal, clearTransaction } =
+    useTransactionModal()
+  // Names the attempt the modal is showing. The deploy path chains deploy →
+  // set, so without this an abandoned run leaves its deploy actor behind and
+  // the next attempt's set step targets a subregistry that was never deployed.
+  const attempt = useFlowAttempt()
+  const deploySubregistryTxId = scopeTransactionId(
+    DEPLOY_SUBREGISTRY_TX_ID,
+    attempt.scope,
+  )
+  const setSubregistryTxId = scopeTransactionId(
+    SET_SUBREGISTRY_TX_ID,
+    attempt.scope,
+  )
 
   const {
     data: registries,
@@ -106,13 +141,13 @@ export const SubregistryConfigurator = ({
     error,
   } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  const label = name.split('.')[0]
   const parentRegistry = registries?.at(1) ?? null
 
   const customSubregistryAddress =
     useCustomRegistry && isAddress(contractAddress) ? contractAddress : null
 
   const isDeployPath = !customSubregistryAddress
+  const { address: connectedAddress } = useConnection()
 
   const {
     deploySubregistryAsync,
@@ -131,16 +166,19 @@ export const SubregistryConfigurator = ({
     hasWallet: hasSetWallet,
   } = useSetSubregistry({
     name,
-    label,
+    resourceId,
     parentRegistry: parentRegistry ?? zeroAddress,
-    id: SET_SUBREGISTRY_TX_ID,
+    id: setSubregistryTxId,
   })
 
   const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
 
   const handleDeploySubregistryStart = async () => {
     await ResultAsync.fromPromise(
-      deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
+      deploySubregistryAsync({
+        id: deploySubregistryTxId,
+        salt: deploySalt,
+      }),
       () => undefined,
     ).match(
       (result) => {
@@ -151,21 +189,27 @@ export const SubregistryConfigurator = ({
     )
   }
 
-  const handleSetSubregistryAfterDeployStart = () => {
+  // Also never awaited by the modal — see `handleDeploySubregistryStart`.
+  const handleSetSubregistryAfterDeployStart = async () => {
     const deployed = deployedSubregistryAddressRef.current
     if (!deployed) return
     if (isSetSubregistryPending || isSetSubregistrySuccess) return
+    // Checked again here, not just at submit: the deploy step sits between the
+    // two, leaving a whole block time for the slot to be filled.
+    if (assertWritable && !(await assertWritable())) return
     setSubregistry(deployed)
   }
 
-  const handleSetSubregistryStart = () => {
+  const handleSetSubregistryStart = async () => {
     if (!customSubregistryAddress) return
+    if (assertWritable && !(await assertWritable())) return
     setSubregistry(customSubregistryAddress)
   }
 
   const handleSetSubregistryDone = () => {
     closeTransactionModal()
     clearTransaction()
+    attempt.end()
     setContractAddress('')
     setRegistryOption('deploy')
     deployedSubregistryAddressRef.current = null
@@ -182,9 +226,14 @@ export const SubregistryConfigurator = ({
     )
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (useCustomRegistry && !isAddress(contractAddress)) return
-    openTransactionModal()
+    // Gates the deploy too, not just the set: there is no reason to pay for a
+    // registry that may not legally be pointed at anything.
+    if (assertWritable && !(await assertWritable())) return
+    if (!connectedAddress) return
+    setDeploySalt(generateSubregistrySalt())
+    attempt.start(connectedAddress)
   }
 
   const isSubmitDisabled =
@@ -221,7 +270,7 @@ export const SubregistryConfigurator = ({
         className="flex flex-col gap-5 border border-border rounded-lg p-5"
         onSubmit={(e) => {
           e.preventDefault()
-          handleSubmit()
+          void handleSubmit()
         }}
       >
         <RadioGroup
@@ -285,7 +334,7 @@ export const SubregistryConfigurator = ({
           isDeployPath
             ? [
                 {
-                  id: DEPLOY_SUBREGISTRY_TX_ID,
+                  id: deploySubregistryTxId,
                   title: 'Deploy subregistry',
                   transactionName: `Deploy subregistry for ${name}`,
                   intent: {
@@ -293,6 +342,7 @@ export const SubregistryConfigurator = ({
                       prepareDeploySubregistryTransaction({
                         factoryAddress,
                         implAddress,
+                        salt: deploySalt,
                         walletClient,
                         chainId,
                       }),
@@ -301,7 +351,7 @@ export const SubregistryConfigurator = ({
                   onDone: handleSetSubregistryAfterDeployStart,
                 },
                 {
-                  id: SET_SUBREGISTRY_TX_ID,
+                  id: setSubregistryTxId,
                   title: 'Set subregistry',
                   transactionName: `Set subregistry for ${name}`,
                   onStart: handleSetSubregistryAfterDeployStart,
@@ -310,14 +360,14 @@ export const SubregistryConfigurator = ({
               ]
             : [
                 {
-                  id: SET_SUBREGISTRY_TX_ID,
+                  id: setSubregistryTxId,
                   title: 'Set subregistry',
                   transactionName: `Set custom subregistry for ${name}`,
                   intent: {
                     prepare: customSubregistryAddress
                       ? ({ walletClient, chainId }) =>
                           prepareSetSubregistryTransaction({
-                            label,
+                            resourceId,
                             parentRegistry,
                             subregistryAddress: customSubregistryAddress,
                             walletClient,
@@ -332,5 +382,103 @@ export const SubregistryConfigurator = ({
         }
       />
     </>
+  )
+}
+
+/**
+ * The id `setSubregistry` will be addressed with, resolved before the form is
+ * built so nothing below re-derives it from the displayed name (WEB-1458).
+ * No id means no form, not a guess.
+ *
+ * Only mounted once registry discovery has answered, so its loading and error
+ * states are about identifying the name and nothing else.
+ */
+const SubregistryResourceIdGate = ({
+  parentRegistry,
+  ...props
+}: SubregistryConfiguratorProps & {
+  readonly parentRegistry: Address | undefined
+}) => {
+  const idFromName = resourceIdForName(props.name).unwrapOr(null)
+  const {
+    data: readId,
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
+  } = useQuery({
+    ...getNameResourceIdQueryOptions({
+      name: props.name,
+      registryAddress: parentRegistry,
+    }),
+    enabled: idFromName === null && Boolean(parentRegistry),
+  })
+  const resourceId = idFromName ?? readId ?? null
+
+  if (isLoading) return <LoadingSpinner title="Identifying this name" />
+
+  // A failed read is not an answer, and must not be reported as "this name has
+  // no identity".
+  if (error)
+    return (
+      <div className="flex flex-col gap-3">
+        <ErrorMessage
+          compact
+          description={`The registry could not be asked which name ${props.name} is, so nothing was loaded: ${error.message}`}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          disabled={isRefetching}
+          onClick={() => void refetch()}
+        >
+          Try again
+        </Button>
+      </div>
+    )
+
+  if (!resourceId)
+    return (
+      <ErrorMessage
+        compact
+        description={`The on-chain identity of ${props.name} could not be established, so no registry can be set for it here.`}
+      />
+    )
+
+  return <SubregistryConfiguratorForm {...props} resourceId={resourceId} />
+}
+
+/**
+ * Finds the registry holding the name, then hands over to
+ * {@link SubregistryResourceIdGate} to identify the name in it. Each step
+ * renders its own loading and error state, so a failure says which question
+ * went unanswered.
+ */
+export const SubregistryConfigurator = (
+  props: SubregistryConfiguratorProps,
+) => {
+  // The same discovery query the form runs, so this costs no extra read.
+  const {
+    data: registries,
+    isLoading,
+    error,
+  } = useQuery(getNameRegistriesQueryOptions({ name: props.name }))
+
+  if (isLoading) return <LoadingSpinner title="Loading registry information" />
+
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching registry data. Please refresh the page."
+      />
+    )
+
+  return (
+    <SubregistryResourceIdGate
+      {...props}
+      parentRegistry={registries?.at(1) ?? undefined}
+    />
   )
 }

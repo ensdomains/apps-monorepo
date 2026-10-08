@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -29,6 +30,7 @@ import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsStat
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -74,7 +76,11 @@ function EditRecordsPage() {
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
     useNameResolverAddress({ name })
-  const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
+  const {
+    canEdit,
+    hasOwnResolver,
+    isLoading: isCanEditLoading,
+  } = useCanEditRecords({ name })
 
   const isLoading =
     profileQuery.isLoading ||
@@ -121,6 +127,49 @@ function EditRecordsPage() {
         title="Name not found"
         description="Could not determine the owner or resolver for this name."
       />
+    )
+  }
+
+  // A name that resolves through an ancestor — a DNS name served by its TLD’s
+  // offchain resolver, say — has no resolver of its own to write to, and the
+  // inherited one reverts on every setter. Stopping here keeps the save away
+  // from a wallet that would turn the failed estimate into a block-gas-limit
+  // guess and have the RPC reject it as "gas limit too high".
+  if (hasOwnResolver !== true) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Link to="/$name" params={{ name }} className="hover:opacity-70">
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Link>
+          <h1 className="text-h1">{name}</h1>
+        </div>
+        {hasOwnResolver === false ? (
+          <ErrorMessage
+            title="No resolver set"
+            description={
+              <>
+                <strong>{name}</strong> has no resolver of its own, so there is
+                nothing on chain to write records to. It still resolves through
+                a parent — for a DNS name, its TLD’s offchain resolver reading
+                the name’s <code>ENS1</code> TXT record — but that resolver is
+                read-only. Set a resolver on the name to edit its records here.
+              </>
+            }
+          />
+        ) : (
+          <ErrorMessage
+            title="Resolver unavailable"
+            description={
+              <>
+                We couldn’t confirm which resolver <strong>{name}</strong> uses,
+                so editing is disabled rather than risk a transaction that would
+                fail. Try again in a moment.
+              </>
+            }
+          />
+        )}
+      </div>
     )
   }
 
@@ -221,12 +270,23 @@ const EditRecordsContent = ({
 
   const {
     isOpen: isTransactionModalOpen,
-    openModal: openTransactionModal,
     closeModal: closeTransactionModal,
     clearTransaction,
   } = useTransactionModal()
 
   const { data: walletClient } = useWalletClient()
+
+  // Names the attempt the modal is showing. Without this the step id is a fixed
+  // string, so an attempt abandoned while its transaction was still in flight
+  // leaves a settled actor under that id: the next attempt's modal reads it as
+  // Done, the button becomes "Done", and the save is never sent. The modal only
+  // clears on error, and a route change only closes it, so that actor can
+  // outlive the attempt that made it.
+  const attempt = useFlowAttempt()
+  const saveRecordsTxId = scopeTransactionId(
+    SAVE_RECORDS_TRANSACTION_ID,
+    attempt.scope,
+  )
 
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
@@ -260,7 +320,7 @@ const EditRecordsContent = ({
       resolverAddress,
       originalRecords,
       pendingChanges,
-      id: SAVE_RECORDS_TRANSACTION_ID,
+      id: saveRecordsTxId,
     })
   }
 
@@ -304,7 +364,10 @@ const EditRecordsContent = ({
       return
     }
 
-    openTransactionModal()
+    const signer = walletClient?.account?.address
+    if (!signer) return
+
+    attempt.start(signer)
   }
 
   // Compute counts for each tab (excluding deleted records)
@@ -409,6 +472,9 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={setKeyInput}
                 placeholder="Select coin..."
+                // Sits in a row of plain inputs, so it takes their flat fill
+                // rather than the outline button's dark tint.
+                className="dark:bg-background dark:hover:bg-accent"
               />
             </div>
           )}
@@ -544,7 +610,7 @@ const EditRecordsContent = ({
       <TransactionModal
         transactions={[
           {
-            id: SAVE_RECORDS_TRANSACTION_ID,
+            id: saveRecordsTxId,
             title: 'Save records',
             transactionName: 'Set resolver records',
             intent: {
@@ -556,6 +622,7 @@ const EditRecordsContent = ({
             onDone: () => {
               closeTransactionModal()
               clearTransaction()
+              attempt.end()
             },
           },
         ]}

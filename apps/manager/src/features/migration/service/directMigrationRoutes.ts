@@ -1,5 +1,6 @@
-import { computeVerifiableProxyAddress } from '@ens-apps/smart-account'
+import { computeWrapperRegistryAddress } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
   isAddressEqual,
@@ -14,10 +15,6 @@ import type { DirectClassifiedName } from './classifyNames'
 
 const verifiableFactoryAbi = parseAbi([
   'function verifyContract(address proxy) view returns (address implementation)',
-])
-
-const permissionedRegistryAbi = parseAbi([
-  'function getSubregistry(string label) view returns (address)',
 ])
 
 const wrapperRegistryAbi = parseAbi([
@@ -87,20 +84,16 @@ const labelsForEthName = (name: string): readonly string[] => {
 export const computeExpectedWrapperRegistry = (params: {
   readonly name: string
 }): Address => {
-  const labels = labelsForEthName(params.name)
-  let deployer = V2_CONTRACTS.LockedMigrationController
-  let wrapper: Address | null = null
-
-  for (let index = labels.length - 2; index >= 0; index -= 1) {
-    const wrappedName = labels.slice(index).join('.')
-    wrapper = computeVerifiableProxyAddress({
-      factory: V2_CONTRACTS.VerifiableFactory,
-      proxyLogic: V2_CONTRACTS.VerifiableFactoryProxyLogic,
-      deployer,
-      salt: BigInt(namehash(wrappedName)),
-    })
-    deployer = wrapper
-  }
+  // Throws the typed route error for a non-.eth name.
+  labelsForEthName(params.name)
+  const wrapper = computeWrapperRegistryAddress({
+    name: params.name,
+    contracts: {
+      verifiableFactory: V2_CONTRACTS.VerifiableFactory,
+      verifiableFactoryProxyLogic: V2_CONTRACTS.VerifiableFactoryProxyLogic,
+      lockedMigrationController: V2_CONTRACTS.LockedMigrationController,
+    },
+  })
 
   if (!wrapper) {
     throw new DirectMigrationRouteError({
@@ -200,7 +193,7 @@ const assertVerifiedWrapper = async (params: {
 }): Promise<void> => {
   const actualWrapper = await params.publicClient.readContract({
     address: params.registry,
-    abi: permissionedRegistryAbi,
+    abi: permissionedRegistryGetSubregistrySnippet,
     functionName: 'getSubregistry',
     args: [params.label],
   })

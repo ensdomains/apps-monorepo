@@ -33,8 +33,29 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1781817619597,
-      "tag": "0004_add_transactions",
+      "when": 1790000596877,
+      "tag": "0004_tough_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790077864029,
+      "tag": "0005_marvelous_runaways",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790270011988,
+      "tag": "0006_free_peter_quill",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790807476176,
+      "tag": "0007_bind_deliveries_to_channels",
       "breakpoints": true
     }
   ]

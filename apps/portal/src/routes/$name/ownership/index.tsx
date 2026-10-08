@@ -4,19 +4,23 @@ import { ClockIcon } from 'lucide-react'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
+import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
+import { V2NameManagersRow } from '@/features/ownership/components/V2NameManagersRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
-import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
+import { TransferPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { useCanTransfer } from '@/features/transfer/hooks/useCanTransfer'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
@@ -98,8 +102,8 @@ function RouteComponent() {
 
   if (availabilityQuery.data?.isAvailable || !data)
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there is no ownership
@@ -108,6 +112,8 @@ function RouteComponent() {
         }
       />
     )
+
+  const ownerLabel = grace.isInGrace ? 'Previous owner' : 'Owner'
 
   return (
     <div className="flex flex-col gap-8">
@@ -119,13 +125,20 @@ function RouteComponent() {
       )}
       <div className="flex flex-row items-center justify-between">
         <PageHeading parent={{ type: 'name', name }}>Ownership</PageHeading>
-        {canTransfer && (
-          <Button asChild className="gap-2">
-            <Link params={{ name }} to="/$name/ownership/transfer">
-              Transfer
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-row items-center gap-2">
+          <ReclaimManagerButton
+            name={name}
+            protocolVersion={data.protocolVersion}
+            account={address}
+          />
+          {canTransfer && (
+            <Button asChild className="gap-2">
+              <Link params={{ name }} to="/$name/ownership/transfer">
+                Transfer
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
       {/* Header list — same structure as the Overview/Resolver pages (WEB-649) */}
       <div className="flex flex-col">
@@ -133,13 +146,22 @@ function RouteComponent() {
           name={name}
           protocolVersion={data.protocolVersion}
         />
-        <Owner
-          asRow
-          label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+        <NameOwnerRow
+          name={name}
+          label={ownerLabel}
           owner={data.owner}
+          protocolVersion={data.protocolVersion}
+          badge={<TransferPrivilegeWarning name={name} ownerData={data} />}
         />
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />
+        )}
+        {data.protocolVersion === 'ENSv2' && (
+          <V2NameManagersRow
+            name={name}
+            registryAddress={data.registryAddress}
+            owner={data.owner}
+          />
         )}
         <ParentName asRow name={name} />
       </div>

@@ -1,10 +1,10 @@
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
+import { envConfig } from '@/config'
 import {
   buildCsp,
   CSP_HEADER_NAME,
   CSP_REPORT_ONLY,
-  originFromEnvUrl,
   SECURITY_HEADER_VALUES,
 } from './csp'
 
@@ -57,7 +57,7 @@ describe('csp', () => {
     })
 
     it('allowlists every shared RPC failover origin', () => {
-      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+      for (const url of envConfig.rpcFallbacks) {
         expect(connectSrc).toContain(new URL(url).origin)
       }
       expect(connectSrc).toContain('https://lb.drpc.live')
@@ -71,7 +71,7 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://graphql.ens.dev')
 
       expect(connectSrc).toContain('https://*.ens.domains')
-      expect(connectSrc).not.toContain('https://jakob.ens.domains')
+      expect(connectSrc).not.toContain('https://edge.ens.domains')
     })
 
     it('allowlists Rhinestone and Intercom hosts', () => {
@@ -102,6 +102,10 @@ describe('csp', () => {
     it('allowlists Google Fonts for Material Symbols', () => {
       expect(header['style-src']).toContain('https://fonts.googleapis.com')
       expect(header['font-src']).toContain('https://fonts.gstatic.com')
+    })
+
+    it('allowlists the font host serving the ABC/Dinamo faces', () => {
+      expect(header['font-src']).toContain('https://fonts.ens.dev')
     })
 
     it('frames WalletConnect, Intercom, and the commemorative renderer', () => {
@@ -169,7 +173,7 @@ describe('csp', () => {
     })
 
     it('allowlists every fallback RPC the viem transport can reach', () => {
-      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+      for (const url of envConfig.rpcFallbacks) {
         expect(header['connect-src']).toContain(new URL(url).origin)
       }
     })
@@ -187,5 +191,14 @@ describe('csp', () => {
       expect(header['report-to']).toEqual(['posthog'])
       expect(header['report-uri']?.[0]).toContain('eu.i.posthog.com/report/')
     })
+  })
+})
+
+describe('indexers', () => {
+  it('allows the bigname origin resolved from config', () => {
+    const origin = originFromEnvUrl(envConfig.endpoints.bignameApi)
+
+    expect(origin).toBeTruthy()
+    expect(header['connect-src']).toContain(origin)
   })
 })

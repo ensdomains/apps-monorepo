@@ -80,14 +80,23 @@ export interface RhinestoneIntentParams {
   /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
   readonly feeAsset?: 'USDC'
   /**
-   * Per-request session enable payload. Present ONLY on the request that
-   * carries the on-chain `enableSessionWithRefund` call (the first HCA
-   * action); omitted once the session is enabled. Requires a signer with a
-   * `session` — the transport rejects it otherwise.
+   * Per-request session enable payload, overriding the signer session's own
+   * `enableData`. The validator needs one on every session-signed intent.
+   * Requires a signer with a `session` — the transport rejects it otherwise.
    */
   readonly sessionEnableData?: SessionEnableData
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
   readonly tokenRequests?: readonly TokenRequest[]
+  /**
+   * Called with the orchestrator's intent id the moment `sendTransaction`
+   * returns — BEFORE the fill completes. The id is the only handle for
+   * `GET /intent-operation/{id}`, and a caller that wants to survive a reload
+   * has to capture it mid-flight: an intent that is still filling (or fails
+   * server-side) never resolves the submitting actor, so a resolved-value
+   * channel would lose exactly the ids that matter. Failures are swallowed by
+   * the transport — a broken observer must not break the submission.
+   */
+  readonly onIntentSubmitted?: (intentId: bigint) => void
   /**
    * Balances that will land DURING this intent and so are invisible to the
    * orchestrator when it plans, keyed by chain then token.
@@ -184,9 +193,10 @@ export type TransactionIntent =
  * Config interface for the Rhinestone smart-account signer.
  */
 export type SmartAccountConfig = {
-  chain?: Chain
-  accountAddress?: Address
-  rhinestoneApiKey: string
+  /** Required: a missing chain must fail loudly, never fall back to a default network. */
+  readonly chain: Chain
+  readonly accountAddress?: Address
+  readonly rhinestoneApiKey: string
 }
 
 export interface TransactionOptions {

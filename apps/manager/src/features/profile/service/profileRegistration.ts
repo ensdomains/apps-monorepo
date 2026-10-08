@@ -1,29 +1,23 @@
+import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import {
-  getRegistrationDate as ensjsv2_getRegistrationDate,
-  type GetRegistrationDateErrorType,
-} from '@ensdomains/ensjs/public/v2'
-import {
-  getNameHistory as ensjs_getNameHistory,
-  type GetNameHistoryErrorType,
-} from '@ensdomains/ensjs/subgraph'
+import { getRegistrationDate as ensjsv2_getRegistrationDate } from '@ensdomains/ensjs/public/v2'
+import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgraph'
 import { err, fromPromise, ok } from 'neverthrow'
-import { type GetBlockErrorType, getBlock } from 'viem/actions'
+import { namehash } from 'viem'
+import { getBlock } from 'viem/actions'
+import { indexerClient } from '@/lib/indexer-client'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEth2LdName } from './profileName'
+import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
 class GetProfileRegistrationError extends TaggedError(
   'GetProfileRegistrationError',
 )<{
-  cause:
-    | GetRegistrationDateErrorType
-    | GetNameHistoryErrorType
-    | GetBlockErrorType
+  cause: unknown
 }> {}
 
 class UnsafeRegistrationDateError extends TaggedError(
@@ -59,10 +53,29 @@ const ENS_REGISTRY = getChainContractAddress({
 const blockNumberToBigInt = (blockNumber: number | bigint) =>
   typeof blockNumber === 'bigint' ? blockNumber : BigInt(blockNumber)
 
+// Every failure, an unindexed name and an indexer outage alike, answers null so
+// the on-chain read below settles it rather than the query ending without a date.
+const getIndexedRegistrationDate = (name: string) =>
+  indexerClient
+    .query<DomainQuery>(DomainDocument, { id: namehash(name) })
+    .toPromise()
+    .then((result) => result.data?.domain?.registrationDate ?? null)
+    .catch(() => null)
+
 export const getRegistration = ResultFn(async function* (
   name: string,
   protocol?: ProfileProtocol,
 ) {
+  const subname = normalizeEthName(name)
+
+  // A subname is issued by its parent rather than registered with a registrar,
+  // so the indexer is the only source for its date and v1 has no equivalent.
+  if (subname && subname.parentLabelsRootFirst.length > 0) {
+    return ok({
+      registrationDate: await getIndexedRegistrationDate(subname.name),
+    })
+  }
+
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {
@@ -72,19 +85,16 @@ export const getRegistration = ResultFn(async function* (
   const resolvedProtocol =
     protocol ?? (yield* getOwner({ name: ethName.name }))?.protocol ?? 'v2'
 
-  const client = yield* safeGetClient()
-
   if (resolvedProtocol === 'v1') {
+    const client = yield* safeGetClient()
+
     const nameHistory = yield* fromPromise(
       ensjs_getNameHistory(client, {
         name: ethName.name,
         orderDirection: 'desc',
         first: 25,
       }),
-      (e) =>
-        new GetProfileRegistrationError({
-          cause: e as GetNameHistoryErrorType,
-        }),
+      (e) => new GetProfileRegistrationError({ cause: e }),
     )
 
     const registrationBlockNumber = nameHistory?.registrationEvents?.find(
@@ -99,28 +109,28 @@ export const getRegistration = ResultFn(async function* (
       getBlock(client, {
         blockNumber: blockNumberToBigInt(registrationBlockNumber),
       }),
-      (e) =>
-        new GetProfileRegistrationError({
-          cause: e as GetBlockErrorType,
-        }),
+      (e) => new GetProfileRegistrationError({ cause: e }),
     )
 
-    const safeRegistrationDate = yield* registrationDateToNumber(
-      block.timestamp,
-    )
-
-    return ok({ registrationDate: safeRegistrationDate })
+    return ok({
+      registrationDate: yield* registrationDateToNumber(block.timestamp),
+    })
   }
+
+  const indexedDate = await getIndexedRegistrationDate(ethName.name)
+
+  if (indexedDate !== null) {
+    return ok({ registrationDate: indexedDate })
+  }
+
+  const client = yield* safeGetClient()
 
   const registrationDate = yield* fromPromise(
     ensjsv2_getRegistrationDate(client, {
       label: ethName.label,
       registryAddress: ENS_REGISTRY,
     }),
-    (e) =>
-      new GetProfileRegistrationError({
-        cause: e as GetRegistrationDateErrorType,
-      }),
+    (e) => new GetProfileRegistrationError({ cause: e }),
   )
 
   const safeRegistrationDate =

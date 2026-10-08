@@ -15,30 +15,8 @@
  * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
  */
 
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
-
-/**
- * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
- * be allowlisted in `connect-src`.
- *
- * `VITE_SEPOLIA_RPC_URL` and `VITE_INDEXER_GRAPHQL_URL` are inlined by Vite at
- * build time and can point a deployment's RPC / indexer at a host outside the
- * static list below. Without this, the browser would enforce the static
- * `connect-src` and block those configured requests even though the app
- * accepted the override.
- *
- * Returns `null` for unset, relative (`/rpc` — already covered by `'self'`), or
- * unparseable values, so only real absolute http(s) overrides are added.
- */
-export function originFromEnvUrl(value: string | undefined): string | null {
-  if (!value || value.startsWith('/')) return null
-  try {
-    const { protocol, origin } = new URL(value)
-    return protocol === 'https:' || protocol === 'http:' ? origin : null
-  } catch {
-    return null
-  }
-}
+import { originFromEnvUrl } from '@ens-apps/config'
+import { envConfig } from '@/config'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -54,8 +32,6 @@ const DQA_ORIGIN =
 // Deployment-specific override origins, derived from the same build-time envs
 // the RPC/indexer clients read (lib/wagmi.ts, packages/indexer/urql/client.ts).
 const OVERRIDE_CONNECT_ORIGINS = [
-  originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
-  originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
   DQA_ORIGIN,
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
@@ -66,27 +42,44 @@ const OVERRIDE_CONNECT_ORIGINS = [
 // Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_INDEXER_GRAPHQL_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
-  // default Sepolia RPC — packages/indexer/chain.ts
-  'https://lb.drpc.live',
-  // Public RPC failover endpoints — derived from the same source the viem
-  // transports use (lib/wagmi.ts, worker/clients.ts), so a fallback added
-  // there can never be silently blocked by this policy.
-  ...SEPOLIA_FALLBACK_RPC_URLS.map((url) => new URL(url).origin),
-  // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
-  // urql/client.ts) and the fund/faucet API (app-api.ens.dev —
-  // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
+  // Every RPC endpoint the viem transports may use: the app's attributed
+  // primary plus the network's shared fallbacks. Derived from the same config
+  // the transports read (lib/wagmi.ts), so an endpoint change can never be
+  // silently blocked. Relative primaries (`/rpc` in e2e) yield null and are
+  // covered by 'self'.
+  ...envConfig.rpcUrls
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
+  // The indexers, resolved in `@/config`.
+  ...[
+    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
+    originFromEnvUrl(envConfig.endpoints.bignameApi),
+  ].filter((origin): origin is string => origin !== null),
+  // ENS-owned hosts: the indexer GraphQL endpoint (resolved in `@/config`)
+  // and the fund/faucet API (app-api.ens.dev, src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
   // *.ens.dev hosts (and future ones) don't silently break a flow.
   'https://*.ens.dev',
-  // ENS subgraph (ensjs default Sepolia endpoint) — @ensdomains/ensjs/subgraph
-  'https://api.sepolia.ensnode.io',
+  // The v1 subgraph ensjs resolves for this network. Derived rather than
+  // listed, because mainnet's host is not under *.ens.dev and a stale entry
+  // here fails closed in the browser.
+  new URL(envConfig.chain.subgraphs.ens.url).origin,
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)
-  // and the PostHog analytics host (jakob.ens.domains — .env
+  // and the PostHog analytics host (edge.ens.domains — .env
   // VITE_PUBLIC_POSTHOG_HOST). Wildcarded for the same reason as *.ens.dev.
   // NOTE: PostHog's script bundle is allowed separately via SCRIPT_HOSTS, which
   // stays an exact host — script-src must not use a wildcard.
   'https://*.ens.domains',
-  // DNS-over-HTTPS resolver — packages/utils/src/dnssec.ts
+  // DNS-over-HTTPS resolver. ensjs's `getDnsTxtRecords` (used by
+  // packages/utils/src/dnssec.ts and the DNS import flow's getDnsOwner /
+  // getDnsOffchainData) and dnsprovejs's proof queries all default to
+  // cloudflare-dns.com — 1.1.1.1 is the same service but CSP matches by
+  // host, so both must be listed or every DNS check fails closed (the name
+  // page then shows "Invalid TLD" for perfectly valid DNS names).
+  'https://cloudflare-dns.com',
   'https://1.1.1.1',
+  // Google's DoH resolver — the DNSSEC debugger (/$name/dnssec) lets users
+  // compare resolvers to rule out a stale cache.
+  'https://dns.google',
   // Etherscan API — proxy-contract verification fetch in
   // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
   // Host comes from the viem chain's blockExplorers.default.apiUrl: Sepolia
@@ -208,8 +201,10 @@ const BASE_DIRECTIVES = [
   // subresources to https:, and browsers block mixed content on https pages
   // regardless, so a plaintext http: image can never actually load.
   "img-src 'self' data: blob: https:",
-  // Intercom Messenger webfonts.
-  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com",
+  // Intercom Messenger webfonts, plus fonts.ens.dev which serves the ABC/Dinamo
+  // faces (the font license forbids redistributing them in this repo, so they
+  // are fetched at runtime instead of vendored).
+  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com https://fonts.ens.dev",
   `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
   // WalletConnect renders its verify/modal in iframes. Intercom sheets/reporting
   // frames are required for the messenger article viewer.
@@ -228,7 +223,7 @@ const BASE_DIRECTIVES = [
 
 // PostHog CSP-violation reporting endpoint, visualized by PostHog's "CSP
 // violations" dashboard template. Points directly at PostHog's EU cloud, not our
-// jakob.ens.domains analytics proxy — that proxy can't serve /report/ (confirmed
+// edge.ens.domains analytics proxy — that proxy can't serve /report/ (confirmed
 // with its maintainer), at the cost of a few reports lost to ad-blockers. The
 // token is the public client key (VITE_PUBLIC_POSTHOG_KEY); the trailing slash
 // is required.

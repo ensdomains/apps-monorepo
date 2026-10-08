@@ -6,9 +6,12 @@
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Hash, Hex } from 'viem'
-import { sepolia } from 'viem/chains'
+import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { TransactionSubmissionError } from '../errors/transaction.errors'
+import {
+  ChainIdMismatchError,
+  TransactionSubmissionError,
+} from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -100,6 +103,41 @@ describe('submitWarpTransaction', () => {
     )
   })
 
+  it('returns ChainIdMismatchError when the signer chain is not the request chain', async () => {
+    const signer = createMockSigner()
+    signer.config.chain = mainnet
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result.isErr()).toBe(true)
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(ChainIdMismatchError)
+    expect((error as ChainIdMismatchError).expected).toBe(sepolia.id)
+    expect((error as ChainIdMismatchError).actual).toBe(mainnet.id)
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it('returns ChainIdMismatchError instead of defaulting when the signer has no chain', async () => {
+    // Previously `config.chain || sepolia` silently routed the intent to
+    // Sepolia regardless of what the request asked for.
+    const signer = createMockSigner()
+    signer.config.chain = undefined
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result.isErr()).toBe(true)
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(ChainIdMismatchError)
+    expect((error as ChainIdMismatchError).actual).toBeUndefined()
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
   it('returns error for empty calls array', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest({
@@ -135,9 +173,10 @@ describe('submitWarpTransaction', () => {
     )
   })
 
-  it('session attached: signs the Intent with the scoped session (experimental_session)', async () => {
+  it('session attached: signs with the scoped session and its own enableData', async () => {
     const signer = createMockSigner()
-    signer.session = { session: MOCK_SESSION }
+    const enableData = { mode: 'session' } as never
+    signer.session = { session: MOCK_SESSION, enableData }
     const request = createRhinestoneRequest()
 
     await submitWarpTransaction({ request, signer })
@@ -147,15 +186,35 @@ describe('submitWarpTransaction', () => {
         signers: {
           type: 'experimental_session',
           session: MOCK_SESSION,
+          enableData,
           verifyExecutions: true,
         },
       }),
     )
   })
 
-  it('attaches enableData only on the request that carries it (first HCA action)', async () => {
+  // The standalone validator only accepts session signatures that carry the
+  // owner's authorization; without it the fill reverts InvalidSessionData().
+  it('refuses a session-signed intent with no enableData anywhere', async () => {
     const signer = createMockSigner()
     signer.session = { session: MOCK_SESSION }
+    const request = createRhinestoneRequest()
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(TransactionSubmissionError)
+    expect(result._unsafeUnwrapErr().message).toContain(
+      'needs the session enable data',
+    )
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it("prefers the request's enableData over the session's", async () => {
+    const signer = createMockSigner()
+    signer.session = {
+      session: MOCK_SESSION,
+      enableData: { mode: 'session' } as never,
+    }
     const sessionEnableData = { mode: 'enable' } as never
     const request = createRhinestoneRequest({
       rhinestoneParams: {

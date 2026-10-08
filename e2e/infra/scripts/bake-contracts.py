@@ -141,34 +141,34 @@ PAYMENT_TOKENS = [
     ("0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4", "MockDAI"),
 ]
 
-# ── Standalone-HCA deployment (canonical Sepolia set, deployed 2026-07-30) ──
+# ── Standalone-HCA deployment (canonical Sepolia set, deployed 2026-10-01) ──
 # A SEPARATE Sepolia deployment from the ENS_CONTRACTS above (different
 # registrar/registry/resolver/USDC). The manager's standalone-HCA flow targets
 # this set; kept in sync with `@ens-apps/smart-account`'s manifest.ts (which
 # resolves most of these via ensjs) and cross-checked against contracts-v2
-# `contracts/docs/addresses/sepolia.md` @ 97a5729. The shared Rhinestone
+# `contracts/deployments/sepolia` @ 95de2ee0. The shared Rhinestone
 # modules (Intent Executor, etc.) are already baked by
 # bake_rhinestone_infrastructure() and are reused as-is.
-SH_STANDALONE_HCA_FACTORY       = "0x900ff7cf617ef9d802178b4ef480491e3a782672"
-SH_STANDALONE_HCA_IMPL          = "0xaa761541620fc1a42bb701a26a9f107a9df1e904"
-SH_HCA_OWNER_SESSION_VALIDATOR  = "0x5f249fca8bb4949105651146858c347e8bfb0f7e"
-SH_VERIFIABLE_FACTORY           = "0x10dc6333cdfe1fcef624c6e0a8221b91804cd7ef"
+SH_STANDALONE_HCA_FACTORY       = "0x6bad0176236e97b346b5dd13bcc8325b931ee8ab"
+SH_STANDALONE_HCA_IMPL          = "0xc940e5c5bf263c0e097054aecf73826769a72cee"
+SH_HCA_OWNER_SESSION_VALIDATOR  = "0x4bf641590ab18e31b9f8789a3417a2620f860466"
+SH_VERIFIABLE_FACTORY           = "0xda70306c98e97ece36f997a21368e53298572991"
 # Not a standalone artifact — VerifiableFactory creates it in its constructor
 # and exposes it as the `proxyLogic` immutable; must stay paired with the factory.
-SH_VERIFIABLE_PROXY_LOGIC       = "0xa136bee4e37b44586242e516a39893efd54315e9"
-SH_PERMISSIONED_RESOLVER_IMPL   = "0x9eae5c2730a7dd16bdd1dee6421a1b91e3b0365e"
-SH_ETH_REGISTRAR                = "0xa88553f454b77203b0d036a05c894d555eaaa2cc"
-SH_ETH_REGISTRY                 = "0xbdc85dd5b15d7ecb354cd7cb6f2c50b4f2c4f0e2"
-SH_DEFAULT_REVERSE_HCA_ADAPTER  = "0x7a84e241f862d73960d73c26d68c3c8f89f0b18f"
-SH_USDC                         = "0x768F42455A2D082E23ceeF7d51e5787C82d67a39"
+SH_VERIFIABLE_PROXY_LOGIC       = "0xc41576b4b809b99cf0ff2e5b41b4f147cd9b6bdd"
+SH_PERMISSIONED_RESOLVER_IMPL   = "0x115eb53f0c60696633855f90b138178fb40b2b2c"
+SH_ETH_REGISTRAR                = "0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3"
+SH_ETH_REGISTRY                 = "0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4"
+SH_DEFAULT_REVERSE_HCA_ADAPTER  = "0x36f97328e843e37520cbf530e9402791c2754066"
+SH_USDC                         = "0x240b0316Df57887DBBE58b586508b19e633a14aa"
 
 # ── StandardRentPriceOracle storage layouts (differ per deployment) ────────
 # ENS-V2 mock-set oracle: _baseRatePerCp@3, _discountPoints@4, _paymentRatios@5.
-# Canonical 2026-07-30 oracle: EnhancedAccessControl now reserves a 256-slot
-# __gap ahead of the oracle's own variables, pushing them to 258/259/260
-# (verified with `forge inspect StandardRentPriceOracle storage-layout` at
-# contracts-v2 @ 97a5729). The arrays' elements live at keccak256(slot) + i
-# and are baked by bake_dynamic_array below.
+# Canonical oracle (2026-07-30 onwards): EnhancedAccessControl reserves a
+# 256-slot __gap ahead of the oracle's own variables, pushing them to
+# 258/259/260 (re-checked against the `storageLayout` in contracts-v2
+# `deployments/sepolia/StandardRentPriceOracle.json` @ 95de2ee0). The arrays'
+# elements live at keccak256(slot) + i and are baked by bake_dynamic_array below.
 V2_ORACLE_ARRAY_SLOTS = (3, 4)
 V2_PAYMENT_RATIOS_SLOT = 5
 SH_ORACLE_ARRAY_SLOTS = (258, 259)

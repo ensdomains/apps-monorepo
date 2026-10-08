@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/weave-loader",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Standalone weave loader: WebGL woven-fabric shader, animated name fill, and progress primitives for ENS apps",
   "type": "module",
   "private": true,
@@ -30,7 +31,7 @@
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@storybook/tanstack-react": "^10.4.2",
+    "@storybook/tanstack-react": "^10.6.1",
     "@types/react": "^19.1.12",
     "react": "^19.2.5",
     "typescript": "catalog:",

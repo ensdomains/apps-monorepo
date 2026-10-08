@@ -1,5 +1,6 @@
 {
   "name": "portal",
+  "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,11 +19,13 @@
     "deploy": "wrangler deploy",
     "deploy:version": "wrangler versions upload",
     "knip": "knip",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "prebuild": "tsx scripts/check-network-config.ts"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@base-ui/react": "^1.1.0",
+    "@ens-apps/config": "workspace:^",
     "@ens-apps/dev-dqa-overlay": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
@@ -30,9 +33,12 @@
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/migration": "workspace:*",
+    "@ens-apps/og": "workspace:*",
+    "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.4",
+    "@ensdomains/dnsprovejs": "^1.0.0",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/locales": "workspace:^",
@@ -53,7 +59,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-hotkeys": "^0.4.1",
-    "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-query": "^5.104.0",
     "@tanstack/react-router": "^1.139.10",
     "@tanstack/react-router-devtools": "^1.139.14",
     "@tanstack/react-table": "^8.21.3",
@@ -88,8 +94,8 @@
     "use-local-storage-state": "^20.0.0",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "workers-og": "^0.0.27",
-    "xstate": "catalog:"
+    "xstate": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",
@@ -106,6 +112,7 @@
     "@vitest/coverage-v8": "catalog:",
     "happy-dom": "catalog:",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",

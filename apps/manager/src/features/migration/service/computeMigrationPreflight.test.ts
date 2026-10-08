@@ -16,7 +16,7 @@ import {
 } from './migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
+  assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -35,7 +35,7 @@ vi.mock('./migrationApprovals', async (importActual) => ({
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertLockedPublicResolverSetMembership: vi.fn(),
-  assertMigrationHelperRuntimeCode: vi.fn(),
+  assertNoLiveSubregistryOverwrite: vi.fn(),
   assertRequiredMigrationContractCode: vi.fn(),
   checkMigrationHcaReadiness: vi.fn(),
   checkDeterministicMigrationResolverReadiness: vi.fn(),
@@ -52,11 +52,11 @@ const checkResolverReadinessMock = vi.mocked(
 const assertRequiredMigrationContractCodeMock = vi.mocked(
   assertRequiredMigrationContractCode,
 )
-const assertMigrationHelperRuntimeCodeMock = vi.mocked(
-  assertMigrationHelperRuntimeCode,
-)
 const assertLockedPublicResolverSetMembershipMock = vi.mocked(
   assertLockedPublicResolverSetMembership,
+)
+const assertNoLiveSubregistryOverwriteMock = vi.mocked(
+  assertNoLiveSubregistryOverwrite,
 )
 const checkMigrationHcaReadinessMock = vi.mocked(checkMigrationHcaReadiness)
 const getMigrationResolverAddressMock = vi.mocked(getMigrationResolverAddress)
@@ -79,6 +79,7 @@ const run = (
     profileKeys?: Result<unknown, unknown>
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
+    requiresManagerRestoration?: boolean
   } = {},
 ) => {
   if (opts.hcaAddress) {
@@ -86,7 +87,6 @@ const run = (
       opts.hcaApprovals ?? ALL_HCA_APPROVED,
     )
     assertRequiredMigrationContractCodeMock.mockResolvedValueOnce()
-    assertMigrationHelperRuntimeCodeMock.mockResolvedValueOnce()
     checkMigrationHcaReadinessMock.mockResolvedValueOnce({
       status: 'deployment-required',
       hca: opts.hcaAddress,
@@ -99,6 +99,7 @@ const run = (
     eoa: EOA,
     hcaAddress: opts.hcaAddress,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
+    requiresManagerRestoration: opts.requiresManagerRestoration,
     wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,
   })
@@ -109,14 +110,68 @@ beforeEach(() => {
   checkMigrationApprovalsMock.mockReset()
   checkResolverReadinessMock.mockReset()
   assertRequiredMigrationContractCodeMock.mockReset()
-  assertMigrationHelperRuntimeCodeMock.mockReset()
   assertLockedPublicResolverSetMembershipMock.mockReset()
   checkMigrationHcaReadinessMock.mockReset()
   getMigrationResolverAddressMock.mockClear()
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
-  it('plans a token approval and manager approval when missing', async () => {
+  it('plans a token approval and manager approval when the owner opted a name in', async () => {
+    const result = await run({
+      domain: {
+        isWrapped: false,
+        ownerId: '0x00000000000000000000000000000000000000aa',
+      },
+      hcaAddress: HCA,
+      requiresManagerRestoration: true,
+      hcaApprovals: {
+        ...ALL_HCA_APPROVED,
+        baseRegistrarHcaApproved: false,
+        unwrappedTokenApprovals: [],
+        ethRegistryHcaApproved: false,
+      },
+    })
+
+    expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
+      'base-registrar:hca-token',
+      'eth-registry:hca',
+    ])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
+    expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eoa: EOA,
+        hcaAddress: HCA,
+        needs: expect.objectContaining({ requiresManagerRestoration: true }),
+      }),
+    )
+    expect(assertRequiredMigrationContractCodeMock).toHaveBeenCalledOnce()
+    expect(assertLockedPublicResolverSetMembershipMock).toHaveBeenCalledWith({
+      publicClient: expect.anything(),
+      names: expect.any(Array),
+    })
+    // Every selected name is checked for a live registry before the wallet is
+    // asked to sign, so a migration cannot detach one (WEB-1249).
+    expect(assertNoLiveSubregistryOverwriteMock).toHaveBeenCalledWith({
+      publicClient: expect.anything(),
+      names: expect.any(Array),
+    })
+    expect(checkMigrationHcaReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ hca: HCA, expectedOwner: EOA }),
+    )
+  })
+
+  it('plans cleanup for an existing HCA approval without adding a new grant', async () => {
+    const result = await run({ hcaAddress: HCA })
+
+    expect(result.migrationApprovals).toEqual([])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
+  })
+
+  it('plans no manager approval for a divergent v1 controller that was not opted in (WEB-1528)', async () => {
     const result = await run({
       domain: {
         isWrapped: false,
@@ -133,25 +188,11 @@ describe('computeMigrationPreflight — HCA approvals', () => {
 
     expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
       'base-registrar:hca-token',
-      'eth-registry:hca',
     ])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        eoa: EOA,
-        hcaAddress: HCA,
-        needs: expect.objectContaining({ requiresManagerRestoration: true }),
+        needs: expect.objectContaining({ requiresManagerRestoration: false }),
       }),
-    )
-    expect(assertRequiredMigrationContractCodeMock).toHaveBeenCalledOnce()
-    expect(assertMigrationHelperRuntimeCodeMock).toHaveBeenCalledWith({
-      publicClient: expect.anything(),
-    })
-    expect(assertLockedPublicResolverSetMembershipMock).toHaveBeenCalledWith({
-      publicClient: expect.anything(),
-      names: expect.any(Array),
-    })
-    expect(checkMigrationHcaReadinessMock).toHaveBeenCalledWith(
-      expect.objectContaining({ hca: HCA, expectedOwner: EOA }),
     )
   })
 
@@ -159,7 +200,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     const publicClient = {} as PublicClient
     checkMigrationApprovalsMock.mockResolvedValueOnce(ALL_HCA_APPROVED)
     assertRequiredMigrationContractCodeMock.mockResolvedValueOnce()
-    assertMigrationHelperRuntimeCodeMock.mockResolvedValueOnce()
     assertLockedPublicResolverSetMembershipMock.mockResolvedValueOnce()
     checkMigrationHcaReadinessMock.mockResolvedValueOnce({
       status: 'deployment-required',

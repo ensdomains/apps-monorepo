@@ -1,10 +1,10 @@
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
+import { envConfig } from '@/config'
 import {
   cspMetaTag,
   cspWithFrameAncestors,
   cspWithoutFrameAncestors,
-  originFromEnvUrl,
   withSecurityHeaders,
 } from './csp'
 
@@ -64,10 +64,10 @@ describe('csp', () => {
 
     it('allowlists every shared RPC failover origin', () => {
       // The viem transports (lib/wagmi.ts, worker/clients.ts) fail over to
-      // SEPOLIA_FALLBACK_RPC_URLS; a fallback origin missing here means the
+      // envConfig.rpcFallbacks; a fallback origin missing here means the
       // browser blocks the request and the failover silently does nothing in
       // production. Derived from the same export so the two can't drift.
-      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+      for (const url of envConfig.rpcFallbacks) {
         expect(connectSrc).toContain(new URL(url).origin)
       }
       // The keyed dRPC primary stays allowlisted alongside the fallbacks.
@@ -82,7 +82,7 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://app-api.ens.dev')
 
       expect(connectSrc).toContain('https://*.ens.domains')
-      expect(connectSrc).not.toContain('https://jakob.ens.domains')
+      expect(connectSrc).not.toContain('https://edge.ens.domains')
     })
 
     it('keeps image-only hosts out of connect-src', () => {
@@ -151,7 +151,7 @@ describe('csp', () => {
         'https://js.intercomcdn.com',
         "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
       ])
-      expect(header['script-src']).not.toContain('https://jakob.ens.domains')
+      expect(header['script-src']).not.toContain('https://edge.ens.domains')
     })
 
     it('allowlists Intercom fonts, frames, media, and form targets', () => {
@@ -160,6 +160,8 @@ describe('csp', () => {
         'data:',
         'https://js.intercomcdn.com',
         'https://fonts.intercomcdn.com',
+        // Serves the ABC/Dinamo faces, which are not vendored in this repo.
+        'https://fonts.ens.dev',
       ])
       expect(header['frame-src']).toContain('https://intercom-sheets.com')
       expect(header['frame-src']).toContain(
@@ -257,5 +259,14 @@ describe('csp', () => {
       expect(result.status).toBe(201)
       expect(await result.text()).toBe('body')
     })
+  })
+})
+
+describe('indexers', () => {
+  it('allows the bigname origin resolved from config', () => {
+    const origin = originFromEnvUrl(envConfig.endpoints.bignameApi)
+
+    expect(origin).toBeTruthy()
+    expect(header['connect-src']).toContain(origin)
   })
 })

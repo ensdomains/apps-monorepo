@@ -6,7 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
 import {
+  HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   HCA_STANDALONE_INTENT_GAS_LIMIT,
+  HcaFundingDeclinedError,
+  type HcaFundingPrompt,
   planHcaIntentFunding,
 } from './hca-intent-funding'
 
@@ -218,5 +221,90 @@ describe('planHcaIntentFunding', () => {
 
     await expect(planHcaIntentFunding(params)).rejects.toThrow()
     expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('requests no signature for a fee above the expected maximum', async () => {
+    // The fee is parsed out of an orchestrator HTTP response and becomes the
+    // value of an EIP-2612 permit. A response that names an absurd figure must
+    // stop here, not reach the wallet.
+    readContract.mockResolvedValue(0n)
+    prepareTransaction.mockResolvedValue(
+      quoteOf(HCA_MAX_STANDALONE_INTENT_FEE_USDC + 1n),
+    )
+
+    await expect(planHcaIntentFunding(params)).rejects.toThrow(
+      /above the expected maximum/,
+    )
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('shows the amount before asking for the signature', async () => {
+    readContract.mockResolvedValue(400_000n)
+    const order: string[] = []
+    const confirmFunding = vi.fn((prompt: HcaFundingPrompt) => {
+      order.push('confirm')
+      return prompt.permitValue > 0n
+    })
+    signFundingPermit.mockImplementation(() => {
+      order.push('sign')
+      return {
+        match: (ok: (v: unknown) => unknown) =>
+          ok({
+            owner: OWNER,
+            spender: HCA,
+            value: 500_000n,
+            deadline: 1_800_000_000n,
+            v: 27,
+            r: `0x${'11'.repeat(32)}` as Hex,
+            s: `0x${'22'.repeat(32)}` as Hex,
+          }),
+      }
+    })
+
+    await planHcaIntentFunding({ ...params, confirmFunding })
+
+    // Shown first, and shown the EXACT value the permit authorizes — not the
+    // fee, which the standing balance partly covers.
+    expect(order).toEqual(['confirm', 'sign'])
+    expect(confirmFunding).toHaveBeenCalledWith({
+      permitValue: 500_000n,
+      quotedFeeUsdc: 900_000n,
+      hcaBalanceUsdc: 400_000n,
+    })
+  })
+
+  it('requests no signature when the user declines the amount', async () => {
+    readContract.mockResolvedValue(0n)
+
+    await expect(
+      planHcaIntentFunding({ ...params, confirmFunding: () => false }),
+    ).rejects.toThrow(HcaFundingDeclinedError)
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('does not prompt when no funding is needed', async () => {
+    // Nothing is being permitted, so there is nothing to consent to.
+    readContract.mockResolvedValue(5_000_000n)
+    const confirmFunding = vi.fn(() => true)
+
+    await planHcaIntentFunding({ ...params, confirmFunding })
+
+    expect(confirmFunding).not.toHaveBeenCalled()
+  })
+
+  it('bounds the permit it asks for against the standalone ceiling', async () => {
+    readContract.mockResolvedValue(400_000n)
+
+    await planHcaIntentFunding(params)
+
+    // The actor re-checks the value it is handed, so the ceiling travels with
+    // the request rather than living only in this function.
+    expect(signFundingPermit.mock.calls[0]?.[0]).toMatchObject({
+      value: 500_000n,
+      bounds: {
+        expectedMaximum: HCA_MAX_STANDALONE_INTENT_FEE_USDC - 400_000n,
+        displayedValue: 500_000n,
+      },
+    })
   })
 })

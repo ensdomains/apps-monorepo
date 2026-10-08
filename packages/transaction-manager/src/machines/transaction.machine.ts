@@ -8,12 +8,13 @@ import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
+  type ChainIdMismatchError,
   EthCallFallbackError,
-  SignerAddressMismatchError,
+  type SignerAddressMismatchError,
   TransactionRevertedError,
   TransactionSubmissionError,
   TransactionTimeoutError,
-  TransactionUserRejectedError,
+  type TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import type { Signer } from '../types/signer.types'
 import type {
@@ -23,6 +24,7 @@ import type {
   TransactionOptions,
   TransactionRequest,
 } from '../types/transaction.types'
+import { isRetryableSubmissionError } from './retry-policy'
 
 /**
  * Base Transaction Machine
@@ -126,6 +128,7 @@ export const transactionMachine = setup({
         | TransactionSubmissionError
         | TransactionUserRejectedError
         | SignerAddressMismatchError
+        | ChainIdMismatchError
       > => {
         if (!request) {
           return errAsync(
@@ -437,41 +440,16 @@ export const transactionMachine = setup({
           target: 'pending',
           actions: assign({
             hash: ({ event }) => event.output,
+            // A retried submission leaves the earlier attempt's error behind.
+            error: undefined,
           }),
         },
         onError: [
           {
-            /** Can retry? */
-            guard: ({ context, event }) => {
-              // Don't retry if the transaction was rejected by the user
-              if (event.error instanceof TransactionUserRejectedError) {
-                return false
-              }
-
-              // A signer/address mismatch is non-recoverable: the same
-              // signer + request pair fails the same check every time and the
-              // wallet is never even prompted. Surface it immediately instead
-              // of burning retries.
-              if (event.error instanceof SignerAddressMismatchError) {
-                return false
-              }
-
-              // "Nonce too low" means the wallet's local nonce cache is
-              // desynced from the chain (or another tx already consumed the
-              // same nonce). Re-submitting with the same params will hit the
-              // same error — bail out and surface it to the user.
-              const message =
-                event.error instanceof Error ? event.error.message : ''
-              if (
-                /nonce too low|nonce.*lower than/i.test(message) ||
-                /NonceTooLowError/.test(message)
-              ) {
-                return false
-              }
-
-              // Retry up to the retry count
-              return context.retryCount < (context.options.retryCount ?? 3)
-            },
+            /** Can retry? See isRetryableSubmissionError for what never is. */
+            guard: ({ context, event }) =>
+              isRetryableSubmissionError(event.error) &&
+              context.retryCount < (context.options.retryCount ?? 3),
             target: 'retrying',
             actions: assign({
               error: ({ event }) => event.error as Error,

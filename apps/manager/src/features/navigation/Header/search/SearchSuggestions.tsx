@@ -2,7 +2,6 @@ import { Trans } from '@lingui/react/macro'
 import { Loader2Icon } from 'lucide-react'
 import type { RefObject } from 'react'
 import { match } from 'ts-pattern'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { AddressSuggestionItem, NameSuggestionItem } from './SuggestionItem'
 import { useSearchSuggestions } from './useSearchSuggestions'
 
@@ -47,11 +46,6 @@ export const SearchSuggestions = ({
         match(suggestion)
           .with({ type: 'name' }, (name) => (
             <NameSuggestionItem
-              avatarUrl={buildNameAvatarUrl(name.value)}
-              isError={name.isError}
-              isLoading={name.isLoading}
-              isRegistered={name.isRegistered}
-              isSupported={name.isSupported}
               key={name.value}
               name={name.value}
               onNavigate={onNavigate}

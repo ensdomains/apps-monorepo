@@ -1,11 +1,24 @@
-import { channelSupportsNotification } from '@ens-apps/shared-schema/notifications'
+import {
+  type ChannelData,
+  channelSupportsNotification,
+  type PersonalNotificationKind,
+} from '@ens-apps/shared-schema/notifications'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { and, eq, inArray } from 'drizzle-orm'
-import { fromPromise, ok } from 'neverthrow'
-// biome-ignore lint/nursery/noRestrictedDependencies: uuid is used for its v7 (time-ordered) generator, which has no native equivalent (crypto.randomUUID only produces v4)
-import { v7 as uuidv7 } from 'uuid'
+import { and, asc, eq, gt, inArray } from 'drizzle-orm'
+import { err, fromPromise, ok, type Result } from 'neverthrow'
 import * as v from 'valibot'
-import { getDatabase, intoDbResult, TABLE } from '#core/database/index.js'
+import {
+  type Database,
+  getDatabase,
+  intoDbResult,
+  TABLE,
+} from '#core/database/index.js'
+import type { DeliveryStatus } from '#core/database/schema/notifications.js'
+import {
+  insertQueuedDeliveries,
+  isPushSubscriptionActive,
+} from '#services/delivery/channel.js'
+import { getExpiryStageRank } from '#services/expiry-discovery/stages.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
@@ -17,7 +30,9 @@ const CHANNEL_TO_QUEUE: Partial<Record<string, keyof CloudflareBindings>> = {
   push: 'PUSH_QUEUE',
 }
 
-const QUEUE_BATCH_SIZE = 95
+export const RECIPIENT_PAGE_SIZE = 500
+export const DATABASE_WRITE_BATCH_SIZE = 500
+export const QUEUE_BATCH_SIZE = 95
 const QUEUE_SEND_MAX_RETRIES = 3
 const QUEUE_SEND_BASE_DELAY_MS = 300
 
@@ -25,30 +40,77 @@ class EventIngestionProcessingError extends TaggedError(
   'EVENT_INGESTION_PROCESSING_ERROR',
 ) {}
 
-function toQueueRetryDelayMs(attempt: number): number {
+class EventIngestionReconciliationError extends TaggedError(
+  'EVENT_INGESTION_RECONCILIATION_ERROR',
+)<{
+  readonly missingCount?: number
+  readonly notificationId?: string
+  readonly deliveryId?: string
+}> {}
+
+const toQueueRetryDelayMs = (attempt: number): number => {
   const jitter = Math.floor(Math.random() * 100)
   return QUEUE_SEND_BASE_DELAY_MS * 2 ** (attempt - 1) + jitter
 }
 
-async function wait(ms: number): Promise<void> {
+const wait = async (ms: number): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 type WatchReason = 'owned' | 'favourited' | 'manual'
 
 type NotificationSettings = {
-  owned_name_expiry: boolean
-  favourited_name_expiry: boolean
+  readonly owned_name_expiry: boolean
+  readonly favourited_name_expiry: boolean
 }
 
-type RecipientMap = Map<string, WatchReason>
+type Recipient = {
+  readonly userId: string
+  readonly watchReason: WatchReason
+}
+
+type ReconciledNotification = {
+  readonly id: string
+  readonly user_id: string
+  readonly kind: PersonalNotificationKind
+  readonly payload: unknown
+  readonly idempotency_key: string
+}
+
+type DesiredDelivery = {
+  readonly notificationId: string
+  readonly channelId: string
+  readonly channel: 'email' | 'push' | 'telegram'
+}
+
+type ReconciledDelivery = DesiredDelivery & {
+  readonly id: string
+  readonly status: DeliveryStatus
+}
+
+type VerifiedChannel = {
+  readonly id: string
+  readonly channel: 'email' | 'push' | 'telegram'
+  readonly target: string | null
+  readonly data: unknown
+}
+
+type DeliveryFanout = {
+  readonly deliveries: readonly DesiredDelivery[]
+  readonly isSuppressedBySettings: boolean
+  readonly unsupportedChannelCount: number
+  readonly missingTargetCount: number
+  readonly missingQueueBindingCount: number
+}
+
 type StageCounts = Partial<Record<ExpiryEvent['stage'], number>>
 
-function countByStage(events: ExpiryEvent[]): StageCounts {
-  return events.reduce<StageCounts>((counts, event) => {
+const countByStage = (events: readonly ExpiryEvent[]): StageCounts => {
+  const counts: StageCounts = {}
+  for (const event of events) {
     counts[event.stage] = (counts[event.stage] ?? 0) + 1
-    return counts
-  }, {})
+  }
+  return counts
 }
 
 export function shouldCreateExternalDeliveries(
@@ -72,321 +134,304 @@ export function buildIdempotencyKey(
   return `name-expiry:${userId}:${event.name}:${event.stage}:${event.expiryDate}`
 }
 
-export function collectRecipientsForEvent(
-  event: ExpiryEvent,
-  ownerToUserId: Map<string, string>,
-  favoriteUsersByName: Map<string, Set<string>>,
-): RecipientMap {
-  const recipients: RecipientMap = new Map()
-
-  if (event.owner) {
-    const ownerUserId = ownerToUserId.get(event.owner.toLowerCase())
-    if (ownerUserId) {
-      recipients.set(ownerUserId, 'owned')
-    }
+const getNotificationWatchReason = (
+  notification: ReconciledNotification,
+): Result<WatchReason, EventIngestionReconciliationError> => {
+  if (!notification.payload || typeof notification.payload !== 'object') {
+    return err(
+      new EventIngestionReconciliationError({
+        message: 'Reconciled notification has an invalid expiry payload',
+        notificationId: notification.id,
+      }),
+    )
   }
 
-  if (!event.includeFavorites) {
-    return recipients
+  const payload = notification.payload as {
+    readonly isOwner?: unknown
+    readonly watchReason?: unknown
   }
 
-  const favoriteUserIds = favoriteUsersByName.get(event.name)
-  if (!favoriteUserIds) {
-    return recipients
+  if (
+    payload.watchReason === 'owned' ||
+    payload.watchReason === 'favourited' ||
+    payload.watchReason === 'manual'
+  ) {
+    return ok(payload.watchReason)
   }
 
-  for (const favoriteUserId of favoriteUserIds) {
-    // Owner notifications have higher priority than favourites when a user is both.
-    if (!recipients.has(favoriteUserId)) {
-      recipients.set(favoriteUserId, 'favourited')
-    }
+  if (typeof payload.isOwner === 'boolean') {
+    return ok(payload.isOwner ? 'owned' : 'favourited')
   }
 
-  return recipients
+  return err(
+    new EventIngestionReconciliationError({
+      message: 'Reconciled notification has an invalid expiry payload',
+      notificationId: notification.id,
+    }),
+  )
 }
 
-const processExpiryEvents = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  events: ExpiryEvent[]
+// One delivery per notification per exact source channel, never per target.
+const deliveryIdentity = (delivery: {
+  readonly notificationId: string
+  readonly channelId: string
+}): string => JSON.stringify([delivery.notificationId, delivery.channelId])
+
+const isActiveVerifiedChannel = (
+  channel: VerifiedChannel,
+  now: number,
+): boolean =>
+  channel.channel !== 'push' ||
+  isPushSubscriptionActive(channel.data as ChannelData['push'] | null, now)
+
+const getNotificationDeliveryFanout = ResultFn(function* (ctx: {
+  readonly notification: ReconciledNotification
+  readonly channels: readonly VerifiedChannel[]
+  readonly settings: NotificationSettings
 }) {
-  if (ctx.events.length === 0) {
-    return ok(undefined)
+  if (ctx.notification.kind !== 'name-expiry') {
+    yield* new EventIngestionReconciliationError({
+      message: 'Reconciled notification has an unexpected kind',
+      notificationId: ctx.notification.id,
+    })
   }
 
-  const db = getDatabase(ctx.env)
-  const stageCounts = countByStage(ctx.events)
+  const watchReason = yield* getNotificationWatchReason(ctx.notification)
+  if (!shouldCreateExternalDeliveries(watchReason, ctx.settings)) {
+    return ok({
+      deliveries: [],
+      isSuppressedBySettings: true,
+      unsupportedChannelCount: 0,
+      missingTargetCount: 0,
+      missingQueueBindingCount: 0,
+    } satisfies DeliveryFanout)
+  }
 
-  logger.debug('Processing expiry events', {
-    eventCount: ctx.events.length,
-    stageCounts,
-  })
+  const deliveries: DesiredDelivery[] = []
+  let unsupportedChannelCount = 0
+  let missingTargetCount = 0
+  let missingQueueBindingCount = 0
 
-  // Resolve recipients in two set-based lookups to avoid per-event DB round trips.
-  const ownerAddresses = Array.from(
-    new Set(
-      ctx.events
-        .map((event) => event.owner?.toLowerCase())
-        .filter((owner): owner is string => Boolean(owner)),
-    ),
-  )
-
-  const favoriteNames = Array.from(
-    new Set(
-      ctx.events
-        .filter((event) => event.includeFavorites)
-        .map((event) => event.name),
-    ),
-  )
-
-  logger.trace('Resolved event lookup keys', {
-    ownerAddressCount: ownerAddresses.length,
-    favoriteNameCount: favoriteNames.length,
-  })
-
-  const owners =
-    ownerAddresses.length > 0
-      ? yield* intoDbResult(
-          db.query.users.findMany({
-            where: inArray(TABLE.users.address, ownerAddresses),
-            columns: {
-              id: true,
-              address: true,
-            },
-          }),
-        )
-      : []
-
-  const favorites =
-    favoriteNames.length > 0
-      ? yield* intoDbResult(
-          db.query.favorites.findMany({
-            where: inArray(TABLE.favorites.name, favoriteNames),
-            columns: {
-              user_id: true,
-              name: true,
-            },
-          }),
-        )
-      : []
-
-  logger.trace('Loaded recipient source records', {
-    ownerCount: owners.length,
-    favoriteCount: favorites.length,
-  })
-
-  const ownerToUserId = new Map(
-    owners.map((owner) => [owner.address.toLowerCase(), owner.id]),
-  )
-
-  const favoriteUsersByName = new Map<string, Set<string>>()
-  for (const favorite of favorites) {
-    if (!favoriteUsersByName.has(favorite.name)) {
-      favoriteUsersByName.set(favorite.name, new Set())
+  for (const channel of ctx.channels) {
+    if (!channelSupportsNotification(channel.channel, 'name-expiry')) {
+      unsupportedChannelCount += 1
+      continue
     }
 
-    favoriteUsersByName.get(favorite.name)?.add(favorite.user_id)
+    if (!channel.target) {
+      missingTargetCount += 1
+      continue
+    }
+
+    if (!CHANNEL_TO_QUEUE[channel.channel]) {
+      missingQueueBindingCount += 1
+      continue
+    }
+
+    deliveries.push({
+      notificationId: ctx.notification.id,
+      channelId: channel.id,
+      channel: channel.channel,
+    })
   }
 
-  const notificationsToInsert: (typeof TABLE.notifications.$inferInsert)[] = []
-  const existingIdempotencyKeys = new Set<string>()
-  let duplicateIdempotencyCount = 0
+  return ok({
+    deliveries,
+    isSuppressedBySettings: false,
+    unsupportedChannelCount,
+    missingTargetCount,
+    missingQueueBindingCount,
+  } satisfies DeliveryFanout)
+})
 
-  for (const event of ctx.events) {
-    const recipients = collectRecipientsForEvent(
-      event,
-      ownerToUserId,
-      favoriteUsersByName,
-    )
+const sendQueueJobs = ResultFn(async function* (ctx: {
+  readonly queueBinding: keyof CloudflareBindings
+  readonly queue: Queue<BaseDeliveryJob>
+  readonly jobs: readonly BaseDeliveryJob[]
+}) {
+  const jobChunks = chunk([...ctx.jobs], QUEUE_BATCH_SIZE)
 
-    logger.trace('Resolved event recipients', {
-      name: event.name,
-      recipientCount: recipients.size,
-    })
+  logger.debug('Enqueueing delivery jobs', {
+    queue: ctx.queueBinding,
+    jobCount: ctx.jobs.length,
+    chunkCount: jobChunks.length,
+  })
 
-    for (const [userId, watchReason] of recipients.entries()) {
-      const idempotencyKey = buildIdempotencyKey(event, userId)
+  for (const [chunkIndex, jobChunk] of jobChunks.entries()) {
+    for (let attempt = 1; attempt <= QUEUE_SEND_MAX_RETRIES; attempt++) {
+      const sendResult = await fromPromise(
+        ctx.queue.sendBatch(jobChunk.map((job) => ({ body: job }))),
+        (cause: unknown) =>
+          new EventIngestionProcessingError({
+            message: `Failed to enqueue ${ctx.queueBinding} delivery jobs`,
+            cause,
+          }),
+      )
 
-      // Dedupe inside the same queue batch before relying on DB conflict handling.
-      if (existingIdempotencyKeys.has(idempotencyKey)) {
-        duplicateIdempotencyCount += 1
-        continue
+      if (sendResult.isOk()) {
+        break
       }
 
-      existingIdempotencyKeys.add(idempotencyKey)
+      if (attempt === QUEUE_SEND_MAX_RETRIES) {
+        logger.error('Queue send failed after retries', {
+          queue: ctx.queueBinding,
+          chunkIndex,
+          chunkSize: jobChunk.length,
+          maxRetries: QUEUE_SEND_MAX_RETRIES,
+          error: sendResult.error,
+        })
+        yield* sendResult
+      }
 
-      logger.trace('Adding notification to insert list', {
-        userId,
-        watchReason,
-        idempotencyKey,
+      const delayMs = toQueueRetryDelayMs(attempt)
+      logger.warn('Queue send failed, retrying chunk', {
+        queue: ctx.queueBinding,
+        chunkIndex,
+        chunkSize: jobChunk.length,
+        attempt,
+        maxRetries: QUEUE_SEND_MAX_RETRIES,
+        delayMs,
+        error: sendResult.error,
       })
-
-      notificationsToInsert.push({
-        user_id: userId,
-        kind: 'name-expiry',
-        payload: {
-          name: event.name,
-          expiryDate: event.expiryDate * 1000,
-          isOwner: watchReason === 'owned',
-          watchReason,
-        },
-        idempotency_key: idempotencyKey,
-      })
+      await wait(delayMs)
     }
   }
 
-  if (notificationsToInsert.length === 0) {
-    logger.debug('No recipients found for expiry events', {
-      eventCount: ctx.events.length,
-      duplicateIdempotencyCount,
-    })
-    return ok(undefined)
-  }
+  return ok(undefined)
+})
 
-  logger.debug('Inserting notifications', {
-    count: notificationsToInsert.length,
-  })
+const reconcileNotifications = ResultFn(async function* (ctx: {
+  readonly db: Database
+  readonly event: ExpiryEvent
+  readonly recipients: readonly Recipient[]
+}) {
+  const desiredNotifications = ctx.recipients.map((recipient) => ({
+    user_id: recipient.userId,
+    kind: 'name-expiry' as const,
+    payload: {
+      name: ctx.event.name,
+      expiryDate: ctx.event.expiryDate * 1000,
+      stage: ctx.event.stage,
+      isOwner: recipient.watchReason === 'owned',
+      watchReason: recipient.watchReason,
+    },
+    idempotency_key: buildIdempotencyKey(ctx.event, recipient.userId),
+  }))
+  const reconciledNotifications: ReconciledNotification[] = []
 
-  const insertedNotifications = yield* intoDbResult(
-    db
+  for (const notificationChunk of chunk(
+    desiredNotifications,
+    DATABASE_WRITE_BATCH_SIZE,
+  )) {
+    const idempotencyKeys = notificationChunk.map(
+      (notification) => notification.idempotency_key,
+    )
+    const insertQuery = ctx.db
       .insert(TABLE.notifications)
-      .values(notificationsToInsert)
+      .values(notificationChunk)
       .onConflictDoNothing({
         target: TABLE.notifications.idempotency_key,
       })
-      .returning({
-        id: TABLE.notifications.id,
-        user_id: TABLE.notifications.user_id,
-        kind: TABLE.notifications.kind,
-        payload: TABLE.notifications.payload,
-      }),
-  )
-
-  logger.debug('Inserted notifications', {
-    count: insertedNotifications.length,
-  })
-
-  if (insertedNotifications.length === 0) {
-    logger.debug('All notifications already exist (idempotency conflict)', {
-      eventCount: ctx.events.length,
+    const reconcileQuery = ctx.db.query.notifications.findMany({
+      where: inArray(TABLE.notifications.idempotency_key, idempotencyKeys),
+      columns: {
+        id: true,
+        user_id: true,
+        kind: true,
+        payload: true,
+        idempotency_key: true,
+      },
     })
-    return ok(undefined)
+    const [, reconciledChunk] = yield* intoDbResult(
+      ctx.db.batch([insertQuery, reconcileQuery]),
+    )
+    reconciledNotifications.push(
+      ...(reconciledChunk as ReconciledNotification[]),
+    )
   }
 
-  const insertedUserIds = Array.from(
-    new Set(insertedNotifications.map((notification) => notification.user_id)),
+  const reconciledKeys = new Set(
+    reconciledNotifications.map((notification) => notification.idempotency_key),
   )
+  const missingKeys = desiredNotifications
+    .map((notification) => notification.idempotency_key)
+    .filter((idempotencyKey) => !reconciledKeys.has(idempotencyKey))
 
-  const channels = yield* intoDbResult(
-    db.query.userChannels.findMany({
-      where: and(
-        inArray(TABLE.userChannels.user_id, insertedUserIds),
-        eq(TABLE.userChannels.status, 'verified'),
-      ),
-      columns: {
-        user_id: true,
-        channel: true,
-        target: true,
-      },
-    }),
+  if (missingKeys.length > 0) {
+    yield* new EventIngestionReconciliationError({
+      message: 'Required notifications could not be reconciled',
+      missingCount: missingKeys.length,
+    })
+  }
+
+  return ok(reconciledNotifications)
+})
+
+const deriveDesiredDeliveries = ResultFn(async function* (ctx: {
+  readonly db: Database
+  readonly notifications: readonly ReconciledNotification[]
+}) {
+  const userIds = Array.from(
+    new Set(ctx.notifications.map((notification) => notification.user_id)),
   )
-
-  logger.debug('Loaded user channels for deliveries', {
-    userCount: insertedUserIds.length,
-    channelCount: channels.length,
+  const channelsQuery = ctx.db.query.userChannels.findMany({
+    where: and(
+      inArray(TABLE.userChannels.user_id, userIds),
+      eq(TABLE.userChannels.status, 'verified'),
+    ),
+    columns: {
+      id: true,
+      user_id: true,
+      channel: true,
+      target: true,
+      data: true,
+    },
   })
-
-  const settingsRows = yield* intoDbResult(
-    db.query.userNotificationSettings.findMany({
-      where: inArray(TABLE.userNotificationSettings.user_id, insertedUserIds),
-      columns: {
-        user_id: true,
-        owned_name_expiry: true,
-        favourited_name_expiry: true,
-      },
-    }),
-  )
-
-  logger.debug('Loaded user notification settings', {
-    userCount: settingsRows.length,
+  const settingsQuery = ctx.db.query.userNotificationSettings.findMany({
+    where: inArray(TABLE.userNotificationSettings.user_id, userIds),
+    columns: {
+      user_id: true,
+      owned_name_expiry: true,
+      favourited_name_expiry: true,
+    },
   })
-
-  const channelsByUserId = Map.groupBy(channels, (channel) => channel.user_id)
+  const [channels, settingsRows] = yield* intoDbResult(
+    ctx.db.batch([channelsQuery, settingsQuery]),
+  )
+  const now = Date.now()
+  const activeChannels = channels.filter((channel) =>
+    isActiveVerifiedChannel(channel, now),
+  )
+  const channelsByUserId = Map.groupBy(
+    activeChannels,
+    (channel) => channel.user_id,
+  )
   const settingsByUserId = new Map(
-    settingsRows.map((row) => [row.user_id, row]),
+    settingsRows.map((settings) => [settings.user_id, settings]),
   )
-
-  logger.trace('Mapped settings by user ID', {
-    userCount: settingsByUserId.size,
-  })
-
-  const deliveriesToInsert: (typeof TABLE.notificationDeliveries.$inferInsert)[] =
-    []
-  const jobsByQueue = new Map<keyof CloudflareBindings, BaseDeliveryJob[]>()
-  let deliveryCounter = 0
+  const desiredDeliveries = new Map<string, DesiredDelivery>()
   let suppressedBySettingsCount = 0
   let unsupportedChannelCount = 0
   let missingTargetCount = 0
   let missingQueueBindingCount = 0
 
-  for (const notification of insertedNotifications) {
-    const payload = notification.payload as {
-      watchReason?: WatchReason
-      isOwner: boolean
-    }
-
-    const watchReason: WatchReason =
-      payload.watchReason ?? (payload.isOwner ? 'owned' : 'favourited')
-
+  for (const notification of ctx.notifications) {
     const settings = settingsByUserId.get(notification.user_id)
-    const shouldCreate = shouldCreateExternalDeliveries(watchReason, {
-      owned_name_expiry: settings?.owned_name_expiry ?? false,
-      favourited_name_expiry: settings?.favourited_name_expiry ?? false,
+    const fanout = yield* getNotificationDeliveryFanout({
+      notification,
+      channels: channelsByUserId.get(notification.user_id) ?? [],
+      settings: {
+        owned_name_expiry: settings?.owned_name_expiry ?? false,
+        favourited_name_expiry: settings?.favourited_name_expiry ?? false,
+      },
     })
+    suppressedBySettingsCount += fanout.isSuppressedBySettings ? 1 : 0
+    unsupportedChannelCount += fanout.unsupportedChannelCount
+    missingTargetCount += fanout.missingTargetCount
+    missingQueueBindingCount += fanout.missingQueueBindingCount
 
-    if (!shouldCreate) {
-      suppressedBySettingsCount += 1
-      continue
-    }
-
-    const userChannels = channelsByUserId.get(notification.user_id) ?? []
-
-    for (const channel of userChannels) {
-      if (!channelSupportsNotification(channel.channel, 'name-expiry')) {
-        unsupportedChannelCount += 1
-        continue
-      }
-
-      if (!channel.target) {
-        missingTargetCount += 1
-        continue
-      }
-
-      const queueBinding = CHANNEL_TO_QUEUE[channel.channel]
-      if (!queueBinding) {
-        missingQueueBindingCount += 1
-        continue
-      }
-
-      const deliveryId = uuidv7({ seq: deliveryCounter++ })
-      deliveriesToInsert.push({
-        id: deliveryId,
-        notification_id: notification.id,
-        channel: channel.channel,
-        target: channel.target,
-        status: 'queued',
-        attempts: 0,
-      })
-
-      if (!jobsByQueue.has(queueBinding)) {
-        jobsByQueue.set(queueBinding, [])
-      }
-
-      jobsByQueue.get(queueBinding)?.push({
-        id: deliveryId,
-        notificationId: notification.id,
-        userId: notification.user_id,
-        kind: notification.kind,
-      })
+    for (const delivery of fanout.deliveries) {
+      desiredDeliveries.set(deliveryIdentity(delivery), delivery)
     }
   }
 
@@ -404,108 +449,394 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     })
   }
 
-  if (deliveriesToInsert.length > 0) {
-    yield* intoDbResult(
-      db.insert(TABLE.notificationDeliveries).values(deliveriesToInsert),
-    )
+  return ok(Array.from(desiredDeliveries.values()))
+})
+
+const reconcileDeliveries = ResultFn(async function* (ctx: {
+  readonly db: Database
+  readonly notifications: readonly ReconciledNotification[]
+  readonly desiredDeliveries: readonly DesiredDelivery[]
+}) {
+  for (const deliveryChunk of chunk(
+    [...ctx.desiredDeliveries],
+    DATABASE_WRITE_BATCH_SIZE,
+  )) {
+    yield* insertQueuedDeliveries(ctx.db, deliveryChunk)
   }
 
-  let queueChunksAttempted = 0
-  let queueChunksSucceeded = 0
-  let queueChunksFailed = 0
-  let queueRetryCount = 0
-  const failedQueues = new Set<keyof CloudflareBindings>()
+  if (ctx.desiredDeliveries.length === 0) {
+    return ok([] as ReconciledDelivery[])
+  }
+
+  const notificationIds = ctx.notifications.map(
+    (notification) => notification.id,
+  )
+  const deliveryRows = yield* intoDbResult(
+    ctx.db.query.notificationDeliveries.findMany({
+      where: inArray(
+        TABLE.notificationDeliveries.notification_id,
+        notificationIds,
+      ),
+      columns: {
+        id: true,
+        notification_id: true,
+        channel_id: true,
+        channel: true,
+        status: true,
+      },
+    }),
+  )
+  const desiredIdentities = new Set(ctx.desiredDeliveries.map(deliveryIdentity))
+  // Deliveries whose channel was removed are unbound history, never desired.
+  const reconciledDeliveries = deliveryRows.flatMap(
+    (delivery): ReconciledDelivery[] => {
+      if (!delivery.channel_id) return []
+      const reconciled = {
+        id: delivery.id,
+        notificationId: delivery.notification_id,
+        channelId: delivery.channel_id,
+        channel: delivery.channel,
+        status: delivery.status,
+      }
+      return desiredIdentities.has(deliveryIdentity(reconciled))
+        ? [reconciled]
+        : []
+    },
+  )
+  const reconciledIdentities = new Set(
+    reconciledDeliveries.map(deliveryIdentity),
+  )
+  const unreconciledDeliveries = ctx.desiredDeliveries.filter(
+    (delivery) => !reconciledIdentities.has(deliveryIdentity(delivery)),
+  )
+  // A channel removed since fanout read it no longer wants a delivery; only
+  // deliveries whose channel still exists must be reconciled.
+  const remainingChannels =
+    unreconciledDeliveries.length > 0
+      ? yield* intoDbResult(
+          ctx.db.query.userChannels.findMany({
+            where: inArray(
+              TABLE.userChannels.id,
+              unreconciledDeliveries.map((delivery) => delivery.channelId),
+            ),
+            columns: { id: true },
+          }),
+        )
+      : []
+  const remainingChannelIds = new Set(
+    remainingChannels.map((channel) => channel.id),
+  )
+  const missingDeliveries = unreconciledDeliveries.filter((delivery) =>
+    remainingChannelIds.has(delivery.channelId),
+  )
+  const removedChannelCount =
+    unreconciledDeliveries.length - missingDeliveries.length
+  if (removedChannelCount > 0) {
+    logger.info('Skipped deliveries for channels removed during fanout', {
+      removedChannelCount,
+    })
+  }
+
+  if (missingDeliveries.length > 0) {
+    yield* new EventIngestionReconciliationError({
+      message: 'Required notification deliveries could not be reconciled',
+      missingCount: missingDeliveries.length,
+    })
+  }
+
+  return ok(reconciledDeliveries)
+})
+
+export const processRecipientPage = ResultFn(async function* (ctx: {
+  readonly db: Database
+  readonly env: CloudflareBindings
+  readonly event: ExpiryEvent
+  readonly recipients: readonly Recipient[]
+}) {
+  if (ctx.recipients.length === 0) {
+    return ok(undefined)
+  }
+
+  const notifications = yield* reconcileNotifications({
+    db: ctx.db,
+    event: ctx.event,
+    recipients: ctx.recipients,
+  })
+  const desiredDeliveries = yield* deriveDesiredDeliveries({
+    db: ctx.db,
+    notifications,
+  })
+  const deliveries = yield* reconcileDeliveries({
+    db: ctx.db,
+    notifications,
+    desiredDeliveries,
+  })
+  const notificationsById = new Map(
+    notifications.map((notification) => [notification.id, notification]),
+  )
+  const jobsByQueue = new Map<keyof CloudflareBindings, BaseDeliveryJob[]>()
+
+  for (const delivery of deliveries) {
+    // A successful queue handoff does not change database status. Retrying a
+    // still-queued ID after a partial handoff is intentional at-least-once
+    // behavior; terminal delivery rows are never intentionally re-enqueued.
+    if (delivery.status !== 'queued') {
+      continue
+    }
+
+    const notification = notificationsById.get(delivery.notificationId)
+    const queueBinding = CHANNEL_TO_QUEUE[delivery.channel]
+    if (!notification || !queueBinding) {
+      yield* new EventIngestionReconciliationError({
+        message: 'Reconciled delivery could not be mapped to a queue job',
+        deliveryId: delivery.id,
+      })
+      continue
+    }
+
+    const jobs = jobsByQueue.get(queueBinding) ?? []
+    jobsByQueue.set(queueBinding, [
+      ...jobs,
+      {
+        id: delivery.id,
+        notificationId: notification.id,
+        userId: notification.user_id,
+        kind: notification.kind,
+      },
+    ])
+  }
 
   for (const [queueBinding, jobs] of jobsByQueue.entries()) {
-    const queue = ctx.env[queueBinding] as Queue<BaseDeliveryJob>
-    const jobChunks = chunk(jobs, QUEUE_BATCH_SIZE)
-
-    logger.debug('Enqueueing delivery jobs', {
-      queue: queueBinding,
-      jobCount: jobs.length,
-      chunkCount: jobChunks.length,
+    yield* sendQueueJobs({
+      queueBinding,
+      queue: ctx.env[queueBinding] as Queue<BaseDeliveryJob>,
+      jobs,
     })
-
-    for (const [chunkIndex, jobChunk] of jobChunks.entries()) {
-      queueChunksAttempted += 1
-
-      // Keep below Cloudflare sendBatch limit (100) with a small headroom.
-      for (let attempt = 1; attempt <= QUEUE_SEND_MAX_RETRIES; attempt++) {
-        const sendResult = await fromPromise(
-          queue.sendBatch(jobChunk.map((job) => ({ body: job }))),
-          (error: unknown) =>
-            new EventIngestionProcessingError({
-              message: `Failed to enqueue ${queueBinding} delivery jobs`,
-              cause: error,
-            }),
-        )
-
-        if (sendResult.isOk()) {
-          queueChunksSucceeded += 1
-          break
-        }
-
-        const isLastAttempt = attempt === QUEUE_SEND_MAX_RETRIES
-        if (isLastAttempt) {
-          queueChunksFailed += 1
-          failedQueues.add(queueBinding)
-          logger.error('Queue send failed after retries, skipping chunk', {
-            queue: queueBinding,
-            chunkIndex,
-            chunkSize: jobChunk.length,
-            maxRetries: QUEUE_SEND_MAX_RETRIES,
-            error: sendResult.error,
-          })
-          break
-        }
-
-        queueRetryCount += 1
-        const delayMs = toQueueRetryDelayMs(attempt)
-        logger.warn('Queue send failed, retrying chunk', {
-          queue: queueBinding,
-          chunkIndex,
-          chunkSize: jobChunk.length,
-          attempt,
-          maxRetries: QUEUE_SEND_MAX_RETRIES,
-          delayMs,
-          error: sendResult.error,
-        })
-
-        await wait(delayMs)
-      }
-    }
   }
 
-  logger.info('Processed expiry event batch', {
-    eventCount: ctx.events.length,
-    stageCounts,
-    duplicateIdempotencyCount,
-    insertedNotifications: insertedNotifications.length,
-    suppressedBySettingsCount,
-    unsupportedChannelCount,
-    missingTargetCount,
-    missingQueueBindingCount,
-    createdDeliveries: deliveriesToInsert.length,
-    queueChunksAttempted,
-    queueChunksSucceeded,
-    queueChunksFailed,
-    queueRetryCount,
-    failedQueues: Array.from(failedQueues),
+  logger.debug('Processed expiry recipient page', {
+    name: ctx.event.name,
+    recipientCount: ctx.recipients.length,
+    reconciledNotificationCount: notifications.length,
+    desiredDeliveryCount: desiredDeliveries.length,
+    reconciledDeliveryCount: deliveries.length,
   })
 
   return ok(undefined)
 })
 
-export const handleEventIngestionQueue = async (
-  batch: MessageBatch,
-  env: CloudflareBindings,
-): Promise<void> => {
-  const validMessages: Array<{ message: Message; event: ExpiryEvent }> = []
+const processExpiryEvent = ResultFn(async function* (ctx: {
+  readonly db: Database
+  readonly env: CloudflareBindings
+  readonly event: ExpiryEvent
+  readonly ownerUserId?: string
+}) {
+  if (ctx.ownerUserId) {
+    yield* processRecipientPage({
+      db: ctx.db,
+      env: ctx.env,
+      event: ctx.event,
+      recipients: [{ userId: ctx.ownerUserId, watchReason: 'owned' }],
+    })
+  }
+
+  if (!ctx.event.includeFavorites) {
+    return ok(undefined)
+  }
+
+  let favoriteCursor: string | undefined
+  let pageCount = 0
+  let favoriteRecipientCount = 0
+
+  while (true) {
+    const favoritePage = yield* intoDbResult(
+      ctx.db.query.favorites.findMany({
+        where: and(
+          eq(TABLE.favorites.name, ctx.event.name),
+          favoriteCursor
+            ? gt(TABLE.favorites.user_id, favoriteCursor)
+            : undefined,
+        ),
+        columns: {
+          user_id: true,
+        },
+        orderBy: asc(TABLE.favorites.user_id),
+        limit: RECIPIENT_PAGE_SIZE,
+      }),
+    )
+
+    if (favoritePage.length === 0) {
+      break
+    }
+
+    const recipients = favoritePage
+      .filter((favorite) => favorite.user_id !== ctx.ownerUserId)
+      .map(
+        (favorite): Recipient => ({
+          userId: favorite.user_id,
+          watchReason: 'favourited',
+        }),
+      )
+
+    yield* processRecipientPage({
+      db: ctx.db,
+      env: ctx.env,
+      event: ctx.event,
+      recipients,
+    })
+
+    pageCount += 1
+    favoriteRecipientCount += recipients.length
+
+    if (favoritePage.length < RECIPIENT_PAGE_SIZE) {
+      break
+    }
+
+    favoriteCursor = favoritePage.at(-1)?.user_id
+    if (!favoriteCursor) {
+      yield* new EventIngestionReconciliationError({
+        message: 'Favorite recipient page did not produce a cursor',
+      })
+    }
+  }
+
+  logger.debug('Processed favourite recipients for expiry event', {
+    name: ctx.event.name,
+    pageCount,
+    recipientCount: favoriteRecipientCount,
+  })
+
+  return ok(undefined)
+})
+
+const loadOwnerUserIds = ResultFn(async function* (ctx: {
+  readonly db: Database
+  readonly events: readonly ExpiryEvent[]
+}) {
+  const ownerAddresses = Array.from(
+    new Set(
+      ctx.events
+        .map((event) => event.owner?.toLowerCase())
+        .filter((owner): owner is string => Boolean(owner)),
+    ),
+  )
+
+  if (ownerAddresses.length === 0) {
+    return ok(new Map<string, string>())
+  }
+
+  const owners = yield* intoDbResult(
+    ctx.db.query.users.findMany({
+      where: inArray(TABLE.users.address, ownerAddresses),
+      columns: {
+        id: true,
+        address: true,
+      },
+    }),
+  )
+
+  return ok(
+    new Map(owners.map((owner) => [owner.address.toLowerCase(), owner.id])),
+  )
+})
+
+type ValidExpiryMessage = {
+  readonly message: Message
+  readonly event: ExpiryEvent
+}
+
+type ExpiryMessageGroup = {
+  readonly messages: readonly Message[]
+  readonly event: ExpiryEvent
+}
+
+const expiryEventGroupKey = (event: ExpiryEvent): string =>
+  JSON.stringify([event.name, event.expiryDate])
+
+const mergeExpiryEvents = (
+  current: ExpiryEvent,
+  candidate: ExpiryEvent,
+): ExpiryEvent => {
+  const selected =
+    getExpiryStageRank(candidate.stage) > getExpiryStageRank(current.stage)
+      ? candidate
+      : current
+  const other = selected === current ? candidate : current
+
+  return {
+    ...selected,
+    includeFavorites: current.includeFavorites || candidate.includeFavorites,
+    owner: selected.owner ?? other.owner,
+  }
+}
+
+/** Collapse overlapping lifecycle stages without any queue-message behavior. */
+export const collapseExpiryEvents = (
+  events: readonly ExpiryEvent[],
+): ExpiryEvent[] => {
+  const grouped = new Map<string, ExpiryEvent>()
+  for (const event of events) {
+    const key = expiryEventGroupKey(event)
+    const existing = grouped.get(key)
+    grouped.set(key, existing ? mergeExpiryEvents(existing, event) : event)
+  }
+  return [...grouped.values()]
+}
+
+const groupValidExpiryMessages = (
+  validMessages: readonly ValidExpiryMessage[],
+): ExpiryMessageGroup[] => {
+  const grouped = new Map<string, ExpiryMessageGroup>()
+  for (const { message, event } of validMessages) {
+    const key = expiryEventGroupKey(event)
+    const existing = grouped.get(key)
+    grouped.set(
+      key,
+      existing
+        ? {
+            messages: [...existing.messages, message],
+            event: mergeExpiryEvents(existing.event, event),
+          }
+        : { messages: [message], event },
+    )
+  }
+  return [...grouped.values()]
+}
+
+const logCollapsedExpiryGroups = (ctx: {
+  readonly queue: string
+  readonly originalEvents: readonly ExpiryEvent[]
+  readonly groupedEvents: readonly ExpiryEvent[]
+}): void => {
+  const collapsedCount = ctx.originalEvents.length - ctx.groupedEvents.length
+  if (collapsedCount === 0) return
+
+  logger.warn('Collapsed overlapping expiry lifecycle messages', {
+    queue: ctx.queue,
+    originalMessageCount: ctx.originalEvents.length,
+    groupedEventCount: ctx.groupedEvents.length,
+    collapsedCount,
+    originalStageCounts: countByStage(ctx.originalEvents),
+    selectedStageCounts: countByStage(ctx.groupedEvents),
+  })
+}
+
+type MessageValidationSummary = {
+  readonly validMessages: readonly ValidExpiryMessage[]
+  readonly invalidShapeCount: number
+  readonly unsupportedTypeCount: number
+  readonly invalidSchemaCount: number
+}
+
+const validateSourceMessages = (
+  messages: readonly Message[],
+): MessageValidationSummary => {
+  const validMessages: ValidExpiryMessage[] = []
   let invalidShapeCount = 0
   let unsupportedTypeCount = 0
   let invalidSchemaCount = 0
 
-  for (const message of batch.messages) {
+  for (const message of messages) {
     const body = message.body
 
     if (!body || typeof body !== 'object') {
@@ -521,7 +852,6 @@ export const handleEventIngestionQueue = async (
       continue
     }
 
-    // Invalid schema is treated as a permanent poison message: ack and log.
     const parsed = v.safeParse(expiryEventSchema, body)
     if (!parsed.success) {
       invalidSchemaCount += 1
@@ -532,36 +862,34 @@ export const handleEventIngestionQueue = async (
       continue
     }
 
-    validMessages.push({
-      message,
-      event: parsed.output,
-    })
+    validMessages.push({ message, event: parsed.output })
   }
 
-  if (validMessages.length === 0) {
-    const droppedCount =
-      invalidShapeCount + unsupportedTypeCount + invalidSchemaCount
-
-    if (droppedCount > 0) {
-      logger.warn('Dropped non-processable event-ingestion messages', {
-        queue: batch.queue,
-        messageCount: batch.messages.length,
-        droppedCount,
-        invalidShapeCount,
-        unsupportedTypeCount,
-        invalidSchemaCount,
-      })
-    }
-    return
+  return {
+    validMessages,
+    invalidShapeCount,
+    unsupportedTypeCount,
+    invalidSchemaCount,
   }
+}
+
+export const handleEventIngestionQueue = async (
+  batch: MessageBatch,
+  env: CloudflareBindings,
+): Promise<void> => {
+  const db = getDatabase(env)
+  const {
+    validMessages,
+    invalidShapeCount,
+    unsupportedTypeCount,
+    invalidSchemaCount,
+  } = validateSourceMessages(batch.messages)
 
   const droppedCount =
     invalidShapeCount + unsupportedTypeCount + invalidSchemaCount
-  const events = validMessages.map(({ event }) => event)
-  const stageCounts = countByStage(events)
 
   if (droppedCount > 0) {
-    logger.warn('Dropped some non-processable event-ingestion messages', {
+    logger.warn('Dropped non-processable event-ingestion messages', {
       queue: batch.queue,
       messageCount: batch.messages.length,
       validMessageCount: validMessages.length,
@@ -572,41 +900,70 @@ export const handleEventIngestionQueue = async (
     })
   }
 
+  if (validMessages.length === 0) {
+    return
+  }
+
+  const originalEvents = validMessages.map(({ event }) => event)
+  const eventGroups = groupValidExpiryMessages(validMessages)
+  const events = eventGroups.map(({ event }) => event)
+  const stageCounts = countByStage(events)
+  const collapsedCount = validMessages.length - eventGroups.length
   logger.info('Processing event-ingestion batch', {
     queue: batch.queue,
     messageCount: batch.messages.length,
     validMessageCount: validMessages.length,
     droppedCount,
+    groupedEventCount: eventGroups.length,
+    collapsedCount,
+    originalStageCounts: countByStage(originalEvents),
     stageCounts,
   })
-  logger.debug('Event-ingestion batch names', {
-    eventNames: [...new Set(events.map((event) => event.name))],
+
+  logCollapsedExpiryGroups({
+    queue: batch.queue,
+    originalEvents,
+    groupedEvents: events,
   })
 
-  const result = await processExpiryEvents({
-    env,
-    events,
-  })
-
-  if (result.isErr()) {
-    logger.error('Failed to process event-ingestion queue batch', {
+  const ownerResult = await loadOwnerUserIds({ db, events })
+  if (ownerResult.isErr()) {
+    logger.error('Failed shared expiry owner lookup', {
       queue: batch.queue,
-      messageCount: batch.messages.length,
       validMessageCount: validMessages.length,
-      droppedCount,
-      stageCounts,
-      error: result.error,
+      error: ownerResult.error,
     })
 
     for (const { message } of validMessages) {
       message.retry()
     }
-
     return
   }
 
-  for (const { message } of validMessages) {
-    message.ack()
+  for (const { messages, event } of eventGroups) {
+    const ownerUserId = event.owner
+      ? ownerResult.value.get(event.owner.toLowerCase())
+      : undefined
+    const result = await processExpiryEvent({
+      db,
+      env,
+      event,
+      ownerUserId,
+    })
+
+    if (result.isErr()) {
+      logger.error('Failed to process expiry event', {
+        queue: batch.queue,
+        messageIds: messages.map((message) => message.id),
+        name: event.name,
+        stage: event.stage,
+        error: result.error,
+      })
+      for (const message of messages) message.retry()
+      continue
+    }
+
+    for (const message of messages) message.ack()
   }
 
   logger.info('Event-ingestion batch completed', {
@@ -614,6 +971,8 @@ export const handleEventIngestionQueue = async (
     messageCount: batch.messages.length,
     validMessageCount: validMessages.length,
     droppedCount,
+    groupedEventCount: eventGroups.length,
+    collapsedCount,
     stageCounts,
   })
 }

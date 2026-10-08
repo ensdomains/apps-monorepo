@@ -18,11 +18,17 @@ export const Route = createFileRoute('/renew-v1/$name')({
       throw parsedName.error
     }
 
-    const ownerData = await queryClient.ensureQueryData(profileOwnerQuery(name))
+    // The gate, the price, the display and the calldata all read this one
+    // normalised name, so the label hashed into `renew()` is the label priced.
+    const { label, name: normalizedName } = parsedName.value
+
+    const ownerData = await queryClient.ensureQueryData(
+      profileOwnerQuery(normalizedName),
+    )
 
     if (ownerData?.protocol === 'v2') {
       throw redirect({
-        params: { name },
+        params: { name: normalizedName },
         to: '/renew/$name',
         replace: true,
       })
@@ -33,13 +39,13 @@ export const Route = createFileRoute('/renew-v1/$name')({
     }
 
     const [expiryData, isRenewable] = await Promise.all([
-      queryClient.ensureQueryData(profileExpiryQuery(name, 'v1')),
-      queryClient.ensureQueryData(getV1RenewableQueryOptions(name)),
+      queryClient.ensureQueryData(profileExpiryQuery(normalizedName, 'v1')),
+      queryClient.ensureQueryData(getV1RenewableQueryOptions(normalizedName)),
     ])
 
     if (!isRenewable) {
       throw new Error(
-        'This ENSv1 name is migrated, unreserved, or outside its renewal window.',
+        'This ENSv1 name is upgraded, unreserved, or outside its renewal window.',
       )
     }
 
@@ -48,7 +54,7 @@ export const Route = createFileRoute('/renew-v1/$name')({
     }
 
     return {
-      label: parsedName.value.label,
+      label,
       currentExpiry: expiryData.expiry,
     }
   },

@@ -35,9 +35,9 @@ export function toEoaCustomIntent(params: {
 /**
  * The ERC-20 `approve` intent shared by both the pre-start gas estimate and the
  * submit path, so the estimated call is byte-identical to what's sent. The
- * `amount` is the caller's choice (registration approves the exact price;
- * renewal approves 2× for headroom against price drift) — only the encoding is
- * shared, since `approve` gas is amount-independent.
+ * `amount` is the caller's choice (registration and renewal both approve the
+ * exact price) — only the encoding is shared, since `approve` gas is
+ * amount-independent.
  */
 export function buildApproveIntent(params: {
   readonly from: Address

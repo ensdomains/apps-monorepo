@@ -1,43 +1,108 @@
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import type { ExpiryStageId } from '#types/events/index.js'
 
 export type ExpiryStageConfig = {
   id: ExpiryStageId
+  /** Days relative to expiry. Positive is before; negative is after. */
   offsetDays: number
   includeFavorites: boolean
 }
 
-export const STAGES: ExpiryStageConfig[] = [
+const STAGE_DEFINITIONS: ExpiryStageConfig[] = [
   {
-    id: '30d',
+    id: 'expiry-30d',
     offsetDays: 30,
     includeFavorites: false,
   },
   {
-    id: '7d',
+    id: 'expiry-7d',
     offsetDays: 7,
     includeFavorites: true,
   },
   {
-    id: '1d',
+    id: 'expiry-1d',
     offsetDays: 1,
     includeFavorites: true,
   },
   {
-    id: 'expired',
+    id: 'grace-start',
     offsetDays: 0,
+    includeFavorites: true,
+  },
+  {
+    id: 'grace-7d',
+    offsetDays: -(V2_GRACE_PERIOD_DAYS - 7),
+    includeFavorites: true,
+  },
+  {
+    id: 'grace-1d',
+    offsetDays: -(V2_GRACE_PERIOD_DAYS - 1),
+    includeFavorites: true,
+  },
+  {
+    id: 'premium-start',
+    offsetDays: -V2_GRACE_PERIOD_DAYS,
     includeFavorites: true,
   },
 ]
 
-const DAY_IN_SECONDS = 24 * 60 * 60
+/** Lifecycle order is furthest-future to furthest-past. */
+export const STAGES: ExpiryStageConfig[] = [...STAGE_DEFINITIONS].sort(
+  (left, right) => right.offsetDays - left.offsetDays,
+)
+
+export const MAX_STAGE_CATCH_UP_SECONDS = 2 * SECONDS_PER_DAY
 
 export function getUpperBoundForStage(
   stage: ExpiryStageConfig,
   nowSec: number,
 ) {
-  if (stage.id === 'expired') {
-    return nowSec
+  return nowSec + stage.offsetDays * SECONDS_PER_DAY
+}
+
+export function getCloserStage(
+  stage: ExpiryStageConfig,
+  stages: readonly ExpiryStageConfig[] = STAGES,
+): ExpiryStageConfig | undefined {
+  let closer: ExpiryStageConfig | undefined
+
+  for (const candidate of stages) {
+    if (candidate.offsetDays >= stage.offsetDays) continue
+    if (!closer || candidate.offsetDays > closer.offsetDays) closer = candidate
   }
 
-  return nowSec + stage.offsetDays * DAY_IN_SECONDS
+  return closer
+}
+
+export function getLowerBoundForStage(
+  stage: ExpiryStageConfig,
+  nowSec: number,
+  stages: readonly ExpiryStageConfig[] = STAGES,
+): number {
+  const closerStage = getCloserStage(stage, stages)
+  if (closerStage) return getUpperBoundForStage(closerStage, nowSec)
+  return getUpperBoundForStage(stage, nowSec) - MAX_STAGE_CATCH_UP_SECONDS
+}
+
+export function getQueryCursorForStage(
+  stage: ExpiryStageConfig,
+  cursor: number,
+  nowSec: number,
+  stages: readonly ExpiryStageConfig[] = STAGES,
+): number {
+  return Math.max(cursor, getLowerBoundForStage(stage, nowSec, stages))
+}
+
+export function getDefaultCursorForStage(
+  stage: ExpiryStageConfig,
+  nowSec: number,
+): number {
+  return Math.min(nowSec, getUpperBoundForStage(stage, nowSec))
+}
+
+export function getExpiryStageRank(stageId: ExpiryStageId): number {
+  return STAGES.findIndex((stage) => stage.id === stageId)
 }

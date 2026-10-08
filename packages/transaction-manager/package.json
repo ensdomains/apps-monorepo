@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/transaction-manager",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Transaction management library for ENS applications",
   "type": "module",
   "private": true,
@@ -16,6 +17,7 @@
     "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/config": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",

@@ -15,6 +15,7 @@ import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
@@ -30,13 +31,37 @@ const V2NameRoles = ({
 }) => {
   const { labels } = getNameLabels(name)
 
+  const {
+    data: resourceId = null,
+    isLoading: isReadingId,
+    error: readIdError,
+  } = useQuery(getVersionedResourceQueryOptions({ name, registryAddress }))
+
   const nameRolesQuery = useQuery({
     ...getNameRolesAccountsQueryOptions({
-      name,
+      resource: resourceId,
       registryAddress,
     }),
-    enabled: labels.length >= 2,
+    enabled: labels.length >= 2 && Boolean(resourceId),
   })
+
+  if (isReadingId) return <LoadingSpinner title="Identifying this name" />
+
+  if (readIdError)
+    return (
+      <ErrorMessage
+        compact
+        description={`The registry could not be asked which name ${name} is, so its roles were not loaded.`}
+      />
+    )
+
+  if (!resourceId)
+    return (
+      <NoResultsMessage
+        title="This name has no on-chain identity to hold roles"
+        className="mx-0"
+      />
+    )
 
   if (nameRolesQuery.isLoading)
     return <LoadingSpinner title="Loading role accounts" />
@@ -152,15 +177,21 @@ export const NameRolesOverviewTable = ({
   const [addUserOpen, setAddUserOpen] = useState(false)
 
   const { address } = useConnection()
-  const label = name.split('.')[0]
+
+  // Asked about the name's id, not the label: the two disagree for an encoded
+  // (`[<64 hex>]`) label, which would either lock an admin out or show controls
+  // for a transaction that reverts (WEB-1458).
+  const { data: resourceId = null } = useQuery(
+    getVersionedResourceQueryOptions({ name, registryAddress }),
+  )
 
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress,
-      label,
+      resource: resourceId,
       account: address ?? zeroAddress,
     }),
-    enabled: Boolean(address),
+    enabled: Boolean(address) && Boolean(resourceId),
   })
 
   const canManageRoles = Boolean(

@@ -1,4 +1,5 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
+import { subscribeRegistrationPersistence } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Address } from 'viem'
@@ -6,10 +7,18 @@ import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
+import { isFeatureEnabled } from '@/utils/feature-flags'
+import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
+  getSuspendableRunOwner,
   registrationV2UiMachine,
 } from './registrationUi.machine'
+import { useRegistrationLockSweep } from './useRegistrationLockSweep'
+import {
+  type RegistrationResumeState,
+  useRegistrationResume,
+} from './useRegistrationResume'
 
 const RegistrationV2UiContext2 = createContext<{
   uiActor: Actor<typeof registrationV2UiMachine>
@@ -18,6 +27,8 @@ const RegistrationV2UiContext2 = createContext<{
    * Label is an ENS name without the .eth suffix and not a subname
    */
   label: string
+  /** Whether an interrupted registration was picked back up on this mount. */
+  resume: RegistrationResumeState
 } | null>(null)
 
 export type RegistrationV2UiActor = ActorRefFrom<typeof registrationV2UiMachine>
@@ -36,6 +47,8 @@ export const RegistrationV2UiProvider = ({
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
     input: { chainId },
   })
+
+  useRegistrationLockSweep()
   const registrationActor = useSelector(
     registrationV2UiActor,
     getRegistrationV2ChildActor,
@@ -68,6 +81,45 @@ export const RegistrationV2UiProvider = ({
     return subscription.unsubscribe
   }, [registrationV2UiActor])
 
+  // The kill switch gates the writes and the resume together: a record that
+  // will never be picked up should not be written either. Orphan cleanup is
+  // deliberately NOT gated, so records from before a flip-off still resolve.
+  const resumeEnabled = isFeatureEnabled('REGISTRATION_RESUME')
+
+  // Mirror the child machine's progress into localStorage so a reload can pick
+  // it back up. The child is (re)created with the invoke, so this re-subscribes
+  // whenever it changes identity.
+  useEffect(() => {
+    if (!registrationActor || !resumeEnabled) return
+
+    const adapter = createRegistrationPersistenceAdapter({
+      label,
+      // Read at write time: the confirmed pricing lives on the PARENT machine,
+      // while the subscriber fires on the child's snapshots.
+      getAppState: () => {
+        const { context } = registrationV2UiActor.getSnapshot()
+        return {
+          confirmedData: context.confirmedData,
+          postRegistrationSetup: context.postRegistrationSetup,
+        }
+      },
+    })
+
+    return subscribeRegistrationPersistence(registrationActor, adapter)
+  }, [registrationActor, registrationV2UiActor, label, resumeEnabled])
+
+  const suspendableRunOwner = useSelector(
+    registrationV2UiActor,
+    getSuspendableRunOwner,
+  )
+
+  const resume = useRegistrationResume({
+    label,
+    uiActor: registrationV2UiActor,
+    enabled: resumeEnabled,
+    suspendableRunOwner,
+  })
+
   // Inform the UI actor that the label has changed and to cancel any ongoing transactions
   useEffect(() => {
     if (previousLabel.current === label) {
@@ -84,6 +136,7 @@ export const RegistrationV2UiProvider = ({
         uiActor: registrationV2UiActor,
         registrationActor: registrationActor,
         label,
+        resume,
       }}
     >
       {children}

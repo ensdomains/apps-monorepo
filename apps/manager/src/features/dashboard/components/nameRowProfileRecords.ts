@@ -1,14 +1,13 @@
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 
 export type NameRowProfilePreview = {
   readonly themeColor?: string
-  readonly avatarUrl?: string
+  readonly avatarRecord?: string
   readonly isAvatarPending: boolean
 }
 
 const getTextRecordValue = (
-  records: ProfileRecordsResult | null | undefined,
+  records: Pick<ProfileRecordsResult, 'texts'> | null | undefined,
   key: string,
 ): string | undefined => {
   const value = records?.texts.find((text) => text.key === key)?.value.trim()
@@ -18,15 +17,14 @@ const getTextRecordValue = (
 export const getNameRowProfilePreview = (params: {
   readonly label: string
   readonly name?: string
-  readonly records?: ProfileRecordsResult | null
+  readonly records?: Pick<ProfileRecordsResult, 'texts'> | null
   readonly isLoading?: boolean
 }): NameRowProfilePreview => {
   const themeColor = getTextRecordValue(params.records, 'theme')
   const avatarRecord = getTextRecordValue(params.records, 'avatar')
-  const avatarName = params.name ?? params.label
 
   return {
-    avatarUrl: avatarRecord ? buildNameAvatarUrl(avatarName) : undefined,
+    avatarRecord,
     themeColor,
     isAvatarPending: params.isLoading === true && !params.records,
   }

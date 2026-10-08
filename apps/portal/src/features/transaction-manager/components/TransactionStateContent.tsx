@@ -16,8 +16,10 @@ import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
+import { useWaitRemaining } from '../hooks/useWaitRemaining'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
+import { getButtonTargetTransaction } from '../utils/getButtonTargetTransaction'
 import { getStatus } from '../utils/getStatus'
 import { getTransactionById } from '../utils/getTransactionById'
 import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
@@ -50,6 +52,22 @@ export const TransactionStateContent = ({
   )
   const hasNextTransaction =
     activeIndex >= 0 && activeIndex < transactions.length - 1
+
+  // The step the button would act on may still be inside its commit-reveal
+  // cooldown; until it elapses the flow advances on its own, so the click has
+  // nothing to do and the button must not look actionable.
+  const targetTransaction = getButtonTargetTransaction(
+    transactions,
+    activeIndex,
+    activeTxStatus,
+  )
+  const isWaitingForTarget =
+    useWaitRemaining(
+      targetTransaction &&
+        getStatus(targetTransaction.id, activeTransactionsMap) === undefined
+        ? targetTransaction.waitUntil
+        : undefined,
+    ) > 0
 
   return (
     <>
@@ -124,8 +142,6 @@ export const TransactionStateContent = ({
                   )}
                   {shouldShowWaitCountdown(
                     transaction,
-                    index,
-                    transactions,
                     activeTransactionsMap,
                   ) && transaction.waitUntil ? (
                     <TransactionWaitCountdown
@@ -143,7 +159,7 @@ export const TransactionStateContent = ({
                     ))}
                   </ul>
                 )}
-                {txError && (
+                {status === 'error' && txError && (
                   <TransactionErrorAlert
                     title="Transaction Error"
                     summary={txError?.message || 'An unknown error occurred.'}
@@ -172,6 +188,7 @@ export const TransactionStateContent = ({
             <Button
               variant="default"
               className="flex-1"
+              disabled={isWaitingForTarget}
               onClick={activeTransaction.onStart}
             >
               Open wallet
@@ -181,6 +198,7 @@ export const TransactionStateContent = ({
             <Button
               variant="default"
               className="flex-1"
+              disabled={isWaitingForTarget}
               onClick={activeTransaction.onDone}
             >
               {hasNextTransaction ? 'Next' : 'Done'}

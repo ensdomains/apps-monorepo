@@ -2,9 +2,6 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 
 export const KV_KEY = {
-  AUTH: {
-    NONCE: (nonce: string) => `auth:nonce:${nonce}`,
-  },
   EXPIRY_DISCOVERY: {
     CURSORS: 'expiry_discovery:cursors',
   },
@@ -14,8 +11,8 @@ export const KV_KEY = {
     FUND_LOCK: (address: string) => `wallet:fund-lock:${address.toLowerCase()}`,
   },
   NOTIFICATIONS: {
-    EMAIL_VERIFICATION: (normalizedEmail: string) =>
-      `notifications:email-verification:${normalizedEmail}`,
+    EMAIL_VERIFICATION: (userId: string) =>
+      `notifications:email-verification:user:${userId}`,
   },
 } as const
 

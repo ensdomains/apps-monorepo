@@ -37,6 +37,14 @@ const getNavItems = (
       disabled: !reverseName,
     }),
   },
+  {
+    id: 'upgrade-permissions',
+    icon: <MSymbol className="ms-opsz-20" symbol="key_vertical" />,
+    label: <Trans>Upgrade permissions</Trans>,
+    link: linkOptions({
+      to: '/upgrade-permissions',
+    }),
+  },
 ]
 
 export const NavSection = ({ onAction }: NavSectionProps) => {

@@ -1,16 +1,14 @@
-import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
-import { ok } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
-import { sendMailV3 } from '#services/email/utils.js'
+import { sendRenderedEmail } from '#services/email/send.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
-import {
-  NotificationDeliveryNotFoundError,
-  UnsupportedNotificationTypeError,
-} from './errors.js'
+import { createIntoError } from '#utils/result.js'
+import { resolveDeliveryChannel } from './channel.js'
+import { UnsupportedNotificationTypeError } from './errors.js'
 import { type EmailTemplate, emailTemplates } from './templates/email.js'
 
 export const deliverEmailNotification = ResultFn(async function* (
@@ -19,24 +17,8 @@ export const deliverEmailNotification = ResultFn(async function* (
   db: Database,
   job: EmailDeliveryJob,
 ) {
-  const deliveryJob = await db.query.notificationDeliveries.findFirst({
-    where: eq(TABLE.notificationDeliveries.id, job.id),
-    columns: {
-      target: true,
-    },
-    with: {
-      notification: {
-        columns: {
-          payload: true,
-        },
-      },
-    },
-  })
-  if (!deliveryJob) {
-    return yield* new NotificationDeliveryNotFoundError({
-      message: `Delivery job not found: ${job.id}`,
-    })
-  }
+  const delivery = yield* resolveDeliveryChannel(db, job, 'email')
+  if (!delivery) return ok(undefined)
 
   // Get the template function
   const template = emailTemplates[job.kind] as EmailTemplate<typeof job.kind>
@@ -46,33 +28,16 @@ export const deliverEmailNotification = ResultFn(async function* (
     })
   }
 
-  // Generate the template data
-  const templateData = template(
-    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
+  // Render locally; SendGrid only receives the finished email
+  const email = yield* fromPromise(
+    template(delivery.payload),
+    createIntoError('EMAIL_RENDER_ERROR'),
   )
 
-  if (!templateData.templateId) {
-    return yield* new UnsupportedNotificationTypeError({
-      message: `Missing template ID for: ${job.kind}`,
-    })
-  }
-
-  // Send via SendGrid API
-  const result = yield* sendMailV3(apiKey, {
-    personalizations: [
-      {
-        to: [
-          {
-            email: deliveryJob.target,
-          },
-        ],
-        // biome-ignore lint/suspicious/noExplicitAny: template data contains non-string values (numbers, booleans) that SendGrid handles at runtime, but its types expect Record<string, string>
-        dynamic_template_data: templateData.dynamicData as any,
-      },
-    ],
-    from: { email: fromEmail },
-    subject: templateData.subject,
-    template_id: templateData.templateId,
+  const result = yield* sendRenderedEmail(apiKey, {
+    from: fromEmail,
+    to: delivery.channel.target,
+    email,
   })
 
   // Update delivery record
@@ -92,8 +57,7 @@ export const deliverEmailNotification = ResultFn(async function* (
   logger.debug('Email notification delivered', {
     jobId: job.id,
     kind: job.kind,
-    templateId: templateData.templateId,
-    to: deliveryJob.target,
+    channelId: delivery.channel.id,
   })
 
   return ok(undefined)

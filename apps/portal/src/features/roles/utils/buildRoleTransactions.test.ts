@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { requireResourceIdForName } from '@/lib/resource/resourceId'
 import { buildRoleTransactions } from './buildRoleTransactions'
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890' as const
 const TEST_ACCOUNT_2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
 const TEST_REGISTRY = '0x1111111111111111111111111111111111111111' as const
+const TEST_RESOURCE_ID = requireResourceIdForName('test.eth')
 
 describe('buildRoleTransactions', () => {
   const mockHandlers = {
@@ -23,6 +25,8 @@ describe('buildRoleTransactions', () => {
       'test.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
+      TEST_RESOURCE_ID,
     )
     expect(result).toEqual([])
     expect(mockHandlers.grantRoles).not.toHaveBeenCalled()
@@ -41,6 +45,8 @@ describe('buildRoleTransactions', () => {
       'test.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
+      TEST_RESOURCE_ID,
     )
 
     expect(result).toHaveLength(1)
@@ -55,6 +61,8 @@ describe('buildRoleTransactions', () => {
     result[0].onStart()
     expect(mockHandlers.grantRoles).toHaveBeenCalledWith({
       name: 'test.eth',
+      // Carried from the caller, never re-derived downstream (WEB-1458).
+      resourceId: TEST_RESOURCE_ID,
       account: TEST_ACCOUNT,
       roles: ['ROLE_RENEW'],
       id: 'tx-grant-roles',
@@ -76,6 +84,8 @@ describe('buildRoleTransactions', () => {
       'example.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
+      TEST_RESOURCE_ID,
     )
 
     expect(result).toHaveLength(2)
@@ -83,6 +93,8 @@ describe('buildRoleTransactions', () => {
     result[0].onDone()
     expect(mockHandlers.revokeRoles).toHaveBeenCalledWith({
       name: 'example.eth',
+      // Carried from the caller, never re-derived downstream (WEB-1458).
+      resourceId: TEST_RESOURCE_ID,
       account: TEST_ACCOUNT,
       roles: ['ROLE_UNREGISTER'],
       id: 'tx-revoke-roles',
@@ -101,6 +113,8 @@ describe('buildRoleTransactions', () => {
       'parent.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
+      TEST_RESOURCE_ID,
     )
 
     expect(result).toHaveLength(1)
@@ -113,6 +127,8 @@ describe('buildRoleTransactions', () => {
     result[0].onStart()
     expect(mockHandlers.revokeRoles).toHaveBeenCalledWith({
       name: 'parent.eth',
+      // Carried from the caller, never re-derived downstream (WEB-1458).
+      resourceId: TEST_RESOURCE_ID,
       account: TEST_ACCOUNT_2,
       roles: ['ROLE_UNREGISTER'],
       id: 'tx-revoke-roles',

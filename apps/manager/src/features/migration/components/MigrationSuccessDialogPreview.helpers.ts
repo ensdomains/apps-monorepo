@@ -16,8 +16,6 @@ export type PublishedPreviewQuery = Pick<
 
 export const getPublishedPreviewState = (params: {
   readonly ownerAddress?: Address
-  readonly chainId: number
-  readonly migratedAt: Date
   readonly query?: PublishedPreviewQuery
 }): MigrationSuccessDialogState => {
   if (!params.ownerAddress) {
@@ -79,10 +77,7 @@ export const getPublishedPreviewState = (params: {
   return {
     status: 'readyToMint',
     card: buildCommemorativeNftCardData({
-      chainId: params.chainId,
       eligibility,
-      migratedAt: params.migratedAt,
-      migratedNameCount: 0,
       minted: false,
       ownerAddress: params.ownerAddress,
     }),

@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ComponentProps, useEffect, useState } from 'react'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { buildCommemorativeNftCardData } from '../commemorative-nft/cardData'
 import { MigrationSuccessDialog } from './MigrationSuccessDialog'
 import { PublishedNftStory, publishedNftStoryOwner } from './PublishedNftStory'
@@ -25,11 +24,13 @@ type PreviewProps = {
 const noop = () => undefined
 
 const PreviewDialog = ({
+  canRetry = true,
   state,
   context,
   interactive,
   retry,
 }: {
+  readonly canRetry?: boolean
   readonly state: MigrationSuccessDialogState
   readonly context: PreviewProps['context']
   readonly interactive?: boolean
@@ -49,10 +50,7 @@ const PreviewDialog = ({
       ? {
           status: mintStatus,
           card: buildCommemorativeNftCardData({
-            chainId: sepolia.id,
             eligibility: state.card.eligibility,
-            migratedAt: state.card.migratedAt,
-            migratedNameCount: state.card.migratedNameCount,
             minted: mintStatus === 'minted',
             ownerAddress: state.card.eligibility.ownerAddress,
           }),
@@ -75,12 +73,13 @@ const PreviewDialog = ({
         canMint={
           interactive === true && displayedState.status === 'readyToMint'
         }
+        canRetry={canRetry}
         context={context}
         migratedNameCount={1}
         onClose={() => setOpen(false)}
         onMint={interactive ? () => setMintStatus('minting') : noop}
+        onOpenDashboard={() => setOpen(false)}
         onRetry={retry}
-        onViewProfile={() => setOpen(false)}
         open={open}
         state={displayedState}
       />
@@ -143,6 +142,42 @@ export const InlineMintedProfile: Story = {
 export const MintLater: Story = { args: { context: 'mint-later' } }
 export const LoadingEligibility: Story = {
   args: { presentation: 'loadingEligibility' },
+}
+export const MintLaterChecking: Story = {
+  render: () => (
+    <PreviewDialog
+      context="mint-later"
+      retry={noop}
+      state={{ status: 'loadingEligibility' }}
+    />
+  ),
+}
+export const MintLaterCheckFailed: Story = {
+  render: () => (
+    <PreviewDialog
+      context="mint-later"
+      retry={noop}
+      state={{
+        status: 'error',
+        stage: 'eligibility',
+        message: 'Your account could not be checked. Please try again.',
+      }}
+    />
+  ),
+}
+export const MintLaterOwnerMissing: Story = {
+  render: () => (
+    <PreviewDialog
+      canRetry={false}
+      context="mint-later"
+      retry={noop}
+      state={{
+        status: 'error',
+        stage: 'eligibility',
+        message: 'Reconnect your owner wallet to continue.',
+      }}
+    />
+  ),
 }
 export const Ineligible: Story = { args: { presentation: 'ineligible' } }
 

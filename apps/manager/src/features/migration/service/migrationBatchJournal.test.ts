@@ -1,7 +1,10 @@
+import { Storage } from 'happy-dom'
 import { type Address, type Hex, namehash } from 'viem'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeDomain } from './_fixtures'
 import {
+  getMigrationBatchJournalRevision,
+  loadMigrationBatchJournal,
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
@@ -10,6 +13,7 @@ import {
   persistSubmittedAtomicMigrationBatch,
   removePendingAtomicMigrationIntent,
   removeSubmittedAtomicMigrationBatch,
+  subscribeMigrationBatchJournal,
 } from './migrationBatchJournal'
 
 const scope = {
@@ -33,7 +37,7 @@ const second = {
   operations: [{ name: 'carol.eth', action: 'migrate' as const }],
 }
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => vi.stubGlobal('localStorage', new Storage()))
 
 describe('migration batch journal', () => {
   it('persists an immutable tree, exact records, and remaining copy operations', () => {
@@ -65,6 +69,7 @@ describe('migration batch journal', () => {
         ],
       ]),
       ownedPermRes: '0x0000000000000000000000000000000000000004',
+      managerRestorationNames: [root.name],
       plannedApprovals: [
         { id: 'eth-registry:hca' },
         { id: 'base-registrar:hca-token', tokenId: 123n },
@@ -91,6 +96,7 @@ describe('migration batch journal', () => {
         ],
       ]),
       ownedPermRes: '0x0000000000000000000000000000000000000004',
+      managerRestorationNames: [root.name],
       plannedApprovals: [
         { id: 'eth-registry:hca' },
         { id: 'base-registrar:hca-token', tokenId: 123n },
@@ -247,5 +253,125 @@ describe('migration batch journal', () => {
         storage,
       ),
     ).toThrow('quota exceeded')
+  })
+})
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('scoped journal snapshots', () => {
+  it('reads all pending work from one storage read at a boundary', () => {
+    persistPendingAtomicMigrationIntent(scope, {
+      id: 'pending',
+      names: second.names,
+      operations: second.operations,
+    })
+    persistSubmittedAtomicMigrationBatch(scope, first)
+    const getItem = vi.spyOn(localStorage, 'getItem')
+    const snapshot = loadMigrationBatchJournal(scope)
+    expect(snapshot.pending).toHaveLength(1)
+    expect(snapshot.submitted).toEqual([first])
+    expect(snapshot.recovery).toBeNull()
+    expect(getItem).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates only the scope whose durable work changed', () => {
+    const otherScope = {
+      ...scope,
+      owner: '0x0000000000000000000000000000000000000003' as Address,
+    }
+    const originalRevision = getMigrationBatchJournalRevision(scope)
+    persistSubmittedAtomicMigrationBatch(otherScope, first)
+    expect(getMigrationBatchJournalRevision(scope)).toBe(originalRevision)
+    persistSubmittedAtomicMigrationBatch(scope, first)
+    expect(getMigrationBatchJournalRevision(scope)).toBeGreaterThan(
+      originalRevision,
+    )
+  })
+
+  it('isolates cross-tab changes while clearing storage invalidates all scopes', () => {
+    const otherScope = {
+      ...scope,
+      owner: '0x0000000000000000000000000000000000000003' as Address,
+    }
+    const unsubscribe = subscribeMigrationBatchJournal(() => undefined)
+    try {
+      persistSubmittedAtomicMigrationBatch(otherScope, first)
+      const revision = getMigrationBatchJournalRevision(scope)
+      const key = localStorage.key(0) ?? ''
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key,
+          oldValue: null,
+          newValue: localStorage.getItem(key),
+        }),
+      )
+      expect(getMigrationBatchJournalRevision(scope)).toBe(revision)
+      window.dispatchEvent(new StorageEvent('storage', { key: null }))
+      expect(getMigrationBatchJournalRevision(scope)).toBeGreaterThan(revision)
+    } finally {
+      unsubscribe()
+    }
+  })
+})
+
+describe('recovery snapshot manager restoration (WEB-1528)', () => {
+  const STORAGE_KEY =
+    'ens-apps:atomic-hca-migration:submitted-batches:v1:8d1c893'
+
+  const storeRawRecovery = (recovery: Record<string, unknown>) => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        entries: [
+          {
+            scope: `${scope.chainId}:${scope.owner.toLowerCase()}:${scope.hca.toLowerCase()}`,
+            intents: [],
+            submissions: [],
+            recovery,
+          },
+        ],
+      }),
+    )
+  }
+
+  const baseRecovery = (extra: Record<string, unknown>) => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    return {
+      registryDomains: [domain],
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      completedOperations: [],
+      profiles: [],
+      ownedPermRes: null,
+      plannedApprovals: [],
+      ...extra,
+    }
+  }
+
+  beforeEach(() => localStorage.clear())
+
+  it('restores nobody for a snapshot written before the opt-in existed', () => {
+    storeRawRecovery(baseRecovery({}))
+
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.managerRestorationNames,
+    ).toEqual([])
+  })
+
+  it('carries a recorded opt-in across a reload', () => {
+    storeRawRecovery(baseRecovery({ managerRestorationNames: ['alice.eth'] }))
+
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.managerRestorationNames,
+    ).toEqual(['alice.eth'])
+  })
+
+  it('fails closed when the recorded opt-in is not a list of names', () => {
+    storeRawRecovery(baseRecovery({ managerRestorationNames: [42] }))
+
+    expect(() => loadMigrationRecoverySnapshot(scope)).toThrow(
+      /journal is unreadable/i,
+    )
   })
 })

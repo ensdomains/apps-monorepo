@@ -1,12 +1,23 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: decoded ABI args need flexible typing in tests
 
-import { publicResolverSetAddrSnippet } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import {
+  permissionedResolverInitializeSnippet,
+  permissionedResolverSetAddressSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Address, Hex } from 'viem'
-import { decodeFunctionData, parseAbi } from 'viem'
+import {
+  decodeFunctionData,
+  encodeFunctionData,
+  keccak256,
+  parseAbi,
+  toFunctionSelector,
+  toHex,
+} from 'viem'
 import { sepolia } from 'viem/chains'
+import { packetToBytes } from 'viem/ens'
 import { describe, expect, it } from 'vitest'
-import { getDestinationContracts } from './manifest'
+import { computeResolverSalt, getDestinationContracts } from './manifest'
 import {
   buildCommitCall,
   buildRevealBatch,
@@ -23,15 +34,6 @@ const ethRegistrarAbi = parseAbi([
   'function commit(bytes32 commitment)',
   'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer)',
 ])
-const resolverAbi = parseAbi([
-  'function authorizeNameRoles(bytes toName, uint256 roleBitmap, address account, bool grant)',
-])
-// `PermissionedResolver.initialize` takes a third `bytes[] setters` arg that
-// ensjs-abi's `proxyInitializeSnippet` (2-arg) does not model, so it stays local.
-const resolverInitAbi = parseAbi([
-  'function initialize(address owner, uint256 roles, bytes[] data)',
-])
-
 /** ROLES.ALL from contracts-v2 deploy-constants: every nibble = 1. */
 const EXPECTED_ROLES_ALL =
   0x1111111111111111111111111111111111111111111111111111111111111111n
@@ -39,7 +41,7 @@ const EXPECTED_ROLES_ALL =
 describe('computeResolverAddress', () => {
   it('uses the pinned proxy logic to derive the exact CREATE2 address', () => {
     expect(computeResolverAddress({ chainId: sepolia.id, hca: HCA })).toBe(
-      '0xcd8d0FAeecC39fbB036c708b697FE4C20c7D41Fd',
+      '0x3f30117Db553fc15aB3FFBD1287f4E8838D53C14',
     )
   })
 })
@@ -69,81 +71,129 @@ describe('buildRevealBatch ordering', () => {
 
   it('omits deployProxy when the resolver already exists; exact tail order', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: true })
-    // approve → register → setAddr → authorizeNameRoles
-    expect(calls).toHaveLength(4)
+    // approve → register → setAddress
+    expect(calls).toHaveLength(3)
     expect(calls[0].to.toLowerCase()).toBe(C.usdc.toLowerCase()) // approve
     expect(calls[1].to.toLowerCase()).toBe(C.ethRegistrar.toLowerCase()) // register
-    expect(calls[2].to.toLowerCase()).toBe(RESOLVER.toLowerCase()) // setAddr
-    // last call is authorizeNameRoles on the resolver
-    const last = calls[calls.length - 1]
-    const decoded = decodeFunctionData({ abi: resolverAbi, data: last.data })
-    expect(decoded.functionName).toBe('authorizeNameRoles')
-    // toName is dynamic bytes hex"00" (NOT bytes1), roleBitmap is ROLES.ALL
-    // (every nibble = 1, not all bits set).
-    expect((decoded.args as any)[0]).toBe('0x00')
-    expect((decoded.args as any)[1]).toBe(EXPECTED_ROLES_ALL)
-    expect((decoded.args as any)[2].toLowerCase()).toBe(WALLET.toLowerCase())
-    expect((decoded.args as any)[3]).toBe(true)
+    expect(calls[2].to.toLowerCase()).toBe(RESOLVER.toLowerCase()) // setAddress
   })
 
-  it('prepends deployProxy with EMPTY initialize setters, records standalone', () => {
+  it('matches the deployed policy keccak for the deployProxy call', () => {
+    // HCAResolverPolicyLib.checkDeployment requires grants of exactly
+    // [(hca, ALL_ROLES), (owner, ALL_ROLES)], re-encodes the call around its
+    // own PERMITTED_RESOLVER_IMPL and compares keccak hashes. Reproduced here
+    // from the deployed validator's source (0x4bf64159, the build-info in
+    // contracts-v2 `deployments/sepolia` @ 95de2ee0), so drift in the grants,
+    // the encoding or the impl address fails here rather than on chain as an
+    // opaque PolicyRuleFailed()/InvalidSignature().
+    const calls = buildRevealBatch({ ...base, resolverDeployed: false })
+    const salt = computeResolverSalt(HCA)
+
+    const expectedInitData = encodeFunctionData({
+      abi: permissionedResolverInitializeSnippet,
+      functionName: 'initialize',
+      args: [
+        [
+          { account: HCA, roleBitmap: EXPECTED_ROLES_ALL },
+          { account: WALLET, roleBitmap: EXPECTED_ROLES_ALL },
+        ],
+        [],
+      ],
+    })
+    const expectedCallData = encodeFunctionData({
+      abi: verifiableFactoryDeployProxySnippet,
+      functionName: 'deployProxy',
+      args: [C.permissionedResolverImpl, salt, expectedInitData],
+    })
+
+    expect(keccak256(calls[0].data)).toBe(keccak256(expectedCallData))
+  })
+
+  it('never emits authorizeNameRoles — gone from resolver and policy alike', () => {
+    for (const resolverDeployed of [true, false]) {
+      const calls = buildRevealBatch({ ...base, resolverDeployed })
+      // 0xbbd9abb5 is on neither PermissionedResolver nor the validator's
+      // selector whitelist; the wallet is granted via initialize instead.
+      expect(calls.some((c) => c.data.startsWith('0xbbd9abb5'))).toBe(false)
+    }
+  })
+
+  it('prepends deployProxy with EMPTY initialize calls, records standalone', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
     expect(calls[0].to.toLowerCase()).toBe(C.verifiableFactory.toLowerCase())
-    // deployProxy → approve → register → setAddr → authorizeNameRoles
-    expect(calls).toHaveLength(5)
+    // deployProxy → approve → register → setAddress
+    expect(calls).toHaveLength(4)
 
-    // `setters` MUST be empty: HCAOwnerAndSessionValidator rebuilds the
-    // expected deployProxy calldata with `initialize(account, ALL_ROLES, [])`
-    // and compares keccak hashes. Folding the record writes in here reverts
-    // with PolicyRuleFailed() (0xe50c42ea), surfaced as InvalidSignature().
+    // HCAOwnerAndSessionValidator rebuilds the expected deployProxy calldata
+    // and compares keccak hashes, so the initializer must match byte for byte.
     const deploy = decodeFunctionData({
       abi: verifiableFactoryDeployProxySnippet,
       data: calls[0].data,
     })
+    const initData = (deploy.args as any)[2] as Hex
+    // `initialize(Grant[],bytes[])` — the deployed impl has no
+    // `initialize(address,uint256,bytes[])`; encoding that hits the proxy
+    // fallback and reverts with empty data.
+    expect(toFunctionSelector(permissionedResolverInitializeSnippet[0])).toBe(
+      '0x33cc44a0',
+    )
+    expect(initData.slice(0, 10)).toBe('0x33cc44a0')
     const init = decodeFunctionData({
-      abi: resolverInitAbi,
-      data: (deploy.args as any)[2] as Hex,
+      abi: permissionedResolverInitializeSnippet,
+      data: initData,
     })
     expect(init.functionName).toBe('initialize')
-    expect((init.args as any)[0].toLowerCase()).toBe(HCA.toLowerCase())
-    expect((init.args as any)[1]).toBe(EXPECTED_ROLES_ALL)
-    expect((init.args as any)[2]).toHaveLength(0)
 
-    // ...and the record write is a standalone, individually-whitelisted call.
-    const setAddrCalls = calls.filter(
+    // HCAResolverPolicyLib.checkDeployment pins the grants exactly:
+    //   grants.length == 2, [0] == (hca, ALL_ROLES), [1] == (owner, ALL_ROLES).
+    // Anything else — including the single-grant form that predates the
+    // wallet grant moving into initialize — reverts PolicyRuleFailed().
+    const grants = (init.args as any)[0]
+    expect(grants).toHaveLength(2)
+    expect(grants[0].account.toLowerCase()).toBe(HCA.toLowerCase())
+    expect(grants[0].roleBitmap).toBe(EXPECTED_ROLES_ALL)
+    expect(grants[1].account.toLowerCase()).toBe(WALLET.toLowerCase())
+    expect(grants[1].roleBitmap).toBe(EXPECTED_ROLES_ALL)
+    expect((init.args as any)[1]).toHaveLength(0)
+
+    // ...and the record write is a standalone, individually-checked call.
+    // 0xb4436dde is `IAddressSetter.setAddress`, on the policy's record-setter
+    // list; the v1 setAddr 0x8b95dd71 is on neither the resolver nor that list.
+    const setAddressCalls = calls.filter(
       (c) =>
         c.to.toLowerCase() === RESOLVER.toLowerCase() &&
-        c.data.startsWith('0x8b95dd71'), // setAddr(bytes32,uint256,bytes)
+        c.data.startsWith('0xb4436dde'), // setAddress(bytes,uint256,bytes)
     )
-    expect(setAddrCalls).toHaveLength(1)
-    const setAddr = decodeFunctionData({
-      abi: publicResolverSetAddrSnippet,
-      data: setAddrCalls[0].data,
+    expect(setAddressCalls).toHaveLength(1)
+    const setAddress = decodeFunctionData({
+      abi: permissionedResolverSetAddressSnippet,
+      data: setAddressCalls[0].data,
     })
-    expect((setAddr.args as any)[1]).toBe(60n) // COIN_TYPE_ETH
-    expect(((setAddr.args as any)[2] as string).toLowerCase()).toBe(
+    expect((setAddress.args as any)[0]).toBe(toHex(packetToBytes('myname.eth')))
+    expect((setAddress.args as any)[1]).toBe(60n) // COIN_TYPE_ETH
+    expect(((setAddress.args as any)[2] as string).toLowerCase()).toBe(
       WALLET.toLowerCase(),
     )
   })
 
   it('issues the record writes as standalone calls when the resolver already exists', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: true })
-    const setAddrCall = calls.find(
+    const setAddressCall = calls.find(
       (c) => c.to.toLowerCase() === RESOLVER.toLowerCase(),
     )
-    expect(setAddrCall).toBeDefined()
+    expect(setAddressCall).toBeDefined()
     const decoded = decodeFunctionData({
-      abi: publicResolverSetAddrSnippet,
+      abi: permissionedResolverSetAddressSnippet,
       // biome-ignore lint/style/noNonNullAssertion: asserted above
-      data: setAddrCall!.data,
+      data: setAddressCall!.data,
     })
-    expect(decoded.functionName).toBe('setAddr')
+    expect(decoded.functionName).toBe('setAddress')
     expect(((decoded.args as any)[2] as string).toLowerCase()).toBe(
       WALLET.toLowerCase(),
     )
   })
 
-  it('inserts setNameWithHCA before authorizeNameRoles when a primary name is set', () => {
+  it('appends setNameWithHCA after the record writes when a primary name is set', () => {
     const calls = buildRevealBatch({
       ...base,
       resolverDeployed: true,
@@ -154,9 +204,15 @@ describe('buildRevealBatch ordering', () => {
         c.to.toLowerCase() ===
         C.defaultReverseRegistrarHcaAdapter.toLowerCase(),
     )
-    const authIdx = calls.length - 1
+    const lastRecordIdx = calls.reduce(
+      (acc, c, i) => (c.data.startsWith('0xb4436dde') ? i : acc),
+      -1,
+    )
     expect(adapterIdx).toBeGreaterThan(-1)
-    expect(adapterIdx).toBeLessThan(authIdx)
+    expect(adapterIdx).toBeGreaterThan(lastRecordIdx)
+    // setNameWithHCA(address,string) — the only selector the validator accepts
+    // on DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER
+    expect(calls[adapterIdx].data.startsWith('0xab863445')).toBe(true)
   })
 
   it('registers the wallet (not the HCA) as owner and approves exactly the price', () => {

@@ -3,7 +3,6 @@ import type { ClassifiedName } from '@ens-apps/migration'
 export {
   type ClassifiedName,
   type CopyClassifiedName,
-  type CopySource,
   type CopyTokenType,
   classifyName,
   classifyNames,
@@ -11,9 +10,10 @@ export {
   FUSES,
   hasFuse,
   type IneligibleName,
-  type IneligibleReason,
   type MigrationTokenType,
-  type ResolverStrategy,
+  managerRestorationCandidates,
+  registryControllerOf,
+  withManagerRestorationOptIn,
 } from '@ens-apps/migration'
 
 export const is2LD = (name: ClassifiedName): boolean =>

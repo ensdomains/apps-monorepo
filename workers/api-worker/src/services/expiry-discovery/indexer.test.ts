@@ -12,7 +12,7 @@ vi.mock('@ens-apps/indexer/urql/request', async (importOriginal) => ({
   graphqlRequest: mockRequest,
 }))
 
-import { fetchExpiringNamesPage, PAGE_SIZE } from './indexer.js'
+import { fetchExpiringNamesPage, QUERY_PAGE_SIZE } from './indexer.js'
 import { STAGES } from './stages.js'
 
 describe('fetchExpiringNamesPage', () => {
@@ -34,7 +34,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://graphql.ens.dev/',
+        CHAIN: 'sepolia',
       } as CloudflareBindings,
       stage: STAGES[0],
       cursor: 100,
@@ -45,7 +45,7 @@ describe('fetchExpiringNamesPage', () => {
     expect(mockRequest).toHaveBeenCalledTimes(1)
 
     const [, document, variables] = mockRequest.mock.calls[0]
-    expect(stringifyDocument(document)).toContain(`first: ${PAGE_SIZE}`)
+    expect(stringifyDocument(document)).toContain(`first: ${QUERY_PAGE_SIZE}`)
     expect(variables).toEqual({
       cursor: 100,
       upper_bound: 200,
@@ -64,7 +64,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const promise = fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://graphql.ens.dev/',
+        CHAIN: 'sepolia',
       } as CloudflareBindings,
       stage: STAGES[1],
       cursor: 1,
@@ -88,7 +88,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://graphql.ens.dev/',
+        CHAIN: 'sepolia',
       } as CloudflareBindings,
       stage: STAGES[2],
       cursor: 1,
@@ -113,7 +113,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://graphql.ens.dev/',
+        CHAIN: 'sepolia',
       } as CloudflareBindings,
       stage: STAGES[0],
       cursor: 1,
@@ -124,9 +124,9 @@ describe('fetchExpiringNamesPage', () => {
     expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
   })
 
-  it('marks hasMore=true for exactly 1000 rows', async () => {
+  it('marks hasMore=true when the lookahead row is present', async () => {
     mockRequest.mockResolvedValue({
-      domains: Array.from({ length: 1000 }, (_, i) => ({
+      domains: Array.from({ length: QUERY_PAGE_SIZE }, (_, i) => ({
         name: `${i}.eth`,
         expiryDate: 1_700_000_000 + i,
         owner: null,
@@ -135,7 +135,7 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://graphql.ens.dev/',
+        CHAIN: 'sepolia',
       } as CloudflareBindings,
       stage: STAGES[0],
       cursor: 1,

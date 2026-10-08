@@ -4,6 +4,8 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import {
   NameFallbackCard,
   type NameFallbackReason,
@@ -11,15 +13,20 @@ import {
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/view/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
+import { ReverseNameView } from '@/features/profile/components/view/ReverseNameView'
 import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { normalizeProfileName } from '@/features/profile/service/profileName'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getReverseNameAddress } from '@/features/profile/service/reverseNameAddress'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
-import { seo } from '@/utils/seo'
+import { getSearchNameKind } from '@/features/search/getSearchNameKind'
+import { isDebugProfileName } from '@/utils/debug-features'
+import { nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
 // name isn't free, so every hand off to it is gated on this.
@@ -38,30 +45,74 @@ const isFreeToRegister = async (
 // registrar counts code points, not UTF-16 units) can be registered,
 // everything else maps to a fallback card reason
 const classifyMissingName = (
+  name: string,
+): NameFallbackReason | 'registrable' =>
+  match(getSearchNameKind(name))
+    .with({ type: 'eth-2ld' }, () => 'registrable' as const)
+    .with({ type: 'eth-subname' }, () => 'not-found' as const)
+    .with({ type: 'invalid', reason: 'too-short' }, () => 'too-short' as const)
+    .otherwise(() => 'not-imported' as const)
+
+const isEthName = (parsed: ReturnType<typeof parseName>): boolean =>
+  parsed.isOk() && parsed.value.tld === 'eth'
+
+const requiresDnssecCheck = (
   parsed: ReturnType<typeof parseName>,
-): NameFallbackReason | 'registrable' => {
-  if (!parsed.isOk() || parsed.value.tld !== 'eth') return 'not-imported'
-  if (parsed.value.subLabels.length > 0) return 'not-found'
-  if ([...parsed.value.label].length >= 3) return 'registrable'
-  return 'too-short'
+  name: string,
+): boolean => !isEthName(parsed) && !isDebugProfileName(name)
+
+const prefetchOwnerReverseName = async (
+  queryClient: QueryClient,
+  owner?: Address,
+): Promise<void> => {
+  if (owner) {
+    await queryClient.prefetchQuery(profileReverseNameQuery(owner))
+  }
+}
+
+const getCanonicalProfileName = (name: string): string => {
+  const normalizedName = normalizeProfileName(name)
+
+  if (!normalizedName) {
+    throw new Error('Invalid ENS name')
+  }
+
+  if (normalizedName !== name) {
+    throw redirect({
+      params: { name: normalizedName },
+      to: '/$name',
+      replace: true,
+    })
+  }
+
+  return normalizedName
 }
 
 export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
+    const normalizedName = getCanonicalProfileName(name)
+
+    if (getReverseNameAddress(normalizedName)) {
+      return {
+        fallback: undefined,
+        description: undefined,
+        name: normalizedName,
+      }
+    }
+
     const [profileRecords, ownerData] = await Promise.all([
-      queryClient.ensureQueryData(profileRecordsQuery(name)),
+      queryClient.ensureQueryData(profileRecordsQuery(normalizedName)),
       // Fetch, not ensure: `ensureQueryData` serves invalidated data, so a name
       // cached as ownerless pre-registration would redirect its owner away.
-      queryClient.fetchQuery(profileOwnerQuery(name)),
+      queryClient.fetchQuery(profileOwnerQuery(normalizedName)),
     ])
 
-    const parsed = parseName(name)
-    const isEth = parsed.isOk() && parsed.value.tld === 'eth'
+    const parsed = parseName(normalizedName)
 
     // Validate the TLD before showing any profile data: a TLD is supported
     // if it's .eth or has DNSSEC enabled. On DoH failure, prefer the profile
     // fallback over a false "unsupported"
-    if (!isEth) {
+    if (requiresDnssecCheck(parsed, name)) {
       const dnsSecEnabled = parsed.isOk()
         ? await queryClient
             .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
@@ -69,35 +120,47 @@ export const Route = createFileRoute('/$name/')({
         : false
 
       if (!dnsSecEnabled) {
-        return { fallback: 'unsupported-tld' as const, description: undefined }
+        return {
+          fallback: 'unsupported-tld' as const,
+          description: undefined,
+          name: normalizedName,
+        }
       }
     }
 
     // Name doesn't exist in v2 or v1
     if (!ownerData) {
-      const missing = classifyMissingName(parsed)
+      const missing = classifyMissingName(normalizedName)
 
       if (missing === 'registrable') {
-        if (await isFreeToRegister(queryClient, name)) {
+        if (await isFreeToRegister(queryClient, normalizedName)) {
           throw redirect({
-            params: { name },
+            params: { name: normalizedName },
             to: '/register/$name',
             replace: true,
           })
         }
 
-        return { fallback: 'not-found' as const, description: undefined }
+        return {
+          fallback: 'not-found' as const,
+          description: undefined,
+          name: normalizedName,
+        }
       }
 
-      return { fallback: missing, description: undefined }
+      return {
+        fallback: missing,
+        description: undefined,
+        name: normalizedName,
+      }
     }
 
     const [expiryData] = await Promise.all([
       queryClient.ensureQueryData(
-        profileExpiryQuery(name, ownerData?.protocol),
+        profileExpiryQuery(normalizedName, ownerData?.protocol),
       ),
       queryClient.prefetchQuery(
-        profileRegistrationQuery(name, ownerData?.protocol),
+        profileRegistrationQuery(normalizedName, ownerData?.protocol),
       ),
     ])
 
@@ -107,17 +170,15 @@ export const Route = createFileRoute('/$name/')({
         : new Date(Number(expiryData.expiry) * 1000)
     const isPastGrace = isPastGracePeriod(expiryDate, ownerData.protocol)
 
-    if (isPastGrace && (await isFreeToRegister(queryClient, name))) {
+    if (isPastGrace && (await isFreeToRegister(queryClient, normalizedName))) {
       throw redirect({
-        params: { name },
+        params: { name: normalizedName },
         to: '/register/$name',
         replace: true,
       })
     }
 
-    if (ownerData?.owner) {
-      await queryClient.prefetchQuery(profileReverseNameQuery(ownerData.owner))
-    }
+    await prefetchOwnerReverseName(queryClient, ownerData?.owner)
 
     const description = profileRecords.texts.find(
       (r) => r.key === 'description',
@@ -126,16 +187,45 @@ export const Route = createFileRoute('/$name/')({
     return {
       fallback: undefined,
       description,
+      name: normalizedName,
     }
   },
-  head: ({ params: { name }, loaderData }) => {
-    const { description } = loaderData || {}
-    const metaDescription = description || `View the ENS profile for ${name}`
+  head: ({ loaderData, params }) => {
+    if (!loaderData) {
+      // The route is `ssr: false`, so the loader never runs for the server
+      // render a link-preview crawler reads — the name has to come from the URL.
+      const name = normalizeProfileName(params.name)
+
+      if (name) {
+        return {
+          meta: seo({
+            title: `${name} - ENS Profile`,
+            description: `View the ENS profile for ${name}`,
+            image: nameOgImageUrl(name),
+          }),
+        }
+      }
+
+      return {
+        meta: seo({
+          title: 'ENS App',
+          description: 'Manage your ENS names, profiles and records.',
+          // A name that fails to normalise gets the card that says so; anything
+          // not name-shaped falls back to the app card on the image route.
+          image: nameOgImageUrl(params.name),
+        }),
+      }
+    }
+
+    const canonicalName = loaderData.name
+    const metaDescription =
+      loaderData.description || `View the ENS profile for ${canonicalName}`
 
     return {
       meta: seo({
-        title: `${name} - ENS Profile`,
+        title: `${canonicalName} - ENS Profile`,
         description: metaDescription,
+        image: nameOgImageUrl(canonicalName),
       }),
     }
   },
@@ -146,7 +236,10 @@ export const Route = createFileRoute('/$name/')({
 })
 
 function ProfileRoutePending() {
-  const name = Route.useParams({ select: (params) => params.name })
+  // Pending UI can render before the loader redirects to the canonical URL.
+  const name = Route.useParams({
+    select: (params) => normalizeProfileName(params.name) ?? undefined,
+  })
   return <ProfileLoading name={name} />
 }
 
@@ -154,8 +247,9 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
   return (
     <div className="mx-auto max-w-md space-y-4">
       <div className="flex items-center justify-center py-8">
-        <div className="text-red-600">
-          Error loading profile: {error.message}
+        <div className="wrap-anywhere text-destructive">
+          Error loading profile:{' '}
+          {error instanceof Error ? error.message : String(error)}
         </div>
       </div>
     </div>
@@ -163,12 +257,16 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
 }
 
 function RouteComponent() {
-  const name = Route.useParams({ select: (params) => params.name })
-  const fallback = Route.useLoaderData({
-    select: (data) => data.fallback,
+  const { fallback, name } = Route.useLoaderData({
+    select: (data) => ({ fallback: data.fallback, name: data.name }),
   })
 
   if (fallback) return <NameFallbackCard name={name} reason={fallback} />
+
+  const reverseAddress = getReverseNameAddress(name)
+  if (reverseAddress) {
+    return <ReverseNameView address={reverseAddress} name={name} />
+  }
 
   return <ProfileView name={name} />
 }

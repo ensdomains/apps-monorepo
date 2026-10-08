@@ -1,4 +1,5 @@
-import { Link } from '@tanstack/react-router'
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -12,7 +13,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
+import {
+  prepareSetResolverTransaction,
+  type ResolverWriteTarget,
+} from '@/features/resolver/helpers/changeResolver'
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
 import {
   prepareDeployPermissionedResolverTransaction,
@@ -22,6 +26,7 @@ import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserP
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
@@ -46,30 +51,42 @@ function useAutoSelectFirstResolver(
   ])
 }
 
-const SUCCESS_LABEL_DURATION_MS = 5000
-
 interface ChangeResolverFormProps {
   readonly name: string
-  readonly registryAddress: Address
+  readonly target: ResolverWriteTarget
 }
 
 export const ChangeResolverForm = ({
   name,
-  registryAddress,
+  target,
 }: ChangeResolverFormProps) => {
   const { address: connectedAddress } = useConnection()
-  const [useCustomResolver, setUseCustomResolver] = useState(true)
-  const [deployNewResolver, setDeployNewResolver] = useState(true)
+  const navigate = useNavigate()
+  // A PermissionedResolver is a V2 contract, and the deploy/select paths hand
+  // its roles to the caller against a V2 registry. A V1 name can still be
+  // pointed at any resolver address, so it gets the custom-address path only.
+  const isV1 = target.protocol === 'ENSv1'
+  const [customResolverPreference, setUseCustomResolver] = useState(false)
+  const useCustomResolver = isV1 || customResolverPreference
+  const [deployNewResolver, setDeployNewResolver] = useState(false)
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
-  const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   const deployedResolverAddressRef = useRef<Address | null>(null)
 
-  const {
-    openModal: openTransactionModal,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
+  const { closeModal: closeTransactionModal, clearTransaction } =
+    useTransactionModal()
+  // Names the attempt the modal is showing. The deploy path chains two steps,
+  // so an abandoned run would otherwise leave its deploy actor behind and the
+  // next attempt would skip straight to "Change resolver" without deploying.
+  const attempt = useFlowAttempt()
+  const deployResolverTxId = scopeTransactionId(
+    DEPLOY_RESOLVER_TX_ID,
+    attempt.scope,
+  )
+  const changeResolverTxId = scopeTransactionId(
+    CHANGE_RESOLVER_TX_ID,
+    attempt.scope,
+  )
 
   const {
     data: existingResolvers = [],
@@ -85,8 +102,8 @@ export const ChangeResolverForm = ({
     hasWallet: hasChangeWallet,
   } = useChangeResolver({
     name,
-    registryAddress,
-    id: CHANGE_RESOLVER_TX_ID,
+    target,
+    id: changeResolverTxId,
   })
 
   const {
@@ -141,7 +158,7 @@ export const ChangeResolverForm = ({
   const handleDeployResolverStart = async () => {
     await ResultAsync.fromPromise(
       deployPermissionedResolverAsync({
-        id: DEPLOY_RESOLVER_TX_ID,
+        id: deployResolverTxId,
       }),
       () => undefined,
     ).match(
@@ -162,33 +179,34 @@ export const ChangeResolverForm = ({
     }
   }
 
+  // Land on the resolver page rather than back on this form: it shows the
+  // resolver now in force plus the history entry for the change, so the update
+  // is visibly confirmed instead of leaving a "Save changes" prompt that reads
+  // as though nothing happened. Mirrors create-subname and edit-records.
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
-    setResolverAddress('')
-    deployedResolverAddressRef.current = null
-    setShowSuccessButtonLabel(true)
-    setTimeout(
-      () => setShowSuccessButtonLabel(false),
-      SUCCESS_LABEL_DURATION_MS,
-    )
+    attempt.end()
+    navigate({ to: '/$name/resolver', params: { name } })
   }
 
   const handleSubmit = async () => {
     try {
+      if (!connectedAddress) return
+
       if (useCustomResolver) {
         if (!isAddress(resolverAddress)) return
-        openTransactionModal()
+        attempt.start(connectedAddress)
         return
       }
 
       if (deployNewResolver) {
-        openTransactionModal()
+        attempt.start(connectedAddress)
         return
       }
 
       if (!isAddress(selectedExistingResolver)) return
-      openTransactionModal()
+      attempt.start(connectedAddress)
     } catch (err) {
       console.error('Failed to update resolver:', err)
     }
@@ -202,14 +220,9 @@ export const ChangeResolverForm = ({
     selectedExistingResolver,
   })
 
-  const buttonText = match({
-    isDeployConfirming,
-    isChangeResolverPending,
-    showSuccessButtonLabel,
-  })
+  const buttonText = match({ isDeployConfirming, isChangeResolverPending })
     .with({ isDeployConfirming: true }, () => 'Deploying resolver...')
     .with({ isChangeResolverPending: true }, () => 'Changing resolver...')
-    .with({ showSuccessButtonLabel: true }, () => 'Resolver changed!')
     .otherwise(() => 'Save changes')
 
   return (
@@ -223,16 +236,24 @@ export const ChangeResolverForm = ({
 
       <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
 
-      <div className="flex items-center gap-3">
-        <Switch
-          checked={useCustomResolver}
-          onCheckedChange={setUseCustomResolver}
-          id="use-custom-resolver"
-        />
-        <Label htmlFor="use-custom-resolver" className="cursor-pointer">
-          Use custom resolver
-        </Label>
-      </div>
+      {isV1 ? (
+        <p className="text-base text-muted-foreground">
+          <strong>{name}</strong> is an ENSv1 name, so it takes any resolver
+          address. Deploying a permissioned resolver is a V2 feature and is not
+          offered here.
+        </p>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={useCustomResolver}
+            onCheckedChange={setUseCustomResolver}
+            id="use-custom-resolver"
+          />
+          <Label htmlFor="use-custom-resolver" className="cursor-pointer">
+            Use custom resolver
+          </Label>
+        </div>
+      )}
 
       {useCustomResolver ? (
         <div className="flex flex-col gap-3">
@@ -326,7 +347,7 @@ export const ChangeResolverForm = ({
           isDeployPath
             ? [
                 {
-                  id: DEPLOY_RESOLVER_TX_ID,
+                  id: deployResolverTxId,
                   title: 'Deploy permissioned resolver',
                   transactionName: `Deploy resolver for ${name}`,
                   intent: {
@@ -341,7 +362,7 @@ export const ChangeResolverForm = ({
                   onDone: handleChangeResolverAfterDeployStart,
                 },
                 {
-                  id: CHANGE_RESOLVER_TX_ID,
+                  id: changeResolverTxId,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   // No pre-start estimate by design: the target is the resolver
@@ -353,15 +374,15 @@ export const ChangeResolverForm = ({
               ]
             : [
                 {
-                  id: CHANGE_RESOLVER_TX_ID,
+                  id: changeResolverTxId,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   intent: {
                     prepare: customResolverToUse
                       ? ({ walletClient, chainId }) =>
-                          prepareChangeResolverTransaction({
+                          prepareSetResolverTransaction({
                             name,
-                            registryAddress,
+                            target,
                             resolverAddress: customResolverToUse,
                             from: walletClient.account.address,
                             chainId,

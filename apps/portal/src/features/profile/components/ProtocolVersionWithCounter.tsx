@@ -9,6 +9,7 @@ import {
 } from '@/features/dashboard/components'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -23,20 +24,30 @@ interface ProtocolVersionWithCounterProps {
 }
 
 const RoleCount = ({ name }: { name: string }) => {
-  const { data, isLoading, error } = useQuery(
-    getNameRolesAccountsQueryOptions({
-      name,
-      registryAddress: v2EthRegistry,
-    }),
+  const {
+    data: resource = null,
+    isLoading: isReadingId,
+    error: readIdError,
+  } = useQuery(
+    getVersionedResourceQueryOptions({ name, registryAddress: v2EthRegistry }),
   )
 
-  if (error)
+  const { data, isLoading, error } = useQuery({
+    ...getNameRolesAccountsQueryOptions({
+      resource,
+      registryAddress: v2EthRegistry,
+    }),
+    enabled: Boolean(resource),
+  })
+
+  if (readIdError || error)
     return (
       <DataBlockCardError
         icon={AlertCircleIcon}
         message="Failed to load roles"
       />
     )
+  if (isReadingId) return <LoadingSpinner />
   if (isLoading) return <LoadingSpinner />
 
   return (

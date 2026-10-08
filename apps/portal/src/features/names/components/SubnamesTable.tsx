@@ -31,13 +31,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
-  /** Whether the connected user has ROLE_UNREGISTER for this subname. */
+  /**
+   * The subname's on-chain id, as the indexer reported it. Every write about
+   * this row is addressed with this, never with `name` (WEB-1458). Undefined
+   * when the indexer gave no usable id, which makes the row read-only.
+   */
+  readonly resourceId?: ResourceId
+  /** Whether the connected user has ROLE_UNREGISTER on this subname's resource. */
   readonly canDelete?: boolean
 }
 
@@ -50,7 +57,13 @@ const OwnerCell = ({ owner }: { owner: Address }) => (
 )
 
 interface SubnamesTableProps {
+  /** The rows loaded so far, which for a V2 name can be fewer than it has. */
   readonly subnames: readonly SubnameRow[]
+  /** Every subname the name has. Defaults to the rows given. */
+  readonly totalCount?: number
+  /** Loads the next page; absent once every subname is loaded. */
+  readonly onLoadMore?: () => void
+  readonly isLoadingMore?: boolean
   readonly name: string
   readonly canCreateSubname?: boolean
   /** Called when user confirms delete on a single subname. */
@@ -80,13 +93,17 @@ function buildColumns(
         aria-label="Select all"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
+    // Only rows the caller can actually delete get a checkbox: selection and
+    // permission must not diverge, or a bulk Clear would quietly act on fewer
+    // names than were ticked.
+    cell: ({ row }) =>
+      row.getCanSelect() ? (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ) : null,
   }
 
   return [
@@ -145,6 +162,9 @@ function buildColumns(
 
 export const SubnamesTable = ({
   subnames,
+  totalCount = subnames.length,
+  onLoadMore,
+  isLoadingMore,
   name,
   canCreateSubname,
   onDeleteSubname,
@@ -184,7 +204,9 @@ export const SubnamesTable = ({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (row) => row.name,
-    enableRowSelection: true,
+    // Selection follows the per-row permission, so "N selected" is always N
+    // names the Clear button can really delete.
+    enableRowSelection: (row) => Boolean(row.original.canDelete),
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
@@ -198,6 +220,9 @@ export const SubnamesTable = ({
   const rows = table.getRowModel().rows
   const selectedRows = table.getSelectedRowModel().rows
   const selectedCount = selectedRows.length
+  // `enableRowSelection` already keeps non-deletable rows out of the selection;
+  // the filter stays as a second line in case a row's permission changes while
+  // it is ticked.
   const deletableSelected = selectedRows
     .filter((r) => r.original.canDelete)
     .map((r) => r.original)
@@ -207,7 +232,7 @@ export const SubnamesTable = ({
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
           <PageHeading parent={{ type: 'name', name }} className="flex-1">
-            {subnames.length > 0 ? `Subnames (${subnames.length})` : 'Subnames'}
+            {totalCount > 0 ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
             <Button variant="default" asChild>
@@ -256,6 +281,12 @@ export const SubnamesTable = ({
             </InputGroupAddon>
           </InputGroup>
         )}
+        {onLoadMore && globalFilter && (
+          <p className="text-sm text-muted-foreground">
+            Searching the {subnames.length} subnames loaded so far. Load more to
+            search the rest.
+          </p>
+        )}
       </header>
 
       {subnames.length === 0 && (
@@ -287,7 +318,7 @@ export const SubnamesTable = ({
                     </span>
                   )}
                   <div className="flex flex-row gap-2 items-center">
-                    {onDeleteSubname && (
+                    {onDeleteSubname && row.getCanSelect() && (
                       <Checkbox
                         checked={row.getIsSelected()}
                         onCheckedChange={(value) => row.toggleSelected(!!value)}
@@ -453,6 +484,21 @@ export const SubnamesTable = ({
           )}
         </TableBody>
       </Table>
+
+      {onLoadMore && (
+        <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">
+          <span className="text-sm text-muted-foreground">
+            Showing {subnames.length} of {totalCount}
+          </span>
+          <Button
+            variant="outline"
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+          >
+            {isLoadingMore ? 'Loading…' : 'Load more subnames'}
+          </Button>
+        </div>
+      )}
     </>
   )
 }

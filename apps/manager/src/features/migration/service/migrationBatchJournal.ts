@@ -14,10 +14,14 @@ type JournalListener = () => void
 
 const journalListeners = new Set<JournalListener>()
 let journalRevision = 0
+let externalRevision = 0
+const scopeRevisions = new Map<string, number>()
 let removeStorageListener: (() => void) | null = null
 
-const emitJournalChange = (): void => {
+const emitJournalChange = (key?: string): void => {
   journalRevision += 1
+  if (key) scopeRevisions.set(key, journalRevision)
+  else externalRevision = journalRevision
   for (const listener of journalListeners) listener()
 }
 
@@ -26,7 +30,27 @@ const startStorageListener = (): void => {
 
   const handleStorage = (event: StorageEvent) => {
     if (event.key !== null && event.key !== STORAGE_KEY) return
-    emitJournalChange()
+    if (event.key === null) {
+      emitJournalChange()
+      return
+    }
+    try {
+      const entries = (value: string | null): Map<string, string> => {
+        if (!value) return new Map()
+        const journal = JSON.parse(value) as StoredJournal
+        return new Map(
+          journal.entries.map((entry) => [entry.scope, JSON.stringify(entry)]),
+        )
+      }
+      const previous = entries(event.oldValue)
+      const current = entries(event.newValue)
+      for (const key of new Set([...previous.keys(), ...current.keys()])) {
+        if (previous.get(key) !== current.get(key)) emitJournalChange(key)
+      }
+    } catch {
+      // Corrupt cross-tab storage must invalidate every scope so checks fail closed.
+      emitJournalChange()
+    }
   }
   window.addEventListener('storage', handleStorage)
   removeStorageListener = () => {
@@ -47,7 +71,12 @@ export const subscribeMigrationBatchJournal = (
   }
 }
 
-export const getMigrationBatchJournalRevision = (): number => journalRevision
+export const getMigrationBatchJournalRevision = (
+  scope?: MigrationBatchJournalScope,
+): number =>
+  scope
+    ? Math.max(externalRevision, scopeRevisions.get(scopeKey(scope)) ?? 0)
+    : journalRevision
 
 export const getServerMigrationBatchJournalRevision = (): number => 0
 
@@ -88,9 +117,15 @@ export type MigrationRecoverySnapshot = {
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly ownedPermRes: Address | null
   readonly plannedApprovals: readonly MigrationRecoveryApproval[]
+  /**
+   * Names the owner opted in to restore a v1 manager for. Carried durably so a
+   * resumed run grants exactly what the first attempt planned — and, when the
+   * field is absent (a snapshot written before this existed), nothing.
+   */
+  readonly managerRestorationNames: readonly string[]
 }
 
-export type MigrationRecoveryApproval = {
+type MigrationRecoveryApproval = {
   readonly id: MigrationApprovalId
   readonly tokenId?: bigint
 }
@@ -132,7 +167,7 @@ type StoredJournal = {
   readonly entries: readonly StoredEntry[]
 }
 
-export class MigrationBatchJournalCorruptError extends Error {
+class MigrationBatchJournalCorruptError extends Error {
   constructor(cause?: unknown) {
     super(
       'The submitted migration transaction journal is unreadable. Refusing to continue without retry state.',
@@ -142,7 +177,7 @@ export class MigrationBatchJournalCorruptError extends Error {
   }
 }
 
-export class MigrationBatchJournalUnavailableError extends Error {
+class MigrationBatchJournalUnavailableError extends Error {
   constructor() {
     super(
       'Submitted migration transaction storage is unavailable. Refusing to continue without retry protection.',
@@ -283,6 +318,15 @@ const parseStoredProfile = (value: unknown): StoredRecoveryProfile | null => {
   return value as unknown as StoredRecoveryProfile
 }
 
+/** Absent on snapshots written before the opt-in existed, which restore none. */
+const parseManagerRestorationNames = (value: unknown): string[] | null => {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || !value.every((n) => typeof n === 'string')) {
+    return null
+  }
+  return value
+}
+
 const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   if (
     !isRecord(value) ||
@@ -297,6 +341,10 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   ) {
     return null
   }
+  const managerRestorationNames = parseManagerRestorationNames(
+    value.managerRestorationNames,
+  )
+  if (!managerRestorationNames) return null
   const registryDomains = value.registryDomains.map(parseV1Domain)
   const profiles = value.profiles.map(parseStoredProfile)
   if (registryDomains.some((domain) => domain === null)) return null
@@ -361,6 +409,7 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
     completedOperations,
     profiles: profiles as StoredRecoveryProfile[],
     ownedPermRes: value.ownedPermRes as Address | null,
+    managerRestorationNames,
     plannedApprovals:
       plannedApprovals as StoredRecoverySnapshot['plannedApprovals'],
   }
@@ -509,15 +558,16 @@ const readJournal = (storage: StorageLike | null): StoredJournal => {
 const writeJournal = (
   storage: StorageLike | null,
   journal: StoredJournal,
+  changedScope: string,
 ): void => {
   if (!storage) throw new MigrationBatchJournalUnavailableError()
   if (journal.entries.length === 0) {
     storage.removeItem(STORAGE_KEY)
-    emitJournalChange()
+    emitJournalChange(changedScope)
     return
   }
   storage.setItem(STORAGE_KEY, JSON.stringify(journal))
-  emitJournalChange()
+  emitJournalChange(changedScope)
 }
 
 export const loadSubmittedAtomicMigrationBatches = (
@@ -615,18 +665,22 @@ export const persistMigrationRecoverySnapshot = (
   const journal = readJournal(storage)
   const key = scopeKey(scope)
   const current = journal.entries.find((entry) => entry.scope === key)
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: [
-      ...journal.entries.filter((entry) => entry.scope !== key),
-      {
-        scope: key,
-        intents: current?.intents ?? [],
-        submissions: current?.submissions ?? [],
-        recovery: storeRecovery(recovery),
-      },
-    ],
-  })
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        {
+          scope: key,
+          intents: current?.intents ?? [],
+          submissions: current?.submissions ?? [],
+          recovery: storeRecovery(recovery),
+        },
+      ],
+    },
+    key,
+  )
 }
 
 export const removeMigrationRecoverySnapshot = (
@@ -638,15 +692,19 @@ export const removeMigrationRecoverySnapshot = (
   const current = journal.entries.find((entry) => entry.scope === key)
   const intents = current?.intents ?? []
   const submissions = current?.submissions ?? []
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: [
-      ...journal.entries.filter((entry) => entry.scope !== key),
-      ...(intents.length > 0 || submissions.length > 0
-        ? [{ scope: key, intents, submissions }]
-        : []),
-    ],
-  })
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        ...(intents.length > 0 || submissions.length > 0
+          ? [{ scope: key, intents, submissions }]
+          : []),
+      ],
+    },
+    key,
+  )
 }
 
 export const persistPendingAtomicMigrationIntent = (
@@ -662,18 +720,22 @@ export const persistPendingAtomicMigrationIntent = (
       [...(current?.intents ?? []), intent].map((entry) => [entry.id, entry]),
     ).values(),
   ]
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: [
-      ...journal.entries.filter((entry) => entry.scope !== key),
-      {
-        scope: key,
-        intents,
-        submissions: current?.submissions ?? [],
-        ...(current?.recovery ? { recovery: current.recovery } : {}),
-      },
-    ],
-  })
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        {
+          scope: key,
+          intents,
+          submissions: current?.submissions ?? [],
+          ...(current?.recovery ? { recovery: current.recovery } : {}),
+        },
+      ],
+    },
+    key,
+  )
 }
 
 export const removePendingAtomicMigrationIntent = (
@@ -688,15 +750,19 @@ export const removePendingAtomicMigrationIntent = (
     current?.intents.filter((intent) => intent.id !== intentId) ?? []
   const submissions = current?.submissions ?? []
   const recovery = current?.recovery
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: [
-      ...journal.entries.filter((entry) => entry.scope !== key),
-      ...(intents.length > 0 || submissions.length > 0 || recovery
-        ? [{ scope: key, intents, submissions, recovery }]
-        : []),
-    ],
-  })
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        ...(intents.length > 0 || submissions.length > 0 || recovery
+          ? [{ scope: key, intents, submissions, recovery }]
+          : []),
+      ],
+    },
+    key,
+  )
 }
 
 export const persistSubmittedAtomicMigrationBatch = (
@@ -716,18 +782,22 @@ export const persistSubmittedAtomicMigrationBatch = (
       ]),
     ).values(),
   ]
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: [
-      ...journal.entries.filter((entry) => entry.scope !== key),
-      {
-        scope: key,
-        intents: current?.intents ?? [],
-        submissions,
-        ...(current?.recovery ? { recovery: current.recovery } : {}),
-      },
-    ],
-  })
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        {
+          scope: key,
+          intents: current?.intents ?? [],
+          submissions,
+          ...(current?.recovery ? { recovery: current.recovery } : {}),
+        },
+      ],
+    },
+    key,
+  )
 }
 
 export const removeSubmittedAtomicMigrationBatch = (
@@ -744,13 +814,36 @@ export const removeSubmittedAtomicMigrationBatch = (
     ) ?? []
   const intents = current?.intents ?? []
   const recovery = current?.recovery
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: [
-      ...journal.entries.filter((entry) => entry.scope !== key),
-      ...(submissions.length > 0 || intents.length > 0 || recovery
-        ? [{ scope: key, intents, submissions, recovery }]
-        : []),
-    ],
-  })
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        ...(submissions.length > 0 || intents.length > 0 || recovery
+          ? [{ scope: key, intents, submissions, recovery }]
+          : []),
+      ],
+    },
+    key,
+  )
+}
+
+/** Read and validate the journal once at a completion/reconciliation boundary. */
+export const loadMigrationBatchJournal = (
+  scope: MigrationBatchJournalScope,
+  storage: StorageLike | null = getBrowserStorage(),
+): {
+  readonly pending: readonly PendingAtomicMigrationIntent[]
+  readonly submitted: readonly SubmittedAtomicMigrationBatch[]
+  readonly recovery: MigrationRecoverySnapshot | null
+} => {
+  const entry = readJournal(storage).entries.find(
+    (entry) => entry.scope === scopeKey(scope),
+  )
+  return {
+    pending: entry?.intents ?? [],
+    submitted: entry?.submissions ?? [],
+    recovery: entry?.recovery ? hydrateRecovery(entry.recovery) : null,
+  }
 }

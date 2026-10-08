@@ -1,11 +1,27 @@
+import {
+  getCoinTypeForReverseRegistrarChainId,
+  L2_REVERSE_REGISTRAR_CHAIN_IDS,
+} from '@ens-apps/l2-primary/v1'
 import { coinTypeToNameMap } from '@ensdomains/address-encoder'
 import { coinIcons } from '@/assets/coins/'
+import { envConfig } from '@/config'
 import type { AddressRecordDef } from './types'
+
+// `address-encoder` only knows the canonical (mainnet) coin types, but this
+// deployment keys L2 records on the TESTNET chain id — the coin type the
+// Sepolia `L2ReverseRegistrar` and `<hex(coinType)>.reverse` namespaces use.
+const deploymentCoinTypeByCanonical = new Map(
+  L2_REVERSE_REGISTRAR_CHAIN_IDS.map((chainId) => [
+    getCoinTypeForReverseRegistrarChainId(chainId, 'mainnet'),
+    getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network),
+  ]),
+)
 
 const rawAddressRecords: AddressRecordDef[] = Object.entries(
   coinTypeToNameMap,
 ).map(([coinType, [notation, name]]) => ({
-  coinType: Number(coinType),
+  coinType:
+    deploymentCoinTypeByCanonical.get(Number(coinType)) ?? Number(coinType),
   name,
   notation,
   icon: coinIcons[notation],

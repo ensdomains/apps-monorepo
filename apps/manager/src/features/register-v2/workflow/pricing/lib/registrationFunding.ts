@@ -33,6 +33,13 @@ export interface RegistrationFunding {
    */
   readonly walletDebit: number
   /**
+   * {@link walletDebit} in raw 6dp units — the exact figure this screen put in
+   * front of the user, handed to the registration machine as the bound the
+   * funding permit must not exceed. Kept raw so the consent check compares the
+   * number that was displayed rather than one round-tripped through a float.
+   */
+  readonly walletDebitRaw: bigint
+  /**
    * What the HCA's standing balance covers: `total - walletDebit`, so
    * `walletDebit + hcaCredit === total` always holds. Zero in the common case
    * of an empty HCA. Exists so user-facing copy can reconcile the debit with
@@ -119,6 +126,7 @@ export function computeRegistrationFunding(params: {
     networkFee: decimalBigintToNumber(feeRaw, decimals),
     total: decimalBigintToNumber(budget.total, decimals),
     walletDebit: decimalBigintToNumber(walletDebitRaw, decimals),
+    walletDebitRaw,
     hcaCredit: decimalBigintToNumber(hcaCreditRaw, decimals),
     walletBalance:
       walletBalanceRaw === null
