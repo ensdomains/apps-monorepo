@@ -17,10 +17,10 @@ vi.mock('@/lib/indexer', () => ({
 const { getRoleHolders } = await import('./roleHolders')
 const { INDEXED_ROLES_TIMEOUT_MS } = await import('./indexedRoles')
 
-const row = (account: string, roleBitmap = '0x5', blockNumber = 1) => ({
+const row = (account: string, roleBitmap = '0x5', id = '1') => ({
+  id,
   account,
   roleBitmap,
-  blockNumber,
 })
 
 const indexedPage = (rows: readonly unknown[], hasNextPage = false) => ({
@@ -61,9 +61,9 @@ describe('getRoleHolders', () => {
     ])
   })
 
-  it('lists the oldest assignment first, whatever order the indexer sends', async () => {
+  it('lists the first-granted account first, whatever order the indexer sends', async () => {
     mockGraphqlRequest.mockResolvedValue(
-      indexedPage([row(OTHER, '0x1', 20), row(ACCOUNT, '0x1', 10)]),
+      indexedPage([row(OTHER, '0x1', '20'), row(ACCOUNT, '0x1', '3')]),
     )
 
     const holders = (await run())._unsafeUnwrap()
@@ -98,7 +98,7 @@ describe('getRoleHolders', () => {
 
   it('fails when a row will not decode, rather than list a wrong holder', async () => {
     mockGraphqlRequest.mockResolvedValue(
-      indexedPage([{ account: ACCOUNT, roleBitmap: 5, blockNumber: 1 }]),
+      indexedPage([{ id: '1', account: ACCOUNT, roleBitmap: 5 }]),
     )
 
     expect((await run()).isErr()).toBe(true)

@@ -23,11 +23,11 @@ const toRoleHolder = (raw: unknown) => {
   return {
     account: getAddress(asHex(row.account, 'account')),
     roleBitmap: BigInt(asHex(row.roleBitmap, 'roleBitmap')),
-    blockNumber: asBigInt(row.blockNumber, 'blockNumber'),
+    id: asBigInt(row.id, 'id'),
   }
 }
 
-/** Each account's current role bitmap on one resource of one registry, oldest assignment first. */
+/** Each account's current role bitmap on one resource of one registry, first granted first. */
 export const getRoleHolders = ResultFn(async function* ({
   registryAddress,
   resource,
@@ -54,9 +54,9 @@ export const getRoleHolders = ResultFn(async function* ({
             }
             edges {
               node {
+                id
                 account
                 roleBitmap
-                blockNumber
               }
             }
           }
@@ -94,8 +94,10 @@ export const getRoleHolders = ResultFn(async function* ({
     () =>
       edges
         .map(({ node }) => toRoleHolder(node))
-        // The indexer returns assignments in no stated order.
-        .toSorted((a, b) => Number(a.blockNumber - b.blockNumber)),
+        // Ids count up as assignments are first created, so this is first-grant
+        // order. `blockNumber` is the latest change and would move an edited
+        // holder to the end.
+        .toSorted((a, b) => Number(a.id - b.id)),
     (cause) => new GetRoleHoldersError({ reason: 'failed', cause }),
   )
 

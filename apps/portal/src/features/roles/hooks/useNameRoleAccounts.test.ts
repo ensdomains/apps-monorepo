@@ -22,15 +22,15 @@ const { getNameRolesAccounts } = await import('./useNameRoleAccounts')
 const holder = ({
   account = OWNER,
   roleBitmap = registryRoles.ROLE_SET_RESOLVER,
-  block = 1,
+  id = '1',
 }: {
   readonly account?: Address
   readonly roleBitmap?: bigint
-  readonly block?: number
+  readonly id?: string
 }) => ({
+  id,
   account,
   roleBitmap: `0x${roleBitmap.toString(16)}`,
-  blockNumber: block,
 })
 
 const assignments = (rows: readonly unknown[]) => ({
@@ -77,7 +77,7 @@ describe('getNameRolesAccounts', () => {
     mockGraphqlRequest.mockResolvedValue(
       assignments([
         holder({ roleBitmap: registryRoles.ROLE_UNREGISTER }),
-        holder({ account: OTHER, block: 2 }),
+        holder({ account: OTHER, id: '2' }),
       ]),
     )
 
