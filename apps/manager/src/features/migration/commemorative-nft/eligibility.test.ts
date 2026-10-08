@@ -23,7 +23,7 @@ const traits = {
   Seed: 742_941_409,
 } as const
 const metadataUrl = `https://assets.example/token/${tokenId}.json`
-const publishedRendererUrl = `https://nft.ens.dev/?tokenId=${tokenId}&transparent=1`
+const publishedRendererUrl = `https://v2.nft.ens.domains/?tokenId=${tokenId}&transparent=1`
 const imageUrl = `https://assets.example/token/${tokenId}/image.webp`
 const publishedTraits = {
   Era: 'Surge',
@@ -300,12 +300,12 @@ describe('commemorative NFT eligibility', () => {
   })
 
   it.each([
-    'https://nft.ens.dev/?tokenId=1',
-    'https://nft.ens.dev/?tokenId=',
-    `https://nft.ens.dev/?tokenId=0${tokenId}`,
-    `https://nft.ens.dev/?tokenId=${tokenId}&tokenId=${tokenId}`,
-    `https://nft.ens.dev/?tokenId=${tokenId}&tokenId=1`,
-    `https://nft.ens.dev/?tokenURI=${encodeURIComponent(metadataUrl)}`,
+    'https://v2.nft.ens.domains/?tokenId=1',
+    'https://v2.nft.ens.domains/?tokenId=',
+    `https://v2.nft.ens.domains/?tokenId=0${tokenId}`,
+    `https://v2.nft.ens.domains/?tokenId=${tokenId}&tokenId=${tokenId}`,
+    `https://v2.nft.ens.domains/?tokenId=${tokenId}&tokenId=1`,
+    `https://v2.nft.ens.domains/?tokenURI=${encodeURIComponent(metadataUrl)}`,
     `${publishedRendererUrl}&tokenURI=`,
     `${publishedRendererUrl}&tokenURI=${encodeURIComponent(metadataUrl)}`,
   ])('ignores share URLs with invalid token parameters: %s', (url) => {

@@ -21,7 +21,8 @@ import { safeParseSiweMessage, safeVerifySiweMessage } from './helpers'
 import { createJWT, createNonce, hashRedemptionToken } from './index.js'
 
 const ADDRESS = '0x0000000000000000000000000000000000000001' as const
-const MESSAGE = 'app.ens.dev wants you to sign in with your Ethereum account.'
+const MESSAGE =
+  'sepolia.app.ens.domains wants you to sign in with your Ethereum account.'
 const SIGNATURE = `0x${'11'.repeat(65)}` as `0x${string}`
 
 type AuthAttempt = {
@@ -69,7 +70,10 @@ describe('SIWE authentication attempt binding', () => {
     vi.useRealTimers()
 
     vi.mocked(safeParseSiweMessage).mockReturnValue(
-      ok({ domain: 'app.ens.dev', uri: 'https://app.ens.dev' } as never),
+      ok({
+        domain: 'sepolia.app.ens.domains',
+        uri: 'https://sepolia.app.ens.domains',
+      } as never),
     )
     vi.mocked(safeVerifySiweMessage).mockReturnValue(okAsync(true))
     vi.mocked(addUserIfNotExists).mockReturnValue(

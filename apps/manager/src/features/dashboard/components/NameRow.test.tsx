@@ -33,7 +33,7 @@ describe('NameRow', () => {
 
     expect(link).toHaveAttribute(
       'href',
-      'https://explorer.ens.dev/fgeorgescu.eth',
+      'https://sepolia.explorer.ens.domains/fgeorgescu.eth',
     )
   })
 

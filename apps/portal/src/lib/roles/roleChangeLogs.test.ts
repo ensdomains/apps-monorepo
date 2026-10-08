@@ -29,22 +29,28 @@ vi.mock('@/lib/indexer', () => ({
 
 const {
   getRoleChangeLogs,
+  INDEXED_ROLE_EVENTS_MAX_PAGES,
+  INDEXED_ROLE_EVENTS_PAGE_SIZE,
   INDEXED_ROLE_EVENTS_TIMEOUT_MS,
   ROOT_RESOURCE,
   toRoleHistoryEntries,
 } = await import('./roleChangeLogs')
 
 const ROOT_HEX = `0x${'0'.repeat(64)}`
+const FIRST_BLOCK = Number(ROLES_FROM_BLOCK)
 
 const row = ({
   block,
+  logIndex = 0,
   account = ACCOUNT,
   newRoleBitmap = '0x1',
 }: {
   readonly block: number
+  readonly logIndex?: number
   readonly account?: string
   readonly newRoleBitmap?: string
 }) => ({
+  id: `0x${block.toString(16).padStart(64, '0')}-${logIndex}`,
   blockNumber: block,
   timestamp: block * 12,
   transactionHash: `0x${block.toString(16).padStart(64, '0')}`,
@@ -167,16 +173,73 @@ describe('getRoleChangeLogs via the indexer', () => {
     expect(mockGetLogs).toHaveBeenCalledTimes(1)
   })
 
-  // A full page may have been cut short; an incomplete fold would drop grants.
-  it('falls back to the node when the indexer returns a full page', async () => {
+  const fullPage = (from: number) =>
+    Array.from({ length: INDEXED_ROLE_EVENTS_PAGE_SIZE }, (_, i) =>
+      row({ block: from + i }),
+    )
+
+  it('pages on from the last block read', async () => {
+    const first = fullPage(FIRST_BLOCK)
+    const last = first[first.length - 1]
+    mockGraphqlRequest
+      .mockResolvedValueOnce({ eacRolesChangeds: first })
+      .mockResolvedValueOnce({
+        eacRolesChangeds: [last, row({ block: FIRST_BLOCK + 5000 })],
+      })
+
+    const logs = (
+      await getRoleChangeLogs({ registryAddress: REGISTRY, resource: 0n })
+    )._unsafeUnwrap()
+
+    expect(logs).toHaveLength(INDEXED_ROLE_EVENTS_PAGE_SIZE + 1)
+    expect(logs.at(-1)?.blockNumber).toBe(BigInt(FIRST_BLOCK + 5000))
+    expect(mockGraphqlRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ fromBlock: last?.blockNumber }),
+    )
+    expect(mockGetLogs).not.toHaveBeenCalled()
+  })
+
+  it('orders changes within a block by log index', async () => {
     mockGraphqlRequest.mockResolvedValue({
-      eacRolesChangeds: Array.from({ length: 1000 }, (_, i) =>
-        row({ block: i + 1 }),
+      eacRolesChangeds: [
+        row({ block: 10, logIndex: 7, newRoleBitmap: '0x0' }),
+        row({ block: 10, logIndex: 3, newRoleBitmap: '0x1' }),
+      ],
+    })
+
+    const logs = (
+      await getRoleChangeLogs({ registryAddress: REGISTRY, resource: 0n })
+    )._unsafeUnwrap()
+
+    expect(logs.map((log) => log.args.newRoleBitmap)).toEqual([1n, 0n])
+  })
+
+  it('falls back to the node when one block fills a page', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      eacRolesChangeds: Array.from(
+        { length: INDEXED_ROLE_EVENTS_PAGE_SIZE },
+        (_, i) => row({ block: FIRST_BLOCK, logIndex: i }),
       ),
     })
 
     await getRoleChangeLogs({ registryAddress: REGISTRY, resource: 0n })
 
+    expect(mockGetLogs).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the node when the history outruns the page budget', async () => {
+    mockGraphqlRequest.mockImplementation(
+      (_query: unknown, { fromBlock }: { fromBlock: number }) =>
+        Promise.resolve({ eacRolesChangeds: fullPage(fromBlock) }),
+    )
+
+    await getRoleChangeLogs({ registryAddress: REGISTRY, resource: 0n })
+
+    expect(mockGraphqlRequest).toHaveBeenCalledTimes(
+      INDEXED_ROLE_EVENTS_MAX_PAGES,
+    )
     expect(mockGetLogs).toHaveBeenCalledTimes(1)
   })
 

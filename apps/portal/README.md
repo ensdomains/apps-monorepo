@@ -2,7 +2,7 @@
 
 The ENS Explorer: browse and manage any ENS name, on ENSv1 or ENSv2, along
 with the addresses, resolvers, registries and TLDs around it. Deployed by ENS
-Labs at https://explorer.ens.dev. The workspace package is still called
+Labs at https://sepolia.explorer.ens.domains. The workspace package is still called
 `portal`, so filters and root scripts use that name.
 
 Part of the [ENS apps monorepo](../../README.md); the root README covers

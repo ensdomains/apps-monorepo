@@ -5,9 +5,9 @@ behind them.
 
 | Deployable | What it is | Deployed at |
 | --- | --- | --- |
-| [`apps/manager`](apps/manager) | The ENS app for ENSv2: register, renew, migrate from ENSv1, manage names and profiles. TanStack Start on Cloudflare Workers. | https://app.ens.dev |
-| [`apps/portal`](apps/portal) | The ENS Explorer for ENSv1 and ENSv2 names, addresses, resolvers and registries. Vite SPA behind a Cloudflare Worker. | https://explorer.ens.dev |
-| [`workers/api-worker`](workers/api-worker) | Backend for the manager: auth, favorites, notifications, migration faucet. Hono on Cloudflare Workers with Postgres and Queues. | https://app-api.ens.dev |
+| [`apps/manager`](apps/manager) | The ENS app for ENSv2: register, renew, migrate from ENSv1, manage names and profiles. TanStack Start on Cloudflare Workers. | https://sepolia.app.ens.domains |
+| [`apps/portal`](apps/portal) | The ENS Explorer for ENSv1 and ENSv2 names, addresses, resolvers and registries. Vite SPA behind a Cloudflare Worker. | https://sepolia.explorer.ens.domains |
+| [`workers/api-worker`](workers/api-worker) | Backend for the manager: auth, favorites, notifications, migration faucet. Hono on Cloudflare Workers with Postgres and Queues. | https://sepolia.app-api.ens.domains |
 
 Shared code lives in `packages/`, end-to-end tests in `e2e/`. The official app
 origins are listed in [TRADEMARK.md](TRADEMARK.md). ENSv2 is deployed on
