@@ -65,8 +65,8 @@ export type ResumeStaleReason =
   /** A finished run whose record outlived its own cleanup. */
   | 'already-finished'
   /**
-   * A run that failed with no commitment on-chain to continue from: it never
-   * landed, or a register already used it. It starts over.
+   * A run that failed before it held a commitment, so there is no secret to
+   * continue from. It starts over.
    */
   | 'failed-before-commit'
 
@@ -279,7 +279,7 @@ async function commitmentStaleReason(params: {
   readonly isFailedRun: boolean
 }): Promise<ResumeStaleReason | null> {
   // A live run that has not committed yet simply resumes into its commit. A
-  // failed one has nothing paid to continue from.
+  // failed one has no secret to continue from.
   if (!params.commitment) {
     return params.isFailedRun ? 'failed-before-commit' : null
   }
@@ -292,10 +292,12 @@ async function commitmentStaleReason(params: {
       registrar: registrarForRecord(params.chainId),
     })
 
-    // Not recorded. A live run's commit may still be landing, which
-    // `validatingCommitment` waits for. A failed run's never landed (its own
-    // retry would have committed afresh anyway), or a register used it up.
-    if (!age) return params.isFailedRun ? 'failed-before-commit' : null
+    // Not recorded, which proves nothing either way. A commit can land after
+    // its run has failed: `validatingCommitment` gives up after ~12s, and a
+    // relayed commit can fill after a reported failure. Discarding the record
+    // here would lose the only copy of the secret for a commitment the user
+    // may yet pay for. Kept, it is validated again before anything reveals.
+    if (!age) return null
 
     // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
     // and the reveal necessarily runs later than this assessment — a

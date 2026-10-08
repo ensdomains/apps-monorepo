@@ -83,7 +83,7 @@ const resumableAssessment = (): ResumeAssessment =>
     confirmedData: { label: 'leon' },
     stored: {
       label: 'leon',
-      record: { context: { ownerAddress: OWNER } },
+      record: { updatedAt: 1, context: { ownerAddress: OWNER } },
       postRegistrationSetup: undefined,
     },
   }) as unknown as ResumeAssessment
@@ -105,8 +105,9 @@ const applyToUi = (event: { type: string }) => {
 }
 const getSnapshot = () => ({
   context: {
-    restoredFailure: ui.restoredFailure,
-    confirmedData: { label: 'leon' },
+    restoredRun: ui.restoredFailure
+      ? { label: 'leon', updatedAt: 1 }
+      : undefined,
   },
 })
 const uiActor = { send, getSnapshot } as unknown as RegistrationV2UiActor
@@ -451,6 +452,8 @@ describe('useRegistrationResume', () => {
       expect(send).toHaveBeenCalledWith({
         type: 'registration.failure.restore',
         confirmedData: { label: 'leon' },
+        // The stored write it came from, so Back to Quote discards only that.
+        run: { label: 'leon', updatedAt: 1 },
       })
       // Nothing runs until the user asks: no wallet prompt, no "Resuming"
       // notice, and the commitment stays stored.
@@ -479,7 +482,7 @@ describe('useRegistrationResume', () => {
 
     it('checks the chain again before continuing', async () => {
       // The screen may have sat open long enough for the commitment to
-      // expire, or for the failed register to land after all and use it up.
+      // expire.
       const { result } = render()
       await waitFor(() => expect(result.current.status).toBe('failed'))
       assessResumableRegistration.mockResolvedValue({

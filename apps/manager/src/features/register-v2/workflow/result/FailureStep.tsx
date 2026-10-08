@@ -23,7 +23,7 @@ export const FailureStep = () => {
   // A run that failed before this page loaded. Its machine never resumed, so
   // Try Again resumes it rather than retrying it.
   const isRestoredFailure = RegisterV2Context.useSelector(
-    (state) => state.context.restoredFailure,
+    (state) => state.context.restoredRun !== undefined,
   )
 
   const onRetry = () => {

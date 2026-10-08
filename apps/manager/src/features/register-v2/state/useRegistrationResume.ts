@@ -233,8 +233,8 @@ async function enableSessionAndDispatch(params: {
  * leave the failure screen as it is, with Try Again still on it.
  *
  * Re-assessed rather than acting on the verdict the page loaded with: while
- * the failure screen sat open, the commitment may have expired, or the failed
- * register may have landed after all and used it up.
+ * the failure screen sat open, the commitment may have expired, or another
+ * tab may have finished, discarded or replaced the stored run.
  */
 async function continueFailedRun(params: {
   label: string
@@ -247,10 +247,8 @@ async function continueFailedRun(params: {
   // The assessment and the session prompt both leave time to move on: Back to
   // Quote, another name, another wallet. Only the screen Try Again was
   // pressed on may be continued.
-  const isCancelled = () => {
-    const { context } = uiActor.getSnapshot()
-    return !context.restoredFailure || context.confirmedData?.label !== label
-  }
+  const isCancelled = () =>
+    uiActor.getSnapshot().context.restoredRun?.label !== label
 
   const verdict = await params.assess()
   if (isCancelled()) return null
@@ -258,9 +256,9 @@ async function continueFailedRun(params: {
   const decision = decideFromVerdict(verdict, label, account.ownerAddress)
 
   if (decision.kind === 'state') {
-    // Nothing left to continue from; `decideFromVerdict` has discarded an
-    // expired or used-up record. A record another wallet owns is not this
-    // screen's to touch, so that one stays put.
+    // Nothing left to continue from; `decideFromVerdict` has discarded a
+    // stale record. A record another wallet owns is not this screen's to
+    // touch, so that one stays put.
     const { status } = decision.state
     if (status !== 'discarded' && status !== 'idle') return null
     uiActor.send({ type: 'cancel' })
@@ -278,7 +276,7 @@ async function continueFailedRun(params: {
   // The machine can still refuse the run (the wallet busy in another tab, an
   // account not ready), which leaves the restored failure on screen. Try
   // Again stays routed here then, so the next press re-checks.
-  const isRefused = uiActor.getSnapshot().context.restoredFailure
+  const isRefused = uiActor.getSnapshot().context.restoredRun !== undefined
   return next?.status === 'resumed' && !isRefused ? next : null
 }
 
@@ -403,13 +401,15 @@ export function useRegistrationResume(params: {
 
       // Shown, not resumed: re-entering a failed run on load would replay the
       // failure, or open a wallet prompt nobody asked for.
+      const { stored, confirmedData } = decision.verdict
       uiActor.send({
         type: 'registration.failure.restore',
-        confirmedData: decision.verdict.confirmedData,
+        confirmedData,
+        run: { label: stored.label, updatedAt: stored.record.updatedAt },
       })
       decidedForLabel.current = label
       // Dropped unless the page was still on pricing, so nothing is shown.
-      const isShown = uiActor.getSnapshot().context.restoredFailure
+      const isShown = uiActor.getSnapshot().context.restoredRun !== undefined
       setSettled({
         label,
         state: isShown ? { status: 'failed', retry: retryFailedRun } : IDLE,

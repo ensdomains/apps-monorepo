@@ -408,16 +408,16 @@ describe('assessResumableRegistration', () => {
       expect(publicClient.readContract).not.toHaveBeenCalled()
     })
 
-    it('starts over when its commitment never reached the chain', async () => {
+    it('keeps a commitment that has not landed yet', async () => {
+      // A commit can land after its run failed: the machine stops waiting
+      // after a few seconds, and a relayed commit can fill late. Discarding
+      // here would lose the only copy of its secret.
       const result = await assess({
         stored: failedRun(),
         publicClient: publicClientWith(0n),
       })
 
-      expect(result).toEqual({
-        status: 'stale',
-        reason: 'failed-before-commit',
-      })
+      expect(result.status).toBe('failed')
     })
 
     it('starts over once its commitment has expired', async () => {

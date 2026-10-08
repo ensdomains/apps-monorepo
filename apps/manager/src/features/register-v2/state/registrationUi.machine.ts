@@ -43,7 +43,10 @@ import {
   getBlockingRegistration,
   releaseRegistrationLock,
 } from '../service/registrationLock'
-import { clearStoredRegistrationFor } from '../service/registrationPersistence'
+import {
+  clearStoredRegistrationIfUnchanged,
+  type StoredRegistrationKey,
+} from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
 import {
@@ -114,15 +117,16 @@ type Context = {
    */
   isWalletBusy: boolean
   /**
-   * The failure screen is showing a run that failed before this page loaded,
-   * restored from storage. Its child machine never resumed, so `retry` and
-   * `cancel` have nothing to forward to: Try Again resumes it through
-   * `useRegistrationResume`, which owns the session gate, and Back to Quote
-   * discards its record. Cleared only once the child takes the run, so a
-   * retry the wallet lock or an unready account refuses lands back here with
-   * the screen still restored.
+   * Set while the failure screen shows a run that failed before this page
+   * loaded: the stored write it was restored from. Its child machine never
+   * resumed, so `retry` and `cancel` have nothing to forward to: Try Again
+   * resumes it through `useRegistrationResume`, which owns the session gate,
+   * and Back to Quote discards that write, if it is still the stored one.
+   * Cleared only once the child takes the run, so a retry the wallet lock or
+   * an unready account refuses lands back here with the screen still
+   * restored.
    */
-  restoredFailure: boolean
+  restoredRun?: StoredRegistrationKey
   /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
   pendingStart?: Extract<
     Events,
@@ -202,6 +206,8 @@ type Events =
        */
       type: 'registration.failure.restore'
       confirmedData: RegistrationConfirmedData
+      /** The stored write the run was restored from. */
+      run: StoredRegistrationKey
     }
   | {
       /**
@@ -377,7 +383,7 @@ const machineSetup = setup({
     ),
   },
   guards: {
-    isRestoredFailure: ({ context }) => context.restoredFailure,
+    isRestoredFailure: ({ context }) => context.restoredRun !== undefined,
     hasPendingStart: ({ context }) => context.pendingStart !== undefined,
     isWalletRegisteringAnotherName: ({ context }) =>
       blockingRegistrationFor(context) !== null,
@@ -490,21 +496,18 @@ const machineSetup = setup({
     // child cancels to idle. A restored failure has no live child, so its
     // record has to be discarded here.
     discardStoredRegistration: ({ context }) => {
-      const confirmed = context.confirmedData
-      if (!confirmed) return
-
-      clearStoredRegistrationFor(confirmed.label)
+      if (context.restoredRun) {
+        clearStoredRegistrationIfUnchanged(context.restoredRun)
+      }
     },
-    restoreFailure: assign({
-      confirmedData: ({ event, context }) =>
-        event.type === 'registration.failure.restore'
-          ? event.confirmedData
-          : context.confirmedData,
-      restoredFailure: () => true,
-    }),
+    restoreFailure: assign(({ event, context }) =>
+      event.type === 'registration.failure.restore'
+        ? { confirmedData: event.confirmedData, restoredRun: event.run }
+        : context,
+    ),
     clearRegistrationData: assign({
       pendingStart: () => undefined,
-      restoredFailure: () => false,
+      restoredRun: () => undefined,
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
       postRegistrationData: () => undefined,
@@ -776,7 +779,7 @@ const startRegistrationAction = machineSetup.createAction(
 
     // The child takes the run from here, so a restored failure is no longer
     // what the failure screen would show.
-    enqueue.assign({ pendingStart: undefined, restoredFailure: false })
+    enqueue.assign({ pendingStart: undefined, restoredRun: undefined })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -898,7 +901,7 @@ const resumeRegistrationAction = machineSetup.createAction(
 
     // The child takes the run from here, so a restored failure is no longer
     // what the failure screen would show.
-    enqueue.assign({ pendingStart: undefined, restoredFailure: false })
+    enqueue.assign({ pendingStart: undefined, restoredRun: undefined })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -966,7 +969,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     lastErrorMessage: undefined,
     nameUnavailable: false,
     isWalletBusy: false,
-    restoredFailure: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,

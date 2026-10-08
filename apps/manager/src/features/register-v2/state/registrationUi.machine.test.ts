@@ -149,7 +149,7 @@ vi.mock('@/utils/router/root-context', () => ({
 }))
 
 vi.mock('../service/registrationPersistence', () => ({
-  clearStoredRegistrationFor: vi.fn(),
+  clearStoredRegistrationIfUnchanged: vi.fn(),
 }))
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
@@ -160,7 +160,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
-import { clearStoredRegistrationFor } from '../service/registrationPersistence'
+import { clearStoredRegistrationIfUnchanged } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import {
   getRegistrationV2ChildActor,
@@ -1175,6 +1175,9 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     walletClient: {},
   } as unknown as SmartAccountContextValue
 
+  /** The stored write the failure was restored from. */
+  const restoredRun = { label: 'example', updatedAt: 1 }
+
   /** A fresh mount, as a reload leaves it, with a stored failure restored. */
   const startRestoredFailure = () => {
     const actor = createActor(registrationV2UiMachine, {
@@ -1184,6 +1187,7 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     actor.send({
       type: 'registration.failure.restore',
       confirmedData: resumeEvent(hcaAccount).confirmedData,
+      run: restoredRun,
     })
     return actor
   }
@@ -1199,7 +1203,7 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     const actor = startRestoredFailure()
 
     expect(actor.getSnapshot().value).toBe('failure')
-    expect(actor.getSnapshot().context.restoredFailure).toBe(true)
+    expect(actor.getSnapshot().context.restoredRun).toEqual(restoredRun)
     // Nothing reaches the child until the user asks for it.
     expect(getChild(actor).getSnapshot().value).toBe('idle')
     expect(childResumed(actor)).toBeUndefined()
@@ -1214,7 +1218,7 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
     // Kept for its owner, who gets the failure screen back on reconnect.
-    expect(clearStoredRegistrationFor).not.toHaveBeenCalled()
+    expect(clearStoredRegistrationIfUnchanged).not.toHaveBeenCalled()
   })
 
   it('leaves Try Again to the resume, since the child never resumed', () => {
@@ -1232,7 +1236,7 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     actor.send(resumeEvent(hcaAccount, { stage: 'error' }))
 
     expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
-    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
     expect(childResumed(actor)).toMatchObject({
       context: { commitment: { secret: `0x${'cd'.repeat(32)}` } },
     })
@@ -1244,9 +1248,9 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     actor.send({ type: 'cancel' })
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
-    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
-    expect(clearStoredRegistrationFor).toHaveBeenCalledExactlyOnceWith(
-      'example',
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+    expect(clearStoredRegistrationIfUnchanged).toHaveBeenCalledExactlyOnceWith(
+      restoredRun,
     )
   })
 
@@ -1263,13 +1267,13 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
 
     expect(actor.getSnapshot().value).toBe('failure')
     expect(actor.getSnapshot().context.isWalletBusy).toBe(true)
-    expect(actor.getSnapshot().context.restoredFailure).toBe(true)
+    expect(actor.getSnapshot().context.restoredRun).toEqual(restoredRun)
     expect(getChild(actor).getSnapshot().value).toBe('idle')
 
     actor.send({ type: 'cancel' })
 
-    expect(clearStoredRegistrationFor).toHaveBeenCalledExactlyOnceWith(
-      'example',
+    expect(clearStoredRegistrationIfUnchanged).toHaveBeenCalledExactlyOnceWith(
+      restoredRun,
     )
   })
 
@@ -1288,7 +1292,7 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
       ),
     )
     expect(actor.getSnapshot().value).toBe('failure')
-    expect(actor.getSnapshot().context.restoredFailure).toBe(true)
+    expect(actor.getSnapshot().context.restoredRun).toEqual(restoredRun)
 
     // A machine retry would forward RETRY to an idle child and park the
     // screen on registering.
@@ -1303,8 +1307,8 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     actor.send({ type: 'label.changed' })
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
-    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
-    expect(clearStoredRegistrationFor).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+    expect(clearStoredRegistrationIfUnchanged).not.toHaveBeenCalled()
   })
 
   it("leaves a live failure's record to the persistence subscriber", () => {
@@ -1312,12 +1316,12 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     const actor = startActorInTokens()
     actor.send(startEvent(hcaAccount))
     sendToChild(actor, { type: 'FORCE_ERROR', error: new Error('boom') })
-    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
 
     actor.send({ type: 'cancel' })
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
-    expect(clearStoredRegistrationFor).not.toHaveBeenCalled()
+    expect(clearStoredRegistrationIfUnchanged).not.toHaveBeenCalled()
   })
 
   it('is not restored over a registration already running', () => {
@@ -1327,10 +1331,11 @@ describe('registrationV2UiMachine — a failed run restored after a reload', () 
     actor.send({
       type: 'registration.failure.restore',
       confirmedData: resumeEvent(hcaAccount).confirmedData,
+      run: restoredRun,
     })
 
     expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
-    expect(actor.getSnapshot().context.restoredFailure).toBe(false)
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
   })
 })
 

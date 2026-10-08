@@ -200,14 +200,30 @@ export function clearStoredRegistration(
 }
 
 /**
- * Clear the stored record only if it belongs to `label`. A record for another
- * name belongs to that name's run, which may hold a paid commitment.
+ * One write of the stored record. Every save stamps a fresh `updatedAt`, so
+ * any later write, by the same run or another tab's, no longer matches.
  */
-export function clearStoredRegistrationFor(
-  label: string,
+export type StoredRegistrationKey = {
+  readonly label: string
+  readonly updatedAt: number
+}
+
+/**
+ * Clear the stored record only if it is still the write `key` names. Since
+ * then another tab may have resumed or restarted the name, and its record
+ * holds the only copy of the secret for its commitment.
+ */
+export function clearStoredRegistrationIfUnchanged(
+  key: StoredRegistrationKey,
   storage: StorageLike | null = getBrowserStorage(),
 ): void {
-  if (loadStoredRegistration(storage)?.label !== label) return
+  const stored = loadStoredRegistration(storage)
+  if (
+    stored?.label !== key.label ||
+    stored.record.updatedAt !== key.updatedAt
+  ) {
+    return
+  }
   clearStoredRegistration(storage)
 }
 
