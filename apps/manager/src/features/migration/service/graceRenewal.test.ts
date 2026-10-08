@@ -283,7 +283,7 @@ describe('bulk grace renewal', () => {
   it.each([
     false,
     true,
-  ])('refreshes a stale reservation after renewal elsewhere (resuming: %s)', async (resuming) => {
+  ])('refreshes a stale reservation after renewal elsewhere (resuming: %s)', async (isResuming) => {
     const lateGrace = {
       ...domain('late.eth'),
       registration: { expiryDate: (NOW - 70n * DAY).toString() },
@@ -297,7 +297,7 @@ describe('bulk grace renewal', () => {
       quote,
       publicClient: s.publicClient,
       walletClient: s.walletClient,
-      ...(resuming && { renewalHash: RENEWAL_HASH }),
+      ...(isResuming && { renewalHash: RENEWAL_HASH }),
     })
 
     expect(
