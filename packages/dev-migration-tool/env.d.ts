@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly DEV: boolean
   readonly VITE_MIGRATION_TOOL?: string
   readonly VITE_MIGRATION_TOOL_RPC?: string
+  readonly VITE_BIGNAME_API_URL?: string
 }
 
 interface ImportMeta {
