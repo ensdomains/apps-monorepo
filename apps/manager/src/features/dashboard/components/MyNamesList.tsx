@@ -200,6 +200,7 @@ export const MyNamesList = ({
   const [isChooserOpen, setIsChooserOpen] = useState(false)
   const primaryNameTriggerRef = useRef<HTMLButtonElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const hasUpdatedPrimaryNameRef = useRef(false)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const filterKey = `${searchQuery}:${sort}`
@@ -285,11 +286,17 @@ export const MyNamesList = ({
       <ChoosePrimaryNameDialog
         onCloseAutoFocus={(event) => {
           event.preventDefault()
-          // The primary row can change or leave the filtered page on success.
-          const target = primaryNameTriggerRef.current ?? listRef.current
+          // Successful refetches can remove the old trigger after this closes.
+          const target = hasUpdatedPrimaryNameRef.current
+            ? listRef.current
+            : (primaryNameTriggerRef.current ?? listRef.current)
+          hasUpdatedPrimaryNameRef.current = false
           target?.focus()
         }}
         onOpenChange={setIsChooserOpen}
+        onUpdated={() => {
+          hasUpdatedPrimaryNameRef.current = true
+        }}
         open={isChooserOpen}
       />
       {hasPartialError ? (

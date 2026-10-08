@@ -23,10 +23,7 @@ const chain = vi.hoisted(() => ({
 // Dashboard, card, MyNamesList and NavSection. Stub only IO and unrelated panels.
 vi.mock('viem/actions', async (original) => ({
   ...(await original<typeof import('viem/actions')>()),
-  getEnsName: () => {
-    chain.read()
-    return Promise.resolve(chain.primaryName)
-  },
+  getEnsName: () => chain.read(),
 }))
 vi.mock('@/lib/wagmi/helpers', () => ({ safeGetClient: () => ok({}) }))
 vi.mock('@/lib/smart-account', () => ({
@@ -183,7 +180,7 @@ const expectPrimary = async (name: string) => {
 describe('chooser completion refreshes the wallet-scoped surfaces', () => {
   beforeEach(() => {
     chain.primaryName = 'alpha.eth'
-    chain.read.mockClear()
+    chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
       .mockReset()
       .mockImplementation(async ({ name }: { name: string }) => {
@@ -225,6 +222,44 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     expect(chain.submit).toHaveBeenCalledOnce()
     expect(chain.read.mock.calls.length).toBeGreaterThan(readsBefore)
     await expectPrimary('beta.eth')
+  })
+
+  it('keeps focus in My Names when the reverse-name refetch settles after close', async () => {
+    await renderDashboard()
+    await expectPrimary('alpha.eth')
+    const list = screen.getByRole('region', { name: 'My Names' })
+    const trigger = within(list).getByRole('button', { name: 'Primary Name' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Choose Primary Name',
+    })
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Select beta.eth as primary name',
+      }),
+    )
+    const confirm = within(dialog).getByRole('button', {
+      name: 'Set as Primary',
+    })
+    await waitFor(() => expect(confirm).toBeEnabled())
+
+    let finishReverseRead: (name: string) => void = () => undefined
+    const pendingRead = new Promise<string>((resolve) => {
+      finishReverseRead = resolve
+    })
+    chain.submit.mockImplementation(async () => {
+      chain.primaryName = 'beta.eth'
+      chain.read.mockReturnValue(pendingRead)
+    })
+    fireEvent.click(confirm)
+    await waitFor(() => expect(dialog).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(list.contains(document.activeElement)).toBe(true),
+    )
+    finishReverseRead('beta.eth')
+    await expectPrimary('beta.eth')
+    expect(list.contains(document.activeElement)).toBe(true)
   })
 
   it('keeps current surfaces and chooser on transaction failure', async () => {
