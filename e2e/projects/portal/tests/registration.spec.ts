@@ -310,6 +310,16 @@ test.describe('Portal ENS name registration', () => {
     ).toBe(true)
     console.log(`[switch-test] A (${NAME_A}) committed; cooldown reached`)
 
+    // During the cooldown A also checks its USDC allowance and, when it is
+    // short, sends the approve straight away — so whether a request is already
+    // waiting here depends on what other tests left the shared allowance at.
+    // Answer it now: the check below is about requests A makes AFTER the
+    // switch, and one it made before cannot tell a dead actor from a live one.
+    while (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0) {
+      await authorizeTransaction(wallet, 60_000)
+      await page.waitForTimeout(500)
+    }
+
     // ── 2. Close the dialog. `closeModal` only hides it — the flow (actor +
     //    transactions) keeps running in the background. This is exactly the
     //    pre-fix danger condition: the user can still be looking at a "dead"

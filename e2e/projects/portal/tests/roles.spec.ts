@@ -19,6 +19,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { getName } from '@ensdomains/ensjs/public'
 import { getOwner } from '@ensdomains/ensjs/public/v2'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import {
@@ -51,6 +52,7 @@ import {
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import {
+  waitForIndexedBlock,
   waitForIndexedName,
   waitForIndexedRoles,
 } from '../../../helpers/indexer-sync.js'
@@ -104,7 +106,9 @@ const readStatus = (label: string) =>
 const rolesPage = (name: string) => `${PORTAL_APP_URL}/${name}/roles`
 
 /**
- * The "parent registry roles" table — the one §5.C is about.
+ * The "parent registry / roles" table — the one §5.C is about. The heading
+ * gained its slash in #1105 (2026-08-27); this locator kept the old text until
+ * 2026-10-08, so every test built on it timed out here.
  *
  * The page renders three role tables (`{name} registry roles`,
  * `{name} resolver roles`, then this one), so it has to be picked by heading.
@@ -115,7 +119,7 @@ const rolesPage = (name: string) => `${PORTAL_APP_URL}/${name}/roles`
  */
 const nameRolesSection = (page: import('@playwright/test').Page) =>
   page
-    .locator('h3', { hasText: 'parent registry roles' })
+    .locator('h3', { hasText: 'parent registry / roles' })
     .locator('xpath=following::table[1]')
 
 /**
@@ -1563,8 +1567,25 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     await expect(page.getByRole('tooltip')).toHaveText(text)
   }
 
-  const ownerRow = (page: Page, owner: Address) =>
-    page.locator('main').getByText(truncate(owner), { exact: true }).first()
+  /**
+   * The owner as the page shows it: its primary name when it has one, else the
+   * truncated address. The shared `user` account picks up a primary name
+   * whenever a registration test sets one, so matching only the address made
+   * these tests depend on run order (2026-10-08).
+   */
+  const ownerRow = async (page: Page, owner: Address) => {
+    const primary = await getName(publicClient as never, {
+      address: owner,
+    }).catch(() => null)
+    const shown = [truncate(owner), ...(primary?.name ? [primary.name] : [])]
+    const pattern = shown
+      .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('|')
+    return page
+      .locator('main')
+      .getByText(new RegExp(`^(${pattern})$`))
+      .first()
+  }
 
   const readState = (label: string) =>
     publicClient.readContract({
@@ -1645,7 +1666,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     // Control: the full role set a fresh 2LD gets raises nothing.
     expect(await simulateOwnerTransfer(label, owner)).toBeNull()
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await page.waitForTimeout(RENDER_SETTLE_MS)
     await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
     await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
@@ -1665,7 +1686,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     ).not.toBeNull()
 
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await expect(
       badge(page, 'Cannot transfer'),
       'the owner row should warn that the name cannot be transferred',
@@ -1708,7 +1729,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     ).toContain('0x677f1c18')
 
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await expect(badge(page, 'Cannot transfer safely')).toBeVisible({
       timeout: 20_000,
     })
@@ -1728,7 +1749,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     )
     expect(await simulateOwnerTransfer(label, owner)).toBeNull()
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await page.waitForTimeout(RENDER_SETTLE_MS)
     await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
     await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
@@ -1786,7 +1807,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     // Scoped to its own role: the transfer role is untouched, so Ownership
     // stays clean.
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await page.waitForTimeout(RENDER_SETTLE_MS)
     await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
   })
@@ -2028,7 +2049,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
     ).toHaveCount(0)
 
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await page.waitForTimeout(RENDER_SETTLE_MS)
     await expect(badge(page, 'Cannot transfer')).toHaveCount(0)
     await expect(badge(page, 'Cannot transfer safely')).toHaveCount(0)
@@ -2264,6 +2285,11 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
       expect(await accountHasRoles({ label }, owner, [role])).toBe(false)
     expect(await simulateOwnerTransfer(label, owner)).not.toBeNull()
 
+    // The tabs below read the name's state from Panoptes, which can still be
+    // behind the renewal block when the whole file runs (seen 2026-10-08: the
+    // fresh ownership tab still said "Grace ends"; the test passed alone).
+    await waitForIndexedBlock()
+
     // The warnings are back. Each tab is loaded fresh: in-app navigation
     // after a renewal from grace still shows the grace-era "Name not
     // registered" until a reload (see the test plan's findings), which hides
@@ -2301,7 +2327,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
 
     // Warm the session's cache on the active name.
     await gotoWithCleanRoleRead(page, `${PORTAL_APP_URL}/${name}/ownership`)
-    await expect(ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
+    await expect(await ownerRow(page, owner)).toBeVisible({ timeout: 20_000 })
     await expectNoPrivilegeWarnings(page)
 
     await warpIntoGrace(label, time)

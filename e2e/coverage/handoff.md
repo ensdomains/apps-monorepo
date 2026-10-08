@@ -5,6 +5,90 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 29 — 2026-10-08 · portal smoke green again; roles table locator; V1 manager carried into V2 (GM1–GM4)
+
+**Batch:** iteration 28's "Next" (0)–(3): triage the portal smoke failures,
+re-run `roles.spec.ts` for real, then the roles-after-migration rows.
+
+**Result:** PASS GM1, GM2, GM3, GM4 · E2E-009 verified (C1) · DEFECT 0 new ·
+EXEMPT 0 · PRODUCT-GAP 0. Verification: portal smoke 19/19 twice, manager
+smoke 8/8 twice, `migration-managers.spec.ts` green twice, `roles.spec.ts`
+49/49 once. The second full roles run hit a slow upstream RPC (1.1 h instead
+of ~14 min; cold reads 1–10 s): C2, C3 and `:1368` timed out there and passed
+on an immediate re-run. Not two clean consecutive full runs — re-run the file
+once the upstream is steady.
+
+**Ratchet:** 392 → 396 (R0 +4 for GM1–GM4; C1 was already terminal as DEFECT
+and is now PASS).
+
+**Infra, mid-batch:** the shared anvil panicked again (exit 133, drpc TLS
+close_notify — see memory note). Recovered: Panoptes DB wiped, anvil
+recreated, dependents restarted, accounts re-funded. The fork is now at real
+time again (2026-10-08), not 2028. `mockestrator` had been created from a
+deleted worktree's mount and had to be recreated from this checkout;
+`start-local-env.sh` aborts on the `metadata-service` build (npm install),
+so bring the rest up with `docker compose up -d --no-build <services>`.
+
+### What the four portal smoke failures were
+
+All test-side or environment; no app defect.
+- `roles.spec.ts:1636` (WEB-1469 "Cannot transfer") — run-order dependence:
+  `ownerRow` matched only the truncated address, but the shared `user`
+  account shows its primary name once any registration test sets one (it had
+  `e2e-muy1v9wu.eth` on the old fork, `e2e-muzn4r6h.eth` by the end of this
+  batch on the new one). Five WEB-1469 tests failed the same way after the
+  smoke runs. `ownerRow` now matches the primary name or the address.
+- `transfer.spec.ts:1049`, `:1171` (registry-detach consent) — `mock-indexer`
+  drift: #1292 added `domains(where: { name }) { subdomainsCount }` to
+  `getRegistryOccupants` and takes the count from it; the mock did not answer
+  it, `domains[0]` threw, and the app showed "We couldn't check…". Mock fixed.
+- `registration.spec.ts:201` (name switch) — after A's commit lands, A checks
+  its USDC allowance and, if short, sends the approve during the cooldown.
+  That request predated the switch but was still pending when the test
+  counted prompts after it. The test now answers pending requests before the
+  switch; the oracle (nothing new from A after it) is unchanged.
+
+`roles.spec.ts`: `nameRolesSection` now matches `'parent registry / roles'`
+(heading changed in #1105, 2026-08-27). 48/49 green; the WEB-1469 grace test
+(`:2190`) failed only in full-file runs — the fresh ownership tab still read
+"Grace ends" because Panoptes lagged the renewal. It now waits for the indexed
+block after renewing.
+
+### GM rows (`migration-managers.spec.ts`)
+
+- GM1+GM3: opting in to keep a V1 controller adds exactly "Restore the
+  managers you chose" and "Remove temporary access" (+2 requests); the wallet
+  is asked exactly as often as the screen says; the manager ends with exactly
+  `ROLE_SET_RESOLVER`; the HCA approval is granted then revoked. Untagged
+  control: without the opt-in the manager holds nothing.
+- GM2: oracle corrected — #1240 deliberately revokes any existing HCA
+  operator approval on the ETHRegistry as a leftover of an interrupted run.
+  With it present the opt-in costs +1 (no approve, still the revoke) and the
+  approval ends revoked.
+- GM4: deliberate by construction — the subgraph reports a wrapped name's
+  registry owner as the NameWrapper, so `registryControllerOf` alone would
+  offer the NameWrapper as a manager; `classifyUnlockedWrapper` hardcodes
+  `registryController: null`. Asserted: no opt-in on the wrapped row (an
+  unwrapped control in the same list has one), NameWrapper gets no role, no
+  temporary approval.
+
+**In flight:** nothing.
+
+**Parked:** GW7 — still waiting on the product answer (see iteration 28).
+
+**Learned:**
+- `getBlockNumber()` without `cacheTime: 0`, used as an inclusive `fromBlock`,
+  includes the test's own setup block. Start at head + 1, uncached.
+- A static PASS hid four red smoke tests and a red C* suite; run before
+  trusting.
+
+**Next:** (1) GW7 once answered; (2) adopt `migration.spec.ts` (GW1, GW2, A11
+and the edit-after-migration test); (3) V1 roles-tab cells (VL*) for wrapped,
+emancipated and locked shapes and the grace shapes 10/11/32/33/44;
+(4) re-scope F2 (it cannot reach a migrated CANNOT_TRANSFER name).
+
+---
+
 ## Iteration 28 — 2026-10-08 · migration suite unblocked; locked-2LD fuse matrix (GW) with exact role bitmaps
 
 **Batch:** R0 §G migration. The user's priority order: regenerate the ledger,

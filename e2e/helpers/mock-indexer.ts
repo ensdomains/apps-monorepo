@@ -238,6 +238,7 @@ export function createIndexerMock() {
           return {
             data: {
               registry: null,
+              domains: [],
               total: { __typename: 'DomainConnection', totalCount: null },
               own: { __typename: 'DomainConnection', totalCount: null },
             },
@@ -247,6 +248,13 @@ export function createIndexerMock() {
         return {
           data: {
             registry: { __typename: 'Registry', labelCount: occupants.count },
+            // Since #1292 the app takes `count` from the name's own
+            // `subdomainsCount` (a registry can be shared by several parents),
+            // so the query also asks for `domains(where: { name })`. Without
+            // it `domains[0]` throws and the app reports "couldn't check".
+            domains: [
+              { __typename: 'Domain', subdomainsCount: occupants.count },
+            ],
             total: {
               __typename: 'DomainConnection',
               totalCount: occupants.count,

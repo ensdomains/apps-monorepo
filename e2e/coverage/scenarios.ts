@@ -1389,7 +1389,10 @@ const migrationGM: Scenario[] = suite('G.GM', 'migration', 'manager', 'P3', [
   [
     'GM2',
     'Same, with ETHRegistry already approved',
-    'confirmation count drops by one; the pre-existing approval is not revoked',
+    // Corrected 2026-10-08: #1240 ("clean up temporary HCA after interrupted
+    // migration") deliberately treats any existing HCA operator approval on the
+    // ETHRegistry as a leftover and revokes it (`hasTemporaryMigrationHcaApproval`).
+    'no approve step is added, so the opt-in costs one confirmation instead of two (the revoke); the existing HCA approval is revoked at the end, as #1240 intends',
   ],
   [
     'GM3',
