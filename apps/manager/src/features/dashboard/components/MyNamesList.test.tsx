@@ -1,4 +1,5 @@
 import type { DomainFragment } from '@ens-apps/indexer'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fireEvent, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,9 +15,14 @@ const dashboardV1NamesMock = vi.hoisted(() => ({
   useDashboardV1Names: vi.fn(),
 }))
 
+const rowRecordsQueryKey = createQueryKey<
+  'row-records',
+  { readonly name: string }
+>('row-records')
+
 vi.mock('./nameRowRecordsQuery', () => ({
   nameRowRecordsQuery: (name: string) => ({
-    queryKey: ['row-records', name],
+    queryKey: rowRecordsQueryKey({ name }),
     queryFn: async () => ({ texts: [] }),
   }),
 }))
