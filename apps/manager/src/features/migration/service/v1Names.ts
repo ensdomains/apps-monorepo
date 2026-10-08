@@ -4,6 +4,7 @@ import {
   type BignameClient,
   isStale,
   type LookupRecord,
+  type WrapperFuses,
 } from '@ens-apps/indexer/bigname'
 import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
@@ -15,6 +16,7 @@ import { bigname } from '@/lib/bigname'
 import { checkNotAborted, lookupNames, retryOnStale } from './bignameLookup'
 
 const FETCH_PAGE_SIZE = 200
+const MAX_WRAPPER_EXPIRY = (1n << 64n) - 1n
 
 const NAME_WRAPPER = getChainContractAddress({
   chain: envConfig.chain,
@@ -89,12 +91,23 @@ const parentNameOf = (name: string): string | null => {
 
 const labelOf = (name: string): string => name.split('.')[0] ?? name
 
-const isWrapped = (record: LookupRecord): boolean =>
-  record.ens_v1?.wrapper_fuses !== undefined
+// Unwrap can retain fuses, but Bigname omits the expiry for an inactive wrapper
+// entry. A null expiry still denotes a current entry with no timestamp.
+const currentWrapperFuses = (record: LookupRecord): WrapperFuses | undefined =>
+  record.ens_v1?.wrapper_expires_at === undefined
+    ? undefined
+    : record.ens_v1.wrapper_fuses
+
+const wrapperExpiryOf = (ensV1: LookupRecord['ens_v1']): string =>
+  ensV1?.wrapper_expires_at ??
+  (ensV1?.wrapper_expires_at_reason === 'no_expiry'
+    ? MAX_WRAPPER_EXPIRY.toString()
+    : '0')
 
 /** Wrapped subnames read their parent's fuses to tell an emancipated child apart. */
 const needsParentFuses = (record: LookupRecord): boolean =>
-  isWrapped(record) && parentNameOf(record.name) !== 'eth'
+  currentWrapperFuses(record) !== undefined &&
+  parentNameOf(record.name) !== 'eth'
 
 const toParent = (
   parentName: string | null,
@@ -122,7 +135,7 @@ export const toV1Domain = (
   const label = labelOf(record.name)
   const parentName = parentNameOf(record.name)
   const ensV1 = record.ens_v1
-  const wrapperFuses = ensV1?.wrapper_fuses
+  const wrapperFuses = currentWrapperFuses(record)
   const holder = record.owner ?? zeroAddress
   const registryOwner = wrapperFuses ? nameWrapper : (record.manager ?? holder)
   const registrant = wrapperFuses ? nameWrapper : (record.registrant ?? holder)
@@ -143,7 +156,7 @@ export const toV1Domain = (
         : null,
     wrappedDomain: wrapperFuses
       ? {
-          expiryDate: ensV1?.wrapper_expires_at ?? '0',
+          expiryDate: wrapperExpiryOf(ensV1),
           fuses: wrapperFuses.fuses,
         }
       : null,
@@ -172,7 +185,7 @@ export const readV1NamesForAddress = ResultFn(async function* (
   const parents = yield* lookupRecords(client, parentNames, options)
   const parentFuses = new Map(
     parents.flatMap((parent) => {
-      const fuses = parent.ens_v1?.wrapper_fuses?.fuses
+      const fuses = currentWrapperFuses(parent)?.fuses
       return fuses === undefined ? [] : [[parent.name, fuses] as const]
     }),
   )

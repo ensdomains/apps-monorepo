@@ -118,6 +118,7 @@ describe('toV1Domain', () => {
         expires_at: null,
         wrapper_fuses: fuses(0),
         wrapper_expires_at: null,
+        wrapper_expires_at_reason: 'not_set',
       },
     })
     expect(
@@ -183,6 +184,54 @@ describe('toV1Domain migration availability', () => {
 })
 
 describe('classification through the adapter', () => {
+  it('migrates a previously unwrapped name using its registrar token and registry controller', () => {
+    const { classified } = classify([
+      unwrapped2ld('alice.eth', {
+        manager: OTHER,
+        ens_v1: {
+          expires_at: FUTURE,
+          wrapper_state: 'emancipated',
+          wrapper_fuses: fuses(PARENT_CANNOT_CONTROL | IS_DOT_ETH),
+        },
+      }),
+    ])
+
+    expect(classified).toMatchObject([
+      {
+        action: 'migrate',
+        tokenType: 'unwrapped',
+        registryController: OTHER,
+        domain: { wrappedOwner: null, wrappedDomain: null },
+      },
+    ])
+  })
+
+  it('keeps an emancipated subname with no expiry eligible to copy', () => {
+    const child = wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL, {
+      ens_v1: {
+        expires_at: null,
+        wrapper_state: 'emancipated',
+        wrapper_fuses: fuses(PARENT_CANNOT_CONTROL),
+        wrapper_expires_at: null,
+        wrapper_expires_at_reason: 'no_expiry',
+      },
+    })
+    const { classified, ineligible } = classify([
+      unwrapped2ld('alice.eth'),
+      child,
+    ])
+
+    expect(ineligible).toEqual([])
+    expect(classified).toMatchObject([
+      { action: 'migrate', tokenType: 'unwrapped' },
+      {
+        action: 'copy',
+        tokenType: 'unlocked-child',
+        sourceExpiry: 18_446_744_073_709_551_615n,
+      },
+    ])
+  })
+
   it('migrates an unwrapped 2LD and records a distinct registry controller', () => {
     const { classified } = classify([
       unwrapped2ld('alice.eth', { manager: OTHER }),
@@ -293,6 +342,43 @@ const stale = () =>
   new BignameError({ code: 'stale', status: 409, message: 'stale' })
 
 describe('readV1NamesForAddress', () => {
+  it('does not use retained fuses from an unwrapped parent to detach its child', async () => {
+    const parent = unwrapped2ld('alice.eth', {
+      ens_v1: {
+        expires_at: FUTURE,
+        wrapper_state: 'locked',
+        wrapper_fuses: fuses(
+          CANNOT_UNWRAP | PARENT_CANNOT_CONTROL | IS_DOT_ETH,
+        ),
+      },
+    })
+    const child = wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL)
+    const rows = new Map([parent, child].map((row) => [row.name, row]))
+    const result = await readV1NamesForAddress(
+      {
+        addressNames: () =>
+          okAsync(listPage([listRow('alice.eth'), listRow('sub.alice.eth')])),
+        lookup: (body) =>
+          okAsync(
+            lookupResponse(
+              body.inputs.flatMap((input) =>
+                'name' in input ? (rows.get(input.name) ?? []) : [],
+              ),
+            ),
+          ),
+      },
+      USER,
+    )
+    const { classified } = classifyNames(result._unsafeUnwrap(), USER, SEPOLIA)
+
+    expect(
+      classified.map(({ action, tokenType }) => [action, tokenType]),
+    ).toEqual([
+      ['migrate', 'unwrapped'],
+      ['copy', 'unlocked-child'],
+    ])
+  })
+
   it('lists the ENSv1 names, skips released and reverse rows, and reads parents only for wrapped subnames', async () => {
     const addressNames = vi.fn<BignameClient['addressNames']>((_, query) =>
       okAsync(
