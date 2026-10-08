@@ -74,7 +74,7 @@ block after renewing.
 
 **In flight:** nothing.
 
-**Parked:** GW7 — still waiting on the product answer (see iteration 28).
+**Parked:** nothing. GW7 answered by the user 2026-10-08: it is a bug — filed as E2E-021 (S4), GW7 portal test restored with `test.fail`.
 
 **Learned:**
 - `getBlockNumber()` without `cacheTime: 0`, used as an inclusive `fromBlock`,
@@ -82,7 +82,7 @@ block after renewing.
 - A static PASS hid four red smoke tests and a red C* suite; run before
   trusting.
 
-**Next:** (1) GW7 once answered; (2) adopt `migration.spec.ts` (GW1, GW2, A11
+**Next:** (1) raise E2E-020/E2E-021 in Linear; (2) adopt `migration.spec.ts` (GW1, GW2, A11
 and the edit-after-migration test); (3) V1 roles-tab cells (VL*) for wrapped,
 emancipated and locked shapes and the grace shapes 10/11/32/33/44;
 (4) re-scope F2 (it cannot reach a migrated CANNOT_TRANSFER name).

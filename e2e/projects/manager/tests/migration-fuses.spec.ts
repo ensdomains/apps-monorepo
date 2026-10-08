@@ -31,9 +31,8 @@
  * survive CANNOT_SET_RESOLVER unchanged (the controller swaps a known public
  * resolver for the V2 one).
  *
- * GW7 and GW8 also need the portal to honour the roles. GW8 is tagged on
- * `projects/portal/tests/migrated-fuses.spec.ts`, which asserts both halves;
- * GW7 is parked (see its test). GW9 (CAN_EXTEND_EXPIRY on a
+ * GW7 and GW8 also need the portal to honour the roles; both are tagged on
+ * `projects/portal/tests/migrated-fuses.spec.ts`, which asserts both halves. GW9 (CAN_EXTEND_EXPIRY on a
  * 2LD) is EXEMPT: the fuse is parent-controlled and a .eth 2LD can never carry
  * it (`test_wrappedETH2LD_neverHasCanExtendExpiry`).
  */
@@ -398,11 +397,9 @@ test.describe('ENS V1 → V2 migration — locked 2LD fuses (§G.GW)', () => {
     await assertV2Reserved(label)
   })
 
-  // GW7's oracle also requires the portal to hide grant/revoke. The portal
-  // offers "Add user" to any holder of an admin role, and ROLE_CAN_TRANSFER_ADMIN
-  // survives a freeze, so whether it should is parked as an intent question
-  // (handoff, 2026-10-08). Untagged until that is answered: this is half the
-  // oracle.
+  // GW7's full oracle (this bitmap plus the portal hiding grant/revoke) is
+  // `projects/portal/tests/migrated-fuses.spec.ts`, currently E2E-021; this is
+  // the UI-driven half, kept as a regression guard on the manager's batch.
   test('CANNOT_BURN_FUSES: no admin role on the token except transfer, none at all on the subregistry', async ({
     migrationConnectedPage: page,
     wallet,
