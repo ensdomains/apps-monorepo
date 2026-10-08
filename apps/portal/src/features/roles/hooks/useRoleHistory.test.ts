@@ -76,6 +76,7 @@ describe('getRoleHistory', () => {
     mockGraphqlRequest.mockResolvedValue({
       eacRolesChangeds: [
         {
+          id: `0x${'a'.padStart(64, '0')}-0`,
           blockNumber: 10,
           timestamp: 120,
           transactionHash: `0x${'a'.padStart(64, '0')}`,

@@ -22,7 +22,7 @@ const ALL_TOKEN_ROLES: Role[] = [
 ]
 
 let holders = new Map<Address, Role[]>()
-const fetchHolders = vi.fn(async () => holders)
+const fetchHolders = vi.fn(async () => ({ holders, isVerified: true }))
 
 vi.mock('@/features/roles/hooks/useNameRoleAccounts', () => ({
   getNameRolesAccountsQueryOptions: (params: { resource: bigint | null }) => ({
