@@ -35,12 +35,19 @@ const baseParams = (price: bigint) => ({
   isHcaDeployed: true,
 })
 
-/** ETH at $3000, USDC at $1, 2 gwei — the shape `signedMetadata` carries. */
-const market = (gasPriceWei: bigint): QuoteMarketData => ({
-  ethUsd8: 3000n * 100_000_000n,
+/** USDC at $1 and ETH at `ethUsd` — the shape `signedMetadata` carries. */
+const market = (gasPriceWei: bigint, ethUsd = 3000n): QuoteMarketData => ({
+  ethUsd8: ethUsd * 100_000_000n,
   usdcUsd8: 100_000_000n,
   gasPriceWei,
 })
+
+/**
+ * A market where the gas-limit model prices a leg above the per-chain floor,
+ * so the cases below can observe the limits at all. The floor is worth 1.8 x
+ * 1.55M gas, which at an equal gas price outweighs any single leg.
+ */
+const unflooredMarket = () => market(5_000_000_000n, 1000n)
 
 describe('estimateHcaBudget', () => {
   it('sizes the permit from the orchestrator quotes and the price, with no buffer', async () => {
@@ -132,23 +139,23 @@ describe('estimateHcaBudget', () => {
   })
 
   it('prices an unquotable leg off the other leg’s market data, not the flat fee', async () => {
-    // A first-time (unfunded) HCA cannot be priced, so the commit leg comes
-    // back with market data but no spend amount. Falling through to the flat
-    // 5 USDC/leg fee here is what over-funded the HCA ~5x.
+    // A leg the planner cannot price comes back with market data but no spend
+    // amount. Falling through to the flat 5 USDC/leg fee is what over-funded
+    // the HCA ~5x. Asserted on the register leg: the commit leg is always
+    // below the per-chain floor, so the model is not observable there.
     const breakdown = await estimateHcaBudget({
       ...baseParams(USDC(5)),
       quoteLegCostUsdc: async (leg) =>
-        leg === 'commit'
-          ? { spendUsdc: null, market: market(2_000_000_000n) }
-          : { spendUsdc: USDC(6), market: market(2_000_000_000n) },
+        leg === 'register'
+          ? { spendUsdc: null, market: unflooredMarket() }
+          : { spendUsdc: USDC(6), market: unflooredMarket() },
     })
 
     expect(breakdown.source).toBe('mixed')
-    // 450k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 2.7 USDC.
-    expect(breakdown.commitCost).toBe(2_700_000n)
-    expect(breakdown.commitCost).toBeLessThan(USDC(5))
+    // 1.25M gas × 5 gwei × $1000/ETH ÷ $1/USDC = 6.25 USDC, not the flat fee.
+    expect(breakdown.registerCost).toBe(6_250_000n)
     expect(breakdown.fallbackReasons).toEqual([
-      'commit: quote returned no spend amount',
+      'register: quote returned no spend amount',
     ])
   })
 
@@ -202,18 +209,18 @@ describe('estimateHcaBudget', () => {
     )
   })
 
-  it('pins the leg-fee ceiling at 30 USDC', async () => {
+  it('pins the leg-fee ceiling at 45 USDC', async () => {
     // The other ceiling tests feed the constant back into itself, so they stay
     // green whatever it is set to. These use literals on purpose: raising the
     // ceiling (e.g. for mainnet, see the REVISIT ON MAINNET note on
     // HCA_MAX_LEG_FEES_USDC in budget.ts) must be a deliberate edit here too.
-    expect(HCA_MAX_LEG_FEES_USDC).toBe(30_000_000n)
+    expect(HCA_MAX_LEG_FEES_USDC).toBe(45_000_000n)
 
-    // 16 USDC per leg = 32 USDC of fees, just over the ceiling.
+    // 23 USDC per leg = 46 USDC of fees, just over the ceiling.
     await expect(
       estimateHcaBudget({
         ...baseParams(USDC(5)),
-        quoteLegCostUsdc: async () => ({ spendUsdc: 16_000_000n }),
+        quoteLegCostUsdc: async () => ({ spendUsdc: 23_000_000n }),
       }),
     ).rejects.toThrow(HcaBudgetExceedsMaximumError)
   })
@@ -299,17 +306,17 @@ describe('estimateHcaBudget', () => {
         isResolverDeployed,
         quoteLegCostUsdc: async () => ({
           spendUsdc: null,
-          market: market(2_000_000_000n),
+          market: unflooredMarket(),
         }),
       })
 
     const fresh = await budgetFor(false)
     const existing = await budgetFor(true)
 
-    // 1.07M gas × 2 gwei × $3000/ETH ÷ $1/USDC = 6.42 USDC. The deploy is what
+    // 1.07M gas × 5 gwei × $1000/ETH ÷ $1/USDC = 5.35 USDC. The deploy is what
     // separates a ~1.15M-gas reveal fill from a 2.16M one, so pricing it at
     // the old 210k left a first registration underfunded by most of it.
-    expect(fresh.registerCost - existing.registerCost).toBe(6_420_000n)
+    expect(fresh.registerCost - existing.registerCost).toBe(5_350_000n)
     expect(fresh.total).toBeGreaterThan(existing.total)
   })
 })
@@ -324,22 +331,15 @@ describe('commitLegGasLimit', () => {
     )
   })
 
-  it('prices the HCA deploy into the commit leg for a new account', async () => {
-    const budgetFor = (isHcaDeployed: boolean) =>
-      estimateHcaBudget({
-        ...baseParams(USDC(5)),
-        isHcaDeployed,
-        quoteLegCostUsdc: async () => ({
-          spendUsdc: null,
-          market: market(2_000_000_000n),
-        }),
-      })
-
-    const fresh = await budgetFor(false)
-    const existing = await budgetFor(true)
-
-    // 300k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 1.80 USDC.
-    expect(fresh.commitCost - existing.commitCost).toBe(1_800_000n)
+  it('prices the HCA deploy into the quote the commit leg is funded from', () => {
+    // The budget cannot show this on a chain with a gas-price floor: the floor
+    // is worth 1.8 x 1.55M gas, which outweighs a 750k commit leg at any gas
+    // price the fallback model allows. The limit is what the rail prices the
+    // quote on, so that is where the allowance has to be right.
+    expect(
+      commitLegGasLimit({ isHcaDeployed: false }) -
+        commitLegGasLimit({ isHcaDeployed: true }),
+    ).toBe(HCA_ACCOUNT_DEPLOY_GAS)
   })
 })
 
@@ -371,5 +371,56 @@ describe('registerLegGasLimit', () => {
   it('stays at or above the measured on-chain cost of the deploy', () => {
     // Measured on Sepolia; the constant must not drift below it.
     expect(HCA_RESOLVER_DEPLOY_GAS).toBeGreaterThanOrEqual(185_904n)
+  })
+})
+
+describe('the per-chain gas-price floor', () => {
+  // 1.8 x 1.55M x 2 gwei = 0.00558 ETH, which at $3000/ETH is 16.74 USDC, over
+  // the 15 USDC per-leg cap. Measured on Sepolia: a reveal whose refund the
+  // orchestrator quoted at 7.14 USDC was funded from a quote of 0.004868 for
+  // BOTH legs, because the quote was taken while the base fee was ~19 wei.
+  const quoteAt = (spendUsdc: bigint, gasPriceWei: bigint) => async () => ({
+    spendUsdc,
+    market: market(gasPriceWei),
+  })
+
+  it('funds a leg the orchestrator priced at almost nothing', async () => {
+    const breakdown = await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      quoteLegCostUsdc: quoteAt(2_434n, 19n),
+    })
+
+    expect(breakdown.commitCost).toBe(15_000_000n)
+    expect(breakdown.registerCost).toBe(15_000_000n)
+    expect(breakdown.source).toBe('quote')
+  })
+
+  it('leaves a leg priced above the floor alone', async () => {
+    const breakdown = await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      quoteLegCostUsdc: quoteAt(20_000_000n, 5_000_000_000n),
+    })
+
+    expect(breakdown.commitCost).toBe(20_000_000n)
+  })
+
+  it('does not floor without market data to price it from', async () => {
+    const breakdown = await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      quoteLegCostUsdc: async () => ({ spendUsdc: 2_434n }),
+    })
+
+    expect(breakdown.commitCost).toBe(2_434n)
+  })
+
+  it('keeps two floored legs inside the budget ceiling', async () => {
+    const breakdown = await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      quoteLegCostUsdc: quoteAt(2_434n, 19n),
+    })
+
+    expect(breakdown.commitCost + breakdown.registerCost).toBeLessThan(
+      HCA_MAX_LEG_FEES_USDC,
+    )
   })
 })
