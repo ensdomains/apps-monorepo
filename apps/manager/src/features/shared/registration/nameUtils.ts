@@ -22,12 +22,6 @@ export const getErrorMessage = (error: unknown): unknown => {
   return error
 }
 
-export const normalizeQuery = (query: string): string => {
-  const trimmed = query.trim().toLowerCase()
-  if (!trimmed) return ''
-  return trimmed.endsWith('.eth') ? trimmed : `${trimmed}.eth`
-}
-
 /** The bare label of a 2LD: strips a trailing `.eth`, passes labels through. */
 export const toLabel = (name: string): string =>
   name.toLowerCase().endsWith('.eth') ? name.slice(0, -4) : name
