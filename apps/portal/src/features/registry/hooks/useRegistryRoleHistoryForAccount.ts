@@ -25,12 +25,7 @@ export const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
     account,
   })
 
-  const entries = yield* toRoleHistoryEntries({
-    logs,
-    resource: ROOT_RESOURCE,
-  })
-
-  return ok(entries)
+  return ok(toRoleHistoryEntries({ logs, resource: ROOT_RESOURCE }))
 })
 
 const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
