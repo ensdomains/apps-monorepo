@@ -38,6 +38,10 @@ describe('normalizePastedNameSearch', () => {
     expect(normalizePastedNameSearch('\u200Dabc\u200D')).toBe('abc')
     expect(normalizePastedNameSearch('👍\u200Dabc')).toBe('👍abc')
   })
+
+  it('strips a zero-width joiner between emoji that ENS does not join', () => {
+    expect(normalizePastedNameSearch('😀\u200D😀.eth')).toBe('😀😀.eth')
+  })
 })
 
 describe('insertNormalizedNameSearchPaste', () => {
