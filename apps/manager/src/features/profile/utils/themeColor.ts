@@ -52,7 +52,7 @@ export const resolveThemeColor = (hex?: string | null): string => {
   }
 
   const normalizedHex = trimmedHex.toLowerCase()
-  return getKnownProfileTheme(normalizedHex)?.value ?? trimmedHex
+  return getKnownProfileTheme(normalizedHex)?.value ?? DEFAULT_THEME_COLOR
 }
 
 export const getProfileTheme = (hex?: string | null): ProfileTheme => {
