@@ -72,7 +72,7 @@ const fetchMoreSettledNames = async (
 }
 
 /** Keeps the last results up while a new search for the same address loads. */
-const keepPreviousSearch =
+export const keepPreviousSearch =
   (address: Address) =>
   <TData>(
     previousData: TData | undefined,

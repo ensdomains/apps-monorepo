@@ -6,8 +6,8 @@ export type FetchMoreResult = {
 }
 
 class ListStalledError extends TaggedError('ListStalledError')<{
-  message: string
-  cause: FetchMoreResult
+  readonly message: string
+  readonly cause: FetchMoreResult
 }> {}
 
 type FetchUntilParameters = FetchMoreResult & {

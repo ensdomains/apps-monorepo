@@ -16,7 +16,11 @@ import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
+import {
+  type MergedName,
+  mergeNamesData,
+  type V2NameWithRoles,
+} from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
 import { getV1NamesPagesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesPagesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
@@ -107,6 +111,28 @@ const columns: ColumnDef<column>[] = [
     },
   },
 ]
+
+type NamesPagesQuery<TName> = {
+  readonly data?: {
+    readonly pages: readonly { readonly names: readonly TName[] }[]
+  }
+  readonly hasNextPage: boolean
+}
+
+/** The count is the acquired names of every page, so it is left off until all are loaded. */
+const getFullListLabel = (
+  v1: NamesPagesQuery<NameWithRelation>,
+  v2: NamesPagesQuery<V2NameWithRoles>,
+) => {
+  if (v1.hasNextPage || v2.hasNextPage) return 'Go to full list'
+  const { acquired } = partitionOwnedNames(
+    mergeNamesData(
+      v1.data?.pages.flatMap((page) => page.names),
+      v2.data?.pages.flatMap((page) => page.names),
+    ),
+  )
+  return `Go to full list (${acquired.length})`
+}
 
 export const NameList = ({ address, limit }: NameListProps) => {
   const v1NamesQuery = useInfiniteQuery(
@@ -240,7 +266,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
           className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripHorizontal className="size-4" />
-          Go to full list ({allData.length})
+          {getFullListLabel(v1NamesQuery, v2NamesQuery)}
         </Link>
       )}
     </div>

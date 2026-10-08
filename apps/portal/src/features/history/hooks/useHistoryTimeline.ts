@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Hex } from 'viem'
+import type { FetchMoreResult } from '@/components/ListLoader/fetchUntil'
 import type { ListLoaderProps } from '@/components/ListLoader/ListLoader'
 import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { dropPagedDuplicates, mergeTimeline } from '../mergeTimeline'
@@ -167,26 +168,45 @@ const useTimelineModel = (
       : pagedTotalCount +
         dropPagedDuplicates(auxiliaryEvents, pagedEvents).length
 
+  const countVisible = (
+    loadedPages: readonly TimelinePage[],
+    hasNext: boolean,
+  ) =>
+    countEvents(
+      toActions(
+        loadedPages.flatMap((page) => page.events),
+        hasNext,
+      ),
+    )
+  // A batch sharing one timestamp is withheld until the page past it arrives,
+  // so pages are read until one adds a visible row or brings no events.
+  const fetchVisiblePage = async (
+    signal?: AbortSignal,
+  ): Promise<FetchMoreResult> => {
+    const next = await pagesQuery.fetchNextPage()
+    if (next.isError) throw next.error
+    const loadedPages = next.data?.pages ?? []
+    const loaded = countVisible(loadedPages, next.hasNextPage)
+    const isBatchStillOpen =
+      next.hasNextPage &&
+      !signal?.aborted &&
+      (loadedPages.at(-1)?.events.length ?? 0) > 0 &&
+      loaded <= countVisible(loadedPages.slice(0, -1), true)
+
+    return isBatchStillOpen
+      ? fetchVisiblePage(signal)
+      : { loaded, hasMore: next.hasNextPage }
+  }
+
   const loader = useListLoader({
     initialCount: windowSize ?? Number.POSITIVE_INFINITY,
     loaded: countEvents(allActions),
     total: totalCount,
     hasMore: hasNextPage,
     // Not `page.events.length`: that counts the withheld boundary transaction.
-    fetchMore: async () => {
-      const next = await pagesQuery.fetchNextPage()
-      if (next.isError) throw next.error
-      return {
-        loaded: countEvents(
-          toActions(
-            next.data?.pages.flatMap((page) => page.events) ?? [],
-            next.hasNextPage,
-          ),
-        ),
-        hasMore: next.hasNextPage,
-      }
-    },
+    fetchMore: (signal) => fetchVisiblePage(signal),
     resetKey,
+    countShown: (window) => countEvents(takeEvents(allActions, window)),
   })
 
   // The window is counted in events and grows; `limit` is a fixed preview
@@ -219,7 +239,7 @@ const useTimelineModel = (
     // The sources gate first paint too, or a paged-only history would render
     // and then have older rows pushed in underneath it.
     isLoading: pagesQuery.isLoading || isLoadingSources,
-    error: pagesQuery.error,
+    error: pagesQuery.isFetchNextPageError ? null : pagesQuery.error,
     sourcesError,
     isTruncated,
   }
