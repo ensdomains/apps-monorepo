@@ -47,47 +47,79 @@ import { readRegisterPrice } from './registration-calls'
 /**
  * Per-leg gas LIMITS. Passed to `prepareTransaction({ gasLimit })` so the
  * orchestrator quotes against a bounded leg, and used by the fallback model.
- * Sized from live Sepolia fills (register ≈ 393k gas measured) plus headroom.
+ * Submitted intents carry no limit, so these only size the quote, never bound
+ * execution: they are sized from the gas the executor BILLS for a fill, which
+ * is the measured execution gas and runs below the transaction's `gasUsed`.
  */
 export const HCA_LEG_GAS_LIMITS = {
-  // Proven upper bound: a first-use commit (enable + permit + transferFrom +
-  // commit, which deploys the HCA) filled at ~393k gas on live Sepolia. The
-  // rail prices the quote on this LIMIT, so it must cover the full bundle or a
-  // successful quote could underfund the HCA and revert the first commit.
-  // Still accurate: a Sepolia commit fill measured 446_210 gas on 2026-10-06
-  // (`0xee6abba1266b3e09811647a48e5b4912f2bac85da5e283832d4a823d4f603a39`).
+  // Permit + transferFrom + commit, WITHOUT the conditional HCA deploy —
+  // `commitLegGasLimit` adds that on top. A repeat commit billed 384_879 gas
+  // on Sepolia, rounded up for headroom.
   commit: 450_000n,
   // Approve + register + record setters, WITHOUT the conditional resolver
   // deploy — `registerLegGasLimit` adds that on top.
   //
-  // Measured from a Sepolia reveal fill that deployed no resolver: 1_200_176
-  // gas on 2026-10-06
-  // (`0x570d87e352442bf9203f747a3f6496ebb828ed95eb58776eacb1b00b68fb80b1`),
-  // rounded up for headroom. The previous 450_000 came from a ~393k
-  // measurement the batch has since outgrown, and since the rail prices the
-  // quote on this limit, it priced the leg at roughly half its real cost: the
-  // permit then funded the HCA for that half, and the orchestrator refused to
-  // plan a reveal the account could not pay for — a rejection with no on-chain
-  // trace, identical on every retry.
-  register: 1_350_000n,
+  // Sepolia reveal fills that deployed no resolver billed 1_148_902 and
+  // 1_154_652 gas on 2026-10-06
+  // (`0x570d87e352442bf9203f747a3f6496ebb828ed95eb58776eacb1b00b68fb80b1`,
+  // `0x1c0722c8…`), rounded up for headroom. The previous 450_000 came from a
+  // ~393k measurement the batch has since outgrown, and since the rail prices
+  // the quote on this limit, it priced the leg at roughly half its real cost:
+  // the permit then funded the HCA for that half, and the orchestrator refused
+  // to plan a reveal the account could not pay for — a rejection with no
+  // on-chain trace, identical on every retry.
+  register: 1_250_000n,
 } as const
+
+/**
+ * Gas for deploying the HCA itself, which the FIRST commit does alongside the
+ * permit, transferFrom and commit.
+ *
+ * Two first-use Sepolia commits billed 663_019 and 662_734 gas against the
+ * 384_879 a repeat commit bills, so the deploy costs ~278_000 in the batch;
+ * rounded up for headroom. Leaving it unpriced under-funded the commit leg for
+ * every new user, the same way {@link HCA_RESOLVER_DEPLOY_GAS} once did for
+ * the reveal.
+ */
+export const HCA_ACCOUNT_DEPLOY_GAS = 300_000n
+
+/** What varies in the commit batch, and therefore in what the leg costs. */
+export interface CommitLegShape {
+  /**
+   * Whether the HCA already has code. Required, not defaulted: `false` is the
+   * expensive case, and defaulting either way is what leaves a deploy unpriced.
+   */
+  readonly isHcaDeployed: boolean
+}
+
+/**
+ * The `commit` leg's gas limit. Same rule as {@link registerLegGasLimit}: the
+ * rail prices purely on the declared units, so a conditional call that is not
+ * added here is not funded.
+ */
+export function commitLegGasLimit(shape: CommitLegShape): bigint {
+  return (
+    HCA_LEG_GAS_LIMITS.commit +
+    (shape.isHcaDeployed ? 0n : HCA_ACCOUNT_DEPLOY_GAS)
+  )
+}
 
 /**
  * Gas for the conditional `deployProxy` that `buildRevealBatch` prepends when
  * the HCA has no `PermissionedResolver` — i.e. on every FIRST registration.
  *
  * Measured as the difference between two Sepolia reveal fills on 2026-10-06:
- * 2_229_951 gas with the deploy
+ * 2_164_879 gas billed with the deploy
  * (`0xc03cb436c8fdf54792f06d8fa3525a51604913f5711334c29511527f06301873`,
- * and `0xe5745e1b…` within 546 gas of it) against 1_200_176 without, so the
- * deploy costs ~1_030_000 in the batch; rounded up for headroom.
+ * and `0xe5745e1b…` within 546 gas of it) against ~1_150_000 without, so the
+ * deploy costs ~1_015_000 in the batch; rounded up for headroom.
  *
  * The earlier 210_000 came from an `eth_estimateGas` of the factory call on
  * its own, which misses what the deploy costs inside the batch. Leaving it
  * unpriced altogether under-sized the permit by ~41% of the leg (Immunefi
  * #89462) — see {@link registerLegGasLimit} for why the quote cannot see it.
  */
-export const HCA_RESOLVER_DEPLOY_GAS = 1_150_000n
+export const HCA_RESOLVER_DEPLOY_GAS = 1_070_000n
 
 /**
  * Gas for the first storage word of the primary name, plus the fixed overhead
@@ -198,26 +230,22 @@ const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
  * number and we sign for it. The price half of the budget is read on-chain by
  * us, so it needs no bounding — only the fee half does.
  *
- * WHY 65 USDC. Live Sepolia fills on 2026-10-06 priced the commit leg at ~1.2
- * USDC and the register leg at 3.40 USDC without a resolver deploy, 5.69 with
- * one, so a healthy route uses ~7 of this. The bound also has to clear what the
- * clamped fallback model can produce at its own 5 gwei cap: the corrected leg
- * limits sum to 2.95M gas, which at 5 gwei is 0.0148 ETH, ~59 USDC at
- * $4000/ETH. Below that, a legitimate gas regime on the fallback path would be
- * refused outright.
+ * WHY 30 USDC. It only has to bound QUOTED figures: a fallback-sourced budget
+ * never reaches a permit, because `estimateHcaBudgetActor` refuses any
+ * breakdown whose `source` is not `'quote'`. Live Sepolia fills on 2026-10-06
+ * priced the commit leg at ~1.3 USDC and the register leg at 3.40 without a
+ * resolver deploy, 5.69 with one, so a healthy route uses ~7 of this and the
+ * bound sits at ~5x, which still clears a ~5 gwei spike on the quote path.
  *
- * It was 25 USDC, derived the same way from a 450k-gas register leg that the
- * batch has since outgrown — the figure moved because the leg did, not because
- * the bound was loosened on purpose. It remains a sanity bound on a fund-moving
- * figure, not a budget target, and it is now ~9x a healthy route rather than
- * ~6x: a tighter bound needs the fallback model to be bounded separately from
- * the orchestrator's own quote, which is a bigger change than this fix.
+ * It was 25 USDC, derived from a 450k-gas register leg the batch has since
+ * outgrown. It remains a sanity bound on a fund-moving figure, not a budget
+ * target.
  *
  * REVISIT ON MAINNET. The manifest is testnet-only today (sepolia +
  * baseSepolia). A mainnet deployment prices legs in real gas and must re-derive
  * this from that chain's own fills rather than inherit the testnet number.
  */
-export const HCA_MAX_LEG_FEES_USDC = 65_000_000n
+export const HCA_MAX_LEG_FEES_USDC = 30_000_000n
 
 /**
  * The largest funding budget (USDC, 6dp) this route will ever ask a wallet to
@@ -372,6 +400,11 @@ export interface HcaBudgetParams {
    * `buildRevealBatch`, so the budget and the batch cannot disagree.
    */
   readonly isResolverDeployed: boolean
+  /**
+   * See {@link CommitLegShape}. Whether the HCA has code; `false` makes the
+   * first commit deploy it inside the same batch.
+   */
+  readonly isHcaDeployed: boolean
 }
 
 export interface HcaBudgetBreakdown {
@@ -430,7 +463,10 @@ export async function estimateHcaBudget(
     0n,
   )
 
-  // What the reveal batch will contain, and so what the leg must be funded for.
+  // What each batch will contain, and so what the legs must be funded for.
+  const commitGasLimit = commitLegGasLimit({
+    isHcaDeployed: params.isHcaDeployed,
+  })
   const registerGasLimit = registerLegGasLimit({
     isResolverDeployed: params.isResolverDeployed,
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
@@ -469,11 +505,7 @@ export async function estimateHcaBudget(
       : undefined
     fallbackCommit =
       prices && market
-        ? fallbackLegFee6dp(
-            HCA_LEG_GAS_LIMITS.commit,
-            market.gasPriceWei,
-            prices,
-          )
+        ? fallbackLegFee6dp(commitGasLimit, market.gasPriceWei, prices)
         : FALLBACK_LEG_FEE_6DP
     fallbackRegister =
       prices && market

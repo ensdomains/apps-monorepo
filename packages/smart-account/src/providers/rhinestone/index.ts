@@ -21,7 +21,9 @@
  */
 
 export {
+  commitLegGasLimit,
   estimateHcaBudget,
+  HCA_ACCOUNT_DEPLOY_GAS,
   HCA_LEG_GAS_LIMITS,
   HCA_MAX_LEG_FEES_USDC,
   HCA_PRIMARY_NAME_BASE_GAS,

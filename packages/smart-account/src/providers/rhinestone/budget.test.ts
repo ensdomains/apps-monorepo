@@ -2,7 +2,9 @@ import type { PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  commitLegGasLimit,
   estimateHcaBudget,
+  HCA_ACCOUNT_DEPLOY_GAS,
   HCA_LEG_GAS_LIMITS,
   HCA_MAX_LEG_FEES_USDC,
   HCA_RESOLVER_DEPLOY_GAS,
@@ -28,8 +30,9 @@ const baseParams = (price: bigint) => ({
   chainId: sepolia.id,
   label: 'myname',
   duration: 31_536_000n,
-  // The deploy-specific cases below override this.
+  // The deploy-specific cases below override these.
   isResolverDeployed: true,
+  isHcaDeployed: true,
 })
 
 /** ETH at $3000, USDC at $1, 2 gwei — the shape `signedMetadata` carries. */
@@ -199,18 +202,18 @@ describe('estimateHcaBudget', () => {
     )
   })
 
-  it('pins the leg-fee ceiling at 65 USDC', async () => {
+  it('pins the leg-fee ceiling at 30 USDC', async () => {
     // The other ceiling tests feed the constant back into itself, so they stay
     // green whatever it is set to. These use literals on purpose: raising the
     // ceiling (e.g. for mainnet, see the REVISIT ON MAINNET note on
     // HCA_MAX_LEG_FEES_USDC in budget.ts) must be a deliberate edit here too.
-    expect(HCA_MAX_LEG_FEES_USDC).toBe(65_000_000n)
+    expect(HCA_MAX_LEG_FEES_USDC).toBe(30_000_000n)
 
-    // 33 USDC per leg = 66 USDC of fees, just over the ceiling.
+    // 16 USDC per leg = 32 USDC of fees, just over the ceiling.
     await expect(
       estimateHcaBudget({
         ...baseParams(USDC(5)),
-        quoteLegCostUsdc: async () => ({ spendUsdc: 33_000_000n }),
+        quoteLegCostUsdc: async () => ({ spendUsdc: 16_000_000n }),
       }),
     ).rejects.toThrow(HcaBudgetExceedsMaximumError)
   })
@@ -265,18 +268,25 @@ describe('estimateHcaBudget', () => {
 
   // Literals on purpose, like the ceiling test: the rail prices each leg on
   // the LIMIT we quote it against, so a stale limit silently underfunds the
-  // permit. These come from Sepolia fills on 2026-10-06 — 1_200_176 gas for a
-  // reveal with no resolver deploy (0x570d87e3…) and 2_229_951 with one
-  // (0xc03cb436…) — and moving them has to be a deliberate edit here too.
-  it('pins the register leg limits to the measured fills', () => {
-    expect(HCA_LEG_GAS_LIMITS.register).toBe(1_350_000n)
-    expect(HCA_RESOLVER_DEPLOY_GAS).toBe(1_150_000n)
+  // permit. These are the gas the executor BILLED on Sepolia fills on
+  // 2026-10-06 — 1_154_652 for a reveal with no resolver deploy and 2_164_879
+  // with one (0xc03cb436…), 384_879 for a repeat commit and 663_019 for a
+  // first one — and moving them has to be a deliberate edit here too.
+  it('pins the leg limits to the measured fills', () => {
+    expect(HCA_LEG_GAS_LIMITS.commit).toBe(450_000n)
+    expect(HCA_ACCOUNT_DEPLOY_GAS).toBe(300_000n)
+    expect(HCA_LEG_GAS_LIMITS.register).toBe(1_250_000n)
+    expect(HCA_RESOLVER_DEPLOY_GAS).toBe(1_070_000n)
 
+    expect(commitLegGasLimit({ isHcaDeployed: true })).toBeGreaterThan(384_879n)
+    expect(commitLegGasLimit({ isHcaDeployed: false })).toBeGreaterThan(
+      663_019n,
+    )
     expect(registerLegGasLimit({ isResolverDeployed: true })).toBeGreaterThan(
-      1_200_176n,
+      1_154_652n,
     )
     expect(registerLegGasLimit({ isResolverDeployed: false })).toBeGreaterThan(
-      2_229_951n,
+      2_164_879n,
     )
   })
 
@@ -296,11 +306,40 @@ describe('estimateHcaBudget', () => {
     const fresh = await budgetFor(false)
     const existing = await budgetFor(true)
 
-    // 1.15M gas × 2 gwei × $3000/ETH ÷ $1/USDC = 6.90 USDC. The deploy is what
-    // separates a 1.2M-gas reveal fill from a 2.23M one, so pricing it at the
-    // old 210k left a first registration underfunded by most of it.
-    expect(fresh.registerCost - existing.registerCost).toBe(6_900_000n)
+    // 1.07M gas × 2 gwei × $3000/ETH ÷ $1/USDC = 6.42 USDC. The deploy is what
+    // separates a ~1.15M-gas reveal fill from a 2.16M one, so pricing it at
+    // the old 210k left a first registration underfunded by most of it.
+    expect(fresh.registerCost - existing.registerCost).toBe(6_420_000n)
     expect(fresh.total).toBeGreaterThan(existing.total)
+  })
+})
+
+describe('commitLegGasLimit', () => {
+  it('funds the HCA deploy only on a first commit', () => {
+    expect(commitLegGasLimit({ isHcaDeployed: true })).toBe(
+      HCA_LEG_GAS_LIMITS.commit,
+    )
+    expect(commitLegGasLimit({ isHcaDeployed: false })).toBe(
+      HCA_LEG_GAS_LIMITS.commit + HCA_ACCOUNT_DEPLOY_GAS,
+    )
+  })
+
+  it('prices the HCA deploy into the commit leg for a new account', async () => {
+    const budgetFor = (isHcaDeployed: boolean) =>
+      estimateHcaBudget({
+        ...baseParams(USDC(5)),
+        isHcaDeployed,
+        quoteLegCostUsdc: async () => ({
+          spendUsdc: null,
+          market: market(2_000_000_000n),
+        }),
+      })
+
+    const fresh = await budgetFor(false)
+    const existing = await budgetFor(true)
+
+    // 300k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 1.80 USDC.
+    expect(fresh.commitCost - existing.commitCost).toBe(1_800_000n)
   })
 })
 

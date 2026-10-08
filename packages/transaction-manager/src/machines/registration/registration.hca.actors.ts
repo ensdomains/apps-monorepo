@@ -25,10 +25,10 @@ import { requireChainId } from '@ens-apps/config'
 import {
   buildCommitCall,
   buildRevealBatch,
+  commitLegGasLimit,
   computeResolverAddress,
   estimateHcaBudget,
   getDestinationContracts,
-  HCA_LEG_GAS_LIMITS,
   type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
@@ -325,18 +325,44 @@ function sessionSigners(
  * whether `registerLegGasLimit` funds it. Shared so the budget and the
  * submitted batch cannot disagree.
  */
+async function hasCode(
+  publicClient: PublicClient,
+  address: Address,
+): Promise<boolean> {
+  const code = await publicClient.getCode({ address })
+  return Boolean(code && code !== '0x')
+}
+
+/**
+ * What the two conditional deploys in the batches cost: the resolver, which
+ * the reveal prepends on a first registration, and the HCA itself, which the
+ * first commit deploys. One read each, feeding both the batch and the gas
+ * limit that funds it. Not caught: an unsized leg must fail loudly, not fund
+ * the permit short.
+ */
 async function isResolverDeployed(params: {
   publicClient: PublicClient
   chainId: number
   hca: Address
 }): Promise<boolean> {
-  const code = await params.publicClient.getCode({
-    address: computeResolverAddress({
-      chainId: params.chainId,
-      hca: params.hca,
-    }),
-  })
-  return Boolean(code && code !== '0x')
+  return hasCode(
+    params.publicClient,
+    computeResolverAddress({ chainId: params.chainId, hca: params.hca }),
+  )
+}
+
+async function readDeploymentState(params: {
+  publicClient: PublicClient
+  chainId: number
+  hca?: Address
+}): Promise<{ isResolverDeployed: boolean; isHcaDeployed: boolean }> {
+  const { publicClient, chainId, hca } = params
+  if (!hca) return { isResolverDeployed: false, isHcaDeployed: false }
+  const [isResolverDeployed, isHcaDeployed] = await Promise.all([
+    hasCode(publicClient, computeResolverAddress({ chainId, hca })),
+    hasCode(publicClient, hca),
+  ])
+  return { isResolverDeployed, isHcaDeployed }
 }
 
 export function estimateHcaBudgetActor(input: {
@@ -378,9 +404,9 @@ export function estimateHcaBudgetActor(input: {
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
-  // Takes `resolverDeployed` rather than reading it per call, so the batch and
-  // the gas limit that funds it are built from one value.
-  const makeQuoter = (resolverDeployed: boolean) =>
+  // Takes the deployment flags rather than reading them per call, so the batch
+  // and the gas limit that funds it are built from one value.
+  const makeQuoter = (resolverDeployed: boolean, hcaDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
@@ -392,8 +418,9 @@ export function estimateHcaBudgetActor(input: {
           if (leg === 'commit') {
             // Quote the SAME shape `submitFundingAndCommitActor` submits. The
             // funding permit/transferFrom pair is two cheap ERC-20 calls on
-            // top; the `HCA_LEG_GAS_LIMITS.commit` bound covers them, so a
-            // successful quote never underfunds the HCA.
+            // top; the `commitLegGasLimit` bound covers them, and the HCA
+            // deploy when this is the account's first commit, so a successful
+            // quote never underfunds the HCA.
             const calls: Call[] = []
             const commitCall = buildCommitCall({
               chainId,
@@ -408,7 +435,7 @@ export function estimateHcaBudgetActor(input: {
               rhinestone.account,
               chain,
               calls,
-              HCA_LEG_GAS_LIMITS.commit,
+              commitLegGasLimit({ isHcaDeployed: hcaDeployed }),
               signers,
               incomingUsdc,
             )
@@ -474,17 +501,13 @@ export function estimateHcaBudgetActor(input: {
           }).unwrapOr(0n)
         : 0n
 
-      // One read, feeding both the batch and the limit that funds it. Not
-      // caught: an unsized leg must fail loudly, not fund the permit short.
-      const resolverDeployed = hca
-        ? await isResolverDeployed({
-            publicClient: input.publicClient,
-            chainId,
-            hca,
-          })
-        : false
+      const { isResolverDeployed, isHcaDeployed } = await readDeploymentState({
+        publicClient: input.publicClient,
+        chainId,
+        ...(hca ? { hca } : {}),
+      })
 
-      const quoteLegCostUsdc = makeQuoter(resolverDeployed)
+      const quoteLegCostUsdc = makeQuoter(isResolverDeployed, isHcaDeployed)
 
       const breakdown = await estimateHcaBudget({
         publicClient: input.publicClient,
@@ -492,7 +515,8 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
-        isResolverDeployed: resolverDeployed,
+        isResolverDeployed,
+        isHcaDeployed,
         ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
