@@ -233,19 +233,10 @@ describe('runExpiryDiscoveryCron', () => {
     }
   })
 
-  it('keeps cursors and reminders at or before the time the sweep pages actually read', async () => {
+  it('sends nothing and holds every cursor when the sweep read an older index than it planned on', async () => {
     const olderRead = NOW - 3600
-    const stage30d = STAGES.find(({ id }) => id === 'expiry-30d')
-    if (!stage30d) throw new Error('Missing stage')
-    const cap = getUpperBoundForStage(stage30d, olderRead)
     sweepWith(
-      (window) =>
-        readOf(
-          window.stage.id === 'expiry-30d'
-            ? [stageName('seen.eth', cap), stageName('too-new.eth', cap + 1)]
-            : [],
-          window,
-        ),
+      (window) => readOf([stageName('renewed.eth', window.upperBound)], window),
       olderRead,
     )
     const sendBatch = vi.fn(
@@ -260,25 +251,44 @@ describe('runExpiryDiscoveryCron', () => {
     )
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
 
-    await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
+    const result = await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
 
-    const queued = sendBatch.mock.calls.flatMap(([messages]) =>
-      messages.map(({ body }) =>
-        typeof body === 'object' && body !== null && 'name' in body
-          ? body.name
-          : undefined,
+    expect(result._unsafeUnwrap()).toEqual({
+      totalEnqueued: 0,
+      failedStages: 0,
+    })
+    expect(sendBatch).not.toHaveBeenCalled()
+    expect(await readCursors(kv)).toEqual(cursors)
+  })
+
+  it('accepts a sweep from a newer index than it planned on', async () => {
+    sweepWith(
+      (window) =>
+        readOf(
+          window.stage.id === 'expiry-30d'
+            ? [stageName('alice.eth', window.upperBound)]
+            : [],
+          window,
+        ),
+      NOW + 60,
+    )
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
+    const kv = new MockKV()
+    kv.seed(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      Object.fromEntries(
+        STAGES.map((value) => [
+          value.id,
+          { expiry_timestamp: getLowerBoundForStage(value, NOW) },
+        ]),
       ),
     )
-    expect(queued).toEqual(['seen.eth'])
-    const stored = await readCursors(kv)
-    for (const value of STAGES) {
-      expect(stored[value.id]?.expiry_timestamp).toBe(
-        Math.max(
-          cursors[value.id]?.expiry_timestamp ?? 0,
-          getUpperBoundForStage(value, olderRead),
-        ),
-      )
-    }
+
+    const result = await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
+
+    expect(result._unsafeUnwrap().totalEnqueued).toBe(1)
   })
 
   it.each([

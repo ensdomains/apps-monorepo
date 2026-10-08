@@ -172,30 +172,6 @@ const processStage = ResultFn(async function* (ctx: {
   } satisfies StageRunMetrics)
 })
 
-/**
- * The windows were planned at the index position read before the sweep; if a
- * page then came from an older publication, neither the cursor nor the
- * reminders may pass what it saw. Names beyond the cap are read again next run.
- */
-const capAtSweepTime = (
-  plan: StagePlan,
-  page: ProcessableExpiryPage,
-  sweepIndexedAtSec: number,
-): ProcessableExpiryPage => {
-  const cap = Math.max(
-    plan.cursorStart,
-    getUpperBoundForStage(plan.stage, sweepIndexedAtSec),
-  )
-  return page.cursorEnd <= cap
-    ? page
-    : {
-        ...page,
-        domains: page.domains.filter(({ expiryDate }) => expiryDate <= cap),
-        cursorEnd: cap,
-        hasMore: true,
-      }
-}
-
 export const runExpiryDiscoveryCron = ResultFn(async function* (
   env: CloudflareBindings,
 ) {
@@ -256,6 +232,17 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
       ? await fetchSweep({ env, windows: openPlans })
       : undefined
 
+  // The windows were planned at the probed position. A sweep served from an
+  // older publication can show a renewed name at its old expiry anywhere in
+  // the window, so the run sends nothing and every cursor holds.
+  if (sweep?.isOk() && sweep.value.indexedAtSec < indexedAt.value) {
+    logger.warn('Expiry discovery skipped: the sweep read an older index', {
+      plannedAtSec: indexedAt.value,
+      sweepIndexedAtSec: sweep.value.indexedAtSec,
+    })
+    return ok({ totalEnqueued: 0, failedStages: 0 })
+  }
+
   const runStage = async (
     plan: StagePlan,
   ): Promise<Result<StageRunMetrics, unknown>> => {
@@ -263,13 +250,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
     // A failed read holds every open stage; nothing was read for any of them.
     if (!sweep || sweep.isErr()) return err(sweep?.error)
     const page = sweep.value.pages.get(plan.stage.id)
-    return page
-      ? processStage({
-          env,
-          plan,
-          page: capAtSweepTime(plan, page, sweep.value.indexedAtSec),
-        })
-      : ok(caughtUpMetrics(plan))
+    return page ? processStage({ env, plan, page }) : ok(caughtUpMetrics(plan))
   }
   const stageResults = await Promise.all(
     plans.map(async (plan) => ({
