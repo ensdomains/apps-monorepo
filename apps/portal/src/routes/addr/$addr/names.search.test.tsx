@@ -7,6 +7,9 @@ import { usePublicClient } from 'wagmi'
 import { createTestWrapper } from '@/test-utils/providers'
 
 const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
+const OTHER_ADDRESS = '0x950b93885b33ce4c7e8571be2c88a1aa93d82f49'
+
+const route = vi.hoisted(() => ({ address: '' }))
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 vi.mock('@tanstack/react-router', () => ({
@@ -15,7 +18,7 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
-    useParams: () => ({ addr: ADDRESS }),
+    useParams: () => ({ addr: route.address }),
   }),
 }))
 
@@ -102,6 +105,7 @@ const searchBox = () => screen.getByPlaceholderText('Search names...')
 
 describe('addr names route search', { timeout: 60_000 }, () => {
   beforeEach(() => {
+    route.address = ADDRESS
     v1Names.mockReset()
     v1Names.mockResolvedValue(v1Page([]))
     v2Names.mockReset()
@@ -201,5 +205,23 @@ describe('addr names route search', { timeout: 60_000 }, () => {
     expect(screen.getAllByText('coco-v1.eth').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Error searching ENSv1 names/)).toBeNull()
     await waitFor(() => expect(searchBox()).toHaveValue('coco'))
+  })
+
+  it('forgets the search when the address changes, even after coming back', async () => {
+    const user = userEvent.setup()
+    const view = renderRoute()
+    await screen.findByText('Names (2)', {}, SLOW)
+    await user.type(searchBox(), 'coco')
+    await screen.findByText('Names (1 matching)', {}, SLOW)
+
+    route.address = OTHER_ADDRESS
+    view.rerender(<NamesRoute />)
+    await waitFor(() => expect(searchBox()).toHaveValue(''), SLOW)
+
+    route.address = ADDRESS
+    view.rerender(<NamesRoute />)
+
+    expect(await screen.findByText('Names (2)', {}, SLOW)).toBeInTheDocument()
+    expect(searchBox()).toHaveValue('')
   })
 })

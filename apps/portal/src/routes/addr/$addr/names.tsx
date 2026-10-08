@@ -436,8 +436,10 @@ const NamesList = ({
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
 
-  // Kept with its address, so a search does not follow you to another address.
+  // Kept with its address and dropped when the address changes, so a search
+  // neither follows you to another address nor waits for you to come back.
   const [typed, setTyped] = useState({ address, search: '' })
+  if (typed.address !== address) setTyped({ address, search: '' })
   const search = typed.address === address ? typed.search : ''
   const debouncedSearch = useDebouncedValue(search.trim(), SEARCH_DEBOUNCE_MS)
   const appliedSearch = search === '' ? '' : debouncedSearch
