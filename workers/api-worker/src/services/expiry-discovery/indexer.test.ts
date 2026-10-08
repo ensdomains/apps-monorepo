@@ -8,6 +8,9 @@ import {
   PAGE_SIZE,
 } from './indexer.js'
 
+import { fetchSweep } from './page.js'
+import { STAGES } from './stages.js'
+
 const ENV = { CHAIN: 'sepolia' } as CloudflareBindings
 const AS_OF = '1790755200'
 const AS_OF_SEC = 1_790_755_200
@@ -32,7 +35,7 @@ const row = (
   namespace: 'ens',
   namehash: '0xabc',
   authority: 'ens_v2',
-  registration_status: 'registered',
+  status: 'active',
   expires_at,
   grace_ends_at: graceAfter(expires_at, 28),
   ...extra,
@@ -129,7 +132,7 @@ describe('fetchExpiringNamesPage', () => {
           row('v2.eth', '1700000000', { owner: '0xABC' }),
           row('v1.eth', '1700000001', {
             authority: 'ens_v1',
-            registration_status: 'active',
+            status: 'active',
             owner: '0xDEF',
           }),
         ]),
@@ -143,7 +146,7 @@ describe('fetchExpiringNamesPage', () => {
         {
           name: 'v2.eth',
           expiryDate: 1_700_000_000,
-          registrationStatus: 'registered',
+          registrationStatus: 'active',
           hasV2Grace: true,
           owner: '0xabc',
         },
@@ -186,7 +189,7 @@ describe('fetchExpiringNamesPage', () => {
       json(
         listing([
           row('lapsed.eth', '1700000000', {
-            registration_status: 'released',
+            status: 'released',
             lapsed_registration: {
               owner: '0xDEF',
               released_at: '1702419200',
@@ -206,6 +209,58 @@ describe('fetchExpiringNamesPage', () => {
         owner: '0xdef',
       }),
     )
+  })
+
+  it.each([
+    { stageId: 'expiry-1d', status: 'active', offsetDays: 1 },
+    { stageId: 'grace-start', status: 'expired', offsetDays: 0 },
+    { stageId: 'grace-7d', status: 'expired', offsetDays: -21 },
+    { stageId: 'grace-1d', status: 'expired', offsetDays: -27 },
+    { stageId: 'premium-start', status: 'released', offsetDays: -28 },
+  ])('sweeps a v0.7 reservation through $stageId', async ({
+    stageId,
+    status,
+    offsetDays,
+  }) => {
+    const stage = STAGES.find((candidate) => candidate.id === stageId)
+    if (!stage) throw new Error('Missing stage')
+    const expiry = AS_OF_SEC + offsetDays * DAY
+    stubFetch(
+      json(
+        listing([
+          row('reserved.eth', String(expiry), {
+            authority: 'ens_v1',
+            status,
+            ens_v1: { expires_at: String(expiry - 62 * DAY) },
+            // The lease can lapse before the canonical reservation does.
+            lapsed_registration: { owner: '0xDEF', release_kind: 'expired' },
+          }),
+        ]),
+      ),
+    )
+    const sweep = (
+      await fetchSweep({
+        env: ENV,
+        windows: [{ stage, cursor: expiry - 1, upperBound: expiry }],
+      })
+    )._unsafeUnwrap()
+    expect(sweep.pages.get(stage.id)?.domains).toEqual([
+      expect.objectContaining({
+        name: 'reserved.eth',
+        expiryDate: expiry,
+        owner: '0xdef',
+      }),
+    ])
+  })
+
+  it.each([
+    undefined,
+    'wrapped',
+    'unexpected',
+  ])('rejects an invalid lifecycle status %s', async (status) => {
+    stubFetch(json(listing([row('bad.eth', '1700000000', { status })])))
+    const result = await fetchExpiringNamesPage(QUERY)
+    expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
   })
 
   it('returns the next cursor only while bigname has more', async () => {

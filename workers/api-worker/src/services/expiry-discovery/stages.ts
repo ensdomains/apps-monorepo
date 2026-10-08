@@ -120,42 +120,29 @@ export function getExpiryStageRank(stageId: ExpiryStageId): number {
   return STAGES.findIndex((stage) => stage.id === stageId)
 }
 
-const HELD_STATUSES: ReadonlySet<RegistrationStatus> = new Set([
-  'active',
-  'wrapped',
-  'registered',
-])
-
 export type StageCandidate = {
   readonly registrationStatus: RegistrationStatus
   readonly hasV2Grace: boolean
   readonly releaseKind?: string
 }
 
-/**
- * Whether a row in this stage's window should be notified, from what the row
- * shows (bigname expiry-sweep guide, section 3). Before expiry only held names
- * are; in grace, an ENSv1 lease is still held while an ENSv2 registration is
- * served `released` as `expired`, and both are; after grace only rows released
- * because they expired. Any other release, and `unregistered`, never is.
- */
+/** Match the lifecycle at the page's indexed time to the reminder phase. */
 export function isNotifiableAtStage(
   stage: ExpiryStageConfig,
   candidate: StageCandidate,
 ): boolean {
-  // Stages and templates assume a 28-day grace; a lease that still runs on
-  // ENSv1's 90 days (no ENSv2 reservation) would be told the wrong dates.
+  // Stage offsets and templates describe the ENSv2 28-day grace period.
   if (!candidate.hasV2Grace) return false
-  const isHeld = HELD_STATUSES.has(candidate.registrationStatus)
-  const isExpiredRelease =
-    candidate.registrationStatus === 'released' &&
-    candidate.releaseKind === 'expired'
+  if (candidate.releaseKind === 'unregistered') return false
   switch (stage.phase) {
     case 'pre-expiry':
-      return isHeld
+      return candidate.registrationStatus === 'active'
     case 'in-grace':
-      return isHeld || isExpiredRelease
+      return candidate.registrationStatus === 'expired'
     case 'grace-ended':
-      return isExpiredRelease
+      return (
+        candidate.registrationStatus === 'released' &&
+        candidate.releaseKind === 'expired'
+      )
   }
 }

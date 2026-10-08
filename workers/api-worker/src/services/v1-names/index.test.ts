@@ -12,7 +12,7 @@ const row = (name: string, expires_at?: string) => ({
   display_name: name,
   namespace: 'ens',
   namehash: '0xabc',
-  registration_status: 'wrapped',
+  status: 'active',
   relations: ['owner'],
   is_primary: false,
   ...(expires_at !== undefined && { expires_at }),
@@ -111,10 +111,11 @@ describe('hasV1Names', () => {
   })
 
   it.each([
+    'expired',
     'released',
     'unregistered',
-  ])('does not count a %s name', async (registration_status) => {
-    mockBigname(page([{ ...row('gone.eth', FUTURE), registration_status }]))
+  ])('does not count a %s name', async (status) => {
+    mockBigname(page([{ ...row('gone.eth', FUTURE), status }]))
 
     await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
   })
@@ -140,7 +141,7 @@ describe('hasV1Names', () => {
   it('does not count a released name, even without an expiry', async () => {
     mockBigname(
       page([
-        { ...row('gone.eth'), registration_status: 'released' },
+        { ...row('gone.eth'), status: 'released' },
         row('alice.eth', PAST),
       ]),
     )

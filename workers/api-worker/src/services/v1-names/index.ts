@@ -28,12 +28,7 @@ const lapseSeconds = (row: AddressName) =>
  */
 const isLiveMigratableName = (row: AddressName, nowSec: number) => {
   if (isReverseName(row.name)) return false
-  if (
-    row.registration_status === 'released' ||
-    row.registration_status === 'unregistered'
-  ) {
-    return false
-  }
+  if (row.status !== 'active') return false
   const lapse = lapseSeconds(row)
   return lapse === null || lapse > nowSec
 }

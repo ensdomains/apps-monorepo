@@ -75,7 +75,7 @@ const stageName = (
 ): ExpiringName => ({
   name,
   expiryDate,
-  registrationStatus: 'registered',
+  registrationStatus: 'active',
   hasV2Grace: true,
   ...extra,
 })

@@ -122,8 +122,7 @@ export type SortOrder = 'asc' | 'desc'
 /** Name-shaped rows: registration/control lifecycle label. */
 export type RegistrationStatus =
   | 'active'
-  | 'wrapped'
-  | 'registered'
+  | 'expired'
   | 'released'
   | 'unregistered'
 
@@ -164,7 +163,7 @@ export type RegistryRef = Readonly<{
 export type EnsV1Facts = Readonly<{
   /** The BaseRegistrar lease; null on a subname. */
   expires_at?: Timestamp | null
-  wrapper_state?: WrapperState
+  wrapper_state?: WrapperState | 'lapsed' | 'unwrapped' | 'unknown'
   wrapper_fuses?: WrapperFuses
   /** Null when the wrapper never set one. */
   wrapper_expires_at?: Timestamp | null
