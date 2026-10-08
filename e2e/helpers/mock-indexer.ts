@@ -19,13 +19,21 @@ import { namehash } from 'viem'
 // Types
 // ---------------------------------------------------------------------------
 
+export type MockRelation = 'owner' | 'manager' | 'role_holder'
+
 export type MockDomain = {
   name: string
+  /** The address the name is listed for. */
   owner: string
   resolver?: string
+  /** Registrar expiry, unix seconds. An ENSv2 name past it is in grace. */
   expiryDate?: number
   createdAt?: number
   records?: { key: string; value: string }[]
+  /** Defaults to ENSv2. */
+  readonly protocol?: 'v1' | 'v2'
+  /** How `owner` relates to the name; defaults to owner and manager. */
+  readonly relations?: readonly MockRelation[]
 }
 
 /**
@@ -38,6 +46,10 @@ const CHAIN_ID = 11155111
 type LookupBody = { readonly inputs?: readonly { readonly name?: string }[] }
 
 const META = { as_of: {} }
+const DEFAULT_RELATIONS: readonly MockRelation[] = ['owner', 'manager']
+const AUTHORITIES = { v1: ['ens_v1', 'ens_v0'], v2: ['ens_v2'] } as const
+const SORT_KEYS = ['name', 'expires_at', 'created_at', 'registered_at'] as const
+type SortKey = (typeof SORT_KEYS)[number]
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
@@ -55,31 +67,66 @@ export function createIndexerMock() {
     domains.push(domain)
   }
 
+  function removeName(name: string) {
+    const index = domains.findIndex((d) => d.name === name)
+    if (index >= 0) domains.splice(index, 1)
+  }
+
   const findDomain = (name: string) =>
     domains.find((d) => d.name.toLowerCase() === name.toLowerCase())
 
   const resolverOf = (d: MockDomain) =>
     d.resolver ?? ((d.records?.length ?? 0) > 0 ? MOCK_RESOLVER_ADDRESS : null)
 
-  // Mock names are ENSv2 registrations held by `owner`, who also manages them.
+  const nowSeconds = () => Math.floor(Date.now() / 1000)
+  const expiryOf = (d: MockDomain) =>
+    d.expiryDate ?? nowSeconds() + 28 * 24 * 3600
+  const createdOf = (d: MockDomain) => d.createdAt ?? nowSeconds() - 3600
+  // bigname drops an expired ENSv2 name from its holder's relations; the
+  // holder is its former owner until the name is registered again.
+  const isLapsed = (d: MockDomain) =>
+    d.protocol !== 'v1' && expiryOf(d) <= nowSeconds()
+
   function nameFields(d: MockDomain) {
-    const now = Math.floor(Date.now() / 1000)
     const resolver = resolverOf(d)
+    const owner = d.owner.toLowerCase()
+    const expiresAt = String(expiryOf(d))
     return {
       name: d.name,
       display_name: d.name,
       namespace: 'ens',
       namehash: namehash(d.name),
-      owner: d.owner.toLowerCase(),
-      manager: d.owner.toLowerCase(),
-      registration_status: 'registered',
-      registered_at: String(d.createdAt ?? now - 3600),
-      created_at: String(d.createdAt ?? now - 3600),
-      expires_at: String(d.expiryDate ?? now + 28 * 24 * 3600),
-      authority: 'ens_v2',
+      registered_at: String(createdOf(d)),
+      created_at: String(createdOf(d)),
+      expires_at: expiresAt,
+      ...(isLapsed(d)
+        ? {
+            registration_status: 'released',
+            lapsed_registration: { owner, release_kind: 'expired' },
+          }
+        : { owner, manager: owner, registration_status: 'registered' }),
+      ...(d.protocol === 'v1'
+        ? { authority: 'ens_v1', ens_v1: { expires_at: expiresAt } }
+        : { authority: 'ens_v2' }),
       ...(resolver && { resolver: { chain_id: CHAIN_ID, address: resolver } }),
     }
   }
+
+  const sortValue = (d: MockDomain, key: SortKey): string | number =>
+    key === 'name' ? d.name : key === 'expires_at' ? expiryOf(d) : createdOf(d)
+
+  // bigname's order: the field in the requested direction, then the namehash.
+  const compareBy =
+    (key: SortKey, order: string) => (a: MockDomain, b: MockDomain) => {
+      const left = sortValue(a, key)
+      const right = sortValue(b, key)
+      const byField =
+        typeof left === 'string' && typeof right === 'string'
+          ? left.localeCompare(right)
+          : Number(left) - Number(right)
+      const byHash = namehash(a.name) < namehash(b.name) ? -1 : 1
+      return (order === 'desc' ? -byField : byField) || byHash
+    }
 
   function recordGroups(d: MockDomain) {
     if (!resolverOf(d)) return undefined
@@ -94,40 +141,65 @@ export function createIndexerMock() {
     }
   }
 
-  function addressNames(address: string, params: URLSearchParams) {
-    const relation = params.get('relation') ?? 'any'
-    const isV1Only =
-      params.get('authority')?.split(',').includes('ens_v1') ?? false
+  const relationsOf = (d: MockDomain): readonly string[] =>
+    isLapsed(d) ? ['former_owner'] : (d.relations ?? DEFAULT_RELATIONS)
+
+  const matchesText = (d: MockDomain, params: URLSearchParams) => {
+    const q = params.get('q')?.toLowerCase()
+    if (!q) return true
+    const name = d.name.toLowerCase()
+    return params.get('match') === 'contains'
+      ? name.includes(q)
+      : name.startsWith(q)
+  }
+
+  // The query filters of `GET /v1/addresses/{address}/names`.
+  const toFilter = (address: string, params: URLSearchParams) => {
+    const wanted = params.get('relation') ?? 'any'
+    const authorities = params.get('authority')?.split(',') ?? null
+    const expiresAfter = Number(params.get('expires_after') ?? -Infinity)
+    const expiresBefore = Number(params.get('expires_before') ?? Infinity)
     const isMigratedOnly = params.get('is_migrated') === 'true'
-    const q = params.get('q')?.toLowerCase() ?? ''
-    const isContains = params.get('match') === 'contains'
-    const matchesQuery = (name: string) =>
-      !q || (isContains ? name.includes(q) : name.startsWith(q))
-    const rows =
-      relation === 'former_owner' || isV1Only || isMigratedOnly
-        ? []
-        : domains
-            .filter((d) => d.owner.toLowerCase() === address.toLowerCase())
-            .filter(
-              (d) =>
-                params.get('parent') !== 'eth' ||
-                d.name.split('.').length === 2,
-            )
-            .filter((d) => matchesQuery(d.name))
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((d) => ({
-              ...nameFields(d),
-              relations: ['owner', 'manager'],
-              is_primary: false,
-            }))
+    const isEthChildOnly = params.get('parent') === 'eth'
+    return (d: MockDomain) =>
+      d.owner.toLowerCase() === address.toLowerCase() &&
+      (wanted === 'any'
+        ? !isLapsed(d)
+        : wanted.split(',').some((r) => relationsOf(d).includes(r))) &&
+      (!authorities ||
+        AUTHORITIES[d.protocol ?? 'v2'].some((a) => authorities.includes(a))) &&
+      !isMigratedOnly &&
+      (!isEthChildOnly || d.name.split('.').length === 2) &&
+      matchesText(d, params) &&
+      expiryOf(d) >= expiresAfter &&
+      expiryOf(d) < expiresBefore
+  }
+
+  // Filters, orders and pages like bigname, with the offset as the cursor.
+  function addressNames(address: string, params: URLSearchParams) {
+    const sortParam = params.get('sort')
+    const sort: SortKey = SORT_KEYS.find((key) => key === sortParam) ?? 'name'
+    const pageSize = Number(params.get('page_size') ?? 50)
+    const offset = Number(params.get('cursor') ?? 0)
+    const matches = domains
+      .filter(toFilter(address, params))
+      .sort(compareBy(sort, params.get('order') ?? 'asc'))
+    const rows = matches.slice(offset, offset + pageSize).map((d) => ({
+      ...nameFields(d),
+      relations: relationsOf(d),
+      is_primary: false,
+    }))
+    const next = offset + pageSize < matches.length ? offset + pageSize : null
+    const hasTotal =
+      params.get('include')?.split(',').includes('total_count') ?? false
     return {
       data: rows,
       page: {
-        cursor: null,
-        next_cursor: null,
-        page_size: rows.length,
-        total_count: rows.length,
-        has_more: false,
+        cursor: offset === 0 ? null : String(offset),
+        next_cursor: next === null ? null : String(next),
+        page_size: pageSize,
+        ...(hasTotal && { total_count: matches.length }),
+        has_more: next !== null,
       },
       meta: META,
     }
@@ -260,5 +332,5 @@ export function createIndexerMock() {
     await install(page)
   }
 
-  return { install, installIfEnabled, addName, domains, enabled }
+  return { install, installIfEnabled, addName, removeName, domains, enabled }
 }
