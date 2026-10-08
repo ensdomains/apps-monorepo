@@ -13,8 +13,8 @@ declare namespace Cloudflare {
 		PUSH_QUEUE: Queue;
 		DLQ: Queue;
 		CHAIN: "sepolia";
-		BASE_URL: "https://app-api.ens.dev";
-		MANAGER_APP_URL: "https://app.ens.dev";
+		BASE_URL: "https://sepolia.app-api.ens.domains";
+		MANAGER_APP_URL: "https://sepolia.app.ens.domains";
 		POSTHOG: { host: string; unique_searches_endpoint: string; };
 		VAPID_SUBJECT: "mailto:notifications@ens.domains";
 		VAPID_PUBLIC_KEY: "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs";

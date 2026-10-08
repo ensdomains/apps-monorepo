@@ -104,8 +104,12 @@ export const useTransferRoleRevocations = ({
   )
     return { status: 'pending' }
 
+  // A list the registry didn't confirm may be missing a holder, and a missing
+  // holder would keep their grant through the transfer.
+  if (!accountsQuery.data.isVerified) return { status: 'error' }
+
   return planRoleRevocations({
-    accounts: accountsQuery.data,
+    accounts: accountsQuery.data.holders,
     owner,
     ownerRoles: ownerRolesQuery.data.decoded ?? [],
     ownerRootRoles:

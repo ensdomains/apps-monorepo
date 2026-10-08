@@ -161,10 +161,9 @@ vi.mock('@tanstack/react-query', async () => {
         return nameRegistriesResult
       }
       if (key === 'get-name-roles-accounts') {
+        const holders = { holders: nameRoleAccounts, isVerified: true }
         return {
-          data: options.select
-            ? options.select(nameRoleAccounts)
-            : nameRoleAccounts,
+          data: options.select ? options.select(holders) : holders,
           error: null,
           isLoading: false,
         }

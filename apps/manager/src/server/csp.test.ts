@@ -66,7 +66,7 @@ describe('csp', () => {
     it('collapses ENS hosts into wildcards rather than listing them bare', () => {
       // The wildcard is the single source of truth in the static defaults.
       // Build-time VITE_API_URL may still append an exact origin via
-      // OVERRIDE_CONNECT_ORIGINS (e.g. app-api.ens.dev from .env) — that's fine.
+      // OVERRIDE_CONNECT_ORIGINS (e.g. sepolia.app-api.ens.domains from .env) — that's fine.
       expect(connectSrc).toContain('https://*.ens.dev')
       expect(connectSrc).not.toContain('https://graphql.ens.dev')
 
@@ -90,7 +90,7 @@ describe('csp', () => {
     })
 
     it('allows fetching immutable commemorative NFT metadata from R2', () => {
-      expect(connectSrc).toContain('https://nft-assets.ens.dev')
+      expect(connectSrc).toContain('https://v2.nft-assets.ens.domains')
     })
   })
 
@@ -111,7 +111,7 @@ describe('csp', () => {
     it('frames WalletConnect, Intercom, and the commemorative renderer', () => {
       expect(header['frame-src']).toContain('https://*.walletconnect.com')
       expect(header['frame-src']).toContain('https://*.intercom.io')
-      expect(header['frame-src']).toContain('https://nft.ens.dev')
+      expect(header['frame-src']).toContain('https://v2.nft.ens.domains')
     })
   })
 

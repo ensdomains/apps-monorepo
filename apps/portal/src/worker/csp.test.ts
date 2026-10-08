@@ -79,7 +79,7 @@ describe('csp', () => {
       // means someone re-added a redundant (and easily-stale) entry.
       expect(connectSrc).toContain('https://*.ens.dev')
       expect(connectSrc).not.toContain('https://graphql.ens.dev')
-      expect(connectSrc).not.toContain('https://app-api.ens.dev')
+      expect(connectSrc).not.toContain('https://sepolia.app-api.ens.domains')
 
       expect(connectSrc).toContain('https://*.ens.domains')
       expect(connectSrc).not.toContain('https://edge.ens.domains')
