@@ -161,10 +161,9 @@ vi.mock('@tanstack/react-query', async () => {
         return nameRegistriesResult
       }
       if (key === 'get-name-roles-accounts') {
+        const holders = { holders: nameRoleAccounts, isVerified: true }
         return {
-          data: options.select
-            ? options.select(nameRoleAccounts)
-            : nameRoleAccounts,
+          data: options.select ? options.select(holders) : holders,
           error: null,
           isLoading: false,
         }
@@ -182,6 +181,12 @@ vi.mock('@tanstack/react-query', async () => {
       isLoading: false,
       isFetchingNextPage: false,
       fetchNextPage: () => Promise.resolve(),
+    }),
+    useMutation: () => ({
+      mutate: () => {},
+      reset: () => {},
+      isPending: false,
+      isError: false,
     }),
   }
 })

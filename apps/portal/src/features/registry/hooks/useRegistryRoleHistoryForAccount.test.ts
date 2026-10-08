@@ -1,52 +1,53 @@
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
-import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { ok, okAsync } from 'neverthrow'
-import type { Address } from 'viem'
+import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
-const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+const ACCOUNT: Address = getAddress(
+  '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+)
+const OTHER: Address = getAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
 
 const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
 
-const mockGetLogs = vi.fn()
-
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
-}))
-
-// These cases exercise the node path; the indexer is the first source now.
+const mockGraphqlRequest = vi.fn()
 vi.mock('@/lib/indexer', () => ({
   graphqlIndexerClient: {
-    request: () => Promise.reject(new Error('indexer unavailable')),
+    request: (...args: unknown[]) => mockGraphqlRequest(...args),
   },
-}))
-
-const mockGetBlockTimestamps = vi.fn()
-
-vi.mock('@/features/profile/hooks/useBlockTimestamps', () => ({
-  getBlockTimestamps: (params: { blocks: bigint[] }) =>
-    mockGetBlockTimestamps(params),
 }))
 
 const { getRegistryRoleHistoryForAccount } = await import(
   './useRegistryRoleHistoryForAccount'
 )
 
-const log = ({
+const row = ({
   block,
+  account = ACCOUNT,
   oldRoleBitmap = 0n,
   newRoleBitmap = registryRoles.ROLE_RENEW,
 }: {
-  block: bigint
-  oldRoleBitmap?: bigint
-  newRoleBitmap?: bigint
+  readonly block: number
+  readonly account?: Address
+  readonly oldRoleBitmap?: bigint
+  readonly newRoleBitmap?: bigint
 }) => ({
-  address: REGISTRY,
   blockNumber: block,
+  timestamp: block * 12,
   transactionHash: `0x${block.toString(16).padStart(64, '0')}`,
-  args: { resource: 0n, account: ACCOUNT, oldRoleBitmap, newRoleBitmap },
+  asEACRolesChanged: {
+    resource: ROOT_RESOURCE_HEX,
+    account,
+    oldRoleBitmap: `0x${oldRoleBitmap.toString(16)}`,
+    newRoleBitmap: `0x${newRoleBitmap.toString(16)}`,
+  },
+})
+
+const indexedPage = (rows: readonly unknown[]) => ({
+  eventConnection: {
+    pageInfo: { hasNextPage: false, endCursor: null },
+    edges: rows.map((node) => ({ node })),
+  },
 })
 
 const run = () =>
@@ -57,49 +58,43 @@ const run = () =>
 
 describe('getRegistryRoleHistoryForAccount', () => {
   beforeEach(() => {
-    mockGetLogs.mockReset()
-    mockGetLogs.mockResolvedValue([])
-    mockGetBlockTimestamps.mockReset()
-    mockGetBlockTimestamps.mockReturnValue(okAsync(new Map<bigint, bigint>()))
+    mockGraphqlRequest.mockReset()
+    mockGraphqlRequest.mockResolvedValue(indexedPage([]))
   })
 
-  it('asks the node for this account at the root resource only', async () => {
+  it('asks the indexer for the root resource on this registry', async () => {
     await run()
 
-    expect(mockGetLogs).toHaveBeenCalledWith({
-      address: REGISTRY,
-      event: eacRolesChangedEventSnippet[0],
-      args: { resource: 0n, account: ACCOUNT },
-      fromBlock: ROLES_FROM_BLOCK,
-      strict: true,
-    })
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        contractAddress: REGISTRY.toLowerCase(),
+        resource: ROOT_RESOURCE_HEX,
+      }),
+    )
   })
 
-  it('finds a grant older than the previous 1000-event window', async () => {
-    mockGetLogs.mockResolvedValue([log({ block: 11_390_385n })])
-    mockGetBlockTimestamps.mockReturnValue(
-      okAsync(new Map([[11_390_385n, 1753920000n]])),
+  it('keeps only this account’s changes', async () => {
+    mockGraphqlRequest.mockResolvedValue(
+      indexedPage([row({ block: 10 }), row({ block: 20, account: OTHER })]),
     )
 
     const entries = (await run())._unsafeUnwrap()
 
-    expect(entries).toHaveLength(1)
-    expect(entries[0]).toMatchObject({
-      account: ACCOUNT,
-      blockNumber: 11_390_385n,
-      timestamp: 1753920000n,
-    })
+    expect(entries.map((entry) => entry.account)).toEqual([ACCOUNT])
   })
 
   it('decodes both bitmaps into role names', async () => {
-    mockGetLogs.mockResolvedValue([
-      log({
-        block: 10n,
-        oldRoleBitmap: registryRoles.ROLE_RENEW,
-        newRoleBitmap: registryRoles.ROLE_RENEW | registryRoles.ROLE_UNREGISTER,
-      }),
-    ])
-    mockGetBlockTimestamps.mockReturnValue(okAsync(new Map([[10n, 120n]])))
+    mockGraphqlRequest.mockResolvedValue(
+      indexedPage([
+        row({
+          block: 10,
+          oldRoleBitmap: registryRoles.ROLE_RENEW,
+          newRoleBitmap:
+            registryRoles.ROLE_RENEW | registryRoles.ROLE_UNREGISTER,
+        }),
+      ]),
+    )
 
     const entries = (await run())._unsafeUnwrap()
 
@@ -110,72 +105,28 @@ describe('getRegistryRoleHistoryForAccount', () => {
     expect(entries[0]?.newRoles).toHaveLength(2)
   })
 
-  it('backfills block times for every block it saw', async () => {
-    mockGetLogs.mockResolvedValue([
-      log({ block: 10n }),
-      log({ block: 20n }),
-      log({ block: 10n }),
-    ])
-    mockGetBlockTimestamps.mockReturnValue(
-      okAsync(
-        new Map([
-          [10n, 120n],
-          [20n, 240n],
-        ]),
-      ),
-    )
-
-    const entries = (await run())._unsafeUnwrap()
-
-    expect(mockGetBlockTimestamps).toHaveBeenCalledWith({
-      blocks: [10n, 20n, 10n],
-    })
-    expect(entries.map((entry) => entry.timestamp)).toEqual([240n, 120n, 120n])
-  })
-
-  it('errors rather than dating an entry 1970 when a block time is missing', async () => {
-    mockGetLogs.mockResolvedValue([log({ block: 10n })])
-
-    const result = await run()
-
-    expect(result.isErr()).toBe(true)
-  })
-
-  it('returns the newest change first', async () => {
-    mockGetLogs.mockResolvedValue([
-      log({ block: 10n }),
-      log({ block: 30n }),
-      log({ block: 20n }),
-    ])
-    mockGetBlockTimestamps.mockReturnValue(
-      okAsync(
-        new Map([
-          [10n, 120n],
-          [20n, 240n],
-          [30n, 360n],
-        ]),
-      ),
+  it('carries each change’s indexed time, newest first', async () => {
+    mockGraphqlRequest.mockResolvedValue(
+      indexedPage([row({ block: 10 }), row({ block: 20 }), row({ block: 30 })]),
     )
 
     const entries = (await run())._unsafeUnwrap()
 
     expect(entries.map((entry) => entry.blockNumber)).toEqual([30n, 20n, 10n])
+    expect(entries.map((entry) => entry.timestamp)).toEqual([360n, 240n, 120n])
   })
 
   it('records the resource as padded hex, as the other producers do', async () => {
-    mockGetLogs.mockResolvedValue([log({ block: 10n })])
-    mockGetBlockTimestamps.mockReturnValue(okAsync(new Map([[10n, 120n]])))
+    mockGraphqlRequest.mockResolvedValue(indexedPage([row({ block: 10 })]))
 
     const entries = (await run())._unsafeUnwrap()
 
     expect(entries[0]?.resource).toBe(ROOT_RESOURCE_HEX)
   })
 
-  it('surfaces a node failure as an error result', async () => {
-    mockGetLogs.mockRejectedValue(new Error('query returns too many logs'))
+  it('surfaces an indexer failure as an error result', async () => {
+    mockGraphqlRequest.mockRejectedValue(new Error('indexer unavailable'))
 
-    const result = await run()
-
-    expect(result.isErr()).toBe(true)
+    expect((await run()).isErr()).toBe(true)
   })
 })

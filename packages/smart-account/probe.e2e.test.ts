@@ -29,7 +29,7 @@ const API_KEY = process.env.VITE_RHINESTONE_API_KEY as string
 const RPC = process.env.SEPOLIA_RPC_URL as string
 // Must mint the manifest's `usdc`, so point it at a worker built against the
 // same ensjs as this package (e.g. a PR preview) until that reaches main.
-const FAUCET = process.env.FAUCET_URL ?? 'https://app-api.ens.dev'
+const FAUCET = process.env.FAUCET_URL ?? 'https://sepolia.app-api.ens.domains'
 const log = (...a: unknown[]) => console.log('[probe]', ...a)
 
 const enabled = Boolean(API_KEY && RPC)

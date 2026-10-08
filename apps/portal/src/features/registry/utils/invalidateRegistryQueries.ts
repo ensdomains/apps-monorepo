@@ -15,6 +15,7 @@
  */
 
 import type { QueryClient } from '@tanstack/react-query'
+import { CONTRACT_HISTORY_TIMELINE } from '@/features/history/components/ContractHistoryTimeline'
 
 /** Read from the indexer: needs polling until it catches up. */
 const INDEXER_BACKED_KEYS = new Set<string>([
@@ -25,7 +26,7 @@ const INDEXER_BACKED_KEYS = new Set<string>([
   // Registry overview (roleCount on RegistryInfo).
   'get-registry-info',
   // Full per-registry event feed used by /registry/$address/history.
-  'get-registry-events',
+  CONTRACT_HISTORY_TIMELINE,
   // Labels table — its `roleHoldersCount` column reads `registry.roles`.
   'get-registry-labels',
 ])

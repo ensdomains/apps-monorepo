@@ -10,6 +10,7 @@ import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
   type ChainIdMismatchError,
   EthCallFallbackError,
+  type SessionRefundCapExceededError,
   type SignerAddressMismatchError,
   TransactionRevertedError,
   TransactionSubmissionError,
@@ -129,6 +130,7 @@ export const transactionMachine = setup({
         | TransactionUserRejectedError
         | SignerAddressMismatchError
         | ChainIdMismatchError
+        | SessionRefundCapExceededError
       > => {
         if (!request) {
           return errAsync(

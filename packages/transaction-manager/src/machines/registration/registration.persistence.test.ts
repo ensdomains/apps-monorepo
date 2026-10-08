@@ -109,6 +109,22 @@ describe('getResumeTarget', () => {
     }
   })
 
+  // Re-authorizing happens before a leg is signed, so neither leg is out: a
+  // reveal-side run still holds its commitment, a commit-side one holds none.
+  it('routes a run interrupted mid re-authorization by what reached the chain', () => {
+    expect(
+      getResumeTarget({
+        stage: 'reauthorizingSession',
+        context: persisted({
+          commitment: { commitment: COMMITMENT, secret: SECRET },
+        }),
+      }),
+    ).toBe('validatingCommitment')
+    expect(
+      getResumeTarget({ stage: 'reauthorizingSession', context: persisted() }),
+    ).toBe('settingUpRegistration')
+  })
+
   it('ignores the error stage and routes by the flow fields', () => {
     expect(
       getResumeTarget({

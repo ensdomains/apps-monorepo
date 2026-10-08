@@ -77,13 +77,25 @@ const V2NameRoles = ({
   if (!nameRolesQuery.data)
     return <NoResultsMessage title="No role accounts" className="mx-0" />
 
+  const { holders, isVerified } = nameRolesQuery.data
+
   return (
-    <RolesTable
-      roles={nameRolesQuery.data}
-      name={name}
-      canManageRoles={canManageRoles}
-      registryAddress={registryAddress}
-    />
+    <Fragment>
+      {!isVerified && (
+        <ErrorMessage
+          compact
+          description="Couldn't confirm this list against the registry, so some role holders may be missing. Please refresh the page."
+        />
+      )}
+      {(isVerified || holders.size > 0) && (
+        <RolesTable
+          roles={holders}
+          name={name}
+          canManageRoles={canManageRoles}
+          registryAddress={registryAddress}
+        />
+      )}
+    </Fragment>
   )
 }
 

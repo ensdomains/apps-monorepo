@@ -43,7 +43,7 @@ export const useTokenRoleWarning = <T>(
       resource,
       registryAddress: ownerData.registryAddress,
     }),
-    select,
+    select: ({ holders }) => select(holders),
     // Without a resource there are no rows to read, so the warning stays off
     // until the resource lands rather than reporting an empty holder set.
     enabled:
