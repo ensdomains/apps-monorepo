@@ -35,7 +35,7 @@ type GetV2NamesWithRolesForAddressErrorType = GraphqlRequestError
 
 type GetV2NamesWithRolesForAddressParameters = {
   address: Address
-  search?: string
+  readonly search?: string
 }
 
 /** Domain name -> role bitmap, keeping the highest when a name has several. */

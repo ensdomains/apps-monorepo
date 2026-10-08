@@ -23,21 +23,26 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
+const v1Names = vi.fn()
 const v2Names = vi.fn()
 
+type SearchParams = { readonly address: string; readonly search?: string }
+
+// Keyed like the real queries, address included, so the previous search's rows
+// are kept while the next one loads.
 vi.mock('@/features/dashboard/hooks/useV1NamesForAddress', () => ({
-  getV1NamesPagesForAddressQueryOptions: ({ search }: { search?: string }) => ({
-    queryKey: ['v1-names-search-test', search ?? null],
-    queryFn: () => ({ names: [], hasNextPage: false }),
+  getV1NamesPagesForAddressQueryOptions: (params: SearchParams) => ({
+    queryKey: ['v1-names-search-test', params],
+    queryFn: () => v1Names(params.search),
     initialPageParam: 0,
     getNextPageParam: () => undefined,
   }),
 }))
 
 vi.mock('@/features/dashboard/hooks/useV2NamesWithRolesForAddress', () => ({
-  getV2NamesPagesForAddressQueryOptions: ({ search }: { search?: string }) => ({
-    queryKey: ['v2-names-search-test', search ?? null],
-    queryFn: () => v2Names(search),
+  getV2NamesPagesForAddressQueryOptions: (params: SearchParams) => ({
+    queryKey: ['v2-names-search-test', params],
+    queryFn: () => v2Names(params.search),
     initialPageParam: 0,
     getNextPageParam: () => undefined,
   }),
@@ -46,6 +51,19 @@ vi.mock('@/features/dashboard/hooks/useV2NamesWithRolesForAddress', () => ({
 const { Route } = await import('./names')
 const NamesRoute = (Route as unknown as { component: () => ReactNode })
   .component
+
+const v1Page = (names: readonly string[]) => ({
+  names: names.map((name, i) => {
+    const expiry = Date.now() + (300 + i) * MS_PER_DAY
+    return {
+      name,
+      parentName: 'eth',
+      expiryDate: { date: new Date(expiry), value: expiry },
+      relation: { registrant: true, owner: true, wrappedOwner: false },
+    }
+  }),
+  hasNextPage: false,
+})
 
 const page = (names: readonly string[]) => ({
   names: names.map((name, i) => ({
@@ -84,6 +102,8 @@ const searchBox = () => screen.getByPlaceholderText('Search names...')
 
 describe('addr names route search', { timeout: 60_000 }, () => {
   beforeEach(() => {
+    v1Names.mockReset()
+    v1Names.mockResolvedValue(v1Page([]))
     v2Names.mockReset()
     v2Names.mockImplementation((search?: string) =>
       search === undefined
@@ -135,8 +155,36 @@ describe('addr names route search', { timeout: 60_000 }, () => {
     expect(screen.getAllByText('alpha.eth').length).toBeGreaterThan(0)
   })
 
-  it('keeps the search box and says so when a search fails', async () => {
+  it('keeps the old rows up while a search loads, without calling their count the match count', async () => {
     const user = userEvent.setup()
+    let finishSearch: (result: ReturnType<typeof page>) => void = () => {}
+    const pendingSearch = new Promise<ReturnType<typeof page>>((resolve) => {
+      finishSearch = resolve
+    })
+    v2Names.mockImplementation((search?: string) =>
+      search === undefined ? page(['alpha.eth', 'beta.eth']) : pendingSearch,
+    )
+    renderRoute()
+    await screen.findByText('Names (2)', {}, SLOW)
+
+    await user.type(searchBox(), 'coco')
+    await waitFor(() => expect(v2Names).toHaveBeenCalledWith('coco'), SLOW)
+
+    expect(screen.getAllByText('alpha.eth').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/matching/)).not.toBeInTheDocument()
+
+    finishSearch(page(['coco.eth']))
+    expect(
+      await screen.findByText('Names (1 matching)', {}, SLOW),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('alpha.eth')).not.toBeInTheDocument()
+  })
+
+  it('shows one source’s matches when the other source’s search fails', async () => {
+    const user = userEvent.setup()
+    v1Names.mockImplementation((search?: string) =>
+      v1Page(search === 'coco' ? ['coco-v1.eth'] : []),
+    )
     v2Names.mockImplementation((search?: string) =>
       search === undefined
         ? page(['alpha.eth'])
@@ -148,8 +196,10 @@ describe('addr names route search', { timeout: 60_000 }, () => {
     await user.type(searchBox(), 'coco')
 
     expect(
-      await screen.findByText(/Error searching names/, {}, SLOW),
+      await screen.findByText(/Error searching ENSv2 names/, {}, SLOW),
     ).toBeInTheDocument()
+    expect(screen.getAllByText('coco-v1.eth').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Error searching ENSv1 names/)).toBeNull()
     await waitFor(() => expect(searchBox()).toHaveValue('coco'))
   })
 })

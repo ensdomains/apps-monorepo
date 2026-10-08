@@ -65,6 +65,7 @@ import { useDebouncedValue } from '@/hooks/useDebounce'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { queryClient } from '@/utils/queryClient'
+import type { ProtocolVersion } from '@/utils/types'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
@@ -154,7 +155,8 @@ const NamesList = ({
   search,
   onSearchChange,
   isSearching,
-  hasSearchFailed,
+  isSearchPending,
+  failedSearches,
 }: {
   readonly address: Address
   /** The names shown so far. */
@@ -163,7 +165,10 @@ const NamesList = ({
   readonly search: string
   readonly onSearchChange: (search: string) => void
   readonly isSearching: boolean
-  readonly hasSearchFailed: boolean
+  /** The rows are still the previous search's while the new one loads. */
+  readonly isSearchPending: boolean
+  /** The protocol versions whose search failed; the other's names still show. */
+  readonly failedSearches: readonly ProtocolVersion[]
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
@@ -277,7 +282,13 @@ const NamesList = ({
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
-            {match({ total: loader.total, hasActiveFilters, isSearching })
+            {match({
+              total: loader.total,
+              hasActiveFilters,
+              isSearching,
+              isSearchPending,
+            })
+              .with({ isSearchPending: true }, () => 'Names')
               .with(
                 { hasActiveFilters: true },
                 () => `Names (${filteredData.length} of ${names.length} shown)`,
@@ -380,19 +391,17 @@ const NamesList = ({
           </>
         )}
       </header>
-      {hasSearchFailed ? (
+      {failedSearches.map((protocolVersion) => (
         <ErrorMessage
+          key={protocolVersion}
           compact
-          description="Error searching names. Please try again."
+          description={`Error searching ${protocolVersion} names. Please try again.`}
         />
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <NamesTable table={table} />
-          </div>
-          <ListLoader {...loader} className="py-4" />
-        </>
-      )}
+      ))}
+      <div className="overflow-x-auto">
+        <NamesTable table={table} />
+      </div>
+      <ListLoader {...loader} className="py-4" />
       {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}
@@ -466,12 +475,17 @@ function RouteComponent() {
     return <LoadingMessage />
   }
 
-  const hasFailed =
-    (v1NamesQuery.isError && !v1NamesQuery.isFetchNextPageError) ||
-    (v2NamesQuery.isError && !v2NamesQuery.isFetchNextPageError)
+  const failedSources = (
+    [
+      ['ENSv1', v1NamesQuery],
+      ['ENSv2', v2NamesQuery],
+    ] as const
+  )
+    .filter(([, query]) => query.isError && !query.isFetchNextPageError)
+    .map(([protocolVersion]) => protocolVersion)
   const isSearching = appliedSearch !== ''
 
-  if (hasFailed && !isSearching) {
+  if (failedSources.length > 0 && !isSearching) {
     return (
       <ErrorMessage
         compact
@@ -504,7 +518,10 @@ function RouteComponent() {
       search={search}
       onSearchChange={(next) => setTyped({ address, search: next })}
       isSearching={isSearching}
-      hasSearchFailed={hasFailed}
+      isSearchPending={
+        v1NamesQuery.isPlaceholderData || v2NamesQuery.isPlaceholderData
+      }
+      failedSearches={failedSources}
     />
   )
 }
