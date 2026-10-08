@@ -1,12 +1,9 @@
-import type {
-  NameSummary,
-  Page,
-  ReadNamesForAddress,
-} from '@ens-apps/indexer/reads'
-import { IndexerReadError } from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
-import { readAllNames } from './readNamePages'
+import type { Page } from './common.types'
+import { IndexerReadError } from './errors'
+import type { NameSummary, ReadNamesForAddress } from './namesForAddress.types'
+import { readAllNames } from './paging'
 
 const ADDRESS = '0x0000000000000000000000000000000000000abc'
 

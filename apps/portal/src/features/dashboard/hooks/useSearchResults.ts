@@ -9,26 +9,27 @@ import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import {
   buildSearchSuggestions,
   getSearchNotice,
 } from '../utils/buildSearchSuggestions'
-import {
-  filterAndSortOwnedNames,
-  mergeOwnedNames,
-} from '../utils/ownedNamesUtils'
+import { filterAndSortOwnedNames } from '../utils/ownedNamesUtils'
 import {
   buildSearchResultItems,
   type SearchResultItem,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
+import { getAddressNamesQueryOptions } from './useAddressNames'
 import { useSuggestionTlds } from './useSuggestionTlds'
-import { getV1NamesForAddressQueryOptions } from './useV1NamesForAddress'
-import { getV2NamesForAddressQueryOptions } from './useV2NamesForAddress'
 
 const MAX_OWNED_NAMES = 5
+
+// Names the wallet owns, or owned until a grace it can still renew in.
+const isOwnedName = ({ relations }: AddressNameItem) =>
+  relations.includes('owner') || relations.includes('former_owner')
 
 export type UseSearchResultsParams = {
   /** Trimmed search value */
@@ -120,29 +121,16 @@ export const useSearchResults = ({
 
   const addressForOwned = connectedAddress ?? zeroAddress
 
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      {
-        ...getV1NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-      {
-        ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-    ],
+  // The same read as the wallet's names list, so suggestions cost no request
+  // of their own.
+  const namesQuery = useQuery({
+    ...getAddressNamesQueryOptions({ address: addressForOwned }),
+    enabled: Boolean(connectedAddress),
   })
 
   const ownedNamesMerged = useMemo(
-    () =>
-      mergeOwnedNames(
-        v1NamesQuery.data ?? [],
-        (v2NamesQuery.data ?? []).flatMap((d) => [
-          { name: d.name },
-          ...(d.subdomains ?? []).map((s) => ({ name: s.name })),
-        ]),
-      ),
-    [v1NamesQuery.data, v2NamesQuery.data],
+    () => (namesQuery.data ?? []).filter(isOwnedName),
+    [namesQuery.data],
   )
 
   /** The name the input refers to exactly, e.g. "fox" and "fox.eth" both mean fox.eth. */

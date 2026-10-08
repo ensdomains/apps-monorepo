@@ -1,5 +1,5 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
@@ -26,8 +26,10 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { getV1NamesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
+import {
+  getAddressNamesQueryKey,
+  getAddressNamesQueryOptions,
+} from '@/features/dashboard/hooks/useAddressNames'
 import {
   columns,
   type NameRow,
@@ -55,7 +57,6 @@ import {
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { queryClient } from '@/utils/queryClient'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
@@ -88,22 +89,15 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
   },
 ]
 
+const NO_NAMES: NameRow[] = []
+
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
-    Promise.all([
-      queryClient.prefetchQuery(
-        getV1NamesForAddressQueryOptions({
-          address: params.addr as Address,
-        }),
-      ),
-      queryClient.prefetchQuery(
-        getV2NamesWithRolesForAddressQueryOptions({
-          address: params.addr as Address,
-        }),
-      ),
-    ]),
+    queryClient.prefetchQuery(
+      getAddressNamesQueryOptions({ address: params.addr as Address }),
+    ),
 })
 
 /**
@@ -155,10 +149,7 @@ function RouteComponent() {
       setRowSelection({})
       setExtendModalOpen(false)
       void queryClient.invalidateQueries({
-        queryKey: ['get-names-for-address'],
-      })
-      void queryClient.invalidateQueries({
-        queryKey: ['get-v2-names-with-roles-for-address'],
+        queryKey: getAddressNamesQueryKey({ address }),
       })
     },
   })
@@ -170,19 +161,11 @@ function RouteComponent() {
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedLengths, setSelectedLengths] = useState<string[]>([])
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
 
-  // Must be memoised: a fresh array makes the table recompute its row model,
-  // which auto-resets the page index, which re-renders — forever.
-  const data: NameRow[] = useMemo(
-    () => mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
-    [v1NamesQuery.data, v2NamesQuery.data],
-  )
+  // A stable empty array: a fresh one makes the table recompute its row
+  // model, which auto-resets the page index, which re-renders — forever.
+  const data: NameRow[] = namesQuery.data ?? NO_NAMES
 
   // Apply filters to data
   const filteredData = useMemo(() => {
@@ -256,24 +239,11 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (v1NamesQuery.isLoading) {
+  if (namesQuery.isLoading) {
     return <LoadingMessage />
   }
 
-  if (v2NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (v1NamesQuery.error) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching names. Please refresh the page."
-      />
-    )
-  }
-
-  if (v2NamesQuery.error) {
+  if (namesQuery.error) {
     return (
       <ErrorMessage
         compact

@@ -1,10 +1,10 @@
 import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ReadNamesForAddress } from '@ens-apps/indexer/reads'
+import { readAllNames } from '@ens-apps/indexer/reads'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { readAllNames } from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 
 /** An owned name the primary-name dialog can offer. */

@@ -311,13 +311,15 @@ describe('registrar ancestry', () => {
 })
 
 describe('partitionOwnedNames', () => {
+  const owned = (name: string | null) => ({ name, relations: ['owner'] })
+
   it('separates names the address holds or minted from names granted to it', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'victim.eth' },
-      { name: 'mine.victim.eth' },
-      { name: 'a.b.victim.eth' },
-      { name: 'victim.evil.eth' },
-      { name: null },
+      owned('victim.eth'),
+      owned('mine.victim.eth'),
+      owned('a.b.victim.eth'),
+      owned('victim.evil.eth'),
+      owned(null),
     ])
 
     expect(acquired.map((entry) => entry.name)).toEqual([
@@ -333,42 +335,34 @@ describe('partitionOwnedNames', () => {
 
   it('does not treat a 2LD under another TLD as a root', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'victim.foo' },
-      { name: 'sub.victim.foo' },
+      owned('victim.foo'),
+      owned('sub.victim.foo'),
     ])
 
     expect(acquired).toEqual([])
     expect(assigned).toHaveLength(2)
   })
 
-  it('does not treat a V1 name the address only manages as a root', () => {
+  it('does not treat a name the address only manages or holds a role on as a root', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'evil.eth', v1Roles: { owner: false, manager: true } },
-      { name: 'planted.evil.eth', v1Roles: { owner: false, manager: true } },
+      { name: 'evil.eth', relations: ['manager'] },
+      { name: 'other.eth', relations: ['role_holder'] },
+      { name: 'planted.evil.eth', relations: ['manager'] },
     ])
 
     expect(acquired).toEqual([])
     expect(assigned.map((entry) => entry.name)).toEqual([
       'evil.eth',
+      'other.eth',
       'planted.evil.eth',
     ])
   })
 
-  it('does not treat a V1 name that merely resolves to the address as a root', () => {
+  it('treats a name the address owns as a root for its subtree', () => {
     const { acquired, assigned } = partitionOwnedNames([
-      { name: 'evil.eth', v1Roles: { owner: false, manager: false } },
-      { name: 'planted.evil.eth', v1Roles: { owner: false, manager: false } },
-    ])
-
-    expect(acquired).toEqual([])
-    expect(assigned).toHaveLength(2)
-  })
-
-  it('treats a V1 name the address holds as a root for its subtree', () => {
-    const { acquired, assigned } = partitionOwnedNames([
-      { name: 'victim.eth', v1Roles: { owner: true, manager: true } },
-      { name: 'mine.victim.eth', v1Roles: { owner: false, manager: true } },
-      { name: 'evil.eth', v1Roles: { owner: false, manager: true } },
+      { name: 'victim.eth', relations: ['owner', 'manager'] },
+      { name: 'mine.victim.eth', relations: ['manager'] },
+      { name: 'evil.eth', relations: ['manager'] },
     ])
 
     expect(acquired.map((entry) => entry.name)).toEqual([
@@ -378,10 +372,10 @@ describe('partitionOwnedNames', () => {
     expect(assigned.map((entry) => entry.name)).toEqual(['evil.eth'])
   })
 
-  it('treats a V2 name as held: its query already filters to registry ownership', () => {
+  it('keeps a name the address can still renew in grace as its own', () => {
     const { acquired } = partitionOwnedNames([
-      { name: 'victim.eth', v1Roles: null },
-      { name: 'mine.victim.eth', v1Roles: null },
+      { name: 'lapsed.eth', relations: ['former_owner'] },
+      { name: 'sub.lapsed.eth', relations: ['manager'] },
     ])
 
     expect(acquired).toHaveLength(2)

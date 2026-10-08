@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
@@ -12,10 +12,8 @@ import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
-import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
+import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
 const INITIAL_COUNT = 4
 const PAGE_SIZE = 10
@@ -54,20 +52,13 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
 
 export const YourNames = ({ address }: { readonly address: Address }) => {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
-  const [v1Query, v2Query] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
 
-  // Every name the wallet owns, granted subnames included, soonest expiry first.
-  const names = mergeNamesData(v1Query.data, v2Query.data)
-
-  // Each source reports its own state, so a slow or failed one never hides
-  // the names the other already returned.
-  const isSettled = !v1Query.isPending && !v2Query.isPending
-  const hasError = Boolean(v1Query.error || v2Query.error)
+  // Every name the wallet holds a relation to, granted subnames included,
+  // soonest expiry first.
+  const names = namesQuery.data ?? []
+  const isSettled = !namesQuery.isPending
+  const hasError = Boolean(namesQuery.error)
 
   return (
     <div className="flex flex-col gap-6 rounded-md border border-neutral-3 px-6 pt-6 pb-3">
@@ -81,16 +72,10 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <WalletMenu isPill />
         </div>
       </div>
-      {v1Query.error && (
+      {namesQuery.error && (
         <ErrorMessage
           compact
-          description="Error fetching ENSv1 names. Please refresh the page."
-        />
-      )}
-      {v2Query.error && (
-        <ErrorMessage
-          compact
-          description="Error fetching ENSv2 names. Please refresh the page."
+          description="Error fetching names. Please refresh the page."
         />
       )}
       {names.length > 0 && (

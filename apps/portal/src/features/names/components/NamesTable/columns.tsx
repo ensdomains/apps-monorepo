@@ -5,17 +5,16 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
-import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import type { V1Roles } from '@/utils/names/mergeNamesData'
+import type { AddressNameRelation } from '@/utils/names/addressNames'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
+import { RelationBadges } from '../RelationBadges'
 
 export type NameRow = {
   name: string | null
   expiryDate?: Date | null
-  roleBitmap?: string | null
-  v1Roles?: V1Roles | null
+  relations: readonly AddressNameRelation[]
   protocolVersion: ProtocolVersion
 }
 
@@ -94,7 +93,8 @@ export const columns: ColumnDef<NameRow>[] = [
     },
   },
   {
-    accessorKey: 'roleBitmap',
+    id: 'relations',
+    accessorFn: (row) => row.relations.length,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -103,42 +103,6 @@ export const columns: ColumnDef<NameRow>[] = [
         Roles
       </SortButton>
     ),
-    cell: ({ row }) => {
-      const roleBitmap = row.original.roleBitmap
-      const v1Roles = row.original.v1Roles
-
-      // V2 names: use roleBitmap
-      if (roleBitmap) {
-        const roles = decodeRoleBitmap(roleBitmap)
-        if (roles.length === 0) return null
-
-        return (
-          <Badge variant="secondary" className="text-xs">
-            {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
-          </Badge>
-        )
-      }
-
-      // V1 names: use v1Roles (owner/manager)
-      if (v1Roles) {
-        const roleLabels: string[] = []
-        if (v1Roles.owner) roleLabels.push('Owner')
-        if (v1Roles.manager) roleLabels.push('Manager')
-
-        if (roleLabels.length === 0) return null
-
-        return (
-          <div className="flex flex-row gap-1">
-            {roleLabels.map((label) => (
-              <Badge key={label} variant="secondary" className="text-xs">
-                {label}
-              </Badge>
-            ))}
-          </div>
-        )
-      }
-
-      return null
-    },
+    cell: ({ row }) => <RelationBadges relations={row.original.relations} />,
   },
 ]

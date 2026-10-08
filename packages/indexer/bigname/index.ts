@@ -10,6 +10,7 @@ export {
   type BignameErrorCode,
   isStale,
 } from './errors'
+export { isInV2Grace, V2_GRACE_SECONDS } from './grace'
 export { readNameDetail } from './nameDetail'
 export { readNamesForAddress } from './namesForAddress'
 export type * from './types'

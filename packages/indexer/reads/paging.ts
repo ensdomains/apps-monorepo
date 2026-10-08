@@ -1,12 +1,12 @@
-import type {
-  IndexerReadError,
-  NameSummary,
-  NamesForAddressQuery,
-  Page,
-  ReadNamesForAddress,
-} from '@ens-apps/indexer/reads'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { errAsync, ok, type ResultAsync } from 'neverthrow'
+import type { Page } from './common.types'
+import type { IndexerReadError } from './errors'
+import type {
+  NameSummary,
+  NamesForAddressQuery,
+  ReadNamesForAddress,
+} from './namesForAddress.types'
 
 const MAX_STALE_ATTEMPTS = 3
 const FETCH_PAGE_SIZE = 200

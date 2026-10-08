@@ -4,13 +4,13 @@ import type {
   Page,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
+import { readNamesPage } from '@ens-apps/indexer/reads'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { readNamesPage } from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 
 // Reverse records are the names the dashboard hides that usually come first,

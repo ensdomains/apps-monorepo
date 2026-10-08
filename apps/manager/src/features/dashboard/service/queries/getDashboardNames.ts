@@ -11,6 +11,7 @@ import type {
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
+import { readAllNames, readNamesPage } from '@ens-apps/indexer/reads'
 import {
   SECONDS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
@@ -24,10 +25,6 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
-import {
-  readAllNames,
-  readNamesPage,
-} from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 import { toBulkRenewName, toSelectableDomain } from '../../bulkRenewSelection'
 import {

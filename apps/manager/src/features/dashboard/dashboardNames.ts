@@ -1,9 +1,5 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
+import { type AddressName, isInV2Grace } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ProtocolVersion } from '@ens-apps/indexer/reads'
-import {
-  SECONDS_PER_DAY,
-  V2_GRACE_PERIOD_DAYS,
-} from '@ens-apps/utils/gracePeriod'
 import type { Hex } from 'viem'
 import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 
@@ -69,9 +65,6 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
 export const isHeldName = (name: DashboardName): boolean =>
   name.nameRoles.includes('owner') || name.isLapsed
 
-const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
-const ETH_2LD = /^[^.]+\.eth$/
-
 const parseSeconds = (timestamp: string | undefined): bigint | null =>
   timestamp !== undefined && /^\d+$/.test(timestamp) ? BigInt(timestamp) : null
 
@@ -86,17 +79,12 @@ export const toGraceName = (
 ): DashboardName | null => {
   const expiryDate = parseSeconds(row.expires_at)
   const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
-  const isGrace =
-    row.authority === 'ens_v2' &&
-    row.registration_status === 'released' &&
-    row.lapsed_registration?.release_kind === 'expired' &&
-    row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
-    expiryDate !== null &&
-    expiryDate <= nowSeconds &&
-    nowSeconds < expiryDate + V2_GRACE_SECONDS &&
-    ETH_2LD.test(row.name) &&
-    isNormalizedName(row.name)
-  if (!isGrace) return null
+  if (
+    expiryDate === null ||
+    !isInV2Grace(row, address, nowSeconds) ||
+    !isNormalizedName(row.name)
+  )
+    return null
   return {
     key: row.namehash,
     name: row.name,
