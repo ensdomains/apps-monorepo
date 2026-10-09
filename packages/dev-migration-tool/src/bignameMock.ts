@@ -75,7 +75,7 @@ export function buildMockRecord(name: ActiveName): LookupRecord {
     created_at: created,
     expires_at: expiry,
     grace_ends_at: String(name.expiryDate + V1_GRACE_SECONDS),
-    registration_status: wrapped ? 'wrapped' : 'active',
+    status: 'active',
     authority: 'ens_v1',
     ens_v1: wrapped
       ? {
@@ -84,16 +84,16 @@ export function buildMockRecord(name: ActiveName): LookupRecord {
           wrapper_fuses: toWrapperFuses(fuses),
           wrapper_expires_at: expiry,
         }
-      : { expires_at: expiry },
+      : { expires_at: expiry, wrapper_state: 'unwrapped' },
     ...(wrapped && {
       resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
     }),
-    status: 'ok',
+    read_status: 'ok',
   }
 }
 
 const toAddressRow = ({
-  status: _,
+  read_status: _,
   expires_at,
   grace_ends_at,
   ...record
@@ -101,7 +101,7 @@ const toAddressRow = ({
   ...record,
   ...(expires_at != null && { expires_at }),
   ...(grace_ends_at != null && { grace_ends_at }),
-  registration_status: record.registration_status ?? 'active',
+  status: record.status ?? 'active',
   relations: ['owner', 'manager'],
   is_primary: false,
 })
