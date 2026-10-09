@@ -12,6 +12,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -57,17 +58,20 @@ const toNodeRolesStatus = (
     readonly isError: boolean
   },
   roles: readonly ResolverOverview['roles'][number][],
-): NodeDetailSheetProps['rolesStatus'] => {
-  if (overview.isError) return 'error'
-  const resolver = overview.data
-  if (resolver === undefined) return 'loading'
-  // A resolver bigname has not indexed has no roles to list.
-  if (resolver === null) return 'full'
-  if (resolver.rolesStatus === 'unsupported') return 'unsupported'
-  return roles.some((role) => role.resource === null)
-    ? 'partial'
-    : resolver.rolesStatus
-}
+): NodeDetailSheetProps['rolesStatus'] =>
+  match(overview)
+    .returnType<NodeDetailSheetProps['rolesStatus']>()
+    .with({ isError: true }, () => 'error')
+    .with({ data: undefined }, () => 'loading')
+    // A resolver bigname has not indexed has no roles to list.
+    .with({ data: null }, () => 'full')
+    .with({ data: { rolesStatus: 'unsupported' } }, () => 'unsupported')
+    .with({ data: P.nonNullable }, ({ data }) =>
+      roles.some((role) => role.resource === null)
+        ? 'partial'
+        : data.rolesStatus,
+    )
+    .exhaustive()
 
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,

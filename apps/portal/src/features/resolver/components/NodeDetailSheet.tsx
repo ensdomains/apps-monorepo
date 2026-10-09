@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
 import { Button } from '@/components/ui/button'
@@ -58,36 +58,36 @@ const NodeRolesSection = ({
   rolesStatus,
 }: Pick<NodeDetailSheetProps, 'roles' | 'rolesStatus'> & {
   readonly name: string
-}) => {
-  const isRolesRead = rolesStatus !== 'loading' && rolesStatus !== 'error'
-  return (
-    <section className="p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">Roles</h3>
-        <Button variant="default" size="sm" asChild>
-          <Link to="/$name/roles" params={{ name }}>
-            <ExternalLink className="size-3.5" />
-            Go to roles
-          </Link>
-        </Button>
-      </div>
-      {match(rolesStatus)
-        .with('loading', () => <Skeleton className="h-6 w-full" />)
-        .with('error', () => (
-          <p className="text-sm text-muted-foreground">
-            Couldn’t load this node’s roles.
-          </p>
-        ))
-        .otherwise((status) => (
-          <ResolverCollectionNotice collection="roles" status={status} />
-        ))}
-      {!isRolesRead ? null : roles.length === 0 ? (
-        rolesStatus !== 'full' ? null : (
-          <p className="text-sm text-muted-foreground">
-            No roles assigned for this node.
-          </p>
-        )
-      ) : (
+}) => (
+  <section className="p-6 flex flex-col gap-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-caps leading-none">Roles</h3>
+      <Button variant="default" size="sm" asChild>
+        <Link to="/$name/roles" params={{ name }}>
+          <ExternalLink className="size-3.5" />
+          Go to roles
+        </Link>
+      </Button>
+    </div>
+    {match(rolesStatus)
+      .with('loading', () => <Skeleton className="h-6 w-full" />)
+      .with('error', () => (
+        <p className="text-sm text-muted-foreground">
+          Couldn’t load this node’s roles.
+        </p>
+      ))
+      .otherwise((status) => (
+        <ResolverCollectionNotice collection="roles" status={status} />
+      ))}
+    {match({ rolesStatus, hasRoles: roles.length > 0 })
+      .with({ rolesStatus: P.union('loading', 'error') }, () => null)
+      .with({ hasRoles: false, rolesStatus: 'full' }, () => (
+        <p className="text-sm text-muted-foreground">
+          No roles assigned for this node.
+        </p>
+      ))
+      .with({ hasRoles: false }, () => null)
+      .otherwise(() => (
         <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
           <Table>
             <TableHeader>
@@ -113,10 +113,9 @@ const NodeRolesSection = ({
             </TableBody>
           </Table>
         </div>
-      )}
-    </section>
-  )
-}
+      ))}
+  </section>
+)
 
 export const NodeDetailSheet = ({
   children,
