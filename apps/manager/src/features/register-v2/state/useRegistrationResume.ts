@@ -234,14 +234,6 @@ async function enableSessionAndDispatch(params: {
   return { status: 'resumed' }
 }
 
-/**
- * Try Again on a restored failure. Returns the state to settle on, or null to
- * leave the failure screen as it is, with Try Again still on it.
- *
- * Re-assessed rather than acting on the verdict the page loaded with: while
- * the failure screen sat open, the commitment may have expired, or another
- * tab may have finished, discarded or replaced the stored run.
- */
 /** The stored write a verdict is about; none when nothing was stored. */
 const assessedRun = (
   verdict: ResumeAssessment,
@@ -256,6 +248,14 @@ const isSameRun = (
   b: StoredRegistrationKey | undefined,
 ): boolean => !!a && !!b && a.label === b.label && a.updatedAt === b.updatedAt
 
+/**
+ * Try Again on a restored failure. Returns the state to settle on, or null to
+ * leave the failure screen as it is, with Try Again still on it.
+ *
+ * Re-assessed rather than acting on the verdict the page loaded with: while
+ * the failure screen sat open, the commitment may have expired, or another
+ * tab may have finished, discarded or replaced the stored run.
+ */
 async function continueFailedRun(params: {
   label: string
   account: ReturnType<typeof useSmartAccountContext>
