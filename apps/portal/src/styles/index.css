@@ -434,10 +434,6 @@
   --text-ui--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
   --text-small--line-height: 1rem; /* 16px */
-
-  /* Not Figma type styles. */
-  --text-heading: 1.75rem; /* 28px */
-  --text-page-title: 2rem; /* 32px */
 }
 
 /* Figma styles that need font-family or text-transform, which text tokens

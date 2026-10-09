@@ -8,9 +8,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       'font-size': [
-        'text-heading',
         'text-h1',
-        'text-page-title',
         'text-h2',
         'text-h3',
         'text-p',

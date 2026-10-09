@@ -181,7 +181,7 @@ function TldOverview() {
       <HistoryTimeline
         name={tld}
         showFilters={false}
-        heading={<h2 className="text-foreground text-heading">History</h2>}
+        heading={<h2 className="text-foreground text-h2">History</h2>}
         emptyTitle="No recent activity"
         emptyDescription="Events will appear here as they happen."
       />
