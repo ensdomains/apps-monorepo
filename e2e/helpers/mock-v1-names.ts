@@ -92,7 +92,7 @@ function v1Record(n: MockV1Name) {
     registered_at: String(now),
     created_at: String(now),
     expires_at: expiry,
-    registration_status: isWrapped ? 'wrapped' : 'active',
+    status: 'active',
     authority: 'ens_v1',
     ens_v1: isWrapped
       ? {
@@ -101,7 +101,7 @@ function v1Record(n: MockV1Name) {
           wrapper_fuses: fuseFlags(wrapperFuses(n)),
           wrapper_expires_at: expiry,
         }
-      : { expires_at: expiry },
+      : { expires_at: expiry, wrapper_state: 'unwrapped' },
     ...(hasResolver && {
       resolver: { chain_id: CHAIN_ID, address: V1_PUBLIC_RESOLVER },
       records: {
@@ -115,7 +115,7 @@ function v1Record(n: MockV1Name) {
         seen_singletons: [],
       },
     }),
-    status: 'ok',
+    read_status: 'ok',
   }
 }
 

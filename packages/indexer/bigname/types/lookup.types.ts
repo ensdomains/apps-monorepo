@@ -76,7 +76,7 @@ export type LookupRecord = Readonly<{
   expires_at_reason?: ExpiryReason
   /** When the registrar grace ends; null alongside a null expiry. */
   grace_ends_at?: Timestamp | null
-  registration_status?: RegistrationStatus
+  status?: RegistrationStatus
   lapsed_registration?: LapsedRegistration
   resolver?: ResolverRef
   subregistry?: RegistryRef
@@ -95,7 +95,7 @@ export type LookupRecord = Readonly<{
   authority?: Authority
   ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
-  status: ResultStatus
+  read_status: ResultStatus
   unsupported_reason?: string
   failure_reason?: string
   /** Omitted when empty. */

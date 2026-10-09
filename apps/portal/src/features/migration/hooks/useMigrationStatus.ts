@@ -65,8 +65,7 @@ const NAME_WRAPPER = getChainContractAddress({
 const V1_AUTHORITIES: readonly (string | undefined)[] = ['ens_v1', 'ens_v0']
 
 const isMigratableRecord = (record: LookupRecord): boolean =>
-  V1_AUTHORITIES.includes(record.authority) &&
-  record.registration_status !== 'released'
+  V1_AUTHORITIES.includes(record.authority) && record.status !== 'released'
 
 // A name bigname has not indexed has no record; any other answer that is not
 // `ok` fails the read rather than reading as "cannot migrate".

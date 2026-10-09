@@ -22,7 +22,7 @@ export const isInV2Grace = (
   const expiry = toExactSeconds(row.expires_at)
   return (
     row.authority === 'ens_v2' &&
-    row.registration_status === 'released' &&
+    row.status === 'expired' &&
     row.lapsed_registration?.release_kind === 'expired' &&
     row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
     expiry !== null &&

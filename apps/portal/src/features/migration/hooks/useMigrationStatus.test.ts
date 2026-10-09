@@ -25,10 +25,10 @@ const v1Record = (overrides: Partial<LookupRecord> = {}): LookupRecord => ({
   owner: HOLDER,
   manager: HOLDER,
   registrant: HOLDER,
-  registration_status: 'active',
+  status: 'active',
   authority: 'ens_v1',
   ens_v1: { expires_at: FUTURE },
-  status: 'ok',
+  read_status: 'ok',
   ...overrides,
 })
 
@@ -83,7 +83,7 @@ describe('getMigrationStatusQueryOptions', () => {
     answer(found(v1Record({ authority: 'ens_v2' })))
     expect(await statusOf('alice.eth')).toEqual({ migratable: false })
 
-    answer(found(v1Record({ registration_status: 'released' })))
+    answer(found(v1Record({ status: 'released' })))
     expect(await statusOf('alice.eth')).toEqual({ migratable: false })
 
     answer({ input: { name: 'nope.eth' }, kind: 'name', status: 'not_found' })
@@ -123,7 +123,7 @@ describe('getMigrationStatusQueryOptions', () => {
       found(
         v1Record({
           name: 'sub.alice.eth',
-          registration_status: 'wrapped',
+          status: 'active',
           ens_v1: {
             expires_at: null,
             wrapper_state: 'wrapped',

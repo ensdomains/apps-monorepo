@@ -19,7 +19,7 @@ const row = (name: string, coinTypes: readonly number[]): AddressName => ({
   display_name: name,
   namespace: 'ens',
   namehash: '0x01',
-  registration_status: 'registered',
+  status: 'active',
   relations: ['resolves_to'],
   is_primary: false,
   resolutions: coinTypes.map((coin_type) => ({
@@ -36,7 +36,7 @@ const detail = (
   display_name: name,
   namespace: 'ens',
   namehash: '0x01',
-  status: 'ok',
+  read_status: 'ok',
   records: {
     seen_addresses: Object.keys(addresses),
     addresses,

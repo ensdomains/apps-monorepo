@@ -105,7 +105,7 @@ const listing = (names: readonly string[]) =>
         display_name: name,
         namespace: 'ens',
         namehash: '0x01',
-        registration_status: 'active',
+        status: 'active',
         authority: 'ens_v2',
         relations: ['owner'],
         is_primary: false,

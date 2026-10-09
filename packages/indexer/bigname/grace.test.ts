@@ -10,7 +10,7 @@ const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
   display_name: 'grace.eth',
   namespace: 'ens',
   namehash: '0x01',
-  registration_status: 'released',
+  status: 'expired',
   authority: 'ens_v2',
   expires_at: String(NOW - 86_400n),
   relations: ['former_owner'],

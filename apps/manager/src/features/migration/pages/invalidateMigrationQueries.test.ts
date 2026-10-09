@@ -18,7 +18,7 @@ const agent = (authority: AddressName['authority']): AddressName => ({
   display_name: 'agent.eth',
   namespace: 'ens',
   namehash: '0x01',
-  registration_status: 'active',
+  status: 'active',
   authority,
   expires_at: '2000000000',
   relations: ['owner'],

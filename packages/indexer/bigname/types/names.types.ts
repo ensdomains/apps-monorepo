@@ -54,7 +54,7 @@ export type NameListingRow = Readonly<{
   owner?: Address
   manager?: Address
   registrant?: Address
-  registration_status: RegistrationStatus
+  status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
@@ -94,13 +94,13 @@ export type NameRecord = Readonly<{
   expires_at_reason?: ExpiryReason
   /** When the registrar grace ends; null alongside a null expiry. */
   grace_ends_at?: Timestamp | null
-  registration_status?: RegistrationStatus
+  status?: RegistrationStatus
   /** Present exactly when `wrapper_fuses` is present. */
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses
   authority?: Authority
   ens_v1?: EnsV1Facts
-  /** Only while `registration_status` is `released` on an ENSv1 name. */
+  /** Historical holder; may coexist with an active reservation. */
   lapsed_registration?: LapsedRegistration
   /** Only with `authority=ens_v2` proven by an ENSv1->ENSv2 migration. */
   migrated_at?: Timestamp
@@ -120,7 +120,7 @@ export type NameRecord = Readonly<{
   subname_count?: number
   /** `include=counts` only; omitted with no current record inventory. */
   record_count?: number
-  status: ResultStatus
+  read_status: ResultStatus
   unsupported_reason?: string
   failure_reason?: string
   /** Omitted when empty. */
