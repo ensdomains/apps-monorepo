@@ -35,16 +35,39 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import {
+  NodeDetailSheet,
+  type NodeDetailSheetProps,
+} from '@/features/resolver/components/NodeDetailSheet'
 import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import { rolesForNode } from '@/features/resolver/helpers/rolesForNode'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   type ResolverNode,
+  type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { queryClient } from '@/utils/queryClient'
+
+/** How much of the node's roles the sheet can claim, until the read completes. */
+const toNodeRolesStatus = (
+  overview: {
+    readonly data?: ResolverOverview | null
+    readonly isError: boolean
+  },
+  roles: readonly ResolverOverview['roles'][number][],
+): NodeDetailSheetProps['rolesStatus'] => {
+  if (overview.isError) return 'error'
+  const resolver = overview.data
+  if (resolver === undefined) return 'loading'
+  // A resolver bigname has not indexed has no roles to list.
+  if (resolver === null) return 'full'
+  if (resolver.rolesStatus === 'unsupported') return 'unsupported'
+  return roles.some((role) => role.resource === null)
+    ? 'partial'
+    : resolver.rolesStatus
+}
 
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,
@@ -139,9 +162,10 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverNodesQueryOptions({ address: address as Address }))
   // Only the role rows the detail sheet shows come from the overview.
-  const { data: resolver } = useQuery(
+  const overview = useQuery(
     getResolverOverviewQueryOptions({ address: address as Address }),
   )
+  const resolver = overview.data
 
   const nodes = boundNames?.nodes ?? []
   const roles = resolver?.roles ?? []
@@ -216,13 +240,7 @@ function RouteComponent() {
       <NodeDetailSheet
         node={selectedNode}
         roles={nodeRoles}
-        rolesStatus={
-          resolver?.rolesStatus === 'unsupported'
-            ? 'unsupported'
-            : roles.some((role) => role.resource === null)
-              ? 'partial'
-              : resolver?.rolesStatus
-        }
+        rolesStatus={toNodeRolesStatus(overview, roles)}
         resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}
