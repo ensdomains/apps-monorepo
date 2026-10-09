@@ -185,8 +185,8 @@ const PriceBreakdownSkeleton = () => (
         label="Total"
         value={<Skeleton className="h-8 w-20" />}
         className="pt-3 border-t border-border"
-        labelClassName="text-2xl text-primary font-medium"
-        valueClassName="m-0 text-primary font-semibold text-2xl"
+        labelClassName="text-h2 text-primary font-medium"
+        valueClassName="m-0 text-primary font-semibold text-h2"
       />
     </dl>
   </div>
@@ -286,8 +286,8 @@ const PriceBreakdown = ({
             price.decimals,
           )}
           className="pt-3 border-t border-border"
-          labelClassName="text-2xl text-primary font-medium"
-          valueClassName="m-0 text-primary font-semibold text-2xl"
+          labelClassName="text-h2 text-primary font-medium"
+          valueClassName="m-0 text-primary font-semibold text-h2"
         />
       </dl>
     </div>
