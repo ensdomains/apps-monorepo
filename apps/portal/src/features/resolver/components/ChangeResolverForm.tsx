@@ -237,7 +237,7 @@ export const ChangeResolverForm = ({
       <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
 
       {isV1 ? (
-        <p className="text-base text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           <strong>{name}</strong> is an ENSv1 name, so it takes any resolver
           address. Deploying a permissioned resolver is a V2 feature and is not
           offered here.
@@ -298,7 +298,7 @@ export const ChangeResolverForm = ({
                   onChange={(event) =>
                     setSelectedExistingResolver(event.target.value)
                   }
-                  className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-[16px] md:text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={
                     isLoadingExistingResolvers || existingResolvers.length === 0
                   }

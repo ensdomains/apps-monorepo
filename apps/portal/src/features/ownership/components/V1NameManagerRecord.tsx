@@ -27,7 +27,7 @@ export const V1NameManagerRecord = ({
     if (asRow)
       return (
         <InfoRow icon={ShieldPersonIcon} label="Manager" className={className}>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-base text-muted-foreground">
             Failed to load manager
           </span>
         </InfoRow>
@@ -43,7 +43,7 @@ export const V1NameManagerRecord = ({
     if (asRow)
       return (
         <InfoRow icon={ShieldPersonIcon} label="Manager" className={className}>
-          <span className="text-sm text-muted-foreground">Loading</span>
+          <span className="text-base text-muted-foreground">Loading</span>
         </InfoRow>
       )
     return <LoadingMessage title="Loading manager" />

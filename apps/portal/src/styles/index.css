@@ -404,12 +404,11 @@
   --font-mono: "ABCMonumentGroteskMono", monospace;
   --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
   --font-serif: "ABCMarist", serif;
-  --text-heading: 1.75rem;
 
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
      Weights 360/425 are real instances on the Grotesk variable wght axis
      (see fonts.css). */
-  --text-h1: 2.125rem; /* 34px */
+  --text-h1: 2.25rem; /* 36px */
   --text-h1--line-height: 2.375rem; /* 38px */
   --text-h1--font-weight: 425;
   --text-h2: 1.5rem; /* 24px */
@@ -418,18 +417,18 @@
   --text-h3: 1.125rem; /* 18px */
   --text-h3--line-height: 1;
   --text-h3--font-weight: 425;
-  /* Explorer page titles (`PageHeading`). */
-  --text-page-title: 2rem; /* 32px */
   --text-p: 0.9375rem; /* 15px */
   --text-p--line-height: 1.375rem; /* 22px */
   --text-p--font-weight: 360;
-  /* Figma "base" — single-line UI text. Kept off Tailwind's `text-base`
-     (16/24) so multi-line body copy doesn't collapse to a 15px line height. */
-  --text-ui: 0.9375rem; /* 15px */
-  --text-ui--line-height: 0.9375rem; /* 15px */
-  --text-ui--font-weight: 360;
-  --text-ui--letter-spacing: 0.02em;
+  /* Figma "base" — single-line UI text. Overrides Tailwind's 16/24
+     `text-base`; copy that can wrap belongs on `text-p`. */
+  --text-base: 0.9375rem; /* 15px */
+  --text-base--line-height: 1.25rem; /* 20px;*/
+  --text-base--font-weight: 360;
+  --text-base--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
+  --text-small--line-height: 1rem; /* 16px; Figma is 12px */
+  --text-small--font-weight: 360;
 }
 
 /* Figma styles that need font-family or text-transform, which text tokens
@@ -439,6 +438,14 @@
   font-weight: 500;
   letter-spacing: 0.07em; /* 7% tracking = 0.98px at 14px */
   text-transform: uppercase;
+}
+
+/* 12px mono for data; line height kept at 16px (Figma is 12px). */
+@utility text-smallmono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
 }
 
 @utility text-smallcaps {

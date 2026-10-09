@@ -88,7 +88,7 @@ export const RegistryRolePermissionList = ({
         >
           <div className="flex flex-col gap-1 flex-1">
             <div className="font-medium">{permission.title}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-p text-muted-foreground">
               {permission.description}
             </div>
           </div>
@@ -111,7 +111,7 @@ export const RegistryRolePermissionList = ({
                 disabled={callerLacksAdmin}
               />
             ) : (
-              <span className="flex items-center w-24 text-xs text-muted-foreground italic">
+              <span className="flex items-center w-24 text-small text-muted-foreground italic">
                 —
               </span>
             )}

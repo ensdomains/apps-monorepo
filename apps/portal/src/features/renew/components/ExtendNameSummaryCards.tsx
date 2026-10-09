@@ -42,30 +42,28 @@ export const ExtendNameSummaryCards = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">Extension</p>
-        <p className="text-foreground text-base font-medium mt-1">
+        <p className="text-p">Extension</p>
+        <p className="text-foreground text-p font-medium mt-1">
           {registrationPeriod}
         </p>
-        <p className="text-muted-foreground text-xs mt-0.5">
+        <p className="text-muted-foreground text-small mt-0.5">
           {registrationDays} days
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">New expiry</p>
-        <p className="text-foreground text-base font-medium mt-1">
+        <p className="text-p">New expiry</p>
+        <p className="text-foreground text-p font-medium mt-1">
           {expiresFormatted}
         </p>
-        <p className="text-muted-foreground text-xs mt-0.5">
+        <p className="text-muted-foreground text-small mt-0.5">
           in {daysUntilExpiry} days
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">Total cost</p>
-        <p className="text-foreground text-base font-medium mt-1">
-          {totalCost}
-        </p>
+        <p className="text-p">Total cost</p>
+        <p className="text-foreground text-p font-medium mt-1">{totalCost}</p>
         {discountText ? (
-          <p className="text-success-text text-xs mt-0.5">{discountText}</p>
+          <p className="text-success-text text-small mt-0.5">{discountText}</p>
         ) : null}
       </div>
     </div>

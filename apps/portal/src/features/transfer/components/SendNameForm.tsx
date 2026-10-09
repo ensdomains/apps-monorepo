@@ -457,14 +457,14 @@ export const SendNameForm = ({
       </Button>
 
       {hasValidRecipient && hasFailed && (
-        <span className="text-destructive text-sm">
+        <span className="text-destructive text-p">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
         </span>
       )}
 
       {hasValidRecipient && roleRevocations.status === 'error' && (
-        <span className="text-destructive text-sm">
+        <span className="text-destructive text-p">
           Couldn’t check who else holds permissions on this name, so we can’t
           tell whether transferring it would leave any behind. Refresh and try
           again.
@@ -472,7 +472,7 @@ export const SendNameForm = ({
       )}
 
       {prepError && (
-        <span className="text-destructive text-sm">{prepError.message}</span>
+        <span className="text-destructive text-p">{prepError.message}</span>
       )}
 
       <TransactionModal transactions={transactions} />
@@ -666,7 +666,7 @@ const TransferDetachOptions = ({
                 <span className="text-foreground font-medium">
                   {option.label}
                 </span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground text-p">
                   {isRedundant
                     ? 'Not needed while the resolver is being detached.'
                     : option.description}
@@ -732,7 +732,7 @@ const RoleHolderList = ({
   return (
     <div className="flex flex-col gap-2">
       {revocable.length > 0 && (
-        <ul className="flex flex-col gap-2 text-sm">
+        <ul className="flex flex-col gap-2 text-p">
           {revocable.map((grant) => (
             <RoleHolderLine key={`revocable-${grant.account}`} grant={grant} />
           ))}
@@ -774,12 +774,12 @@ const RecipientResolvedContent = ({
 }) =>
   match({ recipient, isSelf, isZeroAddress })
     .with({ isSelf: true }, () => (
-      <p className="text-sm mt-1.5 text-destructive">
+      <p className="text-p mt-1.5 text-destructive">
         The recipient already owns this name.
       </p>
     ))
     .with({ isZeroAddress: true }, () => (
-      <p className="text-sm mt-1.5 text-destructive">
+      <p className="text-p mt-1.5 text-destructive">
         Can’t transfer to the zero address.
       </p>
     ))
@@ -814,7 +814,7 @@ const RecipientPreview = ({ address }: { address: Address }) => {
         <CopyableRecord
           value={address}
           displayValue={address}
-          textClassName="text-muted-foreground sm:text-xs break-all"
+          textClassName="text-muted-foreground sm:text-small break-all"
           truncate={false}
         />
       </div>

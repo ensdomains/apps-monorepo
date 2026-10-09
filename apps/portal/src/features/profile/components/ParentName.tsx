@@ -17,7 +17,7 @@ export const ParentName = ({
     if (parent === name)
       return (
         <InfoRow label="Parent">
-          <span className="text-sm">Root</span>
+          <span className="text-base">Root</span>
         </InfoRow>
       )
     return (
@@ -33,7 +33,7 @@ export const ParentName = ({
     return (
       <BlockCard>
         <div className="flex flex-col">
-          <span className="text-sm text-muted-foreground">Parent</span>
+          <span className="text-base text-muted-foreground">Parent</span>
           <span>Root</span>
         </div>
       </BlockCard>
@@ -49,7 +49,7 @@ export const ParentName = ({
             name={parent}
             rounded="rounded-sm"
           />
-          <span className="text-sm truncate">Parent</span>
+          <span className="text-base truncate">Parent</span>
         </div>
         <EntityBadge variant="name" name={parent}>
           {parent}

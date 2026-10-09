@@ -47,9 +47,9 @@ const TldCounterCard = ({
     <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
       <div className="flex items-center gap-2 text-muted-foreground min-w-0">
         <Icon className="size-4 shrink-0" />
-        <span className="text-sm truncate">{label}</span>
+        <span className="text-base truncate">{label}</span>
       </div>
-      <span className="text-xl font-medium text-foreground shrink-0">
+      <span className="text-h3 font-medium text-foreground shrink-0">
         {value}
       </span>
     </div>
@@ -91,7 +91,7 @@ const TldRegistryRow = ({
         {truncateAddress(registryAddress, 6, 4, '...')}
       </EntityBadge>
     ) : (
-      <span className="text-sm text-muted-foreground">
+      <span className="text-base text-muted-foreground">
         No registry deployed
       </span>
     )}
@@ -181,7 +181,7 @@ function TldOverview() {
       <HistoryTimeline
         name={tld}
         showFilters={false}
-        heading={<h2 className="text-foreground text-heading">History</h2>}
+        heading={<h2 className="text-foreground text-h2">History</h2>}
         emptyTitle="No recent activity"
         emptyDescription="Events will appear here as they happen."
       />

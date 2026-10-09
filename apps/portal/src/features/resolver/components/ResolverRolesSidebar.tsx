@@ -103,7 +103,7 @@ const EditPermissionList = ({
         >
           <div className="flex flex-col gap-1 flex-1 min-w-64">
             <div className="font-medium">{permission.title}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-p text-muted-foreground">
               {permission.description}
             </div>
           </div>
@@ -162,7 +162,7 @@ const RoleScopeSummary = ({
   readonly group: AccountRoleGroup
   readonly otherScopeCount: number
 }) => (
-  <p className="text-sm text-muted-foreground">
+  <p className="text-p text-muted-foreground">
     {group.isRoot
       ? 'Global roles (all names)'
       : `Roles scoped to ${group.resourceLabel}. Scoped roles can be revoked here; grant new ones from Add user.`}
@@ -210,10 +210,10 @@ const ConfirmSaveDialog = ({
             </Alert>
           )}
           {save && save.rolesToGrant.length > 0 && (
-            <p className="text-sm">Granting: {save.rolesToGrant.join(', ')}</p>
+            <p className="text-p">Granting: {save.rolesToGrant.join(', ')}</p>
           )}
           {save && save.rolesToRevoke.length > 0 && (
-            <p className="text-sm">Revoking: {save.rolesToRevoke.join(', ')}</p>
+            <p className="text-p">Revoking: {save.rolesToRevoke.join(', ')}</p>
           )}
         </DialogHeader>
         <DialogFooter>
@@ -260,7 +260,7 @@ const RemoveUserDialog = ({
           Revoke every role {truncateAddress(account, 6, 4)} holds on this
           resolver, one transaction per scope. This can't be undone.
         </DialogDescription>
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col gap-1 text-p">
           {revocations.map((revocation) => (
             <li
               key={revocation.resource.toString()}

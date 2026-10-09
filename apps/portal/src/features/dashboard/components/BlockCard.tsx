@@ -24,9 +24,9 @@ const DataBlockCardBase = forwardRef<
     <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
       <div className="flex items-center gap-2 text-muted-foreground min-w-0">
         <Icon className="size-4 shrink-0" />
-        <span className="text-ui truncate">{label}</span>
+        <span className="text-base truncate">{label}</span>
       </div>
-      <span className="text-xl font-medium text-foreground shrink-0">
+      <span className="text-h3 font-medium text-foreground shrink-0">
         {value}
       </span>
     </div>
@@ -48,7 +48,7 @@ export const DataBlockCardError = ({
 }) => (
   <div className="flex h-20 max-w-[300px] items-center gap-2 p-4 rounded-lg bg-background border border-secondary text-muted-foreground">
     <Icon className="size-4 shrink-0" />
-    <span className="text-ui">{message}</span>
+    <span className="text-p">{message}</span>
   </div>
 )
 

@@ -55,7 +55,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
           }}
         >
           {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-          <span className="text-sm font-medium">1</span>
+          <span className="text-base font-medium">1</span>
         </Button>
       </div>
     ),
@@ -78,7 +78,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
         return <div>{formatDate(date)}</div>
       }
       return (
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className="text-entity-base text-muted-foreground">
           Block {blockNumber.toLocaleString()}
         </span>
       )
@@ -138,7 +138,7 @@ const moreColumn: ColumnDef<ResolverEventRow> = {
         }}
       >
         <ArrowRightFromLineIcon className="h-4 w-4" />
-        <span className="text-sm font-medium">More</span>
+        <span className="text-base font-medium">More</span>
       </Button>
     </div>
   ),
@@ -213,7 +213,7 @@ export const ResolverEventsTable = ({
                 onClick={() => row.toggleExpanded()}
               >
                 {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-                <span className="text-sm font-medium">1</span>
+                <span className="text-base font-medium">1</span>
               </Button>
               {enableSidebar && (
                 <Button
@@ -225,18 +225,18 @@ export const ResolverEventsTable = ({
                   }}
                 >
                   <ArrowRightFromLineIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">More</span>
+                  <span className="text-base font-medium">More</span>
                 </Button>
               )}
             </div>
-            <div className="text-sm font-medium">Date</div>
-            <div className="text-base">
+            <div className="text-base font-medium">Date</div>
+            <div className="text-p">
               {row.original.timestamp
                 ? formatDate(new Date(row.original.timestamp * 1000))
                 : `Block ${row.original.blockNumber.toLocaleString()}`}
             </div>
-            <div className="text-sm font-medium">Transaction</div>
-            <div className="text-base">
+            <div className="text-base font-medium">Transaction</div>
+            <div className="text-p">
               {row.original.transactionHash ? (
                 <BlockExplorerTxLink
                   txHash={row.original.transactionHash as Hash}
@@ -247,16 +247,16 @@ export const ResolverEventsTable = ({
             </div>
             {row.original.from && (
               <>
-                <div className="text-sm font-medium">From</div>
-                <div className="text-base">
+                <div className="text-base font-medium">From</div>
+                <div className="text-p">
                   <AddressDisplay address={row.original.from} />
                 </div>
               </>
             )}
             {row.getIsExpanded() && (
               <div className="pl-4 border-l-2 border-border flex flex-col gap-2">
-                <div className="text-sm font-medium">Event</div>
-                <div className="text-base">{row.original.type}</div>
+                <div className="text-base font-medium">Event</div>
+                <div className="text-p">{row.original.type}</div>
               </div>
             )}
           </div>

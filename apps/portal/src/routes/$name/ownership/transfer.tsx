@@ -65,7 +65,7 @@ function RouteComponent() {
         <Link
           to="/$name/ownership"
           params={{ name }}
-          className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
+          className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-base font-medium"
         >
           <ArrowLeft className="size-4" />
           Back
@@ -129,7 +129,7 @@ function RouteComponent() {
               description={
                 <>
                   <p>You are not the owner of this name.</p>
-                  <p className="text-quartz-900/60 text-sm mt-2">
+                  <p className="text-quartz-900/60 text-p mt-2">
                     Only the current owner can transfer it.
                   </p>
                 </>
@@ -210,7 +210,7 @@ const AuthorizedTransfer = ({
               re-issue it to anyone. Transferring it now wouldn’t give the
               recipient lasting control.
             </p>
-            <p className="text-quartz-900/60 text-sm mt-2">
+            <p className="text-quartz-900/60 text-p mt-2">
               Ask the parent’s owner to renew it before transferring.
             </p>
           </>
@@ -243,7 +243,7 @@ const AuthorizedTransfer = ({
               This wallet can’t transfer this name. Transferring requires a
               permission on the name’s token that this wallet doesn’t hold.
             </p>
-            <p className="text-quartz-900/60 text-sm mt-2">
+            <p className="text-quartz-900/60 text-p mt-2">
               This is common for subnames issued without transfer rights, or
               names whose transfer role was revoked or locked. Ask whoever
               issued the name to grant the transfer role

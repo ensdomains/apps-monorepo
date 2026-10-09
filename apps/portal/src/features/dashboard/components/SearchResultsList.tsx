@@ -15,7 +15,7 @@ const RegisterLink = ({ name }: { name: string }) => (
     <a
       href={`/register?name=${encodeURIComponent(ensureEthSuffix(name))}`}
       rel="noopener noreferrer"
-      className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+      className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-small font-medium text-primary hover:bg-primary/10 transition-colors"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -76,7 +76,7 @@ const SectionLegend = ({
   <>
     <legend
       className={cn(
-        'px-2 pt-2 pb-2 text-xs font-medium text-muted-foreground',
+        'px-2 pt-2 pb-2 text-small font-medium text-muted-foreground',
         className,
       )}
     >
@@ -138,7 +138,9 @@ export const SearchResultsList = ({
       <div className="flex min-w-0 flex-col items-start gap-0.5">
         <span className="font-medium">{label}</span>
         {description && (
-          <span className="text-xs text-muted-foreground">{description}</span>
+          <span className="text-small text-muted-foreground">
+            {description}
+          </span>
         )}
       </div>
     </>
@@ -146,7 +148,7 @@ export const SearchResultsList = ({
 
   const rowClassName = (isActive: boolean) =>
     cn(
-      'w-full flex flex-row items-center gap-3 rounded-sm px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'w-full flex flex-row items-center gap-3 rounded-sm px-2 py-1.5 text-left text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       variant === 'listbox' &&
         (isActive
           ? 'bg-accent text-accent-foreground'

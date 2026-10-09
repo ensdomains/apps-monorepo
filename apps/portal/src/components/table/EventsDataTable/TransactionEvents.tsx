@@ -77,12 +77,12 @@ const EventData = ({ event, txHash }: EventDataProps) => {
             <TableBody>
               {dataFields.map(([key, value], index) => (
                 <TableRow key={key} className="hover:bg-muted">
-                  <TableCell className="h-10 py-0 text-sm">{index}</TableCell>
-                  <TableCell className="h-10 py-0 text-sm">{key}</TableCell>
-                  <TableCell className="h-10 py-0 text-sm">
+                  <TableCell className="h-10 py-0 text-base">{index}</TableCell>
+                  <TableCell className="h-10 py-0 text-base">{key}</TableCell>
+                  <TableCell className="h-10 py-0 text-base">
                     {getEventFieldType(event.type, key)}
                   </TableCell>
-                  <TableCell className="h-10 py-0 text-sm">
+                  <TableCell className="h-10 py-0 text-base">
                     <CopyableRecord
                       value={String(value)}
                       displayValue={
@@ -102,13 +102,13 @@ const EventData = ({ event, txHash }: EventDataProps) => {
           {eventLog ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
+                <p className="text-small font-medium text-muted-foreground mb-2">
                   Data:
                 </p>
                 <CopyableRecord
                   value={eventLog.data}
                   displayValue={
-                    <p className="text-xs font-mono break-all text-foreground">
+                    <p className="text-smallmono break-all text-foreground">
                       {eventLog.data}
                     </p>
                   }
@@ -116,7 +116,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               </div>
               {eventLog.topics.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                  <p className="text-small font-medium text-muted-foreground mb-2">
                     Topics:
                   </p>
                   <div className="space-y-2">
@@ -125,7 +125,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
                         key={topic}
                         value={topic}
                         displayValue={
-                          <p className="text-xs font-mono break-all text-foreground">
+                          <p className="text-smallmono break-all text-foreground">
                             [{i}]: {topic}
                           </p>
                         }
@@ -136,7 +136,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               )}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Encoded data not available. Transaction receipt may still be
               loading.
             </p>
@@ -204,7 +204,7 @@ export const TransactionEvents = ({
                     <CopyableRecord
                       value={event.type}
                       displayValue={
-                        <h3 className="text-xl font-medium">{event.type}</h3>
+                        <h3 className="text-h3 font-medium">{event.type}</h3>
                       }
                     />
 
@@ -216,7 +216,7 @@ export const TransactionEvents = ({
                         className="flex items-center gap-1.5"
                       >
                         <ScrollTextIcon />
-                        <span className="text-sm">Go to docs</span>
+                        <span className="text-base">Go to docs</span>
                       </a>
                     </Button>
                   </div>
@@ -229,7 +229,7 @@ export const TransactionEvents = ({
                             {truncateAddress(txHash, 10, 8, '...')}
                           </span>
                         }
-                        className="text-sm flex-1 min-w-0"
+                        className="text-base flex-1 min-w-0"
                       />
                     </InfoRow>
                     <InfoRow label="Event">

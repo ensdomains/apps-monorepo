@@ -4,8 +4,7 @@ import type { Address } from 'viem'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
-export const nameHeadingClassName =
-  'font-serif text-4xl font-medium leading-9.5'
+export const nameHeadingClassName = 'font-serif font-medium'
 
 export const addressHeadingClassName = 'font-semi-mono'
 
@@ -111,7 +110,7 @@ export const PageHeading = ({
 }) => (
   <h1
     className={cn(
-      'font-sans text-page-title leading-9.5 font-normal',
+      'font-sans text-h1 font-normal',
       'flex flex-wrap items-center gap-x-2 min-w-0 break-words',
       className,
     )}

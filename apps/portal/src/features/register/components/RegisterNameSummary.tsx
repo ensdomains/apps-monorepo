@@ -95,7 +95,7 @@ export const RegisterNameCheckoutSummary = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-transparent hover:bg-transparent text-sm"
+                    className="bg-transparent hover:bg-transparent text-base"
                   >
                     {open ? 'Close' : 'Learn more'}
                   </Button>
@@ -136,7 +136,7 @@ export const RegisterNameCheckoutSummary = ({
           )
           .otherwise(() => (
             <div className="border border-border rounded-md p-4">
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-p">
                 Unable to load price
               </p>
             </div>
@@ -185,8 +185,8 @@ const PriceBreakdownSkeleton = () => (
         label="Total"
         value={<Skeleton className="h-8 w-20" />}
         className="pt-3 border-t border-border"
-        labelClassName="text-2xl text-primary font-medium"
-        valueClassName="m-0 text-primary font-semibold text-2xl"
+        labelClassName="text-h2 text-primary font-medium"
+        valueClassName="m-0 text-primary font-semibold text-h2"
       />
     </dl>
   </div>
@@ -286,8 +286,8 @@ const PriceBreakdown = ({
             price.decimals,
           )}
           className="pt-3 border-t border-border"
-          labelClassName="text-2xl text-primary font-medium"
-          valueClassName="m-0 text-primary font-semibold text-2xl"
+          labelClassName="text-h2 text-primary font-medium"
+          valueClassName="m-0 text-primary font-semibold text-h2"
         />
       </dl>
     </div>

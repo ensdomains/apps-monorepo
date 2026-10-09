@@ -17,7 +17,7 @@ export const SyncManagerBanner = ({ name }: { readonly name: string }) => {
     <div className="flex flex-col gap-2">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-6 rounded-sm bg-message-warning-fill text-message-warning-text">
         <CircleAlert className="size-6 shrink-0" strokeWidth={1.5} />
-        <p className="text-sm flex-1">
+        <p className="text-p flex-1">
           You cannot make changes to this name because you are the DNS Owner,
           but not the Manager. Sync Manager to Owner to fix this and make
           changes.
@@ -33,7 +33,7 @@ export const SyncManagerBanner = ({ name }: { readonly name: string }) => {
       </div>
       {prepareError && (
         <>
-          <p className="text-sm text-message-danger-text">
+          <p className="text-p text-message-danger-text">
             Could not prepare the sync — the DNS record may have changed.
             Refresh and try again.
           </p>

@@ -24,7 +24,7 @@ describe('cn', () => {
     expect(cn('text-entity-name', 'text-accent-text')).toBe(
       'text-entity-name text-accent-text',
     )
-    expect(cn('text-ui', 'text-default-text')).toBe('text-ui text-default-text')
+    expect(cn('text-p', 'text-default-text')).toBe('text-p text-default-text')
   })
 
   it('merges conflicting type-scale classes (last wins)', () => {

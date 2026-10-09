@@ -46,7 +46,7 @@ export const RegistryCard = ({
     >
       <HubIcon className="size-8 shrink-0 text-neutral-7" />
       <div className="flex-1 flex flex-col gap-1">
-        <span className="text-sm text-muted-foreground">Subregistry</span>
+        <span className="text-base text-muted-foreground">Subregistry</span>
         {registryAddress ? (
           <RegistryLocation name={name} registryAddress={registryAddress} />
         ) : (

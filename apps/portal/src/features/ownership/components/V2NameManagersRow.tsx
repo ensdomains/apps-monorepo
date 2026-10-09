@@ -61,20 +61,20 @@ export const V2NameManagersRow = ({
   )
 
   if (isReadingId || isLoading)
-    return row(<span className="text-sm text-muted-foreground">Loading</span>)
+    return row(<span className="text-base text-muted-foreground">Loading</span>)
 
   // Unknown, not none — on both branches. Silence here would reproduce exactly
   // the gap this row exists to close, so say the check didn't land.
   if (readIdError || error)
     return row(
-      <span className="text-sm text-muted-foreground">
+      <span className="text-p text-muted-foreground">
         Couldn’t check who else holds permissions on this name
       </span>,
     )
 
   if (!data)
     return row(
-      <span className="text-sm text-muted-foreground">
+      <span className="text-p text-muted-foreground">
         No permissions data for this name
       </span>,
     )
@@ -85,7 +85,7 @@ export const V2NameManagersRow = ({
 
   if (holders.length === 0 && !data.isVerified)
     return row(
-      <span className="text-sm text-muted-foreground">
+      <span className="text-p text-muted-foreground">
         Couldn’t check who else holds permissions on this name
       </span>,
     )
@@ -103,7 +103,7 @@ export const V2NameManagersRow = ({
         {holders.map(([account, roles]) => (
           <li key={account} className="flex flex-col gap-0.5">
             <AddressDisplay address={account} />
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground text-p">
               {roles.map(formatRoleLabel).join(', ')} ·{' '}
               <Link
                 to="/$name/roles"

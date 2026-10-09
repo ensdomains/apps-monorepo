@@ -114,7 +114,7 @@ export const TemporaryPremiumPopover = ({
         sideOffset={isMobile ? 0 : 40}
         className="w-[280px] space-y-4"
       >
-        <p className="text-sm leading-relaxed text-foreground">
+        <p className="text-p leading-relaxed text-foreground">
           A{' '}
           <span className="font-semibold text-foreground">
             temporary premium
@@ -168,7 +168,7 @@ export const TemporaryPremiumPopover = ({
             />
           </svg>
 
-          <div ref={labelRowRef} className="relative h-10 text-sm">
+          <div ref={labelRowRef} className="relative h-10 text-base">
             <span
               ref={dateRef}
               className="absolute top-0 whitespace-nowrap text-muted-foreground"

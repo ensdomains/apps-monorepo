@@ -74,7 +74,7 @@ export function MessageCard({
       className={cn(messageCardVariants({ variant }), className)}
     >
       {badge && (
-        <Badge variant="outline" className="absolute top-4 right-4 text-xs">
+        <Badge variant="outline" className="absolute top-4 right-4 text-small">
           {badge}
         </Badge>
       )}

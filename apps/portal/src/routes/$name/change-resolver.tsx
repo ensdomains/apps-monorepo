@@ -45,7 +45,7 @@ const PermissionDenied = ({
       protocol === 'ENSv2' ? (
         <>
           You don't have the required{' '}
-          <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
+          <code className="text-entity-base bg-muted px-1 py-0.5 rounded">
             ROLE_SET_RESOLVER
           </code>{' '}
           permission to change the resolver for <strong>{name}</strong>. Please

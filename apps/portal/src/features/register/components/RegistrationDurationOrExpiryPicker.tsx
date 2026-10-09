@@ -62,7 +62,7 @@ export const RegistrationDurationOrExpiryPicker = ({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-lg font-medium">
+          <span className="text-h3 font-medium">
             {labelPrefix ?? 'Register'}{' '}
             {registrationSpanType === 'years' ? 'for' : 'until'}
           </span>
@@ -77,7 +77,7 @@ export const RegistrationDurationOrExpiryPicker = ({
             ) : (
               <HashIcon className="size-3.5" />
             )}
-            <span className="text-xs font-normal">
+            <span className="text-small font-normal">
               {registrationSpanType === 'years'
                 ? 'Pick by date'
                 : 'Choose length'}

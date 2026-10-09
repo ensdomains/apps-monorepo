@@ -26,7 +26,7 @@ export const DnsRecordTable = ({
   readonly record: DnsRecordSpec
   readonly foundRow: ReactNode
 }) => (
-  <div className="rounded-xl border p-6 flex flex-col gap-4 text-sm">
+  <div className="rounded-xl border p-6 flex flex-col gap-4 text-p">
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-12">
       <Row label="Type">
         <span className="inline-flex h-5 items-center px-1 text-entity-base">

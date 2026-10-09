@@ -82,7 +82,7 @@ export const columns: ColumnDef<NameRow>[] = [
       const expiryDate = row.original.expiryDate
       if (!expiryDate) {
         return (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-small">
             Does not expire
           </Badge>
         )
@@ -117,7 +117,7 @@ export const columns: ColumnDef<NameRow>[] = [
         if (roles.length === 0) return null
 
         return (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-small">
             {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
           </Badge>
         )
@@ -134,7 +134,7 @@ export const columns: ColumnDef<NameRow>[] = [
         return (
           <div className="flex flex-row gap-1">
             {roleLabels.map((label) => (
-              <Badge key={label} variant="secondary" className="text-xs">
+              <Badge key={label} variant="secondary" className="text-small">
                 {label}
               </Badge>
             ))}

@@ -32,7 +32,7 @@ export const Owner = ({
 
   if (error) {
     const failed = (
-      <span className="text-sm text-muted-foreground">
+      <span className="text-base text-muted-foreground">
         Failed to load owner
       </span>
     )
@@ -44,7 +44,7 @@ export const Owner = ({
       )
     return (
       <BlockCard className={cn('flex-col items-start', className)}>
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-base text-muted-foreground">{label}</span>
         {failed}
       </BlockCard>
     )
@@ -55,12 +55,12 @@ export const Owner = ({
     if (asRow)
       return (
         <InfoRow label={label} className={className}>
-          <span className="text-sm text-muted-foreground">No data</span>
+          <span className="text-base text-muted-foreground">No data</span>
         </InfoRow>
       )
     return (
       <BlockCard className={cn('flex-col items-start', className)}>
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-base text-muted-foreground">{label}</span>
         <span>No data</span>
       </BlockCard>
     )
@@ -96,7 +96,7 @@ export const Owner = ({
             name={ownerName || shortenedAddress}
             rounded="rounded-sm"
           />
-          <span className="text-sm truncate">{label}</span>
+          <span className="text-base truncate">{label}</span>
         </div>
         <EntityBadge
           variant={variant}

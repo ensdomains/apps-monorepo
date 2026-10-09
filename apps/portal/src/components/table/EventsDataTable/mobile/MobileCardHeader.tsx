@@ -29,7 +29,7 @@ export const MobileCardHeader = <TEvent extends BaseEvent = BaseEvent>({
           }}
         >
           {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-          <span className="text-sm font-medium">{eventCount}</span>
+          <span className="text-base font-medium">{eventCount}</span>
         </Button>
       )}
       {hasSidebar && (
@@ -45,7 +45,7 @@ export const MobileCardHeader = <TEvent extends BaseEvent = BaseEvent>({
           }}
         >
           <ArrowRightFromLineIcon className="h-4 w-4" />
-          <span className="text-sm font-medium">More</span>
+          <span className="text-base font-medium">More</span>
         </Button>
       )}
     </div>

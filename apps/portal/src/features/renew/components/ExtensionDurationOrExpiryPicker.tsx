@@ -47,7 +47,7 @@ export const ExtensionDurationOrExpiryPicker = ({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-lg font-medium">
+          <span className="text-h3 font-medium">
             {span.type === 'years' ? 'For' : 'Until'}
           </span>
           <Button
@@ -56,7 +56,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             onClick={() => setSpan(getToggledExtensionSpan(baseDate, span))}
             className="gap-1 text-primary"
           >
-            <span className="text-xs font-normal">
+            <span className="text-small font-normal">
               {span.type === 'years' ? 'Pick by date' : 'Choose length'}
             </span>
             {span.type === 'years' ? (

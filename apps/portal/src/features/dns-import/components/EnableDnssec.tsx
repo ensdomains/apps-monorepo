@@ -23,7 +23,7 @@ export const EnableDnssec = ({ name }: { readonly name: string }) => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h3 className="font-medium">1. Enable DNSSEC</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           Turn DNSSEC on for this domain at your DNS provider.
         </p>
       </div>

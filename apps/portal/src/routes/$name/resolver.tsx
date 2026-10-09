@@ -95,10 +95,9 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (isLoading) return <LoadingSpinner title="Loading interfaces..." />
   if (error)
-    return (
-      <div className="text-sm text-destructive">{error.cause?.message}</div>
-    )
-  if (!data) return <div className="text-sm text-muted-foreground">No data</div>
+    return <div className="text-p text-destructive">{error.cause?.message}</div>
+  if (!data)
+    return <div className="text-base text-muted-foreground">No data</div>
 
   const features = data
     .flatMap((supported, index) => {
@@ -115,7 +114,7 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (features.length === 0)
     return (
-      <div className="text-sm text-muted-foreground">
+      <div className="text-base text-muted-foreground">
         No interfaces detected
       </div>
     )
@@ -183,7 +182,7 @@ const ResolverInfoList = ({
             . It is audited and is considered secure.
           </p>
         ) : (
-          <span className="text-ui text-foreground">{type}</span>
+          <span className="text-base text-foreground">{type}</span>
         )}
       </InfoRow>
       <InfoRow label="Contract">
@@ -334,7 +333,7 @@ const NoResolverSet = ({
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
       <div className="flex items-center gap-4 rounded-sm bg-accent-fill/40 p-6">
-        <p className="flex-1 text-base text-muted-foreground">
+        <p className="flex-1 text-p text-muted-foreground">
           This name does not have a resolver set.
         </p>
         <ResolverWarning name={name} ownerData={ownerData} />
