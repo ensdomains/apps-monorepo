@@ -104,10 +104,6 @@ describe('csp', () => {
       expect(header['font-src']).toContain('https://fonts.gstatic.com')
     })
 
-    it('allowlists the font host serving the ABC/Dinamo faces', () => {
-      expect(header['font-src']).toContain('https://fonts.ens.dev')
-    })
-
     it('frames WalletConnect, Intercom, and the commemorative renderer', () => {
       expect(header['frame-src']).toContain('https://*.walletconnect.com')
       expect(header['frame-src']).toContain('https://*.intercom.io')

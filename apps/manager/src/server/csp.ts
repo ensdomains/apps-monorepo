@@ -163,10 +163,7 @@ export function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     // Images are host-agnostic (ENS avatar records are arbitrary URLs).
     "img-src 'self' data: blob: https:",
-    // fonts.ens.dev serves the ABC/Dinamo faces: the font license forbids
-    // redistributing them in this repo, so they are fetched at runtime rather
-    // than vendored under src/assets/fonts.
-    "font-src 'self' data: https://fonts.gstatic.com https://fonts.ens.dev",
+    "font-src 'self' data: https://fonts.gstatic.com",
     `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
     `frame-src 'self' ${FRAME_HOSTS.join(' ')}`,
     "worker-src 'self' blob:",
