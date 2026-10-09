@@ -250,10 +250,15 @@ const toComparableName = (name: string) =>
     .toLowerCase()
     .replace(/\.eth$/, '')
 
-/** A just-migrated name that bigname still lists only as ENSv1. */
+/**
+ * A just-migrated name the list does not show as ENSv2 yet. Between address
+ * reads it can be in neither list, so absence keeps the polling going; the
+ * recorded names expire, which bounds it.
+ */
 export const isAwaitingMigratedNames = (
   chunks: readonly AddressNamesChunk[],
   migratedNames: readonly string[],
+  version: NameVersion | null = null,
 ): boolean => {
   if (migratedNames.length === 0) return false
   const names = chunks.flatMap((chunk) => chunk.names)
@@ -267,5 +272,5 @@ export const isAwaitingMigratedNames = (
   const v2 = byProtocol('v2')
   return migratedNames
     .map(toComparableName)
-    .some((name) => v1.has(name) && !v2.has(name))
+    .some((name) => (version === 'v1' ? v1.has(name) : !v2.has(name)))
 }

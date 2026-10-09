@@ -87,7 +87,10 @@ export const useDashboardNames = ({
     refetchInterval: ({ state }) =>
       isAwaitingMigratedNames(
         state.data?.pages.flat() ?? [],
-        getRecentlyMigratedNames(),
+        getRecentlyMigratedNames().filter((name) =>
+          name.toLowerCase().includes(search.trim().toLowerCase()),
+        ),
+        version,
       )
         ? MIGRATED_NAME_POLL_MS
         : false,
