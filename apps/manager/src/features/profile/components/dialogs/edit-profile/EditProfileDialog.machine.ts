@@ -60,6 +60,7 @@ export type PendingSave = PendingUpdateSave | PendingSetupSave
 
 interface EditProfileDialogContext {
   readonly ethAddressChanged: boolean
+  readonly isPreviewing: boolean
   readonly pendingSave?: PendingSave
   readonly savedRecords: ProfileRecords
   readonly visibleFields: ReadonlySet<GeneralField>
@@ -72,6 +73,8 @@ interface EditProfileDialogInput {
 type EditProfileDialogEvent =
   | { type: 'OPEN'; records: ProfileRecords }
   | { type: 'CLOSE' }
+  | { type: 'PREVIEW' }
+  | { type: 'RESUME_EDIT' }
   | { type: 'RESET_SAVE_STATE' }
   | { type: 'SHOW_GENERAL_FIELD'; field: GeneralField }
   | { type: 'TOGGLE_GENERAL_FIELD'; field: GeneralField }
@@ -179,6 +182,7 @@ export const editProfileDialogMachine = setup({
   actions: {
     openDialog: assign({
       ethAddressChanged: () => false,
+      isPreviewing: () => false,
       pendingSave: () => undefined,
       savedRecords: ({ event, context }) =>
         event.type === 'OPEN' ? event.records : context.savedRecords,
@@ -187,6 +191,8 @@ export const editProfileDialogMachine = setup({
           ? getDefaultVisibleFields(event.records)
           : context.visibleFields,
     }),
+    startPreview: assign({ isPreviewing: () => true }),
+    endPreview: assign({ isPreviewing: () => false }),
     clearSaveState: assign({
       ethAddressChanged: () => false,
       pendingSave: () => undefined,
@@ -241,6 +247,7 @@ export const editProfileDialogMachine = setup({
   id: 'editProfileDialog',
   context: ({ input }) => ({
     ethAddressChanged: false,
+    isPreviewing: false,
     savedRecords: input.records,
     visibleFields: getDefaultVisibleFields(input.records),
   }),
@@ -259,6 +266,7 @@ export const editProfileDialogMachine = setup({
       on: {
         CLOSE: {
           target: 'closed',
+          actions: 'endPreview',
         },
         RESET_SAVE_STATE: {
           target: '.idle',
@@ -274,6 +282,8 @@ export const editProfileDialogMachine = setup({
       states: {
         idle: {
           on: {
+            PREVIEW: { actions: 'startPreview' },
+            RESUME_EDIT: { actions: 'endPreview' },
             SAVE_REQUESTED: saveRequestedTransitions,
           },
         },

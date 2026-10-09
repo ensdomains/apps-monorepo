@@ -7,8 +7,14 @@ import { ProfileEditAction } from './ProfileEditAction'
 vi.mock(
   '@/features/profile/components/dialogs/edit-profile/EditProfileDialog',
   () => ({
-    EditProfileDialog: ({ trigger }: { trigger: React.ReactNode }) => (
-      <>{trigger}</>
+    EditProfileDialog: ({
+      editButtonClassName,
+    }: {
+      editButtonClassName: string
+    }) => (
+      <button className={editButtonClassName} type="button">
+        Edit Profile
+      </button>
     ),
   }),
 )

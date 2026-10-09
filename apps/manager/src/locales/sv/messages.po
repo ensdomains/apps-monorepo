@@ -462,8 +462,7 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
@@ -588,6 +587,10 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Complete required field in <0>{tabList}</0> before previewing and publishing"
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
@@ -832,6 +835,10 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Discard"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Discard renewal"
 msgstr ""
@@ -882,7 +889,11 @@ msgid "Each batch of your names is upgraded in a single transaction. If any part
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
-#: src/features/profile/components/view/ProfileEditAction.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Edit"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileUpgradePopover.tsx
 msgid "Edit Profile"
 msgstr ""
@@ -1765,6 +1776,10 @@ msgstr ""
 msgid "Preparing your registration"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Preview"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Preview and mint"
 msgstr ""
@@ -1813,8 +1828,21 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileFloatingBar.tsx
 #: src/features/profile/components/view/ProfileActions.tsx
 msgid "Profile actions"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publish"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publish changes"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publishing…"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2011,6 +2039,7 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr ""
 
@@ -2126,6 +2155,10 @@ msgstr ""
 msgid "Reserving your name"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Resolve errors before previewing changes."
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Restore the managers you chose"
 msgstr ""
@@ -2197,18 +2230,8 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Save Profile"
-msgstr ""
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Saved favorites and searches"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Saving"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -3209,6 +3232,14 @@ msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfilePreview.ts
+msgid "You have unpublished changes. Are you sure you want to leave?"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "You haven't made changes yet. Edit your profile then click here to preview those changes."
 msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx

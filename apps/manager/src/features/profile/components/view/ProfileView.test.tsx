@@ -77,7 +77,6 @@ vi.mock('./ProfileActions', () => ({
       Save profile
     </button>
   ),
-  ProfileMobileActions: () => null,
 }))
 
 const savedAvatar = 'https://example.com/avatar.png'

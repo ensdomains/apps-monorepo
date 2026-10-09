@@ -17,6 +17,7 @@ import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/third
 
 type ProfileRenewActionProps = {
   readonly className: string
+  readonly isBarAction?: boolean
   readonly isOwner?: boolean
   readonly name: string
   readonly protocol?: RenewalProtocol
@@ -24,6 +25,7 @@ type ProfileRenewActionProps = {
 
 export const ProfileRenewAction = ({
   className,
+  isBarAction = false,
   isOwner,
   name,
   protocol,
@@ -44,7 +46,16 @@ export const ProfileRenewAction = ({
 
   if (!canRenew) return null
 
-  const buttonContent = (
+  const buttonContent = isBarAction ? (
+    <>
+      <span className="lg:landscape:hidden">
+        <Trans>Renew</Trans>
+      </span>
+      <span className="hidden lg:landscape:inline">
+        <Trans>Renew Name</Trans>
+      </span>
+    </>
+  ) : (
     <>
       <Trans>Renew Name</Trans>
       <MSymbol

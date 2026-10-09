@@ -1,20 +1,17 @@
-import { Trans } from '@lingui/react/macro'
-import { Loader2, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
-import { DialogClose } from '@/components/ui/dialog'
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
-import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { AddressesTab } from './tabs/addresses/AddressesTab'
 import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
 import { GeneralTab } from './tabs/general/GeneralTab'
 import { LinksTab } from './tabs/links/LinksTab'
 
-const tabs = [
+export const editProfileTabs = [
   { label: 'General', value: 'general' },
   { label: 'Contact', value: 'contact' },
   { label: 'Addresses', value: 'addresses' },
@@ -23,7 +20,6 @@ const tabs = [
 ] as const
 
 interface EditProfileDialogTabsProps {
-  readonly canSave: boolean
   readonly name: string
   readonly onAddressesChange: (addresses: ProfileRecords['addresses']) => void
   readonly onBaseChange: (base: ProfileRecords['base']) => void
@@ -33,7 +29,6 @@ interface EditProfileDialogTabsProps {
   ) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
-  readonly onSave: () => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
@@ -56,7 +51,7 @@ const EditProfileTabList = ({
       className,
     )}
   >
-    {tabs.map(({ label, value }) => (
+    {editProfileTabs.map(({ label, value }) => (
       <TabsTrigger
         className="h-10 w-full flex-none justify-start whitespace-nowrap rounded-lg p-3 font-normal text-[14px] text-ens-quartz-500 tracking-[0.14px] data-[state=active]:bg-[#f2f2f2] data-[state=active]:text-ens-quartz-500"
         key={value}
@@ -70,19 +65,13 @@ const EditProfileTabList = ({
 )
 
 interface MobileProfileActionsProps {
-  readonly canSave: boolean
   readonly isMenuOpen: boolean
-  readonly isSaving: boolean
   readonly onMenuToggle: () => void
-  readonly onSave: () => void
 }
 
 const MobileProfileActions = ({
-  canSave,
   isMenuOpen,
-  isSaving,
   onMenuToggle,
-  onSave,
 }: MobileProfileActionsProps) => (
   <div className="flex shrink-0 items-start gap-1 px-[17px] py-2 md:hidden">
     <button
@@ -94,29 +83,10 @@ const MobileProfileActions = ({
     >
       <Menu className="size-5.5" />
     </button>
-    <button
-      className="flex h-10 min-w-0 shrink items-center justify-center gap-2 rounded-sm bg-ens-lapis-500 px-2 font-mono text-[14.81px] text-ens-lapis-100 uppercase leading-[1.2] tracking-[0.1481px] transition-colors hover:bg-ens-lapis-core disabled:pointer-events-none disabled:opacity-50"
-      disabled={!canSave || isSaving}
-      onClick={onSave}
-      type="button"
-    >
-      {isSaving && <Loader2 className="size-4 animate-spin" />}
-      {isSaving ? <Trans>Saving</Trans> : <Trans>Save Profile</Trans>}
-    </button>
-    <DialogClose asChild>
-      <button
-        className="flex h-10 shrink-0 items-center justify-center rounded-sm bg-ens-lapis-100 px-2 font-mono text-[14.81px] text-ens-lapis-500 uppercase leading-[1.2] tracking-[0.1481px] transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
-        disabled={isSaving}
-        type="button"
-      >
-        <Trans>Cancel</Trans>
-      </button>
-    </DialogClose>
   </div>
 )
 
 export const EditProfileDialogTabs = ({
-  canSave,
   name,
   onAddressesChange,
   onBaseChange,
@@ -124,14 +94,12 @@ export const EditProfileDialogTabs = ({
   onDraftLinkValidationIssuesChange,
   onImageUploadPrepared,
   onLinksChange,
-  onSave,
   onSocialChange,
   owner,
   preparedImageUploads,
   savedDescription,
   values,
 }: EditProfileDialogTabsProps) => {
-  const { isSaving } = useEditProfileDialogStatus()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [isScrolling, setIsScrolling] = useState(false)
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -228,11 +196,8 @@ export const EditProfileDialogTabs = ({
       ) : null}
 
       <MobileProfileActions
-        canSave={canSave}
         isMenuOpen={mobileNavOpen}
-        isSaving={isSaving}
         onMenuToggle={() => setMobileNavOpen((open) => !open)}
-        onSave={onSave}
       />
     </div>
   )
