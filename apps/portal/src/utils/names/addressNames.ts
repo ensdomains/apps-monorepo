@@ -14,6 +14,8 @@ export type AddressNameItem = {
   readonly subdomainCount?: number
   readonly recordCount?: number
   readonly relations: readonly AddressNameRelation[]
+  /** ENSv2 only: the roles the address holds on the name. */
+  readonly roleCount?: number
   readonly protocolVersion: ProtocolVersion
 }
 
@@ -46,6 +48,8 @@ export const toAddressNameItem = (
         subdomainCount: summary.subnameCount,
         recordCount: summary.recordCount,
         relations: summary.relations,
+        ...(summary.protocol !== 'v1' &&
+          summary.roleCount !== undefined && { roleCount: summary.roleCount }),
         protocolVersion: summary.protocol === 'v1' ? 'ENSv1' : 'ENSv2',
       }
 

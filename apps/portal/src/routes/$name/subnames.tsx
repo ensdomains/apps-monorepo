@@ -162,6 +162,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     error: subnamesError,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
     fetchNextPage,
   } = useInfiniteQuery({
     ...getV2SubnamesQueryOptions({ name }),
@@ -470,7 +471,8 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     return <LoadingMessage title="Loading subnames..." />
   }
 
-  if (subnamesError) {
+  // A failed Load more keeps the subnames already shown.
+  if (subnamesError && !isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Failed to load subnames"
@@ -499,6 +501,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         }
         onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
         isLoadingMore={isFetchingNextPage}
+        isLoadMoreError={isFetchNextPageError}
         name={name}
         canCreateSubname={canCreateSubname}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}

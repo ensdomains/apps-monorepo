@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
@@ -44,18 +45,24 @@ vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
 
 const eventsRef = vi.hoisted(() => ({
   current: [] as readonly RecentActivityEvent[],
+  // A second page that fails to load.
+  hasFailingPage: false,
 }))
 
 vi.mock('../hooks/useRecentActivity', () => ({
   getRecentActivityQueryOptions: () => ({
     queryKey: ['recent-activity-mock'],
-    queryFn: async () => ({
-      events: eventsRef.current,
-      endCursor: null,
-      hasNextPage: false,
-    }),
+    queryFn: async ({ pageParam }: { pageParam?: string }) => {
+      if (pageParam) throw new Error('bigname unavailable')
+      return {
+        events: eventsRef.current,
+        endCursor: eventsRef.hasFailingPage ? 'next' : null,
+        hasNextPage: eventsRef.hasFailingPage,
+      }
+    },
     initialPageParam: undefined,
-    getNextPageParam: () => undefined,
+    getNextPageParam: (last: { endCursor: string | null }) =>
+      last.endCursor ?? undefined,
   }),
 }))
 
@@ -108,5 +115,20 @@ describe('RecentActivityTable', () => {
     await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
 
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
+  })
+
+  it('keeps the events shown when the next page fails', async () => {
+    eventsRef.hasFailingPage = true
+    await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Load more events' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Couldn’t load more events.',
+    )
+    expect(linkedNames()).toEqual(new Set(['alice.eth']))
+    eventsRef.hasFailingPage = false
   })
 })

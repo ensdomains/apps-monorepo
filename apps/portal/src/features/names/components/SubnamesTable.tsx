@@ -80,6 +80,8 @@ interface SubnamesTableProps {
   /** Loads the next page; absent once every subname is loaded. */
   readonly onLoadMore?: () => void
   readonly isLoadingMore?: boolean
+  /** The last Load more failed; the loaded rows stay. */
+  readonly isLoadMoreError?: boolean
   readonly name: string
   readonly canCreateSubname?: boolean
   /** Called when user confirms delete on a single subname. */
@@ -174,6 +176,7 @@ export const SubnamesTable = ({
   totalCount = subnames.length,
   onLoadMore,
   isLoadingMore,
+  isLoadMoreError = false,
   name,
   canCreateSubname,
   onDeleteSubname,
@@ -492,6 +495,9 @@ export const SubnamesTable = ({
         <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">
           <span className="text-sm text-muted-foreground">
             Showing {subnames.length} of {totalCount}
+            {isLoadMoreError && !isLoadingMore && (
+              <span role="alert"> · Couldn’t load more.</span>
+            )}
           </span>
           <Button
             variant="outline"

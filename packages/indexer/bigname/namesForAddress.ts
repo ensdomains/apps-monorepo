@@ -32,6 +32,7 @@ const toInclude = (
 ): AddressNamesQuery['include'] => {
   const include = [
     ...(query.includeCounts ? (['counts'] as const) : []),
+    ...(query.includeRoles ? (['role_summary'] as const) : []),
     ...(query.includeTotal ? (['total_count'] as const) : []),
   ]
   return include.length > 0 ? include : undefined
@@ -53,7 +54,14 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   cursor: query.cursor,
 })
 
-const toNameSummary = (row: AddressName): NameSummary => ({
+const toRoleCount = (row: AddressName, address: string) => {
+  const holder = row.role_summary?.find(
+    (summary) => summary.address.toLowerCase() === address.toLowerCase(),
+  )
+  return new Set(holder?.grants.flatMap((grant) => grant.powers)).size
+}
+
+const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   name: row.name,
   displayName: row.display_name,
   namehash: row.namehash,
@@ -68,6 +76,9 @@ const toNameSummary = (row: AddressName): NameSummary => ({
   createdAt: toDate(row.created_at),
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),
   ...(row.record_count !== undefined && { recordCount: row.record_count }),
+  ...(row.role_summary !== undefined && {
+    roleCount: toRoleCount(row, address),
+  }),
 })
 
 export const readNamesForAddress =
@@ -76,7 +87,7 @@ export const readNamesForAddress =
     client
       .addressNames(query.address, toQuery(query))
       .map(({ data, page }) => ({
-        items: data.map(toNameSummary),
+        items: data.map((row) => toNameSummary(row, query.address)),
         nextCursor: page?.next_cursor ?? null,
         totalCount: page?.total_count ?? null,
       }))

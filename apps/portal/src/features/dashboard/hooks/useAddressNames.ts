@@ -9,7 +9,7 @@ import { readAllNames } from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok, ResultAsync } from 'neverthrow'
+import { errAsync, ok, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import {
@@ -58,6 +58,21 @@ const getGraceRows = ResultFn(async function* (
   return ok(rows.filter((row) => isInV2Grace(row, address, nowSeconds)))
 })
 
+const readNames = readNamesForAddress(bigname)
+
+// bigname refuses a page whose role grants pass its expansion budget, so such
+// a list is read again without the counts rather than not at all.
+const readCurrentNames = (address: Address) =>
+  readAllNames(readNames, {
+    address,
+    includeCounts: true,
+    includeRoles: true,
+  }).orElse((error) =>
+    error.kind === 'rejected'
+      ? readAllNames(readNames, { address, includeCounts: true })
+      : errAsync(error),
+  )
+
 /**
  * Every name the address owns, manages or holds a role on, in either era,
  * plus the ENSv2 names it can still renew in grace. Names that only resolve
@@ -68,10 +83,7 @@ export const getAddressNames = (
   now: Temporal.Instant = Temporal.Now.instant(),
 ) =>
   ResultAsync.combine([
-    readAllNames(readNamesForAddress(bigname), {
-      address,
-      includeCounts: true,
-    }).mapErr(toError),
+    readCurrentNames(address).mapErr(toError),
     getGraceRows(address, now),
   ]).map(([summaries, graceRows]) =>
     mergeAddressNames(
