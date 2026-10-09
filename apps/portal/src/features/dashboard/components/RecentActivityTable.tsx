@@ -22,6 +22,7 @@ export const RecentActivityTable = () => {
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
   } = useInfiniteQuery(getRecentActivityQueryOptions())
   const events = data?.pages.flatMap((page) => page.events) ?? []
 
@@ -30,7 +31,12 @@ export const RecentActivityTable = () => {
       <div className="flex gap-2 h-12 items-center border-b border-border shrink-0">
         <span className="text-caps">Recent Activity</span>
       </div>
-      {match({ isLoading, error, count: events.length })
+      {match({
+        isLoading,
+        // A failed Load more keeps the events already shown.
+        error: isFetchNextPageError ? null : error,
+        count: events.length,
+      })
         .with({ isLoading: true }, () => (
           <div className="flex items-center justify-center py-8">
             <LoadingSpinner title="Loading recent activity..." />
@@ -107,6 +113,11 @@ export const RecentActivityTable = () => {
             )
           }),
         )}
+      {isFetchNextPageError && (
+        <p role="alert" className="py-2.5 text-sm text-neutral-7">
+          Couldn’t load more events.
+        </p>
+      )}
       {events.length > 0 && hasNextPage && (
         <button
           type="button"
@@ -114,7 +125,7 @@ export const RecentActivityTable = () => {
           disabled={isFetchingNextPage}
           className={cn(
             timelineBreakActionClassName,
-            'w-fit cursor-pointer py-2.5 text-[14px] text-neutral-7 tracking-[0.02em]',
+            'w-fit cursor-pointer py-2.5 text-sm text-neutral-7 tracking-wide',
           )}
         >
           {isFetchingNextPage ? 'Loading…' : 'Load more events'}
