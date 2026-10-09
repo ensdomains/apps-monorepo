@@ -272,16 +272,16 @@ const NameRowTop = ({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
-        {status === 'ensv1Only' && <Ensv1OnlyPill />}
-        {nameRoles.map((role) => (
-          <RolePill key={role} role={role} />
-        ))}
         {verified
           ? (primaryNameAction ?? (
               <PrimaryBadge className="bg-ens-lapis-tint" />
             ))
           : null}
+        {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
+        {status === 'ensv1Only' && <Ensv1OnlyPill />}
+        {nameRoles.map((role) => (
+          <RolePill key={role} role={role} />
+        ))}
       </div>
       {isInGrace ? (
         <GracePeriodBadge />
