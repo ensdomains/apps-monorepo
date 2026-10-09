@@ -12,6 +12,10 @@ const resolverQueryKeys = new Set([
   // earlier in the session serves cached history missing the update.
   'get-name-history-pages',
   'get-name-history-anchor',
+  // The records page reads whether the name resolves, and the resolver's
+  // nodes list and link picker read which names it serves.
+  'name-detail',
+  'resolver-nodes',
 ])
 
 /**
