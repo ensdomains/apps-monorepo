@@ -7,7 +7,10 @@ import type { AddressName } from './types'
 
 export const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
-const ETH_2LD = /^[^.]+\.eth$/
+const isEth2ld = (name: string): boolean => {
+  const labels = name.split('.')
+  return labels.length === 2 && labels[1] === 'eth'
+}
 
 /**
  * An ENSv2 `.eth` name the address held until it expired, still renewable in
@@ -28,6 +31,6 @@ export const isInV2Grace = (
     expiry !== null &&
     expiry <= nowSeconds &&
     nowSeconds < expiry + V2_GRACE_SECONDS &&
-    ETH_2LD.test(row.name)
+    isEth2ld(row.name)
   )
 }

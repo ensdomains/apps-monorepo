@@ -89,9 +89,9 @@ describe('getRecentActivityQueryOptions', () => {
     const page = (await fetchPage([
       row({ id: 'unattributed', name: '' }),
       row({ id: 'lapse', type: 'release', transaction_hash: null }),
-    ])) as { events: { name: string | null; namehash: string | null }[] }
+    ])) as { events: { name: string | null }[] }
 
     expect(page.events).toHaveLength(1)
-    expect(page.events[0]).toMatchObject({ name: null, namehash: null })
+    expect(page.events[0]).toMatchObject({ name: null })
   })
 })

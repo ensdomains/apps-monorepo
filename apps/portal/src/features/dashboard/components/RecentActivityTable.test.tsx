@@ -70,7 +70,6 @@ const nameChangedEvent = (
   timestamp: Math.floor(Date.now() / 1000),
   blockNumber: 0,
   contractAddress: '0x02',
-  namehash: null,
   data: { key: 'name', value: reverseName },
 })
 

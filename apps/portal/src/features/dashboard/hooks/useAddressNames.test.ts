@@ -12,8 +12,8 @@ import { getAddressNames } from './useAddressNames'
 vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
-const NOW = new Date('2026-10-08T00:00:00Z')
-const NOW_SECONDS = BigInt(NOW.getTime() / 1000)
+const NOW = Temporal.Instant.from('2026-10-08T00:00:00Z')
+const NOW_SECONDS = NOW.epochNanoseconds / 1_000_000_000n
 
 const row = (
   name: string,

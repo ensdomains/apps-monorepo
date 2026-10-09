@@ -1,11 +1,12 @@
 import { readNameDetail } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { bigname } from '@/lib/bigname'
 
 class GetNameDetailError extends TaggedError('GetNameDetailError')<{
-  cause: unknown
+  cause: IndexerReadError
 }> {}
 
 type GetNameDetailParameters = { readonly name: string }
