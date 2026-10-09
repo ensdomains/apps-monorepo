@@ -55,7 +55,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
         return (
           <div className="flex flex-row items-center gap-2">
             <span>{defaultName}</span>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-small">
               Default
             </Badge>
           </div>
@@ -70,7 +70,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
         <div className="flex flex-row items-center gap-2">
           <span>{name}</span>
           {!row.original.normalized && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-small">
               Not normalized
             </Badge>
           )}
@@ -104,27 +104,27 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
           <div className="flex flex-row items-center gap-2">
             {defaultForwardMatch ? (
               <>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-small">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>True</span>
                 </Badge>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-small">
                   <SquareUser className="w-4 h-4" />
                   <span>Primary name</span>
                 </Badge>
               </>
             ) : (
               <>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-small">
                   <XCircle className="w-4 h-4" />
                   <span>False</span>
                 </Badge>
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-small">
                   Unverified
                 </Badge>
               </>
             )}
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-small">
               Default
             </Badge>
           </div>
@@ -134,7 +134,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       if (!name) {
         return (
           <div className="flex flex-row items-center gap-2 text-muted-foreground">
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-small">
               <XCircle className="w-4 h-4" />
               <span>False</span>
             </Badge>
@@ -146,17 +146,17 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
         <div className="flex flex-row items-center gap-2">
           {forwardMatch ? (
             <>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-small">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>True</span>
               </Badge>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-small">
                 <SquareUser className="w-4 h-4" />
                 <span>Primary name</span>
               </Badge>
             </>
           ) : (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-small">
               <XCircle className="w-4 h-4" />
               <span>False</span>
             </Badge>

@@ -70,7 +70,7 @@ export const NameMobileCard = ({
               'grace' && <GraceBadge />}
           </>
         ) : (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-small">
             Does not expire
           </Badge>
         )}
@@ -98,12 +98,12 @@ export const NameMobileCard = ({
           </div>
           <div className="flex flex-row gap-1">
             {v2Roles.length > 0 ? (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-small">
                 {v2Roles.length} {v2Roles.length === 1 ? 'Role' : 'Roles'}
               </Badge>
             ) : (
               v1RoleLabels.map((label) => (
-                <Badge key={label} variant="secondary" className="text-xs">
+                <Badge key={label} variant="secondary" className="text-small">
                   {label}
                 </Badge>
               ))

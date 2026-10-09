@@ -76,19 +76,19 @@ export const MultiNameSummaryCard = ({
             <dl className="overflow-hidden space-y-1">
               <RenewalDetailRow
                 label="Extension:"
-                labelClassName="text-xs text-muted-foreground"
+                labelClassName="text-small text-muted-foreground"
                 value={registrationPeriod}
                 valueClassName="text-foreground"
               />
               <RenewalDetailRow
                 label="New expiry:"
-                labelClassName="text-xs text-muted-foreground"
+                labelClassName="text-small text-muted-foreground"
                 value={newExpiryFormatted}
                 valueClassName="font-medium text-foreground"
               />
               <RenewalDetailRow
                 label={priceLabel}
-                labelClassName="text-xs text-muted-foreground"
+                labelClassName="text-small text-muted-foreground"
                 value={priceValue}
                 valueClassName="text-foreground"
               />

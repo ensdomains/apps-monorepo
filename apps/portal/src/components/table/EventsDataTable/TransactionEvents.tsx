@@ -102,13 +102,13 @@ const EventData = ({ event, txHash }: EventDataProps) => {
           {eventLog ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
+                <p className="text-small font-medium text-muted-foreground mb-2">
                   Data:
                 </p>
                 <CopyableRecord
                   value={eventLog.data}
                   displayValue={
-                    <p className="text-xs font-mono break-all text-foreground">
+                    <p className="text-smallmono break-all text-foreground">
                       {eventLog.data}
                     </p>
                   }
@@ -116,7 +116,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               </div>
               {eventLog.topics.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                  <p className="text-small font-medium text-muted-foreground mb-2">
                     Topics:
                   </p>
                   <div className="space-y-2">
@@ -125,7 +125,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
                         key={topic}
                         value={topic}
                         displayValue={
-                          <p className="text-xs font-mono break-all text-foreground">
+                          <p className="text-smallmono break-all text-foreground">
                             [{i}]: {topic}
                           </p>
                         }
@@ -136,7 +136,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               )}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Encoded data not available. Transaction receipt may still be
               loading.
             </p>

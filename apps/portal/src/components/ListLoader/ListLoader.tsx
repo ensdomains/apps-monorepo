@@ -32,7 +32,7 @@ export const ListLoader = ({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-x-2 gap-y-1 text-entity-name text-neutral-7',
+        'flex flex-wrap items-center gap-x-2 gap-y-1 font-semi-mono text-sm text-neutral-7',
         className,
       )}
     >

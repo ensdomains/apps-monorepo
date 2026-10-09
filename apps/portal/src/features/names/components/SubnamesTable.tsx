@@ -314,7 +314,7 @@ export const SubnamesTable = ({
                   )}
                 >
                   {isPendingTx && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-small text-muted-foreground">
                       Deleting…
                     </span>
                   )}

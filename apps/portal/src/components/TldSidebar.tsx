@@ -170,7 +170,7 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
                       tooltip={item.title}
                     >
                       <item.icon className="size-4" />
-                      <span className="text-base">{item.title}</span>
+                      <span>{item.title}</span>
                       {item.upcoming && <SoonBadge />}
                     </SidebarMenuButton>
                   ) : (
@@ -182,7 +182,7 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
                         }}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-base">{item.title}</span>
+                        <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   )}

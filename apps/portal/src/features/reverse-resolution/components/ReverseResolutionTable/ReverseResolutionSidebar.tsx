@@ -103,7 +103,7 @@ const ReverseNameField = ({
         <div className="flex items-center gap-2 mb-2">
           <span className="font-mono">{displayName}</span>
           {isInheritingDefault && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-small">
               Default
             </Badge>
           )}
@@ -739,12 +739,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
               <InfoRow label="Primary name">
                 <div className="flex items-center gap-2 flex-wrap">
                   {isPrimaryName ? (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-small">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>True</span>
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-small">
                       <XCircle className="w-4 h-4" />
                       <span>False</span>
                     </Badge>

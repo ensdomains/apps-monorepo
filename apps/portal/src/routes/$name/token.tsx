@@ -97,7 +97,7 @@ const TokenInfoCard = ({
             <SheetTrigger asChild>
               <Button variant="default" size="sm" className="gap-1 shrink-0">
                 <ArrowRightFromLineIcon className="size-4" />
-                <span className="text-xs font-medium">More</span>
+                <span className="text-small font-medium">More</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full p-0">
@@ -356,7 +356,7 @@ function RouteComponent() {
               )}
               <span
                 className={cn(
-                  'text-xs font-medium',
+                  'text-small font-medium',
                   normalized ? 'text-peridot-900' : 'text-garnet-900',
                 )}
               >
