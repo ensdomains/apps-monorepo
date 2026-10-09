@@ -1,141 +1,205 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ok } from 'neverthrow'
+import type { ExpiryStageId } from '#types/events/index.js'
 import {
-  type ExpiringDomain,
+  type ExpiringName,
+  type ExpiringNamesPage,
+  type ExpiryInterval,
   fetchExpiringNamesPage,
-  PROCESS_PAGE_SIZE,
-  QUERY_PAGE_SIZE,
+  MAX_WINDOWS_PER_READ,
+  PAGE_SIZE,
 } from './indexer.js'
-import type { ExpiryStageConfig } from './stages.js'
+import { type ExpiryStageConfig, isNotifiableAtStage } from './stages.js'
+
+// Pages one walk reads in a run.
+export const MAX_PAGES_PER_READ = 10
+export const MAX_NAMES_PER_READ = PAGE_SIZE * MAX_PAGES_PER_READ
 
 export type ExpiryTimestampOverflow = {
-  expiryTimestamp: number
-  processedCount: number
+  readonly expiryTimestamp: number
+  readonly processedCount: number
 }
 
 export type ProcessableExpiryPage = {
-  domains: ExpiringDomain[]
-  cursorEnd: number
-  hasMore: boolean
-  overflow?: ExpiryTimestampOverflow
+  readonly domains: readonly ExpiringName[]
+  readonly cursorEnd: number
+  readonly hasMore: boolean
+  readonly overflow?: ExpiryTimestampOverflow
 }
 
-export type NormalExpiryPagePlan =
-  | {
-      type: 'complete'
-      domains: ExpiringDomain[]
-      cursorEnd: number
-      hasMore: false
-    }
-  | {
-      type: 'safe-boundary'
-      domains: ExpiringDomain[]
-      cursorEnd: number
-      hasMore: true
-    }
-  | {
-      type: 'split-timestamp'
-      domainsBeforeTimestamp: ExpiringDomain[]
-      timestamp: number
-    }
+/** The part of a stage's timeline this run reads: (cursor, upperBound]. */
+export type StageWindow = {
+  readonly stage: ExpiryStageConfig
+  readonly cursor: number
+  readonly upperBound: number
+}
 
-const lastExpiryDate = (
-  domains: readonly ExpiringDomain[],
-  fallback: number,
-): number => domains.at(-1)?.expiryDate ?? fallback
+/** Overlapping or touching windows become one interval, (from, to]. */
+export const mergeWindows = (
+  windows: readonly StageWindow[],
+): readonly ExpiryInterval[] => {
+  let merged: readonly ExpiryInterval[] = []
+  for (const window of windows.toSorted(
+    (left, right) => left.cursor - right.cursor,
+  )) {
+    const last = merged.at(-1)
+    merged =
+      last && window.cursor <= last.to
+        ? [
+            ...merged.slice(0, -1),
+            { from: last.from, to: Math.max(last.to, window.upperBound) },
+          ]
+        : [...merged, { from: window.cursor, to: window.upperBound }]
+  }
+  return merged
+}
 
-export function planNormalExpiryPage(
-  domains: readonly ExpiringDomain[],
-  queryCursor: number,
-): NormalExpiryPagePlan {
-  if (domains.length <= PROCESS_PAGE_SIZE) {
+type WindowsRead = {
+  readonly intervals: readonly ExpiryInterval[]
+  readonly rows: readonly ExpiringName[]
+  readonly isComplete: boolean
+  /** Expiry of the last row read; the first interval's start when none was. */
+  readonly lastReadPosition: number
+  readonly indexedAtSec: number
+}
+
+/** One sorted walk over up to 32 disjoint intervals of the served expiry. */
+const readIntervals = ResultFn(async function* (ctx: {
+  readonly env: CloudflareBindings
+  readonly intervals: readonly ExpiryInterval[]
+}) {
+  let rows: readonly ExpiringName[] = []
+  let indexedAtSec = Number.POSITIVE_INFINITY
+  let lastReadPosition = ctx.intervals[0]?.from ?? 0
+  let pageCursor: string | null = null
+  for (let read = 0; read < MAX_PAGES_PER_READ; read++) {
+    const page: ExpiringNamesPage = yield* fetchExpiringNamesPage({
+      env: ctx.env,
+      label: 'the expiry sweep',
+      windows: ctx.intervals.map(({ from, to }) => ({ from: from + 1, to })),
+      ...(pageCursor !== null && { pageCursor }),
+    })
+    rows = [...rows, ...page.names]
+    lastReadPosition = page.names.at(-1)?.expiryDate ?? lastReadPosition
+    indexedAtSec = Math.min(indexedAtSec, page.indexedAtSec)
+    pageCursor = page.nextCursor
+    if (pageCursor === null) break
+  }
+  return ok<WindowsRead>({
+    intervals: ctx.intervals,
+    rows,
+    isComplete: pageCursor === null,
+    lastReadPosition,
+    indexedAtSec,
+  })
+})
+
+/**
+ * One stage's share of the sweep.
+ *
+ * A walk that ran out of pages inside the window stops the cursor just before
+ * the second it was reading, so that second is read whole next run; reminders
+ * are idempotent, so the overlap is harmless. Only when one second alone fills
+ * the page budget does the stage move past it and report it. After a complete
+ * read the cursor moves to the window's end: windows never pass the time the
+ * index has reached, so nothing earlier can still appear.
+ */
+const pageForWindow = (
+  window: StageWindow,
+  read: WindowsRead,
+): ProcessableExpiryPage => {
+  const isWanted = (name: ExpiringName) =>
+    isNotifiableAtStage(window.stage, name)
+  const seen = read.rows.filter(
+    ({ expiryDate }) =>
+      expiryDate > window.cursor && expiryDate <= window.upperBound,
+  )
+
+  if (read.isComplete || read.lastReadPosition > window.upperBound) {
     return {
-      type: 'complete',
-      domains: [...domains],
-      cursorEnd: lastExpiryDate(domains, queryCursor),
+      domains: seen.filter(isWanted),
+      cursorEnd: window.upperBound,
       hasMore: false,
     }
   }
 
-  const processable = domains.slice(0, PROCESS_PAGE_SIZE)
-  const boundary = processable.at(-1)
-  const lookahead = domains[PROCESS_PAGE_SIZE]
-  if (!boundary || !lookahead) {
-    return {
-      type: 'complete',
-      domains: processable,
-      cursorEnd: lastExpiryDate(processable, queryCursor),
-      hasMore: false,
-    }
+  const stopAt = read.lastReadPosition
+  if (stopAt <= window.cursor) {
+    return { domains: [], cursorEnd: window.cursor, hasMore: true }
   }
-
-  if (boundary.expiryDate !== lookahead.expiryDate) {
+  if (stopAt - 1 > window.cursor) {
     return {
-      type: 'safe-boundary',
-      domains: processable,
-      cursorEnd: boundary.expiryDate,
+      domains: seen.filter(
+        (name) => name.expiryDate < stopAt && isWanted(name),
+      ),
+      cursorEnd: stopAt - 1,
       hasMore: true,
     }
   }
-
+  // `stopAt` is this window's first second. Unless it alone filled the budget,
+  // earlier rows used part of it, so it is read again next run.
+  if (read.rows[0]?.expiryDate !== stopAt) {
+    return { domains: [], cursorEnd: window.cursor, hasMore: true }
+  }
+  const domains = seen.filter(
+    (name) => name.expiryDate <= stopAt && isWanted(name),
+  )
   return {
-    type: 'split-timestamp',
-    domainsBeforeTimestamp: processable.filter(
-      (domain) => domain.expiryDate < boundary.expiryDate,
-    ),
-    timestamp: boundary.expiryDate,
-  }
-}
-
-export function planExactTimestampPage(
-  domains: readonly ExpiringDomain[],
-  timestamp: number,
-) {
-  // The normal query reserves one row for lookahead, but an exact-timestamp
-  // query can safely use the indexer's full page capacity. If it saturates that
-  // capacity, there may be additional names at T that we cannot page without a
-  // composite cursor. Process all returned names and surface the saturation.
-  return {
-    domains: [...domains.slice(0, QUERY_PAGE_SIZE)],
-    overflow: domains.length >= QUERY_PAGE_SIZE,
-    cursorEnd: timestamp,
-  }
-}
-
-export const fetchProcessableExpiringNames = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  stage: ExpiryStageConfig
-  cursor: number
-  upperBound: number
-}) {
-  const page = yield* fetchExpiringNamesPage(ctx)
-  const plan = planNormalExpiryPage(page.domains, ctx.cursor)
-
-  if (plan.type !== 'split-timestamp') {
-    return ok({
-      domains: plan.domains,
-      cursorEnd: plan.cursorEnd,
-      hasMore: plan.hasMore,
-      overflow: undefined,
-    } satisfies ProcessableExpiryPage)
-  }
-
-  const exactPage = yield* fetchExpiringNamesPage({
-    ...ctx,
-    cursor: plan.timestamp - 1,
-    upperBound: plan.timestamp,
-  })
-  const exactPlan = planExactTimestampPage(exactPage.domains, plan.timestamp)
-
-  return ok({
-    domains: [...plan.domainsBeforeTimestamp, ...exactPlan.domains],
-    cursorEnd: exactPlan.cursorEnd,
+    domains,
+    cursorEnd: stopAt,
     hasMore: true,
-    overflow: exactPlan.overflow
-      ? {
-          expiryTimestamp: plan.timestamp,
-          processedCount: exactPlan.domains.length,
-        }
-      : undefined,
-  } satisfies ProcessableExpiryPage)
+    overflow: { expiryTimestamp: stopAt, processedCount: domains.length },
+  }
+}
+
+export type ExpirySweep = {
+  readonly pages: ReadonlyMap<ExpiryStageId, ProcessableExpiryPage>
+  /** The oldest chain time any page belonged to. */
+  readonly indexedAtSec: number
+}
+
+const chunkIntervals = (
+  intervals: readonly ExpiryInterval[],
+): readonly (readonly ExpiryInterval[])[] =>
+  Array.from(
+    { length: Math.ceil(intervals.length / MAX_WINDOWS_PER_READ) },
+    (_, index) =>
+      intervals.slice(
+        index * MAX_WINDOWS_PER_READ,
+        (index + 1) * MAX_WINDOWS_PER_READ,
+      ),
+  )
+
+/**
+ * Reads every open stage window in one multi-window walk: windows that
+ * overlap or touch become one interval, and the rows are split by stage.
+ * Every `.eth` name is placed by its served expiry, as the windows are.
+ * The windows must already end at or before the time the index has reached.
+ */
+export const fetchSweep = ResultFn(async function* (ctx: {
+  readonly env: CloudflareBindings
+  readonly windows: readonly StageWindow[]
+}) {
+  let reads: readonly WindowsRead[] = []
+  for (const intervals of chunkIntervals(mergeWindows(ctx.windows))) {
+    const read = yield* readIntervals({ env: ctx.env, intervals })
+    reads = [...reads, read]
+  }
+
+  const pages = new Map(
+    ctx.windows.flatMap((window) => {
+      const read = reads.find((candidate) =>
+        candidate.intervals.some(
+          ({ from, to }) => from <= window.cursor && window.upperBound <= to,
+        ),
+      )
+      return read
+        ? [[window.stage.id, pageForWindow(window, read)] as const]
+        : []
+    }),
+  )
+  return ok<ExpirySweep>({
+    pages,
+    indexedAtSec: Math.min(...reads.map((read) => read.indexedAtSec)),
+  })
 })

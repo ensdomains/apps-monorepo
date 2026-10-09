@@ -44,7 +44,7 @@ const TOKENS = {
 // than the old one-shot approve drip.
 //
 // Gated server-side on BOTH:
-//   1. the address owns at least one live v1 name (V1 subgraph existence
+//   1. the address owns at least one live v1 name (bigname existence
 //      check — only owners with something to migrate get ETH), and
 //   2. the address is below the target balance (top-up to target).
 //
@@ -215,7 +215,7 @@ export default createApp()
 
         // 2) Migration-gas ETH drip — top the address up to the target when
         // it's low AND it actually owns v1 names (see MIGRATION_GAS_ETH_TARGET
-        // above). Checked in this order so the subgraph is only queried when a
+        // above). Checked in this order so bigname is only queried when a
         // drip is actually on the table (after a successful drip the balance
         // sits at the target, short-circuiting subsequent calls). Best-effort:
         // a failed check or drip must never fail token funding.
@@ -226,7 +226,7 @@ export default createApp()
           })
         } else {
           try {
-            // Fail-closed: a subgraph error throws and skips the drip.
+            // Fail-closed: a bigname error throws and skips the drip.
             const ownsV1Names = await hasV1Names(address, c.env)
             if (!ownsV1Names) {
               logger.debug('Address owns no v1 names, skipping drip', {

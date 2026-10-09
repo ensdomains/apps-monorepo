@@ -31,7 +31,12 @@ const toEpochMs = (value: Timestamp | undefined): number | null => {
   return Number.isFinite(ms) && Math.abs(ms) <= MAX_DATE_MS ? ms : null
 }
 
+// A wrapped name can expire at 2^64 - 1, past what a number holds exactly.
+// Clamping keeps the result exact, and it still compares as never expiring.
 export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
+  if (value !== undefined && UNIX_SECONDS.test(value)) {
+    return Math.min(Number(value), Number.MAX_SAFE_INTEGER)
+  }
   const ms = toEpochMs(value)
   return ms === null ? null : Math.floor(ms / MS_PER_SECOND)
 }
