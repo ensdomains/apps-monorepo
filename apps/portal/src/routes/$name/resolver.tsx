@@ -183,7 +183,7 @@ const ResolverInfoList = ({
             . It is audited and is considered secure.
           </p>
         ) : (
-          <span className="text-ui text-foreground">{type}</span>
+          <span className="text-base text-foreground">{type}</span>
         )}
       </InfoRow>
       <InfoRow label="Contract">

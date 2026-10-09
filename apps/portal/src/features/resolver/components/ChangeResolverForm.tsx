@@ -298,7 +298,7 @@ export const ChangeResolverForm = ({
                   onChange={(event) =>
                     setSelectedExistingResolver(event.target.value)
                   }
-                  className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-[16px] md:text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={
                     isLoadingExistingResolvers || existingResolvers.length === 0
                   }

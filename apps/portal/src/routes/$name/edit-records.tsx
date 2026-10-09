@@ -446,7 +446,7 @@ const EditRecordsContent = ({
                 id={typeSelectId}
                 value={selectedType}
                 onChange={(e) => handleTypeChange(e.target.value as RecordType)}
-                className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-[16px] md:text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
                 {RECORD_TYPES.map((type) => (
@@ -492,7 +492,7 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
                 placeholder=""
-                className="h-9 w-full rounded-sm border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                className="h-9 w-full rounded-sm border border-input bg-background px-3 text-[16px] md:text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               />
             </div>
           )}
@@ -511,7 +511,7 @@ const EditRecordsContent = ({
               value={valueInput}
               onChange={(e) => setValueInput(e.target.value)}
               placeholder=""
-              className="h-9 w-full rounded-sm border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="h-9 w-full rounded-sm border border-input bg-background px-3 text-[16px] md:text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             />
           </div>
 

@@ -103,7 +103,7 @@ function RouteComponent() {
 
       <div className="flex flex-col gap-10 lg:gap-6 lg:flex-row lg:items-start">
         <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8">
-          <dt className="text-ui text-muted-foreground flex items-center h-10">
+          <dt className="text-base text-muted-foreground flex items-center h-10">
             Address
           </dt>
           <dd className="flex items-center h-10">
@@ -112,7 +112,7 @@ function RouteComponent() {
             </EntityBadge>
           </dd>
 
-          <dt className="text-ui text-muted-foreground flex items-center h-10">
+          <dt className="text-base text-muted-foreground flex items-center h-10">
             Deployed
           </dt>
           <dd className="flex items-center h-10">
@@ -123,7 +123,7 @@ function RouteComponent() {
             />
           </dd>
 
-          <dt className="text-ui text-muted-foreground flex items-center h-10">
+          <dt className="text-base text-muted-foreground flex items-center h-10">
             Factory
           </dt>
           <dd className="flex items-center h-10">
@@ -137,21 +137,21 @@ function RouteComponent() {
             </EntityBadge>
           </dd>
 
-          <dt className="text-ui text-muted-foreground flex items-center h-10">
+          <dt className="text-base text-muted-foreground flex items-center h-10">
             Canonical parent
           </dt>
           <dd className="flex flex-wrap items-center gap-2 min-h-10">
             <CanonicalParentCell address={address} />
           </dd>
 
-          <dt className="text-ui text-muted-foreground flex items-center h-10">
+          <dt className="text-base text-muted-foreground flex items-center h-10">
             Canonical name
           </dt>
           <dd className="flex items-center h-10">
             <CanonicalNameCell address={address} />
           </dd>
 
-          <dt className="text-ui text-muted-foreground flex items-center h-10 self-start">
+          <dt className="text-base text-muted-foreground flex items-center h-10 self-start">
             Referenced by
           </dt>
           <dd className="flex flex-wrap items-center gap-x-2 gap-y-2 min-h-10 self-start">
