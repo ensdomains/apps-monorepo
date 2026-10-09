@@ -122,7 +122,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
               <span className="text-sm font-mono font-medium text-foreground break-all leading-tight">
                 {address}
               </span>
-              <span className="text-small font-mono text-danger-text leading-tight">
+              <span className="text-xs font-mono text-danger-text leading-tight">
                 PermissionedRegistry
               </span>
             </div>

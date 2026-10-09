@@ -60,7 +60,7 @@ const WalletRow = ({
         {icon}
       </span>
       <span className="font-medium text-sm">{name}</span>
-      <span className="ml-auto text-muted-foreground text-small">
+      <span className="ml-auto text-muted-foreground text-xs">
         {isPending ? 'Connecting…' : badge}
       </span>
     </>
@@ -297,7 +297,7 @@ export const ConnectWalletDialog = ({
           {discoveredWallets.length > 0 && (
             <div className="mt-1 flex items-center gap-2 px-1">
               <span className="h-px flex-1 bg-border" />
-              <span className="text-muted-foreground text-small">Detected</span>
+              <span className="text-muted-foreground text-xs">Detected</span>
               <span className="h-px flex-1 bg-border" />
             </div>
           )}

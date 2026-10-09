@@ -94,7 +94,7 @@ const EditableValueCell = memo(function EditableValueCell({
           onUpdate?.(record, e.target.value)
         }}
       />
-      {error && <span className="text-small text-danger-text">{error}</span>}
+      {error && <span className="text-xs text-danger-text">{error}</span>}
     </div>
   )
 })

@@ -52,7 +52,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
       row.original.sender ? (
         <AddressDisplay address={row.original.sender} />
       ) : (
-        <span className="text-small text-muted-foreground">Loading…</span>
+        <span className="text-xs text-muted-foreground">Loading…</span>
       ),
   },
 ]

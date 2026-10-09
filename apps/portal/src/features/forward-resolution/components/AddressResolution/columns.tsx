@@ -114,7 +114,7 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
             {address}
           </span>
           {isFallback && (
-            <Badge variant="outline" className="text-small shrink-0">
+            <Badge variant="outline" className="text-xs shrink-0">
               Default fallback
             </Badge>
           )}
@@ -152,13 +152,13 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
         <div className="flex flex-row items-center gap-2">
           <Badge
             variant="outline"
-            className={cn('text-small border-transparent', className)}
+            className={cn('text-xs border-transparent', className)}
           >
             <Icon className="size-4" />
             <span>{label}</span>
           </Badge>
           {reverseMatch === 'verified' && (
-            <Badge variant="outline" className="text-small">
+            <Badge variant="outline" className="text-xs">
               <SquareUser className="size-4" />
               <span>Primary name</span>
             </Badge>

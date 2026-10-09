@@ -405,13 +405,7 @@
   --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
   --font-serif: "ABCMarist", serif;
 
-  /* Type scale — one class per ENS Builder / Figma type style (WEB-1755):
-       h1 → text-h1 (add font-serif for the name.eth variant)
-       h2 → text-h2          h3 → text-h3
-       p → text-p            base → text-ui
-       small → text-small    caps → text-caps
-       smallcaps → text-smallcaps
-       entity/base|name|label → text-entity-base|name|label
+  /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
      Weights 360/425 are real instances on the Grotesk variable wght axis
      (see fonts.css). */
   --text-h1: 2.25rem; /* 36px */
@@ -433,7 +427,6 @@
   --text-ui--font-weight: 360;
   --text-ui--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
-  --text-small--line-height: 1rem; /* 16px */
 }
 
 /* Figma styles that need font-family or text-transform, which text tokens
