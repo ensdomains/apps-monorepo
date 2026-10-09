@@ -1352,9 +1352,6 @@ importers:
       '@react-email/components':
         specifier: ^1.0.12
         version: 1.0.12(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@urql/core':
-        specifier: ^6.0.3
-        version: 6.0.3(graphql@17.0.2)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@neondatabase/serverless@1.0.2)(@types/pg@8.15.6)(pg@8.16.3)
