@@ -23,7 +23,7 @@ import type { ProtocolVersion } from '@/utils/types'
  */
 const DnsOwnerLabel = () => (
   <Tooltip>
-    <TooltipTrigger className="inline-flex items-center gap-1 cursor-help text-ui">
+    <TooltipTrigger className="inline-flex items-center gap-1 cursor-help text-base">
       DNS owner
       <CircleHelp className="size-3.5 shrink-0 text-neutral-7" />
     </TooltipTrigger>

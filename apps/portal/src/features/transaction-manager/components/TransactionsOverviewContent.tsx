@@ -193,7 +193,7 @@ export const TransactionsOverviewContent = ({
                   {transaction.details?.map(({ label, value }) => (
                     <Fragment key={label}>
                       <dt className="text-base font-medium">{label}</dt>
-                      <dd className="text-base font-mono break-all">{value}</dd>
+                      <dd className="text-p font-mono break-all">{value}</dd>
                     </Fragment>
                   ))}
                   <dt className="text-base font-medium">
@@ -202,7 +202,7 @@ export const TransactionsOverviewContent = ({
                       ? 'Actual Cost'
                       : 'Est. Cost'}
                   </dt>
-                  <dd className="text-base">
+                  <dd className="text-p">
                     <EstimatedGasCost
                       actor={activeTransactionsMap.get(transaction.id)}
                       intent={transaction.intent}

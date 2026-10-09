@@ -94,7 +94,7 @@ export const DnssecStepItem = ({
         )}
       >
         <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-mono text-base font-medium break-all">
+          <span className="font-mono text-p font-medium break-all">
             {getStepLabel(step)}
           </span>
           <span className="text-sm text-muted-foreground">

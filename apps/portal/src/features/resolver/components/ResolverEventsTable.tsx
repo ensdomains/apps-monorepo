@@ -230,13 +230,13 @@ export const ResolverEventsTable = ({
               )}
             </div>
             <div className="text-sm font-medium">Date</div>
-            <div className="text-base">
+            <div className="text-p">
               {row.original.timestamp
                 ? formatDate(new Date(row.original.timestamp * 1000))
                 : `Block ${row.original.blockNumber.toLocaleString()}`}
             </div>
             <div className="text-sm font-medium">Transaction</div>
-            <div className="text-base">
+            <div className="text-p">
               {row.original.transactionHash ? (
                 <BlockExplorerTxLink
                   txHash={row.original.transactionHash as Hash}
@@ -248,7 +248,7 @@ export const ResolverEventsTable = ({
             {row.original.from && (
               <>
                 <div className="text-sm font-medium">From</div>
-                <div className="text-base">
+                <div className="text-p">
                   <AddressDisplay address={row.original.from} />
                 </div>
               </>
@@ -256,7 +256,7 @@ export const ResolverEventsTable = ({
             {row.getIsExpanded() && (
               <div className="pl-4 border-l-2 border-border flex flex-col gap-2">
                 <div className="text-sm font-medium">Event</div>
-                <div className="text-base">{row.original.type}</div>
+                <div className="text-p">{row.original.type}</div>
               </div>
             )}
           </div>

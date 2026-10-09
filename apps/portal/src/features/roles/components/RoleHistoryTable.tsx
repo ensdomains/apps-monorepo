@@ -115,22 +115,22 @@ const RoleHistoryMobileCard = ({
     </div>
 
     <div className="text-sm font-medium">Date</div>
-    <div className="text-base text-muted-foreground">
+    <div className="text-p text-muted-foreground">
       {formatTimestamp(entry.timestamp)}
     </div>
 
     <div className="text-sm font-medium">Account</div>
-    <div className="text-base">
+    <div className="text-p">
       <AddressDisplay address={entry.account} />
     </div>
 
     <div className="text-sm font-medium">Changes</div>
-    <div className="text-base">
+    <div className="text-p">
       <RoleDiff entry={entry} />
     </div>
 
     <div className="text-sm font-medium">Roles</div>
-    <div className="text-base">
+    <div className="text-p">
       <RoleCountChange entry={entry} />
     </div>
   </div>

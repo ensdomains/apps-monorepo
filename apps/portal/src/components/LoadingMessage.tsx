@@ -16,7 +16,7 @@ export function LoadingMessage({
         {title}
       </h2>
       {description && (
-        <div className="text-base leading-relaxed text-foreground max-w-md">
+        <div className="text-p leading-relaxed text-foreground max-w-md">
           {description}
         </div>
       )}

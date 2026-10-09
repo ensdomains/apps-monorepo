@@ -32,7 +32,7 @@ export const PrivilegeWarningBadge = ({
       <TriangleAlert className="size-3.25 shrink-0" aria-hidden />
       {label}
     </TooltipTrigger>
-    <TooltipContent className="max-w-sm px-4 py-2 text-center font-sans text-ui normal-case">
+    <TooltipContent className="max-w-sm px-4 py-2 text-center font-sans text-p normal-case">
       {reason}
     </TooltipContent>
   </Tooltip>

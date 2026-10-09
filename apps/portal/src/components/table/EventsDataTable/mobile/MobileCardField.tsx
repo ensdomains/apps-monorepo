@@ -9,7 +9,7 @@ export const MobileCardField = ({ label, children }: MobileCardFieldProps) => {
   return (
     <>
       <div className="text-sm font-medium">{label}</div>
-      <div className="text-base">{children}</div>
+      <div className="text-p">{children}</div>
     </>
   )
 }
