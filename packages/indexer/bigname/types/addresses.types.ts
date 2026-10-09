@@ -70,6 +70,7 @@ export type AddressName = Readonly<{
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  /** End of the registrar grace period, already adjusted for the authority. */
   grace_ends_at?: Timestamp
   authority?: Authority
   ens_v1?: EnsV1Facts
