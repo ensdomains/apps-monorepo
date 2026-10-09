@@ -551,7 +551,7 @@ export const mockAddressNameResolvesEvm = {
   ],
 } as const satisfies AddressName
 
-/** `GET /v1/addresses/0x5c7b…/names?authority=ens_v1,ens_v0`: registry child with no name row. */
+/** `GET /v1/addresses/0x5c7b…/names?authority=ens_v1,ens_v0`: registry-only subname, which bigname serves as active. */
 export const mockAddressNameRegistryChild = {
   name: 'sub005.leon.eth',
   display_name: 'sub005.leon.eth',
@@ -561,7 +561,7 @@ export const mockAddressNameRegistryChild = {
   permission_resource_id: '0edacca4-802e-57f5-b723-1775591dad97',
   owner: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
   manager: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
-  status: 'unregistered',
+  status: 'active',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: null,
@@ -658,7 +658,7 @@ export const mockSubnamePlaceholder = {
     '0x562b8c0453bc9f0e07aaf28fba8fb8a1f42848390f4c833c331fe45c43b80726',
   owner: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
   manager: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
-  status: 'unregistered',
+  status: 'active',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: null,
