@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
+import { match, P } from 'ts-pattern'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
 import { Button } from '@/components/ui/button'
@@ -37,10 +38,11 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
-type NodeDetailSheetProps = PropsWithChildren & {
+export type NodeDetailSheetProps = PropsWithChildren & {
   readonly node: ResolverNode | null
   readonly roles: readonly ResolverRole[]
-  readonly rolesStatus?: Completeness
+  /** `loading` or `error` while the roles read has not completed. */
+  readonly rolesStatus: Completeness | 'loading' | 'error'
   readonly resolverAddress: string
   readonly open: boolean
   readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
@@ -48,11 +50,78 @@ type NodeDetailSheetProps = PropsWithChildren & {
 
 const sidebarRecordColumns = recordColumns.filter((col) => col.id !== 'select')
 
+const cellClassName = cn('px-4 sm:px-6', 'h-10 py-0')
+
+const NodeRolesSection = ({
+  name,
+  roles,
+  rolesStatus,
+}: Pick<NodeDetailSheetProps, 'roles' | 'rolesStatus'> & {
+  readonly name: string
+}) => (
+  <section className="p-6 flex flex-col gap-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-caps leading-none">Roles</h3>
+      <Button variant="default" size="sm" asChild>
+        <Link to="/$name/roles" params={{ name }}>
+          <ExternalLink className="size-3.5" />
+          Go to roles
+        </Link>
+      </Button>
+    </div>
+    {match(rolesStatus)
+      .with('loading', () => <Skeleton className="h-6 w-full" />)
+      .with('error', () => (
+        <p className="text-sm text-muted-foreground">
+          Couldn’t load this node’s roles.
+        </p>
+      ))
+      .otherwise((status) => (
+        <ResolverCollectionNotice collection="roles" status={status} />
+      ))}
+    {match({ rolesStatus, hasRoles: roles.length > 0 })
+      .with({ rolesStatus: P.union('loading', 'error') }, () => null)
+      .with({ hasRoles: false, rolesStatus: 'full' }, () => (
+        <p className="text-sm text-muted-foreground">
+          No roles assigned for this node.
+        </p>
+      ))
+      .with({ hasRoles: false }, () => null)
+      .otherwise(() => (
+        <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Account</TableHead>
+                <TableHead>Role Bitmap</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {roles.map((role) => (
+                <TableRow key={`${role.account}-${role.roleBitmap}`}>
+                  <TableCell className={cn(cellClassName, 'font-mono text-xs')}>
+                    <div className="flex items-center gap-1">
+                      {truncateAddress(role.account)}
+                      <CopyButton value={role.account} />
+                    </div>
+                  </TableCell>
+                  <TableCell className={cn(cellClassName, 'font-mono text-xs')}>
+                    {role.roleBitmap}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ))}
+  </section>
+)
+
 export const NodeDetailSheet = ({
   children,
   node,
   roles,
-  rolesStatus = 'full',
+  rolesStatus,
   resolverAddress,
   open,
   setOpen,
@@ -75,8 +144,6 @@ export const NodeDetailSheet = ({
   const records: NameRecord[] = profile?.records
     ? recordsToTableData(profile.records)
     : []
-
-  const cellClassName = cn('px-4 sm:px-6', 'h-10 py-0')
 
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
@@ -141,58 +208,11 @@ export const NodeDetailSheet = ({
                 )}
               </section>
 
-              <section className="p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-caps leading-none">Roles</h3>
-                  <Button variant="default" size="sm" asChild>
-                    <Link to="/$name/roles" params={{ name: node.name }}>
-                      <ExternalLink className="size-3.5" />
-                      Go to roles
-                    </Link>
-                  </Button>
-                </div>
-                <ResolverCollectionNotice
-                  collection="roles"
-                  status={rolesStatus}
-                />
-                {roles.length === 0 ? (
-                  rolesStatus !== 'full' ? null : (
-                    <p className="text-sm text-muted-foreground">
-                      No roles assigned for this node.
-                    </p>
-                  )
-                ) : (
-                  <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Account</TableHead>
-                          <TableHead>Role Bitmap</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {roles.map((role) => (
-                          <TableRow key={`${role.account}-${role.roleBitmap}`}>
-                            <TableCell
-                              className={cn(cellClassName, 'font-mono text-xs')}
-                            >
-                              <div className="flex items-center gap-1">
-                                {truncateAddress(role.account)}
-                                <CopyButton value={role.account} />
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={cn(cellClassName, 'font-mono text-xs')}
-                            >
-                              {role.roleBitmap}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </section>
+              <NodeRolesSection
+                name={node.name}
+                roles={roles}
+                rolesStatus={rolesStatus}
+              />
             </div>
           ) : (
             <div className="text-muted-foreground text-center py-12">

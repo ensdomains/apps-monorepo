@@ -178,11 +178,10 @@ describe('csp', () => {
       expect(CSP_HEADER_NAME).toBe('Content-Security-Policy-Report-Only')
     })
 
-    it('reports violations, so misses are observable in either mode', () => {
-      // Report-Only blocks nothing but still delivers reports — the whole
-      // point of the rollout. Both directives stay on when enforcing too.
-      expect(header['report-to']).toEqual(['posthog'])
-      expect(header['report-uri']?.[0]).toContain('eu.i.posthog.com/report/')
+    it('disables the PostHog reporting destination without changing the policy', () => {
+      expect(header['report-to']).toBeUndefined()
+      expect(header['report-uri']).toBeUndefined()
+      expect(header['frame-ancestors']).toEqual(["'none'"])
     })
   })
 })

@@ -68,6 +68,7 @@ const model = (
   hasMore: false,
   loadMore: vi.fn(),
   isLoadingMore: false,
+  isLoadMoreError: false,
   isLoading: false,
   error: null,
   sourcesError: null,
@@ -105,6 +106,19 @@ describe('HistoryTimelineView', () => {
     )
     expect(screen.getByText('Load more')).toBeInTheDocument()
     expect(screen.getByText(/events \(681 total\)/)).toBeInTheDocument()
+  })
+
+  it('keeps the loaded rows and offers a retry when a page fails', async () => {
+    const loadMore = vi.fn()
+    render(
+      <HistoryTimelineView
+        model={model({ hasMore: true, isLoadMoreError: true, loadMore })}
+        breakContent="load-more"
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t load more.')
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(loadMore).toHaveBeenCalledOnce()
   })
 
   it('fetches the next page when the break is pressed', async () => {

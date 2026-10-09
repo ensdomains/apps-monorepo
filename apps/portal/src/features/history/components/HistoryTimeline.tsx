@@ -55,6 +55,7 @@ export const HistoryTimelineView = ({
     hasMore,
     loadMore,
     isLoadingMore,
+    isLoadMoreError,
     totalCount,
     openIds,
     toggleAction,
@@ -99,6 +100,7 @@ export const HistoryTimelineView = ({
       <TimelineLoadMore
         totalCount={totalCount}
         isLoading={isLoadingMore}
+        isError={isLoadMoreError}
         onLoadMore={loadMore}
       />
     ) : (

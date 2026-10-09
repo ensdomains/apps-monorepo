@@ -3,6 +3,7 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import {
+  SessionRefundCapExceededError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../../errors/transaction.errors'
@@ -1371,6 +1372,308 @@ describe('registrationMachine — verification retry target (WEB-1209)', () => {
 
     await waitFor(actor, (s) => s.matches('success'))
     expect(actor.getSnapshot().context.error).toBeUndefined()
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — session refund caps', () => {
+  /** The 2.97M overhead Sepolia quoted against a 500k session cap. */
+  const overheadOutgrown = new SessionRefundCapExceededError(
+    {} as TransactionRequest,
+    [{ field: 'gasOverhead', quoted: 2_972_344n, cap: 500_000n }],
+  )
+  const amountOutgrown = new SessionRefundCapExceededError(
+    {} as TransactionRequest,
+    [{ field: 'refundAmount', quoted: 200_000_000n, cap: 100_000_000n }],
+  )
+
+  const NEW_SIGNER = { type: 'rhinestone', id: 'new' } as unknown as Signer
+  const NEW_SESSION_ENABLE = {
+    ...SESSION_ENABLE,
+    permissionId: `0x${'44'.repeat(32)}`,
+  } as unknown as HcaSessionEnableParams
+
+  const reauthorizing = () =>
+    vi.fn(async () => ({
+      signer: NEW_SIGNER,
+      hcaSessionEnable: NEW_SESSION_ENABLE,
+    }))
+
+  /** Fails the first poll with `error`, then parks every later one. */
+  const failFirstPollWith = (error: Error) => {
+    let polls = 0
+    return vi.fn(() => {
+      polls += 1
+      return polls === 1 ? Promise.reject(error) : new Promise(() => {})
+    })
+  }
+
+  const startCommit = (options: {
+    readonly pollTransactionStatus: ReturnType<typeof vi.fn>
+    readonly reauthorizeSession?: ReturnType<typeof vi.fn>
+    readonly signFundingPermit?: ReturnType<typeof vi.fn>
+  }) => {
+    const signFundingPermit =
+      options.signFundingPermit ?? vi.fn(async () => permit)
+    const submitFundingAndCommit = vi.fn(async () => ({
+      resolverAddress: RESOLVER,
+      commitment: { commitment: COMMITMENT, secret: SECRET },
+      txId: 'tx-reg-commit',
+    }))
+    const validateCommitment = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          estimateHcaBudget: fromPromise(async () => ({
+            total: BUDGET,
+            commitCost: 4_000_000n,
+            registerCost: 6_000_000n,
+            registrationPrice: 5_000_000n,
+            expectedMaximum: 30_000_000n,
+            source: 'quote' as const,
+          })) as never,
+          readHcaUsdcBalance: fromPromise(async () => 0n) as never,
+          signFundingPermit: fromPromise(signFundingPermit) as never,
+          submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
+          pollTransactionStatus: fromPromise(
+            options.pollTransactionStatus,
+          ) as never,
+          validateCommitment: fromPromise(validateCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+      hcaSessionEnable: SESSION_ENABLE,
+      ...(options.reauthorizeSession
+        ? { reauthorizeSession: options.reauthorizeSession }
+        : {}),
+    })
+    return {
+      actor,
+      signFundingPermit,
+      submitFundingAndCommit,
+      validateCommitment,
+    }
+  }
+
+  const startReveal = (options: {
+    readonly pollTransactionStatus: ReturnType<typeof vi.fn>
+    readonly reauthorizeSession?: ReturnType<typeof vi.fn>
+  }) => {
+    const submitRevealBatch = vi.fn(async () => 'tx-reg-register')
+    const verifyRegistration = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: 1_800_000_000_000,
+          })) as never,
+          waitAfterCommitment: fromPromise(async () => undefined) as never,
+          submitRevealBatch: fromPromise(submitRevealBatch) as never,
+          pollTransactionStatus: fromPromise(
+            options.pollTransactionStatus,
+          ) as never,
+          verifyRegistration: fromPromise(verifyRegistration) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        commitmentTxId: 'tx-reg-commit',
+        registerReadyTimestamp: 1_800_000_000_000,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+        ...(options.reauthorizeSession
+          ? { reauthorizeSession: options.reauthorizeSession }
+          : {}),
+      },
+    })
+    return { actor, submitRevealBatch, verifyRegistration }
+  }
+
+  it('re-authorizes and resends the commit under the new session, keeping the permit', async () => {
+    const reauthorizeSession = reauthorizing()
+    const { actor, signFundingPermit, submitFundingAndCommit } = startCommit({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+      reauthorizeSession,
+    })
+
+    await waitFor(actor, () => submitFundingAndCommit.mock.calls.length === 2)
+
+    expect(reauthorizeSession).toHaveBeenCalledWith({
+      minGasOverhead: 2_972_344n,
+    })
+    const retried = submitFundingAndCommit.mock.calls[1][0].input
+    expect(retried.signer).toBe(NEW_SIGNER)
+    expect(retried.sessionEnable).toBe(NEW_SESSION_ENABLE)
+    // The permit rode an intent that was never signed, so it is still good.
+    expect(retried.permit).toEqual(permit)
+    expect(signFundingPermit).toHaveBeenCalledOnce()
+    actor.stop()
+  })
+
+  it('re-signs a permit that expires before the re-authorized commit could fill', async () => {
+    // Signed long enough ago that it is within minutes of its deadline.
+    const expiring = {
+      ...permit,
+      deadline: BigInt(Math.floor(Date.now() / 1000) + 60),
+    }
+    const fresh = { ...permit, deadline: 1_800_000_000n }
+    const signFundingPermit = vi
+      .fn()
+      .mockResolvedValueOnce(expiring)
+      .mockResolvedValueOnce(fresh)
+    const { actor, submitFundingAndCommit } = startCommit({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+      reauthorizeSession: reauthorizing(),
+      signFundingPermit,
+    })
+
+    await waitFor(actor, () => submitFundingAndCommit.mock.calls.length === 2)
+
+    expect(signFundingPermit).toHaveBeenCalledTimes(2)
+    const retried = submitFundingAndCommit.mock.calls[1][0].input
+    expect(retried.permit).toEqual(fresh)
+    expect(retried.signer).toBe(NEW_SIGNER)
+    actor.stop()
+  })
+
+  it('forgets the commitment that never reached the chain while re-authorizing', async () => {
+    const { actor } = startCommit({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+      reauthorizeSession: vi.fn(() => new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('reauthorizingSession'))
+
+    expect(actor.getSnapshot().context.commitment).toBeUndefined()
+    expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+    actor.stop()
+  })
+
+  it('offers the re-authorization again when the owner declines it', async () => {
+    const declined = new TransactionUserRejectedError({} as TransactionRequest)
+    const reauthorizeSession = vi
+      .fn()
+      .mockRejectedValueOnce(declined)
+      .mockReturnValue(new Promise(() => {}))
+    const { actor } = startCommit({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+      reauthorizeSession,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('reauthorizingSession')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, () => reauthorizeSession.mock.calls.length === 2)
+    expect(actor.getSnapshot().matches('reauthorizingSession')).toBe(true)
+    actor.stop()
+  })
+
+  it('fails the commit outright without a way to re-authorize', async () => {
+    const { actor, validateCommitment } = startCommit({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    // Refused before signing: nothing on-chain to validate.
+    expect(validateCommitment).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.error).toBe(overheadOutgrown)
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingSetupBundle',
+    )
+    actor.stop()
+  })
+
+  it('stops asking once fees outrun two re-authorizations', async () => {
+    const reauthorizeSession = reauthorizing()
+    const { actor, submitFundingAndCommit } = startCommit({
+      pollTransactionStatus: vi.fn(async () => {
+        throw overheadOutgrown
+      }),
+      reauthorizeSession,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(reauthorizeSession).toHaveBeenCalledTimes(2)
+    expect(submitFundingAndCommit).toHaveBeenCalledTimes(3)
+    actor.stop()
+  })
+
+  it('re-authorizes and resends the reveal without verifying a reveal that never went out', async () => {
+    const reauthorizeSession = reauthorizing()
+    const { actor, submitRevealBatch, verifyRegistration } = startReveal({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+      reauthorizeSession,
+    })
+
+    await waitFor(actor, () => submitRevealBatch.mock.calls.length === 2)
+
+    const retried = submitRevealBatch.mock.calls[1][0].input
+    expect(retried.signer).toBe(NEW_SIGNER)
+    expect(retried.sessionEnable).toBe(NEW_SESSION_ENABLE)
+    expect(verifyRegistration).not.toHaveBeenCalled()
+    actor.stop()
+  })
+
+  it('clears the reveal id while re-authorizing, so a resume does not verify it', async () => {
+    const { actor } = startReveal({
+      pollTransactionStatus: failFirstPollWith(overheadOutgrown),
+      reauthorizeSession: vi.fn(() => new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('reauthorizingSession'))
+
+    expect(actor.getSnapshot().context.registrationTxId).toBeUndefined()
+    actor.stop()
+  })
+
+  it('fails a reveal over a fixed cap without the grace poll', async () => {
+    const reauthorizeSession = reauthorizing()
+    const { actor, verifyRegistration } = startReveal({
+      pollTransactionStatus: failFirstPollWith(amountOutgrown),
+      reauthorizeSession,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(reauthorizeSession).not.toHaveBeenCalled()
+    expect(verifyRegistration).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.error).toBe(amountOutgrown)
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
+    )
     actor.stop()
   })
 })

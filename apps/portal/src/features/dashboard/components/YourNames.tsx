@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { WalletMenu } from '@/components/WalletMenu'
@@ -16,7 +17,6 @@ import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
 const INITIAL_COUNT = 4
-const PAGE_SIZE = 10
 const WARNING_DAYS = 30
 
 const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
@@ -51,12 +51,17 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
 }
 
 export const YourNames = ({ address }: { readonly address: Address }) => {
-  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
-  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
-
   // Every name the wallet holds a relation to, granted subnames included,
-  // soonest expiry first.
+  // soonest expiry first. bigname serves the whole list, so it pages locally.
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
   const names = namesQuery.data ?? []
+
+  const loader = useListLoader({
+    initialCount: INITIAL_COUNT,
+    loaded: names.length,
+    resetKey: address,
+  })
+
   const isSettled = !namesQuery.isPending
   const hasError = Boolean(namesQuery.error)
 
@@ -79,32 +84,24 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
         />
       )}
       {names.length > 0 && (
-        <ul>
-          {names.slice(0, visibleCount).map(({ name, expiryDate }) =>
-            name ? (
-              <li
-                key={name}
-                className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <EntityBadge variant="name" name={name} showAvatar compact>
-                  <span title={name}>{truncateName(name)}</span>
-                </EntityBadge>
-                <Expiry expiryDate={expiryDate} />
-              </li>
-            ) : null,
-          )}
-          {names.length > visibleCount && (
-            <li className="border-t border-neutral-3 py-3">
-              <button
-                type="button"
-                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                className="cursor-pointer font-semi-mono text-sm text-neutral-7 hover:underline"
-              >
-                Show more ({names.length} total)
-              </button>
-            </li>
-          )}
-        </ul>
+        <div>
+          <ul>
+            {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
+              name ? (
+                <li
+                  key={name}
+                  className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <EntityBadge variant="name" name={name} showAvatar compact>
+                    <span title={name}>{truncateName(name)}</span>
+                  </EntityBadge>
+                  <Expiry expiryDate={expiryDate} />
+                </li>
+              ) : null,
+            )}
+          </ul>
+          <ListLoader {...loader} className="border-t border-neutral-3 py-3" />
+        </div>
       )}
       {!isSettled && <LoadingSpinner title="Loading your names" />}
       {isSettled && !hasError && names.length === 0 && (

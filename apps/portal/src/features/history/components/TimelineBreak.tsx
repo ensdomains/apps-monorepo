@@ -36,13 +36,16 @@ export const timelineBreakActionClassName =
 export const TimelineLoadMore = ({
   totalCount,
   isLoading,
+  isError = false,
   onLoadMore,
 }: {
   readonly totalCount: number | undefined
   readonly isLoading: boolean
+  readonly isError?: boolean
   readonly onLoadMore: () => void
 }) => (
   <TimelineBreak>
+    {isError && !isLoading && <span role="alert">Couldn’t load more. </span>}
     <button
       type="button"
       onClick={onLoadMore}

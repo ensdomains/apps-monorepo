@@ -36,6 +36,8 @@ export type HistoryTimelineModel = {
   readonly hasMore: boolean
   readonly loadMore: () => void
   readonly isLoadingMore: boolean
+  /** The last Load more failed; the rows already loaded stay. */
+  readonly isLoadMoreError: boolean
   readonly isLoading: boolean
   readonly error: TimelineQueryError | null
   /** The anchor read failed, so the pinned first row may be missing. */
@@ -165,8 +167,9 @@ const useTimelineModel = (
       if (widened >= loadedCount) void pagesQuery.fetchNextPage()
     },
     isLoadingMore: pagesQuery.isFetchingNextPage,
+    isLoadMoreError: pagesQuery.isFetchNextPageError,
     isLoading: pagesQuery.isLoading,
-    error: pagesQuery.error,
+    error: pagesQuery.isFetchNextPageError ? null : pagesQuery.error,
     sourcesError,
   }
 }

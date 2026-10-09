@@ -12,6 +12,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -35,16 +36,42 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import {
+  NodeDetailSheet,
+  type NodeDetailSheetProps,
+} from '@/features/resolver/components/NodeDetailSheet'
 import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import { rolesForNode } from '@/features/resolver/helpers/rolesForNode'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   type ResolverNode,
+  type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { queryClient } from '@/utils/queryClient'
+
+/** How much of the node's roles the sheet can claim, until the read completes. */
+const toNodeRolesStatus = (
+  overview: {
+    readonly data?: ResolverOverview | null
+    readonly isError: boolean
+  },
+  roles: readonly ResolverOverview['roles'][number][],
+): NodeDetailSheetProps['rolesStatus'] =>
+  match(overview)
+    .returnType<NodeDetailSheetProps['rolesStatus']>()
+    .with({ isError: true }, () => 'error')
+    .with({ data: undefined }, () => 'loading')
+    // A resolver bigname has not indexed has no roles to list.
+    .with({ data: null }, () => 'full')
+    .with({ data: { rolesStatus: 'unsupported' } }, () => 'unsupported')
+    .with({ data: P.nonNullable }, ({ data }) =>
+      roles.some((role) => role.resource === null)
+        ? 'partial'
+        : data.rolesStatus,
+    )
+    .exhaustive()
 
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,
@@ -139,9 +166,10 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverNodesQueryOptions({ address: address as Address }))
   // Only the role rows the detail sheet shows come from the overview.
-  const { data: resolver } = useQuery(
+  const overview = useQuery(
     getResolverOverviewQueryOptions({ address: address as Address }),
   )
+  const resolver = overview.data
 
   const nodes = boundNames?.nodes ?? []
   const roles = resolver?.roles ?? []
@@ -216,13 +244,7 @@ function RouteComponent() {
       <NodeDetailSheet
         node={selectedNode}
         roles={nodeRoles}
-        rolesStatus={
-          resolver?.rolesStatus === 'unsupported'
-            ? 'unsupported'
-            : roles.some((role) => role.resource === null)
-              ? 'partial'
-              : resolver?.rolesStatus
-        }
+        rolesStatus={toNodeRolesStatus(overview, roles)}
         resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}
