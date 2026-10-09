@@ -32,13 +32,7 @@ const RESULT_STATUSES = [
   'failed',
 ]
 const AUTHORITIES = ['ens_v0', 'ens_v1', 'ens_v2']
-const REGISTRATION_STATUSES = [
-  'active',
-  'wrapped',
-  'registered',
-  'released',
-  'unregistered',
-]
+const REGISTRATION_STATUSES = ['active', 'expired', 'released', 'unregistered']
 const EVENT_TYPES = [
   'registration',
   'renewal',
@@ -133,9 +127,10 @@ describe.skipIf(!integration)(
         namehash: 'string',
         status: 'string',
       })
-      expect(RESULT_STATUSES).toContain(data.status)
+      expect(RESULT_STATUSES).toContain(data.read_status)
       expect(AUTHORITIES).toContain(data.authority)
-      expect(REGISTRATION_STATUSES).toContain(data.registration_status)
+      expect(REGISTRATION_STATUSES).toContain(data.status)
+      expect(data).not.toHaveProperty('registration_status')
       expectShape(data.resolver, { chain_id: 'number', address: 'string' })
       expectTimestamp(data.registered_at, 'registered_at')
       expectTimestamp(data.expires_at, 'expires_at')
@@ -181,7 +176,7 @@ describe.skipIf(!integration)(
         expectShape(row, {
           name: 'string',
           namehash: 'string',
-          registration_status: 'string',
+          status: 'string',
         })
         expectTimestamp(row.expires_at, 'expires_at')
       }
@@ -197,7 +192,7 @@ describe.skipIf(!integration)(
         expectShape(row, {
           name: 'string',
           namehash: 'string',
-          registration_status: 'string',
+          status: 'string',
         })
       }
     })
@@ -242,7 +237,7 @@ describe.skipIf(!integration)(
         expectShape(row, {
           name: 'string',
           namehash: 'string',
-          registration_status: 'string',
+          status: 'string',
           relations: 'object',
           is_primary: 'boolean',
           subname_count: 'number',
@@ -314,6 +309,9 @@ describe.skipIf(!integration)(
       )
 
       expect(data).toHaveLength(2)
+      expect(RESULT_STATUSES).toContain(data[0]?.status)
+      expect(RESULT_STATUSES).toContain(data[0]?.record?.read_status)
+      expect(REGISTRATION_STATUSES).toContain(data[0]?.record?.status)
       expectShape(data[0], {
         kind: 'string',
         status: 'string',

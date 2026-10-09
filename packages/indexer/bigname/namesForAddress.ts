@@ -38,7 +38,7 @@ const toNameSummary = (row: AddressName): NameSummary => ({
   relations: toRelations(row.relations),
   isPrimary: row.is_primary,
   isMigrated: row.migrated_at !== undefined,
-  registrationStatus: row.registration_status,
+  registrationStatus: row.status,
   expiresAt: toDate(row.expires_at),
   registeredAt: toDate(row.registered_at),
   createdAt: toDate(row.created_at),
