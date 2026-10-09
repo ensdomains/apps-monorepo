@@ -133,7 +133,6 @@ export function isNotifiableAtStage(
 ): boolean {
   // Stage offsets and templates describe the ENSv2 28-day grace period.
   if (!candidate.hasV2Grace) return false
-  if (candidate.releaseKind === 'unregistered') return false
   switch (stage.phase) {
     case 'pre-expiry':
       return candidate.registrationStatus === 'active'
