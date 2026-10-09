@@ -16,13 +16,17 @@
  * specs keep their fixtures.
  */
 import { type Page, test } from '@playwright/test'
-import { isRealBigname, waitForBignameBlock, waitForBignameNames } from './bigname-sync.js'
+import {
+  isRealBigname,
+  waitForBignameBlock,
+  waitForBignameNames,
+} from './bigname-sync.js'
+import { type MockV1Name, mockV1Names } from './mock-v1-names.js'
 import type {
-  MockV1Name as MockV1SubgraphName,
   MockV1Node,
+  MockV1Name as MockV1SubgraphName,
   MockV1Tree,
 } from './mock-v1-subgraph.js'
-import { type MockV1Name, mockV1Names } from './mock-v1-names.js'
 
 type V1NamesInput = readonly MockV1SubgraphName[] | MockV1Tree
 

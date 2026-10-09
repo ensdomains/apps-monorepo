@@ -55,9 +55,7 @@ import {
   rootRow,
   runMigrationFlow,
 } from '../../../helpers/migration-flow.js'
-import {
-  type MockV1Tree,
-} from '../../../helpers/mock-v1-subgraph.js'
+import type { MockV1Tree } from '../../../helpers/mock-v1-subgraph.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 // Headless wallet user = Anvil account 0 (same private key as ANVIL_FUNDER)

@@ -39,8 +39,8 @@ import {
   rootRow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import { serveV1Names } from '../../../helpers/v1-names.js'
 import { assertRoleBitmap } from '../../../helpers/role-assertions.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
   .address as Address

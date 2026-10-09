@@ -16,13 +16,13 @@ import {
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
+import { waitForBignameName } from '../helpers/bigname-sync.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
   PERMITTED_SIGN_KINDS,
   signInBackendAuthModal,
 } from '../helpers/manager-auth.js'
-import { waitForBignameName } from '../helpers/bigname-sync.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'

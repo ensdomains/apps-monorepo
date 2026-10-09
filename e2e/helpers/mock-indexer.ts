@@ -583,8 +583,10 @@ export function createIndexerMock() {
   }
 
   async function install(page: Page) {
-    // Any bigname deployment, e.g. https://sepolia.api.bigname.sh/v1/...
-    await page.route(/bigname\.sh\/v1\//, routeHandler)
+    // Any bigname deployment, e.g. https://sepolia.api.bigname.sh/v1/..., and
+    // the local one (e2e/infra/bigname) for a CI-mode run against a dev server
+    // that points at it.
+    await page.route(/bigname\.sh\/v1\/|:5660\/v1\//, routeHandler)
     // Intercept only the GraphQL API endpoints, not Vite module requests.
     // The (?!\.) lookahead prevents matching file imports like
     // packages/indexer/graphql.gen.ts (which contain "/indexer/graphql.").

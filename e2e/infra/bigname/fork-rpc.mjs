@@ -54,7 +54,8 @@ async function post(url, body) {
           body: JSON.stringify(body),
         })
       const res = await (url === UPSTREAM ? withUpstreamSlot(send) : send())
-      if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`)
+      if (!res.ok)
+        throw new Error(`${new URL(url).host} answered ${res.status}`)
       const reply = await res.json()
       if (Array.isArray(body) && !Array.isArray(reply))
         throw new Error(`batch answered ${JSON.stringify(reply).slice(0, 200)}`)

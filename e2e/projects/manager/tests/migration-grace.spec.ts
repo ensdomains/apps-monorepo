@@ -47,9 +47,7 @@ import {
   assertUnlockedMigration,
   assertV2Reserved,
 } from '../../../helpers/migration-assertions.js'
-import {
-  type MockV1Name,
-} from '../../../helpers/mock-v1-subgraph.js'
+import type { MockV1Name } from '../../../helpers/mock-v1-subgraph.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'

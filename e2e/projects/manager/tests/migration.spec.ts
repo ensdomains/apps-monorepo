@@ -42,15 +42,13 @@ import {
   rootRow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import {
-  type MockV1Records,
-} from '../../../helpers/mock-v1-subgraph.js'
-import { serveV1Names } from '../../../helpers/v1-names.js'
+import type { MockV1Records } from '../../../helpers/mock-v1-subgraph.js'
 import {
   goToEditProfile,
   saveProfileChanges,
   waitForProfileUpdated,
 } from '../../../helpers/profile-helpers.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 

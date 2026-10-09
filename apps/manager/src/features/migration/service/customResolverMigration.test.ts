@@ -233,7 +233,11 @@ describe('migrating a V1 name whose resolver is not a known public resolver', ()
     expect(fetchV1ProfilesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         names: [
-          { name: NAME, nodeHex: NODE, v1ResolverAddress: KNOWN_PUBLIC_RESOLVER },
+          {
+            name: NAME,
+            nodeHex: NODE,
+            v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
+          },
         ],
       }),
     )
