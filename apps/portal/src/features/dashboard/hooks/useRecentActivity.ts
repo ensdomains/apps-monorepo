@@ -1,4 +1,5 @@
 import {
+  type BignameError,
   type EventDataByType,
   type EventRow,
   type EventType,
@@ -8,7 +9,6 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Hash } from 'viem'
-import { namehash } from 'viem/ens'
 import { bigname } from '@/lib/bigname'
 
 /** The row's friendly type with its typed `include=data` payload. */
@@ -27,7 +27,6 @@ export type RecentActivityEvent = RecentActivityPayload & {
   readonly timestamp: number
   readonly blockNumber: number
   readonly contractAddress: string
-  readonly namehash: string | null
 }
 
 /** One page of the protocol-wide feed. */
@@ -38,7 +37,7 @@ export type RecentActivityPage = {
 }
 
 class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 const RECENT_ACTIVITY_PAGE_SIZE = 15
@@ -62,17 +61,8 @@ const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
       timestamp,
       blockNumber: row.block_number,
       contractAddress: row.contract_address ?? '',
-      namehash: name ? safeNamehash(name) : null,
     },
   ]
-}
-
-const safeNamehash = (name: string): string | null => {
-  try {
-    return namehash(name)
-  } catch {
-    return null
-  }
 }
 
 /**

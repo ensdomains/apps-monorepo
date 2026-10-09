@@ -25,13 +25,17 @@ class GetAddressNamesError extends TaggedError('GetAddressNamesError')<{
 type GetAddressNamesParameters = { readonly address: Address }
 
 const PAGE_SIZE = 200
+const NS_PER_SECOND = 1_000_000_000n
 
 const toError = (cause: unknown) => new GetAddressNamesError({ cause })
 
 // bigname drops an ENSv2 name from `relation=any` once it expires, though its
 // holder can still renew it for 28 days.
-const getGraceRows = ResultFn(async function* (address: Address, now: Date) {
-  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
+const getGraceRows = ResultFn(async function* (
+  address: Address,
+  now: Temporal.Instant,
+) {
+  const nowSeconds = now.epochNanoseconds / NS_PER_SECOND
   let rows: readonly AddressName[] = []
   let cursor: string | null = null
   do {
@@ -61,7 +65,7 @@ const getGraceRows = ResultFn(async function* (address: Address, now: Date) {
  */
 export const getAddressNames = (
   { address }: GetAddressNamesParameters,
-  now: Date = new Date(),
+  now: Temporal.Instant = Temporal.Now.instant(),
 ) =>
   ResultAsync.combine([
     readAllNames(readNamesForAddress(bigname), {

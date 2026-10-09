@@ -12,7 +12,6 @@ const base = {
   timestamp: 0,
   blockNumber: 0,
   contractAddress: '0x02',
-  namehash: null,
 } as const
 
 const event = <T extends RecentActivityEvent['type']>(

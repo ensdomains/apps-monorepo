@@ -62,9 +62,6 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
     resetKey: address,
   })
 
-  const isSettled = !namesQuery.isPending
-  const hasError = Boolean(namesQuery.error)
-
   return (
     <div className="flex flex-col gap-6 rounded-md border border-neutral-3 px-6 pt-6 pb-3">
       <div className="flex flex-col-reverse gap-6 sm:flex-row sm:items-center">
@@ -77,7 +74,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <WalletMenu isPill />
         </div>
       </div>
-      {namesQuery.error && (
+      {namesQuery.isError && (
         <ErrorMessage
           compact
           description="Error fetching names. Please refresh the page."
@@ -103,8 +100,8 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <ListLoader {...loader} className="border-t border-neutral-3 py-3" />
         </div>
       )}
-      {!isSettled && <LoadingSpinner title="Loading your names" />}
-      {isSettled && !hasError && names.length === 0 && (
+      {namesQuery.isPending && <LoadingSpinner title="Loading your names" />}
+      {namesQuery.isSuccess && names.length === 0 && (
         <p className="border-t border-neutral-3 py-3 text-sm text-neutral-7">
           No names yet
         </p>
