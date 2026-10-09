@@ -81,7 +81,7 @@ const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
 }
 
 const RoleCountChange = ({ entry }: { readonly entry: RoleHistoryEntry }) => (
-  <div className="flex items-center gap-2 text-small text-muted-foreground">
+  <div className="flex items-center gap-2 text-xs text-muted-foreground">
     <span>{entry.oldRoles.length} roles</span>
     <ArrowRight className="size-3" />
     <span>{entry.newRoles.length} roles</span>

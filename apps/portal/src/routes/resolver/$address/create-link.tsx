@@ -226,7 +226,7 @@ function RouteComponent() {
                 </div>
                 {selectedFromNode.owner?.id && (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-small text-muted-foreground truncate">
+                    <span className="font-mono text-xs text-muted-foreground truncate">
                       {selectedFromNode.owner.id}
                     </span>
                     <CopyButton value={selectedFromNode.owner.id} />
@@ -280,7 +280,7 @@ function RouteComponent() {
                 </div>
                 {selectedToNode.owner?.id && (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-small text-muted-foreground truncate">
+                    <span className="font-mono text-xs text-muted-foreground truncate">
                       {selectedToNode.owner.id}
                     </span>
                     <CopyButton value={selectedToNode.owner.id} />

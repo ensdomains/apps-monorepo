@@ -104,7 +104,7 @@ export const RecentActivityTable = () => {
                         <BlockExplorerTxLink txHash={txHash} inline />
                       ))}
                   </div>
-                  <span className="sm:order-1 font-mono text-small sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
+                  <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
                     {formatRelativeTime(event.timestamp)}
                   </span>
                 </div>

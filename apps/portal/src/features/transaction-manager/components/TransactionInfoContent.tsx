@@ -25,7 +25,7 @@ export const TransactionInfoContent = ({
           <Button
             variant="ghost"
             size="sm"
-            className="text-small gap-1"
+            className="text-xs gap-1"
             onClick={() =>
               setTransactionModalContentState({ type: 'overview' })
             }
@@ -43,11 +43,11 @@ export const TransactionInfoContent = ({
               {transaction.transactionName}
             </h3>
             {transaction.details?.map(({ label, value }) => (
-              <p key={label} className="text-small font-mono break-all">
+              <p key={label} className="text-xs font-mono break-all">
                 {label}: {value}
               </p>
             ))}
-            <p className="text-small font-mono">
+            <p className="text-xs font-mono">
               {actor?.getSnapshot().value === 'success'
                 ? 'Actual cost'
                 : 'Est. cost'}

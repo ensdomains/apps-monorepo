@@ -54,7 +54,7 @@ const RecordsDisclosure = ({
       {lines.length} {lines.length === 1 ? 'record' : 'records'}
     </CollapsibleTrigger>
     <CollapsibleContent>
-      <pre className="mt-2 rounded-md bg-neutral-1 p-3 font-mono text-small leading-relaxed overflow-x-auto">
+      <pre className="mt-2 rounded-md bg-neutral-1 p-3 font-mono text-xs leading-relaxed overflow-x-auto">
         {lines.join('\n')}
       </pre>
     </CollapsibleContent>

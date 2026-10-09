@@ -46,7 +46,7 @@ export const ExtendNameSummaryCards = ({
         <p className="text-foreground text-base font-medium mt-1">
           {registrationPeriod}
         </p>
-        <p className="text-muted-foreground text-small mt-0.5">
+        <p className="text-muted-foreground text-xs mt-0.5">
           {registrationDays} days
         </p>
       </div>
@@ -55,7 +55,7 @@ export const ExtendNameSummaryCards = ({
         <p className="text-foreground text-base font-medium mt-1">
           {expiresFormatted}
         </p>
-        <p className="text-muted-foreground text-small mt-0.5">
+        <p className="text-muted-foreground text-xs mt-0.5">
           in {daysUntilExpiry} days
         </p>
       </div>
@@ -65,7 +65,7 @@ export const ExtendNameSummaryCards = ({
           {totalCost}
         </p>
         {discountText ? (
-          <p className="text-success-text text-small mt-0.5">{discountText}</p>
+          <p className="text-success-text text-xs mt-0.5">{discountText}</p>
         ) : null}
       </div>
     </div>

@@ -90,7 +90,7 @@ export const TableMultiSelectFilter = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => onChange([])}
-                className="h-auto px-2 py-1 text-small text-muted-foreground"
+                className="h-auto px-2 py-1 text-xs text-muted-foreground"
               >
                 Reset
               </Button>
@@ -121,7 +121,7 @@ export const TableMultiSelectFilter = ({
                           ),
                         )
                       }}
-                      className="h-auto p-0 text-small text-muted-foreground"
+                      className="h-auto p-0 text-xs text-muted-foreground"
                     >
                       Deselect all
                     </Button>

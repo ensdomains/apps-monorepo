@@ -437,7 +437,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 min-w-[140px]">
             <label
               htmlFor={typeSelectId}
-              className="text-small text-muted-foreground flex items-center gap-1"
+              className="text-xs text-muted-foreground flex items-center gap-1"
             >
               Type
             </label>
@@ -464,7 +464,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 min-w-[220px]">
               <label
                 htmlFor={keyInputId}
-                className="text-small text-muted-foreground flex items-center gap-1"
+                className="text-xs text-muted-foreground flex items-center gap-1"
               >
                 Coin
               </label>
@@ -482,7 +482,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
               <label
                 htmlFor={keyInputId}
-                className="text-small text-muted-foreground flex items-center gap-1"
+                className="text-xs text-muted-foreground flex items-center gap-1"
               >
                 Key
               </label>
@@ -501,7 +501,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
             <label
               htmlFor={valueInputId}
-              className="text-small text-muted-foreground"
+              className="text-xs text-muted-foreground"
             >
               Value
             </label>
@@ -517,9 +517,7 @@ const EditRecordsContent = ({
 
           {/* Add Button */}
           <div className="flex flex-col gap-1 justify-end">
-            <span className="text-small text-transparent select-none">
-              Action
-            </span>
+            <span className="text-xs text-transparent select-none">Action</span>
             <Button
               variant="default"
               onClick={handleAddRecord}
