@@ -9,6 +9,7 @@
 
 import type { Address, Hex } from 'viem'
 import type { BaseStoredSession } from '../../types'
+import { LEGACY_REFUND_CAPS, type RefundCaps } from './refund-caps'
 import {
   buildHcaSessionConfig,
   type ChainDigest,
@@ -38,6 +39,39 @@ export interface RhinestoneStoredSession extends BaseStoredSession {
   }[]
   /** Destination session's index into the signed session set. */
   readonly sessionToEnableIndex: number
+  /**
+   * The refund caps the session was authorized with, as decimal strings. They
+   * are part of the salt, so a session can only be rebuilt with these exact
+   * values. Absent on records written before caps were sized per session,
+   * which were all signed with `LEGACY_REFUND_CAPS`.
+   */
+  readonly refundCaps?: {
+    readonly maxRefundExchangeRate: string
+    readonly maxRefundGasOverhead: string
+    readonly maxRefundAmount: string
+  }
+}
+
+/** Serialize caps into the stored string form. */
+export function serializeRefundCaps(
+  caps: RefundCaps,
+): NonNullable<RhinestoneStoredSession['refundCaps']> {
+  return {
+    maxRefundExchangeRate: caps.maxRefundExchangeRate.toString(),
+    maxRefundGasOverhead: caps.maxRefundGasOverhead.toString(),
+    maxRefundAmount: caps.maxRefundAmount.toString(),
+  }
+}
+
+/** The caps a stored session was authorized with. */
+export function storedRefundCaps(session: RhinestoneStoredSession): RefundCaps {
+  const caps = session.refundCaps
+  if (!caps) return LEGACY_REFUND_CAPS
+  return {
+    maxRefundExchangeRate: BigInt(caps.maxRefundExchangeRate),
+    maxRefundGasOverhead: BigInt(caps.maxRefundGasOverhead),
+    maxRefundAmount: BigInt(caps.maxRefundAmount),
+  }
 }
 
 /** Serialize `ChainDigest[]` (bigint chainId) into the stored string form. */
@@ -92,6 +126,7 @@ export function buildHcaSessionEnablePayload(
       sessionKey: session.sessionKeyAddress,
       validUntil: BigInt(session.validUntil),
       resolver: session.resolver,
+      refundCaps: storedRefundCaps(session),
     }),
   }
   return {

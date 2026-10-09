@@ -14,6 +14,8 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
  * commit simulation with an unclassifiable revert. See
  * `packages/smart-account/DEBUGGING_INTENTS.md` §8.
  */
+export type RegistrationShortfallCause = 'name-price' | 'network-fee' | null
+
 export interface RegistrationFunding {
   /** The registrar's charge for the name. */
   readonly registration: number
@@ -53,6 +55,29 @@ export interface RegistrationFunding {
    * can in fact pay.
    */
   readonly isUnderfunded: boolean
+  /** Why a known wallet shortfall exists, or `null` when it is funded. */
+  readonly shortfallCause: RegistrationShortfallCause
+}
+
+/** Classify a known shortfall without losing USDC's raw-unit precision. */
+export function getRegistrationShortfallCause(params: {
+  readonly totalRaw: bigint
+  readonly registrationPriceRaw: bigint
+  readonly hcaBalanceRaw: bigint
+  readonly walletBalanceRaw: bigint | null
+}): RegistrationShortfallCause {
+  const { totalRaw, registrationPriceRaw, hcaBalanceRaw, walletBalanceRaw } =
+    params
+  const walletDebitRaw =
+    totalRaw > hcaBalanceRaw ? totalRaw - hcaBalanceRaw : 0n
+  if (walletBalanceRaw === null || walletBalanceRaw >= walletDebitRaw) {
+    return null
+  }
+
+  const hcaCreditRaw = totalRaw - walletDebitRaw
+  return walletBalanceRaw + hcaCreditRaw < registrationPriceRaw
+    ? 'name-price'
+    : 'network-fee'
 }
 
 /**
@@ -109,5 +134,11 @@ export function computeRegistrationFunding(params: {
         : decimalBigintToNumber(walletBalanceRaw, decimals),
     isUnderfunded:
       walletBalanceRaw !== null && walletBalanceRaw < walletDebitRaw,
+    shortfallCause: getRegistrationShortfallCause({
+      totalRaw: budget.total,
+      registrationPriceRaw: budget.registrationPrice,
+      hcaBalanceRaw,
+      walletBalanceRaw,
+    }),
   }
 }

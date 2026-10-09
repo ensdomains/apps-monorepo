@@ -27,11 +27,16 @@ import type { RecordGroups } from './records.types'
 export type ExpiryWindow =
   | Readonly<{ expires_after: Timestamp; expires_before?: Timestamp }>
   | Readonly<{ expires_after?: Timestamp; expires_before: Timestamp }>
+  /** 1 to 32 disjoint `after..before` windows, read as one sorted walk. */
+  | Readonly<{ expires_window: readonly string[] }>
 
 /** `GET /v1/names`: query; one expiry bound is required. */
 export type NamesQuery = ExpiryWindow &
   Readonly<{
     namespace: Namespace
+    /** Direct children of this parent only, e.g. `eth` excludes subnames. */
+    parent?: string
+    authority?: Authority | readonly Authority[]
     sort?: 'expires_at'
     order?: SortOrder
     finality?: 'latest'
@@ -45,6 +50,7 @@ export type NameListingRow = Readonly<{
   display_name: string
   namespace: Namespace
   namehash: Hex
+  authority: Authority
   owner?: Address
   manager?: Address
   registrant?: Address
@@ -52,10 +58,12 @@ export type NameListingRow = Readonly<{
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  /** End of the registrar grace period, already adjusted for the authority. */
   grace_ends_at?: Timestamp
-  authority?: Authority
-  ens_v1?: EnsV1Facts
+  /** Historical holder, independently of the canonical lifecycle status. */
   lapsed_registration?: LapsedRegistration
+  /** The lease that decides an ENSv1 name, which a reserved name's `expires_at` does not show. */
+  ens_v1?: EnsV1Facts
 }>
 
 /** `GET /v1/names`: response (`page.total_count` is always null). */

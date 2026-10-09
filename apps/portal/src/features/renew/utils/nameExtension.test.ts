@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getNameRowId } from '@/features/names/components/NamesTable/columns'
 import type { ProtocolVersion } from '@/utils/types'
 import {
   GRACE_PERIOD_DAYS,
@@ -195,9 +196,14 @@ describe('getSelectedNames', () => {
     protocolVersion: (isV2 ? 'ENSv2' : 'ENSv1') as ProtocolVersion,
   })
 
+  const select = (...rows: ReturnType<typeof makeRow>[]) =>
+    Object.fromEntries(
+      rows.map((row, index) => [getNameRowId(row, index), true]),
+    )
+
   it('maps selected rows to SelectedName shape', () => {
     const rows = [makeRow('alice.eth'), makeRow('bob.eth')]
-    const result = getSelectedNames({ 0: true, 1: true }, rows)
+    const result = getSelectedNames(select(...rows), rows)
     expect(result).toEqual([
       { name: 'alice.eth', isV2: true, expiryDate: future },
       { name: 'bob.eth', isV2: true, expiryDate: future },
@@ -210,21 +216,50 @@ describe('getSelectedNames', () => {
       makeRow('bob.eth'),
       makeRow('carol.eth'),
     ]
-    const result = getSelectedNames({ 1: true }, rows)
+    const result = getSelectedNames(select(rows[1]), rows)
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('bob.eth')
   })
 
+  // Loading more names re-sorts the list, so a position would end up naming a
+  // different row than the one that was ticked.
+  it('keeps the selection on the same name when rows move', () => {
+    const bob = makeRow('bob.eth')
+    const selection = select(bob)
+
+    const result = getSelectedNames(selection, [
+      makeRow('aaron.eth'),
+      makeRow('alice.eth'),
+      bob,
+    ])
+
+    expect(result.map((selected) => selected.name)).toEqual(['bob.eth'])
+  })
+
+  it('tells an ENSv1 name from an ENSv2 name of the same spelling', () => {
+    const v1 = makeRow('alice.eth', false)
+    const v2 = makeRow('alice.eth', true)
+
+    const result = getSelectedNames(select(v1), [v2, v1])
+
+    expect(result).toEqual([
+      { name: 'alice.eth', isV2: false, expiryDate: future },
+    ])
+  })
+
   it('excludes rows with null name', () => {
     const rows = [makeRow(null), makeRow('alice.eth')]
-    const result = getSelectedNames({ 0: true, 1: true }, rows)
+    const result = getSelectedNames(
+      { [getNameRowId(rows[0], 0)]: true, [getNameRowId(rows[1], 1)]: true },
+      rows,
+    )
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('alice.eth')
   })
 
   it('sets isV2 false for v1 names', () => {
     const rows = [makeRow('alice.eth', false)]
-    const result = getSelectedNames({ 0: true }, rows)
+    const result = getSelectedNames(select(...rows), rows)
     expect(result[0].isV2).toBe(false)
   })
 
@@ -233,9 +268,12 @@ describe('getSelectedNames', () => {
     expect(getSelectedNames({}, rows)).toHaveLength(0)
   })
 
-  it('skips out-of-range indices gracefully', () => {
+  it('ignores a selection that matches no row', () => {
     const rows = [makeRow('alice.eth')]
-    const result = getSelectedNames({ 0: true, 5: true }, rows)
+    const result = getSelectedNames(
+      { ...select(...rows), 'ENSv2:gone.eth': true },
+      rows,
+    )
     expect(result).toHaveLength(1)
   })
 })

@@ -63,7 +63,7 @@ test.describe('ENS name registration', () => {
     // Click through it (auto-authorized via PERMITTED_SIGN_KINDS). The helper is
     // idempotent — a no-op in EOA mode where the modal never appears.
     await clickThroughEnableSessions(page)
-    await page.getByText('USDC', { exact: true }).click()
+    await page.getByRole('button', { name: 'Select USDC' }).click()
     await page.getByRole('button', { name: /register name/i }).click()
 
     // RegistrationDetails (including the completion banner) stays hidden while

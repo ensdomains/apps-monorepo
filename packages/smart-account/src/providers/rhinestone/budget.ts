@@ -13,12 +13,15 @@
  * There is NO percentage buffer — see the `total` computation for why one would
  * be a guess layered on a derived number.
  *
- * PREFERRED sizing (`quoteLegCostUsdc`): each leg's USDC cost comes straight
- * from Rhinestone's own quote — `account.prepareTransaction(...)` returns
- * `intentRoute.intentOp.elements[0].spendTokens`, the exact USDC the
- * orchestrator will pull for that intent. This is immune to the caller's local
- * gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei even when the
- * tx settles at ~1-2 gwei, which massively over-sizes a gas×price model).
+ * PREFERRED sizing (`quoteLegCostUsdc`): each leg's USDC cost comes from
+ * Rhinestone's own quote — `account.prepareTransaction(...)` returns the
+ * quoted spend AND the gas refund the intent will be signed with, and
+ * {@link legFeeUsdc} budgets the larger of the spend and what that refund lets
+ * the executor pull. The spend alone leaves out the relay fee carried in the
+ * refund overhead, which dominates when gas is cheap. This is immune to the
+ * caller's local gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei
+ * even when the tx settles at ~1-2 gwei, which massively over-sizes a
+ * gas×price model).
  *
  * A quote is only as good as the gas LIMIT it is taken at, since the rail never
  * inspects the calls — so {@link HCA_LEG_GAS_LIMITS} and
@@ -40,36 +43,91 @@
  */
 
 import type { PublicClient } from 'viem'
-import { formatUnits } from 'viem'
-import { getDestinationContracts } from './manifest'
+import { formatUnits, isAddressEqual, zeroAddress } from 'viem'
+import {
+  BASE_SEPOLIA_CHAIN_ID,
+  getDestinationContracts,
+  SEPOLIA_CHAIN_ID,
+} from './manifest'
+import type { QuotedGasRefund } from './refund-caps'
 import { readRegisterPrice } from './registration-calls'
 
 /**
  * Per-leg gas LIMITS. Passed to `prepareTransaction({ gasLimit })` so the
  * orchestrator quotes against a bounded leg, and used by the fallback model.
- * Sized from live Sepolia fills (register ≈ 393k gas measured) plus headroom.
+ * Submitted intents carry no limit, so these only size the quote, never bound
+ * execution: they are sized from the gas the executor BILLS for a fill, which
+ * is the measured execution gas and runs below the transaction's `gasUsed`.
  */
 export const HCA_LEG_GAS_LIMITS = {
-  // Proven upper bound: a first-use commit (enable + permit + transferFrom +
-  // commit, which deploys the HCA) filled at ~393k gas on live Sepolia. The
-  // rail prices the quote on this LIMIT, so it must cover the full bundle or a
-  // successful quote could underfund the HCA and revert the first commit.
+  // Permit + transferFrom + commit, WITHOUT the conditional HCA deploy —
+  // `commitLegGasLimit` adds that on top. A repeat commit billed 384_879 gas
+  // on Sepolia, rounded up for headroom.
   commit: 450_000n,
   // Approve + register + record setters, WITHOUT the conditional resolver
   // deploy — `registerLegGasLimit` adds that on top.
-  register: 450_000n,
+  //
+  // Sepolia reveal fills that deployed no resolver billed 1_148_902 and
+  // 1_154_652 gas on 2026-10-06
+  // (`0x570d87e352442bf9203f747a3f6496ebb828ed95eb58776eacb1b00b68fb80b1`,
+  // `0x1c0722c8…`), rounded up for headroom. The previous 450_000 came from a
+  // ~393k measurement the batch has since outgrown, and since the rail prices
+  // the quote on this limit, it priced the leg at roughly half its real cost:
+  // the permit then funded the HCA for that half, and the orchestrator refused
+  // to plan a reveal the account could not pay for — a rejection with no
+  // on-chain trace, identical on every retry.
+  register: 1_250_000n,
 } as const
+
+/**
+ * Gas for deploying the HCA itself, which the FIRST commit does alongside the
+ * permit, transferFrom and commit.
+ *
+ * Two first-use Sepolia commits billed 663_019 and 662_734 gas against the
+ * 384_879 a repeat commit bills, so the deploy costs ~278_000 in the batch;
+ * rounded up for headroom. Leaving it unpriced under-funded the commit leg for
+ * every new user, the same way {@link HCA_RESOLVER_DEPLOY_GAS} once did for
+ * the reveal.
+ */
+export const HCA_ACCOUNT_DEPLOY_GAS = 300_000n
+
+/** What varies in the commit batch, and therefore in what the leg costs. */
+export interface CommitLegShape {
+  /**
+   * Whether the HCA already has code. Required, not defaulted: `false` is the
+   * expensive case, and defaulting either way is what leaves a deploy unpriced.
+   */
+  readonly isHcaDeployed: boolean
+}
+
+/**
+ * The `commit` leg's gas limit. Same rule as {@link registerLegGasLimit}: the
+ * rail prices purely on the declared units, so a conditional call that is not
+ * added here is not funded.
+ */
+export function commitLegGasLimit(shape: CommitLegShape): bigint {
+  return (
+    HCA_LEG_GAS_LIMITS.commit +
+    (shape.isHcaDeployed ? 0n : HCA_ACCOUNT_DEPLOY_GAS)
+  )
+}
 
 /**
  * Gas for the conditional `deployProxy` that `buildRevealBatch` prepends when
  * the HCA has no `PermissionedResolver` — i.e. on every FIRST registration.
  *
- * Measured at ~185_900 execution gas, flat, via `eth_estimateGas` against the
- * deployed Sepolia `VerifiableFactory` (`0x9e726Eb5…`); rounded up for headroom.
- * Leaving it unpriced under-sized the permit by ~41% of the leg (Immunefi
+ * Measured as the difference between two Sepolia reveal fills on 2026-10-06:
+ * 2_164_879 gas billed with the deploy
+ * (`0xc03cb436c8fdf54792f06d8fa3525a51604913f5711334c29511527f06301873`,
+ * and `0xe5745e1b…` within 546 gas of it) against ~1_150_000 without, so the
+ * deploy costs ~1_015_000 in the batch; rounded up for headroom.
+ *
+ * The earlier 210_000 came from an `eth_estimateGas` of the factory call on
+ * its own, which misses what the deploy costs inside the batch. Leaving it
+ * unpriced altogether under-sized the permit by ~41% of the leg (Immunefi
  * #89462) — see {@link registerLegGasLimit} for why the quote cannot see it.
  */
-export const HCA_RESOLVER_DEPLOY_GAS = 210_000n
+export const HCA_RESOLVER_DEPLOY_GAS = 1_070_000n
 
 /**
  * Gas for the first storage word of the primary name, plus the fixed overhead
@@ -169,6 +227,47 @@ const FALLBACK_MAX_GAS_PRICE_WEI = 5_000_000_000n
 const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
 
 /**
+ * Minimum gas price (wei) the fee half of a leg is priced at, per chain.
+ *
+ * The orchestrator sizes the refund it pulls at the gas price of the block the
+ * fill lands in, while the permit is signed from a quote taken minutes earlier.
+ * Sepolia moves between those two points by up to ~800x (a ~19 wei base fee at
+ * quote time against ~1 gwei at fill), so a quote taken at the cheap end funds
+ * a fraction of what the fill pulls: one live run quoted 0.004868 USDC for both
+ * legs and then had 0.171572 pulled by the commit alone, which left the account
+ * under the registration price and stranded a paid-for commitment.
+ *
+ * Mainnet gas does not collapse like that, so this is per chain rather than
+ * global: a chain without an entry prices its legs from the quote alone.
+ */
+const FLOOR_GAS_PRICE_WEI: Record<number, bigint> = {
+  [SEPOLIA_CHAIN_ID]: 2_000_000_000n,
+  [BASE_SEPOLIA_CHAIN_ID]: 2_000_000_000n,
+}
+
+/**
+ * Rhinestone's refund sizing, measured off live quotes:
+ *
+ *     refundAmount ≈ 1.8 × (1.5M + gasOverhead) × gasPrice × ethUsd
+ *
+ * `gasOverhead` carries their relay fee as `fee ÷ gasPrice`, so at a fixed gas
+ * price it contributes the fee itself (~$0.008) plus a ~50k base. Folding that
+ * base into the 1.5M keeps the floor a function of the gas price alone, within
+ * ~$0.50 of the full expression. They change these without notice, so this is a
+ * floor derived from observation, never a prediction of what will be charged.
+ */
+const REFUND_GAS_UNITS = 1_550_000n
+const REFUND_MULTIPLIER_BPS = 18_000n
+
+/**
+ * Ceiling (USDC, 6dp) on a single floored leg. `ethUsd` comes from the
+ * orchestrator, so a floor derived from it must not be able to inflate the
+ * permit without bound. 15 USDC covers the floor at both testnet gas floors up
+ * to ~$2700/ETH, and twice it stays clear of {@link HCA_MAX_LEG_FEES_USDC}.
+ */
+const FLOOR_LEG_FEE_CAP_6DP = 15_000_000n
+
+/**
  * Ceiling (USDC, 6dp) on the COMBINED execution cost of the commit + register
  * legs — the margin the orchestrator's own figures are allowed to occupy on top
  * of the registration price.
@@ -180,19 +279,21 @@ const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
  * number and we sign for it. The price half of the budget is read on-chain by
  * us, so it needs no bounding — only the fee half does.
  *
- * WHY 25 USDC. Live Sepolia fills price the commit leg at ~0.9 USDC and the
- * 450k-gas register leg at ~3.3 USDC, so a healthy route uses ~4.2 of this. The
- * bound is set at roughly 6x that, which is also just above what the clamped
- * fallback model can produce at its own 5 gwei cap (~950k gas × 5 gwei ≈ 0.0048
- * ETH, ~19 USDC at $4000/ETH) — so a legitimate gas regime, even a spiky one,
- * never trips it. It is a sanity bound on a fund-moving figure, not a budget
- * target.
+ * WHY 45 USDC. It has to clear what our OWN floor produces, since a budget the
+ * floor raised must not then be refused: two legs floored at
+ * {@link FLOOR_LEG_FEE_CAP_6DP} come to 30, and the remaining 15 is headroom
+ * for a leg the orchestrator genuinely prices above the floor. It does not
+ * have to clear the fallback model, which never reaches a permit:
+ * `estimateHcaBudgetActor` refuses any breakdown whose `source` is not
+ * `'quote'`.
+ *
+ * It remains a sanity bound on a fund-moving figure, not a budget target.
  *
  * REVISIT ON MAINNET. The manifest is testnet-only today (sepolia +
  * baseSepolia). A mainnet deployment prices legs in real gas and must re-derive
  * this from that chain's own fills rather than inherit the testnet number.
  */
-export const HCA_MAX_LEG_FEES_USDC = 25_000_000n
+export const HCA_MAX_LEG_FEES_USDC = 45_000_000n
 
 /**
  * The largest funding budget (USDC, 6dp) this route will ever ask a wallet to
@@ -273,15 +374,75 @@ export interface QuoteMarketData {
 }
 
 /**
- * One leg's quote. `spendUsdc` is the exact USDC the orchestrator will pull
- * (`null` when the route could not be priced — e.g. an unfunded account).
- * `market` is present whenever the quote round-trip succeeded, so the fallback
- * model can be driven off the orchestrator's own prices instead of a separate
- * (browser-unreachable) price service.
+ * One leg's quote. `spendUsdc` is the orchestrator's quoted spend
+ * (`intentCost.tokensSpent`; `null` when the route could not be priced — e.g.
+ * an unfunded account). `market` is present whenever the quote round-trip
+ * succeeded, so the fallback model can be driven off the orchestrator's own
+ * prices instead of a separate (browser-unreachable) price service.
+ * `gasRefund` is the refund the intent would be signed with; see
+ * {@link legFeeUsdc} for why the spend alone is not enough.
  */
 export interface QuoteLegResult {
   readonly spendUsdc: bigint | null
   readonly market?: QuoteMarketData
+  readonly gasRefund?: QuotedGasRefund
+}
+
+/**
+ * Multiplier on the quoted gas overhead in {@link legFeeUsdc}. The overhead is
+ * charged at the RELAYER's gas price, which has run 10-20% above the quoted
+ * one (1.2 Mwei filled against 1.0-1.1 quoted), and its fixed part moved from
+ * ~49.5k to 170k gas overnight on 2026-10-07. Doubling it covers both, and it
+ * only costs anything when the overhead is large — i.e. when it is mostly the
+ * relay fee (~$0.0075), so the worst case is about one relay fee per leg.
+ */
+export const QUOTED_GAS_OVERHEAD_HEADROOM = 2n
+
+/** Round-up division, so a budget is never a unit short. */
+const divCeil = (a: bigint, b: bigint): bigint => (a + b - 1n) / b
+
+/**
+ * The USDC (6dp) to budget for one intent's fee.
+ *
+ * The orchestrator's quoted spend prices the gas limit plus a fixed allowance,
+ * but NOT the relay fee it charges through `gasRefund.overhead`, which it
+ * encodes as `fee ÷ gas price` gas units. At ~1 gwei that overhead is ~52k gas
+ * and the allowance covers it; at Sepolia's ~1 Mwei it is ~2.6M gas, and a
+ * first commit pulled 0.010017 USDC against 0.007681 quoted for BOTH legs —
+ * stranding the reveal 0.0023 USDC short of the price.
+ *
+ * The executor pulls `(measured gas + gasOverhead) × gas price × exchangeRate`,
+ * and never more than the signed `refundAmount`. So the same quote also bounds
+ * the pull — the leg's gas limit plus {@link QUOTED_GAS_OVERHEAD_HEADROOM}× the
+ * overhead, at the quoted gas price, capped at `refundAmount` — and the larger
+ * of that and the quoted spend is budgeted. At normal gas prices the spend is
+ * the larger, so this changes nothing there.
+ */
+export function legFeeUsdc(params: {
+  readonly spendUsdc: bigint
+  readonly gasLimit: bigint
+  readonly gasPriceWei?: bigint
+  readonly gasRefund?: QuotedGasRefund
+}): bigint {
+  const { spendUsdc, gasLimit, gasPriceWei, gasRefund } = params
+  if (
+    !gasRefund ||
+    !gasPriceWei ||
+    isAddressEqual(gasRefund.token, zeroAddress)
+  ) {
+    return spendUsdc
+  }
+  const pullBound = divCeil(
+    (gasLimit + QUOTED_GAS_OVERHEAD_HEADROOM * gasRefund.gasOverhead) *
+      gasPriceWei *
+      gasRefund.exchangeRate,
+    10n ** 18n,
+  )
+  const capped =
+    gasRefund.refundAmount > 0n && pullBound > gasRefund.refundAmount
+      ? gasRefund.refundAmount
+      : pullBound
+  return capped > spendUsdc ? capped : spendUsdc
 }
 
 /**
@@ -311,6 +472,40 @@ function fallbackLegFee6dp(
   const wei = limit * clamped
   // wei (1e18) × ethUsd8 / usdcUsd8 → USDC at 1e18 scale; ÷1e12 → 6dp units.
   return (wei * prices.eth) / (prices.usdc * 10n ** 12n)
+}
+
+/**
+ * The least a leg may be funded for on this chain: what the orchestrator would
+ * pull if the fill landed at {@link FLOOR_GAS_PRICE_WEI}. Zero when the chain
+ * has no floor, or when no quote carried the market data to price one.
+ *
+ * Clamped to {@link FLOOR_LEG_FEE_CAP_6DP}: `ethUsd` comes from the
+ * orchestrator, and a floor derived from it must not be able to inflate the
+ * permit without bound.
+ */
+function refundFloor6dp(
+  chainId: number,
+  market: QuoteMarketData | undefined,
+): bigint {
+  const floorGasPrice = FLOOR_GAS_PRICE_WEI[chainId]
+  if (floorGasPrice === undefined || !market) return 0n
+  const wei =
+    (REFUND_MULTIPLIER_BPS * REFUND_GAS_UNITS * floorGasPrice) / 10_000n
+  const usdc = (wei * market.ethUsd8) / (market.usdcUsd8 * 10n ** 12n)
+  return usdc > FLOOR_LEG_FEE_CAP_6DP ? FLOOR_LEG_FEE_CAP_6DP : usdc
+}
+
+/**
+ * What a leg is funded for: its quote, or the gas model when it could not be
+ * quoted, never less than the chain's floor. One of the first two is always
+ * present, by construction of the fallback above.
+ */
+function legCost(
+  quoted: bigint | null,
+  fallback: bigint | undefined,
+  floor: bigint,
+): bigint {
+  return bigintMax(quoted ?? (fallback as bigint), floor)
 }
 
 export interface HcaBudgetParams {
@@ -347,6 +542,11 @@ export interface HcaBudgetParams {
    * `buildRevealBatch`, so the budget and the batch cannot disagree.
    */
   readonly isResolverDeployed: boolean
+  /**
+   * See {@link CommitLegShape}. Whether the HCA has code; `false` makes the
+   * first commit deploy it inside the same batch.
+   */
+  readonly isHcaDeployed: boolean
 }
 
 export interface HcaBudgetBreakdown {
@@ -395,17 +595,22 @@ export async function estimateHcaBudget(
   // the planner as auxiliary funds so it will price the legs at all.
   //
   // Chicken-and-egg: the exact inflow is `total - balance`, but `total` is what
-  // these quotes produce. The price dominates the total and is already known
-  // exactly, so price + the flat per-leg fallbacks is a close upper-ish bound —
-  // and it only has to be good enough for the planner to see the HCA covered.
-  // The permit itself is sized from the FINAL budget, not from this.
+  // these quotes produce. So declare the most this route could ever fund, the
+  // same ceiling the finished budget is checked against. Under-declaring is
+  // the dangerous direction: the planner refuses to price an account it sees
+  // as below the fee, which leaves the budget unquotable and the registration
+  // refused rather than merely mis-sized. The permit itself is sized from the
+  // FINAL budget, not from this.
   const balance = params.hcaBalanceUsdc ?? 0n
   const declaredInflow = bigintMax(
-    registrationPrice + FALLBACK_LEG_FEE_6DP * 2n - balance,
+    hcaBudgetMaximum(registrationPrice) - balance,
     0n,
   )
 
-  // What the reveal batch will contain, and so what the leg must be funded for.
+  // What each batch will contain, and so what the legs must be funded for.
+  const commitGasLimit = commitLegGasLimit({
+    isHcaDeployed: params.isHcaDeployed,
+  })
   const registerGasLimit = registerLegGasLimit({
     isResolverDeployed: params.isResolverDeployed,
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
@@ -444,11 +649,7 @@ export async function estimateHcaBudget(
       : undefined
     fallbackCommit =
       prices && market
-        ? fallbackLegFee6dp(
-            HCA_LEG_GAS_LIMITS.commit,
-            market.gasPriceWei,
-            prices,
-          )
+        ? fallbackLegFee6dp(commitGasLimit, market.gasPriceWei, prices)
         : FALLBACK_LEG_FEE_6DP
     fallbackRegister =
       prices && market
@@ -456,8 +657,34 @@ export async function estimateHcaBudget(
         : FALLBACK_LEG_FEE_6DP
   }
 
-  const commitCost = quotedCommit.value ?? (fallbackCommit as bigint)
-  const registerCost = quotedRegister.value ?? (fallbackRegister as bigint)
+  // Two bounds on what a leg may be funded for, covering opposite ends of the
+  // gas range. `legFeeUsdc` tracks the refund the orchestrator could pull at
+  // the gas price it quoted at; the floor covers the case that quote cannot,
+  // a price so low the fill will not land anywhere near it.
+  const floor = refundFloor6dp(
+    params.chainId,
+    quotedCommit.market ?? quotedRegister.market,
+  )
+  const quotedCommitFee =
+    quotedCommit.value === null
+      ? null
+      : legFeeUsdc({
+          spendUsdc: quotedCommit.value,
+          gasLimit: commitGasLimit,
+          gasPriceWei: quotedCommit.market?.gasPriceWei,
+          gasRefund: quotedCommit.gasRefund,
+        })
+  const quotedRegisterFee =
+    quotedRegister.value === null
+      ? null
+      : legFeeUsdc({
+          spendUsdc: quotedRegister.value,
+          gasLimit: registerGasLimit,
+          gasPriceWei: quotedRegister.market?.gasPriceWei,
+          gasRefund: quotedRegister.gasRefund,
+        })
+  const commitCost = legCost(quotedCommitFee, fallbackCommit, floor)
+  const registerCost = legCost(quotedRegisterFee, fallbackRegister, floor)
 
   // No percentage buffer: each leg is priced from a gas limit already derived
   // from the batch that will be submitted. A multiplier on a limit that misses
@@ -527,6 +754,7 @@ async function tryQuote(
 ): Promise<{
   value: bigint | null
   market?: QuoteMarketData
+  gasRefund?: QuotedGasRefund
   reason?: string
 }> {
   if (!quoter) return { value: null, reason: `${leg}: no quoter available` }
@@ -540,7 +768,11 @@ async function tryQuote(
           ...market,
           reason: `${leg}: quote returned no spend amount`,
         }
-      : { value: result.spendUsdc, ...market }
+      : {
+          value: result.spendUsdc,
+          ...market,
+          ...(result.gasRefund ? { gasRefund: result.gasRefund } : {}),
+        }
   } catch (error) {
     return {
       value: null,

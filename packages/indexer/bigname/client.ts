@@ -12,12 +12,22 @@ type QueryValue = string | number | boolean | readonly string[] | undefined
 type Query = Readonly<Record<string, QueryValue>>
 
 // bigname rejects unknown parameters with 400, so only defined values are sent.
-// `include`, `type`, `keys` and `relation` take comma-separated sets.
+// `include`, `type`, `keys` and `relation` take comma-separated sets;
+// `expires_window` is repeated once per window.
+const REPEATED_PARAMS: ReadonlySet<string> = new Set(['expires_window'])
+
 const toSearchParams = (query: Query | undefined): string => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === undefined) continue
-    params.set(key, Array.isArray(value) ? value.join(',') : String(value))
+    const values: readonly string[] = Array.isArray(value)
+      ? value
+      : [String(value)]
+    if (REPEATED_PARAMS.has(key)) {
+      for (const each of values) params.append(key, each)
+    } else {
+      params.set(key, values.join(','))
+    }
   }
   const encoded = params.toString()
   return encoded ? `?${encoded}` : ''

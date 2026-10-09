@@ -760,6 +760,8 @@ const startRegistrationAction = machineSetup.createAction(
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.
         fetchIntentStatus: buildIntentStatusFetcher(),
+        // A leg whose quoted fee outgrows the session asks for a new one.
+        reauthorizeSession: event.account.reauthorizeSession,
       } satisfies RegistrationEvent),
     )
   }),
@@ -874,6 +876,7 @@ const resumeRegistrationAction = machineSetup.createAction(
           // persisted reveal intent is still filling or dead, instead of
           // sitting out the full grace poll before showing the retry screen.
           fetchIntentStatus: buildIntentStatusFetcher(),
+          reauthorizeSession: event.account.reauthorizeSession,
         },
       } satisfies RegistrationEvent),
     )

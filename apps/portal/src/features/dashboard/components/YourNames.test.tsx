@@ -35,6 +35,8 @@ vi.mock('../hooks/useAddressNames', () => ({
       if (namesRef.current instanceof Error) throw namesRef.current
       return mergeAddressNames(namesRef.current, [])
     },
+    initialPageParam: undefined,
+    getNextPageParam: () => undefined,
   }),
 }))
 
@@ -88,14 +90,13 @@ describe('YourNames', () => {
       ),
     )
 
-    const showMore = await screen.findByRole('button', {
-      name: 'Show more (6 total)',
-    })
+    const more = await screen.findByRole('button', { name: 'More' })
+    expect(screen.getByText('Showing 4 of 6')).toBeInTheDocument()
     expect(screen.getAllByText(/^name\d\.eth$/)).toHaveLength(4)
 
-    fireEvent.click(showMore)
+    fireEvent.click(more)
     expect(screen.getAllByText(/^name\d\.eth$/)).toHaveLength(6)
-    expect(screen.queryByRole('button', { name: /Show more/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
   })
 
   it('says so when the wallet holds no names', async () => {
