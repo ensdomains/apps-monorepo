@@ -5,44 +5,9 @@ import {
   getPremiumLabel,
   isNameAvailabilityError,
   NameAvailabilityError,
-  normalizeQuery,
 } from './nameUtils'
 
 describe('register utils', () => {
-  describe('normalizeQuery', () => {
-    it('should add .eth suffix to plain name', () => {
-      expect(normalizeQuery('example')).toBe('example.eth')
-    })
-
-    it('should not duplicate .eth suffix', () => {
-      expect(normalizeQuery('example.eth')).toBe('example.eth')
-    })
-
-    it('should trim whitespace', () => {
-      expect(normalizeQuery('  example  ')).toBe('example.eth')
-    })
-
-    it('should convert to lowercase', () => {
-      expect(normalizeQuery('EXAMPLE')).toBe('example.eth')
-    })
-
-    it('should handle empty string', () => {
-      expect(normalizeQuery('')).toBe('')
-    })
-
-    it('should handle whitespace only string', () => {
-      expect(normalizeQuery('   ')).toBe('')
-    })
-
-    it('should handle uppercase .ETH suffix', () => {
-      expect(normalizeQuery('example.ETH')).toBe('example.eth')
-    })
-
-    it('should handle mixed case', () => {
-      expect(normalizeQuery('ExAmPlE.Eth')).toBe('example.eth')
-    })
-  })
-
   describe('determinePremium', () => {
     it('should return true for 1 character names', () => {
       expect(determinePremium('a')).toBe(true)

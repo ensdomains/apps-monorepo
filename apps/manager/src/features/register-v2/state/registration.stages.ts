@@ -26,6 +26,8 @@ export const REGISTRATION_STAGE_PROGRESS = {
   checkingHcaFunding: 27,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,
+  // A leg's quoted fee outgrew the session: one more wallet signature.
+  reauthorizingSession: 31,
   // Shared cooldown spine
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,

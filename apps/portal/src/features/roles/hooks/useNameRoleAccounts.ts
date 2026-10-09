@@ -13,10 +13,7 @@ import { getBlockNumber, readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
-import {
-  getIndexedRoleChangeLogs,
-  getNodeRoleChangeLogs,
-} from '@/lib/roles/roleChangeLogs'
+import { getRoleHolders } from '@/lib/roles/roleHolders'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -45,27 +42,6 @@ type NameRoleHolders = {
   readonly isVerified: boolean
 }
 
-type RoleChange = {
-  readonly args: {
-    readonly account: Address
-    readonly newRoleBitmap: bigint
-  }
-}
-
-const foldRoleBitmaps = (
-  logs: readonly RoleChange[],
-): ReadonlyMap<Address, bigint> => {
-  const latest = new Map<Address, bigint>()
-
-  for (const log of logs) {
-    const account = log.args.account
-    if (account === zeroAddress) continue
-    latest.set(account, log.args.newRoleBitmap)
-  }
-
-  return latest
-}
-
 const toHolders = (
   bitmaps: ReadonlyMap<Address, bigint>,
 ): GetNameRolesAccountsReturnType =>
@@ -77,7 +53,7 @@ const toHolders = (
 
 /**
  * `roleCount` packs a per-role assignee counter into each role's nybble, so it
- * equals the sum of every holder's bitmap. A replay that sums to it, with each
+ * equals the sum of every holder's bitmap. A list that sums to it, with each
  * account's roles held on chain, is complete. Subset rather than equality
  * because `roles` adds an approved operator's owner roles.
  */
@@ -131,16 +107,16 @@ const matchesRegistry = ResultFn(async function* ({
 })
 
 /**
- * Current `account -> roles[]` state for a name, replayed from its role
- * change logs.
+ * Current `account -> roles[]` state for a name, read from the indexer's role
+ * assignments and checked against the registry.
  *
  * The resource comes from the registry, so it carries the name's current
- * `eacVersionId` and both sources return only this registration's grants: a
- * previous owner's sit under the pre-bump resource.
+ * `eacVersionId` and only this registration's grants are returned: a previous
+ * owner's sit under the pre-bump resource. An account whose bitmap decodes to
+ * nothing has been revoked and is dropped.
  *
- * The indexed replay is only trusted when it matches the registry; otherwise
- * the node is read up to the same block, and a node replay that still
- * disagrees is unverified.
+ * The node cannot list holders, so a list that disagrees with the registry, or
+ * could not be checked against it, is returned unverified rather than re-read.
  */
 export const getNameRolesAccounts = ResultFn(async function* ({
   resource,
@@ -153,65 +129,37 @@ export const getNameRolesAccounts = ResultFn(async function* ({
 
   const client = yield* safeGetClient()
 
-  // Only pins the reads that verify a replay: without it the holders are still
+  // Only pins the reads that verify the list: without it the holders are still
   // listed, just unverified.
   const blockNumber = await fromPromise(
     getAction(client, getBlockNumber, 'getBlockNumber')({}),
     (cause) => new GetBlockNumberError({ cause }),
   )
 
-  const check = async (bitmaps: ReadonlyMap<Address, bigint>) =>
-    blockNumber.isErr()
-      ? err(blockNumber.error)
-      : await matchesRegistry({
-          registryAddress,
-          resource,
-          blockNumber: blockNumber.value,
-          bitmaps,
-        })
+  const assignments = yield* getRoleHolders({ registryAddress, resource })
+  const bitmaps: ReadonlyMap<Address, bigint> = new Map(
+    assignments
+      .filter(({ account }) => account !== zeroAddress)
+      .map(({ account, roleBitmap }) => [account, roleBitmap]),
+  )
 
-  const indexed = await getIndexedRoleChangeLogs({ registryAddress, resource })
-  const fromIndexer = indexed.isOk() ? foldRoleBitmaps(indexed.value) : null
-
-  if (fromIndexer) {
-    const matches = await check(fromIndexer)
-    if (matches.isErr()) {
-      logger.warn('Role holders could not be checked against the registry', {
+  const matches = blockNumber.isErr()
+    ? err(blockNumber.error)
+    : await matchesRegistry({
         registryAddress,
-        resource: toResourceHex(resource),
-        cause: matches.error.cause,
+        resource,
+        blockNumber: blockNumber.value,
+        bitmaps,
       })
-    }
-    // Without the registry's state the node replay can't be verified either.
-    if (matches.isErr() || matches.value) {
-      return ok<NameRoleHolders>({
-        holders: toHolders(fromIndexer),
-        isVerified: matches.unwrapOr(false),
-      })
-    }
-  }
 
-  logger.warn('Role holders fell back to the node', {
-    registryAddress,
-    resource: toResourceHex(resource),
-    reason: indexed.isErr() ? indexed.error.reason : 'registry-mismatch',
-    cause: indexed.isErr() ? indexed.error.cause : undefined,
-  })
-
-  const node = await getNodeRoleChangeLogs({
-    registryAddress,
-    resource,
-    toBlock: blockNumber.unwrapOr(undefined),
-  })
-  if (node.isErr() && fromIndexer) {
-    return ok<NameRoleHolders>({
-      holders: toHolders(fromIndexer),
-      isVerified: false,
+  if (matches.isErr() || !matches.value) {
+    logger.warn('Role holders are not verified against the registry', {
+      registryAddress,
+      resource: toResourceHex(resource),
+      reason: matches.isErr() ? 'unchecked' : 'registry-mismatch',
+      cause: matches.isErr() ? matches.error.cause : undefined,
     })
   }
-
-  const bitmaps = foldRoleBitmaps(yield* node)
-  const matches = await check(bitmaps)
 
   return ok<NameRoleHolders>({
     holders: toHolders(bitmaps),

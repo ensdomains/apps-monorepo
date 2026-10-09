@@ -25,15 +25,24 @@ import {
   getValidSessionForAccount,
   hasRegistrationHeadroom,
   isRhinestoneSession,
+  quoteSessionRefundCaps,
+  type RefundCaps,
   type RhinestoneStoredSession,
   type SessionEnableError,
   SessionRestoreError,
   type SessionScope,
   saveSession,
   serializeChainDigests,
+  serializeRefundCaps,
 } from '@ens-apps/smart-account'
+import { logger } from '@ens-apps/utils/logger'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromSafePromise,
+  okAsync,
+  type ResultAsync,
+} from 'neverthrow'
 import type { Address, Chain, PublicClient } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
@@ -70,11 +79,44 @@ export interface CreateSessionInput {
   readonly publicClient: PublicClient
   /** Whether the HCA already has code (affects the session nonce source). */
   readonly alreadyDeployed: boolean
-  readonly config?: { readonly validUntil?: number }
+  readonly config?: {
+    readonly validUntil?: number
+    /**
+     * Caps to authorize. Omitted, they are sized from a live quote taken
+     * before the wallet prompt (see `quoteSessionRefundCaps`).
+     */
+    readonly refundCaps?: RefundCaps
+  }
 }
 
 export interface CreateSessionOutput {
   readonly session: RhinestoneStoredSession
+}
+
+/**
+ * The caps a new session is authorized with: the caller's, or sized from a
+ * live quote. A failed quote falls back to the legacy caps rather than
+ * blocking the authorization; the transport's pre-sign check catches a
+ * session whose caps turn out too tight.
+ */
+function resolveRefundCaps(
+  input: CreateSessionInput,
+): ResultAsync<RefundCaps, never> {
+  const given = input.config?.refundCaps
+  if (given) return okAsync(given)
+  return fromSafePromise(
+    quoteSessionRefundCaps({
+      rhinestoneAccount: input.rhinestoneAccount,
+      chain: input.chain,
+    }),
+  ).map((quote) => {
+    if (quote.source === 'legacy') {
+      logger.warn('Session refund caps not quoted; using legacy caps', {
+        reason: quote.reason,
+      })
+    }
+    return quote.caps
+  })
 }
 
 /**
@@ -95,38 +137,44 @@ export function createSessionActor(
       Math.floor(Date.now() / 1000) + DEFAULT_SESSION_VALIDITY_SECONDS,
   )
 
-  return createDestinationSession({
-    rhinestoneAccount: input.rhinestoneAccount,
-    publicClient: input.publicClient,
-    chain: input.chain,
-    hca: input.accountAddress,
-    resolver,
-    sessionAccount,
-    validUntil,
-    alreadyDeployed: input.alreadyDeployed,
-  }).map((result) => {
-    const session: RhinestoneStoredSession = {
-      id: crypto.randomUUID(),
-      provider: 'rhinestone',
-      sessionKeyAddress: sessionAccount.address,
-      smartAccountAddress: input.accountAddress,
-      ownerAddress: input.ownerAddress,
-      createdAt: Date.now(),
-      chainId: input.chainId,
-      validUntil: Number(result.validUntil),
-      sessionPrivateKey,
-      permissionId: result.permissionId,
-      resolver,
-      hcaSessionNonce: result.hcaSessionNonce.toString(),
-      authorization: result.enableData.userSignature,
-      hashesAndChainIds: serializeChainDigests(
-        result.enableData.hashesAndChainIds,
-      ),
-      sessionToEnableIndex: result.enableData.sessionToEnableIndex,
-    }
-    saveSession(session)
-    return { session }
-  })
+  return resolveRefundCaps(input)
+    .andThen((refundCaps) =>
+      createDestinationSession({
+        rhinestoneAccount: input.rhinestoneAccount,
+        publicClient: input.publicClient,
+        chain: input.chain,
+        hca: input.accountAddress,
+        resolver,
+        sessionAccount,
+        validUntil,
+        alreadyDeployed: input.alreadyDeployed,
+        refundCaps,
+      }),
+    )
+    .map((result) => {
+      const session: RhinestoneStoredSession = {
+        id: crypto.randomUUID(),
+        provider: 'rhinestone',
+        sessionKeyAddress: sessionAccount.address,
+        smartAccountAddress: input.accountAddress,
+        ownerAddress: input.ownerAddress,
+        createdAt: Date.now(),
+        chainId: input.chainId,
+        validUntil: Number(result.validUntil),
+        sessionPrivateKey,
+        permissionId: result.permissionId,
+        resolver,
+        hcaSessionNonce: result.hcaSessionNonce.toString(),
+        authorization: result.enableData.userSignature,
+        hashesAndChainIds: serializeChainDigests(
+          result.enableData.hashesAndChainIds,
+        ),
+        sessionToEnableIndex: result.enableData.sessionToEnableIndex,
+        refundCaps: serializeRefundCaps(result.refundCaps),
+      }
+      saveSession(session)
+      return { session }
+    })
 }
 
 export interface RestoreSessionInput {
@@ -159,6 +207,11 @@ export interface ResolveSessionInput {
   readonly rhinestoneAccount: RhinestoneAccount
   readonly publicClient: PublicClient
   readonly alreadyDeployed: boolean
+  /**
+   * Authorize a new session even when a valid one is stored, with these
+   * caps. Used when a quote outgrew the stored session's caps.
+   */
+  readonly replaceWithCaps?: RefundCaps
 }
 
 export interface ResolvedSession {
@@ -178,6 +231,8 @@ export function resolveSessionActor(
   input: ResolveSessionInput,
 ): ResultAsync<ResolvedSession, SessionEnableError> {
   const { ownerAddress, accountAddress, chain } = input
+
+  if (input.replaceWithCaps) return createAndResolve(input)
 
   const stored = getValidSessionForAccount({
     accountAddress,
@@ -213,5 +268,8 @@ function createAndResolve(
     chain: input.chain,
     publicClient: input.publicClient,
     alreadyDeployed: input.alreadyDeployed,
+    ...(input.replaceWithCaps
+      ? { config: { refundCaps: input.replaceWithCaps } }
+      : {}),
   }).map(({ session }) => ({ session }))
 }

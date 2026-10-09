@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 import { RecentActivityTable } from './RecentActivityTable'
 
@@ -42,22 +42,34 @@ vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
     `https://etherscan.io/tx/${txHash}`,
 }))
 
-const eventsRef = vi.hoisted(() => ({
-  current: [] as readonly RecentActivityEvent[],
-}))
+const fetchPage = vi.hoisted(() =>
+  vi.fn<(offset: number) => Promise<unknown>>(),
+)
 
 vi.mock('../hooks/useRecentActivity', () => ({
+  RECENT_ACTIVITY_PAGE_SIZE: 15,
   getRecentActivityQueryOptions: () => ({
     queryKey: ['recent-activity-mock'],
-    queryFn: async () => ({
-      events: eventsRef.current,
-      endCursor: null,
-      hasNextPage: false,
-    }),
-    initialPageParam: undefined,
-    getNextPageParam: () => undefined,
+    queryFn: ({ pageParam }: { pageParam: number }) => fetchPage(pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last: { hasNextPage: boolean; next: number }) =>
+      last.hasNextPage ? last.next : undefined,
   }),
 }))
+
+const pageOf =
+  (events: readonly RecentActivityEvent[], totalCount?: number) =>
+  async (offset: number) => {
+    const page = events.slice(offset, offset + 15)
+    const next = offset + page.length
+    return {
+      events: page,
+      totalCount,
+      endCursor: null,
+      hasNextPage: next < (totalCount ?? events.length),
+      next,
+    }
+  }
 
 const nameChangedEvent = (
   reverseName: string,
@@ -74,8 +86,16 @@ const nameChangedEvent = (
   data: JSON.stringify({ name: reverseName }),
 })
 
-const renderTable = async (events: readonly RecentActivityEvent[]) => {
-  eventsRef.current = events
+const fortyEvents = Array.from({ length: 40 }, (_, i) => ({
+  ...nameChangedEvent(`name${i}.eth`),
+  transactionHash: `0x${(i + 1).toString(16)}` as const,
+}))
+
+const renderTable = async (
+  events: readonly RecentActivityEvent[],
+  totalCount?: number,
+) => {
+  fetchPage.mockImplementation(pageOf(events, totalCount))
   render(
     <QueryClientProvider
       client={
@@ -85,7 +105,7 @@ const renderTable = async (events: readonly RecentActivityEvent[]) => {
       <RecentActivityTable />
     </QueryClientProvider>,
   )
-  await screen.findByText('Primary name updated')
+  await screen.findAllByText('Primary name updated')
 }
 
 /** The distinct names the row links to — `/$name` is rendered by both the pill and its chip. */
@@ -98,6 +118,10 @@ const linkedNames = () =>
   )
 
 describe('RecentActivityTable', () => {
+  afterEach(() => {
+    fetchPage.mockReset()
+  })
+
   it('renders a reverse-record name as an unlinked pill, not a name badge', async () => {
     await renderTable([nameChangedEvent('vitalik.eth')])
 
@@ -109,5 +133,38 @@ describe('RecentActivityTable', () => {
     await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
 
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
+  })
+
+  it('opens with 15 events and loads more on demand, with no All', async () => {
+    await renderTable(fortyEvents, 32364)
+
+    expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+
+    expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
+  })
+
+  it('keeps the loaded events when a later page fails, and More retries', async () => {
+    await renderTable(fortyEvents, 32364)
+    fetchPage.mockRejectedValueOnce(new Error('indexer down'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Couldn’t load more.',
+    )
+    expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
+    expect(screen.queryByText(/Error fetching recent activity/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+
+    expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
+    expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

@@ -2,7 +2,9 @@ import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   ChainIdMismatchError,
+  SessionRefundCapExceededError,
   SignerAddressMismatchError,
+  TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import type { EOATransactionRequest } from '../types/transaction.types'
@@ -47,6 +49,45 @@ describe('isRetryableSubmissionError', () => {
     expect(
       isRetryableSubmissionError(new ChainIdMismatchError(mainnet.id, sepolia)),
     ).toBe(false)
+  })
+
+  it('does not retry a quote outside the session refund caps', () => {
+    expect(
+      isRetryableSubmissionError(
+        new SessionRefundCapExceededError(request, [
+          { field: 'gasOverhead', quoted: 3_000_000n, cap: 500_000n },
+        ]),
+      ),
+    ).toBe(false)
+  })
+
+  // The orchestrator's simulation of an under-funded account: resubmitting the
+  // same intent can only fail the same way.
+  it('does not retry what the orchestrator marks non-retryable', () => {
+    const insufficientBalance = Object.assign(
+      new Error('Simulation failed due to insufficient token balance'),
+      {
+        errorType: 'Unprocessable Entity',
+        statusCode: 422,
+        context: { category: 'INSUFFICIENT_BALANCE', retryable: false },
+      },
+    )
+    expect(
+      isRetryableSubmissionError(
+        new TransactionSubmissionError(request, insufficientBalance),
+      ),
+    ).toBe(false)
+  })
+
+  it('still retries what the orchestrator marks retryable', () => {
+    const transient = Object.assign(new Error('Simulation failed'), {
+      context: { retryable: true },
+    })
+    expect(
+      isRetryableSubmissionError(
+        new TransactionSubmissionError(request, transient),
+      ),
+    ).toBe(true)
   })
 
   it('does not retry a desynced nonce', () => {

@@ -1,3 +1,27 @@
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/**
+ * Returns the numeric cent value exactly as `formatUsd` displays it.
+ */
+export const roundUsdToCents = (value: number): number => {
+  if (!Number.isFinite(value)) return value
+
+  const parts = usdFormatter.formatToParts(value)
+  const whole = parts
+    .filter(({ type }) => type === 'integer')
+    .map(({ value: part }) => part)
+    .join('')
+  const fraction = parts.find(({ type }) => type === 'fraction')?.value ?? '00'
+  const sign = parts.some(({ type }) => type === 'minusSign') ? '-' : ''
+
+  return Number(`${sign}${whole}.${fraction}`)
+}
+
 /**
  * Formats a number as USD with 2 decimal places.
  *
@@ -11,12 +35,7 @@
  */
 export const formatUsd = (value: number): string => {
   if (!Number.isFinite(value)) return '—'
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+  return usdFormatter.format(value)
 }
 
 /**

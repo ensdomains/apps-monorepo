@@ -5,8 +5,8 @@
  * production only — Vite HMR needs the eval/ws this policy forbids.
  *
  * Unlike portal (static SPA), manager SSRs its hydration scripts, so
- * `script-src` is nonce + `strict-dynamic` based. Violations are reported to
- * PostHog via `report-to` / `report-uri` + `Reporting-Endpoints`.
+ * `script-src` is nonce + `strict-dynamic` based. PostHog reporting is
+ * temporarily disabled while PostHog is retained only for feature flags.
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
@@ -115,15 +115,15 @@ const FRAME_HOSTS = [
   COMMEMORATIVE_RENDERER_ORIGIN,
 ]
 
+// POSTHOG_LAUNCH_PAUSE: CSP reporting paused while PostHog is used only for flags. Restore endpoint, directives, and Reporting-Endpoints together; enforcement is unchanged.
 // PostHog CSP-violation reporting endpoint. Points at PostHog EU cloud (the
 // edge.ens.domains analytics proxy can't serve /report/). Trailing slash is
 // required; token is the public client key.
-export const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
+// export const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
 
 /**
- * Report-only unless the build sets `VITE_CSP_ENFORCE=1`. A miss in the
- * allowlist fails closed and silently, so collect real-traffic violations from
- * the PostHog dashboard first, then flip to enforcing.
+ * Report-only unless the build sets `VITE_CSP_ENFORCE=1`. Preserve the
+ * existing enforcement rollout setting while reporting is disabled.
  */
 export const CSP_REPORT_ONLY = import.meta.env?.VITE_CSP_ENFORCE !== '1'
 
@@ -165,10 +165,9 @@ export function buildCsp(nonce: string): string {
     "form-action 'self'",
     'upgrade-insecure-requests',
     "frame-ancestors 'none'",
-    // `report-to` names the endpoint set in the `Reporting-Endpoints` header
-    // (src/start.ts); `report-uri` is the legacy fallback.
-    'report-to posthog',
-    `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
+    // POSTHOG_LAUNCH_PAUSE: reporting destination paused; restore with the endpoint and src/start.ts header.
+    // 'report-to posthog',
+    // `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
   ].join('; ')};`
 }
 

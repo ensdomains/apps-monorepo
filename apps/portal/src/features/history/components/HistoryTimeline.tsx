@@ -2,6 +2,7 @@ import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -17,9 +18,8 @@ import {
   TIMELINE_WINDOW_SIZE,
   useNameHistoryTimeline,
 } from '../hooks/useHistoryTimeline'
-import type { TimelineEventType } from '../summarize/descriptors'
 import { ActionTimeline } from './ActionTimeline'
-import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
+import { TimelineBreak } from './TimelineBreak'
 
 interface HistoryTimelineViewProps {
   readonly model: HistoryTimelineModel
@@ -52,9 +52,7 @@ export const HistoryTimelineView = ({
     actions,
     anchorAction,
     hasMore,
-    loadMore,
-    isLoadingMore,
-    totalCount,
+    loader,
     openIds,
     toggleAction,
     setAllOpen,
@@ -96,11 +94,9 @@ export const HistoryTimelineView = ({
 
   const breakRow =
     breakContent === 'load-more' ? (
-      <TimelineLoadMore
-        totalCount={totalCount}
-        isLoading={isLoadingMore}
-        onLoadMore={loadMore}
-      />
+      <TimelineBreak>
+        <ListLoader {...loader} />
+      </TimelineBreak>
     ) : (
       <TimelineBreak>{breakContent}</TimelineBreak>
     )
@@ -182,7 +178,7 @@ export const HistoryTimelineView = ({
 interface HistoryTimelineProps
   extends Omit<HistoryTimelineViewProps, 'model' | 'filters' | 'breakContent'> {
   readonly name: string
-  readonly scope?: readonly TimelineEventType[]
+  readonly scope?: readonly string[]
   readonly showFilters?: boolean
   readonly canLoadMore?: boolean
 }

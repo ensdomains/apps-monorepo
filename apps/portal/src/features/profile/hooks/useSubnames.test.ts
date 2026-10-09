@@ -23,11 +23,12 @@ const {
   getIsSubnameTakenQueryOptions,
   getSubnamesCountQueryOptions,
   getSubnamesQueryKey,
-  getV1Subnames,
+  getV1SubnamesPage,
+  getV1SubnamesQueryOptions,
   getV2SubnamesQueryOptions,
 } = await import('./useSubnames')
 
-describe('getV1Subnames', () => {
+describe('getV1SubnamesPage', () => {
   beforeEach(() => {
     mockEnsjsGetSubnames.mockClear()
     mockGraphqlRequest.mockClear()
@@ -42,11 +43,13 @@ describe('getV1Subnames', () => {
     }
     mockEnsjsGetSubnames.mockResolvedValue([{ ...subname, wrappedOwner: null }])
 
-    const result = await getV1Subnames({ name: 'test.eth' })
+    const result = await getV1SubnamesPage({ name: 'test.eth' })
 
-    expect(result._unsafeUnwrap()).toEqual([subname])
+    expect(result._unsafeUnwrap().subnames).toEqual([subname])
     expect(mockEnsjsGetSubnames).toHaveBeenCalledWith(mockClient, {
       name: 'test.eth',
+      previousPage: undefined,
+      pageSize: 100,
     })
   })
 
@@ -62,9 +65,9 @@ describe('getV1Subnames', () => {
       },
     ])
 
-    const result = await getV1Subnames({ name: 'test.eth' })
+    const result = await getV1SubnamesPage({ name: 'test.eth' })
 
-    expect(result._unsafeUnwrap()).toEqual([
+    expect(result._unsafeUnwrap().subnames).toEqual([
       {
         name: 'sub.test.eth',
         labelName: 'sub',
@@ -94,12 +97,60 @@ describe('getV1Subnames', () => {
       },
     ])
 
-    const result = await getV1Subnames({ name: 'phantombug01.eth' })
+    const result = await getV1SubnamesPage({ name: 'phantombug01.eth' })
 
-    expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
+    expect(result._unsafeUnwrap().subnames.map((s) => s.name)).toEqual([
       '1.phantombug01.eth',
       '[ad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5].phantombug01.eth',
     ])
+  })
+})
+
+describe('getV1SubnamesQueryOptions', () => {
+  beforeEach(() => {
+    mockEnsjsGetSubnames.mockReset()
+  })
+
+  const options = getV1SubnamesQueryOptions({ name: 'test.eth' })
+  const v1Name = (i: number) => ({
+    name: `sub${i}.test.eth`,
+    labelName: `sub${i}`,
+    labelhash: '0x01',
+    owner: '0x1234567890123456789012345678901234567890',
+    wrappedOwner: null,
+  })
+
+  it('asks for the next page after the previous one while pages come back full', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => v1Name(i))
+    const second = Array.from({ length: 20 }, (_, i) => v1Name(100 + i))
+    mockEnsjsGetSubnames
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second)
+
+    const data = await new QueryClient().fetchInfiniteQuery({
+      ...options,
+      pages: 2,
+    })
+
+    expect(mockEnsjsGetSubnames.mock.calls[1]?.[1]).toMatchObject({
+      previousPage: [first[99]],
+    })
+    expect(data.pages.flatMap((page) => page.subnames)).toHaveLength(120)
+  })
+
+  it('has no next page after a page that is not full', async () => {
+    mockEnsjsGetSubnames.mockResolvedValue([v1Name(0), v1Name(1)])
+
+    const data = await new QueryClient().fetchInfiniteQuery(options)
+
+    expect(
+      options.getNextPageParam?.(
+        data.pages[0] as never,
+        data.pages as never,
+        undefined,
+        [undefined],
+      ),
+    ).toBeUndefined()
   })
 })
 

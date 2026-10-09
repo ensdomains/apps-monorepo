@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import type { ReactNode } from 'react'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 /**
@@ -11,23 +10,27 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
  * the total is exact rent and the hedge would be a lie, so it is dropped.
  *
  * The `tracking-*` values are Figma-spec (node 3867:126050) and stay arbitrary:
- * the theme's only letter-spacing token (`--tracking-ens-wide`, +0.015em) does
- * not match, and Tailwind's default scale is em-relative (`tracking-tight` is
- * -0.45px at this size, not -0.36px), so no utility expresses them.
+ * `theme.css` defines no letter-spacing tokens, and Tailwind's default scale is
+ * em-relative (`tracking-tight` is -0.45px at this size, not -0.36px), so no
+ * utility expresses them.
  */
 export const PaymentTotalRow = ({
   total,
   isEstimate,
-  label = <Trans>Total</Trans>,
+  hasAccountCredit = false,
 }: {
   readonly total: number | undefined
   readonly isEstimate: boolean
-  /** "Total" unless something already paid in makes the figure a remainder. */
-  readonly label?: ReactNode
+  /**
+   * A credit line sits above this row, so the figure is the wallet's share of
+   * the total rather than the total itself. Named accordingly, or the two rows
+   * read as the same number disagreeing.
+   */
+  readonly hasAccountCredit?: boolean
 }) => (
   <div className="flex w-full items-baseline justify-between">
     <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">
-      {label}
+      {hasAccountCredit ? <Trans>You pay now</Trans> : <Trans>Total</Trans>}
     </span>
     <div className="flex items-center gap-2">
       <p className="tracking-[0.36px]">
