@@ -45,7 +45,9 @@ const ZERO = '0x0000000000000000000000000000000000000000'
  * lapse and would then answer differently — and a probe that silently picks up
  * the wrong answer reinstates exactly the bug this fixture exists to prevent.
  * Measured 2026-09-18: 14 of 15 such labels returned the same address, the odd
- * one out being simply unreserved.
+ * one out being simply unreserved. 2026-10-09: `hello` dropped — on a fork
+ * taken that day it answered `0x61336d67…` while the other seven agreed on
+ * `0x322B7581…`, i.e. it had been migrated or re-pointed on live Sepolia.
  */
 const PROBE_LABELS = [
   'demo',
@@ -56,7 +58,6 @@ const PROBE_LABELS = [
   'alice',
   'bob',
   'example',
-  'hello',
   'sepolia',
 ] as const
 

@@ -1450,7 +1450,11 @@ const migrationGA: Scenario[] = suite('G.GA', 'migration', 'manager', 'P3', [
   [
     'GA7',
     'Migrate at V1 grace day 45 and day 89',
-    'succeeds at both; the V2 expiry preserves the V1 expiry exactly',
+    // Corrected 2026-10-09: since WEB-424 a grace name is renewed before it is
+    // upgraded, and `AbstractETHRegistrar.renew` extends the V2 reservation by
+    // the same duration as V1, so the V2 expiry is the renewed V1 expiry plus
+    // PREMIGRATION_BONUS_PERIOD — not the original V1 expiry.
+    'renew-then-upgrade succeeds at both (day 89: reservation already lapsed to AVAILABLE); V2 expiry = renewed V1 expiry + PREMIGRATION_BONUS_PERIOD exactly',
     { planId: 'G17' },
   ],
   [

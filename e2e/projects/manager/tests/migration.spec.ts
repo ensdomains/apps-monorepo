@@ -336,26 +336,23 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
       page.getByRole('button', { name: /^Register$/i }),
       'a reserved name must not be offered for registration',
     ).toHaveCount(0)
-    // Instead the visitor sees the name as taken, by its V1 owner (shown by
-    // primary name when it has one).
+    // Instead the visitor sees the name as taken, by its V1 owner — shown by
+    // primary name when it has one, else as a full or shortened address.
     const primary = await getName(publicClient as never, {
       address: owner.address,
     }).catch(() => null)
     await expect(page.getByText('Owner', { exact: true })).toBeVisible({
       timeout: 30_000,
     })
+    const ownerShown = page
+      .locator(`main a[href$="/${owner.address}" i]`)
+      .or(
+        primary?.name
+          ? page.getByText(primary.name, { exact: true })
+          : page.locator(`main a[href$="/${owner.address}" i]`),
+      )
     await expect(
-      page
-        .getByText(
-          new RegExp(
-            `^(${[owner.address, primary?.name]
-              .filter(Boolean)
-              .map((s) => (s as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-              .join('|')})$`,
-            'i',
-          ),
-        )
-        .first(),
+      ownerShown.first(),
       'the profile must name the V1 owner',
     ).toBeVisible()
     if (process.env.QA_SHOTS_DIR)

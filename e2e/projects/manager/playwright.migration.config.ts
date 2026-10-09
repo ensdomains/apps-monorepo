@@ -35,5 +35,12 @@ export default defineConfig({
       testMatch: /migration(-(subname|grace|fuses|managers))?\.spec\.ts$/,
       dependencies: ['harness-manager'],
     },
+    {
+      // Moves the shared fork clock forward for good (91 days), so it runs
+      // after everything else here and nothing depends on it.
+      name: 'manager-migration-time',
+      testMatch: /migration-time\.spec\.ts$/,
+      dependencies: ['manager-migration'],
+    },
   ],
 })

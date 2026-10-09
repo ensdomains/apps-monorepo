@@ -5,6 +5,50 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 31 — 2026-10-09 · migration deep into and after grace (GA7, GA8); premium spec retired
+
+**Batch:** the last migration file no config ran. `migration-premium.spec.ts`
+was superseded throughout (its active case is GW3, its 45-day case predates
+WEB-424 and is GA6/GA7, its 5-day renewal is the WEB-424 flow) — deleted.
+GA7 and GA8 are covered by a new `migration-time.spec.ts` in its own project,
+`manager-migration-time`, which depends on `manager-migration` so it always
+runs last: it moves the shared clock 91 days forward per run.
+
+**Result:** PASS GA7, GA8 · DEFECT 0 · EXEMPT 0. Verified: two clean
+consecutive full `manager-migration` runs, 40/40 each (time project included).
+
+### Ground truth (contracts-v2 `AbstractETHRegistrar.renew`, `ETHRenewerV1`)
+
+`renew` sets the V2 expiry to `reservedExpiry + duration` and extends V1 by
+the same `duration`; the migration registers with the reserved expiry. So after
+renew-then-upgrade, **V2 expiry = renewed V1 expiry + PREMIGRATION_BONUS_PERIOD
+exactly** — asserted at day 45 (slot RESERVED) and day 89 (slot lapsed to
+AVAILABLE, renewable for 28 days more). GA7's oracle ("preserves the V1 expiry
+exactly") predated WEB-424; corrected. Past day 90 `isRenewable` is false, the
+name is not offered, and `isAvailable` is true (GA8).
+
+### Environment
+
+- The Mac rebooted overnight; the stack came back without anvil. Rebuilt as in
+  iteration 29 (fresh fork, Panoptes DB wiped, re-funded).
+- **`premigration.ts` probe label `hello` dropped:** on today's fork it
+  disagreed with the other seven reserved labels (re-pointed on live Sepolia).
+  The guard refused to guess, as designed; every V1-seeding test needed this.
+- Anvil panicked again mid-verification (drpc TLS close_notify, third time in
+  two days). If it keeps happening, try `SEPOLIA_FORK_URL` (the compose file
+  reads it) pointed at another provider.
+- A11's owner check now matches the owner link's target (`/0x…`) or the
+  primary name: the manager truncates with `...`, the portal with `…`.
+
+**In flight:** nothing.
+
+**Next:** (1) GA1–GA3 (approval rows in the plan) and GU1–GU3 (list totality,
+predicted vs actual confirmations, EOA nonce delta) — GM1 already proves
+"predicted = actual" for one shape, generalise it; (2) GS1/GS2/GS6 (locked
+2LD with locked/emancipated children, three levels); (3) V1 roles-tab cells.
+
+---
+
 ## Iteration 30 — 2026-10-08 · `migration.spec.ts` adopted: unwrapped and emancipated 2LDs, records, batching, edit-after, A11
 
 **Batch:** R0 §G migration, at the user's direction ("migration needs to be
