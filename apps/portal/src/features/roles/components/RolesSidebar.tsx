@@ -346,7 +346,7 @@ export const RolesSidebar = <
                   {/* History Section */}
                   <div className="flex flex-col gap-4 mt-5">
                     <div className="flex flex-wrap justify-between items-center gap-4">
-                      <h3 className="text-2xl font-medium leading-snug">
+                      <h3 className="text-h2 font-medium leading-snug">
                         History
                       </h3>
                     </div>

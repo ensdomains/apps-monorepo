@@ -76,7 +76,7 @@ export const RegistrationExpiryDatePicker = ({
               'flex w-full cursor-pointer items-center gap-2 text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
             )}
           >
-            <span className="flex-1 truncate text-2xl font-medium">
+            <span className="flex-1 truncate text-h2 font-medium">
               {displayValue}
             </span>
             <span

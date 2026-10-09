@@ -79,14 +79,14 @@ export const RegistrationDurationPicker = ({
               'shadow-none focus-visible:ring-0 [appearance:textfield]',
               '[&::-webkit-inner-spin-button]:appearance-none',
               '[&::-webkit-outer-spin-button]:appearance-none',
-              'text-2xl md:text-2xl rounded-none',
+              'text-h2 md:text-h2 rounded-none',
               isFocused && 'font-medium',
             )}
           />
           <span
             className={cn(
               'pointer-events-none absolute inset-0',
-              'text-2xl font-medium',
+              'text-h2 font-medium',
               'flex items-center justify-start bg-background',
               isFocused && 'hidden',
             )}
