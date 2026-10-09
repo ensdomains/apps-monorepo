@@ -40,11 +40,11 @@ const window = (
 const held = (name: string, expiryDate: number): ExpiringName => ({
   name,
   expiryDate,
-  registrationStatus: 'registered',
+  registrationStatus: 'active',
   hasV2Grace: true,
 })
 
-/** An ENSv2 registration past its expiry, still renewable in grace. */
+/** A registration whose renewal grace has ended. */
 const expiredRelease = (name: string, expiryDate: number): ExpiringName => ({
   name,
   expiryDate,
@@ -151,7 +151,7 @@ describe('fetchSweep', () => {
 
   it.each([
     { id: 'expiry-7d', kept: ['held.eth'] },
-    { id: 'grace-1d', kept: ['held.eth', 'expired.eth'] },
+    { id: 'grace-1d', kept: ['in-grace.eth'] },
     { id: 'premium-start', kept: ['expired.eth'] },
   ] as const)('notifies the rows each phase allows: $id', async ({
     id,
@@ -160,6 +160,7 @@ describe('fetchSweep', () => {
     serveIndex([
       held('held.eth', 10_000_050),
       expiredRelease('expired.eth', 10_000_060),
+      { ...held('in-grace.eth', 10_000_065), registrationStatus: 'expired' },
       {
         name: 'unregistered.eth',
         expiryDate: 10_000_070,
@@ -176,7 +177,7 @@ describe('fetchSweep', () => {
       {
         name: 'unreserved-v1.eth',
         expiryDate: 10_000_090,
-        registrationStatus: 'registered',
+        registrationStatus: 'active',
         hasV2Grace: false,
       },
     ])

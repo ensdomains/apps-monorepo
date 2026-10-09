@@ -60,7 +60,7 @@ export type NameListingRow = Readonly<{
   expires_at?: Timestamp
   /** End of the registrar grace period, already adjusted for the authority. */
   grace_ends_at?: Timestamp
-  /** Replaces `owner` once the registration has been released. */
+  /** Historical holder, independently of the canonical lifecycle status. */
   lapsed_registration?: LapsedRegistration
   /** The lease that decides an ENSv1 name, which a reserved name's `expires_at` does not show. */
   ens_v1?: EnsV1Facts

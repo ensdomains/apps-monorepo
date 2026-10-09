@@ -168,6 +168,19 @@ const executeIndexerQuery = ResultFn(async function* (
       cause: unreadable.row,
     })
   }
+  const statuses: readonly RegistrationStatus[] = [
+    'active',
+    'expired',
+    'released',
+    'unregistered',
+  ]
+  const invalidStatus = rows.find(({ row }) => !statuses.includes(row.status))
+  if (invalidStatus) {
+    return yield* new IndexerValidationError({
+      message: `Indexer listed ${invalidStatus.row.name} without a supported lifecycle status for ${ctx.label}`,
+      cause: invalidStatus.row,
+    })
+  }
   const names = rows.flatMap(({ row, expiryDate }): ExpiringName[] =>
     expiryDate === null
       ? []
@@ -175,7 +188,7 @@ const executeIndexerQuery = ResultFn(async function* (
           {
             name: row.name,
             expiryDate,
-            registrationStatus: row.registration_status,
+            registrationStatus: row.status,
             hasV2Grace:
               toUnixSeconds(row.grace_ends_at) ===
               expiryDate + V2_GRACE_SECONDS,
