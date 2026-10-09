@@ -208,6 +208,13 @@ export type StoredRegistrationKey = {
   readonly updatedAt: number
 }
 
+export const storedRegistrationKey = (
+  stored: StoredRegistration,
+): StoredRegistrationKey => ({
+  label: stored.label,
+  updatedAt: stored.record.updatedAt,
+})
+
 /**
  * Clear the stored record only if it is still the write `key` names. Since
  * then another tab may have resumed or restarted the name, and its record

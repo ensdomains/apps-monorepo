@@ -131,8 +131,12 @@ const renderPage = () =>
     </I18nProvider>,
   )
 
-/** What a run whose register failed after its commit landed leaves behind. */
-const storeFailedRun = () => {
+/**
+ * What a run that failed after its commit landed leaves behind. With
+ * `registerSent`, its register went out before it failed: it may have landed,
+ * or still be filling.
+ */
+const storeFailedRun = ({ registerSent }: { registerSent: boolean }) => {
   const record: PersistedRegistrationRecord = buildRegistrationRecord(
     'error',
     {
@@ -147,7 +151,7 @@ const storeFailedRun = () => {
       resolverAddress: RESOLVER,
       commitment: { commitment: COMMITMENT, secret: SECRET },
       commitmentTxId: 'tx-reg-commit',
-      registrationTxId: 'tx-reg-register',
+      ...(registerSent ? { registrationTxId: 'tx-reg-register' } : {}),
       publicClient: {} as PublicClient,
     },
     Date.now(),
@@ -194,7 +198,6 @@ describe('a failed registration, after a reload', () => {
   beforeEach(() => {
     localStorage.clear()
     sessionStorage.clear()
-    storeFailedRun()
   })
 
   afterEach(() => {
@@ -202,6 +205,7 @@ describe('a failed registration, after a reload', () => {
   })
 
   it('comes back on the failure screen, and Try Again continues it once the wallet is free', async () => {
+    storeFailedRun({ registerSent: false })
     const page = renderPage()
 
     // Back on the failure screen, with nothing re-run: the child never
@@ -221,8 +225,8 @@ describe('a failed registration, after a reload', () => {
     expect(loadStoredRegistration()?.record.stage).toBe('error')
 
     // Once the wallet is free, the same button goes back through the resume
-    // and the run picks up from its commitment: validated on-chain first, not
-    // the failed register re-verified, and no new commit.
+    // and the run picks up from its commitment: validated on-chain first, and
+    // no new commit.
     asAnotherTab(() => releaseRegistrationLock(OWNER))
     await tryAgain()
 
@@ -238,7 +242,23 @@ describe('a failed registration, after a reload', () => {
     page.unmount()
   })
 
+  it('checks a register that already went out before revealing again', async () => {
+    // It may have landed, consuming the commitment, or still be filling.
+    // Revalidating the commitment would fail a name the user may now own.
+    storeFailedRun({ registerSent: true })
+    const page = renderPage()
+    expect(await screen.findByText('Registration Failed')).toBeVisible()
+
+    await tryAgain()
+
+    await waitFor(() => expect(childState()).toBe('verifyingRegistration'))
+    expect(screen.getByRole('status')).toHaveTextContent('registering')
+
+    page.unmount()
+  })
+
   it('discards the stored run on Back to Quote', async () => {
+    storeFailedRun({ registerSent: false })
     const page = renderPage()
     expect(await screen.findByText('Registration Failed')).toBeVisible()
 

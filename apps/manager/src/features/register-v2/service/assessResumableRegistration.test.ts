@@ -190,7 +190,10 @@ describe('assessResumableRegistration', () => {
       publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE - 1n),
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'commitment-expired',
+    })
   })
 
   it('discards a commitment exactly at the age limit', async () => {
@@ -202,7 +205,10 @@ describe('assessResumableRegistration', () => {
       publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'commitment-expired',
+    })
   })
 
   it('resumes a commitment one second inside the age limit', async () => {
@@ -280,13 +286,13 @@ describe('assessResumableRegistration', () => {
       label: 'leon',
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'label-mismatch' })
+    expect(result).toMatchObject({ status: 'stale', reason: 'label-mismatch' })
   })
 
   it('discards a record from another chain', async () => {
     const result = await assess({ stored: storedRegistration({ chainId: 1 }) })
 
-    expect(result).toEqual({ status: 'stale', reason: 'chain-mismatch' })
+    expect(result).toMatchObject({ status: 'stale', reason: 'chain-mismatch' })
   })
 
   it('discards a record written under the other signer mode', async () => {
@@ -303,7 +309,10 @@ describe('assessResumableRegistration', () => {
       stored: storedRegistration(),
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'signer-mode-mismatch' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'signer-mode-mismatch',
+    })
   })
 
   it('resumes when the signer mode still matches', async () => {
@@ -338,7 +347,10 @@ describe('assessResumableRegistration', () => {
   ])('discards a record left at the %s stage', async (stage) => {
     const result = await assess({ stored: storedRegistration({ stage }) })
 
-    expect(result).toEqual({ status: 'stale', reason: 'already-finished' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'already-finished',
+    })
   })
 
   describe('a failed run', () => {
@@ -374,14 +386,29 @@ describe('assessResumableRegistration', () => {
       expect(result.confirmedData.basePriceNumber).toBe(4)
     })
 
-    it('continues from the commitment rather than re-checking the failed register', async () => {
-      // With the failed register's ids left in, the resume would verify that
-      // same register again and land straight back on the failure screen.
+    it('checks a register it already sent before revealing again', async () => {
+      // That register may have landed, or still be filling, and the
+      // commitment it consumed then reads as never recorded. Revalidating the
+      // commitment would fail a name the user already owns; verifying the
+      // register first finds it.
       const result = await assess({ stored: failedRun() })
 
       if (result.status !== 'failed') throw new Error(result.status)
-      expect(result.stored.record.context.registrationTxId).toBeUndefined()
-      expect(result.stored.record.context.registrationIntentId).toBeUndefined()
+      expect(result.stored.record.context.registrationTxId).toBe(
+        'tx-reg-register',
+      )
+      expect(result.stored.record.context.registrationIntentId).toBe(7n)
+      expect(getResumeTarget(result.stored.record)).toBe(
+        'verifyingRegistration',
+      )
+    })
+
+    it('revalidates the commitment when no register went out', async () => {
+      const result = await assess({
+        stored: storedRegistration({ stage: 'error' }),
+      })
+
+      if (result.status !== 'failed') throw new Error(result.status)
       expect(getResumeTarget(result.stored.record)).toBe('validatingCommitment')
     })
 
@@ -401,7 +428,7 @@ describe('assessResumableRegistration', () => {
         publicClient,
       })
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         status: 'stale',
         reason: 'failed-before-commit',
       })
@@ -426,7 +453,25 @@ describe('assessResumableRegistration', () => {
         publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
       })
 
-      expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+      expect(result).toMatchObject({
+        status: 'stale',
+        reason: 'commitment-expired',
+      })
+    })
+  })
+
+  it('names the stored write a stale verdict is about', async () => {
+    // A discard clears only that write, not one another tab saved since.
+    const stored = storedRegistration()
+    const result = await assess({
+      stored,
+      publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
+    })
+
+    expect(result).toEqual({
+      status: 'stale',
+      reason: 'commitment-expired',
+      run: { label: 'leon', updatedAt: stored.record.updatedAt },
     })
   })
 

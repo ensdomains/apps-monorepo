@@ -28,6 +28,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -40,8 +41,10 @@ import {
   type ResumeStaleReason,
 } from '../service/assessResumableRegistration'
 import {
-  clearStoredRegistration,
+  clearStoredRegistrationIfUnchanged,
   loadStoredRegistration,
+  type StoredRegistrationKey,
+  storedRegistrationKey,
 } from '../service/registrationPersistence'
 import type { RegistrationV2UiActor } from './registrationUi.machine'
 
@@ -93,9 +96,12 @@ export const DISCONNECT_GRACE_MS = 2_000
 
 function discardStaleRecord(
   label: string,
-  reason: ResumeStaleReason,
+  verdict: Extract<ResumeAssessment, { status: 'stale' }>,
 ): RegistrationResumeState {
-  clearStoredRegistration()
+  const { reason } = verdict
+  // Only the write that was assessed: another tab may have replaced it while
+  // the chain was read, and its record holds the only copy of its secret.
+  clearStoredRegistrationIfUnchanged(verdict.run)
 
   // Only the expiry gets a notice: it is the one stale reason where the user
   // did something (paid for a commitment) whose silent disappearance would
@@ -150,7 +156,7 @@ function decideFromVerdict(
 
     return {
       kind: 'state',
-      state: discardStaleRecord(label, verdict.reason),
+      state: discardStaleRecord(label, verdict),
       latch: true,
     }
   }
@@ -236,6 +242,20 @@ async function enableSessionAndDispatch(params: {
  * the failure screen sat open, the commitment may have expired, or another
  * tab may have finished, discarded or replaced the stored run.
  */
+/** The stored write a verdict is about; none when nothing was stored. */
+const assessedRun = (
+  verdict: ResumeAssessment,
+): StoredRegistrationKey | undefined =>
+  match(verdict)
+    .with({ status: 'none' }, () => undefined)
+    .with({ status: 'stale' }, ({ run }) => run)
+    .otherwise(({ stored }) => storedRegistrationKey(stored))
+
+const isSameRun = (
+  a: StoredRegistrationKey | undefined,
+  b: StoredRegistrationKey | undefined,
+): boolean => !!a && !!b && a.label === b.label && a.updatedAt === b.updatedAt
+
 async function continueFailedRun(params: {
   label: string
   account: ReturnType<typeof useSmartAccountContext>
@@ -253,14 +273,23 @@ async function continueFailedRun(params: {
   const verdict = await params.assess()
   if (isCancelled()) return null
 
+  // The stored run is gone, or another tab has replaced it with a run of its
+  // own (resumed, restarted, or finished). Either way the failure on screen is
+  // over, and the newer record is not this screen's to resume or discard: back
+  // to pricing, storage untouched.
+  const restored = uiActor.getSnapshot().context.restoredRun
+  if (!isSameRun(assessedRun(verdict), restored)) {
+    uiActor.send({ type: 'cancel' })
+    return IDLE
+  }
+
   const decision = decideFromVerdict(verdict, label, account.ownerAddress)
 
   if (decision.kind === 'state') {
-    // Nothing left to continue from; `decideFromVerdict` has discarded a
-    // stale record. A record another wallet owns is not this screen's to
-    // touch, so that one stays put.
-    const { status } = decision.state
-    if (status !== 'discarded' && status !== 'idle') return null
+    // Nothing left to continue from: `decideFromVerdict` has discarded the
+    // stale record. A run another wallet owns stays put, with Try Again on
+    // screen for when its owner reconnects.
+    if (decision.state.status !== 'discarded') return null
     uiActor.send({ type: 'cancel' })
     return decision.state
   }
@@ -405,7 +434,7 @@ export function useRegistrationResume(params: {
       uiActor.send({
         type: 'registration.failure.restore',
         confirmedData,
-        run: { label: stored.label, updatedAt: stored.record.updatedAt },
+        run: storedRegistrationKey(stored),
       })
       decidedForLabel.current = label
       // Dropped unless the page was still on pricing, so nothing is shown.

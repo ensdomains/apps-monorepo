@@ -14,7 +14,7 @@ const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const OTHER = '0x2222222222222222222222222222222222222222' as Address
 
 const assessResumableRegistration = vi.fn()
-const clearStoredRegistration = vi.fn()
+const clearStoredWrite = vi.fn()
 const loadStoredRegistration = vi.fn()
 const needsSessionBeforeRegistration = vi.fn(() => false)
 const useSmartAccountContext = vi.fn()
@@ -37,9 +37,17 @@ vi.mock('../service/assessResumableRegistration', () => ({
 }))
 
 vi.mock('../service/registrationPersistence', () => ({
-  clearStoredRegistration: () => clearStoredRegistration(),
+  clearStoredRegistrationIfUnchanged: (...a: unknown[]) =>
+    clearStoredWrite(...a),
   loadStoredRegistration: () => loadStoredRegistration(),
+  storedRegistrationKey: (stored: {
+    label: string
+    record: { updatedAt: number }
+  }) => ({ label: stored.label, updatedAt: stored.record.updatedAt }),
 }))
+
+/** The stored write the fixtures below were assessed from. */
+const RUN = { label: 'leon', updatedAt: 1 }
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => useSmartAccountContext(),
@@ -209,6 +217,7 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'label-mismatch',
+      run: RUN,
     })
     rerender({ label: 'bob' })
 
@@ -225,7 +234,7 @@ describe('useRegistrationResume', () => {
     await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
     expect(result.current).toEqual({ status: 'wrong-wallet' })
     expect(send).not.toHaveBeenCalled()
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('names the owning wallet when no wallet is connected', async () => {
@@ -240,7 +249,7 @@ describe('useRegistrationResume', () => {
       }),
     )
     expect(send).not.toHaveBeenCalled()
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('resumes once the right wallet connects', async () => {
@@ -261,12 +270,14 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'commitment-expired',
+      run: RUN,
     })
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('discarded'))
-    expect(clearStoredRegistration).toHaveBeenCalledOnce()
+    // Only the write that was assessed, never one saved since.
+    expect(clearStoredWrite).toHaveBeenCalledExactlyOnceWith(RUN)
     expect(send).not.toHaveBeenCalled()
     // The user paid for that commitment; its disappearance needs a notice.
     expect(toast).toHaveBeenCalledOnce()
@@ -276,12 +287,13 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'signer-mode-mismatch',
+      run: RUN,
     })
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('discarded'))
-    expect(clearStoredRegistration).toHaveBeenCalledOnce()
+    expect(clearStoredWrite).toHaveBeenCalledOnce()
     // A quiet restart is the correct surface — there is nothing actionable to
     // tell the user about an internal mode flip.
     expect(toast).not.toHaveBeenCalled()
@@ -295,12 +307,13 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'label-mismatch',
+      run: RUN,
     })
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
     expect(toast).not.toHaveBeenCalled()
   })
@@ -311,7 +324,7 @@ describe('useRegistrationResume', () => {
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('enables an expired session before resuming', async () => {
@@ -380,7 +393,7 @@ describe('useRegistrationResume', () => {
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(send).not.toHaveBeenCalled()
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('recovers when the resume check throws instead of parking at checking', async () => {
@@ -396,7 +409,7 @@ describe('useRegistrationResume', () => {
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(send).not.toHaveBeenCalled()
     // The record is still valid — it must survive for the next attempt.
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('stays retryable after a throw, so a reconnect can still resume', async () => {
@@ -459,7 +472,7 @@ describe('useRegistrationResume', () => {
       // notice, and the commitment stays stored.
       expect(enableSession).not.toHaveBeenCalled()
       expect(toast).not.toHaveBeenCalled()
-      expect(clearStoredRegistration).not.toHaveBeenCalled()
+      expect(clearStoredWrite).not.toHaveBeenCalled()
     })
 
     it('continues from the stored commitment on Try Again', async () => {
@@ -488,13 +501,14 @@ describe('useRegistrationResume', () => {
       assessResumableRegistration.mockResolvedValue({
         status: 'stale',
         reason: 'commitment-expired',
+        run: RUN,
       })
 
       pressTryAgain(result.current)
 
       await waitFor(() => expect(result.current.status).toBe('discarded'))
       expect(assessResumableRegistration).toHaveBeenCalledTimes(2)
-      expect(clearStoredRegistration).toHaveBeenCalledOnce()
+      expect(clearStoredWrite).toHaveBeenCalledOnce()
       expect(send).toHaveBeenLastCalledWith({ type: 'cancel' })
       expect(enableSession).not.toHaveBeenCalled()
       // The expiry notice: the user paid for that commitment.
@@ -553,6 +567,54 @@ describe('useRegistrationResume', () => {
       expect(send).toHaveBeenCalledOnce()
       expect(enableSession).not.toHaveBeenCalled()
       expect(result.current.status).toBe('failed')
+    })
+
+    describe('when another tab has replaced the stored run since', () => {
+      /** Another tab's write for the same name, saved after this restore. */
+      const NEWER = { ...RUN, updatedAt: 2 }
+
+      it('leaves its record alone even when it reads as stale', async () => {
+        // The other tab's run reading as expired must not let this screen
+        // discard it: its record holds the only copy of its secret.
+        const { result } = render()
+        await waitFor(() => expect(result.current.status).toBe('failed'))
+        assessResumableRegistration.mockResolvedValue({
+          status: 'stale',
+          reason: 'commitment-expired',
+          run: NEWER,
+        })
+
+        pressTryAgain(result.current)
+
+        await waitFor(() => expect(result.current.status).toBe('idle'))
+        expect(clearStoredWrite).not.toHaveBeenCalled()
+        expect(send).toHaveBeenLastCalledWith({ type: 'cancel' })
+      })
+
+      it('does not continue a run that is not the one on screen', async () => {
+        const { result } = render()
+        await waitFor(() => expect(result.current.status).toBe('failed'))
+        const replaced = failedAssessment() as Extract<
+          ResumeAssessment,
+          { status: 'failed' }
+        >
+        assessResumableRegistration.mockResolvedValue({
+          ...replaced,
+          stored: {
+            ...replaced.stored,
+            record: { ...replaced.stored.record, updatedAt: NEWER.updatedAt },
+          },
+        })
+
+        pressTryAgain(result.current)
+
+        await waitFor(() => expect(result.current.status).toBe('idle'))
+        expect(enableSession).not.toHaveBeenCalled()
+        expect(send).not.toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'registration.resume' }),
+        )
+        expect(clearStoredWrite).not.toHaveBeenCalled()
+      })
     })
   })
 

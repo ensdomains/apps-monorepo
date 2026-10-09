@@ -21,7 +21,6 @@ import {
   getDestinationContracts,
   readCommitmentAges,
 } from '@ens-apps/smart-account'
-import type { PersistedRegistrationRecord } from '@ens-apps/transaction-manager'
 import { type Address, type PublicClient, parseAbi } from 'viem'
 import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -35,6 +34,8 @@ import {
   isFailedRegistrationRecord,
   loadStoredRegistration,
   type StoredRegistration,
+  type StoredRegistrationKey,
+  storedRegistrationKey,
 } from './registrationPersistence'
 
 const commitmentAtAbi = parseAbi([
@@ -83,13 +84,27 @@ type ContinuableRegistration = {
 
 export type ResumeAssessment =
   | { readonly status: 'none' }
-  | { readonly status: 'stale'; readonly reason: ResumeStaleReason }
+  | {
+      readonly status: 'stale'
+      readonly reason: ResumeStaleReason
+      /**
+       * The stored write this verdict is about. A discard clears only that
+       * write: the chain reads take long enough for another tab to have
+       * replaced it, and the newer record holds the only copy of its secret.
+       */
+      readonly run: StoredRegistrationKey
+    }
   | ({ readonly status: 'resumable' } & ContinuableRegistration)
   /**
-   * A run that failed with its commitment on-chain. It goes back on the
-   * failure screen rather than resuming, and continues from that commitment
-   * only when the user presses Try Again. `stored.record` is already prepared
-   * for that continuation (see {@link toRetryRecord}).
+   * A run that failed holding a commitment. It goes back on the failure screen
+   * rather than resuming, and continues only when the user presses Try Again.
+   *
+   * The record is passed on as stored, register ids included. A register that
+   * was sent may have landed or still be filling, and the commitment it
+   * consumed then reads like one that never landed. With the ids, the resume
+   * starts at `verifyingRegistration`, which checks that register before
+   * anything is revealed again; without them it would revalidate the
+   * commitment and fail a name the user already owns.
    */
   | ({ readonly status: 'failed' } & ContinuableRegistration)
 
@@ -209,12 +224,17 @@ export async function assessResumableRegistration(params: {
 
   if (!stored) return { status: 'none' }
 
-  if (stored.label !== params.label) {
-    return { status: 'stale', reason: 'label-mismatch' }
-  }
+  const run = storedRegistrationKey(stored)
+  const stale = (reason: ResumeStaleReason): ResumeAssessment => ({
+    status: 'stale',
+    reason,
+    run,
+  })
+
+  if (stored.label !== params.label) return stale('label-mismatch')
 
   if (stored.record.context.chainId !== params.chainId) {
-    return { status: 'stale', reason: 'chain-mismatch' }
+    return stale('chain-mismatch')
   }
 
   // Resuming across a signer-mode flip cannot be made safe. `RESUME` replaces
@@ -232,13 +252,13 @@ export async function assessResumableRegistration(params: {
     params.signerType &&
     stored.record.context.signerType !== params.signerType
   ) {
-    return { status: 'stale', reason: 'signer-mode-mismatch' }
+    return stale('signer-mode-mismatch')
   }
 
   // The subscriber clears on `success`/`idle`, so seeing one here means the tab
   // died between the write and the clear. Nothing left to do but tidy up.
   if (stored.record.stage === 'success' || stored.record.stage === 'idle') {
-    return { status: 'stale', reason: 'already-finished' }
+    return stale('already-finished')
   }
 
   const isFailedRun = isFailedRegistrationRecord(stored.record)
@@ -249,23 +269,16 @@ export async function assessResumableRegistration(params: {
     commitment: stored.record.context.commitment?.commitment,
     isFailedRun,
   })
-  if (staleReason) return { status: 'stale', reason: staleReason }
+  if (staleReason) return stale(staleReason)
 
-  const { confirmedData, stale } = await requoteConfirmedData(stored)
+  const requoted = await requoteConfirmedData(stored)
 
-  return isFailedRun
-    ? {
-        status: 'failed',
-        stored: { ...stored, record: toRetryRecord(stored.record) },
-        confirmedData,
-        priceIsStale: stale,
-      }
-    : {
-        status: 'resumable',
-        stored,
-        confirmedData,
-        priceIsStale: stale,
-      }
+  return {
+    status: isFailedRun ? 'failed' : 'resumable',
+    stored,
+    confirmedData: requoted.confirmedData,
+    priceIsStale: requoted.stale,
+  }
 }
 
 /**
@@ -294,9 +307,11 @@ async function commitmentStaleReason(params: {
 
     // Not recorded, which proves nothing either way. A commit can land after
     // its run has failed: `validatingCommitment` gives up after ~12s, and a
-    // relayed commit can fill after a reported failure. Discarding the record
-    // here would lose the only copy of the secret for a commitment the user
-    // may yet pay for. Kept, it is validated again before anything reveals.
+    // relayed commit can fill after a reported failure. A register that went
+    // out consumes the commitment, so it also reads as not recorded once it
+    // lands. Discarding the record here would lose the only copy of the
+    // secret, or the ids that find that register. Kept, it is checked again
+    // before anything reveals.
     if (!age) return null
 
     // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
@@ -308,29 +323,6 @@ async function commitmentStaleReason(params: {
     // is recoverable (a genuinely expired commitment reverts and the user
     // restarts); discarding is not.
     return null
-  }
-}
-
-/**
- * A failed run's record, ready to continue from its commitment.
- *
- * The reveal-side ids belong to the register that failed. Left in, they route
- * the resume to `verifyingRegistration`, which re-checks that same failed
- * register and lands straight back on the failure screen. Without them,
- * `getResumeTarget` routes to `validatingCommitment`: the commitment is read
- * back from the chain, then revealed again, which is what Try Again does
- * within the same session.
- */
-function toRetryRecord(
-  record: PersistedRegistrationRecord,
-): PersistedRegistrationRecord {
-  return {
-    ...record,
-    context: {
-      ...record.context,
-      registrationTxId: undefined,
-      registrationIntentId: undefined,
-    },
   }
 }
 
