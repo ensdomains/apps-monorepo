@@ -15,18 +15,21 @@ export const PrimaryNameButton = ({
     type="button"
     {...props}
   >
-    <span className="font-sans text-[13px] leading-[1.15] tracking-[-0.24px] md:text-[16px]">
-      <Trans>Primary Name</Trans>
-    </span>
-    <span aria-hidden="true" className="relative size-4 shrink-0">
+    <span
+      aria-hidden="true"
+      className="grid size-4 shrink-0 place-items-center"
+    >
       <MSymbol
-        className="absolute inset-0 ms-opsz-20 text-base group-hover:invisible group-focus-visible:invisible"
+        className="col-start-1 row-start-1 ms-opsz-20 text-base leading-none group-hover:invisible group-focus-visible:invisible"
         symbol="person_check"
       />
       <MSymbol
-        className="invisible absolute inset-0 ms-opsz-20 text-base group-hover:visible group-focus-visible:visible"
+        className="invisible col-start-1 row-start-1 ms-opsz-20 text-base leading-none group-hover:visible group-focus-visible:visible"
         symbol="published_with_changes"
       />
+    </span>
+    <span className="font-sans text-[13px] leading-[1.15] tracking-[-0.24px] md:text-[16px]">
+      <Trans>Primary Name</Trans>
     </span>
   </button>
 )

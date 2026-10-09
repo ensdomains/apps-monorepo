@@ -33,7 +33,7 @@ const getNavItems = (
     icon: (
       <MSymbol
         aria-hidden="true"
-        className="ms-opsz-20"
+        className="ms-opsz-20 ms-wght-300"
         symbol="account_circle"
       />
     ),

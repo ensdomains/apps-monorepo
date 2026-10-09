@@ -62,6 +62,10 @@ describe('NavSection primary name profile action', () => {
     })
     expect(action).toBeEnabled()
     expect(action).toHaveClass('focus-visible:ring-2')
+    const icon = action.querySelector('.material-symbol')
+    expect(icon).toHaveTextContent('published_with_changes')
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(action).not.toHaveTextContent('account_circle')
     fireEvent.click(action)
     expect(onChoosePrimaryName).toHaveBeenCalledOnce()
   })
@@ -88,20 +92,32 @@ describe('NavSection primary name profile action', () => {
     expect(onAction).not.toHaveBeenCalled()
   })
 
-  it('remains a profile link when a primary name exists', () => {
+  it('keeps a stable account icon on the configured profile link', () => {
     reverseNameMock.data = 'alpha.eth'
+    const onAction = vi.fn()
+    const onChoosePrimaryName = vi.fn()
     render(
       <NavSection
-        onAction={() => undefined}
-        onChoosePrimaryName={() => undefined}
+        onAction={onAction}
+        onChoosePrimaryName={onChoosePrimaryName}
       />,
     )
 
-    expect(
-      screen.getByRole('link', { name: 'Primary Name Profile' }),
-    ).toHaveAttribute('href', '/alpha.eth')
+    const link = screen.getByRole('link', { name: 'Primary Name Profile' })
+    const icon = link.querySelector('.material-symbol')
+
+    expect(link).toHaveAttribute('href', '/alpha.eth')
+    expect(icon).toHaveTextContent('account_circle')
+    expect(icon).toHaveClass('ms-wght-300')
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(link).not.toHaveTextContent('person_check')
+    expect(link).not.toHaveTextContent('published_with_changes')
     expect(
       screen.queryByRole('button', { name: /Primary Name Profile/ }),
     ).toBeNull()
+
+    fireEvent.click(link)
+    expect(onAction).toHaveBeenCalledOnce()
+    expect(onChoosePrimaryName).not.toHaveBeenCalled()
   })
 })
