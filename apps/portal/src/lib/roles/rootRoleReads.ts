@@ -127,9 +127,6 @@ export const getBignameRootRoleHolders = ({
       }),
     )
 
-/** Bound on one account's root role changes on one registry. */
-const ROOT_ROLE_CHANGES_MAX_ROWS = 2000
-
 type RootRoleChangeRow = Extract<EventRow, { type: 'permission' }> & {
   data: NonNullable<Extract<EventRow, { type: 'permission' }>['data']> & {
     address: string
@@ -196,8 +193,5 @@ export const getBignameRootRoleChanges = (
   )
     .mapErr(toError)
     .map((rows) =>
-      rows
-        .slice(0, ROOT_ROLE_CHANGES_MAX_ROWS)
-        .filter(isRootRoleChangeOf(params))
-        .flatMap(toRoleHistoryEntry),
+      rows.filter(isRootRoleChangeOf(params)).flatMap(toRoleHistoryEntry),
     )

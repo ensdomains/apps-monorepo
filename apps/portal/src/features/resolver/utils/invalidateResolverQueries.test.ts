@@ -42,6 +42,18 @@ describe('invalidateResolverQueries', () => {
     expect(isStale(queryClient, [key, { name: 'alice.eth' }])).toBe(true)
   })
 
+  it.each([
+    'name-detail',
+    'resolver-nodes',
+  ])('invalidates what a resolver change moves (%s)', async (key) => {
+    const queryClient = new QueryClient()
+    seed(queryClient, [key, { name: 'alice.eth' }])
+
+    await invalidateResolverQueries(queryClient)
+
+    expect(isStale(queryClient, [key, { name: 'alice.eth' }])).toBe(true)
+  })
+
   it('leaves unrelated queries alone', async () => {
     const queryClient = new QueryClient()
     seed(queryClient, ['get-ens-owner', { name: 'alice.eth' }])

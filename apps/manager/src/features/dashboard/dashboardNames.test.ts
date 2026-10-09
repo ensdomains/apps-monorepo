@@ -423,4 +423,13 @@ describe('isAwaitingMigratedNames', () => {
     expect(isAwaitingMigratedNames([chunkOf([v2])], ['agent'])).toBe(false)
     expect(isAwaitingMigratedNames([chunkOf([v1])], [])).toBe(false)
   })
+
+  it('keeps waiting while the name is in neither list', () => {
+    expect(isAwaitingMigratedNames([chunkOf([])], ['agent'])).toBe(true)
+  })
+
+  it('on the ENSv1 list, waits only until the name leaves it', () => {
+    expect(isAwaitingMigratedNames([chunkOf([v1])], ['agent'], 'v1')).toBe(true)
+    expect(isAwaitingMigratedNames([chunkOf([])], ['agent'], 'v1')).toBe(false)
+  })
 })
