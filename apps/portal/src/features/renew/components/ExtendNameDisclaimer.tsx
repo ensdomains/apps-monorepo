@@ -11,7 +11,7 @@ export const ExtendNameDisclaimer = ({
   return (
     <div className="flex flex-col gap-6 items-center justify-center">
       <TriangleAlert className="size-6" />
-      <p className="text-base text-center">
+      <p className="text-p text-center">
         Extending a name does not change the owner. Extending a name you do not
         own will not give you ownership of it.
       </p>

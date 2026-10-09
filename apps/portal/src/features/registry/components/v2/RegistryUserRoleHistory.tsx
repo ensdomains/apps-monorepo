@@ -103,7 +103,7 @@ export const RegistryUserRoleHistory = ({
       <HistorySectionHeader />
       {match({ isLoading, error, count: rows.length })
         .with({ isLoading: true }, () => (
-          <p className="text-sm text-muted-foreground">Loading history…</p>
+          <p className="text-p text-muted-foreground">Loading history…</p>
         ))
         .with({ error: P.nonNullable }, () => (
           <ErrorMessage

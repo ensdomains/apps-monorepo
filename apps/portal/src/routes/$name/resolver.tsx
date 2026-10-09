@@ -334,7 +334,7 @@ const NoResolverSet = ({
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
       <div className="flex items-center gap-4 rounded-sm bg-accent-fill/40 p-6">
-        <p className="flex-1 text-base text-muted-foreground">
+        <p className="flex-1 text-p text-muted-foreground">
           This name does not have a resolver set.
         </p>
         <ResolverWarning name={name} ownerData={ownerData} />

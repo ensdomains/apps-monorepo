@@ -162,7 +162,7 @@ const RoleScopeSummary = ({
   readonly group: AccountRoleGroup
   readonly otherScopeCount: number
 }) => (
-  <p className="text-sm text-muted-foreground">
+  <p className="text-p text-muted-foreground">
     {group.isRoot
       ? 'Global roles (all names)'
       : `Roles scoped to ${group.resourceLabel}. Scoped roles can be revoked here; grant new ones from Add user.`}
@@ -210,10 +210,10 @@ const ConfirmSaveDialog = ({
             </Alert>
           )}
           {save && save.rolesToGrant.length > 0 && (
-            <p className="text-sm">Granting: {save.rolesToGrant.join(', ')}</p>
+            <p className="text-p">Granting: {save.rolesToGrant.join(', ')}</p>
           )}
           {save && save.rolesToRevoke.length > 0 && (
-            <p className="text-sm">Revoking: {save.rolesToRevoke.join(', ')}</p>
+            <p className="text-p">Revoking: {save.rolesToRevoke.join(', ')}</p>
           )}
         </DialogHeader>
         <DialogFooter>

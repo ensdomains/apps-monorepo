@@ -204,7 +204,7 @@ export const TransactionEvents = ({
                     <CopyableRecord
                       value={event.type}
                       displayValue={
-                        <h3 className="text-xl font-medium">{event.type}</h3>
+                        <h3 className="text-h3 font-medium">{event.type}</h3>
                       }
                     />
 

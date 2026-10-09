@@ -184,9 +184,7 @@ export const RoleHistoryTable = ({
 
   if (!data || data.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm p-4">
-        No role history found.
-      </p>
+      <p className="text-muted-foreground text-p p-4">No role history found.</p>
     )
   }
 

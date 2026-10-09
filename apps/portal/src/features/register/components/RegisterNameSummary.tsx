@@ -136,7 +136,7 @@ export const RegisterNameCheckoutSummary = ({
           )
           .otherwise(() => (
             <div className="border border-border rounded-md p-4">
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-p">
                 Unable to load price
               </p>
             </div>

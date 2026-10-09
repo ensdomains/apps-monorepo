@@ -234,7 +234,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
           <h3 className="text-sm font-medium">
             {`Names assigned to this address (${assigned.length})`}
           </h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             Anyone who owns a name can point a subname at any address. These
             were granted by someone else's name, not acquired by this address.
           </p>

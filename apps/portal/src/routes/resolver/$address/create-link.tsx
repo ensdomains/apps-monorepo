@@ -236,7 +236,7 @@ function RouteComponent() {
             </div>
           )}
           {isAlreadyLinked && (
-            <p className="text-sm text-danger">
+            <p className="text-p text-danger">
               {fromName} is already linked to another record. Linking again
               re-points it; the previous record is kept on the resolver.
             </p>
@@ -292,18 +292,18 @@ function RouteComponent() {
         </Field>
 
         {!isConnected && (
-          <p className="text-sm text-warning">
+          <p className="text-p text-warning">
             Please connect your wallet to link a name.
           </p>
         )}
         {isConnected && canLink === false && (
-          <p className="text-sm text-danger">
+          <p className="text-p text-danger">
             Your account does not have the ROLE_LINK permission on this
             resolver.
           </p>
         )}
         {mutation.error && (
-          <p className="text-sm text-danger">{mutation.error.message}</p>
+          <p className="text-p text-danger">{mutation.error.message}</p>
         )}
 
         <Button

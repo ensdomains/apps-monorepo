@@ -227,7 +227,7 @@ const RegistryNavCard = ({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-lg font-normal font-semi-mono">{count}</span>
+        <span className="text-h3 font-normal font-semi-mono">{count}</span>
         <ChevronRight className="size-4 text-muted-foreground" />
       </div>
     </div>

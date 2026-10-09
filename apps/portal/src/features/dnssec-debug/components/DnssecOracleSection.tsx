@@ -126,7 +126,7 @@ export const DnssecOracleSection = ({
   <section className="flex flex-col gap-4">
     <div className="flex flex-col gap-1">
       <h2 className="text-caps leading-none">ENS DNSSEC oracle</h2>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-p text-muted-foreground">
         The same proof an import submits, replayed against the onchain oracle
         one link at a time. Read-only — nothing is sent.
       </p>

@@ -76,7 +76,7 @@ export const MultiNameExtendModal = ({
     >
       <DialogContent className="sm:max-w-[460px] max-h-[80vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <DialogHeader className={stepTitle ? '' : 'sr-only'}>
-          <DialogTitle className="text-xl">{stepTitle}</DialogTitle>
+          <DialogTitle>{stepTitle}</DialogTitle>
         </DialogHeader>
         {match(step)
           .with('disclaimer', () => (

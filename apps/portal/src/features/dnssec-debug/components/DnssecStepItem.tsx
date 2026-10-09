@@ -105,7 +105,7 @@ export const DnssecStepItem = ({
           </StatusBadge>
         </div>
         {isUntrusted && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             Not trusted — a link above this one is broken.
           </p>
         )}

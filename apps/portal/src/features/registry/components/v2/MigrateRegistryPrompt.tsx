@@ -28,7 +28,7 @@ export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
         <h3 className="text-3xl font-medium font-serif">
           No registry configured
         </h3>
-        <p className="text-base">
+        <p className="text-p">
           This name must be upgraded to ENSv2 before it can deploy and manage
           its own registry.
         </p>

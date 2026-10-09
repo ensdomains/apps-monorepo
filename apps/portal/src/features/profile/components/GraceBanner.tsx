@@ -28,7 +28,7 @@ export const GraceBanner = ({ graceEndDate, canExtend }: GraceBannerProps) => {
         >
           This name has expired
         </span>
-        <p className="text-sm text-message-danger-text">{description}</p>
+        <p className="text-p text-message-danger-text">{description}</p>
       </div>
     </div>
   )

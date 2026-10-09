@@ -139,7 +139,7 @@ function RouteComponent() {
           reaches a record-less table.
         */}
         {!hasReverseRecords && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             No reverse records set yet. Open a network below to set its reverse
             name.
           </p>

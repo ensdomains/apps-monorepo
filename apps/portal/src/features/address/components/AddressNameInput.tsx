@@ -53,14 +53,14 @@ export const AddressNameInput = ({
       />
       {match(status)
         .with('resolving', () => (
-          <p className="text-sm mt-1.5 text-muted-foreground">
+          <p className="text-p mt-1.5 text-muted-foreground">
             Resolving address…
           </p>
         ))
         .with('resolved', () => {
           if (resolvedContent !== undefined) return resolvedContent
           return address ? (
-            <p className="text-sm mt-1.5 text-muted-foreground">
+            <p className="text-p mt-1.5 text-muted-foreground">
               {isRawAddress
                 ? `Using address: ${truncateAddress(address, 6, 4)}`
                 : `Resolved: ${truncateAddress(address, 6, 4)}`}
@@ -68,17 +68,17 @@ export const AddressNameInput = ({
           ) : null
         })
         .with('unresolved', () => (
-          <p className="text-sm mt-1.5 text-danger">
+          <p className="text-p mt-1.5 text-danger">
             Could not resolve an address for “{value.trim()}”
           </p>
         ))
         .with('error', () => (
-          <p className="text-sm mt-1.5 text-danger">
+          <p className="text-p mt-1.5 text-danger">
             Something went wrong resolving this address. Please try again.
           </p>
         ))
         .with('invalid', () => (
-          <p className="text-sm mt-1.5 text-danger">
+          <p className="text-p mt-1.5 text-danger">
             Enter a valid ENS name or address
           </p>
         ))

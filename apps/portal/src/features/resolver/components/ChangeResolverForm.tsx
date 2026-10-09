@@ -237,7 +237,7 @@ export const ChangeResolverForm = ({
       <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
 
       {isV1 ? (
-        <p className="text-base text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           <strong>{name}</strong> is an ENSv1 name, so it takes any resolver
           address. Deploying a permissioned resolver is a V2 feature and is not
           offered here.

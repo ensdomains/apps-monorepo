@@ -50,9 +50,7 @@ export const ExtendNameCheckoutSummary = ({
         )
         .otherwise(() => (
           <div className="border border-border rounded-md p-4">
-            <p className="text-muted-foreground text-sm">
-              Unable to load price
-            </p>
+            <p className="text-muted-foreground text-p">Unable to load price</p>
           </div>
         ))}
     </section>
@@ -94,7 +92,7 @@ const ExtensionSkeleton = () => (
       label="Total:"
       value={<Skeleton className="h-7 w-14" />}
       className="pt-3 border-t border-border"
-      labelClassName="text-xl text-primary font-medium"
+      labelClassName="text-h3 text-primary font-medium"
     />
   </dl>
 )
@@ -138,8 +136,8 @@ const ExtensionPriceBreakdown = ({
         label="Total:"
         value={total}
         className="pt-3 border-t border-border"
-        labelClassName="text-xl text-primary font-medium"
-        valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+        labelClassName="text-h3 text-primary font-medium"
+        valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-h3"
       />
     </dl>
   )
