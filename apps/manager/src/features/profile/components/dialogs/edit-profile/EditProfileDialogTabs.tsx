@@ -20,6 +20,7 @@ export const editProfileTabs = [
 ] as const
 
 interface EditProfileDialogTabsProps {
+  readonly mobileNavOpen: boolean
   readonly name: string
   readonly onAddressesChange: (addresses: ProfileRecords['addresses']) => void
   readonly onBaseChange: (base: ProfileRecords['base']) => void
@@ -28,6 +29,7 @@ interface EditProfileDialogTabsProps {
     hasValidationIssues: boolean,
   ) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
+  readonly onMobileNavOpenChange: (open: boolean) => void
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
@@ -87,6 +89,7 @@ const MobileProfileActions = ({
 )
 
 export const EditProfileDialogTabs = ({
+  mobileNavOpen,
   name,
   onAddressesChange,
   onBaseChange,
@@ -94,13 +97,13 @@ export const EditProfileDialogTabs = ({
   onDraftLinkValidationIssuesChange,
   onImageUploadPrepared,
   onLinksChange,
+  onMobileNavOpenChange,
   onSocialChange,
   owner,
   preparedImageUploads,
   savedDescription,
   values,
 }: EditProfileDialogTabsProps) => {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [isScrolling, setIsScrolling] = useState(false)
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
@@ -190,14 +193,14 @@ export const EditProfileDialogTabs = ({
         <div className="absolute inset-x-0 top-0 bottom-14 z-10 bg-white px-4 pt-1 md:hidden">
           <EditProfileTabList
             className="h-full w-full rounded-lg border border-ens-quartz-200"
-            onSelect={() => setMobileNavOpen(false)}
+            onSelect={() => onMobileNavOpenChange(false)}
           />
         </div>
       ) : null}
 
       <MobileProfileActions
         isMenuOpen={mobileNavOpen}
-        onMenuToggle={() => setMobileNavOpen((open) => !open)}
+        onMenuToggle={() => onMobileNavOpenChange(!mobileNavOpen)}
       />
     </div>
   )

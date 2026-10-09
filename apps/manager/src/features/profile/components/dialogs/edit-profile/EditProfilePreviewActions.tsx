@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// Figma-spec button type and sizes, no matching tokens
 const ghostActionClassName =
   'inline-flex h-13.5 shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 font-mono text-ens-quartz-900 text-sm uppercase tracking-[0.28px] transition-colors hover:bg-ens-quartz-50 disabled:cursor-wait disabled:opacity-60 lg:landscape:h-12.5 lg:landscape:rounded lg:landscape:px-5 lg:landscape:font-semi-mono lg:landscape:text-xs lg:landscape:tracking-[1.44px]'
 

@@ -29,6 +29,9 @@ export const useEditProfilePreview = ({
     if (!isPreviewing) setDraft(null)
   }, [isPreviewing, setDraft])
 
+  // The dialog unmounts when the wallet disconnects or changes owner mid-preview
+  useEffect(() => () => setDraft(null), [setDraft])
+
   useBlocker({
     disabled: !isPreviewing,
     enableBeforeUnload: isPreviewing,

@@ -1,5 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { ArrowRight } from 'lucide-react'
+import { match } from 'ts-pattern'
 import {
   Tooltip,
   TooltipContent,
@@ -30,17 +31,25 @@ export const EditProfileDialogFooter = ({
     style: 'long',
     type: 'conjunction',
   }).format(errorTabLabels)
-  const disabledReason = hasErrors
-    ? t`Resolve errors before previewing changes.`
-    : hasChanges
-      ? undefined
-      : t`You haven't made changes yet. Edit your profile then click here to preview those changes.`
+  const disabledReason = match({ hasChanges, hasErrors })
+    .with(
+      { hasErrors: true },
+      () => t`Resolve errors before previewing changes.`,
+    )
+    .with(
+      { hasChanges: false },
+      () =>
+        t`You haven't made changes yet. Edit your profile then click here to preview those changes.`,
+    )
+    .otherwise(() => undefined)
 
   const handlePreviewClick = () => {
     if (canPreview) onPreview()
     else if (hasErrors) onShowErrors()
   }
 
+  // Figma-spec button type: the font size and tracking values below have no
+  // matching tokens
   const previewButton = (
     <button
       aria-disabled={!canPreview}
@@ -62,7 +71,7 @@ export const EditProfileDialogFooter = ({
     <div className="flex shrink-0 flex-col gap-3 border-ens-quartz-200 border-t px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
       <p
         aria-live="polite"
-        className="min-w-0 font-mono text-[#c82e1f] text-xs leading-normal"
+        className="min-w-0 font-mono text-ens-error text-xs leading-normal"
         role={hasErrors ? 'alert' : undefined}
       >
         {hasErrors ? (
