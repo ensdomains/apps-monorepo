@@ -62,7 +62,7 @@ export const EditProfileDialogBody = withForm({
     savedRecords,
   }) => {
     const [activeTab, setActiveTab] = useState('general')
-    const [mobileNavOpen, setMobileNavOpen] = useState(false)
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
 
@@ -70,7 +70,7 @@ export const EditProfileDialogBody = withForm({
     useEffect(() => {
       setHasDraftLinkValidationIssues(false)
       setActiveTab('general')
-      setMobileNavOpen(false)
+      setIsMobileNavOpen(false)
     }, [open])
 
     return (
@@ -166,7 +166,7 @@ export const EditProfileDialogBody = withForm({
                 themeColor={values.base.theme}
               />
               <EditProfileDialogTabs
-                mobileNavOpen={mobileNavOpen}
+                isMobileNavOpen={isMobileNavOpen}
                 name={name}
                 onAddressesChange={handleAddressesChange}
                 onBaseChange={handleBaseChange}
@@ -176,7 +176,7 @@ export const EditProfileDialogBody = withForm({
                 }
                 onImageUploadPrepared={onImageUploadPrepared}
                 onLinksChange={handleLinksChange}
-                onMobileNavOpenChange={setMobileNavOpen}
+                onMobileNavOpenChange={setIsMobileNavOpen}
                 onSocialChange={handleSocialChange}
                 owner={owner}
                 preparedImageUploads={activePreparedImageUploads}
@@ -194,7 +194,7 @@ export const EditProfileDialogBody = withForm({
                   if (!firstErrorTab) return
 
                   setActiveTab(firstErrorTab.value)
-                  setMobileNavOpen(false)
+                  setIsMobileNavOpen(false)
                 }}
               />
             </Tabs>

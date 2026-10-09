@@ -8,6 +8,10 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
+// Figma-spec button type: the tracking values have no matching tokens
+const footerButtonClassName =
+  'inline-flex h-12.5 items-center justify-center rounded px-5 font-mono text-sm uppercase tracking-[0.28px] transition-colors md:font-semi-mono md:text-xs md:tracking-[1.44px]'
+
 interface EditProfileDialogFooterProps {
   readonly canPreview: boolean
   readonly errorTabLabels: readonly string[]
@@ -48,13 +52,12 @@ export const EditProfileDialogFooter = ({
     else if (hasErrors) onShowErrors()
   }
 
-  // Figma-spec button type: the font size and tracking values below have no
-  // matching tokens
   const previewButton = (
     <button
       aria-disabled={!canPreview}
       className={cn(
-        'inline-flex h-12.5 items-center justify-center gap-2 rounded px-5 font-mono text-sm text-white uppercase tracking-[0.28px] transition-colors md:font-semi-mono md:text-xs md:tracking-[1.44px]',
+        footerButtonClassName,
+        'gap-2 text-white',
         canPreview
           ? 'bg-ens-quartz-900 hover:bg-ens-quartz-700'
           : 'cursor-not-allowed bg-ens-quartz-100 text-ens-quartz-400',
@@ -83,7 +86,10 @@ export const EditProfileDialogFooter = ({
       </p>
       <div className="flex shrink-0 items-center justify-end gap-3">
         <button
-          className="inline-flex h-12.5 items-center justify-center rounded px-5 font-mono text-ens-quartz-900 text-sm uppercase tracking-[0.28px] transition-colors hover:bg-ens-quartz-50 md:font-semi-mono md:text-xs md:tracking-[1.44px]"
+          className={cn(
+            footerButtonClassName,
+            'text-ens-quartz-900 hover:bg-ens-quartz-50',
+          )}
           onClick={onCancel}
           type="button"
         >

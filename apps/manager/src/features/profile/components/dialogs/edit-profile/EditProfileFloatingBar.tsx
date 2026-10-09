@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { match } from 'ts-pattern'
 import {
   editBottomBarContentClassName,
   profileBarActionsClassName,
@@ -34,48 +35,51 @@ const useOpenHeight = () => {
   return openHeight
 }
 
-const getHeightTransition = (isOpen: boolean, reduced: boolean) => {
-  if (reduced) return { duration: 0 }
+const getHeightTransition = (isOpen: boolean, isReducedMotion: boolean) => {
+  if (isReducedMotion) return { duration: 0 }
 
   return isOpen
     ? { type: 'spring' as const, stiffness: 300, damping: 30, mass: 0.8 }
     : { type: 'spring' as const, stiffness: 380, damping: 38, mass: 0.7 }
 }
 
-const getBarMotion = (isOpen: boolean, reduced: boolean) => ({
+const getBarMotion = (isOpen: boolean, isReducedMotion: boolean) => ({
   animate: {
     filter: isOpen ? 'blur(6px)' : 'blur(0px)',
     opacity: isOpen ? 0 : 1,
     scale: isOpen ? 0.97 : 1,
   },
   transition: {
-    delay: isOpen || reduced ? 0 : 0.1,
-    duration: reduced ? 0 : isOpen ? 0.1 : 0.14,
+    delay: isOpen || isReducedMotion ? 0 : 0.1,
+    duration: match({ isOpen, isReducedMotion })
+      .with({ isReducedMotion: true }, () => 0)
+      .with({ isOpen: true }, () => 0.1)
+      .otherwise(() => 0.14),
     ease: 'easeOut' as const,
   },
 })
 
-const getEditorMotion = (reduced: boolean) => ({
+const getEditorMotion = (isReducedMotion: boolean) => ({
   animate: {
     filter: 'blur(0px)',
     opacity: 1,
     y: 0,
     transition: {
-      delay: reduced ? 0 : 0.07,
-      duration: reduced ? 0 : 0.3,
+      delay: isReducedMotion ? 0 : 0.07,
+      duration: isReducedMotion ? 0 : 0.3,
       ease: [0.22, 1, 0.36, 1] as const,
     },
   },
   exit: {
-    filter: reduced ? 'blur(0px)' : 'blur(4px)',
+    filter: isReducedMotion ? 'blur(0px)' : 'blur(4px)',
     opacity: 0,
-    y: reduced ? 0 : 16,
-    transition: { duration: reduced ? 0 : 0.1 },
+    y: isReducedMotion ? 0 : 16,
+    transition: { duration: isReducedMotion ? 0 : 0.1 },
   },
   initial: {
-    filter: reduced ? 'blur(0px)' : 'blur(8px)',
+    filter: isReducedMotion ? 'blur(0px)' : 'blur(8px)',
     opacity: 0,
-    y: reduced ? 0 : 24,
+    y: isReducedMotion ? 0 : 24,
   },
 })
 
@@ -100,6 +104,11 @@ const useMeasuredHeight = (ref: RefObject<HTMLElement | null>) => {
 // matching tokens. The open shadow is the elevated state while the editor is up.
 const containerClassName =
   'pointer-events-auto relative mx-auto w-full max-w-226.25 overflow-hidden border-ens-quartz-200 border-t bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] transition-shadow duration-300 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:border-solid lg:landscape:shadow-[0_2px_12px_rgba(0,0,0,0.06)] lg:landscape:data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)]'
+
+// Figma-spec offset: the bar floats 30px above the bottom (plus the device
+// safe area), which has no matching spacing token.
+const sectionClassName =
+  'pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:landscape:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] lg:landscape:px-4'
 
 interface EditProfileFloatingBarProps {
   readonly children: ReactNode
@@ -133,15 +142,15 @@ export const EditProfileFloatingBar = ({
     onEscape()
   }
 
-  const reduced = !!shouldReduceMotion
-  const heightTransition = getHeightTransition(isOpen, reduced)
-  const barMotion = getBarMotion(isOpen, reduced)
-  const editorMotion = getEditorMotion(reduced)
+  const isReducedMotion = !!shouldReduceMotion
+  const heightTransition = getHeightTransition(isOpen, isReducedMotion)
+  const barMotion = getBarMotion(isOpen, isReducedMotion)
+  const editorMotion = getEditorMotion(isReducedMotion)
 
   return (
     <section
       aria-label={t`Profile actions`}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:landscape:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] lg:landscape:px-4"
+      className={sectionClassName}
       onKeyDown={handleKeyDown}
     >
       <motion.div
