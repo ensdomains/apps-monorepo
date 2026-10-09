@@ -117,7 +117,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
       )}
       {!isSettled && <LoadingSpinner title="Loading your names" />}
       {isSettled && !hasError && names.length === 0 && !hasMore && (
-        <p className="border-t border-neutral-3 py-3 text-sm text-neutral-7">
+        <p className="border-t border-neutral-3 py-3 text-p text-neutral-7">
           No names yet
         </p>
       )}

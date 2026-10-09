@@ -142,7 +142,7 @@ const TokenInfoCard = ({
 
                   <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
                     <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="text-base">
+                    <p className="text-p">
                       The Token ID will change anytime the roles are updated.
                     </p>
                   </div>

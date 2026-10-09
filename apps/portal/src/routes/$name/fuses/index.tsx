@@ -247,7 +247,7 @@ function RouteComponent() {
 
       <div className="flex gap-2 items-start max-w-3xl">
         <Info className="w-8 h-8 text-muted-foreground shrink-0" />
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-p">
           A fuse is a permission or perk that can be granted/revoked on a name.
           As the name implies, once the fuse is "burned", it cannot be unburned.{' '}
           <a
@@ -372,7 +372,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are only available for wrapped ENSv1 names.</p>
-        <p className="text-sm mt-2">
+        <p className="text-p mt-2">
           This name is not wrapped or is not an ENSv1 name.
         </p>
       </>

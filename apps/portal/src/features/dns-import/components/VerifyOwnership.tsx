@@ -191,14 +191,14 @@ const VerificationDetails = ({
     />
     {found.kind === 'invalid' && (
       <>
-        <p className="text-sm text-message-danger-text">
+        <p className="text-p text-message-danger-text">
           {DNS_ERROR_MESSAGES[found.reason]}
         </p>
         <DnssecDebugLink name={name} source="import" />
       </>
     )}
     {found.kind === 'mismatch' && found.unofficialResolver && (
-      <p className="text-sm text-message-warning-text">
+      <p className="text-p text-message-warning-text">
         The record found points at an unofficial resolver — the name may not
         resolve as expected.
       </p>
@@ -296,7 +296,7 @@ export const VerifyOwnership = ({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <h3 className="font-medium">2. Add the ownership record</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-p text-muted-foreground">
               {isConnected
                 ? 'Add this TXT record at your DNS provider to prove you own this domain.'
                 : 'Add this TXT record at your DNS provider, using an Ethereum address you control. Connect that wallet to check it.'}

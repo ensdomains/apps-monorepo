@@ -138,7 +138,7 @@ const RegistryRootAuthority = ({
       .otherwise(() => (
         <div className="flex flex-col gap-2">
           <h3 className="text-caps leading-none">registry-wide roles</h3>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-p">
             These are held on the registry itself, so they apply to every name
             in it rather than being granted on this one. They are not listed
             above and can't be changed from this page.

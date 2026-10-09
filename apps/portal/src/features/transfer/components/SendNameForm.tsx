@@ -774,12 +774,12 @@ const RecipientResolvedContent = ({
 }) =>
   match({ recipient, isSelf, isZeroAddress })
     .with({ isSelf: true }, () => (
-      <p className="text-sm mt-1.5 text-destructive">
+      <p className="text-p mt-1.5 text-destructive">
         The recipient already owns this name.
       </p>
     ))
     .with({ isZeroAddress: true }, () => (
-      <p className="text-sm mt-1.5 text-destructive">
+      <p className="text-p mt-1.5 text-destructive">
         Can’t transfer to the zero address.
       </p>
     ))

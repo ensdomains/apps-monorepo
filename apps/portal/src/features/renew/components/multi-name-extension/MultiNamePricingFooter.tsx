@@ -24,8 +24,8 @@ export const MultiNamePricingFooter = ({
         </div>
       )}
       <div className="flex items-baseline justify-between">
-        <span className="text-xl text-accent-text font-medium">Total:</span>
-        <span className="text-xl text-accent-text font-medium">
+        <span className="text-h3 text-accent-text font-medium">Total:</span>
+        <span className="text-h3 text-accent-text font-medium">
           {allLoaded ? formatUsd(total) : '—'}
         </span>
       </div>

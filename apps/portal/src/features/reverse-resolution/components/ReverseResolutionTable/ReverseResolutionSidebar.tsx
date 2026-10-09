@@ -112,7 +112,7 @@ const ReverseNameField = ({
         isDefaultRow && <span className="text-muted-foreground">null</span>
       )}
       {isDefaultRow ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           The default reverse name is set through the name's Address Resolution
           page.
         </p>

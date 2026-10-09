@@ -127,12 +127,12 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recordsError ? (
-                  <p className="text-sm text-danger">
+                  <p className="text-p text-danger">
                     Failed to load records:{' '}
                     {extractErrorMessage(recordsError, 'Unknown error')}
                   </p>
                 ) : records.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-p text-muted-foreground">
                     No records set for this node.
                   </p>
                 ) : (
@@ -157,12 +157,12 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-8 w-full" />
                   ))
                   .with({ rolesStatus: 'error' }, () => (
-                    <p className="text-sm text-danger">
+                    <p className="text-p text-danger">
                       Failed to load roles. Please refresh the page.
                     </p>
                   ))
                   .with({ hasRoles: false }, () => (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-p text-muted-foreground">
                       No roles assigned for this node.
                     </p>
                   ))

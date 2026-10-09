@@ -283,7 +283,7 @@ export const SubnamesTable = ({
           </InputGroup>
         )}
         {loader?.canShowMore && globalFilter && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             Searching the {subnames.length} subnames shown so far. Show more to
             search the rest.
           </p>

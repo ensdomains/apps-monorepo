@@ -306,7 +306,7 @@ export const ConnectWalletDialog = ({
         </div>
 
         {error && (
-          <p className="text-message-danger-text text-sm" role="alert">
+          <p className="text-message-danger-text text-p" role="alert">
             {error}
           </p>
         )}

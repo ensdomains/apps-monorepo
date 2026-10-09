@@ -378,7 +378,7 @@ export const ResolverAddUserSheet = ({
                   )}
                 </Field>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-p text-muted-foreground">
                   Grants{' '}
                   <span className="font-medium text-foreground">
                     {scopeKind === 'text' ? 'Set Text' : 'Set Address'}

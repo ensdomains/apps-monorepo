@@ -114,7 +114,7 @@ export const TemporaryPremiumPopover = ({
         sideOffset={isMobile ? 0 : 40}
         className="w-[280px] space-y-4"
       >
-        <p className="text-sm leading-relaxed text-foreground">
+        <p className="text-p leading-relaxed text-foreground">
           A{' '}
           <span className="font-semibold text-foreground">
             temporary premium
