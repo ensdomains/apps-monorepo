@@ -55,8 +55,8 @@ const row: LookupRecord = {
   owner: OWNER,
   manager: MANAGER,
   authority: 'ens_v1',
-  registration_status: 'active',
-  status: 'ok',
+  status: 'active',
+  read_status: 'ok',
   ens_v1: {
     expires_at: FUTURE,
     wrapper_state: 'emancipated',

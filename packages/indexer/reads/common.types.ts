@@ -8,8 +8,7 @@ export type NameRelation = 'owner' | 'manager' | 'role_holder'
 
 export type NameRegistrationStatus =
   | 'active'
-  | 'wrapped'
-  | 'registered'
+  | 'expired'
   | 'released'
   | 'unregistered'
 

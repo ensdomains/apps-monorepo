@@ -71,7 +71,8 @@ export type LookupRecord = Readonly<{
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
-  registration_status?: RegistrationStatus
+  status?: RegistrationStatus
+  grace_ends_at?: Timestamp
   lapsed_registration?: LapsedRegistration
   resolver?: ResolverRef
   subregistry?: RegistryRef
@@ -90,7 +91,7 @@ export type LookupRecord = Readonly<{
   authority?: Authority
   ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
-  status: ResultStatus
+  read_status: ResultStatus
   unsupported_reason?: string
   failure_reason?: string
   /** Omitted when empty. */

@@ -23,7 +23,7 @@ const NAME_WRAPPER = getChainContractAddress({
   contract: 'ensNameWrapper',
 })
 
-const HIDDEN_STATUSES: readonly AddressName['registration_status'][] = [
+const HIDDEN_STATUSES: readonly AddressName['status'][] = [
   'released',
   'unregistered',
 ]
@@ -39,8 +39,7 @@ type ReadOptions = { readonly signal?: AbortSignal }
 const toError = (cause: unknown) => new GetV1NamesError({ cause })
 
 const isListed = (row: AddressName): boolean =>
-  !row.name.endsWith('.reverse') &&
-  !HIDDEN_STATUSES.includes(row.registration_status)
+  !row.name.endsWith('.reverse') && !HIDDEN_STATUSES.includes(row.status)
 
 const listV1NamesOnce = ResultFn(async function* (
   client: V1NamesClient,

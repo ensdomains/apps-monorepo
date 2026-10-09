@@ -88,7 +88,7 @@ export const toGraceName = (
   const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
   const isGrace =
     row.authority === 'ens_v2' &&
-    row.registration_status === 'released' &&
+    row.status === 'expired' &&
     row.lapsed_registration?.release_kind === 'expired' &&
     row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
     expiryDate !== null &&

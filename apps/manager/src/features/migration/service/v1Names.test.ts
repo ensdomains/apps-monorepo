@@ -48,9 +48,9 @@ const record = (
   namehash: namehash(name),
   owner: USER,
   manager: USER,
-  registration_status: 'active',
+  status: 'active',
   authority: 'ens_v1',
-  status: 'ok',
+  read_status: 'ok',
   ...overrides,
 })
 
@@ -60,7 +60,6 @@ const wrapped = (
   overrides: Partial<LookupRecord> = {},
 ): LookupRecord =>
   record(name, {
-    registration_status: 'wrapped',
     ens_v1: {
       expires_at: name.split('.').length === 2 ? FUTURE : null,
       wrapper_state: 'wrapped',
@@ -265,7 +264,7 @@ describe('classification through the adapter', () => {
   it('copies a registry child under an unwrapped parent being migrated', () => {
     const { classified } = classify([
       unwrapped2ld('alice.eth'),
-      record('sub.alice.eth', { registration_status: 'registered' }),
+      record('sub.alice.eth', { status: 'active' }),
     ])
     expect(
       classified.map(({ action, tokenType }) => ({ action, tokenType })),
@@ -284,13 +283,13 @@ describe('classification through the adapter', () => {
 
 const listRow = (
   name: string,
-  status: AddressName['registration_status'] = 'active',
+  status: AddressName['status'] = 'active',
 ): AddressName => ({
   name,
   display_name: name,
   namespace: 'ens',
   namehash: namehash(name),
-  registration_status: status,
+  status,
   relations: ['owner'],
   is_primary: false,
 })

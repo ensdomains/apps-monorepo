@@ -101,8 +101,8 @@ describe('isHeldInIndex', () => {
     ['not indexed', null, false],
     ['not loaded', undefined, false],
     ['unregistered', detail('unregistered'), false],
-    ['registered', detail('registered'), true],
-    ['wrapped', detail('wrapped'), true],
+    ['active', detail('active'), true],
+    ['expired', detail('expired'), true],
     ['released', detail('released'), true],
     ['unsupported, with no status', detail(null), true],
   ] as const)('is %s -> %s', (_label, value, expected) => {

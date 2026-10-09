@@ -66,7 +66,7 @@ const graceRow: AddressName = {
   display_name: 'lapsed.eth',
   namespace: 'ens',
   namehash: '0x09',
-  registration_status: 'released',
+  status: 'expired',
   authority: 'ens_v2',
   expires_at: String(nowSeconds - 86_400),
   relations: ['former_owner'],

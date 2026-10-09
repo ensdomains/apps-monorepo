@@ -31,7 +31,7 @@ const record = (name: string, records?: RecordGroups): LookupRecord => ({
   display_name: name,
   namespace: 'ens',
   namehash: namehash(name),
-  status: 'ok',
+  read_status: 'ok',
   ...(records && { records }),
 })
 

@@ -14,7 +14,7 @@ const ADDRESS = '0x0000000000000000000000000000000000000abc'
 
 const summary = (
   name: string,
-  registrationStatus: NameSummary['registrationStatus'] = 'registered',
+  registrationStatus: NameSummary['registrationStatus'] = 'active',
 ): NameSummary => ({
   name,
   displayName: name,

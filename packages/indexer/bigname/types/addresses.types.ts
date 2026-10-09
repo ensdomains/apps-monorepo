@@ -66,7 +66,7 @@ export type AddressName = Readonly<{
   permission_resource_id?: string
   owner?: Address
   registrant?: Address
-  registration_status: RegistrationStatus
+  status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp

@@ -39,7 +39,7 @@ const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
   display_name: 'grace.eth',
   namespace: 'ens',
   namehash: '0x02',
-  registration_status: 'released',
+  status: 'expired',
   authority: 'ens_v2',
   expires_at: String(nowSeconds - 86_400 * 3),
   relations: ['former_owner'],
@@ -83,7 +83,7 @@ describe('toDashboardName', () => {
 describe('isListedName', () => {
   it.each([
     { name: 'alice.eth', registrationStatus: 'active', listed: true },
-    { name: 'alice.eth', registrationStatus: 'wrapped', listed: true },
+    { name: 'alice.eth', registrationStatus: 'expired', listed: true },
     { name: 'alice.eth', registrationStatus: 'released', listed: false },
     { name: 'alice.eth', registrationStatus: 'unregistered', listed: false },
     { name: 'abc.addr.reverse', registrationStatus: 'active', listed: false },
