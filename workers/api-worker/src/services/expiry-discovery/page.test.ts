@@ -150,7 +150,7 @@ describe('fetchSweep', () => {
   })
 
   it.each([
-    { id: 'expiry-7d', kept: ['held.eth'] },
+    { id: 'expiry-7d', kept: ['held.eth', 'relisted.eth'] },
     { id: 'grace-1d', kept: ['in-grace.eth'] },
     { id: 'premium-start', kept: ['expired.eth'] },
   ] as const)('notifies the rows each phase allows: $id', async ({
@@ -159,6 +159,7 @@ describe('fetchSweep', () => {
   }) => {
     serveIndex([
       held('held.eth', 10_000_050),
+      { ...held('relisted.eth', 10_000_055), releaseKind: 'unregistered' },
       expiredRelease('expired.eth', 10_000_060),
       { ...held('in-grace.eth', 10_000_065), registrationStatus: 'expired' },
       {
