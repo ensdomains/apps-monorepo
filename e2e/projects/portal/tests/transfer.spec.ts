@@ -396,7 +396,9 @@ test.describe
       // they can write records (see buildTransferPlan.ts: "the recipient
       // deploys their own afterward").
       await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
-      await page.getByRole('switch', { name: /Use custom resolver/ }).click()
+      await page
+        .getByRole('switch', { name: /Deploy new permissioned resolver/ })
+        .click()
       await page.getByRole('button', { name: 'Save changes' }).click()
       await driveTransactionsToSuccess(page, wallet, [
         'tx-deploy-permissioned-resolver',

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
+import { match } from 'ts-pattern'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
 import { Button } from '@/components/ui/button'
@@ -35,9 +36,12 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
+export type NodeRolesStatus = 'loading' | 'error' | 'ready'
+
 type NodeDetailSheetProps = PropsWithChildren & {
   readonly node: ResolverNode | null
   readonly roles: readonly ResolverRole[]
+  readonly rolesStatus: NodeRolesStatus
   readonly resolverAddress: string
   readonly open: boolean
   readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
@@ -49,6 +53,7 @@ export const NodeDetailSheet = ({
   children,
   node,
   roles,
+  rolesStatus,
   resolverAddress,
   open,
   setOpen,
@@ -147,41 +152,59 @@ export const NodeDetailSheet = ({
                     </Link>
                   </Button>
                 </div>
-                {roles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No roles assigned for this node.
-                  </p>
-                ) : (
-                  <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Account</TableHead>
-                          <TableHead>Role Bitmap</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {roles.map((role) => (
-                          <TableRow key={`${role.account}-${role.roleBitmap}`}>
-                            <TableCell
-                              className={cn(cellClassName, 'font-mono text-xs')}
-                            >
-                              <div className="flex items-center gap-1">
-                                {truncateAddress(role.account)}
-                                <CopyButton value={role.account} />
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={cn(cellClassName, 'font-mono text-xs')}
-                            >
-                              {role.roleBitmap}
-                            </TableCell>
+                {match({ rolesStatus, hasRoles: roles.length > 0 })
+                  .with({ rolesStatus: 'loading' }, () => (
+                    <Skeleton className="h-8 w-full" />
+                  ))
+                  .with({ rolesStatus: 'error' }, () => (
+                    <p className="text-sm text-danger">
+                      Failed to load roles. Please refresh the page.
+                    </p>
+                  ))
+                  .with({ hasRoles: false }, () => (
+                    <p className="text-sm text-muted-foreground">
+                      No roles assigned for this node.
+                    </p>
+                  ))
+                  .otherwise(() => (
+                    <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Account</TableHead>
+                            <TableHead>Role Bitmap</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+                        </TableHeader>
+                        <TableBody>
+                          {roles.map((role) => (
+                            <TableRow
+                              key={`${role.account}-${role.roleBitmap}`}
+                            >
+                              <TableCell
+                                className={cn(
+                                  cellClassName,
+                                  'font-mono text-xs',
+                                )}
+                              >
+                                <div className="flex items-center gap-1">
+                                  {truncateAddress(role.account)}
+                                  <CopyButton value={role.account} />
+                                </div>
+                              </TableCell>
+                              <TableCell
+                                className={cn(
+                                  cellClassName,
+                                  'font-mono text-xs',
+                                )}
+                              >
+                                {role.roleBitmap}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ))}
               </section>
             </div>
           ) : (

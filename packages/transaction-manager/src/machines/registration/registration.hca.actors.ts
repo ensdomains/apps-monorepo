@@ -25,15 +25,16 @@ import { requireChainId } from '@ens-apps/config'
 import {
   buildCommitCall,
   buildRevealBatch,
+  commitLegGasLimit,
   computeResolverAddress,
   estimateHcaBudget,
   getDestinationContracts,
-  HCA_LEG_GAS_LIMITS,
   type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
   type QuoteLegResult,
   readCommitment,
+  readQuotedGasRefunds,
   readRegisterPrice,
   registerLegGasLimit,
   withBudgetDrift,
@@ -243,6 +244,13 @@ async function quoteIntentSpendUsdc(
         }
       : undefined
 
+  // The refund the intent would be signed with. The spend leaves out the
+  // relay fee carried in its overhead, so the budget sizes the leg from both
+  // (`legFeeUsdc`).
+  const gasRefund = readQuotedGasRefunds(route).find(
+    (refund) => !isAddressEqual(refund.token, zeroAddress),
+  )
+
   return {
     // `readUsdcSpend` already encodes readability: `null` means the quote could
     // not be priced, `0n` means it was priced at nothing. Re-testing `> 0n`
@@ -252,6 +260,7 @@ async function quoteIntentSpendUsdc(
     // orchestrator that settles for free.
     spendUsdc: spend,
     ...(market ? { market } : {}),
+    ...(gasRefund ? { gasRefund } : {}),
   }
 }
 
@@ -325,18 +334,47 @@ function sessionSigners(
  * whether `registerLegGasLimit` funds it. Shared so the budget and the
  * submitted batch cannot disagree.
  */
+async function hasCode(
+  publicClient: PublicClient,
+  address: Address,
+): Promise<boolean> {
+  const code = await publicClient.getCode({ address })
+  return Boolean(code && code !== '0x')
+}
+
+/**
+ * What the two conditional deploys in the batches cost: the resolver, which
+ * the reveal prepends on a first registration, and the HCA itself, which the
+ * first commit deploys. One read each, feeding both the batch and the gas
+ * limit that funds it. Not caught: an unsized leg must fail loudly, not fund
+ * the permit short.
+ */
 async function isResolverDeployed(params: {
   publicClient: PublicClient
   chainId: number
   hca: Address
 }): Promise<boolean> {
-  const code = await params.publicClient.getCode({
-    address: computeResolverAddress({
-      chainId: params.chainId,
-      hca: params.hca,
-    }),
-  })
-  return Boolean(code && code !== '0x')
+  return hasCode(
+    params.publicClient,
+    computeResolverAddress({ chainId: params.chainId, hca: params.hca }),
+  )
+}
+
+async function readDeploymentState(params: {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly hca?: Address
+}): Promise<{
+  readonly isResolverDeployed: boolean
+  readonly isHcaDeployed: boolean
+}> {
+  const { publicClient, chainId, hca } = params
+  if (!hca) return { isResolverDeployed: false, isHcaDeployed: false }
+  const [isResolverDeployed, isHcaDeployed] = await Promise.all([
+    hasCode(publicClient, computeResolverAddress({ chainId, hca })),
+    hasCode(publicClient, hca),
+  ])
+  return { isResolverDeployed, isHcaDeployed }
 }
 
 export function estimateHcaBudgetActor(input: {
@@ -378,9 +416,9 @@ export function estimateHcaBudgetActor(input: {
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
-  // Takes `resolverDeployed` rather than reading it per call, so the batch and
-  // the gas limit that funds it are built from one value.
-  const makeQuoter = (resolverDeployed: boolean) =>
+  // Takes the deployment flags rather than reading them per call, so the batch
+  // and the gas limit that funds it are built from one value.
+  const makeQuoter = (isResolverDeployed: boolean, isHcaDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
@@ -392,8 +430,9 @@ export function estimateHcaBudgetActor(input: {
           if (leg === 'commit') {
             // Quote the SAME shape `submitFundingAndCommitActor` submits. The
             // funding permit/transferFrom pair is two cheap ERC-20 calls on
-            // top; the `HCA_LEG_GAS_LIMITS.commit` bound covers them, so a
-            // successful quote never underfunds the HCA.
+            // top; the `commitLegGasLimit` bound covers them, and the HCA
+            // deploy when this is the account's first commit, so a successful
+            // quote never underfunds the HCA.
             const calls: Call[] = []
             const commitCall = buildCommitCall({
               chainId,
@@ -408,7 +447,7 @@ export function estimateHcaBudgetActor(input: {
               rhinestone.account,
               chain,
               calls,
-              HCA_LEG_GAS_LIMITS.commit,
+              commitLegGasLimit({ isHcaDeployed }),
               signers,
               incomingUsdc,
             )
@@ -425,7 +464,7 @@ export function estimateHcaBudgetActor(input: {
             chainId,
             hca,
             resolver,
-            resolverDeployed,
+            resolverDeployed: isResolverDeployed,
             label,
             // The name recipient (wallet). A placeholder is fine for a gas/cost
             // quote — the orchestrator prices the intent by size, not by owner.
@@ -448,7 +487,7 @@ export function estimateHcaBudgetActor(input: {
             chain,
             toCalls(revealCalls),
             registerLegGasLimit({
-              isResolverDeployed: resolverDeployed,
+              isResolverDeployed,
               ...(input.primaryName ? { primaryName: input.primaryName } : {}),
             }),
             signers,
@@ -474,17 +513,13 @@ export function estimateHcaBudgetActor(input: {
           }).unwrapOr(0n)
         : 0n
 
-      // One read, feeding both the batch and the limit that funds it. Not
-      // caught: an unsized leg must fail loudly, not fund the permit short.
-      const resolverDeployed = hca
-        ? await isResolverDeployed({
-            publicClient: input.publicClient,
-            chainId,
-            hca,
-          })
-        : false
+      const { isResolverDeployed, isHcaDeployed } = await readDeploymentState({
+        publicClient: input.publicClient,
+        chainId,
+        ...(hca ? { hca } : {}),
+      })
 
-      const quoteLegCostUsdc = makeQuoter(resolverDeployed)
+      const quoteLegCostUsdc = makeQuoter(isResolverDeployed, isHcaDeployed)
 
       const breakdown = await estimateHcaBudget({
         publicClient: input.publicClient,
@@ -492,7 +527,8 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
-        isResolverDeployed: resolverDeployed,
+        isResolverDeployed,
+        isHcaDeployed,
         ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
@@ -1032,12 +1068,18 @@ export function verifyHcaRegistrationActor(
     ) => Promise<string | null>
   } & VerifyPollOptions,
 ): ResultAsync<
-  { verified: boolean; registeredToOther: boolean; reason?: string },
+  {
+    verified: boolean
+    registeredToOther: boolean
+    isUnregistered: boolean
+    reason?: string
+  },
   Error
 > {
   const readRegistryState = async (): Promise<{
     verified: boolean
     registeredToOther: boolean
+    isUnregistered: boolean
     reason?: string
   }> => {
     const chainId = requireChainId(input.publicClient, 'HCA registration')
@@ -1113,8 +1155,15 @@ export function verifyHcaRegistrationActor(
     ])
 
     return reason
-      ? { verified: false, registeredToOther, reason }
-      : { verified: true, registeredToOther: false }
+      ? {
+          verified: false,
+          registeredToOther,
+          // Nothing holds the label: the reveal never landed, so `reason` can
+          // only restate that. Callers then keep the failure that stopped it.
+          isUnregistered: Number(state.status) !== STATUS_REGISTERED,
+          reason,
+        }
+      : { verified: true, registeredToOther: false, isUnregistered: false }
   }
 
   // A definitive FAILED / EXPIRED from the orchestrator means the fill can

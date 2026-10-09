@@ -2,6 +2,7 @@
 // Errors
 export {
   ChainIdMismatchError,
+  SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,
   TransactionSubmissionError,
@@ -48,16 +49,20 @@ export {
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
 export {
+  computeDedicatedResolverAddress,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
+  hasDeployedCode,
   type TOKEN_SYMBOL,
   VERIFY_GRACE_WINDOW_MS,
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
 export type {
+  ReauthorizeSession,
   RegistrationContext,
   RegistrationEvent,
   RegistrationInput,
+  SessionReauthorization,
 } from './machines/registration/registration.machine'
 export {
   REGISTRATION_TX_IDS,

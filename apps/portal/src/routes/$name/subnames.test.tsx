@@ -59,6 +59,8 @@ const ENCODED_SUBNAME_LABELHASH = keccak256(toHex(ENCODED_LABEL))
 let subnames: readonly Record<string, unknown>[] = []
 
 vi.mock('@/features/profile/hooks/useSubnames', () => ({
+  SUBNAMES_PAGE_SIZE: 40,
+  V1_SUBNAMES_PAGE_SIZE: 100,
   getV2SubnamesQueryOptions: () => ({
     queryKey: ['subnames', NAME],
     queryFn: () => ({ subnames, totalCount: subnames.length }),

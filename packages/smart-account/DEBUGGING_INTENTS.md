@@ -68,7 +68,7 @@ Known selectors:
 |---|---|---|
 | `0xe50c42ea` | `PolicyRuleFailed()` | a hardcoded policy argument check failed |
 | `0xde1834f2` | `ActionNotAllowed(address,bytes4)` | target/selector outside the allowlist |
-| `0x0672e151` | `GasRefundNotAllowed()` | quoted executor refund exceeded the session caps |
+| `0x0672e151` | `GasRefundNotAllowed()` | quoted executor refund exceeded the session caps (§6) |
 | `0x815e1d64` | `InvalidSigner()` | a bad key **or** a session that was never enabled — see below |
 | `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form, or the enable proof is expired (`validUntil`), carries a stale session nonce, or has zero refund caps |
 | `0x037b5679` | `CallerNotIntentExecutor()` | presented by someone other than the IntentExecutor |
@@ -183,15 +183,66 @@ Gotchas that will silently invalidate the test:
 
 ## 6. Session caps live in the salt
 
-`MAX_REFUND_AMOUNT` / `MAX_REFUND_GAS_OVERHEAD` / `MAX_REFUND_EXCHANGE_RATE`
-(`manifest.ts`) are baked into the destination session salt via
+The three refund caps (`maxRefundExchangeRate`, `maxRefundGasOverhead`,
+`maxRefundAmount`) are baked into the destination session salt via
 `computeDestinationSessionSalt`, so the salt — and therefore the permissionId —
-changes when they do. A quoted refund above the cap reverts with
-`GasRefundNotAllowed()`, again surfaced as `InvalidSignature()`.
+depends on them. A quoted refund above any cap reverts with
+`GasRefundNotAllowed()`, surfaced as `InvalidSignature()` — or, when the
+orchestrator accepted the intent and it failed at fill time, as a bare
+`Intent failed (errorType=Unknown)` with no detail at all.
 
 When reading a failing intent's fields, note the big `uint256` next to the
 account address is the **nonce**, not the salt. Confirm with `cast to-dec`
 before comparing it against anything.
+
+### How the orchestrator sizes the refund
+
+Measured against live quotes and filled transactions (2026-10-07):
+
+```
+gasOverhead  = base + relayFeeUsd ÷ ethUsd ÷ gasPrice     (base was ~49.5k, now 170k)
+refundAmount ≈ 1.8 × (1.5M + gasOverhead) × gasPrice × ethUsd   (a ceiling)
+exchangeRate = ethUsd in USDC base units
+gasPrice     = base fee + eth_maxPriorityFeePerGas
+pulled       = (measured gas + gasOverhead) × tx gas price × exchangeRate
+```
+
+The overhead carries a fixed dollar fee in **gas units**, so it grows as gas
+gets cheaper. When Sepolia's block gas limit went to 200M (2026-10-06) the base
+fee fell from ~1 gwei to ~20 wei, the gas price became ~1 Mwei of tip, and the
+overhead went from ~52k to ~3M — every intent then failed a fixed 500k cap.
+
+So the overhead cap is no longer a constant (`refund-caps.ts`):
+
+- **Sized per session from a quote.** `quoteSessionRefundCaps` quotes before the
+  wallet prompt and sets the cap to 4× the quoted overhead (floor 500k, ceiling
+  100M). The cap is stored in the session record (`refundCaps`), because the
+  session can only be rebuilt with the exact values it was signed with. Records
+  without it were signed with `LEGACY_REFUND_CAPS` and rebuild with those.
+- **Checked before signing.** The warp transport compares every quoted
+  `gasRefund` against the session's `hcaSessionConfig` with
+  `findGasRefundViolations` (a copy of `_checkGasRefund`) and throws
+  `SessionRefundCapExceededError` instead of signing.
+- **Re-authorized when outgrown.** An overhead-only miss is
+  `isFixableByNewSession`: the registration machine enters
+  `reauthorizingSession`, the app authorizes a session sized from the failing
+  quote (one wallet signature), and the leg is resent. At most twice per run.
+  A miss on `refundAmount` or `exchangeRate` is a fixed bound and is refused.
+
+The same mismatch under-funds the HCA. `intentCost.tokensSpent` prices about
+`(destinationGasUnits + ~880k) × gasPrice` and does **not** include the relay
+fee in `gasOverhead`: on 2026-10-07 a first commit pulled 0.010017 USDC while
+both legs had been quoted at 0.007681 together, and the reveal then failed
+simulation with `ERC20InsufficientBalance` 0.0023 USDC short of the price.
+`legFeeUsdc` (`budget.ts`) therefore budgets each leg at the larger of the
+spend and `(gasLimit + 2 × gasOverhead) × gasPrice × exchangeRate`, capped at
+the signed `refundAmount`. Reported to Rhinestone.
+
+To see what the orchestrator would quote right now, `POST /intents/route` with
+the API key and read
+`intentOp.elements[].mandate.qualifier.settlementContext.gasRefund` —
+`overhead` packs `refundAmount << 128 | gasOverhead`. `signedMetadata` carries
+the `relayFeeUsd`, token prices and gas prices it used.
 
 ## 7. Every session signature carries the owner's authorization
 

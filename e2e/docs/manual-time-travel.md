@@ -119,7 +119,7 @@ Time travel could ride the Cloudflare PR previews exactly like the DQA overlay
 `evm_increaseTime` + `evm_mine`, which only exist on an **Anvil / fork node** —
 real Sepolia rejects them. So previews would need `VITE_TIME_TRAVEL_RPC` pointed
 at a persistent, public, HTTPS-reachable forked-chain node. That fork could live
-on the **same QA host as the DQA server** (e.g. `https://qa.app.ens.dev/rpc`
+on the **same QA host as the DQA server** (e.g. `https://qa.sepolia.app.ens.domains/rpc`
 alongside `…/overlay.js`), but standing up a stateful shared fork — chain state,
 reset policy, who can warp it — is the non-trivial part and is why this is
 deferred. Until such an endpoint exists, time travel stays dev-only (local

@@ -38,12 +38,8 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { SessionEnableError } from '../../errors'
-import {
-  getDestinationContracts,
-  MAX_REFUND_AMOUNT,
-  MAX_REFUND_EXCHANGE_RATE,
-  MAX_REFUND_GAS_OVERHEAD,
-} from './manifest'
+import { getDestinationContracts } from './manifest'
+import { LEGACY_REFUND_CAPS, type RefundCaps } from './refund-caps'
 
 const standaloneHcaAbi = parseAbi([
   'function ownerAndSessionNonce() view returns (address owner, uint96 sessionNonce)',
@@ -95,6 +91,11 @@ export interface DestinationSessionParams {
   readonly validUntil: bigint
   /** Whether the HCA already has code (determines the nonce source). */
   readonly alreadyDeployed: boolean
+  /**
+   * The refund caps to authorize (see `refund-caps.ts`). Defaults to the
+   * legacy caps.
+   */
+  readonly refundCaps?: RefundCaps
 }
 
 export interface DestinationSessionResult {
@@ -103,13 +104,14 @@ export interface DestinationSessionResult {
   readonly enableData: SessionEnableData
   readonly hcaSessionNonce: bigint
   readonly validUntil: bigint
+  readonly refundCaps: RefundCaps
 }
 
 /**
  * Compute the destination (HCA-side) session salt. EXACT field order:
  * uint96 nonce, uint48 validUntil, address resolver, address refundToken,
  * uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead,
- * uint96 maxRefundAmount.
+ * uint96 maxRefundAmount. Caps default to `LEGACY_REFUND_CAPS`.
  */
 export function computeDestinationSessionSalt(params: {
   readonly hcaSessionNonce: bigint
@@ -136,9 +138,13 @@ export function computeDestinationSessionSalt(params: {
         Number(params.validUntil),
         params.resolver,
         params.refundToken,
-        params.maxRefundExchangeRate ?? MAX_REFUND_EXCHANGE_RATE,
-        Number(params.maxRefundGasOverhead ?? MAX_REFUND_GAS_OVERHEAD),
-        params.maxRefundAmount ?? MAX_REFUND_AMOUNT,
+        params.maxRefundExchangeRate ??
+          LEGACY_REFUND_CAPS.maxRefundExchangeRate,
+        Number(
+          params.maxRefundGasOverhead ??
+            LEGACY_REFUND_CAPS.maxRefundGasOverhead,
+        ),
+        params.maxRefundAmount ?? LEGACY_REFUND_CAPS.maxRefundAmount,
       ],
     ),
   )
@@ -222,6 +228,7 @@ export function createDestinationSession(
   return fromPromise(
     (async () => {
       const c = getDestinationContracts(params.chain.id)
+      const refundCaps = params.refundCaps ?? LEGACY_REFUND_CAPS
       const hcaSessionNonce = await readSessionNonce({
         publicClient: params.publicClient,
         hca: params.hca,
@@ -233,6 +240,7 @@ export function createDestinationSession(
         validUntil: params.validUntil,
         resolver: params.resolver,
         refundToken: c.usdc,
+        ...refundCaps,
       })
 
       const session: StandaloneHcaSession = {
@@ -260,6 +268,7 @@ export function createDestinationSession(
           sessionKey: params.sessionAccount.address,
           validUntil: params.validUntil,
           resolver: params.resolver,
+          refundCaps,
         }),
       }
 
@@ -269,6 +278,7 @@ export function createDestinationSession(
         enableData,
         hcaSessionNonce,
         validUntil: params.validUntil,
+        refundCaps,
       }
     })(),
     (error: unknown) =>
@@ -289,16 +299,19 @@ export function buildHcaSessionConfig(params: {
   readonly sessionKey: Address
   readonly validUntil: bigint
   readonly resolver: Address
+  /** The caps the session was authorized with. Defaults to the legacy caps. */
+  readonly refundCaps?: RefundCaps
 }): HcaSessionConfig {
   const c = getDestinationContracts(params.chainId)
+  const caps = params.refundCaps ?? LEGACY_REFUND_CAPS
   return {
     sessionKey: params.sessionKey,
     validUntil: Number(params.validUntil),
     resolver: params.resolver,
     refundToken: c.usdc,
-    maxRefundExchangeRate: MAX_REFUND_EXCHANGE_RATE,
-    maxRefundGasOverhead: Number(MAX_REFUND_GAS_OVERHEAD),
-    maxRefundAmount: MAX_REFUND_AMOUNT,
+    maxRefundExchangeRate: caps.maxRefundExchangeRate,
+    maxRefundGasOverhead: Number(caps.maxRefundGasOverhead),
+    maxRefundAmount: caps.maxRefundAmount,
   }
 }
 
@@ -318,6 +331,8 @@ export function rebuildDestinationSession(params: {
   readonly hcaSessionNonce: bigint
   readonly validUntil: bigint
   readonly sessionPrivateKey: Hex
+  /** The caps the session was authorized with. Defaults to the legacy caps. */
+  readonly refundCaps?: RefundCaps
 }): { session: StandaloneHcaSession; permissionId: Hex } {
   const c = getDestinationContracts(params.chain.id)
   const salt = computeDestinationSessionSalt({
@@ -325,6 +340,7 @@ export function rebuildDestinationSession(params: {
     validUntil: params.validUntil,
     resolver: params.resolver,
     refundToken: c.usdc,
+    ...(params.refundCaps ?? LEGACY_REFUND_CAPS),
   })
   const session: StandaloneHcaSession = {
     chain: params.chain,

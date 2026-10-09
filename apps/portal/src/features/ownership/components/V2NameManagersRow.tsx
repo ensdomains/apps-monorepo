@@ -79,9 +79,16 @@ export const V2NameManagersRow = ({
       </span>,
     )
 
-  const holders = [...data].filter(
+  const holders = [...data.holders].filter(
     ([account, roles]) => roles.length > 0 && !isAddressEqual(account, owner),
   )
+
+  if (holders.length === 0 && !data.isVerified)
+    return row(
+      <span className="text-sm text-muted-foreground">
+        Couldn’t check who else holds permissions on this name
+      </span>,
+    )
 
   if (holders.length === 0) return null
 

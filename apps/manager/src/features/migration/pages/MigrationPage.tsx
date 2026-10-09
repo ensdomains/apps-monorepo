@@ -32,17 +32,19 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { recordRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
   useMigrationCompletedOperations,
   useMigrationLastError,
+  useMigrationManagerRestorationNames,
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
-import { isMigrationQueryKey } from './MigrationPage.helpers'
+import { invalidateMigrationQueries } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -194,14 +196,6 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   }
 }
 
-const invalidateMigrationQueries = (
-  queryClient: ReturnType<typeof useQueryClient>,
-) => {
-  queryClient.invalidateQueries({
-    predicate: (query) => isMigrationQueryKey(query.queryKey),
-  })
-}
-
 export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
@@ -213,6 +207,7 @@ export const MigrationPage = () => {
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
+  const managerRestorationNames = useMigrationManagerRestorationNames(uiActor)
   const completedOperations = useMigrationCompletedOperations(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
@@ -253,12 +248,14 @@ export const MigrationPage = () => {
     hcaAddress: hcaAddress as Address | undefined,
     accountError: hcaError,
     selectedNames,
+    managerRestorationNames,
     v1Names,
     enabled: step === 'select' && graceDomains.length === 0,
   })
   const renewalGasEstimate = useGraceRenewalGasEstimate({
     renewal,
     selectedNames,
+    managerRestorationNames,
     v1Names,
     hcaAddress: hcaAddress as Address | undefined,
     publicClient: migrationExecutionClient as PublicClient,
@@ -305,7 +302,11 @@ export const MigrationPage = () => {
           },
         })
       }
-      invalidateMigrationQueries(queryClient)
+      // The V2 indexer trails the transaction by a few seconds, and a name
+      // that has already left V1 is in neither list until it catches up. The
+      // dashboard waits for these rather than showing the user a short list.
+      recordRecentlyMigratedNames(completedOperations.map(({ name }) => name))
+      void invalidateMigrationQueries(queryClient)
     }
   }, [step, queryClient, migrationPlan, completedOperations])
 
@@ -318,6 +319,12 @@ export const MigrationPage = () => {
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
+    [uiActor],
+  )
+
+  const handleManagerRestorationChange = useCallback(
+    (names: string[]) =>
+      uiActor.send({ type: 'managerRestoration.set', names }),
     [uiActor],
   )
 
@@ -421,6 +428,7 @@ export const MigrationPage = () => {
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
+            onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
             renewal={renewal}

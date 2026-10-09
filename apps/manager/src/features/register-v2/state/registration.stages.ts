@@ -14,6 +14,7 @@ export const REGISTRATION_STAGE_PROGRESS = {
   idle: 0,
   settingUpRegistration: 5,
   // Pure-EOA spine
+  checkingResolver: 6,
   deployingResolver: 8,
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
@@ -25,6 +26,8 @@ export const REGISTRATION_STAGE_PROGRESS = {
   checkingHcaFunding: 27,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,
+  // A leg's quoted fee outgrew the session: one more wallet signature.
+  reauthorizingSession: 31,
   // Shared cooldown spine
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,

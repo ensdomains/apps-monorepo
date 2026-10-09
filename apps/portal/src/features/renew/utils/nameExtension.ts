@@ -1,5 +1,8 @@
 import type { RowSelectionState } from '@tanstack/react-table'
-import type { NameRow } from '@/features/names/components/NamesTable/columns'
+import {
+  getNameRowId,
+  type NameRow,
+} from '@/features/names/components/NamesTable/columns'
 import type { SelectedName } from '@/features/renew/hooks/useRenewalTransactions'
 import { isCanonicalName, isNormalizedLabel } from '@/utils/token/isNormalized'
 
@@ -13,9 +16,8 @@ export const getSelectedNames = (
   rowSelection: RowSelectionState,
   filteredData: NameRow[],
 ): readonly SelectedName[] =>
-  Object.keys(rowSelection)
-    .map((idx) => filteredData[Number(idx)])
-    .filter((row): row is NameRow => Boolean(row))
+  filteredData
+    .filter((row, index) => rowSelection[getNameRowId(row, index)])
     .filter((row): row is NameRow & { name: string } => row.name !== null)
     .map((row) => ({
       name: row.name,

@@ -56,6 +56,22 @@ So the stored record **is** the session. The app re-presents it on later
 registrations at no extra prompt, and, symmetrically, anyone holding a copy of
 the stored record can too.
 
+### Refund caps
+
+The authorization also fixes three gas-refund caps, hashed into the salt. The
+refund-amount and exchange-rate caps are fixed. The gas-overhead cap is sized
+when the session is created, from a live orchestrator quote taken just before
+the wallet prompt, and stored on the record (`refundCaps`) — the session can
+only be rebuilt with the values it was signed with. Records from before this
+carry none and rebuild with `LEGACY_REFUND_CAPS`.
+
+The overhead grows as gas gets cheaper, so a session can be outgrown during its
+lifetime. The warp transport checks every quote against the session's caps
+before signing; when only the overhead is over, the registration machine asks
+for a new session sized from that quote (`reauthorizeSession`, one wallet
+signature) and resends the leg. See `packages/smart-account/DEBUGGING_INTENTS.md`
+§6.
+
 ## 3. Revocation
 
 `validUntil` is the only bound that expires on its own. The account's real kill

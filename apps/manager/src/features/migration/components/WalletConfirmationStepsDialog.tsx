@@ -8,10 +8,48 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
+import type {
+  MigrationRoleGrantDescriptor,
+  MigrationWalletRequestDescriptor,
+} from '@/features/migration/service/buildStepDescriptors'
+import { truncateAddress } from '@/lib/utils'
 
 type StepCopyProps = {
   readonly step: MigrationWalletRequestDescriptor
+}
+
+/**
+ * Every account the step hands authority to, named before anything is signed.
+ * A restored manager is not the owner and appears nowhere else in this flow, so
+ * without this the only address that could later need revoking is the one the
+ * owner never sees.
+ */
+const RoleGrantList = ({
+  roleGrants,
+}: {
+  readonly roleGrants: readonly MigrationRoleGrantDescriptor[]
+}) => {
+  if (roleGrants.length === 0) return null
+
+  return (
+    <ul className="mt-1 flex flex-col gap-1">
+      {roleGrants.map(({ account, name }) => (
+        <li
+          className="text-pretty text-ens-garnet-800/75 text-xs leading-normal"
+          key={`${name}:${account}`}
+          title={account}
+        >
+          <Trans>
+            <span className="font-semi-mono text-ens-garnet-900">
+              {truncateAddress(account)}
+            </span>{' '}
+            will be able to change the resolver for{' '}
+            <span className="font-semi-mono">{name}</span>
+          </Trans>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 const StepCopy = ({ step }: StepCopyProps) =>
@@ -100,17 +138,40 @@ const StepCopy = ({ step }: StepCopyProps) =>
         </p>
       </>
     ))
-    .with({ type: 'approval', approvalId: 'eth-registry:hca' }, () => (
-      <>
-        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Restore your managers</Trans>
-        </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>Keep the same managers on your names after the upgrade.</Trans>
-        </p>
-      </>
-    ))
-    .with({ type: 'atomic-batch' }, ({ count, index, total }) => (
+    .with(
+      { type: 'approval', approvalId: 'eth-registry:hca' },
+      ({ roleGrants }) =>
+        // The addresses are listed once, under the batch step that performs
+        // the grants, so this step names the restoration without repeating
+        // them — and says nothing about managers when it carries none.
+        roleGrants && roleGrants.length > 0 ? (
+          <>
+            <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+              <Trans>Restore the managers you chose</Trans>
+            </h3>
+            <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+              <Plural
+                one="Lets the upgrade give # manager the access you picked, listed with the upgrade below."
+                other="Lets the upgrade give # managers the access you picked, listed with the upgrade below."
+                value={roleGrants.length}
+              />
+            </p>
+          </>
+        ) : (
+          <>
+            <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+              <Trans>Allow manager changes</Trans>
+            </h3>
+            <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+              <Trans>
+                A temporary permission on the ENS registry. No managers are
+                being added in this upgrade.
+              </Trans>
+            </p>
+          </>
+        ),
+    )
+    .with({ type: 'atomic-batch' }, ({ count, index, roleGrants, total }) => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
           {total > 1 ? (
@@ -128,6 +189,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Upgrade your names and bring their records across.</Trans>
         </p>
+        <RoleGrantList roleGrants={roleGrants} />
       </>
     ))
     .with({ type: 'cleanup' }, () => (

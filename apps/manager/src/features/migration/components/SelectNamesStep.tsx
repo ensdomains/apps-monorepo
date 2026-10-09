@@ -24,6 +24,7 @@ type SelectNamesStepProps = {
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
+  readonly onManagerRestorationChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
   readonly renewal?: GraceRenewalQuoteState
   readonly renewalGasEstimate?: GraceRenewalGasEstimateState
@@ -50,6 +51,7 @@ export const SelectNamesStep = ({
   gasAffordability,
   gasFundingStatus,
   onNamesChange,
+  onManagerRestorationChange,
   onNext,
   renewal = { status: 'idle' },
   renewalGasEstimate = { status: 'idle' },
@@ -58,9 +60,6 @@ export const SelectNamesStep = ({
     useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
-  const hasNamesNeedingManagerRestoration = eligible.some(
-    ({ managerAddress }) => managerAddress !== null,
-  )
 
   const {
     search,
@@ -73,6 +72,10 @@ export const SelectNamesStep = ({
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,
+    isManagerRestorationLocked,
+    managerCandidates,
+    restoredManagers,
+    toggleManagerRestoration,
     toggleName,
     toggleAll,
   } = useNameSelection({
@@ -80,8 +83,14 @@ export const SelectNamesStep = ({
     gracePeriodNames,
     isPending,
     isRecovery: recoveryState.status === 'recovering',
+    // A resumed run rebuilds its batch from the durable snapshot, which already
+    // records what was opted in, so the choice cannot be changed mid-run.
+    isManagerRestorationLocked: recoveryState.status === 'recovering',
     onNamesChange,
+    onManagerRestorationChange,
   })
+  // The temporary approval is needed only for names the owner opted in.
+  const hasNamesNeedingManagerRestoration = restoredManagers.size > 0
 
   const needsRenewal = renewal.status !== 'idle'
   const isEstimatingGas = needsRenewal
@@ -192,13 +201,17 @@ export const SelectNamesStep = ({
               filteredOrphans={filteredOrphans}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
+              managerCandidates={managerCandidates}
+              restoredManagers={restoredManagers}
               search={search}
               selected={selected}
               setSearch={setSearch}
               showBulkSelection={showBulkSelection}
               showNameSearch={showNameSearch}
               toggleAll={toggleAll}
+              toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
               totalSelected={totalSelected}
               visibleCount={visibleCount}

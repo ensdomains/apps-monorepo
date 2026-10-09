@@ -206,12 +206,18 @@ export const DEFAULT_SESSION_VALIDITY_SECONDS = 24 * 60 * 60
 // `HCAOwnerAndSessionValidator._checkGasRefund` reverts `GasRefundNotAllowed()`
 // (wrapped by the emissary as `InvalidSignature()`) when the orchestrator's
 // quoted refund exceeds any cap. They are NOT the amount actually charged; they
-// are ceilings, so they are set generously to absorb Sepolia gas spikes.
+// are ceilings.
 //
-// Observed on a live Sepolia commit: the orchestrator quoted refundAmount ≈
-// 33.5 USDC, gasOverhead ≈ 50k, exchangeRate ≈ 1.9e9 — the previous
-// `MAX_REFUND_AMOUNT` of 25 USDC was below the quote and reverted. Caps are
-// bumped well clear of that.
+// `MAX_REFUND_AMOUNT` and `MAX_REFUND_EXCHANGE_RATE` are fixed: they grow with
+// gas and ETH prices, and they are the dollar bound on what a session can let
+// the executor pull. `MAX_REFUND_GAS_OVERHEAD` is only the FLOOR of the
+// overhead cap — Rhinestone encodes its relay fee as `fee ÷ gas price` gas
+// units, so the quoted overhead grows as gas gets CHEAPER, and the real cap is
+// sized per session from a live quote (see `refund-caps.ts`).
+//
+// These three values are also what every session stored before per-session
+// caps existed was signed with (`LEGACY_REFUND_CAPS`). Changing them breaks
+// those sessions' permission IDs — do not, without bumping the storage key.
 export const MAX_REFUND_EXCHANGE_RATE = 20_000_000_000n
 export const MAX_REFUND_GAS_OVERHEAD = 500_000n
 export const MAX_REFUND_AMOUNT = 100_000_000n // 100 USDC ceiling

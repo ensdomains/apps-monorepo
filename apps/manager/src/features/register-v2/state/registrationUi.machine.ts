@@ -24,6 +24,7 @@ import {
   sendTo,
   setup,
 } from 'xstate'
+import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
@@ -291,6 +292,32 @@ const machineSetup = setup({
           chainId: input.chainId,
         }),
     ),
+    submitPrimaryNameTransaction: fromPromise(
+      async ({
+        input,
+      }: {
+        input: {
+          data: PostRegistrationData | undefined
+          leg: 'forward' | 'reverse'
+        }
+      }) => {
+        if (!input.data?.walletClient) {
+          throw new Error('Post-registration data is incomplete')
+        }
+        const { data } = input
+        const submit =
+          input.leg === 'forward'
+            ? submitPrimaryNameForward
+            : submitPrimaryNameReverse
+        return submit({
+          name: asEthName(data.label),
+          signer: { type: 'eoa', walletClient: input.data.walletClient },
+          accountAddress: data.ownerAddress,
+          publicClient: data.publicClient,
+          chainId: data.chainId,
+        })
+      },
+    ),
     waitForKnownTransaction: fromPromise(
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
@@ -349,7 +376,6 @@ const machineSetup = setup({
       !canSetPrimaryName(context) &&
       !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
-    hasPrimaryNameTxId: ({ context }) => !!context.primaryNameTxId,
     hasAddrReverseClearRemaining: ({ context }) =>
       hasAddrReverseClearRemaining(context),
     // Reads the actor's output, not context: guards run before the
@@ -557,6 +583,10 @@ const machineSetup = setup({
       ethRecordSyncTxId: ({ event }) =>
         (event as unknown as { output: string }).output,
     }),
+    storePrimaryNameTxId: assign({
+      primaryNameTxId: ({ event }) =>
+        (event as unknown as { output: string }).output,
+    }),
     markEthRecordSynced: assign({
       postRegistrationProgress: ({ context }) => ({
         ...context.postRegistrationProgress,
@@ -610,6 +640,20 @@ const startRegistrationAction = machineSetup.createAction(
       return enqueue.raise({
         type: '$error',
         error: new Error('Account not ready'),
+      })
+    }
+
+    // A primary claim must use exactly the label passed to registration.
+    // Reject instead of registering one identity and claiming its normalized twin.
+    if (
+      event.postRegistrationSetup?.primaryName?.enabled &&
+      getCanonicalPrimaryName(asEthName(event.label)) !== asEthName(event.label)
+    ) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot set primary name - the name is not ENSIP-15 canonical.',
+        ),
       })
     }
 
@@ -716,6 +760,8 @@ const startRegistrationAction = machineSetup.createAction(
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.
         fetchIntentStatus: buildIntentStatusFetcher(),
+        // A leg whose quoted fee outgrows the session asks for a new one.
+        reauthorizeSession: event.account.reauthorizeSession,
       } satisfies RegistrationEvent),
     )
   }),
@@ -830,77 +876,10 @@ const resumeRegistrationAction = machineSetup.createAction(
           // persisted reveal intent is still filling or dead, instead of
           // sitting out the full grace poll before showing the retry screen.
           fetchIntentStatus: buildIntentStatusFetcher(),
+          reauthorizeSession: event.account.reauthorizeSession,
         },
       } satisfies RegistrationEvent),
     )
-  }),
-)
-
-const submitPrimaryNameForwardAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, context }) => {
-    if (!context.postRegistrationData?.walletClient) {
-      return enqueue.raise({
-        type: '$error',
-        error: new Error('Post-registration data is incomplete'),
-      })
-    }
-
-    try {
-      // Sent by the owner EOA: the reverse registrars key on msg.sender.
-      const txId = submitPrimaryNameForward({
-        name: asEthName(context.postRegistrationData.label),
-        signer: {
-          type: 'eoa',
-          walletClient: context.postRegistrationData.walletClient,
-        },
-        accountAddress: context.postRegistrationData.ownerAddress,
-        publicClient: context.postRegistrationData.publicClient,
-        chainId: context.postRegistrationData.chainId,
-      })
-
-      enqueue.assign({
-        primaryNameTxId: txId,
-      })
-    } catch (error) {
-      enqueue.raise({
-        type: '$error',
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
-    }
-  }),
-)
-
-const submitPrimaryNameReverseAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, context }) => {
-    if (!context.postRegistrationData?.walletClient) {
-      return enqueue.raise({
-        type: '$error',
-        error: new Error('Post-registration data is incomplete'),
-      })
-    }
-
-    try {
-      // Sent by the owner EOA: the reverse registrars key on msg.sender.
-      const txId = submitPrimaryNameReverse({
-        name: asEthName(context.postRegistrationData.label),
-        signer: {
-          type: 'eoa',
-          walletClient: context.postRegistrationData.walletClient,
-        },
-        accountAddress: context.postRegistrationData.ownerAddress,
-        publicClient: context.postRegistrationData.publicClient,
-        chainId: context.postRegistrationData.chainId,
-      })
-
-      enqueue.assign({
-        primaryNameTxId: txId,
-      })
-    } catch (error) {
-      enqueue.raise({
-        type: '$error',
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
-    }
   }),
 )
 
@@ -1195,10 +1174,25 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               },
             },
             settingPrimaryNameForward: {
-              entry: ['setPrimaryNameStage', submitPrimaryNameForwardAction],
-              always: {
-                guard: 'hasPrimaryNameTxId',
-                target: 'waitingForPrimaryNameForward',
+              entry: ['setPrimaryNameStage'],
+              invoke: {
+                src: 'submitPrimaryNameTransaction',
+                input: ({ context }) => ({
+                  data: context.postRegistrationData,
+                  leg: 'forward',
+                }),
+                onDone: {
+                  target: 'waitingForPrimaryNameForward',
+                  actions: ['storePrimaryNameTxId'],
+                },
+                onError: {
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
+                  ],
+                },
               },
             },
             waitingForPrimaryNameForward: {
@@ -1228,10 +1222,25 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               },
             },
             settingPrimaryNameReverse: {
-              entry: ['setPrimaryNameStage', submitPrimaryNameReverseAction],
-              always: {
-                guard: 'hasPrimaryNameTxId',
-                target: 'waitingForPrimaryNameReverse',
+              entry: ['setPrimaryNameStage'],
+              invoke: {
+                src: 'submitPrimaryNameTransaction',
+                input: ({ context }) => ({
+                  data: context.postRegistrationData,
+                  leg: 'reverse',
+                }),
+                onDone: {
+                  target: 'waitingForPrimaryNameReverse',
+                  actions: ['storePrimaryNameTxId'],
+                },
+                onError: {
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
+                  ],
+                },
               },
             },
             waitingForPrimaryNameReverse: {

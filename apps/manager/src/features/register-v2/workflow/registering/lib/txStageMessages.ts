@@ -34,6 +34,10 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Setting up registration`,
       stageDescription: msg`Preparing your registration`,
     }))
+    .with({ stage: 'checkingResolver' }, () => ({
+      stageLabel: msg`Checking resolver`,
+      stageDescription: msg`Checking whether your resolver is already deployed`,
+    }))
     .with({ stage: 'deployingResolver' }, () => ({
       stageLabel: msg`Deploying resolver`,
       stageDescription: msg`Deploying the resolver`,
@@ -88,6 +92,10 @@ export const getRegistrationStageMessages = (
     .with({ stage: 'signingFundingPermit' }, () => ({
       stageLabel: msg`Approve payment`,
       stageDescription: msg`Sign the gasless payment approval in your wallet`,
+    }))
+    .with({ stage: 'reauthorizingSession' }, () => ({
+      stageLabel: msg`Confirm updated network fees`,
+      stageDescription: msg`Network fees changed since you authorized this registration. Sign once more in your wallet to continue.`,
     }))
     .with({ stage: 'submittingRhinestoneBundle' }, () => ({
       stageLabel: msg`Submitting approval and registration`,

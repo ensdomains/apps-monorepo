@@ -1,13 +1,15 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import type {
   GetNamesForAddressErrorType,
   GetNamesForAddressParameters,
+  GetNamesForAddressReturnType,
 } from '@ensdomains/ensjs/subgraph'
 import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { escapeSearchWildcards } from '../utils/escapeSearchWildcards'
+import { getOwnedNamesQueryKey } from './ownedNamesQueryKey'
 
 class GetV1NamesForAddressError extends TaggedError(
   'GetV1NamesForAddressError',
@@ -30,15 +32,48 @@ const getV1NamesForAddress = ResultFn(async function* (
   return ok(names)
 })
 
-const getV1NamesForAddressQueryKey = createQueryKey<
-  'get-names-for-address',
-  GetNamesForAddressParameters
->('get-names-for-address')
+const V1_NAMES_PAGE_SIZE = 100
 
-export const getV1NamesForAddressQueryOptions = (
-  params: GetNamesForAddressParameters,
-) =>
-  resultQueryOptions({
-    queryKey: getV1NamesForAddressQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getV1NamesForAddress(params),
+type V1NamesPage = {
+  readonly names: GetNamesForAddressReturnType
+  readonly hasNextPage: boolean
+}
+
+/** ENSv1 names of an address in pages, soonest expiry first. */
+export const getV1NamesPagesForAddressQueryOptions = ({
+  address,
+  search,
+}: Pick<GetNamesForAddressParameters, 'address'> & {
+  readonly search?: string
+}) =>
+  resultInfiniteQueryOptions({
+    queryKey: getOwnedNamesQueryKey({
+      address,
+      protocolVersion: 'ENSv1',
+      search,
+    }),
+    queryFn: ({ pageParam }) =>
+      getV1NamesForAddress({
+        address,
+        // The subgraph's `_contains` is case-sensitive and names are stored lowercase.
+        filter: search
+          ? {
+              searchString: escapeSearchWildcards(search.toLowerCase()),
+              searchType: 'name',
+            }
+          : undefined,
+        orderBy: 'expiryDate',
+        orderDirection: 'asc',
+        previousPage: pageParam,
+        pageSize: V1_NAMES_PAGE_SIZE,
+      }).map(
+        (names): V1NamesPage => ({
+          names,
+          hasNextPage: names.length === V1_NAMES_PAGE_SIZE,
+        }),
+      ),
+    initialPageParam: undefined as GetNamesForAddressReturnType | undefined,
+    // ensjs pages from the last row of the previous page.
+    getNextPageParam: (last: V1NamesPage) =>
+      last.hasNextPage ? last.names.slice(-1) : undefined,
   })

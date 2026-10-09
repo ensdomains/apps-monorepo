@@ -3,7 +3,7 @@
 The ENS app for ENSv2: search and register names, renew, migrate names from
 ENSv1, edit profiles and records, manage the names an address holds, and
 subscribe to expiry and transfer notifications. Deployed by ENS Labs at
-https://app.ens.dev.
+https://sepolia.app.ens.domains.
 
 Part of the [ENS apps monorepo](../../README.md); the root README covers
 prerequisites, repository-wide commands and conventions.
@@ -30,7 +30,7 @@ cp .env.example .env
 pnpm dev                 # http://localhost:3000
 ```
 
-The example env targets Sepolia and the hosted backend at `app-api.ens.dev`;
+The example env targets Sepolia and the hosted backend at `sepolia.app-api.ens.domains`;
 to run the backend too, see [`workers/api-worker`](../../workers/api-worker).
 
 `VITE_ENS_NETWORK` is required and the build fails without it. Every other

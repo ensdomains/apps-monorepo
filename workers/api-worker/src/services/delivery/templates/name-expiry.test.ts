@@ -17,7 +17,7 @@ const payload = (
   ...overrides,
 })
 const options = (now: Date): NameExpiryRenderOptions => ({
-  managerAppUrl: 'https://app.ens.dev',
+  managerAppUrl: 'https://sepolia.app.ens.domains',
   now,
 })
 
@@ -48,7 +48,7 @@ describe('name expiry lifecycle delivery rendering', () => {
     expect(message.text).toContain('<code>foo&lt;script&gt;&amp;.eth</code>')
     expect(message.text).not.toContain('<script>')
     expect(message.buttons?.[0]?.[0]?.url).toBe(
-      'https://app.ens.dev/renew/foo%3Cscript%3E%26.eth',
+      'https://sepolia.app.ens.domains/renew/foo%3Cscript%3E%26.eth',
     )
   })
 })

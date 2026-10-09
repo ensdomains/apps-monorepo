@@ -296,6 +296,11 @@ const recoverySnapshotFor = (
     ),
     profiles,
     ownedPermRes: plan.ownedPermRes,
+    // Read off the plan rather than the UI: these are the names that actually
+    // carry a grant, so a resumed run reproduces the batch exactly.
+    managerRestorationNames: plan.registryContext
+      .filter(({ managerAddress }) => managerAddress !== null)
+      .map(({ domain }) => domain.name),
     plannedApprovals: (plan.preflight.migrationApprovals ?? []).map(
       (approval) => ({
         id: approval.id,
