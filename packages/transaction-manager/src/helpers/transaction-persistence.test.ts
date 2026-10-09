@@ -60,11 +60,11 @@ const transaction = (id: string): PersistedTransaction => ({
   updatedAt: 1700000000000,
 })
 
-const seedHistory = (ids: string[]) => {
+const seedHistory = (ids: readonly string[]) => {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(ids.map(transaction)))
 }
 
-const seedActive = (ids: string[]) => {
+const seedActive = (ids: readonly string[]) => {
   for (const id of ids) {
     localStorage.setItem(
       `${ACTIVE_KEY_PREFIX}${id}`,
