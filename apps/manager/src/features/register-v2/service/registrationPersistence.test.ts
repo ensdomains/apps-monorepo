@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 import {
   clearStoredRegistration,
+  clearStoredRegistrationIfUnchanged,
   createRegistrationPersistenceAdapter,
   loadStoredRegistration,
   REGISTRATION_RESUME_VERSION,
@@ -47,9 +48,9 @@ const confirmedData: RegistrationConfirmedData = {
   premiumPriceNumber: 0,
 }
 
-const record = (): PersistedRegistrationRecord =>
+const record = (stage = 'commitmentCooldown'): PersistedRegistrationRecord =>
   buildRegistrationRecord(
-    'commitmentCooldown',
+    stage,
     {
       chainId: 11155111,
       name: 'leon.eth',
@@ -129,6 +130,44 @@ describe('registration persistence adapter', () => {
     clearStoredRegistration(storage)
 
     expect(loadStoredRegistration(storage)).toBeNull()
+  })
+
+  describe('clearing one stored write', () => {
+    // A failure screen restored from storage discards the write it came from,
+    // and nothing newer: another tab may have resumed or restarted the name
+    // since, and its record holds the only copy of its commitment's secret.
+    const storedKey = () => {
+      const stored = loadStoredRegistration(storage)
+      if (!stored) throw new Error('nothing stored')
+      return { label: stored.label, updatedAt: stored.record.updatedAt }
+    }
+
+    it('clears the write it was given', () => {
+      adapterFor().save(record())
+
+      clearStoredRegistrationIfUnchanged(storedKey(), storage)
+
+      expect(loadStoredRegistration(storage)).toBeNull()
+    })
+
+    it('keeps a newer write for the same name', () => {
+      adapterFor().save({ ...record('error'), updatedAt: 1 })
+      const restored = storedKey()
+      adapterFor().save({ ...record(), updatedAt: 2 })
+
+      clearStoredRegistrationIfUnchanged(restored, storage)
+
+      expect(loadStoredRegistration(storage)?.record.updatedAt).toBe(2)
+    })
+
+    it("keeps another name's record", () => {
+      adapterFor().save(record())
+      const { updatedAt } = storedKey()
+
+      clearStoredRegistrationIfUnchanged({ label: 'bob', updatedAt }, storage)
+
+      expect(loadStoredRegistration(storage)?.label).toBe('leon')
+    })
   })
 
   it('overwrites rather than accumulating — one record, last writer wins', () => {

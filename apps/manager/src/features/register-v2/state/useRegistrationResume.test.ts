@@ -14,7 +14,7 @@ const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const OTHER = '0x2222222222222222222222222222222222222222' as Address
 
 const assessResumableRegistration = vi.fn()
-const clearStoredRegistration = vi.fn()
+const clearStoredWrite = vi.fn()
 const loadStoredRegistration = vi.fn()
 const needsSessionBeforeRegistration = vi.fn(() => false)
 const useSmartAccountContext = vi.fn()
@@ -37,9 +37,17 @@ vi.mock('../service/assessResumableRegistration', () => ({
 }))
 
 vi.mock('../service/registrationPersistence', () => ({
-  clearStoredRegistration: () => clearStoredRegistration(),
+  clearStoredRegistrationIfUnchanged: (...a: unknown[]) =>
+    clearStoredWrite(...a),
   loadStoredRegistration: () => loadStoredRegistration(),
+  storedRegistrationKey: (stored: {
+    label: string
+    record: { updatedAt: number }
+  }) => ({ label: stored.label, updatedAt: stored.record.updatedAt }),
 }))
+
+/** The stored write the fixtures below were assessed from. */
+const RUN = { label: 'leon', updatedAt: 1 }
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => useSmartAccountContext(),
@@ -58,7 +66,12 @@ vi.mock('@/lib/wagmi', () => ({
 
 vi.mock('sonner', () => ({ toast: (...a: unknown[]) => toast(...a) }))
 
-const enableSession = vi.fn(async () => ({ type: 'rhinestone' }))
+/** What a session enabled mid-resume hands back, to use before any re-render. */
+const enabledSession = () => ({
+  signer: { type: 'rhinestone', session: 'fresh' },
+  hcaSessionEnable: { stub: 'fresh-enable' },
+})
+const enableSession = vi.fn(async () => enabledSession())
 const getSessionEnablePayload = vi.fn(async () => ({ stub: 'enable' }))
 
 const account = (overrides: Record<string, unknown> = {}) => ({
@@ -78,13 +91,34 @@ const resumableAssessment = (): ResumeAssessment =>
     confirmedData: { label: 'leon' },
     stored: {
       label: 'leon',
-      record: { context: { ownerAddress: OWNER } },
+      record: { updatedAt: 1, context: { ownerAddress: OWNER } },
       postRegistrationSetup: undefined,
     },
   }) as unknown as ResumeAssessment
 
+/**
+ * The slice of the UI machine the hook reads back: whether the restored failure
+ * screen is still showing. `send` keeps it as the real machine would, and
+ * `refuseResume` stands in for a resume the machine turns down (the wallet
+ * busy in another tab, say), which leaves the screen restored.
+ */
+const ui = { restoredFailure: false, refuseResume: false }
 const send = vi.fn()
-const uiActor = { send } as unknown as RegistrationV2UiActor
+const applyToUi = (event: { type: string }) => {
+  if (event.type === 'registration.failure.restore') ui.restoredFailure = true
+  if (event.type === 'cancel') ui.restoredFailure = false
+  if (event.type === 'registration.resume' && !ui.refuseResume) {
+    ui.restoredFailure = false
+  }
+}
+const getSnapshot = () => ({
+  context: {
+    restoredRun: ui.restoredFailure
+      ? { label: 'leon', updatedAt: 1 }
+      : undefined,
+  },
+})
+const uiActor = { send, getSnapshot } as unknown as RegistrationV2UiActor
 
 // Retries stay with the query in production; in here they would only turn a
 // deliberate rejection into a hang.
@@ -107,12 +141,15 @@ const render = (enabled?: boolean) =>
 describe('useRegistrationResume', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ui.restoredFailure = false
+    ui.refuseResume = false
+    send.mockImplementation(applyToUi)
     needsSessionBeforeRegistration.mockReturnValue(false)
     useSmartAccountContext.mockReturnValue(account())
     useConnection.mockReturnValue({ isDisconnected: false })
     loadStoredRegistration.mockReturnValue({ label: 'leon' })
     assessResumableRegistration.mockResolvedValue(resumableAssessment())
-    enableSession.mockResolvedValue({ type: 'rhinestone' })
+    enableSession.mockResolvedValue(enabledSession())
     getSessionEnablePayload.mockResolvedValue({ stub: 'enable' })
   })
 
@@ -180,6 +217,7 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'label-mismatch',
+      run: RUN,
     })
     rerender({ label: 'bob' })
 
@@ -196,7 +234,7 @@ describe('useRegistrationResume', () => {
     await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
     expect(result.current).toEqual({ status: 'wrong-wallet' })
     expect(send).not.toHaveBeenCalled()
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('names the owning wallet when no wallet is connected', async () => {
@@ -211,7 +249,7 @@ describe('useRegistrationResume', () => {
       }),
     )
     expect(send).not.toHaveBeenCalled()
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('resumes once the right wallet connects', async () => {
@@ -232,12 +270,14 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'commitment-expired',
+      run: RUN,
     })
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('discarded'))
-    expect(clearStoredRegistration).toHaveBeenCalledOnce()
+    // Only the write that was assessed, never one saved since.
+    expect(clearStoredWrite).toHaveBeenCalledExactlyOnceWith(RUN)
     expect(send).not.toHaveBeenCalled()
     // The user paid for that commitment; its disappearance needs a notice.
     expect(toast).toHaveBeenCalledOnce()
@@ -247,12 +287,13 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'signer-mode-mismatch',
+      run: RUN,
     })
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('discarded'))
-    expect(clearStoredRegistration).toHaveBeenCalledOnce()
+    expect(clearStoredWrite).toHaveBeenCalledOnce()
     // A quiet restart is the correct surface — there is nothing actionable to
     // tell the user about an internal mode flip.
     expect(toast).not.toHaveBeenCalled()
@@ -266,12 +307,13 @@ describe('useRegistrationResume', () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'label-mismatch',
+      run: RUN,
     })
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
     expect(toast).not.toHaveBeenCalled()
   })
@@ -282,7 +324,7 @@ describe('useRegistrationResume', () => {
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('enables an expired session before resuming', async () => {
@@ -294,6 +336,24 @@ describe('useRegistrationResume', () => {
     expect(enableSession).toHaveBeenCalledOnce()
   })
 
+  it('resumes with the session it just enabled, not the one it replaced', async () => {
+    // The account was read before the prompt: until the next render its
+    // signer and enable payload still belong to the expired session.
+    needsSessionBeforeRegistration.mockReturnValue(true)
+
+    const { result } = render()
+
+    await waitFor(() => expect(result.current.status).toBe('resumed'))
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'registration.resume',
+        account: expect.objectContaining({ signer: enabledSession().signer }),
+        hcaSessionEnable: enabledSession().hcaSessionEnable,
+      }),
+    )
+    expect(getSessionEnablePayload).not.toHaveBeenCalled()
+  })
+
   it('does not re-prompt when the account context churns mid-enable', async () => {
     // `enableSession()` itself flips `isEnablingSession` in the provider,
     // re-creating the context object. An effect keyed on that object cancelled
@@ -301,7 +361,8 @@ describe('useRegistrationResume', () => {
     // while the first was still open, and a resume that only completed via a
     // lucky later re-run.
     needsSessionBeforeRegistration.mockReturnValue(true)
-    let resolveEnable: (signer: { type: string }) => void = () => {}
+    let resolveEnable: (enabled: ReturnType<typeof enabledSession>) => void =
+      () => {}
     enableSession.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -318,7 +379,7 @@ describe('useRegistrationResume', () => {
     rerender()
     expect(enableSession).toHaveBeenCalledOnce()
 
-    resolveEnable({ type: 'rhinestone' })
+    resolveEnable(enabledSession())
     await waitFor(() => expect(result.current.status).toBe('resumed'))
     expect(enableSession).toHaveBeenCalledOnce()
     expect(send).toHaveBeenCalledOnce()
@@ -332,7 +393,7 @@ describe('useRegistrationResume', () => {
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(send).not.toHaveBeenCalled()
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('recovers when the resume check throws instead of parking at checking', async () => {
@@ -348,7 +409,7 @@ describe('useRegistrationResume', () => {
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(send).not.toHaveBeenCalled()
     // The record is still valid — it must survive for the next attempt.
-    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('stays retryable after a throw, so a reconnect can still resume', async () => {
@@ -378,6 +439,183 @@ describe('useRegistrationResume', () => {
 
     // A second dispatch would re-enter a flow that is already running.
     expect(send).toHaveBeenCalledOnce()
+  })
+
+  describe('a run that had failed', () => {
+    const failedAssessment = (): ResumeAssessment =>
+      ({ ...resumableAssessment(), status: 'failed' }) as ResumeAssessment
+
+    const pressTryAgain = (state: { status: string; retry?: () => void }) => {
+      act(() => {
+        state.retry?.()
+      })
+    }
+
+    beforeEach(() => {
+      assessResumableRegistration.mockResolvedValue(failedAssessment())
+      // An expired session is exactly what would put a prompt up on load.
+      needsSessionBeforeRegistration.mockReturnValue(true)
+    })
+
+    it('comes back on the failure screen without re-running anything', async () => {
+      const { result } = render()
+
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+      expect(send).toHaveBeenCalledOnce()
+      expect(send).toHaveBeenCalledWith({
+        type: 'registration.failure.restore',
+        confirmedData: { label: 'leon' },
+        // The stored write it came from, so Back to Quote discards only that.
+        run: { label: 'leon', updatedAt: 1 },
+      })
+      // Nothing runs until the user asks: no wallet prompt, no "Resuming"
+      // notice, and the commitment stays stored.
+      expect(enableSession).not.toHaveBeenCalled()
+      expect(toast).not.toHaveBeenCalled()
+      expect(clearStoredWrite).not.toHaveBeenCalled()
+    })
+
+    it('continues from the stored commitment on Try Again', async () => {
+      const { result } = render()
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+
+      pressTryAgain(result.current)
+
+      await waitFor(() => expect(result.current.status).toBe('resumed'))
+      expect(enableSession).toHaveBeenCalledOnce()
+      expect(send).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          type: 'registration.resume',
+          label: 'leon',
+          account: expect.objectContaining({ signer: enabledSession().signer }),
+          hcaSessionEnable: enabledSession().hcaSessionEnable,
+        }),
+      )
+    })
+
+    it('checks the chain again before continuing', async () => {
+      // The screen may have sat open long enough for the commitment to
+      // expire.
+      const { result } = render()
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+      assessResumableRegistration.mockResolvedValue({
+        status: 'stale',
+        reason: 'commitment-expired',
+        run: RUN,
+      })
+
+      pressTryAgain(result.current)
+
+      await waitFor(() => expect(result.current.status).toBe('discarded'))
+      expect(assessResumableRegistration).toHaveBeenCalledTimes(2)
+      expect(clearStoredWrite).toHaveBeenCalledOnce()
+      expect(send).toHaveBeenLastCalledWith({ type: 'cancel' })
+      expect(enableSession).not.toHaveBeenCalled()
+      // The expiry notice: the user paid for that commitment.
+      expect(toast).toHaveBeenCalledOnce()
+    })
+
+    it('keeps Try Again available when the session is declined', async () => {
+      enableSession.mockResolvedValueOnce(null as never)
+      const { result } = render()
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+
+      pressTryAgain(result.current)
+      await waitFor(() => expect(enableSession).toHaveBeenCalledOnce())
+      await act(async () => {})
+
+      expect(result.current.status).toBe('failed')
+      expect(send).toHaveBeenCalledOnce()
+
+      pressTryAgain(result.current)
+      await waitFor(() => expect(result.current.status).toBe('resumed'))
+    })
+
+    it('keeps Try Again here when the machine turns the resume down', async () => {
+      // A refused resume leaves the restored screen up; the next press has to
+      // come back through here, with a fresh account and a fresh check.
+      ui.refuseResume = true
+      const { result } = render()
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+
+      pressTryAgain(result.current)
+      await waitFor(() =>
+        expect(send).toHaveBeenLastCalledWith(
+          expect.objectContaining({ type: 'registration.resume' }),
+        ),
+      )
+      await act(async () => {})
+      expect(result.current.status).toBe('failed')
+
+      ui.refuseResume = false
+      pressTryAgain(result.current)
+      await waitFor(() => expect(result.current.status).toBe('resumed'))
+    })
+
+    it('does not resume a failure screen the user has already left', async () => {
+      // Back to Quote, or another name, while Try Again was still checking.
+      const { result } = render()
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+      ui.restoredFailure = false
+
+      pressTryAgain(result.current)
+      await waitFor(() =>
+        expect(assessResumableRegistration).toHaveBeenCalledTimes(2),
+      )
+      await act(async () => {})
+
+      expect(send).toHaveBeenCalledOnce()
+      expect(enableSession).not.toHaveBeenCalled()
+      expect(result.current.status).toBe('failed')
+    })
+
+    describe('when another tab has replaced the stored run since', () => {
+      /** Another tab's write for the same name, saved after this restore. */
+      const NEWER = { ...RUN, updatedAt: 2 }
+
+      it('leaves its record alone even when it reads as stale', async () => {
+        // The other tab's run reading as expired must not let this screen
+        // discard it: its record holds the only copy of its secret.
+        const { result } = render()
+        await waitFor(() => expect(result.current.status).toBe('failed'))
+        assessResumableRegistration.mockResolvedValue({
+          status: 'stale',
+          reason: 'commitment-expired',
+          run: NEWER,
+        })
+
+        pressTryAgain(result.current)
+
+        await waitFor(() => expect(result.current.status).toBe('idle'))
+        expect(clearStoredWrite).not.toHaveBeenCalled()
+        expect(send).toHaveBeenLastCalledWith({ type: 'cancel' })
+      })
+
+      it('does not continue a run that is not the one on screen', async () => {
+        const { result } = render()
+        await waitFor(() => expect(result.current.status).toBe('failed'))
+        const replaced = failedAssessment() as Extract<
+          ResumeAssessment,
+          { status: 'failed' }
+        >
+        assessResumableRegistration.mockResolvedValue({
+          ...replaced,
+          stored: {
+            ...replaced.stored,
+            record: { ...replaced.stored.record, updatedAt: NEWER.updatedAt },
+          },
+        })
+
+        pressTryAgain(result.current)
+
+        await waitFor(() => expect(result.current.status).toBe('idle'))
+        expect(enableSession).not.toHaveBeenCalled()
+        expect(send).not.toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'registration.resume' }),
+        )
+        expect(clearStoredWrite).not.toHaveBeenCalled()
+      })
+    })
   })
 
   describe('a different wallet connecting mid-run', () => {

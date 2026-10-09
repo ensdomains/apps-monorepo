@@ -31,8 +31,11 @@ import {
 } from '../data/queries/pricing.query'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 import {
+  isFailedRegistrationRecord,
   loadStoredRegistration,
   type StoredRegistration,
+  type StoredRegistrationKey,
+  storedRegistrationKey,
 } from './registrationPersistence'
 
 const commitmentAtAbi = parseAbi([
@@ -62,21 +65,48 @@ export type ResumeStaleReason =
   | 'commitment-expired'
   /** A finished run whose record outlived its own cleanup. */
   | 'already-finished'
+  /**
+   * A run that failed before it held a commitment, so there is no secret to
+   * continue from. It starts over.
+   */
+  | 'failed-before-commit'
+
+type ContinuableRegistration = {
+  readonly stored: StoredRegistration
+  /**
+   * The stored `confirmedData` with pricing refreshed at preflight time.
+   * Feeds both the registering screen and the machine's `tokenPrice`.
+   */
+  readonly confirmedData: RegistrationConfirmedData
+  /** True when the re-quote failed and the stored price was kept. */
+  readonly priceIsStale: boolean
+}
 
 export type ResumeAssessment =
   | { readonly status: 'none' }
-  | { readonly status: 'stale'; readonly reason: ResumeStaleReason }
   | {
-      readonly status: 'resumable'
-      readonly stored: StoredRegistration
+      readonly status: 'stale'
+      readonly reason: ResumeStaleReason
       /**
-       * The stored `confirmedData` with pricing refreshed at preflight time.
-       * Feeds both the registering screen and the machine's `tokenPrice`.
+       * The stored write this verdict is about. A discard clears only that
+       * write: the chain reads take long enough for another tab to have
+       * replaced it, and the newer record holds the only copy of its secret.
        */
-      readonly confirmedData: RegistrationConfirmedData
-      /** True when the re-quote failed and the stored price was kept. */
-      readonly priceIsStale: boolean
+      readonly run: StoredRegistrationKey
     }
+  | ({ readonly status: 'resumable' } & ContinuableRegistration)
+  /**
+   * A run that failed holding a commitment. It goes back on the failure screen
+   * rather than resuming, and continues only when the user presses Try Again.
+   *
+   * The record is passed on as stored, register ids included. A register that
+   * was sent may have landed or still be filling, and the commitment it
+   * consumed then reads like one that never landed. With the ids, the resume
+   * starts at `verifyingRegistration`, which checks that register before
+   * anything is revealed again; without them it would revalidate the
+   * commitment and fail a name the user already owns.
+   */
+  | ({ readonly status: 'failed' } & ContinuableRegistration)
 
 /**
  * Chain time, not wall-clock: `commitmentAt` is a block timestamp, and the e2e
@@ -194,12 +224,17 @@ export async function assessResumableRegistration(params: {
 
   if (!stored) return { status: 'none' }
 
-  if (stored.label !== params.label) {
-    return { status: 'stale', reason: 'label-mismatch' }
-  }
+  const run = storedRegistrationKey(stored)
+  const stale = (reason: ResumeStaleReason): ResumeAssessment => ({
+    status: 'stale',
+    reason,
+    run,
+  })
+
+  if (stored.label !== params.label) return stale('label-mismatch')
 
   if (stored.record.context.chainId !== params.chainId) {
-    return { status: 'stale', reason: 'chain-mismatch' }
+    return stale('chain-mismatch')
   }
 
   // Resuming across a signer-mode flip cannot be made safe. `RESUME` replaces
@@ -217,45 +252,77 @@ export async function assessResumableRegistration(params: {
     params.signerType &&
     stored.record.context.signerType !== params.signerType
   ) {
-    return { status: 'stale', reason: 'signer-mode-mismatch' }
+    return stale('signer-mode-mismatch')
   }
 
   // The subscriber clears on `success`/`idle`, so seeing one here means the tab
   // died between the write and the clear. Nothing left to do but tidy up.
   if (stored.record.stage === 'success' || stored.record.stage === 'idle') {
-    return { status: 'stale', reason: 'already-finished' }
+    return stale('already-finished')
   }
 
-  const commitment = stored.record.context.commitment?.commitment
-  if (commitment) {
-    try {
-      const age = await readCommitmentAge({
-        publicClient: params.publicClient,
-        chainId: params.chainId,
-        commitment,
-        registrar: registrarForRecord(params.chainId),
-      })
+  const isFailedRun = isFailedRegistrationRecord(stored.record)
 
-      // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
-      // and the reveal necessarily runs later than this assessment — a
-      // commitment at the boundary is already doomed to `CommitmentTooOld`.
-      if (age && age.ageSeconds >= age.maxAgeSeconds) {
-        return { status: 'stale', reason: 'commitment-expired' }
-      }
-    } catch {
-      // An RPC blip must not discard a commitment the user paid for. Resuming
-      // is recoverable (a genuinely expired commitment reverts and the user
-      // restarts); discarding is not.
-    }
-  }
+  const staleReason = await commitmentStaleReason({
+    publicClient: params.publicClient,
+    chainId: params.chainId,
+    commitment: stored.record.context.commitment?.commitment,
+    isFailedRun,
+  })
+  if (staleReason) return stale(staleReason)
 
-  const { confirmedData, stale } = await requoteConfirmedData(stored)
+  const requoted = await requoteConfirmedData(stored)
 
   return {
-    status: 'resumable',
+    status: isFailedRun ? 'failed' : 'resumable',
     stored,
-    confirmedData,
-    priceIsStale: stale,
+    confirmedData: requoted.confirmedData,
+    priceIsStale: requoted.stale,
+  }
+}
+
+/**
+ * Why a stored run can no longer continue from its commitment, or `null` when
+ * it can.
+ */
+async function commitmentStaleReason(params: {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly commitment: `0x${string}` | undefined
+  readonly isFailedRun: boolean
+}): Promise<ResumeStaleReason | null> {
+  // A live run that has not committed yet simply resumes into its commit. A
+  // failed one has no secret to continue from.
+  if (!params.commitment) {
+    return params.isFailedRun ? 'failed-before-commit' : null
+  }
+
+  try {
+    const age = await readCommitmentAge({
+      publicClient: params.publicClient,
+      chainId: params.chainId,
+      commitment: params.commitment,
+      registrar: registrarForRecord(params.chainId),
+    })
+
+    // Not recorded, which proves nothing either way. A commit can land after
+    // its run has failed: `validatingCommitment` gives up after ~12s, and a
+    // relayed commit can fill after a reported failure. A register that went
+    // out consumes the commitment, so it also reads as not recorded once it
+    // lands. Discarding the record here would lose the only copy of the
+    // secret, or the ids that find that register. Kept, it is checked again
+    // before anything reveals.
+    if (!age) return null
+
+    // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
+    // and the reveal necessarily runs later than this assessment — a
+    // commitment at the boundary is already doomed to `CommitmentTooOld`.
+    return age.ageSeconds >= age.maxAgeSeconds ? 'commitment-expired' : null
+  } catch {
+    // An RPC blip must not discard a commitment the user paid for. Resuming
+    // is recoverable (a genuinely expired commitment reverts and the user
+    // restarts); discarding is not.
+    return null
   }
 }
 

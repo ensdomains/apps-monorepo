@@ -200,6 +200,56 @@ export function clearStoredRegistration(
 }
 
 /**
+ * One write of the stored record. Every save stamps a fresh `updatedAt`, so
+ * any later write, by the same run or another tab's, no longer matches.
+ */
+export type StoredRegistrationKey = {
+  readonly label: string
+  readonly updatedAt: number
+}
+
+export const storedRegistrationKey = (
+  stored: StoredRegistration,
+): StoredRegistrationKey => ({
+  label: stored.label,
+  updatedAt: stored.record.updatedAt,
+})
+
+/**
+ * Clear the stored record only if it is still the write `key` names. Since
+ * then another tab may have resumed or restarted the name, and its record
+ * holds the only copy of the secret for its commitment.
+ */
+export function clearStoredRegistrationIfUnchanged(
+  key: StoredRegistrationKey,
+  storage: StorageLike | null = getBrowserStorage(),
+): void {
+  const stored = loadStoredRegistration(storage)
+  if (
+    stored?.label !== key.label ||
+    stored.record.updatedAt !== key.updatedAt
+  ) {
+    return
+  }
+  clearStoredRegistration(storage)
+}
+
+/**
+ * Whether a record was written by a run that ended in failure.
+ *
+ * The package keeps such a record, minus a run the user declined, because a
+ * failed register does not mean a failed commitment: the record still holds
+ * the secret that reveals one already on-chain. The Manager restores it to the
+ * failure screen rather than resuming it, so nothing re-runs until the user
+ * presses Try Again.
+ */
+export function isFailedRegistrationRecord(
+  record: Pick<PersistedRegistrationRecord, 'stage'>,
+): boolean {
+  return record.stage === 'error'
+}
+
+/**
  * Build the adapter that `subscribeRegistrationPersistence` writes through.
  *
  * `getConfirmedData` is a callback rather than a value because the subscriber

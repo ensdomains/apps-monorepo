@@ -76,6 +76,12 @@ export interface RevokeSessionOptions {
   readonly deployFirst?: boolean
 }
 
+/** A session just enabled, for the caller to start a flow with right away. */
+export interface EnabledSession {
+  readonly signer: Signer
+  readonly hcaSessionEnable: HcaSessionEnablePayload
+}
+
 export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
   readonly isReady: boolean
@@ -101,10 +107,11 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * the session off-chain, and nothing is written on-chain — every
    * session-signed intent carries that authorization inline, and the validator
    * checks it against the account's session nonce each time. Resolves with the
-   * session-attached signer to use IMMEDIATELY (avoids waiting for a React
-   * re-render of `signer`), or null on failure / the EOA-only path.
+   * session-attached signer and its enable payload to use IMMEDIATELY: until
+   * the next render, `signer` and `getSessionEnablePayload()` still describe
+   * the session this one replaced. Null on failure / the EOA-only path.
    */
-  readonly enableSession: () => Promise<Signer | null>
+  readonly enableSession: () => Promise<EnabledSession | null>
   /**
    * Replace the active session with one whose gas-overhead cap allows the
    * requested overhead — the registration machine's way out when a quote
@@ -766,10 +773,16 @@ export const SmartAccountContextProvider = ({
     ],
   )
 
-  const enableSession = useCallback(async (): Promise<Signer | null> => {
-    const result = await authorizeSession()
-    return result instanceof Error ? null : result.signer
-  }, [authorizeSession])
+  const enableSession =
+    useCallback(async (): Promise<EnabledSession | null> => {
+      const result = await authorizeSession()
+      return result instanceof Error
+        ? null
+        : {
+            signer: result.signer,
+            hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
+          }
+    }, [authorizeSession])
 
   const reauthorizeSession = useCallback<ReauthorizeSession>(
     async ({ minGasOverhead }) => {

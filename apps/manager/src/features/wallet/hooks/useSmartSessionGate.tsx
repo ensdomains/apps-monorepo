@@ -54,8 +54,8 @@ export function useSmartSessionGate(): SmartSessionGate {
     // The single ENABLE signature. On success, close the modal and run the
     // deferred action — the session is now active, so the downstream flow runs
     // prompt-free off `account.signer`.
-    const signer = await account.enableSession()
-    if (!signer) return // modal stays open, surfaces account.sessionError
+    const enabled = await account.enableSession()
+    if (!enabled) return // modal stays open, surfaces account.sessionError
     setIsOpen(false)
     const pending = pendingRef.current
     pendingRef.current = null

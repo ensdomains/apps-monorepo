@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
-  const { uiActor, label } = RegisterV2Context.use()
+  const { uiActor, label, resume } = RegisterV2Context.use()
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
@@ -20,6 +20,19 @@ export const FailureStep = () => {
   const isWalletBusy = RegisterV2Context.useSelector(
     (state) => state.context.isWalletBusy,
   )
+  // A run that failed before this page loaded. Its machine never resumed, so
+  // Try Again resumes it rather than retrying it.
+  const isRestoredFailure = RegisterV2Context.useSelector(
+    (state) => state.context.restoredRun !== undefined,
+  )
+
+  const onRetry = () => {
+    if (!isRestoredFailure) {
+      uiActor.send({ type: 'retry' })
+      return
+    }
+    if (resume.status === 'failed') resume.retry()
+  }
 
   return (
     <FailureStepView
@@ -28,7 +41,7 @@ export const FailureStep = () => {
       message={message}
       nameUnavailable={nameUnavailable}
       onCancel={() => uiActor.send({ type: 'cancel' })}
-      onRetry={() => uiActor.send({ type: 'retry' })}
+      onRetry={onRetry}
     />
   )
 }
