@@ -686,6 +686,10 @@ msgstr ""
 msgid "Contact methods"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileContentHashSection.tsx
+msgid "Content hash"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
 msgstr ""
