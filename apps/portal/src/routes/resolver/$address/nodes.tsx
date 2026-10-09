@@ -37,6 +37,7 @@ import {
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
 import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
+import { rolesForNode } from '@/features/resolver/helpers/rolesForNode'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
@@ -145,9 +146,7 @@ function RouteComponent() {
   const nodes = boundNames?.nodes ?? []
   const roles = resolver?.roles ?? []
 
-  const rolesForNode = selectedNode
-    ? roles.filter((r) => r.resource === selectedNode.id)
-    : []
+  const nodeRoles = selectedNode ? rolesForNode(roles, selectedNode) : []
 
   const columns = useMemo(() => createNodesColumns(address), [address])
 
@@ -216,7 +215,7 @@ function RouteComponent() {
 
       <NodeDetailSheet
         node={selectedNode}
-        roles={rolesForNode}
+        roles={nodeRoles}
         rolesStatus={
           resolver?.rolesStatus === 'unsupported'
             ? 'unsupported'
