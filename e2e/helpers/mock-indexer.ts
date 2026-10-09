@@ -117,10 +117,10 @@ export function createIndexerMock() {
       expires_at: expiresAt,
       ...(isLapsed(d)
         ? {
-            registration_status: 'released',
+            status: 'expired',
             lapsed_registration: { owner, release_kind: 'expired' },
           }
-        : { owner, manager: owner, registration_status: 'registered' }),
+        : { owner, manager: owner, status: 'active' }),
       ...(d.protocol === 'v1'
         ? { authority: 'ens_v1', ens_v1: { expires_at: expiresAt } }
         : { authority: 'ens_v2' }),
@@ -253,7 +253,7 @@ export function createIndexerMock() {
           status: 'ok',
           record: {
             ...nameFields(d),
-            status: 'ok',
+            read_status: 'ok',
             ...(records && { records }),
           },
         }
@@ -307,7 +307,7 @@ export function createIndexerMock() {
       method: 'GET',
       path: /^\/v1\/names\/([^/]+)$/,
       reply: withDomain((d) => ({
-        data: { ...nameFields(d), status: 'ok' },
+        data: { ...nameFields(d), read_status: 'ok' },
         meta: META,
       })),
     },

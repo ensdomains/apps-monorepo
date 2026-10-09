@@ -37,7 +37,7 @@ export type Subname = Readonly<{
   owner?: Address
   manager?: Address
   registrant?: Address
-  registration_status: RegistrationStatus
+  status: RegistrationStatus
   authority?: Authority
   ens_v1?: EnsV1Facts
   registered_at?: Timestamp

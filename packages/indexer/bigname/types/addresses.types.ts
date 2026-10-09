@@ -67,7 +67,7 @@ export type AddressName = Readonly<{
   owner?: Address
   manager?: Address
   registrant?: Address
-  registration_status: RegistrationStatus
+  status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp

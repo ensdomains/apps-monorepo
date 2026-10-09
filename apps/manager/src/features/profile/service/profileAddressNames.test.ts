@@ -30,7 +30,7 @@ const summary = (
   relations,
   isPrimary: false,
   isMigrated: false,
-  registrationStatus: 'registered',
+  registrationStatus: 'active',
   expiresAt: null,
   servedExpiry: null,
   registeredAt: null,
