@@ -77,7 +77,7 @@ export const RegistrationDurationOrExpiryPicker = ({
             ) : (
               <HashIcon className="size-3.5" />
             )}
-            <span className="text-xs font-normal">
+            <span className="text-small font-normal">
               {registrationSpanType === 'years'
                 ? 'Pick by date'
                 : 'Choose length'}

@@ -58,9 +58,11 @@ export const PaymentTokenList = <T extends PaymentTokenDisplay>({
               ).toLocaleString()}
             </p>
             {hasSufficientBalance ? (
-              <p className="text-muted-foreground text-xs">available</p>
+              <p className="text-muted-foreground text-small">available</p>
             ) : (
-              <p className="text-destructive text-xs">Insufficient balance</p>
+              <p className="text-destructive text-small">
+                Insufficient balance
+              </p>
             )}
           </div>
         </button>

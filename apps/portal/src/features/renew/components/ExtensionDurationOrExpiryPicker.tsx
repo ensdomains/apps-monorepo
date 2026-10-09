@@ -56,7 +56,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             onClick={() => setSpan(getToggledExtensionSpan(baseDate, span))}
             className="gap-1 text-primary"
           >
-            <span className="text-xs font-normal">
+            <span className="text-small font-normal">
               {span.type === 'years' ? 'Pick by date' : 'Choose length'}
             </span>
             {span.type === 'years' ? (

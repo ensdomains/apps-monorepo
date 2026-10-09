@@ -126,7 +126,7 @@ const ExtensionPriceBreakdown = ({
           <span className="flex flex-col items-end m-0">
             <span>{priceValue}</span>
             {discountSublabel ? (
-              <span className="text-xs text-success-text">
+              <span className="text-small text-success-text">
                 {discountSublabel}
               </span>
             ) : null}

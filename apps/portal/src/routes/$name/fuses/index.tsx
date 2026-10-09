@@ -351,7 +351,7 @@ const columns: ColumnDef<FuseRow>[] = [
         <Badge
           variant="outline"
           className={cn(
-            'text-xs border-transparent',
+            'text-small border-transparent',
             isBurnt
               ? 'bg-warning-fill text-warning-text'
               : 'bg-default-fill text-default-text',

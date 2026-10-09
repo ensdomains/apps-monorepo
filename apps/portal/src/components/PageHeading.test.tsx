@@ -55,12 +55,10 @@ describe('PageHeading', () => {
   })
 
   it('lets an overview page override the heading size', () => {
-    render(
-      <PageHeading className="font-serif text-4xl">jooooe.eth</PageHeading>,
-    )
+    render(<PageHeading className="font-serif text-h1">jooooe.eth</PageHeading>)
 
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toHaveClass('text-4xl')
+    expect(heading).toHaveClass('text-h1')
     expect(heading).not.toHaveClass('text-page-title')
   })
 
