@@ -1,6 +1,6 @@
 import type { RegistryLabel as BignameRegistryLabel } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address } from 'viem'
 import { envConfig } from '@/config'
@@ -30,7 +30,14 @@ export type RegistryLabelRow = {
   roleHoldersCount: number
 }
 
-const LABELS_LIMIT = 100
+export const REGISTRY_LABELS_PAGE_SIZE = 100
+
+/** One page of a registry's labels, with the registry's total beside it. */
+export type RegistryLabelsPage = {
+  readonly labels: readonly RegistryLabelRow[]
+  readonly totalCount: number | undefined
+  readonly nextCursor: string | undefined
+}
 
 /**
  * bigname serves a label it cannot name as `[<labelhash>].<parent>`, which
@@ -51,18 +58,28 @@ const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
 }
 
 /**
- * The first hundred labels, by name, with their role-holder counts. A registry
+ * One page of labels, by name, with their role-holder counts. A registry
  * bigname has not indexed has none to list.
  */
-const getRegistryLabels = ({ address }: GetRegistryLabelsParameters) =>
+const getRegistryLabelsPage = (
+  { address }: GetRegistryLabelsParameters,
+  cursor: string | undefined,
+) =>
   nullOnNotFound(
     bigname.registryLabels(envConfig.chain.id, address.toLowerCase(), {
       include: ['counts'],
-      page_size: LABELS_LIMIT,
+      page_size: REGISTRY_LABELS_PAGE_SIZE,
+      ...(cursor && { cursor }),
     }),
   )
     .mapErr((cause) => new GetRegistryLabelsError({ cause }))
-    .map((response) => (response?.data ?? []).map(toRegistryLabelRow))
+    .map(
+      (response): RegistryLabelsPage => ({
+        labels: (response?.data ?? []).map(toRegistryLabelRow),
+        totalCount: response?.page?.total_count ?? undefined,
+        nextCursor: response?.page?.next_cursor ?? undefined,
+      }),
+    )
 
 const getRegistryLabelsQueryKey = createQueryKey<
   'get-registry-labels',
@@ -72,7 +89,9 @@ const getRegistryLabelsQueryKey = createQueryKey<
 export const getRegistryLabelsQueryOptions = (
   params: GetRegistryLabelsParameters,
 ) =>
-  resultQueryOptions({
+  resultInfiniteQueryOptions({
     queryKey: getRegistryLabelsQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryLabels(params),
+    queryFn: ({ pageParam }) => getRegistryLabelsPage(params, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: RegistryLabelsPage) => last.nextCursor,
   })
