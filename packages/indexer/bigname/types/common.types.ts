@@ -144,8 +144,25 @@ export type WrapperFuses = Readonly<{
   can_extend_expiry: boolean
 }>
 
+/** Name-shaped rows: the ENSv1 registrar lease and NameWrapper state behind a name. */
+export type EnsV1Facts = Readonly<{
+  /** The BaseRegistrar lease; null on a subname. */
+  expires_at?: Timestamp | null
+  wrapper_state?: WrapperState | 'lapsed' | 'unwrapped' | 'unknown'
+  wrapper_fuses?: WrapperFuses
+  /** Null for unlimited or unset expiry; omitted without a current wrapper entry. */
+  wrapper_expires_at?: Timestamp | null
+  /** Explains a null wrapper expiry. */
+  wrapper_expires_at_reason?: 'no_expiry' | 'not_set'
+}>
+
 /** Name-shaped rows: where the chain reads the current registration fields from. */
 export type Authority = 'ens_v0' | 'ens_v1' | 'ens_v2'
+
+/** Name detail, detail lookup: why a name provably resolves to nothing after the cutover. */
+export type UnresolvableReason =
+  | 'no_live_ens_v2_entry'
+  | 'ens_v2_path_no_resolver'
 
 /** Name-shaped rows: `resolver` `{chain_id, address}`. */
 export type ResolverRef = Readonly<{
@@ -159,20 +176,12 @@ export type RegistryRef = Readonly<{
   address: Address
 }>
 
-/** Name-shaped rows: the ENSv1 registrar lease and NameWrapper state behind a name. */
-export type EnsV1Facts = Readonly<{
-  /** The BaseRegistrar lease; null on a subname. */
-  expires_at?: Timestamp | null
-  wrapper_state?: WrapperState | 'lapsed' | 'unwrapped' | 'unknown'
-  wrapper_fuses?: WrapperFuses
-  /** Null when the wrapper never set one. */
-  wrapper_expires_at?: Timestamp | null
-}>
-
 /** `GET /v1/names/{name}`, detail lookup: the holder a released ENSv1 lease had when it lapsed. */
 export type LapsedRegistration = Readonly<{
-  /** Who held the registration when it lapsed. */
   owner?: Address
+  registrant?: Address
+  held_through?: 'registrar' | 'wrapper'
   released_at?: Timestamp
+  /** `expired` when the registration lapsed rather than being burned or replaced. */
   release_kind?: string
 }>

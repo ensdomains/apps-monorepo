@@ -198,6 +198,7 @@ type ManagerFixtures = {
    */
   mockIndexer: {
     addName: (domain: MockDomain) => void
+    readonly removeName: (name: string) => void
     enabled: boolean
   }
 }
@@ -331,6 +332,7 @@ export const test = base.extend<ManagerFixtures>({
   mockIndexer: async ({}, use) => {
     await use({
       addName: indexerMock.addName,
+      removeName: indexerMock.removeName,
       enabled: indexerMock.enabled,
     })
   },

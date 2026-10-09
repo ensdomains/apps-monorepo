@@ -1,55 +1,83 @@
-import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
-import { indexerClient } from '@/lib/indexer-client'
-import { mockIndexerQuery } from './_fixtures'
-import { getMigratedNamesCount } from './getMigratedNamesCount'
+import { createBignameClient } from '@ens-apps/indexer/bigname'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Stub only the client — `graphqlRequest` stays real so these exercise the
-// production unwrap path.
-vi.mock('@/lib/indexer-client', () => ({
-  indexerClient: { query: vi.fn() },
+const fetchMock = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/bigname', () => ({
+  bigname: createBignameClient('https://bigname.test', {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetchMock(input, init),
+  }),
 }))
 
-const queryMock = vi.mocked(indexerClient.query)
-const respond = (r: { data?: unknown; error?: unknown }) =>
-  mockIndexerQuery(queryMock, r)
+import { getMigratedNamesCount } from './getMigratedNamesCount'
 
 const ADDR = '0x0000000000000000000000000000000000000001'
 
-beforeEach(() => {
-  queryMock.mockReset()
+const respond = (body: unknown, status = 200) =>
+  fetchMock.mockResolvedValue(
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    }),
+  )
+
+const listing = (
+  rows: readonly unknown[],
+  page: { readonly total_count: number | null; readonly has_more: boolean },
+) => ({
+  data: rows,
+  page: { cursor: null, next_cursor: null, page_size: 1, ...page },
+  meta: { as_of: {} },
 })
 
 describe('getMigratedNamesCount', () => {
-  it('returns ok with the total count from the indexer', async () => {
-    respond({ data: { domainConnection: { totalCount: 42 } } })
-    const r = await getMigratedNamesCount(ADDR)
-    assert(r.isOk())
-    expect(r.value).toBe(42)
-  })
+  beforeEach(() => fetchMock.mockReset())
 
-  it('returns ok with 0 when totalCount is missing', async () => {
-    respond({ data: { domainConnection: {} } })
-    const r = await getMigratedNamesCount(ADDR)
-    assert(r.isOk())
-    expect(r.value).toBe(0)
+  it('asks for the exact count of owned names that moved from ENSv1', async () => {
+    respond(
+      listing([{ name: 'alice.eth' }], { total_count: 4, has_more: true }),
+    )
+
+    const result = await getMigratedNamesCount(ADDR)
+
+    expect(result._unsafeUnwrap()).toBe(4)
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]))
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      relation: 'owner',
+      is_migrated: 'true',
+      dedupe: 'name',
+      include: 'total_count',
+      page_size: '1',
+    })
   })
 
   it.each([
-    ['error', { error: new Error('indexer 500') }],
-    ['no data and no error', {}],
-  ] as const)('returns err on %s', async (_, response) => {
-    respond(response)
-    const r = await getMigratedNamesCount(ADDR)
-    assert(r.isErr())
-    expect(r.error._tag).toBe('GetMigratedNamesCountError')
+    [0, []],
+    [1, [{ name: 'alice.eth' }]],
+  ])('counts the rows of a complete listing without a total: %i', async (expected, rows) => {
+    respond(listing(rows, { total_count: null, has_more: false }))
+
+    const result = await getMigratedNamesCount(ADDR)
+
+    expect(result._unsafeUnwrap()).toBe(expected)
   })
 
-  it('lowercases the address when building query variables', async () => {
-    respond({ data: { domainConnection: { totalCount: 1 } } })
-    await getMigratedNamesCount('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
-    const vars = queryMock.mock.calls[0]?.[1] as { where?: { owner?: string } }
-    expect(vars?.where?.owner).toBe(
-      '0xabcdef0123456789abcdef0123456789abcdef01',
+  it('fails rather than guess when there is more and no total', async () => {
+    respond(
+      listing([{ name: 'alice.eth' }], { total_count: null, has_more: true }),
     )
+
+    const result = await getMigratedNamesCount(ADDR)
+
+    expect(result._unsafeUnwrapErr()._tag).toBe('GetMigratedNamesCountError')
+  })
+
+  it('fails on a bigname error', async () => {
+    respond({ error: { code: 'internal', message: 'down', details: {} } }, 500)
+
+    const result = await getMigratedNamesCount(ADDR)
+
+    expect(result._unsafeUnwrapErr()._tag).toBe('GetMigratedNamesCountError')
   })
 })

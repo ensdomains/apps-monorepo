@@ -18,10 +18,20 @@
  * Sponsorship is deliberately NOT the answer here — see `signer.types.ts`.
  */
 
-import { getDestinationContracts } from '@ens-apps/smart-account'
+import {
+  getDestinationContracts,
+  legFeeUsdc,
+  readQuotedGasRefunds,
+} from '@ens-apps/smart-account'
 import type { Transaction } from '@rhinestone/sdk'
 import type { Address, Chain, Hex, PublicClient } from 'viem'
-import { encodeFunctionData, formatUnits, parseAbi } from 'viem'
+import {
+  encodeFunctionData,
+  formatUnits,
+  isAddressEqual,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import {
   readHcaUsdcBalanceActor,
   readUsdcSpend,
@@ -156,13 +166,21 @@ const placeholderPermitCalls = (
 
 /** The subset of `prepareTransaction`'s response this module reads. */
 type PreparedQuote = {
-  intentRoute?: {
-    intentCost?: Parameters<typeof readUsdcSpend>[0]
+  readonly intentRoute?: {
+    readonly intentCost?: Parameters<typeof readUsdcSpend>[0]
+    readonly intentOp?: {
+      readonly signedMetadata?: {
+        readonly gasPrices?: Readonly<Record<string, string>>
+      }
+    }
   }
 }
 
 /**
  * Quote what the orchestrator will actually pull for `calls`, in USDC (6dp).
+ *
+ * The quoted spend leaves out the relay fee carried in the refund overhead,
+ * so the fee is sized from both, as the registration legs are (`legFeeUsdc`).
  *
  * `auxiliaryFunds` declares the inflow the funding pair brings in, because the
  * planner credits only balances it can already see and otherwise refuses to
@@ -194,7 +212,19 @@ async function quoteIntentUsdc(input: {
       : {}),
   } as Transaction)) as PreparedQuote
 
-  return readUsdcSpend(prepared.intentRoute?.intentCost, chain.id)
+  const route = prepared.intentRoute
+  const spend = readUsdcSpend(route?.intentCost, chain.id)
+  if (spend === null) return null
+  const gasPrice =
+    route?.intentOp?.signedMetadata?.gasPrices?.[String(chain.id)]
+  return legFeeUsdc({
+    spendUsdc: spend,
+    gasLimit: HCA_STANDALONE_INTENT_GAS_LIMIT,
+    gasPriceWei: gasPrice ? BigInt(gasPrice) : undefined,
+    gasRefund: readQuotedGasRefunds(route).find(
+      (refund) => !isAddressEqual(refund.token, zeroAddress),
+    ),
+  })
 }
 
 export interface HcaIntentFunding {

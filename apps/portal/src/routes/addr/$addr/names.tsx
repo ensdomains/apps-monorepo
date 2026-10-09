@@ -1,5 +1,4 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
@@ -12,8 +11,14 @@ import {
 } from '@tanstack/react-table'
 import { FastForward, Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import {
+  ListLoader,
+  type ListLoaderProps,
+} from '@/components/ListLoader/ListLoader'
+import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -26,10 +31,13 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { getV1NamesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
-import { getV2NamesWithRolesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
+import { ALL_OWNED_NAMES_QUERY_KEY } from '@/features/dashboard/hooks/ownedNamesQueryKey'
+import { useOwnedNames } from '@/features/dashboard/hooks/useOwnedNames'
+import { getV1NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
+import { getV2NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
 import {
   columns,
+  getNameRowId,
   type NameRow,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
@@ -53,10 +61,11 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { useDebouncedValue } from '@/hooks/useDebounce'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { queryClient } from '@/utils/queryClient'
+import type { ProtocolVersion } from '@/utils/types'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
@@ -88,18 +97,21 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
   },
 ]
 
+const NAMES_INITIAL_COUNT = 100
+const SEARCH_DEBOUNCE_MS = 300
+
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
     Promise.all([
-      queryClient.prefetchQuery(
-        getV1NamesForAddressQueryOptions({
+      queryClient.prefetchInfiniteQuery(
+        getV1NamesPagesForAddressQueryOptions({
           address: params.addr as Address,
         }),
       ),
-      queryClient.prefetchQuery(
-        getV2NamesWithRolesForAddressQueryOptions({
+      queryClient.prefetchInfiniteQuery(
+        getV2NamesPagesForAddressQueryOptions({
           address: params.addr as Address,
         }),
       ),
@@ -136,9 +148,28 @@ function useRenewableNames(candidates: readonly SelectedName[]): {
   return { names, isLoading }
 }
 
-function RouteComponent() {
-  const { addr: address } = Route.useParams() as { addr: Address }
-
+const NamesList = ({
+  address,
+  names,
+  loader,
+  search,
+  onSearchChange,
+  isSearching,
+  isSearchPending,
+  failedSearches,
+}: {
+  readonly address: Address
+  /** The names shown so far. */
+  readonly names: NameRow[]
+  readonly loader: ListLoaderProps
+  readonly search: string
+  readonly onSearchChange: (search: string) => void
+  readonly isSearching: boolean
+  /** The rows are still the previous search's while the new one loads. */
+  readonly isSearchPending: boolean
+  /** The protocol versions whose search failed; the other's names still show. */
+  readonly failedSearches: readonly ProtocolVersion[]
+}) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -155,10 +186,7 @@ function RouteComponent() {
       setRowSelection({})
       setExtendModalOpen(false)
       void queryClient.invalidateQueries({
-        queryKey: ['get-names-for-address'],
-      })
-      void queryClient.invalidateQueries({
-        queryKey: ['get-v2-names-with-roles-for-address'],
+        queryKey: ALL_OWNED_NAMES_QUERY_KEY,
       })
     },
   })
@@ -170,23 +198,9 @@ function RouteComponent() {
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedLengths, setSelectedLengths] = useState<string[]>([])
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesWithRolesForAddressQueryOptions({ address }),
-    ],
-  })
-
-  // Must be memoised: a fresh array makes the table recompute its row model,
-  // which auto-resets the page index, which re-renders — forever.
-  const data: NameRow[] = useMemo(
-    () => mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
-    [v1NamesQuery.data, v2NamesQuery.data],
-  )
-
   // Apply filters to data
   const filteredData = useMemo(() => {
-    let filtered = data
+    let filtered = names
 
     // Filter by expiry date range
     if (expiryDateRange.from || expiryDateRange.to) {
@@ -220,11 +234,12 @@ function RouteComponent() {
     }
 
     return filtered
-  }, [data, expiryDateRange, selectedStatuses, selectedLengths])
+  }, [names, expiryDateRange, selectedStatuses, selectedLengths])
 
   const table = useReactTable({
     data: filteredData,
     columns,
+    getRowId: getNameRowId,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -236,7 +251,6 @@ function RouteComponent() {
     onRowSelectionChange: setRowSelection,
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
-    globalFilterFn: 'includesString',
   })
 
   const rowCount = useMemo(
@@ -256,64 +270,35 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (v1NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (v2NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (v1NamesQuery.error) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching names. Please refresh the page."
-      />
-    )
-  }
-
-  if (v2NamesQuery.error) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching names. Please refresh the page."
-      />
-    )
-  }
-
-  const nameCount = filteredData.length
-  const totalCount = data.length
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     expiryDateRange.from ||
-    expiryDateRange.to ||
-    selectedStatuses.length > 0 ||
-    selectedLengths.length > 0
-
-  if (totalCount === 0)
-    return (
-      <>
-        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
-          <PageHeading parent={{ type: 'addr', addr: address }}>
-            Names
-          </PageHeading>
-        </header>
-        <NoResultsMessage
-          title="No names yet"
-          description="Names owned by this address will appear here."
-          className="mx-0"
-        />
-      </>
-    )
+      expiryDateRange.to ||
+      selectedStatuses.length > 0 ||
+      selectedLengths.length > 0,
+  )
 
   return (
     <>
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
-            {hasActiveFilters
-              ? `Names (${nameCount} of ${totalCount})`
-              : `Names (${totalCount})`}
+            {match({
+              total: loader.total,
+              hasActiveFilters,
+              isSearching,
+              isSearchPending,
+            })
+              .with({ isSearchPending: true }, () => 'Names')
+              .with(
+                { hasActiveFilters: true },
+                () => `Names (${filteredData.length} of ${names.length} shown)`,
+              )
+              .with({ total: undefined }, () => 'Names')
+              .with(
+                { isSearching: true },
+                ({ total }) => `Names (${total} matching)`,
+              )
+              .otherwise(({ total }) => `Names (${total})`)}
           </PageHeading>
         </div>
         {rowCount > 0 ? (
@@ -371,12 +356,19 @@ function RouteComponent() {
                 id={searchNamesId}
                 className="w-full"
                 placeholder="Search names..."
-                onChange={(event) => table.setGlobalFilter(event.target.value)}
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
               />
               <InputGroupAddon>
                 <Search />
               </InputGroupAddon>
             </InputGroup>
+            {loader.canShowMore && hasActiveFilters && (
+              <p className="text-sm text-muted-foreground">
+                Filters cover the {names.length} names shown so far. Show more
+                to include the rest.
+              </p>
+            )}
             <div className="flex flex-row gap-2 flex-wrap">
               <TableDateRangeFilter
                 label="Expiry"
@@ -399,9 +391,17 @@ function RouteComponent() {
           </>
         )}
       </header>
+      {failedSearches.map((protocolVersion) => (
+        <ErrorMessage
+          key={protocolVersion}
+          compact
+          description={`Error searching ${protocolVersion} names. Please try again.`}
+        />
+      ))}
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
+      <ListLoader {...loader} className="py-4" />
       {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}
@@ -430,5 +430,100 @@ function RouteComponent() {
       )}
       <TransactionModal transactions={renewalTransactions} />
     </>
+  )
+}
+
+function RouteComponent() {
+  const { addr: address } = Route.useParams() as { addr: Address }
+
+  // Kept with its address and dropped when the address changes, so a search
+  // neither follows you to another address nor waits for you to come back.
+  const [typed, setTyped] = useState({ address, search: '' })
+  if (typed.address !== address) setTyped({ address, search: '' })
+  const search = typed.address === address ? typed.search : ''
+  const debouncedSearch = useDebouncedValue(search.trim(), SEARCH_DEBOUNCE_MS)
+  const appliedSearch = search === '' ? '' : debouncedSearch
+
+  const {
+    names: loadedNames,
+    total,
+    hasMore,
+    fetchMore,
+    v1Query: v1NamesQuery,
+    v2Query: v2NamesQuery,
+  } = useOwnedNames({ address, search: appliedSearch || undefined })
+
+  const loader = useListLoader({
+    initialCount: NAMES_INITIAL_COUNT,
+    loaded: loadedNames.length,
+    total,
+    hasMore,
+    fetchMore,
+    resetKey: `${address}:${appliedSearch}`,
+  })
+
+  // Must be memoised: a fresh array makes the table recompute its row model,
+  // which auto-resets the page index, which re-renders — forever.
+  const names: NameRow[] = useMemo(
+    () => loadedNames.slice(0, loader.shown),
+    [loadedNames, loader.shown],
+  )
+
+  if (v1NamesQuery.isLoading) {
+    return <LoadingMessage />
+  }
+
+  if (v2NamesQuery.isLoading) {
+    return <LoadingMessage />
+  }
+
+  const failedSources = (
+    [
+      ['ENSv1', v1NamesQuery],
+      ['ENSv2', v2NamesQuery],
+    ] as const
+  )
+    .filter(([, query]) => query.isError && !query.isFetchNextPageError)
+    .map(([protocolVersion]) => protocolVersion)
+  const isSearching = appliedSearch !== ''
+
+  if (failedSources.length > 0 && !isSearching) {
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching names. Please refresh the page."
+      />
+    )
+  }
+
+  if (loadedNames.length === 0 && !hasMore && !isSearching)
+    return (
+      <>
+        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Names
+          </PageHeading>
+        </header>
+        <NoResultsMessage
+          title="No names yet"
+          description="Names owned by this address will appear here."
+          className="mx-0"
+        />
+      </>
+    )
+
+  return (
+    <NamesList
+      address={address}
+      names={names}
+      loader={loader}
+      search={search}
+      onSearchChange={(next) => setTyped({ address, search: next })}
+      isSearching={isSearching}
+      isSearchPending={
+        v1NamesQuery.isPlaceholderData || v2NamesQuery.isPlaceholderData
+      }
+      failedSearches={failedSources}
+    />
   )
 }

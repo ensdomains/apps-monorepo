@@ -1,107 +1,245 @@
-import type { DomainFragment } from '@ens-apps/indexer'
-import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
+import { readNamesForAddress } from '@ens-apps/indexer/bigname'
+import type {
+  NameRelation,
+  NamesForAddressQuery,
+  ReadNamesForAddress,
+} from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import {
+  resultInfiniteQueryOptions,
+  resultQueryOptions,
+} from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
-import { fromPromise, ok } from 'neverthrow'
+import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
-import { getDomains } from '@/features/dashboard/service/queries/getDashboardDomains'
-import { getDashboardRoleAssignments } from '@/features/dashboard/service/queries/getDashboardRoleAssignments'
-import { getManagedOnlyRoleNames } from '@/features/dashboard/v2NameRoles'
-import { getV1NamesForAddress } from '@/features/migration/service/v1SubgraphClient'
+import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
+import { readNamesPage } from '@/features/shared/service/readNamePages'
+import { bigname } from '@/lib/bigname'
 import {
-  buildProfileAddressNames,
   type ProfileAddressName,
+  toProfileAddressName,
 } from './buildProfileAddressNames'
 
-export { PROFILE_NAMES_PAGE_SIZE } from './profileOwnedNames'
+export const PROFILE_NAMES_PAGE_SIZE = 5
+// Rows per read: a page of the list is five, so this covers several pages.
+export const PROFILE_NAMES_CHUNK_SIZE = 50
 
-const V2_NAMES_PAGE_SIZE = 50
-const MANAGED_NAMES_CHUNK_SIZE = 50
-
-class GetProfileAddressNamesError extends TaggedError(
+export class GetProfileAddressNamesError extends TaggedError(
   'GetProfileAddressNamesError',
 )<{
   cause: unknown
 }> {}
 
-const fetchAllV2DomainsForAddress = ResultFn(async function* (
-  normalizedAddress: string,
-) {
-  const domains: DomainFragment[] = []
-  let skip = 0
+/** `all` on someone else's profile; your own splits names you own from names you only manage. */
+export type ProfileNamesScope = 'all' | 'owned' | 'managed'
 
-  while (true) {
-    const page = yield* getDomains({
-      where: { owner: normalizedAddress },
-      first: V2_NAMES_PAGE_SIZE,
-      skip,
-      orderBy: Domain_OrderBy.RegistrationDate,
-      orderDirection: OrderDirection.Desc,
-    })
+const SCOPE_RELATIONS: Readonly<
+  Record<ProfileNamesScope, readonly NameRelation[] | undefined>
+> = {
+  all: undefined,
+  owned: ['owner'],
+  managed: ['manager', 'role_holder'],
+}
 
-    domains.push(...page.domains)
-    if (page.domains.length < V2_NAMES_PAGE_SIZE) break
-    skip += V2_NAMES_PAGE_SIZE
-  }
+const SORTS: Readonly<Record<SortField, NamesForAddressQuery['sort']>> = {
+  name: 'name',
+  expiry: 'expiry',
+  created: 'created',
+}
 
-  return ok(domains)
-})
+export type ProfileNamesQuery = {
+  readonly address: Address
+  readonly scope: ProfileNamesScope
+  readonly sortField: SortField
+  readonly sortDir: SortDir
+  /** A fragment the names contain; empty lists everything. */
+  readonly search: string
+}
 
-const fetchDomainsByNames = ResultFn(async function* (
-  names: readonly string[],
-) {
-  if (names.length === 0) return ok([] as DomainFragment[])
+/** One read of the address's names, in bigname's order. */
+export type ProfileNamesChunk = {
+  readonly names: readonly ProfileAddressName[]
+  /** Rows bigname listed that this list hides, such as reverse records. */
+  readonly hiddenCount: number
+  readonly nextCursor: string | null
+  readonly totalCount: number | null
+}
 
-  const domains: DomainFragment[] = []
-  for (let i = 0; i < names.length; i += MANAGED_NAMES_CHUNK_SIZE) {
-    const chunk = names.slice(i, i + MANAGED_NAMES_CHUNK_SIZE)
-    const page = yield* getDomains({
-      where: { name_in: [...chunk] },
-      first: chunk.length,
-    })
-    domains.push(...page.domains)
-  }
+// The managed list is names the address manages but does not own.
+const isInScope = (scope: ProfileNamesScope, name: ProfileAddressName) =>
+  scope !== 'managed' || name.roleCategory === 'managed'
 
-  return ok(domains)
-})
+const EMPTY_CHUNK: ProfileNamesChunk = {
+  names: [],
+  hiddenCount: 0,
+  nextCursor: null,
+  totalCount: 0,
+}
 
-export const getProfileAddressNames = ResultFn(async function* (
-  address: Address,
-) {
-  const normalizedAddress = address.toLowerCase()
-
-  const v1Domains = yield* getV1NamesForAddress(normalizedAddress)
-  const v2Domains = yield* fetchAllV2DomainsForAddress(normalizedAddress)
-  const roleAssignments = yield* fromPromise(
-    getDashboardRoleAssignments(normalizedAddress),
-    (error) => new GetProfileAddressNamesError({ cause: error }),
-  )
-
-  const managedOnlyNames = getManagedOnlyRoleNames(v2Domains, roleAssignments)
-  const managedV2Domains = yield* fetchDomainsByNames(managedOnlyNames)
-
-  const names = buildProfileAddressNames({
-    address: normalizedAddress,
-    v1Domains,
-    v2Domains,
-    managedV2Domains,
-    roleAssignments,
+const readChunk = (
+  readNames: ReadNamesForAddress,
+  query: ProfileNamesQuery,
+  cursor: string | undefined,
+): ResultAsync<ProfileNamesChunk, GetProfileAddressNamesError> =>
+  readNamesPage(readNames, {
+    address: query.address,
+    relations: SCOPE_RELATIONS[query.scope],
+    sort: SORTS[query.sortField],
+    order: query.sortDir,
+    pageSize: PROFILE_NAMES_CHUNK_SIZE,
+    ...(query.search && { contains: query.search }),
+    ...(cursor === undefined ? { includeTotal: true } : { cursor }),
   })
+    .map((page): ProfileNamesChunk => {
+      const names = page.items
+        .flatMap((item) => toProfileAddressName(item) ?? [])
+        .filter((name) => isInScope(query.scope, name))
+      return {
+        names,
+        hiddenCount: page.items.length - names.length,
+        nextCursor: page.nextCursor,
+        totalCount: page.totalCount,
+      }
+    })
+    .orElse((error) =>
+      // A search that is not a valid name fragment matches nothing.
+      error.kind === 'rejected' && query.search
+        ? okAsync<ProfileNamesChunk, GetProfileAddressNamesError>(EMPTY_CHUNK)
+        : errAsync(new GetProfileAddressNamesError({ cause: error })),
+    )
 
-  return ok(names)
+/**
+ * Reads on while the chunk lists less than a page, so a page is short only
+ * once the names run out. The managed list can hide most of a chunk.
+ */
+export const readProfileNamesChunk = ResultFn(async function* (
+  readNames: ReadNamesForAddress,
+  query: ProfileNamesQuery,
+  cursor: string | undefined,
+) {
+  let chunk = yield* readChunk(readNames, query, cursor)
+  while (
+    chunk.names.length < PROFILE_NAMES_PAGE_SIZE &&
+    chunk.nextCursor !== null
+  ) {
+    const next: ProfileNamesChunk = yield* readChunk(
+      readNames,
+      query,
+      chunk.nextCursor,
+    )
+    chunk = {
+      ...next,
+      names: [...chunk.names, ...next.names],
+      hiddenCount: chunk.hiddenCount + next.hiddenCount,
+      totalCount: chunk.totalCount,
+    }
+  }
+  return ok(chunk)
 })
 
-export const profileAddressNamesQuery = (address?: Address) =>
-  resultQueryOptions({
+export const profileNamesInfiniteQueryOptions = (query: ProfileNamesQuery) =>
+  resultInfiniteQueryOptions({
     queryKey: qk('profile', 'address_names', {
-      address: address?.toLowerCase(),
+      address: query.address.toLowerCase(),
+      scope: query.scope,
+      sortField: query.sortField,
+      sortDir: query.sortDir,
+      search: query.search,
     }),
-    queryFn: address ? () => getProfileAddressNames(address) : skipToken,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      readProfileNamesChunk(readNamesForAddress(bigname), query, pageParam),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     meta: {
       dependsOn: ['indexer'],
     },
   })
+
+export type ProfileNameCounts = {
+  readonly owned: number
+  /** Names the address manages without owning them. */
+  readonly managed: number
+}
+
+const readTotal = (
+  readNames: ReadNamesForAddress,
+  address: Address,
+  relations: readonly NameRelation[] | undefined,
+) =>
+  readNamesPage(readNames, {
+    address,
+    relations,
+    pageSize: 1,
+    includeTotal: true,
+  }).map(({ totalCount }) => totalCount)
+
+/**
+ * bigname's totals for the owned and managed lists. Managed is every
+ * authority relation less the owned ones, so a reverse record cancels out;
+ * owned still counts one until the list reads it.
+ */
+export const getProfileNameCounts = (
+  readNames: ReadNamesForAddress,
+  address: Address,
+) =>
+  ResultAsync.combine([
+    readTotal(readNames, address, ['owner']),
+    readTotal(readNames, address, undefined),
+  ])
+    .map(([owned, all]): ProfileNameCounts | null =>
+      owned === null || all === null
+        ? null
+        : { owned, managed: Math.max(0, all - owned) },
+    )
+    .mapErr((error) => new GetProfileAddressNamesError({ cause: error }))
+
+export const profileNameCountsQueryOptions = (address: Address | undefined) =>
+  resultQueryOptions({
+    queryKey: qk('profile', 'address_name_counts', {
+      address: address?.toLowerCase() ?? null,
+    }),
+    queryFn: address
+      ? () => getProfileNameCounts(readNamesForAddress(bigname), address)
+      : skipToken,
+    meta: {
+      dependsOn: ['indexer'],
+    },
+  })
+
+export type ProfileNamesPage = {
+  readonly names: readonly ProfileAddressName[]
+  /** Exact once every chunk is read; until then bigname's total less what was hidden. */
+  readonly total: number
+  readonly isComplete: boolean
+  /** How many listed names the requested page needs. */
+  readonly needed: number
+}
+
+/**
+ * The names a one-based page shows. The page is clamped to the last one: the
+ * total can shrink as hidden rows are read, so the pager may offer a page
+ * that no longer exists.
+ */
+export const toProfileNamesPage = (
+  chunks: readonly ProfileNamesChunk[],
+  page: number,
+  pageSize: number,
+): ProfileNamesPage => {
+  const names = chunks.flatMap((chunk) => chunk.names)
+  const hiddenCount = chunks.reduce((sum, chunk) => sum + chunk.hiddenCount, 0)
+  const isComplete = chunks.at(-1)?.nextCursor === null
+  const total = isComplete
+    ? names.length
+    : (chunks[0]?.totalCount ?? names.length + hiddenCount) - hiddenCount
+  const lastPage = Math.max(1, Math.ceil(total / pageSize))
+  const needed = Math.min(page, lastPage) * pageSize
+  return {
+    names: names.slice(needed - pageSize, needed),
+    total,
+    isComplete,
+    needed,
+  }
+}
 
 export type { ProfileAddressName }

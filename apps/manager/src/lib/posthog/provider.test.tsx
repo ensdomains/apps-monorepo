@@ -1,200 +1,153 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
+import { boot, trackEvent } from '@intercom/messenger-js-sdk'
 import { render } from '@testing-library/react'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useConnectionEffect } from 'wagmi'
+import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
 import { PHProvider } from './provider'
 
-const mocks = vi.hoisted(() => {
-  const mockTrack = vi.fn()
-  const mockTrackWithOptions = vi.fn()
-  const mockUnsubscribe = vi.fn()
-  const mockLiveUnsubscribe = vi.fn()
-  const onFailedRunTelemetry = vi.fn(
-    (_listener: (payload: Record<string, unknown>) => void) => mockUnsubscribe,
-  )
-  const onRunTelemetryEvent = vi.fn(
-    (_listener: (payload: Record<string, unknown>) => void) =>
-      mockLiveUnsubscribe,
-  )
-  return {
-    mockTrack,
-    mockTrackWithOptions,
-    mockUnsubscribe,
-    mockLiveUnsubscribe,
-    onFailedRunTelemetry,
-    onRunTelemetryEvent,
-  }
-})
-
-vi.mock('@tanstack/react-router', () => ({
-  useHydrated: () => true,
-}))
-
+vi.mock('@tanstack/react-router', () => ({ useHydrated: () => true }))
 vi.mock('@intercom/messenger-js-sdk', () => ({
   boot: vi.fn(),
-  getVisitorId: () => 'visitor-id',
   trackEvent: vi.fn(),
 }))
-
 vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
 }))
-
 vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: {
     init: vi.fn(),
     identify: vi.fn(),
     register: vi.fn(),
-    get_distinct_id: () => 'distinct-id',
-    get_session_replay_url: () => 'https://replay.example',
+    capture: vi.fn(),
+    reset: vi.fn(),
   },
 }))
-
-vi.mock('wagmi', () => ({
-  useConnectionEffect: vi.fn(),
-}))
-
+vi.mock('wagmi', () => ({ useConnectionEffect: vi.fn() }))
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: {
-    onFailedRunTelemetry: mocks.onFailedRunTelemetry,
-    onRunTelemetryEvent: mocks.onRunTelemetryEvent,
+    onFailedRunTelemetry: vi.fn(() => vi.fn()),
+    onRunTelemetryEvent: vi.fn(() => vi.fn()),
   },
 }))
 
-vi.mock('./events', () => ({
-  track: mocks.mockTrack,
-  trackWithOptions: mocks.mockTrackWithOptions,
-}))
-
-describe('PHProvider failed run telemetry bridge', () => {
+describe('launch PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.onFailedRunTelemetry.mockImplementation(() => mocks.mockUnsubscribe)
-    mocks.onRunTelemetryEvent.mockImplementation(
-      () => mocks.mockLiveUnsubscribe,
-    )
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
-
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
-  it('subscribes on mount and unsubscribes on unmount', () => {
-    const view = render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
-
-    expect(mocks.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
-    expect(mocks.onRunTelemetryEvent).toHaveBeenCalledTimes(1)
-    view.unmount()
-    expect(mocks.mockUnsubscribe).toHaveBeenCalledTimes(1)
-    expect(mocks.mockLiveUnsubscribe).toHaveBeenCalledTimes(1)
-  })
-
-  it('tracks tm:failed_run payload when callback fires', () => {
+  it('initializes flags with collection disabled and boots Intercom without analytics metadata', () => {
     render(
       <PHProvider>
         <div>child</div>
       </PHProvider>,
     )
+    expect(posthog.init).toHaveBeenCalledWith(
+      'test-key',
+      expect.objectContaining(FEATURE_FLAGS_ONLY_CONFIG),
+    )
+    expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
+    expect(posthog.capture).not.toHaveBeenCalled()
+  })
 
-    const listener = mocks.onFailedRunTelemetry.mock.calls[0]?.[0] as
-      | ((payload: Record<string, unknown>) => void)
-      | undefined
-    expect(listener).toBeDefined()
-
-    listener?.({
-      schemaVersion: 'tm-failed-run-v2',
-      run: {
-        runId: 'run-1',
-        txId: 'tx-1',
-        status: 'error',
-        startedAt: 1,
-        endedAt: 2,
-        durationMs: 1,
-      },
-      initial: {
-        txId: 'tx-1',
-        createdAt: 1,
-        useSmartAccount: false,
-        options: { hasModalConfig: false },
-        smartAccount: { enabled: false },
-      },
-      timeline: [],
-      summary: {
-        finalState: 'error.submission',
-        failureStage: 'submission',
-        attemptCount: 2,
-        requestFingerprint: 'abc',
-      },
-      truncation: {
-        truncated: false,
-        droppedEvents: 0,
-        totalEvents: 3,
-      },
+  it('keeps wallet targeting and Intercom operational without analytics properties', () => {
+    render(
+      <PHProvider>
+        <div>child</div>
+      </PHProvider>,
+    )
+    const wallet = {
+      address: '0x1111111111111111111111111111111111111111',
+      chainId: 1,
+      connector: { name: 'test-wallet' },
+    }
+    const callbacks = vi.mocked(useConnectionEffect).mock.calls[0]?.[0]
+    callbacks?.onConnect?.(
+      wallet as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
+    )
+    expect(posthog.identify).toHaveBeenCalledWith(
+      wallet.address,
+      { address: wallet.address },
+      { initial_address: wallet.address },
+    )
+    expect(posthog.register).not.toHaveBeenCalled()
+    expect(posthog.capture).not.toHaveBeenCalled()
+    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
+      wallet_address: wallet.address,
+      chain_id: 1,
+      wallet_connector: 'test-wallet',
     })
+  })
 
-    expect(mocks.mockTrack).toHaveBeenCalledTimes(1)
-    expect(mocks.mockTrack).toHaveBeenCalledWith(
-      'tm:failed_run',
+  it('boots Intercom even when PostHog initialization fails', () => {
+    vi.mocked(posthog.init).mockImplementationOnce(() => {
+      throw new Error('blocked')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    render(
+      <PHProvider>
+        <div>child</div>
+      </PHProvider>,
+    )
+    expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
+  })
+  it('keeps failure diagnostics local without PostHog telemetry', () => {
+    vi.stubEnv('DEV', true)
+    const groupCollapsed = vi
+      .spyOn(console, 'groupCollapsed')
+      .mockImplementation(() => undefined)
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const groupEnd = vi
+      .spyOn(console, 'groupEnd')
+      .mockImplementation(() => undefined)
+    const unsubscribeFailed = vi.fn()
+    const unsubscribeLive = vi.fn()
+    vi.mocked(transactionManager.onFailedRunTelemetry).mockReturnValueOnce(
+      unsubscribeFailed,
+    )
+    vi.mocked(transactionManager.onRunTelemetryEvent).mockReturnValueOnce(
+      unsubscribeLive,
+    )
+
+    const { unmount } = render(
+      <PHProvider>
+        <div>child</div>
+      </PHProvider>,
+    )
+    const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
+      .calls[0]?.[0]
+    expect(transactionManager.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
+    expect(transactionManager.onRunTelemetryEvent).toHaveBeenCalledTimes(1)
+    expect(listener).toBeTypeOf('function')
+    if (!listener) throw new Error('Missing failure telemetry listener')
+    listener({
+      run: { txId: 'tx', runId: 'run', status: 'error' },
+      summary: { failureStage: 'submission' },
+    } as Parameters<NonNullable<typeof listener>>[0])
+    expect(groupCollapsed).toHaveBeenCalledWith(
+      '[TM-RUN] failed tx status=error stage=submission',
+    )
+    expect(info).toHaveBeenCalledWith(
+      'summary',
       expect.objectContaining({
-        tm_run_id: 'run-1',
-        tm_tx_id: 'tx-1',
-        tm_failure_stage: 'submission',
-        tm_payload: expect.objectContaining({
-          schemaVersion: 'tm-failed-run-v2',
-        }),
-        source_app: 'manager',
+        runId: 'run',
+        txId: 'tx',
+        status: 'error',
+        failureStage: 'submission',
       }),
     )
-  })
-
-  it('swallows tracking errors from callback', () => {
-    mocks.mockTrack.mockImplementationOnce(() => {
-      throw new Error('posthog blocked')
-    })
-
-    render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
-
-    const listener = mocks.onFailedRunTelemetry.mock.calls[0]?.[0] as
-      | ((payload: Record<string, unknown>) => void)
-      | undefined
-
-    expect(() =>
-      listener?.({
-        schemaVersion: 'tm-failed-run-v2',
-        run: {
-          runId: 'run-2',
-          txId: 'tx-2',
-          status: 'cancelled',
-          startedAt: 1,
-          endedAt: 2,
-          durationMs: 1,
-        },
-        initial: {
-          txId: 'tx-2',
-          createdAt: 1,
-          useSmartAccount: false,
-          options: { hasModalConfig: false },
-          smartAccount: { enabled: false },
-        },
-        timeline: [],
-        summary: {
-          finalState: 'error.cancelled',
-          failureStage: 'cancelled',
-          attemptCount: 0,
-          requestFingerprint: 'abc',
-        },
-        truncation: {
-          truncated: false,
-          droppedEvents: 0,
-          totalEvents: 1,
-        },
-      }),
-    ).not.toThrow()
+    expect(groupEnd).toHaveBeenCalledTimes(1)
+    expect(unsubscribeFailed).not.toHaveBeenCalled()
+    expect(unsubscribeLive).not.toHaveBeenCalled()
+    unmount()
+    expect(unsubscribeFailed).toHaveBeenCalledTimes(1)
+    expect(unsubscribeLive).toHaveBeenCalledTimes(1)
+    expect(posthog.capture).not.toHaveBeenCalled()
   })
 })

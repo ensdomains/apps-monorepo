@@ -9,6 +9,7 @@ import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
+import { DASHBOARD_NAME_ACTIONS } from '@/features/dashboard/service/queries/getDashboardNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
@@ -157,9 +158,13 @@ const invalidateName = (label: string) =>
 
 /** Refresh the dashboard owned-names list so renewed expiries update. */
 const invalidateDashboardNames = () =>
-  getQueryClient()?.invalidateQueries({
-    queryKey: qk('dashboard', 'all_domains'),
-  })
+  Promise.all(
+    DASHBOARD_NAME_ACTIONS.map(($action) =>
+      getQueryClient()?.invalidateQueries({
+        queryKey: qk('dashboard', $action),
+      }),
+    ),
+  )
 
 type SubmitArgs = {
   readonly items: readonly RenewItem[]

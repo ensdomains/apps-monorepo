@@ -6,7 +6,7 @@ import type { Address } from 'viem'
 import { namehash } from 'viem/ens'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeDomain } from '../service/_fixtures'
-import type { V1Domain } from '../service/v1SubgraphClient'
+import type { V1Domain } from '@ens-apps/migration'
 import { useSyncRenewedV1Names } from './useSyncRenewedV1Names'
 import { useV1Names } from './useV1Names'
 
@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   listeners: new Set<() => void>(),
 }))
 
-vi.mock('@/features/migration/service/v1SubgraphClient', () => ({
+vi.mock('@/features/migration/service/v1Names', () => ({
   getV1NamesForAddress: mocks.getV1Names,
 }))
 vi.mock('@/lib/smart-account', () => ({

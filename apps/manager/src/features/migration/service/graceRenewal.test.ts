@@ -18,6 +18,7 @@ import { labelhash, namehash } from 'viem/ens'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
+import { classifyNames } from './classifyNames'
 import {
   encodeGraceRenewal,
   executeGraceRenewal,
@@ -26,6 +27,7 @@ import {
   type GraceRenewalStatus,
   getGraceRenewalDuration,
   getGraceRenewalQuote,
+  readGraceRenewalDomains,
 } from './graceRenewal'
 import {
   pendingGraceRenewalForQuote,
@@ -63,6 +65,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     allowance: 0n,
     price: 100n,
     renewable: true,
+    reservationStatus: undefined as number | undefined,
     account: OWNER as `0x${string}`,
     chainId: chain.id as number,
     approvalStatus: 'success' as 'success' | 'reverted',
@@ -105,6 +108,13 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
         }
         case 'getData':
           return getWrapperData(request.args?.[0])
+        case 'getStatus': {
+          const d = findToken(request.args?.[0] as bigint)
+          const expiry = d ? (state.expiry.get(d.labelhash) ?? 0n) : 0n
+          return (
+            state.reservationStatus ?? (expiry + 62n * DAY > state.now ? 1 : 0)
+          )
+        }
         case 'owner': {
           const d = domains.find((item) => item.id === request.args?.[0])
           return d?.owner.id ?? zeroAddress
@@ -236,6 +246,99 @@ describe('bulk grace renewal', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it.each([
+    false,
+    true,
+  ])('makes a late-grace name eligible after confirmed renewal (wrapped: %s)', async (isWrapped) => {
+    const lateGrace = {
+      ...domain('late.eth', isWrapped),
+      registration: { expiryDate: (NOW - 70n * DAY).toString() },
+      isUnreserved: true as const,
+    }
+    const s = setup([lateGrace])
+    const quote = await s.quote()
+    expect(quote.items[0]?.domain.isUnreserved).toBe(true)
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+    })
+    const renewed = result._unsafeUnwrap()
+
+    expect(classifyNames(renewed, OWNER, chain.id).ineligible).toEqual([])
+    expect(classifyNames(renewed, OWNER, chain.id).classified).toHaveLength(1)
+    expect(lateGrace.isUnreserved).toBe(true)
+    expect(s.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: chain.contracts.ensRegistry.address,
+        functionName: 'getStatus',
+        args: [BigInt(lateGrace.labelhash)],
+        blockNumber: 100n,
+      }),
+    )
+  })
+
+  it.each([
+    false,
+    true,
+  ])('refreshes a stale reservation after renewal elsewhere (resuming: %s)', async (isResuming) => {
+    const lateGrace = {
+      ...domain('late.eth'),
+      registration: { expiryDate: (NOW - 70n * DAY).toString() },
+      isUnreserved: true as const,
+    }
+    const s = setup([lateGrace])
+    const quote = await s.quote()
+    s.state.expiry.set(lateGrace.labelhash, NOW + 7n * DAY)
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      ...(isResuming && { renewalHash: RENEWAL_HASH }),
+    })
+
+    expect(
+      classifyNames(result._unsafeUnwrap(), OWNER, chain.id).classified,
+    ).toHaveLength(1)
+    expect(s.writeContract).not.toHaveBeenCalled()
+  })
+
+  it('keeps a live name ineligible when its onchain reservation is absent', async () => {
+    const s = setup([domain('alice.eth')])
+    s.state.expiry.set(labelhash('alice'), NOW + 7n * DAY)
+    s.state.reservationStatus = 0
+    const result = await readGraceRenewalDomains({
+      domains: s.domains,
+      ownerAddress: OWNER,
+      publicClient: s.publicClient,
+    })
+
+    expect(
+      classifyNames(result._unsafeUnwrap(), OWNER, chain.id).ineligible,
+    ).toMatchObject([{ reason: 'not-reserved' }])
+  })
+
+  it('fails before requesting payment if reservation status cannot be read', async () => {
+    const s = setup()
+    const originalRead = s.readContract.getMockImplementation()
+    if (!originalRead) throw new Error('Missing contract mock')
+    s.readContract.mockImplementation(async (request) => {
+      if (request.functionName === 'getStatus')
+        throw new Error('RPC unavailable')
+      return originalRead(request)
+    })
+
+    const result = await getGraceRenewalQuote({
+      domains: s.domains,
+      ownerAddress: OWNER,
+      publicClient: s.publicClient,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(s.walletClient.request).not.toHaveBeenCalled()
   })
 
   it.each([

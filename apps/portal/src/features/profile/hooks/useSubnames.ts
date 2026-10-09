@@ -8,6 +8,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   getSubnames as ensjs_getSubnames,
   type GetSubnamesErrorType,
+  type GetSubnamesReturnType,
 } from '@ensdomains/ensjs/subgraph'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { gql } from '@urql/core'
@@ -100,33 +101,51 @@ const getSubnamesPage = ResultFn(async function* ({
   } satisfies SubnamesPage)
 })
 
-export const getV1Subnames = ResultFn(async function* ({
+export const V1_SUBNAMES_PAGE_SIZE = 100
+
+type V1SubnamesPage = {
+  readonly subnames: readonly Subname[]
+  /** The page's last row as ensjs returned it; ensjs pages from it. */
+  readonly cursor: GetSubnamesReturnType
+  readonly hasNextPage: boolean
+}
+
+export const getV1SubnamesPage = ResultFn(async function* ({
   name,
-}: Pick<GetSubnamesParameters, 'name'>) {
+  previousPage,
+}: Pick<GetSubnamesParameters, 'name'> & {
+  readonly previousPage?: GetSubnamesReturnType
+}) {
   const client = yield* safeGetClient()
 
-  const subnames = yield* fromPromise(
-    ensjs_getSubnames(client, { name }),
+  const raw = yield* fromPromise(
+    ensjs_getSubnames(client, {
+      name,
+      previousPage,
+      pageSize: V1_SUBNAMES_PAGE_SIZE,
+    }),
     (e) =>
       new GetSubnamesError({
         cause: e as GetSubnamesErrorType,
       }),
   )
 
-  return ok(
+  return ok({
     // `owner` is the registry owner, which for a wrapped subname is the
     // NameWrapper contract. Report the wrapper owner instead so `owner`
     // means "who holds this name" for every consumer - the subnames table
     // and the transfer flow alike - rather than "which contract custodies
     // it".
-    (subnames ?? []).map(
+    subnames: (raw ?? []).map(
       ({ owner, wrappedOwner, ...subname }): Subname => ({
         ...subname,
         name: toSubnameName(name, subname),
         owner: wrappedOwner ?? owner,
       }),
     ),
-  )
+    cursor: raw?.slice(-1) ?? [],
+    hasNextPage: raw?.length === V1_SUBNAMES_PAGE_SIZE,
+  } satisfies V1SubnamesPage)
 })
 
 /**
@@ -145,9 +164,13 @@ export const getSubnamesQueryKey = createQueryKey<
 export const getV1SubnamesQueryOptions = ({
   name,
 }: Pick<GetSubnamesParameters, 'name'>) =>
-  resultQueryOptions({
+  resultInfiniteQueryOptions({
     queryKey: getSubnamesQueryKey({ name, protocolVersion: 'ENSv1' }),
-    queryFn: () => getV1Subnames({ name }),
+    queryFn: ({ pageParam }) =>
+      getV1SubnamesPage({ name, previousPage: pageParam }),
+    initialPageParam: undefined as GetSubnamesReturnType | undefined,
+    getNextPageParam: (last: V1SubnamesPage) =>
+      last.hasNextPage ? last.cursor : undefined,
   })
 
 /**
@@ -185,7 +208,7 @@ const getSubnamesCount = ResultFn(async function* ({
 }: GetSubnamesParameters) {
   // The V1 subgraph action returns the list only.
   if (protocolVersion === 'ENSv1') {
-    const subnames = yield* getV1Subnames({ name })
+    const { subnames } = yield* getV1SubnamesPage({ name })
     return ok(subnames.length)
   }
 

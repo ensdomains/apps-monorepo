@@ -54,6 +54,12 @@ export type MergedName = {
   protocolVersion: ProtocolVersion
 }
 
+export const getV1ExpiryDate = ({ expiryDate }: Pick<V1Name, 'expiryDate'>) =>
+  toValidDate(expiryDate?.date)
+
+export const getV2ExpiryDate = ({ expiryDate }: Pick<V2Name, 'expiryDate'>) =>
+  expiryDate == null ? null : toValidDate(new Date(expiryDate * MS_PER_SECOND))
+
 /**
  * Merges V1 and V2 ENS names into a unified format for display.
  * Handles different expiry date formats:
@@ -74,13 +80,13 @@ export type MergedName = {
  * // ]
  */
 export const mergeNamesData = (
-  v1Names: V1Name[] | undefined,
-  v2Names: (V2Name | V2NameWithRoles)[] | undefined,
+  v1Names: readonly V1Name[] | undefined,
+  v2Names: readonly (V2Name | V2NameWithRoles)[] | undefined,
 ): MergedName[] => {
   const v1Transformed: MergedName[] = (v1Names || []).map(
     ({ name, expiryDate, relation }) => ({
       name,
-      expiryDate: toValidDate(expiryDate?.date),
+      expiryDate: getV1ExpiryDate({ expiryDate }),
       protocolVersion: 'ENSv1' as ProtocolVersion,
       roleBitmap: null,
       v1Roles: {
@@ -99,10 +105,7 @@ export const mergeNamesData = (
 
     return {
       name: item.name,
-      expiryDate:
-        item.expiryDate == null
-          ? null
-          : toValidDate(new Date(item.expiryDate * MS_PER_SECOND)),
+      expiryDate: getV2ExpiryDate(item),
       protocolVersion: 'ENSv2' as ProtocolVersion,
       subdomainCount: hasSubdomainsArray
         ? item.subdomains.length

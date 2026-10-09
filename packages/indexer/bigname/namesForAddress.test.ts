@@ -16,7 +16,7 @@ const row = {
   expires_at: '1885289376',
   authority: 'ens_v2',
   migrated_at: '1790640000',
-  relations: ['owner', 'registrant', 'resolves_to'],
+  relations: ['owner', 'role_holder', 'resolves_to'],
   is_primary: true,
   subname_count: 2,
 } satisfies AddressName
@@ -47,7 +47,25 @@ describe('readNamesForAddress', () => {
     })
 
     expect(requestOf(fetch).url).toBe(
-      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?relation=owner%2Cmanager&authority=ens_v1&is_migrated=true&q=ali&sort=expires_at&order=desc&include=counts&page_size=25&cursor=c1',
+      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?namespace=ens&relation=owner%2Cmanager&authority=ens_v1%2Cens_v0&is_migrated=true&q=ali&sort=expires_at&order=desc&include=counts&page_size=25&cursor=c1',
+    )
+  })
+
+  it('searches inside names, narrows by parent, sorts by first observation and asks for an exact total', async () => {
+    const { client, fetch } = clientWith(envelope([], page))
+
+    await readNamesForAddress(client)({
+      address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+      protocol: 'v2',
+      contains: 'lic',
+      parent: 'eth',
+      sort: 'created',
+      includeCounts: true,
+      includeTotal: true,
+    })
+
+    expect(requestOf(fetch).url).toBe(
+      'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?namespace=ens&relation=any&authority=ens_v2&parent=eth&q=lic&match=contains&sort=created_at&include=counts%2Ctotal_count',
     )
   })
 
@@ -62,7 +80,7 @@ describe('readNamesForAddress', () => {
       relations,
     })
 
-    expect(requestOf(fetch).url).toMatch(/names\?relation=any$/)
+    expect(requestOf(fetch).url).toMatch(/names\?namespace=ens&relation=any$/)
   })
 
   it('renders the wire rows the way the dashboards need them, with the page', async () => {
@@ -79,11 +97,12 @@ describe('readNamesForAddress', () => {
           displayName: 'alice.eth',
           namehash: '0xabc',
           protocol: 'v2',
-          relations: ['owner', 'registrant'],
+          relations: ['owner', 'role_holder'],
           isPrimary: true,
           isMigrated: true,
           registrationStatus: 'active',
           expiresAt: new Date('2029-09-28T11:29:36Z'),
+          servedExpiry: 1_885_289_376n,
           registeredAt: new Date('2026-09-28T11:29:36Z'),
           createdAt: new Date('2026-09-28T11:29:36Z'),
           subnameCount: 2,
@@ -92,6 +111,21 @@ describe('readNamesForAddress', () => {
       nextCursor: 'c2',
       totalCount: 4,
     })
+  })
+
+  it('keeps a served expiry past any date exactly, for the backend order', async () => {
+    const { client } = clientWith(
+      envelope([{ ...row, expires_at: '9223372036854775807' }], page),
+    )
+
+    const [summary] = (
+      await readNamesForAddress(client)({
+        address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+      })
+    )._unsafeUnwrap().items
+
+    expect(summary?.expiresAt).toBeNull()
+    expect(summary?.servedExpiry).toBe(9_223_372_036_854_775_807n)
   })
 
   it('treats an omitted expiry as no expiry and an omitted migration as not migrated', async () => {
@@ -112,6 +146,7 @@ describe('readNamesForAddress', () => {
     )._unsafeUnwrap().items
 
     expect(summary?.expiresAt).toBeNull()
+    expect(summary?.servedExpiry).toBeNull()
     expect(summary?.isMigrated).toBe(false)
     expect(summary?.protocol).toBe('v1')
 

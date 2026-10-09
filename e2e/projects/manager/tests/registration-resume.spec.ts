@@ -79,7 +79,7 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
   // HCA path: the EnableSessions modal gates "Pay with stablecoins", before the
   // token picker. No-op in EOA mode.
   await clickThroughEnableSessions(page)
-  await page.getByText('USDC', { exact: true }).click()
+  await page.getByRole('button', { name: 'Select USDC' }).click()
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
 

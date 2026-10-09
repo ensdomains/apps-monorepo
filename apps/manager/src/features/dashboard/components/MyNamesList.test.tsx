@@ -1,22 +1,36 @@
-import type { DomainFragment } from '@ens-apps/indexer'
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { render } from '@/utils/test-utils'
+import type { DashboardName } from '../dashboardNames'
 import { MyNamesList } from './MyNamesList'
 
-const ownedDomainsMock = vi.hoisted(() => ({
-  useOwnedDomains: vi.fn(),
+const dashboardNamesMock = vi.hoisted(() => ({
+  useDashboardNames: vi.fn(),
 }))
 
-const dashboardV1NamesMock = vi.hoisted(() => ({
-  useDashboardV1Names: vi.fn(),
+const eligibilityMock = vi.hoisted(() => ({
+  useDashboardMigrationEligibility: vi.fn(),
 }))
 
-vi.mock('../useOwnedDomains', () => ownedDomainsMock)
-vi.mock('../useDashboardV1Names', () => dashboardV1NamesMock)
+vi.mock('../useDashboardNames', () => ({
+  ...dashboardNamesMock,
+  DASHBOARD_PAGE_SIZE: 5,
+}))
+vi.mock('../useDashboardMigrationEligibility', () => eligibilityMock)
 vi.mock('./DashboardPagination', () => ({
-  DashboardPagination: () => <div data-testid="dashboard-pagination" />,
+  DashboardPagination: ({
+    onPageChange,
+  }: {
+    readonly onPageChange: (page: number) => void
+  }) => (
+    <button
+      data-testid="dashboard-pagination"
+      onClick={() => onPageChange(2)}
+      type="button"
+    >
+      Go to page 2
+    </button>
+  ),
 }))
 vi.mock('./NameRow', () => ({
   NameRow: ({
@@ -50,77 +64,143 @@ vi.mock('./NameRow', () => ({
   ),
 }))
 
-const makeV1Domain = (overrides: Partial<V1Domain> = {}): V1Domain => ({
-  id: overrides.id ?? '0x1',
-  labelName: overrides.labelName ?? 'fgeorgescu',
-  labelhash: overrides.labelhash ?? '0xlabel',
-  name: overrides.name ?? 'fgeorgescu.eth',
-  resolver: overrides.resolver ?? null,
-  owner: overrides.owner ?? { id: '0xowner' },
-  registrant: overrides.registrant ?? null,
-  wrappedOwner: overrides.wrappedOwner ?? null,
-  parent: overrides.parent ?? null,
-  registration: overrides.registration ?? null,
-  wrappedDomain: overrides.wrappedDomain ?? null,
+const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
+  key: '0x01',
+  name: 'alaska.eth',
+  protocol: 'v2',
+  expiryDate: 1811808000n,
+  servedExpiry: null,
+  createdAt: 0n,
+  nameRoles: ['owner'],
+  isLapsed: false,
+  ...overrides,
 })
 
-const makeV2Domain = (
-  overrides: Partial<DomainFragment> & {
-    readonly nameRoles?: readonly string[]
-  } = {},
+const mockNames = (
+  names: readonly DashboardName[],
+  state: { readonly isError?: boolean; readonly isGraceError?: boolean } = {},
 ) =>
-  ({
-    __typename: 'Domain',
-    id: overrides.id ?? '0xv2',
-    name: overrides.name ?? 'alaska.eth',
-    normalizedName: overrides.normalizedName ?? overrides.name ?? 'alaska.eth',
-    tokenId: overrides.tokenId ?? null,
-    createdAt: overrides.createdAt ?? 0,
-    registrationDate: null,
-    expiryDate: overrides.expiryDate ?? 1811808000,
-    owner: overrides.owner ?? {
-      __typename: 'Account',
-      id: '0xowner',
-    },
-    resolver: overrides.resolver ?? null,
-    nameRoles: overrides.nameRoles,
-  }) as DomainFragment & { readonly nameRoles?: readonly string[] }
+  dashboardNamesMock.useDashboardNames.mockReturnValue({
+    pageNames: names,
+    total: names.length,
+    addresses: [],
+    hasAddresses: true,
+    isPending: false,
+    isPagePending: false,
+    loadPage: vi.fn(),
+    isError: state.isError ?? false,
+    isGraceError: state.isGraceError ?? false,
+  })
+
+const renderList = (
+  props: { readonly selectedLabels?: ReadonlySet<string> } = {},
+) =>
+  render(
+    <MyNamesList
+      favoriteLabels={new Set()}
+      isAuthenticated
+      migrationEnabled={false}
+      onToggleFavorite={() => undefined}
+      sort="name-asc"
+      {...props}
+    />,
+  )
 
 describe('MyNamesList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [],
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
       isPending: false,
       isError: false,
     })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [
-        makeV1Domain({
-          id: '0xfgeorgescu',
-          labelName: 'fgeorgescu',
-          name: 'fgeorgescu.eth',
-          registration: { expiryDate: '1793442936' },
-          wrappedDomain: { expiryDate: '1801218936', fuses: 196608 },
-        }),
-        makeV1Domain({
-          id: '0xpokemon',
-          labelName: 'pokemon',
-          name: 'pokemon.fgeorgescu.eth',
-          wrappedDomain: { expiryDate: '0', fuses: 0 },
-        }),
-      ].map((domain) => ({
-        domain,
-        label: domain.labelName ?? domain.name,
-        isMigrationEligible: false,
-      })),
-      isPending: false,
-      isError: false,
+    mockNames([
+      makeName({
+        key: '0x02',
+        name: 'fgeorgescu.eth',
+        protocol: 'v1',
+        expiryDate: 1793442936n,
+      }),
+      makeName({
+        key: '0x03',
+        name: 'pokemon.fgeorgescu.eth',
+        protocol: 'v1',
+        expiryDate: 0n,
+      }),
+    ])
+  })
+
+  it('asks the hook for the page in the chosen order, search and version', () => {
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        onToggleFavorite={() => undefined}
+        searchQuery="ali"
+        sort="expiry-desc"
+        version="v1"
+      />,
+    )
+
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenCalledWith({
+      sortField: 'expiry',
+      sortDir: 'desc',
+      search: 'ali',
+      version: 'v1',
+      page: 1,
     })
   })
 
-  it('renders owned V1 names when migration is disabled', () => {
-    render(
+  it('reads the page it moves to', () => {
+    const loadPage = vi.fn()
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      pageNames: [],
+      total: 12,
+      addresses: [],
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: false,
+      loadPage,
+      isError: false,
+      isGraceError: false,
+    })
+
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
+
+    expect(loadPage).toHaveBeenCalledWith(2)
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2 }),
+    )
+  })
+
+  it('goes back to the first page when the connected accounts change', () => {
+    const state = {
+      pageNames: [],
+      total: 12,
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: false,
+      loadPage: vi.fn(),
+      isError: false,
+      isGraceError: false,
+    }
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      ...state,
+      addresses: ['0xa'],
+    })
+
+    const { rerender } = renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2 }),
+    )
+
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      ...state,
+      addresses: ['0xb'],
+    })
+    rerender(
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
@@ -130,10 +210,34 @@ describe('MyNamesList', () => {
       />,
     )
 
-    expect(screen.getByText('fgeorgescu.eth')).toBeInTheDocument()
-    expect(screen.getByText('pokemon.fgeorgescu.eth')).toBeInTheDocument()
-    expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1 }),
+    )
+  })
 
+  it('shows skeletons while the page is still being read', () => {
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      pageNames: [],
+      total: 12,
+      addresses: [],
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: true,
+      loadPage: vi.fn(),
+      isError: false,
+      isGraceError: false,
+    })
+
+    renderList()
+
+    expect(screen.queryByTestId('name-row')).not.toBeInTheDocument()
+    expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
+  })
+
+  it('renders owned V1 names when migration is disabled', () => {
+    renderList()
+
+    expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
     const rows = screen.getAllByTestId('name-row')
     expect(rows.map((row) => row.textContent)).toEqual([
       'fgeorgescu.eth',
@@ -143,43 +247,53 @@ describe('MyNamesList', () => {
     expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
   })
 
-  it('passes V1 manager roles through to the name row', () => {
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [
-        {
-          domain: makeV1Domain({
-            id: '0xmanager',
-            labelName: 'manager-only',
-            name: 'manager-only.eth',
-          }),
-          label: 'manager-only',
-          isMigrationEligible: false,
-          nameRoles: ['manager'],
-        },
-        {
-          domain: makeV1Domain({
-            id: '0xboth',
-            labelName: 'wrapped',
-            name: 'wrapped.eth',
-          }),
-          label: 'wrapped',
-          isMigrationEligible: false,
-          nameRoles: ['owner', 'manager'],
-        },
-      ],
+  it('shows the names while migration eligibility is still loading', () => {
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
+      isPending: true,
+      isError: false,
+    })
+
+    renderList()
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'fgeorgescu.eth',
+      'pokemon.fgeorgescu.eth',
+    ])
+    expect(rows.every((row) => row.dataset.status === '')).toBe(true)
+    expect(rows.every((row) => row.dataset.cta === '')).toBe(true)
+  })
+
+  it('marks an eligible V1 name for upgrade', () => {
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(['0x02']),
       isPending: false,
       isError: false,
     })
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList()
+
+    expect(
+      screen.getAllByTestId('name-row').map((row) => row.dataset.status),
+    ).toEqual(['eligibleUpgrade', 'ensv1Only'])
+  })
+
+  it('passes roles through to the name row', () => {
+    mockNames([
+      makeName({
+        key: '0x04',
+        name: 'manager-only.eth',
+        nameRoles: ['manager'],
+      }),
+      makeName({
+        key: '0x05',
+        name: 'wrapped.eth',
+        nameRoles: ['owner', 'manager'],
+      }),
+    ])
+
+    renderList()
 
     const rows = screen.getAllByTestId('name-row')
     expect(rows.map((row) => row.dataset.roles)).toEqual([
@@ -189,80 +303,24 @@ describe('MyNamesList', () => {
     expect(rows.every((row) => row.dataset.role === '')).toBe(true)
   })
 
-  it('passes V2 manager roles through to the name row', () => {
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [
-        makeV2Domain({
-          id: '0xalaska',
-          name: 'alaska.eth',
-          nameRoles: ['owner', 'manager'],
-        }),
-      ],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: false,
-    })
+  it('shows an error when names fail and none are available', () => {
+    mockNames([], { isError: true })
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
-
-    const row = screen.getByTestId('name-row')
-    expect(row).toHaveTextContent('alaska.eth')
-    expect(row.dataset.roles).toBe('owner,manager')
-  })
-
-  it('shows an error when V1 names fail and no other names are available', () => {
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: true,
-    })
-
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList()
 
     expect(screen.getByText('Error loading names')).toBeInTheDocument()
     expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
   })
 
-  it('shows a partial error when V1 names fail but V2 names are available', () => {
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [makeV2Domain({ id: '0xalaska', name: 'alaska.eth' })],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
+  it('shows a partial error when eligibility fails but names are available', () => {
+    mockNames([makeName({ name: 'alaska.eth' })])
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
       isPending: false,
       isError: true,
     })
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        sort="name-asc"
-      />,
-    )
+    renderList()
 
     expect(
       screen.getByText('Some names could not be loaded'),
@@ -270,39 +328,61 @@ describe('MyNamesList', () => {
     expect(screen.getByText('alaska.eth')).toBeInTheDocument()
   })
 
-  it('hides an un-normalised look-alike and selects only the canonical name', () => {
-    ownedDomainsMock.useOwnedDomains.mockReturnValue({
-      v2Names: [
-        makeV2Domain({ id: '0xalice', name: 'alice.eth' }),
-        makeV2Domain({
-          id: '0xalice-lookalike',
-          name: 'ALICE.eth',
-          normalizedName: 'alice.eth',
-        }),
-      ],
-      isPending: false,
-      isError: false,
-    })
-    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
-      v1Names: [],
-      isPending: false,
-      isError: false,
-    })
+  it('shows a partial error when the names in grace fail to load', () => {
+    mockNames([makeName({ name: 'alaska.eth' })], { isGraceError: true })
 
-    render(
-      <MyNamesList
-        favoriteLabels={new Set()}
-        isAuthenticated
-        migrationEnabled={false}
-        onToggleFavorite={() => undefined}
-        selectedLabels={new Set(['alice.eth'])}
-        sort="name-asc"
-      />,
-    )
+    renderList()
+
+    expect(
+      screen.getByText('Some names could not be loaded'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('alaska.eth')).toBeInTheDocument()
+  })
+
+  it('offers bulk renewal only for names the accounts hold', () => {
+    const renewable = BigInt(Math.floor(Date.now() / 1000) + 3 * 86_400)
+    mockNames([
+      makeName({
+        key: '0x0a',
+        name: 'lapsed.eth',
+        expiryDate: BigInt(Math.floor(Date.now() / 1000) - 86_400),
+        nameRoles: [],
+        isLapsed: true,
+      }),
+      makeName({
+        key: '0x08',
+        name: 'managed.eth',
+        expiryDate: renewable,
+        nameRoles: ['manager'],
+      }),
+      makeName({ key: '0x09', name: 'owned.eth', expiryDate: renewable }),
+    ])
+
+    renderList()
 
     const rows = screen.getAllByTestId('name-row')
+    expect(
+      rows.map((row) => [row.textContent, row.dataset.selectable]),
+    ).toEqual([
+      ['lapsed.eth', 'true'],
+      ['managed.eth', 'false'],
+      ['owned.eth', 'true'],
+    ])
+  })
 
-    expect(rows.map((row) => row.textContent)).toEqual(['alice.eth'])
-    expect(rows[0]?.dataset.selected).toBe('true')
+  it('selects only the name whose exact label is selected', () => {
+    mockNames([
+      makeName({ key: '0x06', name: 'alice.eth' }),
+      makeName({ key: '0x07', name: 'ALICE.eth' }),
+    ])
+
+    renderList({ selectedLabels: new Set(['alice.eth']) })
+
+    const rows = screen.getAllByTestId('name-row')
+    const byLabel = new Map(rows.map((row) => [row.textContent, row] as const))
+
+    expect(byLabel.get('alice.eth')?.dataset.selected).toBe('true')
+    expect(byLabel.get('ALICE.eth')?.dataset.selected).toBe('false')
+    expect(byLabel.get('ALICE.eth')?.dataset.selectable).toBe('false')
   })
 })

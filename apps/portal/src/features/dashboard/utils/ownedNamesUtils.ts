@@ -48,6 +48,19 @@ export type FilterAndSortOwnedNamesOptions = {
 }
 
 /**
+ * The text owned names are matched against: the query lowercased, with a short
+ * TLD-like suffix stripped ("dom.eth" → "dom") and longer subname labels kept
+ * ("test.florin" stays "test.florin").
+ */
+export function getOwnedNamesMatchQuery(searchQuery: string): string {
+  const q = searchQuery.trim().toLowerCase()
+  const lastDot = q.lastIndexOf('.')
+  if (lastDot < 0) return q
+  const MAX_TLD_LENGTH = 3
+  return q.length - lastDot - 1 <= MAX_TLD_LENGTH ? q.slice(0, lastDot) : q
+}
+
+/**
  * Filters owned names by search query (includes, case-insensitive, trimmed),
  * drops `options.exclude` if given, and sorts: 2LD names first, then subnames (3+ labels), then alphabetically by name within each group.
  *
@@ -59,17 +72,7 @@ export function filterAndSortOwnedNames(
   searchQuery: string,
   options: FilterAndSortOwnedNamesOptions = {},
 ): OwnedName[] {
-  const q = searchQuery.trim().toLowerCase()
-  if (!q) return []
-
-  // Strip a short TLD-like suffix (e.g. "dom.eth" → "dom") but preserve longer
-  // subname labels (e.g. "test.florin" stays "test.florin", not "test").
-  const lastDot = q.lastIndexOf('.')
-  const afterLastDot = lastDot >= 0 ? q.slice(lastDot + 1) : ''
-  const MAX_TLD_LENGTH = 3
-  const shouldStripSuffix =
-    afterLastDot === '' || afterLastDot.length <= MAX_TLD_LENGTH
-  const matchQuery = shouldStripSuffix && lastDot >= 0 ? q.slice(0, lastDot) : q
+  const matchQuery = getOwnedNamesMatchQuery(searchQuery)
   if (!matchQuery) return []
 
   const normalized = (name: string) => name.trim().toLowerCase()

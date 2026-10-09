@@ -62,6 +62,7 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
   useEligibleV1Names: () => ({
     eligible: eligibleFixture,
     gracePeriodNames: [],
+    unavailableNames: [],
     isPending: false,
     recoveryState: { status: 'none' },
   }),

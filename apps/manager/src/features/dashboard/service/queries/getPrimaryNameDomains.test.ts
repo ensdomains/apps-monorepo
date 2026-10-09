@@ -1,67 +1,95 @@
-import type { DomainsQuery } from '@ens-apps/indexer'
+import type {
+  NameSummary,
+  Page,
+  ReadNamesForAddress,
+} from '@ens-apps/indexer/reads'
+import { IndexerReadError } from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GetDomainsError, getDomains } from './getDashboardDomains'
+import { describe, expect, it, vi } from 'vitest'
 import { getPrimaryNameDomains } from './getPrimaryNameDomains'
 
-vi.mock('./getDashboardDomains', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./getDashboardDomains')>()),
-  getDomains: vi.fn(),
-}))
+vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
-const domain = (index: number) =>
-  ({
-    id: `name-${index}.eth`,
-    name: `name-${index}.eth`,
-  }) as DomainsQuery['domains'][number]
+const ADDRESS = '0x0000000000000000000000000000000000000abc'
+
+const summary = (
+  name: string,
+  namehash: `0x${string}` = `0x${name.length}`,
+): NameSummary => ({
+  name,
+  displayName: name,
+  namehash,
+  protocol: 'v2',
+  relations: ['owner'],
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'active',
+  expiresAt: null,
+  servedExpiry: null,
+  registeredAt: null,
+  createdAt: null,
+})
+
+const page = (
+  items: readonly NameSummary[],
+  nextCursor: string | null = null,
+): Page<NameSummary> => ({ items, nextCursor, totalCount: null })
 
 describe('getPrimaryNameDomains', () => {
-  beforeEach(() => {
-    vi.mocked(getDomains).mockReset()
-  })
-
-  it('fetches every page, including names beyond the old 100-name limit', async () => {
-    const firstPage = Array.from({ length: 200 }, (_, index) => domain(index))
-    const finalPage = [domain(200)]
-    vi.mocked(getDomains)
-      .mockReturnValueOnce(okAsync({ domains: firstPage }))
-      .mockReturnValueOnce(okAsync({ domains: finalPage }))
-    const result = await getPrimaryNameDomains('0xABC')
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([...firstPage, ...finalPage])
-    expect(getDomains).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        where: { owner: '0xabc' },
-        first: 200,
-        skip: 0,
-      }),
+  it('asks for owned ENSv2 names by name and maps them to dialog rows', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() =>
+      okAsync(page([summary('alice.eth', '0x01')])),
     )
-    expect(getDomains).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ skip: 200 }),
-    )
-  })
 
-  it('returns an empty list for an account with no names', async () => {
-    vi.mocked(getDomains).mockReturnValueOnce(okAsync({ domains: [] }))
-    expect((await getPrimaryNameDomains('0xabc'))._unsafeUnwrap()).toEqual([])
-    expect(getDomains).toHaveBeenCalledTimes(1)
-  })
+    const result = await getPrimaryNameDomains(readNames, ADDRESS)
 
-  it('reports a failed later page instead of returning incomplete search results', async () => {
-    const error = new GetDomainsError({
-      cause: new Error('Indexer unavailable'),
+    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
+    expect(readNames).toHaveBeenCalledWith({
+      address: ADDRESS,
+      relations: ['owner'],
+      protocol: 'v2',
+      sort: 'name',
+      order: 'asc',
+      pageSize: 200,
     })
-    vi.mocked(getDomains)
-      .mockReturnValueOnce(
-        okAsync({
-          domains: Array.from({ length: 200 }, (_, index) => domain(index)),
-        }),
-      )
-      .mockReturnValueOnce(errAsync(error))
-    expect((await getPrimaryNameDomains('0xabc'))._unsafeUnwrapErr()).toBe(
-      error,
+  })
+
+  it('follows the cursor until every page is read', async () => {
+    const pages = [
+      page([summary('a.eth', '0x01')], 'c1'),
+      page([summary('b.eth', '0x02')], 'c2'),
+      page([summary('c.eth', '0x03')]),
+    ]
+    let call = 0
+    const readNames = vi.fn<ReadNamesForAddress>(() =>
+      okAsync(pages[call++] ?? page([])),
     )
+
+    const result = await getPrimaryNameDomains(readNames, ADDRESS)
+
+    expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
+      'a.eth',
+      'b.eth',
+      'c.eth',
+    ])
+    expect(readNames).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ cursor: 'c2' }),
+    )
+  })
+
+  it('passes a read failure on', async () => {
+    const failure = new IndexerReadError({
+      message: 'unavailable',
+      kind: 'unavailable',
+      cause: new Error('down'),
+    })
+
+    const result = await getPrimaryNameDomains(
+      vi.fn<ReadNamesForAddress>(() => errAsync(failure)),
+      ADDRESS,
+    )
+
+    expect(result._unsafeUnwrapErr()).toBe(failure)
   })
 })

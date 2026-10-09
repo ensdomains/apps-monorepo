@@ -75,6 +75,7 @@ vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
   verifyAtomicMigrationBatch: mocks.verifyAtomicMigrationBatch,
 }))
 
+import type { V1Domain } from '@ens-apps/migration'
 import type {
   AtomicMigrationNameExecution,
   BuildAtomicMigrationBatchesParams,
@@ -100,7 +101,6 @@ import {
   type MigrationProgress,
   type OnBatchComplete,
 } from './migrationService'
-import type { V1Domain } from './v1SubgraphClient'
 import {
   AtomicMigrationBatchReconciliationIndeterminateError,
   AtomicMigrationBatchVerificationError,

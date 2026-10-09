@@ -1,40 +1,29 @@
-import {
-  Domain_OrderBy,
-  type DomainFragment,
-  OrderDirection,
-} from '@ens-apps/indexer'
+import type { AddressName } from '@ens-apps/indexer/bigname'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
+import { okAsync } from 'neverthrow'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildMergedNamesList } from '@/features/dashboard/mergedNames'
-import { getAllDomainsInfiniteQuery } from '@/features/dashboard/service/queries/getAllDashboardDomains'
-import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
-import { getDashboardRoleAssignmentsQuery } from '@/features/dashboard/service/queries/getDashboardRoleAssignments'
-import { applyV2RoleAssignments } from '@/features/dashboard/v2NameRoles'
-import { indexerClient } from '@/lib/indexer-client'
+import {
+  DASHBOARD_NAME_ACTIONS,
+  getDashboardNamesInfiniteQueryOptions,
+} from '@/features/dashboard/service/queries/getDashboardNames'
+import { bigname } from '@/lib/bigname'
 import { invalidateMigrationQueries } from './MigrationPage.helpers'
 
-vi.mock('@/lib/indexer-client', () => ({
-  indexerClient: { query: vi.fn() },
-}))
+vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
 
 const owner = '0x0000000000000000000000000000000000000001'
-const migratedDomain: DomainFragment = {
-  id: 'agent.eth',
+const agent = (authority: AddressName['authority']): AddressName => ({
   name: 'agent.eth',
-  normalizedName: 'agent.eth',
-  tokenId: '1',
-  createdAt: 1,
-  registrationDate: 1,
-  expiryDate: 2_000_000_000,
-  resolver: null,
-  owner: { id: owner },
-}
-const variables = {
-  where: { owner_in: [owner] },
-  orderBy: Domain_OrderBy.Name,
-  orderDirection: OrderDirection.Asc,
-}
+  display_name: 'agent.eth',
+  namespace: 'ens',
+  namehash: '0x01',
+  status: 'active',
+  authority,
+  expires_at: '2000000000',
+  relations: ['owner'],
+  is_primary: false,
+})
 
 let queryClient: QueryClient
 let isMigrated: boolean
@@ -44,16 +33,11 @@ beforeEach(() => {
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   })
   isMigrated = false
-  vi.mocked(indexerClient.query).mockImplementation(
-    () =>
-      ({
-        toPromise: async () => ({
-          data: {
-            domains: isMigrated ? [migratedDomain] : [],
-            roles: isMigrated ? [{ name: 'agent.eth', roleBitmap: '1' }] : [],
-          },
-        }),
-      }) as never,
+  vi.mocked(bigname.addressNames).mockImplementation(() =>
+    okAsync({
+      data: [agent(isMigrated ? 'ens_v2' : 'ens_v1')],
+      page: { next_cursor: null },
+    } as never),
   )
 })
 
@@ -63,64 +47,46 @@ afterEach(() => {
 })
 
 describe('invalidateMigrationQueries', () => {
-  it('makes a migrated name searchable in the inactive dashboard cache', async () => {
-    const options = getAllDomainsInfiniteQuery(variables)
+  it('reads a migrated name again in the inactive dashboard cache', async () => {
+    const options = getDashboardNamesInfiniteQueryOptions({
+      addresses: [owner],
+      sortField: 'name',
+      sortDir: 'asc',
+      search: '',
+      version: null,
+    })
     await queryClient.fetchInfiniteQuery(options)
     isMigrated = true
 
     await invalidateMigrationQueries(queryClient)
 
-    const domains =
+    const names =
       queryClient
         .getQueryData(options.queryKey)
-        ?.pages.flatMap((page) => page.domains) ?? []
-    const results = buildMergedNamesList({
-      v2Names: domains,
-      v1Classified: [],
-      searchQuery: 'agent',
-      sortField: 'created',
-      sortDir: 'desc',
-    })
-    expect(results.map((item) => item.sortName)).toEqual(['agent.eth'])
+        ?.pages.flat()
+        .flatMap((chunk) => chunk.names) ?? []
+    expect(names.map(({ name, protocol }) => [name, protocol])).toEqual([
+      ['agent.eth', 'v2'],
+    ])
   })
 
-  it('refreshes cached role assignments for migrated names', async () => {
-    const options = getDashboardRoleAssignmentsQuery([owner])
-    await queryClient.fetchQuery(options)
-    isMigrated = true
-
-    await invalidateMigrationQueries(queryClient)
-
-    const domains = applyV2RoleAssignments(
-      [migratedDomain],
-      queryClient.getQueryData(options.queryKey) ?? [],
+  it('refreshes every dashboard name list', async () => {
+    const keys = DASHBOARD_NAME_ACTIONS.map(($action) =>
+      qk('dashboard', $action, { addresses: [owner] }),
     )
-    expect(domains[0]?.nameRoles).toEqual(['owner', 'manager'])
-  })
-
-  it('refreshes each cached domain query variant', async () => {
-    const options = [
-      getDomainsQuery({ ...variables, first: 5, skip: 0 }),
-      getDomainsQuery({
-        ...variables,
-        first: 5,
-        skip: 0,
-        orderBy: Domain_OrderBy.CreatedAt,
-        orderDirection: OrderDirection.Desc,
-      }),
-    ]
-    await Promise.all(options.map((option) => queryClient.fetchQuery(option)))
+    await Promise.all(
+      keys.map((queryKey) =>
+        queryClient.fetchQuery({
+          queryKey,
+          queryFn: async () => (isMigrated ? 'new' : 'old'),
+        }),
+      ),
+    )
     isMigrated = true
 
     await invalidateMigrationQueries(queryClient)
 
-    for (const option of options) {
-      expect(
-        queryClient
-          .getQueryData(option.queryKey)
-          ?.domains.map(({ name }) => name),
-      ).toEqual(['agent.eth'])
-    }
+    for (const key of keys) expect(queryClient.getQueryData(key)).toBe('new')
   })
 
   it('preserves migration invalidation without refetching inactive preflight queries', async () => {

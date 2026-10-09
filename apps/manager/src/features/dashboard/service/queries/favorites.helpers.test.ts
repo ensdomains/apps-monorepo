@@ -1,4 +1,3 @@
-import { OrderDirection } from '@ens-apps/indexer'
 import { describe, expect, it } from 'vitest'
 import {
   type FavoriteEntry,
@@ -61,7 +60,7 @@ describe('favorites.helpers', () => {
 
     describe('sort by name', () => {
       it('should sort by name ascending', () => {
-        const result = sortFavorites(favorites, 'name', OrderDirection.Asc)
+        const result = sortFavorites(favorites, 'name', 'asc')
         expect(result.map((f) => f.label)).toEqual([
           'alice.eth',
           'bob.eth',
@@ -70,7 +69,7 @@ describe('favorites.helpers', () => {
       })
 
       it('should sort by name descending', () => {
-        const result = sortFavorites(favorites, 'name', OrderDirection.Desc)
+        const result = sortFavorites(favorites, 'name', 'desc')
         expect(result.map((f) => f.label)).toEqual([
           'charlie.eth',
           'bob.eth',
@@ -81,7 +80,7 @@ describe('favorites.helpers', () => {
 
     describe('sort by addedAt', () => {
       it('should sort by addedAt ascending', () => {
-        const result = sortFavorites(favorites, 'addedAt', OrderDirection.Asc)
+        const result = sortFavorites(favorites, 'addedAt', 'asc')
         expect(result.map((f) => f.label)).toEqual([
           'alice.eth',
           'bob.eth',
@@ -90,7 +89,7 @@ describe('favorites.helpers', () => {
       })
 
       it('should sort by addedAt descending', () => {
-        const result = sortFavorites(favorites, 'addedAt', OrderDirection.Desc)
+        const result = sortFavorites(favorites, 'addedAt', 'desc')
         expect(result.map((f) => f.label)).toEqual([
           'charlie.eth',
           'bob.eth',
@@ -101,18 +100,18 @@ describe('favorites.helpers', () => {
 
     it('should not mutate original array', () => {
       const original = [...favorites]
-      sortFavorites(favorites, 'name', OrderDirection.Asc)
+      sortFavorites(favorites, 'name', 'asc')
       expect(favorites).toEqual(original)
     })
 
     it('should handle empty array', () => {
-      const result = sortFavorites([], 'name', OrderDirection.Asc)
+      const result = sortFavorites([], 'name', 'asc')
       expect(result).toEqual([])
     })
 
     it('should handle single item array', () => {
       const single = [createFavorite('only.eth', 1000)]
-      const result = sortFavorites(single, 'name', OrderDirection.Asc)
+      const result = sortFavorites(single, 'name', 'asc')
       expect(result).toEqual(single)
     })
   })
