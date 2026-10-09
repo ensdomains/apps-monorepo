@@ -118,7 +118,7 @@ const Banner = ({
                 Can't verify reverse resolution on {label} right now
               </span>
               {errorDetail && (
-                <code className="font-mono text-xs opacity-80 break-all">
+                <code className="text-smallmono opacity-80 break-all">
                   {errorDetail}
                 </code>
               )}
@@ -246,7 +246,7 @@ const PrimaryNameRow = ({
       <Badge
         variant="outline"
         className={cn(
-          'text-xs border-transparent',
+          'text-small border-transparent',
           match(status)
             .with('verified', () => 'bg-success-fill text-success-text')
             .with('pending', () => 'bg-accent-fill text-accent-text')

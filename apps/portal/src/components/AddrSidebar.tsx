@@ -121,7 +121,7 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                       tooltip={item.title}
                     >
                       <item.icon className="size-4" />
-                      <span className="text-base">{item.title}</span>
+                      <span>{item.title}</span>
                       {item.upcoming && <SoonBadge />}
                     </SidebarMenuButton>
                   ) : (
@@ -133,7 +133,7 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                         }}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-base">{item.title}</span>
+                        <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   )}

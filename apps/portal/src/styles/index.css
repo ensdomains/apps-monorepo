@@ -427,6 +427,8 @@
   --text-base--font-weight: 360;
   --text-base--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
+  --text-small--line-height: 1rem; /* 16px; Figma is 12px */
+  --text-small--font-weight: 360;
 }
 
 /* Figma styles that need font-family or text-transform, which text tokens
@@ -436,6 +438,14 @@
   font-weight: 500;
   letter-spacing: 0.07em; /* 7% tracking = 0.98px at 14px */
   text-transform: uppercase;
+}
+
+/* 12px mono for data; line height kept at 16px (Figma is 12px). */
+@utility text-smallmono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
 }
 
 @utility text-smallcaps {

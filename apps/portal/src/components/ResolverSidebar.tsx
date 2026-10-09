@@ -158,7 +158,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
                       tooltip={item.title}
                     >
                       <item.icon className="size-4" />
-                      <span className="text-base">{item.title}</span>
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   ) : (
                     <SidebarMenuButton asChild tooltip={item.title}>
@@ -169,7 +169,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
                         }}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-base">{item.title}</span>
+                        <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   )}

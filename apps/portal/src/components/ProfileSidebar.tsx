@@ -234,7 +234,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                         tooltip={item.title}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-base">{item.title}</span>
+                        <span>{item.title}</span>
                         {item.upcoming && <SoonBadge />}
                       </SidebarMenuButton>
                     ) : (
@@ -246,7 +246,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                           }}
                         >
                           <item.icon className="size-4" />
-                          <span className="text-base">{item.title}</span>
+                          <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     )}

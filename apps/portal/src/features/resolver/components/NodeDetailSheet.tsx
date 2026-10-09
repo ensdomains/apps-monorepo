@@ -181,10 +181,7 @@ export const NodeDetailSheet = ({
                               key={`${role.account}-${role.roleBitmap}`}
                             >
                               <TableCell
-                                className={cn(
-                                  cellClassName,
-                                  'font-mono text-xs',
-                                )}
+                                className={cn(cellClassName, 'text-smallmono')}
                               >
                                 <div className="flex items-center gap-1">
                                   {truncateAddress(role.account)}
@@ -192,10 +189,7 @@ export const NodeDetailSheet = ({
                                 </div>
                               </TableCell>
                               <TableCell
-                                className={cn(
-                                  cellClassName,
-                                  'font-mono text-xs',
-                                )}
+                                className={cn(cellClassName, 'text-smallmono')}
                               >
                                 {role.roleBitmap}
                               </TableCell>

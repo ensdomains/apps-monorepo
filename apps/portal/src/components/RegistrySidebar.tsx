@@ -122,7 +122,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
               <span className="text-entity-base font-medium text-foreground break-all leading-tight">
                 {address}
               </span>
-              <span className="text-xs font-mono text-danger-text leading-tight">
+              <span className="text-smallmono text-danger-text leading-tight">
                 PermissionedRegistry
               </span>
             </div>
@@ -141,7 +141,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
                       tooltip={item.title}
                     >
                       <item.icon className="size-4" />
-                      <span className="text-base">{item.title}</span>
+                      <span>{item.title}</span>
                       {item.upcoming && <SoonBadge />}
                     </SidebarMenuButton>
                   ) : (
@@ -153,7 +153,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
                         }}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-base">{item.title}</span>
+                        <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   )}
