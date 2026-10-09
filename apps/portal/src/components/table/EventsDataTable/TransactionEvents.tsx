@@ -77,12 +77,12 @@ const EventData = ({ event, txHash }: EventDataProps) => {
             <TableBody>
               {dataFields.map(([key, value], index) => (
                 <TableRow key={key} className="hover:bg-muted">
-                  <TableCell className="h-10 py-0 text-sm">{index}</TableCell>
-                  <TableCell className="h-10 py-0 text-sm">{key}</TableCell>
-                  <TableCell className="h-10 py-0 text-sm">
+                  <TableCell className="h-10 py-0 text-base">{index}</TableCell>
+                  <TableCell className="h-10 py-0 text-base">{key}</TableCell>
+                  <TableCell className="h-10 py-0 text-base">
                     {getEventFieldType(event.type, key)}
                   </TableCell>
-                  <TableCell className="h-10 py-0 text-sm">
+                  <TableCell className="h-10 py-0 text-base">
                     <CopyableRecord
                       value={String(value)}
                       displayValue={
@@ -216,7 +216,7 @@ export const TransactionEvents = ({
                         className="flex items-center gap-1.5"
                       >
                         <ScrollTextIcon />
-                        <span className="text-sm">Go to docs</span>
+                        <span className="text-base">Go to docs</span>
                       </a>
                     </Button>
                   </div>
@@ -229,7 +229,7 @@ export const TransactionEvents = ({
                             {truncateAddress(txHash, 10, 8, '...')}
                           </span>
                         }
-                        className="text-sm flex-1 min-w-0"
+                        className="text-base flex-1 min-w-0"
                       />
                     </InfoRow>
                     <InfoRow label="Event">

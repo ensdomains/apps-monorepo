@@ -108,7 +108,7 @@ export const TableMultiSelectFilter = ({
             return (
               <div key={group.title} className="mb-6 last:mb-0">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold">{group.title}</h4>
+                  <h4 className="text-base font-semibold">{group.title}</h4>
                   {hasAnySelected && (
                     <Button
                       variant="link"

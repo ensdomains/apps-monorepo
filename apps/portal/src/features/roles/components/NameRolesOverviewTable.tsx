@@ -145,7 +145,7 @@ const RegistryRootAuthority = ({
           </p>
           <ul className="flex flex-col gap-2">
             {holders.map(({ account, powers }) => (
-              <li key={account} className="flex flex-col gap-1 text-sm">
+              <li key={account} className="flex flex-col gap-1 text-p">
                 <AddressDisplay address={account} />
                 <span className="text-muted-foreground">
                   {powers.map(formatRoleLabel).join(', ')}

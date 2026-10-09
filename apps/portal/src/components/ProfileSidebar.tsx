@@ -215,7 +215,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
               width="24px"
               rounded="rounded-xs"
             />
-            <span className="group-data-[collapsible=icon]:hidden text-base font-medium text-foreground break-all leading-tight">
+            <span className="group-data-[collapsible=icon]:hidden text-p font-medium text-foreground break-all leading-tight">
               {name}
             </span>
           </Link>
@@ -234,7 +234,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                         tooltip={item.title}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-sm">{item.title}</span>
+                        <span className="text-base">{item.title}</span>
                         {item.upcoming && <SoonBadge />}
                       </SidebarMenuButton>
                     ) : (
@@ -246,7 +246,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                           }}
                         >
                           <item.icon className="size-4" />
-                          <span className="text-sm">{item.title}</span>
+                          <span className="text-base">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     )}

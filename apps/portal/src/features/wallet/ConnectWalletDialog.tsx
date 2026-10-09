@@ -59,7 +59,7 @@ const WalletRow = ({
       <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-xs">
         {icon}
       </span>
-      <span className="font-medium text-sm">{name}</span>
+      <span className="font-medium text-base">{name}</span>
       <span className="ml-auto text-muted-foreground text-xs">
         {isPending ? 'Connecting…' : badge}
       </span>

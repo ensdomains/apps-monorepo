@@ -253,7 +253,7 @@ export const SubnamesTable = ({
             >
               <X className="size-6" />
             </button>
-            <span className="text-sm text-muted-foreground flex-1">
+            <span className="text-base text-muted-foreground flex-1">
               {selectedCount} selected
             </span>
             {onClearSelected && deletableSelected.length > 0 && (
@@ -347,7 +347,7 @@ export const SubnamesTable = ({
                     )}
                   </div>
                   <div className="flex flex-row gap-2 items-center">
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-base text-muted-foreground">
                       Owner:
                     </span>
                     <EntityBadge variant="address" address={row.original.owner}>

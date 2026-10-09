@@ -53,8 +53,8 @@ export const DnssecGlossary = () => (
       <dl className="mt-4 flex flex-col gap-3">
         {TERMS.map(({ term, meaning }) => (
           <div key={term} className="flex flex-col gap-0.5">
-            <dt className="text-sm font-medium">{term}</dt>
-            <dd className="text-sm text-muted-foreground">{meaning}</dd>
+            <dt className="text-base font-medium">{term}</dt>
+            <dd className="text-p text-muted-foreground">{meaning}</dd>
           </div>
         ))}
       </dl>

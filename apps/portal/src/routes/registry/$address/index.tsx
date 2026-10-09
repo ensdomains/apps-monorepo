@@ -90,11 +90,11 @@ function RouteComponent() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
         <PageHeading>Registry Contract</PageHeading>
-        <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
+        <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-entity-base text-muted-foreground">
           <EntityBadge variant="default" label="type" className="font-normal">
             PermissionedRegistry
           </EntityBadge>
-          <div className="flex flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
+          <div className="flex flex-row flex-wrap gap-4 text-entity-base text-muted-foreground">
             <span>Chain ID: {chainId}</span>
             <span>Protocol: {PROTOCOL}</span>
           </div>
@@ -222,7 +222,7 @@ const RegistryNavCard = ({
     <div className="flex flex-row w-full items-center justify-between gap-4 p-4 transition-colors rounded-sm group-hover/nav:bg-accent">
       <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="text-sm font-normal text-muted-foreground">
+        <span className="text-base font-normal text-muted-foreground">
           {label}
         </span>
       </div>
@@ -270,7 +270,7 @@ const VerifiedMark = ({ verified }: { readonly verified: boolean }) => {
     <Tooltip>
       <TooltipTrigger
         className={cn(
-          'inline-flex items-center gap-1 text-sm cursor-help',
+          'inline-flex items-center gap-1 text-base cursor-help',
           verified ? 'text-success-text' : 'text-destructive',
         )}
       >

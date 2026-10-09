@@ -80,7 +80,7 @@ const NodeOption = ({ node }: NodeOptionProps) => (
       height="28px"
       rounded="rounded-sm"
     />
-    <span className="font-mono text-sm">{node.name}</span>
+    <span className="text-entity-base">{node.name}</span>
     <CopyButton value={node.name} />
   </div>
 )
@@ -219,7 +219,7 @@ function RouteComponent() {
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm">
+                  <span className="text-entity-base">
                     {selectedFromNode.name}
                   </span>
                   <CopyButton value={selectedFromNode.name} />
@@ -273,7 +273,7 @@ function RouteComponent() {
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm">
+                  <span className="text-entity-base">
                     {selectedToNode.name}
                   </span>
                   <CopyButton value={selectedToNode.name} />

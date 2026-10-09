@@ -231,7 +231,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
       {showAssigned && (
         <section className="flex flex-col gap-2 border-t border-border pt-6 mt-6">
-          <h3 className="text-sm font-medium">
+          <h3 className="text-base font-medium">
             {`Names assigned to this address (${assigned.length})`}
           </h3>
           <p className="text-p text-muted-foreground">
@@ -263,7 +263,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
         <Link
           to="/addr/$addr/names"
           params={{ addr: address }}
-          className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center justify-center gap-1 border-t border-border p-4 text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripHorizontal className="size-4" />
           {getFullListLabel(v1NamesQuery, v2NamesQuery)}

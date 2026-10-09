@@ -74,7 +74,7 @@ const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
         </Badge>
       ))}
       {added.length === 0 && removed.length === 0 && (
-        <span className="text-muted-foreground text-sm">No change</span>
+        <span className="text-muted-foreground text-base">No change</span>
       )}
     </div>
   )
@@ -98,7 +98,7 @@ const MoreButton = ({ onClick }: { readonly onClick: () => void }) => (
     }}
   >
     <ArrowRightFromLineIcon className="h-4 w-4" />
-    <span className="text-sm font-medium">More</span>
+    <span className="text-base font-medium">More</span>
   </Button>
 )
 
@@ -114,22 +114,22 @@ const RoleHistoryMobileCard = ({
       <MoreButton onClick={onMoreClick} />
     </div>
 
-    <div className="text-sm font-medium">Date</div>
+    <div className="text-base font-medium">Date</div>
     <div className="text-p text-muted-foreground">
       {formatTimestamp(entry.timestamp)}
     </div>
 
-    <div className="text-sm font-medium">Account</div>
+    <div className="text-base font-medium">Account</div>
     <div className="text-p">
       <AddressDisplay address={entry.account} />
     </div>
 
-    <div className="text-sm font-medium">Changes</div>
+    <div className="text-base font-medium">Changes</div>
     <div className="text-p">
       <RoleDiff entry={entry} />
     </div>
 
-    <div className="text-sm font-medium">Roles</div>
+    <div className="text-base font-medium">Roles</div>
     <div className="text-p">
       <RoleCountChange entry={entry} />
     </div>
@@ -225,7 +225,7 @@ export const RoleHistoryTable = ({
           <TableBody>
             {entries.map((entry) => (
               <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-                <TableCell className="px-4 sm:px-6 h-10 py-1 text-sm text-muted-foreground">
+                <TableCell className="px-4 sm:px-6 h-10 py-1 text-base text-muted-foreground">
                   {formatTimestamp(entry.timestamp)}
                 </TableCell>
                 <TableCell className="px-4 sm:px-6 h-10 py-1">

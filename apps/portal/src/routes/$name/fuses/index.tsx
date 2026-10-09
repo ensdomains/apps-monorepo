@@ -266,7 +266,7 @@ function RouteComponent() {
         <div className="border border-border rounded-sm p-6 flex gap-4 items-center">
           <p className="font-medium whitespace-nowrap">Fuse expiry</p>
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="font-mono text-sm truncate">{expiryLabel}</span>
+            <span className="text-entity-base truncate">{expiryLabel}</span>
             <CopyableRecord value={expiry.toString()} />
           </div>
         </div>

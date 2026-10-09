@@ -700,7 +700,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
             {!isPrimaryName && displayName && (
               <div className="flex items-center gap-3 bg-danger-fill text-danger-text p-4 rounded-md">
                 <XCircle className="w-6 h-6 shrink-0" />
-                <span className="text-sm">
+                <span className="text-p">
                   {mismatchReason({
                     displayName,
                     label,

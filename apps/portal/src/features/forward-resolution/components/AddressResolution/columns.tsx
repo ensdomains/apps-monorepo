@@ -96,7 +96,7 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
       const { address, addressSource } = row.original
       if (!address)
         return (
-          <span className="font-mono text-sm text-muted-foreground/50">
+          <span className="text-entity-base text-muted-foreground/50">
             null
           </span>
         )
@@ -107,7 +107,7 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              'font-mono text-sm max-w-[400px] block truncate',
+              'text-entity-base max-w-[400px] block truncate',
               isFallback && 'text-muted-foreground',
             )}
           >

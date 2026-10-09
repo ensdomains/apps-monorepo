@@ -95,10 +95,9 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (isLoading) return <LoadingSpinner title="Loading interfaces..." />
   if (error)
-    return (
-      <div className="text-sm text-destructive">{error.cause?.message}</div>
-    )
-  if (!data) return <div className="text-sm text-muted-foreground">No data</div>
+    return <div className="text-p text-destructive">{error.cause?.message}</div>
+  if (!data)
+    return <div className="text-base text-muted-foreground">No data</div>
 
   const features = data
     .flatMap((supported, index) => {
@@ -115,7 +114,7 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (features.length === 0)
     return (
-      <div className="text-sm text-muted-foreground">
+      <div className="text-base text-muted-foreground">
         No interfaces detected
       </div>
     )

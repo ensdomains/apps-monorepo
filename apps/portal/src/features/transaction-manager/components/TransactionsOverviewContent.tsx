@@ -192,11 +192,11 @@ export const TransactionsOverviewContent = ({
                 <dl className="grid grid-cols-2 gap-1 place-items-start">
                   {transaction.details?.map(({ label, value }) => (
                     <Fragment key={label}>
-                      <dt className="text-base font-medium">{label}</dt>
+                      <dt className="text-p font-medium">{label}</dt>
                       <dd className="text-p font-mono break-all">{value}</dd>
                     </Fragment>
                   ))}
-                  <dt className="text-base font-medium">
+                  <dt className="text-p font-medium">
                     {getStatus(transaction.id, activeTransactionsMap) ===
                     'success'
                       ? 'Actual Cost'

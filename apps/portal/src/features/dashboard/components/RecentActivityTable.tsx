@@ -62,7 +62,7 @@ export const RecentActivityTable = () => {
           />
         ))
         .with({ count: 0 }, () => (
-          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center py-8 text-base text-muted-foreground">
             No recent activity
           </div>
         ))
@@ -110,7 +110,7 @@ export const RecentActivityTable = () => {
                 </div>
 
                 <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0">
-                  <span className="text-sm text-muted-foreground sm:truncate">
+                  <span className="text-base text-muted-foreground sm:truncate">
                     {text}
                   </span>
                   {value && (

@@ -31,9 +31,9 @@ const CheckRow = ({ check }: { readonly check: DnssecCheck }) => (
   <li className="flex items-start gap-2">
     <StatusIcon status={check.status} className="mt-0.5" />
     <div className="flex flex-col min-w-0">
-      <span className="text-sm font-medium">{check.title}</span>
+      <span className="text-p font-medium">{check.title}</span>
       {check.detail && (
-        <span className="text-sm text-muted-foreground whitespace-pre-line wrap-break-word">
+        <span className="text-p text-muted-foreground whitespace-pre-line wrap-break-word">
           {check.detail}
         </span>
       )}
@@ -49,7 +49,7 @@ const RecordsDisclosure = ({
   readonly isDefaultOpen: boolean
 }) => (
   <Collapsible defaultOpen={isDefaultOpen} className="group/records">
-    <CollapsibleTrigger className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+    <CollapsibleTrigger className="inline-flex items-center gap-1 text-base text-muted-foreground hover:text-foreground cursor-pointer">
       <ChevronRight className="size-4 transition-transform group-data-[state=open]/records:rotate-90" />
       {lines.length} {lines.length === 1 ? 'record' : 'records'}
     </CollapsibleTrigger>
@@ -97,7 +97,7 @@ export const DnssecStepItem = ({
           <span className="font-mono text-p font-medium break-all">
             {getStepLabel(step)}
           </span>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-base text-muted-foreground">
             {getStepCaption(step)}
           </span>
           <StatusBadge status={step.status} className="ml-auto">

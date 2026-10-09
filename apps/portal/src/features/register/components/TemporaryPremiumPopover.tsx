@@ -168,7 +168,7 @@ export const TemporaryPremiumPopover = ({
             />
           </svg>
 
-          <div ref={labelRowRef} className="relative h-10 text-sm">
+          <div ref={labelRowRef} className="relative h-10 text-base">
             <span
               ref={dateRef}
               className="absolute top-0 whitespace-nowrap text-muted-foreground"

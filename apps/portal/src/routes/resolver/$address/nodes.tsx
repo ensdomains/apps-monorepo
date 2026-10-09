@@ -80,7 +80,7 @@ const createNodesColumns = (
             height="28px"
             rounded="rounded-sm"
           />
-          <span className="font-mono text-sm">{node.name}</span>
+          <span className="text-entity-base">{node.name}</span>
           <CopyButton value={node.name} />
         </div>
       )
@@ -119,7 +119,7 @@ const createNodesColumns = (
             }}
           >
             <ArrowRightFromLineIcon className="h-4 w-4" />
-            <span className="text-sm font-medium">More</span>
+            <span className="text-base font-medium">More</span>
           </Button>
         </div>
       )
@@ -258,7 +258,7 @@ function RouteComponent() {
                         height="28px"
                         rounded="rounded-sm"
                       />
-                      <span className="font-mono text-sm truncate">
+                      <span className="text-entity-base truncate">
                         {node.name}
                       </span>
                       <CopyButton value={node.name} />
@@ -277,7 +277,7 @@ function RouteComponent() {
                     }}
                   >
                     <ArrowRightFromLineIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">More</span>
+                    <span className="text-base font-medium">More</span>
                   </Button>
                 </div>
               )

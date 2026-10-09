@@ -48,7 +48,7 @@ export const DataBlockCardError = ({
 }) => (
   <div className="flex h-20 max-w-[300px] items-center gap-2 p-4 rounded-lg bg-background border border-secondary text-muted-foreground">
     <Icon className="size-4 shrink-0" />
-    <span className="text-base">{message}</span>
+    <span className="text-p">{message}</span>
   </div>
 )
 

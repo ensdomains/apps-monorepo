@@ -38,7 +38,7 @@ const Toolbar = ({
   checkedAt,
 }: ToolbarProps) => (
   <div className="flex flex-wrap items-center gap-3">
-    <span className="text-sm text-muted-foreground">Resolver</span>
+    <span className="text-base text-muted-foreground">Resolver</span>
     <Tabs
       value={resolver}
       onValueChange={(value) => {
@@ -58,7 +58,7 @@ const Toolbar = ({
       Re-run
     </Button>
     {checkedAt !== undefined && (
-      <span className="text-sm text-muted-foreground">
+      <span className="text-p text-muted-foreground">
         Checked {formatUtc(checkedAt)}. Resolvers may serve cached answers for
         up to their TTL.
       </span>

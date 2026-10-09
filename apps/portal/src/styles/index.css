@@ -423,7 +423,7 @@
   /* Figma "base" — single-line UI text. Overrides Tailwind's 16/24
      `text-base`; copy that can wrap belongs on `text-p`. */
   --text-base: 0.9375rem; /* 15px */
-  --text-base--line-height: 0.9375rem; /* 15px */
+  --text-base--line-height: 1.25rem; /* 20px;*/
   --text-base--font-weight: 360;
   --text-base--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
