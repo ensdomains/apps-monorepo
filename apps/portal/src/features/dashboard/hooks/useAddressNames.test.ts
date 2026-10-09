@@ -74,7 +74,19 @@ describe('getAddressNames', () => {
   it('lists every relation in either era with its counts, soonest expiry first', async () => {
     answer([
       [
-        row('later.eth'),
+        row('later.eth', {
+          role_summary: [
+            {
+              address: ADDRESS,
+              grants: [
+                {
+                  grant_scope: { kind: 'registry', detail: {} },
+                  powers: ['set_resolver', 'admin_set_resolver'],
+                },
+              ],
+            },
+          ],
+        }),
         row('legacy.eth', {
           authority: 'ens_v1',
           relations: ['owner', 'manager'],
@@ -91,7 +103,7 @@ describe('getAddressNames', () => {
     expect(queries()[0]).toMatchObject({
       namespace: 'ens',
       relation: 'any',
-      include: ['counts'],
+      include: ['counts', 'role_summary'],
     })
     expect(names).toEqual([
       expect.objectContaining({
@@ -103,6 +115,7 @@ describe('getAddressNames', () => {
         name: 'later.eth',
         protocolVersion: 'ENSv2',
         relations: ['owner'],
+        roleCount: 2,
         subdomainCount: 2,
         recordCount: 5,
       }),
@@ -181,6 +194,31 @@ describe('getAddressNames', () => {
       }),
       expect.objectContaining({ name: 'held.eth' }),
     ])
+  })
+
+  it('reads the list again without role counts when bigname refuses them', async () => {
+    answer([[row('busy.eth')]])
+    const answerPage = vi.mocked(bigname.addressNames).getMockImplementation()
+    if (!answerPage) throw new Error('addressNames is not mocked')
+    vi.mocked(bigname.addressNames).mockImplementation((address, query) =>
+      query?.include?.includes('role_summary')
+        ? errAsync(
+            new BignameError({
+              code: 'unsupported',
+              message: 'too many grants',
+            }),
+          )
+        : answerPage(address, query),
+    )
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, NOW)
+    )._unsafeUnwrap()
+
+    expect(names).toEqual([
+      expect.not.objectContaining({ roleCount: expect.anything() }),
+    ])
+    expect(names[0]?.name).toBe('busy.eth')
   })
 
   it('fails when a read fails', async () => {

@@ -66,7 +66,12 @@ const columns: ColumnDef<column>[] = [
   {
     id: 'relations',
     header: 'Roles',
-    cell: ({ row }) => <RelationBadges relations={row.original.relations} />,
+    cell: ({ row }) => (
+      <RelationBadges
+        relations={row.original.relations}
+        roleCount={row.original.roleCount}
+      />
+    ),
   },
 ]
 

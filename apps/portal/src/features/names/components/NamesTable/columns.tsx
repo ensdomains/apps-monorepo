@@ -15,6 +15,7 @@ export type NameRow = {
   name: string | null
   expiryDate?: Date | null
   relations: readonly AddressNameRelation[]
+  roleCount?: number
   protocolVersion: ProtocolVersion
 }
 
@@ -107,6 +108,11 @@ export const columns: ColumnDef<NameRow>[] = [
         Roles
       </SortButton>
     ),
-    cell: ({ row }) => <RelationBadges relations={row.original.relations} />,
+    cell: ({ row }) => (
+      <RelationBadges
+        relations={row.original.relations}
+        roleCount={row.original.roleCount}
+      />
+    ),
   },
 ]
