@@ -82,16 +82,9 @@ export const NamesTable = ({
     sortField: ownedSortState.field,
     sortDir: ownedSortState.dir,
   })
-  const v1Names = useDashboardNames({
-    sortField: ownedSortState.field,
-    sortDir: ownedSortState.dir,
-    version: 'v1',
-  })
-  const v2Names = useDashboardNames({
-    sortField: ownedSortState.field,
-    sortDir: ownedSortState.dir,
-    version: 'v2',
-  })
+  // The chip counts do not depend on the sort, so they keep one read each.
+  const v1Names = useDashboardNames({ version: 'v1' })
+  const v2Names = useDashboardNames({ version: 'v2' })
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
