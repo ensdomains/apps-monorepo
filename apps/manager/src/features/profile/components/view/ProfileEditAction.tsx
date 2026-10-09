@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
 import { normalizeEthName } from '@/features/profile/service/profileName'
@@ -11,6 +11,7 @@ type ProfileEditActionProps = {
   readonly isInGrace: boolean
   readonly isOwner?: boolean
   readonly isUpgradeRequired?: boolean
+  readonly leftActions?: ReactNode
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
@@ -22,6 +23,7 @@ export const ProfileEditAction = ({
   isInGrace,
   isOwner,
   isUpgradeRequired = false,
+  leftActions,
   name,
   onUpdated,
   owner,
@@ -42,19 +44,14 @@ export const ProfileEditAction = ({
 
   if (isUnmigratedEthName) return null
 
-  const trigger = (
-    <button className={className} type="button">
-      <Trans>Edit Profile</Trans>
-    </button>
-  )
-
   return (
     <EditProfileDialog
+      editButtonClassName={className}
+      leftActions={leftActions}
       name={name}
       onUpdated={onUpdated}
       owner={owner}
       records={records}
-      trigger={trigger}
     />
   )
 }

@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
@@ -22,9 +23,10 @@ import { transformProfileRecords } from '@/features/profile/utils/transformRecor
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { ProfileActions, ProfileMobileActions } from './ProfileActions'
+import { ProfileActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileCards } from './ProfileCards'
+import { type ProfileDraft, ProfileDraftProvider } from './ProfileDraft.context'
 import { ProfileHeader } from './ProfileHeader'
 import { ProfileLoading } from './ProfileLoading'
 import {
@@ -97,7 +99,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
-  const themeVars = getThemeVars(records.base.theme)
+  const [draft, setDraft] = useState<ProfileDraft | null>(null)
+  const displayRecords = draft?.records ?? records
+  const themeVars = getThemeVars(displayRecords.base.theme)
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
@@ -115,7 +119,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)
-  const imageRecords = expiry.isInGrace ? {} : records.base
+  const imageRecords = expiry.isInGrace ? {} : displayRecords.base
   const avatar = useQuery(imageRecordQuery(imageRecords.avatar?.trim()))
   const header = useQuery(imageRecordQuery(imageRecords.header?.trim()))
   const owner = ownerData?.owner as Address | undefined
@@ -142,11 +146,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     )
   }
 
-  const avatarUrl = avatar.data ?? undefined
-  const headerUrl = header.data ?? undefined
+  const avatarUrl = draft?.avatarPreviewUrl ?? avatar.data ?? undefined
+  const headerUrl = draft?.headerPreviewUrl ?? header.data ?? undefined
   const defaultHeaderUrl = getDefaultHeaderCover({
     isInGrace: expiry.isInGrace,
-    themeColor: records.base.theme,
+    themeColor: displayRecords.base.theme,
   })
   const profileThemeColor = expiry.isInGrace
     ? undefined
@@ -156,7 +160,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   return (
     <div
-      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5"
+      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5 lg:landscape:data-[owner=true]:pb-44"
+      data-owner={resolvedIsOwner === true}
       style={expiry.isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
       <ProfileThemeColorProvider value={profileThemeColor}>
@@ -197,26 +202,17 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarUrl={avatarUrl}
               displayExpiryDate={expiry.displayExpiryDate}
               hasMobileStatusBanner={hasMobileStatusBanner}
-              mobileActions={
-                <ProfileMobileActions
-                  avatarUrl={avatarUrl}
-                  isOwner={resolvedIsOwner}
-                  name={name}
-                  renewalProtocol={ownerData?.protocol}
-                  url={getProfileUrl(name)}
-                />
-              }
               name={name}
               owner={owner}
               ownerReverseName={ownerReverseName.data}
-              records={records}
+              records={displayRecords}
               registrationDate={registration.data?.registrationDate}
             />
             <div className="space-y-0">
               <ProfileCards
                 avatarUrl={avatarUrl}
                 name={name}
-                records={records}
+                records={displayRecords}
               />
               <ProfileCommemorativeNftSection
                 enabled={commemorativeNftEnabled}
@@ -226,19 +222,20 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
             </div>
           </div>
         </div>
-        <ProfileActions
-          avatarUrl={avatarUrl}
-          hasMobileStatusBanner={hasMobileStatusBanner}
-          isInGrace={expiry.isInGrace}
-          isOwner={resolvedIsOwner}
-          isUpgradeRequired={isUpgradeRequired}
-          name={name}
-          onUpdated={refetchRecords}
-          owner={owner}
-          records={records}
-          renewalProtocol={ownerData?.protocol}
-          url={getProfileUrl(name)}
-        />
+        <ProfileDraftProvider value={setDraft}>
+          <ProfileActions
+            avatarUrl={avatarUrl}
+            isInGrace={expiry.isInGrace}
+            isOwner={resolvedIsOwner}
+            isUpgradeRequired={isUpgradeRequired}
+            name={name}
+            onUpdated={refetchRecords}
+            owner={owner}
+            records={records}
+            renewalProtocol={ownerData?.protocol}
+            url={getProfileUrl(name)}
+          />
+        </ProfileDraftProvider>
       </ProfileThemeColorProvider>
     </div>
   )

@@ -44,6 +44,28 @@ describe('editProfileDialogMachine', () => {
     expect(snapshot.context.pendingSave).toBeUndefined()
   })
 
+  it('keeps the editing session alive while previewing and clears it on close', () => {
+    const actor = startActor()
+
+    actor.send({ type: 'PREVIEW' })
+    expect(actor.getSnapshot().context.isPreviewing).toBe(true)
+    expect(actor.getSnapshot().matches({ editing: 'idle' })).toBe(true)
+
+    actor.send({ type: 'CLOSE' })
+    expect(actor.getSnapshot().context.isPreviewing).toBe(false)
+    expect(actor.getSnapshot().matches('closed')).toBe(true)
+  })
+
+  it('reopens the editor from preview without ending the session', () => {
+    const actor = startActor()
+
+    actor.send({ type: 'PREVIEW' })
+    actor.send({ type: 'RESUME_EDIT' })
+
+    expect(actor.getSnapshot().context.isPreviewing).toBe(false)
+    expect(actor.getSnapshot().matches({ editing: 'idle' })).toBe(true)
+  })
+
   it('can show a general field without toggling it back off', () => {
     const actor = startActor()
 

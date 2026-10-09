@@ -11,8 +11,9 @@ import {
 } from '@/features/profile/utils/transformRecords'
 import { sharedOptions, withForm } from '../../form'
 import type { EditProfileSaveHandler } from './EditProfileDialog.types'
+import { EditProfileDialogFooter } from './EditProfileDialogFooter'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
-import { EditProfileDialogTabs } from './EditProfileDialogTabs'
+import { EditProfileDialogTabs, editProfileTabs } from './EditProfileDialogTabs'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
 import {
@@ -25,7 +26,8 @@ interface EditProfileDialogBodyProps {
   readonly isFinalizingImageSave: boolean
   readonly isResolverAccessPending: boolean
   readonly name: string
-  readonly onSave: EditProfileSaveHandler
+  readonly onCancel: () => void
+  readonly onPreview: EditProfileSaveHandler
   readonly onImageUploadPrepared: (upload: PreparedProfileImageUpload) => void
   readonly open: boolean
   readonly owner?: Address
@@ -39,7 +41,8 @@ export const EditProfileDialogBody = withForm({
     isFinalizingImageSave: false,
     isResolverAccessPending: false,
     name: '',
-    onSave: () => {},
+    onCancel: () => {},
+    onPreview: () => {},
     onImageUploadPrepared: () => {},
     open: false,
     preparedImageUploads: [],
@@ -50,19 +53,24 @@ export const EditProfileDialogBody = withForm({
     isFinalizingImageSave,
     isResolverAccessPending,
     name,
-    onSave,
+    onCancel,
+    onPreview,
     onImageUploadPrepared,
     open,
     owner,
     preparedImageUploads,
     savedRecords,
   }) => {
+    const [activeTab, setActiveTab] = useState('general')
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: reset draft link validation whenever the dialog open state changes
     useEffect(() => {
       setHasDraftLinkValidationIssues(false)
+      setActiveTab('general')
+      setIsMobileNavOpen(false)
     }, [open])
 
     return (
@@ -100,7 +108,7 @@ export const EditProfileDialogBody = withForm({
               values.base.description,
               savedRecords.base.description,
             )
-          const canSaveProfile =
+          const canPreviewProfile =
             (hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
             !isFinalizingImageSave &&
@@ -109,6 +117,15 @@ export const EditProfileDialogBody = withForm({
             !hasGeneralValidationIssues &&
             !hasLinkValidationIssues &&
             !hasContactValidationIssues
+          const tabsWithErrors: Record<string, boolean> = {
+            addresses: hasAddressValidationIssues,
+            contact: hasContactValidationIssues,
+            general: hasGeneralValidationIssues,
+            links: hasLinkValidationIssues,
+          }
+          const errorTabs = editProfileTabs.filter(
+            ({ value }) => tabsWithErrors[value],
+          )
           const handleBaseChange = (base: ProfileRecords['base']) => {
             form.setFieldValue('base', base)
           }
@@ -126,10 +143,10 @@ export const EditProfileDialogBody = withForm({
           const handleLinksChange = (links: ProfileRecords['links']) => {
             form.setFieldValue('links', links)
           }
-          const handleSave = () => {
-            if (!canSaveProfile) return
+          const handlePreview = () => {
+            if (!canPreviewProfile) return
 
-            onSave(submittedValues, {
+            onPreview(submittedValues, {
               hasRecordChanges: hasChanges,
               preparedImageUploads: activePreparedImageUploads,
             })
@@ -138,19 +155,18 @@ export const EditProfileDialogBody = withForm({
           return (
             <Tabs
               className="h-full min-h-0 flex-1 gap-0 overflow-hidden"
-              defaultValue="general"
+              onValueChange={setActiveTab}
               orientation="vertical"
+              value={activeTab}
             >
               <EditProfileDialogHeader
                 avatarPreviewUrl={activePreparedAvatarPreviewUrl}
                 avatarUrl={values.base.avatar}
-                canSave={canSaveProfile}
                 name={name}
-                onSave={handleSave}
                 themeColor={values.base.theme}
               />
               <EditProfileDialogTabs
-                canSave={canSaveProfile}
+                isMobileNavOpen={isMobileNavOpen}
                 name={name}
                 onAddressesChange={handleAddressesChange}
                 onBaseChange={handleBaseChange}
@@ -160,12 +176,26 @@ export const EditProfileDialogBody = withForm({
                 }
                 onImageUploadPrepared={onImageUploadPrepared}
                 onLinksChange={handleLinksChange}
-                onSave={handleSave}
+                onMobileNavOpenChange={setIsMobileNavOpen}
                 onSocialChange={handleSocialChange}
                 owner={owner}
                 preparedImageUploads={activePreparedImageUploads}
                 savedDescription={savedRecords.base.description}
                 values={values}
+              />
+              <EditProfileDialogFooter
+                canPreview={canPreviewProfile}
+                errorTabLabels={errorTabs.map(({ label }) => label)}
+                hasChanges={hasChanges || hasPreparedImageUpload}
+                onCancel={onCancel}
+                onPreview={handlePreview}
+                onShowErrors={() => {
+                  const [firstErrorTab] = errorTabs
+                  if (!firstErrorTab) return
+
+                  setActiveTab(firstErrorTab.value)
+                  setIsMobileNavOpen(false)
+                }}
               />
             </Tabs>
           )

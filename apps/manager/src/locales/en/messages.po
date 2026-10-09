@@ -457,8 +457,7 @@ msgstr "Can you share your order number?"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
@@ -584,6 +583,10 @@ msgstr "Committed"
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Complete required field in <0>{tabList}</0> before previewing and publishing"
+msgstr "Complete required field in <0>{tabList}</0> before previewing and publishing"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "Complete Upgrade"
@@ -827,6 +830,10 @@ msgstr "Deselect all names"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Discard"
+msgstr "Discard"
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Discard renewal"
 msgstr "Discard renewal"
@@ -877,7 +884,11 @@ msgid "Each batch of your names is upgraded in a single transaction. If any part
 msgstr "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
-#: src/features/profile/components/view/ProfileEditAction.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Edit"
+msgstr "Edit"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileUpgradePopover.tsx
 msgid "Edit Profile"
 msgstr "Edit Profile"
@@ -1760,6 +1771,10 @@ msgstr "Preparing your newly registered name"
 msgid "Preparing your registration"
 msgstr "Preparing your registration"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Preview"
+msgstr "Preview"
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Preview and mint"
 msgstr "Preview and mint"
@@ -1808,9 +1823,22 @@ msgstr "Primary name set successfully"
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileFloatingBar.tsx
 #: src/features/profile/components/view/ProfileActions.tsx
 msgid "Profile actions"
 msgstr "Profile actions"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publish"
+msgstr "Publish"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publish changes"
+msgstr "Publish changes"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publishing…"
+msgstr "Publishing…"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Reading commitment window"
@@ -2006,6 +2034,7 @@ msgstr "Removing..."
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr "Renew"
 
@@ -2121,6 +2150,10 @@ msgstr "Resending email verification for {0}"
 msgid "Reserving your name"
 msgstr "Reserving your name"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Resolve errors before previewing changes."
+msgstr "Resolve errors before previewing changes."
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Restore the managers you chose"
 msgstr "Restore the managers you chose"
@@ -2192,19 +2225,9 @@ msgstr "Save and Continue"
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Save Profile"
-msgstr "Save Profile"
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Saved favorites and searches"
 msgstr "Saved favorites and searches"
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Saving"
-msgstr "Saving"
 
 #: src/features/notifications/settings/preferences.tsx
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -3205,6 +3228,14 @@ msgstr "You cancelled the request."
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfilePreview.ts
+msgid "You have unpublished changes. Are you sure you want to leave?"
+msgstr "You have unpublished changes. Are you sure you want to leave?"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "You haven't made changes yet. Edit your profile then click here to preview those changes."
+msgstr "You haven't made changes yet. Edit your profile then click here to preview those changes."
 
 #: src/features/dashboard/pages/DashboardPage.tsx
 msgid "You haven't set a primary name yet."
