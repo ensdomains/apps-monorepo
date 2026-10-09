@@ -136,7 +136,7 @@ const TokenInfoCard = ({
                     </InfoRow>
 
                     <InfoRow label="Last changed">
-                      <span className="font-mono text-sm ">—</span>
+                      <span className="text-entity-base ">—</span>
                     </InfoRow>
                   </div>
 
@@ -340,7 +340,7 @@ function RouteComponent() {
 
         <InfoRow label="Normalization">
           <div className="flex flex-row gap-2 items-center flex-wrap">
-            <span className="font-mono text-sm">
+            <span className="text-entity-base">
               {hasEmoji ? `${encoding} + Emoji` : encoding}
             </span>
             <div
@@ -452,7 +452,7 @@ function RouteComponent() {
                   </InfoRow>
 
                   <InfoRow label="Normalization">
-                    <span className="text-sm ">{part.type as string}</span>
+                    <span className="text-base ">{part.type as string}</span>
                   </InfoRow>
 
                   <InfoRow label="Bytes">

@@ -298,7 +298,7 @@ export const HomeSearchInput = ({
                 className={cn(
                   'pointer-events-none select-none items-center gap-1',
                   isHero
-                    ? 'flex font-sans text-sm font-normal text-neutral-5'
+                    ? 'flex font-sans text-base font-normal text-neutral-5'
                     : 'hidden h-5 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex',
                 )}
               >

@@ -65,7 +65,7 @@ function RouteComponent() {
         <Link
           to="/$name/ownership"
           params={{ name }}
-          className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
+          className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-base font-medium"
         >
           <ArrowLeft className="size-4" />
           Back

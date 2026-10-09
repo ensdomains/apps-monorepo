@@ -119,7 +119,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
           >
             <HubIcon className="size-3.5 text-danger-text shrink-0" />
             <div className="group-data-[collapsible=icon]:hidden flex flex-col gap-0.5 min-w-0">
-              <span className="text-sm font-mono font-medium text-foreground break-all leading-tight">
+              <span className="text-entity-base font-medium text-foreground break-all leading-tight">
                 {address}
               </span>
               <span className="text-xs font-mono text-danger-text leading-tight">
@@ -141,7 +141,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
                       tooltip={item.title}
                     >
                       <item.icon className="size-4" />
-                      <span className="text-sm">{item.title}</span>
+                      <span className="text-base">{item.title}</span>
                       {item.upcoming && <SoonBadge />}
                     </SidebarMenuButton>
                   ) : (
@@ -153,7 +153,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
                         }}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-sm">{item.title}</span>
+                        <span className="text-base">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   )}

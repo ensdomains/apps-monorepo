@@ -426,7 +426,7 @@ const OnchainImportActions = ({
   return (
     <>
       {isActionable && (
-        <div className="rounded-xl border p-6 flex flex-col gap-4 text-sm">
+        <div className="rounded-xl border p-6 flex flex-col gap-4 text-base">
           <div className="flex items-center gap-6">
             <span className="w-24 shrink-0 text-muted-foreground inline-flex items-center gap-1.5">
               <Fuel className="size-4" /> Gas cost

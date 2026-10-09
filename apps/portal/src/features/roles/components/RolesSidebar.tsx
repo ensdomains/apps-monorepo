@@ -267,7 +267,7 @@ export const RolesSidebar = <
                             <div className="font-medium">
                               {permission.title}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-p text-muted-foreground">
                               {permission.description}
                             </div>
                           </div>

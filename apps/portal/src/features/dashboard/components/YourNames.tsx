@@ -34,7 +34,7 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
   return (
     <span
       className={cn(
-        'shrink-0 whitespace-nowrap font-semi-mono text-sm',
+        'shrink-0 whitespace-nowrap text-entity-name',
         isWarning
           ? 'inline-flex h-6.25 items-center gap-1 rounded-xs bg-message-warning-fill px-2 text-message-warning-text'
           : 'text-neutral-7',

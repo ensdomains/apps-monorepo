@@ -37,7 +37,7 @@ export const CopyableRecord = ({
   const content = displayValue || value
 
   const linkClassName = cn(
-    'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 min-w-0',
+    'text-entity-base underline decoration-dashed underline-offset-4 min-w-0',
     truncate && 'truncate',
   )
 
@@ -61,7 +61,7 @@ export const CopyableRecord = ({
       ) : (
         <div
           className={cn(
-            'text-sm sm:text-base font-mono min-w-0',
+            'text-entity-base min-w-0',
             truncate && 'truncate',
             textClassName,
           )}

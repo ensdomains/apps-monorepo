@@ -89,7 +89,7 @@ const RolePermissionList = ({
       >
         <div className="flex flex-col gap-1 flex-1 min-w-64">
           <div className="font-medium">{permission.title}</div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-p text-muted-foreground">
             {permission.description}
           </div>
         </div>
@@ -334,7 +334,7 @@ export const ResolverAddUserSheet = ({
                         className="flex flex-col gap-0.5 cursor-pointer font-normal"
                       >
                         <span className="font-medium">{option.label}</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-p text-muted-foreground">
                           {option.hint}
                         </span>
                       </Label>

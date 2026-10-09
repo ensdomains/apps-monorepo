@@ -48,7 +48,7 @@ export const PendingChangesBar = ({
       <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
         <div className="bg-card border border-border rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
           <RefreshCw className="size-4 animate-spin" />
-          <span className="text-sm text-muted-foreground">
+          <span className="text-p text-muted-foreground">
             Syncing changes... This may take a few seconds.
           </span>
         </div>
@@ -62,7 +62,7 @@ export const PendingChangesBar = ({
       <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
         <div className="bg-danger-fill border border-destructive/40 rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
           <AlertCircle className="size-4 text-destructive shrink-0" />
-          <span className="text-sm text-danger-text">{errorMessage}</span>
+          <span className="text-p text-danger-text">{errorMessage}</span>
           {onDismissError && (
             <Button
               variant="outline"
@@ -84,12 +84,12 @@ export const PendingChangesBar = ({
   return (
     <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
       <div className="bg-card border border-border rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-base text-muted-foreground">
           <span className="font-medium">{updatesCount} </span>
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>
         {hasValidationErrors && (
-          <span className="text-sm text-danger-text flex items-center gap-1">
+          <span className="text-p text-danger-text flex items-center gap-1">
             <AlertCircle className="size-3" />
             Fix validation errors to save
           </span>

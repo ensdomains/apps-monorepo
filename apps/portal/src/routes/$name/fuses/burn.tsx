@@ -230,7 +230,7 @@ function RouteComponent() {
           <Link
             to="/$name/fuses"
             params={{ name }}
-            className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
+            className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-base font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -251,7 +251,7 @@ function RouteComponent() {
           <div className="flex flex-col gap-1">
             <span className="font-medium">Fuse expiry</span>
             <div className="flex items-center h-10 px-2 border border-border rounded bg-background">
-              <span className="flex-1 text-sm">{expiryLabel ?? 'N/A'}</span>
+              <span className="flex-1 text-base">{expiryLabel ?? 'N/A'}</span>
               <Calendar className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>

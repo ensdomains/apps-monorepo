@@ -36,12 +36,12 @@ const OutcomeRow = ({
       className="mt-0.5"
     />
     <div className="flex flex-col min-w-0">
-      <span className="font-mono text-sm">{label}</span>
+      <span className="text-entity-base">{label}</span>
       {isUnreached ? (
-        <span className="text-sm text-muted-foreground">Not reached</span>
+        <span className="text-base text-muted-foreground">Not reached</span>
       ) : (
         outcome.status !== 'pass' && (
-          <span className="text-sm text-muted-foreground wrap-break-word">
+          <span className="text-p text-muted-foreground wrap-break-word">
             {outcome.message}
           </span>
         )
@@ -61,7 +61,7 @@ const SupportList = ({
 }) =>
   items.length === 0 ? null : (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-muted-foreground">{title}</span>
+      <span className="text-base text-muted-foreground">{title}</span>
       {items.map((item) => (
         <StatusBadge key={item.id} status={item.isSupported ? 'pass' : 'fail'}>
           {`${getName(item.id)}${item.isSupported ? '' : ' unsupported'}`}
@@ -86,8 +86,8 @@ const OracleResults = ({
         <li className="flex items-start gap-2">
           <StatusIcon status="fail" className="mt-0.5" />
           <div className="flex flex-col">
-            <span className="font-mono text-sm">{incompleteAt}</span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-entity-base">{incompleteAt}</span>
+            <span className="text-p text-muted-foreground">
               Nothing signed to submit — the proof stops here.
             </span>
           </div>

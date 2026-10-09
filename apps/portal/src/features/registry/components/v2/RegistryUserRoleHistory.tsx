@@ -30,7 +30,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     id: 'date',
     header: 'Date',
     cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground whitespace-nowrap mt-4">
+      <div className="text-base text-muted-foreground whitespace-nowrap mt-4">
         {formatTimestamp(row.original.timestamp)}
       </div>
     ),
@@ -41,7 +41,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     cell: ({ row }) => (
       <div className="space-y-1 flex flex-col">
         <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
-        <span className="text-sm text-muted-foreground">RoleChanged</span>
+        <span className="text-base text-muted-foreground">RoleChanged</span>
       </div>
     ),
   },

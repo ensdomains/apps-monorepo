@@ -17,8 +17,10 @@ export const MultiNamePricingFooter = ({
     <div className="space-y-1 p-4">
       {showDiscount && (
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-muted-foreground">Total discount:</span>
-          <span className="text-sm font-medium text-success-text">
+          <span className="text-base text-muted-foreground">
+            Total discount:
+          </span>
+          <span className="text-base font-medium text-success-text">
             -{formatUsd(totalDiscount)}
           </span>
         </div>

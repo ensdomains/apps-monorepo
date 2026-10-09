@@ -103,7 +103,7 @@ const EditPermissionList = ({
         >
           <div className="flex flex-col gap-1 flex-1 min-w-64">
             <div className="font-medium">{permission.title}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-p text-muted-foreground">
               {permission.description}
             </div>
           </div>
@@ -260,7 +260,7 @@ const RemoveUserDialog = ({
           Revoke every role {truncateAddress(account, 6, 4)} holds on this
           resolver, one transaction per scope. This can't be undone.
         </DialogDescription>
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col gap-1 text-p">
           {revocations.map((revocation) => (
             <li
               key={revocation.resource.toString()}

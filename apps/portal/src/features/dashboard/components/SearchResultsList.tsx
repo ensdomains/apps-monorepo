@@ -146,7 +146,7 @@ export const SearchResultsList = ({
 
   const rowClassName = (isActive: boolean) =>
     cn(
-      'w-full flex flex-row items-center gap-3 rounded-sm px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'w-full flex flex-row items-center gap-3 rounded-sm px-2 py-1.5 text-left text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       variant === 'listbox' &&
         (isActive
           ? 'bg-accent text-accent-foreground'

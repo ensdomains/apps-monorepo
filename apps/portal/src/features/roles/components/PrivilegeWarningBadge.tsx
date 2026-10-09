@@ -28,7 +28,7 @@ export const PrivilegeWarningBadge = ({
   readonly reason: ReactNode
 }) => (
   <Tooltip>
-    <TooltipTrigger className="inline-flex h-6 w-fit shrink-0 cursor-help items-center gap-1 whitespace-nowrap rounded-xs bg-message-danger-fill px-2 py-1 font-semi-mono text-sm text-message-danger-text">
+    <TooltipTrigger className="inline-flex h-6 w-fit shrink-0 cursor-help items-center gap-1 whitespace-nowrap rounded-xs bg-message-danger-fill px-2 py-1 text-entity-name text-message-danger-text">
       <TriangleAlert className="size-3.25 shrink-0" aria-hidden />
       {label}
     </TooltipTrigger>

@@ -1,7 +1,7 @@
 import { ExternalLink } from 'react-external-link'
 
 const MENU_ITEM_CLASS =
-  'flex flex-row items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors'
+  'flex flex-row items-center gap-2 px-2 py-1.5 text-base rounded-sm hover:bg-muted transition-colors'
 
 export const HelpMenu = () => {
   return (

@@ -59,7 +59,7 @@ export const NameMobileCard = ({
       </div>
 
       {/* Expiry section */}
-      <div className="text-sm font-medium text-muted-foreground">Expiry</div>
+      <div className="text-base font-medium text-muted-foreground">Expiry</div>
       <div className="flex items-center gap-2">
         {expiryDate ? (
           <>
@@ -93,7 +93,9 @@ export const NameMobileCard = ({
       {/* Roles section (for names page) */}
       {hasRoles && (
         <>
-          <div className="text-sm font-medium text-muted-foreground">Roles</div>
+          <div className="text-base font-medium text-muted-foreground">
+            Roles
+          </div>
           <div className="flex flex-row gap-1">
             {v2Roles.length > 0 ? (
               <Badge variant="secondary" className="text-xs">

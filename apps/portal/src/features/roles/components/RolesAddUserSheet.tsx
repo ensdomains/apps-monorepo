@@ -215,7 +215,7 @@ export const RolesAddUserSheet = ({
                       >
                         <div className="flex flex-col gap-1 flex-1 min-w-64">
                           <div className="font-medium">{permission.title}</div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-p text-muted-foreground">
                             {permission.description}
                           </div>
                         </div>
