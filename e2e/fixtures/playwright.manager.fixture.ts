@@ -22,6 +22,7 @@ import {
   PERMITTED_SIGN_KINDS,
   signInBackendAuthModal,
 } from '../helpers/manager-auth.js'
+import { waitForBignameName } from '../helpers/bigname-sync.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
@@ -324,6 +325,10 @@ export const test = base.extend<ManagerFixtures>({
           owner: ownerAddress,
           records: config.records,
         })
+      } else {
+        // The real local bigname has to index the name before the dashboard,
+        // search or profile can list it.
+        await waitForBignameName(name)
       }
       return name
     })

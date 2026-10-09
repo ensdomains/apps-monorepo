@@ -44,8 +44,8 @@ import {
 } from '../../../helpers/migration-flow.js'
 import {
   type MockV1Records,
-  mockV1Subgraph,
 } from '../../../helpers/mock-v1-subgraph.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 import {
   goToEditProfile,
   saveProfileChanges,
@@ -149,7 +149,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     const label = labelOf(name)
     await assertV2Reserved(label)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [{ kind: 'registration', label }],
     })
@@ -169,7 +169,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     const name = await makeV1Name({ label: 'gw2-emancipated', type: 'wrapped' })
     const label = labelOf(name)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [{ kind: 'registration', label, type: 'wrapped' }],
     })
@@ -187,7 +187,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     const a = await makeV1Name({ label: 'ga4-a', type: 'wrapped' })
     const b = await makeV1Name({ label: 'ga4-b', type: 'wrapped' })
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [a, b].map((name) => ({
         kind: 'registration' as const,
@@ -246,7 +246,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     const name = await makeV1Name({ label: 'gr1-records', records })
     const label = labelOf(name)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [
         {
@@ -278,7 +278,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     const name = await makeV1Name({ label: 'gu4-edit' })
     const label = labelOf(name)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [{ kind: 'registration', label }],
     })
@@ -322,7 +322,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
       false,
     )
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [{ kind: 'registration', label }],
     })

@@ -49,8 +49,8 @@ import {
 } from '../../../helpers/migration-assertions.js'
 import {
   type MockV1Name,
-  mockV1Subgraph,
 } from '../../../helpers/mock-v1-subgraph.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -130,7 +130,7 @@ const graceMock = (
 
 /** Mock the subgraph, align the browser clock with the chain, and open /upgrade. */
 async function openMigration(page: Page, names: MockV1Name[]) {
-  await mockV1Subgraph(page, names)
+  await serveV1Names(page, names)
   await syncBrowserToChain(page)
   await page.goto(`${MANAGER_APP_URL}/upgrade`)
 }
@@ -292,7 +292,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
   }, async ({ migrationConnectedPage: page, accounts }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const grace = await makeGraceV1Name({ label: 'mg-list', owner })
-    await mockV1Subgraph(page, [graceMock(grace, owner.address)])
+    await serveV1Names(page, [graceMock(grace, owner.address)])
     await syncBrowserToChain(page)
 
     // ── Dashboard: the page has loaded the name (positive sign) … ──
@@ -434,7 +434,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       await activeMock(active, owner.address),
       graceMock(grace, owner.address, 'wrapped'),
     ]
-    await mockV1Subgraph(page, names)
+    await serveV1Names(page, names)
     await syncBrowserToChain(page)
 
     // ── Dashboard: upgrade copy, plus the renewal note for the grace name ──
@@ -645,7 +645,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       owner,
       wrapped: true,
     })
-    await mockV1Subgraph(page, [
+    await serveV1Names(page, [
       graceMock(first, owner.address),
       graceMock(second, owner.address, 'wrapped'),
     ])

@@ -57,8 +57,8 @@ import {
 } from '../../../helpers/migration-flow.js'
 import {
   type MockV1Tree,
-  mockV1Subgraph,
 } from '../../../helpers/mock-v1-subgraph.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 // Headless wallet user = Anvil account 0 (same private key as ANVIL_FUNDER)
 const HEADLESS_USER_ADDRESS = privateKeyToAccount(
@@ -134,7 +134,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
         },
       ],
     }
-    await mockV1Subgraph(page, tree)
+    await serveV1Names(page, tree)
 
     await openMigrationFlow(page)
     // The parent is selectable; the child rides along and is not.
@@ -195,7 +195,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
     const parentWrapperExpiry = await readWrapperExpiry(parent)
     const childWrapperExpiry = await readWrapperExpiry(child)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
         {
@@ -249,7 +249,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
       parentOwnerAccount: userAccount,
     })
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
         {
@@ -303,7 +303,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
       parentOwnerAccount: userAccount,
     })
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
         {
@@ -360,7 +360,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
     // parent is deliberately absent from the injection — exactly the shape of a
     // wallet that owns a subname but not the 2LD above it. `hasCompleteCopyRoute`
     // walks up, finds no classified ancestor, and demotes it to `missing-parent`.
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
         { kind: 'registration', label: labelOf(control) },
@@ -390,7 +390,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
       fuses: CHILD_FUSES.LOCKED_CHILD,
     })
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
         {
@@ -444,7 +444,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
       parentOwnerAccount: userAccount,
     })
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
         {

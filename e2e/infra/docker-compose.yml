@@ -85,6 +85,11 @@ services:
       - '120000'
       - --fork-retry-backoff
       - '2000'
+      # safe = latest - 1024 and finalized = latest - 2048 (default 32 / 64).
+      # bigname treats a finalized block that disappears as fatal, so this has
+      # to stay deeper than any evm_revert a test does.
+      - --slots-in-an-epoch
+      - '1024'
     ports:
       - "8545:8545"
     healthcheck:
@@ -278,6 +283,156 @@ services:
       start_period: 10s
     restart: on-failure
 
+  # ── bigname: the indexer the manager reads ────────────────────────────────
+  # The manager reads every name from bigname (#1324); the portal still reads
+  # Panoptes above. bigname is hosted only, so this runs it against the fork:
+  # Postgres, a one-shot schema + read-only role init, the phase-runner that
+  # follows Anvil, and the REST API on 127.0.0.1:5660.
+  #
+  # Opt-in (profile "bigname") because the image is a local build of the
+  # bigname repo carrying a dev-only patch that lets a Sepolia source start
+  # after block 0 (see e2e/infra/bigname/README.md). start-local-env.sh turns
+  # the profile on when the image exists. CI does not run it and mocks the
+  # manager's bigname reads instead (E2E_MOCK_INDEXER=true).
+  bigname-postgres:
+    image: postgres:16-alpine
+    profiles: ["bigname"]
+    networks:
+      e2e:
+        aliases:
+          - bigname-postgres
+    environment:
+      - POSTGRES_DB=bigname
+      - POSTGRES_USER=bigname
+      - POSTGRES_PASSWORD=bigname
+    # bigname's own compose file sizes Postgres for a server; this is a test
+    # database a few hundred MB in size.
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "max_connections=200"]
+    ports:
+      - "5661:5432"
+    volumes:
+      - bigname-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bigname -d bigname"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  bigname-init:
+    image: ${BIGNAME_IMAGE:-bigname:e2e-anvil-fork}
+    pull_policy: never
+    profiles: ["bigname"]
+    networks:
+      e2e:
+    environment:
+      - BIGNAME_DATABASE_URL=postgresql://bigname:bigname@bigname-postgres:5432/bigname
+    # init-schema refuses a non-empty schema, so skip it once the schema exists:
+    # the database is wiped with every new fork (start-local-env.sh), and a plain
+    # restart keeps what the runner already indexed.
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        if phase-runner init-schema; then echo "[bigname] schema created"; else
+          echo "[bigname] init-schema refused; assuming the schema already exists"; fi
+    depends_on:
+      bigname-postgres:
+        condition: service_healthy
+
+  bigname-roles:
+    image: postgres:16-alpine
+    profiles: ["bigname"]
+    networks:
+      e2e:
+    environment:
+      - PGPASSWORD=bigname
+    command: ["psql", "-v", "ON_ERROR_STOP=1", "-h", "bigname-postgres", "-U", "bigname", "-d", "bigname", "-f", "/roles.sql"]
+    volumes:
+      - ./bigname/roles.sql:/roles.sql:ro
+    depends_on:
+      bigname-init:
+        condition: service_completed_successfully
+
+  # Fork-aware RPC for the runner: reads at or below the fork block go straight
+  # to the upstream Sepolia RPC, the rest to Anvil. Without it the runner's
+  # backfill floods Anvil and stalls every other client (see fork-rpc.mjs).
+  bigname-rpc:
+    image: node:22-alpine
+    profiles: ["bigname"]
+    networks:
+      e2e:
+        aliases:
+          - bigname-rpc
+    command: ["node", "/fork-rpc.mjs"]
+    volumes:
+      - ./bigname/fork-rpc.mjs:/fork-rpc.mjs:ro
+    environment:
+      - PORT=8547
+      - ANVIL_RPC_URL=http://anvil:8545
+      - UPSTREAM_RPC_URL=${SEPOLIA_FORK_URL:-https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j}
+    depends_on:
+      anvil:
+        condition: service_healthy
+    restart: on-failure
+
+  bigname-runner:
+    image: ${BIGNAME_IMAGE:-bigname:e2e-anvil-fork}
+    pull_policy: never
+    profiles: ["bigname"]
+    networks:
+      e2e:
+    entrypoint: ["sh", "/runner.sh"]
+    volumes:
+      - ./bigname/runner.sh:/runner.sh:ro
+    environment:
+      - BIGNAME_DEV_ALLOW_SEPOLIA_START=1
+      - BIGNAME_START=${BIGNAME_START:-fork}
+      - ANVIL_SLOTS_IN_AN_EPOCH=1024
+      - ANVIL_RPC_URL=http://anvil:8545
+      - SOURCE_RPC_URL=http://bigname-rpc:8547
+      - BIGNAME_DATABASE_URL=postgresql://bigname:bigname@bigname-postgres:5432/bigname
+      - BIGNAME_PHASE_RUNNER_VERIFICATION_DATABASE_URL=postgresql://bigname_verify:bigname_verify@bigname-postgres:5432/bigname
+      - BIGNAME_PHASE_RUNNER_MANIFESTS_ROOT=/app/manifests/sepolia
+      - BIGNAME_PHASE_RUNNER_CHAINS=ethereum-sepolia
+      - BIGNAME_PHASE_RUNNER_LIVE_POLL_MS=500
+      - RUST_LOG=info
+    depends_on:
+      anvil:
+        condition: service_healthy
+      bigname-roles:
+        condition: service_completed_successfully
+      bigname-rpc:
+        condition: service_started
+    restart: on-failure
+
+  bigname-api:
+    image: ${BIGNAME_IMAGE:-bigname:e2e-anvil-fork}
+    pull_policy: never
+    profiles: ["bigname"]
+    networks:
+      e2e:
+        aliases:
+          - bigname-api
+    command: ["api"]
+    ports:
+      - "5660:3000"
+    environment:
+      - BIGNAME_DATABASE_URL=postgresql://bigname_verify:bigname_verify@bigname-postgres:5432/bigname
+      - BIGNAME_API_BIND_ADDR=0.0.0.0:3000
+      - BIGNAME_API_CHAIN_RPC_URLS=ethereum-sepolia=http://anvil:8545
+      # The publication can trail the stored head by a few blocks while a burst
+      # of test transactions is projected; serve it rather than 409 stale.
+      - BIGNAME_API_PUBLICATION_LAG_TOLERANCE_BLOCKS=16
+      - RUST_LOG=info
+    depends_on:
+      bigname-roles:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: on-failure
+
   # ENS Metadata Service V2 (github.com/ensdomains/metadata-service-v2), run
   # locally against the anvil forks above — for the "metadata" e2e project
   # (WEB-1191). RPCs point at anvil/anvil-mainnet; the ENSNODE_* indexer URLs
@@ -419,6 +574,8 @@ secrets:
 
 volumes:
   panoptes-data:
+    driver: local
+  bigname-data:
     driver: local
   dqa-data:
     driver: local
