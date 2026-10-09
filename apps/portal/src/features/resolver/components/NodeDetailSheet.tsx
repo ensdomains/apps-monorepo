@@ -183,7 +183,7 @@ export const NodeDetailSheet = ({
                               <TableCell
                                 className={cn(
                                   cellClassName,
-                                  'font-mono text-xs',
+                                  'font-mono text-small',
                                 )}
                               >
                                 <div className="flex items-center gap-1">
@@ -194,7 +194,7 @@ export const NodeDetailSheet = ({
                               <TableCell
                                 className={cn(
                                   cellClassName,
-                                  'font-mono text-xs',
+                                  'font-mono text-small',
                                 )}
                               >
                                 {role.roleBitmap}

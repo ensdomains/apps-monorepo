@@ -247,7 +247,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                     <CopyableRecord
                       value={parseError.raw}
                       displayValue={
-                        <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                        <pre className="text-small font-mono text-muted-foreground whitespace-pre-wrap break-all">
                           {parseError.raw}
                         </pre>
                       }
