@@ -33,7 +33,7 @@ export const mockNameNick = {
     created_at: '1692284436',
     expires_at: '1803965433',
     grace_ends_at: '1806384633',
-    registration_status: 'wrapped',
+    status: 'active',
     authority: 'ens_v1',
     ens_v1: {
       expires_at: '1798608633',
@@ -77,7 +77,7 @@ export const mockNameNick = {
     primary_address: '0xb8c2c29ee19d8307cb7255e1cd9cbde883a267d5',
     chain_id: 11155111,
     network: 'ethereum-sepolia',
-    status: 'ok',
+    read_status: 'ok',
   },
   meta: {
     as_of: {
@@ -103,7 +103,7 @@ export const mockNameWrappedSub = {
   expires_at: null,
   expires_at_reason: 'not_set',
   grace_ends_at: null,
-  registration_status: 'wrapped',
+  status: 'active',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: null,
@@ -144,7 +144,7 @@ export const mockNameWrappedSub = {
   },
   chain_id: 11155111,
   network: 'ethereum-sepolia',
-  status: 'ok',
+  read_status: 'ok',
 } as const satisfies NameRecord
 
 /** `GET /v1/names/🚀🚀🚀.eth`: released ENSv1 lease; no `owner`/`manager`, last holder under `lapsed_registration`. */
@@ -156,7 +156,7 @@ export const mockNameReleased = {
   created_at: '1735633812',
   expires_at: '1767169812',
   grace_ends_at: '1774945812',
-  registration_status: 'released',
+  status: 'released',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: '1767169812',
@@ -174,7 +174,7 @@ export const mockNameReleased = {
   unresolvable_reason: 'no_live_ens_v2_entry',
   chain_id: 11155111,
   network: 'ethereum-sepolia',
-  status: 'ok',
+  read_status: 'ok',
   unsupported_fields: ['primary_address'],
 } as const satisfies NameRecord
 
@@ -188,7 +188,7 @@ export const mockNameLockedInGrace = {
   created_at: '1727776908',
   expires_at: '1796205708',
   grace_ends_at: '1798624908',
-  registration_status: 'wrapped',
+  status: 'active',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: '1790848908',
@@ -232,7 +232,7 @@ export const mockNameLockedInGrace = {
   primary_address: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
   chain_id: 11155111,
   network: 'ethereum-sepolia',
-  status: 'ok',
+  read_status: 'ok',
 } as const satisfies NameRecord
 
 /** `POST /v1/lookup` `profile=feed` for nick.eth (ens_v1) and fox.eth (ens_v2). */
@@ -270,7 +270,7 @@ export const mockLookupFeed = [
           can_extend_expiry: false,
         },
       },
-      status: 'ok',
+      read_status: 'ok',
     },
   },
   {
@@ -289,7 +289,7 @@ export const mockLookupFeed = [
       grace_ends_at: '1795818828',
       chain_id: 11155111,
       network: 'ethereum-sepolia',
-      status: 'ok',
+      read_status: 'ok',
     },
   },
 ] as const satisfies readonly LookupResult[]
@@ -316,7 +316,7 @@ export const mockLookupDetailFox = {
     created_at: '1713615816',
     expires_at: '1793399628',
     grace_ends_at: '1795818828',
-    registration_status: 'registered',
+    status: 'active',
     resolver: {
       chain_id: 11155111,
       address: '0x3df10566a3f1b90dd692b49ec6f3653f5bce6cff',
@@ -338,7 +338,7 @@ export const mockLookupDetailFox = {
     chain_id: 11155111,
     network: 'ethereum-sepolia',
     authority: 'ens_v2',
-    status: 'ok',
+    read_status: 'ok',
   },
 } as const satisfies LookupResult
 
@@ -368,7 +368,7 @@ export const mockLookupReverseFeed = {
       ens_v1: {
         expires_at: '2008386180',
       },
-      status: 'ok',
+      read_status: 'ok',
     },
   ],
   page: {
@@ -390,7 +390,7 @@ export const mockAddressNameRoleSummary = {
   permission_resource_id: 'd3d72c35-3bc0-5082-8cba-737570c411fa',
   owner: '0x03ba34f6ea1496fa316873cf8350a3f7ead317ef',
   manager: '0x03ba34f6ea1496fa316873cf8350a3f7ead317ef',
-  registration_status: 'wrapped',
+  status: 'active',
   registered_at: '1786015536',
   created_at: '1786015536',
   expires_at: '1796560233',
@@ -469,7 +469,7 @@ export const mockAddressNameFormerOwner = {
   namehash:
     '0x8b50b6b0bfdea36f1149d2db0416f850c555439892d9464c722a51783fd8b2ae',
   permission_resource_id: '1fbd0e10-4c61-591d-9bd0-26fb604b1fb7',
-  registration_status: 'released',
+  status: 'released',
   registered_at: '1735633812',
   created_at: '1735633812',
   expires_at: '1767169812',
@@ -497,7 +497,7 @@ export const mockAddressNameRoleHolder = {
   permission_resource_id: 'fe700a8c-b11b-5f43-92bf-0e96a69ab5b5',
   owner: '0x03ba34f6ea1496fa316873cf8350a3f7ead317ef',
   manager: '0x03ba34f6ea1496fa316873cf8350a3f7ead317ef',
-  registration_status: 'registered',
+  status: 'active',
   registered_at: '1786015584',
   created_at: '1786015584',
   expires_at: '1796908956',
@@ -518,7 +518,7 @@ export const mockAddressNameResolvesEvm = {
   permission_resource_id: '3c5b78a0-5644-5493-bc42-b9dd14fbdca9',
   owner: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
   manager: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
-  registration_status: 'wrapped',
+  status: 'active',
   registered_at: '1733924244',
   created_at: '1692284436',
   expires_at: '1803965433',
@@ -561,7 +561,7 @@ export const mockAddressNameRegistryChild = {
   permission_resource_id: '0edacca4-802e-57f5-b723-1775591dad97',
   owner: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
   manager: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
-  registration_status: 'unregistered',
+  status: 'unregistered',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: null,
@@ -578,7 +578,7 @@ export const mockNamesSweepRow = {
   namehash:
     '0xe35a0f4ed8f6c8cff289d8f34b10fdb2b28a70c4dd19112a898bc32aa0880a5c',
   owner: '0x898389cbd63c6acb13beb17c6c27c0973e28abb8',
-  registration_status: 'wrapped',
+  status: 'active',
   registered_at: '1754319576',
   created_at: '1754319576',
   expires_at: '1791212376',
@@ -610,7 +610,7 @@ export const mockNamesReleasedRow = {
   namespace: 'ens',
   namehash:
     '0x259dd157d0e04643aab71f3ea53f947c6725b19cf163f06736d22fb1df32f434',
-  registration_status: 'released',
+  status: 'released',
   registered_at: '1748492592',
   created_at: '1748492592',
   expires_at: '1780028592',
@@ -635,7 +635,7 @@ export const mockSearchRow = {
     '0x75ac18b8ca5776f0b94ab549c48acdbe4181ac64b4505a022c3fb7c984f0edbc',
   owner: '0xf83fe2658f702a072f3c7b0dc4a0ab8c7b044750',
   manager: '0xf83fe2658f702a072f3c7b0dc4a0ab8c7b044750',
-  registration_status: 'active',
+  status: 'active',
   registered_at: '1786015536',
   created_at: '1786015536',
   expires_at: '1788434736',
@@ -658,7 +658,7 @@ export const mockSubnamePlaceholder = {
     '0x562b8c0453bc9f0e07aaf28fba8fb8a1f42848390f4c833c331fe45c43b80726',
   owner: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
   manager: '0x5c7b61a99d922e9a4451ed62ebbbedbf1627ab47',
-  registration_status: 'unregistered',
+  status: 'unregistered',
   authority: 'ens_v1',
   ens_v1: {
     expires_at: null,
@@ -676,7 +676,7 @@ export const mockRegistryLabel = {
     '0x8b8411000c92dc12af29dda403293bc462531200c771991f4f6d018a0e2dace9',
   owner: '0x768a8b6748b907c96e10dab3aaf466f27dc243fc',
   manager: '0x768a8b6748b907c96e10dab3aaf466f27dc243fc',
-  registration_status: 'registered',
+  status: 'active',
   registered_at: '1791118944',
   created_at: '1731416400',
   expires_at: '1885813344',
@@ -866,7 +866,7 @@ export const mockResolverOverview = {
         created_at: '1786015584',
         expires_at: '1796908956',
         grace_ends_at: '1799328156',
-        registration_status: 'registered',
+        status: 'active',
         authority: 'ens_v2',
         name: 'asnalia.eth',
         display_name: 'asnalia.eth',
@@ -879,7 +879,7 @@ export const mockResolverOverview = {
         },
         chain_id: 11155111,
         network: 'ethereum-sepolia',
-        status: 'ok',
+        read_status: 'ok',
         unsupported_fields: ['primary_address'],
       },
     ],

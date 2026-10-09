@@ -29,7 +29,7 @@ const row = (label: string, overrides: Partial<Subname> = {}): Subname => ({
   namehash: '0x01',
   labelhash: labelhash(label),
   owner: OWNER,
-  registration_status: 'registered',
+  status: 'active',
   ...overrides,
 })
 
@@ -223,7 +223,7 @@ describe('getIsSubnameTakenQueryOptions', () => {
           display_name: 'sub.test.eth',
           namespace: 'ens',
           namehash: '0x01',
-          status: 'ok',
+          read_status: 'ok',
           ...overrides,
         },
         meta: { as_of: {} },
@@ -235,14 +235,14 @@ describe('getIsSubnameTakenQueryOptions', () => {
     )
 
   it('asks bigname about the one subname', async () => {
-    detail({ registration_status: 'registered' })
+    detail({ status: 'active' })
 
     expect(await isTaken()).toBe(true)
     expect(bigname.name).toHaveBeenCalledWith('sub.test.eth')
   })
 
   it('is free when the subname was released or never registered', async () => {
-    detail({ registration_status: 'released' })
+    detail({ status: 'released' })
     expect(await isTaken()).toBe(false)
 
     vi.mocked(bigname.name).mockReturnValue(

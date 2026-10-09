@@ -24,7 +24,7 @@ const row = (
   namespace: 'ens',
   namehash: '0x01',
   owner: ADDRESS,
-  registration_status: 'registered',
+  status: 'active',
   authority: 'ens_v2',
   expires_at: String(NOW_SECONDS + 86_400n * 300n),
   relations: ['owner'],
@@ -126,7 +126,7 @@ describe('getAddressNames', () => {
     answer([
       [
         row('abc.addr.reverse'),
-        row('gone.eth', { registration_status: 'released' }),
+        row('gone.eth', { status: 'released' }),
         row('kept.eth'),
       ],
     ])
@@ -141,7 +141,7 @@ describe('getAddressNames', () => {
   it('keeps an ENSv2 name the address can still renew in grace', async () => {
     const lapsed = row('lapsed.eth', {
       owner: undefined,
-      registration_status: 'released',
+      status: 'expired',
       relations: ['former_owner'],
       expires_at: String(NOW_SECONDS - 86_400n),
       lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },

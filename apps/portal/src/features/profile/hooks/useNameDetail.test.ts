@@ -16,7 +16,7 @@ const record = (overrides: Partial<NameRecord> = {}): NameRecord => ({
   created_at: '1714591716',
   registered_at: '1790999568',
   expires_at: '1885693968',
-  status: 'ok',
+  read_status: 'ok',
   ...overrides,
 })
 
