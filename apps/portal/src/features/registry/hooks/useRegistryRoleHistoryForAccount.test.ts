@@ -1,5 +1,5 @@
 import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
-import { ok, ResultAsync } from 'neverthrow'
+import { ResultAsync } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockEventRootPermissionChanged } from '@/test-utils/bigname/postV041.mock'
@@ -16,14 +16,6 @@ vi.mock('@/lib/bigname', () => ({
     events: (...args: unknown[]) =>
       ResultAsync.fromPromise(listEvents(...args), (e) => e),
   },
-}))
-const mockGetLogs = vi.fn()
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
-}))
-const mockGetBlockTimestamps = vi.fn()
-vi.mock('@/features/profile/hooks/useBlockTimestamps', () => ({
-  getBlockTimestamps: mockGetBlockTimestamps,
 }))
 const { getRegistryRoleHistoryForAccount } = await import(
   './useRegistryRoleHistoryForAccount'
@@ -57,8 +49,6 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     listPermissions.mockReset()
     listEvents.mockReset()
     listEvents.mockResolvedValue(page([mockEventRootPermissionChanged]))
-    mockGetLogs.mockReset()
-    mockGetBlockTimestamps.mockReset()
   })
 
   it('asks bigname for this account’s root role changes on this registry, newest first', async () => {
@@ -90,8 +80,6 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
         blockNumber: 11820431n,
       },
     ])
-    expect(mockGetLogs).not.toHaveBeenCalled()
-    expect(mockGetBlockTimestamps).not.toHaveBeenCalled()
   })
 
   it('lists a change that left the account nothing', async () => {
@@ -147,6 +135,5 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     const result = await runRoot()
 
     expect(result.isErr()).toBe(true)
-    expect(mockGetLogs).not.toHaveBeenCalled()
   })
 })

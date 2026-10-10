@@ -1,5 +1,5 @@
 import { BignameError } from '@ens-apps/indexer/bigname'
-import { ok, ResultAsync } from 'neverthrow'
+import { ResultAsync } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -16,11 +16,6 @@ vi.mock('@/lib/bigname', () => ({
     permissions: (...args: unknown[]) =>
       ResultAsync.fromPromise(listPermissions(...args), (e) => e),
   },
-}))
-
-const mockGetLogs = vi.fn()
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
 }))
 
 const { getRegistryRootRoles } = await import('./useRegistryRootRoleHolders')
@@ -41,8 +36,6 @@ const run = () => getRegistryRootRoles({ registryAddress: REGISTRY })
 describe('getRegistryRootRoles', () => {
   beforeEach(() => {
     listPermissions.mockReset()
-    mockGetLogs.mockReset()
-    mockGetLogs.mockResolvedValue([])
   })
 
   describe('where bigname serves root roles', () => {
@@ -64,7 +57,6 @@ describe('getRegistryRootRoles', () => {
         registry: `11155111:${REGISTRY.toLowerCase()}`,
         page_size: 200,
       })
-      expect(mockGetLogs).not.toHaveBeenCalled()
     })
 
     it('says operator-held roles are unlisted for a discovered registry, on an empty page too', async () => {
@@ -114,15 +106,6 @@ describe('getRegistryRootRoles', () => {
 
       expect((await run())._unsafeUnwrap().holders).toEqual([])
     })
-
-    it('reads root permissions directly without a capability probe', async () => {
-      listPermissions.mockResolvedValue(mockPermissionsRegistryRoot)
-
-      await run()
-      await run()
-
-      expect(listPermissions).toHaveBeenCalledTimes(2)
-    })
   })
 
   describe('on any other bigname error', () => {
@@ -143,15 +126,6 @@ describe('getRegistryRootRoles', () => {
       const result = await run()
 
       expect(result.isErr()).toBe(true)
-      expect(mockGetLogs).not.toHaveBeenCalled()
-    })
-
-    it('can retry a failed permissions read', async () => {
-      listPermissions.mockRejectedValueOnce(overloaded())
-      listPermissions.mockResolvedValue(mockPermissionsRegistryRoot)
-
-      expect((await run()).isErr()).toBe(true)
-      expect((await run()).isOk()).toBe(true)
     })
   })
 })

@@ -7,7 +7,7 @@ import {
 } from '@ens-apps/indexer/bigname'
 import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { encodeRoleBitmap } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { err, errAsync, fromPromise, ok, okAsync } from 'neverthrow'
 import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
@@ -72,9 +72,6 @@ class IndexedRoleChangeLogsError extends TaggedError(
 
 type PermissionRow = Extract<EventRow, { type: 'permission' }>
 
-const encodeRoles = (roles: readonly Role[]): bigint =>
-  roles.reduce((bitmap, role) => bitmap | registryRoles[role], 0n)
-
 const isRegistryRoleChange =
   (registryAddress: Address) =>
   (row: EventRow): row is PermissionRow =>
@@ -112,8 +109,8 @@ const toRoleChangeLogs = (
         args: {
           resource,
           account,
-          oldRoleBitmap: encodeRoles(registryPowersToRoles(before)),
-          newRoleBitmap: encodeRoles(registryPowersToRoles(powers)),
+          oldRoleBitmap: encodeRoleBitmap(registryPowersToRoles(before)),
+          newRoleBitmap: encodeRoleBitmap(registryPowersToRoles(powers)),
         },
       },
     ]
