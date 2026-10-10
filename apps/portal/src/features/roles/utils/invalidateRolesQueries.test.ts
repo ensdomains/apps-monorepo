@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
+import { getAddressNamesQueryKey } from '@/features/dashboard/hooks/useAddressNames'
 import { getAddressRoleCountsQueryKey } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import { getNameRolesAccountsQueryKey } from '../hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryKey } from '../hooks/useNameRolesForAccount'
@@ -13,6 +14,7 @@ describe('invalidateRolesQueries', () => {
     getNameRolesForAccountQueryKey.key,
     getRoleHistoryQueryKey.key,
     getAddressRoleCountsQueryKey.key,
+    getAddressNamesQueryKey.key,
   ])('invalidates %s', async (key) => {
     const queryClient = new QueryClient()
     queryClient.setQueryData([key, { name: 'alice.eth' }], 'cached')
