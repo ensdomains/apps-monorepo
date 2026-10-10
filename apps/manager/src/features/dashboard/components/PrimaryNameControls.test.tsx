@@ -21,8 +21,17 @@ describe('primary name labels', () => {
     expect(icon).toHaveTextContent('person_check')
     expect(icon).toHaveTextContent('published_with_changes')
     expect(icon?.children).toHaveLength(2)
-    expect(icon?.children[0]).toHaveClass('ms-wght-400')
-    expect(icon?.children[1]).toHaveClass('ms-wght-400')
+    expect(icon?.children[0]).toHaveClass(
+      'ms-wght-400',
+      'group-hover:invisible',
+      'group-focus-visible:invisible',
+    )
+    expect(icon?.children[1]).toHaveClass(
+      'invisible',
+      'ms-wght-400',
+      'group-hover:visible',
+      'group-focus-visible:visible',
+    )
     expect(button.lastElementChild).toHaveTextContent('Primary Name')
   })
 
