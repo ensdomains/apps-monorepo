@@ -98,6 +98,48 @@ const NodeOption = ({ node }: NodeOptionProps) => (
 
 const CREATE_LINK_TX_ID = 'tx-create-link'
 
+type LinksState = 'loading' | 'unknown' | 'read'
+
+// Until the overview is read, whether a name is linked is unknown.
+const toLinksState = (overview: {
+  readonly isPending: boolean
+  readonly isError: boolean
+}): LinksState =>
+  match(overview)
+    .returnType<LinksState>()
+    .with({ isError: true }, () => 'unknown')
+    .with({ isPending: true }, () => 'loading')
+    .otherwise(() => 'read')
+
+const LinkStateNotice = ({
+  name,
+  linksState,
+  isAlreadyLinked,
+}: {
+  readonly name: string
+  readonly linksState: LinksState
+  readonly isAlreadyLinked: boolean
+}) =>
+  match({ linksState, isAlreadyLinked })
+    .with({ linksState: 'loading' }, () => (
+      <p className="text-sm text-muted-foreground">
+        Checking whether this name is already linked…
+      </p>
+    ))
+    .with({ linksState: 'unknown' }, () => (
+      <p className="text-sm text-muted-foreground">
+        Couldn’t check whether this name is already linked. Linking again
+        re-points it.
+      </p>
+    ))
+    .with({ isAlreadyLinked: true }, () => (
+      <p className="text-sm text-danger">
+        {name} is already linked to another record. Linking again re-points it;
+        the previous record is kept on the resolver.
+      </p>
+    ))
+    .otherwise(() => null)
+
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
@@ -166,15 +208,9 @@ function RouteComponent() {
     ? (nodes.find((n) => n.name === toName) ?? null)
     : null
 
-  // Until the overview is read, whether the name is linked is unknown.
-  const linksState = match(overview)
-    .with({ isError: true }, () => 'unknown' as const)
-    .with({ isPending: true }, () => 'loading' as const)
-    .otherwise(() => 'read' as const)
+  const linksState = toLinksState(overview)
   const isAlreadyLinked =
-    linksState === 'read' && fromName
-      ? existingLinks.some((l) => l.name === fromName)
-      : false
+    linksState === 'read' && existingLinks.some((l) => l.name === fromName)
 
   const mutation = useLinkToNode({
     resolverAddress: address,
@@ -274,18 +310,12 @@ function RouteComponent() {
               </div>
             </div>
           )}
-          {fromName && linksState !== 'read' && (
-            <p className="text-sm text-muted-foreground">
-              {linksState === 'loading'
-                ? 'Checking whether this name is already linked…'
-                : 'Couldn’t check whether this name is already linked. Linking again re-points it.'}
-            </p>
-          )}
-          {isAlreadyLinked && (
-            <p className="text-sm text-danger">
-              {fromName} is already linked to another record. Linking again
-              re-points it; the previous record is kept on the resolver.
-            </p>
+          {fromName && (
+            <LinkStateNotice
+              name={fromName}
+              linksState={linksState}
+              isAlreadyLinked={isAlreadyLinked}
+            />
           )}
         </Field>
 
