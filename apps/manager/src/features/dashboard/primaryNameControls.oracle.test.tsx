@@ -13,9 +13,6 @@ import { render } from '@/utils/test-utils'
 import { NameRow } from './components/NameRow'
 import { PrimaryNameCard } from './components/PrimaryNameCard'
 
-// Written before either implementation lane starts. Observe existing rendered
-// interfaces, not a proposed shared component, prop, class, or state mechanism.
-// Dialog internals and browser hover/focus require the separate journey checks.
 type NameQueryParams = { readonly name: string }
 const registrationQueryKey = createQueryKey<
   'oracle-registration',
