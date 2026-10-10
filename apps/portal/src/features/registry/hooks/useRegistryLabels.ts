@@ -9,7 +9,7 @@ import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
-import { isUnknownLabel } from '@/utils/names/registryChildName'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
   cause: unknown
@@ -46,7 +46,8 @@ export type RegistryLabelsPage = {
  * bigname serves a label it cannot name as `[<labelhash>].<parent>`, which
  * must never be read as a name.
  */
-const isPlaceholder = (name: string) => isUnknownLabel(name.split('.')[0] ?? '')
+const isPlaceholder = (name: string) =>
+  isEncodedLabelhash(name.split('.')[0] ?? '')
 
 const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
   const named = !isPlaceholder(row.name)
