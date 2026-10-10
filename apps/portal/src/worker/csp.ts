@@ -39,7 +39,7 @@ const OVERRIDE_CONNECT_ORIGINS = [
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
-// Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_INDEXER_GRAPHQL_URL
+// Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_BIGNAME_API_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
   // Every RPC endpoint the viem transports may use: the app's attributed

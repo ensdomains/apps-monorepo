@@ -7,7 +7,7 @@ import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import type { ForwardName } from '../ForwardNamesTable/columns'
 
-export class GetResolvedNamesForAddressError extends TaggedError(
+class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
   cause: unknown
@@ -87,7 +87,7 @@ export const getResolvedNamesForAddress = ResultFn(async function* ({
   )
 })
 
-export const getResolvedNamesForAddressQueryKey = createQueryKey<
+const getResolvedNamesForAddressQueryKey = createQueryKey<
   'get-resolved-names-for-address',
   GetResolvedNamesForAddressParameters
 >('get-resolved-names-for-address')

@@ -326,7 +326,7 @@ type Descriptors = {
  * "{actor} {label} {slots}", with the transaction sender as its subject (see
  * `summarizeEvents`), so a label must read on from a name or an address.
  */
-export const DESCRIPTORS: Descriptors = {
+const DESCRIPTORS: Descriptors = {
   registration: {
     icon: 'register',
     build: (primary) =>

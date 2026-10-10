@@ -40,7 +40,7 @@ export type SubnamesPage = {
   readonly nextCursor: string | null
 }
 
-export const SUBNAMES_PAGE_SIZE = 100
+const SUBNAMES_PAGE_SIZE = 100
 
 // The label, when bigname knows it; a child it cannot label is served as
 // `[labelhash].parent` and keeps that placeholder.
