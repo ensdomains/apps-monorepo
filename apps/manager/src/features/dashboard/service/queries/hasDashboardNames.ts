@@ -12,19 +12,14 @@ import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { readNamesPage } from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
+import { isListedName } from '../../dashboardNames'
 
 // Reverse records are the names the dashboard hides that usually come first,
 // so the first page almost always decides.
 const PAGE_SIZE = 50
-
-const HIDDEN_STATUSES: readonly NameSummary['registrationStatus'][] = [
-  'released',
-  'unregistered',
-]
-
-const isListed = (name: NameSummary): boolean =>
-  !name.name.endsWith('.reverse') &&
-  !HIDDEN_STATUSES.includes(name.registrationStatus)
+// An address with only hidden names would otherwise be read to the end before
+// the landing page shows; past this it counts as having none to list.
+const MAX_PAGES = 4
 
 /**
  * Whether the address owns a name the dashboard would list. A total count is
@@ -35,6 +30,7 @@ export const hasDashboardNames = ResultFn(async function* (
   address: Address,
 ) {
   let cursor: string | null = null
+  let pages = 0
   do {
     const page: Page<NameSummary> = yield* readNamesPage(readNames, {
       address,
@@ -42,9 +38,10 @@ export const hasDashboardNames = ResultFn(async function* (
       pageSize: PAGE_SIZE,
       ...(cursor !== null && { cursor }),
     })
-    if (page.items.some(isListed)) return ok(true)
+    if (page.items.some(isListedName)) return ok(true)
     cursor = page.nextCursor
-  } while (cursor !== null)
+    pages += 1
+  } while (cursor !== null && pages < MAX_PAGES)
   return ok(false)
 })
 

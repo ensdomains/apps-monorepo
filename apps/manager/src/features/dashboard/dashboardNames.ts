@@ -37,10 +37,12 @@ const HIDDEN_STATUSES: readonly NameSummary['registrationStatus'][] = [
 const toSeconds = (date: Date | null): bigint | null =>
   date ? BigInt(Math.floor(date.getTime() / 1000)) : null
 
-// An un-normalised name would render as the canonical name it resembles.
+// An un-normalised name would render as the canonical name it resembles, and
+// a name no deployment answers for has no protocol to renew or list it under.
 export const isListedName = (name: NameSummary): boolean =>
   !name.name.endsWith('.reverse') &&
   !HIDDEN_STATUSES.includes(name.registrationStatus) &&
+  name.protocol !== null &&
   isNormalizedName(name.name)
 
 // bigname's `owner` is the token holder; a registry controller or an ENSv2
@@ -57,6 +59,7 @@ const toNameRoles = (
 export const toDashboardName = (name: NameSummary): DashboardName => ({
   key: name.namehash,
   name: name.name,
+  // Only a read position is built from an unlisted name; listed ones have one.
   protocol: name.protocol ?? 'v2',
   expiryDate: toSeconds(name.expiresAt) ?? 0n,
   servedExpiry: name.servedExpiry,
