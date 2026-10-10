@@ -8,7 +8,7 @@ import {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { Hash } from 'viem'
+import type { Address, Hash } from 'viem'
 import { bigname } from '@/lib/bigname'
 
 /** The row's friendly type with its typed `include=data` payload. */
@@ -17,7 +17,8 @@ type RecentActivityPayload = {
     readonly type: TType
     /** Raw storage kind (`include=raw`), e.g. `RecordVersionChanged`. */
     readonly kind?: string
-    readonly data: EventDataByType[TType]
+    /** Absent when bigname leaves the payload out. */
+    readonly data?: EventDataByType[TType]
   }
 }[EventType]
 
@@ -26,7 +27,7 @@ export type RecentActivityEvent = RecentActivityPayload & {
   readonly transactionHash: Hash
   readonly timestamp: number
   readonly blockNumber: number
-  readonly contractAddress: string
+  readonly contractAddress: Address | null
 }
 
 /** One page of the protocol-wide feed. */
@@ -49,18 +50,16 @@ const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
     return []
   // A record write bigname could not attribute to a name carries none.
   const name = row.name || null
+  // A row is its payload plus fields read here, so it stands in for one.
+  const payload: RecentActivityPayload = row
   return [
     {
-      ...({
-        type: row.type,
-        kind: row.kind,
-        data: row.data ?? {},
-      } as RecentActivityPayload),
+      ...payload,
       name,
       transactionHash: row.transaction_hash,
       timestamp,
       blockNumber: row.block_number,
-      contractAddress: row.contract_address ?? '',
+      contractAddress: row.contract_address ?? null,
     },
   ]
 }
