@@ -12,7 +12,10 @@
  * One copy, imported by all three.
  */
 
-import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import {
+  type Web3ProviderBackend,
+  Web3RequestKind,
+} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
@@ -162,6 +165,59 @@ export async function runMigrationFlow(
   await openMigrationFlow(page)
   if (options.roots) await selectOnlyRoots(page, options.roots)
   await confirmAndAuthorize(page, wallet)
+}
+
+/**
+ * The plan the confirm screen promises: the "N requests" count and the step
+ * titles in "What you'll approve", in order.
+ */
+export async function readPlan(
+  page: Page,
+): Promise<{ count: number; steps: string[] }> {
+  const trigger = page.getByRole('button', { name: /^\d+ requests?$/ })
+  await expect(trigger).toBeVisible({ timeout: 60_000 })
+  const count = Number.parseInt(await trigger.innerText(), 10)
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: "What you'll approve" })
+  await expect(dialog).toBeVisible()
+  const steps = await dialog.locator('ol > li h3').allInnerTexts()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  console.log(`[migration] plan: ${count} requests — ${steps.join(' → ')}`)
+  return { count, steps }
+}
+
+/**
+ * Click "Upgrade N names" and authorize every wallet prompt until the success
+ * screen, returning how many `eth_sendTransaction` prompts the wallet saw.
+ */
+export async function upgradeCountingPrompts(
+  page: Page,
+  wallet: Web3ProviderBackend,
+): Promise<number> {
+  const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
+  await expect(upgrade).toBeEnabled({ timeout: 60_000 })
+  let done = false
+  let prompts = 0
+  const authorizeAll = (async () => {
+    while (!done) {
+      if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0) {
+        await wallet.authorize(Web3RequestKind.SendTransaction)
+        prompts++
+        continue
+      }
+      await page.waitForTimeout(250).catch(() => {})
+    }
+  })()
+  await upgrade.click()
+  await expect(
+    page.getByRole('heading', {
+      name: /your names? (has|have) been upgraded/i,
+    }),
+  ).toBeVisible({ timeout: 180_000 })
+  done = true
+  await authorizeAll
+  return prompts
 }
 
 // ---------------------------------------------------------------------------

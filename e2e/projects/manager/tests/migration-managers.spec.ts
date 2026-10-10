@@ -18,10 +18,6 @@
  * up holding — the bitmap, read from the registry, not the flow's success.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import {
-  type Web3ProviderBackend,
-  Web3RequestKind,
-} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { type Address, isAddressEqual, parseAbi, parseAbiItem } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -36,8 +32,10 @@ import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { assertV2Registered } from '../../../helpers/migration-assertions.js'
 import {
   openMigrationFlow,
+  readPlan,
   rootRow,
   selectOnlyRoots,
+  upgradeCountingPrompts,
 } from '../../../helpers/migration-flow.js'
 import { assertRoleBitmap } from '../../../helpers/role-assertions.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
@@ -54,54 +52,6 @@ const labelOf = (name: string) => name.replace(/\.eth$/, '')
 /** The restoration opt-in on a row: "Keep 0x… as a manager. …". */
 const restorationCheckbox = (page: Page) =>
   page.getByRole('checkbox', { name: /^Keep .* as a manager/ })
-
-/**
- * The plan the confirm screen promises: the "N requests" count and the step
- * titles in "What you'll approve", in order.
- */
-async function readPlan(page: Page) {
-  const trigger = page.getByRole('button', { name: /^\d+ requests?$/ })
-  await expect(trigger).toBeVisible({ timeout: 60_000 })
-  const count = Number.parseInt(await trigger.innerText(), 10)
-  await trigger.click()
-  const dialog = page.getByRole('dialog', { name: "What you'll approve" })
-  await expect(dialog).toBeVisible()
-  const steps = await dialog.locator('ol > li h3').allInnerTexts()
-  await page.keyboard.press('Escape')
-  await expect(dialog).toBeHidden()
-  console.log(`[gm] plan: ${count} requests — ${steps.join(' → ')}`)
-  return { count, steps }
-}
-
-/**
- * Click "Upgrade N names" and authorize every wallet prompt until the success
- * screen, returning how many `eth_sendTransaction` prompts the wallet saw.
- */
-async function upgradeCountingPrompts(page: Page, wallet: Web3ProviderBackend) {
-  const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
-  await expect(upgrade).toBeEnabled({ timeout: 60_000 })
-  let done = false
-  let prompts = 0
-  const authorizeAll = (async () => {
-    while (!done) {
-      if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0) {
-        await wallet.authorize(Web3RequestKind.SendTransaction)
-        prompts++
-        continue
-      }
-      await page.waitForTimeout(250).catch(() => {})
-    }
-  })()
-  await upgrade.click()
-  await expect(
-    page.getByRole('heading', {
-      name: /your names? (has|have) been upgraded/i,
-    }),
-  ).toBeVisible({ timeout: 180_000 })
-  done = true
-  await authorizeAll
-  return prompts
-}
 
 const HCA_FACTORY = ensL1Contracts[supportedL1Chains.sepolia].ensHcaFactory
   .address as Address

@@ -1424,7 +1424,11 @@ const migrationGA: Scenario[] = suite('G.GA', 'migration', 'manager', 'P3', [
   [
     'GA2',
     'Two or more missing approvals',
-    'coalesced into one operator `setApprovalForAll`',
+    // Corrected 2026-10-10 against `planMigrationApprovals`: the app asks for
+    // the narrowest approval each token standard allows. ERC-721 (unwrapped)
+    // has per-token approvals, so each name gets its own `approve`; ERC-1155
+    // (wrapped/locked) has none, so one `setApprovalForAll` covers them all.
+    'unwrapped: one per-token `approve` each, never an operator-wide one; wrapped/locked: coalesced into one NameWrapper `setApprovalForAll`',
   ],
   [
     'GA3',

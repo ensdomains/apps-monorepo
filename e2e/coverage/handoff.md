@@ -5,6 +5,38 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 33 — 2026-10-10 · approvals and confirmation accounting (GA1–GA3, GU1–GU3)
+
+**Batch:** step 1 of the queue after the bigname takeover (user: "go in order
+planned"). New `migration-approvals.spec.ts`; `readPlan` and
+`upgradeCountingPrompts` moved from the GM spec into `helpers/migration-flow.ts`.
+
+**Result:** PASS GA1, GA2, GA3, GU2, GU3 · DEFECT GU1 (E2E-020, added to its
+scenarios) · terminal 405 → 411, ratchet raised. Green in mock (CI) mode and
+in real mode, 11/11 each (approvals are read on chain, so both modes apply).
+
+**Ground truth (`planMigrationApprovals`):** the app asks for the narrowest
+approval each token standard allows — one `approve(MigrationHelper, tokenId)`
+per unwrapped name (ERC-721), one NameWrapper `setApprovalForAll` for every
+wrapped/locked name together (ERC-1155 has no per-token approval), nothing for a
+contract the owner already approved. GA2's oracle ("coalesced into one
+setApprovalForAll") predated that and was corrected; the dialog still carries
+copy for an operator-wide BaseRegistrar approval ("One approval covers all the
+.eth names") that the planner never emits.
+
+**Oracles used:** plan step titles before clicking; prompts seen = "N requests";
+EOA nonce delta = N (GU3); ERC-721 `Approval` / `ApprovalForAll` events from the
+owner during the run; each name's migration route asserted after.
+
+**In flight:** nothing.
+
+**Next:** step 2 — GS1 (locked 2LD + locked child), GS2 (locked 2LD +
+emancipated child), GS6 (three locked levels). Wrapped children carry their
+labels on chain (`NameWrapped`), so local bigname can list them in real mode;
+mock mode still skips subname trees. Then step 3, the V1 roles-tab cells.
+
+---
+
 ## Iteration 32 — 2026-10-10 · bigname harness merged; interpret stall fixed; both modes run locally
 
 **Batch:** take over the bigname harness (`.claude/worktrees/bigname-harness`,
