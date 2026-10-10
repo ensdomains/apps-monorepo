@@ -48,8 +48,6 @@ export const toAddressNameItem = (
         subdomainCount: summary.subnameCount,
         recordCount: summary.recordCount,
         relations: summary.relations,
-        ...(summary.protocol !== 'v1' &&
-          summary.roleCount !== undefined && { roleCount: summary.roleCount }),
         protocolVersion: summary.protocol === 'v1' ? 'ENSv1' : 'ENSv2',
       }
 

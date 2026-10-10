@@ -37,6 +37,10 @@ import {
   getAddressNamesQueryOptions,
 } from '@/features/dashboard/hooks/useAddressNames'
 import {
+  getAddressRoleCountsQueryOptions,
+  withRoleCounts,
+} from '@/features/dashboard/hooks/useAddressRoleCounts'
+import {
   columns,
   getNameRowId,
   type NameRow,
@@ -422,7 +426,13 @@ function RouteComponent() {
   const isSearching = search.trim() !== ''
 
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
-  const allNames = namesQuery.data ?? NO_NAMES
+  const { data: roleCounts } = useQuery(
+    getAddressRoleCountsQueryOptions({ address }),
+  )
+  const allNames = useMemo(
+    () => withRoleCounts(namesQuery.data ?? NO_NAMES, roleCounts),
+    [namesQuery.data, roleCounts],
+  )
   // bigname serves the whole list, so a search filters it here.
   const matching = useMemo(() => {
     const needle = search.trim().toLowerCase()

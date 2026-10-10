@@ -1,5 +1,5 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { errAsync, ok, type ResultAsync } from 'neverthrow'
+import type { ResultAsync } from 'neverthrow'
+import { readAllPages, retryStale } from '../bigname/paging'
 import type { Page } from './common.types'
 import type { IndexerReadError } from './errors'
 import type {
@@ -8,36 +8,29 @@ import type {
   ReadNamesForAddress,
 } from './namesForAddress.types'
 
-const MAX_STALE_ATTEMPTS = 3
 const FETCH_PAGE_SIZE = 200
 
-/** One page; a stale answer is retried as sent, since the cursor holds no snapshot. */
+const isStaleRead = (error: IndexerReadError) => error.kind === 'stale'
+
+/** One page, sent again while bigname answers stale. */
 export const readNamesPage = (
   readNames: ReadNamesForAddress,
   query: NamesForAddressQuery,
-  attemptsLeft = MAX_STALE_ATTEMPTS,
 ): ResultAsync<Page<NameSummary>, IndexerReadError> =>
-  readNames(query).orElse((error) =>
-    error.kind === 'stale' && attemptsLeft > 1
-      ? readNamesPage(readNames, query, attemptsLeft - 1)
-      : errAsync(error),
-  )
+  retryStale(() => readNames(query), isStaleRead)
 
 /** Every page of a names read, in the order bigname returns them. */
-export const readAllNames = ResultFn(async function* (
+export const readAllNames = (
   readNames: ReadNamesForAddress,
   query: Omit<NamesForAddressQuery, 'cursor' | 'pageSize'>,
-) {
-  let names: readonly NameSummary[] = []
-  let cursor: string | null = null
-  do {
-    const page: Page<NameSummary> = yield* readNamesPage(readNames, {
-      ...query,
-      pageSize: FETCH_PAGE_SIZE,
-      ...(cursor !== null && { cursor }),
-    })
-    names = [...names, ...page.items]
-    cursor = page.nextCursor
-  } while (cursor !== null)
-  return ok(names)
-})
+  pageSize = FETCH_PAGE_SIZE,
+): ResultAsync<readonly NameSummary[], IndexerReadError> =>
+  readAllPages({
+    readPage: (cursor) =>
+      readNames({
+        ...query,
+        pageSize,
+        ...(cursor !== undefined && { cursor }),
+      }).map(({ items, nextCursor }) => ({ rows: items, nextCursor })),
+    isStaleError: isStaleRead,
+  })

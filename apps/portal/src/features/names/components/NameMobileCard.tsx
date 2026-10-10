@@ -13,6 +13,8 @@ export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
   relations?: readonly AddressNameRelation[]
+  /** ENSv2 only: the roles the address holds on the name. */
+  roleCount?: number
   protocolVersion: ProtocolVersion
   recordCount?: number
   subdomainCount?: number
@@ -25,6 +27,7 @@ export const NameMobileCard = ({
   name,
   expiryDate,
   relations = [],
+  roleCount,
   protocolVersion,
   recordCount,
   subdomainCount,
@@ -88,7 +91,7 @@ export const NameMobileCard = ({
       {hasRoles && (
         <>
           <div className="text-sm font-medium text-muted-foreground">Roles</div>
-          <RelationBadges relations={relations} />
+          <RelationBadges relations={relations} roleCount={roleCount} />
         </>
       )}
     </div>

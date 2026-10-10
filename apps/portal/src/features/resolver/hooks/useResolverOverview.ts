@@ -11,6 +11,7 @@ import {
   type Power,
   type RecordResource,
   type RecordResourceSelector,
+  type ResolverPower,
   timestampToSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -190,7 +191,9 @@ const toLinkedName = (row: BignameResolverLink): LinkedName[] =>
  * role names its bitmap is built from. `set_pubkey`, `set_alias` and
  * `clear_records` have no bit on this resolver generation.
  */
-const RESOLVER_ROLE_BY_POWER: Partial<Record<Power, ResolverRoleName>> = {
+const RESOLVER_ROLE_BY_POWER: Readonly<
+  Record<ResolverPower, ResolverRoleName>
+> = {
   set_addr: 'ROLE_SET_ADDRESS',
   set_text: 'ROLE_SET_TEXT',
   set_contenthash: 'ROLE_SET_CONTENTHASH',
@@ -213,9 +216,14 @@ const RESOLVER_ROLE_BY_POWER: Partial<Record<Power, ResolverRoleName>> = {
   admin_upgrade: 'ROLE_UPGRADE_ADMIN',
 }
 
+const isResolverPower = (power: Power): power is ResolverPower =>
+  Object.hasOwn(RESOLVER_ROLE_BY_POWER, power)
+
 export const powersToResolverRoleBitmap = (powers: readonly Power[]): bigint =>
   encodeResolverRoleBitmap(
-    powers.flatMap((power) => RESOLVER_ROLE_BY_POWER[power] ?? []),
+    powers.flatMap((power) =>
+      isResolverPower(power) ? [RESOLVER_ROLE_BY_POWER[power]] : [],
+    ),
   )
 
 /** The setter argument a scoped grant is about; an `argument` resource names its first. */

@@ -1,4 +1,4 @@
-import type { Power } from '@ens-apps/indexer/bigname'
+import type { Power, RegistryPower } from '@ens-apps/indexer/bigname'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 
 /**
@@ -7,7 +7,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
  * roles, so bigname's powers are folded back into them rather than giving
  * those components a second vocabulary.
  */
-const REGISTRY_POWER_ROLES: Partial<Record<Power, Role>> = {
+const REGISTRY_POWER_ROLES: Readonly<Record<RegistryPower, Role>> = {
   registrar: 'ROLE_REGISTRAR',
   admin_registrar: 'ROLE_REGISTRAR_ADMIN',
   register_reserved: 'ROLE_REGISTER_RESERVED',
@@ -30,10 +30,11 @@ const REGISTRY_POWER_ROLES: Partial<Record<Power, Role>> = {
   admin_upgrade: 'ROLE_UPGRADE_ADMIN',
 }
 
-/** The ensjs registry role a power is, or undefined for a non-registry power. */
-export const registryPowerRole = (power: Power): Role | undefined =>
-  REGISTRY_POWER_ROLES[power]
+const isRegistryPower = (power: Power): power is RegistryPower =>
+  Object.hasOwn(REGISTRY_POWER_ROLES, power)
 
 /** Registry powers as ensjs roles; powers with no registry role are dropped. */
 export const registryPowersToRoles = (powers: readonly Power[]): Role[] =>
-  powers.flatMap((power) => REGISTRY_POWER_ROLES[power] ?? [])
+  powers.flatMap((power) =>
+    isRegistryPower(power) ? [REGISTRY_POWER_ROLES[power]] : [],
+  )

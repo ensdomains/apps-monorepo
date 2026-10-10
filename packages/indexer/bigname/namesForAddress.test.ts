@@ -69,7 +69,7 @@ describe('readNamesForAddress', () => {
     )
   })
 
-  it('counts the distinct powers the address itself holds on each name', async () => {
+  it('lists the distinct powers the address itself holds on each name', async () => {
     const holder = '0xB15C4ca5ec894369DEC40F6298E63EAE60db2756'
     const scope = { kind: 'registry', detail: {} } as const
     const { client, fetch } = clientWith(
@@ -108,8 +108,12 @@ describe('readNamesForAddress', () => {
 
     expect(requestOf(fetch).url).toContain('include=counts%2Crole_summary')
     const [alice, bob] = result._unsafeUnwrap().items
-    expect(alice?.roleCount).toBe(3)
-    expect(bob).not.toHaveProperty('roleCount')
+    expect(alice?.heldPowers).toEqual([
+      'set_resolver',
+      'renew',
+      'can_transfer_admin',
+    ])
+    expect(bob).not.toHaveProperty('heldPowers')
   })
 
   it.each([

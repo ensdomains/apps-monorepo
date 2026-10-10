@@ -25,7 +25,7 @@ export type NamesForAddressQuery = Readonly<{
   sort?: 'name' | 'expiry' | 'registered' | 'created'
   order?: 'asc' | 'desc'
   includeCounts?: boolean
-  /** Count the roles `address` holds on each name. */
+  /** Read the powers `address` holds on each name. */
   includeRoles?: boolean
   /** Ask for an exact `totalCount` even above the backend's candidate cap. */
   includeTotal?: boolean
@@ -58,7 +58,7 @@ export type NameSummary = Readonly<{
   subnameCount?: number
   recordCount?: number
   /** Only with `includeRoles`: the distinct powers `address` holds on the name. */
-  roleCount?: number
+  heldPowers?: readonly string[]
 }>
 
 export type ReadNamesForAddress = (

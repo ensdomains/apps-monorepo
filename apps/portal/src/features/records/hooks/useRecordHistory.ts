@@ -1,13 +1,13 @@
 import {
   MAX_PAGE_SIZE,
   type NameHistoryRow,
+  readAllCollectionPages,
   timestampToSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { bigname } from '@/lib/bigname'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { recordValueText } from '@/utils/history/recordValue'
 
@@ -104,7 +104,7 @@ const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
  * reads every `record` row and filters them here.
  */
 const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
-  readAllPages<NameHistoryRow>((cursor) =>
+  readAllCollectionPages<NameHistoryRow>((cursor) =>
     bigname.nameHistory(normalizeOrLower(name), {
       type: ['record'],
       ...(!isFamily(key) && { record_key: key }),

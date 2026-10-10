@@ -1,6 +1,7 @@
 import {
   type EventRow,
   MAX_PAGE_SIZE,
+  readAllCollectionPages,
   readNamesForAddress,
   timestampToSeconds,
 } from '@ens-apps/indexer/bigname'
@@ -11,7 +12,6 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 import {
   flattenHistoryData,
   historyEventLogId,
@@ -49,7 +49,7 @@ const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
 const readHistory = (address: Address, pageSize: number | undefined) =>
   (pageSize !== undefined
     ? readHistoryPage(address, pageSize).map(({ data }) => data)
-    : readAllPages<EventRow>((cursor) =>
+    : readAllCollectionPages<EventRow>((cursor) =>
         readHistoryPage(address, MAX_PAGE_SIZE, cursor),
       )
   ).mapErr(toError)

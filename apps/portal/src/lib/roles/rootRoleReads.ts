@@ -5,6 +5,7 @@ import {
   type Meta,
   type PermissionRow,
   type Power,
+  readAllCollectionPages,
   timestampToBigInt,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -17,7 +18,6 @@ import { previousPowers } from '@/lib/roles/permissionPowers'
 import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
 import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 
 class GetRootRoleReadsError extends TaggedError('GetRootRoleReadsError')<{
   cause: unknown
@@ -180,7 +180,7 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
 export const getBignameRootRoleChanges = (
   params: RegistryParameters & { readonly account: Address },
 ) =>
-  readAllPages<EventRow>((cursor) =>
+  readAllCollectionPages<EventRow>((cursor) =>
     bigname.events({
       contract_address: params.registryAddress.toLowerCase() as Address,
       address: params.account.toLowerCase() as Address,
