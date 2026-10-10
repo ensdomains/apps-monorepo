@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
+import { getAddressNamesQueryKey } from '@/features/dashboard/hooks/useAddressNames'
 import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
@@ -386,17 +387,20 @@ export const useRenewalTransactions = ({
         }).queryKey,
       })
     }
-    // The expiry rows read bigname, which may not have indexed the renewal yet.
+    // The expiry rows and name lists read bigname, which may not have indexed the renewal yet.
     pollForIndexerSync({
       invalidateQueries: async () => {
-        await Promise.all(
-          renewedNames.map((renewedName) =>
+        await Promise.all([
+          ...renewedNames.map((renewedName) =>
             queryClient.invalidateQueries({
               queryKey: getRegistrationDataQueryOptions({ name: renewedName })
                 .queryKey,
             }),
           ),
-        )
+          queryClient.invalidateQueries({
+            queryKey: [getAddressNamesQueryKey.key],
+          }),
+        ])
       },
     })
     onComplete?.(flowType)

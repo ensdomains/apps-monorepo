@@ -112,6 +112,25 @@ describe('useTimelinePagesModel', () => {
     )
   })
 
+  it('shows more actions on each click when one action fills the window', async () => {
+    const bulk = events(TIMELINE_WINDOW_SIZE * 2).map((event, index) => ({
+      ...event,
+      transactionHash: `0x${'0'.repeat(39)}f` as const,
+      blockNumber: 2000,
+      logIndex: index,
+      timestamp: 2000,
+    }))
+    const { result } = renderFeed([
+      page([...bulk, ...events(TIMELINE_WINDOW_SIZE * 2, bulk.length)]),
+    ])
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.actions).toHaveLength(1)
+
+    act(() => result.current.loadMore())
+    expect(result.current.actions).toHaveLength(1 + TIMELINE_WINDOW_SIZE)
+  })
+
   it('closes a widened window when the feed changes subject', async () => {
     // These surfaces are reused across subjects — one registry page navigating
     // to another — so a window widened on the last one must not carry over.

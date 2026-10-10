@@ -58,6 +58,9 @@ export const TIMELINE_WINDOW_SIZE = 50
  * transaction is never split across the break, so the last one admitted may
  * carry the count past the budget.
  */
+const countEvents = (actions: readonly Action[]): number =>
+  actions.reduce((total, action) => total + action.events.length, 0)
+
 const takeEvents = (
   actions: readonly Action[],
   budget: number | undefined,
@@ -145,12 +148,9 @@ const useTimelineModel = (
   // The window is counted in events and grows; `limit` is a fixed preview
   // counted in actions. A surface passes one or neither — `slice(0, undefined)`
   // is the whole list.
-  const actions = takeEvents(allActions, shown).slice(0, limit)
-
-  const loadedCount = allActions.reduce(
-    (total, action) => total + action.events.length,
-    0,
-  )
+  const windowed = takeEvents(allActions, shown)
+  const actions = windowed.slice(0, limit)
+  const loadedCount = countEvents(allActions)
 
   return {
     ...disclosure,
@@ -166,7 +166,8 @@ const useTimelineModel = (
     // has run past every loaded event.
     loadMore: () => {
       if (windowSize === undefined) return void pagesQuery.fetchNextPage()
-      const widened = (shown ?? windowSize) + windowSize
+      // Grow from what is on screen: a large action can overshoot the window.
+      const widened = countEvents(windowed) + windowSize
       setVisible({ key: resetKey, count: widened })
       if (widened >= loadedCount) void pagesQuery.fetchNextPage()
     },
