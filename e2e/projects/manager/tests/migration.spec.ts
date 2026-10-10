@@ -1,340 +1,361 @@
 /**
- * ENS V1 → V2 Migration E2E Tests
+ * ENS V1 → V2 migration of unwrapped and emancipated .eth 2LDs (§G.GW, GR, GA,
+ * GU), and the registration block on a reserved name (A11).
  *
- * Tests the migration flow for V1 .eth names of different types:
- * - Unwrapped: ERC-721 on BaseRegistrar (no NameWrapper)
- * - Batch: multiple names migrated in a single flow
- * - V1 records preservation: records set on V1 survive migration
- * - Post-migration profile editing
+ * Both shapes go through `UnlockedMigrationController`:
  *
- * Each test:
- * 1. Registers one or more V1 names on the Anvil fork
- * 2. Authenticates with Para wallet
- * 3. Mocks the V1 subgraph to inject the test names
- * 4. Triggers the migration flow through the UI
- * 5. Verifies the migration completes successfully
- * 6. Checks the behavior specific to each scenario
+ *   unwrapped    the BaseRegistrar ERC-721 is sent to the controller, which
+ *                reclaims it, hands the legacy registry slot to the Graveyard
+ *                with the resolver cleared, and parks the token there too
+ *   emancipated  the NameWrapper ERC-1155 is sent instead; the controller clears
+ *                the resolver and `unwrapETH2LD(label, GRAVEYARD, GRAVEYARD)`s it
  *
- * Prerequisites:
- *   - Anvil fork running with V1 + V2 contracts
- *   - Manager app running with Rhinestone enabled
+ * Either way the name is then registered in the V2 .eth registry out of its
+ * RESERVED state with `REGISTRATION_ROLE_BITMAP` — and, like every name
+ * registered from RESERVED, `ROLE_WAS_RESERVED`. The oracles read all of that
+ * off the chain; the success screen is not evidence of any of it.
+ *
+ * This file replaces the original `migration.spec.ts`, which no config ran and
+ * which mostly asserted that the flow reached its success screen.
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import {
+  getAddressRecord,
+  getName,
+  getTextRecord,
+} from '@ensdomains/ensjs/public'
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import type { Page } from '@playwright/test'
+import { type Address, namehash, parseAbi, parseAbiItem } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
+import { publicClient } from '../../../helpers/anvil-client.js'
 import {
-  authorizeTransaction,
-  expect,
-  test,
-} from '../../../fixtures/playwright.manager.fixture.js'
-import {
-  assertLockedMigration,
-  assertUnlockedMigration,
+  assertUnlockedTokenRoute,
+  assertV2Reserved,
+  readV2TokenRoles,
 } from '../../../helpers/migration-assertions.js'
 import {
-  type MockV1Name,
-  mockV1Subgraph,
-} from '../../../helpers/mock-v1-subgraph.js'
-import { findSearchInput } from '../../../helpers/search-input.js'
+  confirmAndAuthorize,
+  openMigrationFlow,
+  rootRow,
+  selectOnlyRoots,
+} from '../../../helpers/migration-flow.js'
+import type { MockV1Records } from '../../../helpers/mock-v1-subgraph.js'
+import {
+  goToEditProfile,
+  saveProfileChanges,
+  waitForProfileUpdated,
+} from '../../../helpers/profile-helpers.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
-// Headless wallet user = Anvil account 0 (same private key as ANVIL_FUNDER)
-const HEADLESS_USER_ADDRESS = privateKeyToAccount(
-  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-).address
+const sepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const V2_ETH_REGISTRY = sepolia.ensRegistry.address as Address
+const V1_NAME_WRAPPER = sepolia.ensNameWrapper.address as Address
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+const {
+  ROLE_CAN_TRANSFER_ADMIN,
+  ROLE_SET_RESOLVER,
+  ROLE_SET_RESOLVER_ADMIN,
+  ROLE_SET_SUBREGISTRY,
+  ROLE_SET_SUBREGISTRY_ADMIN,
+  ROLE_WAS_RESERVED,
+} = registryRoles
 
-/**
- * Shared migration flow: navigate to dashboard → click Upgrade → confirm →
- * authorize the migration transaction → wait for success.
- */
-async function runMigrationFlow(
-  page: import('@playwright/test').Page,
-  wallet: import('@ensdomains/headless-web3-provider').Web3ProviderBackend,
+/** `ETHRegistrar.sol` REGISTRATION_ROLE_BITMAP, plus the RESERVED tag. */
+const MIGRATED_OWNER_ROLES =
+  ROLE_SET_SUBREGISTRY |
+  ROLE_SET_SUBREGISTRY_ADMIN |
+  ROLE_SET_RESOLVER |
+  ROLE_SET_RESOLVER_ADMIN |
+  ROLE_CAN_TRANSFER_ADMIN |
+  ROLE_WAS_RESERVED
+
+const V2_REGISTRY_ABI = parseAbi([
+  'function getResolver(string label) view returns (address)',
+])
+const TRANSFER_SINGLE = parseAbiItem(
+  'event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)',
+)
+const TRANSFER_BATCH = parseAbiItem(
+  'event TransferBatch(address indexed operator, address indexed from, address indexed to, uint256[] ids, uint256[] values)',
+)
+
+const hex = (bitmap: bigint) => `0x${bitmap.toString(16)}`
+const labelOf = (name: string) => name.replace(/\.eth$/, '')
+
+/** The block after the current head, uncached — the head holds our setup. */
+const nextBlock = async () =>
+  (await publicClient.getBlockNumber({ cacheTime: 0 })) + 1n
+
+async function migrate(
+  page: Page,
+  wallet: Parameters<typeof confirmAndAuthorize>[1],
+  names: readonly string[],
 ) {
-  await page.goto(`${MANAGER_APP_URL}/dashboard`)
-  await page.waitForLoadState('networkidle')
-
-  const upgradeButton = page
-    .getByRole('button', { name: 'Upgrade Names' })
-    .first()
-  await upgradeButton.waitFor({ state: 'visible', timeout: 10_000 })
-  await upgradeButton.click()
-
-  await page.waitForTimeout(2_000)
-
-  const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
-  await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  // Authorize the migration transaction concurrently with clicking confirm
-  await Promise.all([
-    confirmButton.click(),
-    authorizeTransaction(wallet, 90_000),
-  ])
-
-  const successIndicator = page.getByText("You're on ENS v2!")
-  await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
-
-  const doneButton = page.getByRole('button', { name: 'Done' })
-  await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
-  await doneButton.click()
+  await openMigrationFlow(page)
+  for (const name of names)
+    await expect(rootRow(page, name)).toBeVisible({ timeout: 30_000 })
+  await selectOnlyRoots(page, names)
+  await confirmAndAuthorize(page, wallet)
 }
 
-/**
- * Search for a name using the search bar and navigate to its profile.
- */
-async function searchAndNavigateToProfile(
-  page: import('@playwright/test').Page,
-  name: string,
-) {
-  const nameOnly = name.replace(/\.eth$/i, '')
-  const searchInput = await findSearchInput(page)
-  await searchInput.click()
-  await searchInput.fill(nameOnly)
-  // Click the matching suggestion in the dropdown
-  await page.getByText(name).first().click()
-  // Wait for the profile page to load
-  await page.waitForURL(new RegExp(`/p/${name.replace('.', '\\.')}`), {
-    timeout: 15_000,
+async function expectOwnerRoles(label: string, owner: Address) {
+  const { owner: v2Owner, tokenRoles } = await readV2TokenRoles(label)
+  expect(v2Owner.toLowerCase(), `V2 owner of ${label}.eth`).toBe(
+    owner.toLowerCase(),
+  )
+  expect(hex(tokenRoles), `token roles of the owner on ${label}.eth`).toBe(
+    hex(MIGRATED_OWNER_ROLES),
+  )
+}
+
+/** The V2 resolver a migrated name points at, which must exist. */
+async function v2Resolver(label: string): Promise<Address> {
+  const resolver = await publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_REGISTRY_ABI,
+    functionName: 'getResolver',
+    args: [label],
   })
-  await page.waitForLoadState('networkidle')
+  expect(resolver, `${label}.eth has no V2 resolver`).not.toBe(
+    '0x0000000000000000000000000000000000000000',
+  )
+  return resolver
 }
 
 /**
- * Navigate directly to a name's profile page.
+ * A text record as a client resolves it — through the UniversalResolver, which
+ * routes to the name's V2 resolver. The owner's PermissionedResolver reverts on
+ * a direct `text(node, key)`, so this is also the only read that works.
  */
-async function goToProfile(
-  page: import('@playwright/test').Page,
-  name: string,
-) {
-  await page.goto(`${MANAGER_APP_URL}/p/${name}`)
-  await page.waitForLoadState('networkidle')
-  await page.waitForTimeout(2_000)
-}
+const readText = async (name: string, key: string) =>
+  (await getTextRecord(publicClient as never, { name, key })) ?? null
 
-/**
- * Migrated names with no text records use `base: {}` — Bio/Website fields are not mounted until
- * their pills are used to add them (see BioSection + AddTextRecordsPills).
- */
-async function ensureProfilePillField(
-  page: import('@playwright/test').Page,
-  options: { pillName: RegExp; fieldLabel: string | RegExp },
-) {
-  const field = page.getByLabel(options.fieldLabel)
-  if ((await field.count()) === 0) {
-    await page.getByRole('button', { name: options.pillName }).click()
-  }
-  await expect(field).toBeVisible({ timeout: 10_000 })
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-test.describe('ENS V1 → V2 Migration', () => {
+test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  test('migrate an unwrapped V1 name and view profile', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const makeV1Name = createMakeV1Name({
-      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
-    })
-    const v1Name = await makeV1Name({ label: 'migtest' })
-    console.log(`[migration] unwrapped V1 name created: ${v1Name}`)
+  test('an unwrapped 2LD lands in V2 with exactly the registration roles, its V1 token and registry slot in the Graveyard', {
+    tag: ['@scenario:GW1'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const name = await makeV1Name({ label: 'gw1-unwrapped' })
+    const label = labelOf(name)
+    await assertV2Reserved(label)
 
-    await mockV1Subgraph(page, [
-      { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [{ kind: 'registration', label }],
+    })
+    await migrate(page, wallet, [name])
+
+    await assertUnlockedTokenRoute(label, namehash(name), { wrapped: false })
+    await expectOwnerRoles(label, owner.address)
+  })
+
+  test('an emancipated 2LD is unwrapped into the Graveyard and lands in V2 with exactly the registration roles', {
+    tag: ['@scenario:GW2'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    // `wrapETH2LD` always burns PARENT_CANNOT_CONTROL: a wrapped .eth 2LD with
+    // no owner fuses is emancipated, the only unlocked wrapped shape there is.
+    const name = await makeV1Name({ label: 'gw2-emancipated', type: 'wrapped' })
+    const label = labelOf(name)
+
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [{ kind: 'registration', label, type: 'wrapped' }],
+    })
+    await migrate(page, wallet, [name])
+
+    await assertUnlockedTokenRoute(label, namehash(name), { wrapped: true })
+    await expectOwnerRoles(label, owner.address)
+  })
+
+  test('two wrapped names move to the controller in one batched transfer', {
+    tag: ['@scenario:GA4'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const a = await makeV1Name({ label: 'ga4-a', type: 'wrapped' })
+    const b = await makeV1Name({ label: 'ga4-b', type: 'wrapped' })
+
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [a, b].map((name) => ({
+        kind: 'registration' as const,
+        label: labelOf(name),
+        type: 'wrapped' as const,
+      })),
+    })
+    const fromBlock = await nextBlock()
+    await migrate(page, wallet, [a, b])
+
+    for (const name of [a, b])
+      await assertUnlockedTokenRoute(labelOf(name), namehash(name), {
+        wrapped: true,
+      })
+
+    // ERC-1155 says how the tokens moved: one TransferBatch carrying both ids
+    // out of the owner, and no TransferSingle for either.
+    const ids = [a, b].map((name) => BigInt(namehash(name)))
+    const [batches, singles] = await Promise.all([
+      publicClient.getLogs({
+        address: V1_NAME_WRAPPER,
+        event: TRANSFER_BATCH,
+        args: { from: owner.address },
+        fromBlock,
+      }),
+      publicClient.getLogs({
+        address: V1_NAME_WRAPPER,
+        event: TRANSFER_SINGLE,
+        args: { from: owner.address },
+        fromBlock,
+      }),
     ])
-
-    await runMigrationFlow(page, wallet)
-
-    // ── Post-migration: search for the name and go to profile ────
-    await searchAndNavigateToProfile(page, v1Name)
-    await expect(page.getByText(v1Name).first()).toBeVisible({
-      timeout: 10_000,
-    })
-    console.log(
-      `[migration] ✅ Unwrapped migration + profile verified for ${v1Name}`,
+    expect(
+      singles.filter((l) => ids.includes(l.args.id as bigint)),
+      'neither name may move in a single transfer',
+    ).toHaveLength(0)
+    const carrying = batches.filter((l) =>
+      ids.every((id) => (l.args.ids ?? []).includes(id)),
     )
+    expect(carrying, 'one TransferBatch must carry both names').toHaveLength(1)
   })
 
-  test('batch migrate multiple V1 names to V2', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const makeV1Name = createMakeV1Name({
-      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
-    })
-
-    const unwrappedName = await makeV1Name({ label: 'migbatch-u' })
-    const wrappedName = await makeV1Name({
-      label: 'migbatch-w',
-      type: 'wrapped',
-    })
-    const lockedName = await makeV1Name({ label: 'migbatch-l', type: 'locked' })
-    console.log(
-      `[migration] batch names created: ${unwrappedName}, ${wrappedName}, ${lockedName}`,
-    )
-
-    const mockNames: MockV1Name[] = [
-      { name: unwrappedName, ownerAddress: HEADLESS_USER_ADDRESS },
-      {
-        name: wrappedName,
-        ownerAddress: HEADLESS_USER_ADDRESS,
-        type: 'wrapped',
-      },
-      { name: lockedName, ownerAddress: HEADLESS_USER_ADDRESS, type: 'locked' },
-    ]
-    await mockV1Subgraph(page, mockNames)
-
-    await runMigrationFlow(page, wallet)
-    await assertUnlockedMigration(unwrappedName.replace('.eth', ''))
-    await assertUnlockedMigration(wrappedName.replace('.eth', ''))
-    await assertLockedMigration(lockedName.replace('.eth', ''))
-    console.log(
-      `[migration] ✅ Batch migration completed for ${mockNames.length} names`,
-    )
-  })
-
-  test('V1 records are preserved after migration', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const makeV1Name = createMakeV1Name({
-      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
-    })
-    const testRecords = {
+  test('text records and the ETH address are replayed onto the new V2 resolver', {
+    tag: ['@scenario:GR1'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const ethAddress = accounts.getAddress('user2')
+    const records = {
       texts: [
         { key: 'description', value: 'Migrated from V1 with records' },
         { key: 'url', value: 'https://example.com/v1-migrated' },
       ],
+      addresses: [{ coinType: 60, value: ethAddress as `0x${string}` }],
     }
+    const name = await makeV1Name({ label: 'gr1-records', records })
+    const label = labelOf(name)
 
-    // Register a V1 name WITH records set on the V1 resolver
-    const v1Name = await makeV1Name({
-      label: 'migrec',
-      records: testRecords,
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [
+        {
+          kind: 'registration',
+          label,
+          records: records as MockV1Records,
+        },
+      ],
     })
-    console.log(`[migration] V1 name with records created: ${v1Name}`)
+    await migrate(page, wallet, [name])
 
-    await mockV1Subgraph(page, [
-      {
-        name: v1Name,
-        ownerAddress: HEADLESS_USER_ADDRESS,
-        records: testRecords,
-      },
-    ])
-
-    await runMigrationFlow(page, wallet)
-
-    // ── Navigate to the migrated name's profile and verify records ───
-    await goToProfile(page, v1Name)
-
-    // The description should appear in the Bio section
-    await expect(page.getByText('Migrated from V1 with records')).toBeVisible({
-      timeout: 15_000,
+    await v2Resolver(label)
+    for (const { key, value } of records.texts)
+      expect(await readText(name, key), `text(${key})`).toBe(value)
+    const addr = await getAddressRecord(publicClient as never, {
+      name,
+      coin: 60,
     })
-
-    // The URL should appear in the Bio section
-    await expect(page.getByText('https://example.com/v1-migrated')).toBeVisible(
-      { timeout: 10_000 },
-    )
-
-    console.log(
-      `[migration] ✅ V1 records preserved after migration for ${v1Name}`,
+    expect(addr?.value?.toLowerCase(), 'addr(60)').toBe(
+      ethAddress.toLowerCase(),
     )
   })
 
-  test('can edit profile after migration', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const makeV1Name = createMakeV1Name({
-      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+  test('a profile edited right after migration is written to the new V2 resolver', {
+    tag: ['@scenario:GU4'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const name = await makeV1Name({ label: 'gu4-edit' })
+    const label = labelOf(name)
+
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [{ kind: 'registration', label }],
     })
-    const v1Name = await makeV1Name({ label: 'migedit' })
-    console.log(`[migration] V1 name for edit test created: ${v1Name}`)
+    await migrate(page, wallet, [name])
 
-    await mockV1Subgraph(page, [
-      { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
-    ])
+    // Profile editing is a dialog on the profile page (#898 removed the old
+    // /edit route). Description and the website field are on its General tab.
+    const description = 'Post-migration profile edit'
+    const website = 'https://post-migration.example.com'
+    await goToEditProfile(page, name)
+    await page.getByPlaceholder('Description').fill(description)
+    await page.getByPlaceholder('https://yourwebsite.com').fill(website)
+    await saveProfileChanges(page, wallet)
+    await waitForProfileUpdated(page)
 
-    await runMigrationFlow(page, wallet)
+    // The toast is not the oracle; the resolver the name now points at is.
+    await v2Resolver(label)
+    await expect
+      .poll(() => readText(name, 'description'), { timeout: 30_000 })
+      .toBe(description)
+    expect(await readText(name, 'url')).toBe(website)
+  })
 
-    // ── Navigate to the edit profile page ───────────────────────────
-    await page.goto(`${MANAGER_APP_URL}/p/${v1Name}/edit`)
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3_000)
+  test('a reserved V1 name cannot be registered, and the search says it is taken', {
+    tag: ['@scenario:A11'],
+  }, async ({ page, accounts }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const name = await makeV1Name({ label: 'a11-reserved' })
+    const label = labelOf(name)
 
-    // Bio card (CardTitle is a div, not a semantic heading)
+    // Chain first: RESERVED in V2, so the registrar refuses it.
+    await assertV2Reserved(label)
+    const available = await publicClient.readContract({
+      address: sepolia.ensEthRegistrar.address as Address,
+      abi: parseAbi(['function isAvailable(string label) view returns (bool)']),
+      functionName: 'isAvailable',
+      args: [label],
+    })
+    expect(available, 'the registrar must not offer a reserved name').toBe(
+      false,
+    )
+
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [{ kind: 'registration', label }],
+    })
+    // `/register/$name` checks V2 availability in its loader and sends a name
+    // that is not available to its profile instead of the registration flow.
+    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+    await expect(page).toHaveURL(new RegExp(`/${name.replace('.', '\\.')}$`), {
+      timeout: 30_000,
+    })
     await expect(
-      page.getByText('Add a bio to your profile', { exact: true }),
-    ).toBeVisible({ timeout: 15_000 })
-
-    // Bio: empty `base` means pills only — add Bio, then use label (placeholder is often invisible until focus)
-    await ensureProfilePillField(page, {
-      pillName: /^Bio\b/,
-      fieldLabel: 'Short Description',
+      page.getByRole('button', { name: /^Register$/i }),
+      'a reserved name must not be offered for registration',
+    ).toHaveCount(0)
+    // Instead the visitor sees the name as taken, by its V1 owner — shown by
+    // primary name when it has one, else as a full or shortened address.
+    const primary = await getName(publicClient as never, {
+      address: owner.address,
+    }).catch(() => null)
+    await expect(page.getByText('Owner', { exact: true })).toBeVisible({
+      timeout: 30_000,
     })
-    await page
-      .getByLabel('Short Description')
-      .fill('Post-migration profile edit test')
-
-    await ensureProfilePillField(page, {
-      pillName: /^Website\b/,
-      fieldLabel: 'Website',
-    })
-    await page.getByLabel('Website').fill('https://post-migration.example.com')
-
-    // Contact + social: add one record each (arrays — only add if not already on the form)
-    if ((await page.getByLabel('Email Address').count()) === 0) {
-      await page.getByRole('button', { name: 'Email Address' }).click()
-    }
-    await page.getByLabel('Email Address').fill('post-migration@example.com')
-
-    if ((await page.getByLabel('GitHub').count()) === 0) {
-      await page.getByRole('button', { name: 'GitHub' }).click()
-    }
-    await page.getByLabel('GitHub').fill('ens-test-user')
-
-    // Custom link: Radix dialog (md+) or vaul drawer — same fields in both
-    await page.getByRole('button', { name: 'Add Link' }).click()
-    const addLinkPanel = page.locator(
-      '[data-slot="dialog-content"], [data-slot="drawer-content"]',
-    )
-    await addLinkPanel.waitFor({ state: 'visible', timeout: 10_000 })
-    await addLinkPanel.getByLabel('Name', { exact: true }).fill('Test Link')
-    await addLinkPanel
-      .getByLabel('Link', { exact: true })
-      .fill('https://link.example.com/path')
-    await addLinkPanel.getByRole('button', { name: 'Add', exact: true }).click()
-
-    // Click Save Changes
-    await page.getByText('Save Changes').click()
-
-    // Confirm in the diff dialog
-    const saveButton = page
-      .locator('[role="dialog"]')
-      .getByRole('button', { name: /save changes/i })
-    await saveButton.waitFor({ state: 'visible', timeout: 10_000 })
-    await saveButton.click()
-    await authorizeTransaction(wallet, 90_000)
-
-    // Wait for the transaction to complete
-    await expect(page.getByText('Profile updated')).toBeVisible({
-      timeout: 90_000,
-    })
-
-    console.log(
-      `[migration] ✅ Profile edit after migration succeeded for ${v1Name}`,
-    )
+    const ownerShown = page
+      .locator(`main a[href$="/${owner.address}" i]`)
+      .or(
+        primary?.name
+          ? page.getByText(primary.name, { exact: true })
+          : page.locator(`main a[href$="/${owner.address}" i]`),
+      )
+    await expect(
+      ownerShown.first(),
+      'the profile must name the V1 owner',
+    ).toBeVisible()
+    if (process.env.QA_SHOTS_DIR)
+      await page.screenshot({
+        path: `${process.env.QA_SHOTS_DIR}/a11-reserved-profile.png`,
+      })
   })
 })

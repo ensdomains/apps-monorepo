@@ -16,9 +16,11 @@ import type {
   SortOrder,
   Source,
   Timestamp,
+  UnresolvableReason,
   WrapperFuses,
   WrapperState,
 } from './common.types'
+import type { RecordGroups } from './records.types'
 
 /** `GET /v1/names`: an expiry window; `expires_after` is inclusive, `expires_before` exclusive. */
 export type ExpiryWindow =
@@ -89,11 +91,11 @@ export type NameRecord = Readonly<{
   expires_at?: Timestamp
   status?: RegistrationStatus
   grace_ends_at?: Timestamp
-  ens_v1?: EnsV1Facts
   /** Present exactly when `wrapper_fuses` is present. */
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses
   authority?: Authority
+  ens_v1?: EnsV1Facts
   /** Historical holder; may coexist with an active reservation. */
   lapsed_registration?: LapsedRegistration
   /** Only with `authority=ens_v2` proven by an ENSv1->ENSv2 migration. */
@@ -104,11 +106,8 @@ export type NameRecord = Readonly<{
   namehash: Hex
   resolver?: ResolverRef
   subregistry?: RegistryRef
-  /** Decimal coin type -> scalar hex address; `{}` means known-empty. */
-  addresses?: Readonly<Record<string, Hex>>
-  /** Text key -> value; `{}` means known-empty. */
-  text_records?: Readonly<Record<string, string>>
-  content_hash?: Hex
+  /** Present when a current record inventory is available. */
+  records?: RecordGroups
   primary_name?: string
   primary_address?: Hex
   chain_id?: number
@@ -122,6 +121,13 @@ export type NameRecord = Readonly<{
   failure_reason?: string
   /** Omitted when empty. */
   unsupported_fields?: readonly string[]
+  /**
+   * A proven absence of resolution after the Universal Resolver cutover;
+   * `no_live_ens_v2_entry` means an ENSv1 name holds no ENSv2 reservation or registration.
+   */
+  unresolvable_reason?: UnresolvableReason
+  /** Resolution could not be proven either way; not an absence claim. */
+  resolution_unsupported_reason?: string
 }>
 
 /** `GET /v1/names/{name}`: response. */

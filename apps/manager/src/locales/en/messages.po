@@ -1248,6 +1248,10 @@ msgstr "Insufficient USDC"
 msgid "is too short to register"
 msgstr "is too short to register"
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "it has no ENSv2 reservation."
+msgstr "it has no ENSv2 reservation."
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
@@ -1491,6 +1495,10 @@ msgstr "Name price"
 msgid "Names"
 msgstr "Names"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Names could not be loaded"
+msgstr "Names could not be loaded"
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1551,6 +1559,10 @@ msgstr "No eligible names found for this wallet"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
 msgstr "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "no ENSv1 registration was found for it."
+msgstr "no ENSv1 registration was found for it."
 
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
@@ -2679,6 +2691,10 @@ msgstr "The replacement resolver could not be verified. Please try again."
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "These names can't be upgraded"
+msgstr "These names can't be upgraded"
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 msgstr "This browser cannot safely coordinate your mint. Try an up-to-date browser."
@@ -3322,6 +3338,10 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names can't be upgraded"
+msgstr "Your names can't be upgraded"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"

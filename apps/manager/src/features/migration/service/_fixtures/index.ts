@@ -1,5 +1,5 @@
+import type { V1Domain } from '@ens-apps/migration'
 import type { Address } from 'viem'
-import type { V1Domain } from '../v1SubgraphClient'
 
 export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'

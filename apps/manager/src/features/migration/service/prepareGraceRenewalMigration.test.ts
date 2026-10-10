@@ -7,10 +7,10 @@ vi.mock('./computeMigrationPreflight', () => ({
   computeMigrationPreflight: vi.fn(),
 }))
 
+import type { V1Domain } from '@ens-apps/migration'
 import { buildMigrationPlan } from './buildMigrationPlan'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { prepareGraceRenewalMigration } from './prepareGraceRenewalMigration'
-import type { V1Domain } from './v1SubgraphClient'
 
 const ownerAddress: Address = '0x0000000000000000000000000000000000000001'
 const domain = (name: string, expiry: string) =>

@@ -1,4 +1,8 @@
-import { buildConfig, NetworkConfigError } from './buildConfig'
+import {
+  buildConfig,
+  type EndpointKey,
+  NetworkConfigError,
+} from './buildConfig'
 
 /**
  * Build-time guard: resolve the network configuration from a loaded env and
@@ -15,11 +19,14 @@ import { buildConfig, NetworkConfigError } from './buildConfig'
  */
 export const assertNetworkConfig = (
   env: Readonly<Record<string, string | undefined>>,
+  /** The endpoints the app reads, as it passes them to `buildConfig`. */
+  endpoints?: readonly EndpointKey[],
 ) => {
   try {
     const config = buildConfig({
       network: env.VITE_ENS_NETWORK,
       rpcUrl: env.VITE_SEPOLIA_RPC_URL,
+      ...(endpoints && { endpoints }),
       overrides: {
         indexerGraphql: env.VITE_INDEXER_GRAPHQL_URL,
         bignameApi: env.VITE_BIGNAME_API_URL,

@@ -7,9 +7,9 @@ import {
   ProfileFetchError,
   profileMapKey,
 } from './fetchV1Profiles'
-import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
-vi.mock('./v1SubgraphClient', () => ({ getV1ProfileKeys: vi.fn() }))
+vi.mock('./v1ProfileKeys', () => ({ getV1ProfileKeys: vi.fn() }))
 
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
 
@@ -23,13 +23,13 @@ const clientWith = (multicallImpl: (opts: unknown) => unknown): PublicClient =>
   ({ multicall: vi.fn(multicallImpl) }) as unknown as PublicClient
 
 const mockKeys = (
-  rows: (Omit<V1ProfileKeys, 'contentHash' | 'abiContentTypes'> &
-    Partial<Pick<V1ProfileKeys, 'contentHash' | 'abiContentTypes'>>)[],
+  rows: (Omit<V1ProfileKeys, 'hasContentHash' | 'abiContentTypes'> &
+    Partial<Pick<V1ProfileKeys, 'hasContentHash' | 'abiContentTypes'>>)[],
 ) =>
   getV1ProfileKeysMock.mockReturnValueOnce(
     ok(
       rows.map((row) => ({
-        contentHash: null,
+        hasContentHash: false,
         abiContentTypes: [],
         ...row,
       })),
@@ -37,12 +37,12 @@ const mockKeys = (
   )
 
 const run = (
-  names: { nodeHex: Hex; v1ResolverAddress: Address }[],
+  names: { name: string; nodeHex: Hex; v1ResolverAddress: Address }[],
   publicClient: PublicClient,
 ) => fetchV1Profiles({ names, publicClient })
 
-const A = { nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }
-const B = { nodeHex: NODE_B, v1ResolverAddress: V1_RESOLVER }
+const A = { name: 'a.eth', nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }
+const B = { name: 'b.eth', nodeHex: NODE_B, v1ResolverAddress: V1_RESOLVER }
 
 beforeEach(() => {
   getV1ProfileKeysMock.mockReset()
@@ -67,10 +67,10 @@ describe('fetchV1Profiles', () => {
 
   it.each([
     [
-      'subgraph',
+      'indexer',
       () =>
         getV1ProfileKeysMock.mockReturnValueOnce(
-          ok(undefined).andThen(() => err(new Error('subgraph 500'))) as never,
+          ok(undefined).andThen(() => err(new Error('bigname 500'))) as never,
         ),
       clientWith(() => []),
     ],
@@ -88,7 +88,7 @@ describe('fetchV1Profiles', () => {
     )
   })
 
-  it('returns empty-profile entries when subgraph reports no keys', async () => {
+  it('returns empty-profile entries when bigname reports no keys', async () => {
     mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
     const result = await run(
       [A],
@@ -146,7 +146,7 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
-  it('uses supplied profile keys without querying the subgraph again', async () => {
+  it('uses supplied profile keys without querying bigname again', async () => {
     const result = await fetchV1Profiles({
       names: [A],
       publicClient: clientWith(() => [okCall('a@b.c')]),
@@ -155,7 +155,7 @@ describe('fetchV1Profiles', () => {
           id: NODE_A,
           texts: ['email'],
           coinTypes: [],
-          contentHash: null,
+          hasContentHash: false,
           abiContentTypes: [],
         },
       ],
@@ -185,7 +185,7 @@ describe('fetchV1Profiles', () => {
         id: NODE_A,
         texts: [],
         coinTypes: [],
-        contentHash: '0xe301',
+        hasContentHash: true,
         abiContentTypes: [1n, 2n],
       },
     ])
@@ -243,11 +243,11 @@ describe('fetchV1Profiles', () => {
       ),
     ).rejects.toSatisfy(
       (error) =>
-        error instanceof ProfileFetchError && error.phase === 'subgraph',
+        error instanceof ProfileFetchError && error.phase === 'indexer',
     )
   })
 
-  it('matches subgraph entries to names via lowercase node id', async () => {
+  it('matches indexed entries to names via lowercase node id', async () => {
     mockKeys([{ id: NODE_A.toUpperCase(), texts: ['email'], coinTypes: [] }])
     const result = await run(
       [A],
