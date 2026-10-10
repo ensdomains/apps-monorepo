@@ -7,14 +7,12 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletClient } from 'wagmi'
-import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
-import { invalidateRegistryLabelQueries } from '@/features/registry/utils/invalidateRegistryQueries'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   type CreateSubnameParameters,
   createSubname,
 } from '../helpers/createSubname'
+import { refreshSubnameQueries } from '../utils/refreshSubnameQueries'
 import { createEOASigner } from '../utils/signer.helpers'
 
 type UseCreateSubnameParameters = Omit<
@@ -43,27 +41,9 @@ export function useCreateSubname() {
       })
     },
     onSuccess: (_data, variables) => {
-      const subnamesQueryKey = getSubnamesQueryKey({
+      refreshSubnameQueries(queryClient, {
         name: variables.parentName,
         protocolVersion: variables.protocolVersion,
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: subnamesQueryKey,
-        refetchType: 'all',
-      })
-
-      // The registry's label count, table, feed and occupancy change too.
-      pollForIndexerSync({
-        invalidateQueries: async () => {
-          await Promise.all([
-            queryClient.invalidateQueries({
-              queryKey: subnamesQueryKey,
-              refetchType: 'all',
-            }),
-            invalidateRegistryLabelQueries(queryClient),
-          ])
-        },
       })
     },
   })

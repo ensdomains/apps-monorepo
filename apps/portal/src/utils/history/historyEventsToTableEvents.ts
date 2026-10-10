@@ -1,15 +1,13 @@
 import {
   type EventRow,
   type NameHistoryRow,
-  parseTimestamp,
-  timestampToSeconds,
+  toDate,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
+import { isObject } from '@/utils/isObject'
 import type { HistoryTableEvent } from './groupEventsByTransactionId'
 import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
 import { rootPermissionRegistry } from './rootPermission'
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
 
 /**
  * A `data` value as the events table prints it: a contract by its address, a
@@ -33,12 +31,12 @@ const flatten = (value: unknown): unknown => {
  */
 const flattenField = (key: string, value: unknown, data: object): unknown =>
   key === 'expires_at' && typeof value === 'string'
-    ? (parseTimestamp(value)?.toISOString() ?? value)
+    ? (toDate(value)?.toISOString() ?? value)
     : (formatHistoryAmount(key, value, data) ?? flatten(value))
 
 /**
  * A row's `include=data` payload as flat, printable fields. A root role
- * change (after v0.4.1) also gets its `registry`, which the flattened
+ * change also gets its `registry`, which the flattened
  * `grant_scope` would lose and the row, having no name, has no other trace of.
  */
 export const flattenHistoryData = (
@@ -78,7 +76,7 @@ export const historyEventsToTableEvents = (
   rows: readonly NameHistoryRow[],
 ): (HistoryTableEvent & Record<string, unknown>)[] =>
   withoutDuplicateCharges(rows).flatMap((row) => {
-    const timestamp = timestampToSeconds(row.timestamp)
+    const timestamp = toUnixSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null) return []
     return [
       {
@@ -87,7 +85,7 @@ export const historyEventsToTableEvents = (
         transactionID: row.transaction_hash,
         blockNumber: row.block_number,
         type: row.kind ?? row.type,
-        ...(timestamp !== undefined && { timestamp: BigInt(timestamp) }),
+        ...(timestamp !== null && { timestamp: BigInt(timestamp) }),
       },
     ]
   })

@@ -59,7 +59,7 @@ export const Route = createFileRoute('/resolver/$address/links')({
   loader: ({ params }) => {
     return queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({
-        address: params.address as Address,
+        address: params.address,
       }),
     )
   },
@@ -181,11 +181,11 @@ function RouteComponent() {
     data: resolver,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverOverviewQueryOptions({ address: address }))
 
   const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
-      resolverAddress: address as Address,
+      resolverAddress: address,
       roles: ['ROLE_LINK'],
       account: accountAddress as Address,
     }),
@@ -202,7 +202,7 @@ function RouteComponent() {
   )
 
   const unlinkMutation = useUnlink({
-    resolverAddress: address as Address,
+    resolverAddress: address,
     walletClient,
     publicClient,
     chainId,
@@ -243,7 +243,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+        <PageHeading parent={{ type: 'resolver', address: address }}>
           {links.length > 0
             ? `Links (${resolverCollectionCount(links.length, resolver?.linksStatus)})`
             : 'Links'}
@@ -287,7 +287,7 @@ function RouteComponent() {
                 ? ({ walletClient, chainId }) =>
                     prepareUnlinkTransaction({
                       sourceName: pendingUnlink.name,
-                      resolverAddress: address as Address,
+                      resolverAddress: address,
                       walletClient,
                       chainId,
                     })

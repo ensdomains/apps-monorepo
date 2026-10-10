@@ -17,14 +17,18 @@ import {
   HISTORY_EVENT_TYPES,
   type TimelineEvent,
 } from '../timelineEvent'
-import type { TimelinePage } from '../timelineEventPage'
+import type {
+  GetTimelineEventPageError,
+  TimelinePage,
+} from '../timelineEventPage'
 import {
   getNameHistoryAnchorQueryOptions,
   getNameHistoryPagesQueryOptions,
 } from './useNameHistoryTimeline'
 
 /** A tagged query error; `cause` carries what failed underneath. */
-export type TimelineQueryError = Error & { readonly cause?: unknown }
+/** Every timeline feed reads its pages through `timelineEventPage`. */
+export type TimelineQueryError = GetTimelineEventPageError
 
 /** What every timeline surface renders from, whichever feed is behind it. */
 export type HistoryTimelineModel = {

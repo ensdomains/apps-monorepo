@@ -319,41 +319,25 @@ describe('getResolverOverviewQueryOptions', () => {
 
 describe('getResolverNodesQueryOptions', () => {
   const readNodes = () =>
-    new QueryClient().fetchQuery(
+    new QueryClient().fetchInfiniteQuery(
       getResolverNodesQueryOptions({ address: ADDRESS }),
     )
 
   beforeEach(() => vi.clearAllMocks())
 
-  it('pages every bound name through the overview cursor', async () => {
-    bigname.resolver
-      .mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
-      .mockReturnValueOnce(overview(['b.eth']))
+  it('reads one page of bound names, with the cursor to the next', async () => {
+    bigname.resolver.mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
 
-    const result = await readNodes()
+    const { pages } = await readNodes()
 
-    expect(result.nodes.map(({ name }) => name)).toEqual(['a.eth', 'b.eth'])
-    expect(result).toMatchObject({ isPartial: false })
-    expect(bigname.resolver).toHaveBeenLastCalledWith(
+    expect(pages).toHaveLength(1)
+    expect(pages[0]?.nodes.map(({ name }) => name)).toEqual(['a.eth'])
+    expect(pages[0]?.nextCursor).toBe('more')
+    expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      expect.objectContaining({ cursor: 'more' }),
+      expect.objectContaining({ page_size: 100 }),
     )
-  })
-
-  it('keeps the names read and marks the list partial when a later page fails', async () => {
-    bigname.resolver
-      .mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
-      .mockReturnValueOnce(
-        errAsync(
-          new BignameError({ code: 'request_timeout', message: 'slow' }),
-        ),
-      )
-
-    const result = await readNodes()
-
-    expect(result.nodes.map(({ name }) => name)).toEqual(['a.eth'])
-    expect(result).toMatchObject({ isPartial: true })
   })
 
   it('lists no nodes for a resolver bigname does not know', async () => {
@@ -361,7 +345,7 @@ describe('getResolverNodesQueryOptions', () => {
       errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
     )
 
-    expect((await readNodes()).nodes).toEqual([])
+    expect((await readNodes()).pages[0]?.nodes).toEqual([])
   })
 })
 

@@ -54,11 +54,11 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   cursor: query.cursor,
 })
 
-const toRoleCount = (row: AddressName, address: string) => {
+const toHeldPowers = (row: AddressName, address: string) => {
   const holder = row.role_summary?.find(
     (summary) => summary.address.toLowerCase() === address.toLowerCase(),
   )
-  return new Set(holder?.grants.flatMap((grant) => grant.powers)).size
+  return [...new Set(holder?.grants.flatMap((grant) => grant.powers))]
 }
 
 const toNameSummary = (row: AddressName, address: string): NameSummary => ({
@@ -77,7 +77,7 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),
   ...(row.record_count !== undefined && { recordCount: row.record_count }),
   ...(row.role_summary !== undefined && {
-    roleCount: toRoleCount(row, address),
+    heldPowers: toHeldPowers(row, address),
   }),
 })
 

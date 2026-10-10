@@ -74,6 +74,15 @@ export const toExpiresAt = (row: {
   readonly ens_v1?: EnsV1Facts
 }): Date | null => toDate(row.ens_v1?.expires_at ?? row.expires_at)
 
+/** `toExpiresAt` in unix seconds; null for no expiry or one too large to date. */
+export const toExpirySeconds = (row: {
+  readonly expires_at?: Timestamp | null
+  readonly ens_v1?: EnsV1Facts
+}): bigint | null => {
+  const ms = toEpochMs(row.ens_v1?.expires_at ?? row.expires_at)
+  return ms === null ? null : BigInt(Math.floor(ms / MS_PER_SECOND))
+}
+
 /** Exact unix seconds, including values past what a Date or a number holds. */
 export const toExactSeconds = (
   value: Timestamp | null | undefined,

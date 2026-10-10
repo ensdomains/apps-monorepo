@@ -11,6 +11,7 @@ import {
 } from '@/lib/roles/resolverRoles'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { invalidateResolverOverview } from './useResolverOverview'
 
 export type RevokeResolverGrantParams = {
   readonly account: Address
@@ -45,10 +46,7 @@ export const useResolverRolesMutations = (resolverAddress: Address) => {
   const syncOverview = () =>
     pollForIndexerSync({
       invalidateQueries: () =>
-        queryClient.invalidateQueries({
-          queryKey: ['resolver-overview'],
-          refetchType: 'all',
-        }),
+        invalidateResolverOverview(queryClient, resolverAddress),
     })
 
   const saveMutation = useMutation({

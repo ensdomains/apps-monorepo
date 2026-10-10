@@ -67,20 +67,3 @@ export type ResolverRole = Readonly<{
   name?: string
   grant_event?: EventPosition
 }>
-
-/** `GET /v1/resolvers/{chain_id}/{address}/aliases`: a binding alias or an alias-event mapping. */
-export type ResolverAlias =
-  | Readonly<{
-      namespace: Namespace
-      name: string
-      display_name: string
-      namehash: Hex
-    }>
-  | Readonly<{
-      namespace: Namespace
-      from_name: string
-      to_name: string
-      state: string
-      resolver: RegistryRef
-      to_registration_id?: RegistrationId
-    }>

@@ -1,4 +1,8 @@
-import type { RegistryLabel as BignameRegistryLabel } from '@ens-apps/indexer/bigname'
+import type { BignameError } from '@ens-apps/indexer/bigname'
+import {
+  type RegistryLabel as BignameRegistryLabel,
+  toExpirySeconds,
+} from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -6,11 +10,10 @@ import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
-import { isUnknownLabel } from '@/utils/names/registryChildName'
-import { servedExpiry } from '@/utils/names/servedExpiry'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetRegistryLabelsParameters = {
@@ -27,7 +30,8 @@ export type RegistryLabelRow = {
   /** Unix seconds; null means the label does not expire. */
   expiryDate: bigint | null
   /** Distinct accounts holding a label-scoped role on this label. */
-  roleHoldersCount: number
+  /** Undefined when bigname does not count them. */
+  roleHoldersCount: number | undefined
 }
 
 export const REGISTRY_LABELS_PAGE_SIZE = 100
@@ -43,7 +47,8 @@ export type RegistryLabelsPage = {
  * bigname serves a label it cannot name as `[<labelhash>].<parent>`, which
  * must never be read as a name.
  */
-const isPlaceholder = (name: string) => isUnknownLabel(name.split('.')[0] ?? '')
+const isPlaceholder = (name: string) =>
+  isEncodedLabelhash(name.split('.')[0] ?? '')
 
 const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
   const named = !isPlaceholder(row.name)
@@ -52,8 +57,8 @@ const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
     labelName: named ? (row.display_name.split('.')[0] ?? null) : null,
     labelhash: row.labelhash ?? null,
     // Null for no expiry (or one too large to date): it does not expire.
-    expiryDate: servedExpiry(row),
-    roleHoldersCount: row.role_holder_count ?? 0,
+    expiryDate: toExpirySeconds(row),
+    roleHoldersCount: row.role_holder_count ?? undefined,
   }
 }
 
@@ -81,7 +86,7 @@ const getRegistryLabelsPage = (
       }),
     )
 
-const getRegistryLabelsQueryKey = createQueryKey<
+export const getRegistryLabelsQueryKey = createQueryKey<
   'get-registry-labels',
   GetRegistryLabelsParameters
 >('get-registry-labels')

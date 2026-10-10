@@ -35,14 +35,6 @@ export const DEFAULT_INDEXER_SYNC_CONFIG: IndexerSyncConfig = {
 export type PollForIndexerSyncParams = {
   /** Function to invalidate queries */
   invalidateQueries: () => Promise<void>
-  /**
-   * Block the write landed in (the receipt's `blockNumber`). Omitted, the chain
-   * head at call time stands in for it: the write is mined by then, so the
-   * head is at or past its block.
-   */
-  blockNumber?: bigint | number
-  /** Optional callback for each status check (for logging) */
-  onAttempt?: (attempt: number, maxAttempts: number) => void
   /** Configuration override */
   config?: Partial<IndexerSyncConfig>
 }
@@ -67,7 +59,8 @@ const readIndexedBlock = async (): Promise<bigint | undefined> => {
  * indexed the transaction's block.
  *
  * Polls `GET /v1/status` until the app chain's `indexed_block` reaches the
- * write's block, then invalidates once. The wait is bounded: after
+ * chain head at call time, then invalidates once. The write is mined by then,
+ * so the head is at or past its block. The wait is bounded: after
  * `maxAttempts` checks or `maxWait` (or when the target block can't be read) it invalidates
  * anyway, so the screen shows whatever bigname has.
  *
@@ -75,30 +68,25 @@ const readIndexedBlock = async (): Promise<bigint | undefined> => {
  * ```ts
  * await pollForIndexerSync({
  *   invalidateQueries: () => queryClient.invalidateQueries({ queryKey }),
- *   blockNumber: receipt.blockNumber,
  * })
  * ```
  */
 export async function pollForIndexerSync(
   params: PollForIndexerSyncParams,
 ): Promise<void> {
-  const { invalidateQueries, onAttempt, config = {} } = params
+  const { invalidateQueries, config = {} } = params
 
   const { initialDelay, retryInterval, maxAttempts, maxWait } = {
     ...DEFAULT_INDEXER_SYNC_CONFIG,
     ...config,
   }
 
-  const target =
-    params.blockNumber !== undefined
-      ? BigInt(params.blockNumber)
-      : await readHeadBlock()
+  const target = await readHeadBlock()
 
   if (target !== undefined) {
     const deadline = Date.now() + maxWait
     await sleep(initialDelay)
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      onAttempt?.(attempt, maxAttempts)
       const indexed = await readIndexedBlock()
       if (indexed !== undefined && indexed >= target) break
       if (attempt === maxAttempts || Date.now() + retryInterval >= deadline)

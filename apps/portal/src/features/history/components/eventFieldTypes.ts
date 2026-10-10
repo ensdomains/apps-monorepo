@@ -1,6 +1,7 @@
-import { parseTimestamp } from '@ens-apps/indexer/bigname'
+import { toDate } from '@ens-apps/indexer/bigname'
 import { formatHistoryAmount } from '@/utils/history/historyPayment'
 import { rootPermissionRegistry } from '@/utils/history/rootPermission'
+import { isObject } from '@/utils/isObject'
 import { historyTokenId } from '../historyTokenId'
 import {
   type EventType,
@@ -105,9 +106,6 @@ export const getTimelineFieldType = (
     ? FIELD_TYPES[eventType][fieldKey]
     : undefined) ?? 'unknown'
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
-
 /**
  * A payload value as one string: a contract pointer by its address, a grant
  * scope by its kind, a record value's object form by its bytes, a list
@@ -138,7 +136,7 @@ const formatField = (
     getTimelineFieldType(event.type, key) === 'timestamp' &&
     typeof value === 'string'
   )
-    return parseTimestamp(value)?.toISOString() ?? value
+    return toDate(value)?.toISOString() ?? value
   return formatHistoryAmount(key, value, event.data) ?? stringify(value)
 }
 

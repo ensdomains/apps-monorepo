@@ -4,14 +4,12 @@ import { TOKENS } from '@/lib/tokens'
 import {
   mockEventRootPermissionChanged,
   mockHistoryPermissionToken,
+  mockHistoryRegistration,
   mockHistoryRegistrationPayment,
   mockHistoryRenewalPayment,
-  mockHistoryTransferOperator,
-} from '@/test-utils/bigname/postV041.mock'
-import {
-  mockHistoryRegistration,
   mockHistoryRootPermission,
-} from '@/test-utils/bigname/v041.mock'
+  mockHistoryTransferOperator,
+} from '@/test-utils/bigname/bigname.mock'
 import { type TimelineEvent, toTimelineEvents } from '../timelineEvent'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
 
@@ -124,7 +122,7 @@ describe('getDecodedParamEntries', () => {
 /** A decimal Unix-seconds instant as the ISO string the table prints. */
 const iso = (seconds: string) => new Date(Number(seconds) * 1000).toISOString()
 
-describe('getDecodedParamEntries after v0.4.1', () => {
+describe('getDecodedParamEntries', () => {
   const entriesOf = (row: Parameters<typeof toTimelineEvents>[0][number]) =>
     Object.fromEntries(getDecodedParamEntries(toTimelineEvents([row])[0]))
 
@@ -198,7 +196,7 @@ describe('getDecodedParamEntries after v0.4.1', () => {
     expect(getTimelineFieldType('permission', 'registry')).toBe('address')
   })
 
-  it('types the fields served after v0.4.1', () => {
+  it('types the fields served', () => {
     expect(getTimelineFieldType('registration', 'cost')).toBe('uint256')
     expect(getTimelineFieldType('registration', 'base_cost')).toBe('uint256')
     expect(getTimelineFieldType('registration', 'premium')).toBe('uint256')
@@ -211,7 +209,7 @@ describe('getDecodedParamEntries after v0.4.1', () => {
       expect(getTimelineFieldType(type, 'canonical_id')).toBe('uint256')
   })
 
-  it('lists v0.4.1 rows exactly as served', () => {
+  it('lists rows without the newer fields exactly as served', () => {
     const registration = mockHistoryRegistration.data
     expect(
       getDecodedParamEntries(toTimelineEvents([mockHistoryRegistration])[0]),

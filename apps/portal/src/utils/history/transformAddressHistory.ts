@@ -1,3 +1,4 @@
+import type { Hash } from 'viem'
 import type { HistoryTableEvent } from './groupEventsByTransactionId'
 
 /**
@@ -18,7 +19,7 @@ type NameProvenance = {
  * bigname (ENSv1 and ENSv2 alike).
  */
 export type AddressHistoryEvent = {
-  readonly transactionHash: string
+  readonly transactionHash: Hash
   readonly blockNumber: number
   readonly name: string
   /** The raw storage kind, else bigname's friendly type. */

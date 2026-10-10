@@ -1,4 +1,5 @@
 import type {
+  BignameError,
   NameHistoryQuery,
   NameHistoryRow,
 } from '@ens-apps/indexer/bigname'
@@ -8,7 +9,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { bigname } from '@/lib/bigname'
 
 export class GetNameHistoryError extends TaggedError('GetNameHistoryError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 /** Page size for history queries that render a full event list. */

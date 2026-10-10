@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 import { RecentActivityTable } from './RecentActivityTable'
 
@@ -80,6 +80,10 @@ const nameChangedEvent = (
   data: { key: 'name', value: reverseName },
 })
 
+afterEach(() => {
+  eventsRef.hasFailingPage = false
+})
+
 const renderTable = async (events: readonly RecentActivityEvent[]) => {
   eventsRef.current = events
   render(
@@ -129,6 +133,5 @@ describe('RecentActivityTable', () => {
       'Couldn’t load more events.',
     )
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
-    eventsRef.hasFailingPage = false
   })
 })

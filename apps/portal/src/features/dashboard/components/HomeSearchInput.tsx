@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { isAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { CommandDialog, CommandInput } from '@/components/ui/command'
 import {
@@ -75,6 +76,7 @@ export const HomeSearchInput = ({
   )
   const navigateToResolver = useCallback(
     (address: string) => {
+      if (!isAddress(address, { strict: false })) return
       navigate({ to: '/resolver/$address', params: { address } })
     },
     [navigate],

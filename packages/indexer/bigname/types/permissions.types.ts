@@ -20,6 +20,52 @@ import type {
  */
 export type Power = string
 
+/** The ENSv2 registry powers the apps fold into ensjs registry roles. */
+export type RegistryPower =
+  | 'registrar'
+  | 'admin_registrar'
+  | 'register_reserved'
+  | 'admin_register_reserved'
+  | 'set_parent'
+  | 'admin_set_parent'
+  | 'unregister'
+  | 'admin_unregister'
+  | 'renew'
+  | 'admin_renew'
+  | 'set_subregistry'
+  | 'admin_set_subregistry'
+  | 'set_resolver'
+  | 'admin_set_resolver'
+  | 'can_transfer_admin'
+  | 'was_reserved'
+  | 'set_uri'
+  | 'admin_set_uri'
+  | 'upgrade'
+  | 'admin_upgrade'
+
+/** The ENSv2 resolver powers the apps fold into ensjs resolver roles. */
+export type ResolverPower =
+  | 'set_addr'
+  | 'set_text'
+  | 'set_contenthash'
+  | 'set_abi'
+  | 'set_interface'
+  | 'set_name'
+  | 'set_data'
+  | 'link'
+  | 'can_name'
+  | 'upgrade'
+  | 'admin_set_addr'
+  | 'admin_set_text'
+  | 'admin_set_contenthash'
+  | 'admin_set_abi'
+  | 'admin_set_interface'
+  | 'admin_set_name'
+  | 'admin_set_data'
+  | 'admin_link'
+  | 'admin_can_name'
+  | 'admin_upgrade'
+
 /** Address-name rows, reverse lookup rows: address-to-name relation values. */
 export type Relation =
   | 'owner'

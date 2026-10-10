@@ -1,12 +1,14 @@
 import {
+  type BignameError,
   type EventRow,
   MAX_PAGE_SIZE,
   type Power,
-  timestampToBigInt,
+  readAllCollectionPages,
+  toExactSeconds,
 } from '@ens-apps/indexer/bigname'
 import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { encodeRoleBitmap } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { err, errAsync, fromPromise, ok, okAsync } from 'neverthrow'
 import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
@@ -20,7 +22,6 @@ import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 
 /** Roles held here apply to every name in the registry rather than to one. */
@@ -67,13 +68,11 @@ class IndexedRoleChangeLogsError extends TaggedError(
 )<{
   /** Why the node has to answer instead. */
   reason: 'failed' | 'timeout' | 'truncated' | 'unindexed'
-  cause: unknown
+  /** The read's error, or the name bigname has not indexed. */
+  cause: BignameError | Error | string | undefined
 }> {}
 
 type PermissionRow = Extract<EventRow, { type: 'permission' }>
-
-const encodeRoles = (roles: readonly Role[]): bigint =>
-  roles.reduce((bitmap, role) => bitmap | registryRoles[role], 0n)
 
 const isRegistryRoleChange =
   (registryAddress: Address) =>
@@ -101,7 +100,7 @@ const toRoleChangeLogs = (
     const powers = data.powers ?? []
     const before = previousPowers(data, lastSeen.get(account))
     lastSeen.set(account, powers)
-    const timestamp = timestampToBigInt(row.timestamp)
+    const timestamp = toExactSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null || !timestamp)
       return []
     return [
@@ -112,8 +111,8 @@ const toRoleChangeLogs = (
         args: {
           resource,
           account,
-          oldRoleBitmap: encodeRoles(registryPowersToRoles(before)),
-          newRoleBitmap: encodeRoles(registryPowersToRoles(powers)),
+          oldRoleBitmap: encodeRoleBitmap(registryPowersToRoles(before)),
+          newRoleBitmap: encodeRoleBitmap(registryPowersToRoles(powers)),
         },
       },
     ]
@@ -121,7 +120,7 @@ const toRoleChangeLogs = (
 }
 
 const readRegistrationRoleRows = ResultFn(async function* (name: string) {
-  const toError = (cause: unknown) =>
+  const toError = (cause: BignameError) =>
     new IndexedRoleChangeLogsError({ reason: 'failed', cause })
   const registration = yield* bigname
     .name(normalizeOrLower(name))
@@ -135,15 +134,18 @@ const readRegistrationRoleRows = ResultFn(async function* (name: string) {
     return err(
       new IndexedRoleChangeLogsError({ reason: 'unindexed', cause: name }),
     )
-  const rows = yield* readAllPages<EventRow>((cursor) =>
-    bigname.events({
-      registration_id: registration,
-      type: ['permission'],
-      include: ['data', 'raw'],
-      order: 'asc',
-      page_size: MAX_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+  const rows = yield* readAllCollectionPages<EventRow>(
+    (cursor) =>
+      bigname.events({
+        registration_id: registration,
+        type: ['permission'],
+        include: ['data', 'raw'],
+        order: 'asc',
+        page_size: MAX_PAGE_SIZE,
+        ...(cursor && { cursor }),
+      }),
+    // Past the cap the node answers instead, so the walk stops there.
+    { limit: INDEXED_ROLE_EVENTS_MAX_ROWS },
   ).mapErr(toError)
   if (rows.length > INDEXED_ROLE_EVENTS_MAX_ROWS)
     return err(
@@ -172,7 +174,11 @@ export const getIndexedRoleChangeLogs = ResultFn(async function* ({
     Promise.race([readRegistrationRoleRows(name), timeout]).finally(() =>
       clearTimeout(timer),
     ),
-    (cause) => new IndexedRoleChangeLogsError({ reason: 'failed', cause }),
+    (cause) =>
+      new IndexedRoleChangeLogsError({
+        reason: 'failed',
+        cause: cause instanceof Error ? cause : new Error(String(cause)),
+      }),
   )
   if (fetched === null) {
     return yield* new IndexedRoleChangeLogsError({

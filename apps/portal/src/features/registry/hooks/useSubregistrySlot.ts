@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -11,7 +12,7 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 class GetSubregistryHistoryError extends TaggedError(
   'GetSubregistryHistoryError',
 )<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetSubregistryHistoryParameters = {

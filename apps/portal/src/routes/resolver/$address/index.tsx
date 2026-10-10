@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
-import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -32,7 +31,7 @@ export const Route = createFileRoute('/resolver/$address/')({
   loader: ({ params }) => {
     return queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({
-        address: params.address as Address,
+        address: params.address,
       }),
     )
   },
@@ -48,7 +47,7 @@ function RouteComponent() {
     data: resolver,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverOverviewQueryOptions({ address: address }))
 
   const recentEvents = (resolver?.events ?? [])
     .toSorted(
@@ -112,8 +111,8 @@ function RouteComponent() {
       </div>
 
       <ResolverDetails
-        resolverAddress={address as Address}
-        typeValue={<ResolverTypeValue resolverAddress={address as Address} />}
+        resolverAddress={address}
+        typeValue={<ResolverTypeValue resolverAddress={address} />}
         data={[
           {
             label: 'Contract',

@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
 import {
+  mockHistoryRegistration,
   mockHistoryRegistrationPayment,
   mockHistoryRenewalPayment,
-} from '@/test-utils/bigname/postV041.mock'
-import { mockHistoryRegistration } from '@/test-utils/bigname/v041.mock'
+} from '@/test-utils/bigname/bigname.mock'
 import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
 
 const USDC = { chain_id: chain.id, address: TOKENS.USDC.address.toLowerCase() }
@@ -134,7 +134,7 @@ describe('withoutDuplicateCharges', () => {
     expect(withoutDuplicateCharges(rows)).toEqual(rows)
   })
 
-  it('is the identity on v0.4.1 rows, which carry no charge', () => {
+  it('is the identity on rows that carry no charge', () => {
     const v041Linked = {
       ...mockHistoryRegistration,
       id: 'e'.repeat(64),

@@ -18,7 +18,7 @@ type GetRegistryRootRoleHoldersParameters = {
 /** Current registry root roles from BigName. */
 export const getRegistryRootRoles = getBignameRootRoleHolders
 
-const getRegistryRootRoleHoldersQueryKey = createQueryKey<
+export const getRegistryRootRoleHoldersQueryKey = createQueryKey<
   'get-registry-root-role-holders',
   GetRegistryRootRoleHoldersParameters
 >('get-registry-root-role-holders')

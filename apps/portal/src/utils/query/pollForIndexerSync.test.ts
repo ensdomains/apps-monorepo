@@ -45,6 +45,7 @@ describe('pollForIndexerSync', () => {
     vi.clearAllMocks()
     getStatus.mockReset()
     getBlockNumber.mockReset()
+    getBlockNumber.mockResolvedValue(100n)
   })
 
   it('checks status every 2s for up to a minute by default', () => {
@@ -64,30 +65,29 @@ describe('pollForIndexerSync', () => {
       return status(1)
     })
 
-    await pollForIndexerSync({ invalidateQueries, blockNumber: 100n })
+    await pollForIndexerSync({ invalidateQueries })
 
     expect(getStatus).toHaveBeenCalledTimes(4)
     expect(invalidateQueries).toHaveBeenCalledTimes(1)
     clock.mockRestore()
   })
 
-  it('invalidates once, as soon as the write block is indexed', async () => {
+  it('invalidates once, as soon as the chain head is indexed', async () => {
     getStatus
       .mockResolvedValueOnce(status(99))
       .mockResolvedValueOnce(status(100))
 
-    await pollForIndexerSync({ invalidateQueries, blockNumber: 100n })
+    await pollForIndexerSync({ invalidateQueries })
 
     expect(getStatus).toHaveBeenCalledTimes(2)
     expect(invalidateQueries).toHaveBeenCalledTimes(1)
-    expect(getBlockNumber).not.toHaveBeenCalled()
     expect(vi.mocked(sleep).mock.calls).toEqual([
       [DEFAULT_INDEXER_SYNC_CONFIG.initialDelay],
       [DEFAULT_INDEXER_SYNC_CONFIG.retryInterval],
     ])
   })
 
-  it('waits for the chain head when no block is given', async () => {
+  it('waits for the head as it stood when called', async () => {
     getBlockNumber.mockResolvedValue(200n)
     getStatus
       .mockResolvedValueOnce(status(150))
@@ -105,7 +105,6 @@ describe('pollForIndexerSync', () => {
 
     await pollForIndexerSync({
       invalidateQueries,
-      blockNumber: 100,
       config: { maxAttempts: 3 },
     })
 
@@ -122,7 +121,7 @@ describe('pollForIndexerSync', () => {
       .mockResolvedValueOnce(status(null))
       .mockResolvedValueOnce(status(100))
 
-    await pollForIndexerSync({ invalidateQueries, blockNumber: 100n })
+    await pollForIndexerSync({ invalidateQueries })
 
     expect(getStatus).toHaveBeenCalledTimes(4)
     expect(invalidateQueries).toHaveBeenCalledTimes(1)
@@ -138,29 +137,12 @@ describe('pollForIndexerSync', () => {
     expect(invalidateQueries).toHaveBeenCalledTimes(1)
   })
 
-  it('reports each status check', async () => {
-    const onAttempt = vi.fn()
-    getStatus.mockResolvedValueOnce(status(0)).mockResolvedValueOnce(status(5))
-
-    await pollForIndexerSync({
-      invalidateQueries,
-      blockNumber: 5,
-      onAttempt,
-      config: { maxAttempts: 4 },
-    })
-
-    expect(onAttempt.mock.calls).toEqual([
-      [1, 4],
-      [2, 4],
-    ])
-  })
-
   it('propagates invalidateQueries errors', async () => {
     getStatus.mockResolvedValue(status(100))
     invalidateQueries.mockRejectedValueOnce(new Error('invalidation failed'))
 
-    await expect(
-      pollForIndexerSync({ invalidateQueries, blockNumber: 1 }),
-    ).rejects.toThrow('invalidation failed')
+    await expect(pollForIndexerSync({ invalidateQueries })).rejects.toThrow(
+      'invalidation failed',
+    )
   })
 })

@@ -252,7 +252,7 @@ const describePermission = (
       : { label: 'added registrar controller', slots: [account] }
   if (!powers && fuses !== undefined)
     return { icon: 'fuses', label: 'set fuses', slots: [] }
-  // A change on a registry's root resource (after v0.4.1) has no name: its
+  // A change on a registry's root resource has no name: its
   // roles cover every name of the registry, so the row says "root" and names
   // the registry instead.
   const roles = scope?.kind === 'root' ? 'root roles' : 'roles'
@@ -326,7 +326,7 @@ type Descriptors = {
  * "{actor} {label} {slots}", with the transaction sender as its subject (see
  * `summarizeEvents`), so a label must read on from a name or an address.
  */
-export const DESCRIPTORS: Descriptors = {
+const DESCRIPTORS: Descriptors = {
   registration: {
     icon: 'register',
     build: (primary) =>

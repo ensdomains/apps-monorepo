@@ -8,13 +8,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
-import { invalidateRegistryLabelQueries } from '@/features/registry/utils/invalidateRegistryQueries'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { deleteSubname } from '../helpers/deleteSubname'
+import { refreshSubnameQueries } from '../utils/refreshSubnameQueries'
 
 interface UseDeleteSubnameParams {
   /** The parent name (e.g., 'domico.eth') */
@@ -97,28 +95,7 @@ export const useDeleteSubname = ({
       })
     },
     onSuccess: () => {
-      const subnamesQueryKey = getSubnamesQueryKey({
-        name,
-        protocolVersion: 'ENSv2',
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: subnamesQueryKey,
-        refetchType: 'all',
-      })
-
-      // The registry's label count, table, feed and occupancy change too.
-      pollForIndexerSync({
-        invalidateQueries: async () => {
-          await Promise.all([
-            queryClient.invalidateQueries({
-              queryKey: subnamesQueryKey,
-              refetchType: 'all',
-            }),
-            invalidateRegistryLabelQueries(queryClient),
-          ])
-        },
-      })
+      refreshSubnameQueries(queryClient, { name, protocolVersion: 'ENSv2' })
     },
   })
 

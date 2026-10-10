@@ -24,10 +24,7 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import {
-  getV1SubnamesQueryOptions,
-  getV2SubnamesQueryOptions,
-} from '@/features/profile/hooks/useSubnames'
+import { getSubnamePagesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -165,7 +162,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     isFetchNextPageError,
     fetchNextPage,
   } = useInfiniteQuery({
-    ...getV2SubnamesQueryOptions({ name }),
+    ...getSubnamePagesQueryOptions({ name, protocolVersion: 'ENSv2' }),
     enabled: Boolean(hasSubregistry),
   })
   const subnames = useMemo(
@@ -528,14 +525,21 @@ interface V1SubnamesContentProps {
 
 const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   const {
-    data: subnames,
+    data,
     isLoading,
     error,
-  } = useQuery(getV1SubnamesQueryOptions({ name }))
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  } = useInfiniteQuery(
+    getSubnamePagesQueryOptions({ name, protocolVersion: 'ENSv1' }),
+  )
 
   if (isLoading) return <LoadingMessage title="Loading subnames..." />
 
-  if (error) {
+  // A failed Load more keeps the subnames already shown.
+  if (error && !isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Failed to load subnames"
@@ -544,12 +548,23 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     )
   }
 
-  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
-    name: subname.name || '',
-    owner: subname.owner,
-  }))
+  const subnameRows: SubnameRow[] = (data?.pages ?? []).flatMap((page) =>
+    page.subnames.map((subname) => ({
+      name: subname.name,
+      owner: subname.owner,
+    })),
+  )
 
-  return <SubnamesTable subnames={subnameRows} name={name} />
+  return (
+    <SubnamesTable
+      subnames={subnameRows}
+      totalCount={data?.pages[0]?.totalCount ?? subnameRows.length}
+      onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
+      isLoadingMore={isFetchingNextPage}
+      isLoadMoreError={isFetchNextPageError}
+      name={name}
+    />
+  )
 }
 
 function RouteComponent() {

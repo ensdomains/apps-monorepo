@@ -1,27 +1,117 @@
 /**
- * Responses in the shapes bigname `main` serves after v0.4.1 (#1073 to
- * #1084). No deployment serves them yet, so unlike `v041.mock.ts` these are
- * not captures: they are written from bigname's `docs/api-v1.md` and
- * `docs/api-v1-routes.md` at 4a89b2d, over the v0.4.1 captures where a row
- * only gains fields. `satisfies` checks each one against the wire types.
+ * bigname responses for tests, checked against the wire types with
+ * `satisfies`. Most started as captures from https://sepolia.api.bigname.sh
+ * and were brought to the current response shapes by hand; a few are written
+ * from bigname's API docs for shapes no capture covered.
  */
 import type {
-  AddressName,
-  EnsV1Facts,
-  Envelope,
   EventRow,
   NameHistoryRow,
-  NameRecord,
   PermissionsResponse,
 } from '@ens-apps/indexer/bigname'
-import {
-  mockAddressNameRoleHolder,
-  mockNameNick,
-  mockNameWrappedSub,
-} from './v041.mock'
+
+/** `GET /v1/names/asnalia.eth/history`: the ENSv2 registration a migration linked. */
+export const mockHistoryRegistration = {
+  id: '0dc0e52c3163561bb850f36be20a79db9410bd5c90f4d7a64e74fd607994663e',
+  type: 'registration',
+  name: 'asnalia.eth',
+  namespace: 'ens',
+  registration_id: 'fe700a8c-b11b-5f43-92bf-0e96a69ab5b5',
+  block_number: 11829264,
+  timestamp: '1790947464',
+  transaction_hash:
+    '0xc7f5a97ce066352289042c713f20864c5863333b7813d63600e0479bddc0b0e3',
+  log_index: 260,
+  contract_address: '0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4',
+  data: {
+    action_id:
+      '34b53191109af692c75fd554f5f68357f3d601527be8041333c482d8b1bc303a',
+    action_role: 'linked',
+    expires_at: '1796908956',
+    registrant: '0x03ba34f6ea1496fa316873cf8350a3f7ead317ef',
+  },
+  kind: 'RegistrationGranted',
+} as const satisfies NameHistoryRow
+
+/** `GET /v1/events?contract_address=<ENSv2 root registry>&type=permission&include=data,raw`: a role change on the root registry `reverse` token. */
+export const mockHistoryRootPermission = {
+  id: '725ebe0db483e7ac001481b9e242da454d9f3056c63c55e3e2cdc033a23f6ebd',
+  type: 'permission',
+  name: 'reverse',
+  namespace: 'ens',
+  registration_id: 'abdcdcab-ed1a-52b7-901b-daa26038d2c4',
+  block_number: 11820428,
+  timestamp: '1790840916',
+  transaction_hash:
+    '0x16aa4f19b8a0e7cc331a253f1254abeabcd1fb4848a48ea89134a5d130c5992c',
+  log_index: 129,
+  contract_address: '0xb458d6a3a77919449d03e7a6903c26827c1ec43f',
+  data: {
+    added_powers: [],
+    address: '0x84d3a426d4e12e955d1df95db0b24fe26afe39d3',
+    grant_scope: {
+      detail: {},
+      kind: 'registry',
+    },
+    powers: [
+      'registrar',
+      'register_reserved',
+      'set_parent',
+      'unregister',
+      'renew',
+      'set_subregistry',
+      'set_resolver',
+      'was_reserved',
+      'set_uri',
+      'can_name',
+      'upgrade',
+    ],
+    removed_powers: [
+      'admin_registrar',
+      'admin_register_reserved',
+      'admin_set_parent',
+      'admin_unregister',
+      'admin_renew',
+      'admin_set_subregistry',
+      'admin_set_resolver',
+      'can_transfer_admin',
+      'admin_set_uri',
+      'admin_can_name',
+      'admin_upgrade',
+    ],
+  },
+  kind: 'PermissionChanged',
+} as const satisfies EventRow
+
+/** `GET /v1/addresses/0x03ba…/history?relation=role_holder&include=data,raw`: record-ID write with no `name`. */
+export const mockAddressHistoryRecordWithoutName = {
+  id: '1b32180043c656f99c7d54b97eaccd4d3616dd2d2b30de48b489ea89c6d36399',
+  type: 'record',
+  namespace: 'ens',
+  registration_id: null,
+  block_number: 11834307,
+  timestamp: '1791011904',
+  transaction_hash:
+    '0xf500b60527d41ecbeecca31ce41ef700a65737879324bc3e09cfe7de91216e1a',
+  log_index: 111,
+  contract_address: '0x45600dad96384a0a2a0a9ac9287d943bcfcf3ef9',
+  data: {
+    key: 'text:avatar',
+    record_id: '5',
+    resolver: {
+      address: '0x45600dad96384a0a2a0a9ac9287d943bcfcf3ef9',
+      chain_id: 11155111,
+    },
+    value:
+      'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/yoginth.eth',
+  },
+  kind: 'RecordChanged',
+} as const satisfies EventRow
 
 const SEPOLIA = 11155111
+
 const ETH_REGISTRY = '0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4'
+
 const AS_OF = {
   '11155111': {
     block_number: 11844768,
@@ -34,52 +124,12 @@ const AS_OF = {
 /** Versioned ERC-1155 token (version 2), the version before it, and their shared `canonical_id` (low 32 bits cleared). */
 const TOKEN_ID =
   '70622639689279718371527342103894932928233838121221666359043189029711095267330'
+
 const PREVIOUS_TOKEN_ID =
   '70622639689279718371527342103894932928233838121221666359043189029711095267329'
+
 const CANONICAL_ID =
   '70622639689279718371527342103894932928233838121221666359043189029711095267328'
-
-/** `GET /v1/names/nick.eth`: a backed wrapper serves its NameWrapper entry expiry beside `wrapper_state`. */
-export const mockNameWrapperExpiry = {
-  ...mockNameNick.data,
-  ens_v1: {
-    ...mockNameNick.data.ens_v1,
-    wrapper_expires_at: '1806384633',
-  },
-} as const satisfies NameRecord
-
-/** `GET /v1/names/weeerewrew.nick.eth`: a wrapped subname whose NameWrapper expiry was never set. */
-export const mockNameWrapperExpiryNotSet = {
-  ...mockNameWrappedSub,
-  ens_v1: {
-    ...mockNameWrappedSub.ens_v1,
-    wrapper_expires_at: null,
-    wrapper_expires_at_reason: 'not_set',
-  },
-} as const satisfies NameRecord
-
-/** `ens_v1` of a wrapped name stored with the NameWrapper maximum expiry (`type(uint64).max`). */
-export const mockEnsV1WrapperNoExpiry = {
-  expires_at: null,
-  wrapper_state: mockNameNick.data.ens_v1.wrapper_state,
-  wrapper_fuses: mockNameNick.data.ens_v1.wrapper_fuses,
-  wrapper_expires_at: null,
-  wrapper_expires_at_reason: 'no_expiry',
-} as const satisfies EnsV1Facts
-
-/** `ens_v1` of an emancipated subname whose wrapper has lapsed: no `wrapper_state`, the past expiry alone. */
-export const mockEnsV1LapsedWrapper = {
-  expires_at: null,
-  wrapper_expires_at: '1759000000',
-} as const satisfies EnsV1Facts
-
-/** `ens_v1` of a wrapped `.eth` 2LD renewed through a controller that called only `BaseRegistrar.renew`: the entry trails the lease. */
-export const mockEnsV1WrapperTrailsLease = {
-  expires_at: '1830144633',
-  wrapper_state: mockNameNick.data.ens_v1.wrapper_state,
-  wrapper_fuses: mockNameNick.data.ens_v1.wrapper_fuses,
-  wrapper_expires_at: '1806384633',
-} as const satisfies EnsV1Facts
 
 /** `GET /v1/permissions?registry=11155111:0xd4eb…`: the root holders of a manifest-declared registry, listed in full. */
 export const mockPermissionsRegistryRoot = {
@@ -182,7 +232,7 @@ export const mockHistoryRegistrationPayment = {
   kind: 'LabelRegistered',
 } as const satisfies NameHistoryRow
 
-/** Same read: an ENSv1 renewal paid in native wei, with no `payment_token`. */
+/** A history row: an ENSv1 renewal paid in native wei, with no `payment_token`. */
 export const mockHistoryRenewalPayment = {
   id: '1c3e5a7b9d0f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c0e2b4d6f8a1c',
   type: 'renewal',
@@ -204,7 +254,7 @@ export const mockHistoryRenewalPayment = {
   kind: 'RegistrationRenewed',
 } as const satisfies NameHistoryRow
 
-/** Same read: an ENSv2 ERC-1155 transfer with its retained operator. */
+/** A history row: an ENSv2 ERC-1155 transfer with its retained operator. */
 export const mockHistoryTransferOperator = {
   id: '6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c0e2b4d6f8a1c3e5a7b9d0f2a4c6e',
   type: 'transfer',
@@ -227,7 +277,7 @@ export const mockHistoryTransferOperator = {
   kind: 'TokenControlTransferred',
 } as const satisfies NameHistoryRow
 
-/** Same read: the role change that starts a token regeneration shows the token it was made on, the old one. */
+/** A history row: the role change that starts a token regeneration shows the token it was made on, the old one. */
 export const mockHistoryPermissionToken = {
   id: '0e2b4d6f8a1c3e5a7b9d0f2a4c6e6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c',
   type: 'permission',
@@ -251,16 +301,3 @@ export const mockHistoryPermissionToken = {
   },
   kind: 'PermissionChanged',
 } as const satisfies NameHistoryRow
-
-/** `GET /v1/addresses/{address}/names` for an address with more than 1,000 candidate names and no `include=total_count`. */
-export const mockAddressNamesAboveCountCap = {
-  data: [mockAddressNameRoleHolder],
-  page: {
-    cursor: null,
-    next_cursor: 'eyJzIjoibmFtZSJ9',
-    page_size: 1,
-    total_count: null,
-    has_more: true,
-  },
-  meta: { as_of: AS_OF },
-} as const satisfies Envelope<readonly AddressName[]>

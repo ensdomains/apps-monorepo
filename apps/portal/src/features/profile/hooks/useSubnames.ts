@@ -1,19 +1,24 @@
-import type { Subname as BignameSubname } from '@ens-apps/indexer/bigname'
+import type {
+  BignameError,
+  Subname as BignameSubname,
+} from '@ens-apps/indexer/bigname'
 import { readNameDetail } from '@ens-apps/indexer/bigname'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
   resultQueryOptions,
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
-import { errAsync, ok, okAsync } from 'neverthrow'
+import { errAsync, okAsync } from 'neverthrow'
 import { type Address, checksumAddress, type Hex, labelhash } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
-  cause: unknown
+  cause: BignameError | IndexerReadError
 }> {}
 
 type Subname = {
@@ -39,13 +44,15 @@ export type SubnamesPage = {
   readonly nextCursor: string | null
 }
 
-export const SUBNAMES_PAGE_SIZE = 100
+const SUBNAMES_PAGE_SIZE = 100
 
 // The label, when bigname knows it; a child it cannot label is served as
 // `[labelhash].parent` and keeps that placeholder.
 const toLabelName = (row: BignameSubname, rowLabelhash: Hex) => {
   const label = row.name.split('.')[0]
-  return label && !label.startsWith('[') && labelhash(label) === rowLabelhash
+  return label &&
+    !isEncodedLabelhash(label) &&
+    labelhash(label) === rowLabelhash
     ? label
     : null
 }
@@ -98,14 +105,6 @@ const readSubnames = (
         : errAsync(new GetSubnamesError({ cause: error })),
     )
 
-/** A V1 name's subnames: the first page, as the subgraph's default served. */
-export const getV1Subnames = ResultFn(async function* ({
-  name,
-}: Pick<GetSubnamesParameters, 'name'>) {
-  const page = yield* readSubnames(name, { pageSize: 200 })
-  return ok(page.subnames)
-})
-
 /**
  * Every subnames query for a name sits under this key — the V1 list, the V2
  * pages, the count and the label lookup each add one field to it — so
@@ -119,27 +118,16 @@ export const getSubnamesQueryKey = createQueryKey<
   }
 >('get-subnames')
 
-export const getV1SubnamesQueryOptions = ({
-  name,
-}: Pick<GetSubnamesParameters, 'name'>) =>
-  resultQueryOptions({
-    queryKey: getSubnamesQueryKey({ name, protocolVersion: 'ENSv1' }),
-    queryFn: () => getV1Subnames({ name }),
-  })
-
 /**
- * A V2 name's subnames, one page at a time. A name can hold thousands, so the
+ * A name's subnames, in either era, one page at a time. A name can hold thousands, so the
  * list is never loaded whole: the page asks for the next one on demand.
  */
-export const getV2SubnamesQueryOptions = ({
+export const getSubnamePagesQueryOptions = ({
   name,
-}: Pick<GetSubnamesParameters, 'name'>) =>
+  protocolVersion,
+}: GetSubnamesParameters) =>
   resultInfiniteQueryOptions({
-    queryKey: getSubnamesQueryKey({
-      name,
-      protocolVersion: 'ENSv2',
-      only: 'pages',
-    }),
+    queryKey: getSubnamesQueryKey({ name, protocolVersion, only: 'pages' }),
     queryFn: ({ pageParam }) =>
       readSubnames(name, {
         pageSize: SUBNAMES_PAGE_SIZE,

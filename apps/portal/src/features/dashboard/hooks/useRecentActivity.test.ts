@@ -81,7 +81,7 @@ describe('getRecentActivityQueryOptions', () => {
         { registrant: '0x1111111111111111111111111111111111111111' },
       ],
       ['record', undefined, { key: 'text:url', value: 'x' }],
-      ['renewal', undefined, {}],
+      ['renewal', undefined, undefined],
     ])
   })
 

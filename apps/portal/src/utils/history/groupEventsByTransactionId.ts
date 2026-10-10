@@ -1,4 +1,4 @@
-import type { Address } from 'viem/accounts'
+import type { Address, Hash } from 'viem'
 import type { BaseEventCategory } from '@/components/table/EventsDataTable/types'
 import {
   extractEventAddress,
@@ -7,7 +7,7 @@ import {
 import type { ENSEvent } from './transformHistoryToEvents'
 
 export type HistoryTableEvent = {
-  transactionID: string
+  transactionID: Hash
   blockNumber: number
   id: ENSEvent['id']
   type: ENSEvent['type']
@@ -19,9 +19,9 @@ export const groupEventsByTransactionId = (
   category: BaseEventCategory,
 ) => {
   const transactionMap = new Map<
-    string,
+    Hash,
     {
-      transactionID: string
+      transactionID: Hash
       blockNumber: number
       timestamp?: bigint
       from: Address | null

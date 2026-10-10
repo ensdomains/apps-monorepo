@@ -1,18 +1,20 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   MAX_PAGE_SIZE,
   type NameHistoryRow,
-  timestampToSeconds,
+  readAllCollectionPages,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { Hash } from 'viem'
 import { bigname } from '@/lib/bigname'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { recordValueText } from '@/utils/history/recordValue'
 
 class GetRecordHistoryError extends TaggedError('GetRecordHistoryError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 /** Every record of one family. */
@@ -34,7 +36,7 @@ export type RecordHistoryParameters = {
  */
 export type RecordHistoryEvent = {
   readonly id: string
-  readonly transactionID: string
+  readonly transactionID: Hash
   readonly blockNumber: number
   readonly timestamp: bigint
   /** The raw storage kind, e.g. `RecordChanged`, `RecordVersionChanged`. */
@@ -72,12 +74,12 @@ const matchesKey = (
 }
 
 const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
-  const timestamp = timestampToSeconds(row.timestamp)
+  const timestamp = toUnixSeconds(row.timestamp)
   if (
     row.type !== 'record' ||
     !row.transaction_hash ||
     row.block_number === null ||
-    timestamp === undefined
+    timestamp === null
   )
     return []
   const value = recordValueText(row.data?.value)
@@ -104,7 +106,7 @@ const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
  * reads every `record` row and filters them here.
  */
 const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
-  readAllPages<NameHistoryRow>((cursor) =>
+  readAllCollectionPages<NameHistoryRow>((cursor) =>
     bigname.nameHistory(normalizeOrLower(name), {
       type: ['record'],
       ...(!isFamily(key) && { record_key: key }),

@@ -1,6 +1,5 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, Clock, XCircle } from 'lucide-react'
@@ -13,14 +12,10 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
-import type { Address, Hash } from 'viem'
+import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
-import { ErrorMessage } from '@/components/ErrorMessage'
-import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { InfoRow } from '@/components/InfoCard'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,11 +27,7 @@ import {
 } from '@/components/ui/sheet'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
-import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import {
-  getRecordHistoryQueryOptions,
-  type RecordHistoryEvent,
-} from '@/features/records/hooks/useRecordHistory'
+import { AddressRecordHistory } from '@/features/records/components/AddressRecordHistory'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -45,7 +36,6 @@ import { useIsConnectedAddress } from '@/hooks/useIsConnectedAddress'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
 import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
 import { prepareSetReverseResolutionTransaction } from '../../helpers/setReverseResolution'
@@ -60,102 +50,6 @@ const UPDATE_REVERSE_NAME_TX_ID = 'tx-update-reverse-name'
 const SET_PRIMARY_NAME_TX_ID = 'tx-set-primary-name'
 
 type ActiveFlow = 'reverse' | 'primary'
-
-interface AddressHistoryProps {
-  history: RecordHistoryEvent[]
-  name: string
-}
-
-const AddressHistory = ({ history, name }: AddressHistoryProps) => {
-  // bigname dates every row, so the grouped transactions carry their timestamp.
-  const groupedData = groupEventsByTransactionId(history, 'resolver')
-
-  const {
-    data: sendersData,
-    isLoading: isLoadingSenders,
-    error: sendersError,
-  } = useTransactionSenders({
-    transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
-  })
-
-  if (isLoadingSenders) {
-    return <LoadingSpinner title="Loading transaction senders..." />
-  }
-
-  if (sendersError) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching transaction senders. Please refresh the page."
-      />
-    )
-  }
-
-  if (!sendersData) {
-    return <div>No data available</div>
-  }
-
-  const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
-    ...tx,
-    from: sendersData.get(tx.transactionID as Hash) || tx.from,
-  }))
-
-  return (
-    <div className="flex flex-col gap-4">
-      <HistorySectionHeader
-        action={
-          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
-            <Link to="/$name/history" params={{ name }}>
-              <Clock className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        }
-      />
-      <EventsDataTable
-        enableTransactionCount={false}
-        enableFilters={false}
-        enableSearch={false}
-        name={name}
-        data={dataWithTimestampsAndSenders}
-      />
-    </div>
-  )
-}
-
-interface HistoryViewProps {
-  name: string
-}
-
-const HistoryView = ({ name }: HistoryViewProps) => {
-  const {
-    data: history,
-    isLoading,
-    error,
-  } = useQuery(
-    getRecordHistoryQueryOptions({
-      name,
-      key: 'coins',
-    }),
-  )
-
-  if (error) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching history. Please refresh the page."
-      />
-    )
-  }
-
-  if (isLoading) return <div>Loading history...</div>
-
-  if (!history || history.length === 0) {
-    return <div className="text-muted-foreground">No history available</div>
-  }
-
-  return <AddressHistory history={history} name={name} />
-}
 
 interface ReverseNameFieldProps {
   displayName: string | undefined
@@ -870,7 +764,25 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
               {displayName && (
                 <div className="border-t pt-6">
-                  <HistoryView name={displayName} />
+                  <AddressRecordHistory
+                    name={displayName}
+                    action={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-neutral-7"
+                        asChild
+                      >
+                        <Link
+                          to="/$name/history"
+                          params={{ name: displayName }}
+                        >
+                          <Clock className="size-4" />
+                          Full history
+                        </Link>
+                      </Button>
+                    }
+                  />
                 </div>
               )}
             </div>

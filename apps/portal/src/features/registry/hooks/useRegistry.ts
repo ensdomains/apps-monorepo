@@ -1,4 +1,5 @@
-import { timestampToSeconds } from '@ens-apps/indexer/bigname'
+import type { BignameError } from '@ens-apps/indexer/bigname'
+import { toUnixSeconds } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -8,7 +9,7 @@ import { bigname } from '@/lib/bigname'
 import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
 
 class GetRegistryInfoError extends TaggedError('GetRegistryInfoError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetRegistryInfoParameters = {
@@ -28,10 +29,10 @@ export type RegistryInfo = {
    * registry the deployment declares rather than observes, such as the root.
    */
   createdTransactionHash: Hash | null
-  labelCount: number
+  /** Undefined when bigname does not count them. */
+  labelCount: number | undefined
   /** Declared role assignments: one account on two resources counts twice. */
-  roleCount: number
-  eventCount: number
+  roleCount: number | undefined
   referencedBy: { name: string | null }[]
 }
 
@@ -52,16 +53,15 @@ const getRegistryInfo = ({ address }: GetRegistryInfoParameters) =>
         name: registry.name?.name ?? '',
         namehash: registry.name?.namehash ?? zeroHash,
         createdBlock: registry.created_block_number ?? 0,
-        createdAt: timestampToSeconds(registry.created_at) ?? 0,
+        createdAt: toUnixSeconds(registry.created_at) ?? 0,
         createdTransactionHash: registry.created_transaction_hash,
-        labelCount: registry.counts.labels ?? 0,
-        roleCount: registry.counts.roles ?? 0,
-        eventCount: registry.counts.events ?? 0,
+        labelCount: registry.counts.labels ?? undefined,
+        roleCount: registry.counts.roles ?? undefined,
         referencedBy: registry.referenced_by.data.map(({ name }) => ({ name })),
       }
     })
 
-const getRegistryInfoQueryKey = createQueryKey<
+export const getRegistryInfoQueryKey = createQueryKey<
   'get-registry-info',
   GetRegistryInfoParameters
 >('get-registry-info')

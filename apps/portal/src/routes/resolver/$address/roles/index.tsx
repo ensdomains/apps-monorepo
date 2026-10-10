@@ -24,7 +24,7 @@ export const Route = createFileRoute('/resolver/$address/roles/')({
   loader: ({ params }) => {
     return queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({
-        address: params.address as Address,
+        address: params.address,
       }),
     )
   },
@@ -37,11 +37,8 @@ function RouteComponent() {
   // registry shares EnhancedAccessControl, so these bits would mean something
   // else there.
   return (
-    <RoleContractGate
-      address={address as Address}
-      expected="permissioned-resolver"
-    >
-      <ResolverRoles address={address as Address} />
+    <RoleContractGate address={address} expected="permissioned-resolver">
+      <ResolverRoles address={address} />
     </RoleContractGate>
   )
 }

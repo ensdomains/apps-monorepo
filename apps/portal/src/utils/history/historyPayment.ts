@@ -1,7 +1,12 @@
-import type { RegistryRef } from '@ens-apps/indexer/bigname'
+import type {
+  EventDataByType,
+  EventType,
+  RegistryRef,
+} from '@ens-apps/indexer/bigname'
 import { formatEther, formatUnits } from 'viem'
 import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
+import { isObject } from '@/utils/isObject'
 
 /** The amounts a `registration` or `renewal` row can carry, as decimal strings. */
 const AMOUNT_FIELDS = ['cost', 'base_cost', 'premium'] as const
@@ -10,9 +15,6 @@ const AMOUNT_FIELDS = ['cost', 'base_cost', 'premium'] as const
 const CHARGE_FIELDS = [...AMOUNT_FIELDS, 'payment_token'] as const
 
 const AMOUNT_KEYS: ReadonlySet<string> = new Set(AMOUNT_FIELDS)
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
 
 const isContractRef = (value: unknown): value is RegistryRef =>
   isObject(value) &&
@@ -63,27 +65,30 @@ export const formatHistoryAmount = (
   return `${formatEther(BigInt(value))} ETH`
 }
 
+/** A history row, its `data` typed by its friendly type. */
 type ChargeRow = {
-  readonly type: string
-  readonly data?: object | null
-}
+  readonly [TType in EventType]: {
+    readonly type: TType
+    readonly data?: EventDataByType[TType] | null
+  }
+}[EventType]
+
+/** Only a registration row carries a charge. */
+const registrationData = (row: ChargeRow) =>
+  row.type === 'registration' ? (row.data ?? undefined) : undefined
 
 const chargeOf = (row: ChargeRow): string | undefined => {
-  if (row.type !== 'registration' || !row.data) return undefined
-  const data = row.data as Record<string, unknown>
-  if (AMOUNT_FIELDS.every((field) => data[field] === undefined))
+  const data = registrationData(row)
+  if (!data || AMOUNT_FIELDS.every((field) => data[field] === undefined))
     return undefined
   return JSON.stringify(CHARGE_FIELDS.map((field) => data[field] ?? null))
 }
 
-const actionOf = (row: ChargeRow): string | undefined => {
-  const actionId = (row.data as { action_id?: unknown } | null | undefined)
-    ?.action_id
-  return typeof actionId === 'string' ? actionId : undefined
-}
+const actionOf = (row: ChargeRow): string | undefined =>
+  registrationData(row)?.action_id
 
 const isRegisteredRow = (row: ChargeRow): boolean =>
-  (row.data as { action_role?: unknown }).action_role === 'registered'
+  registrationData(row)?.action_role === 'registered'
 
 /**
  * The rows with one registration's charge stated once. The `registered` and

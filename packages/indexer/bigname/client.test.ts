@@ -44,10 +44,6 @@ describe('createBignameClient', () => {
           client.resolverLinks(11155111, '0xdef', { cursor: 'next' }),
         (client: ReturnType<typeof clientWith>['client']) =>
           client.resolverRoles(11155111, '0xdef'),
-        (client: ReturnType<typeof clientWith>['client']) =>
-          client.resolverAliases(11155111, '0xdef'),
-        (client: ReturnType<typeof clientWith>['client']) =>
-          client.search({ q: 'ali', match: 'contains' }),
       ]
       const urls = await Promise.all(
         paths.map(async (call) => {
@@ -63,8 +59,6 @@ describe('createBignameClient', () => {
         'https://bigname.example/v1/resolvers/11155111/0xdef',
         'https://bigname.example/v1/resolvers/11155111/0xdef/links?cursor=next',
         'https://bigname.example/v1/resolvers/11155111/0xdef/roles',
-        'https://bigname.example/v1/resolvers/11155111/0xdef/aliases',
-        'https://bigname.example/v1/search?q=ali&match=contains',
       ])
     })
 

@@ -13,9 +13,7 @@ const labelOf = (name: string): string => name.split('.')[0] ?? name
 
 // Unwrap can retain fuses, but bigname omits the expiry for an inactive wrapper
 // entry. A null expiry still denotes a current entry with no timestamp.
-export const currentWrapperFuses = (
-  record: LookupRecord,
-): WrapperFuses | undefined =>
+const currentWrapperFuses = (record: LookupRecord): WrapperFuses | undefined =>
   record.ens_v1?.wrapper_expires_at === undefined
     ? undefined
     : record.ens_v1.wrapper_fuses

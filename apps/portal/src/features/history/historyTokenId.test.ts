@@ -2,10 +2,10 @@ import type { EventDataByType } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import {
   mockHistoryPermissionToken,
+  mockHistoryRegistration,
   mockHistoryRegistrationPayment,
   mockHistoryTransferOperator,
-} from '@/test-utils/bigname/postV041.mock'
-import { mockHistoryRegistration } from '@/test-utils/bigname/v041.mock'
+} from '@/test-utils/bigname/bigname.mock'
 import { historyTokenId } from './historyTokenId'
 import {
   type EventType,
@@ -157,7 +157,7 @@ describe('historyTokenId', () => {
   })
 })
 
-describe('historyTokenId after v0.4.1', () => {
+describe('historyTokenId', () => {
   it('reads the token an ENSv2 registry row serves', () => {
     const [registration, transfer] = toTimelineEvents([
       mockHistoryRegistrationPayment,
@@ -199,7 +199,7 @@ describe('historyTokenId after v0.4.1', () => {
     expect(historyTokenId(permission)).toBeUndefined()
   })
 
-  it('has none for a v0.4.1 ENSv2 registration, which serves no token', () => {
+  it('has none for an ENSv2 registration that serves no token', () => {
     const [registration] = toTimelineEvents([mockHistoryRegistration])
     expect(historyTokenId(registration)).toBeUndefined()
   })

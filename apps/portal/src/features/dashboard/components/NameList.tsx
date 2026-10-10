@@ -18,6 +18,10 @@ import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { AddressNameItem } from '@/utils/names/addressNames'
 import { dateToPlainDate } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
+import {
+  getAddressRoleCountsQueryOptions,
+  withRoleCounts,
+} from '../hooks/useAddressRoleCounts'
 
 interface NameListProps {
   readonly address: Address
@@ -77,6 +81,9 @@ const columns: ColumnDef<column>[] = [
 
 export const NameList = ({ address, limit }: NameListProps) => {
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
+  const { data: roleCounts } = useQuery(
+    getAddressRoleCountsQueryOptions({ address }),
+  )
 
   if (namesQuery.isLoading) return <LoadingSpinner title="Loading names" />
 
@@ -84,7 +91,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
   // can point a subname at any address. Names granted that way are kept visible, but
   // in their own group rather than among the names the address holds.
   const { acquired: allData, assigned } = partitionOwnedNames(
-    namesQuery.data ?? [],
+    withRoleCounts(namesQuery.data ?? [], roleCounts),
   )
   const data = limit ? allData.slice(0, limit) : allData
   // The assigned section is hidden in the limited (preview) view, so it only
@@ -117,6 +124,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             name={name.name}
             expiryDate={name.expiryDate}
             relations={name.relations}
+            roleCount={name.roleCount}
             protocolVersion={name.protocolVersion}
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
@@ -148,6 +156,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 name={name.name}
                 expiryDate={name.expiryDate}
                 relations={name.relations}
+                roleCount={name.roleCount}
                 protocolVersion={name.protocolVersion}
                 recordCount={name.recordCount}
                 subdomainCount={name.subdomainCount}

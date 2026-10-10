@@ -10,10 +10,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import {
   getIsSubnameTakenQueryOptions,
+  getSubnamePagesQueryOptions,
   getSubnamesCountQueryOptions,
   getSubnamesQueryKey,
-  getV1Subnames,
-  getV2SubnamesQueryOptions,
 } from './useSubnames'
 
 vi.mock('@/lib/bigname', () => ({
@@ -56,13 +55,21 @@ const asked = (call = 0) => vi.mocked(bigname.subnames).mock.calls[call]
 
 beforeEach(() => vi.clearAllMocks())
 
-describe('getV1Subnames', () => {
+// The first page, as the subnames page reads it, for either era.
+const firstPage = async (name: string) =>
+  (
+    await new QueryClient().fetchInfiniteQuery(
+      getSubnamePagesQueryOptions({ name, protocolVersion: 'ENSv1' }),
+    )
+  ).pages[0]?.subnames ?? []
+
+describe('subname pages', () => {
   it('lists a V1 name’s subnames from bigname, holder as owner', async () => {
     vi.mocked(bigname.subnames).mockReturnValue(
       page([row('sub')], { total: 1 }),
     )
 
-    const subnames = (await getV1Subnames({ name: 'test.eth' }))._unsafeUnwrap()
+    const subnames = await firstPage('test.eth')
 
     expect(asked()).toEqual([
       'test.eth',
@@ -70,7 +77,7 @@ describe('getV1Subnames', () => {
         namespace: 'ens',
         include_expired: 'false',
         sort: 'name',
-        page_size: 200,
+        page_size: 100,
       },
     ])
     expect(subnames).toEqual([
@@ -95,7 +102,7 @@ describe('getV1Subnames', () => {
       ),
     )
 
-    const subnames = (await getV1Subnames({ name: 'test.eth' }))._unsafeUnwrap()
+    const subnames = await firstPage('test.eth')
 
     expect(subnames).toEqual([
       expect.objectContaining({
@@ -111,16 +118,17 @@ describe('getV1Subnames', () => {
       page([row('sub', { name: 'sub.[abc].eth' })], { total: 1 }),
     )
 
-    const [subname] = (
-      await getV1Subnames({ name: 'healed.eth' })
-    )._unsafeUnwrap()
+    const [subname] = await firstPage('healed.eth')
 
     expect(subname?.name).toBe('sub.healed.eth')
   })
 })
 
-describe('getV2SubnamesQueryOptions', () => {
-  const options = getV2SubnamesQueryOptions({ name: 'test.eth' })
+describe('getSubnamePagesQueryOptions', () => {
+  const options = getSubnamePagesQueryOptions({
+    name: 'test.eth',
+    protocolVersion: 'ENSv2',
+  })
 
   it('loads one page with the name’s total', async () => {
     vi.mocked(bigname.subnames).mockReturnValue(

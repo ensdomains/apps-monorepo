@@ -60,8 +60,8 @@ const formatRecordEvent = (
 ): FormattedActivity => {
   if (event.kind === 'RecordVersionChanged')
     return { text: 'Resolver records cleared' }
-  const key = event.data.key ?? ''
-  const value = recordValueText(event.data.value)
+  const key = event.data?.key ?? ''
+  const value = recordValueText(event.data?.value)
   const parsed = parseRecordKey(key)
   if (parsed?.kind === 'addr') {
     // `value` is raw bytes per coin type — only a real address when ETH.
@@ -97,12 +97,14 @@ const formatRecordEvent = (
 const formatRootPermissionEvent = (
   event: Extract<RecentActivityEvent, { type: 'permission' }>,
 ): FormattedActivity => {
-  const { address, grant_scope: scope, powers = [] } = event.data
+  const powers = event.data?.powers ?? []
   return activity({
     text: 'Root roles updated',
-    actor: asAddress(address),
+    actor: asAddress(event.data?.address),
     entityFromData: asAddress(
-      rootPermissionRegistry(scope)?.address ?? event.contractAddress,
+      rootPermissionRegistry(event.data?.grant_scope)?.address ??
+        event.contractAddress ??
+        undefined,
     ),
     value: powers.map(formatPower).join(', ') || undefined,
   })
@@ -121,7 +123,7 @@ export const formatActivityEvent = (
     .with({ type: 'registration' }, ({ data }) =>
       activity({
         text: 'Registered by',
-        actor: asAddress(data.registrant ?? data.owner),
+        actor: asAddress(data?.registrant ?? data?.owner),
       }),
     )
     .with({ type: 'renewal' }, () => ({ text: 'Name renewed' }))
@@ -130,19 +132,19 @@ export const formatActivityEvent = (
     .with({ type: 'transfer' }, ({ data }) =>
       activity({
         text: 'Ownership transferred to',
-        actor: asAddress(data.to),
+        actor: asAddress(data?.to),
       }),
     )
     .with({ type: 'authority' }, ({ data }) =>
       activity({
         text: 'Ownership transferred to',
-        actor: asAddress(data.owner),
+        actor: asAddress(data?.owner),
       }),
     )
     .with({ type: 'resolver' }, ({ data }) =>
       activity({
         text: 'Resolver updated to',
-        actor: asAddress(data.resolver?.address),
+        actor: asAddress(data?.resolver?.address),
       }),
     )
     .with({ type: 'record' }, formatRecordEvent)
@@ -151,7 +153,7 @@ export const formatActivityEvent = (
     .with({ type: 'primary_name' }, ({ data }) =>
       activity({
         text: 'Primary name updated',
-        value: data.name_status === 'set' ? asValue(data.name) : undefined,
+        value: data?.name_status === 'set' ? asValue(data?.name) : undefined,
       }),
     )
     .with(
@@ -159,11 +161,11 @@ export const formatActivityEvent = (
       formatRootPermissionEvent,
     )
     .with({ type: 'permission' }, ({ data }) =>
-      data.powers === undefined && data.fuses !== undefined
+      data?.powers === undefined && data?.fuses !== undefined
         ? { text: 'Fuses updated' }
         : activity({
             text: 'Roles updated',
-            entityFromData: asAddress(data.address),
+            entityFromData: asAddress(data?.address),
           }),
     )
     .with({ type: 'subregistry' }, () => ({ text: 'Subregistry updated' }))
@@ -172,7 +174,7 @@ export const formatActivityEvent = (
     .with({ type: 'migration' }, ({ data }) =>
       activity({
         text: 'Migrated from ENSv1 to ENSv2',
-        value: migrationPathLabel(data.migration_path),
+        value: migrationPathLabel(data?.migration_path),
       }),
     )
     .otherwise((unknown) => {

@@ -11,8 +11,8 @@ import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
+import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { buildApproveIntent } from '@/features/transaction-manager/helpers/intents'
@@ -376,7 +376,7 @@ export const useRenewalTransactions = ({
         queryKey: getV1ExpiryQueryOptions({ name: renewedName }).queryKey,
       })
       queryClient.invalidateQueries({
-        queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
+        queryKey: getRegistrationDataQueryOptions({ name: renewedName })
           .queryKey,
       })
       queryClient.invalidateQueries({
@@ -392,7 +392,7 @@ export const useRenewalTransactions = ({
         await Promise.all(
           renewedNames.map((renewedName) =>
             queryClient.invalidateQueries({
-              queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
+              queryKey: getRegistrationDataQueryOptions({ name: renewedName })
                 .queryKey,
             }),
           ),

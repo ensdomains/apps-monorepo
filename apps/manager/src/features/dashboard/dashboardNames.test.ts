@@ -122,42 +122,12 @@ describe('toGraceName', () => {
     })
   })
 
-  it('lists a name in the last second of its grace', () => {
-    expect(
-      toGraceName(
-        lapsed({ expires_at: String(nowSeconds - 86_400 * 28 + 1) }),
-        OWNER,
-        NOW,
-      ),
-    ).not.toBeNull()
-  })
-
+  // Which rows are in grace is tested with the shared grace read.
   it.each([
-    { case: 'an ENSv1 name', row: lapsed({ authority: 'ens_v1' }) },
-    { case: 'a subname', row: lapsed({ name: 'sub.grace.eth' }) },
     { case: 'an un-normalised name', row: lapsed({ name: 'GRACE.eth' }) },
-    {
-      case: 'another owner',
-      row: lapsed({
-        lapsed_registration: {
-          owner: '0x2222222222222222222222222222222222222222',
-          release_kind: 'expired',
-        },
-      }),
-    },
-    {
-      case: 'a burned registration',
-      row: lapsed({
-        lapsed_registration: { owner: OWNER, release_kind: 'burned' },
-      }),
-    },
     {
       case: 'a name past grace',
       row: lapsed({ expires_at: String(nowSeconds - 86_400 * 60) }),
-    },
-    {
-      case: 'a name whose grace ends now',
-      row: lapsed({ expires_at: String(nowSeconds - 86_400 * 28) }),
     },
   ])('skips $case', ({ row }) => {
     expect(toGraceName(row, OWNER, NOW)).toBeNull()

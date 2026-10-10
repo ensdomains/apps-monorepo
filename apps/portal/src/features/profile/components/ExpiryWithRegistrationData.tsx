@@ -9,7 +9,7 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 import { useGraceStatus } from '../hooks/useGraceStatus'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
-import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
+import { getRegistrationDataQueryOptions } from '../hooks/useRegistrationData'
 import { InfoRow } from './InfoRow'
 import { Timestamp } from './Timestamp'
 
@@ -71,104 +71,60 @@ const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
   </InfoRow>
 )
 
-/**
- * ENSv1: "Expires" is the BaseRegistrar lease (`ens_v1.expires_at`), not the
- * ENSv2 reservation bigname serves at the top level, and "Grace ends" is the
- * lease's 90-day grace. Both come from bigname with the registration date;
- * the on-chain expiry read is gone.
- */
-const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
-  const grace = useGraceStatus({ name, protocolVersion: 'ENSv1' })
-
-  const { data, error, isLoading } = useQuery(
-    getV2RegistrationDataQueryOptions({ name }),
-  )
-
-  if (error)
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching registration data. Please refresh the page."
-      />
-    )
-
-  if (isLoading)
-    return <LoadingSpinner title="Loading expiry and registration data" />
-
-  if (!data) return null
-
-  return (
-    <>
-      {data.expiry !== null && (
-        <InfoRow icon={ClockIcon} label="Expires">
-          <span className="font-semi-mono">
-            <Timestamp timestamp={data.expiry} />
-          </span>
-        </InfoRow>
-      )}
-      {data.registeredAt !== null && (
-        <RegisteredRow name={name} registeredAt={data.registeredAt} />
-      )}
-      {grace.isInGrace && grace.graceEndDate && (
-        <GraceEndsRow graceEndDate={grace.graceEndDate} />
-      )}
-    </>
-  )
-}
-
-const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
-  const grace = useGraceStatus({ name, protocolVersion: 'ENSv2' })
-
-  const { data, error, isLoading } = useQuery(
-    getV2RegistrationDataQueryOptions({ name }),
-  )
-
-  if (error)
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching registration data. Please refresh the page."
-      />
-    )
-
-  if (isLoading)
-    return <LoadingSpinner title="Loading expiry and registration data" />
-
-  if (!data) return null
-
-  return (
-    <>
-      {grace.isInGrace && grace.graceEndDate ? (
-        <GraceEndsRow graceEndDate={grace.graceEndDate} />
-      ) : (
-        data.expiry !== null && (
-          <InfoRow icon={ClockIcon} label="Expires">
-            <div className="font-semi-mono pt-2 pb-3">
-              <Timestamp timestamp={data.expiry} />
-            </div>
-          </InfoRow>
-        )
-      )}
-
-      {data.registeredAt !== null && (
-        <RegisteredRow name={name} registeredAt={data.registeredAt} />
-      )}
-    </>
-  )
-}
+const ExpiresRow = ({ expiry }: { expiry: number }) => (
+  <InfoRow icon={ClockIcon} label="Expires">
+    <span className="font-semi-mono">
+      <Timestamp timestamp={expiry} />
+    </span>
+  </InfoRow>
+)
 
 interface ExpiryWithRegistrationDataProps {
   name: string
   protocolVersion: ProtocolVersion
 }
 
+/**
+ * A name's expiry, grace and registration rows. For ENSv1 "Expires" is the
+ * BaseRegistrar lease, not the ENSv2 reservation bigname serves at the top
+ * level, and it stays shown beside the lease's 90-day grace; an ENSv2 name in
+ * grace shows when grace ends instead.
+ */
 export const ExpiryWithRegistrationData = ({
   name,
   protocolVersion,
 }: ExpiryWithRegistrationDataProps) => {
-  return protocolVersion === 'ENSv1' ? (
-    <V1ExpiryWithRegistrationData name={name} />
-  ) : (
-    <V2ExpiryWithRegistrationData name={name} />
+  const grace = useGraceStatus({ name, protocolVersion })
+  const { data, error, isLoading } = useQuery(
+    getRegistrationDataQueryOptions({ name }),
+  )
+
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching registration data. Please refresh the page."
+      />
+    )
+
+  if (isLoading)
+    return <LoadingSpinner title="Loading expiry and registration data" />
+
+  if (!data) return null
+
+  const graceEndDate = grace.isInGrace ? grace.graceEndDate : undefined
+  const showsExpiry =
+    data.expiry !== null && (protocolVersion === 'ENSv1' || !graceEndDate)
+
+  return (
+    <>
+      {showsExpiry && data.expiry !== null && (
+        <ExpiresRow expiry={data.expiry} />
+      )}
+      {data.registeredAt !== null && (
+        <RegisteredRow name={name} registeredAt={data.registeredAt} />
+      )}
+      {graceEndDate && <GraceEndsRow graceEndDate={graceEndDate} />}
+    </>
   )
 }

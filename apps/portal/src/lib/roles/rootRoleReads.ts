@@ -5,7 +5,8 @@ import {
   type Meta,
   type PermissionRow,
   type Power,
-  timestampToBigInt,
+  readAllCollectionPages,
+  toExactSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
@@ -17,13 +18,12 @@ import { previousPowers } from '@/lib/roles/permissionPowers'
 import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
 import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 
 class GetRootRoleReadsError extends TaggedError('GetRootRoleReadsError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
-const toError = (cause: unknown) => new GetRootRoleReadsError({ cause })
+const toError = (cause: BignameError) => new GetRootRoleReadsError({ cause })
 
 export type RootRoleHolder = {
   readonly account: Address
@@ -147,12 +147,8 @@ const ROOT_RESOURCE_HEX = toResourceHex(ROOT_RESOURCE)
 
 /** A row with no transaction or position is not listed. */
 const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
-  const timestamp = timestampToBigInt(row.timestamp)
-  if (
-    !row.transaction_hash ||
-    row.block_number === null ||
-    timestamp === undefined
-  )
+  const timestamp = toExactSeconds(row.timestamp)
+  if (!row.transaction_hash || row.block_number === null || timestamp === null)
     return []
   return [
     {
@@ -180,7 +176,7 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
 export const getBignameRootRoleChanges = (
   params: RegistryParameters & { readonly account: Address },
 ) =>
-  readAllPages<EventRow>((cursor) =>
+  readAllCollectionPages<EventRow>((cursor) =>
     bigname.events({
       contract_address: params.registryAddress.toLowerCase() as Address,
       address: params.account.toLowerCase() as Address,

@@ -28,12 +28,14 @@ export type QueryKey<
 export function createQueryKey<TKey extends string, TVariables = void>(
   key: TKey,
 ) {
-  return ((variables?: TVariables) =>
+  const factory = ((variables?: TVariables) =>
     variables === undefined
       ? ([key] as const)
       : ([key, variables] as const)) as TVariables extends void
     ? () => QueryKey<TKey>
     : (variables: TVariables) => QueryKey<TKey, TVariables>
+  // The bare key, for matching every query the factory makes.
+  return Object.assign(factory, { key })
 }
 
 export function qk<const TScope, const TAction>(

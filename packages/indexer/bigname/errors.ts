@@ -5,7 +5,7 @@ export const BIGNAME_API_ERROR_CODES = [
   'invalid_input', // 400
   'not_found', // 404
   'request_timeout', // 408
-  'stale', // 409, a cursor's publication moved on: restart without it
+  'stale', // 409, usually temporary: send the same request again
   'conflict', // 409
   'unsupported', // 422
   'rate_limited', // 429

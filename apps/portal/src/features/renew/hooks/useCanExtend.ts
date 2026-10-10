@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import type { ProtocolVersion } from '@/utils/types'
 import { isExtendable2LD } from '../utils/nameExtension'
 import { useV1Renewable } from './useIsRenewable'
@@ -44,7 +44,7 @@ export const useCanExtend = ({
     enabled: enabled && !isV2,
   })
   const v2DataQuery = useQuery({
-    ...getV2RegistrationDataQueryOptions({ name }),
+    ...getRegistrationDataQueryOptions({ name }),
     enabled: enabled && isV2,
   })
 

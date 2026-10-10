@@ -35,7 +35,7 @@ export type NameHistoryScope = {
 
 // ---------------------------------------------------------------- paged feed
 
-const getNameHistoryPagesQueryKey = createQueryKey<
+export const getNameHistoryPagesQueryKey = createQueryKey<
   'get-name-history-pages',
   NameHistoryScope
 >('get-name-history-pages')
@@ -57,7 +57,7 @@ export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
 
 // ------------------------------------------------------------------- anchor
 
-const getNameHistoryAnchorQueryKey = createQueryKey<
+export const getNameHistoryAnchorQueryKey = createQueryKey<
   'get-name-history-anchor',
   NameHistoryScope
 >('get-name-history-anchor')

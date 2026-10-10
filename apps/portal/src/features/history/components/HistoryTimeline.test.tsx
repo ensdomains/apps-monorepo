@@ -1,3 +1,4 @@
+import { BignameError } from '@ens-apps/indexer/bigname'
 import { render as baseRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
@@ -5,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
 import type { HistoryTimelineModel } from '../hooks/useHistoryTimeline'
 import type { Action } from '../summarize/summarize.types'
+import { GetTimelineEventPageError } from '../timelineEventPage'
 import { HistoryTimelineView } from './HistoryTimeline'
 
 // The break row and the pinned anchor only appear on a feed with more history
@@ -216,8 +218,11 @@ describe('HistoryTimelineView', () => {
       <HistoryTimelineView
         model={model({
           actions: [],
-          sourcesError: Object.assign(new Error('bigname down'), {
-            cause: { message: 'bigname down' },
+          sourcesError: new GetTimelineEventPageError({
+            cause: new BignameError({
+              code: 'overloaded',
+              message: 'bigname down',
+            }),
           }),
         })}
       />,
@@ -241,8 +246,11 @@ describe('HistoryTimelineView', () => {
     render(
       <HistoryTimelineView
         model={model({
-          sourcesError: Object.assign(new Error('bigname down'), {
-            cause: { message: 'bigname down' },
+          sourcesError: new GetTimelineEventPageError({
+            cause: new BignameError({
+              code: 'overloaded',
+              message: 'bigname down',
+            }),
           }),
           totalCount: 9,
         })}

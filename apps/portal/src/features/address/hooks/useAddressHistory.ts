@@ -1,9 +1,12 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type EventRow,
   MAX_PAGE_SIZE,
+  readAllCollectionPages,
   readNamesForAddress,
-  timestampToSeconds,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -11,7 +14,6 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
-import { readAllPages } from '@/utils/bigname/readAllPages'
 import {
   flattenHistoryData,
   historyEventLogId,
@@ -23,7 +25,7 @@ import type {
 } from '@/utils/history/transformAddressHistory'
 
 class GetAddressHistoryError extends TaggedError('GetAddressHistoryError')<{
-  cause: unknown
+  cause: BignameError | IndexerReadError
 }> {}
 
 type GetAddressHistoryParameters = {
@@ -35,7 +37,8 @@ type GetAddressHistoryParameters = {
   readonly pageSize?: number
 }
 
-const toError = (cause: unknown) => new GetAddressHistoryError({ cause })
+const toError = (cause: BignameError | IndexerReadError) =>
+  new GetAddressHistoryError({ cause })
 
 const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
   bigname.addressHistory(address.toLowerCase(), {
@@ -49,7 +52,7 @@ const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
 const readHistory = (address: Address, pageSize: number | undefined) =>
   (pageSize !== undefined
     ? readHistoryPage(address, pageSize).map(({ data }) => data)
-    : readAllPages<EventRow>((cursor) =>
+    : readAllCollectionPages<EventRow>((cursor) =>
         readHistoryPage(address, MAX_PAGE_SIZE, cursor),
       )
   ).mapErr(toError)
@@ -70,7 +73,7 @@ const readHeldNames = (address: Address) =>
     .mapErr(toError)
 
 const toEvent = (row: EventRow): AddressHistoryEvent[] => {
-  const timestamp = timestampToSeconds(row.timestamp)
+  const timestamp = toUnixSeconds(row.timestamp)
   // A state-derived row has no transaction for the table to group under.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
     return []
