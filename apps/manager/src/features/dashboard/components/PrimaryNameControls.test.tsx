@@ -1,0 +1,49 @@
+import { screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import { render } from '@/utils/test-utils'
+import { PrimaryBadge } from './PrimaryBadge'
+import { PrimaryNameButton } from './PrimaryNameButton'
+
+describe('primary name labels', () => {
+  it('renders the interactive state icons before the label without exposing them to assistive technology', () => {
+    render(<PrimaryNameButton />)
+
+    const button = screen.getByRole('button', { name: 'Primary Name' })
+    const icon = button.firstElementChild
+
+    expect(button).toHaveClass('bg-ens-lapis-bg', 'hover:bg-ens-lapis-100')
+    expect(button).not.toHaveClass(
+      'bg-ens-lapis-tint',
+      'hover:bg-ens-lapis-dust',
+    )
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon).toHaveClass('place-items-center')
+    expect(icon).toHaveTextContent('person_check')
+    expect(icon).toHaveTextContent('published_with_changes')
+    expect(icon?.children).toHaveLength(2)
+    expect(icon?.children[0]).toHaveClass(
+      'ms-wght-400',
+      'group-hover:invisible',
+      'group-focus-visible:invisible',
+    )
+    expect(icon?.children[1]).toHaveClass(
+      'invisible',
+      'ms-wght-400',
+      'group-hover:visible',
+      'group-focus-visible:visible',
+    )
+    expect(button.lastElementChild).toHaveTextContent('Primary Name')
+  })
+
+  it('renders the passive checkmark before the label without exposing it to assistive technology', () => {
+    render(<PrimaryBadge />)
+
+    const label = screen.getByText('Primary Name')
+    const badge = label.parentElement
+    const icon = badge?.firstElementChild
+
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon).toHaveClass('items-center', 'justify-center')
+    expect(badge?.lastElementChild).toBe(label)
+  })
+})

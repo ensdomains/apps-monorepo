@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   buildMergedNamesList,
@@ -18,11 +18,13 @@ import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
+import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { DashboardPagination } from './DashboardPagination'
 import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 import { nameRowRecordsQuery } from './nameRowRecordsQuery'
+import { PrimaryNameButton } from './PrimaryNameButton'
 
 const PAGE_SIZE = 5
 const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
@@ -82,6 +84,7 @@ const AnimatedNameRow = ({
   selectedLabels,
   onToggleSelect,
   isV1Renewable,
+  primaryNameAction,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -96,6 +99,7 @@ const AnimatedNameRow = ({
   readonly selectedLabels: ReadonlySet<string>
   readonly onToggleSelect: (label: string) => void
   readonly isV1Renewable: boolean
+  readonly primaryNameAction?: ReactNode
 }) => {
   const {
     label,
@@ -170,6 +174,7 @@ const AnimatedNameRow = ({
         nameRoles={nameRoles}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
+        primaryNameAction={primaryNameAction}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
         selectable={!isV1 && isRenewable}
         showFavoriteButton
@@ -195,6 +200,10 @@ export const MyNamesList = ({
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
+  const [isChooserOpen, setIsChooserOpen] = useState(false)
+  const primaryNameTriggerRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const hasUpdatedPrimaryNameRef = useRef(false)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const filterKey = `${searchQuery}:${version ?? 'all'}:${sort}`
@@ -277,7 +286,23 @@ export const MyNamesList = ({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full" ref={listRef} tabIndex={-1}>
+      <ChoosePrimaryNameDialog
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          // Successful refetches can remove the old trigger after this closes.
+          const target = hasUpdatedPrimaryNameRef.current
+            ? listRef.current
+            : (primaryNameTriggerRef.current ?? listRef.current)
+          hasUpdatedPrimaryNameRef.current = false
+          target?.focus()
+        }}
+        onOpenChange={setIsChooserOpen}
+        onUpdated={() => {
+          hasUpdatedPrimaryNameRef.current = true
+        }}
+        open={isChooserOpen}
+      />
       {hasPartialError ? (
         <div
           className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-red-600 text-sm"
@@ -334,6 +359,14 @@ export const MyNamesList = ({
                   name={row.name}
                   onToggleFavorite={onToggleFavorite}
                   onToggleSelect={onToggleSelect}
+                  primaryNameAction={
+                    row.metadata.isPrimary ? (
+                      <PrimaryNameButton
+                        onClick={() => setIsChooserOpen(true)}
+                        ref={primaryNameTriggerRef}
+                      />
+                    ) : undefined
+                  }
                   profileRecords={profileRecordState?.records}
                   selectedLabels={selectedLabels}
                   shouldReduceMotion={shouldReduceMotion}

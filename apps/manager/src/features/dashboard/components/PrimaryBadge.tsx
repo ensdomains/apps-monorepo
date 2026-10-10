@@ -16,11 +16,14 @@ export const PrimaryBadge = ({ label, className }: PrimaryBadgeProps) => (
       className,
     )}
   >
+    <div
+      aria-hidden="true"
+      className="flex size-[13px] shrink-0 items-center justify-center rounded-full bg-ens-blue"
+    >
+      <Check className="size-2 text-ens-white" strokeWidth={4} />
+    </div>
     <span className="font-sans text-[13px] text-ens-blue leading-[1.15] tracking-[-0.24px] md:text-[16px]">
       {label ?? <Trans>Primary Name</Trans>}
     </span>
-    <div className="flex size-[13px] items-center justify-center rounded-full bg-ens-blue">
-      <Check className="size-2 text-ens-white" strokeWidth={4} />
-    </div>
   </div>
 )

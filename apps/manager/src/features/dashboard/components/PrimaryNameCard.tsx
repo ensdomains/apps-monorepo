@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, ChevronDown, History } from 'lucide-react'
+import { Calendar, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -19,7 +19,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
-import { PrimaryBadge } from './PrimaryBadge'
+import { PrimaryNameButton } from './PrimaryNameButton'
 
 type PrimaryNameCardProps = {
   readonly primaryName?: string | null
@@ -40,17 +40,17 @@ const PrimaryNameNameplate = ({
     <div
       className={
         isInGrace
-          ? 'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
-          : 'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+          ? 'inline-flex max-w-full items-center self-start rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+          : 'inline-flex max-w-full items-center self-start rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
       }
     >
       <span
         className={
           isInGrace
-            ? 'font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl'
+            ? 'wrap-anywhere min-w-0 font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl'
             : isLongName
-              ? 'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight'
-              : 'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]'
+              ? 'wrap-anywhere min-w-0 font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight'
+              : 'wrap-anywhere min-w-0 font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]'
         }
       >
         {displayName}
@@ -118,10 +118,12 @@ export const PrimaryNameCard = ({
       )}
       style={isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
-      <PrimaryBadge className="self-start bg-ens-lapis-tint" />
+      <ChoosePrimaryNameDialog>
+        <PrimaryNameButton className="self-start" />
+      </ChoosePrimaryNameDialog>
 
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
-        <div className="flex flex-row items-start gap-4 md:gap-5">
+        <div className="flex min-w-0 flex-row items-start gap-4 md:gap-5">
           <motion.div
             className="size-20 shrink-0 overflow-hidden rounded-sm bg-ens-white md:size-50"
             {...(shouldReduceMotion
@@ -150,22 +152,11 @@ export const PrimaryNameCard = ({
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </motion.div>
-          <div className="flex min-h-0 flex-col justify-between gap-4 md:h-50">
-            <ChoosePrimaryNameDialog>
-              <button
-                className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
-                type="button"
-              >
-                <PrimaryNameNameplate
-                  displayName={displayName}
-                  isInGrace={isInGrace}
-                />
-                <ChevronDown
-                  className="size-6 shrink-0 text-ens-quartz-400"
-                  strokeWidth={2}
-                />
-              </button>
-            </ChoosePrimaryNameDialog>
+          <div className="flex min-h-0 min-w-0 flex-col justify-between gap-4 md:h-50">
+            <PrimaryNameNameplate
+              displayName={displayName}
+              isInGrace={isInGrace}
+            />
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
                 <Calendar
