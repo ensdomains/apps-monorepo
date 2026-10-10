@@ -726,6 +726,10 @@ msgstr "Couldn't check this name"
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
+msgstr "Couldn’t check when this name expires, so editing is paused until it can be read."
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
