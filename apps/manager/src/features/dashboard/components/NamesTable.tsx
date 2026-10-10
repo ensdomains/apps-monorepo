@@ -78,7 +78,11 @@ export const NamesTable = ({
   const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
     delay: 300,
   })
-  const { total: ownedTotal, isError: isNamesError } = useDashboardNames({
+  const {
+    total: ownedTotal,
+    isError: isNamesError,
+    isPending: isNamesPending,
+  } = useDashboardNames({
     sortField: ownedSortState.field,
     sortDir: ownedSortState.dir,
   })
@@ -91,7 +95,17 @@ export const NamesTable = ({
   })
 
   const favoritesCount = favorites.length
-  const ownedCount = isNamesError ? undefined : ownedTotal
+  // A count is shown only once its list has been read.
+  const countOf = (names: {
+    readonly total: number
+    readonly isPending: boolean
+    readonly isError: boolean
+  }) => (names.isPending || names.isError ? undefined : names.total)
+  const ownedCount = countOf({
+    total: ownedTotal,
+    isPending: isNamesPending,
+    isError: isNamesError,
+  })
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
@@ -195,12 +209,12 @@ export const NamesTable = ({
     {
       value: 'v1',
       label: t`V1`,
-      count: v1Names.isError ? undefined : v1Names.total,
+      count: countOf(v1Names),
     },
     {
       value: 'v2',
       label: t`V2`,
-      count: v2Names.isError ? undefined : v2Names.total,
+      count: countOf(v2Names),
     },
   ]
   const changeVersion = (next: NameVersion | null) => {

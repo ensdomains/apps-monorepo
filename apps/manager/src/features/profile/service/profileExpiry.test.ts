@@ -211,12 +211,12 @@ describe('subnames', () => {
     expect(result._unsafeUnwrap().expiry).toBeNull()
   })
 
-  it('reports no expiry when the index cannot be read', async () => {
+  it('fails rather than reporting no expiry when the index cannot be read', async () => {
     mocks.getNameDetail.mockReturnValue(errAsync(new Error('bigname down')))
 
     const result = await getExpiry('mini.shiba.eth')
 
-    expect(result._unsafeUnwrap().expiry).toBeNull()
+    expect(result._unsafeUnwrapErr()._tag).toBe('GetProfileExpiryError')
   })
 
   it('reports no grace window after a subname expires', async () => {

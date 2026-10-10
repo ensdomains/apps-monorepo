@@ -42,7 +42,7 @@ const getAddressRoleCounts = ({ address }: GetAddressRoleCountsParameters) =>
     )
     .mapErr((cause) => new GetAddressRoleCountsError({ cause }))
 
-const getAddressRoleCountsQueryKey = createQueryKey<
+export const getAddressRoleCountsQueryKey = createQueryKey<
   'get-address-role-counts',
   GetAddressRoleCountsParameters
 >('get-address-role-counts')

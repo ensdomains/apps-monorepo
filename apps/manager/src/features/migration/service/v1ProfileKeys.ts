@@ -2,6 +2,7 @@ import type { LookupRecord } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { ok } from 'neverthrow'
 import { bigname } from '@/lib/bigname'
+import type { BignameLookupError } from './bignameLookup'
 import { lookupNames } from './bignameLookup'
 
 export type V1ProfileKeys = {
@@ -13,7 +14,7 @@ export type V1ProfileKeys = {
 }
 
 export class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
-  cause: unknown
+  cause: BignameLookupError
 }> {}
 
 export const hasV1ProfileRecords = (keys: V1ProfileKeys): boolean =>

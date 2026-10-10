@@ -1,5 +1,6 @@
 import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import type {
+  IndexerReadError,
   NameRelation,
   NamesForAddressQuery,
   ReadNamesForAddress,
@@ -28,7 +29,7 @@ export const PROFILE_NAMES_CHUNK_SIZE = 50
 export class GetProfileAddressNamesError extends TaggedError(
   'GetProfileAddressNamesError',
 )<{
-  cause: unknown
+  cause: IndexerReadError
 }> {}
 
 /** `all` on someone else's profile; your own splits names you own from names you only manage. */

@@ -1,29 +1,36 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
+import { isStale, retryStale } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
+import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 
 class GetMigratedNamesCountError extends TaggedError(
   'GetMigratedNamesCountError',
 )<{
-  cause: unknown
+  /** Absent when bigname answered but gave no exact count. */
+  cause: BignameError | undefined
 }> {}
 
 /**
  * How many names the address owns that provably moved from ENSv1 to ENSv2.
  * A name registered natively on ENSv2 does not count.
  */
-export const getMigratedNamesCount = (address: string) =>
-  bigname
-    .addressNames(address.toLowerCase(), {
-      relation: ['owner'],
-      is_migrated: 'true',
-      dedupe: 'name',
-      include: ['total_count'],
-      page_size: 1,
-    })
+export const getMigratedNamesCount = (address: Address) =>
+  retryStale(
+    () =>
+      bigname.addressNames(address.toLowerCase(), {
+        relation: ['owner'],
+        is_migrated: 'true',
+        dedupe: 'name',
+        include: ['total_count'],
+        page_size: 1,
+      }),
+    isStale,
+  )
     .mapErr((error) => new GetMigratedNamesCountError({ cause: error }))
     .andThen(({ data, page }) => {
       if (page?.total_count != null) return okAsync(page.total_count)
@@ -31,13 +38,13 @@ export const getMigratedNamesCount = (address: string) =>
       return errAsync(
         new GetMigratedNamesCountError({
           message: 'bigname gave no exact count of upgraded names',
-          cause: page,
+          cause: undefined,
         }),
       )
     })
 
 export const migratedNamesCountQueryOptions = (
-  address?: string,
+  address?: Address,
   enabled: boolean = true,
 ) =>
   resultQueryOptions({
@@ -45,9 +52,7 @@ export const migratedNamesCountQueryOptions = (
       address: address?.toLowerCase(),
     }),
     queryFn:
-      enabled && address
-        ? () => getMigratedNamesCount(address.toLowerCase())
-        : skipToken,
+      enabled && address ? () => getMigratedNamesCount(address) : skipToken,
     meta: {
       dependsOn: ['indexer'],
     },

@@ -83,25 +83,42 @@ describe('hasDashboardNames', () => {
     )
   })
 
-  it.each([
-    { last: 'alice.eth', hasNames: true },
-    { last: 'last.addr.reverse', hasNames: false },
-  ])('reads past pages of hidden names to the end: $last', async ({
-    last,
-    hasNames,
-  }) => {
-    const hiddenPages = Array.from({ length: 5 }, (_, index) =>
+  const hiddenThen = (count: number, last: string) => {
+    const hiddenPages = Array.from({ length: count }, (_, index) =>
       page([summary(`${index}.addr.reverse`)], `page-${index + 1}`),
     )
-    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) => {
+    return vi.fn<ReadNamesForAddress>(({ cursor }) => {
       const index = cursor ? Number(cursor.replace('page-', '')) : 0
       return okAsync(hiddenPages[index] ?? page([summary(last)]))
     })
+  }
 
-    const result = await hasDashboardNames(readNames, ADDRESS)
+  it('reads past pages of hidden names', async () => {
+    const readNames = hiddenThen(2, 'alice.eth')
 
-    expect(result._unsafeUnwrap()).toBe(hasNames)
-    expect(readNames).toHaveBeenCalledTimes(6)
+    expect((await hasDashboardNames(readNames, ADDRESS))._unsafeUnwrap()).toBe(
+      true,
+    )
+    expect(readNames).toHaveBeenCalledTimes(3)
+  })
+
+  it('stops after four pages of hidden names', async () => {
+    const readNames = hiddenThen(5, 'alice.eth')
+
+    expect((await hasDashboardNames(readNames, ADDRESS))._unsafeUnwrap()).toBe(
+      false,
+    )
+    expect(readNames).toHaveBeenCalledTimes(4)
+  })
+
+  it('lists a name no deployment answers for as nothing to show', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() =>
+      okAsync(page([{ ...summary('alice.eth'), protocol: null }])),
+    )
+
+    expect((await hasDashboardNames(readNames, ADDRESS))._unsafeUnwrap()).toBe(
+      false,
+    )
   })
 
   it('retries a stale page with the same cursor', async () => {
