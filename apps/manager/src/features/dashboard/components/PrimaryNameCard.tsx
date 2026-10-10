@@ -47,10 +47,10 @@ const PrimaryNameNameplate = ({
       <span
         className={
           isInGrace
-            ? 'font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl'
+            ? 'wrap-anywhere min-w-0 font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl'
             : isLongName
-              ? 'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight'
-              : 'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]'
+              ? 'wrap-anywhere min-w-0 font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight'
+              : 'wrap-anywhere min-w-0 font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]'
         }
       >
         {displayName}
@@ -123,7 +123,7 @@ export const PrimaryNameCard = ({
       </ChoosePrimaryNameDialog>
 
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
-        <div className="flex flex-row items-start gap-4 md:gap-5">
+        <div className="flex min-w-0 flex-row items-start gap-4 md:gap-5">
           <motion.div
             className="size-20 shrink-0 overflow-hidden rounded-sm bg-ens-white md:size-50"
             {...(shouldReduceMotion
@@ -152,7 +152,7 @@ export const PrimaryNameCard = ({
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </motion.div>
-          <div className="flex min-h-0 flex-col justify-between gap-4 md:h-50">
+          <div className="flex min-h-0 min-w-0 flex-col justify-between gap-4 md:h-50">
             <PrimaryNameNameplate
               displayName={displayName}
               isInGrace={isInGrace}

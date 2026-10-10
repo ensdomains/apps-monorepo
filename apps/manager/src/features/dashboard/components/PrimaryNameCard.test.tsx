@@ -53,4 +53,23 @@ describe('PrimaryNameCard', () => {
     expect(nameplate).toHaveClass('inline-flex', 'max-w-full', 'self-start')
     expect(nameplate).toHaveClass('bg-(--theme-color)')
   })
+
+  it('allows a long unbroken configured name to wrap at narrow widths', () => {
+    const longName = `${'a'.repeat(63)}.eth`
+    render(
+      <div className="w-[390px]">
+        <PrimaryNameCard primaryName={longName} />
+      </div>,
+    )
+
+    const nameText = screen.getByText(longName)
+    const nameplate = nameText.parentElement
+    const metadataColumn = nameplate?.parentElement
+    const cardContent = metadataColumn?.parentElement
+
+    expect(nameText).toHaveClass('min-w-0', 'wrap-anywhere')
+    expect(nameplate).toHaveClass('max-w-full', 'self-start')
+    expect(metadataColumn).toHaveClass('min-w-0')
+    expect(cardContent).toHaveClass('min-w-0')
+  })
 })
