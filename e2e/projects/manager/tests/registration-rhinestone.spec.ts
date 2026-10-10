@@ -196,7 +196,7 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
   await clickThroughEnableSessions(page)
-  await page.getByText('USDC', { exact: true }).click()
+  await page.getByRole('button', { name: 'Select USDC' }).click()
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
   await page.getByRole('button', { name: /register name/i }).click()
@@ -501,7 +501,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     await page.goto(`/register/${label}`)
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
     await clickThroughEnableSessions(page)
-    await page.getByText('USDC', { exact: true }).click()
+    await page.getByRole('button', { name: 'Select USDC' }).click()
     return page.getByRole('dialog')
   }
 
@@ -927,7 +927,7 @@ async function openRegisterPageAndConnect(
 async function pressRegister(page: Page) {
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
   await clickThroughEnableSessions(page)
-  await page.getByText('USDC', { exact: true }).click()
+  await page.getByRole('button', { name: 'Select USDC' }).click()
   await page.getByRole('button', { name: /register name/i }).click()
 }
 
@@ -1294,7 +1294,8 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     // USDC is the only option, so it is selected for us; a click is only the
     // user's own path, and a wallet short of the debit cannot make it (the row
     // is disabled).
-    if (selectUsdc) await page.getByText('USDC', { exact: true }).click()
+    if (selectUsdc)
+      await page.getByRole('button', { name: 'Select USDC' }).click()
     const picker = page.getByRole('dialog')
     // Positive sign the quote landed: the fee line shows a figure, not the
     // pending em dash. Either label, so the pre-fix build ("Network cost")

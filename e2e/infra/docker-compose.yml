@@ -368,7 +368,10 @@ services:
     environment:
       - PORT=8547
       - ANVIL_RPC_URL=http://anvil:8545
-      - UPSTREAM_RPC_URL=${SEPOLIA_FORK_URL:-https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j}
+      # Its own override: bigname's startup check and backfill read old headers
+      # (down to genesis), which a pruned provider that is fine for Anvil's
+      # fork cannot serve. Falls back to the fork URL.
+      - UPSTREAM_RPC_URL=${BIGNAME_UPSTREAM_RPC_URL:-${SEPOLIA_FORK_URL:-https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j}}
     depends_on:
       anvil:
         condition: service_healthy
@@ -418,7 +421,10 @@ services:
     environment:
       - BIGNAME_DATABASE_URL=postgresql://bigname_verify:bigname_verify@bigname-postgres:5432/bigname
       - BIGNAME_API_BIND_ADDR=0.0.0.0:3000
-      - BIGNAME_API_CHAIN_RPC_URLS=ethereum-sepolia=http://anvil:8545
+      # Through the fork-aware router, like the runner: the API's startup check
+      # reads the genesis block, which Anvil can only answer by asking its own
+      # upstream, and a pruned fork provider (fine for Anvil) has no genesis.
+      - BIGNAME_API_CHAIN_RPC_URLS=ethereum-sepolia=http://bigname-rpc:8547
       # The publication can trail the stored head by a few blocks while a burst
       # of test transactions is projected; serve it rather than 409 stale.
       - BIGNAME_API_PUBLICATION_LAG_TOLERANCE_BLOCKS=16
@@ -426,6 +432,8 @@ services:
     depends_on:
       bigname-roles:
         condition: service_completed_successfully
+      bigname-rpc:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/healthz"]
       interval: 5s

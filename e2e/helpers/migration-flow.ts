@@ -59,20 +59,21 @@ export function anyRow(page: Page, fullName: string) {
 // Flow
 // ---------------------------------------------------------------------------
 
-/** Dashboard → "Upgrade Names" → the name-selection step. */
+/**
+ * Open the name-selection step at /upgrade.
+ *
+ * Straight to the route, not through the dashboard's "Upgrade Names" banner:
+ * the banner is onboarding and hides itself once the wallet has migrated any
+ * name (`shouldShowUpgradeBanner`, `migratedCount >= 1`). Against a real index
+ * the shared test wallet keeps every name it migrates, so after the first
+ * migration the banner never shows again and every later test would stall on
+ * it. Tests about the banner itself assert it on purpose.
+ */
 export async function openMigrationFlow(page: Page): Promise<void> {
-  await page.goto(`${MANAGER_APP_URL}/dashboard`)
-  await page.waitForLoadState('networkidle')
-
-  const upgradeButton = page
-    .getByRole('button', { name: 'Upgrade Names' })
-    .first()
-  await upgradeButton.waitFor({ state: 'visible', timeout: 30_000 })
-  await upgradeButton.click()
-
+  await page.goto(`${MANAGER_APP_URL}/upgrade`)
   await page
     .getByRole('heading', { name: /ready to upgrade/i })
-    .waitFor({ state: 'visible', timeout: 30_000 })
+    .waitFor({ state: 'visible', timeout: 60_000 })
 }
 
 /**

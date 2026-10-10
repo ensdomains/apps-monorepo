@@ -21,6 +21,7 @@ import {
   waitForBignameBlock,
   waitForBignameNames,
 } from './bigname-sync.js'
+import type { MockDomain } from './mock-indexer.js'
 import { type MockV1Name, mockV1Names } from './mock-v1-names.js'
 import type {
   MockV1Node,
@@ -77,6 +78,10 @@ function asFlatNames(input: V1NamesInput): MockV1Name[] | null {
       fuses: root.ownerFuses,
       expiryDate: root.expiryDate,
       records: root.records,
+      ...(root.resolver && { resolver: root.resolver }),
+      ...(root.registrantAddress && {
+        registrantAddress: root.registrantAddress,
+      }),
     })
   }
   return flat
@@ -89,6 +94,14 @@ function asFlatNames(input: V1NamesInput): MockV1Name[] | null {
 export async function serveV1Names(
   page: Page,
   input: V1NamesInput,
+  options: {
+    /**
+     * The fixture's `mockIndexer`, for tests that also read the dashboard. Its
+     * name list comes from the shared bigname mock, not from `mockV1Names`,
+     * so in mock mode the names are registered there too, as ENSv1 rows.
+     */
+    readonly indexer?: { readonly addName: (domain: MockDomain) => void }
+  } = {},
 ): Promise<void> {
   if (isRealBigname) {
     await waitForBignameBlock()
@@ -100,5 +113,13 @@ export async function serveV1Names(
     flat === null,
     'Subname trees and orphans are not expressible in the bigname route mock; run against the local bigname',
   )
-  if (flat) await mockV1Names(page, flat)
+  if (!flat) return
+  await mockV1Names(page, flat)
+  for (const n of flat)
+    options.indexer?.addName({
+      name: n.name,
+      owner: n.ownerAddress,
+      protocol: 'v1',
+      ...(n.expiryDate !== undefined && { expiryDate: n.expiryDate }),
+    })
 }

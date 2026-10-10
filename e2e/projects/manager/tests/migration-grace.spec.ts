@@ -287,10 +287,12 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
 
   test('a grace-period name is offered for renewal from the dashboard and listed on /upgrade', {
     tag: ['@smoke'],
-  }, async ({ migrationConnectedPage: page, accounts }) => {
+  }, async ({ migrationConnectedPage: page, accounts, mockIndexer }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const grace = await makeGraceV1Name({ label: 'mg-list', owner })
-    await serveV1Names(page, [graceMock(grace, owner.address)])
+    await serveV1Names(page, [graceMock(grace, owner.address)], {
+      indexer: mockIndexer,
+    })
     await syncBrowserToChain(page)
 
     // ── Dashboard: the page has loaded the name (positive sign) … ──
@@ -417,6 +419,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     migrationConnectedPage: page,
     wallet,
     accounts,
+    mockIndexer,
   }) => {
     await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
@@ -432,7 +435,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       await activeMock(active, owner.address),
       graceMock(grace, owner.address, 'wrapped'),
     ]
-    await serveV1Names(page, names)
+    await serveV1Names(page, names, { indexer: mockIndexer })
     await syncBrowserToChain(page)
 
     // ── Dashboard: upgrade copy, plus the renewal note for the grace name ──
@@ -634,6 +637,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
   test('several grace-period names on their own: plural banner and one batched renewal', async ({
     migrationConnectedPage: page,
     accounts,
+    mockIndexer,
   }) => {
     await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
@@ -643,10 +647,14 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       owner,
       wrapped: true,
     })
-    await serveV1Names(page, [
-      graceMock(first, owner.address),
-      graceMock(second, owner.address, 'wrapped'),
-    ])
+    await serveV1Names(
+      page,
+      [
+        graceMock(first, owner.address),
+        graceMock(second, owner.address, 'wrapped'),
+      ],
+      { indexer: mockIndexer },
+    )
     await syncBrowserToChain(page)
 
     await page.goto(`${MANAGER_APP_URL}/dashboard`)

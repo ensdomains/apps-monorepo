@@ -8,13 +8,19 @@
  */
 import type { Page, Route } from '@playwright/test'
 import { namehash } from 'viem'
-import type {
-  V1AddressRecord,
-  V1NameType,
-  V1TextRecord,
+import {
+  V1_PUBLIC_RESOLVER as FIXTURE_V1_RESOLVER,
+  type V1AddressRecord,
+  type V1NameType,
+  type V1TextRecord,
 } from '../fixtures/makeV1Name.js'
 
-const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
+/**
+ * The resolver `makeV1Name` writes records to. The app takes record keys from
+ * bigname and reads their values on chain from the resolver bigname reports, so
+ * a different default here replays nothing (GR1 read back null in mock mode).
+ */
+const V1_PUBLIC_RESOLVER = FIXTURE_V1_RESOLVER
 const CHAIN_ID = 11155111
 const META = { as_of: {} }
 const CORS_HEADERS = {
@@ -51,6 +57,14 @@ export type MockV1Name = {
   readonly fuses?: number
   /** Registration expiry timestamp (Unix seconds). Defaults to now + 1 year. */
   readonly expiryDate?: number
+  /** The V1 resolver to report. Defaults to a known public resolver. */
+  readonly resolver?: string
+  /**
+   * The BaseRegistrar holder when it differs from the registry controller
+   * (`ownerAddress`): the name is listed for, and owned by, the registrant,
+   * and `ownerAddress` is its manager.
+   */
+  readonly registrantAddress?: string
   /** V1 records set on this name; only their keys are served. */
   readonly records?: {
     readonly texts?: readonly V1TextRecord[]
@@ -80,15 +94,16 @@ function v1Record(n: MockV1Name) {
   const now = Math.floor(Date.now() / 1000)
   const expiry = String(n.expiryDate ?? now + 365 * 24 * 60 * 60)
   const isWrapped = n.type === 'wrapped' || n.type === 'locked'
-  const hasResolver = Boolean(n.records) || isWrapped
-  const owner = n.ownerAddress.toLowerCase()
+  const hasResolver = Boolean(n.resolver) || Boolean(n.records) || isWrapped
+  const owner = (n.registrantAddress ?? n.ownerAddress).toLowerCase()
+  const manager = n.ownerAddress.toLowerCase()
   return {
     name: n.name,
     display_name: n.name,
     namespace: 'ens',
     namehash: namehash(n.name),
     owner,
-    manager: owner,
+    manager,
     registered_at: String(now),
     created_at: String(now),
     expires_at: expiry,
@@ -103,7 +118,10 @@ function v1Record(n: MockV1Name) {
         }
       : { expires_at: expiry, wrapper_state: 'unwrapped' },
     ...(hasResolver && {
-      resolver: { chain_id: CHAIN_ID, address: V1_PUBLIC_RESOLVER },
+      resolver: {
+        chain_id: CHAIN_ID,
+        address: (n.resolver ?? V1_PUBLIC_RESOLVER).toLowerCase(),
+      },
       records: {
         seen_addresses:
           n.records?.addresses?.map(({ coinType }) => String(coinType)) ?? [],
@@ -137,7 +155,10 @@ export async function mockV1Names(
   const fulfill = (route: Route, json: unknown) =>
     route.fulfill({ status: 200, json, headers: CORS_HEADERS })
 
-  await page.route(/bigname\.sh\/v1\//, async (route) => {
+  // Hosted bigname in CI, and the local one (:5660) when a dev server reads it
+  // — the same match as mock-indexer.ts. Missing :5660 sent mock-mode runs to
+  // the real local index, which nothing had waited on.
+  await page.route(/bigname\.sh\/v1\/|:5660\/v1\//, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
     if (isMigrated) return route.fallback()
@@ -151,7 +172,10 @@ export async function mockV1Names(
     if (listing?.[1] && isV1Listing) {
       const address = listing[1].toLowerCase()
       const rows = mockNames
-        .filter((n) => n.ownerAddress.toLowerCase() === address)
+        .filter(
+          (n) =>
+            (n.registrantAddress ?? n.ownerAddress).toLowerCase() === address,
+        )
         .map((n) => ({
           ...v1Record(n),
           relations: ['owner'],

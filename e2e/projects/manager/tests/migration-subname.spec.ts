@@ -143,7 +143,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
       'a subname must not be independently selectable',
     ).toHaveCount(0)
 
-    await runMigrationFlow(page, wallet)
+    await runMigrationFlow(page, wallet, { roots: [parent] })
 
     // The 2LD migrated as a token…
     await assertV2Registered(labelOf(parent))
@@ -213,7 +213,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
       ],
     })
 
-    await runMigrationFlow(page, wallet)
+    await runMigrationFlow(page, wallet, { roots: [parent] })
 
     await assertV2Registered(labelOf(parent))
     await assertUserRegistryAttached(parent)
@@ -270,7 +270,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
     await expect(nestedRow(page, child)).toBeVisible()
     await expect(nestedRow(page, grandchild)).toBeVisible()
 
-    await runMigrationFlow(page, wallet)
+    await runMigrationFlow(page, wallet, { roots: [parent] })
 
     await assertV2Registered(labelOf(parent))
     // Two chained registries: one hanging off .eth for the 2LD, one hanging off
@@ -411,7 +411,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
     await expect(rootRow(page, parent)).toBeVisible({ timeout: 30_000 })
     await expect(nestedRow(page, child)).toBeVisible()
 
-    await runMigrationFlow(page, wallet)
+    await runMigrationFlow(page, wallet, { roots: [parent] })
 
     // Both routes leave a non-zero subregistry, so "has a subregistry" cannot
     // tell them apart. The factory's implementation pointer can: this must be
