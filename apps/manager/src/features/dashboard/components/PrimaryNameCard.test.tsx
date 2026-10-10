@@ -44,4 +44,13 @@ describe('PrimaryNameCard', () => {
       screen.getByRole('link', { name: /go to profile/i }),
     ).toBeInTheDocument()
   })
+
+  it('keeps a short configured-name background content-sized', () => {
+    render(<PrimaryNameCard primaryName="ens.eth" />)
+
+    const nameplate = screen.getByText('ens.eth').parentElement
+
+    expect(nameplate).toHaveClass('inline-flex', 'max-w-full', 'self-start')
+    expect(nameplate).toHaveClass('bg-(--theme-color)')
+  })
 })

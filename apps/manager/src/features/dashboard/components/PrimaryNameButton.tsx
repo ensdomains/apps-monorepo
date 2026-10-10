@@ -9,7 +9,7 @@ export const PrimaryNameButton = ({
 }: ComponentProps<'button'>) => (
   <button
     className={cn(
-      'group inline-flex cursor-pointer items-center gap-2 rounded-full bg-ens-lapis-tint px-2 py-1 text-ens-blue transition-colors hover:bg-ens-lapis-dust focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2',
+      'group inline-flex cursor-pointer items-center gap-2 rounded-full bg-ens-lapis-bg px-2 py-1 text-ens-blue transition-colors hover:bg-ens-lapis-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2',
       className,
     )}
     type="button"
@@ -20,11 +20,11 @@ export const PrimaryNameButton = ({
       className="grid size-4 shrink-0 place-items-center"
     >
       <MSymbol
-        className="col-start-1 row-start-1 ms-opsz-20 text-base leading-none group-hover:invisible group-focus-visible:invisible"
+        className="col-start-1 row-start-1 ms-opsz-20 ms-wght-400 text-base leading-none group-hover:invisible group-focus-visible:invisible"
         symbol="person_check"
       />
       <MSymbol
-        className="invisible col-start-1 row-start-1 ms-opsz-20 text-base leading-none group-hover:visible group-focus-visible:visible"
+        className="invisible col-start-1 row-start-1 ms-opsz-20 ms-wght-400 text-base leading-none group-hover:visible group-focus-visible:visible"
         symbol="published_with_changes"
       />
     </span>

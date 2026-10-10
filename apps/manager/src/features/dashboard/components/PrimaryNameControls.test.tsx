@@ -11,10 +11,18 @@ describe('primary name labels', () => {
     const button = screen.getByRole('button', { name: 'Primary Name' })
     const icon = button.firstElementChild
 
+    expect(button).toHaveClass('bg-ens-lapis-bg', 'hover:bg-ens-lapis-100')
+    expect(button).not.toHaveClass(
+      'bg-ens-lapis-tint',
+      'hover:bg-ens-lapis-dust',
+    )
     expect(icon).toHaveAttribute('aria-hidden', 'true')
     expect(icon).toHaveClass('place-items-center')
     expect(icon).toHaveTextContent('person_check')
     expect(icon).toHaveTextContent('published_with_changes')
+    expect(icon?.children).toHaveLength(2)
+    expect(icon?.children[0]).toHaveClass('ms-wght-400')
+    expect(icon?.children[1]).toHaveClass('ms-wght-400')
     expect(button.lastElementChild).toHaveTextContent('Primary Name')
   })
 
