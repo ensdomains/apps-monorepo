@@ -8,11 +8,13 @@ import {
   MAX_REFUND_EXCHANGE_RATE,
   MAX_REFUND_GAS_OVERHEAD,
 } from './manifest'
+import { LEGACY_REFUND_CAPS, type RefundCaps } from './refund-caps'
 import {
   buildHcaSessionConfig,
   computeDestinationSessionSalt,
   computeSourceSessionSalt,
   createDestinationSession,
+  rebuildDestinationSession,
 } from './session'
 
 const USDC = getDestinationContracts(sepolia.id).usdc
@@ -21,6 +23,13 @@ const HCA = '0xaaaa000000000000000000000000000000000001' as const
 const RESOLVER = '0x3333333333333333333333333333333333333333' as const
 const SESSION_KEY = '0x9999999999999999999999999999999999999999' as const
 const REFUND_TOKEN = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const
+const SESSION_PRIVATE_KEY = `0x${'01'.repeat(32)}` as const
+
+/** Caps a session would be sized with from a ~3M-gas overhead quote. */
+const QUOTED_CAPS: RefundCaps = {
+  ...LEGACY_REFUND_CAPS,
+  maxRefundGasOverhead: 11_889_376n,
+}
 
 describe('computeDestinationSessionSalt', () => {
   it('is deterministic for the same inputs', () => {
@@ -59,6 +68,23 @@ describe('computeDestinationSessionSalt', () => {
         ...base,
         resolver: '0x4444444444444444444444444444444444444444',
       }),
+    )
+  })
+
+  // Sessions stored before caps were sized per session carry none and were
+  // signed with the legacy caps, so the default must reproduce their salt.
+  it('defaults the caps to the legacy caps', () => {
+    const base = {
+      hcaSessionNonce: 0n,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER as Address,
+      refundToken: REFUND_TOKEN as Address,
+    }
+    expect(computeDestinationSessionSalt(base)).toBe(
+      computeDestinationSessionSalt({ ...base, ...LEGACY_REFUND_CAPS }),
+    )
+    expect(computeDestinationSessionSalt(base)).not.toBe(
+      computeDestinationSessionSalt({ ...base, ...QUOTED_CAPS }),
     )
   })
 })
@@ -100,6 +126,18 @@ describe('buildHcaSessionConfig', () => {
       maxRefundGasOverhead: Number(MAX_REFUND_GAS_OVERHEAD),
       maxRefundAmount: MAX_REFUND_AMOUNT,
     })
+  })
+
+  it('carries the caps it is given', () => {
+    expect(
+      buildHcaSessionConfig({
+        chainId: sepolia.id,
+        sessionKey: SESSION_KEY,
+        validUntil: 1_800_000_000n,
+        resolver: RESOLVER,
+        refundCaps: QUOTED_CAPS,
+      }).maxRefundGasOverhead,
+    ).toBe(11_889_376)
   })
 
   // The validator re-derives the permission salt from these fields plus the
@@ -232,5 +270,68 @@ describe('createDestinationSession', () => {
     })
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr()._tag).toBe('SessionEnableError')
+  })
+
+  it('authorizes the caps it is given and returns them', async () => {
+    const { account } = mockAccount()
+    const value = (
+      await createDestinationSession({
+        rhinestoneAccount: account,
+        publicClient,
+        chain: sepolia as Chain,
+        hca: HCA,
+        resolver: RESOLVER,
+        sessionAccount,
+        validUntil: 1_800_000_000n,
+        alreadyDeployed: false,
+        refundCaps: QUOTED_CAPS,
+      })
+    )._unsafeUnwrap()
+    expect(value.refundCaps).toEqual(QUOTED_CAPS)
+    expect(value.enableData.hcaSessionConfig.maxRefundGasOverhead).toBe(
+      Number(QUOTED_CAPS.maxRefundGasOverhead),
+    )
+    expect(value.session.salt).toBe(
+      computeDestinationSessionSalt({
+        hcaSessionNonce: 0n,
+        validUntil: 1_800_000_000n,
+        resolver: RESOLVER,
+        refundToken: USDC,
+        ...QUOTED_CAPS,
+      }),
+    )
+  })
+})
+
+describe('rebuildDestinationSession', () => {
+  const params = {
+    chain: sepolia as Chain,
+    hca: HCA as Address,
+    resolver: RESOLVER as Address,
+    hcaSessionNonce: 0n,
+    validUntil: 1_800_000_000n,
+    sessionPrivateKey: SESSION_PRIVATE_KEY,
+  }
+
+  it('rebuilds the permission ID only from the caps the session was signed with', () => {
+    const legacy = rebuildDestinationSession(params)
+    const quoted = rebuildDestinationSession({
+      ...params,
+      refundCaps: QUOTED_CAPS,
+    })
+    expect(
+      rebuildDestinationSession({ ...params, refundCaps: LEGACY_REFUND_CAPS })
+        .permissionId,
+    ).toBe(legacy.permissionId)
+    expect(quoted.permissionId).not.toBe(legacy.permissionId)
+    expect(quoted.session.salt).toBe(
+      computeDestinationSessionSalt({
+        hcaSessionNonce: 0n,
+        validUntil: 1_800_000_000n,
+        resolver: RESOLVER,
+        refundToken: USDC,
+        ...QUOTED_CAPS,
+      }),
+    )
   })
 })

@@ -20,10 +20,15 @@ import type {
 export type Power = string
 
 /** Address-name rows, reverse lookup rows: address-to-name relation values. */
-export type Relation = 'owner' | 'manager' | 'registrant' | 'resolves_to'
+export type Relation =
+  | 'owner'
+  | 'manager'
+  | 'role_holder'
+  | 'resolves_to'
+  | 'former_owner'
 
 /** Authority relations that `any` expands to. */
-export type AuthorityRelation = 'owner' | 'manager' | 'registrant'
+export type AuthorityRelation = 'owner' | 'manager' | 'role_holder'
 
 /**
  * `relation` query/body filter: one authority relation, a comma-separated set of them,

@@ -736,12 +736,17 @@ test.describe('Harness integrity', () => {
       ['portal', PORTAL_APP_URL],
       ['manager', process.env.MANAGER_APP_URL ?? 'http://localhost:3000'],
     ] as const) {
-      const res = await fetch(`${baseUrl}/src/lib/wagmi.ts`)
-      expect(
-        res.ok,
-        `could not read ${appName}'s wagmi module from ${baseUrl} — is the dev server running?`,
-      ).toBe(true)
-      const source = await res.text()
+      // The RPC is inlined wherever a module reads `import.meta.env`: the
+      // portal's wagmi module does, the manager's reads it through config.ts.
+      let source = ''
+      for (const path of ['/src/lib/wagmi.ts', '/src/config.ts']) {
+        const res = await fetch(`${baseUrl}${path}`)
+        expect(
+          res.ok,
+          `could not read ${appName}'s ${path} from ${baseUrl} — is the dev server running?`,
+        ).toBe(true)
+        source += await res.text()
+      }
       expect(
         source,
         `${appName} is not configured with the local Anvil RPC. It is serving, but against a different chain, so every fixture this suite creates is invisible to it and every "not found" it reports is a false negative. Check ${appName === 'portal' ? 'apps/portal' : 'apps/manager'}/.env{,.local} and restart the dev server.`,

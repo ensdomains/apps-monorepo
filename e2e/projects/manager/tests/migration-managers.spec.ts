@@ -39,8 +39,8 @@ import {
   rootRow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
 import { assertRoleBitmap } from '../../../helpers/role-assertions.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
   .address as Address
@@ -147,7 +147,7 @@ test.describe('ENS V1 → V2 migration — carrying a V1 manager (§G.GM)', () =
     const name = await makeV1Name({ label: 'gm1-managed' })
     await splitController(name, owner, manager)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [
         {
@@ -240,7 +240,7 @@ test.describe('ENS V1 → V2 migration — carrying a V1 manager (§G.GM)', () =
 
     const name = await makeV1Name({ label: 'gm1-declined' })
     await splitController(name, owner, manager)
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [
         {
@@ -298,7 +298,7 @@ test.describe('ENS V1 → V2 migration — carrying a V1 manager (§G.GM)', () =
         },
       ],
     }
-    await mockV1Subgraph(page, mock)
+    await serveV1Names(page, mock)
     await openMigrationFlow(page)
     await expect(rootRow(page, name)).toBeVisible({ timeout: 30_000 })
     await selectOnlyRoots(page, [name])
@@ -370,7 +370,7 @@ test.describe('ENS V1 → V2 migration — carrying a V1 manager (§G.GM)', () =
     const control = await makeV1Name({ label: 'gm4-control' })
     await splitController(control, owner, manager)
 
-    await mockV1Subgraph(page, {
+    await serveV1Names(page, {
       ownerAddress: owner.address,
       roots: [
         { kind: 'registration', label: labelOf(wrapped), type: 'wrapped' },

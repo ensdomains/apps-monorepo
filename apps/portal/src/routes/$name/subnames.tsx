@@ -14,6 +14,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -27,6 +31,8 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import {
   getV1SubnamesQueryOptions,
   getV2SubnamesQueryOptions,
+  SUBNAMES_PAGE_SIZE,
+  V1_SUBNAMES_PAGE_SIZE,
 } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -160,8 +166,8 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     data: subnamePages,
     isLoading: subnamesLoading,
     error: subnamesError,
+    isFetchNextPageError,
     hasNextPage,
-    isFetchingNextPage,
     fetchNextPage,
   } = useInfiniteQuery({
     ...getV2SubnamesQueryOptions({ name }),
@@ -286,6 +292,31 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
             holdsRolesOn(perRowUnregisterRoles, subname.resourceId)),
       })),
     [visibleSubnames, hasRootUnregisterRole, perRowUnregisterRoles],
+  )
+
+  // Counted in visible rows: a row hidden while its delete waits on the
+  // indexer is neither shown nor part of the total.
+  const totalCount = subnamePages?.pages[0]?.totalCount
+  const loader = useListLoader({
+    initialCount: SUBNAMES_PAGE_SIZE,
+    loaded: subnameRows.length,
+    total:
+      totalCount === undefined
+        ? undefined
+        : totalCount - ((subnames?.length ?? 0) - subnameRows.length),
+    hasMore: hasNextPage,
+    fetchMore: infiniteFetchMore(
+      fetchNextPage,
+      (page) =>
+        page.subnames.filter(
+          (subname) => !optimisticallyDeleted.has(subname.name || ''),
+        ).length,
+    ),
+    resetKey: name,
+  })
+  const shownRows = useMemo(
+    () => subnameRows.slice(0, loader.shown),
+    [subnameRows, loader.shown],
   )
 
   // Tracks names whose deleteSubnameAsync mutation is currently in flight.
@@ -470,7 +501,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     return <LoadingMessage title="Loading subnames..." />
   }
 
-  if (subnamesError) {
+  if (subnamesError && !isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Failed to load subnames"
@@ -490,15 +521,8 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   return (
     <>
       <SubnamesTable
-        subnames={subnameRows}
-        // The name's total, less the loaded rows hidden while their delete
-        // waits on the indexer.
-        totalCount={
-          (subnamePages?.pages[0]?.totalCount ?? 0) -
-          ((subnames?.length ?? 0) - subnameRows.length)
-        }
-        onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
-        isLoadingMore={isFetchingNextPage}
+        subnames={shownRows}
+        loader={loader}
         name={name}
         canCreateSubname={canCreateSubname}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
@@ -525,14 +549,39 @@ interface V1SubnamesContentProps {
 
 const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   const {
-    data: subnames,
+    data,
     isLoading,
     error,
-  } = useQuery(getV1SubnamesQueryOptions({ name }))
+    isFetchNextPageError,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery(getV1SubnamesQueryOptions({ name }))
+  const subnameRows = useMemo(
+    () =>
+      data?.pages.flatMap((page) =>
+        page.subnames.map((subname) => ({
+          name: subname.name || '',
+          owner: subname.owner,
+        })),
+      ) ?? [],
+    [data],
+  )
+
+  const loader = useListLoader({
+    initialCount: V1_SUBNAMES_PAGE_SIZE,
+    loaded: subnameRows.length,
+    hasMore: hasNextPage,
+    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.subnames.length),
+    resetKey: name,
+  })
+  const shownRows = useMemo(
+    () => subnameRows.slice(0, loader.shown),
+    [subnameRows, loader.shown],
+  )
 
   if (isLoading) return <LoadingMessage title="Loading subnames..." />
 
-  if (error) {
+  if (error && !isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Failed to load subnames"
@@ -541,12 +590,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     )
   }
 
-  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
-    name: subname.name || '',
-    owner: subname.owner,
-  }))
-
-  return <SubnamesTable subnames={subnameRows} name={name} />
+  return <SubnamesTable subnames={shownRows} loader={loader} name={name} />
 }
 
 function RouteComponent() {

@@ -11,6 +11,7 @@ describe('invalidateRegistryQueries', () => {
     const keys = [
       ['get-registry-root-role-holders', { registryAddress: '0x1' }],
       ['get-registry-role-history-for-account', { registryAddress: '0x1' }],
+      ['get-contract-history-timeline', { address: '0x1' }],
     ] as const
     for (const key of keys) queryClient.setQueryData(key, [])
 

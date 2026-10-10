@@ -1,9 +1,9 @@
+import type { IneligibleReason, V1Domain } from '@ens-apps/migration'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import type { IneligibleName } from '../service/classifyNames'
-import type { V1Domain } from '../service/v1SubgraphClient'
 
 const V1_GRACE_PERIOD_SECONDS =
   BigInt(V1_GRACE_PERIOD_DAYS) * BigInt(SECONDS_PER_DAY)
@@ -62,4 +62,17 @@ export const getGracePeriodNames = (
         expiry - V1_GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
       )
     })
+    .sort((a, b) => a.domain.name.localeCompare(b.domain.name))
+
+const UNAVAILABLE_REASONS: ReadonlySet<IneligibleReason> = new Set([
+  'missing-registration',
+  'not-reserved',
+])
+
+/** Names the owner holds that no upgrade or renewal here can move. */
+export const getUnavailableNames = (
+  ineligible: readonly IneligibleName[],
+): readonly IneligibleName[] =>
+  ineligible
+    .filter(({ reason }) => UNAVAILABLE_REASONS.has(reason))
     .sort((a, b) => a.domain.name.localeCompare(b.domain.name))

@@ -6,7 +6,7 @@ import type {
 } from '../reads/common.types'
 import { IndexerReadError } from '../reads/errors'
 import type { BignameError } from './errors'
-import type { Authority, Relation, Timestamp } from './types'
+import type { Authority, EnsV1Facts, Relation, Timestamp } from './types'
 
 const UNIX_SECONDS = /^-?\d+$/
 // An explicit zone is required; without one `Date.parse` reads local time.
@@ -31,7 +31,12 @@ const toEpochMs = (value: Timestamp | undefined): number | null => {
   return Number.isFinite(ms) && Math.abs(ms) <= MAX_DATE_MS ? ms : null
 }
 
+// A wrapped name can expire at 2^64 - 1, past what a number holds exactly.
+// Clamping keeps the result exact, and it still compares as never expiring.
 export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
+  if (value !== undefined && UNIX_SECONDS.test(value)) {
+    return Math.min(Number(value), Number.MAX_SAFE_INTEGER)
+  }
   const ms = toEpochMs(value)
   return ms === null ? null : Math.floor(ms / MS_PER_SECOND)
 }
@@ -57,13 +62,32 @@ export const toProtocol = (
 export const toAddress = (value: string | undefined): Address | null =>
   value !== undefined && isAddress(value) ? value : null
 
-// `resolves_to` is a record relation, not a control relation.
+/**
+ * An ENSv1 name expires with its registrar lease. Once it holds an ENSv2
+ * reservation the top-level `expires_at` is the reservation's (lease + 62
+ * days); subnames have no lease and use the top-level value.
+ */
+export const toExpiresAt = (row: {
+  readonly expires_at?: Timestamp
+  readonly ens_v1?: EnsV1Facts
+}): Date | null => toDate(row.ens_v1?.expires_at ?? row.expires_at)
+
+/** Exact unix seconds, including values past what a Date or a number holds. */
+export const toExactSeconds = (value: Timestamp | undefined): bigint | null => {
+  if (value !== undefined && UNIX_SECONDS.test(value)) return BigInt(value)
+  const seconds = toUnixSeconds(value)
+  return seconds === null ? null : BigInt(seconds)
+}
+
+const NAME_RELATIONS: readonly Relation[] = ['owner', 'manager', 'role_holder']
+
+const isNameRelation = (relation: Relation): relation is NameRelation =>
+  NAME_RELATIONS.includes(relation)
+
+// `resolves_to` is a record relation and `former_owner` a lapsed one, not control relations.
 export const toRelations = (
   relations: readonly Relation[],
-): readonly NameRelation[] =>
-  relations.filter(
-    (relation): relation is NameRelation => relation !== 'resolves_to',
-  )
+): readonly NameRelation[] => relations.filter(isNameRelation)
 
 export const toReadError = (error: BignameError): IndexerReadError => {
   const kind =

@@ -1,5 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -8,24 +8,21 @@ import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
+import { useDebounce } from '@/hooks/useDebounce'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
   selectionKey,
   toBulkRenewName,
   toSelectableDomain,
 } from '../bulkRenewSelection'
-import {
-  buildMergedNamesList,
-  getMergedNamesCount,
-  type NameVersion,
-  type SortDir,
-  type SortField,
-} from '../mergedNames'
+import { isHeldName } from '../dashboardNames'
+import { useAccountSelection } from '../hooks/useAccountSelection'
+import type { NameVersion, SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
+import { getRenewableDashboardNamesQueryOptions } from '../service/queries/getDashboardNames'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import { useDashboardAddresses, useDashboardNames } from '../useDashboardNames'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -77,102 +74,79 @@ export const NamesTable = ({
   const isAuthed = useAtom(isBackendAuthed)
   const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
-  const { v2Names } = useOwnedDomains()
+  // Searching reads bigname, so wait for typing to pause.
+  const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
+    delay: 300,
+  })
+  const { total: ownedTotal, isError: isNamesError } = useDashboardNames({
+    sortField: ownedSortState.field,
+    sortDir: ownedSortState.dir,
+  })
+  // The chip counts do not depend on the sort, so they keep one read each.
+  const v1Names = useDashboardNames({ version: 'v1' })
+  const v2Names = useDashboardNames({ version: 'v2' })
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
   })
 
-  const { v1Names, isError: isV1Error } = useDashboardV1Names({
-    migrationEnabled,
-  })
-
   const favoritesCount = favorites.length
-  const ownedCount = isV1Error
-    ? undefined
-    : getMergedNamesCount({ v2Names, v1Classified: v1Names })
-  const v1Count = isV1Error
-    ? undefined
-    : getMergedNamesCount({ v2Names, v1Classified: v1Names, version: 'v1' })
-  const v2Count = getMergedNamesCount({
-    v2Names,
-    v1Classified: v1Names,
-    version: 'v2',
-  })
+  const ownedCount = isNamesError ? undefined : ownedTotal
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
     [favorites],
   )
 
-  const [selectedLabels, setSelectedLabels] = useState<ReadonlySet<string>>(
-    new Set(),
-  )
+  const addresses = useDashboardAddresses()
+  const accountsKey = addresses.join(',')
+  const {
+    selected,
+    labels: selectedLabels,
+    toggle: onToggleSelect,
+    toggleAll,
+    clear: clearSelection,
+  } = useAccountSelection(accountsKey)
 
-  // Only renewable v2 2LD .eth names are selectable — v1 names and subnames are
-  // ignored for selection/renewal (subnames have no renewal price).
-  const allOwnedLabels = useMemo(
-    () =>
-      buildMergedNamesList({
-        v2Names,
-        v1Classified: [],
-        searchQuery,
-        sortField: ownedSortState.field,
-        sortDir: ownedSortState.dir,
-        version,
-      }).flatMap((item) =>
-        item.kind === 'v2' &&
-        toBulkRenewName(toSelectableDomain(item.domain)) !== null
-          ? [selectionKey(item.domain)]
-          : [],
-      ),
-    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir, version],
+  // Select-all covers every renewable name, not just the loaded pages, so the
+  // list is read from bigname when it is first asked for.
+  const queryClient = useQueryClient()
+  const renewableOptions = getRenewableDashboardNamesQueryOptions(
+    addresses,
+    search,
   )
+  const { data: renewableNames } = useQuery({
+    ...renewableOptions,
+    enabled: false,
+  })
 
   const [isRenewOpen, setIsRenewOpen] = useState(false)
 
-  const selectedCount = selectedLabels.size
+  const selectedCount = selected.size
   const allSelected =
-    allOwnedLabels.length > 0 &&
-    allOwnedLabels.every((label) => selectedLabels.has(label))
+    !!renewableNames &&
+    renewableNames.length > 0 &&
+    renewableNames.every((name) => selected.has(selectionKey(name)))
   const someSelected = selectedCount > 0
 
+  // Only renewable v2 2LD .eth names the accounts hold are renewed here.
   const selectedNames = useMemo<BulkRenewName[]>(
     () =>
-      v2Names
-        .filter((domain) => selectedLabels.has(selectionKey(domain)))
-        .map((domain) => toBulkRenewName(toSelectableDomain(domain)))
+      [...selected.values()]
+        .filter((name) => name.protocol === 'v2' && isHeldName(name))
+        .map((name) => toBulkRenewName(toSelectableDomain(name)))
         .filter((name): name is BulkRenewName => name !== null),
-    [v2Names, selectedLabels],
+    [selected],
   )
 
-  const onToggleSelect = (label: string) => {
-    setSelectedLabels((prev) => {
-      const next = new Set(prev)
-      if (next.has(label)) {
-        next.delete(label)
-      } else {
-        next.add(label)
-      }
-      return next
-    })
-  }
-
-  // Toggle only the currently-visible names, preserving any selections made
-  // under a different search/filter.
-  const onToggleSelectAll = () => {
-    setSelectedLabels((prev) => {
-      const allIn =
-        allOwnedLabels.length > 0 &&
-        allOwnedLabels.every((label) => prev.has(label))
-      const next = new Set(prev)
-      for (const label of allOwnedLabels) {
-        if (allIn) next.delete(label)
-        else next.add(label)
-      }
-      return next
-    })
-  }
+  // Toggle every renewable name under the current search, preserving any
+  // selections made under a different search. A read that finishes after the
+  // wallet changed is dropped.
+  const selectAll = useMutation({
+    mutationFn: (_forAccounts: string) =>
+      queryClient.fetchQuery(renewableOptions),
+    onSuccess: (names, forAccounts) => toggleAll(names, forAccounts),
+  })
 
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -218,12 +192,20 @@ export const NamesTable = ({
   // v1 / v2 are mutually exclusive; clicking the active one shows all again.
   // Switching drops the selection so Renew can't include a name that's hidden.
   const versionChips: FilterChipDef<NameVersion>[] = [
-    { value: 'v1', label: t`V1`, count: v1Count },
-    { value: 'v2', label: t`V2`, count: v2Count },
+    {
+      value: 'v1',
+      label: t`V1`,
+      count: v1Names.isError ? undefined : v1Names.total,
+    },
+    {
+      value: 'v2',
+      label: t`V2`,
+      count: v2Names.isError ? undefined : v2Names.total,
+    },
   ]
   const changeVersion = (next: NameVersion | null) => {
     setVersion(next)
-    setSelectedLabels(new Set())
+    clearSelection()
   }
 
   return (
@@ -300,7 +282,7 @@ export const NamesTable = ({
           )}
         </div>
 
-        {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
+        {activeFilter === 'owned' && ownedTotal > 0 && version !== 'v1' && (
           <div className="flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <SelectionCheckbox
@@ -309,7 +291,7 @@ export const NamesTable = ({
                 }
                 checked={allSelected}
                 indeterminate={someSelected && !allSelected}
-                onToggle={onToggleSelectAll}
+                onToggle={() => selectAll.mutate(accountsKey)}
               />
               <span className="font-sans text-[#232222] text-sm tracking-[0.28px]">
                 {selectedCount > 0 ? (
@@ -318,6 +300,11 @@ export const NamesTable = ({
                   <Trans>Select all</Trans>
                 )}
               </span>
+              {selectAll.isError && (
+                <span className="font-sans text-red-600 text-sm" role="alert">
+                  <Trans>Names could not be loaded</Trans>
+                </span>
+              )}
             </div>
             {someSelected && (
               <button
@@ -361,7 +348,7 @@ export const NamesTable = ({
                 onToggleFavorite={onToggleFavorite}
                 onToggleSelect={onToggleSelect}
                 primaryLabel={primaryLabel}
-                searchQuery={searchQuery}
+                searchQuery={search}
                 selectedLabels={selectedLabels}
                 sort={ownedSort}
                 version={version}
@@ -396,7 +383,7 @@ export const NamesTable = ({
       <BulkRenewDialog
         names={selectedNames}
         onOpenChange={setIsRenewOpen}
-        onRenewed={() => setSelectedLabels(new Set())}
+        onRenewed={clearSelection}
         open={isRenewOpen}
       />
     </div>

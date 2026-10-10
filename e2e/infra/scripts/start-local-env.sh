@@ -17,10 +17,13 @@ COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"
 # ---------- tear-down shortcut ----------
 if [[ "${1:-}" == "--down" ]]; then
   echo "=== Stopping E2E stack ==="
-  docker compose -f "$COMPOSE_FILE" down
+  docker compose -f "$COMPOSE_FILE" --profile bigname down
   echo "Done."
   exit 0
 fi
+
+# ---------- bigname settings ----------
+BIGNAME_IMAGE="${BIGNAME_IMAGE:-bigname:e2e-anvil-fork}"
 
 # ---------- start ----------
 echo "=== Starting E2E stack (Anvil + Alto + Paymaster) ==="
@@ -100,6 +103,40 @@ check_running "v1-subgraph"
 # DQA overlay service (design-review comments). See e2e/docs/dqa-overlay.md.
 wait_for_service "dqa" 60
 
+# ---------- bigname (the manager's indexer) ----------
+# Runs only when the patched image has been built (e2e/infra/bigname/README.md).
+# bigname cannot follow a different fork with the database it indexed the last
+# one into, so the database is wiped whenever Anvil's fork block changes.
+anvil_fork_block() {
+  curl -fsS -X POST -H 'content-type: application/json' \
+    --data '{"jsonrpc":"2.0","id":1,"method":"anvil_nodeInfo","params":[]}' \
+    http://127.0.0.1:8545 | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['forkConfig']['forkBlockNumber'])"
+}
+
+bigname_psql() {
+  docker compose -f "$COMPOSE_FILE" --profile bigname exec -T bigname-postgres \
+    psql -U bigname -d bigname -tAc "$1"
+}
+
+if docker image inspect "$BIGNAME_IMAGE" >/dev/null 2>&1; then
+  echo ""
+  echo "=== Starting bigname ==="
+  FORK_BLOCK=$(anvil_fork_block)
+  INDEXED_FORK=$(bigname_psql "SELECT fork_block FROM public.e2e_fork" 2>/dev/null || true)
+  if [[ "$INDEXED_FORK" != "$FORK_BLOCK" ]]; then
+    echo "  Anvil forked at $FORK_BLOCK (bigname indexed: ${INDEXED_FORK:-nothing})"
+    bash "$SCRIPT_DIR/reset-bigname.sh"
+  else
+    docker compose -f "$COMPOSE_FILE" --profile bigname up -d
+    wait_for_service "bigname-api" 120
+    bash "$SCRIPT_DIR/wait-for-bigname.sh"
+  fi
+else
+  echo ""
+  echo "  ⚠️  $BIGNAME_IMAGE not built; skipping bigname (see e2e/infra/bigname/README.md)."
+  echo "     The manager then needs E2E_MOCK_INDEXER=true."
+fi
+
 # ---------- print env ----------
 echo ""
 echo "=== Environment variables for the app ==="
@@ -111,6 +148,9 @@ echo ""
 echo "  # Rhinestone path (default smart-account provider)"
 echo "  VITE_RHINESTONE_ENDPOINT_URL=/orchestrator   (Vite proxy → 127.0.0.1:3007)"
 echo '  VITE_RHINESTONE_CUSTOM_RPC_URLS={"11155111":"http://127.0.0.1:8545"}'
+echo ""
+echo "  # bigname (manager) — only when the image is built"
+echo "  VITE_BIGNAME_API_URL=http://127.0.0.1:5660"
 echo ""
 echo "  # DQA overlay (design review — optional; see e2e/docs/dqa-overlay.md)"
 echo "  VITE_DQA=1"

@@ -2,8 +2,10 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Hex,
+  LapsedRegistration,
   Namespace,
   RegistrationStatus,
   SortOrder,
@@ -19,19 +21,30 @@ import type {
 /** `GET /v1/addresses/{address}/names`: query. */
 export type AddressNamesQuery = Readonly<{
   namespace?: Namespace
-  /** Control relations as a set, `any` for all three, or `resolves_to` on its own. */
-  relation?: readonly AuthorityRelation[] | 'any' | 'resolves_to'
+  /** Control relations as a set, `any` for all three, or `resolves_to` or `former_owner` on its own. */
+  relation?:
+    | readonly AuthorityRelation[]
+    | 'any'
+    | 'resolves_to'
+    | 'former_owner'
   /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
   coin_type?: number | 'evm'
-  authority?: Authority
+  authority?: Authority | readonly Authority[]
+  /** Direct children of this parent only, e.g. `eth` excludes subnames. */
+  parent?: string
+  expires_after?: Timestamp
+  expires_before?: Timestamp
   /** Rejected with `relation=resolves_to`. */
   is_migrated?: 'true' | 'false'
   /** ENSIP-15 name prefix; one trailing dot marks a label boundary. */
   q?: string
-  sort?: 'name' | 'expires_at' | 'registered_at'
+  /** ENSIP-15 matching mode for `q`; `prefix` when absent. */
+  match?: 'prefix' | 'contains'
+  sort?: 'name' | 'expires_at' | 'registered_at' | 'created_at'
   order?: SortOrder
   dedupe?: 'name' | 'registration'
-  include?: readonly ('counts' | 'role_summary')[]
+  /** `total_count` asks for an exact total, which large results otherwise omit. */
+  include?: readonly ('counts' | 'role_summary' | 'total_count')[]
   finality?: 'latest'
   cursor?: Cursor
   page_size?: number
@@ -53,13 +66,18 @@ export type AddressName = Readonly<{
   permission_resource_id?: string
   owner?: Address
   registrant?: Address
-  registration_status: RegistrationStatus
+  status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  /** End of the registrar grace period, already adjusted for the authority. */
+  grace_ends_at?: Timestamp
   authority?: Authority
+  ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
-  /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
+  /** Only on `released` rows. */
+  lapsed_registration?: LapsedRegistration
+  /** Matched subset of `owner`/`manager`/`role_holder`, or `["resolves_to"]`. */
   relations: readonly Relation[]
   is_primary: boolean
   /** `relation=resolves_to` with one decimal `coin_type` only. */

@@ -40,10 +40,8 @@ import {
   assertUnlockedMigration,
   assertV2Reserved,
 } from '../../../helpers/migration-assertions.js'
-import {
-  type MockV1Name,
-  mockV1Subgraph,
-} from '../../../helpers/mock-v1-subgraph.js'
+import type { MockV1Name } from '../../../helpers/mock-v1-subgraph.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -160,7 +158,7 @@ test.describe('Migration deep into and after the V1 grace period', () => {
       label: 'ga8-control',
     })
 
-    await mockV1Subgraph(page, [
+    await serveV1Names(page, [
       graceMock(lapsed, owner.address),
       graceMock(day89, owner.address),
       graceMock(day45, owner.address),

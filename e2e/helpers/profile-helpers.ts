@@ -94,7 +94,7 @@ export async function renewFor28Days(page: Page): Promise<string> {
   // EnableSessions modal BEFORE the token picker — same gate as registration.
   // Idempotent no-op in EOA mode or when sessions are already active.
   await clickThroughEnableSessions(page)
-  await page.getByText('USDC', { exact: true }).click()
+  await page.getByRole('button', { name: 'Select USDC' }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
 

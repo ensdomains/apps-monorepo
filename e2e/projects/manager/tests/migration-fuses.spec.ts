@@ -69,7 +69,7 @@ import {
   rootRow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 // Headless wallet user = Anvil account 0
 const HEADLESS_USER_ADDRESS = privateKeyToAccount(
@@ -138,7 +138,7 @@ async function mockLocked(
   page: Page,
   names: readonly { name: string; fuses: number; resolver?: Address }[],
 ) {
-  await mockV1Subgraph(page, {
+  await serveV1Names(page, {
     ownerAddress: HEADLESS_USER_ADDRESS,
     roots: names.map(({ name, fuses, resolver }) => ({
       kind: 'registration' as const,

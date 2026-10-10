@@ -16,6 +16,7 @@ import {
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
+import { waitForBignameName } from '../helpers/bigname-sync.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
@@ -198,6 +199,7 @@ type ManagerFixtures = {
    */
   mockIndexer: {
     addName: (domain: MockDomain) => void
+    readonly removeName: (name: string) => void
     enabled: boolean
   }
 }
@@ -323,6 +325,10 @@ export const test = base.extend<ManagerFixtures>({
           owner: ownerAddress,
           records: config.records,
         })
+      } else {
+        // The real local bigname has to index the name before the dashboard,
+        // search or profile can list it.
+        await waitForBignameName(name)
       }
       return name
     })
@@ -331,6 +337,7 @@ export const test = base.extend<ManagerFixtures>({
   mockIndexer: async ({}, use) => {
     await use({
       addName: indexerMock.addName,
+      removeName: indexerMock.removeName,
       enabled: indexerMock.enabled,
     })
   },

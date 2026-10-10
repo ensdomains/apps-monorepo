@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
 import { envConfig } from '@/config'
@@ -32,14 +33,11 @@ import {
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
 } from '@/features/migration/service/migrationInvariants'
-import type {
-  V1Domain,
-  V1ProfileKeys,
-} from '@/features/migration/service/v1SubgraphClient'
 import {
   getV1ProfileKeys,
   hasV1ProfileRecords,
-} from '@/features/migration/service/v1SubgraphClient'
+  type V1ProfileKeys,
+} from '@/features/migration/service/v1ProfileKeys'
 
 export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
@@ -142,7 +140,7 @@ const computeProfilePreflight = async (
   }
 
   const keysResult = await getV1ProfileKeys(
-    namesWithSourceResolver.map((name) => name.domain.id),
+    namesWithSourceResolver.map((name) => name.domain.name),
     { signal },
   )
   signal?.throwIfAborted()
@@ -163,7 +161,7 @@ const computeProfilePreflight = async (
   ].filter((id) => !returnedIds.has(id))
   if (missingIds.length > 0) {
     throw new ProfileFetchError({
-      phase: 'subgraph',
+      phase: 'indexer',
       cause: new Error(
         `Profile key inventory omitted ${missingIds.length} requested resolver-backed node${missingIds.length === 1 ? '' : 's'}`,
       ),

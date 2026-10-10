@@ -5,7 +5,8 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
-import { getRoleChangeLogs, ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
+import { ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
+import { getRoleHolders } from '@/lib/roles/roleHolders'
 
 type GetRegistryRootRoleHoldersParameters = {
   readonly registryAddress: Address
@@ -18,30 +19,23 @@ export type RootRoleHolder = {
 
 /**
  * Every account holding roles at a registry's root, with the roles it holds.
- *
- * `newRoleBitmap` is absolute state at each log, and logs arrive oldest-first,
- * so writing each account as it is seen leaves its latest bitmap. An account
- * whose latest bitmap decodes to nothing has been revoked and is dropped.
+ * An account whose bitmap decodes to nothing has been revoked and is dropped.
  */
 const getRegistryRootRoleHolders = ResultFn(async function* ({
   registryAddress,
 }: GetRegistryRootRoleHoldersParameters) {
-  const logs = yield* getRoleChangeLogs({
+  const current = yield* getRoleHolders({
     registryAddress,
     resource: ROOT_RESOURCE,
   })
 
-  const latest = new Map<Address, readonly Role[]>()
-
-  for (const log of logs) {
-    const account = log.args.account
-    if (account === zeroAddress) continue
-    latest.set(account, decodeRoleBitmap(log.args.newRoleBitmap))
-  }
-
-  const holders: RootRoleHolder[] = [...latest]
-    .filter(([, roles]) => roles.length > 0)
-    .map(([account, roles]) => ({ account, roles }))
+  const holders: RootRoleHolder[] = current
+    .filter(({ account }) => account !== zeroAddress)
+    .map(({ account, roleBitmap }) => ({
+      account,
+      roles: decodeRoleBitmap(roleBitmap),
+    }))
+    .filter(({ roles }) => roles.length > 0)
 
   return ok(holders)
 })

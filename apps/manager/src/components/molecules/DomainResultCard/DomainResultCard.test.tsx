@@ -79,14 +79,14 @@ describe('DomainResultCard', () => {
     }
 
     const defaultTint = patternSrc(undefined)
-    const themedTint = patternSrc('#112233')
+    const themedTint = patternSrc('#E72A96')
 
     expect(themedTint).not.toBe(defaultTint)
     // Attacker-controlled record values must never throw: non-hex values
     // fall back to the default tint, and padded hex is trimmed.
     expect(patternSrc('red')).toBe(defaultTint)
     expect(patternSrc('')).toBe(defaultTint)
-    expect(patternSrc(' #112233 ')).toBe(themedTint)
+    expect(patternSrc(' #E72A96 ')).toBe(themedTint)
   })
 
   it('drops the theme tint for a name in its grace period', () => {
@@ -94,7 +94,7 @@ describe('DomainResultCard', () => {
       <DomainResultCard
         domainName="earl.eth"
         status="grace"
-        themeColor="#112233"
+        themeColor="#E72A96"
       />,
     )
     const graceSrc = queryPatternImage(container, 'earl.eth')?.getAttribute(

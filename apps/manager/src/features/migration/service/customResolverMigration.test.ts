@@ -23,10 +23,10 @@ import {
   type DirectMigrationRoute,
 } from './directMigrationRoutes'
 import { fetchV1Profiles, type Profile } from './fetchV1Profiles'
-import { getV1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys } from './v1ProfileKeys'
 
-vi.mock('./v1SubgraphClient', async (importActual) => ({
-  ...(await importActual<typeof import('./v1SubgraphClient')>()),
+vi.mock('./v1ProfileKeys', async (importActual) => ({
+  ...(await importActual<typeof import('./v1ProfileKeys')>()),
   getV1ProfileKeys: vi.fn(),
 }))
 vi.mock('./fetchV1Profiles', async (importActual) => ({
@@ -232,7 +232,13 @@ describe('migrating a V1 name whose resolver is not a known public resolver', ()
     expect(migrationResolverOf(plan)).toBe(getAddress(ownedPermRes))
     expect(fetchV1ProfilesMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        names: [{ nodeHex: NODE, v1ResolverAddress: KNOWN_PUBLIC_RESOLVER }],
+        names: [
+          {
+            name: NAME,
+            nodeHex: NODE,
+            v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
+          },
+        ],
       }),
     )
     expect(phasesOf(plan)).toEqual([

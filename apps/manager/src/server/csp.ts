@@ -5,12 +5,11 @@
  * production only — Vite HMR needs the eval/ws this policy forbids.
  *
  * Unlike portal (static SPA), manager SSRs its hydration scripts, so
- * `script-src` is nonce + `strict-dynamic` based. Violations are reported to
- * PostHog via `report-to` / `report-uri` + `Reporting-Endpoints`.
+ * `script-src` is nonce + `strict-dynamic` based. PostHog reporting is
+ * temporarily disabled while PostHog is retained only for feature flags.
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
 import { envConfig } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
@@ -38,12 +37,6 @@ const OVERRIDE_CONNECT_ORIGINS = [
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
 ].filter((origin): origin is string => origin != null)
 
-// Subgraph endpoints ensjs resolves internally (getNameHistory). Derived from
-// its own chain config so the mainnet cutover can't silently fail closed.
-const SUBGRAPH_ORIGINS = Object.values(ensL1Subgraphs).map(
-  ({ ens }) => new URL(ens.url).origin,
-)
-
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
 const DEFAULT_CONNECT_HOSTS = [
@@ -54,14 +47,13 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexers, resolved in `@/config`.
-  ...[
-    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
-    originFromEnvUrl(envConfig.endpoints.bignameApi),
-  ].filter((origin): origin is string => origin !== null),
-  // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
-  // sepolia.app-api.ens.domains), v1 subgraph (v1-graphql.ens.dev). The
-  // wildcard families cover per-deployment and per-environment hosts.
+  // The indexer, resolved in `@/config`.
+  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
+    (origin): origin is string => origin !== null,
+  ),
+  // ENS-owned hosts: backend API (VITE_API_URL /
+  // sepolia.app-api.ens.domains). The wildcard families cover per-deployment
+  // and per-environment hosts.
   'https://*.ens.dev',
   // ENS-owned *.ens.domains: metadata avatar gateway, PostHog analytics host
   // (edge.ens.domains — VITE_PUBLIC_POSTHOG_HOST).
@@ -91,8 +83,6 @@ const DEFAULT_CONNECT_HOSTS = [
   'wss://*.walletconnect.org',
   // Reown AppKit (formerly Web3Modal) config + analytics API
   'https://api.web3modal.org',
-  // Subgraph endpoints ensjs resolves internally (see SUBGRAPH_ORIGINS).
-  ...SUBGRAPH_ORIGINS,
   // DNS-over-HTTPS — ensjs `getDnsTxtRecords` (utils/dnssec) defaults to
   // cloudflare-dns.com. Both hosts: CSP matches on host, not on service.
   'https://cloudflare-dns.com',
@@ -125,15 +115,15 @@ const FRAME_HOSTS = [
   COMMEMORATIVE_RENDERER_ORIGIN,
 ]
 
+// POSTHOG_LAUNCH_PAUSE: CSP reporting paused while PostHog is used only for flags. Restore endpoint, directives, and Reporting-Endpoints together; enforcement is unchanged.
 // PostHog CSP-violation reporting endpoint. Points at PostHog EU cloud (the
 // edge.ens.domains analytics proxy can't serve /report/). Trailing slash is
 // required; token is the public client key.
-export const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
+// export const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
 
 /**
- * Report-only unless the build sets `VITE_CSP_ENFORCE=1`. A miss in the
- * allowlist fails closed and silently, so collect real-traffic violations from
- * the PostHog dashboard first, then flip to enforcing.
+ * Report-only unless the build sets `VITE_CSP_ENFORCE=1`. Preserve the
+ * existing enforcement rollout setting while reporting is disabled.
  */
 export const CSP_REPORT_ONLY = import.meta.env?.VITE_CSP_ENFORCE !== '1'
 
@@ -175,10 +165,9 @@ export function buildCsp(nonce: string): string {
     "form-action 'self'",
     'upgrade-insecure-requests',
     "frame-ancestors 'none'",
-    // `report-to` names the endpoint set in the `Reporting-Endpoints` header
-    // (src/start.ts); `report-uri` is the legacy fallback.
-    'report-to posthog',
-    `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
+    // POSTHOG_LAUNCH_PAUSE: reporting destination paused; restore with the endpoint and src/start.ts header.
+    // 'report-to posthog',
+    // `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
   ].join('; ')};`
 }
 

@@ -713,6 +713,52 @@ describe('estimateHcaBudgetActor', () => {
     readContract.mockResolvedValue(0n)
   })
 
+  // The quoted spend leaves out the relay fee in the refund overhead; at
+  // ~1 Mwei that under-funded a first registration's reveal on Sepolia.
+  it('budgets each leg for the refund overhead the quote signs, not only its spend', async () => {
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            [String(sepolia.id)]: {
+              [C.usdc.toLowerCase()]: { locked: '0', unlocked: '3765' },
+            },
+          },
+        },
+        intentOp: {
+          signedMetadata: {
+            tokenPrices: { ETH: 2560.7, USDC: 1 },
+            gasPrices: { [String(sepolia.id)]: '1100031' },
+          },
+          elements: [
+            {
+              mandate: {
+                qualifier: {
+                  settlementContext: {
+                    gasRefund: {
+                      token: C.usdc,
+                      exchangeRate: '2560716071',
+                      overhead: ((21_717n << 128n) | 2_597_034n).toString(),
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    })
+
+    const breakdown = (await estimateHcaBudgetActor(input))._unsafeUnwrap()
+
+    // `legFeeUsdc` alone gives 15_899 here: (450k + 2 × 2,597,034) gas × 1.1
+    // Mwei × the exchange rate, above the 10_017 such a commit was charged
+    // against a 3_765 spend. At this gas price the per-chain floor is the
+    // larger of the two bounds, so it is what the leg ends up funded from.
+    expect(breakdown.commitCost).toBeGreaterThanOrEqual(15_899n)
+    expect(breakdown.registerCost).toBeGreaterThanOrEqual(breakdown.commitCost)
+  })
+
   it('quotes the reveal batch WITH the primary-name call when one is set', async () => {
     // The permit is sized from this quote, so the quoted batch must be the
     // batch that gets submitted. Pricing a reveal without the adapter call

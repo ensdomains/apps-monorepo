@@ -1,4 +1,3 @@
-import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -19,7 +18,7 @@ import {
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
-import { indexerClient } from '@/lib/indexer-client'
+import { getNameDetail } from '@/features/shared/service/nameDetail'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName, normalizeEthName } from './profileName'
@@ -76,19 +75,7 @@ const normalizeV1Expiry = (
   }
 }
 
-// Kept as a raw string: parsing with graphql 17 at module scope opens a
-// diagnostics-channel tracing span, which workerd disallows in global scope.
-const SubnameExpiryDocument = /* GraphQL */ `
-  query SubnameExpiry($name: String!) {
-    domains(where: { name: $name, includeUnreachable: true }) {
-      expiryDate
-    }
-  }
-`
-
-type SubnameExpiryQuery = {
-  readonly domains: readonly { readonly expiryDate: number | null }[]
-}
+const MS_PER_SECOND = 1000
 
 /**
  * A subname's own expiry, as its registry records it.
@@ -99,20 +86,14 @@ type SubnameExpiryQuery = {
  * outlive its parent, so a computed minimum would report a date no registry
  * holds. Any failure answers null and renders as no expiry.
  */
-const getIndexedExpiry = async (name: string): Promise<bigint | null> => {
-  try {
-    const { domains } = await graphqlRequest<
-      SubnameExpiryQuery,
-      { name: string }
-    >(indexerClient, SubnameExpiryDocument, { name })
-
-    const expiryDate = domains[0]?.expiryDate
-
-    return expiryDate == null ? null : BigInt(expiryDate)
-  } catch {
-    return null
-  }
-}
+const getIndexedExpiry = (name: string): Promise<bigint | null> =>
+  getNameDetail(name)
+    .map((detail) =>
+      detail?.expiresAt
+        ? BigInt(Math.floor(detail.expiresAt.getTime() / MS_PER_SECOND))
+        : null,
+    )
+    .unwrapOr(null)
 
 export const getExpiry = ResultFn(async function* (
   name: string,

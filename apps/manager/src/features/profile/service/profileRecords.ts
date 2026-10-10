@@ -1,5 +1,3 @@
-import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -8,9 +6,9 @@ import {
   type GetContentHashReturnType,
   getCoderFromCoin,
 } from '@ensdomains/ensjs/utils'
-import { fromPromise, fromThrowable, ok } from 'neverthrow'
+import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
-import { indexerClient } from '@/lib/indexer-client'
+import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
 import {
@@ -27,36 +25,17 @@ class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
 }> {}
 
-type IndexerResolver = NonNullable<
-  NonNullable<DomainQuery['domain']>['resolver']
->
-type IndexerCoinAddress = NonNullable<IndexerResolver['addresses']>[number]
-
-type IndexerRecords = {
-  isMigrated: true
-  createdAt: { date: Date; value: number }
-  texts: string[]
-  coins: number[]
-  resolverAddress?: string
-  coinAddresses: IndexerCoinAddress[]
-  contentHash: string | null
-}
-
-const indexerDomainInflight = new Map<string, Promise<DomainQuery>>()
-
-function fetchIndexerDomain(name: string): Promise<DomainQuery> {
-  const existing = indexerDomainInflight.get(name)
-  if (existing) return existing
-
-  const promise = graphqlRequest<DomainQuery>(indexerClient, DomainDocument, {
-    id: name,
-  }).finally(() => {
-    indexerDomainInflight.delete(name)
-  })
-
-  indexerDomainInflight.set(name, promise)
-  return promise
-}
+const parseKnownKeys = (keys: readonly string[]) => ({
+  texts: keys.flatMap((key) =>
+    key.startsWith('text:') ? [key.slice('text:'.length)] : [],
+  ),
+  coins: keys.flatMap((key) => {
+    const coinType = key.startsWith('addr:')
+      ? Number(key.slice('addr:'.length))
+      : Number.NaN
+    return Number.isSafeInteger(coinType) ? [coinType] : []
+  }),
+})
 
 const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
 
@@ -78,30 +57,19 @@ const isSupportedCoinType = (coinType: number): boolean =>
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
   if (isDebugProfileName(name)) {
-    return ok({
-      ...DEBUG_PROFILE,
-      _rawSubgraphRecords: {
-        isMigrated: false,
-        createdAt: new Date(),
-      } as unknown as IndexerRecords,
-    })
+    return ok(DEBUG_PROFILE)
   }
 
   const client = yield* safeGetClient()
-  const indexerDomain = yield* fromPromise(
-    fetchIndexerDomain(name),
-    (error) => new GetProfileRecordsError({ cause: error }),
-  )
-  const resolver = indexerDomain.domain?.resolver
-  const indexerRecords: IndexerRecords = {
-    isMigrated: true,
-    createdAt: { date: new Date(), value: Date.now() },
-    texts: resolver?.texts ?? [],
-    coins: resolver?.addresses?.map((address) => address.coinType) ?? [],
-    resolverAddress: resolver?.address,
-    coinAddresses: resolver?.addresses ?? [],
-    contentHash: resolver?.contentHash ?? null,
-  }
+  // A name bigname has not indexed has no indexed keys; the static ones still apply.
+  const recordKeys = yield* bigname
+    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
+    .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
+    .orElse((error) =>
+      error.code === 'not_found'
+        ? okAsync(parseKnownKeys([]))
+        : errAsync(new GetProfileRecordsError({ cause: error })),
+    )
 
   const texts = unique([
     ...staticTextRecords,
@@ -110,12 +78,12 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...forceFetchRecords.whenNotIndexed,
     // Newly saved links must be readable before the indexer discovers the key.
     'links',
-    ...indexerRecords.texts,
+    ...recordKeys.texts,
   ])
   const coins = unique([
     ...alwaysProbeAddressRecords.map(Number),
     ...addressRecords.map((record) => record.coinType),
-    ...indexerRecords.coins,
+    ...recordKeys.coins,
   ]).filter(isSupportedCoinType)
 
   const [records, coinRecords] = yield* fromPromise(
@@ -135,7 +103,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     texts: records.texts,
     coins: coinRecords,
     resolverAddress: normalizeResolverAddress(records.resolverAddress),
-    _rawSubgraphRecords: indexerRecords,
   }
 
   const contentHash = normalizeContentHash(records.contentHash)
@@ -159,7 +126,6 @@ export type ProfileRecordsResult = {
   contentHash?: string
   abi?: string
   resolverAddress?: Address
-  _rawSubgraphRecords?: unknown
 }
 
 export const profileRecordsQuery = (name: string) =>
