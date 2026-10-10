@@ -1,7 +1,13 @@
 import { errAsync, okAsync } from 'neverthrow'
 import type { IndexerReadError } from '../reads/errors'
 import type { NameDetail, ReadNameDetail } from '../reads/nameDetail.types'
-import { toAddress, toDate, toProtocol, toReadError } from './adapters'
+import {
+  toAddress,
+  toDate,
+  toExpiresAt,
+  toProtocol,
+  toReadError,
+} from './adapters'
 import type { BignameClient } from './client'
 import type { NameRecord } from './types'
 
@@ -16,7 +22,7 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
   registrant: toAddress(record.registrant),
   resolver: toAddress(record.resolver?.address),
   registrationStatus: record.status ?? null,
-  expiresAt: toDate(record.expires_at),
+  expiresAt: toExpiresAt(record),
   registeredAt: toDate(record.registered_at),
   createdAt: toDate(record.created_at),
   migratedAt: toDate(record.migrated_at),

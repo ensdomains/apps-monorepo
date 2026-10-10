@@ -13,7 +13,7 @@ export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
  * — none of it is Warp-sponsored), so the owner needs sepETH before they hit
  * "Begin upgrade". `/wallet/fund` decides server-side whether to drip: it tops
  * the address up to a target ETH balance only when it's low AND actually owns
- * v1 names (V1 subgraph check), and it does NOT return until the drip
+ * v1 names (bigname check), and it does NOT return until the drip
  * transaction is confirmed on-chain. That makes the request a reliable gate —
  * once it resolves, any ETH the owner was owed is already spendable.
  *

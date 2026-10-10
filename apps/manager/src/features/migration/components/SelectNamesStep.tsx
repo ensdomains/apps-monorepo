@@ -18,6 +18,7 @@ import {
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
 } from './selectNames.helpers'
+import { UnavailableMigrationNames } from './UnavailableMigrationNames'
 
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
@@ -33,15 +34,20 @@ type SelectNamesStepProps = {
 const SelectionTitle = ({
   eligibleCount,
   graceCount,
+  unavailableCount,
   isRecoveryStale,
 }: {
   readonly eligibleCount: number
   readonly graceCount: number
+  readonly unavailableCount: number
   readonly isRecoveryStale: boolean
 }) => {
   if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
   if (eligibleCount === 0 && graceCount > 0) {
     return <Trans>Renew your names before upgrading</Trans>
+  }
+  if (eligibleCount === 0 && unavailableCount > 0) {
+    return <Trans>Your names can&apos;t be upgraded</Trans>
   }
   return <Trans>Your names are ready to upgrade</Trans>
 }
@@ -56,8 +62,13 @@ export const SelectNamesStep = ({
   renewal = { status: 'idle' },
   renewalGasEstimate = { status: 'idle' },
 }: SelectNamesStepProps) => {
-  const { eligible, gracePeriodNames, isPending, recoveryState } =
-    useEligibleV1Names()
+  const {
+    eligible,
+    gracePeriodNames,
+    unavailableNames,
+    isPending,
+    recoveryState,
+  } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
 
@@ -156,6 +167,7 @@ export const SelectNamesStep = ({
               eligibleCount={eligible.length}
               graceCount={gracePeriodNames.length}
               isRecoveryStale={isRecoveryStale}
+              unavailableCount={unavailableNames.length}
             />
           </h1>
 
@@ -217,6 +229,8 @@ export const SelectNamesStep = ({
               visibleCount={visibleCount}
             />
           )}
+
+          <UnavailableMigrationNames names={unavailableNames} />
         </div>
       </div>
 

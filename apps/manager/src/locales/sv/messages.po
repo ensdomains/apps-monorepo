@@ -731,6 +731,10 @@ msgstr ""
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr ""
 
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
+msgstr ""
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr ""
@@ -1253,6 +1257,10 @@ msgstr ""
 msgid "is too short to register"
 msgstr ""
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "it has no ENSv2 reservation."
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr ""
@@ -1496,6 +1504,10 @@ msgstr ""
 msgid "Names"
 msgstr ""
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Names could not be loaded"
+msgstr ""
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1555,6 +1567,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
+msgstr ""
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "no ENSv1 registration was found for it."
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx
@@ -2684,6 +2700,10 @@ msgstr ""
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr ""
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "These names can't be upgraded"
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 msgstr ""
@@ -3326,6 +3346,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names can't be upgraded"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx

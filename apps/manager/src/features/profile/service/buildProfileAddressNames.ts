@@ -1,12 +1,4 @@
-import type { DomainFragment } from '@ens-apps/indexer'
-import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
-import { buildMergedNamesList } from '@/features/dashboard/mergedNames'
-import { getV1NameRoles } from '@/features/dashboard/v1NameRoles'
-import {
-  applyProfileV2RoleAssignments,
-  type V2RoleAssignment,
-} from '@/features/dashboard/v2NameRoles'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { NameSummary } from '@ens-apps/indexer/reads'
 
 export type ProfileAddressNameProtocol = 'v1' | 'v2'
 export type ProfileAddressNameRoleCategory = 'owned' | 'managed'
@@ -21,69 +13,40 @@ export type ProfileAddressName = {
   readonly roleCategory: ProfileAddressNameRoleCategory
 }
 
+const MS_PER_SECOND = 1000
+
 export const isDisplayableProfileName = (name: string): boolean =>
   !name.includes('.addr.reverse') && !name.startsWith('[')
 
-const getRoleCategory = (
-  nameRoles: readonly ('owner' | 'manager')[],
-): ProfileAddressNameRoleCategory =>
-  nameRoles.includes('owner') ? 'owned' : 'managed'
+const toSeconds = (date: Date | null): number | null =>
+  date ? Math.floor(date.getTime() / MS_PER_SECOND) : null
 
-export const buildProfileAddressNames = ({
-  address,
-  v2Domains,
-  managedV2Domains = [],
-  v1Domains,
-  roleAssignments = [],
-  searchQuery = '',
-  sortField = 'created',
-  sortDir = 'desc',
-}: {
-  readonly address: string
-  readonly v2Domains: readonly DomainFragment[]
-  readonly managedV2Domains?: readonly DomainFragment[]
-  readonly v1Domains: readonly V1Domain[]
-  readonly roleAssignments?: readonly V2RoleAssignment[]
-  readonly searchQuery?: string
-  readonly sortField?: SortField
-  readonly sortDir?: SortDir
-}): ProfileAddressName[] => {
-  const normalizedAddress = address.toLowerCase()
-  const v2Names = applyProfileV2RoleAssignments({
-    ownedDomains: v2Domains,
-    managedDomains: managedV2Domains,
-    assignments: roleAssignments,
-  })
-  const v1Classified = v1Domains
-    .filter((domain) => isDisplayableProfileName(domain.name))
-    .map((domain) => ({
-      domain,
-      label: domain.labelName ?? domain.name,
-      nameRoles: getV1NameRoles(domain, normalizedAddress),
-    }))
+// bigname's `owner` is the token holder; a registry controller or an ENSv2
+// role holder manages.
+const toNameRoles = (
+  relations: NameSummary['relations'],
+): ProfileAddressName['nameRoles'] => [
+  ...(relations.includes('owner') ? (['owner'] as const) : []),
+  ...(relations.includes('manager') || relations.includes('role_holder')
+    ? (['manager'] as const)
+    : []),
+]
 
-  const merged = buildMergedNamesList({
-    v2Names,
-    v1Classified,
-    searchQuery,
-    sortField,
-    sortDir,
-  })
-
-  return merged.map((item) => {
-    const nameRoles =
-      item.kind === 'v1'
-        ? (item.classified.nameRoles ?? [])
-        : (item.domain.nameRoles ?? ['owner'])
-
-    return {
-      key: item.key,
-      label: item.sortName,
-      protocol: item.kind === 'v1' ? 'v1' : 'v2',
-      expiryDate: item.sortExpiry,
-      createdAt: item.sortCreated,
-      nameRoles,
-      roleCategory: getRoleCategory(nameRoles),
-    }
-  })
+/** A row as the profile lists it, or null for one it hides. */
+export const toProfileAddressName = (
+  name: NameSummary,
+): ProfileAddressName | null => {
+  if (!isDisplayableProfileName(name.name) || name.protocol === null)
+    return null
+  const nameRoles = toNameRoles(name.relations)
+  if (nameRoles.length === 0) return null
+  return {
+    key: name.namehash,
+    label: name.name,
+    protocol: name.protocol,
+    expiryDate: toSeconds(name.expiresAt),
+    createdAt: toSeconds(name.createdAt),
+    nameRoles,
+    roleCategory: nameRoles.includes('owner') ? 'owned' : 'managed',
+  }
 }

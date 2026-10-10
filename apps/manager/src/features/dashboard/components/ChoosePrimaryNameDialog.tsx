@@ -1,4 +1,3 @@
-import type { DomainsQuery } from '@ens-apps/indexer'
 import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
@@ -55,6 +54,7 @@ import {
 import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
 import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
+import type { PrimaryNameDomain } from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 import {
   isConfirmationForSelection,
@@ -72,8 +72,6 @@ interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
   readonly children?: React.ReactNode
 }
-
-type PrimaryNameDomain = DomainsQuery['domains'][number]
 
 const getPrimaryNameErrorMessage = (
   error: Error | null,

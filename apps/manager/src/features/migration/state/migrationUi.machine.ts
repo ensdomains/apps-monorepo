@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
@@ -32,7 +33,6 @@ import {
 } from '../service/graceRenewal'
 import type { PendingGraceRenewal } from '../service/graceRenewalPending'
 import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
-import type { V1Domain } from '../service/v1SubgraphClient'
 import {
   FINAL_STAGE_FILL_MS,
   REUNION_HOLD_MS,

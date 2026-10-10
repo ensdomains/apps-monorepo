@@ -22,10 +22,10 @@ import {
   checkMigrationHcaReadiness,
   getMigrationResolverAddress,
 } from './migrationInvariants'
-import { getV1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys } from './v1ProfileKeys'
 
-vi.mock('./v1SubgraphClient', async (importActual) => ({
-  ...(await importActual<typeof import('./v1SubgraphClient')>()),
+vi.mock('./v1ProfileKeys', async (importActual) => ({
+  ...(await importActual<typeof import('./v1ProfileKeys')>()),
   getV1ProfileKeys: vi.fn(),
 }))
 vi.mock('./migrationApprovals', async (importActual) => ({
@@ -270,7 +270,7 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
           id: '0xabc',
           texts: [],
           coinTypes: [],
-          contentHash: null,
+          hasContentHash: false,
           abiContentTypes: [],
         },
       ]),
@@ -286,7 +286,7 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
           id: '0xabc',
           texts: ['email'],
           coinTypes: [],
-          contentHash: null,
+          hasContentHash: false,
           abiContentTypes: [],
         },
       ]),
@@ -295,8 +295,8 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
   })
 
   it.each([
-    ['contenthash', { contentHash: '0xe301', abiContentTypes: [] }],
-    ['ABI', { contentHash: null, abiContentTypes: [1n] }],
+    ['contenthash', { hasContentHash: true, abiContentTypes: [] }],
+    ['ABI', { hasContentHash: false, abiContentTypes: [1n] }],
   ])('is false when the profile only has a %s record', async (_, records) => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
@@ -312,10 +312,10 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
     expect(result.skipFetchProfilesPhase).toBe(false)
   })
 
-  it('defaults to false when the subgraph query returns an Err', async () => {
+  it('defaults to false when the bigname read returns an Err', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: err(new Error('subgraph down')),
+      profileKeys: err(new Error('bigname down')),
     })
     expect(result.skipFetchProfilesPhase).toBe(false)
   })

@@ -4,7 +4,7 @@ import type { Address, Hex } from 'viem'
 export type ProtocolVersion = 'v1' | 'v2'
 
 /** The relation an address holds to a name. */
-export type NameRelation = 'owner' | 'manager' | 'registrant'
+export type NameRelation = 'owner' | 'manager' | 'role_holder'
 
 export type NameRegistrationStatus =
   | 'active'

@@ -5,10 +5,11 @@ import {
   submitApprovalActor,
   submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
-import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
+import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
@@ -156,10 +157,10 @@ const invalidateName = (label: string) =>
   })
 
 /** Refresh the dashboard owned-names list so renewed expiries update. */
-const invalidateDashboardNames = () =>
-  getQueryClient()?.invalidateQueries({
-    queryKey: qk('dashboard', 'all_domains'),
-  })
+const refreshDashboardNames = () => {
+  const queryClient = getQueryClient()
+  return queryClient ? invalidateDashboardNames(queryClient) : undefined
+}
 
 type SubmitArgs = {
   readonly items: readonly RenewItem[]
@@ -213,7 +214,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       return next
     })
     // Refresh whatever DID renew before the failure.
-    invalidateDashboardNames()
+    refreshDashboardNames()
     setPhase('error')
   }
 
@@ -265,7 +266,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     if (!isCurrent()) return
     if (renewed.isErr()) return failWith(renewed.error)
 
-    invalidateDashboardNames()
+    refreshDashboardNames()
     // Let the bar settle at 100% before flipping to the success view.
     await new Promise((resolve) => setTimeout(resolve, SETTLE_MS))
     if (!isCurrent()) return
