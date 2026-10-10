@@ -5,6 +5,71 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 34 — 2026-10-10 · wrapped children of a locked 2LD (GS1, GS2, GS6)
+
+**Batch:** step 2 of the queue. A new describe in `migration-subname.spec.ts`;
+`assertWrappedChildMigrated`, `isWrapperRegistry` and
+`firstRegistrationPosition` in `helpers/migration-assertions.ts`.
+
+**Result:** PASS GS1, GS2, GS6 · terminal 411 → 414, ratchet raised. Green
+in real mode, in two full migration-suite runs. Skipped in mock mode, because
+the mock cannot express subname trees. Wrapped children carry their labels on
+chain, so the local bigname lists them; registry-only children still can't
+be listed.
+
+**Ground truth (`LockedWrapperReceiver`):** a locked 2LD gets a
+WrapperRegistry. A locked child is registered in the parent's WrapperRegistry
+and gets one of its own (recursively, for GS6). An emancipated child is
+registered there unwrapped, with no subregistry. Each name's wrapper token
+leaves the owner.
+
+**Oracles used:** the registry path from `.eth` down to each child; the
+registry contract verified as a WrapperRegistry; the child's REGISTERED state
+and `latestOwner`; and parent-first ordering, compared on `LabelRegistered`
+positions (block, logIndex).
+
+**Fixes on the way (test-side, not app):**
+- `selectOnlyRoots` toggled rows before the list settled. Once the
+  eligibility reads finish, the list ticks every eligible name again and
+  overwrites earlier clicks. It now waits for the Select/Deselect-all
+  toggle to be enabled (that toggle is disabled until then) and clears
+  with it (`clearSelection`).
+- Ordering by "first log from each registry" was wrong. A fresh
+  WrapperRegistry logs its own deployment (`Upgraded`, `EACRolesChanged`)
+  before the registration that points at it. Compare `LabelRegistered` instead.
+- The mock V1 expiry defaulted to the wall clock plus one year. Time specs
+  move the shared fork forward 91 days per run (it reached 2027-11 today), so
+  GA8's active control name read as expired and was not listed. The
+  default now comes from the chain's clock.
+
+**Suite runs:**
+
+| run | result |
+|---|---|
+| real #1 | 36 pass, 11 fail, 1 did not run |
+| real #2 | 36 pass, 11 fail, 1 did not run |
+| mock (before the expiry fix) | 37 pass, 1 fail (GA8, above), 10 skip |
+| mock (after) | **38 pass**, 10 skip, 0 fail |
+
+The 11 real-mode failures are the known gaps from iteration 32 (15 then):
+- grace banner and dashboard listing on an accumulated wallet (7)
+- GM `:306`
+- the registry-only subname copies `:233`, `:346`, `:427`
+
+None involve GS1, GS2 or GS6.
+
+**In flight:** nothing.
+
+**Next:** step 3 waits on the user. The V1 roles-tab cells live in the portal
+matrix, which is parked. The portal's roles tab refuses every V1 name the same
+way ("Roles unavailable", branching only on `protocolVersion`), so VL has
+just one witness per depth: VL1 passes and VL20 is not started. Per-shape V1
+permissions are carried by the VO and fuses cells. The open portal cells are
+VL20, VC20, VG20, VE10, VE11 and a handful of VV rows. The alternative is the
+remaining migration rows (GR2–GR12 and on).
+
+---
+
 ## Iteration 33 — 2026-10-10 · approvals and confirmation accounting (GA1–GA3, GU1–GU3)
 
 **Batch:** step 1 of the queue after the bigname takeover (user: "go in order

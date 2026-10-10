@@ -29,6 +29,8 @@
  *   - Anvil fork running with V1 + V2 contracts
  *   - Manager app running with Rhinestone enabled
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import type { Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
@@ -47,6 +49,8 @@ import {
   assertNotUserRegistry,
   assertUserRegistryAttached,
   assertV2Registered,
+  assertWrappedChildMigrated,
+  firstRegistrationPosition,
   MAX_UINT64,
 } from '../../../helpers/migration-assertions.js'
 import {
@@ -469,5 +473,214 @@ test.describe('ENS V1 → V2 subname migration', () => {
       page.getByTitle(rejected, { exact: true }),
       `${rejected} has an unrecognised V1 resolver and must be ineligible`,
     ).toHaveCount(0)
+  })
+})
+
+/**
+ * Wrapped children under a LOCKED 2LD (§G.GS token route).
+ *
+ * A locked 2LD migrates through `LockedMigrationController`, which deploys a
+ * WrapperRegistry for it. That registry is itself a `LockedWrapperReceiver`:
+ * the children's ERC-1155 tokens are sent to it and registered inside it, and a
+ * locked child gets a WrapperRegistry of its own in turn (an emancipated child
+ * is unwrapped and gets none). The parent's registry must exist before a child
+ * can land in it, so the parent is always first.
+ *
+ * Subname trees cannot be expressed in the CI bigname mock, so these run
+ * against the local bigname (real mode) and skip in mock mode. Wrapped children
+ * carry their labels on chain (`NameWrapped`), so the local index can list
+ * them — unlike registry-only subnames.
+ */
+test.describe('ENS V1 → V2 migration — wrapped children of a locked 2LD', () => {
+  test.describe.configure({ timeout: 300_000 })
+
+  const ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
+    .address as Address
+
+  const nextBlock = async () =>
+    (await publicClient.getBlockNumber({ cacheTime: 0 })) + 1n
+
+  test('a locked 2LD and its locked child both migrate, the parent first', {
+    tag: ['@scenario:GS1'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const userAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const parent = await createMakeV1Name({ userAccount })({
+      label: 'gs1-locked',
+      type: 'locked',
+    })
+    const child = await makeV1Subname({
+      parentName: labelOf(parent),
+      childLabel: 'kid',
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      parentOwnerAccount: userAccount,
+      fuses: CHILD_FUSES.LOCKED_CHILD,
+    })
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          type: 'locked',
+          children: [
+            {
+              kind: 'wrapped-child',
+              label: 'kid',
+              fuses: CHILD_FUSES.LOCKED_CHILD,
+            },
+          ],
+        },
+      ],
+    })
+    await openMigrationFlow(page)
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
+    await expect(nestedRow(page, child)).toBeVisible()
+    await expect(
+      rootRow(page, child),
+      'the child follows its root',
+    ).toHaveCount(0)
+
+    const fromBlock = await nextBlock()
+    await runMigrationFlow(page, wallet, { roots: [parent] })
+
+    await assertLockedMigration(labelOf(parent))
+    await assertNotUserRegistry(parent)
+    const { registry } = await assertWrappedChildMigrated(
+      child,
+      HEADLESS_USER_ADDRESS,
+      { locked: true },
+    )
+    expect(
+      await firstRegistrationPosition(ETH_REGISTRY, fromBlock),
+      'the parent is registered in the .eth registry before its child is registered in its WrapperRegistry',
+    ).toBeLessThan(await firstRegistrationPosition(registry, fromBlock))
+  })
+
+  test('an emancipated child of a locked 2LD is registered in the parent WrapperRegistry, unwrapped', {
+    tag: ['@scenario:GS2'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const userAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const parent = await createMakeV1Name({ userAccount })({
+      label: 'gs2-locked',
+      type: 'locked',
+    })
+    const child = await makeV1Subname({
+      parentName: labelOf(parent),
+      childLabel: 'free',
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      parentOwnerAccount: userAccount,
+      fuses: CHILD_FUSES.EMANCIPATED,
+    })
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          type: 'locked',
+          children: [
+            {
+              kind: 'wrapped-child',
+              label: 'free',
+              fuses: CHILD_FUSES.EMANCIPATED,
+            },
+          ],
+        },
+      ],
+    })
+    await openMigrationFlow(page)
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
+    // `detached-child`: offered as a passenger of its locked root.
+    await expect(nestedRow(page, child)).toBeVisible()
+    await expect(rootRow(page, child)).toHaveCount(0)
+
+    await runMigrationFlow(page, wallet, { roots: [parent] })
+
+    await assertLockedMigration(labelOf(parent))
+    await assertWrappedChildMigrated(child, HEADLESS_USER_ADDRESS, {
+      locked: false,
+    })
+  })
+
+  test('three locked levels each get a WrapperRegistry, outermost first', {
+    tag: ['@scenario:GS6'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    const userAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const parent = await createMakeV1Name({ userAccount })({
+      label: 'gs6-locked',
+      type: 'locked',
+    })
+    const child = await makeV1Subname({
+      parentName: labelOf(parent),
+      childLabel: 'mid',
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      parentOwnerAccount: userAccount,
+      fuses: CHILD_FUSES.LOCKED_CHILD,
+    })
+    const grandchild = await makeV1Subname({
+      parentName: `mid.${labelOf(parent)}`,
+      childLabel: 'leaf',
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      parentOwnerAccount: userAccount,
+      fuses: CHILD_FUSES.LOCKED_CHILD,
+    })
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          type: 'locked',
+          children: [
+            {
+              kind: 'wrapped-child',
+              label: 'mid',
+              fuses: CHILD_FUSES.LOCKED_CHILD,
+              children: [
+                {
+                  kind: 'wrapped-child',
+                  label: 'leaf',
+                  fuses: CHILD_FUSES.LOCKED_CHILD,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    await openMigrationFlow(page)
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
+    await expect(nestedRow(page, child)).toBeVisible()
+    await expect(nestedRow(page, grandchild)).toBeVisible()
+
+    const fromBlock = await nextBlock()
+    await runMigrationFlow(page, wallet, { roots: [parent] })
+
+    await assertLockedMigration(labelOf(parent))
+    const mid = await assertWrappedChildMigrated(child, HEADLESS_USER_ADDRESS, {
+      locked: true,
+    })
+    const leaf = await assertWrappedChildMigrated(
+      grandchild,
+      HEADLESS_USER_ADDRESS,
+      { locked: true },
+    )
+    // Recursive derivation: the grandchild lives in the child's WrapperRegistry.
+    expect(leaf.registry.toLowerCase()).toBe(mid.subregistry.toLowerCase())
+    const [eth, parentWr, childWr] = await Promise.all([
+      firstRegistrationPosition(ETH_REGISTRY, fromBlock),
+      firstRegistrationPosition(mid.registry, fromBlock),
+      firstRegistrationPosition(leaf.registry, fromBlock),
+    ])
+    expect(eth, 'the parent is registered before the child').toBeLessThan(
+      parentWr,
+    )
+    expect(
+      parentWr,
+      'the child is registered before the grandchild',
+    ).toBeLessThan(childWr)
   })
 })

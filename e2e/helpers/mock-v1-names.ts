@@ -14,6 +14,7 @@ import {
   type V1NameType,
   type V1TextRecord,
 } from '../fixtures/makeV1Name.js'
+import { publicClient } from './anvil-client.js'
 
 /**
  * The resolver `makeV1Name` writes records to. The app takes record keys from
@@ -55,7 +56,12 @@ export type MockV1Name = {
    * does for .eth 2LDs. When omitted, the fuses follow `type`.
    */
   readonly fuses?: number
-  /** Registration expiry timestamp (Unix seconds). Defaults to now + 1 year. */
+  /**
+   * Registration expiry timestamp (Unix seconds). Defaults to one year after
+   * the chain's clock when the mock is installed — not the wall clock: time
+   * specs warp the shared fork months ahead, and a wall-clock year then reads
+   * as long expired.
+   */
   readonly expiryDate?: number
   /** The V1 resolver to report. Defaults to a known public resolver. */
   readonly resolver?: string
@@ -90,8 +96,7 @@ const fuseFlags = (fuses: number) => ({
 })
 
 /** The bigname record for a mock ENSv1 .eth 2LD, as a detail lookup returns it. */
-function v1Record(n: MockV1Name) {
-  const now = Math.floor(Date.now() / 1000)
+function v1Record(n: MockV1Name, now: number) {
   const expiry = String(n.expiryDate ?? now + 365 * 24 * 60 * 60)
   const isWrapped = n.type === 'wrapped' || n.type === 'locked'
   const hasResolver = Boolean(n.resolver) || Boolean(n.records) || isWrapped
@@ -151,6 +156,9 @@ export async function mockV1Names(
 ): Promise<{ readonly markMigrated: (indexerMock: IndexerMock) => void }> {
   const byName = new Map(mockNames.map((n) => [n.name.toLowerCase(), n]))
   let isMigrated = false
+  const chainNow = Number(
+    (await publicClient.getBlock({ blockTag: 'latest' })).timestamp,
+  )
 
   const fulfill = (route: Route, json: unknown) =>
     route.fulfill({ status: 200, json, headers: CORS_HEADERS })
@@ -177,7 +185,7 @@ export async function mockV1Names(
             (n.registrantAddress ?? n.ownerAddress).toLowerCase() === address,
         )
         .map((n) => ({
-          ...v1Record(n),
+          ...v1Record(n, chainNow),
           relations: ['owner'],
           is_primary: false,
         }))
@@ -207,7 +215,12 @@ export async function mockV1Names(
           data: inputs.map((input, index) => {
             const n = known[index]
             return n
-              ? { input, kind: 'name', status: 'ok', record: v1Record(n) }
+              ? {
+                  input,
+                  kind: 'name',
+                  status: 'ok',
+                  record: v1Record(n, chainNow),
+                }
               : { input, kind: 'name', status: 'not_found' }
           }),
           meta: META,

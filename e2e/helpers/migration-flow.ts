@@ -16,7 +16,7 @@ import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 // Imported from `manager-auth.js` rather than from the manager fixture that
@@ -80,12 +80,40 @@ export async function openMigrationFlow(page: Page): Promise<void> {
 }
 
 /**
+ * Untick every root. The selection seeds itself with every eligible name once
+ * the eligibility reads finish, and anything toggled before that is
+ * overwritten, so this waits for the Select/Deselect-all toggle (disabled
+ * until then, and only rendered for more than one root) and uses it: with a
+ * real index the shared wallet's list is long, and the list's own control is
+ * exact and fast.
+ */
+async function clearSelection(page: Page, checkboxes: Locator): Promise<void> {
+  const toggleAll = page.getByRole('button', {
+    name: /^(Deselect|Select) all$/i,
+  })
+  const hasToggle = await toggleAll
+    .waitFor({ state: 'visible', timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false)
+  if (!hasToggle) {
+    for (const checkbox of await checkboxes.all()) {
+      if (await checkbox.isChecked()) await checkbox.locator('xpath=..').click()
+    }
+    return
+  }
+  await expect(toggleAll).toBeEnabled({ timeout: 120_000 })
+  if (/deselect/i.test(await toggleAll.innerText())) await toggleAll.click()
+  await expect(
+    page.getByRole('button', { name: /^Select all$/i }),
+  ).toBeVisible()
+}
+
+/**
  * Leave exactly `roots` selected.
  *
- * The selection seeds itself with every eligible name, and toggling a root
- * toggles its whole subtree, so this reads each root checkbox and clicks only
- * the ones that disagree. It never clicks a descendant — descendants have no
- * checkbox. The input is visually hidden, so the click goes to its label.
+ * Clears the selection, then ticks each wanted root. Toggling a root toggles
+ * its whole subtree, and descendants have no checkbox, so only roots are ever
+ * clicked. The input is visually hidden, so the click goes to its label.
  */
 export async function selectOnlyRoots(
   page: Page,
@@ -93,22 +121,20 @@ export async function selectOnlyRoots(
 ): Promise<void> {
   const wanted = new Set(roots)
   const checkboxes = page.getByRole('checkbox', { name: /\.eth$/ })
-  const count = await checkboxes.count()
 
-  for (let i = 0; i < count; i++) {
-    const checkbox = checkboxes.nth(i)
-    const name = await checkbox.getAttribute('aria-label')
-    if (!name) continue
-    if (wanted.has(name) !== (await checkbox.isChecked())) {
-      await checkbox.locator('xpath=..').click()
-    }
-  }
+  await clearSelection(page, checkboxes)
 
   for (const name of roots) {
-    await expect(
-      rootRow(page, name),
-      `expected ${name} to end up selected`,
-    ).toBeChecked()
+    const checkbox = rootRow(page, name)
+    if (!(await checkbox.isChecked()))
+      await checkbox.locator('xpath=..').click()
+    await expect(checkbox, `expected ${name} to end up selected`).toBeChecked()
+  }
+
+  for (const checkbox of await checkboxes.all()) {
+    const name = await checkbox.getAttribute('aria-label')
+    if (name && !wanted.has(name))
+      await expect(checkbox, `${name} must not stay selected`).not.toBeChecked()
   }
 }
 

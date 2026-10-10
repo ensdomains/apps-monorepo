@@ -7,8 +7,16 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { permissionedRegistryLabelRegisteredEventSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { expect } from '@playwright/test'
-import { type Address, keccak256, parseAbi, toHex, zeroAddress } from 'viem'
+import {
+  type Address,
+  keccak256,
+  namehash as namehashOf,
+  parseAbi,
+  toHex,
+  zeroAddress,
+} from 'viem'
 import { publicClient } from './anvil-client.js'
 
 // ---------------------------------------------------------------------------
@@ -656,6 +664,98 @@ export async function assertUnlockedTokenRoute(
       zeroAddress,
     )
   }
+}
+
+/** Whether `registry` is a WrapperRegistry certified by the VerifiableFactory. */
+export async function isWrapperRegistry(registry: Address): Promise<boolean> {
+  if (registry === zeroAddress) return false
+  const [implementation, wrapperImpl] = await Promise.all([
+    publicClient.readContract({
+      address: V2_VERIFIABLE_FACTORY,
+      abi: FACTORY_ABI,
+      functionName: 'verifyContract',
+      args: [registry],
+    }),
+    readLockedController('WRAPPER_REGISTRY_IMPL'),
+  ])
+  return implementation.toLowerCase() === wrapperImpl.toLowerCase()
+}
+
+/**
+ * Assert a wrapped V1 subname took the token route into its parent's
+ * WrapperRegistry (`LockedWrapperReceiver._migrateWrapped`): registered there
+ * to `owner`, its wrapper token gone from the owner, and — when it was locked —
+ * given a WrapperRegistry of its own (an emancipated child gets none). Returns
+ * the registry that holds it and the child's own subregistry.
+ */
+export async function assertWrappedChildMigrated(
+  fullName: string,
+  owner: Address,
+  options: { locked: boolean },
+): Promise<{ registry: Address; subregistry: Address }> {
+  const { registry, label } = await resolveRegistryPath(fullName)
+  expect(
+    await isWrapperRegistry(registry),
+    `${fullName} should be registered inside its parent's WrapperRegistry`,
+  ).toBe(true)
+  const state = await publicClient.readContract({
+    address: registry,
+    abi: USER_REGISTRY_ABI,
+    functionName: 'getState',
+    args: [BigInt(keccak256(toHex(label)))],
+  })
+  expect(state.status, `${fullName} status in ${registry}`).toBe(
+    V2Status.REGISTERED,
+  )
+  expect(state.latestOwner.toLowerCase(), `${fullName} owner`).toBe(
+    owner.toLowerCase(),
+  )
+  const subregistry = await readSubregistry(registry, label)
+  if (options.locked)
+    expect(
+      await isWrapperRegistry(subregistry),
+      `locked ${fullName} should get a WrapperRegistry of its own`,
+    ).toBe(true)
+  else
+    expect(subregistry, `emancipated ${fullName} gets no WrapperRegistry`).toBe(
+      zeroAddress,
+    )
+  const holder = await publicClient
+    .readContract({
+      address: V1_NAME_WRAPPER_ADDRESS,
+      abi: NAME_WRAPPER_OWNER_ABI,
+      functionName: 'ownerOf',
+      args: [BigInt(namehashOf(fullName))],
+    })
+    .catch(() => zeroAddress)
+  expect(
+    holder.toLowerCase(),
+    `${fullName}'s wrapper token must have left the owner`,
+  ).not.toBe(owner.toLowerCase())
+  return { registry, subregistry }
+}
+
+/**
+ * (block, logIndex) of the first `LabelRegistered` `registry` emitted at or
+ * after `fromBlock`. A fresh WrapperRegistry logs its own deployment
+ * (`Upgraded`, `EACRolesChanged`) before the registration that points at it,
+ * so ordering has to compare registrations, not a registry's first log.
+ */
+export async function firstRegistrationPosition(
+  registry: Address,
+  fromBlock: bigint,
+): Promise<bigint> {
+  const logs = await publicClient.getLogs({
+    address: registry,
+    event: permissionedRegistryLabelRegisteredEventSnippet,
+    fromBlock,
+  })
+  expect(
+    logs.length,
+    `${registry} registered nothing since ${fromBlock}`,
+  ).toBeGreaterThan(0)
+  const first = logs[0]
+  return (first.blockNumber as bigint) * 100_000n + BigInt(first.logIndex ?? 0)
 }
 
 /**
