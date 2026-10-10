@@ -1,6 +1,7 @@
 import { toDate } from '@ens-apps/indexer/bigname'
 import { formatHistoryAmount } from '@/utils/history/historyPayment'
 import { rootPermissionRegistry } from '@/utils/history/rootPermission'
+import { isObject } from '@/utils/isObject'
 import { historyTokenId } from '../historyTokenId'
 import {
   type EventType,
@@ -104,9 +105,6 @@ export const getTimelineFieldType = (
   (isKnownHistoryEventType(eventType)
     ? FIELD_TYPES[eventType][fieldKey]
     : undefined) ?? 'unknown'
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
 
 /**
  * A payload value as one string: a contract pointer by its address, a grant

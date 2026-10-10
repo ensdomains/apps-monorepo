@@ -4,12 +4,10 @@ import {
   toDate,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
+import { isObject } from '@/utils/isObject'
 import type { SubgraphEvent } from './groupEventsByTransactionId'
 import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
 import { rootPermissionRegistry } from './rootPermission'
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
 
 /**
  * A `data` value as the events table prints it: a contract by its address, a

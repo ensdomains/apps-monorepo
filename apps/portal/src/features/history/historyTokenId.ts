@@ -72,7 +72,8 @@ export const historyTokenId = (
   event: TimelineEvent,
 ): HistoryToken | undefined => {
   if (!TOKEN_ROW_TYPES.has(event.type)) return undefined
-  const served = (event.data as { readonly token_id?: unknown }).token_id
+  const served =
+    event.data && 'token_id' in event.data ? event.data.token_id : undefined
   if (typeof served === 'string' && DECIMAL.test(served))
     return { contract: 'Registry', tokenId: served }
   if (!event.name) return undefined
