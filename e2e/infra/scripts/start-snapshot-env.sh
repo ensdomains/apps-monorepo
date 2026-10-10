@@ -14,13 +14,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"
 BOX_COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.snapshot.yml"
-export PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json"
 
 # ---------- tear-down shortcut ----------
 if [[ "${1:-}" == "--down" ]]; then
   echo "=== Stopping E2E snapshot stack ==="
-  PANOPTES_CONTRACTS_FILE="$PANOPTES_CONTRACTS_FILE" \
-    docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" down
+  docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" down
   echo "Done."
   exit 0
 fi
@@ -42,20 +40,13 @@ else
 fi
 
 # ---------- clean stale state ----------
-# Wipe the panoptes-data volume so the indexer starts fresh against the
-# snapshot snapshot. Stale data causes reorg-check failures on blocks that no
-# longer exist in the loaded chain.
-echo ""
-echo "=== Cleaning stale Panoptes index (if any) ==="
-PANOPTES_CONTRACTS_FILE="$PANOPTES_CONTRACTS_FILE" \
-  docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" down -v --remove-orphans \
+docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" down -v --remove-orphans \
   > /dev/null 2>&1 || true
 
 # ---------- start ----------
 echo ""
 echo "=== Starting E2E snapshot stack (Anvil snapshot + Alto + Paymaster) ==="
-PANOPTES_CONTRACTS_FILE="$PANOPTES_CONTRACTS_FILE" \
-  docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" up -d
+docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" up -d
 
 # ---------- wait for health ----------
 echo ""
@@ -67,8 +58,7 @@ wait_for_service() {
   local elapsed=0
   while [ $elapsed -lt "$max_wait" ]; do
     local health
-    health=$(PANOPTES_CONTRACTS_FILE="$PANOPTES_CONTRACTS_FILE" \
-      docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" ps --format json "$service" 2>/dev/null \
+    health=$(docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" ps --format json "$service" 2>/dev/null \
       | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
     if [[ "$health" == "healthy" ]]; then
       echo "  $service is healthy"
@@ -84,8 +74,7 @@ wait_for_service() {
 check_running() {
   local service="$1"
   local state
-  state=$(PANOPTES_CONTRACTS_FILE="$PANOPTES_CONTRACTS_FILE" \
-    docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" ps --format json "$service" 2>/dev/null \
+  state=$(docker compose -f "$COMPOSE_FILE" -f "$BOX_COMPOSE_FILE" ps --format json "$service" 2>/dev/null \
     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('State',''))" 2>/dev/null || echo "")
   if [[ "$state" == "running" ]]; then
     echo "  $service is running"

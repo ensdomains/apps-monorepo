@@ -29,4 +29,4 @@ export {
   toParentFuses,
   toV1Domain,
 } from './service/v1Domain'
-export type { V1Domain } from './service/v1SubgraphClient'
+export type { V1Domain } from './service/v1Domain.types'

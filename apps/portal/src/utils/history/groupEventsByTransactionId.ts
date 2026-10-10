@@ -6,7 +6,7 @@ import {
 } from './extractEventAddress'
 import type { ENSEvent } from './transformHistoryToEvents'
 
-export type SubgraphEvent = {
+export type HistoryTableEvent = {
   transactionID: Hash
   blockNumber: number
   id: ENSEvent['id']
@@ -15,7 +15,7 @@ export type SubgraphEvent = {
 }
 
 export const groupEventsByTransactionId = (
-  events: SubgraphEvent[],
+  events: HistoryTableEvent[],
   category: BaseEventCategory,
 ) => {
   const transactionMap = new Map<

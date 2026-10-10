@@ -19,8 +19,7 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
  * error naming the field rather than as a silent cross-network request.
  */
 export type NetworkEndpoints = {
-  /** ENSv2 indexer (Ponder) GraphQL endpoint. */
-  readonly indexerGraphql: string | null
+  /** bigname REST indexer. */
   readonly bignameApi: string | null
 }
 
@@ -50,8 +49,7 @@ export const NETWORKS = {
     isTestnet: false,
     rpcFallbacks: ['https://ethereum-rpc.publicnode.com'],
     endpoints: {
-      // No mainnet ENSv2 indexer is deployed yet.
-      indexerGraphql: null,
+      // No mainnet bigname deployment yet.
       bignameApi: null,
     },
   },
@@ -65,7 +63,6 @@ export const NETWORKS = {
       'https://sepolia.gateway.tenderly.co',
     ],
     endpoints: {
-      indexerGraphql: 'https://staging-graphql.ens.dev/',
       bignameApi: 'https://sepolia.api.bigname.sh',
     },
   },

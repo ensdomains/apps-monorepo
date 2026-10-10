@@ -8,17 +8,14 @@
  * Rendered only when `isMigrationToolEnabled()` — mounted by each app's root.
  */
 
-import { ensL1Subgraphs, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { useQueryClient } from '@tanstack/react-query'
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
-import { MIGRATION_TOOL_RPC } from './config'
+import { answerBignameRequest } from './bignameMock'
+import { BIGNAME_API_URL, MIGRATION_TOOL_RPC } from './config'
 import {
   type ActiveName,
-  buildMockDomain,
   createV1NameOnAnvil,
-  DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
-  getOnchainExpiries,
   PRESETS,
   type PresetType,
   readStoredNames,
@@ -30,51 +27,13 @@ import {
   useInvalidateMigrationQueriesOnMount,
 } from './MigrationTestPanel.hooks'
 
-/**
- * The V1 subgraph endpoint the apps actually talk to, read from the same ensjs
- * chain config their clients are built from. Hardcoding the host is what
- * silently broke injection once before: ensjs moved Sepolia's V1 subgraph off
- * `ensnode.io`, the pattern stopped matching, and every panel-created name
- * looked non-existent (and therefore non-migratable) to the apps while real
- * subgraph-indexed names kept working.
- */
-const V1_SUBGRAPH_URL = ensL1Subgraphs[supportedL1Chains.sepolia].ens.url
-
-/**
- * Whether a request is the V1 subgraph. Matches the configured endpoint first,
- * then falls back to any `/subgraph` path so a proxied or relocated endpoint
- * still gets injected — the V2 indexer serves `/graphql`, so there's no overlap.
- */
-function isV1SubgraphRequest(url: string): boolean {
-  if (url.startsWith(V1_SUBGRAPH_URL)) return true
-  try {
-    return new URL(url, window.location.origin).pathname.endsWith('/subgraph')
-  } catch {
-    return false
-  }
-}
-
-/** Extract the `name` GraphQL variable from a subgraph request body. */
-function migrationLookupName(body: string): string | undefined {
-  try {
-    const parsed = JSON.parse(body) as { variables?: { name?: string } }
-    return parsed.variables?.name
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * All panel-created names are owned by DEFAULT_ACCOUNT (see buildMockDomain).
- * getNamesForAddress is address-scoped (owner/registrant/wrappedOwner filter),
- * so only inject the mocks when the query actually targets DEFAULT_ACCOUNT —
- * otherwise every address's profile would leak the connected wallet's names.
- * The address is embedded verbatim (lowercased) in the where filter, so a
- * substring check against the serialized body is sufficient and robust to the
- * exact filter shape.
- */
-function nameListTargetsMockOwner(body: string): boolean {
-  return body.toLowerCase().includes(DEFAULT_ACCOUNT.toLowerCase())
+/** bigname's hosts, or the deployment's own override of them. */
+function isBignameRequest(url: URL): boolean {
+  if (!url.pathname.startsWith('/v1/')) return false
+  return (
+    url.hostname.endsWith('bigname.sh') ||
+    (BIGNAME_API_URL !== undefined && url.href.startsWith(BIGNAME_API_URL))
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +49,7 @@ export function setInjectedNames(names: ActiveName[]): void {
   _injectedNames = names
 }
 
-;(function installSubgraphInterceptor() {
+;(function installBignameInterceptor() {
   if (typeof window === 'undefined') return
   // HMR guard: store the true original fetch under a well-known key so that
   // re-executing this module (hot reload) doesn't double-wrap window.fetch.
@@ -103,65 +62,17 @@ export function setInjectedNames(names: ActiveName[]): void {
     input: RequestInfo | URL,
     init?: RequestInit,
   ): Promise<Response> => {
-    const url =
+    const href =
       typeof input === 'string'
         ? input
         : input instanceof URL
           ? input.href
           : (input as Request).url
-
-    if (!isV1SubgraphRequest(url)) return origFetch(input, init)
-
-    // Two v1-subgraph queries need panel-created names injected:
-    //  - getNamesForAddress: the dashboard name list (returns all names).
-    //  - getV1DomainForMigration: the migration-status lookup, which filters
-    //    domains(where: { name: $name }) and must therefore be narrowed to just
-    //    the requested name — otherwise the upgrade banner never resolves for
-    //    Anvil-only names, since the real hosted subgraph can't see them.
-    const body = typeof init?.body === 'string' ? init.body : ''
-    const isNameList = body.includes('getNamesForAddress')
-    const isMigrationLookup = body.includes('getV1DomainForMigration')
-    if (!isNameList && !isMigrationLookup) return origFetch(input, init)
-
-    const nameListInjected = nameListTargetsMockOwner(body)
-      ? _injectedNames
-      : []
-    const injected = isNameList
-      ? nameListInjected
-      : _injectedNames.filter(
-          (n) => `${n.label}.eth` === migrationLookupName(body),
-        )
-
-    let realDomains: unknown[] = []
-    try {
-      const real = await origFetch(input, init)
-      const json = (await real.json()) as { data?: { domains?: unknown[] } }
-      realDomains = json?.data?.domains ?? []
-    } catch {
-      /* subgraph unreachable */
-    }
-
-    // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
-    // the value captured at creation — otherwise a renewed grace name still reads
-    // as expired and migration eligibility keeps hiding the upgrade banner.
-    const liveExpiries = await getOnchainExpiries(
-      MIGRATION_TOOL_RPC,
-      injected.map((name) => name.label),
-    )
-    const mockDomains = injected.map((name, index) => {
-      const liveExpiry = liveExpiries[index]
-      return buildMockDomain(
-        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
-      )
-    })
-
-    return new Response(
-      JSON.stringify({
-        data: {
-          domains: [...realDomains, ...mockDomains],
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    const url = new URL(href, window.location.origin)
+    if (!isBignameRequest(url) || _injectedNames.length === 0)
+      return origFetch(input, init)
+    return answerBignameRequest(url, init, _injectedNames, () =>
+      origFetch(input, init),
     )
   }
 })()

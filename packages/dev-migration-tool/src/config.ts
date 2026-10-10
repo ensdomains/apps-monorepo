@@ -15,3 +15,7 @@ export function isMigrationToolEnabled(): boolean {
       import.meta.env.VITE_MIGRATION_TOOL === 'true')
   )
 }
+
+/** The app's bigname override, so the panel's names reach a non-default deployment too. */
+export const BIGNAME_API_URL: string | undefined =
+  import.meta.env.VITE_BIGNAME_API_URL || undefined

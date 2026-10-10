@@ -1,6 +1,6 @@
 import type { Address } from 'viem/accounts'
 import { describe, expect, it } from 'vitest'
-import type { SubgraphEvent } from './groupEventsByTransactionId'
+import type { HistoryTableEvent } from './groupEventsByTransactionId'
 
 const { groupEventsByTransactionId: groupEvents } = await import(
   './groupEventsByTransactionId'
@@ -17,14 +17,14 @@ describe('groupEventsByTransactionId', () => {
   })
 
   it('should group single event', () => {
-    const events: SubgraphEvent[] = [
+    const events: HistoryTableEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'Transfer',
         owner: TEST_ADDRESS,
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
     ]
 
     const result = groupEvents(events, 'domain')
@@ -38,21 +38,21 @@ describe('groupEventsByTransactionId', () => {
   })
 
   it('should group multiple events with same transaction ID', () => {
-    const events: SubgraphEvent[] = [
+    const events: HistoryTableEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'Transfer',
         owner: TEST_ADDRESS,
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-2',
         type: 'NewOwner',
         owner: TEST_ADDRESS,
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
     ]
 
     const result = groupEvents(events, 'domain')
@@ -67,21 +67,21 @@ describe('groupEventsByTransactionId', () => {
     const TX_ID_2 =
       '0x9999999999999999999999999999999999999999999999999999999999999999'
 
-    const events: SubgraphEvent[] = [
+    const events: HistoryTableEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'Transfer',
         owner: TEST_ADDRESS,
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
       {
         transactionID: TX_ID_2,
         blockNumber: 101,
         id: 'event-2',
         type: 'NewOwner',
         owner: TEST_ADDRESS,
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
     ]
 
     const result = groupEvents(events, 'domain')
@@ -93,19 +93,19 @@ describe('groupEventsByTransactionId', () => {
     const TX_ID_2 =
       '0x9999999999999999999999999999999999999999999999999999999999999999'
 
-    const events: SubgraphEvent[] = [
+    const events: HistoryTableEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'Transfer',
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
       {
         transactionID: TX_ID_2,
         blockNumber: 200,
         id: 'event-2',
         type: 'NewOwner',
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
     ]
 
     const result = groupEvents(events, 'domain')
@@ -115,7 +115,7 @@ describe('groupEventsByTransactionId', () => {
   })
 
   it('should extract address from events and set category', () => {
-    const events: SubgraphEvent[] = [
+    const events: HistoryTableEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
@@ -123,7 +123,7 @@ describe('groupEventsByTransactionId', () => {
         type: 'Transfer',
         owner: TEST_ADDRESS,
         timestamp: 1704067200n,
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
     ]
 
     const result = groupEvents(events, 'domain')
@@ -134,13 +134,13 @@ describe('groupEventsByTransactionId', () => {
   })
 
   it('should return null for address when no address fields found', () => {
-    const events: SubgraphEvent[] = [
+    const events: HistoryTableEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'ContenthashChanged',
-      } as unknown as SubgraphEvent,
+      } as unknown as HistoryTableEvent,
     ]
 
     const result = groupEvents(events, 'resolver')

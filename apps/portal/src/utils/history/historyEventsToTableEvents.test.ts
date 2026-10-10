@@ -10,8 +10,8 @@ import {
 } from '@/test-utils/bigname/bigname.mock'
 import {
   flattenHistoryData,
-  historyEventsToSubgraphEvents,
-} from './historyEventsToSubgraphEvents'
+  historyEventsToTableEvents,
+} from './historyEventsToTableEvents'
 
 const row = (over: Partial<NameHistoryRow>): NameHistoryRow =>
   ({
@@ -35,9 +35,9 @@ const row = (over: Partial<NameHistoryRow>): NameHistoryRow =>
     ...over,
   }) as NameHistoryRow
 
-describe('historyEventsToSubgraphEvents', () => {
+describe('historyEventsToTableEvents', () => {
   it('keys a row by its log and carries its payload as flat fields', () => {
-    expect(historyEventsToSubgraphEvents([row({})])).toEqual([
+    expect(historyEventsToTableEvents([row({})])).toEqual([
       {
         id: '0xabc-3',
         transactionID: '0xabc',
@@ -51,7 +51,7 @@ describe('historyEventsToSubgraphEvents', () => {
   })
 
   it('falls back to the friendly type and joins lists', () => {
-    const [event] = historyEventsToSubgraphEvents([
+    const [event] = historyEventsToTableEvents([
       row({
         type: 'permission',
         kind: undefined,
@@ -66,7 +66,7 @@ describe('historyEventsToSubgraphEvents', () => {
 
   it('leaves out a row with no transaction', () => {
     expect(
-      historyEventsToSubgraphEvents([row({ transaction_hash: null })]),
+      historyEventsToTableEvents([row({ transaction_hash: null })]),
     ).toEqual([])
   })
 })
@@ -116,7 +116,7 @@ describe('flattenHistoryData', () => {
   })
 })
 
-describe('historyEventsToSubgraphEvents', () => {
+describe('historyEventsToTableEvents', () => {
   it("prints one registration's charge on one of its rows", () => {
     const registered = mockHistoryRegistrationPayment
     const linked = {
@@ -125,7 +125,7 @@ describe('historyEventsToSubgraphEvents', () => {
       log_index: 43,
       data: { ...registered.data, action_role: 'linked' },
     } as const satisfies NameHistoryRow
-    const [first, second] = historyEventsToSubgraphEvents([registered, linked])
+    const [first, second] = historyEventsToTableEvents([registered, linked])
     expect(first).toHaveProperty('base_cost')
     expect(first).toHaveProperty(
       'payment_token',
