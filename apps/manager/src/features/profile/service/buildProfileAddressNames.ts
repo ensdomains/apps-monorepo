@@ -36,13 +36,14 @@ const toNameRoles = (
 export const toProfileAddressName = (
   name: NameSummary,
 ): ProfileAddressName | null => {
-  if (!isDisplayableProfileName(name.name)) return null
+  if (!isDisplayableProfileName(name.name) || name.protocol === null)
+    return null
   const nameRoles = toNameRoles(name.relations)
   if (nameRoles.length === 0) return null
   return {
     key: name.namehash,
     label: name.name,
-    protocol: name.protocol ?? 'v2',
+    protocol: name.protocol,
     expiryDate: toSeconds(name.expiresAt),
     createdAt: toSeconds(name.createdAt),
     nameRoles,

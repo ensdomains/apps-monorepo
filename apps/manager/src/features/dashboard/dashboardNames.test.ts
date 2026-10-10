@@ -1,5 +1,6 @@
 import type { AddressName } from '@ens-apps/indexer/bigname'
 import type { NameSummary } from '@ens-apps/indexer/reads'
+import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   type AddressNamesChunk,
@@ -238,9 +239,12 @@ describe('compareDashboardNames', () => {
   })
 })
 
+const EOA = '0x00000000000000000000000000000000000000e0'
+const HCA = '0x00000000000000000000000000000000000000ca'
+
 describe('mergeDashboardChunks', () => {
   const chunk = (
-    address: string,
+    address: Address,
     names: readonly string[],
     nextCursor: string | null,
     extra: Partial<AddressNamesChunk> = {},
@@ -263,8 +267,8 @@ describe('mergeDashboardChunks', () => {
 
   it('interleaves addresses in order once both are read to the end', () => {
     const result = merge([
-      chunk('eoa', ['a.eth', 'c.eth'], null),
-      chunk('hca', ['b.eth', 'd.eth'], null),
+      chunk(EOA, ['a.eth', 'c.eth'], null),
+      chunk(HCA, ['b.eth', 'd.eth'], null),
     ])
 
     expect(result.names.map(({ name }) => name)).toEqual([
@@ -278,8 +282,8 @@ describe('mergeDashboardChunks', () => {
 
   it('shows a name only once every address with more to read has reached it', () => {
     const result = merge([
-      chunk('eoa', ['a.eth', 'm.eth'], 'more', { totalCount: 5 }),
-      chunk('hca', ['b.eth', 'z.eth'], null, { totalCount: 2 }),
+      chunk(EOA, ['a.eth', 'm.eth'], 'more', { totalCount: 5 }),
+      chunk(HCA, ['b.eth', 'z.eth'], null, { totalCount: 2 }),
     ])
 
     expect(result.names.map(({ name }) => name)).toEqual([
@@ -292,21 +296,18 @@ describe('mergeDashboardChunks', () => {
 
   it('holds names back to where an address read only hidden rows', () => {
     const result = merge([
-      chunk('eoa', [], 'more', {
+      chunk(EOA, [], 'more', {
         hiddenCount: 1,
         lastRead: dashboardName({ name: 'b.addr.reverse', key: '0xrev' }),
       }),
-      chunk('hca', ['a.eth', 'c.eth'], null),
+      chunk(HCA, ['a.eth', 'c.eth'], null),
     ])
 
     expect(result.names.map(({ name }) => name)).toEqual(['a.eth'])
   })
 
   it('shows nothing while an address with more to read has read no row yet', () => {
-    const result = merge([
-      chunk('eoa', [], 'more'),
-      chunk('hca', ['a.eth'], null),
-    ])
+    const result = merge([chunk(EOA, [], 'more'), chunk(HCA, ['a.eth'], null)])
 
     expect(result.names).toEqual([])
   })
@@ -314,10 +315,10 @@ describe('mergeDashboardChunks', () => {
   it('merges a name both addresses hold and folds in names in grace', () => {
     const result = merge(
       [
-        chunk('eoa', ['a.eth'], null, {
+        chunk(EOA, ['a.eth'], null, {
           names: [dashboardName({ name: 'a.eth', nameRoles: ['manager'] })],
         }),
-        chunk('hca', ['a.eth'], null, {
+        chunk(HCA, ['a.eth'], null, {
           names: [dashboardName({ name: 'a.eth', nameRoles: ['owner'] })],
         }),
       ],
@@ -342,7 +343,7 @@ describe('mergeDashboardChunks', () => {
 
   it('counts bigname totals less the rows it hides, until the read completes', () => {
     const result = merge([
-      chunk('eoa', ['a.eth'], 'more', { totalCount: 10, hiddenCount: 1 }),
+      chunk(EOA, ['a.eth'], 'more', { totalCount: 10, hiddenCount: 1 }),
     ])
 
     expect(result.total).toBe(9)

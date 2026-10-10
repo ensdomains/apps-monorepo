@@ -4,7 +4,7 @@ import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { toDateFromSeconds } from './utils'
 
 export type SelectableDomain = {
-  readonly name: string | null
+  readonly name: string
   /** Seconds since the epoch, as the chain stores it. */
   readonly expiryDate: bigint | null
 }
@@ -33,7 +33,7 @@ export const toBulkRenewName = (
 ): BulkRenewName | null => {
   if (domain.expiryDate == null) return null
 
-  const label = resolveRenewalLabel(domain.name ?? '')
+  const label = resolveRenewalLabel(domain.name)
   if (label.isErr()) return null
 
   const name = `${label.value}.eth`

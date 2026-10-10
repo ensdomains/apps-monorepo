@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type BignameClient,
   isStale,
@@ -11,7 +12,7 @@ const LOOKUP_BATCH_SIZE = 250
 const MAX_STALE_ATTEMPTS = 3
 
 export class BignameLookupError extends TaggedError('BignameLookupError')<{
-  cause: unknown
+  cause: BignameError | Error
 }> {}
 
 export type LookupOptions = {
@@ -20,8 +21,14 @@ export type LookupOptions = {
 
 export const checkNotAborted = <E>(
   signal: AbortSignal | undefined,
-  toError: (cause: unknown) => E,
-): Result<void, E> => (signal?.aborted ? err(toError(signal.reason)) : ok())
+  toError: (cause: Error) => E,
+): Result<void, E> => {
+  if (!signal?.aborted) return ok()
+  const reason: unknown = signal.reason
+  return err(
+    toError(reason instanceof Error ? reason : new Error(String(reason))),
+  )
+}
 
 /** bigname's snapshot can move under a long read; a stale answer is retried from the start. */
 export const retryOnStale = async <T, E>(
@@ -35,7 +42,8 @@ export const retryOnStale = async <T, E>(
     : result
 }
 
-const toError = (cause: unknown) => new BignameLookupError({ cause })
+const toError = (cause: BignameError | Error) =>
+  new BignameLookupError({ cause })
 
 /** Detail records for every name; any answer that is not `ok` fails the read rather than leaving a gap. */
 export const lookupNames = ResultFn(async function* (

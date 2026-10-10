@@ -76,9 +76,9 @@ describe('toProfileAddressName', () => {
     expect(toProfileAddressName(row)).toBeNull()
   })
 
-  it('treats a name with no deployment answering as ENSv2', () => {
+  it('hides a name no deployment answers for', () => {
     expect(
-      toProfileAddressName(summary('a.eth', { protocol: null }))?.protocol,
-    ).toBe('v2')
+      toProfileAddressName(summary('a.eth', { protocol: null })),
+    ).toBeNull()
   })
 })
