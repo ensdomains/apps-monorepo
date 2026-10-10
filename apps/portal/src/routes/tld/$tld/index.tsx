@@ -1,32 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ClockIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { CardsStackIcon, HubIcon, SupervisorAccountIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NameEventsHistory } from '@/components/table/NameEventsHistory/NameEventsHistory'
-import { Button } from '@/components/ui/button'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
-import {
-  getNameHistoryQueryOptions,
-  NAME_HISTORY_PAGE_SIZE,
-} from '@/features/profile/hooks/useNameHistory'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import {
   type GetTldDataReturnType,
   getTldDataQueryOptions,
 } from '@/features/profile/hooks/useTldData'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { historyEventsToTableEvents } from '@/utils/history/historyEventsToTableEvents'
 import { queryClient } from '@/utils/queryClient'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
@@ -101,45 +92,16 @@ const TldRegistryRow = ({
   </InfoRow>
 )
 
-const HistorySection = ({ tld }: { tld: string }) => {
-  const historyQuery = useQuery(
-    getNameHistoryQueryOptions({
-      name: tld,
-      page_size: NAME_HISTORY_PAGE_SIZE,
-    }),
-  )
-  const events = useMemo(
-    () => historyEventsToTableEvents(historyQuery.data ?? []),
-    [historyQuery.data],
-  )
-
-  if (historyQuery.isLoading) {
-    return <LoadingSpinner title="Loading history..." />
-  }
-
-  if (historyQuery.error) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching history. Please refresh the page."
-      />
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <HistorySectionHeader
-        action={
-          <Button variant="ghost" size="sm" className="text-neutral-7" disabled>
-            <ClockIcon className="size-4" />
-            Full history
-          </Button>
-        }
-      />
-      <NameEventsHistory name={tld} v2Events={events} enableHeader={false} />
-    </div>
-  )
-}
+// The TLD's whole feed, paged, as a name's history is.
+const HistorySection = ({ tld }: { tld: string }) => (
+  <HistoryTimeline
+    name={tld}
+    showFilters={false}
+    heading={<h2 className="text-foreground text-heading">History</h2>}
+    emptyTitle="No recent activity"
+    emptyDescription="Events will appear here as they happen."
+  />
+)
 
 function TldOverview() {
   const { tld } = Route.useParams()
