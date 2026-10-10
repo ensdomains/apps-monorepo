@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import { parseRecordKey, type RecordInventory } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -9,7 +10,7 @@ import { bigname } from '@/lib/bigname'
 import { getRecords } from './useRecords'
 
 class GetProfileError extends TaggedError('GetProfileError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetProfileParameters = {

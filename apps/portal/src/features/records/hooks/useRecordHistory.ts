@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   MAX_PAGE_SIZE,
   type NameHistoryRow,
@@ -13,7 +14,7 @@ import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { recordValueText } from '@/utils/history/recordValue'
 
 class GetRecordHistoryError extends TaggedError('GetRecordHistoryError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 /** Every record of one family. */

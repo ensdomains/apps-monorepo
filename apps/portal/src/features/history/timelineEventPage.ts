@@ -13,10 +13,10 @@ import { bigname } from '@/lib/bigname'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { type TimelineEvent, toTimelineEvents } from './timelineEvent'
 
-class GetTimelineEventPageError extends TaggedError(
+export class GetTimelineEventPageError extends TaggedError(
   'GetTimelineEventPageError',
 )<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 /** One page of a cursor-paginated event feed, whichever route produced it. */

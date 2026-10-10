@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type EventRow,
   MAX_PAGE_SIZE,
@@ -5,6 +6,7 @@ import {
   readNamesForAddress,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -23,7 +25,7 @@ import type {
 } from '@/utils/history/transformAddressHistory'
 
 class GetAddressHistoryError extends TaggedError('GetAddressHistoryError')<{
-  cause: unknown
+  cause: BignameError | IndexerReadError
 }> {}
 
 type GetAddressHistoryParameters = {
@@ -35,7 +37,8 @@ type GetAddressHistoryParameters = {
   readonly pageSize?: number
 }
 
-const toError = (cause: unknown) => new GetAddressHistoryError({ cause })
+const toError = (cause: BignameError | IndexerReadError) =>
+  new GetAddressHistoryError({ cause })
 
 const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
   bigname.addressHistory(address.toLowerCase(), {

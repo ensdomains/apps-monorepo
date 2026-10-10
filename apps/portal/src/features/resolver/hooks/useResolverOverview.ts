@@ -116,7 +116,7 @@ export type ResolverOverview = {
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetResolverOverviewParameters = {

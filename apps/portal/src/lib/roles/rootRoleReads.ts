@@ -20,10 +20,10 @@ import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 
 class GetRootRoleReadsError extends TaggedError('GetRootRoleReadsError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
-const toError = (cause: unknown) => new GetRootRoleReadsError({ cause })
+const toError = (cause: BignameError) => new GetRootRoleReadsError({ cause })
 
 export type RootRoleHolder = {
   readonly account: Address

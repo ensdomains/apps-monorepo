@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type RegistryLabel as BignameRegistryLabel,
   toExpirySeconds,
@@ -12,7 +13,7 @@ import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetRegistryLabelsParameters = {

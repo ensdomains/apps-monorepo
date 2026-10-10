@@ -1,5 +1,9 @@
-import type { Subname as BignameSubname } from '@ens-apps/indexer/bigname'
+import type {
+  BignameError,
+  Subname as BignameSubname,
+} from '@ens-apps/indexer/bigname'
 import { readNameDetail } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
@@ -14,7 +18,7 @@ import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
-  cause: unknown
+  cause: BignameError | IndexerReadError
 }> {}
 
 type Subname = {

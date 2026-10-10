@@ -1,4 +1,6 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import { readGraceNames, readNamesForAddress } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -13,14 +15,15 @@ import {
 } from '@/utils/names/addressNames'
 
 class GetAddressNamesError extends TaggedError('GetAddressNamesError')<{
-  cause: unknown
+  cause: BignameError | IndexerReadError
 }> {}
 
 type GetAddressNamesParameters = { readonly address: Address }
 
 const NS_PER_SECOND = 1_000_000_000n
 
-const toError = (cause: unknown) => new GetAddressNamesError({ cause })
+const toError = (cause: BignameError | IndexerReadError) =>
+  new GetAddressNamesError({ cause })
 
 const readNames = readNamesForAddress(bigname)
 

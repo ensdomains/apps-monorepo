@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import { toUnixSeconds } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -8,7 +9,7 @@ import { bigname } from '@/lib/bigname'
 import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
 
 class GetRegistryInfoError extends TaggedError('GetRegistryInfoError')<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetRegistryInfoParameters = {

@@ -1,4 +1,8 @@
-import type { AddressName, LookupRecord } from '@ens-apps/indexer/bigname'
+import type {
+  AddressName,
+  BignameError,
+  LookupRecord,
+} from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -10,14 +14,14 @@ import type { ForwardName } from '../ForwardNamesTable/columns'
 class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: unknown
+  cause: BignameError | Error
 }> {}
 
 /** More names than bigname will list for one address record. */
 export class TooManyResolvedNamesError extends TaggedError(
   'TooManyResolvedNamesError',
 )<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetResolvedNamesForAddressParameters = { readonly address: Address }

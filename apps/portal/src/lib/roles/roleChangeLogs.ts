@@ -1,4 +1,5 @@
 import {
+  type BignameError,
   type EventRow,
   MAX_PAGE_SIZE,
   type Power,
@@ -67,7 +68,8 @@ class IndexedRoleChangeLogsError extends TaggedError(
 )<{
   /** Why the node has to answer instead. */
   reason: 'failed' | 'timeout' | 'truncated' | 'unindexed'
-  cause: unknown
+  /** The read's error, or the name bigname has not indexed. */
+  cause: BignameError | Error | string | undefined
 }> {}
 
 type PermissionRow = Extract<EventRow, { type: 'permission' }>
@@ -118,7 +120,7 @@ const toRoleChangeLogs = (
 }
 
 const readRegistrationRoleRows = ResultFn(async function* (name: string) {
-  const toError = (cause: unknown) =>
+  const toError = (cause: BignameError) =>
     new IndexedRoleChangeLogsError({ reason: 'failed', cause })
   const registration = yield* bigname
     .name(normalizeOrLower(name))
@@ -172,7 +174,11 @@ export const getIndexedRoleChangeLogs = ResultFn(async function* ({
     Promise.race([readRegistrationRoleRows(name), timeout]).finally(() =>
       clearTimeout(timer),
     ),
-    (cause) => new IndexedRoleChangeLogsError({ reason: 'failed', cause }),
+    (cause) =>
+      new IndexedRoleChangeLogsError({
+        reason: 'failed',
+        cause: cause instanceof Error ? cause : new Error(String(cause)),
+      }),
   )
   if (fetched === null) {
     return yield* new IndexedRoleChangeLogsError({
