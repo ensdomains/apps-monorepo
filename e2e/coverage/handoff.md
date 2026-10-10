@@ -137,7 +137,15 @@ Manager failures left in mock mode, none bigname-related:
   such option. B2 (`:387`, extend an unowned name): mid-transaction timeout,
   not triaged.
 
-**Next:** (0) portal drift pass for #1323…#1355 and #1346/#1353: a
+**Reminder — bigname branch stays local (user, 2026-10-10):** `~/ens/bigname`
+branch `e2e/anvil-fork-start` (incl. the stall fix `0f6c2171d`) is NOT pushed,
+and the drafted bigname issue is NOT filed. Decide later with the user; do not
+push or file without asking.
+
+**Portal failures parked (user, 2026-10-10):** the portal is moving to bigname
+soon, so the portal drift below is not being worked on now.
+
+**Next:** (0) portal drift pass for #1323…#1355 and #1346/#1353 — parked, see above: a
 `RoleHolders` handler in `mock-indexer.ts`, a current Panoptes image locally
 (needs registry access), then re-baseline the V1 matrix expectations and the
 role/transfer specs; (1) rewrite the WEB-1483 tests for #1258's breakdown;
