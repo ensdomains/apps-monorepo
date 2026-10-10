@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { V2_GRACE_PERIOD_DAYS } from '@/features/renew/utils/nameExtension'
 import type { ProtocolVersion } from '@/utils/types'
+import { getRegistrationDataQueryOptions } from './useRegistrationData'
 import { getV1ExpiryQueryOptions } from './useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from './useV2RegistrationData'
 
 const V2_GRACE_DURATION_SECONDS = V2_GRACE_PERIOD_DAYS * 24 * 60 * 60
 
@@ -29,7 +29,7 @@ export function useGraceStatus({
   })
 
   const v2Query = useQuery({
-    ...getV2RegistrationDataQueryOptions({ name }),
+    ...getRegistrationDataQueryOptions({ name }),
     enabled: protocolVersion === 'ENSv2',
   })
 

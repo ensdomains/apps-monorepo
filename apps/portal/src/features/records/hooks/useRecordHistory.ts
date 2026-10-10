@@ -7,6 +7,7 @@ import {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { Hash } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { recordValueText } from '@/utils/history/recordValue'
@@ -34,7 +35,7 @@ export type RecordHistoryParameters = {
  */
 export type RecordHistoryEvent = {
   readonly id: string
-  readonly transactionID: string
+  readonly transactionID: Hash
   readonly blockNumber: number
   readonly timestamp: bigint
   /** The raw storage kind, e.g. `RecordChanged`, `RecordVersionChanged`. */

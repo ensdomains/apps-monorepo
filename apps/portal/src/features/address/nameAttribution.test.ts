@@ -16,7 +16,7 @@ const ATTACKER = '0x2222222222222222222222222222222222222222' as Address
 
 const event = (
   id: string,
-  transactionHash: string,
+  transactionHash: Hash,
   blockNumber: number,
   type: string,
 ): AddressHistoryEvent => ({

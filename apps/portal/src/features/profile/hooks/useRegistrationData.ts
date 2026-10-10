@@ -8,15 +8,16 @@ const toSeconds = (date: Date | null | undefined): number | null =>
 
 // An expiry bigname cannot serve as a date, such as a name that never
 // expires, comes back as null.
-export const toV2RegistrationData = (detail: NameDetail | null) => ({
+export const toRegistrationData = (detail: NameDetail | null) => ({
   createdAt: toSeconds(detail?.createdAt),
   registeredAt: toSeconds(detail?.registeredAt),
   expiry: toSeconds(detail?.expiresAt),
 })
 
-export const getV2RegistrationDataQueryOptions = (
+/** A name's expiry and registration dates, in either era, from its detail. */
+export const getRegistrationDataQueryOptions = (
   params: GetRegistrationDataParameters,
 ) => ({
   ...getNameDetailQueryOptions(params),
-  select: toV2RegistrationData,
+  select: toRegistrationData,
 })
