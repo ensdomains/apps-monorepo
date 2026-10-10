@@ -4,6 +4,7 @@ import type {
   GetNamesForAddressErrorType,
   GetNamesForAddressParameters,
   GetNamesForAddressReturnType,
+  NameWithRelation,
 } from '@ensdomains/ensjs/subgraph'
 import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
@@ -17,19 +18,36 @@ class GetV1NamesForAddressError extends TaggedError(
   cause: GetNamesForAddressErrorType
 }> {}
 
+// ensjs also matches names whose `addr` record is the address by default. That
+// record is set by whoever controls the name, so it says nothing about who owns
+// it: anyone could otherwise list their name as the viewer's, and offer it for
+// renewal at the viewer's expense.
+const OWNERSHIP_FILTER = {
+  owner: true,
+  registrant: true,
+  wrappedOwner: true,
+  resolvedAddress: false,
+} as const
+
+const hasOwnershipRelation = ({ relation }: NameWithRelation) =>
+  Boolean(relation.owner || relation.registrant || relation.wrappedOwner)
+
 const getV1NamesForAddress = ResultFn(async function* (
   params: GetNamesForAddressParameters,
 ) {
   const client = yield* safeGetClient()
 
   const names = yield* await fromPromise(
-    ensjs_getNamesForAddress(client, params),
+    ensjs_getNamesForAddress(client, {
+      ...params,
+      filter: { ...params.filter, ...OWNERSHIP_FILTER },
+    }),
     (e) =>
       new GetV1NamesForAddressError({
         cause: e as GetNamesForAddressErrorType,
       }),
   )
-  return ok(names)
+  return ok(names.filter(hasOwnershipRelation))
 })
 
 const V1_NAMES_PAGE_SIZE = 100
