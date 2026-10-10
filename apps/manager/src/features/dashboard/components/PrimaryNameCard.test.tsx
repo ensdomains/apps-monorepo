@@ -57,6 +57,7 @@ describe('PrimaryNameCard', () => {
   it('allows a long unbroken configured name to wrap at narrow widths', () => {
     const longName = `${'a'.repeat(63)}.eth`
     render(
+      // 390px matches the requested mobile viewport for this narrow-layout regression.
       <div className="w-[390px]">
         <PrimaryNameCard primaryName={longName} />
       </div>,
