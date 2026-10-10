@@ -68,7 +68,7 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
     .with({ type: 'transfer' }, (e) => <TransferContent event={e} />)
     .with({ type: 'permission' }, (e) => {
       const powers = e.data.powers ?? []
-      // A registry's root resource (after v0.4.1): the row has no name.
+      // A registry's root resource: the row has no name.
       const root = e.data.grant_scope?.kind === 'root' ? 'root ' : ''
       return (
         <>

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   mockPermissionsDiscoveredRegistryRoot,
   mockPermissionsRegistryRoot,
-} from '@/test-utils/bigname/postV041.mock'
+} from '@/test-utils/bigname/bigname.mock'
 
 const REGISTRY: Address = '0xd4ebcbBDf463c9C45784603DB0ddD499BC44A8b4'
 const HOLDER = getAddress('0x84d3a426d4e12e955d1df95db0b24fe26afe39d3')

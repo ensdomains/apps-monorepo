@@ -1,6 +1,6 @@
 import type { EventDataByType } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
-import { mockHistoryTransferOperator } from '@/test-utils/bigname/postV041.mock'
+import { mockHistoryTransferOperator } from '@/test-utils/bigname/bigname.mock'
 import { type TimelineEventOfType, toTimelineEvents } from '../timelineEvent'
 import { transferRowContent } from './transferRowContent'
 
@@ -102,7 +102,7 @@ describe('transferRowContent', () => {
   })
 })
 
-describe('transferRowContent after v0.4.1', () => {
+describe('transferRowContent', () => {
   it('names the token an ENSv2 transfer serves', () => {
     const [event] = toTimelineEvents([mockHistoryTransferOperator])
     expect(

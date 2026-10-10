@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { mockEventRootPermissionChanged } from '@/test-utils/bigname/postV041.mock'
-import { mockHistoryRootPermission } from '@/test-utils/bigname/v041.mock'
+import {
+  mockEventRootPermissionChanged,
+  mockHistoryRootPermission,
+} from '@/test-utils/bigname/bigname.mock'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 import { formatActivityEvent } from './formatActivityEvent'
 
@@ -186,7 +188,7 @@ describe('formatActivityEvent', () => {
   })
 })
 
-describe('formatActivityEvent — bigname v0.4.1 rows', () => {
+describe('formatActivityEvent — bigname rows', () => {
   it('words a migration as main did, with its path as a value pill', () => {
     expect(
       formatActivityEvent(
@@ -281,7 +283,7 @@ describe('formatActivityEvent — bigname v0.4.1 rows', () => {
   })
 })
 
-describe('formatActivityEvent root role changes (after v0.4.1)', () => {
+describe('formatActivityEvent root role changes', () => {
   const { data, contract_address: REGISTRY } = mockEventRootPermissionChanged
 
   it('words a root role change by its registry, subject and roles', () => {
@@ -324,7 +326,7 @@ describe('formatActivityEvent root role changes (after v0.4.1)', () => {
     ).toEqual({ text: 'Root roles updated' })
   })
 
-  it('keeps the v0.4.1 wording for a role change on a registry token', () => {
+  it('keeps its wording for a role change on a registry token', () => {
     expect(
       formatActivityEvent(
         event(

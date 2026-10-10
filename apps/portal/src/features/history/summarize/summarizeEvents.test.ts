@@ -3,9 +3,9 @@ import type { Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   mockEventRootPermissionChanged,
+  mockHistoryRegistration,
   mockHistoryRegistrationPayment,
-} from '@/test-utils/bigname/postV041.mock'
-import { mockHistoryRegistration } from '@/test-utils/bigname/v041.mock'
+} from '@/test-utils/bigname/bigname.mock'
 import {
   type EventType,
   type TimelineEvent,
@@ -254,7 +254,7 @@ describe('summarizeEvents — ENSv1 to ENSv2 migration', () => {
   })
 })
 
-describe('summarizeEvents after v0.4.1', () => {
+describe('summarizeEvents', () => {
   it("states a registration's charge on one row of its action", () => {
     const registered = mockHistoryRegistrationPayment
     const linked = {
@@ -294,7 +294,7 @@ describe('summarizeEvents after v0.4.1', () => {
     })
   })
 
-  it('leaves v0.4.1 rows as served', () => {
+  it('leaves rows without a charge as served', () => {
     const rows = toTimelineEvents([
       mockHistoryRegistration,
       { ...mockHistoryRegistration, id: 'f'.repeat(64) },

@@ -1,15 +1,13 @@
 import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import {
+  mockAddressHistoryRecordWithoutName,
   mockEventRootPermissionChanged,
+  mockHistoryRegistration,
   mockHistoryRegistrationPayment,
   mockHistoryRenewalPayment,
   mockHistoryTransferOperator,
-} from '@/test-utils/bigname/postV041.mock'
-import {
-  mockAddressHistoryRecordWithoutName,
-  mockHistoryRegistration,
-} from '@/test-utils/bigname/v041.mock'
+} from '@/test-utils/bigname/bigname.mock'
 import {
   flattenHistoryData,
   historyEventsToSubgraphEvents,
@@ -76,7 +74,7 @@ describe('historyEventsToSubgraphEvents', () => {
 /** A decimal Unix-seconds instant as the ISO string the table prints. */
 const iso = (seconds: string) => new Date(Number(seconds) * 1000).toISOString()
 
-describe('flattenHistoryData after v0.4.1', () => {
+describe('flattenHistoryData', () => {
   it('prints an ENSv1 cost in ETH and keeps the referrer as served', () => {
     expect(flattenHistoryData(mockHistoryRenewalPayment.data)).toEqual({
       expires_at: iso(mockHistoryRenewalPayment.data.expires_at),
@@ -103,7 +101,7 @@ describe('flattenHistoryData after v0.4.1', () => {
     })
   })
 
-  it('prints v0.4.1 rows as before, with or without a name', () => {
+  it('prints rows as before, with or without a name', () => {
     expect(flattenHistoryData(mockHistoryRegistration.data)).toEqual({
       ...mockHistoryRegistration.data,
       expires_at: iso(mockHistoryRegistration.data.expires_at),
@@ -118,7 +116,7 @@ describe('flattenHistoryData after v0.4.1', () => {
   })
 })
 
-describe('historyEventsToSubgraphEvents after v0.4.1', () => {
+describe('historyEventsToSubgraphEvents', () => {
   it("prints one registration's charge on one of its rows", () => {
     const registered = mockHistoryRegistrationPayment
     const linked = {

@@ -2,7 +2,7 @@ import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
 import { ResultAsync } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mockEventRootPermissionChanged } from '@/test-utils/bigname/postV041.mock'
+import { mockEventRootPermissionChanged } from '@/test-utils/bigname/bigname.mock'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'

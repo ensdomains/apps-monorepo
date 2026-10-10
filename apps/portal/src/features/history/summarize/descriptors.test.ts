@@ -1,7 +1,9 @@
 import type { EventDataByType, MigrationPath } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
-import { mockEventRootPermissionChanged } from '@/test-utils/bigname/postV041.mock'
-import { mockHistoryRootPermission } from '@/test-utils/bigname/v041.mock'
+import {
+  mockEventRootPermissionChanged,
+  mockHistoryRootPermission,
+} from '@/test-utils/bigname/bigname.mock'
 import {
   type EventType,
   type TimelineEvent,
@@ -177,7 +179,7 @@ describe('history labels', () => {
   })
 })
 
-describe('bigname v0.4.1 rows', () => {
+describe('bigname rows', () => {
   it('a migration reads "migrated {name} to ENSv2" with its path', () => {
     expect(
       describeEvent(event('migration', { migration_path: 'unlocked_wrapped' })),
@@ -288,7 +290,7 @@ describe('bigname v0.4.1 rows', () => {
   })
 })
 
-describe('root role changes (after v0.4.1)', () => {
+describe('root role changes', () => {
   const REGISTRY = mockEventRootPermissionChanged.contract_address
   const root = { chain_id: 11155111, address: REGISTRY } as const
   const onRegistry = [
@@ -373,7 +375,7 @@ describe('root role changes (after v0.4.1)', () => {
     })
   })
 
-  it('a v0.4.1 role change on a registry token keeps its wording', () => {
+  it('a role change on a registry token keeps its wording', () => {
     const [row] = toTimelineEvents([mockHistoryRootPermission])
     const result = describeEvent(row)
     expect(result).toMatchObject({ icon: 'revoke', label: 'revoked roles' })

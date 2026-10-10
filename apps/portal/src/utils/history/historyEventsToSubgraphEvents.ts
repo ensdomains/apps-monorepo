@@ -36,7 +36,7 @@ const flattenField = (key: string, value: unknown, data: object): unknown =>
 
 /**
  * A row's `include=data` payload as flat, printable fields. A root role
- * change (after v0.4.1) also gets its `registry`, which the flattened
+ * change also gets its `registry`, which the flattened
  * `grant_scope` would lose and the row, having no name, has no other trace of.
  */
 export const flattenHistoryData = (
