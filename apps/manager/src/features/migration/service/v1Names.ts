@@ -1,9 +1,9 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type AddressName,
-  type AddressNamesResponse,
   type BignameClient,
   isStale,
+  readAllPages,
 } from '@ens-apps/indexer/bigname'
 import {
   needsParentFuses,
@@ -18,7 +18,7 @@ import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import type { BignameLookupError } from './bignameLookup'
-import { checkNotAborted, lookupNames, retryOnStale } from './bignameLookup'
+import { checkNotAborted, lookupNames } from './bignameLookup'
 
 const FETCH_PAGE_SIZE = 200
 
@@ -46,41 +46,32 @@ const toError = (cause: BignameError | BignameLookupError | Error) =>
 const isListed = (row: AddressName): boolean =>
   !row.name.endsWith('.reverse') && !HIDDEN_STATUSES.includes(row.status)
 
-const listV1NamesOnce = ResultFn(async function* (
-  client: V1NamesClient,
-  address: Address,
-  options: ReadOptions,
-) {
-  let names: readonly string[] = []
-  let cursor: string | null = null
-  do {
-    yield* checkNotAborted(options.signal, toError)
-    const page: AddressNamesResponse = yield* client
-      .addressNames(address, {
-        namespace: 'ens',
-        relation: 'any',
-        authority: ['ens_v1', 'ens_v0'],
-        sort: 'name',
-        order: 'asc',
-        page_size: FETCH_PAGE_SIZE,
-        ...(cursor !== null && { cursor }),
-      })
-      .mapErr(toError)
-    names = [...names, ...page.data.filter(isListed).map((row) => row.name)]
-    cursor = page.page?.next_cursor ?? null
-  } while (cursor !== null)
-  return ok(names)
-})
-
+// A stale page is sent again, and a cursor that stays stale restarts the walk.
 const listV1Names = (
   client: V1NamesClient,
   address: Address,
   options: ReadOptions,
 ) =>
-  retryOnStale(
-    () => listV1NamesOnce(client, address, options),
-    (error) => isStale(error.cause),
-  )
+  readAllPages<string, BignameError | Error>({
+    readPage: (cursor) =>
+      checkNotAborted(options.signal, (reason) => reason)
+        .asyncAndThen(() =>
+          client.addressNames(address, {
+            namespace: 'ens',
+            relation: 'any',
+            authority: ['ens_v1', 'ens_v0'],
+            sort: 'name',
+            order: 'asc',
+            page_size: FETCH_PAGE_SIZE,
+            ...(cursor !== undefined && { cursor }),
+          }),
+        )
+        .map(({ data, page }) => ({
+          rows: data.filter(isListed).map((row) => row.name),
+          nextCursor: page?.next_cursor ?? null,
+        })),
+    isStaleError: isStale,
+  }).mapErr(toError)
 
 const lookupRecords = (
   client: V1NamesClient,
@@ -94,7 +85,7 @@ export const readV1NamesForAddress = ResultFn(async function* (
   address: Address,
   options: ReadOptions = {},
 ) {
-  const names = yield* await listV1Names(client, address, options)
+  const names = yield* listV1Names(client, address, options)
   const records = yield* lookupRecords(client, names, options)
   const parentNames = Array.from(
     new Set(

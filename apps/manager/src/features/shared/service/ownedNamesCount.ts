@@ -1,4 +1,5 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
+import { isStale, retryStale } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -18,14 +19,17 @@ export class GetOwnedNamesCountError extends TaggedError(
  * an exact total.
  */
 export const getOwnedNamesCount = (address: Address) =>
-  bigname
-    .addressNames(address.toLowerCase(), {
-      relation: ['owner'],
-      parent: 'eth',
-      dedupe: 'registration',
-      include: ['total_count'],
-      page_size: 1,
-    })
+  retryStale(
+    () =>
+      bigname.addressNames(address.toLowerCase(), {
+        relation: ['owner'],
+        parent: 'eth',
+        dedupe: 'registration',
+        include: ['total_count'],
+        page_size: 1,
+      }),
+    isStale,
+  )
     .map(
       ({ data, page }) =>
         page?.total_count ?? (data.length === 0 && !page?.has_more ? 0 : null),
