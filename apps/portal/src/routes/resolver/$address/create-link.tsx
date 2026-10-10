@@ -1,12 +1,18 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -23,12 +29,12 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
-import { ResolverNodesNotice } from '@/features/resolver/components/ResolverNodesNotice'
 import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
 import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
+  RESOLVER_NODES_PAGE_SIZE,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -41,21 +47,19 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/resolver/$address/create-link')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) =>
-    Promise.all([
-      queryClient.prefetchQuery(
-        getResolverNodesQueryOptions({ address: params.address as Address }),
-      ),
-      queryClient.prefetchQuery(
-        getResolverOverviewQueryOptions({
-          address: params.address as Address,
-        }),
-      ),
-    ]),
+  // Started, not awaited: the page renders while the first names load.
+  loader: ({ params }) => {
+    void queryClient.prefetchInfiniteQuery(
+      getResolverNodesQueryOptions({ address: params.address }),
+    )
+    void queryClient.prefetchQuery(
+      getResolverOverviewQueryOptions({ address: params.address }),
+    )
+  },
 })
 
 interface PageHeaderProps {
-  readonly address: string
+  readonly address: Address
 }
 
 const PageHeader = ({ address }: PageHeaderProps) => (
@@ -69,7 +73,7 @@ const PageHeader = ({ address }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+    <PageHeading parent={{ type: 'resolver', address: address }}>
       Link a name
     </PageHeading>
   </div>
@@ -114,20 +118,30 @@ function RouteComponent() {
   const attempt = useFlowAttempt()
   const createLinkTxId = scopeTransactionId(CREATE_LINK_TX_ID, attempt.scope)
 
-  // The picker offers every bound name, not only the overview's first page.
-  const {
-    data: boundNames,
-    isLoading,
-    error,
-  } = useQuery(getResolverNodesQueryOptions({ address: address as Address }))
+  const nodesQuery = useInfiniteQuery(getResolverNodesQueryOptions({ address }))
   // Only the existing links come from the overview.
-  const { data: resolver } = useQuery(
-    getResolverOverviewQueryOptions({ address: address as Address }),
+  const overview = useQuery(getResolverOverviewQueryOptions({ address }))
+  const resolver = overview.data
+
+  const loadedNodes = useMemo(
+    () => nodesQuery.data?.pages.flatMap((page) => page.nodes) ?? [],
+    [nodesQuery.data],
   )
+  const loader = useListLoader({
+    initialCount: RESOLVER_NODES_PAGE_SIZE,
+    loaded: loadedNodes.length,
+    total: nodesQuery.data?.pages.at(-1)?.totalCount ?? undefined,
+    hasMore: nodesQuery.hasNextPage,
+    fetchMore: infiniteFetchMore(
+      nodesQuery.fetchNextPage,
+      (page) => page.nodes.length,
+    ),
+    resetKey: address,
+  })
 
   const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
-      resolverAddress: address as Address,
+      resolverAddress: address,
       roles: ['ROLE_LINK'],
       account: accountAddress as Address,
     }),
@@ -136,7 +150,7 @@ function RouteComponent() {
 
   const canLink = Boolean(hasLinkRole)
 
-  const nodes = boundNames?.nodes ?? []
+  const nodes = loadedNodes.slice(0, loader.shown)
   const existingLinks = resolver?.links ?? []
 
   const nameOptions = nodes.map((n) => n.name)
@@ -152,12 +166,18 @@ function RouteComponent() {
     ? (nodes.find((n) => n.name === toName) ?? null)
     : null
 
-  const isAlreadyLinked = fromName
-    ? existingLinks.some((l) => l.name === fromName)
-    : false
+  // Until the overview is read, whether the name is linked is unknown.
+  const linksState = match(overview)
+    .with({ isError: true }, () => 'unknown' as const)
+    .with({ isPending: true }, () => 'loading' as const)
+    .otherwise(() => 'read' as const)
+  const isAlreadyLinked =
+    linksState === 'read' && fromName
+      ? existingLinks.some((l) => l.name === fromName)
+      : false
 
   const mutation = useLinkToNode({
-    resolverAddress: address as Address,
+    resolverAddress: address,
     walletClient,
     publicClient,
     chainId,
@@ -172,16 +192,16 @@ function RouteComponent() {
     if (accountAddress) attempt.start(accountAddress)
   }
 
-  if (isLoading) return <LoadingMessage />
-  if (error)
+  if (nodesQuery.isLoading) return <LoadingMessage />
+  if (nodesQuery.error && !nodesQuery.isFetchNextPageError)
     return (
       <ErrorMessage
         title="Failed to load resolver"
-        description={extractErrorMessage(error, '')}
+        description={extractErrorMessage(nodesQuery.error, '')}
       />
     )
 
-  if (nodes.length === 0) {
+  if (loadedNodes.length === 0) {
     return (
       <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />
@@ -197,15 +217,12 @@ function RouteComponent() {
     <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
 
-      <ResolverNodesNotice
-        count={nodes.length}
-        isPartial={boundNames?.isPartial}
-      />
-
       <ResolverCollectionNotice
         collection="links"
         status={resolver?.linksStatus}
       />
+
+      <ListLoader {...loader} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field data-invalid={isAlreadyLinked}>
@@ -256,6 +273,13 @@ function RouteComponent() {
                 )}
               </div>
             </div>
+          )}
+          {fromName && linksState !== 'read' && (
+            <p className="text-sm text-muted-foreground">
+              {linksState === 'loading'
+                ? 'Checking whether this name is already linked…'
+                : 'Couldn’t check whether this name is already linked. Linking again re-points it.'}
+            </p>
           )}
           {isAlreadyLinked && (
             <p className="text-sm text-danger">
@@ -365,7 +389,7 @@ function RouteComponent() {
                     prepareLinkToNodeTransaction({
                       sourceName: pendingLink.fromName,
                       targetName: pendingLink.toName,
-                      resolverAddress: address as Address,
+                      resolverAddress: address,
                       walletClient,
                       chainId,
                     })

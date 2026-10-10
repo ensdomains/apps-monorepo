@@ -77,7 +77,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     ),
     cell: ({ row }) => {
       const count = row.original.roleHoldersCount
-      return <span className="text-muted-foreground">{count}</span>
+      return <span className="text-muted-foreground">{count ?? '—'}</span>
     },
   },
   {

@@ -29,7 +29,8 @@ export type RegistryLabelRow = {
   /** Unix seconds; null means the label does not expire. */
   expiryDate: bigint | null
   /** Distinct accounts holding a label-scoped role on this label. */
-  roleHoldersCount: number
+  /** Undefined when bigname does not count them. */
+  roleHoldersCount: number | undefined
 }
 
 export const REGISTRY_LABELS_PAGE_SIZE = 100
@@ -55,7 +56,7 @@ const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
     labelhash: row.labelhash ?? null,
     // Null for no expiry (or one too large to date): it does not expire.
     expiryDate: toExpirySeconds(row),
-    roleHoldersCount: row.role_holder_count ?? 0,
+    roleHoldersCount: row.role_holder_count ?? undefined,
   }
 }
 
@@ -83,7 +84,7 @@ const getRegistryLabelsPage = (
       }),
     )
 
-const getRegistryLabelsQueryKey = createQueryKey<
+export const getRegistryLabelsQueryKey = createQueryKey<
   'get-registry-labels',
   GetRegistryLabelsParameters
 >('get-registry-labels')

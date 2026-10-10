@@ -11,7 +11,7 @@ export type GetRegistryRoleHistoryParameters = {
 /** One account's indexed root-role history, newest first. */
 export const getRegistryRoleHistoryForAccount = getBignameRootRoleChanges
 
-const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
+export const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
   'get-registry-role-history-for-account',
   GetRegistryRoleHistoryParameters
 >('get-registry-role-history-for-account')

@@ -1,70 +1,60 @@
-import { useQuery } from '@tanstack/react-query'
+import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createFileRoute } from '@tanstack/react-router'
-import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
-import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
-import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
-import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
-import { queryClient } from '@/utils/queryClient'
+import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
+import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeline'
+import {
+  fetchContractEventsPage,
+  timelinePageParams,
+} from '@/features/history/timelineEventPage'
+import { resolverHistoryTimelineQueryKey } from '@/features/resolver/hooks/useResolverOverview'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/resolver/$address/history')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address as Address,
-      }),
-    )
-  },
 })
 
+/** Everything the resolver emitted, a page at a time, as the registry history is. */
 function RouteComponent() {
   const { address } = Route.useParams()
+  const model = useTimelinePagesModel(
+    resultInfiniteQueryOptions({
+      queryKey: resolverHistoryTimelineQueryKey({ address }),
+      queryFn: ({ queryKey: [, { address }], pageParam }) =>
+        fetchContractEventsPage({
+          contractAddress: address,
+          cursor: pageParam,
+        }),
+      ...timelinePageParams,
+    }),
+  )
 
-  const {
-    data: resolver,
-    isLoading,
-    error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
-
-  if (isLoading) return <LoadingMessage />
-  if (error)
+  if (model.isLoading) return <LoadingMessage />
+  if (model.error) {
     return (
       <ErrorMessage
-        compact
-        description="Error fetching history. Please refresh the page."
+        title="Error loading resolver history"
+        description={extractErrorMessage(model.error, '')}
       />
     )
-
-  const events = resolver?.events ?? []
-  // The overview loads the newest 200 events; the heading counts them all.
-  const eventCount = resolver?.eventCount ?? events.length
+  }
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-        {eventCount > 0 ? `History (${eventCount})` : 'History'}
-      </PageHeading>
-
-      {events.length < eventCount && (
-        <p className="text-sm text-muted-foreground">
-          {`Showing the newest ${events.length.toLocaleString()} of ${eventCount.toLocaleString()} events.`}
-        </p>
-      )}
-
-      {events.length > 0 ? (
-        <ResolverEventsTable events={events} enableSidebar />
-      ) : (
-        <NoResultsMessage
-          title="No events yet"
-          description="Events for this resolver will appear here."
-          className="mx-0"
-        />
-      )}
-    </div>
+    <HistoryTimelineView
+      model={model}
+      breakContent="load-more"
+      heading={
+        <PageHeading parent={{ type: 'resolver', address }}>
+          History
+        </PageHeading>
+      }
+      showActor
+      emptyTitle="No events yet"
+      emptyDescription="Events for this resolver will appear here."
+    />
   )
 }

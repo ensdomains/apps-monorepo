@@ -85,7 +85,7 @@ const getRegistryOccupants = ({
     })
     .mapErr((cause) => new GetRegistryOccupantsError({ cause }))
 
-const getRegistryOccupantsQueryKey = createQueryKey<
+export const getRegistryOccupantsQueryKey = createQueryKey<
   'get-registry-occupants',
   GetRegistryOccupantsParameters
 >('get-registry-occupants')

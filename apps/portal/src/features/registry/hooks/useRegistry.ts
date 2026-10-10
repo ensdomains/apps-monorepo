@@ -28,10 +28,10 @@ export type RegistryInfo = {
    * registry the deployment declares rather than observes, such as the root.
    */
   createdTransactionHash: Hash | null
-  labelCount: number
+  /** Undefined when bigname does not count them. */
+  labelCount: number | undefined
   /** Declared role assignments: one account on two resources counts twice. */
-  roleCount: number
-  eventCount: number
+  roleCount: number | undefined
   referencedBy: { name: string | null }[]
 }
 
@@ -54,14 +54,13 @@ const getRegistryInfo = ({ address }: GetRegistryInfoParameters) =>
         createdBlock: registry.created_block_number ?? 0,
         createdAt: toUnixSeconds(registry.created_at) ?? 0,
         createdTransactionHash: registry.created_transaction_hash,
-        labelCount: registry.counts.labels ?? 0,
-        roleCount: registry.counts.roles ?? 0,
-        eventCount: registry.counts.events ?? 0,
+        labelCount: registry.counts.labels ?? undefined,
+        roleCount: registry.counts.roles ?? undefined,
         referencedBy: registry.referenced_by.data.map(({ name }) => ({ name })),
       }
     })
 
-const getRegistryInfoQueryKey = createQueryKey<
+export const getRegistryInfoQueryKey = createQueryKey<
   'get-registry-info',
   GetRegistryInfoParameters
 >('get-registry-info')

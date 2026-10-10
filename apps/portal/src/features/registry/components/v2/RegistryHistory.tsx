@@ -17,7 +17,7 @@ import {
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
 
-const registryHistoryTimelineQueryKey = createQueryKey<
+export const registryHistoryTimelineQueryKey = createQueryKey<
   'get-registry-history-timeline',
   { readonly address: Address }
 >('get-registry-history-timeline')
