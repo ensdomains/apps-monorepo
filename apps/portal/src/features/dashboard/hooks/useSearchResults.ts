@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
@@ -9,28 +9,27 @@ import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import {
   buildSearchSuggestions,
   getSearchNotice,
 } from '../utils/buildSearchSuggestions'
-import {
-  filterAndSortOwnedNames,
-  getOwnedNamesMatchQuery,
-  mergeOwnedNames,
-} from '../utils/ownedNamesUtils'
+import { filterAndSortOwnedNames } from '../utils/ownedNamesUtils'
 import {
   buildSearchResultItems,
   type SearchResultItem,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
-import { keepPreviousSearch } from './useOwnedNames'
+import { getAddressNamesQueryOptions } from './useAddressNames'
 import { useSuggestionTlds } from './useSuggestionTlds'
-import { getV1NamesPagesForAddressQueryOptions } from './useV1NamesForAddress'
-import { getV2NamesForAddressQueryOptions } from './useV2NamesForAddress'
 
 const MAX_OWNED_NAMES = 5
+
+// Names the wallet owns, or owned until a grace it can still renew in.
+const isOwnedName = ({ relations }: AddressNameItem) =>
+  relations.includes('owner') || relations.includes('former_owner')
 
 export type UseSearchResultsParams = {
   /** Trimmed search value */
@@ -122,32 +121,16 @@ export const useSearchResults = ({
 
   const addressForOwned = connectedAddress ?? zeroAddress
 
-  // Matched by the subgraph, not over loaded pages: a wallet's first page is
-  // 100 names, and a match past it would never be found.
-  const ownedNamesMatchQuery = getOwnedNamesMatchQuery(searchValue)
-  const v1NamesQuery = useInfiniteQuery({
-    ...getV1NamesPagesForAddressQueryOptions({
-      address: addressForOwned,
-      search: ownedNamesMatchQuery,
-    }),
-    enabled: Boolean(connectedAddress) && ownedNamesMatchQuery !== '',
-    placeholderData: keepPreviousSearch(addressForOwned),
-  })
-  const v2NamesQuery = useQuery({
-    ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
+  // The same read as the wallet's names list, so suggestions cost no request
+  // of their own.
+  const namesQuery = useQuery({
+    ...getAddressNamesQueryOptions({ address: addressForOwned }),
     enabled: Boolean(connectedAddress),
   })
 
   const ownedNamesMerged = useMemo(
-    () =>
-      mergeOwnedNames(
-        v1NamesQuery.data?.pages.flatMap((page) => page.names) ?? [],
-        (v2NamesQuery.data ?? []).flatMap((d) => [
-          { name: d.name },
-          ...(d.subdomains ?? []).map((s) => ({ name: s.name })),
-        ]),
-      ),
-    [v1NamesQuery.data, v2NamesQuery.data],
+    () => (namesQuery.data ?? []).filter(isOwnedName),
+    [namesQuery.data],
   )
 
   /** The name the input refers to exactly, e.g. "fox" and "fox.eth" both mean fox.eth. */

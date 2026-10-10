@@ -21,8 +21,8 @@ const MAX_DATE_MS = 8.64e15
  * string, so both are accepted. Anything else is null rather than an
  * `Invalid Date`, which would otherwise travel as a real value.
  */
-const toEpochMs = (value: Timestamp | undefined): number | null => {
-  if (value === undefined) return null
+const toEpochMs = (value: Timestamp | null | undefined): number | null => {
+  if (value === undefined || value === null) return null
   const ms = UNIX_SECONDS.test(value)
     ? Number(value) * MS_PER_SECOND
     : RFC_3339.test(value)
@@ -33,15 +33,17 @@ const toEpochMs = (value: Timestamp | undefined): number | null => {
 
 // A wrapped name can expire at 2^64 - 1, past what a number holds exactly.
 // Clamping keeps the result exact, and it still compares as never expiring.
-export const toUnixSeconds = (value: Timestamp | undefined): number | null => {
-  if (value !== undefined && UNIX_SECONDS.test(value)) {
+export const toUnixSeconds = (
+  value: Timestamp | null | undefined,
+): number | null => {
+  if (value != null && UNIX_SECONDS.test(value)) {
     return Math.min(Number(value), Number.MAX_SAFE_INTEGER)
   }
   const ms = toEpochMs(value)
   return ms === null ? null : Math.floor(ms / MS_PER_SECOND)
 }
 
-export const toDate = (value: Timestamp | undefined): Date | null => {
+export const toDate = (value: Timestamp | null | undefined): Date | null => {
   const ms = toEpochMs(value)
   return ms === null ? null : new Date(ms)
 }
@@ -68,13 +70,24 @@ export const toAddress = (value: string | undefined): Address | null =>
  * days); subnames have no lease and use the top-level value.
  */
 export const toExpiresAt = (row: {
-  readonly expires_at?: Timestamp
+  readonly expires_at?: Timestamp | null
   readonly ens_v1?: EnsV1Facts
 }): Date | null => toDate(row.ens_v1?.expires_at ?? row.expires_at)
 
+/** `toExpiresAt` in unix seconds; null for no expiry or one too large to date. */
+export const toExpirySeconds = (row: {
+  readonly expires_at?: Timestamp | null
+  readonly ens_v1?: EnsV1Facts
+}): bigint | null => {
+  const ms = toEpochMs(row.ens_v1?.expires_at ?? row.expires_at)
+  return ms === null ? null : BigInt(Math.floor(ms / MS_PER_SECOND))
+}
+
 /** Exact unix seconds, including values past what a Date or a number holds. */
-export const toExactSeconds = (value: Timestamp | undefined): bigint | null => {
-  if (value !== undefined && UNIX_SECONDS.test(value)) return BigInt(value)
+export const toExactSeconds = (
+  value: Timestamp | null | undefined,
+): bigint | null => {
+  if (value != null && UNIX_SECONDS.test(value)) return BigInt(value)
   const seconds = toUnixSeconds(value)
   return seconds === null ? null : BigInt(seconds)
 }

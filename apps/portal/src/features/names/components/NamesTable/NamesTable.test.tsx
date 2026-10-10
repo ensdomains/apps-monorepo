@@ -1,7 +1,7 @@
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
@@ -18,14 +18,14 @@ vi.mock('@/components/EntityBadge', () => ({
 const { NamesTable } = await import('./NamesTable')
 const { columns } = await import('./columns')
 
-/**
- * An expiry a subregistry can mint but `Date` cannot hold. `new Date(x * 1000)`
- * yields `Invalid Date`, which is truthy — the shape that used to reach
- * `Temporal.PlainDate.from({ year: NaN })` and take the whole route down.
- */
-const OUT_OF_RANGE_EXPIRY = 2 ** 63
+const row = (name: string, expiryDate: Date | null): AddressNameItem => ({
+  name,
+  expiryDate,
+  relations: ['owner'],
+  protocolVersion: 'ENSv2',
+})
 
-const NamesTableHarness = ({ data }: { data: MergedName[] }) => {
+const NamesTableHarness = ({ data }: { data: AddressNameItem[] }) => {
   const table = useReactTable({
     data,
     columns,
@@ -41,47 +41,40 @@ const desktopRowText = (name: string) =>
     .map((el) => el.closest('tr'))
     .find(Boolean)?.textContent ?? ''
 
+// An expiry a Date cannot hold reaches the table as null, never as an
+// Invalid Date; the read guards it.
 describe('NamesTable expiry cell', () => {
-  it('renders a name whose expiry overflows the Date range', () => {
-    const data = mergeNamesData(
-      [],
-      [
-        {
-          name: 'attacker-minted.eth',
-          subdomains: [],
-          expiryDate: OUT_OF_RANGE_EXPIRY,
-        },
-      ],
-    )
-
-    render(<NamesTableHarness data={data} />)
+  it('renders a name with no expiry', () => {
+    render(<NamesTableHarness data={[row('attacker-minted.eth', null)]} />)
 
     // Rendered twice: the desktop row and the mobile card.
     expect(screen.getAllByText('attacker-minted.eth')).not.toHaveLength(0)
     expect(screen.getAllByText('Does not expire')).not.toHaveLength(0)
   })
 
-  it('keeps a good row rendering beside a bad one', () => {
-    const data = mergeNamesData(
-      [],
-      [
-        {
-          name: 'attacker-minted.eth',
-          subdomains: [],
-          expiryDate: OUT_OF_RANGE_EXPIRY,
-        },
-        {
-          name: 'victim.eth',
-          subdomains: [],
-          expiryDate: Math.floor(Date.UTC(2030, 0, 1) / 1000),
-        },
-      ],
+  it('keeps a good row rendering beside one with no expiry', () => {
+    render(
+      <NamesTableHarness
+        data={[
+          row('attacker-minted.eth', null),
+          row('victim.eth', new Date(Date.UTC(2030, 0, 1))),
+        ]}
+      />,
     )
-
-    render(<NamesTableHarness data={data} />)
 
     // Per row, so a silently dropped bad row can't pass this.
     expect(desktopRowText('attacker-minted.eth')).toContain('Does not expire')
     expect(desktopRowText('victim.eth')).toContain('2030')
+  })
+
+  it('labels each relation the address holds', () => {
+    render(
+      <NamesTableHarness
+        data={[{ ...row('both.eth', null), relations: ['owner', 'manager'] }]}
+      />,
+    )
+
+    expect(desktopRowText('both.eth')).toContain('Owner')
+    expect(desktopRowText('both.eth')).toContain('Manager')
   })
 })

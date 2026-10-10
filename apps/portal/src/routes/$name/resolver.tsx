@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { RESOLVER_HISTORY_TYPES } from '@/features/history/eventTypes'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import {
   type GetEnsOwnerReturnType,
@@ -214,15 +215,6 @@ const ResolverInfoList = ({
   )
 }
 
-const RESOLVER_HISTORY_EVENT_TYPES = [
-  'ResolverUpdated',
-  'AddressChanged',
-  'AddrChanged',
-  'TextChanged',
-  'ContenthashChanged',
-  'NameChanged',
-] as const
-
 interface ResolverViewProps {
   name: string
   resolverAddress: Address
@@ -290,7 +282,7 @@ const ResolverView = ({
 
       <HistoryTimeline
         name={name}
-        scope={RESOLVER_HISTORY_EVENT_TYPES}
+        scope={RESOLVER_HISTORY_TYPES}
         showFilters={false}
         emptyTitle="No resolver history"
         emptyDescription="Resolver changes and record writes for this name will appear here as they happen."

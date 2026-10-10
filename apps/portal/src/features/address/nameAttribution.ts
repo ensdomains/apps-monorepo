@@ -71,11 +71,17 @@ const isSameAddress = (
 
 type OwnableName = {
   readonly name: string | null
-  readonly v1Roles?: { readonly owner?: boolean } | null
+  readonly relations: readonly string[]
 }
 
-const holdsRegistrarName = ({ name, v1Roles }: OwnableName) =>
-  Boolean(name && isRegistrarIssued(name) && (!v1Roles || v1Roles.owner))
+// A registrar-issued name the address owns, or owned until a grace it can
+// still renew in.
+const holdsRegistrarName = ({ name, relations }: OwnableName) =>
+  Boolean(
+    name &&
+      isRegistrarIssued(name) &&
+      (relations.includes('owner') || relations.includes('former_owner')),
+  )
 
 /**
  * Decides whether a name's history may be presented as the address's own.

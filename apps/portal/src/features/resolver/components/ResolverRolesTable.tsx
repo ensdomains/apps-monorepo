@@ -19,6 +19,7 @@ import {
 import {
   type AccountRoleGroup,
   buildResourceLabels,
+  decodeResolverRoleBitmap,
   groupRolesByAccount,
   planAccountRemoval,
   resolverPermissions,
@@ -36,6 +37,8 @@ type ResolverRolesTableProps = {
   readonly canManageRoles: boolean
   /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
   readonly disableEdit?: boolean
+  /** Whole-account removal requires a complete enumeration. */
+  readonly isComplete?: boolean
 }
 
 /** One entry per held resolver permission, with its Admin / User (manager) state. */
@@ -94,6 +97,7 @@ export const ResolverRolesTable = ({
   resolverAddress,
   canManageRoles,
   disableEdit = false,
+  isComplete = true,
 }: ResolverRolesTableProps) => {
   // The selection is an identity, not a row object: the row it names is looked
   // up in the current data on every render, so a refetch can't leave the
@@ -106,16 +110,36 @@ export const ResolverRolesTable = ({
     () => buildResourceLabels(namedResources ?? []),
     [namedResources],
   )
+  // A grant whose scope bigname does not identify is listed on its own below.
   const data = useMemo(
-    () => groupRolesByAccount(roles, revealed),
+    () =>
+      groupRolesByAccount(
+        roles.filter((role) => role.resource !== null),
+        revealed,
+      ),
     [roles, revealed],
   )
 
   const editingGroup =
     data.find((group) => resolverRoleGroupId(group) === editingId) ?? null
   const removalPlan = editingGroup
-    ? planAccountRemoval(roles, editingGroup.account, revealed)
+    ? isComplete
+      ? planAccountRemoval(roles, editingGroup.account, revealed)
+      : { type: 'unreadable' as const, reason: 'incomplete' as const }
     : null
+
+  // Unknown scopes stay visible, but never enter the editable groups.
+  const unknownScopes: AccountRoleGroup[] = roles
+    .filter((role) => role.resource === null)
+    .map((role, index) => ({
+      account: role.account,
+      resource: `unknown:${role.registrationId ?? index}`,
+      resourceId: null,
+      isRoot: false,
+      resourceLabel: 'Scope unavailable',
+      roles: [role],
+      decodedRoles: decodeResolverRoleBitmap(BigInt(role.roleBitmap)),
+    }))
 
   const showActions = canManageRoles && !disableEdit
 
@@ -131,7 +155,29 @@ export const ResolverRolesTable = ({
 
   const table = (
     <div className={rolesTableClassName(showActions)}>
-      <DataTable columns={columns} data={data} getRowId={resolverRoleGroupId} />
+      {data.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={data}
+          getRowId={resolverRoleGroupId}
+        />
+      )}
+      {unknownScopes.length > 0 && (
+        <>
+          <p className="text-sm text-muted-foreground mb-4">
+            Some role scopes are unavailable. These grants cannot be edited, and
+            accounts with these grants cannot be removed.
+          </p>
+          <DataTable
+            columns={[
+              ...baseColumns,
+              buildActionSpacerColumn<AccountRoleGroup>(),
+            ]}
+            data={unknownScopes}
+            getRowId={resolverRoleGroupId}
+          />
+        </>
+      )}
     </div>
   )
 

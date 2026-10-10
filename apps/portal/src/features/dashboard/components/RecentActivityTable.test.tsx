@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
@@ -42,60 +43,49 @@ vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
     `https://etherscan.io/tx/${txHash}`,
 }))
 
-const fetchPage = vi.hoisted(() =>
-  vi.fn<(offset: number) => Promise<unknown>>(),
-)
-
-vi.mock('../hooks/useRecentActivity', () => ({
-  RECENT_ACTIVITY_PAGE_SIZE: 15,
-  getRecentActivityQueryOptions: () => ({
-    queryKey: ['recent-activity-mock'],
-    queryFn: ({ pageParam }: { pageParam: number }) => fetchPage(pageParam),
-    initialPageParam: 0,
-    getNextPageParam: (last: { hasNextPage: boolean; next: number }) =>
-      last.hasNextPage ? last.next : undefined,
-  }),
+const eventsRef = vi.hoisted(() => ({
+  current: [] as readonly RecentActivityEvent[],
+  // A second page that fails to load.
+  hasFailingPage: false,
 }))
 
-const pageOf =
-  (events: readonly RecentActivityEvent[], totalCount?: number) =>
-  async (offset: number) => {
-    const page = events.slice(offset, offset + 15)
-    const next = offset + page.length
-    return {
-      events: page,
-      totalCount,
-      endCursor: null,
-      hasNextPage: next < (totalCount ?? events.length),
-      next,
-    }
-  }
+vi.mock('../hooks/useRecentActivity', () => ({
+  getRecentActivityQueryOptions: () => ({
+    queryKey: ['recent-activity-mock'],
+    queryFn: async ({ pageParam }: { pageParam?: string }) => {
+      if (pageParam) throw new Error('bigname unavailable')
+      return {
+        events: eventsRef.current,
+        endCursor: eventsRef.hasFailingPage ? 'next' : null,
+        hasNextPage: eventsRef.hasFailingPage,
+      }
+    },
+    initialPageParam: undefined,
+    getNextPageParam: (last: { endCursor: string | null }) =>
+      last.endCursor ?? undefined,
+  }),
+}))
 
 const nameChangedEvent = (
   reverseName: string,
   indexedName: string | null = null,
 ): RecentActivityEvent => ({
   name: indexedName,
-  type: 'NameChanged',
+  type: 'record',
+  kind: 'RecordChanged',
   transactionHash: '0x01',
   timestamp: Math.floor(Date.now() / 1000),
   blockNumber: 0,
   contractAddress: '0x02',
-  namehash: null,
-  domain: null,
-  data: JSON.stringify({ name: reverseName }),
+  data: { key: 'name', value: reverseName },
 })
 
-const fortyEvents = Array.from({ length: 40 }, (_, i) => ({
-  ...nameChangedEvent(`name${i}.eth`),
-  transactionHash: `0x${(i + 1).toString(16)}` as const,
-}))
+afterEach(() => {
+  eventsRef.hasFailingPage = false
+})
 
-const renderTable = async (
-  events: readonly RecentActivityEvent[],
-  totalCount?: number,
-) => {
-  fetchPage.mockImplementation(pageOf(events, totalCount))
+const renderTable = async (events: readonly RecentActivityEvent[]) => {
+  eventsRef.current = events
   render(
     <QueryClientProvider
       client={
@@ -105,7 +95,7 @@ const renderTable = async (
       <RecentActivityTable />
     </QueryClientProvider>,
   )
-  await screen.findAllByText('Primary name updated')
+  await screen.findByText('Primary name updated')
 }
 
 /** The distinct names the row links to — `/$name` is rendered by both the pill and its chip. */
@@ -118,10 +108,6 @@ const linkedNames = () =>
   )
 
 describe('RecentActivityTable', () => {
-  afterEach(() => {
-    fetchPage.mockReset()
-  })
-
   it('renders a reverse-record name as an unlinked pill, not a name badge', async () => {
     await renderTable([nameChangedEvent('vitalik.eth')])
 
@@ -135,36 +121,17 @@ describe('RecentActivityTable', () => {
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
   })
 
-  it('opens with 15 events and loads more on demand, with no All', async () => {
-    await renderTable(fortyEvents, 32364)
+  it('keeps the events shown when the next page fails', async () => {
+    eventsRef.hasFailingPage = true
+    await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
 
-    expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
-    expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
-    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: 'More' }))
-
-    expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
-    expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
-  })
-
-  it('keeps the loaded events when a later page fails, and More retries', async () => {
-    await renderTable(fortyEvents, 32364)
-    fetchPage.mockRejectedValueOnce(new Error('indexer down'))
-
-    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Load more events' }),
+    )
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Couldn’t load more.',
+      'Couldn’t load more events.',
     )
-    expect(screen.getByText('Showing 15 of 32364')).toBeInTheDocument()
-    expect(screen.getAllByText('Primary name updated')).toHaveLength(15)
-    expect(screen.queryByText(/Error fetching recent activity/)).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: 'More' }))
-
-    expect(await screen.findByText('Showing 30 of 32364')).toBeInTheDocument()
-    expect(screen.getAllByText('Primary name updated')).toHaveLength(30)
-    expect(screen.queryByRole('alert')).toBeNull()
+    expect(linkedNames()).toEqual(new Set(['alice.eth']))
   })
 })

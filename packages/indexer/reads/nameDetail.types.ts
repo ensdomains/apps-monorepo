@@ -31,6 +31,12 @@ export type NameDetail = Readonly<{
   createdAt: Date | null
   /** When the name provably moved from v1 to v2. */
   migratedAt: Date | null
+  /**
+   * Why the name provably resolves to nothing: `no_live_ens_v2_entry` is an
+   * ENSv1 name with no ENSv2 entry, `ens_v2_path_no_resolver` an ENSv2 path
+   * with no resolver. Null when it resolves, or when that is not proven.
+   */
+  unresolvableReason: 'no_live_ens_v2_entry' | 'ens_v2_path_no_resolver' | null
 }>
 
 /** Resolves to null when the backend has not indexed the name at all. */

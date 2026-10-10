@@ -5,59 +5,67 @@ import {
   type UseInfiniteQueryOptions,
   type UseInfiniteQueryResult,
   useInfiniteQuery,
-  useQueries,
+  useQuery,
 } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { Hex } from 'viem'
-import type { FetchMoreResult } from '@/components/ListLoader/fetchUntil'
-import type { ListLoaderProps } from '@/components/ListLoader/ListLoader'
-import { useListLoader } from '@/components/ListLoader/useListLoader'
-import { dropPagedDuplicates, mergeTimeline } from '../mergeTimeline'
+import { dropClippedBoundary } from '../dropClippedBoundary'
+import { toHistoryEventTypes } from '../eventTypes'
 import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import type { TimelineIndexerEvent } from '../timelineEvent'
-import type { TimelinePage } from '../timelineEventPage'
 import {
-  getNameEventTypesQueryOptions,
+  type EventType,
+  HISTORY_EVENT_TYPES,
+  type TimelineEvent,
+} from '../timelineEvent'
+import type {
+  GetTimelineEventPageError,
+  TimelinePage,
+} from '../timelineEventPage'
+import {
   getNameHistoryAnchorQueryOptions,
-  getNameHistoryAuxiliaryQueryOptions,
   getNameHistoryPagesQueryOptions,
 } from './useNameHistoryTimeline'
 
-/** A tagged query error, whose `cause` carries the underlying `ClientError`. */
-export type TimelineQueryError = Error & {
-  readonly cause?: { readonly message?: string }
-}
+/** A tagged query error; `cause` carries what failed underneath. */
+/** Every timeline feed reads its pages through `timelineEventPage`. */
+export type TimelineQueryError = GetTimelineEventPageError
 
 /** What every timeline surface renders from, whichever feed is behind it. */
 export type HistoryTimelineModel = {
   readonly actions: readonly Action[]
-  readonly eventTypes: readonly string[]
+  /** The Event chip's options: the types this surface may show. */
+  readonly eventTypes: readonly EventType[]
   readonly anchorAction: Action | undefined
   readonly totalCount: number | undefined
   readonly hasMore: boolean
-  readonly loader: ListLoaderProps
+  readonly loadMore: () => void
+  readonly isLoadingMore: boolean
+  /** The last Load more failed; the rows already loaded stay. */
+  readonly isLoadMoreError: boolean
   readonly isLoading: boolean
   readonly error: TimelineQueryError | null
+  /** The anchor read failed, so the pinned first row may be missing. */
   readonly sourcesError: TimelineQueryError | null
-  /** A bounded source hit its cap, so any total derived from it is a lower bound. */
-  readonly isTruncated: boolean
-  readonly openIds: ReadonlySet<Hex>
-  readonly toggleAction: (txHash: Hex) => void
-  readonly setAllOpen: (txHashes: readonly Hex[]) => void
+  readonly openIds: ReadonlySet<string>
+  readonly toggleAction: (actionId: string) => void
+  readonly setAllOpen: (actionIds: readonly string[]) => void
 }
 
 export const TIMELINE_WINDOW_SIZE = 50
 
 /**
- * The newest actions whose events fit the budget. A
+ * The newest actions whose events fit the budget; `undefined` takes them all. A
  * transaction is never split across the break, so the last one admitted may
  * carry the count past the budget.
  */
+const countEvents = (actions: readonly Action[]): number =>
+  actions.reduce((total, action) => total + action.events.length, 0)
+
 const takeEvents = (
   actions: readonly Action[],
-  budget: number,
+  budget: number | undefined,
 ): readonly Action[] => {
+  if (budget === undefined) return actions
   let taken = 0
   const shown: Action[] = []
   for (const action of actions) {
@@ -68,44 +76,35 @@ const takeEvents = (
   return shown
 }
 
-/** Everything a feed may have beside its paged source. */
-type TimelineSources = {
-  /** Read whole, no cursor of their own: v1 history, child registrations. */
-  readonly auxiliaryEvents?: readonly TimelineIndexerEvent[]
+type TimelineOptions = {
   /** Ascending slice for the pinned row; `undefined` pins nothing. */
-  readonly anchorEvents?: readonly TimelineIndexerEvent[]
-  readonly eventTypes?: readonly string[]
+  readonly anchorEvents?: readonly TimelineEvent[]
+  readonly eventTypes?: readonly EventType[]
   readonly limit?: number
-  readonly selectedTypes?: readonly string[]
-  /** Events shown before the first More; `undefined` renders every loaded action. */
+  /** Events revealed per click; `undefined` renders every loaded action. */
   readonly windowSize?: number
   /** Changes when the feed's query does, so the window closes back to one page. */
   readonly resetKey?: string
   readonly includeSubjectName?: boolean
-  readonly isTruncated?: boolean
-  readonly isLoadingSources?: boolean
   readonly sourcesError?: TimelineQueryError | null
+  /** Narrows loaded rows where bigname has no query filter for it. */
+  readonly eventFilter?: (event: TimelineEvent) => boolean
 }
 
-const countEvents = (actions: readonly Action[]) =>
-  actions.reduce((total, action) => total + action.events.length, 0)
-
-const newestFirst = (a: TimelineIndexerEvent, b: TimelineIndexerEvent) =>
-  b.timestamp - a.timestamp
-
 const useActionDisclosure = () => {
-  const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
+  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set())
 
   return {
     openIds,
-    toggleAction: (txHash: Hex) =>
+    toggleAction: (actionId: string) =>
       setOpenIds((prev) => {
         const next = new Set(prev)
-        if (next.has(txHash)) next.delete(txHash)
-        else next.add(txHash)
+        if (next.has(actionId)) next.delete(actionId)
+        else next.add(actionId)
         return next
       }),
-    setAllOpen: (txHashes: readonly Hex[]) => setOpenIds(new Set(txHashes)),
+    setAllOpen: (actionIds: readonly string[]) =>
+      setOpenIds(new Set(actionIds)),
   }
 }
 
@@ -115,137 +114,72 @@ const useTimelineModel = (
     TimelineQueryError
   >,
   {
-    auxiliaryEvents = [],
     anchorEvents,
     eventTypes = [],
     limit,
-    selectedTypes,
     windowSize,
     resetKey,
     includeSubjectName = false,
-    isTruncated = false,
-    isLoadingSources = false,
     sourcesError = null,
-  }: TimelineSources = {},
+    eventFilter,
+  }: TimelineOptions = {},
 ): HistoryTimelineModel => {
   const disclosure = useActionDisclosure()
+  // Reset during render, not in an effect: a new query key must not paint its
+  // first page through the previous list's widened window.
+  const [visible, setVisible] = useState({ key: resetKey, count: windowSize })
+  if (visible.key !== resetKey) setVisible({ key: resetKey, count: windowSize })
+  const shown = visible.key === resetKey ? visible.count : windowSize
+
   const pages = pagesQuery.data?.pages ?? []
-  const pagedTotalCount = pages.at(-1)?.totalCount
   const hasNextPage = pagesQuery.hasNextPage
 
-  const pagedEvents = pages.flatMap((page) => page.events)
+  const loaded = dropClippedBoundary(
+    pages.flatMap((page) => page.events),
+    hasNextPage,
+  )
+  const events = eventFilter ? loaded.filter(eventFilter) : loaded
+  const anchor =
+    eventFilter && anchorEvents
+      ? anchorEvents.filter(eventFilter)
+      : anchorEvents
 
-  const kept = selectedTypes?.length && new Set(selectedTypes)
-  const toActions = (
-    paged: readonly TimelineIndexerEvent[],
-    hasNext: boolean,
-  ) => {
-    const summarized = summarizeEvents(
-      mergeTimeline({
-        pagedEvents: paged,
-        auxiliaryEvents,
-        hasNextPage: hasNext,
-      }),
-      { includeSubjectName },
-    )
-    return kept
-      ? summarized.filter((action) =>
-          action.events.some((event) => kept.has(event.type)),
-        )
-      : summarized
-  }
-  const allActions = toActions(pagedEvents, hasNextPage)
-
-  // Withheld when it would be a lower bound, or inflated by duplicates that
-  // unfetched pages still hide (fox.eth printed 251 for 73 real events).
-  const totalCount =
-    pagedTotalCount === undefined ||
-    isTruncated ||
-    sourcesError ||
-    selectedTypes?.length ||
-    (hasNextPage && auxiliaryEvents.length > 0)
-      ? undefined
-      : pagedTotalCount +
-        dropPagedDuplicates(auxiliaryEvents, pagedEvents).length
-
-  const countVisible = (
-    loadedPages: readonly TimelinePage[],
-    hasNext: boolean,
-  ) =>
-    countEvents(
-      toActions(
-        loadedPages.flatMap((page) => page.events),
-        hasNext,
-      ),
-    )
-  // A batch sharing one timestamp is withheld until the page past it arrives,
-  // so pages are read until one adds a visible row or brings no events.
-  const fetchVisiblePage = async (
-    signal?: AbortSignal,
-  ): Promise<FetchMoreResult> => {
-    const next = await pagesQuery.fetchNextPage()
-    if (next.isError) throw next.error
-    const loadedPages = next.data?.pages ?? []
-    const loaded = countVisible(loadedPages, next.hasNextPage)
-    const isBatchStillOpen =
-      next.hasNextPage &&
-      !signal?.aborted &&
-      (loadedPages.at(-1)?.events.length ?? 0) > 0 &&
-      loaded <= countVisible(loadedPages.slice(0, -1), true)
-
-    return isBatchStillOpen
-      ? fetchVisiblePage(signal)
-      : { loaded, hasMore: next.hasNextPage }
-  }
-
-  const loader = useListLoader({
-    initialCount: windowSize ?? Number.POSITIVE_INFINITY,
-    loaded: countEvents(allActions),
-    total: totalCount,
-    hasMore: hasNextPage,
-    // Not `page.events.length`: that counts the withheld boundary transaction.
-    fetchMore: (signal) => fetchVisiblePage(signal),
-    resetKey,
-    countShown: (window) => countEvents(takeEvents(allActions, window)),
-  })
-
+  const allActions = summarizeEvents(events, { includeSubjectName })
   // The window is counted in events and grows; `limit` is a fixed preview
   // counted in actions. A surface passes one or neither — `slice(0, undefined)`
   // is the whole list.
-  const actions = takeEvents(allActions, loader.shown).slice(0, limit)
-  const hasMore = hasNextPage || allActions.length > actions.length
+  const windowed = takeEvents(allActions, shown)
+  const actions = windowed.slice(0, limit)
+  const loadedCount = countEvents(allActions)
 
   return {
     ...disclosure,
     actions,
     eventTypes,
-    anchorAction:
-      anchorEvents &&
-      summarizeEvents(
-        [
-          ...anchorEvents,
-          ...dropPagedDuplicates(auxiliaryEvents, anchorEvents),
-        ].sort(newestFirst),
-      ).at(-1),
-    totalCount,
-    hasMore,
-    loader: {
-      ...loader,
-      shown: countEvents(actions),
-      canShowMore: hasMore,
-      total: totalCount,
-      canShowAll: totalCount !== undefined && loader.canShowAll,
+    anchorAction: anchor && summarizeEvents(anchor).at(-1),
+    // bigname counts over exactly the page's filters (type set and window
+    // included), exact up to 10,000 rows and absent beyond. A client-side
+    // filter makes that count too high, so none is shown.
+    totalCount: eventFilter ? undefined : pages.at(-1)?.totalCount,
+    hasMore: hasNextPage || allActions.length > actions.length,
+    // Widen the window first; the network page is only worth fetching once it
+    // has run past every loaded event.
+    loadMore: () => {
+      if (windowSize === undefined) return void pagesQuery.fetchNextPage()
+      // Grow from what is on screen: a large action can overshoot the window.
+      const widened = countEvents(windowed) + windowSize
+      setVisible({ key: resetKey, count: widened })
+      if (widened >= loadedCount) void pagesQuery.fetchNextPage()
     },
-    // The sources gate first paint too, or a paged-only history would render
-    // and then have older rows pushed in underneath it.
-    isLoading: pagesQuery.isLoading || isLoadingSources,
+    isLoadingMore: pagesQuery.isFetchingNextPage,
+    isLoadMoreError: pagesQuery.isFetchNextPageError,
+    isLoading: pagesQuery.isLoading,
     error: pagesQuery.isFetchNextPageError ? null : pagesQuery.error,
     sourcesError,
-    isTruncated,
   }
 }
 
-/** A feed that is nothing but its paged source — the homepage, a registry. */
+/** A feed that is nothing but its paged source — a registry, a contract. */
 export const useTimelinePagesModel = <
   TError extends TimelineQueryError,
   TQueryKey extends QueryKey,
@@ -269,31 +203,31 @@ export const useTimelinePagesModel = <
 
 type UseNameHistoryTimelineParameters = {
   readonly name: string
-  readonly scope?: readonly string[]
-  readonly selectedTypes?: readonly string[]
+  /** What the surface may ever show, as bigname types. */
+  readonly scope?: readonly EventType[]
+  /** Narrows loaded rows within `scope`, where bigname has no query filter. */
+  readonly eventFilter?: (event: TimelineEvent) => boolean
+  readonly selectedTypes?: readonly EventType[]
   readonly from?: number
   readonly to?: number
   readonly limit?: number
-  /** Events in the first window; omitted on the surfaces that offer no break. */
+  /** Events per click; omitted on the surfaces that offer no break. */
   readonly windowSize?: number
   readonly shouldFetchAnchor?: boolean
-  /** The Event chip's options; skipped on the surfaces that render no chips. */
-  readonly shouldFetchEventTypes?: boolean
 }
 
 /**
- * One retry for the auxiliary sources. They are read whole with no cursor, and
- * a single 503 from the indexer costs the whole v1 history, the pinned row or
- * the chip options for the life of the query — the client's global `retry: false`
- * suits reads a user can trigger again, which these are not.
+ * One retry for the anchor read. A single 503 would otherwise cost the pinned
+ * row for the life of the query — the client's global `retry: false` suits
+ * reads a user can trigger again, which this is not.
  */
 const SOURCE_QUERY_RETRY = 1
 
 /** `scope` bounds what the surface may ever show; the chip narrows within it. */
 const narrowScope = (
-  scope: readonly string[] | undefined,
-  selectedTypes: readonly string[] | undefined,
-): readonly string[] | undefined => {
+  scope: readonly EventType[] | undefined,
+  selectedTypes: readonly EventType[] | undefined,
+): readonly EventType[] | undefined => {
   if (!selectedTypes?.length) return scope
   return scope
     ? selectedTypes.filter((type) => scope.includes(type))
@@ -303,27 +237,27 @@ const narrowScope = (
 export const useNameHistoryTimeline = ({
   name,
   scope,
+  eventFilter,
   selectedTypes,
   from,
   to,
   limit,
   windowSize,
   shouldFetchAnchor = true,
-  shouldFetchEventTypes = true,
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
+  const facet = toHistoryEventTypes(scope)
   // Filtered in the query, not over loaded rows: narrowing in memory only
-  // reached the pages already fetched, so on a long name picking "Name registered"
-  // showed "No matching history" above a Load more.
+  // reached the pages already fetched.
   const feedScope = {
     name,
-    eventTypes: narrowScope(scope, selectedTypes),
+    eventTypes: narrowScope(facet, selectedTypes),
     from,
     to,
+    // Children's registrations belong to the full history only; a facet
+    // asked for specific types. The chip selection does not change this, so
+    // picking "Registration" keeps the children.
+    includeChildRegistrations: facet === undefined,
   }
-  // The auxiliary and vocabulary reads stay on the facet alone: putting the chip
-  // selection in this key would refetch the v1 subgraph on every toggle, and
-  // hide the v1 types the chip needs to offer.
-  const facetScope = { name, eventTypes: scope }
 
   const pagesQuery = useInfiniteQuery({
     ...getNameHistoryPagesQueryOptions(feedScope),
@@ -332,55 +266,25 @@ export const useNameHistoryTimeline = ({
     // control the user just touched disappears under them.
     placeholderData: keepPreviousData,
   })
-  const [auxiliaryQuery, anchorQuery, eventTypesQuery] = useQueries({
-    queries: [
-      {
-        ...getNameHistoryAuxiliaryQueryOptions(facetScope),
-        retry: SOURCE_QUERY_RETRY,
-      },
-      {
-        ...getNameHistoryAnchorQueryOptions(feedScope),
-        enabled: shouldFetchAnchor,
-        retry: SOURCE_QUERY_RETRY,
-        // Keyed on the feed scope like the pages, so the pinned row holds its
-        // last value instead of blanking while a new range loads.
-        placeholderData: keepPreviousData,
-      },
-      {
-        ...getNameEventTypesQueryOptions(facetScope),
-        enabled: shouldFetchEventTypes,
-        retry: SOURCE_QUERY_RETRY,
-      },
-    ],
+  const anchorQuery = useQuery({
+    ...getNameHistoryAnchorQueryOptions(feedScope),
+    enabled: shouldFetchAnchor,
+    retry: SOURCE_QUERY_RETRY,
+    // Keyed on the feed scope like the pages, so the pinned row holds its
+    // last value instead of blanking while a new range loads.
+    placeholderData: keepPreviousData,
   })
 
-  const auxiliaryAll = auxiliaryQuery.data?.events ?? []
-
   return useTimelineModel(pagesQuery, {
-    auxiliaryEvents: auxiliaryAll.filter(
-      (event) =>
-        (from === undefined || event.timestamp >= from) &&
-        (to === undefined || event.timestamp <= to) &&
-        (!scope || scope.includes(event.type)),
-    ),
     anchorEvents: shouldFetchAnchor ? (anchorQuery.data ?? []) : undefined,
-    eventTypes: [
-      ...new Set([
-        ...(eventTypesQuery.data ?? []),
-        ...auxiliaryAll.map((event) => event.type),
-      ]),
-    ],
+    // The vocabulary is closed, so the chips need no read of their own.
+    eventTypes: facet ?? HISTORY_EVENT_TYPES,
     limit,
     windowSize,
     // A new range or chip selection is a new list; the widened window closes
     // back to its first page with it.
     resetKey: JSON.stringify(feedScope),
-    // Still narrowed in memory as well: the paged query filters the v2 feed, but
-    // the auxiliary v1 events beside it are read on the unfiltered facet scope.
-    selectedTypes,
-    isTruncated: auxiliaryQuery.data?.isTruncated ?? false,
-    isLoadingSources: auxiliaryQuery.isLoading,
-    sourcesError:
-      auxiliaryQuery.error ?? anchorQuery.error ?? eventTypesQuery.error,
+    sourcesError: anchorQuery.error,
+    eventFilter,
   })
 }

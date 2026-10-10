@@ -4,12 +4,12 @@ import {
   isStale,
   type LookupRecord,
   type LookupResponse,
+  retryStale,
 } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result } from 'neverthrow'
 
 const LOOKUP_BATCH_SIZE = 250
-const MAX_STALE_ATTEMPTS = 3
 
 export class BignameLookupError extends TaggedError('BignameLookupError')<{
   cause: BignameError | Error
@@ -30,18 +30,6 @@ export const checkNotAborted = <E>(
   )
 }
 
-/** bigname's snapshot can move under a long read; a stale answer is retried from the start. */
-export const retryOnStale = async <T, E>(
-  read: () => PromiseLike<Result<T, E>>,
-  isStaleError: (error: E) => boolean,
-  attemptsLeft = MAX_STALE_ATTEMPTS,
-): Promise<Result<T, E>> => {
-  const result = await read()
-  return result.isErr() && attemptsLeft > 1 && isStaleError(result.error)
-    ? retryOnStale(read, isStaleError, attemptsLeft - 1)
-    : result
-}
-
 const toError = (cause: BignameError | Error) =>
   new BignameLookupError({ cause })
 
@@ -55,16 +43,14 @@ export const lookupNames = ResultFn(async function* (
   for (let start = 0; start < names.length; start += LOOKUP_BATCH_SIZE) {
     yield* checkNotAborted(options.signal, toError)
     const batch = names.slice(start, start + LOOKUP_BATCH_SIZE)
-    const response: LookupResponse = yield* (
-      await retryOnStale(
-        () =>
-          lookup({
-            namespace: 'ens',
-            profile: 'detail',
-            inputs: batch.map((name) => ({ name })),
-          }),
-        isStale,
-      )
+    const response: LookupResponse = yield* retryStale(
+      () =>
+        lookup({
+          namespace: 'ens',
+          profile: 'detail',
+          inputs: batch.map((name) => ({ name })),
+        }),
+      isStale,
     ).mapErr(toError)
     const failed = response.data.find(
       (result) => result.status !== 'ok' || !result.record,

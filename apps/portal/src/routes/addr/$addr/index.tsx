@@ -11,7 +11,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
-import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
+import { getAddressHistoryQueryOptions } from '@/features/address/hooks/useAddressHistory'
 import { selectAcquiredNames } from '@/features/address/nameAttribution'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
@@ -20,13 +20,17 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { groupAddressHistoryByName } from '@/utils/history/transformAddressHistory'
 import { queryClient } from '@/utils/queryClient'
 
+/** Rows the recent-history teaser reads and shows. */
+const RECENT_EVENT_LIMIT = 5
+
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
     queryClient.prefetchQuery(
-      getV2HistoryForAddressQueryOptions({
+      getAddressHistoryQueryOptions({
         address: params.addr as Address,
+        pageSize: RECENT_EVENT_LIMIT,
       }),
     ),
 })
@@ -63,17 +67,12 @@ interface AddressHistoryProps {
   address: Address
 }
 
-const RECENT_EVENT_LIMIT = 5
-
 const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
-  const { data: v2Names } = useQuery(
-    getV2HistoryForAddressQueryOptions({ address }),
+  const { data: history } = useQuery(
+    getAddressHistoryQueryOptions({ address, pageSize: RECENT_EVENT_LIMIT }),
   )
 
-  const groups = useMemo(
-    () => groupAddressHistoryByName(undefined, v2Names),
-    [v2Names],
-  )
+  const groups = useMemo(() => groupAddressHistoryByName(history), [history])
 
   // Structural attribution only: judging a name by who sent its transactions costs
   // one `getTransaction` per event, and an attacker controls how many events a

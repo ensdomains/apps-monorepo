@@ -9,7 +9,12 @@ export const Route = createFileRoute('/$name/history')({
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
     queryClient.prefetchInfiniteQuery(
-      getNameHistoryPagesQueryOptions({ name: params.name }),
+      // The same scope `HistoryTimeline` reads first: the full history, with
+      // the children's registrations, no chip or date narrowing.
+      getNameHistoryPagesQueryOptions({
+        name: params.name,
+        includeChildRegistrations: true,
+      }),
     ),
 })
 

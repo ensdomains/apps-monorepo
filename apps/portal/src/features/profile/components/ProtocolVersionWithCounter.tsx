@@ -34,6 +34,7 @@ const RoleCount = ({ name }: { name: string }) => {
 
   const { data, isLoading, error } = useQuery({
     ...getNameRolesAccountsQueryOptions({
+      name,
       resource,
       registryAddress: v2EthRegistry,
     }),

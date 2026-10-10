@@ -39,7 +39,7 @@ const OVERRIDE_CONNECT_ORIGINS = [
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
-// Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_INDEXER_GRAPHQL_URL
+// Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_BIGNAME_API_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
   // Every RPC endpoint the viem transports may use: the app's attributed
@@ -50,20 +50,14 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexers, resolved in `@/config`.
-  ...[
-    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
-    originFromEnvUrl(envConfig.endpoints.bignameApi),
-  ].filter((origin): origin is string => origin !== null),
-  // ENS-owned hosts: the indexer GraphQL endpoint (resolved in `@/config`)
-  // and the fund/faucet API (sepolia.app-api.ens.domains,
+  // The indexer, resolved in `@/config`.
+  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
+    (origin): origin is string => origin !== null,
+  ),
+  // ENS-owned hosts: the fund/faucet API (sepolia.app-api.ens.domains,
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env ENS
   // hosts don't silently break a flow.
   'https://*.ens.dev',
-  // The v1 subgraph ensjs resolves for this network. Derived rather than
-  // listed, because mainnet's host is not under *.ens.dev and a stale entry
-  // here fails closed in the browser.
-  new URL(envConfig.chain.subgraphs.ens.url).origin,
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)
   // and the PostHog analytics host (edge.ens.domains — .env
   // VITE_PUBLIC_POSTHOG_HOST). Wildcarded for the same reason as *.ens.dev.

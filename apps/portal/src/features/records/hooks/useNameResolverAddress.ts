@@ -61,7 +61,7 @@ export const getNameResolverAddress = ResultFn(async function* (
 // Query options
 // ============================================================================
 
-const getNameResolverAddressQueryKey = createQueryKey<
+export const getNameResolverAddressQueryKey = createQueryKey<
   'get-name-resolver-address',
   GetNameResolverAddressParams
 >('get-name-resolver-address')

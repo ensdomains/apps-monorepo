@@ -1,5 +1,4 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
@@ -12,25 +11,24 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Badge } from '@/components/ui/badge'
 import { partitionOwnedNames } from '@/features/address/nameAttribution'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
+import { RelationBadges } from '@/features/names/components/RelationBadges'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
-import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import {
-  type MergedName,
-  mergeNamesData,
-  type V2NameWithRoles,
-} from '@/utils/names/mergeNamesData'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 import { dateToPlainDate } from '@/utils/temporal'
-import { getV1NamesPagesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesPagesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
+import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
+import {
+  getAddressRoleCountsQueryOptions,
+  withRoleCounts,
+} from '../hooks/useAddressRoleCounts'
 
 interface NameListProps {
   readonly address: Address
   readonly limit?: number
 }
 
-type column = MergedName
+type column = AddressNameItem
 
 const NameCell = ({ name }: { name: string }) => (
   <EntityBadge variant="name" name={name} showAvatar>
@@ -43,7 +41,7 @@ const columns: ColumnDef<column>[] = [
     accessorKey: 'name',
     header: 'Name',
     cell: ({ getValue }) => {
-      const name = getValue() as NameWithRelation['name']
+      const name = getValue() as AddressNameItem['name']
       return name ? <NameCell name={name} /> : null
     },
   },
@@ -70,115 +68,37 @@ const columns: ColumnDef<column>[] = [
     },
   },
   {
-    accessorKey: 'roleBitmap',
+    id: 'relations',
     header: 'Roles',
-    cell: ({ row }) => {
-      const roleBitmap = row.original.roleBitmap
-      const v1Roles = row.original.v1Roles
-
-      // V2 names: use roleBitmap
-      if (roleBitmap) {
-        const roles = decodeRoleBitmap(roleBitmap)
-        if (roles.length === 0) return null
-
-        return (
-          <Badge variant="secondary" className="text-xs">
-            {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
-          </Badge>
-        )
-      }
-
-      // V1 names: use v1Roles (owner/manager)
-      if (v1Roles) {
-        const roleLabels: string[] = []
-        if (v1Roles.owner) roleLabels.push('Owner')
-        if (v1Roles.manager) roleLabels.push('Manager')
-
-        if (roleLabels.length === 0) return null
-
-        return (
-          <div className="flex flex-row gap-1">
-            {roleLabels.map((label) => (
-              <Badge key={label} variant="secondary" className="text-xs">
-                {label}
-              </Badge>
-            ))}
-          </div>
-        )
-      }
-
-      return null
-    },
+    cell: ({ row }) => (
+      <RelationBadges
+        relations={row.original.relations}
+        roleCount={row.original.roleCount}
+      />
+    ),
   },
 ]
 
-type NamesPagesQuery<TName> = {
-  readonly data?: {
-    readonly pages: readonly { readonly names: readonly TName[] }[]
-  }
-  readonly hasNextPage: boolean
-}
-
-/** The count is the acquired names of every page, so it is left off until all are loaded. */
-const getFullListLabel = (
-  v1: NamesPagesQuery<NameWithRelation>,
-  v2: NamesPagesQuery<V2NameWithRoles>,
-) => {
-  if (v1.hasNextPage || v2.hasNextPage) return 'Go to full list'
-  const { acquired } = partitionOwnedNames(
-    mergeNamesData(
-      v1.data?.pages.flatMap((page) => page.names),
-      v2.data?.pages.flatMap((page) => page.names),
-    ),
-  )
-  return `Go to full list (${acquired.length})`
-}
-
 export const NameList = ({ address, limit }: NameListProps) => {
-  const v1NamesQuery = useInfiniteQuery(
-    getV1NamesPagesForAddressQueryOptions({ address }),
-  )
-  const v2NamesQuery = useInfiniteQuery(
-    getV2NamesPagesForAddressQueryOptions({ address }),
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
+  const { data: roleCounts } = useQuery(
+    getAddressRoleCountsQueryOptions({ address }),
   )
 
-  const v1Pending = v1NamesQuery.isLoading
-  const v2Pending = v2NamesQuery.isLoading
-
-  // Full spinner only while nothing is displayable; a source that already
-  // has data keeps rendering while the slower one settles.
-  if (v1Pending && !v2NamesQuery.data)
-    return <LoadingSpinner title="Loading V1 names" />
-  if (v2Pending && !v1NamesQuery.data)
-    return <LoadingSpinner title="Loading V2 names" />
-
-  const v1Failed = Boolean(v1NamesQuery.error)
-  const v2Failed = Boolean(v2NamesQuery.error)
+  if (namesQuery.isLoading) return <LoadingSpinner title="Loading names" />
 
   // Registry ownership alone does not make a name the address's: any parent owner
   // can point a subname at any address. Names granted that way are kept visible, but
   // in their own group rather than among the names the address holds.
-  // The cache is shared with the names page, which may have loaded more pages;
-  // only the first page of each source is read here, so nothing is held back.
   const { acquired: allData, assigned } = partitionOwnedNames(
-    mergeNamesData(
-      v1NamesQuery.data?.pages[0]?.names,
-      v2NamesQuery.data?.pages[0]?.names,
-    ),
+    withRoleCounts(namesQuery.data ?? [], roleCounts),
   )
   const data = limit ? allData.slice(0, limit) : allData
   // The assigned section is hidden in the limited (preview) view, so it only
   // counts as something to show when the full list is rendered.
   const showAssigned = !limit && assigned.length > 0
 
-  if (
-    data.length === 0 &&
-    !showAssigned &&
-    !v1Failed &&
-    !v2Failed &&
-    !v1Pending &&
-    !v2Pending
-  )
+  if (data.length === 0 && !showAssigned && !namesQuery.error)
     return (
       <NoResultsMessage
         title="No names yet"
@@ -189,19 +109,10 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
   return (
     <div>
-      {v1Pending && <LoadingSpinner title="Loading V1 names" />}
-      {v2Pending && <LoadingSpinner title="Loading V2 names" />}
-      {v1Failed && (
+      {namesQuery.error && (
         <ErrorMessage
           compact
-          description="Error fetching ENSv1 names. Please refresh the page."
-          className="mb-4"
-        />
-      )}
-      {v2Failed && (
-        <ErrorMessage
-          compact
-          description="Error fetching ENSv2 names. Please refresh the page."
+          description="Error fetching names. Please refresh the page."
           className="mb-4"
         />
       )}
@@ -212,8 +123,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
             key={name.name}
             name={name.name}
             expiryDate={name.expiryDate}
-            roleBitmap={name.roleBitmap}
-            v1Roles={name.v1Roles}
+            relations={name.relations}
+            roleCount={name.roleCount}
             protocolVersion={name.protocolVersion}
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
@@ -244,8 +155,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 key={name.name}
                 name={name.name}
                 expiryDate={name.expiryDate}
-                roleBitmap={name.roleBitmap}
-                v1Roles={name.v1Roles}
+                relations={name.relations}
+                roleCount={name.roleCount}
                 protocolVersion={name.protocolVersion}
                 recordCount={name.recordCount}
                 subdomainCount={name.subdomainCount}
@@ -266,7 +177,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
           className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripHorizontal className="size-4" />
-          {getFullListLabel(v1NamesQuery, v2NamesQuery)}
+          Go to full list ({allData.length})
         </Link>
       )}
     </div>

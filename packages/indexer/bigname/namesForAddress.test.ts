@@ -69,6 +69,53 @@ describe('readNamesForAddress', () => {
     )
   })
 
+  it('lists the distinct powers the address itself holds on each name', async () => {
+    const holder = '0xB15C4ca5ec894369DEC40F6298E63EAE60db2756'
+    const scope = { kind: 'registry', detail: {} } as const
+    const { client, fetch } = clientWith(
+      envelope(
+        [
+          {
+            ...row,
+            role_summary: [
+              {
+                address: row.owner,
+                grants: [
+                  { grant_scope: scope, powers: ['set_resolver', 'renew'] },
+                  {
+                    grant_scope: scope,
+                    powers: ['renew', 'can_transfer_admin'],
+                  },
+                ],
+              },
+              {
+                address: '0x2222222222222222222222222222222222222222',
+                grants: [{ grant_scope: scope, powers: ['set_subregistry'] }],
+              },
+            ],
+          },
+          { ...row, name: 'bob.eth' },
+        ],
+        page,
+      ),
+    )
+
+    const result = await readNamesForAddress(client)({
+      address: holder,
+      includeCounts: true,
+      includeRoles: true,
+    })
+
+    expect(requestOf(fetch).url).toContain('include=counts%2Crole_summary')
+    const [alice, bob] = result._unsafeUnwrap().items
+    expect(alice?.heldPowers).toEqual([
+      'set_resolver',
+      'renew',
+      'can_transfer_admin',
+    ])
+    expect(bob).not.toHaveProperty('heldPowers')
+  })
+
   it.each([
     undefined,
     [],

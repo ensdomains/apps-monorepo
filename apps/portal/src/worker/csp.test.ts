@@ -265,4 +265,11 @@ describe('indexers', () => {
     expect(origin).toBeTruthy()
     expect(header['connect-src']).toContain(origin)
   })
+
+  it('no longer allows the ENSv1 subgraph or a Panoptes origin', () => {
+    expect(header['connect-src']).not.toContain(
+      new URL(envConfig.chain.subgraphs.ens.url).origin,
+    )
+    expect(header['connect-src']).not.toContain('127.0.0.1:5655')
+  })
 })

@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
-import { useOwnedNames } from '../hooks/useOwnedNames'
+import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
 const INITIAL_COUNT = 4
 const WARNING_DAYS = 30
@@ -50,26 +51,16 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
 }
 
 export const YourNames = ({ address }: { readonly address: Address }) => {
-  // Every name the wallet owns, granted subnames included, soonest expiry first.
-  const { names, total, hasMore, fetchMore, v1Query, v2Query } = useOwnedNames({
-    address,
-  })
+  // Every name the wallet holds a relation to, granted subnames included,
+  // soonest expiry first. bigname serves the whole list, so it pages locally.
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
+  const names = namesQuery.data ?? []
 
   const loader = useListLoader({
     initialCount: INITIAL_COUNT,
     loaded: names.length,
-    total,
-    hasMore,
-    fetchMore,
     resetKey: address,
   })
-
-  // Each source reports its own state, so a slow or failed one never hides
-  // the names the other already returned.
-  const isSettled = !v1Query.isPending && !v2Query.isPending
-  const hasV1Error = v1Query.isError && !v1Query.isFetchNextPageError
-  const hasV2Error = v2Query.isError && !v2Query.isFetchNextPageError
-  const hasError = hasV1Error || hasV2Error
 
   return (
     <div className="flex flex-col gap-6 rounded-md border border-neutral-3 px-6 pt-6 pb-3">
@@ -83,19 +74,13 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <WalletMenu isPill />
         </div>
       </div>
-      {hasV1Error && (
+      {namesQuery.isError && (
         <ErrorMessage
           compact
-          description="Error fetching ENSv1 names. Please refresh the page."
+          description="Error fetching names. Please refresh the page."
         />
       )}
-      {hasV2Error && (
-        <ErrorMessage
-          compact
-          description="Error fetching ENSv2 names. Please refresh the page."
-        />
-      )}
-      {(names.length > 0 || hasMore) && (
+      {names.length > 0 && (
         <div>
           <ul>
             {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
@@ -115,8 +100,8 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <ListLoader {...loader} className="border-t border-neutral-3 py-3" />
         </div>
       )}
-      {!isSettled && <LoadingSpinner title="Loading your names" />}
-      {isSettled && !hasError && names.length === 0 && !hasMore && (
+      {namesQuery.isPending && <LoadingSpinner title="Loading your names" />}
+      {namesQuery.isSuccess && names.length === 0 && (
         <p className="border-t border-neutral-3 py-3 text-sm text-neutral-7">
           No names yet
         </p>

@@ -1,34 +1,17 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok } from 'neverthrow'
 import type { Address } from 'viem'
-import {
-  getRoleChangeLogs,
-  ROOT_RESOURCE,
-  toRoleHistoryEntries,
-} from '@/lib/roles/roleChangeLogs'
+import { getBignameRootRoleChanges } from '@/lib/roles/rootRoleReads'
 
 export type GetRegistryRoleHistoryParameters = {
   readonly registryAddress: Address
   readonly account: Address
 }
 
-/** One account's complete role-change history at a registry's root. */
-export const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
-  registryAddress,
-  account,
-}: GetRegistryRoleHistoryParameters) {
-  const logs = yield* getRoleChangeLogs({
-    registryAddress,
-    resource: ROOT_RESOURCE,
-    account,
-  })
+/** One account's indexed root-role history, newest first. */
+export const getRegistryRoleHistoryForAccount = getBignameRootRoleChanges
 
-  return ok(toRoleHistoryEntries({ logs, resource: ROOT_RESOURCE }))
-})
-
-const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
+export const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
   'get-registry-role-history-for-account',
   GetRegistryRoleHistoryParameters
 >('get-registry-role-history-for-account')

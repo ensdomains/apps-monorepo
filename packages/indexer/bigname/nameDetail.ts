@@ -26,6 +26,7 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
   registeredAt: toDate(record.registered_at),
   createdAt: toDate(record.created_at),
   migratedAt: toDate(record.migrated_at),
+  unresolvableReason: record.unresolvable_reason ?? null,
 })
 
 // A 404, or a 200 whose read_status is not_found, means the name is not indexed:

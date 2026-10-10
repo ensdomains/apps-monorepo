@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Rail } from '@/components/ui/timeline'
+import { cn } from '@/lib/utils'
 
 /**
  * The gap where history exists but is not on screen. Figma Explorer-V1
@@ -24,3 +25,36 @@ export const TimelineBreak = ({
 /** A `<button>` and a `<Link>` must look identical here, so this lives in one place. */
 export const timelineBreakActionClassName =
   'underline [text-underline-position:from-font] hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60'
+
+/**
+ * Quotes no number, unlike Figma's "Load 100 more". Neither candidate is honest:
+ * the increment is a window size the merged feed can overshoot when a
+ * transaction straddles it, and the remainder would read as what one click
+ * fetches when it is what several would — on a 600-event name "Load 500 more"
+ * sits above a button that reveals 50.
+ */
+export const TimelineLoadMore = ({
+  totalCount,
+  isLoading,
+  isError = false,
+  onLoadMore,
+}: {
+  readonly totalCount: number | undefined
+  readonly isLoading: boolean
+  readonly isError?: boolean
+  readonly onLoadMore: () => void
+}) => (
+  <TimelineBreak>
+    {isError && !isLoading && <span role="alert">Couldn’t load more. </span>}
+    <button
+      type="button"
+      onClick={onLoadMore}
+      disabled={isLoading}
+      className={cn(timelineBreakActionClassName, 'cursor-pointer')}
+    >
+      {isLoading ? 'Loading…' : 'Load more'}
+    </button>
+    {!isLoading && ' events'}
+    {totalCount !== undefined && ` (${totalCount} total)`}
+  </TimelineBreak>
+)

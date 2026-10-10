@@ -8,7 +8,7 @@ import {
   type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
+import { invalidateResolverOverview } from './useResolverOverview'
 
 interface UseUnlinkOptions {
   readonly resolverAddress: Address
@@ -52,7 +52,12 @@ export const useUnlink = ({
         (current) => {
           if (!current) return current
           const links = pruneLinksAfterUnlink(current.links, sourceName)
-          return { ...current, links, linkCount: links.length }
+          return {
+            ...current,
+            links,
+            linkCount:
+              current.linksStatus === 'unsupported' ? null : links.length,
+          }
         },
       )
 

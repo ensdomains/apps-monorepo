@@ -17,7 +17,7 @@ import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { useHasSetSubregistryRole } from '../../hooks/useHasSetSubregistryRole'
-import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
+import { getRegistryInfoQueryOptions } from '../../hooks/useRegistry'
 import {
   type SubregistrySlot,
   useSubregistrySlot,
@@ -237,10 +237,10 @@ const RegistrySummaryDetails = ({
     data: summary,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useQuery(getRegistryLabelCountQueryOptions({ address }))
+  } = useQuery(getRegistryInfoQueryOptions({ address }))
 
   const creationTxUrl = useBlockExplorerTxUrl(
-    summary?.creationTransactionHash ?? undefined,
+    summary?.createdTransactionHash ?? undefined,
     chainId,
   )
 
@@ -267,7 +267,7 @@ const RegistrySummaryDetails = ({
             ))
             .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
             .otherwise(() =>
-              summary?.creationTransactionHash ? (
+              summary?.createdTransactionHash ? (
                 <EntityBadge
                   variant="tx"
                   className="font-normal"
@@ -276,10 +276,10 @@ const RegistrySummaryDetails = ({
                       ? (formatTimestampDate(summary.createdAt) ?? undefined)
                       : undefined
                   }
-                  copyValue={summary.creationTransactionHash}
+                  copyValue={summary.createdTransactionHash}
                   etherscanHref={creationTxUrl}
                 >
-                  {truncateAddress(summary.creationTransactionHash, 6, 4)}
+                  {truncateAddress(summary.createdTransactionHash, 6, 4)}
                 </EntityBadge>
               ) : summary?.createdAt ? (
                 <span>{formatTimestampDate(summary.createdAt) ?? '—'}</span>

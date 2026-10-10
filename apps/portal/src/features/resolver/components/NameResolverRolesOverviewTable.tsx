@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
@@ -100,15 +101,22 @@ const ResolverRolesOverview = ({
           </Link>
         </Button>
       </div>
+      <ResolverCollectionNotice
+        collection="roles"
+        status={overview?.rolesStatus}
+      />
       {roles.length === 0 ? (
-        <NoResultsMessage
-          title="No role holders yet"
-          description="Accounts with roles on this resolver will appear here."
-          className="mx-0"
-        />
+        overview?.rolesStatus && overview.rolesStatus !== 'full' ? null : (
+          <NoResultsMessage
+            title="No role holders yet"
+            description="Accounts with roles on this resolver will appear here."
+            className="mx-0"
+          />
+        )
       ) : (
         <ResolverRolesTable
           roles={roles}
+          isComplete={overview?.rolesStatus === 'full'}
           namedResources={overview?.namedResources ?? []}
           resolverAddress={resolverAddress}
           canManageRoles={false}

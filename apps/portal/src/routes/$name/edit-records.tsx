@@ -66,12 +66,7 @@ function EditRecordsPage() {
   const { address: connectedAddress } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const profileQuery = useQuery(
-    getProfileQueryOptions({
-      name,
-      protocolVersion: ownerQuery.data?.protocolVersion,
-    }),
-  )
+  const profileQuery = useQuery(getProfileQueryOptions({ name }))
 
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =

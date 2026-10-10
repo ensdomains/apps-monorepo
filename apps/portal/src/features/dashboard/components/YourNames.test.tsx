@@ -6,7 +6,10 @@ import {
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { V2NameWithRoles } from '@/utils/names/mergeNamesData'
+import {
+  type AddressNameItem,
+  mergeAddressNames,
+} from '@/utils/names/addressNames'
 import { YourNames } from './YourNames'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -20,29 +23,17 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 vi.mock('@/components/SettingsMenu', () => ({ SettingsMenu: () => null }))
 vi.mock('@/components/WalletMenu', () => ({ WalletMenu: () => null }))
 
-const v2Ref = vi.hoisted(() => ({
-  current: [] as V2NameWithRoles[] | Error,
-}))
-const v1Ref = vi.hoisted(() => ({ current: [] as [] | Error }))
-
-vi.mock('../hooks/useV1NamesForAddress', () => ({
-  getV1NamesPagesForAddressQueryOptions: () => ({
-    queryKey: ['v1-names-mock'],
-    queryFn: async () => {
-      if (v1Ref.current instanceof Error) throw v1Ref.current
-      return { names: v1Ref.current, hasNextPage: false }
-    },
-    initialPageParam: undefined,
-    getNextPageParam: () => undefined,
-  }),
+const namesRef = vi.hoisted(() => ({
+  current: [] as readonly AddressNameItem[] | Error,
 }))
 
-vi.mock('../hooks/useV2NamesWithRolesForAddress', () => ({
-  getV2NamesPagesForAddressQueryOptions: () => ({
-    queryKey: ['v2-names-mock'],
+// The real merge orders the names, as the read does.
+vi.mock('../hooks/useAddressNames', () => ({
+  getAddressNamesQueryOptions: () => ({
+    queryKey: ['address-names-mock'],
     queryFn: async () => {
-      if (v2Ref.current instanceof Error) throw v2Ref.current
-      return { names: v2Ref.current, totalCount: v2Ref.current.length }
+      if (namesRef.current instanceof Error) throw namesRef.current
+      return mergeAddressNames(namesRef.current, [])
     },
     initialPageParam: undefined,
     getNextPageParam: () => undefined,
@@ -51,17 +42,23 @@ vi.mock('../hooks/useV2NamesWithRolesForAddress', () => ({
 
 const DAY = 24n * 60n * 60n
 
-const v2Name = (name: string, daysLeft: bigint): V2NameWithRoles => ({
+const item = (name: string, expiryDate: Date): AddressNameItem => ({
   name,
-  // V2NameWithRoles carries the indexer's number-typed expiry.
-  expiryDate: Number(BigInt(Math.floor(Date.now() / 1000)) + daysLeft * DAY),
-  roleBitmap: '0x1',
-  subdomainCount: 0,
+  expiryDate,
+  relations: ['owner'],
+  protocolVersion: 'ENSv2',
 })
 
-const renderNames = (names: V2NameWithRoles[] | Error, v1: [] | Error = []) => {
-  v2Ref.current = names
-  v1Ref.current = v1
+const v2Name = (name: string, daysLeft: bigint): AddressNameItem =>
+  item(
+    name,
+    new Date(
+      Number(BigInt(Math.floor(Date.now() / 1000)) + daysLeft * DAY) * 1000,
+    ),
+  )
+
+const renderNames = (names: readonly AddressNameItem[] | Error) => {
+  namesRef.current = names
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -107,19 +104,10 @@ describe('YourNames', () => {
     expect(await screen.findByText('No names yet')).toBeInTheDocument()
   })
 
-  it('shows an error instead of an empty list when a query fails', async () => {
-    renderNames(new Error('indexer down'))
-    expect(
-      await screen.findByText(/Error fetching ENSv2 names/),
-    ).toBeInTheDocument()
+  it('shows an error instead of an empty list when the read fails', async () => {
+    renderNames(new Error('bigname down'))
+    expect(await screen.findByText(/Error fetching names/)).toBeInTheDocument()
     expect(screen.queryByText('No names yet')).toBeNull()
-  })
-
-  it('keeps the names one source returned when the other fails', async () => {
-    renderNames([v2Name('kept.eth', 100n)], new Error('v1 subgraph down'))
-
-    expect(await screen.findByText('kept.eth')).toBeInTheDocument()
-    expect(screen.getByText(/Error fetching ENSv1 names/)).toBeInTheDocument()
   })
 
   it('orders granted subnames by expiry with the rest, so their warning shows', async () => {
@@ -173,14 +161,7 @@ describe('YourNames', () => {
           timeZone === 'UTC' ? '2026-06-02' : '2026-06-03',
         ),
       )
-    renderNames([
-      {
-        name: 'utc.eth',
-        expiryDate: Date.UTC(2026, 5, 3, 12) / 1000,
-        roleBitmap: '0x1',
-        subdomainCount: 0,
-      },
-    ])
+    renderNames([item('utc.eth', new Date(Date.UTC(2026, 5, 3, 12)))])
 
     expect(await screen.findByText('Expires in 1 day')).toBeInTheDocument()
     expect(screen.queryByText('Expired')).toBeNull()

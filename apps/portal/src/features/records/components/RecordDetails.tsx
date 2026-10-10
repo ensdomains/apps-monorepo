@@ -1,6 +1,6 @@
-import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import { match } from 'ts-pattern'
 import type { Hash } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
@@ -9,19 +9,12 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
-import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
-import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
-import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
-  getV2EventTypesForRecord,
-  type HistoryEvent,
-  sortHistoryEvents,
-  transformV1Events,
-} from '@/utils/history/transformRecordHistory'
-import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
-import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
-import type { ProtocolVersion } from '@/utils/types'
+  getRecordHistoryQueryOptions,
+  type RecordHistoryEvent,
+  type RecordHistoryParameters,
+} from '@/features/records/hooks/useRecordHistory'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import type { NameRecord } from './RecordsTable/columns'
 
 const RecordDetailsView = ({ record }: { record: NameRecord }) => {
@@ -128,21 +121,22 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   )
 }
 
-const columns: ColumnDef<HistoryEvent>[] = [
+/** The bigname record key (or family) a table row's history is filed under. */
+const recordHistoryKey = (record: NameRecord): RecordHistoryParameters['key'] =>
+  match(record)
+    .returnType<RecordHistoryParameters['key']>()
+    .with({ type: 'address' }, ({ id }) => `addr:${id}`)
+    .with({ type: 'text' }, ({ key }) => `text:${key}`)
+    .with({ type: 'contentHash' }, () => 'contenthash')
+    .with({ type: 'abi' }, () => 'abi')
+    .exhaustive()
+
+const columns: ColumnDef<RecordHistoryEvent>[] = [
   {
     header: 'Date',
     accessorKey: 'timestamp',
     cell({ row }) {
-      const timestamp = row.original.timestamp
-      if (!timestamp) {
-        // Fallback to block number if no timestamp
-        return (
-          <span className="font-mono text-muted-foreground">
-            Block {row.original.blockNumber}
-          </span>
-        )
-      }
-      const date = new Date(timestamp * 1000)
+      const date = new Date(Number(row.original.timestamp) * 1000)
       return (
         <span className="font-mono">
           {new Intl.DateTimeFormat(undefined, {
@@ -158,10 +152,9 @@ const columns: ColumnDef<HistoryEvent>[] = [
   },
   {
     header: 'Transaction',
-    accessorKey: 'transactionHash',
+    accessorKey: 'transactionID',
     cell({ row }) {
-      const txHash = row.original.transactionHash
-      return <BlockExplorerTxLink txHash={txHash as Hash} />
+      return <BlockExplorerTxLink txHash={row.original.transactionID as Hash} />
     },
   },
   {
@@ -185,43 +178,19 @@ const columns: ColumnDef<HistoryEvent>[] = [
 interface HistoryViewProps {
   name: string
   record: NameRecord
-  protocolVersion?: ProtocolVersion
 }
 
-const V1HistoryView = ({
-  name,
-  record,
-}: Omit<HistoryViewProps, 'protocolVersion'>) => {
-  const v1HistoryQuery = useQuery(
-    getRecordHistoryQueryOptions({
-      name,
-      key: recordTypeToSubgraphKey(
-        record.type,
-      ) as GetRecordHistoryParameters['key'],
-    }),
+/**
+ * Every write to this record, from every resolver the name has pointed at, in
+ * ENSv1 and ENSv2 alike — one bigname history read filtered to the record's key.
+ */
+const HistoryView = ({ name, record }: HistoryViewProps) => {
+  const { data, isLoading, error } = useQuery(
+    getRecordHistoryQueryOptions({ name, key: recordHistoryKey(record) }),
   )
 
-  // Filter V1 events (need to do this before fetching timestamps)
-  const filteredV1Events = filterRecordHistoryByRecord(
-    v1HistoryQuery.data || [],
-    record,
-  )
-
-  // Fetch timestamps for V1 events (they don't include timestamps)
-  const v1BlockNumbers = filteredV1Events.map((e) => BigInt(e.blockNumber))
-  const { data: blockTimestamps, isLoading: isLoadingTimestamps } =
-    useBlockTimestamps({
-      blocks: v1BlockNumbers,
-      enabled: v1BlockNumbers.length > 0,
-    })
-
-  if (v1HistoryQuery.isLoading) {
-    return <LoadingSpinner title="Loading history..." />
-  }
-  if (v1BlockNumbers.length > 0 && isLoadingTimestamps) {
-    return <LoadingSpinner title="Loading timestamps..." />
-  }
-  if (v1HistoryQuery.error) {
+  if (isLoading) return <LoadingSpinner title="Loading history..." />
+  if (error) {
     return (
       <ErrorMessage
         compact
@@ -230,11 +199,7 @@ const V1HistoryView = ({
     )
   }
 
-  const allEvents = sortHistoryEvents(
-    transformV1Events(filteredV1Events, blockTimestamps),
-  )
-
-  const hasNoHistory = allEvents.length === 0
+  const events = data ?? []
 
   return (
     <div className="rounded-sm bg-background overflow-hidden">
@@ -242,52 +207,29 @@ const V1HistoryView = ({
         <span className="text-caps leading-none text-foreground">History</span>
       </div>
       <div>
-        {hasNoHistory ? (
+        {events.length === 0 ? (
           <p className="text-muted-foreground text-sm py-4">
             No history available for this record.
           </p>
         ) : (
-          <DataTable data={allEvents} columns={columns} />
+          <DataTable data={events} columns={columns} />
         )}
       </div>
     </div>
   )
 }
 
-const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
-  if (!protocolVersion) return <LoadingSpinner title="Loading..." />
-
-  if (protocolVersion === 'ENSv1')
-    return <V1HistoryView name={name} record={record} />
-
-  return (
-    <HistoryTimeline
-      name={name}
-      scope={getV2EventTypesForRecord(record)}
-      showFilters={false}
-      heading={<h2 className="text-caps text-foreground">History</h2>}
-      emptyTitle="No history"
-      emptyDescription="No history available for this record."
-    />
-  )
-}
-
 interface RecordDetailsProps {
   record: NameRecord
   name: string
-  protocolVersion?: ProtocolVersion
 }
 
-export const RecordDetails = ({
-  record,
-  name,
-  protocolVersion,
-}: RecordDetailsProps) => {
+export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
   return (
     <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0">
       <RecordDetailsView record={record} />
       <ResolverView name={name} />
-      <HistoryView {...{ name, record, protocolVersion }} />
+      <HistoryView {...{ name, record }} />
     </div>
   )
 }

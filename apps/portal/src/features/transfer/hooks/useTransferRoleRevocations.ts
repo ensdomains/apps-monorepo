@@ -55,7 +55,11 @@ export const useTransferRoleRevocations = ({
   const [accountsQuery, ownerRolesQuery, rootHoldersQuery] = useQueries({
     queries: [
       {
-        ...getNameRolesAccountsQueryOptions({ resource, registryAddress }),
+        ...getNameRolesAccountsQueryOptions({
+          name,
+          resource,
+          registryAddress,
+        }),
         enabled: resource !== null,
         staleTime: 0,
       },

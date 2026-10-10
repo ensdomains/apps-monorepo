@@ -1,30 +1,9 @@
 /**
- * Pure helpers for merging and ordering "Names you own" in search.
+ * Pure helpers for ordering "Names you own" in search.
  * Ordering: 2LD names (e.g. fox.eth, arcticfox.eth) first, then subnames (e.g. big.fox.eth), alphabetically within each group.
  */
 
 export type OwnedName = { name: string }
-
-export type V1NameLike = { name: string | null }
-
-/**
- * Merges V1 and V2 owned name lists and deduplicates by name (case-insensitive).
- * V1 entries with null name are skipped.
- */
-export function mergeOwnedNames(
-  v1: V1NameLike[],
-  v2: OwnedName[],
-): OwnedName[] {
-  const v1Filtered = v1
-    .filter((d): d is V1NameLike & { name: string } => d.name != null)
-    .map((d) => ({ name: d.name }))
-  const byName = new Map<string, OwnedName>()
-  for (const d of [...v1Filtered, ...v2]) {
-    const key = d.name.trim().toLowerCase()
-    if (!byName.has(key)) byName.set(key, d)
-  }
-  return Array.from(byName.values())
-}
 
 /**
  * Number of labels in an ENS name (e.g. "fox.eth" -> 2, "big.fox.eth" -> 3).
@@ -48,19 +27,6 @@ export type FilterAndSortOwnedNamesOptions = {
 }
 
 /**
- * The text owned names are matched against: the query lowercased, with a short
- * TLD-like suffix stripped ("dom.eth" → "dom") and longer subname labels kept
- * ("test.florin" stays "test.florin").
- */
-export function getOwnedNamesMatchQuery(searchQuery: string): string {
-  const q = searchQuery.trim().toLowerCase()
-  const lastDot = q.lastIndexOf('.')
-  if (lastDot < 0) return q
-  const MAX_TLD_LENGTH = 3
-  return q.length - lastDot - 1 <= MAX_TLD_LENGTH ? q.slice(0, lastDot) : q
-}
-
-/**
  * Filters owned names by search query (includes, case-insensitive, trimmed),
  * drops `options.exclude` if given, and sorts: 2LD names first, then subnames (3+ labels), then alphabetically by name within each group.
  *
@@ -72,7 +38,17 @@ export function filterAndSortOwnedNames(
   searchQuery: string,
   options: FilterAndSortOwnedNamesOptions = {},
 ): OwnedName[] {
-  const matchQuery = getOwnedNamesMatchQuery(searchQuery)
+  const q = searchQuery.trim().toLowerCase()
+  if (!q) return []
+
+  // Strip a short TLD-like suffix (e.g. "dom.eth" → "dom") but preserve longer
+  // subname labels (e.g. "test.florin" stays "test.florin", not "test").
+  const lastDot = q.lastIndexOf('.')
+  const afterLastDot = lastDot >= 0 ? q.slice(lastDot + 1) : ''
+  const MAX_TLD_LENGTH = 3
+  const shouldStripSuffix =
+    afterLastDot === '' || afterLastDot.length <= MAX_TLD_LENGTH
+  const matchQuery = shouldStripSuffix && lastDot >= 0 ? q.slice(0, lastDot) : q
   if (!matchQuery) return []
 
   const normalized = (name: string) => name.trim().toLowerCase()

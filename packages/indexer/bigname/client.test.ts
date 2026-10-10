@@ -32,6 +32,36 @@ describe('createBignameClient', () => {
       )
     })
 
+    it('builds the chain-scoped registry and resolver routes', async () => {
+      const paths = [
+        (client: ReturnType<typeof clientWith>['client']) =>
+          client.registry(11155111, '0xabc', { include: ['counts'] }),
+        (client: ReturnType<typeof clientWith>['client']) =>
+          client.registryLabels(11155111, '0xabc', { page_size: 20 }),
+        (client: ReturnType<typeof clientWith>['client']) =>
+          client.resolver(11155111, '0xdef'),
+        (client: ReturnType<typeof clientWith>['client']) =>
+          client.resolverLinks(11155111, '0xdef', { cursor: 'next' }),
+        (client: ReturnType<typeof clientWith>['client']) =>
+          client.resolverRoles(11155111, '0xdef'),
+      ]
+      const urls = await Promise.all(
+        paths.map(async (call) => {
+          const { client, fetch } = clientWith(envelope({}))
+          await call(client)
+          return requestOf(fetch).url
+        }),
+      )
+
+      expect(urls).toEqual([
+        'https://bigname.example/v1/registries/11155111/0xabc?include=counts',
+        'https://bigname.example/v1/registries/11155111/0xabc/labels?page_size=20',
+        'https://bigname.example/v1/resolvers/11155111/0xdef',
+        'https://bigname.example/v1/resolvers/11155111/0xdef/links?cursor=next',
+        'https://bigname.example/v1/resolvers/11155111/0xdef/roles',
+      ])
+    })
+
     // The edge answers CORS preflight only for POST /v1/lookup. Any header on
     // a GET makes the browser preflight and the request fails.
     it('sends no headers on GET', async () => {

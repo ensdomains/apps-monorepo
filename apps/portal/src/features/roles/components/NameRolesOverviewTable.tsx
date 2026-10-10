@@ -39,6 +39,7 @@ const V2NameRoles = ({
 
   const nameRolesQuery = useQuery({
     ...getNameRolesAccountsQueryOptions({
+      name,
       resource: resourceId,
       registryAddress,
     }),

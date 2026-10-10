@@ -1,44 +1,56 @@
-/**
- * Invalidate the registry-derived caches a role grant or revoke affects.
- *
- * Every key here reads the indexer, which lags a confirmed transaction by a
- * few blocks, so callers invalidate once on success and then poll until it
- * catches up. The role holder and history reads fall back to a node
- * log scan only when the indexer fails, so polling them is cheap in the normal
- * case and correct in the fallback case.
- *
- * What does NOT need invalidating on a role mutation:
- *  - `get-registry-label-count` — labelCount is unchanged by role changes.
- *  - `nameRegistries` / `nameRegistry` — name→registry lookups, unrelated.
- *  - `registry-referenced-by` — derived from `SubregistryUpdated` logs, not
- *    from EAC role state.
- */
-
+/** Registry role reads refresh on confirmation and again after indexing. */
 import type { QueryClient } from '@tanstack/react-query'
-import { CONTRACT_HISTORY_TIMELINE } from '@/features/history/components/ContractHistoryTimeline'
+import { getRegistryRootRoleHoldersQueryKey } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { registryHistoryTimelineQueryKey } from '../components/v2/RegistryHistory'
+import { getRegistryInfoQueryKey } from '../hooks/useRegistry'
+import { getRegistryLabelsQueryKey } from '../hooks/useRegistryLabels'
+import { getRegistryOccupantsQueryKey } from '../hooks/useRegistryOccupants'
+import { getRegistryRoleHistoryForAccountQueryKey } from '../hooks/useRegistryRoleHistoryForAccount'
 
-/** Read from the indexer: needs polling until it catches up. */
-const INDEXER_BACKED_KEYS = new Set<string>([
+/** Root role reads from BigName. */
+const ROOT_ROLE_KEYS: ReadonlySet<unknown> = new Set([
   // Holders table on /registry/$address/roles.
-  'get-registry-root-role-holders',
+  getRegistryRootRoleHoldersQueryKey.key,
   // Per-user role-change history embedded in the edit sheet.
-  'get-registry-role-history-for-account',
-  // Registry overview (roleCount on RegistryInfo).
-  'get-registry-info',
-  // Full per-registry event feed used by /registry/$address/history.
-  CONTRACT_HISTORY_TIMELINE,
-  // Labels table — its `roleHoldersCount` column reads `registry.roles`.
-  'get-registry-labels',
+  getRegistryRoleHistoryForAccountQueryKey.key,
 ])
 
-/**
- * Everything a role change touches. Call once on success, then hand it to
- * `pollForIndexerSync` until the indexer catches up.
- */
+/** Read from bigname: needs polling until it has indexed the transaction. */
+const INDEXER_BACKED_KEYS: ReadonlySet<unknown> = new Set([
+  // Registry overview (`counts.roles` on RegistryInfo).
+  getRegistryInfoQueryKey.key,
+  // The registry's own event feed, used by /registry/$address/history.
+  registryHistoryTimelineQueryKey.key,
+  // Labels table — its `roleHoldersCount` column reads `role_holder_count`.
+  getRegistryLabelsQueryKey.key,
+])
+
+const invalidate = (
+  queryClient: QueryClient,
+  keys: ReadonlySet<unknown>,
+): Promise<void> =>
+  queryClient.invalidateQueries({
+    predicate: (query) => keys.has(query.queryKey[0]),
+    refetchType: 'all',
+  })
+
+/** Everything a role change touches. Call once, on success. */
 export const invalidateRegistryQueries = (
   queryClient: QueryClient,
 ): Promise<void> =>
-  queryClient.invalidateQueries({
-    predicate: (query) => INDEXER_BACKED_KEYS.has(query.queryKey[0] as string),
-    refetchType: 'all',
-  })
+  invalidate(queryClient, new Set([...ROOT_ROLE_KEYS, ...INDEXER_BACKED_KEYS]))
+
+/** Read from bigname, and changed when a label is created or deleted. */
+const LABEL_BACKED_KEYS: ReadonlySet<unknown> = new Set([
+  // Overview and registry tree `counts.labels`.
+  getRegistryInfoQueryKey.key,
+  getRegistryLabelsQueryKey.key,
+  registryHistoryTimelineQueryKey.key,
+  // Detach impact: who lives in the registry.
+  getRegistryOccupantsQueryKey.key,
+])
+
+/** The registry reads a subname creation or deletion changes. Safe to poll. */
+export const invalidateRegistryLabelQueries = (
+  queryClient: QueryClient,
+): Promise<void> => invalidate(queryClient, LABEL_BACKED_KEYS)

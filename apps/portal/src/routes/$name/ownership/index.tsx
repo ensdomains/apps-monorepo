@@ -9,6 +9,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { OWNERSHIP_HISTORY_TYPES } from '@/features/history/eventTypes'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
@@ -23,31 +24,6 @@ import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { TransferPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { useCanTransfer } from '@/features/transfer/hooks/useCanTransfer'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
-
-/**
- * The ownership facet of the name's history: registration, renewals, expiry and
- * every kind of owner change — the registry's owner, the registrar's registrant
- * and the wrapper's owner/fuses. Resolver and record writes are the Resolver
- * page's facet, so they stay out of this one.
- *
- * Named by the types the summarize engine sees, which for v1 means their
- * post-adapter names — `adaptV1Events` renames the registry's `Transfer` to
- * `RegistryTransfer` and `ExpiryExtended` to `ExpiryUpdated`.
- */
-const OWNERSHIP_HISTORY_EVENT_TYPES = [
-  'LabelRegistered',
-  'NameRegistered',
-  'NameRenewed',
-  'ExpiryUpdated',
-  'NewOwner',
-  'Transfer',
-  'RegistryTransfer',
-  'NameTransferred',
-  'WrappedTransfer',
-  'NameWrapped',
-  'NameUnwrapped',
-  'FusesSet',
-] as const
 
 export const Route = createFileRoute('/$name/ownership/')({
   component: RouteComponent,
@@ -167,7 +143,7 @@ function RouteComponent() {
       </div>
       <HistoryTimeline
         name={name}
-        scope={OWNERSHIP_HISTORY_EVENT_TYPES}
+        scope={OWNERSHIP_HISTORY_TYPES}
         heading={<h2 className="text-caps text-foreground">History</h2>}
         emptyTitle="No ownership history"
         emptyDescription="Registrations, renewals and transfers for this name will appear here as they happen."

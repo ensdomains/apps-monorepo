@@ -168,12 +168,12 @@ export const createBignameClient = (
         query,
       ),
     addressHistory: (address: string, query?: T.AddressHistoryQuery) =>
-      request<readonly T.AddressHistoryRow[]>(
+      request<readonly T.EventRow[]>(
         `/v1/addresses/${seg(address)}/history`,
         query,
       ),
     events: (query?: T.EventsQuery) =>
-      request<readonly T.EventsRow[]>('/v1/events', query),
+      request<readonly T.EventRow[]>('/v1/events', query),
     permissions: (query: T.PermissionsQuery) =>
       request<readonly T.PermissionRow[], T.PermissionsResponse>(
         '/v1/permissions',
@@ -181,6 +181,40 @@ export const createBignameClient = (
       ),
     lookup: (body: T.LookupRequest) =>
       request<readonly T.LookupResult[]>('/v1/lookup', undefined, body),
+    registry: (chainId: number, address: string, query?: T.RegistryQuery) =>
+      request<T.Registry>(`/v1/registries/${chainId}/${seg(address)}`, query),
+    registryLabels: (
+      chainId: number,
+      address: string,
+      query?: T.RegistryLabelsQuery,
+    ) =>
+      request<readonly T.RegistryLabel[]>(
+        `/v1/registries/${chainId}/${seg(address)}/labels`,
+        query,
+      ),
+    resolver: (chainId: number, address: string, query?: T.ResolverQuery) =>
+      request<T.ResolverOverview>(
+        `/v1/resolvers/${chainId}/${seg(address)}`,
+        query,
+      ),
+    resolverLinks: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+    ) =>
+      request<readonly T.ResolverLink[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/links`,
+        query,
+      ),
+    resolverRoles: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+    ) =>
+      request<readonly T.ResolverRole[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/roles`,
+        query,
+      ),
   }
 }
 

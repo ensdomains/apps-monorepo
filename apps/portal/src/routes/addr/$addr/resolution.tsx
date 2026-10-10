@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   getCoreRowModel,
@@ -8,14 +8,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Search } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { ListLoader } from '@/components/ListLoader/ListLoader'
-import {
-  infiniteFetchMore,
-  useListLoader,
-} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -31,13 +26,15 @@ import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resol
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
-const RESOLVED_NAMES_INITIAL_COUNT = 100
+// Stable identity: a fresh `[]` each render makes the table recompute its row
+// model, which auto-resets the page index and re-renders.
+const NO_ROWS: never[] = []
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
-    queryClient.prefetchInfiniteQuery(
+    queryClient.prefetchQuery(
       getResolvedNamesForAddressQueryOptions({
         address: params.addr as Address,
       }),
@@ -49,36 +46,14 @@ function RouteComponent() {
 
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const {
-    data,
-    error,
-    isLoading,
-    hasNextPage,
-    fetchNextPage,
-    isFetchNextPageError,
-  } = useInfiniteQuery(getResolvedNamesForAddressQueryOptions({ address }))
-
-  const loadedNames = useMemo(
-    () => data?.pages.flatMap((page) => page.names) ?? [],
-    [data],
-  )
-
-  const loader = useListLoader({
-    initialCount: RESOLVED_NAMES_INITIAL_COUNT,
-    loaded: loadedNames.length,
-    hasMore: hasNextPage,
-    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.names.length),
-    resetKey: address,
-  })
-
-  // Memoised: a fresh array makes the table recompute its row model and re-render.
-  const names = useMemo(
-    () => loadedNames.slice(0, loader.shown),
-    [loadedNames, loader.shown],
+  const { data, error, isLoading } = useQuery(
+    getResolvedNamesForAddressQueryOptions({
+      address,
+    }),
   )
 
   const table = useReactTable({
-    data: names,
+    data: data ?? NO_ROWS,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -94,16 +69,20 @@ function RouteComponent() {
 
   if (isLoading) return <LoadingMessage />
 
-  if (error && !isFetchNextPageError) {
+  if (error) {
     return (
       <ErrorMessage
         title="Data unavailable"
-        description={extractErrorMessage(error)}
+        description={
+          error._tag === 'TooManyResolvedNamesError'
+            ? 'More than 100 names point their address records at this address, which is more than can be listed.'
+            : extractErrorMessage(error)
+        }
       />
     )
   }
 
-  if (loadedNames.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <>
         <header className="flex flex-col gap-4">
@@ -113,7 +92,7 @@ function RouteComponent() {
         </header>
         <NoResultsMessage
           title="No names found"
-          description="This address doesn't resolve to any ENS names yet."
+          description="No ENS name has an address record on an EVM network that points at this address."
           className="mx-0"
         />
       </>
@@ -139,15 +118,8 @@ function RouteComponent() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
-        {loader.canShowMore && Boolean(table.getState().globalFilter) && (
-          <p className="text-sm text-muted-foreground">
-            Search covers the {names.length} names shown so far. Show more to
-            include the rest.
-          </p>
-        )}
       </header>
       <ForwardNamesTable table={table} />
-      <ListLoader {...loader} className="py-4" />
     </>
   )
 }

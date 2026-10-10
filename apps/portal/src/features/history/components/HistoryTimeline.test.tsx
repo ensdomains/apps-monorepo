@@ -1,3 +1,4 @@
+import { BignameError } from '@ens-apps/indexer/bigname'
 import { render as baseRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
@@ -5,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
 import type { HistoryTimelineModel } from '../hooks/useHistoryTimeline'
 import type { Action } from '../summarize/summarize.types'
+import { GetTimelineEventPageError } from '../timelineEventPage'
 import { HistoryTimelineView } from './HistoryTimeline'
 
 // The break row and the pinned anchor only appear on a feed with more history
@@ -37,6 +39,7 @@ const rowCount = () =>
   document.querySelectorAll('[role="button"][tabindex="0"]').length
 
 const action = (tx: string, label: string, timestamp: number): Action => ({
+  id: `0x${tx}`,
   txHash: `0x${tx}`,
   icon: 'default',
   label,
@@ -45,26 +48,16 @@ const action = (tx: string, label: string, timestamp: number): Action => ({
   events: [
     {
       id: `${tx}-1`,
-      type: 'TextChanged',
+      type: 'record',
+      name: 'alice.eth',
+      registrationId: null,
       transactionHash: `0x${tx}`,
       blockNumber: timestamp,
+      logIndex: 0,
       timestamp,
+      data: { key: 'text:url' },
     },
   ],
-})
-
-const loader = (
-  over: Partial<HistoryTimelineModel['loader']> = {},
-): HistoryTimelineModel['loader'] => ({
-  shown: 50,
-  moreCount: 100,
-  total: undefined,
-  canShowMore: true,
-  canShowAll: false,
-  status: 'idle',
-  onMore: vi.fn(),
-  onAll: vi.fn(),
-  ...over,
 })
 
 const model = (
@@ -75,11 +68,12 @@ const model = (
   anchorAction: undefined,
   totalCount: undefined,
   hasMore: false,
-  loader: loader(),
+  loadMore: vi.fn(),
+  isLoadingMore: false,
+  isLoadMoreError: false,
   isLoading: false,
   error: null,
   sourcesError: null,
-  isTruncated: false,
   openIds: new Set(),
   toggleAction: vi.fn(),
   setAllOpen: vi.fn(),
@@ -91,8 +85,8 @@ describe('HistoryTimelineView', () => {
     const register: Action = {
       ...action('r', 'registered', 5),
       events: [
-        { type: 'NameRegistered', id: 'r-1' },
-        { type: 'TextChanged', id: 'r-2' },
+        { type: 'registration', id: 'r-1', data: {} },
+        { type: 'record', id: 'r-2', data: {} },
       ] as never,
     }
     render(<HistoryTimelineView model={model({ actions: [register] })} />)
@@ -108,57 +102,64 @@ describe('HistoryTimelineView', () => {
   it('renders the load-more break with the feed total, not the loaded count', () => {
     render(
       <HistoryTimelineView
-        model={model({ hasMore: true, loader: loader({ total: 681 }) })}
+        model={model({ hasMore: true, totalCount: 681 })}
         breakContent="load-more"
       />,
     )
-    expect(screen.getByText('Showing 50 of 681')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
+    expect(screen.getByText('Load more')).toBeInTheDocument()
+    expect(screen.getByText(/events \(681 total\)/)).toBeInTheDocument()
+  })
+
+  it('keeps the loaded rows and offers a retry when a page fails', async () => {
+    const loadMore = vi.fn()
+    render(
+      <HistoryTimelineView
+        model={model({ hasMore: true, isLoadMoreError: true, loadMore })}
+        breakContent="load-more"
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t load more.')
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(loadMore).toHaveBeenCalledOnce()
   })
 
   it('fetches the next page when the break is pressed', async () => {
-    const onMore = vi.fn()
+    const loadMore = vi.fn()
     render(
       <HistoryTimelineView
-        model={model({ hasMore: true, loader: loader({ onMore }) })}
+        model={model({ hasMore: true, totalCount: 681, loadMore })}
         breakContent="load-more"
       />,
     )
-    await userEvent.click(screen.getByRole('button', { name: 'More' }))
-    expect(onMore).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(loadMore).toHaveBeenCalledOnce()
   })
 
   it('says so in place while a page is in flight, and cannot be pressed twice', () => {
     render(
       <HistoryTimelineView
-        model={model({
-          hasMore: true,
-          loader: loader({ status: 'loading' }),
-        })}
+        model={model({ hasMore: true, totalCount: 681, isLoadingMore: true })}
         breakContent="load-more"
       />,
     )
-    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
-    expect(screen.getByRole('button', { name: 'More' })).toBeDisabled()
+    const button = screen.getByRole('button', { name: 'Loading…' })
+    expect(button).toBeDisabled()
+    expect(screen.queryByText('Load more')).toBeNull()
   })
 
   it('still offers the break when a page trims to no rows', async () => {
     // A page whose boundary trim empties it (one block filling the page) used
     // to dead-end on "No history yet" with more to come and nothing to click.
-    const onMore = vi.fn()
+    const loadMore = vi.fn()
     render(
       <HistoryTimelineView
-        model={model({
-          actions: [],
-          hasMore: true,
-          loader: loader({ shown: 0, total: 400, onMore }),
-        })}
+        model={model({ actions: [], hasMore: true, totalCount: 400, loadMore })}
         breakContent="load-more"
       />,
     )
     expect(screen.getByText(/No history yet/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'More' }))
-    expect(onMore).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(loadMore).toHaveBeenCalledOnce()
   })
 
   it('renders a link break instead when the surface points elsewhere', () => {
@@ -217,59 +218,47 @@ describe('HistoryTimelineView', () => {
       <HistoryTimelineView
         model={model({
           actions: [],
-          sourcesError: Object.assign(new Error('subgraph down'), {
-            cause: { message: 'subgraph down' },
+          sourcesError: new GetTimelineEventPageError({
+            cause: new BignameError({
+              code: 'overloaded',
+              message: 'bigname down',
+            }),
           }),
         })}
       />,
     )
     expect(screen.getByText(/No history yet/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Couldn't load all of this name's history/),
+      screen.getByText(/Couldn't load this name's first event/),
     ).toBeInTheDocument()
   })
 
-  it('withholds the total when a source is known short', () => {
-    const truncated = model({ hasMore: true, loader: loader() })
+  it('shows no total when bigname does not count the feed', () => {
+    // Past 10,000 rows, or on a contract feed, `total_count` is null.
+    const truncated = model({ hasMore: true, totalCount: undefined })
     render(<HistoryTimelineView model={truncated} breakContent="load-more" />)
-    // A lower bound must not render as a total.
-    expect(screen.getByText('Showing 50')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
+    // A lower bound must not render as "(N total)".
+    expect(screen.queryByText(/total\)/)).toBeNull()
+    expect(screen.getByText('Load more')).toBeInTheDocument()
   })
 
   it('discloses a failed source instead of passing the gap off as complete', () => {
     render(
       <HistoryTimelineView
         model={model({
-          sourcesError: Object.assign(new Error('subgraph down'), {
-            cause: { message: 'subgraph down' },
+          sourcesError: new GetTimelineEventPageError({
+            cause: new BignameError({
+              code: 'overloaded',
+              message: 'bigname down',
+            }),
           }),
           totalCount: 9,
         })}
       />,
     )
     expect(
-      screen.getByText(/Couldn't load all of this name's history/),
+      screen.getByText(/Couldn't load this name's first event/),
     ).toBeInTheDocument()
-  })
-
-  it('discloses a capped source and withholds the total', () => {
-    // Any bounded whole-read source — the v1 window, the 25-child cap — makes
-    // the total a lower bound, so it must not render as exact.
-    render(
-      <HistoryTimelineView
-        model={model({
-          isTruncated: true,
-          hasMore: true,
-          totalCount: undefined,
-        })}
-        breakContent="load-more"
-      />,
-    )
-    expect(
-      screen.getByText(/too large to read in one request/),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/total\)/)).toBeNull()
   })
 
   it('expands and collapses every loaded row at once', async () => {

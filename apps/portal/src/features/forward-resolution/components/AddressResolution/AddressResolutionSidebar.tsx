@@ -34,8 +34,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { envConfig } from '@/config'
-import { ADDRESS_HISTORY_EVENT_TYPES } from '@/features/history/addressHistoryEventTypes'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import {
+  ADDRESS_RECORD_HISTORY_TYPES,
+  isAddressRecordEvent,
+} from '@/features/history/eventTypes'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
@@ -409,7 +412,8 @@ const ResolutionDetails = ({
         <div className="border-t pt-6">
           <HistoryTimeline
             name={name}
-            scope={ADDRESS_HISTORY_EVENT_TYPES}
+            scope={ADDRESS_RECORD_HISTORY_TYPES}
+            eventFilter={isAddressRecordEvent}
             heading={<h2 className="text-caps text-foreground">History</h2>}
             emptyTitle="No resolution history"
             emptyDescription="Resolution record changes will appear here as they happen."

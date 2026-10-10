@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ens-apps/config": "workspace:*",
+    "@ens-apps/indexer": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "viem": "catalog:"

@@ -1,98 +1,90 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
+import {
+  type BignameError,
+  type EventDataByType,
+  type EventRow,
+  type EventType,
+  toUnixSeconds,
+} from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { gql } from '@urql/core'
-import { fromPromise } from 'neverthrow'
-import type { Hash } from 'viem'
-import { IGNORED_TYPES } from '@/features/history/summarize/summarizeEvents'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import type { Address, Hash } from 'viem'
+import { bigname } from '@/lib/bigname'
 
-export type RecentActivityEvent = {
+/** The row's friendly type with its typed `include=data` payload. */
+type RecentActivityPayload = {
+  readonly [TType in EventType]: {
+    readonly type: TType
+    /** Raw storage kind (`include=raw`), e.g. `RecordVersionChanged`. */
+    readonly kind?: string
+    /** Absent when bigname leaves the payload out. */
+    readonly data?: EventDataByType[TType]
+  }
+}[EventType]
+
+export type RecentActivityEvent = RecentActivityPayload & {
   readonly name: string | null
-  readonly type: string
   readonly transactionHash: Hash
   readonly timestamp: number
   readonly blockNumber: number
-  readonly contractAddress: string
-  readonly namehash: string | null
-  readonly domain: { readonly name: string | null } | null
-  readonly data: string | null
+  readonly contractAddress: Address | null
 }
 
 /** One page of the protocol-wide feed. */
 export type RecentActivityPage = {
   readonly events: readonly RecentActivityEvent[]
-  readonly totalCount: number | undefined
   readonly endCursor: string | null
   readonly hasNextPage: boolean
 }
 
 class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
-  cause: GraphqlRequestError
+  cause: BignameError
 }> {}
 
-export const RECENT_ACTIVITY_PAGE_SIZE = 15
+const RECENT_ACTIVITY_PAGE_SIZE = 15
 
-/** Only the top-level connection honours `first`/`after`/`orderBy` (see `timelineEventPage.ts`). */
-const recentActivityQuery = gql`
-  query getRecentActivity($first: Int, $after: String, $where: EventFilter) {
-    eventConnection(
-      first: $first
-      after: $after
-      orderBy: timestamp
-      orderDirection: desc
-      where: $where
-    ) {
-      totalCount
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      edges {
-        node {
-          name
-          type
-          transactionHash
-          timestamp
-          blockNumber
-          contractAddress
-          namehash
-          domain {
-            name
-          }
-          data
-        }
-      }
-    }
-  }
-`
+const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
+  const timestamp = toUnixSeconds(row.timestamp)
+  // A state-derived row has no transaction to link, nor a place in the feed.
+  if (!row.transaction_hash || row.block_number === null || !timestamp)
+    return []
+  // A record write bigname could not attribute to a name carries none.
+  const name = row.name || null
+  // A row is its payload plus fields read here, so it stands in for one.
+  const payload: RecentActivityPayload = row
+  return [
+    {
+      ...payload,
+      name,
+      transactionHash: row.transaction_hash,
+      timestamp,
+      blockNumber: row.block_number,
+      contractAddress: row.contract_address ?? null,
+    },
+  ]
+}
 
-const getRecentActivityPage = (after: string | undefined) =>
-  fromPromise(
-    graphqlIndexerClient.request<{
-      readonly eventConnection: {
-        readonly totalCount: number | null
-        readonly pageInfo: {
-          readonly hasNextPage: boolean
-          readonly endCursor: string | null
-        }
-        readonly edges: readonly { readonly node: RecentActivityEvent }[]
-      } | null
-    }>(recentActivityQuery, {
-      first: RECENT_ACTIVITY_PAGE_SIZE,
-      after,
-      where: { type_not_in: [...IGNORED_TYPES] },
-    }),
-    (e) => new GetRecentActivityError({ cause: e as GraphqlRequestError }),
-  ).map(
-    ({ eventConnection }): RecentActivityPage => ({
-      events: eventConnection?.edges.map(({ node }) => node) ?? [],
-      totalCount: eventConnection?.totalCount ?? undefined,
-      endCursor: eventConnection?.pageInfo.endCursor ?? null,
-      hasNextPage: eventConnection?.pageInfo.hasNextPage ?? false,
-    }),
-  )
+/**
+ * The newest events across the namespace, ENSv1 and ENSv2 alike. No `type`
+ * filter: the old feed only excluded `CommitmentMade`, which bigname does not
+ * serve as a history row, so every friendly type belongs here.
+ */
+const getRecentActivityPage = (cursor: string | undefined) =>
+  bigname
+    .events({
+      order: 'desc',
+      page_size: RECENT_ACTIVITY_PAGE_SIZE,
+      include: ['data', 'raw'],
+      ...(cursor && { cursor }),
+    })
+    .map(
+      ({ data, page }): RecentActivityPage => ({
+        events: data.flatMap(toActivityEvent),
+        endCursor: page?.next_cursor ?? null,
+        hasNextPage: page?.has_more ?? false,
+      }),
+    )
+    .mapErr((cause) => new GetRecentActivityError({ cause }))
 
 const getRecentActivityQueryKey = createQueryKey<
   'get-recent-activity',
@@ -104,7 +96,7 @@ export const getRecentActivityQueryOptions = () =>
     queryKey: getRecentActivityQueryKey({}),
     queryFn: ({ pageParam }) => getRecentActivityPage(pageParam),
     initialPageParam: undefined as string | undefined,
-    // A null `endCursor` must stop paging, or page one refetches forever.
+    // A null `next_cursor` must stop paging, or page one refetches forever.
     getNextPageParam: (last: RecentActivityPage) =>
       last.hasNextPage ? (last.endCursor ?? undefined) : undefined,
     // Polling refetches every loaded page, so it stops once the reader pages on.

@@ -192,8 +192,7 @@ describe('getSelectedNames', () => {
   ) => ({
     name,
     expiryDate,
-    roleBitmap: null,
-    v1Roles: isV2 ? null : { owner: true, manager: true },
+    relations: ['owner', 'manager'] as const,
     protocolVersion: (isV2 ? 'ENSv2' : 'ENSv1') as ProtocolVersion,
   })
 

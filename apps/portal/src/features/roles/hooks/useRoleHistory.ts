@@ -24,7 +24,7 @@ type GetRoleHistoryParameters = {
  * The resource comes from the registry rather than from the label, so it
  * carries the name's current `eacVersionId`. Pinning that as the topic scopes
  * the read to this registration: a previous owner's grants sit under the
- * pre-bump resource and are never returned.
+ * pre-bump resource and the node never returns them.
  */
 export const getRoleHistory = ResultFn(async function* ({
   name,
@@ -33,12 +33,19 @@ export const getRoleHistory = ResultFn(async function* ({
 }: GetRoleHistoryParameters) {
   const resource = yield* getVersionedResource({ name, registryAddress })
 
-  const logs = yield* getRoleChangeLogs({ registryAddress, resource, account })
+  const logs = yield* getRoleChangeLogs({
+    name,
+    registryAddress,
+    resource,
+    account,
+  })
 
-  return ok(toRoleHistoryEntries({ logs, resource }))
+  const entries = yield* toRoleHistoryEntries({ logs, resource })
+
+  return ok(entries)
 })
 
-const getRoleHistoryQueryKey = createQueryKey<
+export const getRoleHistoryQueryKey = createQueryKey<
   'get-role-history',
   GetRoleHistoryParameters
 >('get-role-history')

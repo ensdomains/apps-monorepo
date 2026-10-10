@@ -1,4 +1,5 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
@@ -31,10 +32,14 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { ALL_OWNED_NAMES_QUERY_KEY } from '@/features/dashboard/hooks/ownedNamesQueryKey'
-import { useOwnedNames } from '@/features/dashboard/hooks/useOwnedNames'
-import { getV1NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
-import { getV2NamesPagesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
+import {
+  getAddressNamesQueryKey,
+  getAddressNamesQueryOptions,
+} from '@/features/dashboard/hooks/useAddressNames'
+import {
+  getAddressRoleCountsQueryOptions,
+  withRoleCounts,
+} from '@/features/dashboard/hooks/useAddressRoleCounts'
 import {
   columns,
   getNameRowId,
@@ -61,11 +66,9 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { useDebouncedValue } from '@/hooks/useDebounce'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { queryClient } from '@/utils/queryClient'
-import type { ProtocolVersion } from '@/utils/types'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
@@ -97,25 +100,16 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
   },
 ]
 
+const NO_NAMES: NameRow[] = []
 const NAMES_INITIAL_COUNT = 100
-const SEARCH_DEBOUNCE_MS = 300
 
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) =>
-    Promise.all([
-      queryClient.prefetchInfiniteQuery(
-        getV1NamesPagesForAddressQueryOptions({
-          address: params.addr as Address,
-        }),
-      ),
-      queryClient.prefetchInfiniteQuery(
-        getV2NamesPagesForAddressQueryOptions({
-          address: params.addr as Address,
-        }),
-      ),
-    ]),
+    queryClient.prefetchQuery(
+      getAddressNamesQueryOptions({ address: params.addr as Address }),
+    ),
 })
 
 /**
@@ -125,7 +119,7 @@ export const Route = createFileRoute('/addr/$addr/names')({
  * for v1: ETHRenewerV1 only renews reserved/in-grace names and reverts
  * otherwise. That is a check on the renewer, not on ownership: every live v1
  * name was reserved by premigration, and the rows here are already limited to
- * names the address owns. So each selected v1 name is checked against the
+ * names the address holds a role on. So each selected v1 name is checked against the
  * renewer's on-chain `isRenewable` (shared with the name page via
  * {@link useV1Renewable});
  * non-renewable ones are dropped so they never enter a single- or multi-renew
@@ -158,8 +152,6 @@ const NamesList = ({
   search,
   onSearchChange,
   isSearching,
-  isSearchPending,
-  failedSearches,
 }: {
   readonly address: Address
   /** The names shown so far. */
@@ -168,10 +160,6 @@ const NamesList = ({
   readonly search: string
   readonly onSearchChange: (search: string) => void
   readonly isSearching: boolean
-  /** The rows are still the previous search's while the new one loads. */
-  readonly isSearchPending: boolean
-  /** The protocol versions whose search failed; the other's names still show. */
-  readonly failedSearches: readonly ProtocolVersion[]
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
@@ -189,7 +177,7 @@ const NamesList = ({
       setRowSelection({})
       setExtendModalOpen(false)
       void queryClient.invalidateQueries({
-        queryKey: ALL_OWNED_NAMES_QUERY_KEY,
+        queryKey: getAddressNamesQueryKey({ address }),
       })
     },
   })
@@ -289,9 +277,7 @@ const NamesList = ({
               total: loader.total,
               hasActiveFilters,
               isSearching,
-              isSearchPending,
             })
-              .with({ isSearchPending: true }, () => 'Names')
               .with(
                 { hasActiveFilters: true },
                 () => `Names (${filteredData.length} of ${names.length} shown)`,
@@ -394,13 +380,6 @@ const NamesList = ({
           </>
         )}
       </header>
-      {failedSearches.map((protocolVersion) => (
-        <ErrorMessage
-          key={protocolVersion}
-          compact
-          description={`Error searching ${protocolVersion} names. Please try again.`}
-        />
-      ))}
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
@@ -444,53 +423,42 @@ function RouteComponent() {
   const [typed, setTyped] = useState({ address, search: '' })
   if (typed.address !== address) setTyped({ address, search: '' })
   const search = typed.address === address ? typed.search : ''
-  const debouncedSearch = useDebouncedValue(search.trim(), SEARCH_DEBOUNCE_MS)
-  const appliedSearch = search === '' ? '' : debouncedSearch
+  const isSearching = search.trim() !== ''
 
-  const {
-    names: loadedNames,
-    total,
-    hasMore,
-    fetchMore,
-    v1Query: v1NamesQuery,
-    v2Query: v2NamesQuery,
-  } = useOwnedNames({ address, search: appliedSearch || undefined })
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
+  const { data: roleCounts } = useQuery(
+    getAddressRoleCountsQueryOptions({ address }),
+  )
+  const allNames = useMemo(
+    () => withRoleCounts(namesQuery.data ?? NO_NAMES, roleCounts),
+    [namesQuery.data, roleCounts],
+  )
+  // bigname serves the whole list, so a search filters it here.
+  const matching = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    return needle
+      ? allNames.filter((name) => name.name?.toLowerCase().includes(needle))
+      : allNames
+  }, [allNames, search])
 
   const loader = useListLoader({
     initialCount: NAMES_INITIAL_COUNT,
-    loaded: loadedNames.length,
-    total,
-    hasMore,
-    fetchMore,
-    resetKey: `${address}:${appliedSearch}`,
+    loaded: matching.length,
+    resetKey: `${address}:${search.trim()}`,
   })
 
   // Must be memoised: a fresh array makes the table recompute its row model,
   // which auto-resets the page index, which re-renders — forever.
   const names: NameRow[] = useMemo(
-    () => loadedNames.slice(0, loader.shown),
-    [loadedNames, loader.shown],
+    () => matching.slice(0, loader.shown),
+    [matching, loader.shown],
   )
 
-  if (v1NamesQuery.isLoading) {
+  if (namesQuery.isLoading) {
     return <LoadingMessage />
   }
 
-  if (v2NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  const failedSources = (
-    [
-      ['ENSv1', v1NamesQuery],
-      ['ENSv2', v2NamesQuery],
-    ] as const
-  )
-    .filter(([, query]) => query.isError && !query.isFetchNextPageError)
-    .map(([protocolVersion]) => protocolVersion)
-  const isSearching = appliedSearch !== ''
-
-  if (failedSources.length > 0 && !isSearching) {
+  if (namesQuery.error) {
     return (
       <ErrorMessage
         compact
@@ -499,7 +467,7 @@ function RouteComponent() {
     )
   }
 
-  if (loadedNames.length === 0 && !hasMore && !isSearching)
+  if (allNames.length === 0 && !isSearching)
     return (
       <>
         <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
@@ -523,10 +491,6 @@ function RouteComponent() {
       search={search}
       onSearchChange={(next) => setTyped({ address, search: next })}
       isSearching={isSearching}
-      isSearchPending={
-        v1NamesQuery.isPlaceholderData || v2NamesQuery.isPlaceholderData
-      }
-      failedSearches={failedSources}
     />
   )
 }

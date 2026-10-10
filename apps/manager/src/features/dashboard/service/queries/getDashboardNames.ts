@@ -1,10 +1,7 @@
 import {
-  type AddressName,
-  type AddressNamesQuery,
-  type AddressNamesResponse,
   type BignameClient,
   type BignameError,
-  isStale,
+  readGraceNames,
   readNamesForAddress,
 } from '@ens-apps/indexer/bigname'
 import type {
@@ -12,10 +9,7 @@ import type {
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
-import {
-  SECONDS_PER_DAY,
-  V2_GRACE_PERIOD_DAYS,
-} from '@ens-apps/utils/gracePeriod'
+import { readAllNames, readNamesPage } from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
@@ -25,10 +19,6 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type QueryClient, skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
-import {
-  readAllNames,
-  readNamesPage,
-} from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 import { toBulkRenewName, toSelectableDomain } from '../../bulkRenewSelection'
 import {
@@ -42,8 +32,6 @@ import {
   toDashboardName,
   toGraceName,
 } from '../../dashboardNames'
-
-const FETCH_PAGE_SIZE = 200
 
 const NAMES_ACTION = 'names'
 const GRACE_NAMES_ACTION = 'grace_names'
@@ -69,7 +57,6 @@ export const invalidateDashboardNames = (
       }),
     ),
   )
-const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
 export class GetDashboardNamesError extends TaggedError(
   'GetDashboardNamesError',
@@ -77,52 +64,19 @@ export class GetDashboardNamesError extends TaggedError(
   cause: BignameError | IndexerReadError
 }> {}
 
-const MAX_STALE_ATTEMPTS = 3
-
-// bigname's cursors hold no snapshot, so a stale page is sent again as is.
-const readGracePage = (
-  addressNames: BignameClient['addressNames'],
-  address: Address,
-  query: AddressNamesQuery,
-  attemptsLeft = MAX_STALE_ATTEMPTS,
-): ResultAsync<AddressNamesResponse, BignameError> =>
-  addressNames(address, query).orElse((error) =>
-    isStale(error) && attemptsLeft > 1
-      ? readGracePage(addressNames, address, query, attemptsLeft - 1)
-      : errAsync(error),
-  )
-
 /** `relation=any` drops an ENSv2 name once it expires, but it stays renewable through grace. */
-const getGraceNames = ResultFn(async function* (
+const getGraceNames = (
   addressNames: BignameClient['addressNames'],
   address: Address,
   now: Date,
-) {
-  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
-  let rows: readonly AddressName[] = []
-  let cursor: string | null = null
-  do {
-    const query: AddressNamesQuery = {
-      namespace: 'ens',
-      relation: 'former_owner',
-      parent: 'eth',
-      sort: 'expires_at',
-      order: 'asc',
-      expires_after: String(nowSeconds - V2_GRACE_SECONDS),
-      expires_before: String(nowSeconds + 1n),
-      page_size: FETCH_PAGE_SIZE,
-      ...(cursor !== null && { cursor }),
-    }
-    const page: AddressNamesResponse = yield* readGracePage(
-      addressNames,
-      address,
-      query,
-    ).mapErr((error) => new GetDashboardNamesError({ cause: error }))
-    rows = [...rows, ...page.data]
-    cursor = page.page?.next_cursor ?? null
-  } while (cursor !== null)
-  return ok(rows.flatMap((row) => toGraceName(row, address, now) ?? []))
-})
+) =>
+  readGraceNames(
+    { addressNames },
+    address,
+    BigInt(Math.floor(now.getTime() / 1000)),
+  )
+    .map((rows) => rows.flatMap((row) => toGraceName(row, address, now) ?? []))
+    .mapErr((error) => new GetDashboardNamesError({ cause: error }))
 
 export const DASHBOARD_PAGE_SIZE = 5
 // Rows per read: a page of the dashboard is five, so this covers several pages.

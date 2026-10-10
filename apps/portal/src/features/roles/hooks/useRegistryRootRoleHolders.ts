@@ -1,54 +1,45 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { ok } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
-import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
-import { ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
-import { getRoleHolders } from '@/lib/roles/roleHolders'
+import type { Address } from 'viem'
+import {
+  getBignameRootRoleHolders,
+  type RegistryRootRoles,
+} from '@/lib/roles/rootRoleReads'
+
+export type {
+  RegistryRootRoles,
+  RootRoleHolder,
+} from '@/lib/roles/rootRoleReads'
 
 type GetRegistryRootRoleHoldersParameters = {
   readonly registryAddress: Address
 }
 
-export type RootRoleHolder = {
-  readonly account: Address
-  readonly roles: readonly Role[]
-}
+/** Current registry root roles from BigName. */
+export const getRegistryRootRoles = getBignameRootRoleHolders
 
-/**
- * Every account holding roles at a registry's root, with the roles it holds.
- * An account whose bitmap decodes to nothing has been revoked and is dropped.
- */
-const getRegistryRootRoleHolders = ResultFn(async function* ({
-  registryAddress,
-}: GetRegistryRootRoleHoldersParameters) {
-  const current = yield* getRoleHolders({
-    registryAddress,
-    resource: ROOT_RESOURCE,
-  })
-
-  const holders: RootRoleHolder[] = current
-    .filter(({ account }) => account !== zeroAddress)
-    .map(({ account, roleBitmap }) => ({
-      account,
-      roles: decodeRoleBitmap(roleBitmap),
-    }))
-    .filter(({ roles }) => roles.length > 0)
-
-  return ok(holders)
-})
-
-const getRegistryRootRoleHoldersQueryKey = createQueryKey<
+export const getRegistryRootRoleHoldersQueryKey = createQueryKey<
   'get-registry-root-role-holders',
   GetRegistryRootRoleHoldersParameters
 >('get-registry-root-role-holders')
 
+/** The holders, and whether the list leaves operator-held roles out. */
+export const getRegistryRootRolesQueryOptions = (
+  params: GetRegistryRootRoleHoldersParameters,
+) =>
+  resultQueryOptions({
+    queryKey: getRegistryRootRoleHoldersQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getRegistryRootRoles(params),
+  })
+
+const selectHolders = ({ holders }: RegistryRootRoles) => holders
+
+/** The holders alone, from the same cache entry. */
 export const getRegistryRootRoleHoldersQueryOptions = (
   params: GetRegistryRootRoleHoldersParameters,
 ) =>
   resultQueryOptions({
     queryKey: getRegistryRootRoleHoldersQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryRootRoleHolders(params),
+    queryFn: ({ queryKey: [, params] }) => getRegistryRootRoles(params),
+    select: selectHolders,
   })

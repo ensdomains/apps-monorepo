@@ -57,13 +57,7 @@ const TldCounterCard = ({
 )
 
 const TldRecordCount = ({ tld }: { tld: string }) => {
-  const tldDataQuery = useQuery(getTldDataQueryOptions({ tld }))
-  const profileQuery = useQuery(
-    getProfileQueryOptions({
-      name: tld,
-      protocolVersion: tldDataQuery.data?.protocolVersion,
-    }),
-  )
+  const profileQuery = useQuery(getProfileQueryOptions({ name: tld }))
 
   const recordCount = useMemo(() => {
     if (profileQuery.data?.records)
@@ -96,6 +90,17 @@ const TldRegistryRow = ({
       </span>
     )}
   </InfoRow>
+)
+
+// The TLD's whole feed, paged, as a name's history is.
+const HistorySection = ({ tld }: { tld: string }) => (
+  <HistoryTimeline
+    name={tld}
+    showFilters={false}
+    heading={<h2 className="text-foreground text-heading">History</h2>}
+    emptyTitle="No recent activity"
+    emptyDescription="Events will appear here as they happen."
+  />
 )
 
 function TldOverview() {
@@ -178,13 +183,7 @@ function TldOverview() {
       </div>
 
       {/* History */}
-      <HistoryTimeline
-        name={tld}
-        showFilters={false}
-        heading={<h2 className="text-foreground text-heading">History</h2>}
-        emptyTitle="No recent activity"
-        emptyDescription="Events will appear here as they happen."
-      />
+      <HistorySection tld={tld} />
     </div>
   )
 }

@@ -11,7 +11,7 @@ import {
 } from '@/lib/roles/resolverRoles'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
+import { invalidateResolverOverview } from './useResolverOverview'
 
 export type RevokeResolverGrantParams = {
   readonly account: Address

@@ -27,6 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { createIndexerMock } from '../helpers/mock-indexer.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
@@ -193,7 +194,15 @@ type PortalFixtures = {
   makeName: ReturnType<typeof createMakeName>
 }
 
+// Shared indexer mock, active only when E2E_MOCK_INDEXER=true.
+const indexerMock = createIndexerMock()
+
 export const test = base.extend<PortalFixtures>({
+  page: async ({ page }, use) => {
+    await indexerMock.installIfEnabled(page)
+    await use(page)
+  },
+
   accounts: async ({}, use) => {
     await use(createAccounts())
   },

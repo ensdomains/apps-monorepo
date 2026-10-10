@@ -3,7 +3,7 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { linkToNode } from '@/features/resolver/helpers/linkRecords'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
+import { invalidateResolverOverview } from './useResolverOverview'
 
 interface UseLinkToNodeOptions {
   readonly resolverAddress: Address

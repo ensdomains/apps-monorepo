@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
-import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -17,7 +16,10 @@ import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
-import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import {
+  getResolverOverviewQueryOptions,
+  resolverCollectionCount,
+} from '@/features/resolver/hooks/useResolverOverview'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
@@ -29,7 +31,7 @@ export const Route = createFileRoute('/resolver/$address/')({
   loader: ({ params }) => {
     return queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({
-        address: params.address as Address,
+        address: params.address,
       }),
     )
   },
@@ -45,7 +47,7 @@ function RouteComponent() {
     data: resolver,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverOverviewQueryOptions({ address: address }))
 
   const recentEvents = (resolver?.events ?? [])
     .toSorted(
@@ -75,7 +77,10 @@ function RouteComponent() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
           <CounterCardRow icon={GridIcon}>
-            <span className="font-medium">{resolver?.nodeCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolver?.nodeCount ?? 0}
+              {resolver?.nodeCountIsLowerBound && '+'}
+            </span>{' '}
             nodes
           </CounterCardRow>
         </CounterCard>
@@ -83,7 +88,10 @@ function RouteComponent() {
         <CounterCard to="/resolver/$address/roles" params={{ address }}>
           <CounterCardRow icon={UserRoundCog}>
             <span className="font-medium">
-              {resolver?.roleHolderCount ?? 0}
+              {resolverCollectionCount(
+                resolver?.roleHolderCount,
+                resolver?.rolesStatus,
+              )}
             </span>{' '}
             roles
           </CounterCardRow>
@@ -91,15 +99,20 @@ function RouteComponent() {
 
         <CounterCard to="/resolver/$address/links" params={{ address }}>
           <CounterCardRow icon={SplitIcon}>
-            <span className="font-medium">{resolver?.linkCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolverCollectionCount(
+                resolver?.linkCount,
+                resolver?.linksStatus,
+              )}
+            </span>{' '}
             links
           </CounterCardRow>
         </CounterCard>
       </div>
 
       <ResolverDetails
-        resolverAddress={address as Address}
-        typeValue={<ResolverTypeValue resolverAddress={address as Address} />}
+        resolverAddress={address}
+        typeValue={<ResolverTypeValue resolverAddress={address} />}
         data={[
           {
             label: 'Contract',

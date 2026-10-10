@@ -25,10 +25,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { ADDRESS_HISTORY_EVENT_TYPES } from '@/features/history/addressHistoryEventTypes'
-import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
+import { AddressRecordHistory } from '@/features/records/components/AddressRecordHistory'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -765,12 +764,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
               {displayName && (
                 <div className="border-t pt-6">
-                  <HistoryTimeline
+                  <AddressRecordHistory
                     name={displayName}
-                    scope={ADDRESS_HISTORY_EVENT_TYPES}
-                    heading={
-                      <h2 className="text-caps text-foreground">History</h2>
-                    }
                     action={
                       <Button
                         variant="ghost"
@@ -787,8 +782,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                         </Link>
                       </Button>
                     }
-                    emptyTitle="No resolution history"
-                    emptyDescription="Resolution record changes will appear here as they happen."
                   />
                 </div>
               )}

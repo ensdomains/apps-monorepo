@@ -1,72 +1,126 @@
-import { QueryClient } from '@tanstack/react-query'
-import { ok } from 'neverthrow'
-import type { Address } from 'viem'
+import {
+  type AddressName,
+  BignameError,
+  type LookupRecord,
+} from '@ens-apps/indexer/bigname'
+import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { bigname } from '@/lib/bigname'
+import { getResolvedNamesForAddress } from './useNamesForResolvedAddress'
 
-const mockClient = { chain: { id: 11155111 } }
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok(mockClient),
+vi.mock('@/lib/bigname', () => ({
+  bigname: { addressNames: vi.fn(), lookup: vi.fn() },
 }))
 
-// The read goes through ensjs's subgraph client, which replaces any name that
-// does not hash to its id before the portal sees it.
-const mockGraphqlRequest = vi.fn()
-const mockCreateSubgraphClient = vi.fn(() => ({ request: mockGraphqlRequest }))
-vi.mock('@ensdomains/ensjs/subgraph', () => ({
-  createSubgraphClient: mockCreateSubgraphClient,
-}))
+const ADDRESS = '0x996695a9072094d29f93aebd4229e3d5fb6bf231'
 
-const { getResolvedNamesForAddressQueryOptions } = await import(
-  './useNamesForResolvedAddress'
-)
-
-const ADDRESS: Address = '0x5B7d523f27c5b2232536Fb900ebFfB590d03ff5D'
-
-const domain = (i: number) => ({
-  id: `0x${i.toString(16).padStart(4, '0')}`,
-  name: `name${i}.eth`,
-  resolver: i === 0 ? null : { coinTypes: ['60'] },
+const row = (name: string, coinTypes: readonly number[]): AddressName => ({
+  name,
+  display_name: name,
+  namespace: 'ens',
+  namehash: '0x01',
+  status: 'active',
+  relations: ['resolves_to'],
+  is_primary: false,
+  resolutions: coinTypes.map((coin_type) => ({
+    coin_type,
+    record_key: `addr:${coin_type}`,
+  })),
 })
 
-describe('getResolvedNamesForAddressQueryOptions', () => {
-  beforeEach(() => {
-    mockGraphqlRequest.mockReset()
+const detail = (
+  name: string,
+  addresses: Readonly<Record<string, string | null>>,
+): LookupRecord => ({
+  name,
+  display_name: name,
+  namespace: 'ens',
+  namehash: '0x01',
+  read_status: 'ok',
+  records: {
+    seen_addresses: Object.keys(addresses),
+    addresses,
+    seen_texts: [],
+    texts: {},
+    abis: {},
+    seen_singletons: [],
+  },
+})
+
+const listed = (rows: readonly AddressName[]) =>
+  vi
+    .mocked(bigname.addressNames)
+    .mockReturnValue(okAsync({ data: rows, meta: { as_of: {} } }))
+
+const detailed = (records: readonly LookupRecord[]) =>
+  vi.mocked(bigname.lookup).mockReturnValue(
+    okAsync({
+      data: records.map((record) => ({
+        input: { name: record.name },
+        kind: 'name' as const,
+        status: 'ok' as const,
+        record,
+      })),
+      meta: { as_of: {} },
+    }),
+  )
+
+beforeEach(() => vi.clearAllMocks())
+
+describe('getResolvedNamesForAddress', () => {
+  it('asks bigname for the names whose EVM address records hold the address', async () => {
+    listed([row('juveniles.eth', [60])])
+    detailed([detail('juveniles.eth', { '60': ADDRESS })])
+
+    await getResolvedNamesForAddress({ address: ADDRESS })
+
+    expect(bigname.addressNames).toHaveBeenCalledWith(ADDRESS, {
+      namespace: 'ens',
+      relation: 'resolves_to',
+      coin_type: 'evm',
+      sort: 'name',
+      order: 'asc',
+      page_size: 100,
+    })
   })
 
-  const options = getResolvedNamesForAddressQueryOptions({ address: ADDRESS })
-
-  it('pages after the last id of the previous page while pages come back full', async () => {
-    const first = Array.from({ length: 100 }, (_, i) => domain(i))
-    mockGraphqlRequest
-      .mockResolvedValueOnce({ domains: first })
-      .mockResolvedValueOnce({ domains: [domain(100)] })
-
-    const data = await new QueryClient().fetchInfiniteQuery({
-      ...options,
-      pages: 2,
-    })
-
-    expect(mockCreateSubgraphClient).toHaveBeenCalledWith(mockClient)
-    expect(mockGraphqlRequest.mock.calls[0]?.[1]).toEqual({
-      address: ADDRESS.toLowerCase(),
-      first: 100,
-      after: '',
-    })
-    expect(mockGraphqlRequest.mock.calls[1]?.[1]).toMatchObject({
-      after: first[99]?.id,
-    })
-    expect(data.pages.flatMap((page) => page.names)).toHaveLength(101)
-    expect(data.pages[1]?.hasNextPage).toBe(false)
-  })
-
-  it('lists a name with no resolver without networks', async () => {
-    mockGraphqlRequest.mockResolvedValue({ domains: [domain(0), domain(1)] })
-
-    const data = await new QueryClient().fetchInfiniteQuery(options)
-
-    expect(data.pages[0]?.names).toEqual([
-      { name: 'name0.eth', coinTypes: [] },
-      { name: 'name1.eth', coinTypes: ['60'] },
+  it('lists each name with the networks it has an address for, cleared ones excluded', async () => {
+    listed([row('juveniles.eth', [2147483658])])
+    detailed([
+      detail('juveniles.eth', {
+        '60': '0xabc',
+        '0': 'bc1q',
+        '2147483658': ADDRESS,
+        '501': null,
+      }),
     ])
+
+    const names = (
+      await getResolvedNamesForAddress({ address: ADDRESS })
+    )._unsafeUnwrap()
+
+    expect(names.map(({ name }) => name)).toEqual(['juveniles.eth'])
+    expect(names[0]?.coinTypes.toSorted()).toEqual(['0', '2147483658', '60'])
+  })
+
+  it('says when more names point at the address than bigname lists', async () => {
+    vi.mocked(bigname.addressNames).mockReturnValue(
+      errAsync(new BignameError({ code: 'unsupported', message: 'too many' })),
+    )
+
+    const result = await getResolvedNamesForAddress({ address: ADDRESS })
+
+    expect(result._unsafeUnwrapErr()._tag).toBe('TooManyResolvedNamesError')
+  })
+
+  it('is empty without a lookup when no name points at the address', async () => {
+    listed([])
+
+    const names = (
+      await getResolvedNamesForAddress({ address: ADDRESS })
+    )._unsafeUnwrap()
+
+    expect(names).toEqual([])
+    expect(bigname.lookup).not.toHaveBeenCalled()
   })
 })
