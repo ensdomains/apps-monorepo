@@ -40,8 +40,8 @@ const PrimaryNameNameplate = ({
     <div
       className={
         isInGrace
-          ? 'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
-          : 'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+          ? 'inline-flex max-w-full items-center self-start rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+          : 'inline-flex max-w-full items-center self-start rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
       }
     >
       <span
