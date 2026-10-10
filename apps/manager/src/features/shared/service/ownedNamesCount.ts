@@ -1,13 +1,15 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 
 export class GetOwnedNamesCountError extends TaggedError(
   'GetOwnedNamesCountError',
 )<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 /**
@@ -15,7 +17,7 @@ export class GetOwnedNamesCountError extends TaggedError(
  * once even when wrapped. Subnames are left out. Null when bigname cannot give
  * an exact total.
  */
-export const getOwnedNamesCount = (address: string) =>
+export const getOwnedNamesCount = (address: Address) =>
   bigname
     .addressNames(address.toLowerCase(), {
       relation: ['owner'],
@@ -30,12 +32,12 @@ export const getOwnedNamesCount = (address: string) =>
     )
     .mapErr((error) => new GetOwnedNamesCountError({ cause: error }))
 
-const ownedNamesCountQueryKey = (address?: string) =>
+const ownedNamesCountQueryKey = (address?: Address) =>
   qk('owned_names_count', {
     address: address?.toLowerCase(),
   })
 
-export const ownedNamesCountQueryOptions = (address?: string) =>
+export const ownedNamesCountQueryOptions = (address?: Address) =>
   resultQueryOptions({
     queryKey: ownedNamesCountQueryKey(address),
     queryFn: address ? () => getOwnedNamesCount(address) : skipToken,

@@ -8,6 +8,7 @@ import {
   readNamesForAddress,
 } from '@ens-apps/indexer/bigname'
 import type {
+  IndexerReadError,
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
@@ -21,7 +22,7 @@ import {
   resultQueryOptions,
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { skipToken } from '@tanstack/react-query'
+import { type QueryClient, skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import {
@@ -44,18 +45,36 @@ import {
 
 const FETCH_PAGE_SIZE = 200
 
+const NAMES_ACTION = 'names'
+const GRACE_NAMES_ACTION = 'grace_names'
+const RENEWABLE_NAMES_ACTION = 'renewable_names'
+
 /** The dashboard queries that list the connected accounts' names. */
 export const DASHBOARD_NAME_ACTIONS = [
-  'names',
-  'grace_names',
-  'renewable_names',
+  NAMES_ACTION,
+  GRACE_NAMES_ACTION,
+  RENEWABLE_NAMES_ACTION,
 ] as const
+
+/** Refreshes every dashboard name list, inactive variants too when asked. */
+export const invalidateDashboardNames = (
+  queryClient: QueryClient,
+  options: { readonly refetchType?: 'active' | 'all' } = {},
+) =>
+  Promise.all(
+    DASHBOARD_NAME_ACTIONS.map(($action) =>
+      queryClient.invalidateQueries({
+        queryKey: qk('dashboard', $action),
+        ...options,
+      }),
+    ),
+  )
 const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
 export class GetDashboardNamesError extends TaggedError(
   'GetDashboardNamesError',
 )<{
-  cause: unknown
+  cause: BignameError | IndexerReadError
 }> {}
 
 const MAX_STALE_ATTEMPTS = 3
@@ -235,7 +254,7 @@ export const getDashboardNamesInfiniteQueryOptions = (
   query: DashboardNamesQuery,
 ) =>
   resultInfiniteQueryOptions({
-    queryKey: qk('dashboard', 'names', {
+    queryKey: qk('dashboard', NAMES_ACTION, {
       addresses: query.addresses.map((address) => address.toLowerCase()),
       sortField: query.sortField,
       sortDir: query.sortDir,
@@ -267,7 +286,7 @@ export const getDashboardGraceNamesQueryOptions = (
   addresses: readonly Address[],
 ) =>
   resultQueryOptions({
-    queryKey: qk('dashboard', 'grace_names', {
+    queryKey: qk('dashboard', GRACE_NAMES_ACTION, {
       addresses: addresses.map((address) => address.toLowerCase()),
     }),
     queryFn:
@@ -315,7 +334,7 @@ export const getRenewableDashboardNamesQueryOptions = (
   search: string,
 ) =>
   resultQueryOptions({
-    queryKey: qk('dashboard', 'renewable_names', {
+    queryKey: qk('dashboard', RENEWABLE_NAMES_ACTION, {
       addresses: addresses.map((address) => address.toLowerCase()),
       search,
     }),

@@ -66,24 +66,7 @@ describe('/ beforeLoad', () => {
     vi.mocked(getConnectionCookie).mockReturnValue(ADDRESS)
   })
 
-  it('redirects to the dashboard when the address has names', async () => {
-    await expect(runWith(async () => true)).rejects.toEqual({
-      redirect: { to: '/dashboard' },
-    })
-  })
-
-  it('stays on the landing page when the address has none', async () => {
-    await expect(runWith(async () => false)).resolves.toBeUndefined()
-  })
-
-  it('stays on the landing page when bigname cannot be read', async () => {
-    await expect(
-      runWith(async () => {
-        throw new Error('bigname unavailable')
-      }),
-    ).resolves.toBeUndefined()
-  })
-
+  // Whether the address has names is tested against bigname below.
   it.each([
     ['the landing page was asked for', ADDRESS, true],
     ['no wallet is connected', null, undefined],

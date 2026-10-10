@@ -4,7 +4,7 @@ import {
   SECONDS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
-import type { Hex } from 'viem'
+import type { Address, Hex } from 'viem'
 import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 
 export type DashboardNameRole = 'owner' | 'manager'
@@ -84,7 +84,7 @@ const parseSeconds = (timestamp: string | undefined): bigint | null =>
  */
 export const toGraceName = (
   row: AddressName,
-  address: string,
+  address: Address,
   now: Date,
 ): DashboardName | null => {
   const expiryDate = parseSeconds(row.expires_at)
@@ -174,7 +174,7 @@ export const compareDashboardNames =
 
 /** One page of one address's names, as listed by bigname. */
 export type AddressNamesChunk = {
-  readonly address: string
+  readonly address: Address
   readonly names: readonly DashboardName[]
   /** Rows bigname listed that the dashboard hides, such as reverse records. */
   readonly hiddenCount: number

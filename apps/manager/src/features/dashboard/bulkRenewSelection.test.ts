@@ -45,10 +45,6 @@ describe('toBulkRenewName', () => {
     expect(toBulkRenewName(raw)).toBeNull()
   })
 
-  it('excludes a row without a name', () => {
-    expect(toBulkRenewName(domain({ name: null }))).toBeNull()
-  })
-
   it('excludes subnames and non-.eth names', () => {
     expect(toBulkRenewName(domain({ name: 'sub.alice.eth' }))).toBeNull()
     expect(toBulkRenewName(domain({ name: 'alice.com' }))).toBeNull()

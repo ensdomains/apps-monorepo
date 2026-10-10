@@ -1,3 +1,4 @@
+import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type AddressName,
   type AddressNamesResponse,
@@ -10,9 +11,10 @@ import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ok } from 'neverthrow'
-import { labelhash, zeroAddress } from 'viem'
+import { type Address, labelhash, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
+import type { BignameLookupError } from './bignameLookup'
 import { checkNotAborted, lookupNames, retryOnStale } from './bignameLookup'
 
 const FETCH_PAGE_SIZE = 200
@@ -29,21 +31,22 @@ const HIDDEN_STATUSES: readonly AddressName['status'][] = [
 ]
 
 export class GetV1NamesError extends TaggedError('GetV1NamesError')<{
-  cause: unknown
+  cause: BignameError | BignameLookupError | Error
 }> {}
 
 type V1NamesClient = Pick<BignameClient, 'addressNames' | 'lookup'>
 
 type ReadOptions = { readonly signal?: AbortSignal }
 
-const toError = (cause: unknown) => new GetV1NamesError({ cause })
+const toError = (cause: BignameError | BignameLookupError | Error) =>
+  new GetV1NamesError({ cause })
 
 const isListed = (row: AddressName): boolean =>
   !row.name.endsWith('.reverse') && !HIDDEN_STATUSES.includes(row.status)
 
 const listV1NamesOnce = ResultFn(async function* (
   client: V1NamesClient,
-  address: string,
+  address: Address,
   options: ReadOptions,
 ) {
   let names: readonly string[] = []
@@ -69,7 +72,7 @@ const listV1NamesOnce = ResultFn(async function* (
 
 const listV1Names = (
   client: V1NamesClient,
-  address: string,
+  address: Address,
   options: ReadOptions,
 ) =>
   retryOnStale(
@@ -169,7 +172,7 @@ export const toV1Domain = (
 /** Every ENSv1 name the address holds a role on, in the shape the classifier reads. */
 export const readV1NamesForAddress = ResultFn(async function* (
   client: V1NamesClient,
-  address: string,
+  address: Address,
   options: ReadOptions = {},
 ) {
   const names = yield* await listV1Names(client, address, options)
@@ -194,6 +197,6 @@ export const readV1NamesForAddress = ResultFn(async function* (
 })
 
 export const getV1NamesForAddress = (
-  address: string,
+  address: Address,
   options: ReadOptions = {},
 ) => readV1NamesForAddress(bigname, address, options)
