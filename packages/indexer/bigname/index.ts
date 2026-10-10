@@ -1,4 +1,10 @@
-export { toProtocol, toUnixSeconds } from './adapters'
+export {
+  toDate,
+  toExactSeconds,
+  toExpirySeconds,
+  toProtocol,
+  toUnixSeconds,
+} from './adapters'
 export {
   type BignameClient,
   type BignameClientOptions,
@@ -21,12 +27,5 @@ export {
   retryStale,
 } from './paging'
 export { type ParsedRecordKey, parseRecordKey } from './recordKeys'
-export {
-  MAX_DATE_SECONDS,
-  MAX_PAGE_SIZE,
-  parseTimestamp,
-  secondsToTimestamp,
-  timestampToBigInt,
-  timestampToSeconds,
-} from './time'
+export { MAX_PAGE_SIZE, secondsToTimestamp } from './time'
 export type * from './types'

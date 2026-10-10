@@ -3,7 +3,7 @@ import {
   MAX_PAGE_SIZE,
   type Power,
   readAllCollectionPages,
-  timestampToBigInt,
+  toExactSeconds,
 } from '@ens-apps/indexer/bigname'
 import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
@@ -101,7 +101,7 @@ const toRoleChangeLogs = (
     const powers = data.powers ?? []
     const before = previousPowers(data, lastSeen.get(account))
     lastSeen.set(account, powers)
-    const timestamp = timestampToBigInt(row.timestamp)
+    const timestamp = toExactSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null || !timestamp)
       return []
     return [

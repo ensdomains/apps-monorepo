@@ -1,4 +1,7 @@
-import type { RegistryLabel as BignameRegistryLabel } from '@ens-apps/indexer/bigname'
+import {
+  type RegistryLabel as BignameRegistryLabel,
+  toExpirySeconds,
+} from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -7,7 +10,6 @@ import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
 import { isUnknownLabel } from '@/utils/names/registryChildName'
-import { servedExpiry } from '@/utils/names/servedExpiry'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
   cause: unknown
@@ -52,7 +54,7 @@ const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
     labelName: named ? (row.display_name.split('.')[0] ?? null) : null,
     labelhash: row.labelhash ?? null,
     // Null for no expiry (or one too large to date): it does not expire.
-    expiryDate: servedExpiry(row),
+    expiryDate: toExpirySeconds(row),
     roleHoldersCount: row.role_holder_count ?? 0,
   }
 }

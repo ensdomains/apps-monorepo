@@ -41,6 +41,9 @@ describe('parseRecordKeys', () => {
         'avatar',
         'contenthash',
         'addr:not-a-number',
+        'addr:',
+        'addr:01',
+        'addr:0x3c',
       ]),
     ).toEqual({ texts: ['com.github', 'avatar'], coins: [60, 2147483658] })
   })

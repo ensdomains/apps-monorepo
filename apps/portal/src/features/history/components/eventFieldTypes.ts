@@ -1,4 +1,4 @@
-import { parseTimestamp } from '@ens-apps/indexer/bigname'
+import { toDate } from '@ens-apps/indexer/bigname'
 import { formatHistoryAmount } from '@/utils/history/historyPayment'
 import { rootPermissionRegistry } from '@/utils/history/rootPermission'
 import { historyTokenId } from '../historyTokenId'
@@ -138,7 +138,7 @@ const formatField = (
     getTimelineFieldType(event.type, key) === 'timestamp' &&
     typeof value === 'string'
   )
-    return parseTimestamp(value)?.toISOString() ?? value
+    return toDate(value)?.toISOString() ?? value
   return formatHistoryAmount(key, value, event.data) ?? stringify(value)
 }
 

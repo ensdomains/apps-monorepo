@@ -3,7 +3,7 @@ import {
   type EventDataByType,
   type EventRow,
   type EventType,
-  timestampToSeconds,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -43,7 +43,7 @@ class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
 const RECENT_ACTIVITY_PAGE_SIZE = 15
 
 const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
-  const timestamp = timestampToSeconds(row.timestamp)
+  const timestamp = toUnixSeconds(row.timestamp)
   // A state-derived row has no transaction to link, nor a place in the feed.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
     return []

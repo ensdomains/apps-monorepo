@@ -1,8 +1,8 @@
 import {
   type EventRow,
   type NameHistoryRow,
-  parseTimestamp,
-  timestampToSeconds,
+  toDate,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import type { SubgraphEvent } from './groupEventsByTransactionId'
 import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
@@ -33,7 +33,7 @@ const flatten = (value: unknown): unknown => {
  */
 const flattenField = (key: string, value: unknown, data: object): unknown =>
   key === 'expires_at' && typeof value === 'string'
-    ? (parseTimestamp(value)?.toISOString() ?? value)
+    ? (toDate(value)?.toISOString() ?? value)
     : (formatHistoryAmount(key, value, data) ?? flatten(value))
 
 /**
@@ -78,7 +78,7 @@ export const historyEventsToSubgraphEvents = (
   rows: readonly NameHistoryRow[],
 ): (SubgraphEvent & Record<string, unknown>)[] =>
   withoutDuplicateCharges(rows).flatMap((row) => {
-    const timestamp = timestampToSeconds(row.timestamp)
+    const timestamp = toUnixSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null) return []
     return [
       {
@@ -87,7 +87,7 @@ export const historyEventsToSubgraphEvents = (
         transactionID: row.transaction_hash,
         blockNumber: row.block_number,
         type: row.kind ?? row.type,
-        ...(timestamp !== undefined && { timestamp: BigInt(timestamp) }),
+        ...(timestamp !== null && { timestamp: BigInt(timestamp) }),
       },
     ]
   })

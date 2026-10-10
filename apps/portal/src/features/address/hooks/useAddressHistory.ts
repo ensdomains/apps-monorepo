@@ -3,7 +3,7 @@ import {
   MAX_PAGE_SIZE,
   readAllCollectionPages,
   readNamesForAddress,
-  timestampToSeconds,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -70,7 +70,7 @@ const readHeldNames = (address: Address) =>
     .mapErr(toError)
 
 const toEvent = (row: EventRow): AddressHistoryEvent[] => {
-  const timestamp = timestampToSeconds(row.timestamp)
+  const timestamp = toUnixSeconds(row.timestamp)
   // A state-derived row has no transaction for the table to group under.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
     return []

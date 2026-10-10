@@ -6,7 +6,7 @@ import {
   type PermissionRow,
   type Power,
   readAllCollectionPages,
-  timestampToBigInt,
+  toExactSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
@@ -147,12 +147,8 @@ const ROOT_RESOURCE_HEX = toResourceHex(ROOT_RESOURCE)
 
 /** A row with no transaction or position is not listed. */
 const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
-  const timestamp = timestampToBigInt(row.timestamp)
-  if (
-    !row.transaction_hash ||
-    row.block_number === null ||
-    timestamp === undefined
-  )
+  const timestamp = toExactSeconds(row.timestamp)
+  if (!row.transaction_hash || row.block_number === null || timestamp === null)
     return []
   return [
     {

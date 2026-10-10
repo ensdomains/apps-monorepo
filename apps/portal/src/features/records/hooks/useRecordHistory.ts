@@ -2,7 +2,7 @@ import {
   MAX_PAGE_SIZE,
   type NameHistoryRow,
   readAllCollectionPages,
-  timestampToSeconds,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -72,12 +72,12 @@ const matchesKey = (
 }
 
 const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
-  const timestamp = timestampToSeconds(row.timestamp)
+  const timestamp = toUnixSeconds(row.timestamp)
   if (
     row.type !== 'record' ||
     !row.transaction_hash ||
     row.block_number === null ||
-    timestamp === undefined
+    timestamp === null
   )
     return []
   const value = recordValueText(row.data?.value)

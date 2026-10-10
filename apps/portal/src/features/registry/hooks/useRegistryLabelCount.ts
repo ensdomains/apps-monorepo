@@ -1,4 +1,4 @@
-import { timestampToSeconds } from '@ens-apps/indexer/bigname'
+import { toUnixSeconds } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -35,7 +35,7 @@ const getRegistryLabelCount = ({ address }: GetRegistryLabelCountParameters) =>
       const registry = response.data
       return {
         labelCount: registry.counts.labels ?? 0,
-        createdAt: timestampToSeconds(registry.created_at) ?? 0,
+        createdAt: toUnixSeconds(registry.created_at) ?? 0,
         creationTransactionHash: registry.created_transaction_hash,
       }
     })

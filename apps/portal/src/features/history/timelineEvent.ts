@@ -3,7 +3,7 @@ import {
   type EventRow,
   type EventType,
   type NameHistoryRow,
-  timestampToSeconds,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import type { Address, Hex } from 'viem'
 
@@ -81,8 +81,8 @@ export type TimelineEventOfType<TType extends EventType> = Extract<
 const toTimelineEvent = (
   row: NameHistoryRow | EventRow,
 ): TimelineEvent | undefined => {
-  const timestamp = timestampToSeconds(row.timestamp)
-  if (row.block_number === null || timestamp === undefined) return undefined
+  const timestamp = toUnixSeconds(row.timestamp)
+  if (row.block_number === null || timestamp === null) return undefined
   return {
     id: row.id,
     type: row.type,

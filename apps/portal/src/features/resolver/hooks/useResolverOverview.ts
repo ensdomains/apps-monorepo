@@ -12,7 +12,7 @@ import {
   type RecordResource,
   type RecordResourceSelector,
   type ResolverPower,
-  timestampToSeconds,
+  toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -286,7 +286,7 @@ const toResolverRole = (row: BignameResolverRole): ResolverRole => ({
   roleBitmap: powersToResolverRoleBitmap(row.powers).toString(),
   blockNumber: row.grant_event?.block_number ?? 0,
   transactionHash: row.grant_event?.transaction_hash ?? null,
-  timestamp: timestampToSeconds(row.grant_event?.timestamp) ?? null,
+  timestamp: toUnixSeconds(row.grant_event?.timestamp) ?? null,
   name: row.name ?? null,
 })
 
@@ -308,7 +308,7 @@ const toResolverEvent = (row: EventRow): ResolverEvent[] =>
           id: row.id,
           type: row.kind ?? row.type,
           blockNumber: row.block_number,
-          timestamp: timestampToSeconds(row.timestamp) ?? null,
+          timestamp: toUnixSeconds(row.timestamp) ?? null,
           transactionHash: row.transaction_hash,
           data: JSON.stringify(flattenHistoryData(row.data)),
         },

@@ -1,9 +1,10 @@
-import type { RecordInventory } from '@ens-apps/indexer/bigname'
+import { parseRecordKey, type RecordInventory } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { errAsync, ok, okAsync } from 'neverthrow'
+import { match } from 'ts-pattern'
 import { bigname } from '@/lib/bigname'
 import { getRecords } from './useRecords'
 
@@ -43,18 +44,18 @@ const NO_KEYS: Pick<RecordInventory, 'known_keys' | 'unsupported_keys'> = {
 }
 
 /** The text keys and coin types in bigname's `text:`/`addr:` record keys. */
-export const parseRecordKeys = (keys: readonly string[]) => ({
-  texts: keys.flatMap((key) => {
-    if (key === 'avatar') return ['avatar']
-    return key.startsWith('text:') ? [key.slice('text:'.length)] : []
-  }),
-  coins: keys.flatMap((key) => {
-    const coinType = key.startsWith('addr:')
-      ? Number(key.slice('addr:'.length))
-      : Number.NaN
-    return Number.isSafeInteger(coinType) ? [coinType] : []
-  }),
-})
+export const parseRecordKeys = (keys: readonly string[]) => {
+  const parsed = keys.flatMap((key) => parseRecordKey(key) ?? [])
+  return {
+    texts: parsed.flatMap((key) =>
+      match(key)
+        .with({ kind: 'avatar' }, () => ['avatar'])
+        .with({ kind: 'text' }, ({ key }) => [key])
+        .otherwise(() => []),
+    ),
+    coins: parsed.flatMap((key) => (key.kind === 'addr' ? [key.coinType] : [])),
+  }
+}
 
 const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
 
