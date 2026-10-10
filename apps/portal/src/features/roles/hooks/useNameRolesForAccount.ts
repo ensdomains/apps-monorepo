@@ -79,7 +79,7 @@ const getNameRolesForAccount = ResultFn(async function* (
   return ok(result)
 })
 
-const getNameRolesForAccountQueryKey = createQueryKey<
+export const getNameRolesForAccountQueryKey = createQueryKey<
   'getNameRolesForAccount',
   Record<string, unknown>
 >('getNameRolesForAccount')

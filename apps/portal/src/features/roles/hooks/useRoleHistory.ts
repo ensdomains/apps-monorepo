@@ -45,7 +45,7 @@ export const getRoleHistory = ResultFn(async function* ({
   return ok(entries)
 })
 
-const getRoleHistoryQueryKey = createQueryKey<
+export const getRoleHistoryQueryKey = createQueryKey<
   'get-role-history',
   GetRoleHistoryParameters
 >('get-role-history')

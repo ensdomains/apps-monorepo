@@ -226,7 +226,7 @@ export const getNameRolesAccounts = ResultFn(async function* ({
   })
 })
 
-const getNameRolesAccountsQueryKey = createQueryKey<
+export const getNameRolesAccountsQueryKey = createQueryKey<
   'get-name-roles-accounts',
   Record<string, unknown>
 >('get-name-roles-accounts')
