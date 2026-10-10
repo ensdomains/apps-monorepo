@@ -5,6 +5,151 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 32 — 2026-10-10 · bigname harness merged; interpret stall fixed; both modes run locally
+
+**Batch:** take over the bigname harness (`.claude/worktrees/bigname-harness`,
+its handoff `e2e/docs/bigname-harness-handoff.md`). Merged
+`e2e/bigname-harness` into `e2e-tests-coverage` (`b7592d017`, `--no-ff`, no
+conflicts: nothing had been committed here since `e7ed77282`). Local env edits
+were copied to the session scratchpad first and put back after; the manager's
+`.env.local` gained `VITE_BIGNAME_API_URL=http://127.0.0.1:5660`.
+
+**Verified after the merge:** `pnpm typecheck` clean in apps/manager,
+apps/portal, workers/api-worker, packages/indexer, e2e. Unit tests: indexer 46,
+api-worker 245, manager 3,192 and portal 2,674 pass; the one failure in each
+app is `csp.test.ts` "allowlists every shared RPC failover origin", which wants
+`https://lb.drpc.live` in connect-src and fails only because the local `.env`
+sets `VITE_SEPOLIA_RPC_URL=/rpc`.
+
+### The interpret stall (E2E-022) — cause and fix
+
+Not the event order: **two consecutive blocks in the same second.** A wrapped
+`makeV1Name` reserves in V2 (block N) and then `wrapETH2LD`s, whose
+`BaseRegistrar.reclaim` emits the ENSv1 `NewOwner` (block N+1). With the pair
+one second apart bigname indexes fine; in the same second it stops. bigname
+seeds ENSv1 surface-binding ids from the authority key and the event instant
+(`binding:{authority_key}:{timestamp[+log_index]}`, six sites under
+`crates/adapters/src/schema_v2/protocol/v1/`), with no block number, so the two
+collide and the upsert's `active_from` guard rejects the second. Real chains
+cannot produce equal timestamps; Anvil does whenever it mines two blocks in one
+second, so a fixture-side fix would only move the problem to the app's own
+transactions.
+
+Fix: bigname commit `0f6c2171d` on local branch `e2e/anvil-fork-start` (not
+pushed) — `v1_binding_seed` folds the block number into the seed **only** under
+`BIGNAME_DEV_ALLOW_SEPOLIA_START=1`; unflagged seeds are byte-for-byte
+unchanged. Image `bigname:e2e-anvil-fork` rebuilt from it (previous one kept as
+`bigname:e2e-anvil-fork-prev`). Verified: the stalled pair re-indexes from a
+fresh database, plus three more same-second reserve→wrap pairs. A bigname issue
+is drafted for review in the session scratchpad (`bigname-issue-draft.md`), not
+filed.
+
+### Stack changes (committed in `9cc6248f7`)
+
+- `bigname-api` reads through the fork-aware router (`bigname-rpc:8547`), not
+  Anvil: its startup check reads the genesis block, which Anvil answers by
+  asking its own upstream.
+- The router has its own `BIGNAME_UPSTREAM_RPC_URL` (falls back to
+  `SEPOLIA_FORK_URL`). Used here: `https://sepolia.gateway.tenderly.co` (an
+  archive; throttles bursts with 429, the router retries).
+- **Anvil must stay on an archive upstream.** publicnode stopped drpc's 500s
+  crashing Anvil, but it prunes (~10k blocks): Panoptes backfills from the ENSv2
+  deployment ~64k blocks before the fork and then indexes nothing, which fails
+  the portal harness. Anvil is back on the default drpc; it still crashes now
+  and then — the runner rebuilds between suites.
+- drpc's key also rate-limits the router after a few fresh-fork backfills in a
+  day (HTTP 429, bigname stuck at block 0).
+
+### Mock mode (CI) fixes
+
+- `mockV1Names` matched only `bigname.sh/v1/`; a local dev server reads
+  `127.0.0.1:5660`, so mock-mode runs silently read the real local index (and
+  nothing waited for it). It now matches `:5660` too, like `mock-indexer.ts`.
+- The mock reports a test's own V1 resolver and registrant/manager split, and
+  defaults the resolver to the one `makeV1Name` writes records to (the app
+  takes record **keys** from bigname and reads **values** on chain from the
+  resolver bigname reports; a different default replayed nothing — GR1).
+- `serveV1Names(page, input, { indexer: mockIndexer })` also registers the
+  names with the dashboard's mock (it lists from a different query).
+
+### Real-mode findings
+
+- The dashboard's "Upgrade Names" banner hides once the wallet has migrated
+  any name (`shouldShowUpgradeBanner`: `migratedCount >= 1`). The shared wallet
+  always has, so `openMigrationFlow` now opens `/upgrade` directly. The grace
+  tests that assert the banner itself (`:288`, `:416`, `:634`) can only pass on
+  a wallet that never migrated: real-mode-only limitation, covered in mock mode.
+- Account 0 accumulates every name it creates; by mid-suite `/upgrade` lists
+  80+ and new rows can take longer than 30 s to appear (GW3/GW7/GW8 in real
+  mode). Paging is fine (`v1Names.ts` follows the cursor).
+- Registry-only V1 subnames have no label in local bigname (`[labelhash].p.eth`:
+  only the hash reaches the chain), so the subname copy specs fail in real mode
+  and are skipped in mock mode — **GS3/GS4/GS7/GS9/GS14/GS15/GS16 currently run
+  in neither mode.** Needs a label source for the local bigname, or a mock that
+  can express subname trees.
+- `evm_revert` below a block bigname has seen makes its head walk ask for a
+  block that no longer exists ("provider omitted block"): terminal, recovers on
+  restart within a minute. Seen once, during the harness's snapshot tests.
+
+### Results
+
+| Suite | Mode | Result |
+|---|---|---|
+| manager-migration | mock (CI) | **33 pass**, 7 skip (subname trees), 0 fail — incl. the 91-day time project |
+| manager-migration | real | 24 pass, 15 fail (see real-mode findings: accumulation, banner, subnames) |
+| manager | mock (CI) | 44 pass, 7 fail, 3 skip |
+| manager | real | 30 pass, 18 fail, 6 skip — 14 were the #1258 `Select USDC` drift, since fixed |
+| manager-premium | both | 4 skipped by design |
+| portal | real | 428 pass, **66 fail**, 3 skip (1.8 h) — see below |
+| cross-app | real | no tests exist |
+| metadata | real | 16 pass, 2 fail — the known pair (webhook cache purge, mainnet archive) |
+
+Portal failures (real mode), none bigname-related — the portal still reads
+Panoptes. Fifteen portal PRs reached `main` on 2026-10-06…09 without e2e
+updates, and this merge brought them in:
+- transfer ×26, roles ×14: #1353 (WEB-1762) reads current role holders with a
+  new `RoleHolders` (`roleConnection`) query. The local Panoptes image
+  (`ghcr.io/mdtanrikulu/panoptes:latest`, built 2026-04-23; the registry
+  answers 403, so it cannot be refreshed from here) returns no holders, the
+  WEB-1484 guard then refuses to build a transfer plan ("Couldn't check who
+  else holds permissions on this name…"), and every transfer test finds
+  "Transfer name" disabled. `mock-indexer.ts` has no `RoleHolders` handler
+  either, so CI mode would hit the same guard. #1346 (role events past 1,000,
+  list loader) also changed the role history the tests read.
+- V1 matrix ×24 (2LD 16, 3LD 6, 4LD 2): resolver/change-resolver/history tabs
+  now render content for V1 names where the matrix expects "Not Available for
+  V1 Names" / "No history yet" — the list-loader and paged-timeline series
+  (#1323…#1355, e.g. #1327 history timeline, #1338 resolver history).
+- history ×1, resolver ×1: same series.
+
+Manager failures left in mock mode, none bigname-related:
+- WEB-1483 ×4 (`registration-rhinestone.spec.ts` "payment sheet with a
+  leftover"): #1258 removed the itemised "Network fee" line from the payment
+  breakdown on purpose; the tests encode the old design and need rewriting.
+- B11 (`profile.spec.ts:566`): the renew deep link now redirects an unregistered
+  name to `/register/$name` — B11's own oracle ("parity: v3 redirect"). The test
+  expected an error page, which only appeared because the pre-bigname indexer
+  reported no protocol for an available name. Rewritten; 4/4 green in both
+  modes after raising the redirect wait to 30 s (a cold dev server compiles the
+  register route on first use).
+- B5 (`:507`): compares the calendar against the runner's wall clock
+  (`new Date()`), which a warped fork has left behind; the year select has no
+  such option. B2 (`:387`, extend an unowned name): mid-transaction timeout,
+  not triaged.
+
+**Next:** (0) portal drift pass for #1323…#1355 and #1346/#1353: a
+`RoleHolders` handler in `mock-indexer.ts`, a current Panoptes image locally
+(needs registry access), then re-baseline the V1 matrix expectations and the
+role/transfer specs; (1) rewrite the WEB-1483 tests for #1258's breakdown;
+(2) fix B5's clock source, triage B2; (3) a label source for subnames in local bigname;
+(4) per-suite fresh wallets or forks for real mode, so accumulation stops
+skewing results; (5) update `e2e/README.md`, `e2e/docs/e2e-build-goal.md` and
+`.claude/skills/pr-verify/SKILL.md` for the bigname stack; (6) ask the user
+before pushing `e2e/bigname-harness` / `e2e-tests-coverage` or the bigname
+branch, before filing the bigname issue, and before deleting the worktree.
+
+---
+
 ## Iteration 31 — 2026-10-09 · migration deep into and after grace (GA7, GA8); premium spec retired
 
 **Batch:** the last migration file no config ran. `migration-premium.spec.ts`

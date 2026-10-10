@@ -556,26 +556,33 @@ test.describe('ENS profile', () => {
   })
 
   /**
-   * B11 (unregistered case) — `apps/manager/src/routes/renew/$name.tsx`'s
-   * loader throws when `profileExpiryQuery` reports no v2 protocol, which is
-   * exactly what an available (never registered) name reports. The route's
-   * own `errorComponent` (`RenewalRouteError`) renders a real, informative
-   * page rather than a stack trace or a blank screen — that graceful
-   * degradation is the thing worth locking in.
+   * B11 (unregistered case) — an available (never registered) name has no
+   * expiry, and `apps/manager/src/routes/renew/$name.tsx`'s loader redirects it
+   * to registration rather than offering a renewal of nothing.
    */
-  test('shows a graceful error for an unregistered name via the renew deep link', {
+  test('sends an unregistered name from the renew deep link to registration', {
     tag: ['@scenario:B11'],
   }, async ({ profileConnectedPage: page }) => {
     const unregisteredName = `b11-never-registered-${Date.now()}.eth`
 
     await page.goto(`${MANAGER_APP_URL}/renew/${unregisteredName}`)
 
+    // The loader reads no expiry for a label that was never registered and
+    // redirects to /register/$name (`routes/renew/$name.tsx`) — B11's oracle,
+    // parity with ens-app-v3's renew deep link. This test used to expect the
+    // route's error page, which only happened because the pre-bigname indexer
+    // reported no v2 protocol for an available name.
+    await expect(page).toHaveURL(
+      new RegExp(`/register/${unregisteredName.replace(/\./g, '\\.')}$`),
+      // A cold dev server compiles the register route on first use.
+      { timeout: 30_000 },
+    )
+    await expect(
+      page.getByRole('heading', { name: unregisteredName }),
+    ).toBeVisible()
     await expect(
       page.getByRole('heading', { name: /can.t be renewed here/i }),
-    ).toBeVisible({ timeout: 15_000 })
-    await expect(
-      page.getByRole('link', { name: /back to profile/i }),
-    ).toBeVisible()
+    ).toHaveCount(0)
   })
 
   /**
