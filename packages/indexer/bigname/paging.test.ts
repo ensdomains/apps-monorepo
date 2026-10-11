@@ -64,6 +64,33 @@ describe('readAllCollectionPages', () => {
     expect(rows._unsafeUnwrap()).toEqual([10])
   })
 
+  it('starts over only once when the restarted read stays stale too', async () => {
+    const read = vi.fn((cursor?: string) =>
+      cursor === undefined ? envelope([1], 'c2') : errAsync(stale()),
+    )
+
+    const rows = await readAllCollectionPages(read)
+
+    expect(rows._unsafeUnwrapErr().code).toBe('stale')
+    expect(
+      read.mock.calls.filter(([cursor]) => cursor === undefined),
+    ).toHaveLength(2)
+  })
+
+  it('reads a long collection again only once after a late stale page', async () => {
+    const read = vi.fn((cursor?: string) => {
+      if (cursor === undefined) return envelope([1], 'c2')
+      if (cursor === 'c2') return envelope([2], 'c3')
+      return errAsync(stale())
+    })
+
+    await readAllCollectionPages(read)
+
+    expect(
+      read.mock.calls.filter(([cursor]) => cursor === undefined),
+    ).toHaveLength(2)
+  })
+
   it('stops paging once the limit is passed', async () => {
     const read = vi.fn((cursor?: string) =>
       cursor === undefined ? envelope([1, 2], 'c2') : envelope([3, 4], 'c3'),

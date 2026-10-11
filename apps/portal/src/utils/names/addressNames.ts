@@ -1,4 +1,4 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
+import { type AddressName, toDate } from '@ens-apps/indexer/bigname'
 import type { NameRelation, NameSummary } from '@ens-apps/indexer/reads'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
@@ -51,15 +51,11 @@ export const toAddressNameItem = (
         protocolVersion: summary.protocol === 'v1' ? 'ENSv1' : 'ENSv2',
       }
 
-const MS_PER_SECOND = 1000
-
 /** An ENSv2 name in grace, which the address can still renew. */
 export const toGraceItem = (row: AddressName): AddressNameItem => ({
   name: row.name,
   // A subregistry can mint an expiry a Date cannot hold; it reads as none.
-  expiryDate: row.expires_at
-    ? toValidDate(new Date(Number(row.expires_at) * MS_PER_SECOND))
-    : null,
+  expiryDate: toValidDate(toDate(row.expires_at)),
   relations: ['former_owner'],
   protocolVersion: 'ENSv2',
 })

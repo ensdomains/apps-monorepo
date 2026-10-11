@@ -32,34 +32,38 @@ type ReadAllPagesParameters<Row, E> = Readonly<{
   limit?: number
 }>
 
+type WalkFailure<E> = Readonly<{ error: E; cursor: string | undefined }>
+
 const walk = <Row, E>(
   params: ReadAllPagesParameters<Row, E>,
   cursor: string | undefined,
   collected: readonly Row[],
-  canRestart: boolean,
-): ResultAsync<readonly Row[], E> =>
+): ResultAsync<readonly Row[], WalkFailure<E>> =>
   retryStale(() => params.readPage(cursor), params.isStaleError)
+    .mapErr((error) => ({ error, cursor }))
     .andThen(({ rows, nextCursor }) => {
       const read = [...collected, ...rows]
       const isDone =
         nextCursor === null ||
         (params.limit !== undefined && read.length > params.limit)
       return isDone
-        ? okAsync<readonly Row[], E>(read)
-        : walk(params, nextCursor, read, canRestart)
+        ? okAsync<readonly Row[], WalkFailure<E>>(read)
+        : walk(params, nextCursor, read)
     })
-    // A cursor still stale after its retries is one bigname no longer
-    // accepts; the walk starts over once, without it.
-    .orElse((error) =>
-      cursor !== undefined && canRestart && params.isStaleError(error)
-        ? walk(params, undefined, [], false)
-        : errAsync(error),
-    )
 
 /** Every page of a collection, in order. */
 export const readAllPages = <Row, E>(
   params: ReadAllPagesParameters<Row, E>,
-): ResultAsync<readonly Row[], E> => walk(params, undefined, [], true)
+): ResultAsync<readonly Row[], E> =>
+  walk(params, undefined, [])
+    // A cursor still stale after its retries is one bigname no longer
+    // accepts; the read starts over once, without it.
+    .orElse(({ error, cursor }) =>
+      cursor !== undefined && params.isStaleError(error)
+        ? walk(params, undefined, [])
+        : errAsync({ error, cursor }),
+    )
+    .mapErr(({ error }) => error)
 
 /** Every page of a bigname collection route. */
 export const readAllCollectionPages = <Row>(
