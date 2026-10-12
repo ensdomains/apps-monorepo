@@ -1,16 +1,13 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { ArrowRight } from 'lucide-react'
 import { match } from 'ts-pattern'
+import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { profileButtonClassName } from '@/features/profile/components/view/ProfileAction.styles'
 import { cn } from '@/lib/utils'
-
-// Figma-spec button type: the tracking values have no matching tokens
-const footerButtonClassName =
-  'inline-flex h-12.5 items-center justify-center rounded px-5 font-mono text-sm uppercase tracking-[0.28px] transition-colors md:font-semi-mono md:text-xs md:tracking-[1.44px]'
 
 interface EditProfileDialogFooterProps {
   readonly canPreview: boolean
@@ -53,21 +50,18 @@ export const EditProfileDialogFooter = ({
   }
 
   const previewButton = (
-    <button
+    <Button
       aria-disabled={!canPreview}
       className={cn(
-        footerButtonClassName,
-        'gap-2 text-white',
-        canPreview
-          ? 'bg-ens-quartz-900 hover:bg-ens-quartz-700'
-          : 'cursor-not-allowed bg-ens-quartz-100 text-ens-quartz-400',
+        profileButtonClassName,
+        'aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
       )}
       onClick={handlePreviewClick}
       type="button"
+      variant="blue"
     >
       <Trans>Preview</Trans>
-      <ArrowRight aria-hidden className="size-4" />
-    </button>
+    </Button>
   )
 
   return (
@@ -85,16 +79,14 @@ export const EditProfileDialogFooter = ({
         ) : null}
       </p>
       <div className="flex shrink-0 items-center justify-end gap-3">
-        <button
-          className={cn(
-            footerButtonClassName,
-            'text-ens-quartz-900 hover:bg-ens-quartz-50',
-          )}
+        <Button
+          className={cn(profileButtonClassName, 'text-ens-quartz-700')}
           onClick={onCancel}
           type="button"
+          variant="ghost"
         >
           <Trans>Cancel</Trans>
-        </button>
+        </Button>
         {disabledReason ? (
           <Tooltip>
             <TooltipTrigger asChild>{previewButton}</TooltipTrigger>

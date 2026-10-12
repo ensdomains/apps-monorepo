@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
+import { Button } from '@/components/ui/button'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useAppForm } from '../../form'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
@@ -110,10 +111,11 @@ export const EditProfileDialog = ({
               onPublish={handlePublish}
             />
           ) : (
-            <button
+            <Button
               className={editButtonClassName}
               onClick={handleOpen}
               type="button"
+              variant="blue"
             >
               <span className="lg:landscape:hidden">
                 <Trans>Edit</Trans>
@@ -121,7 +123,7 @@ export const EditProfileDialog = ({
               <span className="hidden lg:landscape:inline">
                 <Trans>Edit Profile</Trans>
               </span>
-            </button>
+            </Button>
           )
         }
       >

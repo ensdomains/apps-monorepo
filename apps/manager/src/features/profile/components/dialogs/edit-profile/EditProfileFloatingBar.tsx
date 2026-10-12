@@ -35,52 +35,41 @@ const useOpenHeight = () => {
   return openHeight
 }
 
-const getHeightTransition = (isOpen: boolean, isReducedMotion: boolean) => {
-  if (isReducedMotion) return { duration: 0 }
+// Sequenced swap so content never travels across the screen: the old content
+// fades out, the container resizes, then the new content fades in.
+const FADE_OUT_DURATION = 0.12
+const RESIZE_DURATION = 0.28
+const FADE_IN_DELAY = FADE_OUT_DURATION + RESIZE_DURATION
+const FADE_IN_DURATION = 0.15
 
-  return isOpen
-    ? { type: 'spring' as const, stiffness: 300, damping: 30, mass: 0.8 }
-    : { type: 'spring' as const, stiffness: 380, damping: 38, mass: 0.7 }
-}
+const getHeightTransition = (isReducedMotion: boolean) =>
+  isReducedMotion
+    ? { duration: 0 }
+    : {
+        delay: FADE_OUT_DURATION,
+        duration: RESIZE_DURATION,
+        ease: [0.4, 0, 0.2, 1] as const,
+      }
 
-const getBarMotion = (isOpen: boolean, isReducedMotion: boolean) => ({
+const getBarTransition = (isOpen: boolean, isReducedMotion: boolean) =>
+  match({ isOpen, isReducedMotion })
+    .with({ isReducedMotion: true }, () => ({ duration: 0 }))
+    .with({ isOpen: true }, () => ({ duration: FADE_OUT_DURATION }))
+    .otherwise(() => ({ delay: FADE_IN_DELAY, duration: FADE_IN_DURATION }))
+
+const getFadeMotion = (isReducedMotion: boolean) => ({
   animate: {
-    filter: isOpen ? 'blur(6px)' : 'blur(0px)',
-    opacity: isOpen ? 0 : 1,
-    scale: isOpen ? 0.97 : 1,
-  },
-  transition: {
-    delay: isOpen || isReducedMotion ? 0 : 0.1,
-    duration: match({ isOpen, isReducedMotion })
-      .with({ isReducedMotion: true }, () => 0)
-      .with({ isOpen: true }, () => 0.1)
-      .otherwise(() => 0.14),
-    ease: 'easeOut' as const,
-  },
-})
-
-const getEditorMotion = (isReducedMotion: boolean) => ({
-  animate: {
-    filter: 'blur(0px)',
     opacity: 1,
-    y: 0,
     transition: {
-      delay: isReducedMotion ? 0 : 0.07,
-      duration: isReducedMotion ? 0 : 0.3,
-      ease: [0.22, 1, 0.36, 1] as const,
+      delay: isReducedMotion ? 0 : FADE_IN_DELAY,
+      duration: isReducedMotion ? 0 : FADE_IN_DURATION,
     },
   },
   exit: {
-    filter: isReducedMotion ? 'blur(0px)' : 'blur(4px)',
     opacity: 0,
-    y: isReducedMotion ? 0 : 16,
-    transition: { duration: isReducedMotion ? 0 : 0.1 },
+    transition: { duration: isReducedMotion ? 0 : FADE_OUT_DURATION },
   },
-  initial: {
-    filter: isReducedMotion ? 'blur(0px)' : 'blur(8px)',
-    opacity: 0,
-    y: isReducedMotion ? 0 : 24,
-  },
+  initial: { opacity: 0 },
 })
 
 const useMeasuredHeight = (ref: RefObject<HTMLElement | null>) => {
@@ -90,9 +79,13 @@ const useMeasuredHeight = (ref: RefObject<HTMLElement | null>) => {
     const element = ref.current
     if (!element) return
 
-    const observer = new ResizeObserver(() => setHeight(element.offsetHeight))
+    // Ignore the empty frame while swapped content is unmounted
+    const updateHeight = () => {
+      if (element.offsetHeight > 0) setHeight(element.offsetHeight)
+    }
+    const observer = new ResizeObserver(updateHeight)
     observer.observe(element)
-    setHeight(element.offsetHeight)
+    updateHeight()
 
     return () => observer.disconnect()
   }, [ref])
@@ -143,9 +136,9 @@ export const EditProfileFloatingBar = ({
   }
 
   const isReducedMotion = !!shouldReduceMotion
-  const heightTransition = getHeightTransition(isOpen, isReducedMotion)
-  const barMotion = getBarMotion(isOpen, isReducedMotion)
-  const editorMotion = getEditorMotion(isReducedMotion)
+  const heightTransition = getHeightTransition(isReducedMotion)
+  const barTransition = getBarTransition(isOpen, isReducedMotion)
+  const fadeMotion = getFadeMotion(isReducedMotion)
 
   return (
     <section
@@ -163,28 +156,36 @@ export const EditProfileFloatingBar = ({
         transition={heightTransition}
       >
         <motion.div
-          animate={barMotion.animate}
-          className={editBottomBarContentClassName}
+          animate={{ opacity: isOpen ? 0 : 1 }}
           inert={isOpen}
           ref={barRef}
-          style={{ transformOrigin: 'bottom center' }}
-          transition={barMotion.transition}
+          transition={barTransition}
         >
-          {leftActions ? (
-            <div className={profileBarActionsClassName}>{leftActions}</div>
-          ) : null}
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-3 lg:landscape:ml-auto lg:landscape:flex-none">
-            {rightActions}
-          </div>
+          <AnimatePresence initial={false} mode="wait">
+            <motion.div
+              animate={fadeMotion.animate}
+              className={editBottomBarContentClassName}
+              exit={fadeMotion.exit}
+              initial={fadeMotion.initial}
+              key={leftActions ? 'bar' : 'preview'}
+            >
+              {leftActions ? (
+                <div className={profileBarActionsClassName}>{leftActions}</div>
+              ) : null}
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-3 lg:landscape:ml-auto lg:landscape:flex-none">
+                {rightActions}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </motion.div>
 
         <AnimatePresence>
           {isOpen ? (
             <motion.div
-              animate={editorMotion.animate}
+              animate={fadeMotion.animate}
               className="absolute inset-x-0 bottom-0 flex flex-col outline-none focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-inset"
-              exit={editorMotion.exit}
-              initial={editorMotion.initial}
+              exit={fadeMotion.exit}
+              initial={fadeMotion.initial}
               ref={editorRef}
               style={{ height: openHeight }}
               tabIndex={-1}

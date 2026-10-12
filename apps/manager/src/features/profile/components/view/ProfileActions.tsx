@@ -11,8 +11,8 @@ import {
   editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
-  editFloatingActionClassName,
   profileBarActionsClassName,
+  profileButtonClassName,
   profileStickyBarClassName,
   renewActionClassName,
   renewBarActionClassName,
@@ -70,7 +70,7 @@ export const ProfileActions = ({
   if (hasFloatingBar) {
     return (
       <ProfileEditAction
-        className={editFloatingActionClassName}
+        className={profileButtonClassName}
         isInGrace={isInGrace}
         isOwner={isOwner}
         leftActions={barActions}

@@ -76,6 +76,15 @@ const ProfileCommemorativeNftSection = ({
   return <CommemorativeNftProfileSection isOwner name={name} />
 }
 
+const getImageUrls = (
+  draft: ProfileDraft | null,
+  avatarData: string | null | undefined,
+  headerData: string | null | undefined,
+) => ({
+  avatarUrl: draft?.avatarPreviewUrl ?? avatarData ?? undefined,
+  headerUrl: draft?.headerPreviewUrl ?? headerData ?? undefined,
+})
+
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
@@ -146,8 +155,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     )
   }
 
-  const avatarUrl = draft?.avatarPreviewUrl ?? avatar.data ?? undefined
-  const headerUrl = draft?.headerPreviewUrl ?? header.data ?? undefined
+  const { avatarUrl, headerUrl } = getImageUrls(draft, avatar.data, header.data)
   const defaultHeaderUrl = getDefaultHeaderCover({
     isInGrace: expiry.isInGrace,
     themeColor: displayRecords.base.theme,
@@ -158,6 +166,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
   const resolvedIsOwner = isOwnerPending ? undefined : isOwner
 
+  // Figma page background and bottom padding (sticky bar height plus safe area)
+  // have no matching tokens
   return (
     <div
       className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5 lg:landscape:data-[owner=true]:pb-44"
