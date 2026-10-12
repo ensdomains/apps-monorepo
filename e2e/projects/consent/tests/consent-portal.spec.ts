@@ -342,6 +342,21 @@ test('C4: the notice switch stops and resumes analytics at once', async ({
     stub.eventBodies().length,
     'events resume after re-accepting',
   ).toBeGreaterThan(countAtDecline)
+  // A stored accept loads opted-in; declining then must also leave nothing.
+  await page.goto(`${APP_URL}/privacy`)
+  await page.reload()
+  await expect(consentSwitch).toBeVisible()
+  await consentSwitch.click() // to Decline after a stored-accept load
+  await page.waitForTimeout(1_000)
+  const countAfterReloadDecline = stub.eventBodies().length
+  await page.goto(`${APP_URL}/vitalik.eth`)
+  await page.mouse.click(640, 400)
+  await page.waitForTimeout(3_000)
+  expect(
+    stub.eventBodies().length,
+    'no events after declining a stored accept',
+  ).toBe(countAfterReloadDecline)
+  await expectNoPosthogStorage(page)
 })
 
 test('C5: the notice names the collection and the choice', async ({ page }) => {

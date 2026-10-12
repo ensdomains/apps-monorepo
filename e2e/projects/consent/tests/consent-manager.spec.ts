@@ -283,6 +283,10 @@ test('C3a: accept with no wallet, then connect links the wallet', async ({
   await page.goto(`${APP_URL}/dashboard`)
   await page.waitForTimeout(2_000)
   expect(eventNamesIn(stub.eventBodies())).toContain('$pageview')
+  expect(
+    eventNamesIn(stub.eventBodies()),
+    'no implicit feature-flag call events',
+  ).not.toContain('$feature_flag_called')
 })
 
 test('C3b: accept with a connected wallet links at once', async ({ page }) => {
@@ -305,6 +309,7 @@ test('C3b: accept with a connected wallet links at once', async ({ page }) => {
   expect(names).toContain('$pageview')
   expect(names).not.toContain('tm:failed_run')
   expect(names).not.toContain('intercom:booted')
+  expect(names).not.toContain('$feature_flag_called')
   expect(
     stub.requests().some((r) => r.path.startsWith('/s/')),
     'no recording requests',
@@ -345,6 +350,21 @@ test('C4: the notice switch stops and resumes analytics at once', async ({
     stub.eventBodies().length,
     'events resume after re-accepting',
   ).toBeGreaterThan(countAtDecline)
+  // A stored accept loads opted-in; declining then must also leave nothing.
+  await page.goto(`${APP_URL}/legal/privacy-policy`)
+  await page.reload()
+  await expect(consentSwitch).toBeVisible()
+  await consentSwitch.click() // to Decline after a stored-accept load
+  await page.waitForTimeout(1_000)
+  const countAfterReloadDecline = stub.eventBodies().length
+  await page.goto(`${APP_URL}/dashboard`)
+  await page.mouse.click(640, 400)
+  await page.waitForTimeout(3_000)
+  expect(
+    stub.eventBodies().length,
+    'no events after declining a stored accept',
+  ).toBe(countAfterReloadDecline)
+  await expectNoPosthogStorage(page)
 })
 
 test('C5: the notice names the collection and the choice', async ({ page }) => {
