@@ -91,7 +91,7 @@ export const RegistrationDurationPresets = ({
             {discountPct > 0 ? (
               <span
                 className={cn(
-                  'absolute sm:top-0 sm:-right-1 top-1/2 -translate-y-1/2 right-4 rounded-full px-1.5 py-1.5 text-[10px] font-medium leading-none',
+                  'absolute sm:top-0 sm:-right-1 top-1/2 -translate-y-1/2 right-4 rounded-full px-1.5 py-1.5 text-smallcaps leading-none',
                   isSelected
                     ? 'bg-signal-success-700 text-white'
                     : 'bg-muted text-muted-foreground',

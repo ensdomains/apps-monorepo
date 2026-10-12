@@ -26,7 +26,7 @@ const DataBlockCardBase = forwardRef<
         <Icon className="size-4 shrink-0" />
         <span className="text-base truncate">{label}</span>
       </div>
-      <span className="text-h3 font-medium text-foreground shrink-0">
+      <span className="text-h3 leading-7 font-medium text-foreground shrink-0">
         {value}
       </span>
     </div>

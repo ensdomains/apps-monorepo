@@ -47,7 +47,7 @@ export const ExtensionDurationOrExpiryPicker = ({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-h3 font-medium">
+          <span className="text-h3 leading-7 font-medium">
             {span.type === 'years' ? 'For' : 'Until'}
           </span>
           <Button
