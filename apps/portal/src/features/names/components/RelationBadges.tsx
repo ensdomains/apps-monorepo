@@ -1,3 +1,4 @@
+import { match, P } from 'ts-pattern'
 import { Badge } from '@/components/ui/badge'
 import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import {
@@ -16,27 +17,26 @@ export const RelationBadges = ({
   readonly relations: readonly AddressNameRelation[]
   readonly roleCount?: RoleCount
 }) => {
-  if (roleCount === 'loading' || roleCount === 'unavailable')
-    return (
+  const labels = relationLabels(relations)
+  return match({ roleCount, labels })
+    .with({ roleCount: P.union('loading', 'unavailable') }, ({ roleCount }) => (
       <Badge variant="outline" className="text-muted-foreground text-xs">
         {roleCount === 'loading' ? 'Counting roles…' : 'Roles unknown'}
       </Badge>
-    )
-  if (roleCount !== undefined && roleCount > 0)
-    return (
+    ))
+    .with({ roleCount: P.number.gt(0) }, ({ roleCount }) => (
       <Badge variant="secondary" className="text-xs">
         {roleCount} {roleCount === 1 ? 'Role' : 'Roles'}
       </Badge>
-    )
-  const labels = relationLabels(relations)
-  if (labels.length === 0) return null
-  return (
-    <div className="flex flex-row gap-1">
-      {labels.map((label) => (
-        <Badge key={label} variant="secondary" className="text-xs">
-          {label}
-        </Badge>
-      ))}
-    </div>
-  )
+    ))
+    .with({ labels: [] }, () => null)
+    .otherwise(() => (
+      <div className="flex flex-row gap-1">
+        {labels.map((label) => (
+          <Badge key={label} variant="secondary" className="text-xs">
+            {label}
+          </Badge>
+        ))}
+      </div>
+    ))
 }

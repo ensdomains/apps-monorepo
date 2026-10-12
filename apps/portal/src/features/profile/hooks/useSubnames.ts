@@ -140,7 +140,10 @@ export const getSubnamePagesQueryOptions = ({
 
 // bigname totals the children it would list, in either era.
 const getSubnamesCount = ({ name }: GetSubnamesParameters) =>
-  readSubnames(name, { pageSize: 1 }).map(({ totalCount }) => totalCount)
+  // A query cannot resolve to undefined, so an uncounted list reads as null.
+  readSubnames(name, { pageSize: 1 }).map(
+    ({ totalCount }) => totalCount ?? null,
+  )
 
 export const getSubnamesCountQueryOptions = (params: GetSubnamesParameters) =>
   resultQueryOptions({
