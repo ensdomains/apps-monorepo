@@ -61,7 +61,7 @@ export const V2NameManagersRow = ({
   )
 
   if (isReadingId || isLoading)
-    return row(<span className="text-base text-muted-foreground">Loading</span>)
+    return row(<span className="text-ui text-muted-foreground">Loading</span>)
 
   // Unknown, not none — on both branches. Silence here would reproduce exactly
   // the gap this row exists to close, so say the check didn't land.

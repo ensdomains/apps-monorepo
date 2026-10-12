@@ -95,7 +95,7 @@ export const RegisterNameCheckoutSummary = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-transparent hover:bg-transparent text-base"
+                    className="bg-transparent hover:bg-transparent text-ui"
                   >
                     {open ? 'Close' : 'Learn more'}
                   </Button>

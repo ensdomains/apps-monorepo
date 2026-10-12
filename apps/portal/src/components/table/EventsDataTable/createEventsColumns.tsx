@@ -43,7 +43,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
                 }}
               >
                 {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-                <span className="text-base font-medium">{eventCount}</span>
+                <span className="text-ui font-medium">{eventCount}</span>
               </Button>
             )}
           </div>
@@ -162,7 +162,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
               }}
             >
               <ArrowRightFromLineIcon className="h-4 w-4" />
-              <span className="text-base font-medium">More</span>
+              <span className="text-ui font-medium">More</span>
             </Button>
           </div>
         )

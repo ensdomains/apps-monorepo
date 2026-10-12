@@ -49,7 +49,7 @@ const RecordsDisclosure = ({
   readonly isDefaultOpen: boolean
 }) => (
   <Collapsible defaultOpen={isDefaultOpen} className="group/records">
-    <CollapsibleTrigger className="inline-flex items-center gap-1 text-base text-muted-foreground hover:text-foreground cursor-pointer">
+    <CollapsibleTrigger className="inline-flex items-center gap-1 text-ui text-muted-foreground hover:text-foreground cursor-pointer">
       <ChevronRight className="size-4 transition-transform group-data-[state=open]/records:rotate-90" />
       {lines.length} {lines.length === 1 ? 'record' : 'records'}
     </CollapsibleTrigger>
@@ -97,7 +97,7 @@ export const DnssecStepItem = ({
           <span className="font-mono text-p font-medium break-all">
             {getStepLabel(step)}
           </span>
-          <span className="text-base text-muted-foreground">
+          <span className="text-ui text-muted-foreground">
             {getStepCaption(step)}
           </span>
           <StatusBadge status={step.status} className="ml-auto">

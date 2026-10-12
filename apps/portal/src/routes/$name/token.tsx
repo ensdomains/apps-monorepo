@@ -452,7 +452,7 @@ function RouteComponent() {
                   </InfoRow>
 
                   <InfoRow label="Normalization">
-                    <span className="text-base ">{part.type as string}</span>
+                    <span className="text-ui ">{part.type as string}</span>
                   </InfoRow>
 
                   <InfoRow label="Bytes">

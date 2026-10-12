@@ -35,7 +35,7 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
             }}
           >
             <ArrowRightFromLineIcon className="h-4 w-4" />
-            <span className="text-base font-medium">More</span>
+            <span className="text-ui font-medium">More</span>
           </Button>
         </TableCell>
       )}

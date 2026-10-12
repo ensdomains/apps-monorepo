@@ -30,6 +30,9 @@ describe('cn', () => {
   it('merges conflicting type-scale classes (last wins)', () => {
     expect(cn('text-entity-base', 'text-entity-name')).toBe('text-entity-name')
     expect(cn('text-sm', 'text-entity-base')).toBe('text-entity-base')
+    expect(cn('text-base md:text-ui', 'text-h2 md:text-h2')).toBe(
+      'text-h2 md:text-h2',
+    )
   })
 
   it('should handle empty inputs', () => {

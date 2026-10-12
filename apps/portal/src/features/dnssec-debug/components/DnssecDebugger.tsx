@@ -38,7 +38,7 @@ const Toolbar = ({
   checkedAt,
 }: ToolbarProps) => (
   <div className="flex flex-wrap items-center gap-3">
-    <span className="text-base text-muted-foreground">Resolver</span>
+    <span className="text-ui text-muted-foreground">Resolver</span>
     <Tabs
       value={resolver}
       onValueChange={(value) => {

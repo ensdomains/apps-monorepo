@@ -96,8 +96,7 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   if (isLoading) return <LoadingSpinner title="Loading interfaces..." />
   if (error)
     return <div className="text-p text-destructive">{error.cause?.message}</div>
-  if (!data)
-    return <div className="text-base text-muted-foreground">No data</div>
+  if (!data) return <div className="text-ui text-muted-foreground">No data</div>
 
   const features = data
     .flatMap((supported, index) => {
@@ -114,7 +113,7 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (features.length === 0)
     return (
-      <div className="text-base text-muted-foreground">
+      <div className="text-ui text-muted-foreground">
         No interfaces detected
       </div>
     )
@@ -182,7 +181,7 @@ const ResolverInfoList = ({
             . It is audited and is considered secure.
           </p>
         ) : (
-          <span className="text-base text-foreground">{type}</span>
+          <span className="text-ui text-foreground">{type}</span>
         )}
       </InfoRow>
       <InfoRow label="Contract">

@@ -274,7 +274,7 @@ export const HomeSearchInput = ({
               className={cn(
                 'w-full',
                 isHero &&
-                  'text-[16px] md:text-base placeholder:text-neutral-8 sm:placeholder:text-transparent',
+                  'text-base md:text-ui placeholder:text-neutral-8 sm:placeholder:text-transparent',
               )}
               placeholder={isHero ? 'Search' : 'Search...'}
               value={searchValue}
@@ -286,7 +286,7 @@ export const HomeSearchInput = ({
             {isHero && !searchValue && (
               <span
                 aria-hidden
-                className="pointer-events-none absolute left-11 top-1/2 hidden -translate-y-1/2 text-[16px] md:text-base text-foreground group-focus-within/input-group:hidden sm:block"
+                className="pointer-events-none absolute left-11 top-1/2 hidden -translate-y-1/2 text-base md:text-ui text-foreground group-focus-within/input-group:hidden sm:block"
               >
                 Search for a <EntityBadge variant="name">name</EntityBadge>,{' '}
                 <EntityBadge variant="address">wallet</EntityBadge>, or{' '}
@@ -298,7 +298,7 @@ export const HomeSearchInput = ({
                 className={cn(
                   'pointer-events-none select-none items-center gap-1',
                   isHero
-                    ? 'flex font-sans text-base font-normal text-neutral-5'
+                    ? 'flex font-sans text-ui font-normal text-neutral-5'
                     : 'hidden h-5 rounded border px-1.5 text-smallmono font-medium text-muted-foreground sm:flex',
                 )}
               >

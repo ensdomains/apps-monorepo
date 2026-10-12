@@ -94,14 +94,14 @@ const TransactionDetails = ({
 
         {formattedTimestamp && (
           <InfoRow label="Timestamp">
-            <span className="text-base">{formattedTimestamp} UTC</span>
+            <span className="text-ui">{formattedTimestamp} UTC</span>
           </InfoRow>
         )}
 
         {data && (
           <>
             <InfoRow label="Network">
-              <span className="text-base">Sepolia</span>
+              <span className="text-ui">Sepolia</span>
             </InfoRow>
 
             <InfoRow label="From">
@@ -112,7 +112,7 @@ const TransactionDetails = ({
               {data.to ? (
                 <AddressDisplay address={data.to} variant="contract" />
               ) : (
-                <span className="text-base text-muted-foreground">
+                <span className="text-ui text-muted-foreground">
                   Contract Creation
                 </span>
               )}

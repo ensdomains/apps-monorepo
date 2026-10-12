@@ -38,7 +38,7 @@ const OutcomeRow = ({
     <div className="flex flex-col min-w-0">
       <span className="text-entity-base">{label}</span>
       {isUnreached ? (
-        <span className="text-base text-muted-foreground">Not reached</span>
+        <span className="text-ui text-muted-foreground">Not reached</span>
       ) : (
         outcome.status !== 'pass' && (
           <span className="text-p text-muted-foreground wrap-break-word">
@@ -61,7 +61,7 @@ const SupportList = ({
 }) =>
   items.length === 0 ? null : (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-base text-muted-foreground">{title}</span>
+      <span className="text-ui text-muted-foreground">{title}</span>
       {items.map((item) => (
         <StatusBadge key={item.id} status={item.isSupported ? 'pass' : 'fail'}>
           {`${getName(item.id)}${item.isSupported ? '' : ' unsupported'}`}
