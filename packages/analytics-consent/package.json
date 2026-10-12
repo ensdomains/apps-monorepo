@@ -1,0 +1,42 @@
+{
+  "name": "@ens-apps/analytics-consent",
+  "version": "1.0.0",
+  "description": "Shared analytics-consent choice, PostHog settings and wording for the Manager and Explorer apps",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "exports": {
+    "./consent": "./src/consent.ts",
+    "./cookie": "./src/cookie.ts",
+    "./posthog": "./src/posthog.ts",
+    "./wording": "./src/wording.ts",
+    "./react": "./src/react.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check"
+  },
+  "keywords": [],
+  "dependencies": {
+    "posthog-js": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.10.2",
+    "@types/react": "^19.1.12",
+    "happy-dom": "catalog:",
+    "react": "^19.2.5",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
