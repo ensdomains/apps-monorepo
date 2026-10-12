@@ -455,13 +455,13 @@
   text-transform: uppercase;
 }
 
-/* Entity styles: 14px/15px, tracking 0.02em per the design spec (WEB-649).
+/* Entity styles: 14px, tracking 0.02em per the design spec (WEB-649).
    Figma weight for entity/base is 425, but the static Mono cuts are 400/500 —
    400 matches how badges render today. */
 @utility text-entity-base {
   font-family: var(--font-mono);
   font-size: 0.875rem;
-  line-height: 0.9375rem;
+  line-height: 1.25rem; /* 20px; Figma is 15px */
   font-weight: 400;
   letter-spacing: 0.02em;
 }
@@ -469,7 +469,7 @@
 @utility text-entity-name {
   font-family: var(--font-semi-mono);
   font-size: 0.875rem;
-  line-height: 0.9375rem;
+  line-height: 1.25rem; /* 20px; Figma is 15px */
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -477,6 +477,6 @@
 @utility text-entity-label {
   font-family: var(--font-sans);
   font-size: 0.875rem;
-  line-height: 0.9375rem;
+  line-height: 1.25rem; /* 20px; Figma is 15px */
   font-weight: 400;
 }
