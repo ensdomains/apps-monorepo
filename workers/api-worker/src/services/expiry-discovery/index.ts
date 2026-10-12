@@ -1,5 +1,5 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok, type Result } from 'neverthrow'
 import type { ExpiryEvent } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
 import { logger } from '#utils/logger.js'
@@ -8,8 +8,17 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
+import {
+  type ExpiringName,
+  fetchIndexedAtSec,
+  fetchIndexReadiness,
+} from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
-import { fetchProcessableExpiringNames } from './page.js'
+import {
+  fetchSweep,
+  type ProcessableExpiryPage,
+  type StageWindow,
+} from './page.js'
 import {
   type ExpiryStageConfig,
   getLowerBoundForStage,
@@ -19,6 +28,9 @@ import {
 } from './stages.js'
 
 const QUEUE_BATCH_SIZE = 100
+// Windows end at the indexed time, so lag only delays reminders; past this
+// much it is worth a warning.
+const INDEX_LAG_WARN_SECONDS = 60 * 60
 
 class QueuePublishError extends TaggedError('QUEUE_PUBLISH_ERROR')<{
   stageId: string
@@ -43,7 +55,7 @@ type StageRunMetrics = {
 
 function buildExpiryEvents(
   stage: ExpiryStageConfig,
-  domains: { name: string; expiryDate: number; owner?: string }[],
+  domains: readonly ExpiringName[],
 ): ExpiryEvent[] {
   return domains.map((domain) => ({
     type: 'name_expiring',
@@ -55,116 +67,77 @@ function buildExpiryEvents(
   }))
 }
 
+type StagePlan = StageWindow & {
+  readonly cursorStart: number
+  readonly lowerBound: number
+}
+
+const planStage = (
+  stage: ExpiryStageConfig,
+  cursorStart: number,
+  windowNowSec: number,
+): StagePlan => ({
+  stage,
+  cursorStart,
+  cursor: getQueryCursorForStage(stage, cursorStart, windowNowSec),
+  upperBound: getUpperBoundForStage(stage, windowNowSec),
+  lowerBound: getLowerBoundForStage(stage, windowNowSec),
+})
+
+const isOpen = (plan: StagePlan): boolean => plan.cursor < plan.upperBound
+
+const caughtUpMetrics = (plan: StagePlan): StageRunMetrics => ({
+  stageId: plan.stage.id,
+  cursorStart: plan.cursorStart,
+  cursorEnd: plan.cursorStart,
+  queryCursor: plan.cursor,
+  lowerBound: plan.lowerBound,
+  upperBound: plan.upperBound,
+  lagSec: Math.max(0, plan.upperBound - plan.cursor),
+  enqueuedCount: 0,
+  pageDomainCount: 0,
+  chunkCount: 0,
+  hasMore: false,
+  overflow: false,
+  firstExpiryDate: undefined,
+  lastExpiryDate: undefined,
+})
+
 const processStage = ResultFn(async function* (ctx: {
-  env: CloudflareBindings
-  stage: ExpiryStageConfig
-  cursor: number
-  nowSec: number
+  readonly env: CloudflareBindings
+  readonly plan: StagePlan
+  readonly page: ProcessableExpiryPage
 }) {
-  const upperBound = getUpperBoundForStage(ctx.stage, ctx.nowSec)
-  const lowerBound = getLowerBoundForStage(ctx.stage, ctx.nowSec)
-  const queryCursor = getQueryCursorForStage(ctx.stage, ctx.cursor, ctx.nowSec)
-  const clampedBySec = Math.max(0, queryCursor - ctx.cursor)
-  const lagSec = Math.max(0, upperBound - queryCursor)
+  const { plan, page } = ctx
+  const { stage } = plan
+  const lagSec = Math.max(0, plan.upperBound - plan.cursor)
 
-  // Cursor already caught up with the stage window.
-  if (queryCursor >= upperBound) {
-    logger.debug('Expiry stage skipped (cursor caught up)', {
-      stageId: ctx.stage.id,
-      cursorStart: ctx.cursor,
-      queryCursor,
-      lowerBound,
-      upperBound,
-      lagSec,
-    })
-    return ok({
-      stageId: ctx.stage.id,
-      cursorStart: ctx.cursor,
-      cursorEnd: ctx.cursor,
-      queryCursor,
-      lowerBound,
-      upperBound,
-      lagSec,
-      enqueuedCount: 0,
-      pageDomainCount: 0,
-      chunkCount: 0,
-      hasMore: false,
-      overflow: false,
-      firstExpiryDate: undefined,
-      lastExpiryDate: undefined,
-    } satisfies StageRunMetrics)
-  }
-
-  if (clampedBySec > 0) {
+  if (plan.cursor > plan.cursorStart) {
     logger.warn('Expiry stage cursor clamped to exclusive window', {
-      stageId: ctx.stage.id,
-      cursorStart: ctx.cursor,
-      queryCursor,
-      lowerBound,
-      upperBound,
-      clampedBySec,
+      stageId: stage.id,
+      cursorStart: plan.cursorStart,
+      queryCursor: plan.cursor,
+      lowerBound: plan.lowerBound,
+      upperBound: plan.upperBound,
+      clampedBySec: plan.cursor - plan.cursorStart,
     })
   }
-
-  logger.debug('Processing expiry stage window', {
-    stageId: ctx.stage.id,
-    cursorStart: ctx.cursor,
-    queryCursor,
-    lowerBound,
-    upperBound,
-    lagSec,
-  })
-
-  const page = yield* fetchProcessableExpiringNames({
-    env: ctx.env,
-    stage: ctx.stage,
-    cursor: queryCursor,
-    upperBound,
-  })
 
   if (page.overflow) {
     await reportExpiryTimestampOverflow({
       env: ctx.env,
-      stageId: ctx.stage.id,
+      stageId: stage.id,
       expiryTimestamp: page.overflow.expiryTimestamp,
       processedCount: page.overflow.processedCount,
     })
   }
 
-  if (page.domains.length === 0) {
-    logger.debug('Expiry stage returned no domains', {
-      stageId: ctx.stage.id,
-      cursorStart: ctx.cursor,
-      queryCursor,
-      lowerBound,
-      upperBound,
-    })
-    return ok({
-      stageId: ctx.stage.id,
-      cursorStart: ctx.cursor,
-      cursorEnd: page.cursorEnd,
-      queryCursor,
-      lowerBound,
-      upperBound,
-      lagSec,
-      enqueuedCount: 0,
-      pageDomainCount: 0,
-      chunkCount: 0,
-      hasMore: false,
-      overflow: Boolean(page.overflow),
-      firstExpiryDate: undefined,
-      lastExpiryDate: undefined,
-    } satisfies StageRunMetrics)
-  }
-
-  const events = buildExpiryEvents(ctx.stage, page.domains)
+  const events = buildExpiryEvents(stage, page.domains)
   const eventChunks = chunk(events, QUEUE_BATCH_SIZE)
-  const firstExpiryDate = page.domains[0]?.expiryDate
-  const lastExpiryDate = page.domains[page.domains.length - 1]?.expiryDate
 
   for (const eventChunk of eventChunks) {
     logger.trace('Enqueueing expiry events chunk', {
-      stageId: ctx.stage.id,
+      stageId: stage.id,
       chunkSize: eventChunk.length,
     })
     // One sendBatch call counts as one subrequest regardless of chunk size.
@@ -174,28 +147,28 @@ const processStage = ResultFn(async function* (ctx: {
       ),
       (error) =>
         new QueuePublishError({
-          message: `Failed to enqueue expiry events for stage ${ctx.stage.id}`,
+          message: `Failed to enqueue expiry events for stage ${stage.id}`,
           cause: error,
-          stageId: ctx.stage.id,
+          stageId: stage.id,
         }),
     )
   }
 
   return ok({
-    stageId: ctx.stage.id,
-    cursorStart: ctx.cursor,
+    stageId: stage.id,
+    cursorStart: plan.cursorStart,
     cursorEnd: page.cursorEnd,
-    queryCursor,
-    lowerBound,
-    upperBound,
+    queryCursor: plan.cursor,
+    lowerBound: plan.lowerBound,
+    upperBound: plan.upperBound,
     lagSec,
     enqueuedCount: events.length,
     pageDomainCount: page.domains.length,
     chunkCount: eventChunks.length,
     hasMore: page.hasMore,
     overflow: Boolean(page.overflow),
-    firstExpiryDate,
-    lastExpiryDate,
+    firstExpiryDate: page.domains[0]?.expiryDate,
+    lastExpiryDate: page.domains.at(-1)?.expiryDate,
   } satisfies StageRunMetrics)
 })
 
@@ -210,6 +183,22 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
     stages: STAGES.map((stage) => stage.id),
   })
 
+  // Notices sent from a stale view could tell a renewed name it expired, so a
+  // run waits for a current index and leaves every cursor where it is.
+  const readiness = await fetchIndexReadiness(env)
+  if (readiness.isErr()) {
+    logger.error('Expiry discovery could not read the index status', {
+      error: readiness.error,
+    })
+    return ok({ totalEnqueued: 0, failedStages: STAGES.length })
+  }
+  if (!readiness.value.isReady) {
+    logger.warn('Expiry discovery skipped: the index is not current', {
+      reason: readiness.value.reason,
+    })
+    return ok({ totalEnqueued: 0, failedStages: 0 })
+  }
+
   const cursors = yield* loadNotificationCursors(env, nowSec)
   logger.debug('Loaded expiry notification cursors', {
     cursors: Object.fromEntries(
@@ -217,20 +206,57 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
     ),
   })
 
-  const stageResults = await Promise.all(
-    STAGES.map(async (stage) => {
-      const result = await processStage({
-        env,
-        stage,
-        cursor: cursors[stage.id].expiry_timestamp,
-        nowSec,
-      })
+  const indexedAt = await fetchIndexedAtSec(env, nowSec)
+  if (indexedAt.isErr()) {
+    // Without the index position no window can be trusted; every cursor holds.
+    logger.error('Expiry discovery could not read the index position', {
+      error: indexedAt.error,
+    })
+    return ok({ totalEnqueued: 0, failedStages: STAGES.length })
+  }
+  const windowNowSec = Math.min(nowSec, indexedAt.value)
+  if (nowSec - indexedAt.value > INDEX_LAG_WARN_SECONDS) {
+    logger.warn('Expiry discovery windows capped at the indexed time', {
+      nowSec,
+      indexedAtSec: indexedAt.value,
+      indexLagSec: nowSec - indexedAt.value,
+    })
+  }
 
-      return {
-        stage,
-        result,
-      }
-    }),
+  const plans = STAGES.map((stage) =>
+    planStage(stage, cursors[stage.id].expiry_timestamp, windowNowSec),
+  )
+  const openPlans = plans.filter(isOpen)
+  const sweep =
+    openPlans.length > 0
+      ? await fetchSweep({ env, windows: openPlans })
+      : undefined
+
+  // The windows were planned at the probed position. A sweep served from an
+  // older publication can show a renewed name at its old expiry anywhere in
+  // the window, so the run sends nothing and every cursor holds.
+  if (sweep?.isOk() && sweep.value.indexedAtSec < indexedAt.value) {
+    logger.warn('Expiry discovery skipped: the sweep read an older index', {
+      plannedAtSec: indexedAt.value,
+      sweepIndexedAtSec: sweep.value.indexedAtSec,
+    })
+    return ok({ totalEnqueued: 0, failedStages: 0 })
+  }
+
+  const runStage = async (
+    plan: StagePlan,
+  ): Promise<Result<StageRunMetrics, unknown>> => {
+    if (!isOpen(plan)) return ok(caughtUpMetrics(plan))
+    // A failed read holds every open stage; nothing was read for any of them.
+    if (!sweep || sweep.isErr()) return err(sweep?.error)
+    const page = sweep.value.pages.get(plan.stage.id)
+    return page ? processStage({ env, plan, page }) : ok(caughtUpMetrics(plan))
+  }
+  const stageResults = await Promise.all(
+    plans.map(async (plan) => ({
+      stage: plan.stage,
+      result: await runStage(plan),
+    })),
   )
 
   const nextCursors: NotificationCursors = {

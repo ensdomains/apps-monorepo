@@ -8,11 +8,11 @@ const record = {
   display_name: 'alice.eth',
   namespace: 'ens',
   namehash: '0xabc',
-  status: 'ok',
+  read_status: 'ok',
   authority: 'ens_v2',
   owner: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
   registrant: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
-  registration_status: 'registered',
+  status: 'active',
   registered_at: '1790594976',
   created_at: '1790594976',
   expires_at: '1885289376',
@@ -38,7 +38,7 @@ describe('readNameDetail', () => {
       manager: null,
       registrant: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
       resolver: '0x6a57f0a929949027f954c66f4889514d5a5fd1d8',
-      registrationStatus: 'registered',
+      registrationStatus: 'active',
       expiresAt: new Date('2029-09-28T11:29:36Z'),
       registeredAt: new Date('2026-09-28T11:29:36Z'),
       createdAt: new Date('2026-09-28T11:29:36Z'),
@@ -53,7 +53,7 @@ describe('readNameDetail', () => {
         display_name: 'eth',
         namespace: 'ens',
         namehash: '0xdef',
-        status: 'unsupported',
+        read_status: 'unsupported',
         unsupported_reason: 'root',
       }),
     )
@@ -71,8 +71,8 @@ describe('readNameDetail', () => {
   it.each([
     ['a 404', () => apiError('not_found', 404)],
     [
-      'a 200 with status not_found',
-      () => envelope({ ...record, status: 'not_found' }),
+      'a 200 with read_status not_found',
+      () => envelope({ ...record, read_status: 'not_found' }),
     ],
   ])('answers null for a name bigname has not indexed, on %s', async (_, response) => {
     const { client } = clientWith(response())

@@ -1,4 +1,4 @@
-import { okAsync } from 'neverthrow'
+import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./indexer.js', async (importOriginal) => ({
@@ -7,127 +7,296 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 }))
 
 import {
+  type ExpiringName,
+  type ExpiringNamesPage,
+  type ExpiringNamesQuery,
   fetchExpiringNamesPage,
-  PROCESS_PAGE_SIZE,
-  QUERY_PAGE_SIZE,
+  IndexerRequestError,
+  PAGE_SIZE,
 } from './indexer.js'
 import {
-  fetchProcessableExpiringNames,
-  planExactTimestampPage,
-  planNormalExpiryPage,
+  fetchSweep,
+  MAX_PAGES_PER_READ,
+  mergeWindows,
+  type StageWindow,
 } from './page.js'
 import { STAGES } from './stages.js'
 
-const uniqueDomains = (count: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    name: `${index}.eth`,
-    expiryDate: 100 + index,
-  }))
-const domainsAt = (count: number, expiryDate: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    name: `tied-${index}.eth`,
-    expiryDate,
-  }))
+const ENV = {} as CloudflareBindings
+const INDEXED_AT = 1_700_000_000
 
-describe('expiry page planning', () => {
-  beforeEach(() => vi.mocked(fetchExpiringNamesPage).mockReset())
+const stage = (id: (typeof STAGES)[number]['id']) => {
+  const value = STAGES.find((candidate) => candidate.id === id)
+  if (!value) throw new Error(`Missing stage: ${id}`)
+  return value
+}
+
+const window = (
+  id: (typeof STAGES)[number]['id'],
+  cursor: number,
+  upperBound: number,
+): StageWindow => ({ stage: stage(id), cursor, upperBound })
+
+const held = (name: string, expiryDate: number): ExpiringName => ({
+  name,
+  expiryDate,
+  registrationStatus: 'active',
+  hasV2Grace: true,
+})
+
+/** A registration whose renewal grace has ended. */
+const expiredRelease = (name: string, expiryDate: number): ExpiringName => ({
+  name,
+  expiryDate,
+  registrationStatus: 'released',
+  hasV2Grace: true,
+  releaseKind: 'expired',
+})
+
+const page = (
+  names: readonly ExpiringName[],
+  nextCursor: string | null = null,
+  indexedAtSec = INDEXED_AT,
+): ExpiringNamesPage => ({ names, nextCursor, indexedAtSec })
+
+/** Answers a read as bigname would: every row inside one of its windows. */
+const serveIndex = (names: readonly ExpiringName[]) =>
+  vi
+    .mocked(fetchExpiringNamesPage)
+    .mockImplementation((query: ExpiringNamesQuery) =>
+      okAsync(
+        page(
+          names
+            .filter(({ expiryDate }) =>
+              query.windows.some(
+                ({ from, to }) => expiryDate >= from && expiryDate <= to,
+              ),
+            )
+            .toSorted((left, right) => left.expiryDate - right.expiryDate),
+        ),
+      ),
+    )
+
+const fullPageAt = (expiryDate: number, prefix: string) =>
+  Array.from({ length: PAGE_SIZE }, (_, index) =>
+    held(`${prefix}-${index}.eth`, expiryDate),
+  )
+
+const namesOf = (
+  result: Awaited<ReturnType<typeof fetchSweep>>,
+  id: (typeof STAGES)[number]['id'],
+) =>
+  result
+    ._unsafeUnwrap()
+    .pages.get(id)
+    ?.domains.map(({ name }) => name)
+
+describe('mergeWindows', () => {
+  it('joins windows that overlap or touch and keeps the rest apart', () => {
+    expect(
+      mergeWindows([
+        window('expiry-7d', 200, 300),
+        window('expiry-1d', 100, 200),
+        window('expiry-30d', 900, 1000),
+      ]),
+    ).toEqual([
+      { from: 100, to: 300 },
+      { from: 900, to: 1000 },
+    ])
+  })
+})
+
+describe('fetchSweep', () => {
+  beforeEach(() => {
+    vi.mocked(fetchExpiringNamesPage).mockReset()
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(okAsync(page([])))
+  })
+
+  it('reads every open stage window in one multi-window walk and splits the rows by stage', async () => {
+    serveIndex([
+      held('one-day.eth', 150),
+      held('thirty-day.eth', 950),
+      held('between.eth', 500),
+    ])
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-1d', 100, 200), window('expiry-30d', 900, 1000)],
+    })
+
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(1)
+    expect(fetchExpiringNamesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        windows: [
+          { from: 101, to: 200 },
+          { from: 901, to: 1000 },
+        ],
+      }),
+    )
+    expect(namesOf(result, 'expiry-1d')).toEqual(['one-day.eth'])
+    expect(namesOf(result, 'expiry-30d')).toEqual(['thirty-day.eth'])
+  })
+
+  it('places a name exactly at the window end inside it, so no boundary is skipped', async () => {
+    serveIndex([held('edge.eth', 200), held('next.eth', 201)])
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-30d', 100, 200)],
+    })
+
+    expect(namesOf(result, 'expiry-30d')).toEqual(['edge.eth'])
+    expect(result._unsafeUnwrap().pages.get('expiry-30d')?.cursorEnd).toBe(200)
+  })
 
   it.each([
-    250,
-    PROCESS_PAGE_SIZE,
-  ])('completes a normal page of %i rows', (count) => {
-    const plan = planNormalExpiryPage(uniqueDomains(count), 50)
-    expect(plan.type).toBe('complete')
-    if (plan.type !== 'complete') return
-    expect(plan.domains).toHaveLength(count)
-    expect(plan.hasMore).toBe(false)
-  })
-
-  it('uses a unique lookahead as a safe cursor boundary', () => {
-    const plan = planNormalExpiryPage(uniqueDomains(QUERY_PAGE_SIZE), 50)
-    expect(plan.type).toBe('safe-boundary')
-    if (plan.type !== 'safe-boundary') return
-    expect(plan.domains).toHaveLength(PROCESS_PAGE_SIZE)
-    expect(plan.cursorEnd).toBe(100 + PROCESS_PAGE_SIZE - 1)
-    expect(plan.hasMore).toBe(true)
-  })
-
-  it('detects a timestamp split at the process boundary', () => {
-    const plan = planNormalExpiryPage(
-      [...uniqueDomains(PROCESS_PAGE_SIZE - 1), ...domainsAt(2, 10_000)],
-      50,
-    )
-    expect(plan.type).toBe('split-timestamp')
-    if (plan.type !== 'split-timestamp') return
-    expect(plan.timestamp).toBe(10_000)
-    expect(plan.domainsBeforeTimestamp).toHaveLength(PROCESS_PAGE_SIZE - 1)
-  })
-
-  it('processes a bounded exact timestamp bucket and reports overflow', () => {
-    const fitting = planExactTimestampPage(domainsAt(500, 10_000), 10_000)
-    expect(fitting.domains).toHaveLength(500)
-    expect(fitting.overflow).toBe(false)
-
-    const overflow = planExactTimestampPage(
-      domainsAt(QUERY_PAGE_SIZE, 10_000),
-      10_000,
-    )
-    expect(overflow.domains).toHaveLength(QUERY_PAGE_SIZE)
-    expect(overflow.overflow).toBe(true)
-    expect(overflow.cursorEnd).toBe(10_000)
-  })
-
-  it.each([
-    { exactCount: 2, expectedOverflow: false },
-    { exactCount: QUERY_PAGE_SIZE, expectedOverflow: true },
-  ])('re-queries a split timestamp with $exactCount exact rows', async ({
-    exactCount,
-    expectedOverflow,
+    { id: 'expiry-7d', kept: ['held.eth', 'relisted.eth'] },
+    { id: 'grace-1d', kept: ['in-grace.eth'] },
+    { id: 'premium-start', kept: ['expired.eth'] },
+  ] as const)('notifies the rows each phase allows: $id', async ({
+    id,
+    kept,
   }) => {
-    const timestamp = 10_000
-    const beforeTimestamp = uniqueDomains(PROCESS_PAGE_SIZE - 1)
-    const exactDomains = domainsAt(exactCount, timestamp)
-    vi.mocked(fetchExpiringNamesPage)
-      .mockReturnValueOnce(
-        okAsync({
-          domains: [...beforeTimestamp, ...exactDomains.slice(0, 2)],
-          hasMore: true,
-        }),
-      )
-      .mockReturnValueOnce(
-        okAsync({ domains: exactDomains, hasMore: expectedOverflow }),
-      )
+    serveIndex([
+      held('held.eth', 10_000_050),
+      { ...held('relisted.eth', 10_000_055), releaseKind: 'unregistered' },
+      expiredRelease('expired.eth', 10_000_060),
+      { ...held('in-grace.eth', 10_000_065), registrationStatus: 'expired' },
+      {
+        name: 'unregistered.eth',
+        expiryDate: 10_000_070,
+        registrationStatus: 'released',
+        hasV2Grace: true,
+        releaseKind: 'unregistered',
+      },
+      {
+        name: 'never.eth',
+        expiryDate: 10_000_080,
+        registrationStatus: 'unregistered',
+        hasV2Grace: true,
+      },
+      {
+        name: 'unreserved-v1.eth',
+        expiryDate: 10_000_090,
+        registrationStatus: 'active',
+        hasV2Grace: false,
+      },
+    ])
 
-    const env = {} as CloudflareBindings
-    const stage = STAGES[0]
-    if (!stage) throw new Error('Expected an expiry stage')
-    const result = await fetchProcessableExpiringNames({
-      env,
-      stage,
-      cursor: 50,
-      upperBound: 20_000,
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window(id, 10_000_000, 10_000_100)],
     })
 
-    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(2)
-    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(1, {
-      env,
-      stage,
-      cursor: 50,
-      upperBound: 20_000,
+    expect(namesOf(result, id)).toEqual(kept)
+  })
+
+  it('moves an empty window to its end', async () => {
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-7d', 100, 200)],
     })
-    expect(fetchExpiringNamesPage).toHaveBeenNthCalledWith(2, {
-      env,
-      stage,
-      cursor: timestamp - 1,
-      upperBound: timestamp,
+
+    expect(result._unsafeUnwrap().pages.get('expiry-7d')).toEqual({
+      domains: [],
+      cursorEnd: 200,
+      hasMore: false,
     })
-    expect(result._unsafeUnwrap()).toEqual({
-      domains: [...beforeTimestamp, ...exactDomains.slice(0, QUERY_PAGE_SIZE)],
-      cursorEnd: timestamp,
+  })
+
+  it('stops the window it ran out of pages in, and leaves later windows for next run', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_READ; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(page(fullPageAt(110 + read, `p${read}`), `c${read + 1}`)),
+      )
+    }
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-1d', 100, 200), window('expiry-30d', 900, 1000)],
+    })
+
+    const lastSecond = 110 + MAX_PAGES_PER_READ - 1
+    const first = result._unsafeUnwrap().pages.get('expiry-1d')
+    expect(first?.cursorEnd).toBe(lastSecond - 1)
+    expect(first?.hasMore).toBe(true)
+    expect(first?.domains).toHaveLength(PAGE_SIZE * (MAX_PAGES_PER_READ - 1))
+    expect(result._unsafeUnwrap().pages.get('expiry-30d')).toEqual({
+      domains: [],
+      cursorEnd: 900,
       hasMore: true,
-      overflow: expectedOverflow
-        ? { expiryTimestamp: timestamp, processedCount: QUERY_PAGE_SIZE }
-        : undefined,
     })
+  })
+
+  it('moves past one second that fills the page budget and reports the overflow', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_READ; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(page(fullPageAt(101, `p${read}`), `c${read + 1}`)),
+      )
+    }
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-30d', 100, 200)],
+    })
+
+    const read = result._unsafeUnwrap().pages.get('expiry-30d')
+    expect(read?.cursorEnd).toBe(101)
+    expect(read?.overflow).toEqual({
+      expiryTimestamp: 101,
+      processedCount: PAGE_SIZE * MAX_PAGES_PER_READ,
+    })
+  })
+
+  it('leaves a later window whole when earlier rows used the budget and the walk stopped at its first second', async () => {
+    for (let read = 0; read < MAX_PAGES_PER_READ - 1; read++) {
+      vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+        okAsync(page(fullPageAt(110 + read, `p${read}`), `c${read + 1}`)),
+      )
+    }
+    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(
+      okAsync(page(fullPageAt(901, 'late'), 'more')),
+    )
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-1d', 100, 200), window('expiry-30d', 900, 1000)],
+    })
+
+    expect(result._unsafeUnwrap().pages.get('expiry-1d')?.cursorEnd).toBe(200)
+    expect(result._unsafeUnwrap().pages.get('expiry-30d')).toEqual({
+      domains: [],
+      cursorEnd: 900,
+      hasMore: true,
+    })
+  })
+
+  it('reports the oldest index position across pages', async () => {
+    vi.mocked(fetchExpiringNamesPage)
+      .mockReturnValueOnce(okAsync(page([held('a.eth', 150)], 'c1')))
+      .mockReturnValueOnce(okAsync(page([], null, INDEXED_AT - 30)))
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-1d', 100, 200)],
+    })
+
+    expect(result._unsafeUnwrap().indexedAtSec).toBe(INDEXED_AT - 30)
+  })
+
+  it('fails the sweep when a read fails', async () => {
+    const failure = new IndexerRequestError({
+      message: 'rejected',
+      cause: new Error('rejected'),
+      attempt: 1,
+    })
+    vi.mocked(fetchExpiringNamesPage).mockReturnValueOnce(errAsync(failure))
+
+    const result = await fetchSweep({
+      env: ENV,
+      windows: [window('expiry-30d', 100, 200)],
+    })
+
+    expect(result._unsafeUnwrapErr()).toBe(failure)
   })
 })

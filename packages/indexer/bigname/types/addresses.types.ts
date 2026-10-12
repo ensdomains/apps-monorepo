@@ -2,6 +2,7 @@ import type {
   Address,
   Authority,
   Cursor,
+  EnsV1Facts,
   Envelope,
   Hex,
   Namespace,
@@ -23,7 +24,7 @@ export type AddressNamesQuery = Readonly<{
   relation?: readonly AuthorityRelation[] | 'any' | 'resolves_to'
   /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
   coin_type?: number | 'evm'
-  authority?: Authority
+  authority?: Authority | readonly Authority[]
   /** Rejected with `relation=resolves_to`. */
   is_migrated?: 'true' | 'false'
   /** ENSIP-15 name prefix; one trailing dot marks a label boundary. */
@@ -53,11 +54,14 @@ export type AddressName = Readonly<{
   permission_resource_id?: string
   owner?: Address
   registrant?: Address
-  registration_status: RegistrationStatus
+  status: RegistrationStatus
   registered_at?: Timestamp
   created_at?: Timestamp
   expires_at?: Timestamp
+  /** End of the registrar grace period, already adjusted for the authority. */
+  grace_ends_at?: Timestamp
   authority?: Authority
+  ens_v1?: EnsV1Facts
   migrated_at?: Timestamp
   /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
   relations: readonly Relation[]

@@ -18,10 +18,13 @@ describe('toUnixSeconds', () => {
     ['absent', undefined],
     ['unparseable', 'soon'],
     ['empty', ''],
-    ['beyond what a Date can hold', '9'.repeat(20)],
     ['missing a timezone', '2026-10-30T22:33:48'],
   ])('returns null when %s', (_label, value) => {
     expect(toUnixSeconds(value)).toBeNull()
+  })
+
+  it('clamps a wrapped name expiry to the largest exact number', () => {
+    expect(toUnixSeconds('18446744073709551615')).toBe(Number.MAX_SAFE_INTEGER)
   })
 })
 

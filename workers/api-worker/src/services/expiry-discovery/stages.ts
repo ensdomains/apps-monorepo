@@ -1,3 +1,4 @@
+import type { RegistrationStatus } from '@ens-apps/indexer/bigname'
 import {
   SECONDS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
@@ -5,52 +6,64 @@ import {
 import type { ExpiryStageId } from '#types/events/index.js'
 
 export type ExpiryStageConfig = {
-  id: ExpiryStageId
+  readonly id: ExpiryStageId
   /** Days relative to expiry. Positive is before; negative is after. */
-  offsetDays: number
-  includeFavorites: boolean
+  readonly offsetDays: number
+  readonly includeFavorites: boolean
+  /** Where the stage sits in a registration's lifecycle. */
+  readonly phase: 'pre-expiry' | 'in-grace' | 'grace-ended'
 }
 
-const STAGE_DEFINITIONS: ExpiryStageConfig[] = [
+// After the cutover, .eth registrations and premigration reservations share
+// the served expiry and the 28-day grace, so every offset is from that expiry.
+
+const STAGE_DEFINITIONS: readonly ExpiryStageConfig[] = [
   {
     id: 'expiry-30d',
     offsetDays: 30,
     includeFavorites: false,
+    phase: 'pre-expiry',
   },
   {
     id: 'expiry-7d',
     offsetDays: 7,
     includeFavorites: true,
+    phase: 'pre-expiry',
   },
   {
     id: 'expiry-1d',
     offsetDays: 1,
     includeFavorites: true,
+    phase: 'pre-expiry',
   },
   {
     id: 'grace-start',
     offsetDays: 0,
     includeFavorites: true,
+    phase: 'in-grace',
   },
   {
     id: 'grace-7d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 7),
     includeFavorites: true,
+    phase: 'in-grace',
   },
   {
     id: 'grace-1d',
     offsetDays: -(V2_GRACE_PERIOD_DAYS - 1),
     includeFavorites: true,
+    phase: 'in-grace',
   },
   {
     id: 'premium-start',
     offsetDays: -V2_GRACE_PERIOD_DAYS,
     includeFavorites: true,
+    phase: 'grace-ended',
   },
 ]
 
 /** Lifecycle order is furthest-future to furthest-past. */
-export const STAGES: ExpiryStageConfig[] = [...STAGE_DEFINITIONS].sort(
+export const STAGES: readonly ExpiryStageConfig[] = [...STAGE_DEFINITIONS].sort(
   (left, right) => right.offsetDays - left.offsetDays,
 )
 
@@ -105,4 +118,30 @@ export function getDefaultCursorForStage(
 
 export function getExpiryStageRank(stageId: ExpiryStageId): number {
   return STAGES.findIndex((stage) => stage.id === stageId)
+}
+
+export type StageCandidate = {
+  readonly registrationStatus: RegistrationStatus
+  readonly hasV2Grace: boolean
+  readonly releaseKind?: string
+}
+
+/** Match the lifecycle at the page's indexed time to the reminder phase. */
+export function isNotifiableAtStage(
+  stage: ExpiryStageConfig,
+  candidate: StageCandidate,
+): boolean {
+  // Stage offsets and templates describe the ENSv2 28-day grace period.
+  if (!candidate.hasV2Grace) return false
+  switch (stage.phase) {
+    case 'pre-expiry':
+      return candidate.registrationStatus === 'active'
+    case 'in-grace':
+      return candidate.registrationStatus === 'expired'
+    case 'grace-ended':
+      return (
+        candidate.registrationStatus === 'released' &&
+        candidate.releaseKind === 'expired'
+      )
+  }
 }

@@ -122,8 +122,7 @@ export type SortOrder = 'asc' | 'desc'
 /** Name-shaped rows: registration/control lifecycle label. */
 export type RegistrationStatus =
   | 'active'
-  | 'wrapped'
-  | 'registered'
+  | 'expired'
   | 'released'
   | 'unregistered'
 
@@ -160,9 +159,20 @@ export type RegistryRef = Readonly<{
   address: Address
 }>
 
+/** Name-shaped rows: the ENSv1 registrar lease and NameWrapper state behind a name. */
+export type EnsV1Facts = Readonly<{
+  /** The BaseRegistrar lease; null on a subname. */
+  expires_at?: Timestamp | null
+  wrapper_state?: WrapperState | 'lapsed' | 'unwrapped' | 'unknown'
+  wrapper_fuses?: WrapperFuses
+  /** Null when the wrapper never set one. */
+  wrapper_expires_at?: Timestamp | null
+}>
+
 /** `GET /v1/names/{name}`, detail lookup: the holder a released ENSv1 lease had when it lapsed. */
 export type LapsedRegistration = Readonly<{
-  registrant?: Address
-  held_through?: 'registrar' | 'wrapper'
+  /** Who held the registration when it lapsed. */
+  owner?: Address
   released_at?: Timestamp
+  release_kind?: string
 }>

@@ -34,7 +34,6 @@
     "@hono/valibot-validator": "^0.5.3",
     "@neondatabase/serverless": "^1.0.2",
     "@react-email/components": "^1.0.12",
-    "@urql/core": "^6.0.3",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.9.1",
     "lucide": "^0.542.0",

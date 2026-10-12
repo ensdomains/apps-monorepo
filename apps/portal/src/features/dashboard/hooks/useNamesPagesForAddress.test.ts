@@ -33,7 +33,10 @@ describe('getV1NamesPagesForAddressQueryOptions', () => {
   })
 
   const options = getV1NamesPagesForAddressQueryOptions({ address: ADDRESS })
-  const v1Name = (i: number) => ({ name: `name${i}.eth` })
+  const v1Name = (i: number) => ({
+    name: `name${i}.eth`,
+    relation: { owner: true },
+  })
 
   it('pages from the last row of the previous page while pages come back full', async () => {
     const first = Array.from({ length: 100 }, (_, i) => v1Name(i))
@@ -48,6 +51,12 @@ describe('getV1NamesPagesForAddressQueryOptions', () => {
 
     expect(mockEnsjsGetNamesForAddress.mock.calls[0]?.[1]).toEqual({
       address: ADDRESS,
+      filter: {
+        owner: true,
+        registrant: true,
+        wrappedOwner: true,
+        resolvedAddress: false,
+      },
       orderBy: 'expiryDate',
       orderDirection: 'asc',
       previousPage: undefined,

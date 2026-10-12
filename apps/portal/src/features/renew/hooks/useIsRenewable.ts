@@ -26,10 +26,12 @@ class IsRenewableError extends TaggedError('IsRenewableError')<{
 
 /**
  * Whether the renewer will renew this name right now, via its on-chain
- * `isRenewable`. For unmigrated v1 names the renewer is `ETHRenewerV1`, which only
- * renews RESERVED (premigrated) or in-grace names, so a name with no reservation
- * returns `false`. Any read/normalization failure surfaces as the query error;
- * callers treat that (and `false`) as "not renewable" and hide the Extend flow.
+ * `isRenewable`. For unmigrated v1 names the renewer is `ETHRenewerV1`, which
+ * renews names whose v2 slot is RESERVED or was RESERVED and is still in grace.
+ * Premigration reserved every live v1 name, so this is `true` for practically
+ * any of them: it says whether the renewer accepts the call, not whose name it
+ * is. Any read/normalization failure surfaces as the query error; callers treat
+ * that (and `false`) as "not renewable" and hide the Extend flow.
  */
 const getIsRenewable = ResultFn(async function* ({
   renewerAddress,

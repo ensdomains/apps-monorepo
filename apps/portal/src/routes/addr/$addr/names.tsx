@@ -123,8 +123,11 @@ export const Route = createFileRoute('/addr/$addr/names')({
  *
  * `isExtendable2LD` is a coarse grace-window pre-filter and is NOT authoritative
  * for v1: ETHRenewerV1 only renews reserved/in-grace names and reverts
- * otherwise. So each selected v1 name is checked against the renewer's on-chain
- * `isRenewable` (shared with the name page via {@link useV1Renewable});
+ * otherwise. That is a check on the renewer, not on ownership: every live v1
+ * name was reserved by premigration, and the rows here are already limited to
+ * names the address owns. So each selected v1 name is checked against the
+ * renewer's on-chain `isRenewable` (shared with the name page via
+ * {@link useV1Renewable});
  * non-renewable ones are dropped so they never enter a single- or multi-renew
  * flow. v2 is fully covered by `isExtendable2LD` and passes through untouched.
  *

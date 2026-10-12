@@ -3,6 +3,7 @@ import { getNameRowId } from '@/features/names/components/NamesTable/columns'
 import type { ProtocolVersion } from '@/utils/types'
 import {
   GRACE_PERIOD_DAYS,
+  getNameStatus,
   getSelectedNames,
   isExtendable2LD,
   isNonCanonicalEthName,
@@ -276,5 +277,29 @@ describe('getSelectedNames', () => {
       rows,
     )
     expect(result).toHaveLength(1)
+  })
+})
+
+describe('getNameStatus', () => {
+  const daysAgo = (days: number) => new Date(Date.now() - days * MS_PER_DAY)
+
+  it.each([
+    { isV2: true, days: -1, status: 'registered' },
+    { isV2: true, days: 1, status: 'grace' },
+    { isV2: true, days: 35, status: 'premium' },
+    { isV2: true, days: 50, status: 'expired' },
+    { isV2: false, days: 1, status: 'grace' },
+    { isV2: false, days: 100, status: 'premium' },
+    { isV2: false, days: 112, status: 'expired' },
+  ])('is $status $days days past expiry (v2: $isV2)', ({
+    isV2,
+    days,
+    status,
+  }) => {
+    expect(getNameStatus(daysAgo(days), isV2)).toBe(status)
+  })
+
+  it('is no-expiry without an expiry', () => {
+    expect(getNameStatus(null, true)).toBe('no-expiry')
   })
 })
