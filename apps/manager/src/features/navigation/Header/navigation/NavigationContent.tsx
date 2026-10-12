@@ -18,7 +18,7 @@ type NavigationContentProps = {
 
 type NavigationLink = {
   readonly label: MessageDescriptor
-  readonly newTab?: boolean
+  readonly shouldOpenInNewTab?: boolean
 } & (
   | {
       readonly href: string
@@ -52,12 +52,12 @@ const navigationSections: readonly NavigationSection[] = [
             landing: true,
           },
         }),
-        newTab: true,
+        shouldOpenInNewTab: true,
       },
       {
         label: msg`ENS Explorer`,
         href: EXPLORER_URL,
-        newTab: true,
+        shouldOpenInNewTab: true,
       },
     ],
   },
@@ -144,7 +144,7 @@ const NavigationLinkItem = ({
 }) => {
   const { _ } = useLingui()
   const label = _(link.label)
-  const content = link.newTab ? `${label} ↗` : label
+  const content = link.shouldOpenInNewTab ? `${label} ↗` : label
 
   if ('linkOptions' in link) {
     return (
@@ -152,8 +152,8 @@ const NavigationLinkItem = ({
         className={linkClassName}
         onClick={onAction}
         {...link.linkOptions}
-        rel={link.newTab ? 'noreferrer' : undefined}
-        target={link.newTab ? '_blank' : undefined}
+        rel={link.shouldOpenInNewTab ? 'noreferrer' : undefined}
+        target={link.shouldOpenInNewTab ? '_blank' : undefined}
       >
         {content}
       </Link>
@@ -165,8 +165,8 @@ const NavigationLinkItem = ({
       className={linkClassName}
       href={link.href}
       onClick={onAction}
-      rel={link.newTab ? 'noreferrer' : link.rel}
-      target={link.newTab ? '_blank' : link.target}
+      rel={link.shouldOpenInNewTab ? 'noreferrer' : link.rel}
+      target={link.shouldOpenInNewTab ? '_blank' : link.target}
     >
       {content}
     </a>

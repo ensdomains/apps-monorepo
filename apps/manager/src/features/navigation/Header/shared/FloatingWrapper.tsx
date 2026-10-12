@@ -17,7 +17,7 @@ export const FloatingWrapper = ({
 }: {
   children: React.ReactNode
   className?: string
-  ref?: React.Ref<HTMLDivElement>
+  readonly ref?: React.Ref<HTMLDivElement>
 }) => {
   return (
     <div className={tw(floatingWrapperClassName, className)} ref={ref}>

@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import type React from 'react'
 import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -54,21 +53,11 @@ export const DesktopNavigation = ({
         aria-label="Open navigation"
         className="group flex shrink-0 items-center justify-center gap-4"
       >
-        <div className="flex shrink-0">
-          <Link
-            onClick={(e) => {
-              e.stopPropagation()
-              setOpen(false)
-            }}
-            to="/"
-          >
-            {profileHeader ? (
-              <ProfileThemeEnsLogo color={profileThemeColor} />
-            ) : (
-              <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
-            )}
-          </Link>
-        </div>
+        {profileHeader ? (
+          <ProfileThemeEnsLogo color={profileThemeColor} />
+        ) : (
+          <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
+        )}
         <MSymbol
           className={tw(
             'ms-font-rounded shrink-0 transition-transform duration-200 group-data-popup-open:-rotate-180',
