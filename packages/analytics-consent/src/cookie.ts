@@ -22,6 +22,12 @@ export const writeConsentCookie = (consent: AnalyticsConsent): void => {
   document.cookie = `${CONSENT_COOKIE_NAME}=${consent}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
 }
 
+export const clearConsentCookie = (): void => {
+  if (typeof document === 'undefined') return
+  // biome-ignore lint/suspicious/noDocumentCookie: consent mirror removal, sync by design.
+  document.cookie = `${CONSENT_COOKIE_NAME}=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+}
+
 export const readConsentCookie = (): StoredConsent => {
   if (typeof document === 'undefined') return null
   const raw =

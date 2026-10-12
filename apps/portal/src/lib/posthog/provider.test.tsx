@@ -145,8 +145,9 @@ describe('consent PostHog provider', () => {
       </PHProvider>,
     )
     const initConfig = vi.mocked(posthog.init).mock.calls[0]?.[1]
-    expect(initConfig).not.toHaveProperty('opt_out_capturing_by_default')
-    expect(initConfig).not.toHaveProperty('opt_out_persistence_by_default')
+    expect(initConfig).toHaveProperty('opt_out_capturing_by_default', true)
+    expect(initConfig).toHaveProperty('opt_out_persistence_by_default', true)
+    expect(posthog.opt_in_capturing).toHaveBeenCalled()
     expect(posthogKeys()).toEqual(['ph_test-key_posthog'])
     expect(posthog.identify).toHaveBeenCalledWith(
       WALLET,

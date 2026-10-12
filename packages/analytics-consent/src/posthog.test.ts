@@ -6,9 +6,8 @@ import {
   ANONYMOUS_POSTHOG_CONFIG,
   type AnalyticsClient,
   applyDeclinedConsent,
-  CONSENTED_POSTHOG_CONFIG,
-  configForConsent,
   identifyWalletConnection,
+  posthogCookieDeletions,
   sweepPosthogStorage,
 } from './posthog.js'
 
@@ -44,7 +43,7 @@ const flagsResponder = (request: {
 
 const initClient = (
   key: string,
-  config: typeof ANONYMOUS_POSTHOG_CONFIG | typeof CONSENTED_POSTHOG_CONFIG,
+  config: typeof ANONYMOUS_POSTHOG_CONFIG = ANONYMOUS_POSTHOG_CONFIG,
 ): { client: PostHog; requests: ReturnType<typeof vi.spyOn> } => {
   const client = new PostHog()
   const requests = vi
@@ -98,10 +97,9 @@ describe('consent PostHog configs', () => {
     vi.restoreAllMocks()
   })
 
-  it('treats no choice as declined when choosing a config', () => {
-    expect(configForConsent(null)).toBe(ANONYMOUS_POSTHOG_CONFIG)
-    expect(configForConsent('declined')).toBe(ANONYMOUS_POSTHOG_CONFIG)
-    expect(configForConsent('accepted')).toBe(CONSENTED_POSTHOG_CONFIG)
+  it('starts anonymous whatever the stored choice; accepted opts in at runtime', () => {
+    expect(ANONYMOUS_POSTHOG_CONFIG.opt_out_capturing_by_default).toBe(true)
+    expect(ANONYMOUS_POSTHOG_CONFIG.opt_out_persistence_by_default).toBe(true)
   })
 
   it('anonymous init sends only config and anonymous flag requests and stores nothing', async () => {
@@ -259,9 +257,11 @@ describe('consent PostHog configs', () => {
 
   it('the guard drops events unless the stored choice is accepted', async () => {
     writeConsent('declined')
-    const declined = initClient('guard-declined', CONSENTED_POSTHOG_CONFIG)
+    const declined = initClient('guard-declined')
+    declined.client.opt_in_capturing()
     declined.client.capture('guarded-event', {})
-    const missing = initClient('guard-missing', CONSENTED_POSTHOG_CONFIG)
+    const missing = initClient('guard-missing')
+    missing.client.opt_in_capturing()
     localStorage.clear()
     missing.client.capture('guarded-event', {})
     await vi.advanceTimersByTimeAsync(3000)
@@ -269,18 +269,17 @@ describe('consent PostHog configs', () => {
     expect(eventNames(missing.requests)).toEqual([])
 
     writeConsent('accepted')
-    const accepted = initClient('guard-accepted', CONSENTED_POSTHOG_CONFIG)
+    const accepted = initClient('guard-accepted')
+    accepted.client.opt_in_capturing()
     accepted.client.capture('guarded-event', {})
     await vi.advanceTimersByTimeAsync(3000)
     expect(eventNames(accepted.requests)).toContain('guarded-event')
   })
 
-  it('accepted init captures page views and usage events', async () => {
+  it('runtime opt-in captures page views and usage events', async () => {
     writeConsent('accepted')
-    const { client, requests } = initClient(
-      'consented-key',
-      CONSENTED_POSTHOG_CONFIG,
-    )
+    const { client, requests } = initClient('consented-key')
+    client.opt_in_capturing()
     client.capture('name:search_selected', { name: 'nick.eth' })
     history.pushState({}, '', '/nick.eth')
     await vi.advanceTimersByTimeAsync(3000)
@@ -288,6 +287,71 @@ describe('consent PostHog configs', () => {
     expect(names).toContain('$pageview')
     expect(names).toContain('name:search_selected')
     expect(client.has_opted_out_capturing()).toBe(false)
+  })
+
+  it('filters implicit feature-flag call events while accepted', async () => {
+    writeConsent('accepted')
+    const { client, requests } = initClient('flag-event-key')
+    client.opt_in_capturing()
+    identifyWalletConnection(client, {
+      address: WALLET,
+      chainId: 11155111,
+      connectorName: 'test',
+    })
+    await vi.advanceTimersByTimeAsync(500)
+    requests.mockClear()
+    expect(client.isFeatureEnabled('migration')).toBe(true)
+    client.capture('name:search_selected', { name: 'nick.eth' })
+    await vi.advanceTimersByTimeAsync(3000)
+    const names = eventNames(requests)
+    expect(names).not.toContain('$feature_flag_called')
+    expect(names).toContain('name:search_selected')
+  })
+
+  it('decline after a runtime opt-in keeps the opt-out through a reset', async () => {
+    const { client, requests } = initClient('decline-reset-key')
+    await vi.advanceTimersByTimeAsync(500)
+    writeConsent('accepted')
+    client.opt_in_capturing()
+    identifyWalletConnection(client, {
+      address: WALLET,
+      chainId: 11155111,
+      connectorName: 'test',
+    })
+    await vi.advanceTimersByTimeAsync(500)
+
+    writeConsent('declined')
+    applyDeclinedConsent(client)
+    client.reset()
+    await vi.advanceTimersByTimeAsync(1000)
+    requests.mockClear()
+    client.reloadFeatureFlags()
+    client.capture('after-reset', {})
+    await vi.advanceTimersByTimeAsync(8000)
+
+    expect(client.has_opted_out_capturing()).toBe(true)
+    expect(posthogKeys()).toEqual({ local: [], session: [], cookie: '' })
+    expect(eventNames(requests)).toEqual([])
+    expect(
+      requests.mock.calls.every(
+        ([request]: [SentRequest]) => !requestText(request).includes(WALLET),
+      ),
+    ).toBe(true)
+  })
+
+  it('deletes host-only and parent-domain cookies, plain and Secure', () => {
+    expect(posthogCookieDeletions('app.ens.domains', 'ph_key_posthog')).toEqual(
+      [
+        'ph_key_posthog=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
+        'ph_key_posthog=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure',
+        'ph_key_posthog=; Path=/; Domain=.ens.domains; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
+        'ph_key_posthog=; Path=/; Domain=.ens.domains; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure',
+      ],
+    )
+    expect(posthogCookieDeletions('localhost', 'ph_key_posthog')).toEqual([
+      'ph_key_posthog=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax',
+      'ph_key_posthog=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure',
+    ])
   })
 
   it('drives the client in the verified order', () => {

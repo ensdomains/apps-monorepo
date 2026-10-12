@@ -1,7 +1,7 @@
 import { readConsent } from '@ens-apps/analytics-consent/consent'
 import {
+  ANONYMOUS_POSTHOG_CONFIG,
   applyDeclinedConsent,
-  configForConsent,
   identifyWalletConnection,
   sweepPosthogStorage,
 } from '@ens-apps/analytics-consent/posthog'
@@ -63,14 +63,19 @@ export const PHProvider = ({
         // Stale PostHog storage is not consent: a stored opt-in or a
         // pre-pause wallet identity would otherwise leak into anonymous mode.
         if (stored !== 'accepted') sweepPosthogStorage()
+        // The SDK always starts anonymous; an accepted choice opts in at
+        // runtime below, so a later decline falls back to the anonymous
+        // defaults once the sweep removes its marker.
         posthog.init(posthogKey, {
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-          ...configForConsent(stored),
+          ...ANONYMOUS_POSTHOG_CONFIG,
         })
+        if (stored === 'accepted')
+          posthog.opt_in_capturing()
 
-        // The ESM `posthog-js` build keeps the singleton in an internal
-        // registry and never attaches it to `window` (unlike the script-tag
-        // snippet). Expose it for debugging in the console.
+          // The ESM `posthog-js` build keeps the singleton in an internal
+          // registry and never attaches it to `window` (unlike the script-tag
+          // snippet). Expose it for debugging in the console.
         ;(window as Window & { posthog?: typeof posthog }).posthog = posthog
       }
     } catch (error) {
@@ -111,6 +116,10 @@ export const PHProvider = ({
     if (consent === 'accepted') {
       posthog.opt_in_capturing()
     } else if (consent === 'declined') {
+      applyDeclinedConsent(posthog)
+    } else {
+      // The choice vanished mid-session (removed outside this tab); null
+      // counts as declined.
       applyDeclinedConsent(posthog)
     }
   }, [consent])

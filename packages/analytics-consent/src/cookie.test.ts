@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   CONSENT_COOKIE_NAME,
+  clearConsentCookie,
   parseConsentValue,
   readConsentCookie,
   writeConsentCookie,
@@ -51,5 +52,13 @@ describe('consent cookie', () => {
     writeConsentCookie('accepted')
     expect(readConsentCookie()).toBe('accepted')
     expect(document.cookie).toContain(`${CONSENT_COOKIE_NAME}=accepted`)
+  })
+
+  it('clears a stale mirror', () => {
+    writeConsentCookie('accepted')
+    expect(readConsentCookie()).toBe('accepted')
+    clearConsentCookie()
+    expect(readConsentCookie()).toBeNull()
+    expect(document.cookie).not.toContain(CONSENT_COOKIE_NAME)
   })
 })

@@ -6,16 +6,38 @@ import {
 } from '@ens-apps/analytics-consent/consent'
 import { DELETION_EMAIL } from '@ens-apps/analytics-consent/wording'
 import { fireEvent, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import {
   AnalyticsNotice,
   MANAGER_USAGE_EVENTS_PARAGRAPH,
 } from './AnalyticsNotice'
 
+const hydratedState = vi.hoisted(() => ({ value: true }))
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useHydrated: () => hydratedState.value,
+}))
+
 describe('AnalyticsNotice', () => {
   beforeEach(() => {
     localStorage.clear()
+    hydratedState.value = true
+  })
+
+  it('shows the no-choice state until hydration, matching the server markup', () => {
+    hydratedState.value = false
+    localStorage.setItem(CONSENT_STORAGE_KEY, 'accepted')
+    render(<AnalyticsNotice />)
+    expect(screen.getByTestId('analytics-consent-status')).toHaveTextContent(
+      'You have made no choice yet.',
+    )
+    expect(
+      screen
+        .getByTestId('analytics-consent-switch')
+        .getAttribute('aria-checked'),
+    ).toBe('false')
   })
 
   it('names the collection, the purposes, the processor and deletion', () => {

@@ -4,6 +4,7 @@ import {
   analyticsNoticeParagraphs,
   consentChoiceLabels,
 } from '@ens-apps/analytics-consent/wording'
+import { useHydrated } from '@tanstack/react-router'
 import { Switch } from '@/components/ui/switch'
 
 export const MANAGER_USAGE_EVENTS_PARAGRAPH =
@@ -15,7 +16,11 @@ export const MANAGER_USAGE_EVENTS_PARAGRAPH =
  * Rendered as a section of the privacy policy page.
  */
 export const AnalyticsNotice = () => {
+  const isHydrated = useHydrated()
   const [consent, setConsent] = useAnalyticsConsent()
+  // The server renders the no-choice state; show it until hydration so a
+  // returning visitor gets no markup mismatch.
+  const shown = isHydrated ? consent : null
   const [collected, usageEvents, purposes, processor, declined, deletion] =
     analyticsNoticeParagraphs(MANAGER_USAGE_EVENTS_PARAGRAPH)
 
@@ -36,16 +41,16 @@ export const AnalyticsNotice = () => {
       <div className="mt-4 flex items-center gap-3">
         <Switch
           aria-label="Analytics"
-          checked={consent === 'accepted'}
+          checked={shown === 'accepted'}
           data-testid="analytics-consent-switch"
           onCheckedChange={(checked) =>
             setConsent(checked ? 'accepted' : 'declined')
           }
         />
         <p className="text-gray-700" data-testid="analytics-consent-status">
-          {consent === null
+          {shown === null
             ? consentChoiceLabels.none
-            : consent === 'accepted'
+            : shown === 'accepted'
               ? consentChoiceLabels.accepted
               : consentChoiceLabels.declined}
         </p>

@@ -2,16 +2,20 @@ import type {
   BeforeSendFn,
   PostHogConfig,
 } from 'posthog-js/dist/module.full.no-external'
-import { readConsent, type StoredConsent } from './consent.js'
+import { readConsent } from './consent.js'
 
 /**
- * The PostHog settings that go with each consent choice.
+ * The PostHog settings for analytics with consent.
  *
- * Both modes share the collection allowlist: page visits, the usage events
- * the apps define, wallet connect and disconnect, and the wallet address as
- * identity. Recordings, automatic capture, surveys, error reports and the
- * support-chat link-up stay off in both. The modes differ only in whether
- * the SDK may capture and persist at all.
+ * The SDK always starts in the anonymous mode below, whatever the stored
+ * choice; an accepted choice opts in at runtime right after init. The
+ * collection allowlist: page visits, the usage events the apps define,
+ * wallet connect and disconnect, and the wallet address as identity.
+ * Recordings, automatic capture, surveys, error reports and the
+ * support-chat link-up stay off. A decline ends with no marker in
+ * storage, so the opt-out status falls back to the init defaults, which
+ * is why init is always anonymous: starting consented left the SDK
+ * opted in with fresh storage after a decline.
  *
  * Verified against posthog-js 1.404.1 (see posthog.test.ts):
  * - anonymous init sends only the config request and anonymous flag
@@ -19,11 +23,25 @@ import { readConsent, type StoredConsent } from './consent.js'
  * - `opt_in_capturing()` starts capture at once with a page view;
  * - `before_send` runs at capture time, so `request_batching: false` is
  *   what keeps a queued event from flushing after a decline;
- * - `reset()` clears the opt-out state, so it must precede `opt_out`.
+ * - decline after a runtime opt-in keeps the opt-out through a later
+ *   reset, with clean storage and no wallet in any request.
  */
 
-export const beforeSendIfConsented: BeforeSendFn = (event) =>
-  event && readConsent() === 'accepted' ? event : null
+/**
+ * Implicit events the SDK emits on its own that fall outside the accepted
+ * collection: every feature-flag read phones home with the visitor's
+ * identity. Filtered centrally so all present and future flag reads are
+ * covered; evaluation itself is unaffected.
+ */
+const SUPPRESSED_SDK_EVENTS: ReadonlySet<string> = new Set([
+  '$feature_flag_called',
+])
+
+export const beforeSendIfConsented: BeforeSendFn = (event) => {
+  if (!event) return null
+  if (SUPPRESSED_SDK_EVENTS.has(event.event)) return null
+  return readConsent() === 'accepted' ? event : null
+}
 
 const ANALYTICS_BASE_CONFIG = {
   capture_pageview: 'history_change',
@@ -42,6 +60,10 @@ const ANALYTICS_BASE_CONFIG = {
   disable_session_recording: true,
   person_profiles: 'identified_only',
   defaults: '2025-11-30',
+  // Cookies stay host-scoped: each app holds its own choice, and the sweep
+  // below can only complete what it can address. The SDK defaults to
+  // parent-domain cookies, which a Path-only deletion cannot remove.
+  cross_subdomain_cookie: false,
   // Events send at once instead of waiting on a flush timer, so nothing
   // captured while accepted can arrive after a decline.
   request_batching: false,
@@ -53,16 +75,6 @@ export const ANONYMOUS_POSTHOG_CONFIG = {
   opt_out_capturing_by_default: true,
   opt_out_persistence_by_default: true,
 } satisfies Partial<PostHogConfig>
-
-export const CONSENTED_POSTHOG_CONFIG = {
-  ...ANALYTICS_BASE_CONFIG,
-} satisfies Partial<PostHogConfig>
-
-/** No choice counts as declined. */
-export const configForConsent = (
-  consent: StoredConsent,
-): Partial<PostHogConfig> =>
-  consent === 'accepted' ? CONSENTED_POSTHOG_CONFIG : ANONYMOUS_POSTHOG_CONFIG
 
 const POSTHOG_KEY_PREFIXES = ['ph_', '__ph_'] as const
 
@@ -92,12 +104,35 @@ export const sweepPosthogStorage = (): void => {
   }
 }
 
+/**
+ * Deletion strings for one PostHog cookie, covering how the SDK writes
+ * them: host-only or parent-domain (its default), plain or Secure (its
+ * default on HTTPS). Stale cookies from earlier builds predate the
+ * host-only setting, so every variant is always attempted; inapplicable
+ * ones are ignored.
+ */
+export const posthogCookieDeletions = (
+  hostname: string,
+  name: string,
+): readonly string[] => {
+  const labels = hostname.split('.')
+  const domains: readonly string[] =
+    labels.length > 1 ? ['', `; Domain=.${labels.slice(-2).join('.')}`] : ['']
+  return domains.flatMap((domain) => [
+    `${name}=; Path=/${domain}; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`,
+    `${name}=; Path=/${domain}; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`,
+  ])
+}
+
 const sweepPosthogCookies = (): void => {
+  const { hostname } = window.location
   for (const cookie of document.cookie.split(';')) {
     const name = cookie.split('=')[0]?.trim() ?? ''
     if (!isPosthogKey(name)) continue
-    // biome-ignore lint/suspicious/noDocumentCookie: consent sweep, sync by design.
-    document.cookie = `${name}=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+    for (const deletion of posthogCookieDeletions(hostname, name)) {
+      // biome-ignore lint/suspicious/noDocumentCookie: consent sweep, sync by design.
+      document.cookie = deletion
+    }
   }
 }
 

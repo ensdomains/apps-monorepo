@@ -148,8 +148,9 @@ describe('consent PostHog provider', () => {
     )
     const initConfig = vi.mocked(posthog.init).mock.calls[0]?.[1]
     expect(initConfig).toMatchObject({ autocapture: false })
-    expect(initConfig).not.toHaveProperty('opt_out_capturing_by_default')
-    expect(initConfig).not.toHaveProperty('opt_out_persistence_by_default')
+    expect(initConfig).toHaveProperty('opt_out_capturing_by_default', true)
+    expect(initConfig).toHaveProperty('opt_out_persistence_by_default', true)
+    expect(posthog.opt_in_capturing).toHaveBeenCalled()
     expect(posthogKeys()).toEqual(['ph_test-key_posthog'])
     expect(document.cookie).toContain(`${CONSENT_COOKIE_NAME}=accepted`)
     expect(posthog.identify).toHaveBeenCalledWith(
@@ -162,6 +163,35 @@ describe('consent PostHog provider', () => {
       chain_id: 1,
       wallet_connector: 'test-wallet',
     })
+  })
+
+  it('clears a stale consent cookie when no choice is stored', () => {
+    // biome-ignore lint/suspicious/noDocumentCookie: test setup.
+    document.cookie = `${CONSENT_COOKIE_NAME}=accepted; Path=/`
+    render(
+      <PHProvider>
+        <div>child</div>
+      </PHProvider>,
+    )
+    expect(document.cookie).not.toContain(CONSENT_COOKIE_NAME)
+  })
+
+  it('a choice vanishing mid-session declines and clears the mirror', () => {
+    localStorage.setItem(CONSENT_STORAGE_KEY, 'accepted')
+    render(
+      <PHProvider>
+        <div>child</div>
+      </PHProvider>,
+    )
+    expect(document.cookie).toContain(`${CONSENT_COOKIE_NAME}=accepted`)
+    act(() => {
+      localStorage.removeItem(CONSENT_STORAGE_KEY)
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: CONSENT_STORAGE_KEY }),
+      )
+    })
+    expect(posthog.opt_out_capturing).toHaveBeenCalled()
+    expect(document.cookie).not.toContain(CONSENT_COOKIE_NAME)
   })
 
   it('initializes anonymously when the visitor declined and mirrors the cookie', () => {

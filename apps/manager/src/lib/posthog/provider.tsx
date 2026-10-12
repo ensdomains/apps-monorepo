@@ -1,8 +1,11 @@
 import { readConsent } from '@ens-apps/analytics-consent/consent'
-import { writeConsentCookie } from '@ens-apps/analytics-consent/cookie'
 import {
+  clearConsentCookie,
+  writeConsentCookie,
+} from '@ens-apps/analytics-consent/cookie'
+import {
+  ANONYMOUS_POSTHOG_CONFIG,
   applyDeclinedConsent,
-  configForConsent,
   identifyWalletConnection,
   sweepPosthogStorage,
 } from '@ens-apps/analytics-consent/posthog'
@@ -55,20 +58,27 @@ export const PHProvider = ({
       // Stale PostHog storage is not consent: a stored opt-in or a pre-pause
       // wallet identity would otherwise leak into the anonymous mode.
       if (stored !== 'accepted') sweepPosthogStorage()
+      // The SDK always starts anonymous; an accepted choice opts in at
+      // runtime below, so a later decline falls back to the anonymous
+      // defaults once the sweep removes its marker.
       posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
         api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-        ...configForConsent(stored),
+        ...ANONYMOUS_POSTHOG_CONFIG,
       })
+      if (stored === 'accepted')
+        posthog.opt_in_capturing()
 
-      // The ESM `posthog-js` build keeps the singleton in an internal
-      // registry and never attaches it to `window` (unlike the script-tag
-      // snippet). Expose it so e2e can reach `window.posthog.featureFlags`
-      // to override flags, and for debugging in the console.
+        // The ESM `posthog-js` build keeps the singleton in an internal
+        // registry and never attaches it to `window` (unlike the script-tag
+        // snippet). Expose it so e2e can reach `window.posthog.featureFlags`
+        // to override flags, and for debugging in the console.
       ;(window as Window & { posthog?: typeof posthog }).posthog = posthog
 
       // The consent cookie mirrors the choice for the server-side route
-      // guards; rewrite it in case it expired or was cleared.
-      if (stored !== null) writeConsentCookie(stored)
+      // guards; rewrite it in case it expired or was cleared, and clear a
+      // stale mirror when no choice is stored.
+      if (stored === null) clearConsentCookie()
+      else writeConsentCookie(stored)
     } catch (error) {
       console.warn('[posthog] init failed', error)
     }
@@ -179,6 +189,11 @@ export const PHProvider = ({
     } else if (consent === 'declined') {
       applyDeclinedConsent(posthog)
       writeConsentCookie('declined')
+    } else {
+      // The choice vanished mid-session (removed outside this tab); null
+      // counts as declined.
+      applyDeclinedConsent(posthog)
+      clearConsentCookie()
     }
   }, [consent])
 
