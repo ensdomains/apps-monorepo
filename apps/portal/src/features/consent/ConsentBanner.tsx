@@ -14,9 +14,11 @@ export const ConsentBanner = () => {
 
   if (consent !== null) return null
 
+  // max-sm:w-auto releases the Alert base's w-full so the left+right
+  // offsets constrain the card instead of overflowing the viewport.
   return (
     <Alert
-      className="fixed z-40 max-sm:top-22 max-sm:right-2.5 max-sm:left-2.5 sm:right-6 sm:bottom-6 sm:max-w-80"
+      className="fixed z-40 max-sm:top-22 max-sm:right-2.5 max-sm:left-2.5 max-sm:w-auto sm:right-6 sm:bottom-6 sm:max-w-80"
       data-testid="analytics-consent-banner"
       variant="neutral"
     >
@@ -24,9 +26,11 @@ export const ConsentBanner = () => {
         Analytics
       </AlertTitle>
       <AlertDescription>{consentBanner.text}</AlertDescription>
-      <div className="col-start-2 mt-3 flex gap-2">
+      {/* Stacked full-width: the two choices render at exactly equal size,
+          and the longer label can never overflow the card on narrow screens. */}
+      <div className="col-start-2 mt-3 flex flex-col gap-2">
         <Button
-          className="flex-1 whitespace-nowrap"
+          className="w-full"
           onClick={() => setConsent('accepted')}
           size="sm"
           variant="outline"
@@ -34,7 +38,7 @@ export const ConsentBanner = () => {
           {consentBanner.acceptLabel}
         </Button>
         <Button
-          className="flex-1 whitespace-nowrap"
+          className="w-full"
           onClick={() => setConsent('declined')}
           size="sm"
           variant="outline"

@@ -21,9 +21,11 @@ export const ConsentBanner = () => {
       data-testid="analytics-consent-banner"
     >
       <p className="text-ens-quartz-900 text-sm">{consentBanner.text}</p>
-      <div className="mt-3 flex gap-2">
+      {/* Stacked full-width: the two choices render at exactly equal size,
+          and the longer label can never overflow the card on narrow screens. */}
+      <div className="mt-3 flex flex-col gap-2">
         <Button
-          className="flex-1 whitespace-nowrap"
+          className="w-full"
           onClick={() => setConsent('accepted')}
           size="sm"
           variant="outline"
@@ -31,7 +33,7 @@ export const ConsentBanner = () => {
           {consentBanner.acceptLabel}
         </Button>
         <Button
-          className="flex-1 whitespace-nowrap"
+          className="w-full"
           onClick={() => setConsent('declined')}
           size="sm"
           variant="outline"

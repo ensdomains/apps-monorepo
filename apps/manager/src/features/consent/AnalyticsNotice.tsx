@@ -42,7 +42,7 @@ export const AnalyticsNotice = () => {
             setConsent(checked ? 'accepted' : 'declined')
           }
         />
-        <p className="text-gray-700">
+        <p className="text-gray-700" data-testid="analytics-consent-status">
           {consent === null
             ? consentChoiceLabels.none
             : consent === 'accepted'
