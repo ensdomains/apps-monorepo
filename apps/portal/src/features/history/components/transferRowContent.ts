@@ -19,7 +19,7 @@ const isMint = ({
   data,
   contractAddress,
 }: TimelineEventOfType<'transfer'>): boolean =>
-  !data.from || data.from.toLowerCase() === contractAddress?.toLowerCase()
+  !data?.from || data?.from.toLowerCase() === contractAddress?.toLowerCase()
 
 /**
  * A transfer row's line, "minted token ID {id} to {account}", with the token id
@@ -30,7 +30,7 @@ export const transferRowContent = (
   event: TimelineEventOfType<'transfer'>,
 ): TransferRowContent | undefined => {
   const token = historyTokenId(event)
-  const { to } = event.data
+  const to = event.data?.to
   const recipient = to && isAddress(to, { strict: false }) ? to : undefined
   if (!token && !recipient) return undefined
   const verb = isMint(event) ? 'minted' : 'transferred'

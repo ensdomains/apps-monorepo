@@ -53,6 +53,27 @@ describe('isInV2Grace', () => {
       isInV2Grace(lapsed({ expires_at: String(NOW + 1n) }), OWNER, NOW),
     ).toBe(false)
   })
+
+  it('does not hold a burned registration or a name not marked expired', () => {
+    expect(
+      isInV2Grace(
+        lapsed({
+          lapsed_registration: { owner: OWNER, release_kind: 'burned' },
+        }),
+        OWNER,
+        NOW,
+      ),
+    ).toBe(false)
+    expect(isInV2Grace(lapsed({ status: 'active' }), OWNER, NOW)).toBe(false)
+  })
+
+  it('reads an RFC 3339 expiry', () => {
+    const expiresAt = new Date(Number(NOW - 86_400n) * 1000).toISOString()
+
+    expect(isInV2Grace(lapsed({ expires_at: expiresAt }), OWNER, NOW)).toBe(
+      true,
+    )
+  })
 })
 
 describe('readGraceNames', () => {

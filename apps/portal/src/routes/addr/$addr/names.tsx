@@ -38,6 +38,7 @@ import {
 } from '@/features/dashboard/hooks/useAddressNames'
 import {
   getAddressRoleCountsQueryOptions,
+  roleCountsOf,
   withRoleCounts,
 } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import {
@@ -426,8 +427,8 @@ function RouteComponent() {
   const isSearching = search.trim() !== ''
 
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
-  const { data: roleCounts } = useQuery(
-    getAddressRoleCountsQueryOptions({ address }),
+  const roleCounts = roleCountsOf(
+    useQuery(getAddressRoleCountsQueryOptions({ address })),
   )
   const allNames = useMemo(
     () => withRoleCounts(namesQuery.data ?? NO_NAMES, roleCounts),

@@ -11,7 +11,7 @@ import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
 class GetRegistryOccupantsError extends TaggedError(
   'GetRegistryOccupantsError',
 )<{
-  cause: unknown
+  cause: BignameError
 }> {}
 
 type GetRegistryOccupantsParameters = {

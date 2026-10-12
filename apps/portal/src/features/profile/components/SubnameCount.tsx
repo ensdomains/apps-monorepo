@@ -35,7 +35,7 @@ export const SubnameCount = ({
       params={{ name }}
       icon={GraphIcon}
       label="Subnames"
-      value={data ?? 0}
+      value={data ?? 'Unknown'}
     />
   )
 }

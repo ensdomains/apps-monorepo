@@ -1,6 +1,7 @@
 import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -14,7 +15,7 @@ export interface NameMobileCardProps {
   expiryDate?: Date | null
   relations?: readonly AddressNameRelation[]
   /** ENSv2 only: the roles the address holds on the name. */
-  roleCount?: number
+  roleCount?: RoleCount
   protocolVersion: ProtocolVersion
   recordCount?: number
   subdomainCount?: number

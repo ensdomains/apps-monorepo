@@ -9,6 +9,7 @@ import {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { okAsync, type ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
+import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { type TimelineEvent, toTimelineEvents } from './timelineEvent'
@@ -140,6 +141,27 @@ export const fetchContractEventsPage = ({
   wrap(
     bigname.events({
       contract_address: contractAddress.toLowerCase() as Address,
+      include: ['data', 'raw', 'total_count'],
+      order: 'desc',
+      page_size: HISTORY_TIMELINE_PAGE_SIZE,
+      ...(cursor && { cursor }),
+    }),
+  )
+
+/**
+ * A resolver's feed as its overview reads it: what it emitted plus the names
+ * pointed at it or away from it.
+ */
+export const fetchResolverEventsPage = ({
+  resolverAddress,
+  cursor,
+}: {
+  readonly resolverAddress: Address
+  readonly cursor?: string
+}) =>
+  wrap(
+    bigname.events({
+      resolver: `${envConfig.chain.id}:${resolverAddress.toLowerCase()}`,
       include: ['data', 'raw', 'total_count'],
       order: 'desc',
       page_size: HISTORY_TIMELINE_PAGE_SIZE,

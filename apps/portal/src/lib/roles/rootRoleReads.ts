@@ -2,15 +2,14 @@ import {
   type BignameError,
   type EventRow,
   MAX_PAGE_SIZE,
-  type Meta,
   type PermissionRow,
   type Power,
   readAllCollectionPages,
+  readAllEnvelopes,
   toExactSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
-import { okAsync, type ResultAsync } from 'neverthrow'
 import { type Address, getAddress, isAddressEqual, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -89,27 +88,17 @@ const toHolders =
  * state the declared role bits with no read-time mask, so they are the same
  * set the contract stores.
  */
-const readRootPermissions = (
-  registryAddress: Address,
-  cursor?: string,
-  rows: readonly PermissionRow[] = [],
-): ResultAsync<
-  { readonly rows: readonly PermissionRow[]; readonly meta: Meta },
-  BignameError
-> =>
-  bigname
-    .permissions({
+const readRootPermissions = (registryAddress: Address) =>
+  readAllEnvelopes((cursor) =>
+    bigname.permissions({
       registry: `${envConfig.chain.id}:${registryAddress.toLowerCase()}`,
       page_size: MAX_PAGE_SIZE,
       ...(cursor && { cursor }),
-    })
-    .andThen(({ data, page, meta }) => {
-      const all = [...rows, ...data]
-      const next = page?.next_cursor
-      return next
-        ? readRootPermissions(registryAddress, next, all)
-        : okAsync({ rows: all, meta })
-    })
+    }),
+  ).map((pages) => ({
+    rows: pages.flatMap((page) => page.data),
+    meta: pages.at(-1)?.meta,
+  }))
 
 export const getBignameRootRoleHolders = ({
   registryAddress,
@@ -120,7 +109,7 @@ export const getBignameRootRoleHolders = ({
       ({ rows, meta }): RegistryRootRoles => ({
         holders: toHolders(registryAddress)(rows),
         areOperatorRolesUnlisted:
-          meta.completeness === 'partial' &&
+          meta?.completeness === 'partial' &&
           !!meta.unlisted_permission_surfaces?.includes(
             'ens_v2_registry_operators',
           ),

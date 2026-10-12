@@ -20,6 +20,7 @@ import { dateToPlainDate } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 import {
   getAddressRoleCountsQueryOptions,
+  roleCountsOf,
   withRoleCounts,
 } from '../hooks/useAddressRoleCounts'
 
@@ -81,8 +82,8 @@ const columns: ColumnDef<column>[] = [
 
 export const NameList = ({ address, limit }: NameListProps) => {
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
-  const { data: roleCounts } = useQuery(
-    getAddressRoleCountsQueryOptions({ address }),
+  const roleCounts = roleCountsOf(
+    useQuery(getAddressRoleCountsQueryOptions({ address })),
   )
 
   if (namesQuery.isLoading) return <LoadingSpinner title="Loading names" />

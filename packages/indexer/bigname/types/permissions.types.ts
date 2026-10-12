@@ -12,14 +12,6 @@ import type {
   WrapperState,
 } from './common.types'
 
-/**
- * Permission rows, role summaries, permission event data: one effective power.
- * Closed ~60-value snake_case vocabulary; see api-v1.md "Permission powers vocabulary"
- * (`registration_control`, `resolver_control`, `registry_control`, `set_resolver`, ENSv2
- * `ROLE_*` names and their `admin_*` counterparts, ...). Not enumerated here.
- */
-export type Power = string
-
 /** The ENSv2 registry powers the apps fold into ensjs registry roles. */
 export type RegistryPower =
   | 'registrar'
@@ -65,6 +57,13 @@ export type ResolverPower =
   | 'admin_link'
   | 'admin_can_name'
   | 'admin_upgrade'
+
+/**
+ * Permission rows, role summaries, permission event data: one effective power.
+ * The two typed sets cover what the apps read; bigname's vocabulary is wider
+ * and grows, so any other string is accepted too.
+ */
+export type Power = RegistryPower | ResolverPower | (string & {})
 
 /** Address-name rows, reverse lookup rows: address-to-name relation values. */
 export type Relation =

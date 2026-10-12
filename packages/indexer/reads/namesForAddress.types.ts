@@ -57,7 +57,7 @@ export type NameSummary = Readonly<{
   /** Only with `includeCounts`. */
   subnameCount?: number
   recordCount?: number
-  /** Only with `includeRoles`: the distinct powers `address` holds on the name. */
+  /** Only with `includeRoles`: the distinct powers `address` holds on the name and its registry. */
   heldPowers?: readonly string[]
 }>
 

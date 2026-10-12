@@ -311,6 +311,12 @@ export function createIndexerMock() {
         meta: META,
       })),
     },
+    // A registry or resolver nobody registered is one bigname has not indexed.
+    {
+      method: 'GET',
+      path: /^\/v1\/(registries|resolvers)\/[^/]+\/[^/]+$/,
+      reply: () => notFound,
+    },
     {
       method: 'GET',
       path: /^\/v1\/status$/,

@@ -18,7 +18,7 @@ class GetResolvedNamesForAddressError extends TaggedError(
 }> {}
 
 /** More names than bigname will list for one address record. */
-export class TooManyResolvedNamesError extends TaggedError(
+class TooManyResolvedNamesError extends TaggedError(
   'TooManyResolvedNamesError',
 )<{
   cause: BignameError

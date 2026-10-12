@@ -59,7 +59,8 @@ type TimelineEventBase = {
 export type TimelineEvent = {
   readonly [TType in EventType]: TimelineEventBase & {
     readonly type: TType
-    readonly data: EventDataByType[TType]
+    /** Absent when bigname serves the row without a payload. */
+    readonly data?: EventDataByType[TType]
   }
 }[EventType]
 
@@ -70,7 +71,7 @@ export type TimelineEventOfType<TType extends EventType> = Extract<
 
 /**
  * A bigname history row as the timeline renders it: unix-second timestamp,
- * camel-cased fields, `data` always present. A row with no chain position has
+ * camel-cased fields. A row with no chain position has
  * nowhere to sit on a timeline and is dropped. Name history rows always carry
  * `name`; contract-feed rows (`/v1/events`) can omit it.
  *
@@ -95,7 +96,7 @@ const toTimelineEvent = (
     logIndex: row.log_index,
     timestamp,
     ...(row.contract_address && { contractAddress: row.contract_address }),
-    data: row.data ?? {},
+    ...(row.data && { data: row.data }),
   } as TimelineEvent
 }
 

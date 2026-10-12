@@ -18,7 +18,7 @@ import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import type { BignameLookupError } from './bignameLookup'
-import { checkNotAborted, lookupNames } from './bignameLookup'
+import { lookupNames } from './bignameLookup'
 
 const FETCH_PAGE_SIZE = 200
 
@@ -54,23 +54,23 @@ const listV1Names = (
 ) =>
   readAllPages<string, BignameError | Error>({
     readPage: (cursor) =>
-      checkNotAborted(options.signal, (reason) => reason)
-        .asyncAndThen(() =>
-          client.addressNames(address, {
-            namespace: 'ens',
-            relation: 'any',
-            authority: ['ens_v1', 'ens_v0'],
-            sort: 'name',
-            order: 'asc',
-            page_size: FETCH_PAGE_SIZE,
-            ...(cursor !== undefined && { cursor }),
-          }),
-        )
+      client
+        .addressNames(address, {
+          namespace: 'ens',
+          relation: 'any',
+          authority: ['ens_v1', 'ens_v0'],
+          sort: 'name',
+          order: 'asc',
+          page_size: FETCH_PAGE_SIZE,
+          ...(cursor !== undefined && { cursor }),
+        })
         .map(({ data, page }) => ({
           rows: data.filter(isListed).map((row) => row.name),
           nextCursor: page?.next_cursor ?? null,
         })),
     isStaleError: isStale,
+    toStopError: (reason) => new Error(`Paging stopped: ${reason}`),
+    signal: options.signal,
   }).mapErr(toError)
 
 const lookupRecords = (

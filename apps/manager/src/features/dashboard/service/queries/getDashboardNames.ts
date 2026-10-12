@@ -75,7 +75,7 @@ const getGraceNames = (
     address,
     BigInt(Math.floor(now.getTime() / 1000)),
   )
-    .map((rows) => rows.flatMap((row) => toGraceName(row, address, now) ?? []))
+    .map((rows) => rows.flatMap((row) => toGraceName(row) ?? []))
     .mapErr((error) => new GetDashboardNamesError({ cause: error }))
 
 export const DASHBOARD_PAGE_SIZE = 5

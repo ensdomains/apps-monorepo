@@ -243,7 +243,6 @@ describe('getResolverOverviewQueryOptions', () => {
       linkCount: 2,
       linksStatus: 'full',
       roleHolderCount: 1,
-      eventCount: 3,
     })
     expect(result?.links.map(({ name }) => name)).toEqual(['a.eth', 'b.eth'])
     expect(result?.roles[0]).toMatchObject({

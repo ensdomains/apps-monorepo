@@ -28,10 +28,21 @@ export type GetNameHistoryParameters = {
  * `scope: 'name'`, `registration` is `scope: 'registration'`, and `resolver`
  * is `type: ['record', 'resolver']`.
  */
+export type NameHistoryPage = {
+  readonly rows: readonly NameHistoryRow[]
+  /** Undefined when bigname does not count the history. */
+  readonly totalCount: number | undefined
+}
+
 const getNameHistory = ({ name, ...params }: GetNameHistoryParameters) =>
   bigname
     .nameHistory(name, { ...params, include: ['data', 'raw'] })
-    .map(({ data }): readonly NameHistoryRow[] => data)
+    .map(
+      ({ data, page }): NameHistoryPage => ({
+        rows: data,
+        totalCount: page?.total_count ?? undefined,
+      }),
+    )
     .mapErr((cause) => new GetNameHistoryError({ cause }))
 
 const getNameHistoryQueryKey = createQueryKey<

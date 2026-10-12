@@ -19,14 +19,14 @@ const defaultNetwork = {
 }
 
 /** Each transaction row with its sender from the receipt, where one was read. */
-const withSenders = <T extends { transactionID: string; from: Address | null }>(
+const withSenders = <T extends { transactionID: Hash; from: Address | null }>(
   rows: readonly T[],
   senders: ReadonlyMap<Hash, Address> | undefined,
 ): T[] =>
   senders
     ? rows.map((tx) => ({
         ...tx,
-        from: senders.get(tx.transactionID as Hash) || tx.from,
+        from: senders.get(tx.transactionID) || tx.from,
       }))
     : []
 
@@ -48,7 +48,7 @@ export const AddressHistoryDataTable = ({
   )
 
   const transactionHashes = useMemo(
-    () => allEvents.map((event) => event.transactionID as Hash),
+    () => allEvents.map((event) => event.transactionID),
     [allEvents],
   )
 

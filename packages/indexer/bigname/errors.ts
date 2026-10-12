@@ -33,6 +33,6 @@ export const isBignameApiErrorCode = (
   typeof value === 'string' &&
   (BIGNAME_API_ERROR_CODES as readonly string[]).includes(value)
 
-/** A current-state collection cursor whose publication moved on. */
+/** bigname's `stale` answer: usually temporary, so the same request is worth sending again. */
 export const isStale = (error: unknown): error is BignameError =>
   error instanceof BignameError && error.code === 'stale'

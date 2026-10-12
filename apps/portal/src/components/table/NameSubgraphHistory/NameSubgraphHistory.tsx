@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Hash } from 'viem'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -54,27 +53,10 @@ const NameSubgraphHistoryTable = ({
   // bigname dates every row, so each transaction carries its own timestamp.
   const groupedData = groupEventsByTransactionId(history, category)
 
-  const {
-    data: sendersData,
-    isLoading: isLoadingSenders,
-    error: sendersError,
-  } = useTransactionSenders({
-    transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
+  // A sender that cannot be read falls back to the event's own `from`.
+  const { data: senders } = useTransactionSenders({
+    transactionHashes: groupedData.map((tx) => tx.transactionID),
   })
-
-  if (isLoadingSenders) {
-    return <LoadingSpinner title="Loading transaction senders..." />
-  }
-  if (sendersError) {
-    return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
-    )
-  }
-  if (!sendersData) {
-    return <div>No sender data available</div>
-  }
 
   return (
     <EventsDataTable
@@ -85,7 +67,7 @@ const NameSubgraphHistoryTable = ({
       enableNetwork={false}
       data={groupedData.map((tx) => ({
         ...tx,
-        from: sendersData.get(tx.transactionID as Hash) || tx.from,
+        from: senders?.get(tx.transactionID) ?? tx.from,
       }))}
       name={name}
     />
@@ -117,7 +99,10 @@ export const NameSubgraphHistory = ({
   if (!hasEvents && error) return <div>Error: {extractErrorMessage(error)}</div>
 
   const data =
-    v2Events ?? (history ? historyEventsToSubgraphEvents(history) : undefined)
+    v2Events ??
+    (history ? historyEventsToSubgraphEvents(history.rows) : undefined)
+  // Only the indexed read is one page of a longer history.
+  const totalCount = v2Events ? undefined : history?.totalCount
 
   if (!data || data.length === 0)
     return (
@@ -135,6 +120,11 @@ export const NameSubgraphHistory = ({
     <div className="flex flex-col gap-4 w-full">
       {enableHeader && <HistorySectionHeader />}
       <NameSubgraphHistoryTable {...{ name, data, category }} />
+      {totalCount !== undefined && totalCount > data.length && (
+        <p className="text-sm text-muted-foreground">
+          Showing the latest {data.length} of {totalCount} events
+        </p>
+      )}
     </div>
   )
 }

@@ -193,6 +193,10 @@ function RouteComponent() {
   const canLink = Boolean(hasLinkRole)
 
   const nodes = loadedNodes.slice(0, loader.shown)
+  const nodesByName = new Map(nodes.map((node) => [node.name, node]))
+  const partialSearchHint = loader.canShowMore
+    ? `Covers the ${nodes.length} names shown so far. Show more to include the rest.`
+    : null
   const existingLinks = resolver?.links ?? []
 
   const nameOptions = nodes.map((n) => n.name)
@@ -200,13 +204,8 @@ function RouteComponent() {
     .filter((n) => n.name !== fromName)
     .map((n) => n.name)
 
-  const selectedFromNode = fromName
-    ? (nodes.find((n) => n.name === fromName) ?? null)
-    : null
-
-  const selectedToNode = toName
-    ? (nodes.find((n) => n.name === toName) ?? null)
-    : null
+  const selectedFromNode = fromName ? (nodesByName.get(fromName) ?? null) : null
+  const selectedToNode = toName ? (nodesByName.get(toName) ?? null) : null
 
   const linksState = toLinksState(overview)
   const isAlreadyLinked =
@@ -263,6 +262,9 @@ function RouteComponent() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field data-invalid={isAlreadyLinked}>
           <FieldLabel>Name</FieldLabel>
+          {partialSearchHint && (
+            <p className="text-sm text-muted-foreground">{partialSearchHint}</p>
+          )}
           <Combobox
             value={fromName}
             onValueChange={(val) => {
@@ -273,13 +275,14 @@ function RouteComponent() {
             <ComboboxInput placeholder="Select a name..." />
             <ComboboxContent>
               <ComboboxList>
-                {nameOptions.map((name) => (
-                  <ComboboxItem key={name} value={name}>
-                    <NodeOption
-                      node={nodes.find((n) => n.name === name) as ResolverNode}
-                    />
-                  </ComboboxItem>
-                ))}
+                {nameOptions.map((name) => {
+                  const node = nodesByName.get(name)
+                  return node ? (
+                    <ComboboxItem key={name} value={name}>
+                      <NodeOption node={node} />
+                    </ComboboxItem>
+                  ) : null
+                })}
                 <ComboboxEmpty>No names found</ComboboxEmpty>
               </ComboboxList>
             </ComboboxContent>
@@ -321,6 +324,9 @@ function RouteComponent() {
 
         <Field>
           <FieldLabel>Use the record of</FieldLabel>
+          {partialSearchHint && (
+            <p className="text-sm text-muted-foreground">{partialSearchHint}</p>
+          )}
           <Combobox value={toName} onValueChange={setToName}>
             <ComboboxInput
               placeholder="Select a name..."
@@ -328,13 +334,14 @@ function RouteComponent() {
             />
             <ComboboxContent>
               <ComboboxList>
-                {nodeOptions.map((name) => (
-                  <ComboboxItem key={name} value={name}>
-                    <NodeOption
-                      node={nodes.find((n) => n.name === name) as ResolverNode}
-                    />
-                  </ComboboxItem>
-                ))}
+                {nodeOptions.map((name) => {
+                  const node = nodesByName.get(name)
+                  return node ? (
+                    <ComboboxItem key={name} value={name}>
+                      <NodeOption node={node} />
+                    </ComboboxItem>
+                  ) : null
+                })}
                 <ComboboxEmpty>No names available</ComboboxEmpty>
               </ComboboxList>
             </ComboboxContent>

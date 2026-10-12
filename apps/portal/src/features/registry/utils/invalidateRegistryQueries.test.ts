@@ -1,30 +1,41 @@
 import { QueryClient } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { getRegistryRootRoleHoldersQueryKey } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { registryHistoryTimelineQueryKey } from '../components/v2/RegistryHistory'
-import { getRegistryInfoQueryKey } from '../hooks/useRegistry'
-import { getRegistryLabelsQueryKey } from '../hooks/useRegistryLabels'
-import { getRegistryOccupantsQueryKey } from '../hooks/useRegistryOccupants'
-import { getRegistryRoleHistoryForAccountQueryKey } from '../hooks/useRegistryRoleHistoryForAccount'
+import { getRegistryInfoQueryOptions } from '../hooks/useRegistry'
+import { getRegistryLabelsQueryOptions } from '../hooks/useRegistryLabels'
+import { getRegistryOccupantsQueryOptions } from '../hooks/useRegistryOccupants'
+import { getRegistryRoleHistoryForAccountQueryOptions } from '../hooks/useRegistryRoleHistoryForAccount'
 import {
   invalidateRegistryLabelQueries,
   invalidateRegistryQueries,
 } from './invalidateRegistryQueries'
 
-// Keyed through the factories the reads use, so a renamed key fails here.
-const keyOf = (factory: { readonly key: string }) =>
-  [factory.key, { address: '0x1' }] as const
+const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
+const ACCOUNT: Address = '0x2222222222222222222222222222222222222222'
 
+// Keys from the options the reads use, so a key renamed on one side fails here.
 const ROLE_KEYS = [
-  keyOf(getRegistryRootRoleHoldersQueryKey),
-  keyOf(getRegistryRoleHistoryForAccountQueryKey),
+  getRegistryRootRoleHoldersQueryOptions({ registryAddress: REGISTRY })
+    .queryKey,
+  getRegistryRoleHistoryForAccountQueryOptions({
+    registryAddress: REGISTRY,
+    account: ACCOUNT,
+  }).queryKey,
 ]
 
 const BIGNAME_KEYS = [
-  keyOf(getRegistryInfoQueryKey),
-  keyOf(getRegistryLabelsQueryKey),
-  keyOf(registryHistoryTimelineQueryKey),
+  getRegistryInfoQueryOptions({ address: REGISTRY }).queryKey,
+  getRegistryLabelsQueryOptions({ address: REGISTRY }).queryKey,
+  // The history route builds its options inline around this key.
+  registryHistoryTimelineQueryKey({ address: REGISTRY }),
 ]
+
+const OCCUPANTS_KEY = getRegistryOccupantsQueryOptions({
+  address: REGISTRY,
+  account: ACCOUNT,
+}).queryKey
 
 const seed = (keys: readonly (readonly unknown[])[]) => {
   const queryClient = new QueryClient()
@@ -34,7 +45,7 @@ const seed = (keys: readonly (readonly unknown[])[]) => {
 
 describe('registry role invalidation', () => {
   it('refreshes holders, history and registry reads', async () => {
-    const untouched = keyOf(getRegistryOccupantsQueryKey)
+    const untouched = OCCUPANTS_KEY
     const queryClient = seed([...ROLE_KEYS, ...BIGNAME_KEYS, untouched])
     await invalidateRegistryQueries(queryClient)
     for (const key of [...ROLE_KEYS, ...BIGNAME_KEYS])
@@ -45,7 +56,7 @@ describe('registry role invalidation', () => {
 
 describe('registry label invalidation', () => {
   it('refreshes what a subname created or deleted changes, and not the roles', async () => {
-    const labelKeys = [...BIGNAME_KEYS, keyOf(getRegistryOccupantsQueryKey)]
+    const labelKeys = [...BIGNAME_KEYS, OCCUPANTS_KEY]
     const queryClient = seed([...labelKeys, ...ROLE_KEYS])
     await invalidateRegistryLabelQueries(queryClient)
     for (const key of labelKeys)

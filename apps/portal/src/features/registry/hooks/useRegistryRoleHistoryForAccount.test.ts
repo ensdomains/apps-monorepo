@@ -7,12 +7,9 @@ import { mockEventRootPermissionChanged } from '@/test-utils/bigname/bigname.moc
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
-const listPermissions = vi.fn()
 const listEvents = vi.fn()
 vi.mock('@/lib/bigname', () => ({
   bigname: {
-    permissions: (...args: unknown[]) =>
-      ResultAsync.fromPromise(listPermissions(...args), (e) => e),
     events: (...args: unknown[]) =>
       ResultAsync.fromPromise(listEvents(...args), (e) => e),
   },
@@ -46,7 +43,6 @@ const runRoot = () =>
 
 describe('getRegistryRoleHistoryForAccount where bigname serves root role changes', () => {
   beforeEach(() => {
-    listPermissions.mockReset()
     listEvents.mockReset()
     listEvents.mockResolvedValue(page([mockEventRootPermissionChanged]))
   })
@@ -55,7 +51,6 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     await runRoot()
 
     expect(listEvents).toHaveBeenCalledTimes(1)
-    expect(listPermissions).not.toHaveBeenCalled()
     expect(listEvents).toHaveBeenCalledWith({
       contract_address: ROOT_REGISTRY.toLowerCase(),
       address: ROOT_ACCOUNT.toLowerCase(),

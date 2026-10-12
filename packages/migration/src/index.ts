@@ -23,10 +23,10 @@ export {
   type EligibilityResult,
   runEligibilityChecks,
 } from './service/preflightChecks'
+export type { V1Domain } from './service/v1Domain'
 export {
   needsParentFuses,
   parentNameOf,
   toParentFuses,
   toV1Domain,
 } from './service/v1Domain'
-export type { V1Domain } from './service/v1SubgraphClient'

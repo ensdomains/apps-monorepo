@@ -49,13 +49,12 @@ const DECIMAL = /^\d+$/
 /**
  * The token a registration or transfer row is about.
  *
- * A served `data.token_id` wins. After v0.4.1 bigname serves it on ENSv2
- * registry rows: the versioned ERC-1155 token at the row's own position, which
+ * A served `data.token_id` wins. bigname serves it on ENSv2 registry rows: the versioned ERC-1155 token at the row's own position, which
  * nothing else can supply. The id is the labelhash with its low 32 bits
  * replaced by a version counter that unregister, re-registration and each role
  * change bump (`PermissionedRegistry._constructTokenId`, `_regenerate`), and
  * history carries no counter. So without the served field an ENSv2 row has
- * none, as on v0.4.1.
+ * none.
  *
  * Otherwise the emitting contract decides, where the id is exact:
  *

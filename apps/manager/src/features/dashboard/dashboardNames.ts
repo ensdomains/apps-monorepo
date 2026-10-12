@@ -1,4 +1,4 @@
-import { type AddressName, isInV2Grace } from '@ens-apps/indexer/bigname'
+import { type AddressName, toExactSeconds } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ProtocolVersion } from '@ens-apps/indexer/reads'
 import type { Address, Hex } from 'viem'
 import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
@@ -68,33 +68,20 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
 export const isHeldName = (name: DashboardName): boolean =>
   name.nameRoles.includes('owner') || name.isLapsed
 
-const parseSeconds = (timestamp: string | undefined): bigint | null =>
-  timestamp !== undefined && /^\d+$/.test(timestamp) ? BigInt(timestamp) : null
-
 /**
- * An ENSv2 `.eth` name the address held until it expired, still renewable.
- * It holds no current role, so it carries none.
+ * A row `readGraceNames` kept: an ENSv2 `.eth` name the address held until it
+ * expired, still renewable. It holds no current role, so it carries none.
  */
-export const toGraceName = (
-  row: AddressName,
-  address: Address,
-  now: Date,
-): DashboardName | null => {
-  const expiryDate = parseSeconds(row.expires_at)
-  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
-  if (
-    expiryDate === null ||
-    !isInV2Grace(row, address, nowSeconds) ||
-    !isNormalizedName(row.name)
-  )
-    return null
+export const toGraceName = (row: AddressName): DashboardName | null => {
+  const expiryDate = toExactSeconds(row.expires_at)
+  if (expiryDate === null || !isNormalizedName(row.name)) return null
   return {
     key: row.namehash,
     name: row.name,
     protocol: 'v2',
     expiryDate,
     servedExpiry: expiryDate,
-    createdAt: parseSeconds(row.created_at),
+    createdAt: toExactSeconds(row.created_at),
     nameRoles: [],
     isLapsed: true,
   }

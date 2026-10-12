@@ -14,9 +14,7 @@ import {
  * type. `data` is translated state, not the raw log, so these describe the
  * served value (`expires_at` is a decimal Unix-seconds instant, shown as a
  * date; a contract is its address). `token_id` is served on ENSv2 registry
- * rows after v0.4.1 and derived from the name on ENSv1 ones (see
- * `historyTokenId`); `canonical_id`, the payment fields and `operator` are
- * served after v0.4.1 only.
+ * rows and derived from the name on ENSv1 ones (see `historyTokenId`).
  */
 const PAYMENT_FIELD_TYPES = {
   cost: 'uint256',
@@ -149,14 +147,15 @@ const formatField = (
 export const getDecodedParamEntries = (
   event: TimelineEvent,
 ): ReadonlyArray<readonly [string, string]> => {
-  const served = Object.entries(event.data)
+  const served = Object.entries(event.data ?? {})
     .filter(([, value]) => value != null && value !== '')
     .map(([key, value]) => [key, formatField(event, key, value)] as const)
   const registry =
     event.type === 'permission'
-      ? rootPermissionRegistry(event.data.grant_scope)
+      ? rootPermissionRegistry(event.data?.grant_scope)
       : undefined
-  const token = 'token_id' in event.data ? undefined : historyTokenId(event)
+  const token =
+    event.data && 'token_id' in event.data ? undefined : historyTokenId(event)
   return [
     ...served,
     ...(registry ? [['registry', registry.address] as const] : []),

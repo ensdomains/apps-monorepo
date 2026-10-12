@@ -86,6 +86,18 @@ describe('readNamesForAddress', () => {
                     grant_scope: scope,
                     powers: ['renew', 'can_transfer_admin'],
                   },
+                  {
+                    grant_scope: {
+                      kind: 'resolver',
+                      detail: {
+                        resolver: {
+                          chain_id: 1,
+                          address: '0x3333333333333333333333333333333333333333',
+                        },
+                      },
+                    },
+                    powers: ['upgrade'],
+                  },
                 ],
               },
               {

@@ -135,13 +135,13 @@ describe('withoutDuplicateCharges', () => {
   })
 
   it('is the identity on rows that carry no charge', () => {
-    const v041Linked = {
+    const otherRegistration = {
       ...mockHistoryRegistration,
       id: 'e'.repeat(64),
     }
     const rows: readonly (NameHistoryRow | EventRow)[] = [
       mockHistoryRegistration,
-      v041Linked,
+      otherRegistration,
     ]
     const result = withoutDuplicateCharges(rows)
     expect(result[0]).toBe(rows[0])

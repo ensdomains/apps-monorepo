@@ -67,9 +67,9 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
     ))
     .with({ type: 'transfer' }, (e) => <TransferContent event={e} />)
     .with({ type: 'permission' }, (e) => {
-      const powers = e.data.powers ?? []
+      const powers = e.data?.powers ?? []
       // A registry's root resource: the row has no name.
-      const root = e.data.grant_scope?.kind === 'root' ? 'root ' : ''
+      const root = e.data?.grant_scope?.kind === 'root' ? 'root ' : ''
       return (
         <>
           <span className={muted}>
@@ -77,8 +77,8 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
               ? `${powers.length} ${root}${powers.length === 1 ? 'power' : 'powers'} held by`
               : `no ${root}powers left for`}
           </span>
-          {e.data.address && isAddress(e.data.address, { strict: false }) && (
-            <AccountBadge address={e.data.address} />
+          {e.data?.address && isAddress(e.data?.address, { strict: false }) && (
+            <AccountBadge address={e.data?.address} />
           )}
           {powers.length > 0 && (
             <span className={muted}>{powers.map(formatPower).join(', ')}</span>
@@ -87,13 +87,13 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
       )
     })
     .with({ type: 'migration' }, (e) => {
-      const path = migrationPathLabel(e.data.migration_path)
+      const path = migrationPathLabel(e.data?.migration_path)
       return (
         <span className={muted}>migrated to ENSv2{path && ` (${path})`}</span>
       )
     })
     .with({ type: 'record' }, (e) => {
-      const key = e.data.key ?? ''
+      const key = e.data?.key ?? ''
       // Copy hands over the real stored key — a sanitized one would no longer
       // match the record it came from.
       const label = sanitizeOnChainText(key)

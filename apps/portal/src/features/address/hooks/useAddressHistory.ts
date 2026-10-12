@@ -49,11 +49,16 @@ const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
     ...(cursor && { cursor }),
   })
 
-const readHistory = (address: Address, pageSize: number | undefined) =>
+const readHistory = (
+  address: Address,
+  pageSize: number | undefined,
+  signal: AbortSignal | undefined,
+) =>
   (pageSize !== undefined
     ? readHistoryPage(address, pageSize).map(({ data }) => data)
-    : readAllCollectionPages<EventRow>((cursor) =>
-        readHistoryPage(address, MAX_PAGE_SIZE, cursor),
+    : readAllCollectionPages<EventRow>(
+        (cursor) => readHistoryPage(address, MAX_PAGE_SIZE, cursor),
+        { signal },
       )
   ).mapErr(toError)
 
@@ -64,11 +69,12 @@ const readHistory = (address: Address, pageSize: number | undefined) =>
  * treats as a root). A `manager` relation alone is the registry controller,
  * which any parent owner can assign, so it does not count.
  */
-const readHeldNames = (address: Address) =>
-  readAllNames(readNamesForAddress(bigname), {
-    address,
-    relations: ['owner'],
-  })
+const readHeldNames = (address: Address, signal: AbortSignal | undefined) =>
+  readAllNames(
+    readNamesForAddress(bigname),
+    { address, relations: ['owner'] },
+    { signal },
+  )
     .map((names) => new Set(names.map(({ name }) => name)))
     .mapErr(toError)
 
@@ -99,13 +105,13 @@ const toEvent = (row: EventRow): AddressHistoryEvent[] => {
  * name's provenance: `registrarHolder` is the address when it holds the name's
  * token, read from the names list since history rows carry no relations.
  */
-const getAddressHistory = ({
-  address,
-  pageSize,
-}: GetAddressHistoryParameters) =>
+const getAddressHistory = (
+  { address, pageSize }: GetAddressHistoryParameters,
+  signal?: AbortSignal,
+) =>
   ResultAsync.combine([
-    readHistory(address, pageSize),
-    readHeldNames(address),
+    readHistory(address, pageSize, signal),
+    readHeldNames(address, signal),
   ]).map(([rows, heldNames]): AddressNameHistory[] => {
     const byName = new Map<string, AddressHistoryEvent[]>()
     // One registration's charge is stated once across its rows.
@@ -133,5 +139,6 @@ export const getAddressHistoryQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getAddressHistoryQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getAddressHistory(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getAddressHistory(params, signal),
   })

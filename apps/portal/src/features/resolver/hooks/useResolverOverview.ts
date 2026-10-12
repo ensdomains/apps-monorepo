@@ -13,7 +13,7 @@ import {
   type RecordResource,
   type RecordResourceSelector,
   type ResolverPower,
-  readAllPages,
+  readAllEnvelopes,
   retryStale,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
@@ -111,8 +111,6 @@ export type ResolverOverview = {
   readonly roles: readonly ResolverRole[]
   /** The newest events (see `RESOLVER_EVENTS_PAGE_SIZE`), newest first. */
   readonly events: readonly ResolverEvent[]
-  /** Every event naming this resolver; absent past bigname's 10,000-row count cap. */
-  readonly eventCount: number | undefined
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
@@ -346,17 +344,10 @@ type Collection<T> = {
 const readResolverCollection = <T>(
   read: (cursor?: string) => ResultAsync<Envelope<readonly T[]>, BignameError>,
 ): ResultAsync<Collection<T>, BignameError> =>
-  readAllPages({
-    readPage: (cursor) =>
-      read(cursor).map(({ data, page, meta }) => ({
-        rows: [{ data, completeness: meta.completeness ?? 'full' }],
-        nextCursor: page?.next_cursor ?? null,
-      })),
-    isStaleError: isStale,
-  }).map((pages) => ({
+  readAllEnvelopes(read).map((pages) => ({
     rows: pages.flatMap((page) => page.data),
     status: pages.reduce<Completeness>(
-      (status, page) => weaker(status, page.completeness),
+      (status, page) => weaker(status, page.meta.completeness ?? 'full'),
       'full',
     ),
   }))
@@ -410,7 +401,6 @@ const toOverview = (
       row.record_resource ? (toNamedResource(row.record_resource) ?? []) : [],
     ),
     events: events.data.flatMap(toResolverEvent),
-    eventCount: events.page?.total_count ?? undefined,
   }
 }
 

@@ -47,17 +47,20 @@ export const readGraceNames = (
   client: Pick<BignameClient, 'addressNames'>,
   address: string,
   nowSeconds: bigint,
+  signal?: AbortSignal,
 ) =>
-  readAllCollectionPages((cursor) =>
-    client.addressNames(address, {
-      namespace: 'ens',
-      relation: 'former_owner',
-      parent: 'eth',
-      sort: 'expires_at',
-      order: 'asc',
-      expires_after: String(nowSeconds - V2_GRACE_SECONDS),
-      expires_before: String(nowSeconds + 1n),
-      page_size: GRACE_PAGE_SIZE,
-      ...(cursor !== undefined && { cursor }),
-    }),
+  readAllCollectionPages(
+    (cursor) =>
+      client.addressNames(address, {
+        namespace: 'ens',
+        relation: 'former_owner',
+        parent: 'eth',
+        sort: 'expires_at',
+        order: 'asc',
+        expires_after: String(nowSeconds - V2_GRACE_SECONDS),
+        expires_before: String(nowSeconds + 1n),
+        page_size: GRACE_PAGE_SIZE,
+        ...(cursor !== undefined && { cursor }),
+      }),
+    { signal },
   ).map((rows) => rows.filter((row) => isInV2Grace(row, address, nowSeconds)))

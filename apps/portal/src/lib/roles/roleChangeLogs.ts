@@ -68,8 +68,7 @@ class IndexedRoleChangeLogsError extends TaggedError(
 )<{
   /** Why the node has to answer instead. */
   reason: 'failed' | 'timeout' | 'truncated' | 'unindexed'
-  /** The read's error, or the name bigname has not indexed. */
-  cause: BignameError | Error | string | undefined
+  cause: BignameError | Error | undefined
 }> {}
 
 type PermissionRow = Extract<EventRow, { type: 'permission' }>
@@ -119,7 +118,10 @@ const toRoleChangeLogs = (
   })
 }
 
-const readRegistrationRoleRows = ResultFn(async function* (name: string) {
+const readRegistrationRoleRows = ResultFn(async function* (
+  name: string,
+  signal: AbortSignal,
+) {
   const toError = (cause: BignameError) =>
     new IndexedRoleChangeLogsError({ reason: 'failed', cause })
   const registration = yield* bigname
@@ -132,7 +134,7 @@ const readRegistrationRoleRows = ResultFn(async function* (name: string) {
     )
   if (!registration)
     return err(
-      new IndexedRoleChangeLogsError({ reason: 'unindexed', cause: name }),
+      new IndexedRoleChangeLogsError({ reason: 'unindexed', cause: undefined }),
     )
   const rows = yield* readAllCollectionPages<EventRow>(
     (cursor) =>
@@ -145,7 +147,7 @@ const readRegistrationRoleRows = ResultFn(async function* (name: string) {
         ...(cursor && { cursor }),
       }),
     // Past the cap the node answers instead, so the walk stops there.
-    { limit: INDEXED_ROLE_EVENTS_MAX_ROWS },
+    { limit: INDEXED_ROLE_EVENTS_MAX_ROWS, signal },
   ).mapErr(toError)
   if (rows.length > INDEXED_ROLE_EVENTS_MAX_ROWS)
     return err(
@@ -167,13 +169,18 @@ export const getIndexedRoleChangeLogs = ResultFn(async function* ({
   account,
 }: GetRoleChangeLogsParameters & { readonly name: string }) {
   let timer: ReturnType<typeof setTimeout> | undefined
+  const controller = new AbortController()
   const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS)
+    timer = setTimeout(() => {
+      controller.abort()
+      resolve(null)
+    }, INDEXED_ROLE_EVENTS_TIMEOUT_MS)
   })
   const fetched = yield* fromPromise(
-    Promise.race([readRegistrationRoleRows(name), timeout]).finally(() =>
-      clearTimeout(timer),
-    ),
+    Promise.race([
+      readRegistrationRoleRows(name, controller.signal),
+      timeout,
+    ]).finally(() => clearTimeout(timer)),
     (cause) =>
       new IndexedRoleChangeLogsError({
         reason: 'failed',

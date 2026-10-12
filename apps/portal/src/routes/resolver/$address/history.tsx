@@ -7,7 +7,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeline'
 import {
-  fetchContractEventsPage,
+  fetchResolverEventsPage,
   timelinePageParams,
 } from '@/features/history/timelineEventPage'
 import { resolverHistoryTimelineQueryKey } from '@/features/resolver/hooks/useResolverOverview'
@@ -18,15 +18,15 @@ export const Route = createFileRoute('/resolver/$address/history')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-/** Everything the resolver emitted, a page at a time, as the registry history is. */
+/** The resolver's feed, the same one its overview previews, a page at a time. */
 function RouteComponent() {
   const { address } = Route.useParams()
   const model = useTimelinePagesModel(
     resultInfiniteQueryOptions({
       queryKey: resolverHistoryTimelineQueryKey({ address }),
       queryFn: ({ queryKey: [, { address }], pageParam }) =>
-        fetchContractEventsPage({
-          contractAddress: address,
+        fetchResolverEventsPage({
+          resolverAddress: address,
           cursor: pageParam,
         }),
       ...timelinePageParams,
