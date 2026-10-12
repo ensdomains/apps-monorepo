@@ -19,6 +19,27 @@ import { baseConfig } from '../../playwright.config.base.js'
 export default defineConfig({
   ...baseConfig,
   testDir: './tests',
+  use: {
+    ...baseConfig.use,
+    launchOptions: {
+      // Full Chromium, not the headless shell: the shell's HeadlessChrome
+      // user agent trips PostHog's bot filter, which silently drops every
+      // capture the walks assert on.
+      channel: 'chromium',
+      args: [
+        ...(process.env.CI
+          ? [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+            ]
+          : []),
+        // PostHog's bot filter silently drops every capture while
+        // navigator.webdriver is true; the walks emulate a human visitor.
+        '--disable-blink-features=AutomationControlled',
+      ],
+    },
+  },
   projects: [
     {
       name: 'consent',

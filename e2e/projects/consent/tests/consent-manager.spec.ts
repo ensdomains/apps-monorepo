@@ -3,6 +3,7 @@ import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
+import { emulateHumanVisitor } from '../human-visitor.js'
 import {
   eventNamesIn,
   isEnvironmentalProbe,
@@ -25,8 +26,9 @@ test.afterAll(async () => {
   await stub.close()
 })
 
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   stub.clear()
+  await emulateHumanVisitor(page)
 })
 
 type Box = { x: number; y: number; width: number; height: number }
@@ -364,6 +366,8 @@ test('C5: the notice names the collection and the choice', async ({ page }) => {
   ]) {
     await expect(notice.getByText(phrase).first()).toBeVisible()
   }
-  await expect(notice.getByText(/no choice/i)).toBeVisible()
+  await expect(notice.getByTestId('analytics-consent-status')).toContainText(
+    /no choice/i,
+  )
   await expect(page.getByTestId('analytics-consent-switch')).toBeVisible()
 })

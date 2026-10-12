@@ -55,8 +55,17 @@ const readBody = (req: IncomingMessage): Promise<Buffer> =>
     req.on('error', reject)
   })
 
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
+} as const
+
 const json = (res: ServerResponse, value: unknown): void => {
-  res.writeHead(200, { 'content-type': 'application/json' })
+  res.writeHead(200, {
+    'content-type': 'application/json',
+    ...CORS_HEADERS,
+  })
   res.end(JSON.stringify(value))
 }
 
@@ -65,6 +74,28 @@ const decodeBody = (req: IncomingMessage, raw: Buffer): string => {
   return encoding.includes('gzip')
     ? gunzipSync(raw).toString('utf8')
     : raw.toString('utf8')
+}
+
+const respondToStubRequest = (
+  method: string,
+  path: string,
+  res: ServerResponse,
+): void => {
+  // The real PostHog API answers preflights; without this the SDK's
+  // capture queue never flushes in the browser.
+  if (method === 'OPTIONS') {
+    res.writeHead(204, { ...CORS_HEADERS })
+    res.end()
+    return
+  }
+
+  if (path.includes('/config')) {
+    json(res, {})
+  } else if (path.includes('/flags') || path.includes('/decide')) {
+    json(res, FLAGS_RESPONSE)
+  } else {
+    json(res, {})
+  }
 }
 
 export const startPosthogStub = async (
@@ -83,14 +114,7 @@ export const startPosthogStub = async (
           body,
           userAgent: req.headers['user-agent'] ?? '',
         })
-
-        if (path.includes('/config')) {
-          json(res, {})
-        } else if (path.includes('/flags') || path.includes('/decide')) {
-          json(res, FLAGS_RESPONSE)
-        } else {
-          json(res, {})
-        }
+        respondToStubRequest(req.method ?? 'GET', path, res)
       } catch {
         res.writeHead(500)
         res.end()

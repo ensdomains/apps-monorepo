@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { connectWithHeadlessWallet } from '../../../helpers/portal-auth.js'
+import { emulateHumanVisitor } from '../human-visitor.js'
 import {
   eventNamesIn,
   isEnvironmentalProbe,
@@ -22,8 +23,9 @@ test.afterAll(async () => {
   await stub.close()
 })
 
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   stub.clear()
+  await emulateHumanVisitor(page)
 })
 
 type Box = { x: number; y: number; width: number; height: number }
@@ -362,7 +364,9 @@ test('C5: the notice names the collection and the choice', async ({ page }) => {
   ]) {
     await expect(page.getByText(phrase).first()).toBeVisible()
   }
-  await expect(page.getByText(/no choice/i)).toBeVisible()
+  await expect(page.getByTestId('analytics-consent-status')).toContainText(
+    /no choice/i,
+  )
   await expect(page.getByTestId('analytics-consent-switch')).toBeVisible()
   await expect(
     page.getByRole('link', { name: /full privacy policy/i }),
@@ -373,15 +377,13 @@ test('C5: the help menu opens the notice inside the app', async ({ page }) => {
   await page.goto(APP_URL)
   await expect(banner(page)).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Decline' }).click()
+  // The home page hides the sidebar; the help menu lives in the footers of
+  // the entity sidebars, so open a contract page to reach it.
+  await page.goto(
+    `${APP_URL}/resolver/0x640294a2b2d87e7f522db3e3e3e876764bce170d`,
+  )
   const helpTrigger = page.getByRole('button', { name: /help/i }).first()
-  if (!(await helpTrigger.isVisible().catch(() => false))) {
-    test.info().annotations.push({
-      type: 'coverage',
-      description: 'help trigger not found; help-menu path not covered',
-    })
-    test.skip()
-    return
-  }
+  await expect(helpTrigger).toBeVisible({ timeout: 20_000 })
   await helpTrigger.click()
   await page.getByRole('link', { name: /privacy policy/i }).click()
   await expect(page).toHaveURL(new RegExp(`^${APP_URL}/`))
