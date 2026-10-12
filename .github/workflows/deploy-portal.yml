@@ -69,10 +69,10 @@ jobs:
           echo "root=$root" >> "$GITHUB_OUTPUT"
           echo "Swarm root: \`$root\` ($(grep -oP 'subdomain:\s+\K\S+' upload.log))" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Propose app.ens.eth contenthash update to the Safe
+      - name: Propose ens.eth contenthash update to the Safe
         working-directory: apps/portal
         env:
           OMNIPIN_PK: ${{ secrets.OMNIPIN_PK }}
           PORTAL_SAFE: ${{ vars.PORTAL_SAFE }}
           ROOT: ${{ steps.upload.outputs.root }}
-        run: pnpm exec omnipin ens "$ROOT" app.ens.eth --safe "$PORTAL_SAFE"
+        run: pnpm exec omnipin ens "$ROOT" ens.eth --safe "$PORTAL_SAFE"

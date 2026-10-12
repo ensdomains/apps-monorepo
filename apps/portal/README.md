@@ -50,7 +50,7 @@ automated testing, which must never reach a production deploy.
 
 - `pnpm cf-typegen` regenerates the Worker bindings after a `wrangler.jsonc` change.
 - Deploys go through wrangler. The `deploy-portal` workflow that mirrors the
-  static build to Swarm for app.ens.eth exists but has never run.
+  static build to Swarm for ens.eth exists but has never run.
 - Mainnet deploys as the `portal-app-mainnet` Worker (`env.mainnet` in
   `wrangler.jsonc`): build with `VITE_ENS_NETWORK=mainnet` and
   `CLOUDFLARE_ENV=mainnet`. Each Worker's `RPC_URL` secret holds the RPC for
