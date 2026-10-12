@@ -5,10 +5,10 @@ import { writeConsent } from './consent.js'
 import {
   ANONYMOUS_POSTHOG_CONFIG,
   type AnalyticsClient,
-  applyAcceptedConsent,
   applyDeclinedConsent,
   CONSENTED_POSTHOG_CONFIG,
   configForConsent,
+  identifyWalletConnection,
   sweepPosthogStorage,
 } from './posthog.js'
 
@@ -171,7 +171,12 @@ describe('consent PostHog configs', () => {
     )
     await vi.advanceTimersByTimeAsync(500)
     requests.mockClear()
-    applyAcceptedConsent(client, WALLET)
+    client.opt_in_capturing()
+    identifyWalletConnection(client, {
+      address: WALLET,
+      chainId: 11155111,
+      connectorName: 'test',
+    })
     await vi.advanceTimersByTimeAsync(3000)
 
     expect(client.has_opted_out_capturing()).toBe(false)
@@ -195,7 +200,7 @@ describe('consent PostHog configs', () => {
     client.capture('pre-consent-event', {})
     await vi.advanceTimersByTimeAsync(1000)
     requests.mockClear()
-    applyAcceptedConsent(client, null)
+    client.opt_in_capturing()
     client.capture('post-consent-event', {})
     await vi.advanceTimersByTimeAsync(8000)
     const names = eventNames(requests)
@@ -210,7 +215,12 @@ describe('consent PostHog configs', () => {
       ANONYMOUS_POSTHOG_CONFIG,
     )
     await vi.advanceTimersByTimeAsync(500)
-    applyAcceptedConsent(client, WALLET)
+    client.opt_in_capturing()
+    identifyWalletConnection(client, {
+      address: WALLET,
+      chainId: 11155111,
+      connectorName: 'test',
+    })
     client.capture('some-event', {})
     await vi.advanceTimersByTimeAsync(1000)
 
@@ -287,12 +297,14 @@ describe('consent PostHog configs', () => {
       opt_out_capturing: () => calls.push('opt_out'),
       reset: () => calls.push('reset'),
       identify: () => calls.push('identify'),
+      register: () => calls.push('register'),
     }
-    applyAcceptedConsent(client, WALLET)
-    expect(calls).toEqual(['opt_in', 'identify'])
-    calls.length = 0
-    applyAcceptedConsent(client, null)
-    expect(calls).toEqual(['opt_in'])
+    identifyWalletConnection(client, {
+      address: WALLET,
+      chainId: 11155111,
+      connectorName: 'test',
+    })
+    expect(calls).toEqual(['identify', 'register'])
     calls.length = 0
     applyDeclinedConsent(client)
     expect(calls).toEqual(['reset', 'opt_out'])

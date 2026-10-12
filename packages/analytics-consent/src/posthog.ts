@@ -111,24 +111,38 @@ export type AnalyticsClient = {
     properties?: Record<string, unknown>,
     onceProperties?: Record<string, unknown>,
   ) => void
+  readonly register: (properties: Record<string, unknown>) => void
 }
 
-/** The caller persists the choice first; the guard reads it. */
-export const applyAcceptedConsent = (
+export type WalletConnection = {
+  readonly address: string
+  readonly chainId: number
+  readonly connectorName: string
+}
+
+/** Pair the wallet address as identity with the wallet super-properties. */
+export const identifyWalletConnection = (
   client: AnalyticsClient,
-  walletAddress?: string | null,
+  wallet: WalletConnection,
 ): void => {
-  client.opt_in_capturing()
-  if (walletAddress) {
-    client.identify(
-      walletAddress,
-      { address: walletAddress },
-      { initial_address: walletAddress },
-    )
-  }
+  client.identify(
+    wallet.address,
+    { address: wallet.address },
+    { initial_address: wallet.address },
+  )
+  client.register({
+    wallet_address: wallet.address,
+    chain_id: wallet.chainId,
+    wallet_connector: wallet.connectorName,
+  })
 }
 
-/** The caller persists the choice first; the guard reads it. */
+/**
+ * Stop capture and drop the wallet identity, then sweep PostHog storage so
+ * the anonymous expectation holds again. The caller persists the choice
+ * first; the guard reads it. Order matters: reset() clears the opt-out
+ * state, so it must precede opt_out_capturing().
+ */
 export const applyDeclinedConsent = (client: AnalyticsClient): void => {
   client.reset()
   client.opt_out_capturing()
