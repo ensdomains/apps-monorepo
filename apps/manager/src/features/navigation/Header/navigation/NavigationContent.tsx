@@ -10,11 +10,7 @@ import {
   TwitterIcon,
   YoutubeIcon,
 } from 'lucide-react'
-import type React from 'react'
-import ensMobile from '@/assets/icons/ens-mobile.svg'
-import { MSymbol } from '@/components/ui/material-symbol'
 import { EXPLORER_URL } from '@/constants'
-import { twm } from '@/utils/tailwind'
 
 type NavigationContentProps = {
   readonly onAction: () => void
@@ -22,9 +18,7 @@ type NavigationContentProps = {
 
 type NavigationLink = {
   readonly label: MessageDescriptor
-  readonly icon?: React.ReactNode
-  readonly className?: string
-  readonly suffix?: React.ReactNode
+  readonly newTab?: boolean
 } & (
   | {
       readonly href: string
@@ -46,8 +40,6 @@ type SocialIcon = {
   readonly icon: LucideIcon
 }
 
-const LogoIconBlack = () => <img alt="Logo" src={ensMobile} />
-
 const navigationSections: readonly NavigationSection[] = [
   {
     title: '',
@@ -60,19 +52,12 @@ const navigationSections: readonly NavigationSection[] = [
             landing: true,
           },
         }),
-        icon: <LogoIconBlack />,
-        className: 'text-base',
+        newTab: true,
       },
       {
-        label: msg`Go to ENS Explorer`,
+        label: msg`ENS Explorer`,
         href: EXPLORER_URL,
-        className: 'text-base gap-1',
-        suffix: (
-          <MSymbol
-            className="ms-opsz-30 hover:no-underline"
-            symbol="arrow_outward"
-          />
-        ),
+        newTab: true,
       },
     ],
   },
@@ -147,6 +132,47 @@ const socialIcons: readonly SocialIcon[] = [
   { href: 'https://www.youtube.com/@ENSdomains', icon: YoutubeIcon },
 ]
 
+const linkClassName =
+  'w-fit text-ens-quartz-450 text-sm leading-ens-normal tracking-ens-wide transition-colors hover:underline'
+
+const NavigationLinkItem = ({
+  link,
+  onAction,
+}: {
+  readonly link: NavigationLink
+  readonly onAction: () => void
+}) => {
+  const { _ } = useLingui()
+  const label = _(link.label)
+  const content = link.newTab ? `${label} ↗` : label
+
+  if ('linkOptions' in link) {
+    return (
+      <Link
+        className={linkClassName}
+        onClick={onAction}
+        {...link.linkOptions}
+        rel={link.newTab ? 'noreferrer' : undefined}
+        target={link.newTab ? '_blank' : undefined}
+      >
+        {content}
+      </Link>
+    )
+  }
+
+  return (
+    <a
+      className={linkClassName}
+      href={link.href}
+      onClick={onAction}
+      rel={link.newTab ? 'noreferrer' : link.rel}
+      target={link.newTab ? '_blank' : link.target}
+    >
+      {content}
+    </a>
+  )
+}
+
 export const NavigationContent = ({ onAction }: NavigationContentProps) => {
   const { _ } = useLingui()
 
@@ -154,63 +180,40 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
     typeof title === 'string' ? title : _(title)
 
   return (
-    <div className="w-full space-y-6">
+    <div className="flex w-full flex-col gap-4">
       {navigationSections.map((section, sectionIndex) => {
         const title = resolveTitle(section.title)
         return (
-          <div key={title}>
-            <div className="flex flex-col gap-3">
-              {sectionIndex > 0 && <div className="border-gray-200 border-t" />}
-              <h3 className="font-medium text-base text-ens-quartz-900">
+          <div
+            className={
+              sectionIndex > 0
+                ? 'flex flex-col gap-4 border-ens-quartz-75 border-t pt-4'
+                : 'flex flex-col gap-4'
+            }
+            key={title}
+          >
+            {title && (
+              <h3 className="font-medium text-base text-ens-quartz-450 leading-ens-normal tracking-ens-wide">
                 {title}
               </h3>
-              <div className="flex flex-col gap-4">
-                {section.links.map((link) => {
-                  const label = _(link.label)
-                  const isInternal = 'linkOptions' in link
-                  const className = twm(
-                    'text-ens-quartz-900 text-sm leading-ens-normal transition-colors flex items-center gap-2 group',
-                    link.className,
-                  )
-                  const content = (
-                    <>
-                      {link.icon && <div className="size-6">{link.icon}</div>}
-                      <span className="group-hover:underline">{label}</span>
-                      {link.suffix}
-                    </>
-                  )
-                  return isInternal ? (
-                    <Link
-                      className={className}
-                      onClick={onAction}
-                      {...link.linkOptions}
-                      key={`${title}-${label}-${link.linkOptions.to}`}
-                    >
-                      {content}
-                    </Link>
-                  ) : (
-                    <a
-                      className={className}
-                      href={link.href}
-                      key={`${title}-${label}-${link.href}`}
-                      onClick={onAction}
-                      rel={link.rel}
-                      target={link.target}
-                    >
-                      {content}
-                    </a>
-                  )
-                })}
-              </div>
+            )}
+            <div className="flex flex-col gap-3">
+              {section.links.map((link) => (
+                <NavigationLinkItem
+                  key={`${title}-${'linkOptions' in link ? link.linkOptions.to : link.href}`}
+                  link={link}
+                  onAction={onAction}
+                />
+              ))}
             </div>
           </div>
         )
       })}
 
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center gap-9 pt-2">
         {socialIcons.map(({ href, icon: Icon }) => (
           <a
-            className="text-gray-500 transition-colors hover:text-ens-quartz-900"
+            className="text-ens-quartz-350 transition-colors hover:text-ens-quartz-900"
             href={href}
             key={href}
             onClick={onAction}

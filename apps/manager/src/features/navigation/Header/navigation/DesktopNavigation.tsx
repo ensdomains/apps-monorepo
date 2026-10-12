@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import type React from 'react'
 import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
 import {
@@ -11,6 +12,7 @@ import { tw } from '@/utils/tailwind'
 import { NavigationContent } from './NavigationContent'
 
 type DesktopNavigationProps = {
+  readonly anchorRef?: React.RefObject<HTMLElement | null>
   readonly profileHeader?: boolean
   readonly profileThemeColor?: string
 }
@@ -36,6 +38,7 @@ const ProfileThemeEnsLogo = ({ color }: { readonly color?: string }) => (
 )
 
 export const DesktopNavigation = ({
+  anchorRef,
   profileHeader = false,
   profileThemeColor,
 }: DesktopNavigationProps) => {
@@ -49,9 +52,7 @@ export const DesktopNavigation = ({
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger
         aria-label="Open navigation"
-        className="group flex shrink-0 items-center justify-center"
-        delay={50}
-        openOnHover
+        className="group flex shrink-0 items-center justify-center gap-4"
       >
         <div className="flex shrink-0">
           <Link
@@ -68,22 +69,20 @@ export const DesktopNavigation = ({
             )}
           </Link>
         </div>
-        <div>
-          <MSymbol
-            className={tw(
-              'ms-opsz-32 text-ens-blue-midnight transition-transform duration-200 group-data-popup-open:-rotate-180',
-              profileHeader && 'text-[#093C52]',
-            )}
-            style={profileHeader ? { color: profileThemeColor } : undefined}
-            symbol="arrow_drop_down"
-          />
-        </div>
+        <MSymbol
+          className={tw(
+            'ms-font-rounded shrink-0 transition-transform duration-200 group-data-popup-open:-rotate-180',
+            profileHeader && 'text-[#093C52]',
+          )}
+          style={profileHeader ? { color: profileThemeColor } : undefined}
+          symbol="keyboard_arrow_down"
+        />
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        alignOffset={-12}
-        className="w-xs space-y-6 bg-white p-6"
-        sideOffset={16}
+        anchor={anchorRef}
+        className="w-97.5 max-w-(--available-width) bg-white p-6"
+        sideOffset={4}
       >
         <NavigationContent onAction={handleAction} />
       </PopoverContent>

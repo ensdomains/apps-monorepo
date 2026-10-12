@@ -13,11 +13,15 @@ export const floatingWrapperClassName = tw(
 export const FloatingWrapper = ({
   children,
   className,
+  ref,
 }: {
   children: React.ReactNode
   className?: string
+  ref?: React.Ref<HTMLDivElement>
 }) => {
   return (
-    <div className={tw(floatingWrapperClassName, className)}>{children}</div>
+    <div className={tw(floatingWrapperClassName, className)} ref={ref}>
+      {children}
+    </div>
   )
 }
