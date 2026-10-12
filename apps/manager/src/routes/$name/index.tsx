@@ -268,5 +268,5 @@ function RouteComponent() {
     return <ReverseNameView address={reverseAddress} name={name} />
   }
 
-  return <ProfileView name={name} />
+  return <ProfileView key={name} name={name} />
 }
