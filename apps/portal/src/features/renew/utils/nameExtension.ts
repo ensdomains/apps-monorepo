@@ -33,11 +33,6 @@ export const getNameStatus = (
   const now = new Date()
   const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
   const gracePeriodEnd = new Date(expiryDate.getTime() + graceDays * MS_PER_DAY)
-  if (isV2) {
-    if (now > gracePeriodEnd) return 'expired'
-    if (now > expiryDate) return 'grace'
-    return 'registered'
-  }
   const premiumPeriodEnd = new Date(
     gracePeriodEnd.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY,
   )
