@@ -197,14 +197,14 @@ describe('addr names route status filter', () => {
     expect(await screen.findByText('Names (7)')).toBeInTheDocument()
     expect(shownNames()).toHaveLength(7)
 
-    await user.click(screen.getByText('Expired'))
+    await user.click(screen.getByText('Expired', { selector: 'label' }))
     expect(await screen.findByText('Names (2 of 7 shown)')).toBeInTheDocument()
     expect(shownNames()).toEqual(
       expect.arrayContaining([V1_EXPIRED, V2_EXPIRED]),
     )
     expect(shownNames()).toHaveLength(2)
 
-    await user.click(screen.getByText('Expired'))
+    await user.click(screen.getByText('Expired', { selector: 'label' }))
     expect(await screen.findByText('Names (7)')).toBeInTheDocument()
   })
 })
