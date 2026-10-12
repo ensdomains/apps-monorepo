@@ -34,16 +34,24 @@ const readNames = readNamesForAddress(bigname)
  */
 export const getAddressNames = (
   { address }: GetAddressNamesParameters,
-  now: Temporal.Instant = Temporal.Now.instant(),
+  {
+    now = Temporal.Now.instant(),
+    signal,
+  }: Readonly<{ now?: Temporal.Instant; signal?: AbortSignal }> = {},
 ) =>
   ResultAsync.combine([
-    readAllNames(readNames, { address, includeCounts: true }).mapErr(toError),
+    readAllNames(
+      readNames,
+      { address, includeCounts: true },
+      { signal },
+    ).mapErr(toError),
     // bigname drops an ENSv2 name from `relation=any` once it expires, though
     // its holder can still renew it for 28 days.
     readGraceNames(
       bigname,
       address,
       now.epochNanoseconds / NS_PER_SECOND,
+      signal,
     ).mapErr(toError),
   ]).map(([summaries, graceRows]) =>
     mergeAddressNames(
@@ -62,5 +70,6 @@ export const getAddressNamesQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getAddressNamesQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getAddressNames(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getAddressNames(params, { signal }),
   })

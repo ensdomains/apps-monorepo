@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import {
   type AddressNameRelation,
   relationLabels,
@@ -13,8 +14,14 @@ export const RelationBadges = ({
   roleCount,
 }: {
   readonly relations: readonly AddressNameRelation[]
-  readonly roleCount?: number
+  readonly roleCount?: RoleCount
 }) => {
+  if (roleCount === 'loading' || roleCount === 'unavailable')
+    return (
+      <Badge variant="outline" className="text-muted-foreground text-xs">
+        {roleCount === 'loading' ? 'Counting roles…' : 'Roles unknown'}
+      </Badge>
+    )
   if (roleCount !== undefined && roleCount > 0)
     return (
       <Badge variant="secondary" className="text-xs">

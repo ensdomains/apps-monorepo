@@ -75,7 +75,7 @@ const OwnerCell = ({ owner }: { owner: Address }) => (
 interface SubnamesTableProps {
   /** The rows loaded so far, which for a V2 name can be fewer than it has. */
   readonly subnames: readonly SubnameRow[]
-  /** Every subname the name has. Defaults to the rows given. */
+  /** Every subname the name has; unknown when undefined and more can load. */
   readonly totalCount?: number
   /** Loads the next page; absent once every subname is loaded. */
   readonly onLoadMore?: () => void
@@ -173,7 +173,7 @@ function buildColumns(
 
 export const SubnamesTable = ({
   subnames,
-  totalCount = subnames.length,
+  totalCount: servedTotal,
   onLoadMore,
   isLoadingMore,
   isLoadMoreError = false,
@@ -184,6 +184,8 @@ export const SubnamesTable = ({
   isDeleting,
   pendingNames,
 }: SubnamesTableProps) => {
+  // With nothing left to load, the rows given are the whole list.
+  const totalCount = servedTotal ?? (onLoadMore ? undefined : subnames.length)
   const pendingSet = pendingNames ?? EMPTY_PENDING_SET
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -244,7 +246,7 @@ export const SubnamesTable = ({
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
           <PageHeading parent={{ type: 'name', name }} className="flex-1">
-            {totalCount > 0 ? `Subnames (${totalCount})` : 'Subnames'}
+            {totalCount ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
             <Button variant="default" asChild>
@@ -494,7 +496,8 @@ export const SubnamesTable = ({
       {onLoadMore && (
         <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">
           <span className="text-sm text-muted-foreground">
-            Showing {subnames.length} of {totalCount}
+            Showing {subnames.length}
+            {totalCount === undefined ? null : ` of ${totalCount}`}
             {isLoadMoreError && !isLoadingMore && (
               <span role="alert"> · Couldn’t load more.</span>
             )}

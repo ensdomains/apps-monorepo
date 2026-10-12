@@ -84,11 +84,38 @@ describe('readAllCollectionPages', () => {
       return errAsync(stale())
     })
 
-    await readAllCollectionPages(read)
+    const rows = await readAllCollectionPages(read)
 
+    expect(rows._unsafeUnwrapErr().code).toBe('stale')
     expect(
       read.mock.calls.filter(([cursor]) => cursor === undefined),
     ).toHaveLength(2)
+  })
+
+  it('fails instead of looping when bigname repeats a cursor', async () => {
+    const read = vi.fn((cursor?: string) =>
+      envelope([cursor === undefined ? 1 : 2], 'same'),
+    )
+
+    const rows = await readAllCollectionPages(read)
+
+    expect(rows._unsafeUnwrapErr().code).toBe('malformed_response')
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops reading once the signal aborts', async () => {
+    const controller = new AbortController()
+    const read = vi.fn((cursor?: string) => {
+      if (cursor === undefined) controller.abort()
+      return envelope([1], cursor === undefined ? 'c2' : null)
+    })
+
+    const rows = await readAllCollectionPages(read, {
+      signal: controller.signal,
+    })
+
+    expect(rows.isErr()).toBe(true)
+    expect(read).toHaveBeenCalledOnce()
   })
 
   it('stops paging once the limit is passed', async () => {

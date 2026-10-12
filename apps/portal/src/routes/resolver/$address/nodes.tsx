@@ -12,7 +12,6 @@ import {
 } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { match, P } from 'ts-pattern'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
@@ -40,40 +39,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import {
-  NodeDetailSheet,
-  type NodeDetailSheetProps,
-} from '@/features/resolver/components/NodeDetailSheet'
+import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import { toNodeRolesStatus } from '@/features/resolver/helpers/nodeRolesStatus'
 import { rolesForNode } from '@/features/resolver/helpers/rolesForNode'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   RESOLVER_NODES_PAGE_SIZE,
   type ResolverNode,
-  type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { queryClient } from '@/utils/queryClient'
-
-/** How much of the node's roles the sheet can claim, until the read completes. */
-const toNodeRolesStatus = (
-  overview: {
-    readonly data?: ResolverOverview | null
-    readonly isError: boolean
-  },
-  roles: readonly ResolverOverview['roles'][number][],
-): NodeDetailSheetProps['rolesStatus'] =>
-  match(overview)
-    .returnType<NodeDetailSheetProps['rolesStatus']>()
-    .with({ isError: true }, () => 'error')
-    .with({ data: undefined }, () => 'loading')
-    // A resolver bigname has not indexed has no roles to list.
-    .with({ data: null }, () => 'full')
-    .with({ data: { rolesStatus: 'unsupported' } }, () => 'unsupported')
-    .with({ data: P.nonNullable }, ({ data }) =>
-      roles.some((role) => role.name === null) ? 'partial' : data.rolesStatus,
-    )
-    .exhaustive()
 
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,

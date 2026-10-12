@@ -14,7 +14,7 @@ type GetNameDetailParameters = { readonly name: string }
 const readDetail = readNameDetail(bigname)
 
 /** A name's indexed detail, or null when bigname has not indexed it. */
-export const getNameDetail = ({ name }: GetNameDetailParameters) =>
+const getNameDetail = ({ name }: GetNameDetailParameters) =>
   readDetail({ name }).mapErr((cause) => new GetNameDetailError({ cause }))
 
 export const nameDetailQueryKey = createQueryKey<

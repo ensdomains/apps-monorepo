@@ -52,6 +52,8 @@ const NAMES: AddressNameItem[] = [
   },
 ]
 
+const ROLE_COUNTS: ReadonlyMap<string, number> = new Map()
+
 // Cached and fresh, so the route renders the names without a request.
 vi.mock('@/features/dashboard/hooks/useAddressNames', () => ({
   getAddressNamesQueryKey: (params: unknown) => ['get-address-names', params],
@@ -62,6 +64,21 @@ vi.mock('@/features/dashboard/hooks/useAddressNames', () => ({
     staleTime: Number.POSITIVE_INFINITY,
   }),
 }))
+
+vi.mock(
+  '@/features/dashboard/hooks/useAddressRoleCounts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/dashboard/hooks/useAddressRoleCounts')
+    >()),
+    getAddressRoleCountsQueryOptions: (params: unknown) => ({
+      queryKey: ['get-address-role-counts', params],
+      queryFn: () => ROLE_COUNTS,
+      initialData: ROLE_COUNTS,
+      staleTime: Number.POSITIVE_INFINITY,
+    }),
+  }),
+)
 
 /** Every query key the route handed to `useQueries`, in request order. */
 const requestedQueryKeys: (readonly unknown[])[] = []

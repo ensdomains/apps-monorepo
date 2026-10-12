@@ -268,7 +268,8 @@ describe('summarizeEvents', () => {
     expect(action.label).toBe('registered')
     expect(action.events).toHaveLength(2)
     const charged = action.events.filter(
-      ({ data }) => 'base_cost' in data || 'payment_token' in data,
+      ({ data }) =>
+        data !== undefined && ('base_cost' in data || 'payment_token' in data),
     )
     expect(charged.map(({ id }) => id)).toEqual([registered.id])
     // Only the charge is dropped from the copy; the rest of the row stays.

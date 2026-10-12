@@ -93,6 +93,18 @@ describe('withRoleCounts', () => {
       { name: 'v2.eth', protocolVersion: 'ENSv2', roleCount: 3 },
       { name: 'v1.eth', protocolVersion: 'ENSv1' },
     ])
-    expect(withRoleCounts(rows, undefined)).toBe(rows)
+  })
+
+  it('marks ENSv2 rows while counts load or after they fail', () => {
+    const rows = [
+      { name: 'v2.eth', protocolVersion: 'ENSv2' },
+      { name: 'v1.eth', protocolVersion: 'ENSv1' },
+    ]
+
+    expect(withRoleCounts(rows, 'loading')[0]?.roleCount).toBe('loading')
+    expect(withRoleCounts(rows, 'unavailable')[0]?.roleCount).toBe(
+      'unavailable',
+    )
+    expect(withRoleCounts(rows, 'loading')[1]).not.toHaveProperty('roleCount')
   })
 })

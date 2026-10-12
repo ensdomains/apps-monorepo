@@ -12,7 +12,12 @@ import {
   toRelations,
 } from './adapters'
 import type { BignameClient } from './client'
-import type { AddressName, AddressNamesQuery, Authority } from './types'
+import type {
+  AddressName,
+  AddressNamesQuery,
+  Authority,
+  GrantScope,
+} from './types'
 
 const SORT_FIELDS = {
   name: 'name',
@@ -54,11 +59,24 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   cursor: query.cursor,
 })
 
+// Resolver, record manager and account grants are powers elsewhere, not on the name.
+const NAME_SCOPES: ReadonlySet<GrantScope['kind']> = new Set([
+  'registration',
+  'registry',
+  'root',
+])
+
 const toHeldPowers = (row: AddressName, address: string) => {
   const holder = row.role_summary?.find(
     (summary) => summary.address.toLowerCase() === address.toLowerCase(),
   )
-  return [...new Set(holder?.grants.flatMap((grant) => grant.powers))]
+  return [
+    ...new Set(
+      holder?.grants
+        .filter((grant) => NAME_SCOPES.has(grant.grant_scope.kind))
+        .flatMap((grant) => grant.powers),
+    ),
+  ]
 }
 
 const toNameSummary = (row: AddressName, address: string): NameSummary => ({

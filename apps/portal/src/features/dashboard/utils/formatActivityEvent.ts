@@ -88,8 +88,8 @@ const formatRecordEvent = (
 }
 
 /**
- * A role change on an ENSv2 registry's root resource (`RootPermissionChanged`,
- * served after v0.4.1). The row has no name, so the registry stands in the
+ * A role change on an ENSv2 registry's root resource (`RootPermissionChanged`).
+ * The row has no name, so the registry stands in the
  * name column: the one the scope names, else the emitting contract, which is
  * the registry. The subject is the actor pill and the roles it now holds the
  * value pill.

@@ -28,7 +28,7 @@ const useRegistrationTxHash = (name: string) => {
       page_size: 1,
     }),
   )
-  return data?.[0]?.transaction_hash ?? undefined
+  return data?.rows[0]?.transaction_hash ?? undefined
 }
 
 /**

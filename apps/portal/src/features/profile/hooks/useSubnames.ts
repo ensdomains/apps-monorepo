@@ -40,7 +40,8 @@ type GetSubnamesParameters = {
 export type SubnamesPage = {
   readonly subnames: readonly Subname[]
   /** Every subname the name has, not just the ones on this page. */
-  readonly totalCount: number
+  /** Undefined when bigname does not count the list. */
+  readonly totalCount: number | undefined
   readonly nextCursor: string | null
 }
 
@@ -90,7 +91,7 @@ const readSubnames = (
     .map(
       ({ data, page }): SubnamesPage => ({
         subnames: data.flatMap(toSubname(name)),
-        totalCount: page?.total_count ?? data.length,
+        totalCount: page?.total_count ?? undefined,
         nextCursor: page?.next_cursor ?? null,
       }),
     )

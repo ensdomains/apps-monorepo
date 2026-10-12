@@ -42,7 +42,7 @@ export const humanizeType = (type: string): string =>
     .join(' ')
 
 /** A power in words: `set_addr` → "Set addr", `admin_set_text` → "Set text Admin". */
-export const formatPower = (power: Power | string): string =>
+export const formatPower = (power: Power): string =>
   power.startsWith('admin_')
     ? `${humanizeType(power.slice('admin_'.length))} Admin`
     : humanizeType(power)
@@ -98,7 +98,7 @@ export const recordFamily = (
 ): RecordFamily => {
   // A record-version reset (clearRecords) carries no fields at all.
   if (event.kind === 'RecordVersionChanged') return 'cleared'
-  const key = event.data.key
+  const key = event.data?.key
   if (!key) return 'other'
   const parsed = parseRecordKey(key)
   if (parsed?.kind === 'text' || parsed?.kind === 'avatar') return 'text'
@@ -113,7 +113,7 @@ export const recordFamily = (
 
 /** The text key of a `text:<key>` row, sanitized; the key is attacker-authored. */
 export const recordTextKey = (event: TimelineEventOfType<'record'>): string => {
-  const key = event.data.key ?? ''
+  const key = event.data?.key ?? ''
   const bare = key.startsWith('text:') ? key.slice('text:'.length) : key
   return sanitizeOnChainText(bare) || 'text'
 }
@@ -121,7 +121,7 @@ export const recordTextKey = (event: TimelineEventOfType<'record'>): string => {
 const describeRecord = (
   primary: TimelineEventOfType<'record'>,
 ): DescriptorResult => {
-  const value = recordValueText(primary.data.value)
+  const value = recordValueText(primary.data?.value)
   return (
     match(recordFamily(primary))
       .returnType<DescriptorResult>()
@@ -174,7 +174,7 @@ const describeRecord = (
         slots: [
           {
             kind: 'text',
-            value: sanitizeOnChainText(primary.data.key ?? '') || '—',
+            value: sanitizeOnChainText(primary.data?.key ?? '') || '—',
           },
         ],
       }))
@@ -191,7 +191,7 @@ const powerList = (powers: readonly Power[]): ActionSlot => ({
 const permissionAccount = (
   primary: TimelineEventOfType<'permission'>,
 ): ActionSlot => {
-  const { address } = primary.data
+  const address = primary.data?.address
   if (!address || !isAddress(address, { strict: false }))
     return { kind: 'placeholder', value: '—' }
   return primary.transactionHash
@@ -239,7 +239,7 @@ const describePermission = (
     fuses,
     grant_scope: scope,
     approved,
-  } = primary.data
+  } = primary.data ?? {}
   const account = permissionAccount(primary)
   // A BaseRegistrar controller change: registrar-wide, no power set.
   if (scope?.kind === 'registrar_controller')
@@ -306,7 +306,7 @@ export const migrationPathLabel = (
 const describeMigration = (
   primary: TimelineEventOfType<'migration'>,
 ): DescriptorResult => {
-  const path = migrationPathLabel(primary.data.migration_path)
+  const path = migrationPathLabel(primary.data?.migration_path)
   return {
     label: 'migrated',
     slots: [
@@ -357,13 +357,13 @@ const DESCRIPTORS: Descriptors = {
     icon: 'transfer',
     build: (primary) => {
       // A mint is the registration's own doing, not a transfer worth a headline.
-      if (isZero(primary.data.from)) return null
+      if (isZero(primary.data?.from)) return null
       return {
         label: 'transferred',
         slots: [
           nameSlot(primary.name),
           { kind: 'glyph', value: '→' },
-          addressSlot(primary.data.to),
+          addressSlot(primary.data?.to),
         ],
       }
     },
@@ -374,17 +374,19 @@ const DESCRIPTORS: Descriptors = {
       primary.kind === 'AuthorityTransferred'
         ? {
             label: 'set registry owner to',
-            slots: [addressSlot(primary.data.owner)],
+            slots: [addressSlot(primary.data?.owner)],
           }
         : { label: 'updated authority', slots: [] },
   },
   resolver: {
     icon: 'resolver',
     build: (primary) =>
-      primary.data.resolver
+      primary.data?.resolver
         ? {
             label: 'updated resolver to',
-            slots: [contractSlot(primary.data.resolver, { label: 'resolver' })],
+            slots: [
+              contractSlot(primary.data?.resolver, { label: 'resolver' }),
+            ],
           }
         : { label: 'cleared resolver', slots: [] },
   },
@@ -399,7 +401,7 @@ const DESCRIPTORS: Descriptors = {
       slots: [
         nameSlot(primary.name),
         { kind: 'glyph', value: '↔' },
-        addressSlot(primary.data.address),
+        addressSlot(primary.data?.address),
       ],
     }),
   },
@@ -410,11 +412,11 @@ const DESCRIPTORS: Descriptors = {
   subregistry: {
     icon: 'registry',
     build: (primary) =>
-      primary.data.subregistry
+      primary.data?.subregistry
         ? {
             label: 'linked subregistry',
             slots: [
-              contractSlot(primary.data.subregistry, { isRegistry: true }),
+              contractSlot(primary.data?.subregistry, { isRegistry: true }),
             ],
           }
         : { label: 'unlinked subregistry', slots: [] },

@@ -81,7 +81,7 @@ describe('getAddressNames', () => {
     ])
 
     const names = (
-      await getAddressNames({ address: ADDRESS }, NOW)
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
     expect(queries()[0]).toMatchObject({
@@ -109,7 +109,7 @@ describe('getAddressNames', () => {
     answer([[row('a.eth')], [row('b.eth')]])
 
     const names = (
-      await getAddressNames({ address: ADDRESS }, NOW)
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
     expect(names.map(({ name }) => name).sort()).toEqual(['a.eth', 'b.eth'])
@@ -128,7 +128,7 @@ describe('getAddressNames', () => {
     ])
 
     const names = (
-      await getAddressNames({ address: ADDRESS }, NOW)
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
     expect(names.map(({ name }) => name)).toEqual(['kept.eth'])
@@ -150,7 +150,7 @@ describe('getAddressNames', () => {
     )
 
     const names = (
-      await getAddressNames({ address: ADDRESS }, NOW)
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
     expect(names).toEqual([
@@ -168,7 +168,7 @@ describe('getAddressNames', () => {
       errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
     )
 
-    const result = await getAddressNames({ address: ADDRESS }, NOW)
+    const result = await getAddressNames({ address: ADDRESS }, { now: NOW })
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetAddressNamesError')
   })

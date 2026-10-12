@@ -1,4 +1,8 @@
-import type { LookupRecord, LookupResult } from '@ens-apps/indexer/bigname'
+import type {
+  BignameError,
+  LookupRecord,
+  LookupResult,
+} from '@ens-apps/indexer/bigname'
 import {
   type ClassifiedName,
   classifyName,
@@ -40,7 +44,8 @@ export type MigrationStatus =
   | { readonly migratable: false }
 
 class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
-  cause: unknown
+  /** A lookup result that is neither a record nor `not_found` rides as itself. */
+  cause: BignameError | LookupResult | Error | undefined
 }> {}
 
 type GetMigrationStatusParameters = {
@@ -75,9 +80,7 @@ const recordOf = (
   match(result?.status)
     .with('ok', () => ok(result?.record ?? null))
     .with('not_found', undefined, () => ok(null))
-    .otherwise((status) =>
-      err(new GetMigrationStatusError({ cause: { status, result } })),
-    )
+    .otherwise(() => err(new GetMigrationStatusError({ cause: result })))
 
 /**
  * The name's ENSv1 domain, as the classifier reads it, in one lookup. The
@@ -129,7 +132,10 @@ const getMigrationStatus = ResultFn(async function* ({
       [classified.name],
       evaluationAddress,
     ),
-    (e) => new GetMigrationStatusError({ cause: e }),
+    (e) =>
+      new GetMigrationStatusError({
+        cause: e instanceof Error ? e : new Error(String(e)),
+      }),
   )
 
   if (failed.length > 0)

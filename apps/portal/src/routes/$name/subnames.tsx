@@ -62,6 +62,10 @@ interface NoSubregistryMessageProps {
   readonly canDeploy: boolean
 }
 
+// The served total, less the loaded rows hidden while their delete waits on the indexer.
+const withoutHidden = (total: number | undefined, hidden: number) =>
+  total === undefined ? undefined : total - hidden
+
 const NoSubregistryMessage = ({
   name,
   canDeploy,
@@ -490,12 +494,10 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     <>
       <SubnamesTable
         subnames={subnameRows}
-        // The name's total, less the loaded rows hidden while their delete
-        // waits on the indexer.
-        totalCount={
-          (subnamePages?.pages[0]?.totalCount ?? 0) -
-          ((subnames?.length ?? 0) - subnameRows.length)
-        }
+        totalCount={withoutHidden(
+          subnamePages?.pages[0]?.totalCount,
+          (subnames?.length ?? 0) - subnameRows.length,
+        )}
         onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
         isLoadingMore={isFetchingNextPage}
         isLoadMoreError={isFetchNextPageError}
@@ -558,7 +560,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   return (
     <SubnamesTable
       subnames={subnameRows}
-      totalCount={data?.pages[0]?.totalCount ?? subnameRows.length}
+      totalCount={data?.pages[0]?.totalCount}
       onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
       isLoadingMore={isFetchingNextPage}
       isLoadMoreError={isFetchNextPageError}

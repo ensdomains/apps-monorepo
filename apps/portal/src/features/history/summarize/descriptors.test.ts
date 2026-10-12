@@ -352,7 +352,7 @@ describe('root role changes', () => {
   })
 
   it('a root row that names no registry still reads, without one', () => {
-    // v0.4.1 serves `detail: {}` on the root scopes it knows.
+    // bigname can serve a root scope with `detail: {}`.
     expect(
       describeEvent(
         event(

@@ -47,14 +47,12 @@ const knownPaymentToken = ({ chain_id, address }: RegistryRef) =>
 export const formatHistoryAmount = (
   key: string,
   value: unknown,
-  data: object,
+  data: object | undefined,
 ): string | undefined => {
   if (!AMOUNT_KEYS.has(key)) return undefined
   if (typeof value !== 'string' || !/^\d+$/.test(value)) return undefined
-  const { payment_token, canonical_id, token_id } = data as Record<
-    string,
-    unknown
-  >
+  if (!isObject(data)) return undefined
+  const { payment_token, canonical_id, token_id } = data
   if (isContractRef(payment_token)) {
     const token = knownPaymentToken(payment_token)
     return token

@@ -1,7 +1,7 @@
 import type { ResultAsync } from 'neverthrow'
-import { readAllPages, retryStale } from '../bigname/paging'
+import { type PagingStop, readAllPages, retryStale } from '../bigname/paging'
 import type { Page } from './common.types'
-import type { IndexerReadError } from './errors'
+import { IndexerReadError } from './errors'
 import type {
   NameSummary,
   NamesForAddressQuery,
@@ -11,6 +11,12 @@ import type {
 const FETCH_PAGE_SIZE = 200
 
 const isStaleRead = (error: IndexerReadError) => error.kind === 'stale'
+
+const toReadStopError = (reason: PagingStop) =>
+  new IndexerReadError({
+    kind: reason === 'aborted' ? 'unavailable' : 'rejected',
+    cause: reason,
+  })
 
 /** One page, sent again while bigname answers stale. */
 export const readNamesPage = (
@@ -23,7 +29,10 @@ export const readNamesPage = (
 export const readAllNames = (
   readNames: ReadNamesForAddress,
   query: Omit<NamesForAddressQuery, 'cursor' | 'pageSize'>,
-  pageSize = FETCH_PAGE_SIZE,
+  {
+    pageSize = FETCH_PAGE_SIZE,
+    signal,
+  }: Readonly<{ pageSize?: number; signal?: AbortSignal }> = {},
 ): ResultAsync<readonly NameSummary[], IndexerReadError> =>
   readAllPages({
     readPage: (cursor) =>
@@ -33,4 +42,6 @@ export const readAllNames = (
         ...(cursor !== undefined && { cursor }),
       }).map(({ items, nextCursor }) => ({ rows: items, nextCursor })),
     isStaleError: isStaleRead,
+    toStopError: toReadStopError,
+    signal,
   })

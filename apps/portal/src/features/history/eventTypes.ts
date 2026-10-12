@@ -48,7 +48,8 @@ export const ADDRESS_RECORD_HISTORY_TYPES = [
  * (`clearRecords`, no key) wipes the addresses too, so it stays.
  */
 export const isAddressRecordEvent = (event: TimelineEvent): boolean => {
-  if (event.type !== 'record') return false
+  // A row served without its payload cannot be placed, so it is not counted.
+  if (event.type !== 'record' || !event.data) return false
   const { key } = event.data
   return key === undefined || key === 'name' || key.startsWith('addr:')
 }

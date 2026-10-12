@@ -3,6 +3,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -15,7 +16,7 @@ export type NameRow = {
   name: string | null
   expiryDate?: Date | null
   relations: readonly AddressNameRelation[]
-  roleCount?: number
+  roleCount?: RoleCount
   protocolVersion: ProtocolVersion
 }
 

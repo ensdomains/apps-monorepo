@@ -17,15 +17,16 @@ export {
   type BignameErrorCode,
   isStale,
 } from './errors'
-export { isInV2Grace, readGraceNames, V2_GRACE_SECONDS } from './grace'
+export { isInV2Grace, readGraceNames } from './grace'
 export { readNameDetail } from './nameDetail'
 export { readNamesForAddress } from './namesForAddress'
 export {
-  type CollectionPage,
+  type PagingStop,
   readAllCollectionPages,
+  readAllEnvelopes,
   readAllPages,
   retryStale,
 } from './paging'
-export { type ParsedRecordKey, parseRecordKey } from './recordKeys'
+export { parseRecordKey } from './recordKeys'
 export { MAX_PAGE_SIZE, secondsToTimestamp } from './time'
 export type * from './types'

@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { match } from 'ts-pattern'
-import type { Hash } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
@@ -154,7 +153,7 @@ const columns: ColumnDef<RecordHistoryEvent>[] = [
     header: 'Transaction',
     accessorKey: 'transactionID',
     cell({ row }) {
-      return <BlockExplorerTxLink txHash={row.original.transactionID as Hash} />
+      return <BlockExplorerTxLink txHash={row.original.transactionID} />
     },
   },
   {

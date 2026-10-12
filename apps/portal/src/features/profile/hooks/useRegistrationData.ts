@@ -8,7 +8,7 @@ const toSeconds = (date: Date | null | undefined): number | null =>
 
 // An expiry bigname cannot serve as a date, such as a name that never
 // expires, comes back as null.
-export const toRegistrationData = (detail: NameDetail | null) => ({
+const toRegistrationData = (detail: NameDetail | null) => ({
   createdAt: toSeconds(detail?.createdAt),
   registeredAt: toSeconds(detail?.registeredAt),
   expiry: toSeconds(detail?.expiresAt),

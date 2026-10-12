@@ -111,7 +111,7 @@ describe('isListedName', () => {
 
 describe('toGraceName', () => {
   it('lists an expired ENSv2 .eth name of this owner without roles', () => {
-    expect(toGraceName(lapsed(), OWNER, NOW)).toEqual({
+    expect(toGraceName(lapsed())).toEqual({
       key: '0x02',
       name: 'grace.eth',
       protocol: 'v2',
@@ -123,15 +123,17 @@ describe('toGraceName', () => {
     })
   })
 
+  it('reads an RFC 3339 expiry', () => {
+    const expiresAt = new Date((nowSeconds - 86_400) * 1000).toISOString()
+
+    expect(toGraceName(lapsed({ expires_at: expiresAt }))?.expiryDate).toBe(
+      BigInt(nowSeconds - 86_400),
+    )
+  })
+
   // Which rows are in grace is tested with the shared grace read.
-  it.each([
-    { case: 'an un-normalised name', row: lapsed({ name: 'GRACE.eth' }) },
-    {
-      case: 'a name past grace',
-      row: lapsed({ expires_at: String(nowSeconds - 86_400 * 60) }),
-    },
-  ])('skips $case', ({ row }) => {
-    expect(toGraceName(row, OWNER, NOW)).toBeNull()
+  it('skips an un-normalised name', () => {
+    expect(toGraceName(lapsed({ name: 'GRACE.eth' }))).toBeNull()
   })
 })
 
