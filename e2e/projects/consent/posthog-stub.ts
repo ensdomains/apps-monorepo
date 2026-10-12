@@ -69,11 +69,20 @@ const json = (res: ServerResponse, value: unknown): void => {
   res.end(JSON.stringify(value))
 }
 
+/** The SDK gzip-compresses some capture posts without a content-encoding
+ * header; sniff the gzip magic so those bodies decode like the labelled
+ * ones. A body that fails to decompress is kept raw. */
+const isGzip = (raw: Buffer): boolean =>
+  raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b
+
 const decodeBody = (req: IncomingMessage, raw: Buffer): string => {
   const encoding = req.headers['content-encoding'] ?? ''
-  return encoding.includes('gzip')
-    ? gunzipSync(raw).toString('utf8')
-    : raw.toString('utf8')
+  if (!encoding.includes('gzip') && !isGzip(raw)) return raw.toString('utf8')
+  try {
+    return gunzipSync(raw).toString('utf8')
+  } catch {
+    return raw.toString('utf8')
+  }
 }
 
 const respondToStubRequest = (
