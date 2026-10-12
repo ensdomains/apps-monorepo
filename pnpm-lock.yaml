@@ -276,6 +276,9 @@ importers:
 
   apps/manager:
     dependencies:
+      '@ens-apps/analytics-consent':
+        specifier: workspace:*
+        version: link:../../packages/analytics-consent
       '@ens-apps/config':
         specifier: workspace:^
         version: link:../../packages/config

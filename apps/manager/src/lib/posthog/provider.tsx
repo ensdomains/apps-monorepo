@@ -1,3 +1,12 @@
+import { readConsent } from '@ens-apps/analytics-consent/consent'
+import { writeConsentCookie } from '@ens-apps/analytics-consent/cookie'
+import {
+  applyDeclinedConsent,
+  configForConsent,
+  identifyWalletConnection,
+  sweepPosthogStorage,
+} from '@ens-apps/analytics-consent/posthog'
+import { useAnalyticsConsent } from '@ens-apps/analytics-consent/react'
 import { transactionManager } from '@ens-apps/transaction-manager'
 import {
   boot as bootIntercom,
@@ -15,9 +24,9 @@ import type { PostHog } from 'posthog-js'
 // approach as portal; see PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
-import { useEffect } from 'react'
-import { useConnectionEffect } from 'wagmi'
-import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
+import { useEffect, useRef } from 'react'
+import { useConnection, useConnectionEffect } from 'wagmi'
+import { track } from './events'
 
 export const PHProvider = ({
   children,
@@ -25,15 +34,30 @@ export const PHProvider = ({
   children: React.ReactNode
 }): React.ReactNode => {
   const isHydrated = useHydrated()
+  const [consent] = useAnalyticsConsent()
+  const connection = useConnection()
+  const connectionStatus = connection.status
+  const connectionAddress = connection.address
+  const connectionChainId = connection.chainId
+  const connectorName = connection.connector?.name
+  const initializedRef = useRef(false)
+  // The init effect below applies the stored choice; transitions handle
+  // changes after that.
+  const transitionArmedRef = useRef(false)
 
   useEffect(() => {
-    if (!isHydrated) return
+    if (!isHydrated || initializedRef.current) return
+    initializedRef.current = true
 
+    const stored = readConsent()
     // Flag evaluation and support must not crash the app if either SDK fails.
     try {
+      // Stale PostHog storage is not consent: a stored opt-in or a pre-pause
+      // wallet identity would otherwise leak into the anonymous mode.
+      if (stored !== 'accepted') sweepPosthogStorage()
       posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
         api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-        ...FEATURE_FLAGS_ONLY_CONFIG,
+        ...configForConsent(stored),
       })
 
       // The ESM `posthog-js` build keeps the singleton in an internal
@@ -41,8 +65,12 @@ export const PHProvider = ({
       // snippet). Expose it so e2e can reach `window.posthog.featureFlags`
       // to override flags, and for debugging in the console.
       ;(window as Window & { posthog?: typeof posthog }).posthog = posthog
+
+      // The consent cookie mirrors the choice for the server-side route
+      // guards; rewrite it in case it expired or was cleared.
+      if (stored !== null) writeConsentCookie(stored)
     } catch (error) {
-      console.warn('[posthog] flag init failed', error)
+      console.warn('[posthog] init failed', error)
     }
 
     try {
@@ -138,35 +166,61 @@ export const PHProvider = ({
     }
   }, [isHydrated])
 
+  // Consent transitions after init. Declared before the wallet effect so the
+  // SDK is opted in before the wallet is identified.
+  useEffect(() => {
+    if (!initializedRef.current || !transitionArmedRef.current) {
+      transitionArmedRef.current = true
+      return
+    }
+    if (consent === 'accepted') {
+      posthog.opt_in_capturing()
+      writeConsentCookie('accepted')
+    } else if (consent === 'declined') {
+      applyDeclinedConsent(posthog)
+      writeConsentCookie('declined')
+    }
+  }, [consent])
+
+  // Wallet identity, only while accepted. Runs on consent changes and on
+  // every wallet change, so connects, account switches and accepted reloads
+  // with a connected wallet all pair the current address.
+  useEffect(() => {
+    if (!initializedRef.current || consent !== 'accepted') return
+    if (
+      connectionStatus !== 'connected' ||
+      !connectionAddress ||
+      connectionChainId === undefined ||
+      !connectorName
+    )
+      return
+    try {
+      identifyWalletConnection(posthog, {
+        address: connectionAddress,
+        chainId: connectionChainId,
+        connectorName,
+      })
+    } catch (error) {
+      console.warn('[posthog] wallet identify failed', error)
+    }
+  }, [
+    connectionAddress,
+    connectionChainId,
+    connectionStatus,
+    connectorName,
+    consent,
+  ])
+
   useConnectionEffect({
     onConnect(data) {
-      // Keep wallet identity/properties solely for existing flag targeting.
-      // Capture is blocked, so identify cannot create a profile or merge event history.
       try {
-        posthog.identify(
-          data.address,
-          {
-            address: data.address,
-          },
-          {
-            initial_address: data.address,
-          },
-        )
-
-        // POSTHOG_LAUNCH_PAUSE: wallet analytics paused; identify above remains for flags. Restore the ./events track import when re-enabling.
-        // posthog.register({
-        //   wallet_address: data.address,
-        //   chain_id: data.chainId,
-        //   wallet_connector: data.connector.name,
-        // })
-        //
-        // track('wallet:connect', {
-        //   wallet_address: data.address,
-        //   chain_id: data.chainId,
-        //   wallet_connector: data.connector.name,
-        // })
+        track('wallet:connect', {
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
       } catch (error) {
-        console.warn('[posthog] wallet flag targeting failed', error)
+        console.warn('[posthog] wallet:connect failed', error)
       }
 
       try {

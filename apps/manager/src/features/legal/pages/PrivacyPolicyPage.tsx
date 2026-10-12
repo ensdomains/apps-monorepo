@@ -1,3 +1,5 @@
+import { AnalyticsNotice } from '@/features/consent/AnalyticsNotice'
+
 export const PrivacyPolicyPage = () => {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-8 md:py-12">
@@ -123,6 +125,13 @@ export const PrivacyPolicyPage = () => {
             this policy. This policy is governed by Singapore law with dispute
             resolution through arbitration.
           </p>
+        </section>
+
+        <section className="mb-8" id="analytics">
+          <h2 className="font-semibold text-ens-blue-dark text-xl">
+            9. Analytics
+          </h2>
+          <AnalyticsNotice />
         </section>
       </article>
     </div>

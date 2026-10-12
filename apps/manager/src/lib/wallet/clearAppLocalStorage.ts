@@ -1,3 +1,4 @@
+import { CONSENT_STORAGE_KEY } from '@ens-apps/analytics-consent/consent'
 import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/registrationPersistence'
 
 // Blanket localStorage.clear() corrupts reconnection — preserve wagmi.*
@@ -21,6 +22,8 @@ const PRESERVED_KEY_PREFIXES = [
   'wagmi',
   'ens-session',
   REGISTRATION_RESUME_STORAGE_KEY,
+  // A disconnect must not unmake the visitor's analytics choice.
+  CONSENT_STORAGE_KEY,
 ] as const
 
 export const clearAppLocalStorage = () => {

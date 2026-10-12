@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConnectionCookie } from '@/lib/connection-cookie'
+import { getConsentCookie } from '@/lib/consent-cookie'
 import { getFeatureFlag } from './get-feature-flag'
 
 const { isFeatureEnabledMock, posthogConstructorMock, shutdownMock } =
@@ -35,6 +36,10 @@ vi.mock('@/lib/connection-cookie', () => ({
   getConnectionCookie: vi.fn(),
 }))
 
+vi.mock('@/lib/consent-cookie', () => ({
+  getConsentCookie: vi.fn(),
+}))
+
 const WALLET_ADDRESS = '0x1111111111111111111111111111111111111111'
 const MIGRATION_FLAG_INPUT = { data: { flag: 'migration' as const } }
 const MIGRATION_NFT_FLAG_INPUT = {
@@ -47,6 +52,7 @@ describe('getFeatureFlag', () => {
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
     vi.stubEnv('VITE_PUBLIC_POSTHOG_HOST', 'https://posthog.example')
     vi.mocked(getConnectionCookie).mockReturnValue(WALLET_ADDRESS)
+    vi.mocked(getConsentCookie).mockReturnValue('accepted')
   })
 
   afterEach(() => {
@@ -98,6 +104,37 @@ describe('getFeatureFlag', () => {
     isFeatureEnabledMock.mockResolvedValue(undefined)
 
     await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(false)
+  })
+
+  it('checks the switch anonymously when the visitor declined', async () => {
+    vi.mocked(getConsentCookie).mockReturnValue('declined')
+    isFeatureEnabledMock.mockResolvedValue(true)
+
+    await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(true)
+    expect(isFeatureEnabledMock).toHaveBeenCalledWith(
+      'migration',
+      expect.not.stringContaining('0x1111'),
+      { sendFeatureFlagEvents: false },
+    )
+    const distinctId = vi.mocked(isFeatureEnabledMock).mock.calls[0]?.[1]
+    expect(distinctId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    )
+  })
+
+  it('checks the switch anonymously when no choice was made', async () => {
+    vi.mocked(getConsentCookie).mockReturnValue(null)
+    isFeatureEnabledMock.mockResolvedValue(false)
+
+    await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(false)
+    expect(isFeatureEnabledMock).toHaveBeenCalledWith(
+      'migration',
+      expect.any(String),
+      { sendFeatureFlagEvents: false },
+    )
+    expect(vi.mocked(isFeatureEnabledMock).mock.calls[0]?.[1]).not.toBe(
+      WALLET_ADDRESS,
+    )
   })
 
   it('does not create a PostHog client without a connected wallet', async () => {

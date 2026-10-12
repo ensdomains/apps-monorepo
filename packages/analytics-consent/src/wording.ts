@@ -31,7 +31,7 @@ export const analyticsNoticeHeadings = {
  */
 export const analyticsNoticeParagraphs = (
   usageEventsParagraph: string,
-): readonly string[] =>
+): readonly [string, string, string, string, string, string] =>
   [
     'When you choose Accept Analytics, this app sends PostHog, the analytics service that processes data for us, the following: wallet addresses as your identity when a wallet is connected; page visits, including the names and wallet addresses in page addresses; the usage events listed below; and browser details such as browser type, operating system, and screen size.',
     usageEventsParagraph,

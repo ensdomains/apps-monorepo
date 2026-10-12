@@ -1,3 +1,4 @@
+import { readConsent } from '@ens-apps/analytics-consent/consent'
 import type { FailedRunPayloadV2 } from '@ens-apps/transaction-manager'
 import type { CaptureOptions } from 'posthog-js'
 // Pre-bundled build so PostHog never injects runtime <script> tags that our
@@ -71,6 +72,7 @@ export function track<N extends PostHogEvent>(
   name: N,
   ...args: PostHogEvents[N] extends undefined ? [] : [PostHogEvents[N]]
 ): void {
+  if (readConsent() !== 'accepted') return
   posthog.capture(name, args[0])
 }
 
@@ -79,5 +81,6 @@ export function trackWithOptions<N extends PostHogEvent>(
   args: PostHogEvents[N],
   options: CaptureOptions,
 ): void {
+  if (readConsent() !== 'accepted') return
   posthog.capture(name, args, options)
 }
