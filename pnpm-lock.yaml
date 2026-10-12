@@ -598,6 +598,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@ens-apps/analytics-consent':
+        specifier: workspace:*
+        version: link:../../packages/analytics-consent
       '@ens-apps/config':
         specifier: workspace:^
         version: link:../../packages/config

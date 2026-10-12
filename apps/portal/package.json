@@ -25,6 +25,7 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@base-ui/react": "^1.1.0",
+    "@ens-apps/analytics-consent": "workspace:*",
     "@ens-apps/config": "workspace:^",
     "@ens-apps/dev-dqa-overlay": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",

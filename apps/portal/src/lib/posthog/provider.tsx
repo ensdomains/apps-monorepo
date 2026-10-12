@@ -1,3 +1,11 @@
+import { readConsent } from '@ens-apps/analytics-consent/consent'
+import {
+  applyDeclinedConsent,
+  configForConsent,
+  identifyWalletConnection,
+  sweepPosthogStorage,
+} from '@ens-apps/analytics-consent/posthog'
+import { useAnalyticsConsent } from '@ens-apps/analytics-consent/react'
 import {
   boot as bootIntercom,
   trackEvent as trackIntercomEvent,
@@ -19,17 +27,32 @@ import type { PostHog } from 'posthog-js'
 // Toolbar (a dev-only feature we don't use in prod). See PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
-import { useEffect } from 'react'
-import { useConnectionEffect } from 'wagmi'
+import { useEffect, useRef } from 'react'
+import { useConnection, useConnectionEffect } from 'wagmi'
 import { INTERCOM_APP_ID } from '@/lib/intercom'
-import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
+import { track } from './events'
 
 export const PHProvider = ({
   children,
 }: {
   children: React.ReactNode
 }): React.ReactNode => {
+  const [consent] = useAnalyticsConsent()
+  const connection = useConnection()
+  const connectionStatus = connection.status
+  const connectionAddress = connection.address
+  const connectionChainId = connection.chainId
+  const connectorName = connection.connector?.name
+  const initializedRef = useRef(false)
+  // The init effect below applies the stored choice; transitions handle
+  // changes after that.
+  const transitionArmedRef = useRef(false)
+
   useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
+
+    const stored = readConsent()
     // Flag evaluation and support must not crash the app if either SDK fails.
     try {
       // PostHog is optional: deployments without a key (local dev, e2e)
@@ -37,13 +60,21 @@ export const PHProvider = ({
       // Intercom still boots either way.
       const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY
       if (posthogKey) {
+        // Stale PostHog storage is not consent: a stored opt-in or a
+        // pre-pause wallet identity would otherwise leak into anonymous mode.
+        if (stored !== 'accepted') sweepPosthogStorage()
         posthog.init(posthogKey, {
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-          ...FEATURE_FLAGS_ONLY_CONFIG,
+          ...configForConsent(stored),
         })
+
+        // The ESM `posthog-js` build keeps the singleton in an internal
+        // registry and never attaches it to `window` (unlike the script-tag
+        // snippet). Expose it for debugging in the console.
+        ;(window as Window & { posthog?: typeof posthog }).posthog = posthog
       }
     } catch (error) {
-      console.warn('[posthog] flag init failed', error)
+      console.warn('[posthog] init failed', error)
     }
 
     try {
@@ -69,35 +100,65 @@ export const PHProvider = ({
     }
   }, [])
 
+  // Consent transitions after init. Declared before the wallet effect so the
+  // SDK is opted in before the wallet is identified.
+  useEffect(() => {
+    if (!initializedRef.current || !transitionArmedRef.current) {
+      transitionArmedRef.current = true
+      return
+    }
+    if (!import.meta.env.VITE_PUBLIC_POSTHOG_KEY) return
+    if (consent === 'accepted') {
+      posthog.opt_in_capturing()
+    } else if (consent === 'declined') {
+      applyDeclinedConsent(posthog)
+    }
+  }, [consent])
+
+  // Wallet identity, only while accepted. Runs on consent changes and on
+  // every wallet change, so connects, account switches and accepted reloads
+  // with a connected wallet all pair the current address.
+  useEffect(() => {
+    if (
+      !initializedRef.current ||
+      !import.meta.env.VITE_PUBLIC_POSTHOG_KEY ||
+      consent !== 'accepted'
+    )
+      return
+    if (
+      connectionStatus !== 'connected' ||
+      !connectionAddress ||
+      connectionChainId === undefined ||
+      !connectorName
+    )
+      return
+    try {
+      identifyWalletConnection(posthog, {
+        address: connectionAddress,
+        chainId: connectionChainId,
+        connectorName,
+      })
+    } catch (error) {
+      console.warn('[posthog] wallet identify failed', error)
+    }
+  }, [
+    connectionAddress,
+    connectionChainId,
+    connectionStatus,
+    connectorName,
+    consent,
+  ])
+
   useConnectionEffect({
     onConnect(data) {
-      // Keep wallet identity/properties solely for existing flag targeting.
-      // Capture is blocked, so identify cannot create a profile or merge event history.
       try {
-        posthog.identify(
-          data.address,
-          {
-            address: data.address,
-          },
-          {
-            initial_address: data.address,
-          },
-        )
-
-        // POSTHOG_LAUNCH_PAUSE: wallet analytics paused; identify above remains for flags. Restore the ./events track import when re-enabling.
-        // posthog.register({
-        //   wallet_address: data.address,
-        //   chain_id: data.chainId,
-        //   wallet_connector: data.connector.name,
-        // })
-        //
-        // track('wallet:connect', {
-        //   wallet_address: data.address,
-        //   chain_id: data.chainId,
-        //   wallet_connector: data.connector.name,
-        // })
+        track('wallet:connect', {
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
       } catch (error) {
-        console.warn('[posthog] wallet flag targeting failed', error)
+        console.warn('[posthog] wallet:connect failed', error)
       }
 
       try {
@@ -112,11 +173,12 @@ export const PHProvider = ({
     },
     onDisconnect() {
       try {
-        // POSTHOG_LAUNCH_PAUSE: disconnect analytics paused. Restore the ./events track import when re-enabling.
-        // track('wallet:disconnect')
+        // Tracked before reset() so the event keeps the wallet identity; the
+        // track helper drops it unless analytics were accepted.
+        track('wallet:disconnect')
         posthog.reset()
       } catch (error) {
-        console.warn('[posthog] wallet flag reset failed', error)
+        console.warn('[posthog] wallet disconnect failed', error)
       }
     },
   })
