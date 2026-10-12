@@ -13,7 +13,12 @@ export type RecordedRequest = {
   readonly method: string
   readonly path: string
   readonly body: string
+  readonly userAgent: string
 }
+
+/** This machine probes newly opened loopback ports (Go-http-client GET /). */
+export const isEnvironmentalProbe = (request: RecordedRequest): boolean =>
+  request.userAgent.startsWith('Go-http-client/')
 
 export type PosthogStub = {
   readonly url: string
@@ -72,7 +77,12 @@ export const startPosthogStub = async (
         const raw = await readBody(req)
         const body = decodeBody(req, raw)
         const path = req.url ?? '/'
-        recorded.push({ method: req.method ?? 'GET', path, body })
+        recorded.push({
+          method: req.method ?? 'GET',
+          path,
+          body,
+          userAgent: req.headers['user-agent'] ?? '',
+        })
 
         if (path.includes('/config')) {
           json(res, {})
@@ -128,18 +138,38 @@ const eventNameOf = (entry: unknown): string | null => {
   return null
 }
 
+/**
+ * Bodies the SDK base64-encodes (`data=...` with `compression=base64`)
+ * decode here so scans see the plaintext. Returns the raw body plus the
+ * decoded payload when one is present.
+ */
+export const scannableBodies = (body: string): readonly string[] => {
+  if (!body.includes('data=')) return [body]
+  try {
+    const params = new URLSearchParams(body)
+    const data = params.get('data')
+    if (!data) return [body]
+    const decoded = Buffer.from(data, 'base64').toString('utf8')
+    return [body, decoded]
+  } catch {
+    return [body]
+  }
+}
+
 /** Every event name carried in /e/ bodies (batch array, {batch} or single). */
 export const eventNamesIn = (bodies: readonly string[]): string[] => {
   const names: string[] = []
-  for (const body of bodies) {
-    try {
-      const parsed: unknown = JSON.parse(body)
-      for (const entry of asBatch(parsed)) {
-        const name = eventNameOf(entry)
-        if (name) names.push(name)
+  for (const raw of bodies) {
+    for (const body of scannableBodies(raw)) {
+      try {
+        const parsed: unknown = JSON.parse(body)
+        for (const entry of asBatch(parsed)) {
+          const name = eventNameOf(entry)
+          if (name) names.push(name)
+        }
+      } catch {
+        // Unparseable bodies still count as requests; names stay unknown.
       }
-    } catch {
-      // Unparseable bodies still count as requests; names stay unknown.
     }
   }
   return names

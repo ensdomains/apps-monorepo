@@ -2,7 +2,9 @@ import { expect, type Page, test } from '@playwright/test'
 import { connectWithHeadlessWallet } from '../../../helpers/portal-auth.js'
 import {
   eventNamesIn,
+  isEnvironmentalProbe,
   type PosthogStub,
+  scannableBodies,
   startPosthogStub,
 } from '../posthog-stub.js'
 import { injectTestWallet } from '../wallet.js'
@@ -53,19 +55,26 @@ const expectNoPosthogStorage = async (page: Page): Promise<void> => {
   ).toEqual([])
 }
 
+const bodiesCarryWallet = (wallet: string): boolean =>
+  stub
+    .requests()
+    .filter((r) => !isEnvironmentalProbe(r))
+    .flatMap((r) => scannableBodies(r.body))
+    .some((body) => body.toLowerCase().includes(wallet.toLowerCase()))
+
 const expectSilentHost = (wallet: string): void => {
   for (const r of stub.requests()) {
+    if (isEnvironmentalProbe(r)) continue
     expect(
       r.path.includes('/config') ||
         r.path.includes('/flags') ||
         r.path.includes('/decide'),
       `unexpected PostHog request: ${r.method} ${r.path}`,
     ).toBe(true)
-    expect(
-      r.body.toLowerCase().includes(wallet.toLowerCase()),
-      `wallet address in ${r.path} body`,
-    ).toBe(false)
   }
+  expect(bodiesCarryWallet(wallet), 'wallet address in a request body').toBe(
+    false,
+  )
   expect(stub.eventBodies()).toEqual([])
 }
 
@@ -162,6 +171,9 @@ test('C1: floating card at phone and desktop widths, light and dark', async ({
   expect(phoneBox.x).toBeGreaterThanOrEqual(0)
   expect(phoneBox.x + phoneBox.width).toBeLessThanOrEqual(360)
   expect(phoneBox.y).toBeLessThan(300)
+  const headerBox = await page.locator('header').first().boundingBox()
+  if (!headerBox) throw new Error('header has no box')
+  expect(boxesOverlap(phoneBox, headerBox)).toBe(false)
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth,
   )
@@ -174,6 +186,9 @@ test('C1: floating card at phone and desktop widths, light and dark', async ({
   if (!desktopBox) throw new Error('banner has no box at 1280px')
   expect(desktopBox.x).toBeGreaterThan(640)
   expect(desktopBox.y + desktopBox.height).toBeGreaterThan(500)
+  const headerBoxWide = await page.locator('header').first().boundingBox()
+  if (!headerBoxWide) throw new Error('header has no box at 1280px')
+  expect(boxesOverlap(desktopBox, headerBoxWide)).toBe(false)
   const settingsBox = await page
     .getByRole('button', { name: 'Settings' })
     .first()
@@ -240,18 +255,23 @@ test('C3a: accept with no wallet, then connect links the wallet', async ({
   await page.getByRole('button', { name: 'Accept Analytics' }).click()
   await expect(banner(page)).toBeHidden({ timeout: 10_000 })
   await page.waitForTimeout(2_000)
-  for (const body of stub.eventBodies()) {
-    expect(
-      body.toLowerCase().includes(address.toLowerCase()),
-      'no wallet before connect',
-    ).toBe(false)
+  for (const raw of stub.eventBodies()) {
+    for (const body of scannableBodies(raw)) {
+      expect(
+        body.toLowerCase().includes(address.toLowerCase()),
+        'no wallet before connect',
+      ).toBe(false)
+    }
   }
   await connectWithHeadlessWallet(page, wallet)
   await page.waitForTimeout(2_000)
   const names = eventNamesIn(stub.eventBodies())
   expect(names).toContain('$identify')
   expect(
-    stub.eventBodies().some((b) => b.includes(address)),
+    stub
+      .eventBodies()
+      .flatMap(scannableBodies)
+      .some((b) => b.includes(address)),
     'a request ties the wallet to the visitor',
   ).toBe(true)
   expect(names).toContain('wallet:connect')
@@ -269,7 +289,10 @@ test('C3b: accept with a connected wallet links at once', async ({ page }) => {
   await page.getByRole('button', { name: 'Accept Analytics' }).click()
   await page.waitForTimeout(3_000)
   expect(
-    stub.eventBodies().some((b) => b.includes(address)),
+    stub
+      .eventBodies()
+      .flatMap(scannableBodies)
+      .some((b) => b.includes(address)),
     'wallet linked from the press',
   ).toBe(true)
   const names = eventNamesIn(stub.eventBodies())
