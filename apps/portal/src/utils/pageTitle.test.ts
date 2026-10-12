@@ -47,6 +47,7 @@ describe('getPageTitle', () => {
 
   it('falls back to the bare app name', () => {
     expect(getPageTitle('/')).toBe('ENS Explorer App')
+    expect(getPageTitle('/privacy')).toBe('ENS Explorer App')
   })
 
   it('decodes percent-encoded names', () => {

@@ -186,6 +186,8 @@ describe('routing', () => {
       // The DNS import flow lives at /import/$name — never the name "import".
       expect(extractNameFromPath('/import')).toBeNull()
       expect(extractNameFromPath('/import/example.com')).toBeNull()
+      // The analytics consent notice lives at /privacy — never a name.
+      expect(extractNameFromPath('/privacy')).toBeNull()
     })
 
     it('should return null for reserved route subpages', () => {
@@ -269,6 +271,7 @@ describe('routing', () => {
   describe('RESERVED_ROUTE_SEGMENTS', () => {
     it('should contain all dedicated top-level app routes', () => {
       expect(RESERVED_ROUTE_SEGMENTS).toContain('addr')
+      expect(RESERVED_ROUTE_SEGMENTS).toContain('privacy')
       expect(RESERVED_ROUTE_SEGMENTS).toContain('register')
       expect(RESERVED_ROUTE_SEGMENTS).toContain('registry')
       expect(RESERVED_ROUTE_SEGMENTS).toContain('resolver')
