@@ -1,6 +1,7 @@
 import { logger } from '@ens-apps/utils/logger'
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
+import { isTestnet } from '@/config'
 import { backendClient } from '@/utils/backend-client'
 
 export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
@@ -33,7 +34,8 @@ export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
 export const useMigrationGasFunding = (
   ownerAddress: Address | string | null | undefined,
 ): MigrationGasFundingStatus => {
-  const enabled = !!ownerAddress
+  // The faucet only exists on testnet.
+  const enabled = isTestnet && !!ownerAddress
 
   const query = useQuery({
     queryKey: [
