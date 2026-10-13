@@ -75,7 +75,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
     cell: ({ row }) => (
       <span
         className={cn(
-          'text-ui',
+          'text-base',
           row.original.isRoot ? 'text-muted-foreground' : 'font-mono',
         )}
       >

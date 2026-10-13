@@ -102,7 +102,7 @@ export const RegistrationDurationPresets = ({
             ) : null}
             <span
               className={cn(
-                'text-ui',
+                'text-base',
                 isSelected
                   ? 'text-success-text'
                   : 'text-muted-foreground group-hover:text-foreground',

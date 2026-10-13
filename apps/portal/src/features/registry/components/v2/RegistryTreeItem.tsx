@@ -254,7 +254,7 @@ const RegistrySummaryDetails = ({
           />
         </div>
       ) : null}
-      <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-ui text-muted-foreground lg:-mt-2">
+      <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-base text-muted-foreground lg:-mt-2">
         <dt className="py-2 h-9">Chain ID:</dt>
         <dd className="flex items-center h-9">{chainId}</dd>
         <dt className="py-2 h-9">Protocol Version:</dt>

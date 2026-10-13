@@ -15,7 +15,7 @@ export const TimelineBreak = ({
 }) => (
   <div className="relative py-2.5">
     <Rail className="inset-y-0" connection="dashed" />
-    <div className="pl-(--label-x) text-ui text-neutral-7">{children}</div>
+    <div className="pl-(--label-x) text-base text-neutral-7">{children}</div>
   </div>
 )
 

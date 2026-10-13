@@ -119,7 +119,7 @@ const createNodesColumns = (
             }}
           >
             <ArrowRightFromLineIcon className="h-4 w-4" />
-            <span className="text-ui font-medium">More</span>
+            <span className="text-base font-medium">More</span>
           </Button>
         </div>
       )
@@ -277,7 +277,7 @@ function RouteComponent() {
                     }}
                   >
                     <ArrowRightFromLineIcon className="h-4 w-4" />
-                    <span className="text-ui font-medium">More</span>
+                    <span className="text-base font-medium">More</span>
                   </Button>
                 </div>
               )

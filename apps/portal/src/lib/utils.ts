@@ -13,7 +13,6 @@ const twMerge = extendTailwindMerge({
         'text-h3',
         'text-p',
         'text-small',
-        'text-ui',
         'text-smallmono',
         'text-caps',
         'text-smallcaps',

@@ -24,7 +24,7 @@ const DataBlockCardBase = forwardRef<
     <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
       <div className="flex items-center gap-2 text-muted-foreground min-w-0">
         <Icon className="size-4 shrink-0" />
-        <span className="text-ui truncate">{label}</span>
+        <span className="text-base truncate">{label}</span>
       </div>
       <span className="text-h3 leading-7 font-medium text-foreground shrink-0">
         {value}

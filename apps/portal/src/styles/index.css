@@ -390,6 +390,22 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  /* iOS Safari zooms the page when a focused control is under 16px, so form
+     controls are 16px on small screens and Figma "base" from `md` up. */
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  @variant md {
+    input,
+    select,
+    textarea {
+      font-size: var(--text-base);
+    }
+  }
+
   /* Lower third-party widget z-index so they don't overlay drawers/dialogs */
   .intercom-lightweight-app,
   .intercom-namespace,
@@ -405,10 +421,18 @@
   --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
   --font-serif: "ABCMarist", serif;
 
+  /* Tailwind's default sizes are switched off so only the styles below
+     resolve. `3xl`/`5xl` stay until the serif banner titles get a style. */
+  --text-*: initial;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 1.2;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1;
+
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
      Weights 360/425 are real instances on the Grotesk variable wght axis
      (see fonts.css). */
-  --text-h1: 2.25rem; /* 36px */
+  --text-h1: 2rem; /* 32px */
   --text-h1--line-height: 2.375rem; /* 38px */
   --text-h1--font-weight: 425;
   --text-h2: 1.5rem; /* 24px */
@@ -420,12 +444,12 @@
   --text-p: 0.9375rem; /* 15px */
   --text-p--line-height: 1.375rem; /* 22px */
   --text-p--font-weight: 360;
-  /* Figma "base" — single-line UI text. Kept off Tailwind's `text-base`,
-     which stays 16px for form controls (iOS Safari zooms on focus below it). */
-  --text-ui: 0.9375rem; /* 15px */
-  --text-ui--line-height: 1.25rem; /* 20px; Figma is 15px */
-  --text-ui--font-weight: 360;
-  --text-ui--letter-spacing: 0.02em;
+  /* Figma "base" — single-line UI text. Overrides Tailwind's 16/24
+     `text-base`; copy that can wrap belongs on `text-p`. */
+  --text-base: 0.9375rem; /* 15px */
+  --text-base--line-height: 1.25rem; /* 20px;*/
+  --text-base--font-weight: 360;
+  --text-base--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
   --text-small--line-height: 1rem; /* 16px; Figma is 12px */
   --text-small--font-weight: 360;
@@ -433,6 +457,13 @@
 
 /* Figma styles that need font-family or text-transform, which text tokens
    can't carry: caps, smallcaps, entity/base, entity/name, entity/label. */
+/* Figma "h1.font-serif": the serif h1 is 36px so it sits level with the 32px
+   sans h1. */
+.text-h1.font-serif,
+.text-h1 .font-serif {
+  font-size: 2.25rem;
+}
+
 @utility text-caps {
   font-size: 0.875rem; /* 14px */
   font-weight: 500;
