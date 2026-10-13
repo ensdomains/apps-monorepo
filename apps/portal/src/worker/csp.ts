@@ -83,11 +83,9 @@ const DEFAULT_CONNECT_HOSTS = [
   // compare resolvers to rule out a stale cache.
   'https://dns.google',
   // Etherscan API — proxy-contract verification fetch in
-  // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
-  // Host comes from the viem chain's blockExplorers.default.apiUrl: Sepolia
-  // today (api-sepolia), mainnet after cutover (api).
-  'https://api-sepolia.etherscan.io',
-  'https://api.etherscan.io',
+  // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy),
+  // at the chain's blockExplorers.default.apiUrl.
+  new URL(envConfig.chain.blockExplorers.default.apiUrl).origin,
   // ENS Cloudflare Workers (OG image, metadata, and other ENS-owned workers).
   'https://*.ens-cf.workers.dev',
   // IPFS gateways for NFT-metadata JSON resolution — viem's default (ipfs.io)

@@ -1,5 +1,4 @@
-import type { EnsNetwork } from '@ens-apps/config'
-import { envConfig } from '@/config'
+import { isSepoliaBuild } from '@/config'
 
 // Earliest block any v2 registry can hold a role event: the root registry's
 // deployment, and it is the ancestor of every other registry. Confirmed with
@@ -10,9 +9,9 @@ import { envConfig } from '@/config'
 // On mainnet this is the original root's deployment (0x51Bb…a750). The .eth
 // registry (26105621) survived the partial redeploy, whose root (0x2553…A91e)
 // only arrived at 26183742, so this still precedes every live registry.
-export const ROLES_FROM_BLOCK_BY_NETWORK = {
-  mainnet: 26_105_295n,
-  sepolia: 11_820_291n,
-} as const satisfies Record<EnsNetwork, bigint>
+export const MAINNET_ROLES_FROM_BLOCK = 26_105_295n
+export const SEPOLIA_ROLES_FROM_BLOCK = 11_820_291n
 
-export const ROLES_FROM_BLOCK = ROLES_FROM_BLOCK_BY_NETWORK[envConfig.network]
+export const ROLES_FROM_BLOCK = isSepoliaBuild
+  ? SEPOLIA_ROLES_FROM_BLOCK
+  : MAINNET_ROLES_FROM_BLOCK

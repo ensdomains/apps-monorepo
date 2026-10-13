@@ -1,5 +1,3 @@
-import type { EnsNetwork } from '@ens-apps/config'
-import type { Chain } from 'viem'
 import {
   arbitrum,
   arbitrumSepolia,
@@ -12,22 +10,20 @@ import {
   scroll,
   scrollSepolia,
 } from 'viem/chains'
-import { envConfig } from '@/config'
+import { isSepoliaBuild } from '@/config'
 
 /**
  * The L2s whose reverse registrars take ENSv1 `setName`, on the build's
  * network: reverse resolution derives its coin types from that network, so the
- * clients must match it. Free of wagmi so the worker's CSP can import it.
+ * clients must match it. Chosen at build time so a bundle carries one network's
+ * chains, and free of wagmi so the worker's CSP can import it.
  */
-const L2_CHAINS_BY_NETWORK = {
-  mainnet: [optimism, arbitrum, base, linea, scroll],
-  sepolia: [
-    optimismSepolia,
-    arbitrumSepolia,
-    baseSepolia,
-    lineaSepolia,
-    scrollSepolia,
-  ],
-} as const satisfies Record<EnsNetwork, readonly Chain[]>
-
-export const L2_CHAINS = L2_CHAINS_BY_NETWORK[envConfig.network]
+export const L2_CHAINS = isSepoliaBuild
+  ? ([
+      optimismSepolia,
+      arbitrumSepolia,
+      baseSepolia,
+      lineaSepolia,
+      scrollSepolia,
+    ] as const)
+  : ([optimism, arbitrum, base, linea, scroll] as const)

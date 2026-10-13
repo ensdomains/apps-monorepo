@@ -16,21 +16,28 @@ import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
  * `worker/clients.ts`.
  */
 
+// A build-time literal, unlike `isTestnet`: a mainnet bundle drops Sepolia-only
+// code and data instead of shipping it switched off.
+export const isSepoliaBuild = import.meta.env.VITE_ENS_NETWORK === 'sepolia'
+
 /**
  * The portal's own RPC endpoint per network.
  *
  * Not a secret: the path key ships in every browser bundle and identifies a
  * quota bucket, nothing more. It is kept per app so usage is attributed to the
  * portal rather than pooled with the manager, and per network so a mainnet
- * build cannot inherit a Sepolia endpoint. A network with no entry falls back
- * to the shared public endpoints in the network profile.
+ * build cannot inherit a Sepolia endpoint. Only the build's network has an
+ * entry; a network without one falls back to the profile's public endpoints.
  */
-const PORTAL_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
-  mainnet:
-    'https://lb.drpc.live/ethereum/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j',
-  sepolia:
-    'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j',
-}
+const PORTAL_RPC_URLS: Partial<Record<EnsNetwork, string>> = isSepoliaBuild
+  ? {
+      sepolia:
+        'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j',
+    }
+  : {
+      mainnet:
+        'https://lb.drpc.live/ethereum/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j',
+    }
 
 const network = import.meta.env?.VITE_ENS_NETWORK
 
@@ -49,7 +56,3 @@ export const envConfig = buildConfig({
 })
 
 export const { chain, isTestnet, rpcUrls } = envConfig
-
-// A build-time literal, unlike `isTestnet`: a mainnet bundle drops Sepolia-only
-// code (the faucet) instead of shipping it switched off.
-export const isSepoliaBuild = import.meta.env.VITE_ENS_NETWORK === 'sepolia'

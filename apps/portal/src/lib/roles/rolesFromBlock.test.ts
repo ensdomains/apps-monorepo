@@ -1,14 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { ROLES_FROM_BLOCK_BY_NETWORK } from './rolesFromBlock'
+import {
+  MAINNET_ROLES_FROM_BLOCK,
+  SEPOLIA_ROLES_FROM_BLOCK,
+} from './rolesFromBlock'
 
 /**
  * Deployment blocks of each network's live root and .eth registries, measured
  * with `eth_getCode` (no code the block before, code at it). Mainnet's root was
  * redeployed after its .eth registry, so either can be the earliest.
  */
-const DEPLOYMENTS = {
-  mainnet: { rootRegistry: 26_183_742n, ethRegistry: 26_105_621n },
-  sepolia: { rootRegistry: 11_820_291n, ethRegistry: 11_820_399n },
+const NETWORKS = {
+  mainnet: {
+    fromBlock: MAINNET_ROLES_FROM_BLOCK,
+    rootRegistry: 26_183_742n,
+    ethRegistry: 26_105_621n,
+  },
+  sepolia: {
+    fromBlock: SEPOLIA_ROLES_FROM_BLOCK,
+    rootRegistry: 11_820_291n,
+    ethRegistry: 11_820_399n,
+  },
 } as const
 
 describe.each([
@@ -20,9 +31,9 @@ describe.each([
   // returns zero logs and the page reads as "nobody holds these roles". On
   // Sepolia this also rules out anchoring on the .eth registry, 108 blocks on.
   it('starts no later than the earliest live v2 registry', () => {
-    const { rootRegistry, ethRegistry } = DEPLOYMENTS[network]
+    const { fromBlock, rootRegistry, ethRegistry } = NETWORKS[network]
     const earliest = rootRegistry < ethRegistry ? rootRegistry : ethRegistry
 
-    expect(ROLES_FROM_BLOCK_BY_NETWORK[network]).toBeLessThanOrEqual(earliest)
+    expect(fromBlock).toBeLessThanOrEqual(earliest)
   })
 })

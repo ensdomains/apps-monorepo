@@ -1,10 +1,10 @@
-import { isTestnet } from '@/config'
+import { isSepoliaBuild } from '@/config'
 
 // The manager has no mainnet deployment yet, so a mainnet build links to it
 // only when VITE_MANAGER_APP_URL is set.
 export const MANAGER_APP_BASE_URL: string | undefined =
   import.meta.env.VITE_MANAGER_APP_URL ??
-  (isTestnet ? 'https://sepolia.app.ens.domains' : undefined)
+  (isSepoliaBuild ? 'https://sepolia.app.ens.domains' : undefined)
 export const LANDING_PAGE_BASE_URL = 'https://ens.domains'
 /** ens-app-v3 — still the only app that can create a subname on a V1 name. */
 export const LEGACY_APP_BASE_URL = 'https://app.ens.domains'
