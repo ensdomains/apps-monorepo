@@ -1,5 +1,5 @@
 import { errAsync, okAsync } from 'neverthrow'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BignameError } from './errors'
 import { readAllCollectionPages } from './paging'
 
@@ -18,13 +18,23 @@ const envelope = (data: readonly number[], next: string | null) =>
     meta: { as_of: {} },
   })
 
+/** Runs the stale backoff on fake timers instead of waiting it out. */
+const settle = async <T>(result: PromiseLike<T>): Promise<T> => {
+  const settled = Promise.resolve(result)
+  await vi.runAllTimersAsync()
+  return settled
+}
+
 describe('readAllCollectionPages', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
   it('reads every page in order', async () => {
     const read = vi.fn((cursor?: string) =>
       cursor === undefined ? envelope([1, 2], 'c2') : envelope([3], null),
     )
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrap()).toEqual([1, 2, 3])
     expect(read.mock.calls.map(([cursor]) => cursor)).toEqual([undefined, 'c2'])
@@ -38,7 +48,7 @@ describe('readAllCollectionPages', () => {
       return attempts === 1 ? errAsync(stale()) : envelope([2], null)
     })
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrap()).toEqual([1, 2])
     expect(read.mock.calls.map(([cursor]) => cursor)).toEqual([
@@ -59,7 +69,7 @@ describe('readAllCollectionPages', () => {
       return errAsync(stale())
     })
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrap()).toEqual([10])
   })
@@ -69,7 +79,7 @@ describe('readAllCollectionPages', () => {
       cursor === undefined ? envelope([1], 'c2') : errAsync(stale()),
     )
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrapErr().code).toBe('stale')
     expect(
@@ -84,7 +94,7 @@ describe('readAllCollectionPages', () => {
       return errAsync(stale())
     })
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrapErr().code).toBe('stale')
     expect(
@@ -97,7 +107,7 @@ describe('readAllCollectionPages', () => {
       envelope([cursor === undefined ? 1 : 2], 'same'),
     )
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrapErr().code).toBe('malformed_response')
     expect(read).toHaveBeenCalledTimes(2)
@@ -110,12 +120,31 @@ describe('readAllCollectionPages', () => {
       return envelope([1], cursor === undefined ? 'c2' : null)
     })
 
+    const rows = await settle(
+      readAllCollectionPages(read, {
+        signal: controller.signal,
+      }),
+    )
+
+    expect(rows.isErr()).toBe(true)
+    expect(read).toHaveBeenCalledOnce()
+  })
+
+  it('hands the signal to the request and stops retrying once it aborts', async () => {
+    const controller = new AbortController()
+    const read = vi.fn((_cursor?: string, _signal?: AbortSignal) => {
+      controller.abort()
+      return errAsync(stale())
+    })
+
+    // No timers are run: an aborted read must not wait out the backoff.
     const rows = await readAllCollectionPages(read, {
       signal: controller.signal,
     })
 
-    expect(rows.isErr()).toBe(true)
+    expect(rows._unsafeUnwrapErr().code).toBe('stale')
     expect(read).toHaveBeenCalledOnce()
+    expect(read.mock.calls[0]?.[1]).toBe(controller.signal)
   })
 
   it('stops paging once the limit is passed', async () => {
@@ -123,7 +152,7 @@ describe('readAllCollectionPages', () => {
       cursor === undefined ? envelope([1, 2], 'c2') : envelope([3, 4], 'c3'),
     )
 
-    const rows = await readAllCollectionPages(read, { limit: 3 })
+    const rows = await settle(readAllCollectionPages(read, { limit: 3 }))
 
     expect(rows._unsafeUnwrap()).toEqual([1, 2, 3, 4])
     expect(read).toHaveBeenCalledTimes(2)
@@ -134,7 +163,7 @@ describe('readAllCollectionPages', () => {
       errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
     )
 
-    const rows = await readAllCollectionPages(read)
+    const rows = await settle(readAllCollectionPages(read))
 
     expect(rows._unsafeUnwrapErr().code).toBe('overloaded')
     expect(read).toHaveBeenCalledOnce()

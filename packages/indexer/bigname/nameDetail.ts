@@ -24,6 +24,7 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
   registrationStatus: record.status ?? null,
   expiresAt: toExpiresAt(record),
   registeredAt: toDate(record.registered_at),
+  registrationId: record.registration_id ?? null,
   createdAt: toDate(record.created_at),
   migratedAt: toDate(record.migrated_at),
   unresolvableReason: record.unresolvable_reason ?? null,
@@ -33,9 +34,9 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
 // an answer, not a failure.
 export const readNameDetail =
   (client: BignameClient): ReadNameDetail =>
-  ({ name }) =>
+  ({ name }, options) =>
     client
-      .name(name)
+      .name(name, undefined, options)
       .map(({ data }): NameDetail | null =>
         data.read_status === 'not_found' ? null : toNameDetail(data),
       )

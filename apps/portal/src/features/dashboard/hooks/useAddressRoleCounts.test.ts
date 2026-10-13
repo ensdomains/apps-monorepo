@@ -107,4 +107,19 @@ describe('withRoleCounts', () => {
     )
     expect(withRoleCounts(rows, 'loading')[1]).not.toHaveProperty('roleCount')
   })
+
+  it('leaves a name held only as a former owner in grace alone', () => {
+    const rows = [
+      {
+        name: 'lapsed.eth',
+        protocolVersion: 'ENSv2',
+        relations: ['former_owner'],
+      },
+    ]
+
+    expect(withRoleCounts(rows, 'loading')[0]).not.toHaveProperty('roleCount')
+    expect(withRoleCounts(rows, 'unavailable')[0]).not.toHaveProperty(
+      'roleCount',
+    )
+  })
 })

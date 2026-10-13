@@ -55,6 +55,13 @@ describe('isInV2Grace', () => {
     ).toBe(false)
   })
 
+  it('does not hold a placeholder labelhash or an unnormalized label', () => {
+    expect(
+      isInV2Grace(lapsed({ name: `[${'a'.repeat(64)}].eth` }), OWNER, NOW),
+    ).toBe(false)
+    expect(isInV2Grace(lapsed({ name: 'Grace.eth' }), OWNER, NOW)).toBe(false)
+  })
+
   it('does not hold a burned registration or a name not marked expired', () => {
     expect(
       isInV2Grace(

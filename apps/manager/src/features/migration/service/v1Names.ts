@@ -53,17 +53,21 @@ const listV1Names = (
   options: ReadOptions,
 ) =>
   readAllPages<string, BignameError | Error>({
-    readPage: (cursor) =>
+    readPage: (cursor, signal) =>
       client
-        .addressNames(address, {
-          namespace: 'ens',
-          relation: 'any',
-          authority: ['ens_v1', 'ens_v0'],
-          sort: 'name',
-          order: 'asc',
-          page_size: FETCH_PAGE_SIZE,
-          ...(cursor !== undefined && { cursor }),
-        })
+        .addressNames(
+          address,
+          {
+            namespace: 'ens',
+            relation: 'any',
+            authority: ['ens_v1', 'ens_v0'],
+            sort: 'name',
+            order: 'asc',
+            page_size: FETCH_PAGE_SIZE,
+            ...(cursor !== undefined && { cursor }),
+          },
+          { signal },
+        )
         .map(({ data, page }) => ({
           rows: data.filter(isListed).map((row) => row.name),
           nextCursor: page?.next_cursor ?? null,

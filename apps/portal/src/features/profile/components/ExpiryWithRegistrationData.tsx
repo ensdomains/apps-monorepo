@@ -8,42 +8,30 @@ import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 import { useGraceStatus } from '../hooks/useGraceStatus'
-import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
-import { getRegistrationDataQueryOptions } from '../hooks/useRegistrationData'
+import {
+  getRegistrationDataQueryOptions,
+  getRegistrationTxQueryOptions,
+} from '../hooks/useRegistrationData'
 import { InfoRow } from './InfoRow'
 import { Timestamp } from './Timestamp'
-
-/**
- * The transaction that registered the name: the oldest `registration` row in
- * its history. bigname orders by chain position before truncating, so
- * `order: 'asc'` with one row is the earliest registration, not a window of
- * recent history.
- */
-const useRegistrationTxHash = (name: string) => {
-  const { data } = useQuery(
-    getNameHistoryQueryOptions({
-      name,
-      type: ['registration'],
-      order: 'asc',
-      page_size: 1,
-    }),
-  )
-  return data?.rows[0]?.transaction_hash ?? undefined
-}
 
 /**
  * "Registered" row: bigname's `registered_at`, linked to the registration
  * transaction when history has it.
  */
 const RegisteredRow = ({
-  name,
+  registrationId,
   registeredAt,
 }: {
-  name: string
-  registeredAt: number
+  readonly registrationId: string | null
+  readonly registeredAt: number
 }) => {
-  const registrationTxHash = useRegistrationTxHash(name)
-  const registrationTxUrl = useBlockExplorerTxUrl(registrationTxHash)
+  const { data: registrationTxHash } = useQuery(
+    getRegistrationTxQueryOptions({ registrationId }),
+  )
+  const registrationTxUrl = useBlockExplorerTxUrl(
+    registrationTxHash ?? undefined,
+  )
 
   return (
     <InfoRow icon={CalendarIcon} label="Registered">
@@ -122,7 +110,10 @@ export const ExpiryWithRegistrationData = ({
         <ExpiresRow expiry={data.expiry} />
       )}
       {data.registeredAt !== null && (
-        <RegisteredRow name={name} registeredAt={data.registeredAt} />
+        <RegisteredRow
+          registrationId={data.registrationId}
+          registeredAt={data.registeredAt}
+        />
       )}
       {graceEndDate && <GraceEndsRow graceEndDate={graceEndDate} />}
     </>

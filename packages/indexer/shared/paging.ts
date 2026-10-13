@@ -5,28 +5,52 @@ const STALE_RETRY_DELAY_MS = 200
 // A runaway guard, not a size limit: far past any address the apps list.
 const MAX_PAGES = 500
 
-const wait = (ms: number) =>
+/** Resolves after `ms`, or as soon as `signal` aborts. */
+const wait = (ms: number, signal: AbortSignal | undefined) =>
   ResultAsync.fromSafePromise(
-    new Promise<void>((resolve) => setTimeout(resolve, ms)),
+    new Promise<void>((resolve) => {
+      if (signal?.aborted) return resolve()
+      const onAbort = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort)
+        resolve()
+      }, ms)
+      signal?.addEventListener('abort', onAbort, { once: true })
+    }),
+  )
+
+type RetryOptions = Readonly<{ signal?: AbortSignal }>
+
+const retry = <T, E>(
+  read: (signal?: AbortSignal) => ResultAsync<T, E>,
+  isStaleError: (error: E) => boolean,
+  signal: AbortSignal | undefined,
+  attempt: number,
+): ResultAsync<T, E> =>
+  read(signal).orElse((error) =>
+    isStaleError(error) && attempt < MAX_STALE_ATTEMPTS && !signal?.aborted
+      ? wait(STALE_RETRY_DELAY_MS * attempt, signal).andThen(() =>
+          signal?.aborted
+            ? errAsync(error)
+            : retry(read, isStaleError, signal, attempt + 1),
+        )
+      : errAsync(error),
   )
 
 /**
  * One request, sent again while bigname answers `stale`. Its documented
  * staleness is temporary (a namespace not yet published, an Interpret redo),
  * so the same request, cursor included, is what it asks for, after a pause.
+ * `signal` reaches the request and ends the pause; an abort stops retrying.
  */
 export const retryStale = <T, E>(
-  read: () => ResultAsync<T, E>,
+  read: (signal?: AbortSignal) => ResultAsync<T, E>,
   isStaleError: (error: E) => boolean,
-  attemptsLeft = MAX_STALE_ATTEMPTS,
-): ResultAsync<T, E> =>
-  read().orElse((error) =>
-    isStaleError(error) && attemptsLeft > 1
-      ? wait(
-          STALE_RETRY_DELAY_MS * (MAX_STALE_ATTEMPTS - attemptsLeft + 1),
-        ).andThen(() => retryStale(read, isStaleError, attemptsLeft - 1))
-      : errAsync(error),
-  )
+  { signal }: RetryOptions = {},
+): ResultAsync<T, E> => retry(read, isStaleError, signal, 1)
 
 /** Why a walk stopped before the collection said it was done. */
 export type PagingStop = 'aborted' | 'repeated_cursor' | 'too_many_pages'
@@ -37,7 +61,10 @@ type CollectionPage<Row> = Readonly<{
 }>
 
 type ReadAllPagesParameters<Row, E> = Readonly<{
-  readPage: (cursor: string | undefined) => ResultAsync<CollectionPage<Row>, E>
+  readPage: (
+    cursor: string | undefined,
+    signal?: AbortSignal,
+  ) => ResultAsync<CollectionPage<Row>, E>
   isStaleError: (error: E) => boolean
   toStopError: (reason: PagingStop) => E
   /**
@@ -60,9 +87,14 @@ const walk = <Row, E>(
     errAsync({ error: params.toStopError(reason), cursor: undefined })
   if (params.signal?.aborted) return stop('aborted')
   if (seen.size >= MAX_PAGES) return stop('too_many_pages')
-  return retryStale(() => params.readPage(cursor), params.isStaleError)
+  return retryStale(
+    (signal) => params.readPage(cursor, signal),
+    params.isStaleError,
+    { signal: params.signal },
+  )
     .mapErr((error) => ({ error, cursor }))
     .andThen(({ rows, nextCursor }) => {
+      if (params.signal?.aborted) return stop('aborted')
       const read = [...collected, ...rows]
       const isDone =
         nextCursor === null ||
@@ -81,7 +113,9 @@ export const readAllPages = <Row, E>(
     // A cursor still stale after its retries is one bigname no longer
     // accepts; the read starts over once, without it.
     .orElse(({ error, cursor }) =>
-      cursor !== undefined && params.isStaleError(error)
+      cursor !== undefined &&
+      params.isStaleError(error) &&
+      !params.signal?.aborted
         ? walk(params, undefined, [], new Set())
         : errAsync({ error, cursor }),
     )

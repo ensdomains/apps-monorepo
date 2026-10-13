@@ -6,7 +6,7 @@ import {
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
-import { getResolvedNamesForAddress } from './useNamesForResolvedAddress'
+import { getResolvedNamesPage } from './useNamesForResolvedAddress'
 
 vi.mock('@/lib/bigname', () => ({
   bigname: { addressNames: vi.fn(), lookup: vi.fn() },
@@ -47,10 +47,23 @@ const detail = (
   },
 })
 
-const listed = (rows: readonly AddressName[]) =>
-  vi
-    .mocked(bigname.addressNames)
-    .mockReturnValue(okAsync({ data: rows, meta: { as_of: {} } }))
+const listed = (rows: readonly AddressName[], next: string | null = null) =>
+  vi.mocked(bigname.addressNames).mockReturnValue(
+    okAsync({
+      data: rows,
+      page: {
+        cursor: null,
+        next_cursor: next,
+        page_size: 100,
+        total_count: null,
+        has_more: next !== null,
+      },
+      meta: { as_of: {} },
+    }),
+  )
+
+const readFirst = () =>
+  getResolvedNamesPage({ address: ADDRESS }, { coinType: 'evm' })
 
 const detailed = (records: readonly LookupRecord[]) =>
   vi.mocked(bigname.lookup).mockReturnValue(
@@ -72,16 +85,30 @@ describe('getResolvedNamesForAddress', () => {
     listed([row('juveniles.eth', [60])])
     detailed([detail('juveniles.eth', { '60': ADDRESS })])
 
-    await getResolvedNamesForAddress({ address: ADDRESS })
+    await readFirst()
 
-    expect(bigname.addressNames).toHaveBeenCalledWith(ADDRESS, {
-      namespace: 'ens',
-      relation: 'resolves_to',
-      coin_type: 'evm',
-      sort: 'name',
-      order: 'asc',
-      page_size: 100,
-    })
+    expect(bigname.addressNames).toHaveBeenCalledWith(
+      ADDRESS,
+      {
+        namespace: 'ens',
+        relation: 'resolves_to',
+        coin_type: 'evm',
+        sort: 'name',
+        order: 'asc',
+        page_size: 100,
+      },
+      { signal: undefined },
+    )
+  })
+
+  it('reads one page and hands back the cursor to the next', async () => {
+    listed([row('a.eth', [60])], 'next')
+    detailed([detail('a.eth', { '60': ADDRESS })])
+
+    const page = (await readFirst())._unsafeUnwrap()
+
+    expect(page.next).toEqual({ cursor: 'next', coinType: 'evm' })
+    expect(page.isEthereumOnly).toBe(false)
   })
 
   it('lists each name with the networks it has an address for, cleared ones excluded', async () => {
@@ -95,30 +122,61 @@ describe('getResolvedNamesForAddress', () => {
       }),
     ])
 
-    const names = (
-      await getResolvedNamesForAddress({ address: ADDRESS })
-    )._unsafeUnwrap()
+    const { names } = (await readFirst())._unsafeUnwrap()
 
     expect(names.map(({ name }) => name)).toEqual(['juveniles.eth'])
     expect(names[0]?.coinTypes.toSorted()).toEqual(['0', '2147483658', '60'])
   })
 
-  it('says when more names point at the address than bigname lists', async () => {
+  it('falls back to Ethereum records when a name matched too many networks', async () => {
+    vi.mocked(bigname.addressNames)
+      .mockReturnValueOnce(
+        errAsync(
+          new BignameError({ code: 'unsupported', message: 'too many' }),
+        ),
+      )
+      .mockReturnValueOnce(
+        okAsync({
+          data: [
+            {
+              ...row('a.eth', []),
+              resolution: { coin_type: 60, record_key: 'addr:60' },
+            },
+          ],
+          meta: { as_of: {} },
+        }),
+      )
+    detailed([detail('a.eth', { '60': ADDRESS })])
+
+    const page = (await readFirst())._unsafeUnwrap()
+
+    expect(vi.mocked(bigname.addressNames).mock.calls[1]?.[1]).toMatchObject({
+      coin_type: 60,
+    })
+    expect(page.isEthereumOnly).toBe(true)
+    expect(page.names[0]?.coinTypes).toEqual(['60'])
+  })
+
+  it('fails a later page that matched too many networks', async () => {
     vi.mocked(bigname.addressNames).mockReturnValue(
       errAsync(new BignameError({ code: 'unsupported', message: 'too many' })),
     )
 
-    const result = await getResolvedNamesForAddress({ address: ADDRESS })
+    const result = await getResolvedNamesPage(
+      { address: ADDRESS },
+      { cursor: 'next', coinType: 'evm' },
+    )
 
-    expect(result._unsafeUnwrapErr()._tag).toBe('TooManyResolvedNamesError')
+    expect(result._unsafeUnwrapErr()._tag).toBe(
+      'GetResolvedNamesForAddressError',
+    )
+    expect(bigname.addressNames).toHaveBeenCalledOnce()
   })
 
   it('is empty without a lookup when no name points at the address', async () => {
     listed([])
 
-    const names = (
-      await getResolvedNamesForAddress({ address: ADDRESS })
-    )._unsafeUnwrap()
+    const { names } = (await readFirst())._unsafeUnwrap()
 
     expect(names).toEqual([])
     expect(bigname.lookup).not.toHaveBeenCalled()

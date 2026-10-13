@@ -62,15 +62,19 @@ describe('fetchNameHistoryPage', () => {
       cursor: 'c1',
     })
 
-    expect(getNameHistory).toHaveBeenCalledWith('alice.eth', {
-      include: ['data', 'raw'],
-      type: ['resolver', 'record'],
-      from_timestamp: '1700000000',
-      to_timestamp: '1700086399',
-      order: 'desc',
-      page_size: 100,
-      cursor: 'c1',
-    })
+    expect(getNameHistory).toHaveBeenCalledWith(
+      'alice.eth',
+      {
+        include: ['data', 'raw'],
+        type: ['resolver', 'record'],
+        from_timestamp: '1700000000',
+        to_timestamp: '1700086399',
+        order: 'desc',
+        page_size: 100,
+        cursor: 'c1',
+      },
+      expect.anything(),
+    )
     expect(result._unsafeUnwrap()).toMatchObject({
       endCursor: 'next',
       hasNextPage: true,
@@ -150,13 +154,16 @@ describe('fetchContractEventsPage', () => {
       contractAddress: '0xABCdef0000000000000000000000000000000001',
       cursor: 'c2',
     })
-    expect(listEvents).toHaveBeenCalledWith({
-      contract_address: '0xabcdef0000000000000000000000000000000001',
-      include: ['data', 'raw', 'total_count'],
-      order: 'desc',
-      page_size: 100,
-      cursor: 'c2',
-    })
+    expect(listEvents).toHaveBeenCalledWith(
+      {
+        contract_address: '0xabcdef0000000000000000000000000000000001',
+        include: ['data', 'raw', 'total_count'],
+        order: 'desc',
+        page_size: 100,
+        cursor: 'c2',
+      },
+      expect.anything(),
+    )
     expect(result._unsafeUnwrap().totalCount).toBe(13_587)
   })
 

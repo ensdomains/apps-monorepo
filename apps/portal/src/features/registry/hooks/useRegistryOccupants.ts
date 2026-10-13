@@ -40,11 +40,13 @@ const countLabels = (
   address: Address,
   filter: { readonly exclude_owner?: string },
 ) =>
-  nullOnNotFound(
-    bigname.registryLabels(envConfig.chain.id, address.toLowerCase(), {
-      ...filter,
-      page_size: 1,
-    }),
+  nullOnNotFound((signal) =>
+    bigname.registryLabels(
+      envConfig.chain.id,
+      address.toLowerCase(),
+      { ...filter, page_size: 1 },
+      { signal },
+    ),
   ).map((page) => page?.page?.total_count ?? null)
 
 /**
@@ -61,10 +63,13 @@ const getRegistryOccupants = ({
   address,
   account,
 }: GetRegistryOccupantsParameters) =>
-  nullOnNotFound(
-    bigname.registryLabels(envConfig.chain.id, address.toLowerCase(), {
-      page_size: 200,
-    }),
+  nullOnNotFound((signal) =>
+    bigname.registryLabels(
+      envConfig.chain.id,
+      address.toLowerCase(),
+      { page_size: 200 },
+      { signal },
+    ),
   )
     .andThen((page): ResultAsync<RegistryOccupants | null, BignameError> => {
       const count = page?.page?.total_count ?? null

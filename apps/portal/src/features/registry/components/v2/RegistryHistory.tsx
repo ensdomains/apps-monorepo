@@ -28,8 +28,12 @@ export const getRegistryHistoryQueryOptions = (params: {
 }) =>
   resultInfiniteQueryOptions({
     queryKey: registryHistoryTimelineQueryKey(params),
-    queryFn: ({ queryKey: [, { address }], pageParam }) =>
-      fetchContractEventsPage({ contractAddress: address, cursor: pageParam }),
+    queryFn: ({ queryKey: [, { address }], pageParam, signal }) =>
+      fetchContractEventsPage({
+        contractAddress: address,
+        cursor: pageParam,
+        signal,
+      }),
     ...timelinePageParams,
   })
 

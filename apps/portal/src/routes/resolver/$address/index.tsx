@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { sepolia } from 'viem/chains'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -18,6 +19,7 @@ import { ResolverEventsTable } from '@/features/resolver/components/ResolverEven
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
 import {
   getResolverOverviewQueryOptions,
+  type ResolverEvent,
   resolverCollectionCount,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -28,17 +30,39 @@ import type { HttpsUrl } from '@/utils/types'
 export const Route = createFileRoute('/resolver/$address/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  // Started, not awaited: a slow bigname read must not hold the page blank.
   loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address,
-      }),
+    void queryClient.prefetchQuery(
+      getResolverOverviewQueryOptions({ address: params.address }),
     )
   },
 })
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
 const RECENT_EVENT_LIMIT = 5
+
+const RecentEvents = ({
+  events,
+}: {
+  readonly events: readonly ResolverEvent[] | null
+}) =>
+  match(events)
+    .with(null, () => (
+      <ErrorMessage
+        compact
+        description="Couldn't load this resolver's recent events. Full history may still load."
+      />
+    ))
+    .with([], () => (
+      <NoResultsMessage
+        title="No history yet"
+        description="Events for this resolver will appear here."
+        className="mx-0 my-0"
+      />
+    ))
+    .otherwise((rows) => (
+      <ResolverEventsTable events={rows} enableSidebar={false} />
+    ))
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -140,15 +164,7 @@ function RouteComponent() {
             </Button>
           }
         />
-        {recentEvents.length === 0 ? (
-          <NoResultsMessage
-            title="No history yet"
-            description="Events for this resolver will appear here."
-            className="mx-0 my-0"
-          />
-        ) : (
-          <ResolverEventsTable events={recentEvents} enableSidebar={false} />
-        )}
+        <RecentEvents events={resolver?.events ? recentEvents : null} />
       </div>
     </div>
   )

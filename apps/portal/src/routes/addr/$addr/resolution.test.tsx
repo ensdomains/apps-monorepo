@@ -31,13 +31,22 @@ const RESOLVED_NAMES = [
   { name: 'ensv2sg2.eth', coinTypes: ['60'] },
 ] satisfies ForwardName[]
 
-const LOADED = { data: RESOLVED_NAMES, error: null, isLoading: false }
+const LOADED = {
+  data: {
+    pages: [{ names: RESOLVED_NAMES, next: null, isEthereumOnly: false }],
+  },
+  error: null,
+  isLoading: false,
+  hasNextPage: false,
+  isFetchNextPageError: false,
+  fetchNextPage: vi.fn(),
+}
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    useQuery: () => LOADED,
+    useInfiniteQuery: () => LOADED,
   }
 })
 

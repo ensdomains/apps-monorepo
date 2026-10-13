@@ -44,13 +44,17 @@ export const lookupNames = ResultFn(async function* (
     yield* checkNotAborted(options.signal, toError)
     const batch = names.slice(start, start + LOOKUP_BATCH_SIZE)
     const response: LookupResponse = yield* retryStale(
-      () =>
-        lookup({
-          namespace: 'ens',
-          profile: 'detail',
-          inputs: batch.map((name) => ({ name })),
-        }),
+      (signal) =>
+        lookup(
+          {
+            namespace: 'ens',
+            profile: 'detail',
+            inputs: batch.map((name) => ({ name })),
+          },
+          { signal },
+        ),
       isStale,
+      { signal: options.signal },
     ).mapErr(toError)
     const failed = response.data.find(
       (result) => result.status !== 'ok' || !result.record,

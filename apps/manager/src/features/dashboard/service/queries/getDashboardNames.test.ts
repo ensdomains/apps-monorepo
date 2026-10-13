@@ -112,15 +112,19 @@ describe('readDashboardChunks', () => {
       await readDashboardChunks(readNames, QUERY, {})
     )._unsafeUnwrap()
 
-    expect(readNames).toHaveBeenCalledWith({
-      address: EOA,
-      sort: 'expiry',
-      order: 'desc',
-      pageSize: DASHBOARD_CHUNK_SIZE,
-      includeTotal: true,
-    })
+    expect(readNames).toHaveBeenCalledWith(
+      {
+        address: EOA,
+        sort: 'expiry',
+        order: 'desc',
+        pageSize: DASHBOARD_CHUNK_SIZE,
+        includeTotal: true,
+      },
+      expect.anything(),
+    )
     expect(readNames).toHaveBeenCalledWith(
       expect.objectContaining({ address: EOA, cursor: 'next' }),
+      expect.anything(),
     )
     expect(
       chunks.map(({ address, names, hiddenCount, nextCursor, totalCount }) => ({
@@ -162,6 +166,7 @@ describe('readDashboardChunks', () => {
     expect(readNames).toHaveBeenCalledTimes(1)
     expect(readNames).toHaveBeenCalledWith(
       expect.objectContaining({ address: EOA, cursor: 'next' }),
+      expect.anything(),
     )
     expect(readNames.mock.calls[0]?.[0]).not.toHaveProperty('includeTotal')
   })
@@ -181,6 +186,7 @@ describe('readDashboardChunks', () => {
 
     expect(readNames).toHaveBeenCalledWith(
       expect.objectContaining({ contains: 'al' }),
+      expect.anything(),
     )
     expect(chunks).toEqual([
       expect.objectContaining({ names: [], nextCursor: null, totalCount: 0 }),
@@ -219,18 +225,26 @@ describe('getDashboardGraceNames', () => {
       okAsync(graceResponse([graceRow])),
     )
 
-    const result = await getDashboardGraceNames(addressNames, [EOA], NOW)
-
-    expect(addressNames).toHaveBeenCalledWith(EOA, {
-      namespace: 'ens',
-      relation: 'former_owner',
-      parent: 'eth',
-      sort: 'expires_at',
-      order: 'asc',
-      expires_after: String(nowSeconds - 28 * 86_400),
-      expires_before: String(nowSeconds + 1),
-      page_size: 200,
+    const signal = new AbortController().signal
+    const result = await getDashboardGraceNames(addressNames, [EOA], {
+      now: NOW,
+      signal,
     })
+
+    expect(addressNames).toHaveBeenCalledWith(
+      EOA,
+      {
+        namespace: 'ens',
+        relation: 'former_owner',
+        parent: 'eth',
+        sort: 'expires_at',
+        order: 'asc',
+        expires_after: String(nowSeconds - 28 * 86_400),
+        expires_before: String(nowSeconds + 1),
+        page_size: 200,
+      },
+      { signal },
+    )
     expect(result._unsafeUnwrap()).toEqual([
       expect.objectContaining({ name: 'lapsed.eth', nameRoles: [] }),
     ])
@@ -240,7 +254,7 @@ describe('getDashboardGraceNames', () => {
     const result = await getDashboardGraceNames(
       () => errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
       [EOA],
-      NOW,
+      { now: NOW },
     )
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetDashboardNamesError')
@@ -280,14 +294,17 @@ describe('getRenewableDashboardNames', () => {
       'al',
     )
 
-    expect(readNames).toHaveBeenCalledWith({
-      address: EOA,
-      relations: ['owner'],
-      protocol: 'v2',
-      parent: 'eth',
-      contains: 'al',
-      pageSize: 200,
-    })
+    expect(readNames).toHaveBeenCalledWith(
+      {
+        address: EOA,
+        relations: ['owner'],
+        protocol: 'v2',
+        parent: 'eth',
+        contains: 'al',
+        pageSize: 200,
+      },
+      expect.anything(),
+    )
     expect(
       result
         ._unsafeUnwrap()

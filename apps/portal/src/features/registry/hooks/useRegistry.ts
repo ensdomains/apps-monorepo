@@ -36,11 +36,19 @@ export type RegistryInfo = {
   referencedBy: { name: string | null }[]
 }
 
-const getRegistryInfo = ({ address }: GetRegistryInfoParameters) =>
+const getRegistryInfo = (
+  { address }: GetRegistryInfoParameters,
+  signal?: AbortSignal,
+) =>
   nullOnNotFound(
-    bigname.registry(envConfig.chain.id, address.toLowerCase(), {
-      include: ['counts'],
-    }),
+    (requestSignal) =>
+      bigname.registry(
+        envConfig.chain.id,
+        address.toLowerCase(),
+        { include: ['counts'] },
+        { signal: requestSignal },
+      ),
+    { signal },
   )
     .mapErr((cause) => new GetRegistryInfoError({ cause }))
     .map((response): RegistryInfo | null => {
@@ -71,5 +79,6 @@ export const getRegistryInfoQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getRegistryInfoQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryInfo(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getRegistryInfo(params, signal),
   })

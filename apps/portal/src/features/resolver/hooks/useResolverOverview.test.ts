@@ -231,11 +231,15 @@ describe('getResolverOverviewQueryOptions', () => {
 
     const result = await readOverview()
 
-    expect(bigname.resolver).toHaveBeenCalledWith(11155111, RESOLVER, {
-      page_size: 200,
-    })
+    expect(bigname.resolver).toHaveBeenCalledWith(
+      11155111,
+      RESOLVER,
+      { page_size: 200 },
+      { signal: expect.any(AbortSignal) },
+    )
     expect(bigname.events).toHaveBeenCalledWith(
       expect.objectContaining({ resolver: `11155111:${RESOLVER}` }),
+      { signal: expect.any(AbortSignal) },
     )
     expect(result).toMatchObject({
       address: RESOLVER,
@@ -288,6 +292,7 @@ describe('getResolverOverviewQueryOptions', () => {
       11155111,
       RESOLVER,
       expect.objectContaining({ cursor: 'more' }),
+      { signal: expect.any(AbortSignal) },
     )
   })
 
@@ -322,6 +327,13 @@ describe('getResolverOverviewQueryOptions', () => {
     })
   })
 
+  it('renders without recent events when bigname cannot serve them', async () => {
+    bigname.events.mockReturnValue(
+      errAsync(new BignameError({ code: 'internal_error', message: 'boom' })),
+    )
+    expect(await readOverview()).toMatchObject({ events: null, nodeCount: 1 })
+  })
+
   it('fails when another read fails', async () => {
     bigname.resolverRoles.mockReturnValue(
       errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
@@ -352,6 +364,7 @@ describe('getResolverNodesQueryOptions', () => {
       11155111,
       RESOLVER,
       expect.objectContaining({ page_size: 100 }),
+      { signal: expect.any(AbortSignal) },
     )
   })
 

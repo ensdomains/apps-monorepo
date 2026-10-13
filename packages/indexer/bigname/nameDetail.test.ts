@@ -4,6 +4,7 @@ import { readNameDetail } from './nameDetail'
 import type { NameRecord } from './types'
 
 const record = {
+  registration_id: 'b7506129-820d-5c4f-a396-515a1e148743',
   name: 'alice.eth',
   display_name: 'alice.eth',
   namespace: 'ens',
@@ -41,6 +42,7 @@ describe('readNameDetail', () => {
       registrationStatus: 'active',
       expiresAt: new Date('2029-09-28T11:29:36Z'),
       registeredAt: new Date('2026-09-28T11:29:36Z'),
+      registrationId: 'b7506129-820d-5c4f-a396-515a1e148743',
       createdAt: new Date('2026-09-28T11:29:36Z'),
       migratedAt: null,
       unresolvableReason: null,

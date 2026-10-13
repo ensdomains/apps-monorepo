@@ -6,6 +6,7 @@ import type {
   NameRelation,
   Page,
   ProtocolVersion,
+  ReadOptions,
 } from './common.types'
 import type { IndexerReadError } from './errors'
 
@@ -63,4 +64,5 @@ export type NameSummary = Readonly<{
 
 export type ReadNamesForAddress = (
   query: NamesForAddressQuery,
+  options?: ReadOptions,
 ) => ResultAsync<Page<NameSummary>, IndexerReadError>

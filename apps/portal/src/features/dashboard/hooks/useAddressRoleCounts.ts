@@ -69,18 +69,29 @@ export const roleCountsOf = (query: {
 }): ReadonlyMap<string, number> | 'loading' | 'unavailable' =>
   query.data ?? (query.isError ? 'unavailable' : 'loading')
 
+/** A row the address holds only as a former owner, in grace: it holds no roles. */
+const isFormerOwnerOnly = (relations: readonly string[] | undefined) =>
+  !!relations?.length &&
+  relations.every((relation) => relation === 'former_owner')
+
 /** A names list with each ENSv2 row's role count, or its state until one arrives. */
 export const withRoleCounts = <
   Row extends {
     readonly name: string | null
     readonly protocolVersion: string
+    readonly relations?: readonly string[]
   },
 >(
   rows: readonly Row[],
   roleCounts: ReturnType<typeof roleCountsOf>,
 ): readonly (Row & { readonly roleCount?: RoleCount })[] =>
   rows.map((row) => {
-    if (row.name === null || row.protocolVersion !== 'ENSv2') return row
+    if (
+      row.name === null ||
+      row.protocolVersion !== 'ENSv2' ||
+      isFormerOwnerOnly(row.relations)
+    )
+      return row
     const roleCount =
       typeof roleCounts === 'string' ? roleCounts : roleCounts.get(row.name)
     return roleCount === undefined ? row : { ...row, roleCount }

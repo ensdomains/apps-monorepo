@@ -101,9 +101,9 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
 
 export const readNamesForAddress =
   (client: BignameClient): ReadNamesForAddress =>
-  (query) =>
+  (query, options) =>
     client
-      .addressNames(query.address, toQuery(query))
+      .addressNames(query.address, toQuery(query), options)
       .map(({ data, page }) => ({
         items: data.map((row) => toNameSummary(row, query.address)),
         nextCursor: page?.next_cursor ?? null,
