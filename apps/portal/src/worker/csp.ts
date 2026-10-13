@@ -17,6 +17,7 @@
 
 import { originFromEnvUrl } from '@ens-apps/config'
 import { envConfig } from '@/config'
+import { L2_CHAINS } from '@/lib/l2Chains'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -103,12 +104,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // Reown AppKit (formerly Web3Modal) config + analytics API — separate host
   // from *.walletconnect.*; AccountController fetches /appkit/v1/config here.
   'https://api.web3modal.org',
-  // viem default public L2 RPCs for L2 setName — src/lib/wagmiL2.ts
-  'https://sepolia.optimism.io',
-  'https://sepolia-rollup.arbitrum.io',
-  'https://sepolia.base.org',
-  'https://rpc.sepolia.linea.build',
-  'https://sepolia-rpc.scroll.io',
+  // viem's default public RPCs for the build's L2s, used for L2 setName
+  // (src/lib/wagmiL2.ts). Derived from the same chain list.
+  ...L2_CHAINS.flatMap((chain) => chain.rpcUrls.default.http)
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
   // CCIP-Read (ERC-3668) gateways — viem follows the UniversalResolver's
   // OffchainLookup reverts from the browser, so every gateway origin must be
   // allowlisted or resolution fails with a generic "HTTP request failed."

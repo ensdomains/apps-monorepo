@@ -1,4 +1,8 @@
-import { buildConfig, NetworkConfigError } from './buildConfig'
+import {
+  type BuildConfigInput,
+  buildConfig,
+  NetworkConfigError,
+} from './buildConfig'
 
 /**
  * Build-time guard: resolve the network configuration from a loaded env and
@@ -11,10 +15,13 @@ import { buildConfig, NetworkConfigError } from './buildConfig'
  *
  * Takes an already-loaded env rather than reading `process.env` so callers can
  * pass Vite's `loadEnv`, which applies the same `.env` precedence the app will
- * see at build time.
+ * see at build time. `allowMissingEndpoints` must match the app's own call.
  */
 export const assertNetworkConfig = (
   env: Readonly<Record<string, string | undefined>>,
+  {
+    allowMissingEndpoints,
+  }: Pick<BuildConfigInput<boolean>, 'allowMissingEndpoints'> = {},
 ) => {
   try {
     const config = buildConfig({
@@ -24,6 +31,7 @@ export const assertNetworkConfig = (
         indexerGraphql: env.VITE_INDEXER_GRAPHQL_URL,
         bignameApi: env.VITE_BIGNAME_API_URL,
       },
+      allowMissingEndpoints,
     })
     return config
   } catch (error) {

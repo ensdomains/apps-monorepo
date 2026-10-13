@@ -2,6 +2,7 @@ import { ChevronDown, Megaphone } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { TimelineDisclosure } from '@/components/ui/timeline/TimelineDisclosure'
+import { MANAGER_APP_BASE_URL } from '@/lib/constants/domain'
 import { cn } from '@/lib/utils'
 
 const InlineLink = ({
@@ -42,18 +43,22 @@ const RESOURCES: readonly { title: string; description: ReactNode }[] = [
       </>
     ),
   },
-  {
-    title: 'ENS App',
-    description: (
-      <>
-        Use the{' '}
-        <InlineLink href="https://sepolia.app.ens.domains/dashboard">
-          ENS App
-        </InlineLink>{' '}
-        to upgrade names to v2
-      </>
-    ),
-  },
+  ...(MANAGER_APP_BASE_URL
+    ? [
+        {
+          title: 'ENS App',
+          description: (
+            <>
+              Use the{' '}
+              <InlineLink href={`${MANAGER_APP_BASE_URL}/dashboard`}>
+                ENS App
+              </InlineLink>{' '}
+              to upgrade names to v2
+            </>
+          ),
+        },
+      ]
+    : []),
   {
     title: 'ENS Labs',
     description: (

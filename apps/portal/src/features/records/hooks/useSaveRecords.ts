@@ -84,7 +84,9 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
 
       if (!walletClient || !publicClient) {
         if (isWrongChain) {
-          throw new Error('Wrong network. Switch to Sepolia to save records.')
+          throw new Error(
+            `Wrong network. Switch to ${sepoliaWithEns.name} to save records.`,
+          )
         }
 
         throw new Error('Wallet not connected')

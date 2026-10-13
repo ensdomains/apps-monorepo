@@ -51,6 +51,10 @@ automated testing, which must never reach a production deploy.
 - `pnpm cf-typegen` regenerates the Worker bindings after a `wrangler.jsonc` change.
 - Deploys go through wrangler. The `deploy-portal` workflow that publishes a
   release to IPFS exists but has never run.
+- Mainnet deploys as the `portal-app-mainnet` Worker (`env.mainnet` in
+  `wrangler.jsonc`): build with `VITE_ENS_NETWORK=mainnet` and
+  `CLOUDFLARE_ENV=mainnet`. Its `SEPOLIA_RPC_URL` secret holds a mainnet RPC
+  despite the name.
 
 ## Further reading
 

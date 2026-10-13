@@ -8,6 +8,7 @@ import {
   isEnsNetwork,
   NETWORKS,
   type NetworkEndpoints,
+  type NetworkProfile,
 } from './networks'
 
 export { NetworkConfigError }
@@ -25,15 +26,23 @@ const REQUIRED_ENSV2_CONTRACTS = [
   'ensReverseRegistrarAdapter',
 ] as const
 
-const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => ({
-  ...(network === 'mainnet'
-    ? extendChainWithEns(mainnet)
-    : extendChainWithEns(sepolia)),
-  rpcUrls: {
-    default: { http: rpcUrls },
-    public: { http: rpcUrls },
-  },
-})
+const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => {
+  const chain =
+    network === 'mainnet'
+      ? extendChainWithEns(mainnet)
+      : extendChainWithEns(sepolia)
+  const { v1SubgraphUrl }: NetworkProfile = NETWORKS[network]
+  return {
+    ...chain,
+    rpcUrls: {
+      default: { http: rpcUrls },
+      public: { http: rpcUrls },
+    },
+    subgraphs: v1SubgraphUrl
+      ? { ...chain.subgraphs, ens: { url: v1SubgraphUrl } }
+      : chain.subgraphs,
+  }
+}
 
 // Pinned to one instantiation: ensjs types its client as a union of concrete
 // chains, so a chain typed as the union cannot flow into any ensjs action.
@@ -43,7 +52,7 @@ export type EnsChain = Extract<
   { id: 11155111 }
 >
 
-export type BuildConfigInput = {
+export type BuildConfigInput<AllowMissing extends boolean = false> = {
   /** Network name, typically from env. No default: absent or unknown throws. */
   readonly network: string | undefined
   /** The app's own RPC endpoint. The network's public fallbacks follow it. */
@@ -52,16 +61,26 @@ export type BuildConfigInput = {
   readonly overrides?: Partial<
     Record<keyof NetworkEndpoints, string | undefined>
   >
+  /**
+   * Resolve an endpoint the network has no deployment for to `null` instead
+   * of throwing, for an app that runs without it.
+   */
+  readonly allowMissingEndpoints?: AllowMissing
 }
 
-export type EnsAppConfig = Readonly<{
+export type EnsAppConfig<AllowMissing extends boolean = false> = Readonly<{
   network: EnsNetwork
   isTestnet: boolean
   chain: EnsChain
   /** Primary first, then the network's public fallbacks, deduped. */
   rpcUrls: readonly string[]
   rpcFallbacks: readonly string[]
-  endpoints: Readonly<Record<keyof NetworkEndpoints, string>>
+  endpoints: Readonly<
+    Record<
+      keyof NetworkEndpoints,
+      AllowMissing extends true ? string | null : string
+    >
+  >
 }>
 
 // Absolute http(s), or root-relative like `/rpc` for the e2e proxy.
@@ -98,10 +117,11 @@ const resolveNetwork = (network: string | undefined): EnsNetwork => {
 const resolveEndpoints = (
   network: EnsNetwork,
   overrides: BuildConfigInput['overrides'],
-): Record<keyof NetworkEndpoints, string> => {
+  allowMissing: boolean,
+): Record<keyof NetworkEndpoints, string | null> => {
   const profile = NETWORKS[network].endpoints
   const keys = Object.keys(profile) as (keyof NetworkEndpoints)[]
-  const resolved: Partial<Record<keyof NetworkEndpoints, string>> = {}
+  const resolved: Partial<Record<keyof NetworkEndpoints, string | null>> = {}
   const missing: string[] = []
   for (const key of keys) {
     // `||`: an override that is set but empty must fall through. A supplied
@@ -109,6 +129,7 @@ const resolveEndpoints = (
     // endpoint is missing.
     const value = overrides?.[key] || profile[key]
     if (value) resolved[key] = requireUrl(value, `endpoint ${key}`)
+    else if (allowMissing) resolved[key] = null
     else missing.push(key)
   }
   if (missing.length > 0) {
@@ -116,10 +137,10 @@ const resolveEndpoints = (
       `Network ${network} has no endpoint configured for: ${missing.join(', ')}. Deploy the service and add it to NETWORKS, or pass an override.`,
     )
   }
-  return resolved as Record<keyof NetworkEndpoints, string>
+  return resolved as Record<keyof NetworkEndpoints, string | null>
 }
 
-const assertEnsV2Deployed = (
+export const assertEnsV2Deployed = (
   network: EnsNetwork,
   contracts: Record<string, { readonly address: string } | undefined>,
 ): void => {
@@ -147,17 +168,22 @@ export const orderedRpcUrls = (
  * Resolve the app configuration for one network. Pure: reads no env and
  * creates no clients, so it runs in the browser, both workers and tests.
  */
-export const buildConfig = ({
+export const buildConfig = <AllowMissing extends boolean = false>({
   network: requestedNetwork,
   rpcUrl,
   overrides,
-}: BuildConfigInput): EnsAppConfig => {
+  allowMissingEndpoints,
+}: BuildConfigInput<AllowMissing>): EnsAppConfig<AllowMissing> => {
   const network = resolveNetwork(requestedNetwork)
   const profile = NETWORKS[network]
 
   const primaryRpcUrl = rpcUrl ? requireUrl(rpcUrl, 'rpcUrl') : undefined
   const rpcUrls = orderedRpcUrls(primaryRpcUrl, profile.rpcFallbacks)
-  const endpoints = resolveEndpoints(network, overrides)
+  const endpoints = resolveEndpoints(
+    network,
+    overrides,
+    allowMissingEndpoints === true,
+  )
   const chain = buildEnsChain(network, rpcUrls)
 
   assertEnsV2Deployed(network, chain.contracts)
@@ -168,6 +194,8 @@ export const buildConfig = ({
     chain: chain as EnsChain,
     rpcUrls: Object.freeze(rpcUrls),
     rpcFallbacks: profile.rpcFallbacks,
-    endpoints: Object.freeze(endpoints),
+    endpoints: Object.freeze(
+      endpoints,
+    ) as EnsAppConfig<AllowMissing>['endpoints'],
   })
 }

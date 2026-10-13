@@ -13,5 +13,15 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/*", "!/assets/*", "!/icons/*", "!/client/*"]
   },
-  "preview_urls": true
+  "preview_urls": true,
+  // The mainnet Worker: build with CLOUDFLARE_ENV=mainnet and
+  // VITE_ENS_NETWORK=mainnet. Bindings aren't inherited, so `images` repeats.
+  "env": {
+    "mainnet": {
+      "name": "portal-app-mainnet",
+      "images": {
+        "binding": "IMAGES"
+      }
+    }
+  }
 }

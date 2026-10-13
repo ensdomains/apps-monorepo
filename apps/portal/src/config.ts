@@ -26,6 +26,8 @@ import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
  * to the shared public endpoints in the network profile.
  */
 const PORTAL_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
+  mainnet:
+    'https://lb.drpc.live/ethereum/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j',
   sepolia:
     'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j',
 }
@@ -41,6 +43,9 @@ export const envConfig = buildConfig({
     indexerGraphql: import.meta.env?.VITE_INDEXER_GRAPHQL_URL,
     bignameApi: import.meta.env?.VITE_BIGNAME_API_URL,
   },
+  // A service the network has no deployment for resolves to null and the
+  // explorer runs without it. Keep in step with scripts/check-network-config.ts.
+  allowMissingEndpoints: true,
 })
 
 export const { chain, isTestnet, rpcUrls } = envConfig
