@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { useRef } from 'react'
 import {
   Dialog,
@@ -11,11 +12,13 @@ import { usePricingStep } from '../../../state/registrationUi.selectors'
 import { TokenPickerContent } from './TokenPickerContent'
 
 export const TokenPickerDialog = () => {
+  const { t } = useLingui()
   const { uiActor } = useRegistrationV2Context()
 
   const pricingStep = usePricingStep(uiActor)
 
-  const isOpen = pricingStep === 'tokens'
+  const isApproving = pricingStep === 'approving'
+  const isOpen = pricingStep === 'tokens' || isApproving
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -27,10 +30,11 @@ export const TokenPickerDialog = () => {
 
   return (
     <PaymentDialogBase
+      isDismissible={!isApproving}
       onOpenChange={handleOpenChange}
       open={isOpen}
       registrationLayout
-      title={''}
+      title={t`Approve and register name`}
     >
       <TokenPickerContent />
     </PaymentDialogBase>
@@ -43,12 +47,14 @@ export const PaymentDialogBase = ({
   onOpenChange,
   children,
   registrationLayout = false,
+  isDismissible = true,
 }: {
   open: boolean
   title?: string
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
   registrationLayout?: boolean
+  isDismissible?: boolean
 }) => {
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -61,6 +67,12 @@ export const PaymentDialogBase = ({
             ? 'max-h-[90dvh] min-h-0 sm:min-h-[500px]'
             : 'max-h-[90vh] min-h-[500px]',
         )}
+        onEscapeKeyDown={
+          isDismissible ? undefined : (event) => event.preventDefault()
+        }
+        onInteractOutside={
+          isDismissible ? undefined : (event) => event.preventDefault()
+        }
         // The first focusable element here is an info button, and a tooltip
         // opens on focus: without this the sheet opens with a tooltip already
         // covering the price. Focus the panel itself instead, so the dialog
@@ -74,7 +86,7 @@ export const PaymentDialogBase = ({
             : undefined
         }
         ref={panelRef}
-        showCloseButton={true}
+        showCloseButton={isDismissible}
       >
         <DialogHeader>
           <DialogTitle className="sr-only">{title}</DialogTitle>

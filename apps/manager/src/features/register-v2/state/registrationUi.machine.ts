@@ -6,6 +6,8 @@ import {
   type Signer,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/transaction.errors'
+import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import {
@@ -99,6 +101,8 @@ type Context = {
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
+  approvalFailed: boolean
+  approvalRejected: boolean
   /**
    * The registration failed because another address registered the name first.
    * Nothing to retry — the failure screen offers only a way back.
@@ -190,9 +194,16 @@ type Events =
       type: 'registration.suspend'
     }
   | { type: 'registration.completed' }
+  | { type: 'registration.approved' }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
-  | { type: 'transaction.failed'; message?: string; nameUnavailable?: boolean }
+  | {
+      type: 'transaction.failed'
+      message?: string
+      nameUnavailable?: boolean
+      approvalFailed?: boolean
+      approvalRejected?: boolean
+    }
   | { type: 'retry' }
   | { type: 'cancel' }
   | { type: 'label.changed' }
@@ -396,8 +407,20 @@ const machineSetup = setup({
           ? event.token
           : context.selectedToken,
     }),
+    restorePricing: assign(({ event }) => {
+      if (event.type !== 'registration.resume') return {}
+      return {
+        duration: Number(event.confirmedData.duration),
+        selectedToken: event.confirmedData.token,
+        confirmedData: event.confirmedData,
+        postRegistrationSetup: event.postRegistrationSetup,
+        hcaPrimaryName: event.record.context.primaryName,
+      }
+    }),
     clearError: assign({
       lastErrorMessage: () => undefined,
+      approvalFailed: () => false,
+      approvalRejected: () => false,
       nameUnavailable: () => false,
       isWalletBusy: () => false,
     }),
@@ -405,6 +428,10 @@ const machineSetup = setup({
       maxProgressReached: () => undefined,
     }),
     setError: assign({
+      approvalFailed: ({ event }) =>
+        event.type === 'transaction.failed' && event.approvalFailed === true,
+      approvalRejected: ({ event }) =>
+        event.type === 'transaction.failed' && event.approvalRejected === true,
       lastErrorMessage: ({ event }) =>
         match(event)
           .with({ type: 'transaction.failed' }, ({ message }) => message)
@@ -740,6 +767,7 @@ const startRegistrationAction = machineSetup.createAction(
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
+        approveBeforeCommit: true,
         name: asEthName(event.label),
         duration: event.duration,
         token: event.token,
@@ -815,6 +843,8 @@ const resumeRegistrationAction = machineSetup.createAction(
 
     enqueue.assign({
       confirmedData: event.confirmedData,
+      duration: Number(event.confirmedData.duration),
+      selectedToken: event.confirmedData.token,
       postRegistrationSetup: isHcaRegistration
         ? undefined
         : event.postRegistrationSetup,
@@ -869,6 +899,7 @@ const resumeRegistrationAction = machineSetup.createAction(
         },
         deps: {
           signer: event.account.signer,
+          approveBeforeCommit: true,
           approvalSigner,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
@@ -902,10 +933,32 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
             message: snapshot.context.error?.message,
+            approvalFailed:
+              snapshot.context.retryTarget === 'signingFundingPermit' ||
+              snapshot.context.retryTarget === 'approvingToken',
+            approvalRejected: isUserRejectionError(snapshot.context.error),
             // Lost a same-name race: the child refuses RETRY, so the failure
             // screen must not offer one either.
             nameUnavailable: snapshot.context.nameUnavailable === true,
           })),
+        ],
+      },
+      {
+        // A commitment ID is assigned only after all upfront approvals have
+        // completed and the commit has been submitted. Until then keep the
+        // payment dialog mounted so a rejected approval stays in context.
+        guard: ({ event: { snapshot } }) =>
+          !!snapshot.context.commitmentTxId &&
+          !snapshot.matches('idle') &&
+          !snapshot.matches('computingHcaBudget') &&
+          !snapshot.matches('checkingHcaFunding') &&
+          !snapshot.matches('signingFundingPermit') &&
+          !snapshot.matches('checkingAllowance') &&
+          !snapshot.matches('approvingToken') &&
+          !snapshot.matches('waitingForApproval'),
+        actions: [
+          raise({ type: 'registration.approved' }),
+          'updateRegistrationStageFromChild',
         ],
       },
       {
@@ -921,6 +974,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    approvalFailed: false,
+    approvalRejected: false,
     nameUnavailable: false,
     isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
@@ -939,10 +994,24 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       // parallel regions and clobbering the live run's confirmedData. The
       // child ignores RESUME outside idle for the same reason.
       on: {
-        'registration.resume': {
-          target: '#registrationV2Ui.registering',
-          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
-        },
+        'registration.resume': [
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event.record) === 'settingUpRegistration',
+            // No commitment was submitted. Reconfirm the live quote before
+            // requesting a fresh approval instead of prompting on reconnect.
+            target: '.tokens',
+            actions: ['clearError', 'clearMaxProgress', 'restorePricing'],
+          },
+          {
+            target: '#registrationV2Ui.registering',
+            actions: [
+              'clearError',
+              'clearMaxProgress',
+              resumeRegistrationAction,
+            ],
+          },
+        ],
       },
       states: {
         duration: {
@@ -960,21 +1029,61 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           on: {
             'pricing.step.previous': {
               target: 'duration',
+              actions: 'clearError',
             },
             'pricing.token.select': {
-              actions: 'setToken',
+              actions: ['setToken', 'clearError'],
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
+              actions: 'clearError',
             },
             'registration.start': {
-              target: '#registrationV2Ui.registering',
+              target: 'approving',
               guard: ({ event }) =>
                 event.duration >= MIN_REGISTER_DURATION_SECONDS,
               actions: [
                 'clearError',
                 'clearMaxProgress',
                 startRegistrationAction,
+              ],
+            },
+          },
+        },
+        approving: {
+          on: {
+            // Ignore an assessment that resolves after a fresh run starts.
+            'registration.resume': {},
+            'registration.approved': {
+              target: '#registrationV2Ui.registering',
+            },
+            'transaction.failed': [
+              {
+                guard: ({ event }) => event.approvalFailed === true,
+                target: 'tokens',
+                actions: [
+                  'setError',
+                  'releaseRegistrationLock',
+                  'clearRegistrationData',
+                  'forwardCancel',
+                ],
+              },
+              {
+                target: '#registrationV2Ui.failure',
+                actions: 'setError',
+              },
+            ],
+            $error: {
+              target: '#registrationV2Ui.failure',
+              actions: 'setError',
+            },
+            'registration.suspend': {
+              target: 'duration',
+              actions: [
+                'clearRegistrationData',
+                'clearError',
+                'clearMaxProgress',
+                'forwardSuspend',
               ],
             },
           },
@@ -1313,19 +1422,37 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             // Retrying a name someone else now owns would park the UI back on
             // the pending screen while the child refuses the RETRY it forwards.
             guard: ({ context }) => !context.nameUnavailable,
-            target: 'registering',
+            target: 'pricing.approving',
             actions: ['clearError', 'acquireRegistrationLock', 'forwardRetry'],
           },
         ],
         'registration.start': {
-          target: 'registering',
+          target: 'pricing.approving',
           guard: ({ event }) => event.duration >= MIN_REGISTER_DURATION_SECONDS,
           actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
         },
-        'registration.resume': {
-          target: 'registering',
-          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
-        },
+        'registration.resume': [
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event.record) === 'settingUpRegistration',
+            target: 'pricing.tokens',
+            actions: [
+              'releaseRegistrationLock',
+              'clearError',
+              'clearMaxProgress',
+              'restorePricing',
+              'forwardCancel',
+            ],
+          },
+          {
+            target: 'registering',
+            actions: [
+              'clearError',
+              'clearMaxProgress',
+              resumeRegistrationAction,
+            ],
+          },
+        ],
         cancel: {
           target: 'pricing',
           actions: [
@@ -1375,6 +1502,7 @@ export const getSuspendableRunOwner = (
   snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
 ): Address | undefined => {
   const suspendable =
+    snapshot.matches({ pricing: 'approving' }) ||
     (snapshot.matches('registering') &&
       !snapshot.context.registrationCompleted) ||
     snapshot.matches('failure')

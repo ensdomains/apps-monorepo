@@ -164,6 +164,8 @@ export type RegistrationContext = {
    * transaction or needs ETH. Everything else is session-signed on `signer`.
    */
   approvalSigner?: Signer
+  /** Keep EOA payment approval ahead of resolver deployment and commitment. */
+  approveBeforeCommit?: boolean
   accountAddress?: Address
   ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA` (see @ens-apps/smart-account providers/rhinestone/registration-policy.ts), so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
   resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
@@ -308,6 +310,7 @@ export type RegistrationContext = {
 export type RegistrationEvent =
   | {
       type: 'START_REGISTRATION'
+      approveBeforeCommit?: boolean
       name: string
       /** Duration in seconds */
       duration: bigint
@@ -364,6 +367,7 @@ export type RegistrationEvent =
       context: PersistedRegistrationContext
       deps: {
         signer: Signer
+        approveBeforeCommit?: boolean
         /** EOA that signs the EIP-2612 funding permit on the HCA path. */
         approvalSigner?: Signer
         publicClient: PublicClient
@@ -713,6 +717,7 @@ export const registrationMachine = setup({
         ...restored,
         signer: event.deps.signer,
         approvalSigner: event.deps.approvalSigner,
+        approveBeforeCommit: event.deps.approveBeforeCommit,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
         fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
@@ -853,6 +858,7 @@ export const registrationMachine = setup({
               tokenPrice: ({ event }) => event.price,
               signer: ({ event }) => event.signer,
               approvalSigner: ({ event }) => event.approvalSigner,
+              approveBeforeCommit: ({ event }) => event.approveBeforeCommit,
               accountAddress: ({ event }) => event.accountAddress,
               registrationStartedAt: ({ event }) =>
                 event.signer.type === 'rhinestone' ? Date.now() : undefined,
@@ -938,6 +944,10 @@ export const registrationMachine = setup({
         },
         // Pure-EOA: an EOA can't batch, so the resolver (when the wallet has
         // none yet) and the commit go out as separate transactions.
+        {
+          guard: ({ context }) => context.approveBeforeCommit === true,
+          target: 'checkingAllowance',
+        },
         { target: 'checkingResolver' },
       ],
     },
@@ -1498,7 +1508,9 @@ export const registrationMachine = setup({
             // Standalone-HCA: the HCA was funded pre-commit and pays the
             // registrar from its own balance in the reveal batch — no
             // allowance/permit step after the cooldown.
-            guard: 'isRhinestoneSigner',
+            guard: ({ context }) =>
+              context.signer?.type === 'rhinestone' ||
+              context.approveBeforeCommit === true,
             target: 'commitmentCooldown',
             actions: assign({
               registerReadyTimestamp: ({ event }) => {
@@ -1521,7 +1533,9 @@ export const registrationMachine = setup({
           // Fall back to the default cooldown so registration can still
           // proceed even if the read fails.
           {
-            guard: 'isRhinestoneSigner',
+            guard: ({ context }) =>
+              context.signer?.type === 'rhinestone' ||
+              context.approveBeforeCommit === true,
             target: 'commitmentCooldown',
             actions: 'setFallbackRegisterReadyTimestamp',
           },
@@ -1832,6 +1846,13 @@ export const registrationMachine = setup({
         }),
         onDone: [
           {
+            guard: ({ context, event }) =>
+              context.approveBeforeCommit === true &&
+              !context.commitmentTxId &&
+              event.output.allowance >= event.output.livePrice,
+            target: 'checkingResolver',
+          },
+          {
             // Skip payment authorization entirely when the registrar already
             // has enough allowance for this registration's LIVE price (e.g. a
             // prior max permit/approve). The EOA signs nothing extra.
@@ -1927,7 +1948,14 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.approvalTxId! }),
-        onDone: 'commitmentCooldown',
+        onDone: [
+          {
+            guard: ({ context }) =>
+              context.approveBeforeCommit === true && !context.commitmentTxId,
+            target: 'checkingResolver',
+          },
+          { target: 'commitmentCooldown' },
+        ],
         onError: {
           target: 'error',
           actions: [

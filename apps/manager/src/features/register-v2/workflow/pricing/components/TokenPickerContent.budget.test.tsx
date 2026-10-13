@@ -23,9 +23,16 @@ vi.mock('@xstate/react', () => ({
   useSelector: (
     _actor: unknown,
     select: (state: {
+      matches: () => boolean
       context: { duration: number; selectedToken: string }
     }) => unknown,
-  ) => select({ context: { duration: 31_536_000, selectedToken: 'USDC' } }),
+  ) =>
+    _actor
+      ? select({
+          matches: () => false,
+          context: { duration: 31_536_000, selectedToken: 'USDC' },
+        })
+      : undefined,
 }))
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -117,7 +124,9 @@ describe('TokenPickerContent budget quote', () => {
 
     // The wallet covers the rent, so only the failed quote can block here.
     expect(await screen.findByText(QUOTE_FAILED_MESSAGE)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    ).toBeDisabled()
     expect(screen.getByText('up to')).toBeInTheDocument()
   })
 
@@ -128,7 +137,7 @@ describe('TokenPickerContent budget quote', () => {
     // Enabled once the rent lands; the budget query never runs on this route.
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Register name' }),
+        screen.getByRole('button', { name: 'Approve and register' }),
       ).toBeEnabled(),
     )
     expect(screen.queryByText(QUOTE_FAILED_MESSAGE)).not.toBeInTheDocument()
