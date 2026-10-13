@@ -38,7 +38,7 @@ jobs:
       - name: Build Portal app
         run: pnpm build:portal
         env:
-          VITE_ENS_NETWORK: ${{ vars.VITE_ENS_NETWORK }}
+          VITE_ENS_NETWORK: mainnet
           VITE_INDEXER_GRAPHQL_URL: ${{ vars.VITE_INDEXER_GRAPHQL_URL }}
 
       - name: Pack static assets
