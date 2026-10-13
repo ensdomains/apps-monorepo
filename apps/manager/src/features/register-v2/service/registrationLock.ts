@@ -257,14 +257,7 @@ export const releaseHolderLocksWhenSettled = (): Promise<void> => {
   return claimTabHolderId().then(() => releaseHolderLocks(since))
 }
 
-/**
- * Drop this tab's claims as it closes, so a new tab can pick the registration
- * up straight away instead of waiting out staleness.
- *
- * Kept when the page goes into the back/forward cache, since it can come back
- * still registering, and while the id is unsettled, since a duplicated tab
- * still answers to the id of the tab it was cloned from.
- */
+/** Free this tab's claims on close, unless it's entering the bfcache or its id hasn't settled. */
 export const releaseHolderLocksOnPageHide = (
   event: PageTransitionEvent,
 ): void => {

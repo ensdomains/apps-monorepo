@@ -439,9 +439,6 @@ describe('claimTabHolderId', () => {
   const pageHide = (persisted: boolean) =>
     ({ persisted }) as PageTransitionEvent
 
-  // A closed tab never unmounts the flow, so without this a new tab resuming
-  // the same registration was told it was running elsewhere until the claim
-  // went stale.
   it('frees this tab’s claim when the tab closes', async () => {
     sessionStorage.setItem('ens-registration-holder', 'closing-tab')
     const lock = await import('./registrationLock')
