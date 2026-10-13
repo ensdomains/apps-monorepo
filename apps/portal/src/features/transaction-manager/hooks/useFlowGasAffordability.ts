@@ -11,7 +11,7 @@ import {
   usePublicClient,
   useWalletClient,
 } from 'wagmi'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
 import type { Transaction } from '../types'
 import { prepareUnpaidStepRequests } from '../utils/flowGasSteps'
@@ -44,7 +44,7 @@ export function useFlowGasAffordability({
   readonly transactions: readonly Transaction[]
   readonly activeTransactionsMap: Map<string, TransactionMachineActor>
 }): GasAffordability {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const publicClient = usePublicClient({ chainId })
   const { data: walletClient } = useWalletClient()
   const readyWalletClient =

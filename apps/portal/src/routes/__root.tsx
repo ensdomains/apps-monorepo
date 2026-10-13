@@ -18,7 +18,7 @@ import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { ensChain, wagmiConfig } from '@/lib/wagmi'
 import { getPageTitle } from '@/utils/pageTitle'
 import { queryClient } from '@/utils/queryClient'
 
@@ -36,7 +36,7 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (publicClient) {
-      transactionManager.setPublicClient(sepoliaWithEns.id, publicClient)
+      transactionManager.setPublicClient(ensChain.id, publicClient)
     }
   }, [publicClient])
 

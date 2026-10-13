@@ -14,7 +14,7 @@ import {
 } from 'wagmi'
 import { profileQueryKey } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { type SaveRecordsParameters, saveRecords } from '../helpers/saveRecords'
 
@@ -37,7 +37,7 @@ type UseSaveRecordsOptions = {
  */
 export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
   const { onSyncComplete } = options
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { chain, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
@@ -85,7 +85,7 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
       if (!walletClient || !publicClient) {
         if (isWrongChain) {
           throw new Error(
-            `Wrong network. Switch to ${sepoliaWithEns.name} to save records.`,
+            `Wrong network. Switch to ${ensChain.name} to save records.`,
           )
         }
 

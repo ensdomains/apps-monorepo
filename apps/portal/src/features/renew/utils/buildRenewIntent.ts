@@ -7,7 +7,7 @@ import {
   zeroHash,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { getLabel } from '@/utils/token/getLabel'
 import { isCanonicalName } from '@/utils/token/isNormalized'
 
@@ -59,6 +59,6 @@ export function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
     from: params.from,
     to: writeParams.address,
     data: renewData,
-    chainId: sepoliaWithEns.id,
+    chainId: ensChain.id,
   })
 }

@@ -32,7 +32,7 @@ import {
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
 
@@ -124,7 +124,7 @@ const RolePermissionList = ({
   </div>
 )
 
-const chainId = sepoliaWithEns.id
+const chainId = ensChain.id
 
 type ResolverAddUserSheetProps = {
   readonly open: boolean

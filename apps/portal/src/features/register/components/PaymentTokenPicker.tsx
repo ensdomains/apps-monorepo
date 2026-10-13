@@ -12,14 +12,14 @@ import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useR
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { getRenewerAddress } from '@/features/renew/utils/renewer'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import {
   buildTokenData,
   type TokenWithPriceAndBalance,
 } from '../utils/tokenData'
 
 const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensEthRegistrar',
 })
 

@@ -16,8 +16,8 @@ import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
  * `worker/clients.ts`.
  */
 
-// A build-time literal, unlike `isTestnet`: a mainnet bundle drops Sepolia-only
-// code and data instead of shipping it switched off.
+// The explorer is built for one network, so this is a build-time literal: a
+// mainnet bundle drops Sepolia-only code and data instead of shipping it off.
 export const isSepoliaBuild = import.meta.env.VITE_ENS_NETWORK === 'sepolia'
 
 /**
@@ -55,4 +55,4 @@ export const envConfig = buildConfig({
   allowMissingEndpoints: true,
 })
 
-export const { chain, isTestnet, rpcUrls } = envConfig
+export const { chain, rpcUrls } = envConfig

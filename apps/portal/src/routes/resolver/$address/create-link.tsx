@@ -31,7 +31,7 @@ import {
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
@@ -91,7 +91,7 @@ function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
   const { address: accountAddress, isConnected } = useConnection()
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
 

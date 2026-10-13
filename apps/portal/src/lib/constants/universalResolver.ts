@@ -1,8 +1,8 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 export const universalResolverAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensUniversalResolver',
 })
 
@@ -10,6 +10,6 @@ export const universalResolverAddress = getChainContractAddress({
 // the resolver pages so the Type row can label it (and link its docs) instead
 // of calling it a custom resolver.
 export const officialPublicResolverAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensPublicResolver',
 })
