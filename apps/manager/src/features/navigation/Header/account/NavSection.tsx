@@ -81,11 +81,7 @@ export const NavSection = ({
             onClick={onChoosePrimaryName}
             type="button"
           >
-            <MSymbol
-              aria-hidden="true"
-              className="ms-opsz-20"
-              symbol="published_with_changes"
-            />
+            {icon}
             <span className="text-base">{label}</span>
           </button>
         ) : (
