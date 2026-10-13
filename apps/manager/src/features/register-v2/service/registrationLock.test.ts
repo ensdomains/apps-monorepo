@@ -436,8 +436,8 @@ describe('claimTabHolderId', () => {
     )
   })
 
-  const pageHide = (persisted: boolean) =>
-    ({ persisted }) as PageTransitionEvent
+  const pageHide = (isPersisted: boolean) =>
+    ({ persisted: isPersisted }) as PageTransitionEvent
 
   it('frees this tab’s claim when the tab closes', async () => {
     sessionStorage.setItem('ens-registration-holder', 'closing-tab')
