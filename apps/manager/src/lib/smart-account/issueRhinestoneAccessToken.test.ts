@@ -68,8 +68,41 @@ describe('issueRhinestoneAccessToken', () => {
     })
     expect(protectedHeader).toMatchObject({ alg: 'ES256', kid: 'key-1' })
     expect(payload).toMatchObject({ typ: 'access', app_id: 'app-1' })
-    // An hour, which is what the SDK signer issues; the client renews early.
-    expect((payload.exp ?? 0) - (payload.iat ?? 0)).toBe(3600)
+    // Ten minutes: a whole registration with margin, and a sixth of the SDK
+    // signer's hour, since a leaked token's lifetime is its only bound.
+    expect((payload.exp ?? 0) - (payload.iat ?? 0)).toBe(600)
+  })
+
+  it('issues the same claims the SDK signer would', async () => {
+    const { createJwtSigner } = await import('@rhinestone/sdk/jwt-server')
+    const reference = createJwtSigner({
+      jwt: {
+        privateKey: JSON.parse(envMock.RHINESTONE_JWT_PRIVATE_KEY as string),
+        integratorId: CREDENTIALS.RHINESTONE_INTEGRATOR_ID,
+        projectId: CREDENTIALS.RHINESTONE_PROJECT_ID,
+        appId: CREDENTIALS.RHINESTONE_APP_ID,
+        keyId: CREDENTIALS.RHINESTONE_KEY_ID,
+      },
+    })
+    const theirs = await jwtVerify(await reference.accessToken(), publicKey)
+    const ours = await jwtVerify(await mint(), publicKey)
+
+    const { exp: _theirExp, iat: _theirIat, ...theirClaims } = theirs.payload
+    const { exp: _ourExp, iat: _ourIat, ...ourClaims } = ours.payload
+    expect(ourClaims).toEqual(theirClaims)
+    expect(ours.protectedHeader).toEqual(theirs.protectedHeader)
+  })
+
+  it('refuses a key that is not P-256, which the dashboard never issues', async () => {
+    const rsa = await generateKeyPair('RS256', { extractable: true })
+    envMock.RHINESTONE_JWT_PRIVATE_KEY = JSON.stringify(
+      await exportJWK(rsa.privateKey),
+    )
+
+    await expect(mint()).rejects.toMatchObject({
+      reason: 'not-configured',
+      message: expect.stringContaining('P-256'),
+    })
   })
 
   it('never mints a sponsorship token', async () => {

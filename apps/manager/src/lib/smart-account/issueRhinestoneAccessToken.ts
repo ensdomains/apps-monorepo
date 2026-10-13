@@ -1,5 +1,6 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { createServerFn } from '@tanstack/react-start'
+import { importJWK, SignJWT } from 'jose'
 import { isAddress } from 'viem'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 
@@ -14,6 +15,18 @@ export class RhinestoneTokenError extends TaggedError('RhinestoneTokenError')<{
   readonly reason: TokenRefusal
   readonly cause: unknown
 }> {}
+
+/**
+ * How long a token is accepted for. A registration runs about two minutes end
+ * to end and the client renews five minutes before expiry, so ten covers a
+ * whole run without a mid-flow renewal and still bounds a leaked token at a
+ * sixth of the SDK signer's default hour. Rhinestone has no revocation, so
+ * the lifetime is the only bound there is.
+ */
+const ACCESS_TOKEN_LIFETIME = '10m'
+
+/** The audience Rhinestone's own signer sets; the orchestrator checks it. */
+const RHINESTONE_AUDIENCE = 'rhinestone-api'
 
 const CREDENTIAL_NAMES = [
   'RHINESTONE_JWT_PRIVATE_KEY',
@@ -74,13 +87,42 @@ export const issueRhinestoneAccessToken = createServerFn({
     }
   }
 
-  const { createJwtSigner } = await import('@rhinestone/sdk/jwt-server')
-  return createJwtSigner({ jwt: readJwtCredentials(env) }).accessToken()
+  return mintAccessToken(readJwtCredentials(env))
 })
 
-type JwtCredentials = Parameters<
-  typeof import('@rhinestone/sdk/jwt-server').createJwtSigner
->[0]['jwt']
+interface JwtCredentials {
+  readonly privateKey: JsonWebKey
+  readonly integratorId: string
+  readonly projectId: string
+  readonly appId: string
+  readonly keyId: string
+}
+
+/**
+ * The same token `@rhinestone/sdk/jwt-server`'s `createJwtSigner` issues,
+ * claim for claim, with a shorter lifetime: the SDK hardcodes one hour and
+ * exposes no way to change it. ES256 only, which is what the dashboard
+ * generates; a key of another type is a configuration error, not a case.
+ */
+async function mintAccessToken(jwt: JwtCredentials): Promise<string> {
+  if (jwt.privateKey.kty !== 'EC' || jwt.privateKey.crv !== 'P-256') {
+    throw new RhinestoneTokenError({
+      message:
+        'Rhinestone token signing is not configured (RHINESTONE_JWT_PRIVATE_KEY must be a P-256 EC key)',
+      reason: 'not-configured',
+      cause: undefined,
+    })
+  }
+  const key = await importJWK(jwt.privateKey, 'ES256')
+  return new SignJWT({ typ: 'access', app_id: jwt.appId })
+    .setProtectedHeader({ alg: 'ES256', kid: jwt.keyId })
+    .setIssuer(jwt.integratorId)
+    .setSubject(jwt.projectId)
+    .setAudience(RHINESTONE_AUDIENCE)
+    .setIssuedAt()
+    .setExpirationTime(ACCESS_TOKEN_LIFETIME)
+    .sign(key)
+}
 
 /**
  * Read the signing credentials, refusing to mint from a partial set. The
