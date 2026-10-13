@@ -14,8 +14,6 @@ export type AddressNameItem = {
   readonly subdomainCount?: number
   readonly recordCount?: number
   readonly relations: readonly AddressNameRelation[]
-  /** ENSv2 only: the roles the address holds on the name. */
-  readonly roleCount?: number
   readonly protocolVersion: ProtocolVersion
 }
 

@@ -68,7 +68,8 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
           >
             full History
           </Link>
-          {model.totalCount !== undefined && ` (${model.totalCount} events)`}
+          {model.totalCount !== undefined &&
+            ` (${model.totalIsUpperBound ? 'up to ' : ''}${model.totalCount} events)`}
         </>
       }
       emptyTitle="No recent activity"

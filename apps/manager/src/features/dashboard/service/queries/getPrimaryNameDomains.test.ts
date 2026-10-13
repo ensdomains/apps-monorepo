@@ -44,14 +44,17 @@ describe('getPrimaryNameDomains', () => {
     const result = await getPrimaryNameDomains(readNames, ADDRESS)
 
     expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
-    expect(readNames).toHaveBeenCalledWith({
-      address: ADDRESS,
-      relations: ['owner'],
-      protocol: 'v2',
-      sort: 'name',
-      order: 'asc',
-      pageSize: 200,
-    })
+    expect(readNames).toHaveBeenCalledWith(
+      {
+        address: ADDRESS,
+        relations: ['owner'],
+        protocol: 'v2',
+        sort: 'name',
+        order: 'asc',
+        pageSize: 200,
+      },
+      expect.anything(),
+    )
   })
 
   it('follows the cursor until every page is read', async () => {
@@ -75,6 +78,7 @@ describe('getPrimaryNameDomains', () => {
     expect(readNames).toHaveBeenNthCalledWith(
       3,
       expect.objectContaining({ cursor: 'c2' }),
+      expect.anything(),
     )
   })
 

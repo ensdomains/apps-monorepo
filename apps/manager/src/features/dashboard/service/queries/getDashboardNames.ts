@@ -69,11 +69,13 @@ const getGraceNames = (
   addressNames: BignameClient['addressNames'],
   address: Address,
   now: Date,
+  signal: AbortSignal | undefined,
 ) =>
   readGraceNames(
     { addressNames },
     address,
     BigInt(Math.floor(now.getTime() / 1000)),
+    signal,
   )
     .map((rows) => rows.flatMap((row) => toGraceName(row) ?? []))
     .mapErr((error) => new GetDashboardNamesError({ cause: error }))
@@ -230,10 +232,15 @@ export const getDashboardNamesInfiniteQueryOptions = (
 export const getDashboardGraceNames = (
   addressNames: BignameClient['addressNames'],
   addresses: readonly Address[],
-  now: Date = new Date(),
+  {
+    now = new Date(),
+    signal,
+  }: Readonly<{ now?: Date; signal?: AbortSignal }> = {},
 ) =>
   ResultAsync.combine(
-    addresses.map((address) => getGraceNames(addressNames, address, now)),
+    addresses.map((address) =>
+      getGraceNames(addressNames, address, now, signal),
+    ),
   ).map((collections) => mergeDashboardNames(collections.flat()))
 
 export const getDashboardGraceNamesQueryOptions = (
@@ -245,7 +252,8 @@ export const getDashboardGraceNamesQueryOptions = (
     }),
     queryFn:
       addresses.length > 0
-        ? () => getDashboardGraceNames(bigname.addressNames, addresses)
+        ? ({ signal }) =>
+            getDashboardGraceNames(bigname.addressNames, addresses, { signal })
         : skipToken,
     meta: {
       dependsOn: ['indexer'],
@@ -261,19 +269,26 @@ export const getRenewableDashboardNames = ResultFn(async function* (
   addressNames: BignameClient['addressNames'],
   addresses: readonly Address[],
   search: string,
+  signal?: AbortSignal,
 ) {
   const owned = yield* ResultAsync.combine(
     addresses.map((address) =>
-      readAllNames(readNames, {
-        address,
-        relations: ['owner'],
-        protocol: 'v2',
-        parent: 'eth',
-        ...(search && { contains: search }),
-      }),
+      readAllNames(
+        readNames,
+        {
+          address,
+          relations: ['owner'],
+          protocol: 'v2',
+          parent: 'eth',
+          ...(search && { contains: search }),
+        },
+        { signal },
+      ),
     ),
   ).mapErr((error) => new GetDashboardNamesError({ cause: error }))
-  const lapsed = yield* getDashboardGraceNames(addressNames, addresses)
+  const lapsed = yield* getDashboardGraceNames(addressNames, addresses, {
+    signal,
+  })
   const searchLower = search.toLowerCase()
   return ok(
     mergeDashboardNames([
@@ -292,12 +307,13 @@ export const getRenewableDashboardNamesQueryOptions = (
       addresses: addresses.map((address) => address.toLowerCase()),
       search,
     }),
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       getRenewableDashboardNames(
         readNamesForAddress(bigname),
         bigname.addressNames,
         addresses,
         search,
+        signal,
       ),
     meta: {
       dependsOn: ['indexer'],

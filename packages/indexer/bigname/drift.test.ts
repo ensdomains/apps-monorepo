@@ -45,6 +45,10 @@ const EVENT_TYPES = [
   'primary_name',
   'permission',
   'subregistry',
+  'migration',
+  'reservation',
+  'token',
+  'contract',
 ]
 
 type Shape = Record<string, 'string' | 'number' | 'boolean' | 'object'>

@@ -2,6 +2,8 @@ import {
   SECONDS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
+import { Result } from 'neverthrow'
+import { normalize } from 'viem/ens'
 import { toExactSeconds } from './adapters'
 import type { BignameClient } from './client'
 import { readAllCollectionPages } from './paging'
@@ -10,9 +12,22 @@ import type { Address, AddressName } from './types'
 
 export const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
+const isNormalized = Result.fromThrowable(
+  (label: string) => normalize(label) === label,
+)
+
+/**
+ * A `.eth` second-level name with a normalized label. bigname serves a
+ * bracketed labelhash for a label it has no text for, which is no renewable name.
+ */
 const isEth2ld = (name: string): boolean => {
-  const labels = name.split('.')
-  return labels.length === 2 && labels[0] !== '' && labels[1] === 'eth'
+  const [label, tld, ...rest] = name.split('.')
+  return (
+    tld === 'eth' &&
+    rest.length === 0 &&
+    !!label &&
+    isNormalized(label).unwrapOr(false)
+  )
 }
 
 /**
@@ -49,17 +64,21 @@ export const readGraceNames = (
   signal?: AbortSignal,
 ) =>
   readAllCollectionPages(
-    (cursor) =>
-      client.addressNames(address, {
-        namespace: 'ens',
-        relation: 'former_owner',
-        parent: 'eth',
-        sort: 'expires_at',
-        order: 'asc',
-        expires_after: String(nowSeconds - V2_GRACE_SECONDS),
-        expires_before: String(nowSeconds + 1n),
-        page_size: MAX_PAGE_SIZE,
-        ...(cursor !== undefined && { cursor }),
-      }),
+    (cursor, pageSignal) =>
+      client.addressNames(
+        address,
+        {
+          namespace: 'ens',
+          relation: 'former_owner',
+          parent: 'eth',
+          sort: 'expires_at',
+          order: 'asc',
+          expires_after: String(nowSeconds - V2_GRACE_SECONDS),
+          expires_before: String(nowSeconds + 1n),
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor !== undefined && { cursor }),
+        },
+        { signal: pageSignal },
+      ),
     { signal },
   ).map((rows) => rows.filter((row) => isInV2Grace(row, address, nowSeconds)))

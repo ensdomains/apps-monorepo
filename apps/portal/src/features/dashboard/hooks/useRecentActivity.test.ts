@@ -94,4 +94,37 @@ describe('getRecentActivityQueryOptions', () => {
     expect(page.events).toHaveLength(1)
     expect(page.events[0]).toMatchObject({ name: null })
   })
+
+  it('counts a registration once and skips an authority row with no owner', async () => {
+    const action_id = 'c'.repeat(64)
+    const page = (await fetchPage([
+      row({
+        id: 'linked',
+        type: 'registration',
+        registration_id: 'r1',
+        data: { action_id, action_role: 'linked' },
+      }),
+      row({
+        id: 'registered',
+        type: 'registration',
+        data: { action_id, action_role: 'registered' },
+      }),
+      row({
+        id: 'epoch',
+        type: 'authority',
+        data: { action: 'authority_changed' },
+      }),
+      row({
+        id: 'wrap',
+        type: 'authority',
+        data: { action: 'name_wrapped' },
+      }),
+    ])) as { events: { type: string; data?: { action_role?: string } }[] }
+
+    expect(page.events.map(({ type }) => type)).toEqual([
+      'registration',
+      'authority',
+    ])
+    expect(page.events[0]?.data?.action_role).toBe('registered')
+  })
 })

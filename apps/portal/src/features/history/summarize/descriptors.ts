@@ -4,7 +4,7 @@ import {
   parseRecordKey,
   type RegistryRef,
 } from '@ens-apps/indexer/bigname'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { isAddress, zeroAddress } from 'viem'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -156,13 +156,13 @@ const describeRecord = (
         label: 'set content hash to',
         slots: [valueSlot(value)],
       }))
-      // History keeps the key of a `name()` write but not the name itself.
+      // Any account can write any string as its `name()`: shown as text, never a link.
       .with('name', () =>
         value
           ? {
               icon: 'primary',
               label: 'set primary name to',
-              slots: [nameSlot(value)],
+              slots: [valueSlot(value)],
             }
           : { icon: 'primary', label: 'set reverse name record', slots: [] },
       )
@@ -317,6 +317,94 @@ const describeMigration = (
   }
 }
 
+/**
+ * A record link points a node at a shared record set (record id `"0"` unlinks);
+ * it is neither a record write nor a resolver change.
+ */
+const describeResolver = (
+  primary: TimelineEventOfType<'resolver'>,
+): DescriptorResult =>
+  match(primary.data ?? {})
+    .returnType<DescriptorResult>()
+    .with({ action: 'resolver_record_linked', record_id: '0' }, () => ({
+      icon: 'records',
+      label: 'unlinked shared records',
+      slots: [],
+    }))
+    .with({ action: 'resolver_record_linked' }, ({ record_id }) => ({
+      icon: 'records',
+      label: 'linked shared records',
+      slots: record_id ? [{ kind: 'text', value: `ID ${record_id}` }] : [],
+    }))
+    .with({ resolver: P.nonNullable }, ({ resolver }) => ({
+      label: 'updated resolver to',
+      slots: [contractSlot(resolver, { label: 'resolver' })],
+    }))
+    .otherwise(() => ({ label: 'cleared resolver', slots: [] }))
+
+/**
+ * bigname serves no row `name` here; the recorded name is `data.name`,
+ * unverified and unnormalized, so it is text and only when it was set.
+ */
+const describePrimaryName = (
+  primary: TimelineEventOfType<'primary_name'>,
+): DescriptorResult => {
+  const account = addressSlot(primary.data?.address)
+  return match(primary.data ?? {})
+    .returnType<DescriptorResult>()
+    .with({ name_status: 'set', name: P.string }, ({ name }) => ({
+      label: 'set primary name',
+      slots: [valueSlot(name), { kind: 'glyph', value: '↔' }, account],
+    }))
+    .with({ name_status: 'cleared' }, () => ({
+      icon: 'revoke',
+      label: 'cleared primary name of',
+      slots: [account],
+    }))
+    .with({ action: 'reverse_claimed' }, () => ({
+      label: 'claimed reverse record for',
+      slots: [account],
+    }))
+    .otherwise(() => ({ label: 'updated primary name of', slots: [account] }))
+}
+
+const describeContract = (
+  primary: TimelineEventOfType<'contract'>,
+): DescriptorResult => {
+  const data = primary.data ?? {}
+  const registry = contractSlot(data.registry, { isRegistry: true })
+  return match(data.action)
+    .returnType<DescriptorResult>()
+    .with('registry_created', () => ({
+      label: 'created registry',
+      slots: [registry],
+    }))
+    .with('registry_parent_changed', () =>
+      data.parent_cleared
+        ? { label: 'cleared the parent of', slots: [registry] }
+        : {
+            label: 'set the parent of',
+            slots: [
+              registry,
+              { kind: 'connective', value: 'to' },
+              contractSlot(data.parent, { isRegistry: true }),
+            ],
+          },
+    )
+    .with('contract_upgraded', () => ({
+      label: 'upgraded',
+      slots: [
+        contractSlot(data.proxy),
+        { kind: 'connective', value: 'to' },
+        contractSlot(data.implementation),
+      ],
+    }))
+    .otherwise(() => ({
+      label: humanizeType(primary.kind ?? primary.type).toLowerCase(),
+      slots: [],
+    }))
+}
+
 type Descriptors = {
   readonly [TType in EventType]: Descriptor<TimelineEventOfType<TType>>
 }
@@ -389,15 +477,7 @@ const DESCRIPTORS: Descriptors = {
   },
   resolver: {
     icon: 'resolver',
-    build: (primary) =>
-      primary.data?.resolver
-        ? {
-            label: 'updated resolver to',
-            slots: [
-              contractSlot(primary.data?.resolver, { label: 'resolver' }),
-            ],
-          }
-        : { label: 'cleared resolver', slots: [] },
+    build: describeResolver,
   },
   record: {
     icon: 'records',
@@ -405,14 +485,7 @@ const DESCRIPTORS: Descriptors = {
   },
   primary_name: {
     icon: 'primary',
-    build: (primary) => ({
-      label: 'set primary name',
-      slots: [
-        nameSlot(primary.name),
-        { kind: 'glyph', value: '↔' },
-        addressSlot(primary.data?.address),
-      ],
-    }),
+    build: describePrimaryName,
   },
   permission: {
     icon: 'grant',
@@ -433,6 +506,24 @@ const DESCRIPTORS: Descriptors = {
   migration: {
     icon: 'migrate',
     build: describeMigration,
+  },
+  reservation: {
+    icon: 'register',
+    build: (primary) => ({
+      label:
+        primary.data?.action === 'reservation_became_reachable'
+          ? 'reservation became reachable'
+          : 'reserved',
+      slots: [nameSlot(primary.name)],
+    }),
+  },
+  token: {
+    icon: 'default',
+    build: () => ({ label: 'regenerated token', slots: [] }),
+  },
+  contract: {
+    icon: 'registry',
+    build: describeContract,
   },
 }
 

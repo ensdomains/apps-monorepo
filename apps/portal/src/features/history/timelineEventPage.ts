@@ -3,8 +3,10 @@ import {
   type Envelope,
   type EventRow,
   type EventType,
+  isStale,
   MAX_PAGE_SIZE,
   type NameHistoryRow,
+  retryStale,
   secondsToTimestamp,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -72,8 +74,14 @@ const toPage = ({ data, page }: HistoryPage): TimelinePage => ({
   totalCount: page?.total_count ?? undefined,
 })
 
-const wrap = (read: ResultAsync<HistoryPage, BignameError>) =>
-  read.map(toPage).mapErr((cause) => new GetTimelineEventPageError({ cause }))
+/** One page read, sent again while bigname answers stale. */
+const wrap = (
+  read: (signal?: AbortSignal) => ResultAsync<HistoryPage, BignameError>,
+  signal: AbortSignal | undefined,
+) =>
+  retryStale(read, isStale, { signal })
+    .map(toPage)
+    .mapErr((cause) => new GetTimelineEventPageError({ cause }))
 
 export type NameHistoryPageParameters = {
   readonly name: string
@@ -87,6 +95,7 @@ export type NameHistoryPageParameters = {
   readonly cursor?: string
   /** Merge the direct children's registrations into the stream (#939). */
   readonly includeChildRegistrations?: boolean
+  readonly signal?: AbortSignal
 }
 
 const EMPTY_PAGE: TimelinePage = {
@@ -105,26 +114,33 @@ export const fetchNameHistoryPage = ({
   pageSize = HISTORY_TIMELINE_PAGE_SIZE,
   cursor,
   includeChildRegistrations = false,
+  signal,
 }: NameHistoryPageParameters) =>
   // A facet and a chip selection with nothing in common match nothing; bigname
   // answers an empty `type` set with `400`, so it is not asked.
   types?.length === 0
     ? okAsync<TimelinePage, GetTimelineEventPageError>(EMPTY_PAGE)
     : wrap(
-        bigname.nameHistory(normalizeOrLower(name), {
-          include:
-            includeChildRegistrations && canIncludeChildRegistrations(name)
-              ? ['data', 'raw', 'child_registrations']
-              : ['data', 'raw'],
-          ...(types && { type: types }),
-          ...(from !== undefined && {
-            from_timestamp: secondsToTimestamp(from),
-          }),
-          ...(to !== undefined && { to_timestamp: secondsToTimestamp(to) }),
-          order,
-          page_size: pageSize,
-          ...(cursor && { cursor }),
-        }),
+        (requestSignal) =>
+          bigname.nameHistory(
+            normalizeOrLower(name),
+            {
+              include:
+                includeChildRegistrations && canIncludeChildRegistrations(name)
+                  ? ['data', 'raw', 'child_registrations']
+                  : ['data', 'raw'],
+              ...(types && { type: types }),
+              ...(from !== undefined && {
+                from_timestamp: secondsToTimestamp(from),
+              }),
+              ...(to !== undefined && { to_timestamp: secondsToTimestamp(to) }),
+              order,
+              page_size: pageSize,
+              ...(cursor && { cursor }),
+            },
+            { signal: requestSignal },
+          ),
+        signal,
       )
 
 /** Every registration a registry emits is of one of its labels: a subname. */
@@ -143,18 +159,25 @@ const asSubnames = (page: TimelinePage): TimelinePage => ({
 export const fetchContractEventsPage = ({
   contractAddress,
   cursor,
+  signal,
 }: {
   readonly contractAddress: Address
   readonly cursor?: string
+  readonly signal?: AbortSignal
 }) =>
   wrap(
-    bigname.events({
-      contract_address: contractAddress.toLowerCase() as Address,
-      include: ['data', 'raw', 'total_count'],
-      order: 'desc',
-      page_size: HISTORY_TIMELINE_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+    (requestSignal) =>
+      bigname.events(
+        {
+          contract_address: contractAddress.toLowerCase() as Address,
+          include: ['data', 'raw', 'total_count'],
+          order: 'desc',
+          page_size: HISTORY_TIMELINE_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: requestSignal },
+      ),
+    signal,
   ).map(asSubnames)
 
 /**
@@ -165,16 +188,23 @@ export const fetchContractEventsPage = ({
 export const fetchResolverEventsPage = ({
   resolverAddress,
   cursor,
+  signal,
 }: {
   readonly resolverAddress: Address
   readonly cursor?: string
+  readonly signal?: AbortSignal
 }) =>
   wrap(
-    bigname.events({
-      resolver: `${envConfig.chain.id}:${resolverAddress.toLowerCase()}`,
-      include: ['data', 'raw', 'total_count'],
-      order: 'desc',
-      page_size: MAX_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+    (requestSignal) =>
+      bigname.events(
+        {
+          resolver: `${envConfig.chain.id}:${resolverAddress.toLowerCase()}`,
+          include: ['data', 'raw', 'total_count'],
+          order: 'desc',
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: requestSignal },
+      ),
+    signal,
   )

@@ -88,22 +88,31 @@ const toHolders =
  * state the declared role bits with no read-time mask, so they are the same
  * set the contract stores.
  */
-const readRootPermissions = (registryAddress: Address) =>
-  readAllEnvelopes((cursor) =>
-    bigname.permissions({
-      registry: `${envConfig.chain.id}:${registryAddress.toLowerCase()}`,
-      page_size: MAX_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+const readRootPermissions = (
+  registryAddress: Address,
+  signal: AbortSignal | undefined,
+) =>
+  readAllEnvelopes(
+    (cursor, pageSignal) =>
+      bigname.permissions(
+        {
+          registry: `${envConfig.chain.id}:${registryAddress.toLowerCase()}`,
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: pageSignal },
+      ),
+    { signal },
   ).map((pages) => ({
     rows: pages.flatMap((page) => page.data),
     meta: pages.at(-1)?.meta,
   }))
 
-export const getBignameRootRoleHolders = ({
-  registryAddress,
-}: RegistryParameters) =>
-  readRootPermissions(registryAddress)
+export const getBignameRootRoleHolders = (
+  { registryAddress }: RegistryParameters,
+  signal?: AbortSignal,
+) =>
+  readRootPermissions(registryAddress, signal)
     .mapErr(toError)
     .map(
       ({ rows, meta }): RegistryRootRoles => ({
@@ -164,17 +173,23 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
  */
 export const getBignameRootRoleChanges = (
   params: RegistryParameters & { readonly account: Address },
+  signal?: AbortSignal,
 ) =>
-  readAllCollectionPages<EventRow>((cursor) =>
-    bigname.events({
-      contract_address: params.registryAddress.toLowerCase() as Address,
-      address: params.account.toLowerCase() as Address,
-      kind: ['RootPermissionChanged'],
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: MAX_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+  readAllCollectionPages<EventRow>(
+    (cursor, pageSignal) =>
+      bigname.events(
+        {
+          contract_address: params.registryAddress.toLowerCase() as Address,
+          address: params.account.toLowerCase() as Address,
+          kind: ['RootPermissionChanged'],
+          include: ['data', 'raw'],
+          order: 'desc',
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: pageSignal },
+      ),
+    { signal },
   )
     .mapErr(toError)
     .map((rows) =>

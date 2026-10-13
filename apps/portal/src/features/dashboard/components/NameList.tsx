@@ -20,6 +20,7 @@ import { dateToPlainDate } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 import {
   getAddressRoleCountsQueryOptions,
+  type RoleCount,
   roleCountsOf,
   withRoleCounts,
 } from '../hooks/useAddressRoleCounts'
@@ -29,7 +30,7 @@ interface NameListProps {
   readonly limit?: number
 }
 
-type column = AddressNameItem
+type column = AddressNameItem & { readonly roleCount?: RoleCount }
 
 const NameCell = ({ name }: { name: string }) => (
   <EntityBadge variant="name" name={name} showAvatar>

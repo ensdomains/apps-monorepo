@@ -63,17 +63,21 @@ const navigationSections: readonly NavigationSection[] = [
         icon: <LogoIconBlack />,
         className: 'text-base',
       },
-      {
-        label: msg`Go to ENS Explorer`,
-        href: EXPLORER_URL,
-        className: 'text-base gap-1',
-        suffix: (
-          <MSymbol
-            className="ms-opsz-30 hover:no-underline"
-            symbol="arrow_outward"
-          />
-        ),
-      },
+      ...(EXPLORER_URL
+        ? [
+            {
+              label: msg`Go to ENS Explorer`,
+              href: EXPLORER_URL,
+              className: 'text-base gap-1',
+              suffix: (
+                <MSymbol
+                  className="ms-opsz-30 hover:no-underline"
+                  symbol="arrow_outward"
+                />
+              ),
+            },
+          ]
+        : []),
     ],
   },
   {

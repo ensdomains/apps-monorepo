@@ -132,6 +132,31 @@ export const getAddressHistoryQueryOptions = (
       ),
   })
 
+const txOf = (row: EventRow): string | null =>
+  row.transaction_hash?.toLowerCase() ?? null
+
+/**
+ * How many of `rows` (newest first) to show for a window of `window`, so no
+ * transaction is split: a cut inside one takes the rest of it, and the last
+ * loaded one, which may continue on the next page while `hasMore`, waits for
+ * it. A registration's twin rows sit in one transaction, so they stay together.
+ */
+export const countWholeTransactions = (
+  rows: readonly EventRow[],
+  window: number,
+  hasMore: boolean,
+): number => {
+  let end = Math.min(window, rows.length)
+  const last = end > 0 ? txOf(rows[end - 1]) : null
+  if (last !== null)
+    while (end < rows.length && txOf(rows[end]) === last) end += 1
+  if (end < rows.length || !hasMore || last === null) return end
+  let start = end
+  while (start > 0 && txOf(rows[start - 1]) === last) start -= 1
+  // One transaction larger than the whole read is shown as it is.
+  return start > 0 ? start : end
+}
+
 export const ADDRESS_HISTORY_PAGE_SIZE = 100
 
 export type AddressHistoryPage = {

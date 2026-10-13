@@ -295,6 +295,32 @@ describe('summarizeEvents — ENSv1 wraps', () => {
   })
 })
 
+describe('summarizeEvents — newer rows', () => {
+  it('headlines an ENSv2 reservation over its resolver row', () => {
+    const [action] = summarizeEvents([
+      event('resolver', '1', {
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
+      event('reservation', '2', { action: 'registration_reserved' }),
+    ])
+    expect(action.label).toBe('reserved')
+  })
+
+  it('ranks a record link under a resolver change', () => {
+    const [action] = summarizeEvents([
+      event('resolver', '1', {
+        action: 'resolver_record_linked',
+        record_id: '7',
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
+      event('resolver', '2', {
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
+    ])
+    expect(action.label).toBe('updated resolver to')
+  })
+})
+
 describe('summarizeEvents', () => {
   it('counts a registration once, though bigname serves it as two rows', () => {
     const registered = mockHistoryRegistrationPayment

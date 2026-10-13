@@ -1,5 +1,6 @@
-const ENS_METADATA_V2_SEPOLIA_URL =
-  'https://ens-metadata-v2.ensdomains.workers.dev/sepolia'
+import { envConfig } from '@/config'
+
+const ENS_METADATA_V2_URL = `https://ens-metadata-v2.ensdomains.workers.dev/${envConfig.network}`
 
 const buildNameImageUrl = ({
   kind,
@@ -9,7 +10,7 @@ const buildNameImageUrl = ({
   name: string
 }): string => {
   const url = new URL(
-    `${ENS_METADATA_V2_SEPOLIA_URL}/${kind}/${encodeURIComponent(name)}`,
+    `${ENS_METADATA_V2_URL}/${kind}/${encodeURIComponent(name)}`,
   )
 
   return url.toString()

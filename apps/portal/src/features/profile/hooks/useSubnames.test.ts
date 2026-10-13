@@ -79,6 +79,7 @@ describe('subname pages', () => {
         sort: 'name',
         page_size: 100,
       },
+      { signal: expect.any(AbortSignal) },
     ])
     expect(subnames).toEqual([
       {
@@ -246,7 +247,9 @@ describe('getIsSubnameTakenQueryOptions', () => {
     detail({ status: 'active' })
 
     expect(await isTaken()).toBe(true)
-    expect(bigname.name).toHaveBeenCalledWith('sub.test.eth')
+    expect(bigname.name).toHaveBeenCalledWith('sub.test.eth', undefined, {
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('is free when the subname was released or never registered', async () => {

@@ -5,7 +5,7 @@ import {
   type TimelineEvent,
 } from './timelineEvent'
 
-/** Chip labels for bigname's twelve history types. */
+/** Chip labels for bigname's history types. */
 export const HISTORY_EVENT_TYPE_LABELS: Record<EventType, string> = {
   registration: 'Registration',
   renewal: 'Renewal',
@@ -19,6 +19,9 @@ export const HISTORY_EVENT_TYPE_LABELS: Record<EventType, string> = {
   permission: 'Permission',
   subregistry: 'Subregistry',
   migration: 'Migration',
+  reservation: 'Reservation',
+  token: 'Token',
+  contract: 'Contract',
 }
 
 /** The name-page facets, in bigname's vocabulary. */

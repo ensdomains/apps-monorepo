@@ -49,7 +49,7 @@ export type RecordHistoryEvent = {
 
 const FAMILY_MATCHERS: Record<RecordHistoryFamily, (key: string) => boolean> = {
   coins: (key) => key.startsWith('addr:'),
-  texts: (key) => key.startsWith('text:') || key === 'avatar',
+  texts: (key) => key.startsWith('text:'),
   contentHash: (key) => key === 'contenthash',
   abi: (key) => key.startsWith('abi'),
 }
@@ -105,16 +105,21 @@ const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
  * `record_key`, which keeps that key's writes and every record reset; a family
  * reads every `record` row and filters them here.
  */
-const getRecordHistory = ({ name, key }: RecordHistoryParameters) =>
-  readAllCollectionPages<NameHistoryRow>((cursor) =>
-    bigname.nameHistory(normalizeOrLower(name), {
-      type: ['record'],
-      ...(!isFamily(key) && { record_key: key }),
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: MAX_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+const getRecordHistory = (
+  { name, key }: RecordHistoryParameters,
+  signal?: AbortSignal,
+) =>
+  readAllCollectionPages<NameHistoryRow>(
+    (cursor) =>
+      bigname.nameHistory(normalizeOrLower(name), {
+        type: ['record'],
+        ...(!isFamily(key) && { record_key: key }),
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size: MAX_PAGE_SIZE,
+        ...(cursor && { cursor }),
+      }),
+    { signal },
   )
     .map((rows) =>
       rows.filter((row) => matchesKey(row, key)).flatMap(toRecordHistoryEvent),
@@ -129,5 +134,6 @@ const getRecordHistoryQueryKey = createQueryKey<
 export const getRecordHistoryQueryOptions = (params: RecordHistoryParameters) =>
   resultQueryOptions({
     queryKey: getRecordHistoryQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRecordHistory(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getRecordHistory(params, signal),
   })

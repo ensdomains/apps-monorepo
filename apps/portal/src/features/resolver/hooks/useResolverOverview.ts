@@ -113,8 +113,11 @@ export type ResolverOverview = {
   readonly links: readonly ResolverLink[]
   readonly namedResources: readonly ResolverNamedResource[]
   readonly roles: readonly ResolverRole[]
-  /** The newest events (see `RESOLVER_EVENTS_PAGE_SIZE`), newest first. */
-  readonly events: readonly ResolverEvent[]
+  /**
+   * The newest events (see `RESOLVER_EVENTS_PAGE_SIZE`), newest first; null
+   * when bigname could not serve them, which leaves the rest of the page up.
+   */
+  readonly events: readonly ResolverEvent[] | null
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
@@ -248,7 +251,7 @@ const toNamedResource = (
   if (!reading) return undefined
   const base = { resource: BigInt(resource.hash).toString() }
   return match(reading)
-    .returnType<ResolverNamedResource>()
+    .returnType<ResolverNamedResource | undefined>()
     .with({ kind: 'address' }, (address) => ({
       ...base,
       recordKind: 'addr',
@@ -275,7 +278,7 @@ const toNamedResource = (
       recordKey: iface.interface_id,
       coinType: null,
     }))
-    .exhaustive()
+    .otherwise(() => undefined)
 }
 
 /**
@@ -346,9 +349,13 @@ type Collection<T> = {
 
 /** Every page of a resolver collection, with the weakest completeness any page stated. */
 const readResolverCollection = <T>(
-  read: (cursor?: string) => ResultAsync<Envelope<readonly T[]>, BignameError>,
+  read: (
+    cursor: string | undefined,
+    signal?: AbortSignal,
+  ) => ResultAsync<Envelope<readonly T[]>, BignameError>,
+  signal: AbortSignal | undefined,
 ): ResultAsync<Collection<T>, BignameError> =>
-  readAllEnvelopes(read).map((pages) => ({
+  readAllEnvelopes(read, { signal }).map((pages) => ({
     rows: pages.flatMap((page) => page.data),
     status: pages.reduce<Completeness>(
       (status, page) => weaker(status, page.meta.completeness ?? 'full'),
@@ -364,13 +371,20 @@ export const resolverCollectionCount = (
   return `${count}${status === 'partial' ? '+' : ''}`
 }
 
-const readOverview = ({ chainId, address }: ResolverRef) =>
+const readOverview = (
+  { chainId, address }: ResolverRef,
+  signal: AbortSignal | undefined,
+) =>
   retryStale(
-    () =>
-      bigname.resolver(chainId, address, {
-        page_size: OVERVIEW_NODES_PAGE_SIZE,
-      }),
+    (requestSignal) =>
+      bigname.resolver(
+        chainId,
+        address,
+        { page_size: OVERVIEW_NODES_PAGE_SIZE },
+        { signal: requestSignal },
+      ),
     isStale,
+    { signal },
   )
 
 type OverviewPage = Envelope<BignameResolverOverview>
@@ -379,8 +393,11 @@ type OverviewPage = Envelope<BignameResolverOverview>
  * The overview, or null when bigname fails to serve it for any reason but an
  * unknown resolver: only the node count comes from it, so the rest still renders.
  */
-const readBoundNames = (resolver: ResolverRef) =>
-  readOverview(resolver)
+const readBoundNames = (
+  resolver: ResolverRef,
+  signal: AbortSignal | undefined,
+) =>
+  readOverview(resolver, signal)
     .map((overview): OverviewPage | null => overview)
     .orElse((error) =>
       error.code === 'not_found' ? errAsync(error) : okAsync(null),
@@ -391,7 +408,7 @@ const toOverview = (
   overview: OverviewPage | null,
   links: Collection<BignameResolverLink>,
   roles: Collection<BignameResolverRole>,
-  events: Envelope<readonly EventRow[]>,
+  events: Envelope<readonly EventRow[]> | null,
 ): ResolverOverview => {
   const boundNames = overview?.data.bound_names
   const resolverLinks = toLinks(links.rows.flatMap(toLinkedName))
@@ -418,9 +435,36 @@ const toOverview = (
     namedResources: roles.rows.flatMap((row) =>
       row.record_resource ? (toNamedResource(row.record_resource) ?? []) : [],
     ),
-    events: events.data.flatMap(toResolverEvent),
+    events: events ? events.data.flatMap(toResolverEvent) : null,
   }
 }
+
+/**
+ * The newest events, or null when bigname fails to serve them: the filter has
+ * answered 500 at some page sizes, and it must not take the other tabs down.
+ */
+const readRecentEvents = (
+  { chainId, address }: ResolverRef,
+  signal: AbortSignal | undefined,
+) =>
+  retryStale(
+    (requestSignal) =>
+      bigname.events(
+        {
+          resolver: `${chainId}:${address}`,
+          include: ['data', 'raw'],
+          order: 'desc',
+          page_size: RESOLVER_EVENTS_PAGE_SIZE,
+        },
+        { signal: requestSignal },
+      ),
+    isStale,
+    { signal },
+  )
+    .map((events): Envelope<readonly EventRow[]> | null => events)
+    .orElse(() =>
+      okAsync<Envelope<readonly EventRow[]> | null, BignameError>(null),
+    )
 
 /**
  * A resolver's overview in four bigname reads, together: the overview for its
@@ -428,33 +472,35 @@ const toOverview = (
  * The overview itself carries no counts or samples (bigname #954). Null when
  * bigname knows no resolver at this address.
  */
-const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
+const getResolverOverview = (
+  { address }: GetResolverOverviewParameters,
+  signal?: AbortSignal,
+) => {
   const resolver = resolverRefOf(address)
   const { chainId } = resolver
   return ResultAsync.combine([
-    readBoundNames(resolver),
-    readResolverCollection<BignameResolverLink>((cursor) =>
-      bigname.resolverLinks(chainId, resolver.address, {
-        page_size: MAX_PAGE_SIZE,
-        ...(cursor && { cursor }),
-      }),
+    readBoundNames(resolver, signal),
+    readResolverCollection<BignameResolverLink>(
+      (cursor, pageSignal) =>
+        bigname.resolverLinks(
+          chainId,
+          resolver.address,
+          { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
+          { signal: pageSignal },
+        ),
+      signal,
     ),
-    readResolverCollection<BignameResolverRole>((cursor) =>
-      bigname.resolverRoles(chainId, resolver.address, {
-        page_size: MAX_PAGE_SIZE,
-        ...(cursor && { cursor }),
-      }),
+    readResolverCollection<BignameResolverRole>(
+      (cursor, pageSignal) =>
+        bigname.resolverRoles(
+          chainId,
+          resolver.address,
+          { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
+          { signal: pageSignal },
+        ),
+      signal,
     ),
-    retryStale(
-      () =>
-        bigname.events({
-          resolver: `${chainId}:${resolver.address}`,
-          include: ['data', 'raw'],
-          order: 'desc',
-          page_size: RESOLVER_EVENTS_PAGE_SIZE,
-        }),
-      isStale,
-    ),
+    readRecentEvents(resolver, signal),
   ])
     .map(([overview, links, roles, events]): ResolverOverview | null =>
       toOverview(resolver, overview, links, roles, events),
@@ -477,14 +523,21 @@ export type ResolverNodesPage = {
 
 export const RESOLVER_NODES_PAGE_SIZE = 100
 
-const readBoundNamesPage = (resolver: ResolverRef, cursor?: string) =>
+const readBoundNamesPage = (
+  resolver: ResolverRef,
+  cursor: string | undefined,
+  signal: AbortSignal | undefined,
+) =>
   retryStale(
-    () =>
-      bigname.resolver(resolver.chainId, resolver.address, {
-        page_size: RESOLVER_NODES_PAGE_SIZE,
-        ...(cursor && { cursor }),
-      }),
+    (requestSignal) =>
+      bigname.resolver(
+        resolver.chainId,
+        resolver.address,
+        { page_size: RESOLVER_NODES_PAGE_SIZE, ...(cursor && { cursor }) },
+        { signal: requestSignal },
+      ),
     isStale,
+    { signal },
   )
     .map(
       ({ data }): ResolverNodesPage => ({
@@ -516,8 +569,8 @@ export const getResolverNodesQueryOptions = (
 ) =>
   resultInfiniteQueryOptions({
     queryKey: resolverNodesQueryKey(params),
-    queryFn: ({ queryKey: [, params], pageParam }) =>
-      readBoundNamesPage(resolverRefOf(params.address), pageParam),
+    queryFn: ({ queryKey: [, params], pageParam, signal }) =>
+      readBoundNamesPage(resolverRefOf(params.address), pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last: ResolverNodesPage) => last.nextCursor ?? undefined,
   })
@@ -528,7 +581,7 @@ const resolverOverviewQueryKey = createQueryKey<
 >('resolver-overview')
 
 /** The resolver's own event feed, which the history page pages through. */
-export const resolverHistoryTimelineQueryKey = createQueryKey<
+const resolverHistoryTimelineQueryKey = createQueryKey<
   'get-resolver-history-timeline',
   GetResolverOverviewParameters
 >('get-resolver-history-timeline')
@@ -539,8 +592,12 @@ export const getResolverHistoryQueryOptions = (
 ) =>
   resultInfiniteQueryOptions({
     queryKey: resolverHistoryTimelineQueryKey(params),
-    queryFn: ({ queryKey: [, { address }], pageParam }) =>
-      fetchResolverEventsPage({ resolverAddress: address, cursor: pageParam }),
+    queryFn: ({ queryKey: [, { address }], pageParam, signal }) =>
+      fetchResolverEventsPage({
+        resolverAddress: address,
+        cursor: pageParam,
+        signal,
+      }),
     ...timelinePageParams,
   })
 
@@ -569,5 +626,6 @@ export const getResolverOverviewQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: resolverOverviewQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getResolverOverview(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getResolverOverview(params, signal),
   })

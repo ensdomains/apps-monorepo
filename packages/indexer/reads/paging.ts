@@ -1,6 +1,6 @@
 import type { ResultAsync } from 'neverthrow'
 import { type PagingStop, readAllPages, retryStale } from '../shared/paging'
-import type { Page } from './common.types'
+import type { Page, ReadOptions } from './common.types'
 import { IndexerReadError } from './errors'
 import type {
   NameSummary,
@@ -14,7 +14,8 @@ const isStaleRead = (error: IndexerReadError) => error.kind === 'stale'
 
 const toReadStopError = (reason: PagingStop) =>
   new IndexerReadError({
-    kind: reason === 'aborted' ? 'unavailable' : 'rejected',
+    kind: 'unavailable',
+    message: `Paging stopped: ${reason}`,
     cause: reason,
   })
 
@@ -22,8 +23,9 @@ const toReadStopError = (reason: PagingStop) =>
 export const readNamesPage = (
   readNames: ReadNamesForAddress,
   query: NamesForAddressQuery,
+  options: ReadOptions = {},
 ): ResultAsync<Page<NameSummary>, IndexerReadError> =>
-  retryStale(() => readNames(query), isStaleRead)
+  retryStale((signal) => readNames(query, { signal }), isStaleRead, options)
 
 /** Every page of a names read, in the order bigname returns them. */
 export const readAllNames = (
@@ -35,12 +37,15 @@ export const readAllNames = (
   }: Readonly<{ pageSize?: number; signal?: AbortSignal }> = {},
 ): ResultAsync<readonly NameSummary[], IndexerReadError> =>
   readAllPages({
-    readPage: (cursor) =>
-      readNames({
-        ...query,
-        pageSize,
-        ...(cursor !== undefined && { cursor }),
-      }).map(({ items, nextCursor }) => ({ rows: items, nextCursor })),
+    readPage: (cursor, signal) =>
+      readNames(
+        {
+          ...query,
+          pageSize,
+          ...(cursor !== undefined && { cursor }),
+        },
+        { signal },
+      ).map(({ items, nextCursor }) => ({ rows: items, nextCursor })),
     isStaleError: isStaleRead,
     toStopError: toReadStopError,
     signal,

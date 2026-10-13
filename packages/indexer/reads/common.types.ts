@@ -19,4 +19,7 @@ export type Page<Item> = Readonly<{
   totalCount: number | null
 }>
 
+/** Per-read options; `signal` cancels the request in flight. */
+export type ReadOptions = Readonly<{ signal?: AbortSignal }>
+
 export type { Address, Hex }

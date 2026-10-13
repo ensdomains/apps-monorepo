@@ -74,8 +74,6 @@ interface NameRowProps {
   readonly renewalProtocol?: RenewalProtocol
 }
 
-const explorerUrl = (label: string) => `${EXPLORER_URL}/${label}`
-
 const SelectedCheck = () => (
   <span className="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-ens-lapis-core">
     <Check className="size-3.5 text-ens-quartz-0" strokeWidth={3} />
@@ -105,10 +103,12 @@ const RowCta = ({
   readonly renewalProtocol: RenewalProtocol
 }) => {
   if (cta === 'manageExplorer') {
+    if (!EXPLORER_URL) return null
+
     return (
       <a
         className={ctaVariants({ kind: 'manageExplorer' })}
-        href={explorerUrl(label)}
+        href={`${EXPLORER_URL}/${label}`}
         rel="noopener noreferrer"
         target="_blank"
       >

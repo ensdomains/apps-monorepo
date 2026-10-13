@@ -51,11 +51,14 @@ describe('hasDashboardNames', () => {
 
     expect(result._unsafeUnwrap()).toBe(true)
     expect(readNames).toHaveBeenCalledTimes(1)
-    expect(readNames).toHaveBeenCalledWith({
-      address: ADDRESS,
-      relations: ['owner'],
-      pageSize: 50,
-    })
+    expect(readNames).toHaveBeenCalledWith(
+      {
+        address: ADDRESS,
+        relations: ['owner'],
+        pageSize: 50,
+      },
+      expect.anything(),
+    )
   })
 
   it.each([
@@ -80,6 +83,7 @@ describe('hasDashboardNames', () => {
     expect(result._unsafeUnwrap()).toBe(true)
     expect(readNames).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: 'c1' }),
+      expect.anything(),
     )
   })
 

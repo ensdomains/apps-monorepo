@@ -30,7 +30,7 @@ const DQA_ORIGIN =
     : null
 
 // Deployment-specific override origins, derived from the same build-time envs
-// the RPC and bigname clients read (lib/wagmi.ts, lib/bigname.ts).
+// the RPC client reads (lib/wagmi.ts).
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
   DQA_ORIGIN,

@@ -93,6 +93,16 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
         </>
       )
     })
+    .with(
+      { type: 'resolver', data: { action: 'resolver_record_linked' } },
+      (e) => (
+        <span className={muted}>
+          {e.data.record_id === '0'
+            ? 'unlinked shared records'
+            : 'linked shared records'}
+        </span>
+      ),
+    )
     .with({ type: 'migration' }, (e) => {
       const path = migrationPathLabel(e.data?.migration_path)
       return (

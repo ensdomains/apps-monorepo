@@ -59,6 +59,7 @@ describe('getRegistryOccupants', () => {
       expect.any(Number),
       REGISTRY.toLowerCase(),
       { page_size: 200 },
+      expect.anything(),
     )
   })
 
@@ -98,6 +99,7 @@ describe('getRegistryOccupants', () => {
       expect.any(Number),
       REGISTRY.toLowerCase(),
       { exclude_owner: ACCOUNT.toLowerCase(), page_size: 1 },
+      expect.anything(),
     )
   })
 

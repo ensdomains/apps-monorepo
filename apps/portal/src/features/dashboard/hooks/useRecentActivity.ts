@@ -10,6 +10,7 @@ import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/never
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address, Hash } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 
 /** The row's friendly type with its typed `include=data` payload. */
 type RecentActivityPayload = {
@@ -43,11 +44,22 @@ class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
 
 const RECENT_ACTIVITY_PAGE_SIZE = 15
 
+/**
+ * An authority epoch with no new owner (bigname writes them beside
+ * registrations and wraps) says nothing a reader can act on.
+ */
+const isOwnerlessAuthority = (row: EventRow): boolean =>
+  row.type === 'authority' &&
+  !row.data?.owner &&
+  row.data?.action !== 'name_wrapped' &&
+  row.data?.action !== 'name_unwrapped'
+
 const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
   const timestamp = toUnixSeconds(row.timestamp)
   // A state-derived row has no transaction to link, nor a place in the feed.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
     return []
+  if (isOwnerlessAuthority(row)) return []
   // A record write bigname could not attribute to a name carries none.
   const name = row.name || null
   // A row is its payload plus fields read here, so it stands in for one.
@@ -79,7 +91,8 @@ const getRecentActivityPage = (cursor: string | undefined) =>
     })
     .map(
       ({ data, page }): RecentActivityPage => ({
-        events: data.flatMap(toActivityEvent),
+        // A twin whose partner is on the next page stays, as in the timeline.
+        events: mergeRegistrationTwins(data).flatMap(toActivityEvent),
         endCursor: page?.next_cursor ?? null,
         hasNextPage: page?.has_more ?? false,
       }),

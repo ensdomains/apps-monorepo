@@ -63,8 +63,20 @@ const FIELD_TYPES: Record<EventType, Record<string, string>> = {
     token_id: 'uint256',
     canonical_id: 'uint256',
   },
-  authority: { owner: 'address', from: 'address' },
-  resolver: { resolver: 'address', canonical_id: 'uint256' },
+  authority: {
+    owner: 'address',
+    from: 'address',
+    node: 'bytes32',
+    fuses: 'uint32',
+    expires_at: 'timestamp',
+  },
+  resolver: {
+    resolver: 'address',
+    canonical_id: 'uint256',
+    node: 'bytes32',
+    record_id: 'uint256',
+    dns_encoded_name: 'bytes',
+  },
   record: {
     key: 'string',
     value: 'string | bytes',
@@ -72,12 +84,14 @@ const FIELD_TYPES: Record<EventType, Record<string, string>> = {
     resolver: 'address',
     node: 'bytes32',
     record_id: 'uint256',
+    record_version: 'uint256',
   },
   primary_name: {
     address: 'address',
     coin_type: 'uint256',
     name: 'string',
     name_status: 'string',
+    reverse_node: 'bytes32',
   },
   permission: {
     address: 'address',
@@ -87,6 +101,8 @@ const FIELD_TYPES: Record<EventType, Record<string, string>> = {
     removed_powers: 'string[]',
     approved: 'bool',
     fuses: 'uint32',
+    owner: 'address',
+    operator: 'address',
     token_id: 'uint256',
     canonical_id: 'uint256',
     // Not a served field: a root row's `grant_scope.detail.registry`.
@@ -94,6 +110,22 @@ const FIELD_TYPES: Record<EventType, Record<string, string>> = {
   },
   subregistry: { subregistry: 'address', canonical_id: 'uint256' },
   migration: { migration_path: 'string' },
+  reservation: {
+    expires_at: 'timestamp',
+    expires_at_reason: 'string',
+    token_id: 'uint256',
+    canonical_id: 'uint256',
+    node: 'bytes32',
+  },
+  token: { old_token_id: 'uint256', new_token_id: 'uint256' },
+  contract: {
+    registry: 'address',
+    parent: 'address',
+    parent_cleared: 'bool',
+    label: 'string',
+    proxy: 'address',
+    implementation: 'address',
+  },
 }
 
 export const getTimelineFieldType = (
@@ -102,7 +134,7 @@ export const getTimelineFieldType = (
 ): string =>
   (isKnownHistoryEventType(eventType)
     ? FIELD_TYPES[eventType][fieldKey]
-    : undefined) ?? 'unknown'
+    : undefined) ?? (fieldKey === 'action' ? 'string' : 'unknown')
 
 /**
  * A payload value as one string: a contract pointer by its address, a grant

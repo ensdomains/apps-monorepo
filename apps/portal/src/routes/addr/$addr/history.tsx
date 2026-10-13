@@ -12,6 +12,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { AddressHistoryDataTable } from '@/features/address/components/AddressHistoryDataTable'
 import {
   ADDRESS_HISTORY_PAGE_SIZE,
+  countWholeTransactions,
   getAddressHeldNamesQueryOptions,
   getAddressHistoryPagesQueryOptions,
   toAddressNameHistory,
@@ -53,6 +54,8 @@ function RouteComponent() {
       (page) => page.rows.length,
     ),
     resetKey: addr,
+    countShown: (window) =>
+      countWholeTransactions(rows, window, pages.hasNextPage),
   })
   const history = useMemo(
     () =>
@@ -68,7 +71,9 @@ function RouteComponent() {
 
   if (pages.isLoading || heldNames.isLoading) return <LoadingMessage />
 
-  const error = pages.error ?? heldNames.error
+  // A failed Load more keeps the rows; the loader says it failed.
+  const error =
+    (pages.isFetchNextPageError ? null : pages.error) ?? heldNames.error
   if (error) {
     return (
       <ErrorMessage

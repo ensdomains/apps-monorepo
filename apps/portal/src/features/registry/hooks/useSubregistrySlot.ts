@@ -6,8 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { okAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import { normalize } from 'viem/ens'
+import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
-import { sepoliaWithEns } from '@/lib/wagmi'
 
 class GetSubregistryHistoryError extends TaggedError(
   'GetSubregistryHistoryError',
@@ -26,8 +26,8 @@ type GetSubregistryHistoryParameters = {
  */
 const ENS_V1_REGISTRIES = new Set(
   [
-    sepoliaWithEns.contracts.ensRegistry?.address,
-    sepoliaWithEns.contracts.ensLegacyRegistry?.address,
+    envConfig.chain.contracts.ensRegistry?.address,
+    envConfig.chain.contracts.ensLegacyRegistry?.address,
   ].flatMap((address) => (address ? [address.toLowerCase()] : [])),
 )
 

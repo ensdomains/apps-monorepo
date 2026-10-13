@@ -15,6 +15,7 @@ vi.mock('@/lib/bigname', () => ({
 }))
 
 const {
+  countWholeTransactions,
   getAddressHeldNamesQueryOptions,
   getAddressHistoryPagesQueryOptions,
   getAddressHistoryQueryOptions,
@@ -164,6 +165,29 @@ describe('getAddressHeldNamesQueryOptions', () => {
     expect(listAddressNames).toHaveBeenCalledWith(
       ADDRESS,
       expect.objectContaining({ relation: ['owner'], page_size: 200 }),
+      expect.anything(),
     )
+  })
+})
+
+describe('countWholeTransactions', () => {
+  const tx = (hash: string, count: number) =>
+    Array.from({ length: count }, () =>
+      row({ transaction_hash: hash as `0x${string}` }),
+    )
+  const rows = [...tx('0xa', 2), ...tx('0xb', 3), ...tx('0xc', 2)]
+
+  it('takes the rest of a transaction the window cuts', () => {
+    expect(countWholeTransactions(rows, 3, false)).toBe(5)
+    expect(countWholeTransactions(rows, 2, false)).toBe(2)
+  })
+
+  it('holds back the last loaded transaction while more pages follow', () => {
+    expect(countWholeTransactions(rows, 7, true)).toBe(5)
+    expect(countWholeTransactions(rows, 7, false)).toBe(7)
+  })
+
+  it('shows one transaction larger than the read as it is', () => {
+    expect(countWholeTransactions(tx('0xa', 4), 4, true)).toBe(4)
   })
 })

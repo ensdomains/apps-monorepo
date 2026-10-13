@@ -159,15 +159,17 @@ export const NameSuggestionItem = ({
               <Trans>Name not found</Trans>
             </div>
           ))
-          .with({ type: 'not-imported' }, () => (
-            <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ens-lapis-100 px-1.5 py-1 font-normal text-ens-lapis-500 text-xs">
-              <Trans>View in Explorer</Trans>
-              <MSymbol
-                className="ms-opsz-14 ms-wght-400"
-                symbol="arrow_outward"
-              />
-            </div>
-          ))
+          .with({ type: 'not-imported' }, () =>
+            EXPLORER_URL ? (
+              <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ens-lapis-100 px-1.5 py-1 font-normal text-ens-lapis-500 text-xs">
+                <Trans>View in Explorer</Trans>
+                <MSymbol
+                  className="ms-opsz-14 ms-wght-400"
+                  symbol="arrow_outward"
+                />
+              </div>
+            ) : null,
+          )
           .with({ type: 'error' }, () => (
             <XIcon className="size-4 text-slate-500" />
           ))
@@ -177,6 +179,8 @@ export const NameSuggestionItem = ({
   )
 
   if (outcome.type === 'not-imported') {
+    if (!EXPLORER_URL) return <div className={className}>{content}</div>
+
     return (
       <a
         className={className}

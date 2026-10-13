@@ -29,7 +29,8 @@ export const getRegistryRootRolesQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getRegistryRootRoleHoldersQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryRootRoles(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getRegistryRootRoles(params, signal),
   })
 
 const selectHolders = ({ holders }: RegistryRootRoles) => holders
@@ -40,6 +41,7 @@ export const getRegistryRootRoleHoldersQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getRegistryRootRoleHoldersQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryRootRoles(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getRegistryRootRoles(params, signal),
     select: selectHolders,
   })

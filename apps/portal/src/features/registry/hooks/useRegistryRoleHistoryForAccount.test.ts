@@ -51,14 +51,17 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     await runRoot()
 
     expect(listEvents).toHaveBeenCalledTimes(1)
-    expect(listEvents).toHaveBeenCalledWith({
-      contract_address: ROOT_REGISTRY.toLowerCase(),
-      address: ROOT_ACCOUNT.toLowerCase(),
-      kind: ['RootPermissionChanged'],
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: 200,
-    })
+    expect(listEvents).toHaveBeenCalledWith(
+      {
+        contract_address: ROOT_REGISTRY.toLowerCase(),
+        address: ROOT_ACCOUNT.toLowerCase(),
+        kind: ['RootPermissionChanged'],
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size: 200,
+      },
+      expect.anything(),
+    )
   })
 
   it('reads the before and after sets and the date from the row, with no node read', async () => {
