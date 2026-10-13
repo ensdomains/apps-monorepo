@@ -12,6 +12,14 @@ const MAX_HISTORY_SIZE = 1000
 const STORAGE_TYPE_KEY = 'ens-tx-storage-type'
 type StorageType = 'indexeddb' | 'localstorage' | 'memory'
 
+// localStorage keys. HISTORY_KEY shares the ACTIVE_KEY_PREFIX, so scans for
+// active records must exclude it explicitly or they match the archive too.
+const ACTIVE_KEY_PREFIX = 'tx-'
+const HISTORY_KEY = 'tx-history'
+const activeKey = (id: string) => `${ACTIVE_KEY_PREFIX}${id}`
+const isActiveKey = (key: string) =>
+  key.startsWith(ACTIVE_KEY_PREFIX) && key !== HISTORY_KEY
+
 export interface PersistedTransaction {
   id: string
   hash?: Hash
@@ -185,7 +193,7 @@ class StorageManager {
 
       case 'localstorage':
         localStorage.setItem(
-          `tx-${id}`,
+          activeKey(id),
           JSON.stringify(data, (_key, value) =>
             typeof value === 'bigint' ? { __bigint: value.toString() } : value,
           ),
@@ -210,7 +218,7 @@ class StorageManager {
         return (await this.db.get(ACTIVE_STORE, id)) || null
 
       case 'localstorage': {
-        const data = localStorage.getItem(`tx-${id}`)
+        const data = localStorage.getItem(activeKey(id))
         return data
           ? JSON.parse(data, (_key, value) =>
               value && typeof value === 'object' && '__bigint' in value
@@ -240,9 +248,7 @@ class StorageManager {
         return await this.db.getAll(ACTIVE_STORE)
 
       case 'localstorage': {
-        const keys = Object.keys(localStorage).filter((k) =>
-          k.startsWith('tx-'),
-        )
+        const keys = Object.keys(localStorage).filter(isActiveKey)
         return keys
           .map((k) => {
             const data = localStorage.getItem(k)
@@ -278,7 +284,7 @@ class StorageManager {
         break
 
       case 'localstorage':
-        localStorage.removeItem(`tx-${id}`)
+        localStorage.removeItem(activeKey(id))
         break
 
       case 'memory':
@@ -304,7 +310,7 @@ class StorageManager {
 
       case 'localstorage': {
         // Get existing history
-        const historyData = localStorage.getItem('tx-history')
+        const historyData = localStorage.getItem(HISTORY_KEY)
         const history: PersistedTransaction[] = historyData
           ? JSON.parse(historyData, (_key, value) =>
               value && typeof value === 'object' && '__bigint' in value
@@ -319,14 +325,14 @@ class StorageManager {
         // Keep only last 100
         const recent = history.slice(-100)
         localStorage.setItem(
-          'tx-history',
+          HISTORY_KEY,
           JSON.stringify(recent, (_key, value) =>
             typeof value === 'bigint' ? { __bigint: value.toString() } : value,
           ),
         )
 
         // Remove from active
-        localStorage.removeItem(`tx-${transaction.id}`)
+        localStorage.removeItem(activeKey(transaction.id))
         break
       }
 
@@ -389,7 +395,7 @@ class StorageManager {
       }
 
       case 'localstorage': {
-        const data = localStorage.getItem('tx-history')
+        const data = localStorage.getItem(HISTORY_KEY)
         return data
           ? JSON.parse(data, (_key, value) =>
               value && typeof value === 'object' && '__bigint' in value
@@ -422,9 +428,7 @@ class StorageManager {
         break
 
       case 'localstorage': {
-        const keys = Object.keys(localStorage).filter((k) =>
-          k.startsWith('tx-'),
-        )
+        const keys = Object.keys(localStorage).filter(isActiveKey)
         keys.forEach((k) => {
           localStorage.removeItem(k)
         })
@@ -450,7 +454,7 @@ class StorageManager {
         break
 
       case 'localstorage':
-        localStorage.removeItem('tx-history')
+        localStorage.removeItem(HISTORY_KEY)
         break
 
       case 'memory':

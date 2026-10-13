@@ -49,7 +49,7 @@ import {
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
-import { chain as appChain } from '@/config'
+import { chain as appChain, isTestnet } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -568,6 +568,7 @@ export const SmartAccountContextProvider = ({
     // got a stable window and the EOA stayed at $0. We only need the owner
     // address and a loaded balance read.
     if (
+      !isTestnet ||
       !addressToFund ||
       balances.isLoadingBalances ||
       // A fund is already in flight — wait for it to settle before deciding

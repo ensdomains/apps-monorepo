@@ -54,11 +54,21 @@ const navigationSections: readonly NavigationSection[] = [
         }),
         shouldOpenInNewTab: true,
       },
-      {
-        label: msg`ENS Explorer`,
-        href: EXPLORER_URL,
-        shouldOpenInNewTab: true,
-      },
+      ...(EXPLORER_URL
+        ? [
+            {
+              label: msg`Go to ENS Explorer`,
+              href: EXPLORER_URL,
+              className: 'text-base gap-1',
+              suffix: (
+                <MSymbol
+                  className="ms-opsz-30 hover:no-underline"
+                  symbol="arrow_outward"
+                />
+              ),
+            },
+          ]
+        : []),
     ],
   },
   {
