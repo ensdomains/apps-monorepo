@@ -57,15 +57,9 @@ const navigationSections: readonly NavigationSection[] = [
       ...(EXPLORER_URL
         ? [
             {
-              label: msg`Go to ENS Explorer`,
+              label: msg`ENS Explorer`,
               href: EXPLORER_URL,
-              className: 'text-base gap-1',
-              suffix: (
-                <MSymbol
-                  className="ms-opsz-30 hover:no-underline"
-                  symbol="arrow_outward"
-                />
-              ),
+              shouldOpenInNewTab: true,
             },
           ]
         : []),
