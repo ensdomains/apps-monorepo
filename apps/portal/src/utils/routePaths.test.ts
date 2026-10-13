@@ -186,7 +186,7 @@ describe('routing', () => {
       // The DNS import flow lives at /import/$name — never the name "import".
       expect(extractNameFromPath('/import')).toBeNull()
       expect(extractNameFromPath('/import/example.com')).toBeNull()
-      // The analytics consent notice lives at /privacy — never a name.
+      // The privacy policy (with the analytics notice) lives at /privacy — never a name.
       expect(extractNameFromPath('/privacy')).toBeNull()
     })
 

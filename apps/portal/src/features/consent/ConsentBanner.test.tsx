@@ -45,7 +45,7 @@ describe('ConsentBanner', () => {
     expect(accept.tagName).toBe(decline.tagName)
     expect(accept.className).toBe(decline.className)
     const link = screen.getByRole('link', { name: 'Privacy notice' })
-    expect(link.getAttribute('href')).toBe('/privacy')
+    expect(link.getAttribute('href')).toBe('/privacy#analytics')
   })
 
   it('hides once the visitor chose', async () => {

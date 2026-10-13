@@ -133,7 +133,7 @@ test('C1: banner offers equal buttons and a notice link until chosen', async ({
   await card.getByRole('link', { name: /privacy/i }).click()
   await expect(page).toHaveURL(new RegExp(`^${APP_URL}/`))
   await expect(
-    page.getByRole('heading', { name: /privacy notice/i }),
+    page.getByRole('heading', { name: /privacy policy/i }),
   ).toBeVisible()
   await page.goBack()
   await expect(card).toBeVisible()
@@ -366,8 +366,19 @@ test('C5: the notice names the collection and the choice', async ({ page }) => {
     .getByRole('link', { name: /privacy/i })
     .click()
   await expect(
-    page.getByRole('heading', { name: /privacy notice/i }),
+    page.getByRole('heading', { name: /privacy policy/i, exact: true }),
   ).toBeVisible()
+  await expect(page.locator('main section h2')).toHaveText([
+    '1. Introduction',
+    '2. Data Types Collected',
+    '3. Collection Methods',
+    '4. Cookie Usage',
+    '5. Data Purposes',
+    '6. Data Protection',
+    '7. User Rights',
+    '8. Retention and Governance',
+    '9. Analytics',
+  ])
   for (const phrase of [
     /wallet addresses/i,
     /browser details/i,
@@ -383,9 +394,9 @@ test('C5: the notice names the collection and the choice', async ({ page }) => {
     /no choice/i,
   )
   await expect(page.getByTestId('analytics-consent-switch')).toBeVisible()
-  await expect(
-    page.getByRole('link', { name: /full privacy policy/i }),
-  ).toBeVisible()
+  await expect(page.locator('main section#analytics h2')).toHaveText(
+    '9. Analytics',
+  )
 })
 
 test('C5: the help menu opens the notice inside the app', async ({ page }) => {
@@ -403,6 +414,6 @@ test('C5: the help menu opens the notice inside the app', async ({ page }) => {
   await page.getByRole('link', { name: /privacy policy/i }).click()
   await expect(page).toHaveURL(new RegExp(`^${APP_URL}/`))
   await expect(
-    page.getByRole('heading', { name: /privacy notice/i }),
+    page.getByRole('heading', { name: /privacy policy/i, exact: true }),
   ).toBeVisible()
 })

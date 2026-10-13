@@ -48,6 +48,7 @@ export const ConsentBanner = () => {
       </div>
       <Link
         className="col-start-2 mt-2 justify-self-start text-sm underline underline-offset-4"
+        hash="analytics"
         to="/privacy"
       >
         {consentBanner.noticeLinkLabel}

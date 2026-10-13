@@ -12,7 +12,7 @@ export const PORTAL_USAGE_EVENTS_PARAGRAPH =
 /**
  * The analytics notice: what the Explorer collects, why, who processes it,
  * how to ask for deletion, and the visitor's current choice with a switch.
- * Rendered on the privacy notice page.
+ * Rendered as the last section of the privacy policy page.
  */
 export const AnalyticsNotice = () => {
   const [consent, setConsent] = useAnalyticsConsent()
