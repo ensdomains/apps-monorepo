@@ -148,6 +148,11 @@ export type WrapperFuses = Readonly<{
 export type EnsV1Facts = Readonly<{
   /** The BaseRegistrar lease; null on a subname. */
   expires_at?: Timestamp | null
+  /**
+   * The ENSv1 registry's resolver, null when none is set. Served through late
+   * grace, when the top-level `resolver` can be withheld.
+   */
+  resolver?: ResolverRef | null
   wrapper_state?: WrapperState | 'lapsed' | 'unwrapped' | 'unknown'
   wrapper_fuses?: WrapperFuses
   /** Null for unlimited or unset expiry; omitted without a current wrapper entry. */

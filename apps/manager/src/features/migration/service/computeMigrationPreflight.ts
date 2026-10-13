@@ -1,6 +1,6 @@
 import type { V1Domain } from '@ens-apps/migration'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, PublicClient } from 'viem'
+import { type Address, isAddress, type PublicClient } from 'viem'
 import { envConfig } from '@/config'
 import {
   type ClassifiedName,
@@ -140,7 +140,11 @@ const computeProfilePreflight = async (
   }
 
   const keysResult = await getV1ProfileKeys(
-    namesWithSourceResolver.map((name) => name.domain.name),
+    namesWithSourceResolver.flatMap(({ domain, v1ResolverAddress }) =>
+      v1ResolverAddress && isAddress(v1ResolverAddress)
+        ? [{ id: domain.id, name: domain.name, resolver: v1ResolverAddress }]
+        : [],
+    ),
     { signal },
   )
   signal?.throwIfAborted()
