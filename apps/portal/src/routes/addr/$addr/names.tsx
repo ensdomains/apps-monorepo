@@ -81,7 +81,7 @@ const STATUS_FILTER_GROUPS: FilterGroup[] = [
     options: [
       { label: 'Expired', value: 'expired' },
       { label: 'Grace', value: 'grace' },
-      { label: 'Temporary premium', value: 'premium' },
+      { label: 'Price cooldown', value: 'premium' },
     ],
   },
 ]
