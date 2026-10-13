@@ -10,7 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { isTestnet } from '@/config'
+import { isSepoliaBuild } from '@/config'
 import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
@@ -22,9 +22,8 @@ import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { getPageTitle } from '@/utils/pageTitle'
 import { queryClient } from '@/utils/queryClient'
 
-// Tops up test USDC/DAI from the Sepolia faucet, so only a testnet build
-// mounts it.
-function AutoFundOnLowBalance() {
+// Tops up test USDC/DAI from the Sepolia faucet; a mainnet bundle leaves it out.
+const AutoFundOnLowBalance = () => {
   useAutoFundOnLowBalance()
   return null
 }
@@ -85,7 +84,7 @@ export const Route = createRootRoute({
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             {isMockWalletEnabled && <MockWalletAutoConnect />}
-            {isTestnet && <AutoFundOnLowBalance />}
+            {isSepoliaBuild && <AutoFundOnLowBalance />}
             <ConnectModalProvider>
               <TransactionManagerSetup>
                 <PHProvider>

@@ -49,3 +49,7 @@ export const envConfig = buildConfig({
 })
 
 export const { chain, isTestnet, rpcUrls } = envConfig
+
+// A build-time literal, unlike `isTestnet`: a mainnet bundle drops Sepolia-only
+// code (the faucet) instead of shipping it switched off.
+export const isSepoliaBuild = import.meta.env.VITE_ENS_NETWORK === 'sepolia'
