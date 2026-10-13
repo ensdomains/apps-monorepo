@@ -115,7 +115,10 @@ export function useGraceStatus({
       }
     }
     return {
-      ...v2GraceStatus(data, Math.floor(Date.now() / 1000)),
+      ...v2GraceStatus(
+        { expiry: data.expiry, graceEnd: data.graceEnd },
+        Math.floor(Date.now() / 1000),
+      ),
       isLoading: false,
       error: null,
     }
