@@ -177,6 +177,8 @@ export const NameSuggestionItem = ({
   )
 
   if (outcome.type === 'not-imported') {
+    if (!EXPLORER_URL) return <div className={className}>{content}</div>
+
     return (
       <a
         className={className}

@@ -193,22 +193,24 @@ export const CheckAvailability = ({
                   key={`result-${state.domainName}`}
                 />
               ))
-              .with({ type: 'not-imported' }, (state) => (
-                <SearchStatusResult
-                  badge={
-                    <>
-                      <Trans>View in Explorer</Trans>
-                      <MSymbol
-                        className="ms-opsz-14 ms-wght-400"
-                        symbol="arrow_outward"
-                      />
-                    </>
-                  }
-                  domainName={state.domainName}
-                  href={`${EXPLORER_URL}/${state.domainName}`}
-                  key={`result-${state.domainName}`}
-                />
-              ))
+              .with({ type: 'not-imported' }, (state) =>
+                EXPLORER_URL ? (
+                  <SearchStatusResult
+                    badge={
+                      <>
+                        <Trans>View in Explorer</Trans>
+                        <MSymbol
+                          className="ms-opsz-14 ms-wght-400"
+                          symbol="arrow_outward"
+                        />
+                      </>
+                    }
+                    domainName={state.domainName}
+                    href={`${EXPLORER_URL}/${state.domainName}`}
+                    key={`result-${state.domainName}`}
+                  />
+                ) : null,
+              )
               .with({ type: 'address' }, (state) => (
                 <motion.div
                   key={`result-${state.address}`}
