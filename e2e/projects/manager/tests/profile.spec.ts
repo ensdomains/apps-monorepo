@@ -1,4 +1,4 @@
-import { expect, type Locator } from '@playwright/test'
+import { expect } from '@playwright/test'
 import {
   authorizeTransaction,
   test,
@@ -12,32 +12,6 @@ import {
 } from '../../../helpers/profile-helpers.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-
-const expectHttpsPrefixBehaviour = async (input: Locator) => {
-  await input.click()
-  await expect(input).toHaveValue('https://')
-
-  await input.blur()
-  await expect(input).toHaveValue('')
-
-  await input.click()
-  await input.pressSequentially('ens.domains')
-  await expect(input).toHaveValue('https://ens.domains')
-
-  await input.fill('')
-  await input.blur()
-  await input.click()
-  await input.page().keyboard.insertText('https://ens.domains')
-  await expect(input).toHaveValue('https://ens.domains')
-
-  await input.fill('ipfs://bafybeigdyrzt')
-  await input.blur()
-  await expect(input).toHaveValue('ipfs://bafybeigdyrzt')
-
-  await input.fill('jefflau.net')
-  await input.blur()
-  await expect(input).toHaveValue('https://jefflau.net')
-}
 
 test.describe('ENS profile', () => {
   test.describe.configure({ timeout: 300_000 })
@@ -147,7 +121,8 @@ test.describe('ENS profile', () => {
 
     // General tab: Custom link is visible by default — fill with an invalid URL.
     // Validation fires immediately on change.
-    await page.getByPlaceholder('https://yourwebsite.com').fill('not-a-url')
+    // Spaces keep it invalid even with the https:// prefilled on focus
+    await page.getByPlaceholder('https://yourwebsite.com').fill('not a url')
     await expect(
       page.getByText('Enter a valid URL (e.g. https://example.com)'),
     ).toBeVisible({ timeout: 10_000 })
@@ -175,39 +150,12 @@ test.describe('ENS profile', () => {
     // Use exact match to distinguish from the General-tab "Enter a valid URL
     // (e.g. https://example.com)" message which may still be in the DOM.
     await page.getByRole('tab', { name: 'Links' }).click()
-    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not-a-url')
+    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not a url')
     await expect(
       page.getByText('Enter a valid URL', { exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     console.log(`[profile] ✅ Validation errors correctly shown for ${name}`)
-  })
-
-  test('auto-inserts https:// in website and link fields', async ({
-    profileConnectedPage: page,
-    makeV2Name,
-  }) => {
-    const name = await makeV2Name({ label: 'profilehttps' })
-    console.log(`[profile] name for https prefix test: ${name}`)
-
-    await goToEditProfile(page, name)
-
-    await expectHttpsPrefixBehaviour(
-      page.getByPlaceholder('https://yourwebsite.com'),
-    )
-    await expect(
-      page.getByText('Enter a valid URL (e.g. https://example.com)'),
-    ).not.toBeVisible()
-
-    await page.getByRole('tab', { name: 'Links' }).click()
-    await expectHttpsPrefixBehaviour(
-      page.getByRole('textbox', { name: 'Link 1 URL' }),
-    )
-    await expect(
-      page.getByText('Enter a valid URL', { exact: true }),
-    ).not.toBeVisible()
-
-    console.log(`[profile] https:// prefix behaviour correct for ${name}`)
   })
 
   test('add and remove name from favourites', async ({

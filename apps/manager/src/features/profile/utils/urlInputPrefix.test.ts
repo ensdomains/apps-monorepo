@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getUrlInputBlurValue,
   getUrlInputChangeValue,
+  getUrlInputCheckValue,
   getUrlInputFocusValue,
 } from './urlInputPrefix'
 
@@ -52,6 +53,19 @@ describe('getUrlInputBlurValue', () => {
     )
   })
 
+  it('adds https:// to domains with a port', () => {
+    expect(getUrlInputBlurValue('example.com:8443/path')).toBe(
+      'https://example.com:8443/path',
+    )
+  })
+
+  it('adds https:// to international domains', () => {
+    expect(getUrlInputBlurValue('bücher.de')).toBe('https://bücher.de')
+    expect(getUrlInputBlurValue('xn--bcher-kva.de')).toBe(
+      'https://xn--bcher-kva.de',
+    )
+  })
+
   it('leaves other schemes and non-domains alone', () => {
     expect(getUrlInputBlurValue('http://ens.domains')).toBe(
       'http://ens.domains',
@@ -64,6 +78,19 @@ describe('getUrlInputBlurValue', () => {
 
   it('trims other values', () => {
     expect(getUrlInputBlurValue(' https://ens.domains ')).toBe(
+      'https://ens.domains',
+    )
+  })
+})
+
+describe('getUrlInputCheckValue', () => {
+  it('treats the prefix on its own as empty', () => {
+    expect(getUrlInputCheckValue('https://')).toBe('')
+    expect(getUrlInputCheckValue(' https:// ')).toBe('')
+  })
+
+  it('keeps real values', () => {
+    expect(getUrlInputCheckValue('https://ens.domains')).toBe(
       'https://ens.domains',
     )
   })

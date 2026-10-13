@@ -5,6 +5,7 @@ import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
 import {
   getUrlInputBlurValue,
   getUrlInputChangeValue,
+  getUrlInputCheckValue,
   getUrlInputFocusValue,
 } from '@/features/profile/utils/urlInputPrefix'
 import { cn } from '@/lib/utils'
@@ -39,7 +40,7 @@ const defaultLink = (): LinkItem => ({
 })
 
 const hasRequiredLinkFields = (link: LinkItem) =>
-  link.name.trim() !== '' && link.url.trim() !== ''
+  link.name.trim() !== '' && getUrlInputCheckValue(link.url).trim() !== ''
 
 const getIssue = (
   issues: readonly LinkValidationIssue[],

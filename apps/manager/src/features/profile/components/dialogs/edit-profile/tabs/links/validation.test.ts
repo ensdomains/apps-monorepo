@@ -11,4 +11,14 @@ describe('getLinkValidationIssues', () => {
       message: 'Choose a different name (reserved key)',
     })
   })
+
+  it('treats an untitled row with only the prefilled https:// as empty', () => {
+    expect(getLinkValidationIssues([{ name: '', url: 'https://' }])).toEqual([])
+  })
+
+  it('asks for a link when a titled row only has the prefilled https://', () => {
+    expect(
+      getLinkValidationIssues([{ name: 'Blog', url: 'https://' }]),
+    ).toContainEqual({ field: 'url', index: 0, message: 'Enter a link' })
+  })
 })

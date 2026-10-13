@@ -1,5 +1,6 @@
 import type { MaterialSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
+import { getUrlInputCheckValue } from '@/features/profile/utils/urlInputPrefix'
 import { validateUrl } from '@/features/profile/utils/validateUrl'
 
 type GeneralShortcut = {
@@ -32,7 +33,7 @@ export const getTextRecordValue = (
 ) => records.find((record) => record.key === key)?.value ?? ''
 
 export const getGeneralUrlErrorMessage = (value: string | undefined) =>
-  validateUrl(value)
+  validateUrl(value && getUrlInputCheckValue(value))
 
 export const DESCRIPTION_MAX_LENGTH = 500
 

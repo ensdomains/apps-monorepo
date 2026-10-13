@@ -1,6 +1,7 @@
 import { staticTextRecords, textRecords } from '@/features/profile/data/records'
 import type { LinkItem } from '@/features/profile/types'
 import { isSafeHttpUrl } from '@/features/profile/utils/safeUrl'
+import { getUrlInputCheckValue } from '@/features/profile/utils/urlInputPrefix'
 
 export type LinkValidationField = 'name' | 'url'
 
@@ -19,7 +20,7 @@ export const isReservedTextRecordKey = (name: string) =>
   reservedTextRecordKeys.has(name.trim())
 
 const isEmptyLink = (link: LinkItem) =>
-  link.name.trim() === '' && link.url.trim() === ''
+  link.name.trim() === '' && getUrlInputCheckValue(link.url).trim() === ''
 
 export const getLinkValidationIssues = (
   links: readonly LinkItem[],
@@ -41,7 +42,7 @@ export const getLinkValidationIssues = (
       })
     }
 
-    if (link.url.trim() === '') {
+    if (getUrlInputCheckValue(link.url).trim() === '') {
       issues.push({ field: 'url', index, message: 'Enter a link' })
     } else if (!isSafeHttpUrl(link.url)) {
       issues.push({ field: 'url', index, message: 'Enter a valid URL' })

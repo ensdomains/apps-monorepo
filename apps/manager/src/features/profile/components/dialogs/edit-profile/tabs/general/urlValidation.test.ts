@@ -12,4 +12,8 @@ describe('general URL validation', () => {
       'Enter a valid URL (e.g. https://example.com)',
     )
   })
+
+  it('does not flag the https:// prefilled on focus', () => {
+    expect(getGeneralUrlErrorMessage('https://')).toBeUndefined()
+  })
 })
