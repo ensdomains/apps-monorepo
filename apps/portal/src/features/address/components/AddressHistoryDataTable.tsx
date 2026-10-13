@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import type { Address, Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import {
+  ListLoader,
+  type ListLoaderProps,
+} from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -33,9 +37,12 @@ const withSenders = <T extends { transactionID: Hash; from: Address | null }>(
 export const AddressHistoryDataTable = ({
   address,
   history,
+  loader,
 }: {
   readonly address: Address
   readonly history: readonly AddressNameHistory[]
+  /** Pages the history in; the rows shown are already cut to its window. */
+  readonly loader: ListLoaderProps
 }) => {
   // One group per name, so each name's provenance survives until it is judged
   const groups = useMemo(() => groupAddressHistoryByName(history), [history])
@@ -59,6 +66,7 @@ export const AddressHistoryDataTable = ({
     error: sendersError,
   } = useTransactionSenders({
     transactionHashes,
+    keepPrevious: true,
   })
 
   const { acquired, assigned, assignedNameCount } = useMemo(
@@ -77,7 +85,7 @@ export const AddressHistoryDataTable = ({
     [assigned, sendersData],
   )
 
-  if (isLoadingSenders) {
+  if (isLoadingSenders && !sendersData) {
     return <LoadingMessage title="Loading transaction senders" />
   }
 
@@ -93,9 +101,7 @@ export const AddressHistoryDataTable = ({
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'addr', addr: address }}>
-        {acquiredEvents.length === 0
-          ? 'History'
-          : `History (${acquiredEvents.length})`}
+        History
       </PageHeading>
       {acquiredEvents.length === 0 ? (
         <NoResultsMessage
@@ -114,6 +120,7 @@ export const AddressHistoryDataTable = ({
           defaultNetwork={defaultNetwork}
         />
       )}
+      <ListLoader {...loader} />
       {assignedEvents.length > 0 && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">

@@ -14,7 +14,11 @@ vi.mock('@/lib/bigname', () => ({
   },
 }))
 
-const { getAddressHistoryQueryOptions } = await import('./useAddressHistory')
+const {
+  getAddressHeldNamesQueryOptions,
+  getAddressHistoryPagesQueryOptions,
+  getAddressHistoryQueryOptions,
+} = await import('./useAddressHistory')
 
 const ADDRESS = '0x00000000000000000000000000000000000000Aa'
 
@@ -46,7 +50,7 @@ const page = <T>(data: T[], next: string | null = null) => ({
   meta: {},
 })
 
-const read = (pageSize?: number) => {
+const read = (pageSize = 200) => {
   const { queryFn, queryKey } = getAddressHistoryQueryOptions({
     address: ADDRESS,
     pageSize,
@@ -65,68 +69,16 @@ describe('getAddressHistoryQueryOptions', () => {
     )
   })
 
-  it('reads every relation in one stream, with payloads', async () => {
+  it('reads one short page for the teaser, every relation with payloads', async () => {
     getAddressHistory.mockResolvedValue(page([]))
-    await read()
+    await read(5)
     expect(getAddressHistory).toHaveBeenCalledWith(ADDRESS.toLowerCase(), {
       relation: 'any',
       include: ['data', 'raw'],
       order: 'desc',
-      page_size: 200,
+      page_size: 5,
     })
-    expect(listAddressNames).toHaveBeenCalledWith(
-      ADDRESS,
-      expect.objectContaining({ relation: ['owner'], page_size: 200 }),
-    )
-  })
-
-  it('reads one short page for the teaser', async () => {
-    getAddressHistory.mockResolvedValue(page([]))
-    await read(5)
-    expect(getAddressHistory.mock.lastCall?.[1]).toMatchObject({ page_size: 5 })
-  })
-
-  it('reads history and ownership past the old row caps and the default page limit', async () => {
-    const total = 20_200
-    getAddressHistory.mockImplementation(
-      async (_address, { cursor }: { cursor?: string }) => {
-        const offset = Number(cursor ?? 0)
-        return page(
-          Array.from({ length: 200 }, (_, i) =>
-            row({
-              name: `name-${offset + i}.eth`,
-              log_index: offset + i,
-            }),
-          ),
-          offset + 200 < total ? String(offset + 200) : null,
-        )
-      },
-    )
-    listAddressNames.mockImplementation(
-      async (_address, { cursor }: { cursor?: string }) => {
-        const offset = Number(cursor ?? 0)
-        return page(
-          Array.from({ length: 200 }, (_, i) => ({
-            name: `name-${offset + i}.eth`,
-            relations: ['owner'],
-          })),
-          offset + 200 < total ? String(offset + 200) : null,
-        )
-      },
-    )
-
-    const names = await read()
-    expect(names).toHaveLength(total)
-    expect(names).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: 'name-20199.eth',
-          registrarHolder: ADDRESS,
-        }),
-      ]),
-    )
-    expect(getAddressHistory).toHaveBeenCalledTimes(101)
-    expect(listAddressNames).toHaveBeenCalledTimes(101)
+    expect(getAddressHistory).toHaveBeenCalledTimes(1)
   })
 
   it('groups by name, marking the names whose token the address holds', async () => {
@@ -163,5 +115,55 @@ describe('getAddressHistoryQueryOptions', () => {
       expect.objectContaining({ name: 'assigned.eth', registrarHolder: null }),
       expect.objectContaining({ name: null, registrarHolder: null }),
     ])
+  })
+})
+
+describe('getAddressHistoryPagesQueryOptions', () => {
+  beforeEach(() => getAddressHistory.mockReset())
+
+  it('reads one page per call and hands back the cursor', async () => {
+    getAddressHistory.mockResolvedValue(page([row({})], 'next'))
+    const { queryFn, queryKey, getNextPageParam } =
+      getAddressHistoryPagesQueryOptions({ address: ADDRESS })
+    const result = (await (queryFn as (context: unknown) => Promise<unknown>)({
+      queryKey,
+      pageParam: 'c1',
+    } as unknown as QueryFunctionContext)) as { nextCursor: string | null }
+    expect(getAddressHistory).toHaveBeenCalledTimes(1)
+    expect(getAddressHistory.mock.lastCall?.[1]).toMatchObject({
+      page_size: 100,
+      cursor: 'c1',
+    })
+    expect(result.nextCursor).toBe('next')
+    expect(getNextPageParam?.(result as never, [], undefined, [])).toBe('next')
+  })
+})
+
+describe('getAddressHeldNamesQueryOptions', () => {
+  it('reads every owned name past the default page limit', async () => {
+    listAddressNames.mockReset()
+    listAddressNames.mockImplementation(
+      async (_address, { cursor }: { cursor?: string }) => {
+        const offset = Number(cursor ?? 0)
+        return page(
+          Array.from({ length: 200 }, (_, i) => ({
+            name: `name-${offset + i}.eth`,
+            relations: ['owner'],
+          })),
+          offset + 200 < 1_000 ? String(offset + 200) : null,
+        )
+      },
+    )
+    const { queryFn, queryKey } = getAddressHeldNamesQueryOptions({
+      address: ADDRESS,
+    })
+    const held = (await (queryFn as (context: unknown) => Promise<unknown>)({
+      queryKey,
+    } as unknown as QueryFunctionContext)) as ReadonlySet<string>
+    expect(held.size).toBe(1_000)
+    expect(listAddressNames).toHaveBeenCalledWith(
+      ADDRESS,
+      expect.objectContaining({ relation: ['owner'], page_size: 200 }),
+    )
   })
 })
