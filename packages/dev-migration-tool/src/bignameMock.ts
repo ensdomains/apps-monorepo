@@ -5,6 +5,7 @@ import type {
   LookupRequest,
   LookupResponse,
   NameRecordResponse,
+  NameRecordsResponse,
   WrapperFuses,
 } from '@ens-apps/indexer/bigname'
 import { MIGRATION_TOOL_RPC } from './config'
@@ -80,11 +81,12 @@ export function buildMockRecord(name: ActiveName): LookupRecord {
     ens_v1: wrapped
       ? {
           expires_at: expiry,
+          resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
           wrapper_state: fuses & CANNOT_UNWRAP ? 'locked' : 'emancipated',
           wrapper_fuses: toWrapperFuses(fuses),
           wrapper_expires_at: expiry,
         }
-      : { expires_at: expiry, wrapper_state: 'unwrapped' },
+      : { expires_at: expiry, resolver: null, wrapper_state: 'unwrapped' },
     ...(wrapped && {
       resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
     }),
@@ -203,6 +205,30 @@ async function nameDetail(name: ActiveName): Promise<Response> {
   return json(body)
 }
 
+// The panel sets no records, so a name's inventory at its resolver is empty.
+function resolverRecords(name: ActiveName, resolver: string): Response {
+  if (
+    !isWrapped(name) ||
+    resolver.toLowerCase() !== V1_PUBLIC_RESOLVER.toLowerCase()
+  )
+    return json({ error: { code: 'not_found', message: 'not found' } }, 404)
+  const body: NameRecordsResponse = {
+    data: {
+      namespace: 'ens',
+      resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
+      records: { contenthash: { status: 'not_found' } },
+      inventory: {
+        known_keys: [],
+        unset_keys: [],
+        unsupported_keys: [],
+        abi_content_types: [],
+      },
+    },
+    meta: { as_of: {} },
+  }
+  return json(body)
+}
+
 /**
  * Answers the bigname reads that must see panel-created names, which exist
  * only on the local fork: the connected account's name list, lookups and
@@ -220,6 +246,10 @@ export async function answerBignameRequest(
     return addressNames(forward, names, url.searchParams)
   if (path === '/v1/lookup' && typeof init?.body === 'string')
     return lookup(forward, names, init.body)
+  const resolverMatch = path.match(/^\/v1\/resolvers\/\d+\/([^/]+)\/records$/)
+  const resolverName = findByName(names, url.searchParams.get('name') ?? '')
+  if (resolverMatch?.[1] && resolverName)
+    return resolverRecords(resolverName, resolverMatch[1])
   const nameMatch = path.match(/^\/v1\/names\/([^/]+)$/)
   const name = findByName(names, decodeURIComponent(nameMatch?.[1] ?? ''))
   if (name) return nameDetail(name)
