@@ -7,8 +7,9 @@ import { envConfig } from '@/config'
 // `deployments/sepolia` @ 95de2ee0); the .eth registry follows at 11820399.
 // Registries from earlier deployments hang off a root nothing resolves
 // through any more, so their events are deliberately out of range.
-// Mainnet's root registry (0x51Bb…a750) was measured the same way; its .eth
-// registry follows at 26105621.
+// On mainnet this is the original root's deployment (0x51Bb…a750). The .eth
+// registry (26105621) survived the partial redeploy, whose root (0x2553…A91e)
+// only arrived at 26183742, so this still precedes every live registry.
 export const ROLES_FROM_BLOCK_BY_NETWORK = {
   mainnet: 26_105_295n,
   sepolia: 11_820_291n,
