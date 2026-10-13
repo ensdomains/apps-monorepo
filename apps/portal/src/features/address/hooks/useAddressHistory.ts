@@ -18,7 +18,7 @@ import {
   flattenHistoryData,
   historyEventLogId,
 } from '@/utils/history/historyEventsToTableEvents'
-import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
+import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 import type {
   AddressHistoryEvent,
   AddressNameHistory,
@@ -114,8 +114,8 @@ const getAddressHistory = (
     readHeldNames(address, signal),
   ]).map(([rows, heldNames]): AddressNameHistory[] => {
     const byName = new Map<string, AddressHistoryEvent[]>()
-    // One registration's charge is stated once across its rows.
-    for (const row of withoutDuplicateCharges(rows)) {
+    // One row per registration, so its charge is stated once.
+    for (const row of mergeRegistrationTwins(rows)) {
       const events = toEvent(row)
       if (events.length === 0) continue
       const key = row.name ?? ''

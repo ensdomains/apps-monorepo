@@ -371,12 +371,21 @@ const DESCRIPTORS: Descriptors = {
   authority: {
     icon: 'registry',
     build: (primary) =>
-      primary.kind === 'AuthorityTransferred'
-        ? {
-            label: 'set registry owner to',
-            slots: [addressSlot(primary.data?.owner)],
-          }
-        : { label: 'updated authority', slots: [] },
+      match(primary)
+        .returnType<DescriptorResult>()
+        .with({ data: { action: 'name_wrapped' } }, () => ({
+          label: 'wrapped',
+          slots: [nameSlot(primary.name)],
+        }))
+        .with({ data: { action: 'name_unwrapped' } }, () => ({
+          label: 'unwrapped',
+          slots: [nameSlot(primary.name)],
+        }))
+        .with({ kind: 'AuthorityTransferred' }, () => ({
+          label: 'set registry owner to',
+          slots: [addressSlot(primary.data?.owner)],
+        }))
+        .otherwise(() => ({ label: 'updated authority', slots: [] })),
   },
   resolver: {
     icon: 'resolver',

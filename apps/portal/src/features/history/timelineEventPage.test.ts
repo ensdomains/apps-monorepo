@@ -160,6 +160,29 @@ describe('fetchContractEventsPage', () => {
     expect(result._unsafeUnwrap().totalCount).toBe(13_587)
   })
 
+  it('reads every registration in a registry feed as a subname', async () => {
+    listEvents.mockResolvedValue(
+      page([
+        row({
+          id: 'sub',
+          type: 'registration',
+          name: 'bob.alice.eth',
+          data: {},
+        }),
+        row({ id: 'record' }),
+      ]),
+    )
+    const result = (
+      await fetchContractEventsPage({
+        contractAddress: '0xabcdef0000000000000000000000000000000001',
+      })
+    )._unsafeUnwrap()
+    expect(result.events.map((event) => event.subject)).toEqual([
+      'child',
+      undefined,
+    ])
+  })
+
   it('renders a migration row and a type newer than the client without failing', async () => {
     listEvents.mockResolvedValue(
       page(

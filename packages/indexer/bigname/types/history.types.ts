@@ -156,6 +156,34 @@ type PaymentData = Readonly<{
   referrer?: Hex
 }>
 
+/** `data.action`: what the row's event did, one step finer than its `type`. */
+type HistoryAction =
+  | 'registration_granted'
+  | 'registration_renewed'
+  | 'registration_released'
+  | 'expiry_changed'
+  | 'token_transferred'
+  | 'authority_changed'
+  | 'resolver_changed'
+  | 'record_changed'
+  | 'primary_name_recorded'
+  | 'permission_changed'
+  | 'subregistry_changed'
+  | 'migration_applied'
+  | 'name_wrapped'
+  | 'name_unwrapped'
+  | 'operator_approval_changed'
+  | 'registration_reserved'
+  | 'reservation_became_reachable'
+  | 'resolver_record_linked'
+  | 'token_regenerated'
+  | 'registry_handoff'
+  | 'reverse_claimed'
+  | 'record_version_changed'
+  | 'registry_created'
+  | 'registry_parent_changed'
+  | 'contract_upgraded'
+
 /** Per-type `include=data` payloads; only the fields a row carries are present. */
 export type EventDataByType = Readonly<{
   registration: ExpiryData &
@@ -186,7 +214,12 @@ export type EventDataByType = Readonly<{
       operator?: Address
       token_id?: string
     }>
-  authority: Readonly<{ owner?: Address; from?: Address }>
+  authority: Readonly<{
+    owner?: Address
+    from?: Address
+    /** `name_wrapped` / `name_unwrapped` on a NameWrapper (un)wrap. */
+    action?: HistoryAction
+  }>
   /** `resolver` absent means the pointer was cleared. */
   resolver: CanonicalIdData & Readonly<{ resolver?: RegistryRef }>
   record: Readonly<{

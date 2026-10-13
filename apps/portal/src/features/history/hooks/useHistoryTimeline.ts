@@ -56,6 +56,15 @@ export const TIMELINE_WINDOW_SIZE = 50
 const countEvents = (actions: readonly Action[]): number =>
   actions.reduce((total, action) => total + action.events.length, 0)
 
+const withoutMerged = (
+  pages: readonly TimelinePage[],
+  events: readonly TimelineEvent[],
+  shownCount: number,
+): number | undefined => {
+  const total = pages.at(-1)?.totalCount
+  return total === undefined ? undefined : total - (events.length - shownCount)
+}
+
 /**
  * The newest actions whose events fit the budget; `undefined` takes them all. A
  * transaction is never split across the break, so the last one admitted may
@@ -157,10 +166,12 @@ const useTimelineModel = (
     actions,
     eventTypes,
     anchorAction: anchor && summarizeEvents(anchor).at(-1),
-    // bigname counts over exactly the page's filters (type set and window
-    // included), exact up to 10,000 rows and absent beyond. A client-side
-    // filter makes that count too high, so none is shown.
-    totalCount: eventFilter ? undefined : pages.at(-1)?.totalCount,
+    // bigname counts rows over exactly the page's filters, exact up to 10,000
+    // and absent beyond; a registration's second row, merged here, comes off.
+    // A client-side filter makes that count too high, so none is shown.
+    totalCount: eventFilter
+      ? undefined
+      : withoutMerged(pages, events, loadedCount),
     hasMore: hasNextPage || allActions.length > actions.length,
     // Widen the window first; the network page is only worth fetching once it
     // has run past every loaded event.

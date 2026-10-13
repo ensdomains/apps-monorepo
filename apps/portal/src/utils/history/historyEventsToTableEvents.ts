@@ -6,7 +6,8 @@ import {
 } from '@ens-apps/indexer/bigname'
 import { isObject } from '@/utils/isObject'
 import type { HistoryTableEvent } from './groupEventsByTransactionId'
-import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
+import { formatHistoryAmount } from './historyPayment'
+import { mergeRegistrationTwins } from './registrationTwins'
 import { rootPermissionRegistry } from './rootPermission'
 
 /**
@@ -68,14 +69,14 @@ export const historyEventLogId = (row: NameHistoryRow | EventRow): string =>
  * (`groupEventsByTransactionId`). `id` is `{txHash}-{logIndex}`, which is how
  * the table finds the event's log in the receipt; `type` is the raw storage
  * kind when the read asked for `include=raw`; the `data` payload rides along as
- * the event's decoded fields, a registration's charge on one of its rows only
- * (see `withoutDuplicateCharges`). A row with no transaction (a state-derived
+ * the event's decoded fields, one row per registration (see
+ * `mergeRegistrationTwins`). A row with no transaction (a state-derived
  * lapse) has nothing to group under and is left out.
  */
 export const historyEventsToTableEvents = (
   rows: readonly NameHistoryRow[],
 ): (HistoryTableEvent & Record<string, unknown>)[] =>
-  withoutDuplicateCharges(rows).flatMap((row) => {
+  mergeRegistrationTwins(rows).flatMap((row) => {
     const timestamp = toUnixSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null) return []
     return [

@@ -1,5 +1,5 @@
 import { match } from 'ts-pattern'
-import { withoutDuplicateCharges } from '@/utils/history/historyPayment'
+import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 import {
   type EventType,
   isKnownHistoryEventType,
@@ -80,9 +80,25 @@ const multiRecordRecipe = (
   return { icon: 'records', label: `set ${records.length} records`, slots }
 }
 
-/** A type newer than this table ranks lowest: it can only headline alone. */
-const rankOf = (event: TimelineEvent): number =>
-  isKnownHistoryEventType(event.type) ? TYPE_RANK[event.type] : 0
+/** A (un)wrap is the transaction; its transfer and registry rows follow from it. */
+const WRAP_RANK = 85
+
+const WRAP_ACTIONS: ReadonlySet<string> = new Set([
+  'name_wrapped',
+  'name_unwrapped',
+])
+
+/**
+ * A type newer than this table ranks lowest: it can only headline alone. A
+ * subregistry row with no link ranks under a transfer: ENSv1 writes one on a wrap.
+ */
+const rankOf = (event: TimelineEvent): number => {
+  if (event.type === 'authority' && WRAP_ACTIONS.has(event.data?.action ?? ''))
+    return WRAP_RANK
+  if (event.type === 'subregistry' && !event.data?.subregistry)
+    return TYPE_RANK.transfer - 1
+  return isKnownHistoryEventType(event.type) ? TYPE_RANK[event.type] : 0
+}
 
 /** Group rows by transaction (a state-derived row alone), preserving encounter order. */
 const groupByTransaction = (
@@ -135,8 +151,8 @@ const describeGroup = (
 
 /**
  * Turn a flat list of history rows into tier-1 semantic actions, one per
- * transaction. A registration's charge is stated on one of its rows only (see
- * `withoutDuplicateCharges`), so an action never shows one payment twice.
+ * transaction. A registration is one row (see `mergeRegistrationTwins`), so an
+ * action never counts it, or its payment, twice.
  */
 export const summarizeEvents = (
   events: readonly TimelineEvent[],
@@ -149,7 +165,7 @@ export const summarizeEvents = (
     includeSubjectName = false,
   }: { readonly includeSubjectName?: boolean } = {},
 ): Action[] => {
-  const actions = groupByTransaction(withoutDuplicateCharges(events)).map(
+  const actions = groupByTransaction(mergeRegistrationTwins(events)).map(
     (group): Action => {
       const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
       const { slots, ...described } = describeGroup(group, byRank)

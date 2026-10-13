@@ -1,8 +1,4 @@
-import type {
-  EventDataByType,
-  EventType,
-  RegistryRef,
-} from '@ens-apps/indexer/bigname'
+import type { RegistryRef } from '@ens-apps/indexer/bigname'
 import { formatEther, formatUnits } from 'viem'
 import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
@@ -10,9 +6,6 @@ import { isObject } from '@/utils/isObject'
 
 /** The amounts a `registration` or `renewal` row can carry, as decimal strings. */
 const AMOUNT_FIELDS = ['cost', 'base_cost', 'premium'] as const
-
-/** One charge: its amounts and the token they are denominated in. */
-const CHARGE_FIELDS = [...AMOUNT_FIELDS, 'payment_token'] as const
 
 const AMOUNT_KEYS: ReadonlySet<string> = new Set(AMOUNT_FIELDS)
 
@@ -61,62 +54,4 @@ export const formatHistoryAmount = (
   }
   if (canonical_id !== undefined || token_id !== undefined) return undefined
   return `${formatEther(BigInt(value))} ETH`
-}
-
-/** A history row, its `data` typed by its friendly type. */
-type ChargeRow = {
-  readonly [TType in EventType]: {
-    readonly type: TType
-    readonly data?: EventDataByType[TType] | null
-  }
-}[EventType]
-
-/** Only a registration row carries a charge. */
-const registrationData = (row: ChargeRow) =>
-  row.type === 'registration' ? (row.data ?? undefined) : undefined
-
-const chargeOf = (row: ChargeRow): string | undefined => {
-  const data = registrationData(row)
-  if (!data || AMOUNT_FIELDS.every((field) => data[field] === undefined))
-    return undefined
-  return JSON.stringify(CHARGE_FIELDS.map((field) => data[field] ?? null))
-}
-
-const actionOf = (row: ChargeRow): string | undefined =>
-  registrationData(row)?.action_id
-
-const isRegisteredRow = (row: ChargeRow): boolean =>
-  registrationData(row)?.action_role === 'registered'
-
-/**
- * The rows with one registration's charge stated once. The `registered` and
- * `linked` rows of one `action_id` can both carry a copy of the same registrar
- * payment; it is one charge, so the copy keeps its row and loses the amounts
- * and the payment token. The `registered` row keeps them when it has them,
- * else the first row that does. A row whose charge differs from the kept one
- * is not a copy and is left alone.
- */
-export const withoutDuplicateCharges = <TRow extends ChargeRow>(
-  rows: readonly TRow[],
-): TRow[] => {
-  const kept = new Map<string, TRow>()
-  for (const row of rows) {
-    const actionId = actionOf(row)
-    if (!actionId || chargeOf(row) === undefined) continue
-    const current = kept.get(actionId)
-    if (!current || (!isRegisteredRow(current) && isRegisteredRow(row)))
-      kept.set(actionId, row)
-  }
-  return rows.map((row) => {
-    const actionId = actionOf(row)
-    const keeper = actionId ? kept.get(actionId) : undefined
-    if (!keeper || keeper === row || chargeOf(row) !== chargeOf(keeper))
-      return row
-    const data = Object.fromEntries(
-      Object.entries(row.data ?? {}).filter(
-        ([key]) => !(CHARGE_FIELDS as readonly string[]).includes(key),
-      ),
-    )
-    return { ...row, data }
-  })
 }

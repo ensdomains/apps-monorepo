@@ -1,13 +1,11 @@
-import type { EventRow, NameHistoryRow } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
 import {
-  mockHistoryRegistration,
   mockHistoryRegistrationPayment,
   mockHistoryRenewalPayment,
 } from '@/test-utils/bigname/bigname.mock'
-import { formatHistoryAmount, withoutDuplicateCharges } from './historyPayment'
+import { formatHistoryAmount } from './historyPayment'
 
 const USDC = { chain_id: chain.id, address: TOKENS.USDC.address.toLowerCase() }
 const DAI = { chain_id: chain.id, address: TOKENS.DAI.address.toLowerCase() }
@@ -73,78 +71,5 @@ describe('formatHistoryAmount', () => {
     expect(formatHistoryAmount('referrer', '0x00', {})).toBeUndefined()
     expect(formatHistoryAmount('cost', '-1', {})).toBeUndefined()
     expect(formatHistoryAmount('cost', 5, {})).toBeUndefined()
-  })
-})
-
-const registered = mockHistoryRegistrationPayment
-const linked = {
-  ...registered,
-  id: 'b'.repeat(64),
-  log_index: 43,
-  kind: 'RegistrationGranted',
-  data: { ...registered.data, action_role: 'linked' },
-} as const satisfies NameHistoryRow
-
-describe('withoutDuplicateCharges', () => {
-  it('states the charge of one action on its registered row only', () => {
-    const [first, second] = withoutDuplicateCharges([linked, registered])
-    // The `registered` row keeps it wherever it sits in the page.
-    expect(second).toBe(registered)
-    expect(first.data).toEqual({
-      token_id: registered.data.token_id,
-      canonical_id: registered.data.canonical_id,
-      referrer: registered.data.referrer,
-      registrant: registered.data.registrant,
-      owner: registered.data.owner,
-      expires_at: registered.data.expires_at,
-      action_id: registered.data.action_id,
-      action_role: 'linked',
-    })
-  })
-
-  it('keeps the first copy when the registered row carries none', () => {
-    const bare = {
-      ...registered,
-      data: { action_id: registered.data.action_id, action_role: 'registered' },
-    } as const satisfies NameHistoryRow
-    const other = { ...linked, id: 'c'.repeat(64) }
-    const rows = withoutDuplicateCharges([bare, linked, other])
-    expect(rows[0]).toBe(bare)
-    expect(rows[1]).toBe(linked)
-    expect(rows[2].data).not.toHaveProperty('base_cost')
-    expect(rows[2].data).not.toHaveProperty('payment_token')
-  })
-
-  it('leaves the charges of different actions, and a differing charge, alone', () => {
-    const otherAction = {
-      ...linked,
-      data: { ...linked.data, action_id: 'd'.repeat(64) },
-    }
-    const differing = {
-      ...linked,
-      data: { ...linked.data, base_cost: '6000000' },
-    }
-    const renewal: NameHistoryRow = mockHistoryRenewalPayment
-    const rows: readonly NameHistoryRow[] = [
-      registered,
-      otherAction,
-      differing,
-      renewal,
-    ]
-    expect(withoutDuplicateCharges(rows)).toEqual(rows)
-  })
-
-  it('is the identity on rows that carry no charge', () => {
-    const otherRegistration = {
-      ...mockHistoryRegistration,
-      id: 'e'.repeat(64),
-    }
-    const rows: readonly (NameHistoryRow | EventRow)[] = [
-      mockHistoryRegistration,
-      otherRegistration,
-    ]
-    const result = withoutDuplicateCharges(rows)
-    expect(result[0]).toBe(rows[0])
-    expect(result[1]).toBe(rows[1])
   })
 })
