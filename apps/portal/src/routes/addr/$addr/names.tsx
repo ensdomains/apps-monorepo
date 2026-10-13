@@ -431,7 +431,7 @@ function RouteComponent() {
     useQuery(getAddressRoleCountsQueryOptions({ address })),
   )
   const allNames = useMemo(
-    () => withRoleCounts(namesQuery.data ?? NO_NAMES, roleCounts),
+    () => withRoleCounts<NameRow>(namesQuery.data ?? NO_NAMES, roleCounts),
     [namesQuery.data, roleCounts],
   )
   // bigname serves the whole list, so a search filters it here.

@@ -10,7 +10,7 @@ import { BignameError } from '@ens-apps/indexer/bigname'
 import { classifyNames } from '@ens-apps/migration'
 import { errAsync, okAsync } from 'neverthrow'
 import { namehash } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readV1NamesForAddress } from './v1Names'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
@@ -129,7 +129,17 @@ const lookupFromFixtures = vi.fn<BignameClient['lookup']>((body) =>
 const stale = () =>
   new BignameError({ code: 'stale', status: 409, message: 'stale' })
 
+/** Runs the stale backoff on fake timers instead of waiting it out. */
+const settle = async <T>(result: PromiseLike<T>): Promise<T> => {
+  const settled = Promise.resolve(result)
+  await vi.runAllTimersAsync()
+  return settled
+}
+
 describe('readV1NamesForAddress', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
   it('does not use retained fuses from an unwrapped parent to detach its child', async () => {
     const parent = unwrapped2ld('alice.eth', {
       ens_v1: {
@@ -142,20 +152,22 @@ describe('readV1NamesForAddress', () => {
     })
     const child = wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL)
     const rows = new Map([parent, child].map((row) => [row.name, row]))
-    const result = await readV1NamesForAddress(
-      {
-        addressNames: () =>
-          okAsync(listPage([listRow('alice.eth'), listRow('sub.alice.eth')])),
-        lookup: (body) =>
-          okAsync(
-            lookupResponse(
-              body.inputs.flatMap((input) =>
-                'name' in input ? (rows.get(input.name) ?? []) : [],
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () =>
+            okAsync(listPage([listRow('alice.eth'), listRow('sub.alice.eth')])),
+          lookup: (body) =>
+            okAsync(
+              lookupResponse(
+                body.inputs.flatMap((input) =>
+                  'name' in input ? (rows.get(input.name) ?? []) : [],
+                ),
               ),
             ),
-          ),
-      },
-      USER,
+        },
+        USER,
+      ),
     )
     const { classified } = classifyNames(result._unsafeUnwrap(), USER, SEPOLIA)
 
@@ -184,9 +196,8 @@ describe('readV1NamesForAddress', () => {
     )
     lookupFromFixtures.mockClear()
 
-    const result = await readV1NamesForAddress(
-      { addressNames, lookup: lookupFromFixtures },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress({ addressNames, lookup: lookupFromFixtures }, USER),
     )
 
     expect(addressNames).toHaveBeenCalledWith(
@@ -195,6 +206,7 @@ describe('readV1NamesForAddress', () => {
         relation: 'any',
         authority: ['ens_v1', 'ens_v0'],
       }),
+      expect.anything(),
     )
     expect(lookupFromFixtures.mock.calls.map(([body]) => body.inputs)).toEqual([
       [{ name: 'alice.eth' }, { name: 'bob.eth' }, { name: 'sub.bob.eth' }],
@@ -212,18 +224,20 @@ describe('readV1NamesForAddress', () => {
   })
 
   it('fails instead of classifying around a name it could not read', async () => {
-    const result = await readV1NamesForAddress(
-      {
-        addressNames: () => okAsync(listPage([listRow('alice.eth')])),
-        lookup: () =>
-          okAsync({
-            data: [
-              { input: { name: 'alice.eth' }, kind: 'name', status: 'stale' },
-            ],
-            meta: { as_of: {} },
-          }),
-      },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () => okAsync(listPage([listRow('alice.eth')])),
+          lookup: () =>
+            okAsync({
+              data: [
+                { input: { name: 'alice.eth' }, kind: 'name', status: 'stale' },
+              ],
+              meta: { as_of: {} },
+            }),
+        },
+        USER,
+      ),
     )
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetV1NamesError')
@@ -237,9 +251,8 @@ describe('readV1NamesForAddress', () => {
       .mockReturnValueOnce(errAsync(stale()))
       .mockReturnValue(okAsync(listPage([listRow('bob.eth')])))
 
-    const result = await readV1NamesForAddress(
-      { addressNames, lookup: lookupFromFixtures },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress({ addressNames, lookup: lookupFromFixtures }, USER),
     )
 
     expect(addressNames).toHaveBeenCalledTimes(3)
@@ -255,12 +268,14 @@ describe('readV1NamesForAddress', () => {
       .fn<BignameClient['lookup']>()
       .mockReturnValue(errAsync(stale()))
 
-    const result = await readV1NamesForAddress(
-      {
-        addressNames: () => okAsync(listPage([listRow('alice.eth')])),
-        lookup,
-      },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () => okAsync(listPage([listRow('alice.eth')])),
+          lookup,
+        },
+        USER,
+      ),
     )
 
     expect(lookup).toHaveBeenCalledTimes(3)

@@ -13,12 +13,13 @@ const toBignameStopError = (reason: PagingStop) =>
 export const readAllCollectionPages = <Row>(
   read: (
     cursor: string | undefined,
+    signal?: AbortSignal,
   ) => ResultAsync<Envelope<readonly Row[]>, BignameError>,
   options: Readonly<{ limit?: number; signal?: AbortSignal }> = {},
 ): ResultAsync<readonly Row[], BignameError> =>
   readAllPages({
-    readPage: (cursor) =>
-      read(cursor).map(({ data, page }) => ({
+    readPage: (cursor, signal) =>
+      read(cursor, signal).map(({ data, page }) => ({
         rows: data,
         nextCursor: page?.next_cursor ?? null,
       })),
@@ -32,12 +33,13 @@ export const readAllCollectionPages = <Row>(
 export const readAllEnvelopes = <Row>(
   read: (
     cursor: string | undefined,
+    signal?: AbortSignal,
   ) => ResultAsync<Envelope<readonly Row[]>, BignameError>,
   options: Readonly<{ signal?: AbortSignal }> = {},
 ): ResultAsync<readonly Envelope<readonly Row[]>[], BignameError> =>
   readAllPages({
-    readPage: (cursor) =>
-      read(cursor).map((envelope) => ({
+    readPage: (cursor, signal) =>
+      read(cursor, signal).map((envelope) => ({
         rows: [envelope],
         nextCursor: envelope.page?.next_cursor ?? null,
       })),

@@ -1,8 +1,4 @@
-export {
-  type PagingStop,
-  readAllPages,
-  retryStale,
-} from '../shared/paging'
+export { readAllPages, retryStale } from '../shared/paging'
 export {
   toDate,
   toExactSeconds,
@@ -22,7 +18,7 @@ export {
   type BignameErrorCode,
   isStale,
 } from './errors'
-export { isInV2Grace, readGraceNames } from './grace'
+export { readGraceNames } from './grace'
 export { readNameDetail } from './nameDetail'
 export { readNamesForAddress } from './namesForAddress'
 export { readAllCollectionPages, readAllEnvelopes } from './paging'

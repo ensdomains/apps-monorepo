@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
-import { registryHistoryTimelineQueryKey } from '../components/v2/RegistryHistory'
+import { getRegistryHistoryQueryOptions } from '../components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '../hooks/useRegistry'
 import { getRegistryLabelsQueryOptions } from '../hooks/useRegistryLabels'
 import { getRegistryOccupantsQueryOptions } from '../hooks/useRegistryOccupants'
@@ -28,8 +28,7 @@ const ROLE_KEYS = [
 const BIGNAME_KEYS = [
   getRegistryInfoQueryOptions({ address: REGISTRY }).queryKey,
   getRegistryLabelsQueryOptions({ address: REGISTRY }).queryKey,
-  // The history route builds its options inline around this key.
-  registryHistoryTimelineQueryKey({ address: REGISTRY }),
+  getRegistryHistoryQueryOptions({ address: REGISTRY }).queryKey,
 ]
 
 const OCCUPANTS_KEY = getRegistryOccupantsQueryOptions({

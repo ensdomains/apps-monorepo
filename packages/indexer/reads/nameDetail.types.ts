@@ -4,6 +4,7 @@ import type {
   Hex,
   NameRegistrationStatus,
   ProtocolVersion,
+  ReadOptions,
 } from './common.types'
 import type { IndexerReadError } from './errors'
 
@@ -28,6 +29,8 @@ export type NameDetail = Readonly<{
   registrationStatus: NameRegistrationStatus | null
   expiresAt: Date | null
   registeredAt: Date | null
+  /** The current registration's handle; a re-registration gets a new one. */
+  registrationId: string | null
   createdAt: Date | null
   /** When the name provably moved from v1 to v2. */
   migratedAt: Date | null
@@ -42,4 +45,5 @@ export type NameDetail = Readonly<{
 /** Resolves to null when the backend has not indexed the name at all. */
 export type ReadNameDetail = (
   query: NameDetailQuery,
+  options?: ReadOptions,
 ) => ResultAsync<NameDetail | null, IndexerReadError>

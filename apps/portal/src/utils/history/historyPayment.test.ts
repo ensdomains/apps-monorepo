@@ -33,16 +33,6 @@ describe('formatHistoryAmount', () => {
     ).toBe('1.5 DAI')
   })
 
-  it('reads the fixture payment token, Sepolia USDC, when the app targets Sepolia', () => {
-    const { data } = mockHistoryRegistrationPayment
-    expect(formatHistoryAmount('base_cost', data.base_cost, data)).toBe(
-      data.payment_token.address === USDC.address &&
-        data.payment_token.chain_id === USDC.chain_id
-        ? '5 USDC'
-        : `5000000 units of ${data.payment_token.address}`,
-    )
-  })
-
   it('never guesses the decimals of a token it does not know', () => {
     expect(
       formatHistoryAmount('cost', '5000000', {

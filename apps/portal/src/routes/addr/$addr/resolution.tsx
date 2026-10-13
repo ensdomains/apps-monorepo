@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   getCoreRowModel,
@@ -8,9 +8,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Search } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -22,7 +27,10 @@ import {
 } from '@/components/ui/input-group'
 import { columns } from '@/features/forward-resolution/components/ForwardNamesTable/columns'
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
-import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
+import {
+  getResolvedNamesForAddressQueryOptions,
+  RESOLVED_NAMES_PAGE_SIZE,
+} from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
@@ -33,12 +41,14 @@ const NO_ROWS: never[] = []
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) =>
-    queryClient.prefetchQuery(
+  // Started, not awaited, so the page renders while the first names load.
+  loader: ({ params }) => {
+    void queryClient.prefetchInfiniteQuery(
       getResolvedNamesForAddressQueryOptions({
         address: params.addr as Address,
       }),
-    ),
+    )
+  },
 })
 
 function RouteComponent() {
@@ -46,14 +56,31 @@ function RouteComponent() {
 
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const { data, error, isLoading } = useQuery(
-    getResolvedNamesForAddressQueryOptions({
-      address,
-    }),
+  const query = useInfiniteQuery(
+    getResolvedNamesForAddressQueryOptions({ address }),
   )
+  const loaded = useMemo(
+    () => query.data?.pages.flatMap((page) => page.names) ?? NO_ROWS,
+    [query.data],
+  )
+  const loader = useListLoader({
+    initialCount: RESOLVED_NAMES_PAGE_SIZE,
+    loaded: loaded.length,
+    hasMore: query.hasNextPage,
+    fetchMore: infiniteFetchMore(
+      query.fetchNextPage,
+      (page) => page.names.length,
+    ),
+    resetKey: address,
+  })
+  const data = useMemo(
+    () => loaded.slice(0, loader.shown),
+    [loaded, loader.shown],
+  )
+  const isEthereumOnly = query.data?.pages[0]?.isEthereumOnly ?? false
 
   const table = useReactTable({
-    data: data ?? NO_ROWS,
+    data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -67,22 +94,19 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (isLoading) return <LoadingMessage />
+  if (query.isLoading) return <LoadingMessage />
 
-  if (error) {
+  // A failed Load more keeps the rows; the loader says it failed.
+  if (query.error && !query.isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Data unavailable"
-        description={
-          error._tag === 'TooManyResolvedNamesError'
-            ? 'More than 100 names point their address records at this address, which is more than can be listed.'
-            : extractErrorMessage(error)
-        }
+        description={extractErrorMessage(query.error)}
       />
     )
   }
 
-  if (!data || data.length === 0) {
+  if (data.length === 0) {
     return (
       <>
         <header className="flex flex-col gap-4">
@@ -118,8 +142,15 @@ function RouteComponent() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
+        {isEthereumOnly && (
+          <p className="text-sm text-muted-foreground">
+            One of these names stores this address under more networks than can
+            be listed, so only Ethereum address records are matched.
+          </p>
+        )}
       </header>
       <ForwardNamesTable table={table} />
+      <ListLoader {...loader} className="py-4" />
     </>
   )
 }

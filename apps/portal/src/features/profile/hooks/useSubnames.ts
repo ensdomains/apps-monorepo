@@ -2,7 +2,7 @@ import type {
   BignameError,
   Subname as BignameSubname,
 } from '@ens-apps/indexer/bigname'
-import { readNameDetail } from '@ens-apps/indexer/bigname'
+import { isStale, retryStale } from '@ens-apps/indexer/bigname'
 import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
@@ -13,6 +13,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { errAsync, okAsync } from 'neverthrow'
 import { type Address, checksumAddress, type Hex, labelhash } from 'viem'
+import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
 import { bigname } from '@/lib/bigname'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
@@ -39,8 +40,10 @@ type GetSubnamesParameters = {
 /** One page of a name's subnames, with the name's total beside it. */
 export type SubnamesPage = {
   readonly subnames: readonly Subname[]
-  /** Every subname the name has, not just the ones on this page. */
-  /** Undefined when bigname does not count the list. */
+  /**
+   * Every subname the name has, not just the ones on this page; undefined
+   * when bigname does not count the list.
+   */
   readonly totalCount: number | undefined
   readonly nextCursor: string | null
 }
@@ -79,15 +82,24 @@ const toSubname =
 const readSubnames = (
   name: string,
   query: { readonly pageSize: number; readonly cursor?: string },
+  signal?: AbortSignal,
 ) =>
-  bigname
-    .subnames(name, {
-      namespace: 'ens',
-      include_expired: 'false',
-      sort: 'name',
-      page_size: query.pageSize,
-      ...(query.cursor && { cursor: query.cursor }),
-    })
+  retryStale(
+    (requestSignal) =>
+      bigname.subnames(
+        name,
+        {
+          namespace: 'ens',
+          include_expired: 'false',
+          sort: 'name',
+          page_size: query.pageSize,
+          ...(query.cursor && { cursor: query.cursor }),
+        },
+        { signal: requestSignal },
+      ),
+    isStale,
+    { signal },
+  )
     .map(
       ({ data, page }): SubnamesPage => ({
         subnames: data.flatMap(toSubname(name)),
@@ -129,26 +141,30 @@ export const getSubnamePagesQueryOptions = ({
 }: GetSubnamesParameters) =>
   resultInfiniteQueryOptions({
     queryKey: getSubnamesQueryKey({ name, protocolVersion, only: 'pages' }),
-    queryFn: ({ pageParam }) =>
-      readSubnames(name, {
-        pageSize: SUBNAMES_PAGE_SIZE,
-        cursor: pageParam,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      readSubnames(
+        name,
+        { pageSize: SUBNAMES_PAGE_SIZE, cursor: pageParam },
+        signal,
+      ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last: SubnamesPage) => last.nextCursor ?? undefined,
   })
 
 // bigname totals the children it would list, in either era.
-const getSubnamesCount = ({ name }: GetSubnamesParameters) =>
+const getSubnamesCount = (
+  { name }: GetSubnamesParameters,
+  signal?: AbortSignal,
+) =>
   // A query cannot resolve to undefined, so an uncounted list reads as null.
-  readSubnames(name, { pageSize: 1 }).map(
+  readSubnames(name, { pageSize: 1 }, signal).map(
     ({ totalCount }) => totalCount ?? null,
   )
 
 export const getSubnamesCountQueryOptions = (params: GetSubnamesParameters) =>
   resultQueryOptions({
     queryKey: getSubnamesQueryKey({ ...params, only: 'count' }),
-    queryFn: () => getSubnamesCount(params),
+    queryFn: ({ signal }) => getSubnamesCount(params, signal),
   })
 
 type IsSubnameTakenParameters = {
@@ -157,12 +173,13 @@ type IsSubnameTakenParameters = {
   readonly label: string
 }
 
-const readDetail = readNameDetail(bigname)
-
 const FREE_STATUSES: readonly (string | null)[] = ['released', 'unregistered']
 
-const getIsSubnameTaken = ({ name, label }: IsSubnameTakenParameters) =>
-  readDetail({ name: `${label}.${name}` })
+const getIsSubnameTaken = (
+  { name, label }: IsSubnameTakenParameters,
+  signal?: AbortSignal,
+) =>
+  readIndexedNameDetail({ name: `${label}.${name}` }, signal)
     .map(
       (detail) =>
         detail !== null && !FREE_STATUSES.includes(detail.registrationStatus),
@@ -184,5 +201,5 @@ export const getIsSubnameTakenQueryOptions = ({
       only: 'label',
       label,
     }),
-    queryFn: () => getIsSubnameTaken({ name, label }),
+    queryFn: ({ signal }) => getIsSubnameTaken({ name, label }, signal),
   })

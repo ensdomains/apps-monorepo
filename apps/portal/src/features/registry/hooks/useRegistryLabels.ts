@@ -68,13 +68,21 @@ const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
 const getRegistryLabelsPage = (
   { address }: GetRegistryLabelsParameters,
   cursor: string | undefined,
+  signal?: AbortSignal,
 ) =>
   nullOnNotFound(
-    bigname.registryLabels(envConfig.chain.id, address.toLowerCase(), {
-      include: ['counts'],
-      page_size: REGISTRY_LABELS_PAGE_SIZE,
-      ...(cursor && { cursor }),
-    }),
+    (requestSignal) =>
+      bigname.registryLabels(
+        envConfig.chain.id,
+        address.toLowerCase(),
+        {
+          include: ['counts'],
+          page_size: REGISTRY_LABELS_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: requestSignal },
+      ),
+    { signal },
   )
     .mapErr((cause) => new GetRegistryLabelsError({ cause }))
     .map(
@@ -95,7 +103,8 @@ export const getRegistryLabelsQueryOptions = (
 ) =>
   resultInfiniteQueryOptions({
     queryKey: getRegistryLabelsQueryKey(params),
-    queryFn: ({ pageParam }) => getRegistryLabelsPage(params, pageParam),
+    queryFn: ({ pageParam, signal }) =>
+      getRegistryLabelsPage(params, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last: RegistryLabelsPage) => last.nextCursor,
   })

@@ -21,6 +21,6 @@ export const getRegistryRoleHistoryForAccountQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: getRegistryRoleHistoryForAccountQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) =>
-      getRegistryRoleHistoryForAccount(params),
+    queryFn: ({ queryKey: [, params], signal }) =>
+      getRegistryRoleHistoryForAccount(params, signal),
   })

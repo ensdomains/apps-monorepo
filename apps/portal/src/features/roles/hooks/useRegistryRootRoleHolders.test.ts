@@ -53,10 +53,13 @@ describe('getRegistryRootRoles', () => {
         ],
         areOperatorRolesUnlisted: false,
       })
-      expect(listPermissions).toHaveBeenLastCalledWith({
-        registry: `11155111:${REGISTRY.toLowerCase()}`,
-        page_size: 200,
-      })
+      expect(listPermissions).toHaveBeenLastCalledWith(
+        {
+          registry: `11155111:${REGISTRY.toLowerCase()}`,
+          page_size: 200,
+        },
+        expect.anything(),
+      )
     })
 
     it('says operator-held roles are unlisted for a discovered registry, on an empty page too', async () => {
