@@ -1,4 +1,4 @@
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { isAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
@@ -66,6 +66,13 @@ const EventContent = ({ event }: { event: TimelineEvent }) =>
       </>
     ))
     .with({ type: 'transfer' }, (e) => <TransferContent event={e} />)
+    .with(
+      {
+        type: 'permission',
+        data: { powers: P.optional(P.nullish), fuses: P.number },
+      },
+      () => <span className={muted}>set fuses</span>,
+    )
     .with({ type: 'permission' }, (e) => {
       const powers = e.data?.powers ?? []
       // A registry's root resource: the row has no name.

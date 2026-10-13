@@ -254,8 +254,49 @@ describe('summarizeEvents — ENSv1 to ENSv2 migration', () => {
   })
 })
 
+describe('summarizeEvents — ENSv1 wraps', () => {
+  // The rows bigname serves for a wrap (vintagelabel.eth, tx 0x8684…3667).
+  const wrap = [
+    event('authority', '1', { owner: OWNER }),
+    event('transfer', '2', { from: OWNER, to: RESOLVER }),
+    event(
+      'authority',
+      '3',
+      { owner: RESOLVER },
+      { kind: 'AuthorityEpochChanged' },
+    ),
+    event(
+      'authority',
+      '4',
+      { from: OWNER, owner: RESOLVER },
+      { kind: 'AuthorityTransferred' },
+    ),
+    event('subregistry', '5', {}),
+    event('authority', '6', { action: 'name_wrapped', owner: OWNER }),
+    event('permission', '7', { fuses: 196608 }),
+  ]
+
+  it('headlines a wrap as the wrap', () => {
+    const [action] = summarizeEvents(wrap)
+    expect(action.label).toBe('wrapped')
+    expect(action.slots).toEqual([{ kind: 'name', value: 'alice.eth' }])
+  })
+
+  it('ranks a subregistry row with no link under the transfer', () => {
+    const [action] = summarizeEvents(
+      wrap.filter((row) => row.type !== 'authority'),
+    )
+    expect(action.label).toBe('transferred')
+  })
+
+  it('still says unlinked when that is the whole transaction', () => {
+    const [action] = summarizeEvents([event('subregistry', '1', {})])
+    expect(action.label).toBe('unlinked subregistry')
+  })
+})
+
 describe('summarizeEvents', () => {
-  it("states a registration's charge on one row of its action", () => {
+  it('counts a registration once, though bigname serves it as two rows', () => {
     const registered = mockHistoryRegistrationPayment
     const linked = {
       ...registered,
@@ -266,18 +307,8 @@ describe('summarizeEvents', () => {
     const [action] = summarizeEvents(toTimelineEvents([linked, registered]))
 
     expect(action.label).toBe('registered')
-    expect(action.events).toHaveLength(2)
-    const charged = action.events.filter(
-      ({ data }) =>
-        data !== undefined && ('base_cost' in data || 'payment_token' in data),
-    )
-    expect(charged.map(({ id }) => id)).toEqual([registered.id])
-    // Only the charge is dropped from the copy; the rest of the row stays.
-    expect(action.events[0].data).toMatchObject({
-      token_id: registered.data.token_id,
-      referrer: registered.data.referrer,
-      action_role: 'linked',
-    })
+    expect(action.events.map(({ id }) => id)).toEqual([registered.id])
+    expect(action.events[0].data).toHaveProperty('base_cost')
   })
 
   it('renders a root role change in a registry feed, which has no name to lead with', () => {

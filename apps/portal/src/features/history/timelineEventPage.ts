@@ -126,6 +126,14 @@ export const fetchNameHistoryPage = ({
         }),
       )
 
+/** Every registration a registry emits is of one of its labels: a subname. */
+const asSubnames = (page: TimelinePage): TimelinePage => ({
+  ...page,
+  events: page.events.map((event) =>
+    event.type === 'registration' ? { ...event, subject: 'child' } : event,
+  ),
+})
+
 /**
  * Everything one contract emitted — how a registry's own feed is addressed.
  * `include=total_count` makes bigname count a `contract_address` read exactly
@@ -146,7 +154,7 @@ export const fetchContractEventsPage = ({
       page_size: HISTORY_TIMELINE_PAGE_SIZE,
       ...(cursor && { cursor }),
     }),
-  )
+  ).map(asSubnames)
 
 /**
  * A resolver's feed as its overview reads it: what it emitted plus the names

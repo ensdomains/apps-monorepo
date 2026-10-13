@@ -117,7 +117,7 @@ describe('flattenHistoryData', () => {
 })
 
 describe('historyEventsToSubgraphEvents', () => {
-  it("prints one registration's charge on one of its rows", () => {
+  it('prints a registration once, though bigname serves it as two rows', () => {
     const registered = mockHistoryRegistrationPayment
     const linked = {
       ...registered,
@@ -125,15 +125,11 @@ describe('historyEventsToSubgraphEvents', () => {
       log_index: 43,
       data: { ...registered.data, action_role: 'linked' },
     } as const satisfies NameHistoryRow
-    const [first, second] = historyEventsToSubgraphEvents([registered, linked])
-    expect(first).toHaveProperty('base_cost')
-    expect(first).toHaveProperty(
+    const events = historyEventsToSubgraphEvents([registered, linked])
+    expect(events).toHaveLength(1)
+    expect(events[0]).toHaveProperty(
       'payment_token',
       registered.data.payment_token.address,
     )
-    expect(second).not.toHaveProperty('base_cost')
-    expect(second).not.toHaveProperty('premium')
-    expect(second).not.toHaveProperty('payment_token')
-    expect(second).toHaveProperty('token_id', registered.data.token_id)
   })
 })
