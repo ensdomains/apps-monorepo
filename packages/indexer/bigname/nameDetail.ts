@@ -23,6 +23,7 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
   resolver: toAddress(record.resolver?.address),
   registrationStatus: record.status ?? null,
   expiresAt: toExpiresAt(record),
+  graceEndsAt: toDate(record.grace_ends_at),
   registeredAt: toDate(record.registered_at),
   registrationId: record.registration_id ?? null,
   createdAt: toDate(record.created_at),
