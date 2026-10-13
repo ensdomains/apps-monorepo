@@ -25,6 +25,9 @@ export type EventType =
   | 'permission'
   | 'subregistry'
   | 'migration'
+  | 'reservation'
+  | 'token'
+  | 'contract'
 
 /** Raw storage kinds served with `include=raw` and accepted by the `kind` filter. */
 export type EventKind =
@@ -48,6 +51,13 @@ export type EventKind =
   | 'EACRolesChanged'
   | 'SubregistryChanged'
   | 'MigrationApplied'
+  | 'AccountPermissionChanged'
+  | 'RegistrationReserved'
+  | 'ResolverRecordLinked'
+  | 'TokenRegenerated'
+  | 'RegistryCreated'
+  | 'ParentChanged'
+  | 'Upgraded'
 
 /** Name and address history: `scope` values (default `both`). */
 export type HistoryScope = 'name' | 'registration' | 'both'
@@ -156,8 +166,8 @@ type PaymentData = Readonly<{
   referrer?: Hex
 }>
 
-/** `data.action`: what the row's event did, one step finer than its `type`. */
-type HistoryAction =
+/** `data.action` on every row: what its event did, one step finer than its `type`. */
+export type HistoryAction =
   | 'registration_granted'
   | 'registration_renewed'
   | 'registration_released'
@@ -184,8 +194,8 @@ type HistoryAction =
   | 'registry_parent_changed'
   | 'contract_upgraded'
 
-/** Per-type `include=data` payloads; only the fields a row carries are present. */
-export type EventDataByType = Readonly<{
+/** Per-type payloads before the `action` every row carries. */
+type EventPayloads = Readonly<{
   registration: ExpiryData &
     CanonicalIdData &
     PaymentData &
@@ -214,14 +224,20 @@ export type EventDataByType = Readonly<{
       operator?: Address
       token_id?: string
     }>
-  authority: Readonly<{
-    owner?: Address
-    from?: Address
-    /** `name_wrapped` / `name_unwrapped` on a NameWrapper (un)wrap. */
-    action?: HistoryAction
-  }>
-  /** `resolver` absent means the pointer was cleared. */
-  resolver: CanonicalIdData & Readonly<{ resolver?: RegistryRef }>
+  /** A `name_wrapped` / `name_unwrapped` row adds the node, fuses and expiry. */
+  authority: ExpiryData &
+    Readonly<{ owner?: Address; from?: Address; node?: Hex; fuses?: number }>
+  /**
+   * `resolver` absent means the pointer was cleared. A `resolver_record_linked`
+   * row links a node to a record id instead; record id `"0"` is an unlink.
+   */
+  resolver: CanonicalIdData &
+    Readonly<{
+      resolver?: RegistryRef
+      node?: Hex
+      record_id?: string
+      dns_encoded_name?: Hex
+    }>
   record: Readonly<{
     /** May be outside the record grammar (`name`, `abi:<ct>`); absent on a version reset. */
     key?: string
@@ -231,6 +247,7 @@ export type EventDataByType = Readonly<{
     resolver?: RegistryRef
     node?: Hex
     record_id?: string
+    record_version?: string
   }>
   primary_name: Readonly<{
     address?: Address
@@ -238,6 +255,7 @@ export type EventDataByType = Readonly<{
     /** The stored name, unnormalized; only with `name_status: 'set'`. */
     name?: string
     name_status?: 'set' | 'cleared' | 'unknown'
+    reverse_node?: Hex
   }>
   /**
    * A root role change (`RootPermissionChanged`) is a permission row with a
@@ -253,14 +271,36 @@ export type EventDataByType = Readonly<{
       added_powers?: readonly Power[]
       removed_powers?: readonly Power[]
       token_id?: string
-      /** Registrar-controller rows: added or removed. */
+      /** Registrar-controller and operator-approval rows: added or removed. */
       approved?: boolean
       fuses?: number
+      /** Operator-approval rows: the approving owner and its operator. */
+      owner?: Address
+      operator?: Address
     }>
   /** `subregistry` absent means the link was cleared. */
   subregistry: CanonicalIdData & Readonly<{ subregistry?: RegistryRef }>
   migration: Readonly<{ migration_path?: MigrationPath }>
+  reservation: ExpiryData &
+    CanonicalIdData &
+    Readonly<{ token_id?: string; node?: Hex }>
+  token: Readonly<{ old_token_id?: string; new_token_id?: string }>
+  /** `registry_created`, `registry_parent_changed` or `contract_upgraded`. */
+  contract: Readonly<{
+    registry?: RegistryRef
+    parent?: RegistryRef
+    parent_cleared?: boolean
+    label?: string
+    proxy?: RegistryRef
+    implementation?: RegistryRef
+  }>
 }>
+
+/** Per-type `include=data` payloads; only the fields a row carries are present. */
+export type EventDataByType = {
+  readonly [TType in EventType]: EventPayloads[TType] &
+    Readonly<{ action?: HistoryAction }>
+}
 
 /** Fields of every row on the three history collections. */
 export type EventRowBase = Readonly<{

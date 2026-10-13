@@ -12,8 +12,11 @@ import { fetchNameHistoryPage, timelinePageParams } from '../timelineEventPage'
  * stream, so nothing is merged in beside it.
  */
 
-/** Ascending window for the anchor read — wide enough to hold the oldest transaction. */
-const ANCHOR_WINDOW = 20
+/**
+ * Ascending window for the anchor read: wide enough to hold the oldest
+ * transaction whole (a wrapped ENSv1 registration writes up to 23 rows).
+ */
+const ANCHOR_WINDOW = 50
 
 export type NameHistoryScope = {
   readonly name: string

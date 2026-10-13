@@ -101,8 +101,10 @@ export const NameSubgraphHistory = ({
   const data =
     v2Events ??
     (history ? historyEventsToSubgraphEvents(history.rows) : undefined)
-  // Only the indexed read is one page of a longer history.
-  const totalCount = v2Events ? undefined : history?.totalCount
+  // Only the indexed read is one page of a longer history. bigname counts rows,
+  // and the table merges some, so its total is only an upper bound.
+  const isCut = !v2Events && !!history?.hasMore
+  const totalCount = history?.totalCount
 
   if (!data || data.length === 0)
     return (
@@ -120,9 +122,10 @@ export const NameSubgraphHistory = ({
     <div className="flex flex-col gap-4 w-full">
       {enableHeader && <HistorySectionHeader />}
       <NameSubgraphHistoryTable {...{ name, data, category }} />
-      {totalCount !== undefined && totalCount > data.length && (
+      {isCut && (
         <p className="text-sm text-muted-foreground">
-          Showing the latest {data.length} of {totalCount} events
+          Showing the latest {data.length}
+          {totalCount !== undefined && ` of up to ${totalCount}`} events
         </p>
       )}
     </div>

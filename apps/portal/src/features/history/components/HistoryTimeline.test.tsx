@@ -67,6 +67,7 @@ const model = (
   eventTypes: [],
   anchorAction: undefined,
   totalCount: undefined,
+  totalIsUpperBound: false,
   hasMore: false,
   loadMore: vi.fn(),
   isLoadingMore: false,
@@ -157,7 +158,10 @@ describe('HistoryTimelineView', () => {
         breakContent="load-more"
       />,
     )
-    expect(screen.getByText(/No history yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/No history yet/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/Nothing to show in what has loaded/),
+    ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
     expect(loadMore).toHaveBeenCalledOnce()
   })

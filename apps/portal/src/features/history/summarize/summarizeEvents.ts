@@ -1,4 +1,4 @@
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 import {
   type EventType,
@@ -26,6 +26,8 @@ const TYPE_RANK: Record<EventType, number> = {
   // headline is the migration, not the registration rows it writes.
   migration: 110,
   registration: 100,
+  // An ENSv2 reservation is the transaction; its resolver row follows from it.
+  reservation: 95,
   renewal: 90,
   subregistry: 80,
   authority: 78,
@@ -34,7 +36,9 @@ const TYPE_RANK: Record<EventType, number> = {
   resolver: 60,
   permission: 55,
   primary_name: 46,
+  contract: 50,
   record: 30,
+  token: 25,
   expiry: 20,
 }
 
@@ -83,22 +87,34 @@ const multiRecordRecipe = (
 /** A (un)wrap is the transaction; its transfer and registry rows follow from it. */
 const WRAP_RANK = 85
 
-const WRAP_ACTIONS: ReadonlySet<string> = new Set([
-  'name_wrapped',
-  'name_unwrapped',
-])
-
 /**
  * A type newer than this table ranks lowest: it can only headline alone. A
  * subregistry row with no link ranks under a transfer: ENSv1 writes one on a wrap.
  */
-const rankOf = (event: TimelineEvent): number => {
-  if (event.type === 'authority' && WRAP_ACTIONS.has(event.data?.action ?? ''))
-    return WRAP_RANK
-  if (event.type === 'subregistry' && !event.data?.subregistry)
-    return TYPE_RANK.transfer - 1
-  return isKnownHistoryEventType(event.type) ? TYPE_RANK[event.type] : 0
-}
+const rankOf = (event: TimelineEvent): number =>
+  match(event)
+    .with(
+      {
+        type: 'authority',
+        data: { action: P.union('name_wrapped', 'name_unwrapped') },
+      },
+      () => WRAP_RANK,
+    )
+    .with(
+      {
+        type: 'subregistry',
+        data: P.optional({ subregistry: P.optional(P.nullish) }),
+      },
+      () => TYPE_RANK.transfer - 1,
+    )
+    // A record link is not a resolver change: it ranks with the record writes.
+    .with(
+      { type: 'resolver', data: { action: 'resolver_record_linked' } },
+      () => TYPE_RANK.record,
+    )
+    .otherwise(({ type }) =>
+      isKnownHistoryEventType(type) ? TYPE_RANK[type] : 0,
+    )
 
 /** Group rows by transaction (a state-derived row alone), preserving encounter order. */
 const groupByTransaction = (

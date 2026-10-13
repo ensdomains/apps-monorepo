@@ -35,11 +35,13 @@ export const timelineBreakActionClassName =
  */
 export const TimelineLoadMore = ({
   totalCount,
+  totalIsUpperBound = false,
   isLoading,
   isError = false,
   onLoadMore,
 }: {
   readonly totalCount: number | undefined
+  readonly totalIsUpperBound?: boolean
   readonly isLoading: boolean
   readonly isError?: boolean
   readonly onLoadMore: () => void
@@ -55,6 +57,7 @@ export const TimelineLoadMore = ({
       {isLoading ? 'Loading…' : 'Load more'}
     </button>
     {!isLoading && ' events'}
-    {totalCount !== undefined && ` (${totalCount} total)`}
+    {totalCount !== undefined &&
+      ` (${totalIsUpperBound ? 'up to ' : ''}${totalCount} total)`}
   </TimelineBreak>
 )

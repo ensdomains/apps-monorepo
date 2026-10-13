@@ -25,6 +25,9 @@ export const HISTORY_EVENT_TYPES = [
   'permission',
   'subregistry',
   'migration',
+  'reservation',
+  'token',
+  'contract',
 ] as const satisfies readonly EventType[]
 
 export type { EventType }

@@ -212,6 +212,38 @@ describe('formatActivityEvent — bigname rows', () => {
     })
   })
 
+  it('words a wrap and an unwrap from the row action', () => {
+    expect(
+      formatActivityEvent(
+        event('authority', { action: 'name_wrapped', owner: OWNER }),
+      ),
+    ).toEqual({ text: 'Name wrapped' })
+    expect(
+      formatActivityEvent(event('authority', { action: 'name_unwrapped' })),
+    ).toEqual({ text: 'Name unwrapped' })
+  })
+
+  it('words a record link as one, not as a resolver change', () => {
+    const link = (record_id: string) =>
+      event('resolver', {
+        action: 'resolver_record_linked',
+        record_id,
+        resolver: { chain_id: 11155111, address: OWNER },
+      })
+    expect(formatActivityEvent(link('7'))).toEqual({
+      text: 'Shared records linked',
+    })
+    expect(formatActivityEvent(link('0'))).toEqual({
+      text: 'Shared records unlinked',
+    })
+  })
+
+  it('words a reservation', () => {
+    expect(formatActivityEvent(event('reservation', {}))).toEqual({
+      text: 'Name reserved',
+    })
+  })
+
   it('words a type newer than the client by its raw kind instead of throwing', () => {
     const future = {
       ...base,

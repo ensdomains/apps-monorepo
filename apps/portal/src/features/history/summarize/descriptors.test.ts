@@ -290,6 +290,109 @@ describe('bigname rows', () => {
   })
 })
 
+describe('row actions and newer types', () => {
+  const OTHER = '0x0000000000000000000000000000000000000abc'
+
+  it('a record link reads as one, not as a resolver change', () => {
+    const link = (record_id: string) =>
+      event('resolver', {
+        action: 'resolver_record_linked',
+        record_id,
+        resolver: { chain_id: 11155111, address: CONTRACT },
+      })
+    expect(describeEvent(link('7'))).toEqual({
+      icon: 'records',
+      label: 'linked shared records',
+      slots: [{ kind: 'text', value: 'ID 7' }],
+    })
+    expect(describeEvent(link('0'))?.label).toBe('unlinked shared records')
+  })
+
+  it('a primary name shows the recorded name as text, only when set', () => {
+    expect(
+      describeEvent(
+        event(
+          'primary_name',
+          { address: ADDRESS, name: 'alice.eth', name_status: 'set' },
+          { name: '' },
+        ),
+      ),
+    ).toEqual({
+      label: 'set primary name',
+      slots: [
+        { kind: 'text', value: 'alice.eth' },
+        { kind: 'glyph', value: '↔' },
+        { kind: 'address', value: ADDRESS },
+      ],
+    })
+    expect(
+      describeEvent(
+        event('primary_name', {
+          action: 'reverse_claimed',
+          address: ADDRESS,
+          name: 'alice.eth',
+          name_status: 'unknown',
+        }),
+      ),
+    ).toEqual({
+      label: 'claimed reverse record for',
+      slots: [{ kind: 'address', value: ADDRESS }],
+    })
+  })
+
+  it('a written reverse name is text, never a name link', () => {
+    expect(
+      describeEvent(event('record', { key: 'name', value: 'alice.eth' })),
+    ).toEqual({
+      icon: 'primary',
+      label: 'set primary name to',
+      slots: [{ kind: 'text', value: 'alice.eth' }],
+    })
+  })
+
+  it('a reservation names the name', () => {
+    expect(
+      describeEvent(event('reservation', { action: 'registration_reserved' })),
+    ).toEqual({
+      label: 'reserved',
+      slots: [{ kind: 'name', value: 'collector.eth' }],
+    })
+  })
+
+  it('words the contract rows', () => {
+    const ref = (address: string) => ({ chain_id: 11155111, address })
+    expect(
+      describeEvent(
+        event('contract', {
+          action: 'registry_created',
+          registry: ref(CONTRACT),
+        } as EventDataByType['contract']),
+      ),
+    ).toEqual({
+      label: 'created registry',
+      slots: [{ kind: 'contract', value: CONTRACT, isRegistry: true }],
+    })
+    expect(
+      describeEvent(
+        event('contract', {
+          action: 'contract_upgraded',
+          proxy: ref(CONTRACT),
+          implementation: ref(OTHER),
+        } as EventDataByType['contract']),
+      )?.label,
+    ).toBe('upgraded')
+    expect(
+      describeEvent(
+        event('contract', {
+          action: 'registry_parent_changed',
+          registry: ref(CONTRACT),
+          parent_cleared: true,
+        } as EventDataByType['contract']),
+      )?.label,
+    ).toBe('cleared the parent of')
+  })
+})
+
 describe('root role changes', () => {
   const REGISTRY = mockEventRootPermissionChanged.contract_address
   const root = { chain_id: 11155111, address: REGISTRY } as const

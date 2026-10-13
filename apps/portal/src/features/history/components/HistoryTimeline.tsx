@@ -34,6 +34,28 @@ interface HistoryTimelineViewProps {
   readonly emptyDescription?: string
 }
 
+/** "Nothing yet" claims too much while more pages can still be loaded. */
+const EmptyTimelineMessage = ({
+  canLoadMore,
+  title,
+  description,
+}: {
+  readonly canLoadMore: boolean
+  readonly title: string
+  readonly description: string
+}) =>
+  canLoadMore ? (
+    <p className="text-muted-foreground text-p">
+      Nothing to show in what has loaded so far.
+    </p>
+  ) : (
+    <NoResultsMessage
+      title={title}
+      description={description}
+      className="mx-0 my-0"
+    />
+  )
+
 /**
  * The loaded rows, a break where history continues off screen, and the feed's
  * first action pinned below it. Presentational — everything that needs the query
@@ -57,6 +79,7 @@ export const HistoryTimelineView = ({
     isLoadingMore,
     isLoadMoreError,
     totalCount,
+    totalIsUpperBound,
     openIds,
     toggleAction,
     setAllOpen,
@@ -99,6 +122,7 @@ export const HistoryTimelineView = ({
     breakContent === 'load-more' ? (
       <TimelineLoadMore
         totalCount={totalCount}
+        totalIsUpperBound={totalIsUpperBound}
         isLoading={isLoadingMore}
         isError={isLoadMoreError}
         onLoadMore={loadMore}
@@ -123,10 +147,10 @@ export const HistoryTimelineView = ({
     return (
       <div className="flex w-full min-w-0 flex-col gap-4">
         {header}
-        <NoResultsMessage
+        <EmptyTimelineMessage
+          canLoadMore={showBreak}
           title={emptyTitle}
           description={emptyDescription}
-          className="mx-0 my-0"
         />
         {showBreak && <TimelineFrame>{breakRow}</TimelineFrame>}
         {disclosures}

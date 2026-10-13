@@ -29,9 +29,11 @@ import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 interface EventDataProps {
   event: ENSEvent
   txHash: Hash
+  /** Events of this transaction read from the same log, this one included. */
+  logShares: number
 }
 
-const EventData = ({ event, txHash }: EventDataProps) => {
+const EventData = ({ event, txHash, logShares }: EventDataProps) => {
   const [showDecoded, setShowDecoded] = useState(true)
 
   const { data: receipt } = useTransactionReceipt({
@@ -101,6 +103,13 @@ const EventData = ({ event, txHash }: EventDataProps) => {
         <div className="bg-muted p-4 rounded-sm">
           {eventLog ? (
             <div className="space-y-4">
+              {logShares > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  The same log as {logShares - 1} other{' '}
+                  {logShares === 2 ? 'event' : 'events'} in this transaction:
+                  the indexer reads several events from it.
+                </p>
+              )}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
                   Data:
@@ -165,6 +174,8 @@ export const TransactionEvents = ({
   }
 
   const firstEventId = `${events[0].id}-0`
+  const logShares = (id: string) =>
+    events.filter((other) => other.id === id).length
 
   return (
     <div className="flex flex-col gap-4">
@@ -245,7 +256,11 @@ export const TransactionEvents = ({
                     </InfoRow>
                   </div>
                 </div>
-                <EventData event={event} txHash={txHash} />
+                <EventData
+                  event={event}
+                  txHash={txHash}
+                  logShares={logShares(event.id)}
+                />
               </div>
             </TabsContent>
           ))}

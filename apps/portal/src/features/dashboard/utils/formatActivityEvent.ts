@@ -135,10 +135,26 @@ export const formatActivityEvent = (
         actor: asAddress(data?.to),
       }),
     )
+    .with({ type: 'authority', data: { action: 'name_wrapped' } }, () => ({
+      text: 'Name wrapped',
+    }))
+    .with({ type: 'authority', data: { action: 'name_unwrapped' } }, () => ({
+      text: 'Name unwrapped',
+    }))
     .with({ type: 'authority' }, ({ data }) =>
       activity({
         text: 'Ownership transferred to',
         actor: asAddress(data?.owner),
+      }),
+    )
+    // A record link is neither a record write nor a resolver change.
+    .with(
+      { type: 'resolver', data: { action: 'resolver_record_linked' } },
+      ({ data }) => ({
+        text:
+          data.record_id === '0'
+            ? 'Shared records unlinked'
+            : 'Shared records linked',
       }),
     )
     .with({ type: 'resolver' }, ({ data }) =>
@@ -169,6 +185,7 @@ export const formatActivityEvent = (
           }),
     )
     .with({ type: 'subregistry' }, () => ({ text: 'Subregistry updated' }))
+    .with({ type: 'reservation' }, () => ({ text: 'Name reserved' }))
     // What the name was in ENSv1 (unwrapped, wrapped, locked …) rides along
     // as a value pill.
     .with({ type: 'migration' }, ({ data }) =>

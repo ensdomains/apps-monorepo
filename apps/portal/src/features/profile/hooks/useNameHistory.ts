@@ -32,6 +32,7 @@ export type NameHistoryPage = {
   readonly rows: readonly NameHistoryRow[]
   /** Undefined when bigname does not count the history. */
   readonly totalCount: number | undefined
+  readonly hasMore: boolean
 }
 
 const getNameHistory = ({ name, ...params }: GetNameHistoryParameters) =>
@@ -41,6 +42,7 @@ const getNameHistory = ({ name, ...params }: GetNameHistoryParameters) =>
       ({ data, page }): NameHistoryPage => ({
         rows: data,
         totalCount: page?.total_count ?? undefined,
+        hasMore: page?.has_more ?? false,
       }),
     )
     .mapErr((cause) => new GetNameHistoryError({ cause }))
