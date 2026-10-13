@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { usePublicClient } from 'wagmi'
 import { createTestWrapper, renderWithCommitCounter } from '@/test-utils'
-import type { V2NameWithRoles } from '@/utils/names/mergeNamesData'
+import type { AddressNameItem } from '@/utils/names/addressNames'
 
 const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -40,80 +40,62 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
-const v1Row = (name: string, expiryMs: number) => ({
+const row = (
+  name: string,
+  expiryMs: number,
+  protocolVersion: AddressNameItem['protocolVersion'],
+): AddressNameItem => ({
   name,
-  parentName: 'eth',
-  expiryDate: {
-    date: new Date(expiryMs),
-    value: expiryMs,
-  },
-  relation: { registrant: true, owner: true, wrappedOwner: false },
+  expiryDate: new Date(expiryMs),
+  relations: ['owner'],
+  protocolVersion,
 })
 
-const V1_NAMES = [
-  v1Row(V1_REGISTERED, Date.now() + 365 * MS_PER_DAY),
-  v1Row(V1_GRACE, Date.now() - 30 * MS_PER_DAY),
-  v1Row(V1_PREMIUM, Date.now() - 100 * MS_PER_DAY),
-  v1Row(V1_EXPIRED, Date.now() - 200 * MS_PER_DAY),
+const NAMES: AddressNameItem[] = [
+  row(V1_REGISTERED, Date.now() + 365 * MS_PER_DAY, 'ENSv1'),
+  row(V1_GRACE, Date.now() - 30 * MS_PER_DAY, 'ENSv1'),
+  row(V1_PREMIUM, Date.now() - 100 * MS_PER_DAY, 'ENSv1'),
+  row(V1_EXPIRED, Date.now() - 200 * MS_PER_DAY, 'ENSv1'),
+  row(V2_REGISTERED, Date.now() + 730 * MS_PER_DAY, 'ENSv2'),
+  row(V2_GRACE, Date.now() - 10 * MS_PER_DAY, 'ENSv2'),
+  row(V2_EXPIRED, Date.now() - 60 * MS_PER_DAY, 'ENSv2'),
 ]
 
-const v2Row = (name: string, expiryMs: number) => ({
-  name,
-  expiryDate: Math.floor(expiryMs / 1000),
-  roleBitmap: '0x5',
-  subdomainCount: 0,
-})
+const ROLE_COUNTS: ReadonlyMap<string, number> = new Map()
 
-const V2_NAMES = [
-  v2Row(V2_REGISTERED, Date.now() + 730 * MS_PER_DAY),
-  v2Row(V2_GRACE, Date.now() - 10 * MS_PER_DAY),
-  v2Row(V2_EXPIRED, Date.now() - 60 * MS_PER_DAY),
-] satisfies V2NameWithRoles[]
+// Cached and fresh, so the route renders the names without a request.
+vi.mock('@/features/dashboard/hooks/useAddressNames', () => ({
+  getAddressNamesQueryKey: (params: unknown) => ['get-address-names', params],
+  getAddressNamesQueryOptions: (params: unknown) => ({
+    queryKey: ['get-address-names', params],
+    queryFn: () => NAMES,
+    initialData: NAMES,
+    staleTime: Number.POSITIVE_INFINITY,
+  }),
+}))
 
-// One loaded page per source, with a stable identity like the query cache's.
-const QUERY_DATA: Record<string, unknown> = {
-  ENSv1: {
-    pages: [{ names: V1_NAMES, hasNextPage: false }],
-    pageParams: [undefined],
-  },
-  ENSv2: {
-    pages: [
-      {
-        names: V2_NAMES,
-        totalCount: V2_NAMES.length,
-        nextCursor: undefined,
-      },
-    ],
-    pageParams: [undefined],
-  },
-}
+vi.mock(
+  '@/features/dashboard/hooks/useAddressRoleCounts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/dashboard/hooks/useAddressRoleCounts')
+    >()),
+    getAddressRoleCountsQueryOptions: (params: unknown) => ({
+      queryKey: ['get-address-role-counts', params],
+      queryFn: () => ROLE_COUNTS,
+      initialData: ROLE_COUNTS,
+      staleTime: Number.POSITIVE_INFINITY,
+    }),
+  }),
+)
 
+// The renewal reads the selection triggers say nothing about the filter.
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    useQueries: ({
-      queries,
-    }: {
-      queries: readonly { queryKey: readonly unknown[] }[]
-    }) =>
-      queries.map(({ queryKey }) => ({
-        data: QUERY_DATA[queryKey[0] as string],
-        isLoading: false,
-        error: null,
-      })),
-    useInfiniteQuery: ({
-      queryKey,
-    }: {
-      queryKey: readonly [string, { protocolVersion: string }]
-    }) => ({
-      data: QUERY_DATA[queryKey[1].protocolVersion],
-      isLoading: false,
-      error: null,
-      isFetchNextPageError: false,
-      hasNextPage: false,
-      fetchNextPage: () => Promise.resolve(),
-    }),
+    useQueries: ({ queries }: { queries: readonly unknown[] }) =>
+      queries.map(() => ({ data: undefined, isLoading: false, error: null })),
   }
 })
 
