@@ -28,7 +28,7 @@ export const PrimaryNameButton = ({
         symbol="published_with_changes"
       />
     </span>
-    <span className="font-sans text-[13px] leading-[1.15] tracking-[-0.24px] md:text-[16px]">
+    <span className="font-sans text-[14px] leading-[1.15] tracking-[-0.24px] md:text-[16px]">
       <Trans>Primary Name</Trans>
     </span>
   </button>

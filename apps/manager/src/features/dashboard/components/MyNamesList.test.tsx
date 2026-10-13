@@ -165,6 +165,7 @@ describe('MyNamesList', () => {
     )
     const { rerender } = render(surface('alpha.eth'))
     const action = screen.getByRole('button', { name: 'Primary Name' })
+    expect(action).toHaveClass('h-5', 'py-0')
     expect(action.closest('[data-testid="name-row"]')).toHaveTextContent(
       'alpha.eth',
     )

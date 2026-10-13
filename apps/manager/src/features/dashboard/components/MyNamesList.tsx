@@ -362,6 +362,7 @@ export const MyNamesList = ({
                   primaryNameAction={
                     row.metadata.isPrimary ? (
                       <PrimaryNameButton
+                        className="h-5 py-0"
                         onClick={() => setIsChooserOpen(true)}
                         ref={primaryNameTriggerRef}
                       />
