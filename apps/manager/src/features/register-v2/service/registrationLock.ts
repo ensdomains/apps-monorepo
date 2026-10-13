@@ -182,6 +182,7 @@ const takeNewHolderId = (): string => {
 }
 
 let holderClaim: Promise<string> | undefined
+let isHolderSettled = false
 
 /**
  * Settle this tab's holder id, and keep answering for it.
@@ -196,11 +197,16 @@ let holderClaim: Promise<string> | undefined
  */
 export const claimTabHolderId = (): Promise<string> => {
   holderClaim ??= new Promise<string>((resolve) => {
+    const settleUnbroadcast = () => {
+      isHolderSettled = true
+      resolve(getHolderId())
+    }
+
     if (
       typeof window === 'undefined' ||
       typeof BroadcastChannel === 'undefined'
     ) {
-      resolve(getHolderId())
+      settleUnbroadcast()
       return
     }
 
@@ -208,7 +214,7 @@ export const claimTabHolderId = (): Promise<string> => {
     try {
       channel = new BroadcastChannel(HOLDER_CHANNEL)
     } catch {
-      resolve(getHolderId())
+      settleUnbroadcast()
       return
     }
 
@@ -219,6 +225,7 @@ export const claimTabHolderId = (): Promise<string> => {
 
     const settle = (holderId: string) => {
       pendingRank = undefined
+      isHolderSettled = true
       resolve(holderId)
     }
 
@@ -248,6 +255,22 @@ export const releaseHolderLocksWhenSettled = (): Promise<void> => {
   const since = readLocks()
 
   return claimTabHolderId().then(() => releaseHolderLocks(since))
+}
+
+/**
+ * Drop this tab's claims as it closes, so a new tab can pick the registration
+ * up straight away instead of waiting out staleness.
+ *
+ * Kept when the page goes into the back/forward cache, since it can come back
+ * still registering, and while the id is unsettled, since a duplicated tab
+ * still answers to the id of the tab it was cloned from.
+ */
+export const releaseHolderLocksOnPageHide = (
+  event: PageTransitionEvent,
+): void => {
+  if (event.persisted || !isHolderSettled) return
+
+  releaseHolderLocks()
 }
 
 const readLock = (owner: Address): RegistrationLock | undefined =>
