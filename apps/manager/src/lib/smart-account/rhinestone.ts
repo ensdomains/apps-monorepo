@@ -6,8 +6,10 @@
  *
  *   - Building a viem `Account` from the connected external `WalletClient`
  *     (wagmi).
- *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
- *     `VITE_RHINESTONE_ENDPOINT_URL`, `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
+ *   - Reading manager-specific env vars (`VITE_RHINESTONE_ENDPOINT_URL`,
+ *     `VITE_RHINESTONE_CUSTOM_RPC_URLS`) and choosing how the SDK
+ *     authenticates: server-minted access tokens, or a placeholder key
+ *     against the local mockestrator.
  *   - Injecting the manager's chain (`appChain`) and public client.
  *
  * The account is the standalone ENS HCA (single ECDSA owner + scoped
@@ -21,14 +23,15 @@ import {
   fetchIntentOperationStatus,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
+  type RhinestoneAuth,
 } from '@ens-apps/smart-account'
 import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
 import type { Account, Address, PublicClient, WalletClient } from 'viem'
 import { chain as appChain } from '@/config'
+import { getRhinestoneAccessToken } from './rhinestoneAccessToken'
 
 export interface RhinestoneConfig {
   chain: typeof appChain
-  rhinestoneApiKey: string
 }
 
 export interface InitializeRhinestoneParams {
@@ -69,32 +72,30 @@ function resolveOwnerAccount(params: { walletClient?: WalletClient }): {
 }
 
 /**
+ * The placeholder the local mockestrator accepts. It stands in for a key only
+ * where `VITE_RHINESTONE_ENDPOINT_URL` points the SDK at that mock.
+ */
+const LOCAL_ORCHESTRATOR_API_KEY = 'local-dev'
+
+/**
  * Resolve env-derived SDK options.
  *
- * Development is API-key-eligible without `VITE_RHINESTONE_API_KEY`, using the
- * placeholder `'local-dev'`. Deterministic HCA construction and EOA-paid flows
- * such as migration do not call the orchestrator, while local-orchestrator e2e
- * can use the same placeholder. Production remains fail-closed.
+ * Against the real orchestrator the SDK authenticates with access tokens the
+ * manager's own server mints (`issueRhinestoneAccessToken`), so no credential
+ * is in the bundle. Against the local mockestrator (`VITE_RHINESTONE_ENDPOINT_URL`,
+ * e2e and local infra) a placeholder key is enough.
  *
  * `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
  */
 function resolveSdkEnv(): {
-  rhinestoneApiKey: string
+  rhinestoneAuth: RhinestoneAuth
   rhinestoneEndpointUrl?: string
   rhinestoneCustomRpcUrls?: Record<number, string>
 } {
   const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL || undefined
-  const allowsDevPlaceholder = import.meta.env.DEV || !!endpointUrl
-
-  const apiKey =
-    import.meta.env.VITE_RHINESTONE_API_KEY ||
-    (allowsDevPlaceholder ? 'local-dev' : undefined)
-
-  if (!apiKey) {
-    throw new Error(
-      'Rhinestone API key not configured in environment variables',
-    )
-  }
+  const rhinestoneAuth: RhinestoneAuth = endpointUrl
+    ? { mode: 'apiKey', apiKey: LOCAL_ORCHESTRATOR_API_KEY }
+    : { mode: 'jwt', getAccessToken: getRhinestoneAccessToken }
 
   const customRpcUrlsRaw = import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS
   const customRpcUrls = customRpcUrlsRaw
@@ -102,7 +103,7 @@ function resolveSdkEnv(): {
     : undefined
 
   return {
-    rhinestoneApiKey: apiKey,
+    rhinestoneAuth,
     rhinestoneEndpointUrl: endpointUrl,
     rhinestoneCustomRpcUrls: customRpcUrls,
   }
@@ -114,20 +115,20 @@ function resolveSdkEnv(): {
  * definitively dead one, so it can fail fast instead of sitting out the
  * on-chain grace poll.
  *
- * Honors the same env resolution as the SDK init (`VITE_RHINESTONE_API_KEY`,
- * `VITE_RHINESTONE_ENDPOINT_URL` for the e2e mockestrator). Returns undefined
- * when no key resolves — the machine then falls back to the blind poll, which
+ * Honors the same env resolution as the SDK init (access tokens, or the
+ * placeholder key against the e2e mockestrator). Returns undefined when the
+ * env cannot be read — the machine then falls back to the blind poll, which
  * is always safe.
  */
 export function buildIntentStatusFetcher():
   | ((intentId: bigint, signal?: AbortSignal) => Promise<string | null>)
   | undefined {
   try {
-    const { rhinestoneApiKey, rhinestoneEndpointUrl } = resolveSdkEnv()
+    const { rhinestoneAuth, rhinestoneEndpointUrl } = resolveSdkEnv()
     return (intentId, signal) =>
       fetchIntentOperationStatus({
         intentId,
-        apiKey: rhinestoneApiKey,
+        auth: rhinestoneAuth,
         endpointUrl: rhinestoneEndpointUrl,
         signal,
       })
@@ -155,7 +156,7 @@ export async function initializeRhinestoneAccount(
     eoaAddress,
     chain: appChain,
     publicClient,
-    rhinestoneApiKey: env.rhinestoneApiKey,
+    rhinestoneAuth: env.rhinestoneAuth,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
     ...(requireTrustedForPrimary ? { requireTrustedForPrimary } : {}),
@@ -174,9 +175,6 @@ export async function initializeRhinestoneAccount(
     address: result.address,
     ownerAddress: result.ownerAddress,
     alreadyDeployed: result.alreadyDeployed,
-    config: {
-      chain: appChain,
-      rhinestoneApiKey: result.config.rhinestoneApiKey,
-    },
+    config: { chain: appChain },
   }
 }
