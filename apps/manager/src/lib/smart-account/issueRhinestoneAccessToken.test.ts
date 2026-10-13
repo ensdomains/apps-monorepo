@@ -6,8 +6,9 @@ import {
   RhinestoneTokenError,
 } from './issueRhinestoneAccessToken'
 
-const { envMock } = vi.hoisted(() => ({
+const { envMock, getRequestIPMock } = vi.hoisted(() => ({
   envMock: {} as Record<string, unknown>,
+  getRequestIPMock: vi.fn<() => string | undefined>(),
 }))
 
 vi.mock('cloudflare:workers', () => ({ env: envMock }))
@@ -16,6 +17,10 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => ({
     handler: (handler: () => Promise<string>) => handler,
   }),
+}))
+
+vi.mock('@tanstack/react-start/server', () => ({
+  getRequestIP: getRequestIPMock,
 }))
 
 vi.mock('@/lib/connection-cookie', () => ({
@@ -46,6 +51,7 @@ describe('issueRhinestoneAccessToken', () => {
       ),
     })
     vi.mocked(getConnectionCookie).mockReturnValue(WALLET)
+    getRequestIPMock.mockReturnValue('203.0.113.7')
   })
 
   afterEach(() => {
@@ -114,12 +120,35 @@ describe('issueRhinestoneAccessToken', () => {
     await expect(mint()).rejects.toThrow(/not a JWK/)
   })
 
-  it('rate-limits per wallet when the binding is present', async () => {
-    const limit = vi.fn(async () => ({ success: false }))
+  it('rate-limits by network address and by wallet, in separate buckets', async () => {
+    const limit = vi.fn(async () => ({ success: true }))
+    envMock.RHINESTONE_TOKEN_RATE_LIMIT = { limit }
+
+    await expect(mint()).resolves.toMatch(/^eyJ/)
+    expect(limit).toHaveBeenCalledWith({ key: 'ip:203.0.113.7' })
+    expect(limit).toHaveBeenCalledWith({
+      key: `wallet:${WALLET.toLowerCase()}`,
+    })
+  })
+
+  it('refuses when the address bucket is exhausted, whatever the wallet says', async () => {
+    // The wallet is a client-set cookie: a caller rotating it must not get a
+    // fresh budget. The address bucket is the one they cannot choose.
+    const limit = vi.fn(async ({ key }: { key: string }) => ({
+      success: !key.startsWith('ip:'),
+    }))
     envMock.RHINESTONE_TOKEN_RATE_LIMIT = { limit }
 
     await expect(mint()).rejects.toMatchObject({ reason: 'rate-limited' })
-    expect(limit).toHaveBeenCalledWith({ key: WALLET.toLowerCase() })
+  })
+
+  it('refuses when the wallet bucket is exhausted', async () => {
+    const limit = vi.fn(async ({ key }: { key: string }) => ({
+      success: !key.startsWith('wallet:'),
+    }))
+    envMock.RHINESTONE_TOKEN_RATE_LIMIT = { limit }
+
+    await expect(mint()).rejects.toMatchObject({ reason: 'rate-limited' })
   })
 
   it('mints normally under the limit, and without the binding', async () => {

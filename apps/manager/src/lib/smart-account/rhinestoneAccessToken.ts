@@ -23,7 +23,10 @@ export function tokenLifetimeMs(token: string): number {
     const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
     const claims: unknown = JSON.parse(json)
     if (!claims || typeof claims !== 'object') return FALLBACK_LIFETIME_MS
-    const { exp, iat } = claims as { exp?: unknown; iat?: unknown }
+    const { exp, iat } = claims as {
+      readonly exp?: unknown
+      readonly iat?: unknown
+    }
     return typeof exp === 'number' && typeof iat === 'number' && exp > iat
       ? (exp - iat) * 1000
       : FALLBACK_LIFETIME_MS

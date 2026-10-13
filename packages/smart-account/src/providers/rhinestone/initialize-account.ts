@@ -353,10 +353,10 @@ export function getHcaDirectExecutionReadiness(
 }
 
 function makeSdk(params: {
-  chain: Chain
-  rhinestoneAuth: RhinestoneAuth
-  rhinestoneEndpointUrl?: string
-  rhinestoneCustomRpcUrls?: Record<number, string>
+  readonly chain: Chain
+  readonly rhinestoneAuth: RhinestoneAuth
+  readonly rhinestoneEndpointUrl?: string
+  readonly rhinestoneCustomRpcUrls?: Record<number, string>
 }): RhinestoneSDK {
   const defaultRpcUrl = params.chain.rpcUrls.default.http[0]
   const urls: Record<number, string> = {

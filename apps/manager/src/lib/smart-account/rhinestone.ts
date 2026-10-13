@@ -88,9 +88,9 @@ const LOCAL_ORCHESTRATOR_API_KEY = 'local-dev'
  * `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
  */
 function resolveSdkEnv(): {
-  rhinestoneAuth: RhinestoneAuth
-  rhinestoneEndpointUrl?: string
-  rhinestoneCustomRpcUrls?: Record<number, string>
+  readonly rhinestoneAuth: RhinestoneAuth
+  readonly rhinestoneEndpointUrl?: string
+  readonly rhinestoneCustomRpcUrls?: Record<number, string>
 } {
   const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL || undefined
   const rhinestoneAuth: RhinestoneAuth = endpointUrl
