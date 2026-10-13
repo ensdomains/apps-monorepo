@@ -2,6 +2,11 @@ import { Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LinkItem, ProfileRecords } from '@/features/profile/types'
 import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
+import {
+  getUrlInputBlurValue,
+  getUrlInputChangeValue,
+  getUrlInputFocusValue,
+} from '@/features/profile/utils/urlInputPrefix'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import {
@@ -167,6 +172,11 @@ export const LinksTab = ({
     updateRow(row, { [field]: row.link[field].trim() })
   }
 
+  const setRowUrl = (row: LinkRow, getValue: (value: string) => string) => {
+    const url = getValue(row.link.url)
+    if (url !== row.link.url) updateRow(row, { url })
+  }
+
   const removeLink = (index: number) => {
     onLinksChange(values.links.filter((_, linkIndex) => linkIndex !== index))
     setLinkRowKeys((current) =>
@@ -260,10 +270,13 @@ export const LinksTab = ({
                       'border-destructive focus-visible:border-destructive',
                   )}
                   disabled={isSaving}
-                  onBlur={() => trimRowValue(row, 'url')}
+                  onBlur={() => setRowUrl(row, getUrlInputBlurValue)}
                   onChange={(event) =>
-                    updateRow(row, { url: event.target.value })
+                    updateRow(row, {
+                      url: getUrlInputChangeValue(event.target.value),
+                    })
                   }
+                  onFocus={() => setRowUrl(row, getUrlInputFocusValue)}
                   placeholder="https://your-link.com"
                   value={row.link.url}
                 />
