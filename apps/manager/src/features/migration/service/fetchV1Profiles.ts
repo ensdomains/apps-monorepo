@@ -104,7 +104,11 @@ export const fetchV1Profiles = async (params: {
   const profileKeysResult = profileKeys
     ? null
     : await getV1ProfileKeys(
-        names.map(({ name }) => name),
+        names.map(({ name, nodeHex, v1ResolverAddress }) => ({
+          id: nodeHex,
+          name,
+          resolver: v1ResolverAddress,
+        })),
         { signal },
       )
   signal?.throwIfAborted()

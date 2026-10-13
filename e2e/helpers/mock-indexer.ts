@@ -106,7 +106,15 @@ export function createIndexerMock() {
           }
         : { owner, manager: owner, status: 'active' }),
       ...(d.protocol === 'v1'
-        ? { authority: 'ens_v1', ens_v1: { expires_at: expiresAt } }
+        ? {
+            authority: 'ens_v1',
+            ens_v1: {
+              expires_at: expiresAt,
+              resolver: resolver
+                ? { chain_id: CHAIN_ID, address: resolver }
+                : null,
+            },
+          }
         : { authority: 'ens_v2' }),
       ...(resolver && { resolver: { chain_id: CHAIN_ID, address: resolver } }),
     }
@@ -265,6 +273,18 @@ export function createIndexerMock() {
     if (recordsMatch?.[1]) {
       const d = findDomain(decodeURIComponent(recordsMatch[1]))
       return d ? { status: 200, json: nameRecords(d) } : notFound
+    }
+    // A name's records at the resolver it points at.
+    const resolverRecordsMatch = path.match(
+      /^\/v1\/resolvers\/\d+\/([^/]+)\/records$/,
+    )
+    if (resolverRecordsMatch?.[1]) {
+      const d = findDomain(params.get('name') ?? '')
+      const resolver = d && resolverOf(d)
+      return d &&
+        resolver?.toLowerCase() === resolverRecordsMatch[1].toLowerCase()
+        ? { status: 200, json: nameRecords(d) }
+        : notFound
     }
     const nameMatch = path.match(/^\/v1\/names\/([^/]+)$/)
     if (nameMatch?.[1]) {

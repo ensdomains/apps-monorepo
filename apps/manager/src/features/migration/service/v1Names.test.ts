@@ -82,6 +82,37 @@ const classify = (records: readonly LookupRecord[], parentFuses = NO_PARENTS) =>
   )
 
 describe('toV1Domain', () => {
+  it('reads the ENSv1 resolver, which late grace can withhold from the top level', () => {
+    const v1Resolver = {
+      chain_id: 11155111,
+      address: '0x8fade66b79cc9f707ab26799354482eb93a5b7dd',
+    } as const
+    const topLevel = {
+      ...v1Resolver,
+      address: '0x2222222222222222222222222222222222222222',
+    } as const
+
+    expect(
+      toV1Domain(
+        unwrapped2ld('alice.eth', {
+          ens_v1: { expires_at: FUTURE, resolver: v1Resolver },
+        }),
+        NO_PARENTS,
+        NAME_WRAPPER,
+      ).resolver,
+    ).toEqual({ address: v1Resolver.address })
+    expect(
+      toV1Domain(
+        unwrapped2ld('alice.eth', {
+          resolver: topLevel,
+          ens_v1: { expires_at: FUTURE, resolver: null },
+        }),
+        NO_PARENTS,
+        NAME_WRAPPER,
+      ).resolver,
+    ).toBeNull()
+  })
+
   it('reads an unwrapped 2LD registrant from the holder and registry owner from the manager', () => {
     expect(
       toV1Domain(

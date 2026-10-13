@@ -123,6 +123,16 @@ const toParent = (
   }
 }
 
+// The top-level resolver can be withheld in late grace while the ENSv1 one
+// still exists; an explicit null there means none is set.
+const v1ResolverOf = (record: LookupRecord): { address: string } | null => {
+  const resolver =
+    record.ens_v1 && 'resolver' in record.ens_v1
+      ? record.ens_v1.resolver
+      : record.resolver
+  return resolver ? { address: resolver.address } : null
+}
+
 /**
  * The subgraph-shaped view the classifier reads. bigname reports holders, not
  * raw contract storage: a wrapped name's registry owner (and a wrapped 2LD's
@@ -147,7 +157,7 @@ export const toV1Domain = (
     labelName: label,
     labelhash: labelhash(label),
     name: record.name,
-    resolver: record.resolver ? { address: record.resolver.address } : null,
+    resolver: v1ResolverOf(record),
     owner: { id: registryOwner },
     registrant: isDotEth2ld ? { id: registrant } : null,
     wrappedOwner: wrapperFuses ? { id: holder } : null,

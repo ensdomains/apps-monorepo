@@ -179,6 +179,15 @@ export const createBignameClient = (
         '/v1/permissions',
         query,
       ),
+    resolverRecords: (
+      chainId: number,
+      address: string,
+      query: T.ResolverRecordsQuery,
+    ) =>
+      request<T.NameRecords>(
+        `/v1/resolvers/${chainId}/${seg(address)}/records`,
+        query,
+      ),
     lookup: (body: T.LookupRequest) =>
       request<readonly T.LookupResult[]>('/v1/lookup', undefined, body),
   }

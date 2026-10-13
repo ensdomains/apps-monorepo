@@ -32,6 +32,20 @@ describe('createBignameClient', () => {
       )
     })
 
+    it("reads a name's records at a resolver, with the name in the query", async () => {
+      const { client, fetch } = clientWith(envelope({}))
+
+      await client.resolverRecords(11155111, '0xabc', {
+        name: 'alice.eth',
+        include: ['inventory'],
+        keys: ['contenthash'],
+      })
+
+      expect(requestOf(fetch).url).toBe(
+        'https://bigname.example/v1/resolvers/11155111/0xabc/records?name=alice.eth&include=inventory&keys=contenthash',
+      )
+    })
+
     // The edge answers CORS preflight only for POST /v1/lookup. Any header on
     // a GET makes the browser preflight and the request fails.
     it('sends no headers on GET', async () => {
