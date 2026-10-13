@@ -46,7 +46,7 @@ export const getNameHistoryPagesQueryKey = createQueryKey<
 export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
   resultInfiniteQueryOptions({
     queryKey: getNameHistoryPagesQueryKey(scope),
-    queryFn: ({ queryKey: [, scope], pageParam }) =>
+    queryFn: ({ queryKey: [, scope], pageParam, signal }) =>
       fetchNameHistoryPage({
         name: scope.name,
         types: scope.eventTypes,
@@ -54,6 +54,7 @@ export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
         to: scope.to,
         includeChildRegistrations: scope.includeChildRegistrations,
         cursor: pageParam,
+        signal,
       }),
     ...timelinePageParams,
   })
@@ -73,7 +74,7 @@ export const getNameHistoryAnchorQueryKey = createQueryKey<
 export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
   resultQueryOptions({
     queryKey: getNameHistoryAnchorQueryKey(scope),
-    queryFn: ({ queryKey: [, scope] }) =>
+    queryFn: ({ queryKey: [, scope], signal }) =>
       fetchNameHistoryPage({
         name: scope.name,
         types: scope.eventTypes,
@@ -82,6 +83,7 @@ export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
         includeChildRegistrations: scope.includeChildRegistrations,
         order: 'asc',
         pageSize: ANCHOR_WINDOW,
+        signal,
       }).map(({ events }) =>
         // Ascending out of bigname; the timeline renders newest-first.
         [...events].reverse(),
