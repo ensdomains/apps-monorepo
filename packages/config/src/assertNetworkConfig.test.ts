@@ -24,6 +24,15 @@ describe('assertNetworkConfig', () => {
     expect(config.endpoints.bignameApi).toBe('http://127.0.0.1:4010')
   })
 
+  it('reads the rpc override from the variable the app names', () => {
+    const config = assertNetworkConfig(
+      { VITE_ENS_NETWORK: 'sepolia', VITE_RPC_URL: '/rpc' },
+      { rpcUrlVar: 'VITE_RPC_URL' },
+    )
+
+    expect(config.rpcUrls[0]).toBe('/rpc')
+  })
+
   it('treats an empty string like an unset variable', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',

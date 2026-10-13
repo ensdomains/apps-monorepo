@@ -44,7 +44,7 @@ const network = import.meta.env?.VITE_ENS_NETWORK
 export const envConfig = buildConfig({
   network,
   rpcUrl:
-    import.meta.env?.VITE_SEPOLIA_RPC_URL ??
+    import.meta.env?.VITE_RPC_URL ??
     (isEnsNetwork(network) ? PORTAL_RPC_URLS[network] : undefined),
   overrides: {
     indexerGraphql: import.meta.env?.VITE_INDEXER_GRAPHQL_URL,

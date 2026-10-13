@@ -53,8 +53,8 @@ automated testing, which must never reach a production deploy.
   release to IPFS exists but has never run.
 - Mainnet deploys as the `portal-app-mainnet` Worker (`env.mainnet` in
   `wrangler.jsonc`): build with `VITE_ENS_NETWORK=mainnet` and
-  `CLOUDFLARE_ENV=mainnet`. Its `SEPOLIA_RPC_URL` secret holds a mainnet RPC
-  despite the name.
+  `CLOUDFLARE_ENV=mainnet`. Each Worker's `RPC_URL` secret holds the RPC for
+  its own network.
 
 ## Further reading
 
