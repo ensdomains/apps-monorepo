@@ -28,6 +28,8 @@ export type NameDetail = Readonly<{
   resolver: Address | null
   registrationStatus: NameRegistrationStatus | null
   expiresAt: Date | null
+  /** When the registrar grace ends; `expiresAt` itself for a name with none, such as a subname. */
+  graceEndsAt: Date | null
   registeredAt: Date | null
   /** The current registration's handle; a re-registration gets a new one. */
   registrationId: string | null

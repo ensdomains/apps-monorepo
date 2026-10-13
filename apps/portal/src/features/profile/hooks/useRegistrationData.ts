@@ -24,6 +24,7 @@ const toRegistrationData = (detail: NameDetail | null) => ({
   registeredAt: toSeconds(detail?.registeredAt),
   registrationId: detail?.registrationId ?? null,
   expiry: toSeconds(detail?.expiresAt),
+  graceEnd: toSeconds(detail?.graceEndsAt),
 })
 
 /** A name's expiry and registration dates, in either era, from its detail. */

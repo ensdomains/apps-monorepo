@@ -92,6 +92,7 @@ describe('isHeldInIndex', () => {
     resolver: null,
     registrationStatus,
     expiresAt: null,
+    graceEndsAt: null,
     registeredAt: null,
     registrationId: null,
     createdAt: null,
