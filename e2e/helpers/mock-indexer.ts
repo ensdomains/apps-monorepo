@@ -122,7 +122,15 @@ export function createIndexerMock() {
           }
         : { owner, manager: owner, status: 'active' }),
       ...(d.protocol === 'v1'
-        ? { authority: 'ens_v1', ens_v1: { expires_at: expiresAt } }
+        ? {
+            authority: 'ens_v1',
+            ens_v1: {
+              expires_at: expiresAt,
+              resolver: resolver
+                ? { chain_id: CHAIN_ID, address: resolver }
+                : null,
+            },
+          }
         : { authority: 'ens_v2' }),
       ...(resolver && { resolver: { chain_id: CHAIN_ID, address: resolver } }),
     }
@@ -310,6 +318,18 @@ export function createIndexerMock() {
         data: { ...nameFields(d), read_status: 'ok' },
         meta: META,
       })),
+    },
+    // A name's records at the resolver it points at.
+    {
+      method: 'GET',
+      path: /^\/v1\/resolvers\/\d+\/([^/]+)\/records$/,
+      reply: ({ match, params }) => {
+        const d = findDomain(params.get('name') ?? '')
+        const resolver = d && resolverOf(d)
+        return d && resolver?.toLowerCase() === match[1]?.toLowerCase()
+          ? ok(nameRecords(d))
+          : notFound
+      },
     },
     // A registry or resolver nobody registered is one bigname has not indexed.
     {

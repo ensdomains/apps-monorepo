@@ -370,7 +370,11 @@ export const assertLockedResolverReplacementRecordSafety = async (
   if (candidates.length === 0) return
 
   const result = await getV1ProfileKeys(
-    candidates.map(({ name }) => name.domain.name),
+    candidates.map(({ name, v1Resolver }) => ({
+      id: name.domain.id,
+      name: name.domain.name,
+      resolver: v1Resolver,
+    })),
     { signal },
   )
   signal?.throwIfAborted()

@@ -70,6 +70,17 @@ export type NameRecords = Readonly<{
   inventory?: RecordInventory
 }>
 
+/**
+ * `GET /v1/resolvers/{chain_id}/{address}/records`: one name's records at this
+ * resolver, served even when a name read withholds them.
+ */
+export type ResolverRecordsQuery = Readonly<{
+  name: string
+  /** At most 200 keys. */
+  keys?: readonly RecordKey[]
+  include?: readonly 'inventory'[]
+}>
+
 /** `GET /v1/names/{name}/records`: response. */
 export type NameRecordsResponse = Envelope<NameRecords>
 
