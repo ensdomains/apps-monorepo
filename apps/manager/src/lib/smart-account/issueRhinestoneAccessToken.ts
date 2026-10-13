@@ -1,4 +1,27 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { createServerFn } from '@tanstack/react-start'
+import { isAddress } from 'viem'
+import { getConnectionCookie } from '@/lib/connection-cookie'
+
+type TokenRefusal = 'no-wallet' | 'rate-limited' | 'not-configured'
+
+/**
+ * Why a token was not minted. `reason` is what callers branch on; `message`
+ * is what reaches the browser, so it never carries a secret value.
+ */
+export class RhinestoneTokenError extends TaggedError('RhinestoneTokenError')<{
+  readonly message: string
+  readonly reason: TokenRefusal
+  readonly cause: unknown
+}> {}
+
+const CREDENTIAL_NAMES = [
+  'RHINESTONE_JWT_PRIVATE_KEY',
+  'RHINESTONE_INTEGRATOR_ID',
+  'RHINESTONE_PROJECT_ID',
+  'RHINESTONE_APP_ID',
+  'RHINESTONE_KEY_ID',
+] as const
 
 /**
  * Mint a Rhinestone orchestrator access token for the browser.
@@ -9,20 +32,38 @@ import { createServerFn } from '@tanstack/react-start'
  * stolen token buys is submitting intents the thief pays for, under our
  * project's quota, until it expires.
  *
- * A single token mint costs one signature, so the mint is rate-limited per
- * client address through the `RHINESTONE_TOKEN_RATE_LIMIT` binding. The
- * binding is absent in local dev, where the limit is skipped.
+ * Minting is limited to callers presenting a connected wallet, the same cookie
+ * the route guards read, and rate-limited per wallet through the
+ * `RHINESTONE_TOKEN_RATE_LIMIT` binding (absent in local dev, where the limit
+ * is skipped). The cookie is set by the client, so this is not proof of
+ * holding the wallet; it keeps the mint off the anonymous path and gives the
+ * limit a per-user key. Proving the wallet would cost a signing prompt.
  */
 export const issueRhinestoneAccessToken = createServerFn({
   method: 'POST',
 }).handler(async (): Promise<string> => {
+  const wallet = getConnectionCookie()
+  if (!wallet || !isAddress(wallet)) {
+    throw new RhinestoneTokenError({
+      message: 'Connect a wallet before requesting a Rhinestone token',
+      reason: 'no-wallet',
+      cause: undefined,
+    })
+  }
+
   const { env } = await import('cloudflare:workers')
 
   if (env.RHINESTONE_TOKEN_RATE_LIMIT) {
-    const { getRequestIP } = await import('@tanstack/react-start/server')
-    const key = getRequestIP({ xForwardedFor: true }) ?? 'unknown'
-    const { success } = await env.RHINESTONE_TOKEN_RATE_LIMIT.limit({ key })
-    if (!success) throw new Error('Too many token requests, try again shortly')
+    const { success } = await env.RHINESTONE_TOKEN_RATE_LIMIT.limit({
+      key: wallet.toLowerCase(),
+    })
+    if (!success) {
+      throw new RhinestoneTokenError({
+        message: 'Too many token requests, try again shortly',
+        reason: 'rate-limited',
+        cause: undefined,
+      })
+    }
   }
 
   const { createJwtSigner } = await import('@rhinestone/sdk/jwt-server')
@@ -32,14 +73,6 @@ export const issueRhinestoneAccessToken = createServerFn({
 type JwtCredentials = Parameters<
   typeof import('@rhinestone/sdk/jwt-server').createJwtSigner
 >[0]['jwt']
-
-const CREDENTIAL_NAMES = [
-  'RHINESTONE_JWT_PRIVATE_KEY',
-  'RHINESTONE_INTEGRATOR_ID',
-  'RHINESTONE_PROJECT_ID',
-  'RHINESTONE_APP_ID',
-  'RHINESTONE_KEY_ID',
-] as const
 
 /**
  * Read the signing credentials, refusing to mint from a partial set. The
@@ -53,9 +86,11 @@ function readJwtCredentials(env: Cloudflare.Env): JwtCredentials {
     return typeof value !== 'string' || value === ''
   })
   if (missing.length > 0) {
-    throw new Error(
-      `Rhinestone token signing is not configured (${missing.join(', ')})`,
-    )
+    throw new RhinestoneTokenError({
+      message: `Rhinestone token signing is not configured (${missing.join(', ')})`,
+      reason: 'not-configured',
+      cause: undefined,
+    })
   }
   const read = (name: (typeof CREDENTIAL_NAMES)[number]): string =>
     env[name] as string
@@ -70,15 +105,22 @@ function readJwtCredentials(env: Cloudflare.Env): JwtCredentials {
 }
 
 function parsePrivateJwk(raw: string): JsonWebKey {
+  let parsed: unknown
   try {
-    const parsed: unknown = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object' && 'kty' in parsed) {
-      return parsed as JsonWebKey
-    }
-  } catch {
-    // Fall through to the one error below.
+    parsed = JSON.parse(raw)
+  } catch (cause) {
+    throw notAJwk(cause)
   }
-  throw new Error(
-    'Rhinestone token signing is not configured (RHINESTONE_JWT_PRIVATE_KEY is not a JWK)',
-  )
+  if (parsed && typeof parsed === 'object' && 'kty' in parsed) {
+    return parsed as JsonWebKey
+  }
+  throw notAJwk(undefined)
 }
+
+const notAJwk = (cause: unknown) =>
+  new RhinestoneTokenError({
+    message:
+      'Rhinestone token signing is not configured (RHINESTONE_JWT_PRIVATE_KEY is not a JWK)',
+    reason: 'not-configured',
+    cause,
+  })

@@ -1,32 +1,34 @@
 import { issueRhinestoneAccessToken } from './issueRhinestoneAccessToken'
 
-/** Renew this long before `exp`, so a token never expires mid-registration. */
+/** Renew this long before expiry, so a token never expires mid-registration. */
 const RENEW_BEFORE_EXPIRY_MS = 5 * 60 * 1000
 
-/** Lifetime assumed for a token whose `exp` cannot be read. */
+/** Lifetime assumed for a token whose claims cannot be read. */
 const FALLBACK_LIFETIME_MS = 10 * 60 * 1000
 
 /**
- * When a token should be replaced, from its own `exp` claim. The claim is
- * read, not verified: the server that minted it is the one that is trusted,
- * and a forged `exp` here only changes when this client asks for a new one.
+ * How long a token is good for, from its own `exp - iat`. A duration rather
+ * than the absolute `exp`, because `exp` is on the server's clock and the
+ * cache runs on the browser's: a slow browser clock would otherwise keep
+ * handing out a token Rhinestone has already stopped accepting, and a fast
+ * one would mint on every call. The claims are read, not verified: the server
+ * that minted the token is the trusted party, and a forged lifetime here only
+ * changes when this client asks for another.
  */
-export function renewAtFor(token: string, issuedAt: number): number {
+export function tokenLifetimeMs(token: string): number {
   const payload = token.split('.')[1]
-  if (!payload) return issuedAt + FALLBACK_LIFETIME_MS
+  if (!payload) return FALLBACK_LIFETIME_MS
 
   try {
     const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
     const claims: unknown = JSON.parse(json)
-    const exp =
-      claims && typeof claims === 'object' && 'exp' in claims
-        ? claims.exp
-        : undefined
-    return typeof exp === 'number'
-      ? exp * 1000 - RENEW_BEFORE_EXPIRY_MS
-      : issuedAt + FALLBACK_LIFETIME_MS
+    if (!claims || typeof claims !== 'object') return FALLBACK_LIFETIME_MS
+    const { exp, iat } = claims as { exp?: unknown; iat?: unknown }
+    return typeof exp === 'number' && typeof iat === 'number' && exp > iat
+      ? (exp - iat) * 1000
+      : FALLBACK_LIFETIME_MS
   } catch {
-    return issuedAt + FALLBACK_LIFETIME_MS
+    return FALLBACK_LIFETIME_MS
   }
 }
 
@@ -50,7 +52,10 @@ export function createAccessTokenGetter(
 
     inFlight ??= mint()
       .then((token) => {
-        cached = { token, renewAt: renewAtFor(token, now()) }
+        cached = {
+          token,
+          renewAt: now() + tokenLifetimeMs(token) - RENEW_BEFORE_EXPIRY_MS,
+        }
         return token
       })
       .finally(() => {

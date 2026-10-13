@@ -1,10 +1,13 @@
 import { exportJWK, generateKeyPair, jwtVerify } from 'jose'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { issueRhinestoneAccessToken } from './issueRhinestoneAccessToken'
+import { getConnectionCookie } from '@/lib/connection-cookie'
+import {
+  issueRhinestoneAccessToken,
+  RhinestoneTokenError,
+} from './issueRhinestoneAccessToken'
 
-const { envMock, getRequestIPMock } = vi.hoisted(() => ({
+const { envMock } = vi.hoisted(() => ({
   envMock: {} as Record<string, unknown>,
-  getRequestIPMock: vi.fn<() => string | undefined>(),
 }))
 
 vi.mock('cloudflare:workers', () => ({ env: envMock }))
@@ -15,9 +18,11 @@ vi.mock('@tanstack/react-start', () => ({
   }),
 }))
 
-vi.mock('@tanstack/react-start/server', () => ({
-  getRequestIP: getRequestIPMock,
+vi.mock('@/lib/connection-cookie', () => ({
+  getConnectionCookie: vi.fn(),
 }))
+
+const WALLET = '0x1111111111111111111111111111111111111111'
 
 const CREDENTIALS = {
   RHINESTONE_INTEGRATOR_ID: 'integrator-1',
@@ -40,7 +45,7 @@ describe('issueRhinestoneAccessToken', () => {
         await exportJWK(pair.privateKey),
       ),
     })
-    getRequestIPMock.mockReturnValue('203.0.113.7')
+    vi.mocked(getConnectionCookie).mockReturnValue(WALLET)
   })
 
   afterEach(() => {
@@ -68,12 +73,31 @@ describe('issueRhinestoneAccessToken', () => {
     expect(payload.typ).not.toBe('intent_extension')
   })
 
+  it('refuses callers without a connected wallet, before touching the key', async () => {
+    vi.mocked(getConnectionCookie).mockReturnValue(null)
+    delete envMock.RHINESTONE_JWT_PRIVATE_KEY
+
+    await expect(mint()).rejects.toMatchObject({
+      _tag: 'RhinestoneTokenError',
+      reason: 'no-wallet',
+    })
+  })
+
+  it('refuses a cookie that is not an address', async () => {
+    vi.mocked(getConnectionCookie).mockReturnValue('vitalik.eth')
+
+    await expect(mint()).rejects.toMatchObject({ reason: 'no-wallet' })
+  })
+
   it('refuses when a credential is missing, naming it without echoing it', async () => {
     delete envMock.RHINESTONE_APP_ID
 
-    await expect(mint()).rejects.toThrow(
-      'Rhinestone token signing is not configured (RHINESTONE_APP_ID)',
-    )
+    const error = await mint().catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(RhinestoneTokenError)
+    expect(error).toMatchObject({
+      reason: 'not-configured',
+      message: 'Rhinestone token signing is not configured (RHINESTONE_APP_ID)',
+    })
   })
 
   it('names every missing credential, so none-set and one-set read differently', async () => {
@@ -90,12 +114,12 @@ describe('issueRhinestoneAccessToken', () => {
     await expect(mint()).rejects.toThrow(/not a JWK/)
   })
 
-  it('rate-limits by client address when the binding is present', async () => {
+  it('rate-limits per wallet when the binding is present', async () => {
     const limit = vi.fn(async () => ({ success: false }))
     envMock.RHINESTONE_TOKEN_RATE_LIMIT = { limit }
 
-    await expect(mint()).rejects.toThrow('Too many token requests')
-    expect(limit).toHaveBeenCalledWith({ key: '203.0.113.7' })
+    await expect(mint()).rejects.toMatchObject({ reason: 'rate-limited' })
+    expect(limit).toHaveBeenCalledWith({ key: WALLET.toLowerCase() })
   })
 
   it('mints normally under the limit, and without the binding', async () => {
@@ -106,6 +130,5 @@ describe('issueRhinestoneAccessToken', () => {
 
     delete envMock.RHINESTONE_TOKEN_RATE_LIMIT
     await expect(mint()).resolves.toMatch(/^eyJ/)
-    expect(getRequestIPMock).toHaveBeenCalledTimes(1)
   })
 })
