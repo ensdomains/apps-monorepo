@@ -48,8 +48,8 @@ const CREDENTIAL_NAMES = [
  * Minting is limited to callers presenting a connected wallet, the same cookie
  * the route guards read, and rate-limited through the
  * `RHINESTONE_TOKEN_RATE_LIMIT` binding (absent in local dev, where the limit
- * is skipped). Two buckets: one keyed by the client's network address, which
- * the caller cannot choose, and one by the wallet. The cookie is set by the
+ * is skipped). Two buckets: one keyed by the connecting address Cloudflare
+ * stamps, which the caller cannot choose, and one by the wallet. The cookie is set by the
  * client, so it is not proof of holding the wallet, and a limit keyed by it
  * alone would be a fresh bucket per forged value; it keeps the mint off the
  * anonymous path and bounds what one wallet can ask for. Proving the wallet
@@ -70,12 +70,13 @@ export const issueRhinestoneAccessToken = createServerFn({
   const { env } = await import('cloudflare:workers')
 
   if (env.RHINESTONE_TOKEN_RATE_LIMIT) {
-    const { getRequestIP } = await import('@tanstack/react-start/server')
+    const { getRequestHeader } = await import('@tanstack/react-start/server')
+    // Cloudflare stamps this at the edge from the connection itself, so a
+    // caller cannot pick their bucket the way they could with X-Forwarded-For.
+    const address = getRequestHeader('cf-connecting-ip') ?? 'unknown'
     const limiter = env.RHINESTONE_TOKEN_RATE_LIMIT
     const [byAddress, byWallet] = await Promise.all([
-      limiter.limit({
-        key: `ip:${getRequestIP({ xForwardedFor: true }) ?? 'unknown'}`,
-      }),
+      limiter.limit({ key: `ip:${address}` }),
       limiter.limit({ key: `wallet:${wallet.toLowerCase()}` }),
     ])
     if (!byAddress.success || !byWallet.success) {

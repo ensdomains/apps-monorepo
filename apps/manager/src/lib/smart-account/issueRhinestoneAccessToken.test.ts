@@ -6,9 +6,9 @@ import {
   RhinestoneTokenError,
 } from './issueRhinestoneAccessToken'
 
-const { envMock, getRequestIPMock } = vi.hoisted(() => ({
+const { envMock, getRequestHeaderMock } = vi.hoisted(() => ({
   envMock: {} as Record<string, unknown>,
-  getRequestIPMock: vi.fn<() => string | undefined>(),
+  getRequestHeaderMock: vi.fn<(name: string) => string | undefined>(),
 }))
 
 vi.mock('cloudflare:workers', () => ({ env: envMock }))
@@ -20,7 +20,7 @@ vi.mock('@tanstack/react-start', () => ({
 }))
 
 vi.mock('@tanstack/react-start/server', () => ({
-  getRequestIP: getRequestIPMock,
+  getRequestHeader: getRequestHeaderMock,
 }))
 
 vi.mock('@/lib/connection-cookie', () => ({
@@ -51,7 +51,9 @@ describe('issueRhinestoneAccessToken', () => {
       ),
     })
     vi.mocked(getConnectionCookie).mockReturnValue(WALLET)
-    getRequestIPMock.mockReturnValue('203.0.113.7')
+    getRequestHeaderMock.mockImplementation((name) =>
+      name === 'cf-connecting-ip' ? '203.0.113.7' : undefined,
+    )
   })
 
   afterEach(() => {
