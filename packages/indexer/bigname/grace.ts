@@ -5,7 +5,8 @@ import {
 import { toExactSeconds } from './adapters'
 import type { BignameClient } from './client'
 import { readAllCollectionPages } from './paging'
-import type { AddressName } from './types'
+import { MAX_PAGE_SIZE } from './time'
+import type { Address, AddressName } from './types'
 
 export const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
@@ -21,7 +22,7 @@ const isEth2ld = (name: string): boolean => {
  */
 export const isInV2Grace = (
   row: AddressName,
-  address: string,
+  address: Address,
   nowSeconds: bigint,
 ): boolean => {
   const expiry = toExactSeconds(row.expires_at)
@@ -37,15 +38,13 @@ export const isInV2Grace = (
   )
 }
 
-const GRACE_PAGE_SIZE = 200
-
 /**
  * Every ENSv2 `.eth` name the address can still renew in grace. The expiry
  * window narrows the read; `isInV2Grace` decides each row.
  */
 export const readGraceNames = (
   client: Pick<BignameClient, 'addressNames'>,
-  address: string,
+  address: Address,
   nowSeconds: bigint,
   signal?: AbortSignal,
 ) =>
@@ -59,7 +58,7 @@ export const readGraceNames = (
         order: 'asc',
         expires_after: String(nowSeconds - V2_GRACE_SECONDS),
         expires_before: String(nowSeconds + 1n),
-        page_size: GRACE_PAGE_SIZE,
+        page_size: MAX_PAGE_SIZE,
         ...(cursor !== undefined && { cursor }),
       }),
     { signal },

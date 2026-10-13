@@ -28,6 +28,10 @@ import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { envConfig } from '@/config'
+import {
+  fetchResolverEventsPage,
+  timelinePageParams,
+} from '@/features/history/timelineEventPage'
 import { bigname } from '@/lib/bigname'
 import {
   encodeResolverRoleBitmap,
@@ -92,7 +96,6 @@ export type ResolverNode = {
 }
 
 export type ResolverOverview = {
-  readonly id: string
   readonly address: string
   /**
    * Names whose current registration declares this resolver: bigname's
@@ -382,7 +385,6 @@ const toOverview = (
   const resolverLinks = toLinks(links.rows.flatMap(toLinkedName))
   const resolverRoles = roles.rows.map(toResolverRole)
   return {
-    id: resolver.address,
     address: resolver.address,
     nodeCount: boundNames.total_count ?? overview.data.bound_names.data.length,
     nodeCountIsLowerBound:
@@ -428,12 +430,16 @@ const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
             ...(cursor && { cursor }),
           }),
         ),
-        bigname.events({
-          resolver: `${chainId}:${resolver.address}`,
-          include: ['data', 'raw'],
-          order: 'desc',
-          page_size: RESOLVER_EVENTS_PAGE_SIZE,
-        }),
+        retryStale(
+          () =>
+            bigname.events({
+              resolver: `${chainId}:${resolver.address}`,
+              include: ['data', 'raw'],
+              order: 'desc',
+              page_size: RESOLVER_EVENTS_PAGE_SIZE,
+            }),
+          isStale,
+        ),
       ]).map(([links, roles, events]): ResolverOverview | null =>
         toOverview(resolver, overview, links, roles, events),
       ),
@@ -512,6 +518,17 @@ export const resolverHistoryTimelineQueryKey = createQueryKey<
   GetResolverOverviewParameters
 >('get-resolver-history-timeline')
 
+/** The resolver's feed, the same one the overview previews, a page at a time. */
+export const getResolverHistoryQueryOptions = (
+  params: GetResolverOverviewParameters,
+) =>
+  resultInfiniteQueryOptions({
+    queryKey: resolverHistoryTimelineQueryKey(params),
+    queryFn: ({ queryKey: [, { address }], pageParam }) =>
+      fetchResolverEventsPage({ resolverAddress: address, cursor: pageParam }),
+    ...timelinePageParams,
+  })
+
 const RESOLVER_QUERY_KEYS: ReadonlySet<unknown> = new Set([
   resolverOverviewQueryKey.key,
   resolverNodesQueryKey.key,
@@ -530,7 +547,6 @@ export const invalidateResolverOverview = (
       params !== null &&
       'address' in params &&
       String(params.address).toLowerCase() === address.toLowerCase(),
-    refetchType: 'all',
   })
 
 export const getResolverOverviewQueryOptions = (

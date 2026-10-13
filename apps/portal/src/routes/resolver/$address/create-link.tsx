@@ -1,18 +1,14 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
-import {
-  infiniteFetchMore,
-  useListLoader,
-} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -32,9 +28,11 @@ import { ResolverCollectionNotice } from '@/features/resolver/components/Resolve
 import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
 import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
 import {
-  getResolverNodesQueryOptions,
+  prefetchResolverPage,
+  useResolverNodesList,
+} from '@/features/resolver/hooks/useResolverNodesList'
+import {
   getResolverOverviewQueryOptions,
-  RESOLVER_NODES_PAGE_SIZE,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -42,20 +40,11 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-link')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  // Started, not awaited: the page renders while the first names load.
-  loader: ({ params }) => {
-    void queryClient.prefetchInfiniteQuery(
-      getResolverNodesQueryOptions({ address: params.address }),
-    )
-    void queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({ address: params.address }),
-    )
-  },
+  loader: ({ params }) => prefetchResolverPage(params.address),
 })
 
 interface PageHeaderProps {
@@ -160,26 +149,15 @@ function RouteComponent() {
   const attempt = useFlowAttempt()
   const createLinkTxId = scopeTransactionId(CREATE_LINK_TX_ID, attempt.scope)
 
-  const nodesQuery = useInfiniteQuery(getResolverNodesQueryOptions({ address }))
+  const {
+    query: nodesQuery,
+    loadedNodes,
+    nodes,
+    loader,
+  } = useResolverNodesList(address)
   // Only the existing links come from the overview.
   const overview = useQuery(getResolverOverviewQueryOptions({ address }))
   const resolver = overview.data
-
-  const loadedNodes = useMemo(
-    () => nodesQuery.data?.pages.flatMap((page) => page.nodes) ?? [],
-    [nodesQuery.data],
-  )
-  const loader = useListLoader({
-    initialCount: RESOLVER_NODES_PAGE_SIZE,
-    loaded: loadedNodes.length,
-    total: nodesQuery.data?.pages.at(-1)?.totalCount ?? undefined,
-    hasMore: nodesQuery.hasNextPage,
-    fetchMore: infiniteFetchMore(
-      nodesQuery.fetchNextPage,
-      (page) => page.nodes.length,
-    ),
-    resetKey: address,
-  })
 
   const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
@@ -192,7 +170,6 @@ function RouteComponent() {
 
   const canLink = Boolean(hasLinkRole)
 
-  const nodes = loadedNodes.slice(0, loader.shown)
   const nodesByName = new Map(nodes.map((node) => [node.name, node]))
   const partialSearchHint = loader.canShowMore
     ? `Covers the ${nodes.length} names shown so far. Show more to include the rest.`
@@ -236,7 +213,7 @@ function RouteComponent() {
       />
     )
 
-  if (loadedNodes.length === 0) {
+  if (loadedNodes.length === 0 && !nodesQuery.hasNextPage) {
     return (
       <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />

@@ -1,5 +1,5 @@
 import type { ResultAsync } from 'neverthrow'
-import { type PagingStop, readAllPages, retryStale } from '../bigname/paging'
+import { type PagingStop, readAllPages, retryStale } from '../shared/paging'
 import type { Page } from './common.types'
 import { IndexerReadError } from './errors'
 import type {
