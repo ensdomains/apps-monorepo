@@ -3,6 +3,7 @@ import {
   type Envelope,
   type EventRow,
   type EventType,
+  MAX_PAGE_SIZE,
   type NameHistoryRow,
   secondsToTimestamp,
 } from '@ens-apps/indexer/bigname'
@@ -158,7 +159,8 @@ export const fetchContractEventsPage = ({
 
 /**
  * A resolver's feed as its overview reads it: what it emitted plus the names
- * pointed at it or away from it.
+ * pointed at it or away from it. Read 200 at a time: bigname times out on this
+ * filter at 50 and 100.
  */
 export const fetchResolverEventsPage = ({
   resolverAddress,
@@ -172,7 +174,7 @@ export const fetchResolverEventsPage = ({
       resolver: `${envConfig.chain.id}:${resolverAddress.toLowerCase()}`,
       include: ['data', 'raw', 'total_count'],
       order: 'desc',
-      page_size: HISTORY_TIMELINE_PAGE_SIZE,
+      page_size: MAX_PAGE_SIZE,
       ...(cursor && { cursor }),
     }),
   )

@@ -100,9 +100,10 @@ export type ResolverOverview = {
   /**
    * Names whose current registration declares this resolver: bigname's
    * count when it gives one, else the first page's length, a lower bound
-   * while `nodeCountIsLowerBound` (shown as "N+").
+   * while `nodeCountIsLowerBound` (shown as "N+"). Null when bigname could
+   * not serve the bound names (it times out on the busiest ENSv1 resolvers).
    */
-  readonly nodeCount: number
+  readonly nodeCount: number | null
   readonly nodeCountIsLowerBound: boolean
   readonly linkCount: number | null
   readonly linksStatus: Completeness
@@ -374,21 +375,36 @@ const readOverview = ({ chainId, address }: ResolverRef) =>
 
 type OverviewPage = Envelope<BignameResolverOverview>
 
+/**
+ * The overview, or null when bigname fails to serve it for any reason but an
+ * unknown resolver: only the node count comes from it, so the rest still renders.
+ */
+const readBoundNames = (resolver: ResolverRef) =>
+  readOverview(resolver)
+    .map((overview): OverviewPage | null => overview)
+    .orElse((error) =>
+      error.code === 'not_found' ? errAsync(error) : okAsync(null),
+    )
+
 const toOverview = (
   resolver: ResolverRef,
-  overview: OverviewPage,
+  overview: OverviewPage | null,
   links: Collection<BignameResolverLink>,
   roles: Collection<BignameResolverRole>,
   events: Envelope<readonly EventRow[]>,
 ): ResolverOverview => {
-  const boundNames = overview.data.bound_names.page
+  const boundNames = overview?.data.bound_names
   const resolverLinks = toLinks(links.rows.flatMap(toLinkedName))
   const resolverRoles = roles.rows.map(toResolverRole)
   return {
     address: resolver.address,
-    nodeCount: boundNames.total_count ?? overview.data.bound_names.data.length,
+    nodeCount: boundNames
+      ? (boundNames.page.total_count ?? boundNames.data.length)
+      : null,
     nodeCountIsLowerBound:
-      boundNames.total_count === null && boundNames.has_more,
+      !!boundNames &&
+      boundNames.page.total_count === null &&
+      boundNames.page.has_more,
     links: resolverLinks,
     linkCount: links.status === 'unsupported' ? null : resolverLinks.length,
     linksStatus: links.status,
@@ -407,42 +423,41 @@ const toOverview = (
 }
 
 /**
- * A resolver's overview in four bigname reads: the overview for its bound
- * names, then the `/links` and `/roles` collections and its events together.
+ * A resolver's overview in four bigname reads, together: the overview for its
+ * bound names, the `/links` and `/roles` collections, and its events.
  * The overview itself carries no counts or samples (bigname #954). Null when
  * bigname knows no resolver at this address.
  */
 const getResolverOverview = ({ address }: GetResolverOverviewParameters) => {
   const resolver = resolverRefOf(address)
   const { chainId } = resolver
-  return readOverview(resolver)
-    .andThen((overview) =>
-      ResultAsync.combine([
-        readResolverCollection<BignameResolverLink>((cursor) =>
-          bigname.resolverLinks(chainId, resolver.address, {
-            page_size: MAX_PAGE_SIZE,
-            ...(cursor && { cursor }),
-          }),
-        ),
-        readResolverCollection<BignameResolverRole>((cursor) =>
-          bigname.resolverRoles(chainId, resolver.address, {
-            page_size: MAX_PAGE_SIZE,
-            ...(cursor && { cursor }),
-          }),
-        ),
-        retryStale(
-          () =>
-            bigname.events({
-              resolver: `${chainId}:${resolver.address}`,
-              include: ['data', 'raw'],
-              order: 'desc',
-              page_size: RESOLVER_EVENTS_PAGE_SIZE,
-            }),
-          isStale,
-        ),
-      ]).map(([links, roles, events]): ResolverOverview | null =>
-        toOverview(resolver, overview, links, roles, events),
-      ),
+  return ResultAsync.combine([
+    readBoundNames(resolver),
+    readResolverCollection<BignameResolverLink>((cursor) =>
+      bigname.resolverLinks(chainId, resolver.address, {
+        page_size: MAX_PAGE_SIZE,
+        ...(cursor && { cursor }),
+      }),
+    ),
+    readResolverCollection<BignameResolverRole>((cursor) =>
+      bigname.resolverRoles(chainId, resolver.address, {
+        page_size: MAX_PAGE_SIZE,
+        ...(cursor && { cursor }),
+      }),
+    ),
+    retryStale(
+      () =>
+        bigname.events({
+          resolver: `${chainId}:${resolver.address}`,
+          include: ['data', 'raw'],
+          order: 'desc',
+          page_size: RESOLVER_EVENTS_PAGE_SIZE,
+        }),
+      isStale,
+    ),
+  ])
+    .map(([overview, links, roles, events]): ResolverOverview | null =>
+      toOverview(resolver, overview, links, roles, events),
     )
     .orElse((error) =>
       error.code === 'not_found'

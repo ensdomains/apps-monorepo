@@ -1,15 +1,18 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
   type EventRow,
-  MAX_PAGE_SIZE,
-  readAllCollectionPages,
+  isStale,
   readNamesForAddress,
+  retryStale,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import {
+  resultInfiniteQueryOptions,
+  resultQueryOptions,
+} from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
@@ -30,11 +33,8 @@ class GetAddressHistoryError extends TaggedError('GetAddressHistoryError')<{
 
 type GetAddressHistoryParameters = {
   readonly address: Address
-  /**
-   * Read one page of this many rows — the recent-history teaser. Omitted, the
-   * history is read through the final page.
-   */
-  readonly pageSize?: number
+  /** Rows the recent-history teaser reads: its first page only. */
+  readonly pageSize: number
 }
 
 const toError = (cause: BignameError | IndexerReadError) =>
@@ -48,19 +48,6 @@ const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
     page_size: pageSize,
     ...(cursor && { cursor }),
   })
-
-const readHistory = (
-  address: Address,
-  pageSize: number | undefined,
-  signal: AbortSignal | undefined,
-) =>
-  (pageSize !== undefined
-    ? readHistoryPage(address, pageSize).map(({ data }) => data)
-    : readAllCollectionPages<EventRow>(
-        (cursor) => readHistoryPage(address, MAX_PAGE_SIZE, cursor),
-        { signal },
-      )
-  ).mapErr(toError)
 
 /**
  * The names the address holds the token of, from a `relation=owner` names read:
@@ -97,48 +84,99 @@ const toEvent = (row: EventRow): AddressHistoryEvent[] => {
 }
 
 /**
- * An address's history, one bigname stream over every name it is the owner,
- * manager or a role holder of, ENSv1 and ENSv2 alike, grouped by name.
+ * An address's history rows grouped by name, ENSv1 and ENSv2 alike.
  *
  * Grouped rather than flat because whether a name's history is the address's
  * own is decided per name (see `nameAttribution.ts`), and that needs each
  * name's provenance: `registrarHolder` is the address when it holds the name's
  * token, read from the names list since history rows carry no relations.
  */
-const getAddressHistory = (
-  { address, pageSize }: GetAddressHistoryParameters,
-  signal?: AbortSignal,
-) =>
-  ResultAsync.combine([
-    readHistory(address, pageSize, signal),
-    readHeldNames(address, signal),
-  ]).map(([rows, heldNames]): AddressNameHistory[] => {
-    const byName = new Map<string, AddressHistoryEvent[]>()
-    // One row per registration, so its charge is stated once.
-    for (const row of mergeRegistrationTwins(rows)) {
-      const events = toEvent(row)
-      if (events.length === 0) continue
-      const key = row.name ?? ''
-      byName.set(key, [...(byName.get(key) ?? []), ...events])
-    }
-    return [...byName].map(([name, events]) => ({
-      // A record write bigname could not attribute to a name has none.
-      name: name || null,
-      registrarHolder: name && heldNames.has(name) ? address : null,
-      events,
-    }))
-  })
+export const toAddressNameHistory = (
+  address: Address,
+  rows: readonly EventRow[],
+  heldNames: ReadonlySet<string>,
+): AddressNameHistory[] => {
+  const byName = new Map<string, AddressHistoryEvent[]>()
+  // One row per registration, so its charge is stated once.
+  for (const row of mergeRegistrationTwins(rows)) {
+    const events = toEvent(row)
+    if (events.length === 0) continue
+    const key = row.name ?? ''
+    byName.set(key, [...(byName.get(key) ?? []), ...events])
+  }
+  return [...byName].map(([name, events]) => ({
+    // A record write bigname could not attribute to a name has none.
+    name: name || null,
+    registrarHolder: name && heldNames.has(name) ? address : null,
+    events,
+  }))
+}
 
 const getAddressHistoryQueryKey = createQueryKey<
   'get-address-history',
   GetAddressHistoryParameters
 >('get-address-history')
 
+/** The newest `pageSize` rows of an address's history, for the overview teaser. */
 export const getAddressHistoryQueryOptions = (
   params: GetAddressHistoryParameters,
 ) =>
   resultQueryOptions({
     queryKey: getAddressHistoryQueryKey(params),
-    queryFn: ({ queryKey: [, params], signal }) =>
-      getAddressHistory(params, signal),
+    queryFn: ({ queryKey: [, { address, pageSize }], signal }) =>
+      ResultAsync.combine([
+        readHistoryPage(address, pageSize).mapErr(toError),
+        readHeldNames(address, signal),
+      ]).map(([{ data }, heldNames]) =>
+        toAddressNameHistory(address, data, heldNames),
+      ),
+  })
+
+export const ADDRESS_HISTORY_PAGE_SIZE = 100
+
+export type AddressHistoryPage = {
+  readonly rows: readonly EventRow[]
+  readonly nextCursor: string | null
+}
+
+const getAddressHistoryPagesQueryKey = createQueryKey<
+  'get-address-history-pages',
+  { readonly address: Address }
+>('get-address-history-pages')
+
+/** One bigname stream over every name the address owns, manages or holds a role on, a page at a time. */
+export const getAddressHistoryPagesQueryOptions = (params: {
+  readonly address: Address
+}) =>
+  resultInfiniteQueryOptions({
+    queryKey: getAddressHistoryPagesQueryKey(params),
+    queryFn: ({ queryKey: [, { address }], pageParam }) =>
+      retryStale(
+        () => readHistoryPage(address, ADDRESS_HISTORY_PAGE_SIZE, pageParam),
+        isStale,
+      )
+        .map(
+          ({ data, page }): AddressHistoryPage => ({
+            rows: data,
+            nextCursor: page?.has_more ? (page.next_cursor ?? null) : null,
+          }),
+        )
+        .mapErr(toError),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: AddressHistoryPage) =>
+      last.nextCursor ?? undefined,
+  })
+
+const getAddressHeldNamesQueryKey = createQueryKey<
+  'get-address-held-names',
+  { readonly address: Address }
+>('get-address-held-names')
+
+export const getAddressHeldNamesQueryOptions = (params: {
+  readonly address: Address
+}) =>
+  resultQueryOptions({
+    queryKey: getAddressHeldNamesQueryKey(params),
+    queryFn: ({ queryKey: [, { address }], signal }) =>
+      readHeldNames(address, signal),
   })

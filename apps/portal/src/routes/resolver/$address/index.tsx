@@ -78,7 +78,9 @@ function RouteComponent() {
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
           <CounterCardRow icon={GridIcon}>
             <span className="font-medium">
-              {resolver?.nodeCount ?? 0}
+              {resolver?.nodeCount === null
+                ? 'Unknown'
+                : (resolver?.nodeCount ?? 0)}
               {resolver?.nodeCountIsLowerBound && '+'}
             </span>{' '}
             nodes

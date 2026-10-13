@@ -302,13 +302,28 @@ describe('getResolverOverviewQueryOptions', () => {
     })
   })
 
-  it('answers null for a resolver bigname does not know, and fails otherwise', async () => {
+  it('answers null for a resolver bigname does not know', async () => {
     bigname.resolver.mockReturnValue(
       errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
     )
     expect(await readOverview()).toBeNull()
+  })
 
+  it('renders without a node count when bigname cannot serve the bound names', async () => {
     bigname.resolver.mockReturnValue(
+      errAsync(
+        new BignameError({ code: 'request_timeout', message: 'too slow' }),
+      ),
+    )
+    expect(await readOverview()).toMatchObject({
+      nodeCount: null,
+      nodeCountIsLowerBound: false,
+      linkCount: 0,
+    })
+  })
+
+  it('fails when another read fails', async () => {
+    bigname.resolverRoles.mockReturnValue(
       errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
     )
     await expect(readOverview()).rejects.toMatchObject({
