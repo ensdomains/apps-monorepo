@@ -3,6 +3,7 @@ import type {
   PostHogConfig,
 } from 'posthog-js/dist/module.full.no-external'
 import { readConsent } from './consent.js'
+import { writeCookieSync } from './cookie.js'
 
 /**
  * The PostHog settings for analytics with consent.
@@ -130,8 +131,7 @@ const sweepPosthogCookies = (): void => {
     const name = cookie.split('=')[0]?.trim() ?? ''
     if (!isPosthogKey(name)) continue
     for (const deletion of posthogCookieDeletions(hostname, name)) {
-      // biome-ignore lint/suspicious/noDocumentCookie: consent sweep, sync by design.
-      document.cookie = deletion
+      writeCookieSync(deletion)
     }
   }
 }

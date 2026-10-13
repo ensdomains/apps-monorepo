@@ -8,22 +8,18 @@ import {
   writeConsentCookie,
 } from './cookie.js'
 
-const clearCookies = () => {
-  for (const cookie of document.cookie.split(';')) {
-    const name = cookie.split('=')[0]?.trim() ?? ''
-    if (name) {
-      // biome-ignore lint/suspicious/noDocumentCookie: test hygiene.
-      document.cookie = `${name}=; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-    }
+const clearCookies = async (): Promise<void> => {
+  for (const cookie of await cookieStore.getAll()) {
+    if (cookie.name) await cookieStore.delete(cookie.name)
   }
 }
 
 describe('consent cookie', () => {
-  beforeEach(() => {
-    clearCookies()
+  beforeEach(async () => {
+    await clearCookies()
   })
-  afterEach(() => {
-    clearCookies()
+  afterEach(async () => {
+    await clearCookies()
   })
 
   it('parses the stored values and rejects the rest', () => {
@@ -46,9 +42,8 @@ describe('consent cookie', () => {
     expect(readConsentCookie()).toBe('declined')
   })
 
-  it('ignores other cookies beside it', () => {
-    // biome-ignore lint/suspicious/noDocumentCookie: test setup.
-    document.cookie = 'other=value; Path=/'
+  it('ignores other cookies beside it', async () => {
+    await cookieStore.set('other', 'value')
     writeConsentCookie('accepted')
     expect(readConsentCookie()).toBe('accepted')
     expect(document.cookie).toContain(`${CONSENT_COOKIE_NAME}=accepted`)

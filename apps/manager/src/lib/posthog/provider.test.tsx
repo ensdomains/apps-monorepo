@@ -3,7 +3,10 @@ import {
   CONSENT_STORAGE_KEY,
   setStoredConsent,
 } from '@ens-apps/analytics-consent/consent'
-import { CONSENT_COOKIE_NAME } from '@ens-apps/analytics-consent/cookie'
+import {
+  CONSENT_COOKIE_NAME,
+  writeConsentCookie,
+} from '@ens-apps/analytics-consent/cookie'
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { boot, trackEvent } from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
@@ -73,13 +76,9 @@ const fireConnect = () => {
   )
 }
 
-const clearCookies = () => {
-  for (const cookie of document.cookie.split(';')) {
-    const name = cookie.split('=')[0]?.trim() ?? ''
-    if (name) {
-      // biome-ignore lint/suspicious/noDocumentCookie: test hygiene.
-      document.cookie = `${name}=; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-    }
+const clearCookies = async (): Promise<void> => {
+  for (const cookie of await cookieStore.getAll()) {
+    if (cookie.name) await cookieStore.delete(cookie.name)
   }
 }
 
@@ -89,10 +88,10 @@ const posthogKeys = () =>
   )
 
 describe('consent PostHog provider', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     localStorage.clear()
-    clearCookies()
+    await clearCookies()
     mockDisconnected()
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
     vi.stubEnv('VITE_PUBLIC_POSTHOG_HOST', 'https://posthog.example')
@@ -166,8 +165,7 @@ describe('consent PostHog provider', () => {
   })
 
   it('clears a stale consent cookie when no choice is stored', () => {
-    // biome-ignore lint/suspicious/noDocumentCookie: test setup.
-    document.cookie = `${CONSENT_COOKIE_NAME}=accepted; Path=/`
+    writeConsentCookie('accepted')
     render(
       <PHProvider>
         <div>child</div>

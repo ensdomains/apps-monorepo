@@ -11,6 +11,15 @@ export const CONSENT_COOKIE_NAME = 'ens.analytics.consent'
 
 const CONSENT_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60
 
+/**
+ * The package's only direct cookie write. Every consent and sweep write
+ * goes through here; callers run only where `document` exists.
+ */
+export const writeCookieSync = (value: string): void => {
+  // biome-ignore lint/suspicious/noDocumentCookie: the Manager's server reads the cookie on the next request, so the write must land before any navigation, and the Cookie Store API is missing in Safari before 18.4 and Firefox before 140, which the build still targets.
+  document.cookie = value
+}
+
 export const parseConsentValue = (
   value: string | null | undefined,
 ): StoredConsent =>
@@ -18,14 +27,16 @@ export const parseConsentValue = (
 
 export const writeConsentCookie = (consent: AnalyticsConsent): void => {
   if (typeof document === 'undefined') return
-  // biome-ignore lint/suspicious/noDocumentCookie: consent mirror, sync by design.
-  document.cookie = `${CONSENT_COOKIE_NAME}=${consent}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
+  writeCookieSync(
+    `${CONSENT_COOKIE_NAME}=${consent}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`,
+  )
 }
 
 export const clearConsentCookie = (): void => {
   if (typeof document === 'undefined') return
-  // biome-ignore lint/suspicious/noDocumentCookie: consent mirror removal, sync by design.
-  document.cookie = `${CONSENT_COOKIE_NAME}=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+  writeCookieSync(
+    `${CONSENT_COOKIE_NAME}=; Path=/; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`,
+  )
 }
 
 export const readConsentCookie = (): StoredConsent => {
