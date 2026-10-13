@@ -229,6 +229,7 @@ describe('readV1NamesForAddress', () => {
     expect(result._unsafeUnwrapErr()._tag).toBe('GetV1NamesError')
   })
 
+  // Retry and restart are tested with the shared pager; this shows the listing uses it.
   it('sends a stale page again with its cursor', async () => {
     const addressNames = vi
       .fn<BignameClient['addressNames']>()
@@ -246,27 +247,6 @@ describe('readV1NamesForAddress', () => {
     expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
       'alice.eth',
       'bob.eth',
-    ])
-  })
-
-  it('restarts the listing once when its cursor stays stale', async () => {
-    let firstPages = 0
-    const addressNames = vi.fn<BignameClient['addressNames']>((_, query) => {
-      if (query?.cursor) return errAsync(stale())
-      firstPages += 1
-      return okAsync(
-        listPage([listRow('alice.eth')], firstPages === 1 ? 'old' : null),
-      )
-    })
-
-    const result = await readV1NamesForAddress(
-      { addressNames, lookup: lookupFromFixtures },
-      USER,
-    )
-
-    expect(addressNames.mock.calls.at(-1)?.[1]?.cursor).toBeUndefined()
-    expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
-      'alice.eth',
     ])
   })
 

@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnDef,
@@ -15,10 +15,6 @@ import { useMemo, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
-import {
-  infiniteFetchMore,
-  useListLoader,
-} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -43,26 +39,19 @@ import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
 import { toNodeRolesStatus } from '@/features/resolver/helpers/nodeRolesStatus'
 import { rolesForNode } from '@/features/resolver/helpers/rolesForNode'
 import {
-  getResolverNodesQueryOptions,
+  prefetchResolverPage,
+  useResolverNodesList,
+} from '@/features/resolver/hooks/useResolverNodesList'
+import {
   getResolverOverviewQueryOptions,
-  RESOLVER_NODES_PAGE_SIZE,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
-import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  // Started, not awaited: the page renders while the first names load.
-  loader: ({ params }) => {
-    void queryClient.prefetchInfiniteQuery(
-      getResolverNodesQueryOptions({ address: params.address }),
-    )
-    void queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({ address: params.address }),
-    )
-  },
+  loader: ({ params }) => prefetchResolverPage(params.address),
 })
 
 const createNodesColumns = (
@@ -135,29 +124,15 @@ function RouteComponent() {
   const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const nodesQuery = useInfiniteQuery(getResolverNodesQueryOptions({ address }))
+  const {
+    query: nodesQuery,
+    loadedNodes,
+    nodes,
+    loader,
+  } = useResolverNodesList(address)
   // Only the role rows the detail sheet shows come from the overview.
   const overview = useQuery(getResolverOverviewQueryOptions({ address }))
 
-  const loadedNodes = useMemo(
-    () => nodesQuery.data?.pages.flatMap((page) => page.nodes) ?? [],
-    [nodesQuery.data],
-  )
-  const loader = useListLoader({
-    initialCount: RESOLVER_NODES_PAGE_SIZE,
-    loaded: loadedNodes.length,
-    total: nodesQuery.data?.pages.at(-1)?.totalCount ?? undefined,
-    hasMore: nodesQuery.hasNextPage,
-    fetchMore: infiniteFetchMore(
-      nodesQuery.fetchNextPage,
-      (page) => page.nodes.length,
-    ),
-    resetKey: address,
-  })
-  const nodes = useMemo(
-    () => loadedNodes.slice(0, loader.shown),
-    [loadedNodes, loader.shown],
-  )
   const roles = overview.data?.roles ?? []
 
   const nodeRoles = selectedNode ? rolesForNode(roles, selectedNode) : []
@@ -191,7 +166,8 @@ function RouteComponent() {
       />
     )
 
-  if (loadedNodes.length === 0)
+  // An empty first page can still have more behind it.
+  if (loadedNodes.length === 0 && !nodesQuery.hasNextPage)
     return (
       <div className="flex flex-col gap-8">
         <PageHeading parent={{ type: 'resolver', address: address }}>

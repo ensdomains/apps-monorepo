@@ -1,4 +1,3 @@
-import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createFileRoute } from '@tanstack/react-router'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -6,11 +5,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeline'
-import {
-  fetchResolverEventsPage,
-  timelinePageParams,
-} from '@/features/history/timelineEventPage'
-import { resolverHistoryTimelineQueryKey } from '@/features/resolver/hooks/useResolverOverview'
+import { getResolverHistoryQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/resolver/$address/history')({
@@ -22,15 +17,7 @@ export const Route = createFileRoute('/resolver/$address/history')({
 function RouteComponent() {
   const { address } = Route.useParams()
   const model = useTimelinePagesModel(
-    resultInfiniteQueryOptions({
-      queryKey: resolverHistoryTimelineQueryKey({ address }),
-      queryFn: ({ queryKey: [, { address }], pageParam }) =>
-        fetchResolverEventsPage({
-          resolverAddress: address,
-          cursor: pageParam,
-        }),
-      ...timelinePageParams,
-    }),
+    getResolverHistoryQueryOptions({ address }),
   )
 
   if (model.isLoading) return <LoadingMessage />

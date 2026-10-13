@@ -22,6 +22,17 @@ export const registryHistoryTimelineQueryKey = createQueryKey<
   { readonly address: Address }
 >('get-registry-history-timeline')
 
+/** Everything the registry contract emitted, a page at a time. */
+export const getRegistryHistoryQueryOptions = (params: {
+  readonly address: Address
+}) =>
+  resultInfiniteQueryOptions({
+    queryKey: registryHistoryTimelineQueryKey(params),
+    queryFn: ({ queryKey: [, { address }], pageParam }) =>
+      fetchContractEventsPage({ contractAddress: address, cursor: pageParam }),
+    ...timelinePageParams,
+  })
+
 /**
  * History timeline for a registry contract, given its address.
  *
@@ -46,15 +57,7 @@ export const RegistryHistoryByAddress = ({
   action?: ReactNode
 }) => {
   const model = useTimelinePagesModel(
-    resultInfiniteQueryOptions({
-      queryKey: registryHistoryTimelineQueryKey({ address }),
-      queryFn: ({ queryKey: [, { address }], pageParam }) =>
-        fetchContractEventsPage({
-          contractAddress: address,
-          cursor: pageParam,
-        }),
-      ...timelinePageParams,
-    }),
+    getRegistryHistoryQueryOptions({ address }),
   )
 
   if (model.isLoading) return <LoadingMessage />

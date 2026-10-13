@@ -1,4 +1,9 @@
 export {
+  type PagingStop,
+  readAllPages,
+  retryStale,
+} from '../shared/paging'
+export {
   toDate,
   toExactSeconds,
   toExpirySeconds,
@@ -20,13 +25,7 @@ export {
 export { isInV2Grace, readGraceNames } from './grace'
 export { readNameDetail } from './nameDetail'
 export { readNamesForAddress } from './namesForAddress'
-export {
-  type PagingStop,
-  readAllCollectionPages,
-  readAllEnvelopes,
-  readAllPages,
-  retryStale,
-} from './paging'
+export { readAllCollectionPages, readAllEnvelopes } from './paging'
 export { parseRecordKey } from './recordKeys'
 export { MAX_PAGE_SIZE, secondsToTimestamp } from './time'
 export type * from './types'

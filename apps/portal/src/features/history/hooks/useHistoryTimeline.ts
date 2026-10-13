@@ -53,14 +53,14 @@ export type HistoryTimelineModel = {
 
 export const TIMELINE_WINDOW_SIZE = 50
 
+const countEvents = (actions: readonly Action[]): number =>
+  actions.reduce((total, action) => total + action.events.length, 0)
+
 /**
  * The newest actions whose events fit the budget; `undefined` takes them all. A
  * transaction is never split across the break, so the last one admitted may
  * carry the count past the budget.
  */
-const countEvents = (actions: readonly Action[]): number =>
-  actions.reduce((total, action) => total + action.events.length, 0)
-
 const takeEvents = (
   actions: readonly Action[],
   budget: number | undefined,

@@ -29,8 +29,7 @@ export type RegistryLabelRow = {
   labelhash: string | null
   /** Unix seconds; null means the label does not expire. */
   expiryDate: bigint | null
-  /** Distinct accounts holding a label-scoped role on this label. */
-  /** Undefined when bigname does not count them. */
+  /** Distinct accounts holding a label-scoped role on this label; undefined when bigname does not count them. */
   roleHoldersCount: number | undefined
 }
 

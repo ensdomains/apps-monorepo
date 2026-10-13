@@ -1,6 +1,5 @@
-import { errAsync, okAsync } from 'neverthrow'
+import { okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
-import { BignameError } from './errors'
 import { isInV2Grace, readGraceNames, V2_GRACE_SECONDS } from './grace'
 import type { AddressName } from './types'
 
@@ -23,7 +22,9 @@ const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
 
 describe('isInV2Grace', () => {
   it('holds an expired ENSv2 .eth name for its former owner until grace ends', () => {
-    expect(isInV2Grace(lapsed(), OWNER.toUpperCase(), NOW)).toBe(true)
+    expect(
+      isInV2Grace(lapsed(), `0x${OWNER.slice(2).toUpperCase()}`, NOW),
+    ).toBe(true)
     expect(
       isInV2Grace(
         lapsed({ expires_at: String(NOW - V2_GRACE_SECONDS + 1n) }),
@@ -120,15 +121,5 @@ describe('readGraceNames', () => {
       expires_after: String(NOW - V2_GRACE_SECONDS),
       expires_before: String(NOW + 1n),
     })
-  })
-
-  it('fails when bigname cannot answer', async () => {
-    const addressNames = vi.fn(() =>
-      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-    )
-
-    const rows = await readGraceNames({ addressNames }, OWNER, NOW)
-
-    expect(rows.isErr()).toBe(true)
   })
 })

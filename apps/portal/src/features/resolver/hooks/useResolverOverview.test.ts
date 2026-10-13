@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
+  invalidateResolverOverview,
   powersToResolverRoleBitmap,
   pruneLinksAfterUnlink,
   resolverCollectionCount,
@@ -354,5 +355,24 @@ describe('resolverCollectionCount', () => {
     expect(resolverCollectionCount(null, 'unsupported')).toBe('Unknown')
     expect(resolverCollectionCount(0, 'partial')).toBe('0+')
     expect(resolverCollectionCount(12, 'partial')).toBe('12+')
+  })
+})
+
+describe('invalidateResolverOverview', () => {
+  it('refreshes the written resolver only', async () => {
+    const queryClient = new QueryClient()
+    const OTHER = '0x2222222222222222222222222222222222222222'
+    const OTHER_CASE = '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63'
+    const written = getResolverOverviewQueryOptions({ address: ADDRESS })
+    const other = getResolverOverviewQueryOptions({ address: OTHER })
+    queryClient.setQueryData(written.queryKey, null)
+    queryClient.setQueryData(other.queryKey, null)
+
+    await invalidateResolverOverview(queryClient, OTHER_CASE)
+
+    expect(queryClient.getQueryState(written.queryKey)?.isInvalidated).toBe(
+      true,
+    )
+    expect(queryClient.getQueryState(other.queryKey)?.isInvalidated).toBe(false)
   })
 })

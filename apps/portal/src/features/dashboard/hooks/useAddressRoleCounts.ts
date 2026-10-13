@@ -57,7 +57,6 @@ export const getAddressRoleCountsQueryOptions = (
     queryKey: getAddressRoleCountsQueryKey(params),
     queryFn: ({ queryKey: [, params], signal }) =>
       getAddressRoleCounts(params, signal),
-    retry: false,
   })
 
 /** An ENSv2 row's role count, or why there is none to show yet. */
