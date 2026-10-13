@@ -76,6 +76,14 @@ describe('issueRhinestoneAccessToken', () => {
     )
   })
 
+  it('names every missing credential, so none-set and one-set read differently', async () => {
+    for (const key of Object.keys(envMock)) delete envMock[key]
+
+    await expect(mint()).rejects.toThrow(
+      'Rhinestone token signing is not configured (RHINESTONE_JWT_PRIVATE_KEY, RHINESTONE_INTEGRATOR_ID, RHINESTONE_PROJECT_ID, RHINESTONE_APP_ID, RHINESTONE_KEY_ID)',
+    )
+  })
+
   it('refuses a private key that is not a JWK', async () => {
     envMock.RHINESTONE_JWT_PRIVATE_KEY = 'rs_definitely_not_a_jwk'
 

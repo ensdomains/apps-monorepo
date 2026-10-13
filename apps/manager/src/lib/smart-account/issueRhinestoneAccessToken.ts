@@ -33,19 +33,32 @@ type JwtCredentials = Parameters<
   typeof import('@rhinestone/sdk/jwt-server').createJwtSigner
 >[0]['jwt']
 
+const CREDENTIAL_NAMES = [
+  'RHINESTONE_JWT_PRIVATE_KEY',
+  'RHINESTONE_INTEGRATOR_ID',
+  'RHINESTONE_PROJECT_ID',
+  'RHINESTONE_APP_ID',
+  'RHINESTONE_KEY_ID',
+] as const
+
 /**
  * Read the signing credentials, refusing to mint from a partial set. The
- * message names the variable rather than echoing a value, since it reaches
- * the browser.
+ * message names every variable that is missing rather than the first, since
+ * "all five" and "just one" point at different mistakes, and never echoes a
+ * value, since it reaches the browser.
  */
 function readJwtCredentials(env: Cloudflare.Env): JwtCredentials {
-  const read = (name: keyof Cloudflare.Env): string => {
+  const missing = CREDENTIAL_NAMES.filter((name) => {
     const value = env[name]
-    if (typeof value !== 'string' || value === '') {
-      throw new Error(`Rhinestone token signing is not configured (${name})`)
-    }
-    return value
+    return typeof value !== 'string' || value === ''
+  })
+  if (missing.length > 0) {
+    throw new Error(
+      `Rhinestone token signing is not configured (${missing.join(', ')})`,
+    )
   }
+  const read = (name: (typeof CREDENTIAL_NAMES)[number]): string =>
+    env[name] as string
 
   return {
     privateKey: parsePrivateJwk(read('RHINESTONE_JWT_PRIVATE_KEY')),
