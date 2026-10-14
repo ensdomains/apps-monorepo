@@ -37,10 +37,13 @@ const withSenders = <T extends { transactionID: Hash; from: Address | null }>(
 export const AddressHistoryDataTable = ({
   address,
   history,
+  heldNames,
   loader,
 }: {
   readonly address: Address
   readonly history: readonly AddressNameHistory[]
+  /** Every name whose token the address holds, loaded or not. */
+  readonly heldNames: ReadonlySet<string>
   /** Pages the history in; the rows shown are already cut to its window. */
   readonly loader: ListLoaderProps
 }) => {
@@ -70,8 +73,8 @@ export const AddressHistoryDataTable = ({
   })
 
   const { acquired, assigned, assignedNameCount } = useMemo(
-    () => partitionAddressHistory(groups, address, sendersData),
-    [groups, address, sendersData],
+    () => partitionAddressHistory(groups, address, sendersData, heldNames),
+    [groups, address, sendersData, heldNames],
   )
 
   // bigname dates every row, so only the sender comes from the chain.

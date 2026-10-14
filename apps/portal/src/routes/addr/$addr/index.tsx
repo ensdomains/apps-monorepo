@@ -68,11 +68,14 @@ interface AddressHistoryProps {
 }
 
 const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
-  const { data: history } = useQuery(
+  const { data } = useQuery(
     getAddressHistoryQueryOptions({ address, pageSize: RECENT_EVENT_LIMIT }),
   )
 
-  const groups = useMemo(() => groupAddressHistoryByName(history), [history])
+  const groups = useMemo(
+    () => groupAddressHistoryByName(data?.history),
+    [data?.history],
+  )
 
   // Structural attribution only: judging a name by who sent its transactions costs
   // one `getTransaction` per event, and an attacker controls how many events a
@@ -81,11 +84,11 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
   // teaser; it is one click away, correctly attributed, under "Full history".
   const recentEvents = useMemo(
     () =>
-      selectAcquiredNames(groups, address, undefined)
+      selectAcquiredNames(groups, address, undefined, data?.heldNames)
         .flatMap((group) => group.events)
         .toSorted((a, b) => b.blockNumber - a.blockNumber)
         .slice(0, RECENT_EVENT_LIMIT),
-    [groups, address],
+    [groups, address, data?.heldNames],
   )
 
   return (

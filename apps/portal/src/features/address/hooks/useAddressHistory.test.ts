@@ -97,7 +97,12 @@ describe('getAddressHistoryQueryOptions', () => {
       ]),
     )
 
-    expect(await read()).toEqual([
+    const { history, heldNames } = (await read()) as {
+      history: unknown
+      heldNames: ReadonlySet<string>
+    }
+    expect(heldNames).toEqual(new Set(['held.eth']))
+    expect(history).toEqual([
       {
         name: 'held.eth',
         registrarHolder: ADDRESS,

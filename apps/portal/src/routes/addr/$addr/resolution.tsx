@@ -142,6 +142,13 @@ function RouteComponent() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
+        {table.getState().globalFilter &&
+          (query.hasNextPage || loaded.length > data.length) && (
+            <p className="text-sm text-muted-foreground">
+              Searching the {data.length} names loaded so far. Load more to
+              search the rest.
+            </p>
+          )}
         {isEthereumOnly && (
           <p className="text-sm text-muted-foreground">
             One of these names stores this address under more networks than can
