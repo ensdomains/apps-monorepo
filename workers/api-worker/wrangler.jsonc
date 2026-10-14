@@ -228,5 +228,58 @@
       "ALERT_CHAT_ID": "-5381499765"
     },
     "SENDGRID_BROADCAST_LIST_ID": ""
+  },
+  // PR previews intentionally share Sepolia's settings and resources.
+  // Set the secrets named in top-level secrets.required in Previews Base;
+  // deployed Worker secrets are not automatically inherited by previews.
+  "previews": {
+    "vars": {
+      "CHAIN": "sepolia",
+      "BASE_URL": "https://sepolia.app-api.ens.domains",
+      "EMAIL_FROM_ADDRESS": "noreply@notifications.ens.domains",
+      "MANAGER_APP_URL": "https://sepolia.app.ens.domains",
+      "POSTHOG": {
+        "host": "https://eu.posthog.com",
+        "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
+      },
+      "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
+      "VAPID_PUBLIC_KEY": "BP9cg1ylzlAXChsGDzKjabPbolsnarzfNsbJvj7bSFhUWUPwcQrpirJLwV30shFa_eDufbKrWy46FGkAjv46Uqk",
+      "TELEGRAM": {
+        "ALERT_CHAT_ID": "-5381499765"
+      },
+      "SENDGRID_BROADCAST_LIST_ID": ""
+    },
+    "kv_namespaces": [
+      {
+        "binding": "KV",
+        "id": "85a14d25fa4a41a3a7123bcd5093c09a"
+      }
+    ],
+    // Messages go to the deployed Sepolia consumer. Previews cannot have
+    // queue consumers or cron triggers of their own.
+    "queues": {
+      "producers": [
+        {
+          "binding": "EVENT_INGESTION_QUEUE",
+          "queue": "app-api-worker-event-ingestion"
+        },
+        {
+          "binding": "TELEGRAM_QUEUE",
+          "queue": "app-api-worker-telegram-delivery"
+        },
+        {
+          "binding": "EMAIL_QUEUE",
+          "queue": "app-api-worker-email-delivery"
+        },
+        {
+          "binding": "PUSH_QUEUE",
+          "queue": "app-api-worker-push-delivery"
+        },
+        {
+          "binding": "DLQ",
+          "queue": "app-api-worker-dlq"
+        }
+      ]
+    }
   }
 }
