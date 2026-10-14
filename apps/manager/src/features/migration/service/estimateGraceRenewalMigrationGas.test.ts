@@ -16,7 +16,7 @@ import type { GraceRenewalItem, GraceRenewalQuote } from './graceRenewal'
 
 vi.mock('./buildMigrationPlan', () => ({
   buildMigrationPlan: vi.fn(),
-  namesWithDroppedPubkey: vi.fn(() => []),
+  namesWithDroppedPubkey: vi.fn(() => ['pubkey.eth']),
 }))
 vi.mock('./computeMigrationPreflight', () => ({
   computeMigrationPreflight: vi.fn(),
@@ -213,7 +213,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
         { type: 'renew-grace', count: 2 },
         ...migrationSteps,
       ],
-      droppedPubkeyNames: [],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(estimateGraceRenewalGas).toHaveBeenCalledWith({
       quote: input.quote,
@@ -257,7 +257,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       feeWei: 3_450n,
       transactionCount: 5,
       stepDescriptors: [{ type: 'renew-grace', count: 2 }, ...migrationSteps],
-      droppedPubkeyNames: [],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(result.stepDescriptors).toHaveLength(result.transactionCount)
   })
@@ -344,7 +344,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       feeWei: 3_000n,
       transactionCount: 4,
       stepDescriptors: migrationSteps,
-      droppedPubkeyNames: [],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].domains[0]).toBe(
       renewed,
