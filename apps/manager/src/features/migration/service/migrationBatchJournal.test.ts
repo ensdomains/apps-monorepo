@@ -65,6 +65,16 @@ describe('migration batch journal', () => {
             addresses: [{ coinType: 60n, value: '0x1234' }],
             contentHash: '0xe301',
             abis: [{ contentType: 1n, value: '0x5b5d' }],
+            interfaces: [
+              {
+                interfaceId: '0x01ffc9a7',
+                implementer: '0x0000000000000000000000000000000000000005',
+              },
+            ],
+            pubkey: {
+              x: '0x00000000000000000000000000000000000000000000000000000000000000aa',
+              y: '0x00000000000000000000000000000000000000000000000000000000000000bb',
+            },
           },
         ],
       ]),
@@ -92,6 +102,16 @@ describe('migration batch journal', () => {
             addresses: [{ coinType: 60n, value: '0x1234' }],
             contentHash: '0xe301',
             abis: [{ contentType: 1n, value: '0x5b5d' }],
+            interfaces: [
+              {
+                interfaceId: '0x01ffc9a7',
+                implementer: '0x0000000000000000000000000000000000000005',
+              },
+            ],
+            pubkey: {
+              x: '0x00000000000000000000000000000000000000000000000000000000000000aa',
+              y: '0x00000000000000000000000000000000000000000000000000000000000000bb',
+            },
           },
         ],
       ]),
@@ -369,6 +389,49 @@ describe('recovery snapshot manager restoration (WEB-1528)', () => {
 
   it('fails closed when the recorded opt-in is not a list of names', () => {
     storeRawRecovery(baseRecovery({ managerRestorationNames: [42] }))
+
+    expect(() => loadMigrationRecoverySnapshot(scope)).toThrow(
+      /journal is unreadable/i,
+    )
+  })
+
+  const legacyProfile = {
+    node: namehash('alice.eth'),
+    texts: [],
+    addresses: [],
+    contentHash: null,
+    abis: [],
+  }
+
+  it('replays no interface records for a profile written before they were carried over', () => {
+    storeRawRecovery(baseRecovery({ profiles: [legacyProfile] }))
+
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.profiles.get(namehash('alice.eth')),
+    ).toMatchObject({ interfaces: [], pubkey: null })
+  })
+
+  it.each([
+    [
+      'interface id',
+      {
+        interfaces: [
+          {
+            interfaceId: '0x01',
+            implementer: '0x0000000000000000000000000000000000000005',
+          },
+        ],
+      },
+    ],
+    [
+      'implementer',
+      { interfaces: [{ interfaceId: '0x01ffc9a7', implementer: '0x05' }] },
+    ],
+    ['pubkey', { pubkey: { x: '0xaa', y: '0xbb' } }],
+  ])('fails closed on a malformed stored %s', (_, extra) => {
+    storeRawRecovery(
+      baseRecovery({ profiles: [{ ...legacyProfile, ...extra }] }),
+    )
 
     expect(() => loadMigrationRecoverySnapshot(scope)).toThrow(
       /journal is unreadable/i,

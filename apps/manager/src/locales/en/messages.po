@@ -1956,6 +1956,10 @@ msgstr "Profile actions"
 msgid "Profile Description"
 msgstr "Profile Description"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Public key records can't be carried over by this upgrade and will stop resolving for {nameList}."
+msgstr "Public key records can't be carried over by this upgrade and will stop resolving for {nameList}."
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
 msgstr "Publish"

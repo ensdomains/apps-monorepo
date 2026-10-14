@@ -35,7 +35,6 @@ import {
 } from '@/features/migration/service/migrationInvariants'
 import {
   getV1ProfileKeys,
-  hasV1ProfileRecords,
   type V1ProfileKeys,
 } from '@/features/migration/service/v1ProfileKeys'
 
@@ -171,8 +170,8 @@ const computeProfilePreflight = async (
       ),
     })
   }
-  const anyKeys = profileKeys.some(hasV1ProfileRecords)
-  return { skipFetchProfilesPhase: !anyKeys, profileKeys }
+  // An empty inventory still needs the chain read: pubkeys are not indexed.
+  return { skipFetchProfilesPhase: false, profileKeys }
 }
 
 export const computeMigrationPreflight = async (params: {
