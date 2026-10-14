@@ -103,7 +103,7 @@ export const DashboardPage = () => {
           </motion.div>
         )}
         <motion.div
-          className="w-full px-4 empty:hidden md:px-0"
+          className="w-full px-4 xs:px-0 empty:hidden"
           {...stagger(1, shouldReduceMotion)}
         >
           <DashboardGraceBanner primaryLabel={defaultName} />
