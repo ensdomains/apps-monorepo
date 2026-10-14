@@ -66,18 +66,18 @@ vi.mock('../hooks/useRecentActivity', () => ({
   }),
 }))
 
-const nameChangedEvent = (
+const primaryNameEvent = (
   reverseName: string,
   indexedName: string | null = null,
 ): RecentActivityEvent => ({
   name: indexedName,
-  type: 'record',
-  kind: 'RecordChanged',
+  type: 'primary_name',
+  kind: 'ReverseChanged',
   transactionHash: '0x01',
   timestamp: Math.floor(Date.now() / 1000),
   blockNumber: 0,
   contractAddress: '0x02',
-  data: { key: 'name', value: reverseName },
+  data: { name: reverseName, name_status: 'set' },
 })
 
 afterEach(() => {
@@ -108,22 +108,22 @@ const linkedNames = () =>
   )
 
 describe('RecentActivityTable', () => {
-  it('renders a reverse-record name as an unlinked pill, not a name badge', async () => {
-    await renderTable([nameChangedEvent('vitalik.eth')])
+  it('renders a claimed primary name as an unlinked pill, not a name badge', async () => {
+    await renderTable([primaryNameEvent('vitalik.eth')])
 
     expect(screen.getByText('vitalik.eth')).toBeInTheDocument()
     expect(linkedNames()).toEqual(new Set())
   })
 
   it('still links the indexed name of the node the event belongs to', async () => {
-    await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
+    await renderTable([primaryNameEvent('vitalik.eth', 'alice.eth')])
 
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
   })
 
   it('keeps the events shown when the next page fails', async () => {
     eventsRef.hasFailingPage = true
-    await renderTable([nameChangedEvent('vitalik.eth', 'alice.eth')])
+    await renderTable([primaryNameEvent('vitalik.eth', 'alice.eth')])
 
     await userEvent.click(
       screen.getByRole('button', { name: 'Load more events' }),

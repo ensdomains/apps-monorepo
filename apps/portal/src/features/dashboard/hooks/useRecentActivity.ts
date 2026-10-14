@@ -54,12 +54,16 @@ const isOwnerlessAuthority = (row: EventRow): boolean =>
   row.data?.action !== 'name_wrapped' &&
   row.data?.action !== 'name_unwrapped'
 
+/** The reverse `name` record write; its `primary_name` row already says it. */
+const isReverseNameRecord = (row: EventRow): boolean =>
+  row.type === 'record' && row.data?.key === 'name'
+
 const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
   const timestamp = toUnixSeconds(row.timestamp)
   // A state-derived row has no transaction to link, nor a place in the feed.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
     return []
-  if (isOwnerlessAuthority(row)) return []
+  if (isOwnerlessAuthority(row) || isReverseNameRecord(row)) return []
   // A record write bigname could not attribute to a name carries none.
   const name = row.name || null
   // A row is its payload plus fields read here, so it stands in for one.

@@ -138,23 +138,6 @@ describe('formatActivityEvent', () => {
     })
   })
 
-  it('does not render an unverified name record as a name entity', () => {
-    const formatted = formatActivityEvent(record('name', 'vitalik.eth'))
-    expect(formatted).toEqual({
-      text: 'Primary name updated',
-      value: 'vitalik.eth',
-    })
-  })
-
-  it('sanitizes an attacker-chosen name record', () => {
-    expect(
-      formatActivityEvent(record('name', '‮vitalik.eth\nsigned by ENS')),
-    ).toEqual({
-      text: 'Primary name updated',
-      value: 'vitalik.eth signed by ENS',
-    })
-  })
-
   it('links an ETH address record as an address entity', () => {
     expect(formatActivityEvent(record('addr:60', OWNER))).toEqual({
       text: 'ETH address updated',

@@ -95,6 +95,15 @@ describe('getRecentActivityQueryOptions', () => {
     expect(page.events[0]).toMatchObject({ name: null })
   })
 
+  it('skips the reverse name record a primary name change writes', async () => {
+    const page = (await fetchPage([
+      row({ id: 'primary', type: 'primary_name', data: { name: 'nitro.eth' } }),
+      row({ id: 'record', type: 'record', data: { key: 'name' } }),
+    ])) as { events: { type: string }[] }
+
+    expect(page.events.map(({ type }) => type)).toEqual(['primary_name'])
+  })
+
   it('counts a registration once and skips an authority row with no owner', async () => {
     const action_id = 'c'.repeat(64)
     const page = (await fetchPage([
