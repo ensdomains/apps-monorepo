@@ -31,13 +31,13 @@ import {
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { createRegistrationPersistenceAdapter } from '../utils/registrationPersistence'
 import type { ResumableRun } from './useRegistrationResume'
 
 const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensEthRegistrar',
 })
 
@@ -109,9 +109,9 @@ function buildSetupSteps({
                 from: walletClient.account.address,
                 ...encodeDeployDedicatedResolverCall({
                   owner,
-                  chain: sepoliaWithEns,
+                  chain: ensChain,
                 }),
-                chainId: sepoliaWithEns.id,
+                chainId: ensChain.id,
               })
           : undefined,
       },
@@ -137,7 +137,7 @@ export const useRegistrationTransactions = ({
   name,
   duration,
 }: UseRegistrationTransactionsParams) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const config = useConfig()
   const connection = useConnection()
   const publicClient = usePublicClient()
@@ -198,7 +198,7 @@ export const useRegistrationTransactions = ({
       return
     }
     verifiedResolverRef.current = resolverAddress
-    void verifyProxyContract(sepoliaWithEns, resolverAddress)
+    void verifyProxyContract(ensChain, resolverAddress)
   }, [resolverAddress])
   const registerReadyTimestamp = useSelector(
     actor,

@@ -125,7 +125,8 @@ full circle by pointing a local build at the PR env — values are in the PR
 comment:
 
 ```bash
-VITE_SEPOLIA_RPC_URL=https://anvil-pr-123.up.railway.app
+VITE_SEPOLIA_RPC_URL=https://anvil-pr-123.up.railway.app   # manager
+VITE_RPC_URL=https://anvil-pr-123.up.railway.app           # explorer
 VITE_INDEXER_GRAPHQL_URL=https://panoptes-pr-123.up.railway.app/graphql
 VITE_DQA=1
 # Shared base dqa (fixed domain) — NOT a per-PR dqa; see Per-PR flow step 1.

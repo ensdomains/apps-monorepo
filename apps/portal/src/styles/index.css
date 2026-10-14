@@ -390,6 +390,22 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  /* iOS Safari zooms the page when a focused control is under 16px, so form
+     controls are 16px on small screens and Figma "base" from `md` up. */
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  @variant md {
+    input,
+    select,
+    textarea {
+      font-size: var(--text-base);
+    }
+  }
+
   /* Lower third-party widget z-index so they don't overlay drawers/dialogs */
   .intercom-lightweight-app,
   .intercom-namespace,
@@ -404,12 +420,19 @@
   --font-mono: "ABCMonumentGroteskMono", monospace;
   --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
   --font-serif: "ABCMarist", serif;
-  --text-heading: 1.75rem;
+
+  /* Tailwind's default sizes are switched off so only the styles below
+     resolve. `3xl`/`5xl` stay until the serif banner titles get a style. */
+  --text-*: initial;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 1.2;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1;
 
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
      Weights 360/425 are real instances on the Grotesk variable wght axis
      (see fonts.css). */
-  --text-h1: 2.125rem; /* 34px */
+  --text-h1: 2rem; /* 32px */
   --text-h1--line-height: 2.375rem; /* 38px */
   --text-h1--font-weight: 425;
   --text-h2: 1.5rem; /* 24px */
@@ -418,22 +441,29 @@
   --text-h3: 1.125rem; /* 18px */
   --text-h3--line-height: 1;
   --text-h3--font-weight: 425;
-  /* Explorer page titles (`PageHeading`). */
-  --text-page-title: 2rem; /* 32px */
   --text-p: 0.9375rem; /* 15px */
   --text-p--line-height: 1.375rem; /* 22px */
   --text-p--font-weight: 360;
-  /* Figma "base" — single-line UI text. Kept off Tailwind's `text-base`
-     (16/24) so multi-line body copy doesn't collapse to a 15px line height. */
-  --text-ui: 0.9375rem; /* 15px */
-  --text-ui--line-height: 0.9375rem; /* 15px */
-  --text-ui--font-weight: 360;
-  --text-ui--letter-spacing: 0.02em;
+  /* Figma "base" — single-line UI text. Overrides Tailwind's 16/24
+     `text-base`; copy that can wrap belongs on `text-p`. */
+  --text-base: 0.9375rem; /* 15px */
+  --text-base--line-height: 1.25rem; /* 20px;*/
+  --text-base--font-weight: 360;
+  --text-base--letter-spacing: 0.02em;
   --text-small: 0.75rem; /* 12px */
+  --text-small--line-height: 1rem; /* 16px; Figma is 12px */
+  --text-small--font-weight: 360;
 }
 
 /* Figma styles that need font-family or text-transform, which text tokens
    can't carry: caps, smallcaps, entity/base, entity/name, entity/label. */
+/* Figma "h1.font-serif": the serif h1 is 36px so it sits level with the 32px
+   sans h1. */
+.text-h1.font-serif,
+.text-h1 .font-serif {
+  font-size: 2.25rem;
+}
+
 @utility text-caps {
   font-size: 0.875rem; /* 14px */
   font-weight: 500;
@@ -441,20 +471,28 @@
   text-transform: uppercase;
 }
 
+/* 12px mono for data; line height kept at 16px (Figma is 12px). */
+@utility text-smallmono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+}
+
 @utility text-smallcaps {
   font-size: 0.625rem; /* 10px */
-  font-weight: 500;
+  font-weight: 450;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-/* Entity styles: 14px/15px, tracking 0.02em per the design spec (WEB-649).
+/* Entity styles: 14px, tracking 0.02em per the design spec (WEB-649).
    Figma weight for entity/base is 425, but the static Mono cuts are 400/500 —
    400 matches how badges render today. */
 @utility text-entity-base {
   font-family: var(--font-mono);
   font-size: 0.875rem;
-  line-height: 0.9375rem;
+  line-height: 1.25rem; /* 20px; Figma is 15px */
   font-weight: 400;
   letter-spacing: 0.02em;
 }
@@ -462,7 +500,7 @@
 @utility text-entity-name {
   font-family: var(--font-semi-mono);
   font-size: 0.875rem;
-  line-height: 0.9375rem;
+  line-height: 1.25rem; /* 20px; Figma is 15px */
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -470,6 +508,6 @@
 @utility text-entity-label {
   font-family: var(--font-sans);
   font-size: 0.875rem;
-  line-height: 0.9375rem;
-  font-weight: 400;
+  line-height: 1.25rem; /* 20px; Figma is 15px */
+  font-weight: 425;
 }

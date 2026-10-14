@@ -26,9 +26,7 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
     shouldFetchEventTypes: false,
   })
 
-  const heading = (
-    <h2 className="text-foreground text-heading">Recent History</h2>
-  )
+  const heading = <h2 className="text-foreground text-h2">Recent History</h2>
   const action = (
     <Button variant="outline" size="xs" asChild>
       <Link to="/$name/history" params={{ name }}>

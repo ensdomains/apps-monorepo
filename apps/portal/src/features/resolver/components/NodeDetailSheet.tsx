@@ -105,7 +105,7 @@ export const NodeDetailSheet = ({
           {node ? (
             <div className="flex flex-col gap-0">
               {isInactive && (
-                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-sm bg-garnet-100 p-6 text-sm text-garnet-900">
+                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-sm bg-garnet-100 p-6 text-p text-garnet-900">
                   This node is inactive. The records and roles are read only.
                 </div>
               )}
@@ -127,12 +127,12 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recordsError ? (
-                  <p className="text-sm text-danger">
+                  <p className="text-p text-danger">
                     Failed to load records:{' '}
                     {extractErrorMessage(recordsError, 'Unknown error')}
                   </p>
                 ) : records.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-p text-muted-foreground">
                     No records set for this node.
                   </p>
                 ) : (
@@ -157,12 +157,12 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-8 w-full" />
                   ))
                   .with({ rolesStatus: 'error' }, () => (
-                    <p className="text-sm text-danger">
+                    <p className="text-p text-danger">
                       Failed to load roles. Please refresh the page.
                     </p>
                   ))
                   .with({ hasRoles: false }, () => (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-p text-muted-foreground">
                       No roles assigned for this node.
                     </p>
                   ))
@@ -181,10 +181,7 @@ export const NodeDetailSheet = ({
                               key={`${role.account}-${role.roleBitmap}`}
                             >
                               <TableCell
-                                className={cn(
-                                  cellClassName,
-                                  'font-mono text-xs',
-                                )}
+                                className={cn(cellClassName, 'text-smallmono')}
                               >
                                 <div className="flex items-center gap-1">
                                   {truncateAddress(role.account)}
@@ -192,10 +189,7 @@ export const NodeDetailSheet = ({
                                 </div>
                               </TableCell>
                               <TableCell
-                                className={cn(
-                                  cellClassName,
-                                  'font-mono text-xs',
-                                )}
+                                className={cn(cellClassName, 'text-smallmono')}
                               >
                                 {role.roleBitmap}
                               </TableCell>

@@ -43,17 +43,14 @@ describe('isRhinestoneAccount', () => {
   it('correctly narrows type for Rhinestone account', () => {
     const rhinestoneState = createRhinestoneState({
       client: { getAddress: () => '0x123' } as any,
-      config: {
-        chain: {} as any,
-        rhinestoneApiKey: 'test-key',
-      },
+      config: { chain: {} as any },
     })
 
     if (isRhinestoneAccount(rhinestoneState)) {
       // TypeScript should allow access to Rhinestone-specific properties
       expect(rhinestoneState.type).toBe('rhinestone')
       expect(rhinestoneState.client).toBeDefined()
-      expect(rhinestoneState.config?.rhinestoneApiKey).toBe('test-key')
+      expect(rhinestoneState.config?.chain).toBeDefined()
     }
   })
 })

@@ -74,7 +74,7 @@ vi.mock('@/features/history/components/HistoryTimeline', () => ({
 vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: () => null,
 }))
-vi.mock('@/lib/wagmi', () => ({ sepoliaWithEns: { id: 11155111 } }))
+vi.mock('@/lib/wagmi', () => ({ ensChain: { id: 11155111 } }))
 vi.mock('@ens-apps/l2-primary/v1', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/l2-primary/v1')>()),
   getRegistrarAddress: () => '0x3333333333333333333333333333333333333333',

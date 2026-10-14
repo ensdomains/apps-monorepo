@@ -27,9 +27,9 @@ export const DesktopAccountSection = () => {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-sm max-w-(--available-width) bg-white px-4 py-8"
+        className="w-69.5 max-w-(--available-width) bg-white p-3"
         positionMethod="fixed"
-        sideOffset={12}
+        sideOffset={4}
       >
         <AccountContent onAction={handleClose} />
       </PopoverContent>

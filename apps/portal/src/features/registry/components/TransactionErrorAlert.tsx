@@ -33,7 +33,7 @@ export const TransactionErrorAlert = ({
         <div className="flex flex-col gap-2">
           <span>{summary}</span>
           {details && (
-            <details className="text-xs text-muted-foreground">
+            <details className="text-small text-muted-foreground">
               <summary className="cursor-pointer">Show details</summary>
               <pre className="whitespace-pre-wrap wrap-break-word max-h-48 overflow-auto">
                 {details}
@@ -42,13 +42,13 @@ export const TransactionErrorAlert = ({
           )}
           {txHash && (
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-small text-muted-foreground">
                 {txHashLabel}
               </span>
               <CopyableRecord
                 value={txHash}
                 href={txUrl}
-                className="text-xs"
+                className="text-small"
                 truncate={false}
               />
             </div>

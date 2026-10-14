@@ -71,7 +71,7 @@ export const WalletMenu = ({
           )}
           <span
             className={cn(
-              'font-medium text-sm group-data-[collapsible=icon]:hidden',
+              'font-medium text-base group-data-[collapsible=icon]:hidden',
               isPill && 'truncate font-semi-mono text-p font-medium',
             )}
           >
@@ -84,7 +84,7 @@ export const WalletMenu = ({
           <DropdownMenuItem asChild>
             <Link to="/$name" params={{ name }}>
               <ChipNameIcon className="size-4 text-foreground" />
-              <span className="text-sm">{name}</span>
+              <span className="text-base">{name}</span>
               <ChevronRight className="size-4 ml-auto" />
             </Link>
           </DropdownMenuItem>
@@ -92,9 +92,7 @@ export const WalletMenu = ({
         <DropdownMenuItem asChild>
           <Link to="/addr/$addr" params={{ addr: address }}>
             <Wallet className="size-4 text-foreground" />
-            <span className="font-mono text-sm">
-              {truncateAddress(address)}
-            </span>
+            <span className="text-entity-base">{truncateAddress(address)}</span>
             <ChevronRight className="size-4 ml-auto" />
           </Link>
         </DropdownMenuItem>

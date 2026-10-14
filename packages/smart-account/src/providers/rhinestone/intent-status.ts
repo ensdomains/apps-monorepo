@@ -1,3 +1,5 @@
+import { type RhinestoneAuth, rhinestoneAuthHeaders } from './auth'
+
 /**
  * Read an intent operation's status straight off the orchestrator.
  *
@@ -41,7 +43,7 @@ const KNOWN_STATUSES: ReadonlySet<string> = new Set([
  */
 export async function fetchIntentOperationStatus(params: {
   readonly intentId: bigint
-  readonly apiKey: string
+  readonly auth: RhinestoneAuth
   /** Orchestrator base URL; defaults to the prod deployment. */
   readonly endpointUrl?: string
   readonly signal?: AbortSignal
@@ -55,7 +57,7 @@ export async function fetchIntentOperationStatus(params: {
     const response = await fetch(
       `${base}/intent-operation/${params.intentId.toString()}`,
       {
-        headers: { 'x-api-key': params.apiKey },
+        headers: await rhinestoneAuthHeaders(params.auth),
         signal: params.signal ?? null,
       },
     )
