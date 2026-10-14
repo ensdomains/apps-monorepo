@@ -1,5 +1,8 @@
 import { useEffect } from 'react'
-import { releaseHolderLocksWhenSettled } from '../service/registrationLock'
+import {
+  releaseHolderLocksOnPageHide,
+  releaseHolderLocksWhenSettled,
+} from '../service/registrationLock'
 
 /**
  * Free the wallet claims this tab is still carrying, on the way in and out.
@@ -8,13 +11,16 @@ import { releaseHolderLocksWhenSettled } from '../service/registrationLock'
  * a reload or a route change is stale and would only block the user. Both
  * sweeps wait on the tab's identity: a duplicated tab inherits the holder id
  * of the tab it was cloned from, and sweeping on that id would free a claim
- * that is very much alive.
+ * that is very much alive. Closing the tab never unmounts the flow, so that
+ * exit is caught on `pagehide`.
  */
 export const useRegistrationLockSweep = (): void => {
   useEffect(() => {
     void releaseHolderLocksWhenSettled()
+    window.addEventListener('pagehide', releaseHolderLocksOnPageHide)
 
     return () => {
+      window.removeEventListener('pagehide', releaseHolderLocksOnPageHide)
       void releaseHolderLocksWhenSettled()
     }
   }, [])

@@ -12,6 +12,15 @@ export const withTimeout = (init: RequestInit | undefined): RequestInit => ({
   ]),
 })
 
-export const bigname = createBignameClient(envConfig.endpoints.bignameApi, {
-  fetch: (input, init) => fetch(input, withTimeout(init)),
+const url = envConfig.endpoints.bignameApi
+
+// Null on a network with no bigname deployed: its reads fail here rather than
+// reach another network's indexer.
+export const bigname = createBignameClient(url ?? '', {
+  fetch: (input, init) =>
+    url
+      ? fetch(input, withTimeout(init))
+      : Promise.reject(
+          new Error(`No bigname API is deployed for ${envConfig.network}`),
+        ),
 })

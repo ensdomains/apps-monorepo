@@ -436,6 +436,56 @@ describe('claimTabHolderId', () => {
     )
   })
 
+  const pageHide = (isPersisted: boolean) =>
+    ({ persisted: isPersisted }) as PageTransitionEvent
+
+  it('frees this tab’s claim when the tab closes', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'closing-tab')
+    const lock = await import('./registrationLock')
+    await lock.claimTabHolderId()
+    lock.acquireRegistrationLock(WALLET, 'name-one.eth')
+
+    lock.releaseHolderLocksOnPageHide(pageHide(false))
+
+    expect(localStorage.getItem('ens-registration-locks-v1')).toBe('{}')
+  })
+
+  it('keeps the claim when the page goes into the back/forward cache', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'cached-tab')
+    const lock = await import('./registrationLock')
+    await lock.claimTabHolderId()
+    lock.acquireRegistrationLock(WALLET, 'name-one.eth')
+
+    lock.releaseHolderLocksOnPageHide(pageHide(true))
+
+    expect(lock.getBlockingRegistration(WALLET, 'name-two.eth')).toBe(
+      'name-one.eth',
+    )
+  })
+
+  it('leaves the original tab’s claim alone when a duplicate closes before settling', async () => {
+    sessionStorage.setItem('ens-registration-holder', 'original-tab')
+    localStorage.setItem(
+      'ens-registration-locks-v1',
+      JSON.stringify({
+        [WALLET.toLowerCase()]: {
+          name: 'name-one.eth',
+          holderId: 'original-tab',
+          updatedAt: Date.now(),
+        },
+      }),
+    )
+    const lock = await import('./registrationLock')
+
+    const settled = lock.claimTabHolderId()
+    lock.releaseHolderLocksOnPageHide(pageHide(false))
+
+    expect(localStorage.getItem('ens-registration-locks-v1')).toContain(
+      'original-tab',
+    )
+    await settled
+  })
+
   it('falls back to the stored id without a broadcast channel', async () => {
     vi.stubGlobal('BroadcastChannel', undefined)
     sessionStorage.setItem('ens-registration-holder', 'only-tab')

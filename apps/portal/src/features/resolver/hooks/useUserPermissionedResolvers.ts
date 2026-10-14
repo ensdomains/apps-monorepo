@@ -7,15 +7,15 @@ import {
   filterPermissionedResolverAddresses,
   type ProxyDeployedLog,
 } from '@/features/resolver/utils/permissionedResolver'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 const verifiableFactory = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensVerifiableFactory',
 })
 
 const permissionedResolverImpl = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensPermissionedResolverImpl',
 })
 

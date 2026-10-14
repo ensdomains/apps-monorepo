@@ -6,7 +6,12 @@ import { PORTAL_ENDPOINTS } from '../src/endpoints'
 try {
   const config = assertNetworkConfig(
     loadEnv(process.env.NODE_ENV ?? 'production', process.cwd(), 'VITE_'),
-    PORTAL_ENDPOINTS,
+    // Matches src/config.ts.
+    {
+      endpoints: PORTAL_ENDPOINTS,
+      allowMissingEndpoints: true,
+      rpcUrlVar: 'VITE_RPC_URL',
+    },
   )
   console.log(`network config ok: ${config.network}`)
 } catch (error) {

@@ -10,11 +10,11 @@ import {
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import type { ProtocolVersion } from '@/utils/types'
 
 const v2EthRegistry = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensRegistry',
 })
 

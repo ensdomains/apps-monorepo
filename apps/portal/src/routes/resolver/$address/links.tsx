@@ -50,7 +50,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/links')({
@@ -166,7 +166,7 @@ function RouteComponent() {
   const { address } = Route.useParams()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
   const { address: accountAddress } = useConnection()

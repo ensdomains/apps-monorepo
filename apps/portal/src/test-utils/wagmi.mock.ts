@@ -6,14 +6,14 @@ import { chain } from '@/config'
 // The app's own chain, not a second one assembled here. A mock chain drifts
 // from the real one silently, and then tests pass against a config that never
 // ships.
-export const sepoliaWithEns = chain
+export const ensChain = chain
 
 /**
  * Mock wagmi config for testing
  * Uses the mock connector with predefined test accounts
  */
 export const mockWagmiConfig = createConfig({
-  chains: [sepoliaWithEns],
+  chains: [ensChain],
   connectors: [
     mock({
       accounts: [
@@ -24,7 +24,7 @@ export const mockWagmiConfig = createConfig({
     }),
   ],
   transports: {
-    [sepoliaWithEns.id]: http(),
+    [ensChain.id]: http(),
   },
 })
 

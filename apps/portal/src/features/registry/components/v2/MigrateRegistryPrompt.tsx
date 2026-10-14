@@ -33,12 +33,18 @@ export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
           its own registry.
         </p>
       </div>
-      <Button asChild className="w-full">
-        <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
-          <Plus className="size-4" />
-          Upgrade name to ENSv2
-        </a>
-      </Button>
+      {MANAGER_UPGRADE_URL && (
+        <Button asChild className="w-full">
+          <a
+            href={MANAGER_UPGRADE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Plus className="size-4" />
+            Upgrade name to ENSv2
+          </a>
+        </Button>
+      )}
     </RegistryPanel>
   )
 }
