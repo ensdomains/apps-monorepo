@@ -258,8 +258,8 @@ msgid "Additional fee"
 msgstr "Additional fee"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
-msgid "Address"
-msgstr "Address"
+#~ msgid "Address"
+#~ msgstr "Address"
 
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
@@ -718,6 +718,10 @@ msgstr "Copy Link"
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Copy wallet address"
+msgstr "Copy wallet address"
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
 msgstr "Couldn't check this name"
@@ -950,6 +954,10 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Explorer"
+msgstr "ENS Explorer"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
@@ -1170,8 +1178,8 @@ msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Go to ENS Explorer"
-msgstr "Go to ENS Explorer"
+#~ msgid "Go to ENS Explorer"
+#~ msgstr "Go to ENS Explorer"
 
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Go to page {page}"
@@ -1241,8 +1249,8 @@ msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-msgid "Inbox"
-msgstr "Inbox"
+#~ msgid "Inbox"
+#~ msgstr "Inbox"
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
@@ -2371,8 +2379,8 @@ msgid "Setting..."
 msgstr "Setting..."
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-msgid "Settings"
-msgstr "Settings"
+#~ msgid "Settings"
+#~ msgstr "Settings"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
