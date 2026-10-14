@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { useSelector } from '@xstate/react'
 import { useEffect } from 'react'
 import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../data/queries/availability.query'
@@ -34,9 +35,12 @@ const useAvailabilityGuard = () => {
 }
 
 export const PricingStep = () => {
-  const { label } = useRegistrationV2Context()
+  const { label, uiActor } = useRegistrationV2Context()
+  const isApproving = useSelector(uiActor, (state) =>
+    state.matches({ pricing: 'approving' }),
+  )
   useAvailabilityGuard()
-  useGlobalBackButton({ isVisible: true })
+  useGlobalBackButton({ isVisible: !isApproving })
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">

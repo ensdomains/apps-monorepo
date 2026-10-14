@@ -26,13 +26,19 @@ const containerMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@xstate/react', () => ({
-  useSelector: () => [31_536_000, 'USDC'] as const,
+  useSelector: (actor: unknown, select: (state: unknown) => unknown) =>
+    actor
+      ? select({
+          matches: () => false,
+          context: { duration: 31_536_000, selectedToken: 'USDC' },
+        })
+      : select(undefined),
 }))
 
 vi.mock('../../../state/registrationUi.context', () => ({
   useRegistrationV2Context: () => ({
     label: 'jeff',
-    uiActor: { send: vi.fn() },
+    uiActor: { send: vi.fn(), getSnapshot: () => ({}) },
   }),
 }))
 
@@ -187,7 +193,9 @@ describe('TokenPickerContent', () => {
       hcaBalance: 0n,
     }
     const view = renderContainer()
-    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
     await screen.findByText('$999.00 needed to register name')
     return view
   }
@@ -246,7 +254,9 @@ describe('TokenPickerContent', () => {
   it('keeps a non-funding mutation failure global only', async () => {
     containerMocks.availabilityError = new Error('availability failed')
     renderContainer()
-    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
 
     const error = await screen.findByText(
       "We couldn't confirm that jeff.eth is still available. Please try again.",

@@ -17,8 +17,22 @@ import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createConfig, WagmiProvider } from 'wagmi'
 import { mock } from 'wagmi/connectors'
+import { fromPromise } from 'xstate'
 
 const OWNER = '0x2222222222222222222222222222222222222222' as const
+
+vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('@ens-apps/transaction-manager')>()
+  return {
+    ...original,
+    registrationMachine: original.registrationMachine.provide({
+      actors: {
+        readPaymentAuthorization: fromPromise(() => new Promise(() => {})),
+      },
+    }),
+  }
+})
 
 vi.mock('@/lib/smart-account/SmartAccountContext', async () => {
   const wagmi = await import('wagmi')
@@ -153,7 +167,11 @@ describe('a wallet disconnecting mid-registration', () => {
     await waitFor(() => expect(page.screen()).toBe('pricing/idle'))
 
     await startRegistration()
-    await waitFor(() => expect(page.screen()).toMatch(/^registering\//))
+    await waitFor(() =>
+      expect(uiActor?.getSnapshot().matches({ pricing: 'approving' })).toBe(
+        true,
+      ),
+    )
 
     await act(async () => {
       await disconnect(config)
@@ -168,6 +186,7 @@ describe('a wallet disconnecting mid-registration', () => {
     await waitFor(() => expect(reloaded.screen()).toBe('pricing/no-wallet'))
 
     await connectOwner()
-    await waitFor(() => expect(reloaded.screen()).toBe('registering/resumed'))
+    await waitFor(() => expect(reloaded.screen()).toBe('pricing/resumed'))
+    expect(uiActor?.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
   }, 20_000)
 })
