@@ -4,7 +4,6 @@
   "main": "src/worker.ts",
   "compatibility_date": "2025-08-14",
   "compatibility_flags": ["nodejs_compat"],
-
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,
@@ -20,14 +19,12 @@
       "head_sampling_rate": 1
     }
   },
-
   "kv_namespaces": [
     {
       "binding": "KV",
       "id": "85a14d25fa4a41a3a7123bcd5093c09a"
     }
   ],
-
   "queues": {
     "producers": [
       {
@@ -87,11 +84,9 @@
       }
     ]
   },
-
   "triggers": {
     "crons": ["0 */1 * * *", "17 */3 * * *"]
   },
-
   // Secret names only. Values are provisioned separately on each Worker.
   "secrets": {
     "required": [
@@ -107,7 +102,6 @@
       "ETH_PRIVATE_KEY"
     ]
   },
-
   // Mainnet deployment smoke testing: /health works without infrastructure.
   // Full API readiness is incomplete; see DEPLOYMENT_READINESS.md.
   "env": {
@@ -119,9 +113,19 @@
       // the default environment's KV, queues, provider settings or secrets.
       "vars": {
         "CHAIN": "mainnet",
+        "BASE_URL": "https://mainnet.app-api.ens.domains",
         "EMAIL_FROM_ADDRESS": "noreply@notifications.ens.domains",
         "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
-        "VAPID_PUBLIC_KEY": "BHv_hmbABVX2slygTBmWVdWGicQCpKGE-tlrOWBgSyWlHdbcFB7An3kRT-1gVnUce6_yr0qteoISC5CPWHunejU"
+        "VAPID_PUBLIC_KEY": "BP9pVofGPBglBRVCoxJ9_XU6ABerkWXE2jHeODVvW-byCav9WJxPZxV_r_eqnW-CboMKBj8uyFZqBI-YZIA3gNs",
+        "MANAGER_APP_URL": "https://sepolia.app.ens.domains",
+        "POSTHOG": {
+          "host": "https://eu.posthog.com",
+          "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
+        },
+        "TELEGRAM": {
+          "ALERT_CHAT_ID": "-5381499765"
+        },
+        "SENDGRID_BROADCAST_LIST_ID": ""
       },
       // Non-inheritable: declare the shared requirements again, without the
       // Sepolia RPC or faucet key. This does not provision production values.
@@ -139,7 +143,12 @@
       },
       // Create a separate mainnet namespace and add its real id here before deployment.
       // Without an id, Wrangler can auto-provision it during a future deployment.
-      "kv_namespaces": [{ "binding": "KV" }],
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "29f56dd00cb94d6eb0c2177777fa504f"
+        }
+      ],
       "queues": {
         "producers": [
           {
@@ -204,7 +213,6 @@
       }
     }
   },
-
   "vars": {
     "CHAIN": "sepolia",
     "BASE_URL": "https://sepolia.app-api.ens.domains",
@@ -215,7 +223,7 @@
       "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
     },
     "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
-    "VAPID_PUBLIC_KEY": "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs",
+    "VAPID_PUBLIC_KEY": "BP9cg1ylzlAXChsGDzKjabPbolsnarzfNsbJvj7bSFhUWUPwcQrpirJLwV30shFa_eDufbKrWy46FGkAjv46Uqk",
     "TELEGRAM": {
       "ALERT_CHAT_ID": "-5381499765"
     },
