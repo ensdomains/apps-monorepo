@@ -257,10 +257,6 @@ msgstr "Adding telegram..."
 msgid "Additional fee"
 msgstr "Additional fee"
 
-#: src/features/navigation/Header/account/WalletSection.tsx
-#~ msgid "Address"
-#~ msgstr "Address"
-
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
 msgstr "Addresses"
@@ -1177,10 +1173,6 @@ msgstr "Go back home"
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-#~ msgid "Go to ENS Explorer"
-#~ msgstr "Go to ENS Explorer"
-
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Go to page {page}"
 msgstr "Go to page {page}"
@@ -1247,10 +1239,6 @@ msgstr "in your wallet"
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
-
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#~ msgid "Inbox"
-#~ msgstr "Inbox"
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
@@ -2377,10 +2365,6 @@ msgstr "Setting up registration"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting..."
 msgstr "Setting..."
-
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#~ msgid "Settings"
-#~ msgstr "Settings"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"

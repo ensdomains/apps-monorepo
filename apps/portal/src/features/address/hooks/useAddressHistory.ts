@@ -127,9 +127,10 @@ export const getAddressHistoryQueryOptions = (
       ResultAsync.combine([
         readHistoryPage(address, pageSize).mapErr(toError),
         readHeldNames(address, signal),
-      ]).map(([{ data }, heldNames]) =>
-        toAddressNameHistory(address, data, heldNames),
-      ),
+      ]).map(([{ data }, heldNames]) => ({
+        history: toAddressNameHistory(address, data, heldNames),
+        heldNames,
+      })),
   })
 
 const txOf = (row: EventRow): string | null =>

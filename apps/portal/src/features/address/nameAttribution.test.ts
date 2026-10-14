@@ -111,6 +111,30 @@ describe('selectAcquiredNames', () => {
     ).toEqual(['victim.evil.eth'])
   })
 
+  it('keeps a subname of a held name whose own history is not loaded', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([
+          { ...plantedSubname, name: 'sub.victim.eth' },
+        ]),
+        VICTIM,
+        undefined,
+        new Set(['victim.eth', 'other.victim.eth']),
+      ).map((group) => group.name),
+    ).toEqual(['sub.victim.eth'])
+  })
+
+  it('does not root a subtree at a held subname', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([plantedSubname]),
+        VICTIM,
+        undefined,
+        new Set(['x.evil.eth']),
+      ),
+    ).toEqual([])
+  })
+
   it('tolerates a missing name and a malformed holder', () => {
     expect(
       selectAcquiredNames(

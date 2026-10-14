@@ -69,11 +69,10 @@ function RouteComponent() {
     [addr, rows, loader.shown, heldNames.data],
   )
 
-  if (pages.isLoading || heldNames.isLoading) return <LoadingMessage />
-
   // A failed Load more keeps the rows; the loader says it failed.
-  const error =
-    (pages.isFetchNextPageError ? null : pages.error) ?? heldNames.error
+  const historyError = pages.isFetchNextPageError ? null : pages.error
+  // Errors before loading, so a slow ownership read never hides a history error.
+  const error = historyError ?? heldNames.error
   if (error) {
     return (
       <ErrorMessage
@@ -82,8 +81,14 @@ function RouteComponent() {
       />
     )
   }
+  if (pages.isLoading || !heldNames.data) return <LoadingMessage />
 
   return (
-    <AddressHistoryDataTable address={addr} history={history} loader={loader} />
+    <AddressHistoryDataTable
+      address={addr}
+      history={history}
+      heldNames={heldNames.data}
+      loader={loader}
+    />
   )
 }
