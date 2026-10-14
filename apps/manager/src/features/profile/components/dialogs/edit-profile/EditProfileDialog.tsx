@@ -117,10 +117,10 @@ export const EditProfileDialog = ({
               type="button"
               variant="blue"
             >
-              <span className="lg:landscape:hidden">
+              <span className="xl:hidden">
                 <Trans>Edit</Trans>
               </span>
-              <span className="hidden lg:landscape:inline">
+              <span className="hidden xl:inline">
                 <Trans>Edit Profile</Trans>
               </span>
             </Button>

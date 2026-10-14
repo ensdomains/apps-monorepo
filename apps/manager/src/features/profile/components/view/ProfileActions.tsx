@@ -6,7 +6,6 @@ import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { cn } from '@/lib/utils'
 import {
   desktopActionContainerClassName,
-  desktopActionContainerStyle,
   editActionClassName,
   editBottomBarContentClassName,
   editBottomNavClassName,
@@ -85,10 +84,7 @@ export const ProfileActions = ({
 
   return (
     <>
-      <div
-        className={desktopActionContainerClassName}
-        style={desktopActionContainerStyle}
-      >
+      <div className={desktopActionContainerClassName}>
         <div className="flex items-center gap-6">
           <ProfileFavoriteAction name={name} />
           <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
@@ -104,12 +100,7 @@ export const ProfileActions = ({
       {hasBottomNav ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
-            <div
-              className={cn(
-                profileBarActionsClassName,
-                'w-full lg:landscape:hidden',
-              )}
-            >
+            <div className={cn(profileBarActionsClassName, 'w-full xl:hidden')}>
               {barActions}
             </div>
             <ProfileEditAction

@@ -96,12 +96,12 @@ const useMeasuredHeight = (ref: RefObject<HTMLElement | null>) => {
 // Figma-spec card: the 12px radius, 0.25px border and layered shadows have no
 // matching tokens. The open shadow is the elevated state while the editor is up.
 const containerClassName =
-  'pointer-events-auto relative mx-auto w-full max-w-226.25 overflow-hidden border-ens-quartz-200 border-t bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] transition-shadow duration-300 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:border-solid lg:landscape:shadow-[0_2px_12px_rgba(0,0,0,0.06)] lg:landscape:data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)]'
+  'pointer-events-auto relative mx-auto w-full max-w-226.25 overflow-hidden border-ens-quartz-200 border-t bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] transition-shadow duration-300 xl:rounded-xl xl:border-[0.25px] xl:border-ens-quartz-300 xl:border-solid xl:shadow-[0_2px_12px_rgba(0,0,0,0.06)] xl:data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)]'
 
 // Figma-spec offset: the bar floats 30px above the bottom (plus the device
 // safe area), which has no matching spacing token.
 const sectionClassName =
-  'pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:landscape:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] lg:landscape:px-4'
+  'pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] xl:px-4'
 
 interface EditProfileFloatingBarProps {
   readonly children: ReactNode
@@ -172,7 +172,7 @@ export const EditProfileFloatingBar = ({
               {leftActions ? (
                 <div className={profileBarActionsClassName}>{leftActions}</div>
               ) : null}
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-3 lg:landscape:ml-auto lg:landscape:flex-none">
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-3 xl:ml-auto xl:flex-none">
                 {rightActions}
               </div>
             </motion.div>

@@ -48,10 +48,10 @@ export const ProfileRenewAction = ({
 
   const buttonContent = isBarAction ? (
     <>
-      <span className="lg:landscape:hidden">
+      <span className="xl:hidden">
         <Trans>Renew</Trans>
       </span>
-      <span className="hidden lg:landscape:inline">
+      <span className="hidden xl:inline">
         <Trans>Renew Name</Trans>
       </span>
     </>

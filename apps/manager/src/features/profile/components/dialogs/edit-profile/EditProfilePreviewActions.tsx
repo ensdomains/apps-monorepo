@@ -48,10 +48,10 @@ export const EditProfilePreviewActions = ({
         <Trans>Publishing…</Trans>
       ) : (
         <>
-          <span className="lg:landscape:hidden">
+          <span className="xl:hidden">
             <Trans>Publish</Trans>
           </span>
-          <span className="hidden lg:landscape:inline">
+          <span className="hidden xl:inline">
             <Trans>Publish changes</Trans>
           </span>
         </>
