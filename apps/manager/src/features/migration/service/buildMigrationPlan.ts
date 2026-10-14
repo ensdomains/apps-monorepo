@@ -23,6 +23,7 @@ import {
   SETABI_GAS,
   SETADDR_GAS,
   SETCONTENTHASH_GAS,
+  SETINTERFACE_GAS,
   SETTEXT_GAS,
   TARGET_GAS,
 } from './batchMigrate.constants'
@@ -98,6 +99,18 @@ export type MigrationPlan = {
   readonly requiresReconciliation?: boolean
 }
 
+/** Names whose V1 `pubkey` record is dropped: the V2 PermissionedResolver has no pubkey profile. */
+export const namesWithDroppedPubkey = (
+  plan: Pick<MigrationPlan, 'classified' | 'profiles'>,
+): readonly string[] =>
+  plan.classified
+    .filter(
+      (name) =>
+        name.resolverStrategy === 'to-owned-permres' &&
+        !!plan.profiles.get(profileMapKey(namehash(name.domain.name)))?.pubkey,
+    )
+    .map(({ domain }) => domain.name)
+
 const fetchProfilesForNames = async (params: {
   namesToOwnedPermRes: readonly ClassifiedName[]
   preflight: MigrationPreflight
@@ -153,7 +166,8 @@ const profileReplayGas = (params: {
     BigInt(profile.texts.length) * SETTEXT_GAS +
     BigInt(profile.addresses.length) * SETADDR_GAS +
     (profile.contentHash ? SETCONTENTHASH_GAS : 0n) +
-    BigInt(profile.abis.length) * SETABI_GAS
+    BigInt(profile.abis.length) * SETABI_GAS +
+    BigInt(profile.interfaces.length) * SETINTERFACE_GAS
   )
 }
 
@@ -212,6 +226,8 @@ class LockedResolverRecordSafetyError extends TaggedError(
   readonly addressRecordCount?: number
   readonly contentHashRecordCount?: number
   readonly abiRecordCount?: number
+  readonly interfaceRecordCount?: number
+  readonly pubkeyRecordCount?: number
   readonly cause?: unknown
 }> {}
 
@@ -336,7 +352,9 @@ const assertLockedResolverProfilesEmpty = (
       profile.texts.length === 0 &&
       profile.addresses.length === 0 &&
       profile.contentHash === null &&
-      profile.abis.length === 0
+      profile.abis.length === 0 &&
+      profile.interfaces.length === 0 &&
+      profile.pubkey === null
     ) {
       continue
     }
@@ -350,6 +368,8 @@ const assertLockedResolverProfilesEmpty = (
       addressRecordCount: profile.addresses.length,
       contentHashRecordCount: profile.contentHash ? 1 : 0,
       abiRecordCount: profile.abis.length,
+      interfaceRecordCount: profile.interfaces.length,
+      pubkeyRecordCount: profile.pubkey ? 1 : 0,
     })
   }
 }

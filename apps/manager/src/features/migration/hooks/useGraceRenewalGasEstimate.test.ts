@@ -70,6 +70,7 @@ const estimate: GraceRenewalMigrationGasEstimate = {
       roleGrants: [],
     },
   ],
+  droppedPubkeyNames: [],
 }
 type Params = Parameters<typeof useGraceRenewalGasEstimate>[0]
 const params: Params = {
@@ -368,6 +369,7 @@ describe('useGraceRenewalGasEstimate', () => {
       gasUnits: estimate.gasUnits,
       transactionCount: estimate.transactionCount,
       stepDescriptors: estimate.stepDescriptors,
+      droppedPubkeyNames: estimate.droppedPubkeyNames,
       feeWei: 123_400_000n,
       formattedEth: '0.0000000001234',
     })

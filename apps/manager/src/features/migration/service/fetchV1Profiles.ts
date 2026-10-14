@@ -30,6 +30,8 @@ export type Profile = {
   readonly addresses: readonly { coinType: bigint; value: Hex }[]
   readonly contentHash: Hex | null
   readonly abis: readonly { contentType: bigint; value: Hex }[]
+  readonly interfaces: readonly { interfaceId: Hex; implementer: Address }[]
+  readonly pubkey: { readonly x: Hex; readonly y: Hex } | null
 }
 
 const executeMulticallChunks = async (
@@ -53,7 +55,7 @@ const executeMulticallChunks = async (
         contracts: [...chunk] as {
           address: Address
           abi: typeof V1_RESOLVER_PROFILE_ABI
-          functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
+          functionName: MulticallContract['functionName']
           args: readonly unknown[]
         }[],
         allowFailure: true,
@@ -65,8 +67,10 @@ const executeMulticallChunks = async (
           `Profile multicall chunk ${index} returned ${results.length} results for ${chunk.length} calls`,
         )
       }
+      // A resolver without the pubkey profile reverts `pubkey`; it holds none.
       const failedIndex = results.findIndex(
-        (result) => result.status !== 'success',
+        (result, i) =>
+          result.status !== 'success' && chunk[i]?.functionName !== 'pubkey',
       )
       if (failedIndex !== -1) {
         const failedContract = chunk[failedIndex]

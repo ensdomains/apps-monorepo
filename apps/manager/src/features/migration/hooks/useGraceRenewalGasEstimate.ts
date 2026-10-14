@@ -21,6 +21,7 @@ export type GraceRenewalGasEstimateState =
       'plan'
     > & {
       readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
+      readonly droppedPubkeyNames: readonly string[]
     })
 
 const graceRenewalGasEstimateQueryKey = createQueryKey<
