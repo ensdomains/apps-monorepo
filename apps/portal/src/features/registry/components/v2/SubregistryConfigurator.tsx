@@ -26,7 +26,7 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { resourceIdForName } from '@/lib/resource/resourceId'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
 const DEPLOY_SUBREGISTRY_TX_ID = 'tx-deploy-subregistry'
@@ -34,12 +34,12 @@ const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
 const SUCCESS_LABEL_DURATION_MS = 5000
 
 const factoryAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensVerifiableFactory',
 })
 
 const implAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensUserRegistryImpl',
 })
 
@@ -78,9 +78,7 @@ const CustomRegistryAddressField = ({
         onChange={(e) => onChange(e.target.value.trim())}
         onBlur={() => setTouched(true)}
       />
-      {error ? (
-        <p className="text-sm mt-1.5 text-destructive">{error}</p>
-      ) : null}
+      {error ? <p className="text-p mt-1.5 text-destructive">{error}</p> : null}
     </div>
   )
 }
@@ -183,7 +181,7 @@ const SubregistryConfiguratorForm = ({
     ).match(
       (result) => {
         deployedSubregistryAddressRef.current = result.deployedAddress
-        void verifyProxyContract(sepoliaWithEns, result.deployedAddress)
+        void verifyProxyContract(ensChain, result.deployedAddress)
       },
       () => undefined,
     )

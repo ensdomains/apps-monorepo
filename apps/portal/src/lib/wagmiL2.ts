@@ -5,15 +5,14 @@
  * only to be passed as the `config` argument to specific wagmi hooks
  * (`useWriteContract({ config: l2WagmiConfig, ... })`, `useSwitchChain(...)`,
  * `useWaitForTransactionReceipt(...)`, etc.) on the reverse-resolution L2
- * paths. The global explorer config (`@/lib/wagmi`) remains Sepolia-only and
- * is untouched.
+ * paths. The global explorer config (`@/lib/wagmi`) remains L1-only and is
+ * untouched.
  *
- * Why: the explorer/indexer is bound to L1 Sepolia (Tenderly fork), but
- * setting an L2 primary name requires sending the `setName` transaction to
- * the L2 reverse registrar on the appropriate L2 (Optimism / Arbitrum / Base /
- * Linea / Scroll Sepolia). Adding those chains to the global config would
- * cause the explorer's reads to fan out beyond the L1 fork and diverge from
- * forked state.
+ * Why: the explorer/indexer is bound to L1, but setting an L2 primary name
+ * requires sending the `setName` transaction to the L2 reverse registrar on
+ * the appropriate L2 (Optimism / Arbitrum / Base / Linea / Scroll, or their
+ * Sepolia testnets; see `@/lib/l2Chains`). Adding those chains to the global
+ * config would cause the explorer's reads to fan out beyond L1.
  *
  * Per-hook `config` override is a first-class wagmi feature (`ConfigParameter`
  * on every hook). The `chainId` argument to `writeContract` is type-narrowed
@@ -22,36 +21,10 @@
  */
 
 import { createClient, http } from 'viem'
-import {
-  arbitrumSepolia,
-  baseSepolia,
-  lineaSepolia,
-  optimismSepolia,
-  scrollSepolia,
-} from 'viem/chains'
 import { createConfig } from 'wagmi'
-import { envConfig } from '@/config'
-
-export const L2_CHAINS = [
-  optimismSepolia,
-  arbitrumSepolia,
-  baseSepolia,
-  lineaSepolia,
-  scrollSepolia,
-] as const
+import { L2_CHAINS } from '@/lib/l2Chains'
 
 export type L2ChainId = (typeof L2_CHAINS)[number]['id']
-
-// The list above is Sepolia-only. Reverse resolution derives its L2 coin types
-// from `envConfig.network`, so a mainnet build would look up mainnet coin types
-// against testnet clients and silently report no L2 primary names. Fail loudly
-// instead; the mainnet tuple lands with the rest of the mainnet work.
-if (!envConfig.isTestnet) {
-  throw new Error(
-    `wagmiL2: only Sepolia L2 chains are configured, but the build targets ${envConfig.network}. ` +
-      `Add the mainnet L2 chains before enabling a mainnet build.`,
-  )
-}
 
 /**
  * No connectors are listed explicitly. Injected wallets (MetaMask, the Coinbase

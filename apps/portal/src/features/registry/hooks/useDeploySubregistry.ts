@@ -3,7 +3,7 @@ import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { deploySubregistry } from '@/features/registry/helpers/deploySubregistry'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
@@ -18,7 +18,7 @@ export const useDeploySubregistry = ({
   factoryAddress,
   implAddress,
 }: UseDeploySubregistryParams) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()

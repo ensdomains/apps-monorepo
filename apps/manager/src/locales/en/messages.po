@@ -257,10 +257,6 @@ msgstr "Adding telegram..."
 msgid "Additional fee"
 msgstr "Additional fee"
 
-#: src/features/navigation/Header/account/WalletSection.tsx
-msgid "Address"
-msgstr "Address"
-
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
 msgstr "Addresses"
@@ -721,6 +717,10 @@ msgstr "Copy Link"
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Copy wallet address"
+msgstr "Copy wallet address"
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
 msgstr "Couldn't check this name"
@@ -728,6 +728,10 @@ msgstr "Couldn't check this name"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
+
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
+msgstr "Couldn’t check when this name expires, so editing is paused until it can be read."
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
@@ -957,6 +961,10 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Explorer"
+msgstr "ENS Explorer"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
@@ -1176,10 +1184,6 @@ msgstr "Go back home"
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Go to ENS Explorer"
-msgstr "Go to ENS Explorer"
-
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Go to page {page}"
 msgstr "Go to page {page}"
@@ -1247,10 +1251,6 @@ msgstr "in your wallet"
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-msgid "Inbox"
-msgstr "Inbox"
-
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
 msgstr "Insufficient USDC"
@@ -1258,6 +1258,10 @@ msgstr "Insufficient USDC"
 #: src/components/NameFallbackCard.tsx
 msgid "is too short to register"
 msgstr "is too short to register"
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "it has no ENSv2 reservation."
+msgstr "it has no ENSv2 reservation."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
@@ -1502,6 +1506,10 @@ msgstr "Name price"
 msgid "Names"
 msgstr "Names"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Names could not be loaded"
+msgstr "Names could not be loaded"
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1562,6 +1570,10 @@ msgstr "No eligible names found for this wallet"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
 msgstr "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "no ENSv1 registration was found for it."
+msgstr "no ENSv1 registration was found for it."
 
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
@@ -2377,10 +2389,6 @@ msgstr "Setting up registration"
 msgid "Setting..."
 msgstr "Setting..."
 
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-msgid "Settings"
-msgstr "Settings"
-
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
@@ -2701,6 +2709,10 @@ msgstr "The replacement resolver could not be verified. Please try again."
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "These names can't be upgraded"
+msgstr "These names can't be upgraded"
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
@@ -3353,6 +3365,10 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names can't be upgraded"
+msgstr "Your names can't be upgraded"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"

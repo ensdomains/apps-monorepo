@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
 import { RegistryTreeItem } from './RegistryTreeItem'
 
-const chainId = sepoliaWithEns.id
+const chainId = ensChain.id
 
 export const RegistryTree = ({
   name,

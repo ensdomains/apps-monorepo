@@ -5,6 +5,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { chain } from '@/config'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -22,7 +23,7 @@ type AddressHistoryData = {
 }
 
 const defaultNetwork = {
-  name: 'Sepolia',
+  name: chain.name,
   icon: '/icons/eth.svg',
 }
 
@@ -148,7 +149,7 @@ export const AddressHistoryDataTable = ({
             <h2 className="text-h2">
               {`Names assigned to this address (${assignedNameCount})`}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-p text-muted-foreground">
               Anyone who owns a name can point a subname at any address without
               that address's involvement, and choose the resolver that writes
               its records. The activity below belongs to names assigned to this

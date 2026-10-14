@@ -62,13 +62,13 @@ export const SelectImportType = ({
               />
               <div className="flex flex-col gap-1">
                 <span className="font-medium">{option.title}</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-p text-muted-foreground">
                   {option.description}
                 </span>
               </div>
             </label>
             {option.notice && type === option.value && (
-              <div className="flex items-start gap-2 rounded-sm bg-message-warning-fill p-3 text-sm text-message-warning-text">
+              <div className="flex items-start gap-2 rounded-sm bg-message-warning-fill p-3 text-p text-message-warning-text">
                 <TriangleAlert
                   className="size-4 shrink-0 mt-0.5"
                   strokeWidth={1.5}

@@ -143,6 +143,10 @@ export const isNormalizedName = (name: string): boolean =>
         ).unwrapOr(false)),
   )
 
+/** Whether any label is a `[labelhash]` bigname serves for text it could not normalize. */
+export const hasEncodedLabelhash = (name: string): boolean =>
+  name.split('.').some((label) => ENCODED_LABELHASH.test(label))
+
 /**
  * Correctly calculates the length of a ENS label by iterating over the string iterator and counting the number of code points.
  */

@@ -10,14 +10,14 @@ import {
   RpcRequestError,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 const IMPLEMENTATION = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensPermissionedResolverImpl',
 })
 const FACTORY = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensVerifiableFactory',
 })
 
@@ -56,7 +56,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
       createClient({
         // The predicate reads its contracts off the client's chain now, so the
         // test has to supply one rather than leaning on a module-level pin.
-        chain: sepoliaWithEns,
+        chain: ensChain,
         transport: custom({
           request: async ({ method, params }) => {
             calls.push(method)

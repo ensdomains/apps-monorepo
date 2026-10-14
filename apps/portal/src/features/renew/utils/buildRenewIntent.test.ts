@@ -2,14 +2,14 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { decodeFunctionData, getAddress, type PublicClient } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { buildRenewIntent, type RenewParams } from './buildRenewIntent'
 
 const FROM = getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
 const USDC = getAddress('0xcccccccccccccccccccccccccccccccccccccccc')
 
 // `renewNameWriteParameters` only reads chain contract addresses off the client.
-const publicClient = { chain: sepoliaWithEns } as unknown as PublicClient
+const publicClient = { chain: ensChain } as unknown as PublicClient
 
 const renewCall = (params: Partial<RenewParams> & { name: string }) => {
   const intent = buildRenewIntent({
@@ -36,7 +36,7 @@ describe('buildRenewIntent', () => {
     const { to, args } = renewCall({ name: 'alice.eth' })
     expect(to).toBe(
       getChainContractAddress({
-        chain: sepoliaWithEns,
+        chain: ensChain,
         contract: 'ensEthRegistrar',
       }),
     )
@@ -57,7 +57,7 @@ describe('buildRenewIntent', () => {
     const { to } = renewCall({ name: 'alice.eth', isV2: false })
     expect(to).toBe(
       getChainContractAddress({
-        chain: sepoliaWithEns,
+        chain: ensChain,
         contract: 'ensEthRenewerV1',
       }),
     )

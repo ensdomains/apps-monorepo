@@ -5,6 +5,7 @@ import { classifyNames, type IneligibleName } from '../service/classifyNames'
 import {
   getGracePeriodNames,
   getNextNameExpiryBoundary,
+  getUnavailableNames,
 } from './useEligibleV1Names.helpers'
 
 const EXPIRY = 2_000_000_000n
@@ -183,5 +184,23 @@ describe('getGracePeriodNames', () => {
     expect(getGracePeriodNames(ineligible)).toEqual([
       { domain: owned, reason: 'expired-registration' },
     ])
+  })
+})
+
+describe('getUnavailableNames', () => {
+  it('keeps names without a reservation or a lease, sorted, and nothing else', () => {
+    const named = (name: string, reason: IneligibleName['reason']) => ({
+      domain: makeDomain({ id: name, name }),
+      reason,
+    })
+
+    expect(
+      getUnavailableNames([
+        named('zed.eth', 'not-reserved'),
+        named('grace.eth', 'expired-registration'),
+        named('bare.eth', 'missing-registration'),
+        named('locked.eth', 'not-transferable'),
+      ]).map(({ domain }) => domain.name),
+    ).toEqual(['bare.eth', 'zed.eth'])
   })
 })

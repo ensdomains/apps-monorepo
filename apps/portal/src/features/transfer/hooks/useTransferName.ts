@@ -37,7 +37,7 @@ import {
 } from '@/features/transaction-manager/hooks/useTransactionGasEstimate'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
@@ -142,7 +142,7 @@ export type TransferControls = {
   readonly restoreEthAddress: () => void
 }
 
-const chainId = sepoliaWithEns.id
+const chainId = ensChain.id
 
 // Whether a step's calldata carries the recipient, so the modal shows it. A
 // `Record`, not a set of the true ones: a new step kind then fails to compile

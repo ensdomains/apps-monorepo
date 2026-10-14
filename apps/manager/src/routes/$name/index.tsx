@@ -156,9 +156,13 @@ export const Route = createFileRoute('/$name/')({
     }
 
     const [expiryData] = await Promise.all([
-      queryClient.ensureQueryData(
-        profileExpiryQuery(normalizedName, ownerData?.protocol),
-      ),
+      // An unreadable expiry is unknown here, so the profile still loads and
+      // the expiry row reports its own error.
+      queryClient
+        .ensureQueryData(
+          profileExpiryQuery(normalizedName, ownerData?.protocol),
+        )
+        .catch(() => null),
       queryClient.prefetchQuery(
         profileRegistrationQuery(normalizedName, ownerData?.protocol),
       ),

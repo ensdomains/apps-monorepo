@@ -64,10 +64,7 @@ vi.mock('./rhinestone', () => ({
     },
     address: '0xSmartAccount123456789012345678901234567890',
     ownerAddress: '0xOwner12345678901234567890123456789012345678',
-    config: {
-      chain: { id: 11155111 },
-      rhinestoneApiKey: 'test-rhinestone-key',
-    },
+    config: { chain: { id: 11155111 } },
   }),
 }))
 

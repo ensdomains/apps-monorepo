@@ -108,8 +108,7 @@ export function useReverseResolutionMutations({
       const normalizedName = normalize(name)
 
       if (isL1) {
-        if (!l1WalletClient)
-          throw new Error('Sepolia wallet client not available')
+        if (!l1WalletClient) throw new Error('L1 wallet client not available')
         if (!l1WalletClient.account) throw new Error('No connected account')
 
         return {

@@ -8,7 +8,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletClient } from 'wagmi'
 import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   type CreateSubnameParameters,
@@ -22,7 +22,7 @@ type UseCreateSubnameParameters = Omit<
 >
 
 export function useCreateSubname() {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
 

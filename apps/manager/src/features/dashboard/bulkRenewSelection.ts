@@ -1,33 +1,26 @@
 import type { BulkRenewName } from '@/features/bulk-renew'
 import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
-import { resolveDomainLabel, toDateFromSeconds } from './utils'
+import { toDateFromSeconds } from './utils'
 
-type DomainLabels = {
-  readonly id: string
-  readonly name?: string | null
-  readonly normalizedName?: string | null
-}
-
-export type SelectableDomain = DomainLabels & {
+export type SelectableDomain = {
+  readonly name: string
   /** Seconds since the epoch, as the chain stores it. */
-  readonly expiryDate?: bigint | null
+  readonly expiryDate: bigint | null
 }
 
-/**
- * A domain as the indexer returns it, where the expiry is a JSON number.
- * Widened to `bigint` at this boundary, and never narrowed again.
- */
-export const toSelectableDomain = (
-  domain: DomainLabels & { readonly expiryDate?: number | null },
-): SelectableDomain => ({
-  ...domain,
-  expiryDate: domain.expiryDate == null ? null : BigInt(domain.expiryDate),
+/** A listed name; an expiry of `0n` never expires. */
+export const toSelectableDomain = (domain: {
+  readonly name: string
+  readonly expiryDate: bigint
+}): SelectableDomain => ({
+  name: domain.name,
+  expiryDate: domain.expiryDate === 0n ? null : domain.expiryDate,
 })
 
 /** The canonical key a selection is stored under. */
-export const selectionKey = (domain: DomainLabels): string =>
-  resolveDomainLabel(domain)
+export const selectionKey = (domain: { readonly name: string }): string =>
+  domain.name
 
 /**
  * A domain's bulk-renew payload, or `null` if it can't be renewed here. One
@@ -40,8 +33,7 @@ export const toBulkRenewName = (
 ): BulkRenewName | null => {
   if (domain.expiryDate == null) return null
 
-  // Not `resolveDomainLabel` — its `id` fallback isn't a name.
-  const label = resolveRenewalLabel(domain.name ?? domain.normalizedName ?? '')
+  const label = resolveRenewalLabel(domain.name)
   if (label.isErr()) return null
 
   const name = `${label.value}.eth`

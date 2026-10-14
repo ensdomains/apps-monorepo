@@ -218,6 +218,14 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               records={displayRecords}
               registrationDate={registration.data?.registrationDate}
             />
+            {isExpiryError ? (
+              <p className="px-4 pt-2 text-muted-foreground text-xs">
+                <Trans>
+                  Couldn’t check when this name expires, so editing is paused
+                  until it can be read.
+                </Trans>
+              </p>
+            ) : null}
             <div className="space-y-0">
               <ProfileCards
                 avatarUrl={avatarUrl}
@@ -235,7 +243,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         <ProfileDraftProvider value={setDraft}>
           <ProfileActions
             avatarUrl={avatarUrl}
-            isInGrace={expiry.isInGrace}
+            hasMobileStatusBanner={hasMobileStatusBanner}
+            // An unknown expiry could be a grace period, so editing waits too.
+            isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}
             isUpgradeRequired={isUpgradeRequired}
             name={name}
@@ -246,7 +256,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
             url={getProfileUrl(name)}
           />
         </ProfileDraftProvider>
-      </ProfileThemeColorProvider>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { tw } from '@/utils/tailwind'
 import { DesktopAccountSection } from '../account/DesktopAccountSection'
 import { DesktopNavigation } from '../navigation/DesktopNavigation'
@@ -18,6 +19,8 @@ export const DesktopHeader = ({
   profileThemeColor,
   transparentBackground = false,
 }: DesktopHeaderProps) => {
+  const leftBlockRef = useRef<HTMLDivElement>(null)
+
   return (
     <nav
       className={tw(
@@ -25,8 +28,9 @@ export const DesktopHeader = ({
         transparentBackground && 'md:px-[30px]',
       )}
     >
-      <FloatingWrapper className="w-full max-w-xl">
+      <FloatingWrapper className="w-full max-w-xl" ref={leftBlockRef}>
         <DesktopNavigation
+          anchorRef={leftBlockRef}
           profileHeader={transparentBackground}
           profileThemeColor={profileThemeColor}
         />

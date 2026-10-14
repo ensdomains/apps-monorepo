@@ -4,6 +4,7 @@ import type {
   Hex,
   NameRegistrationStatus,
   ProtocolVersion,
+  ReadOptions,
 } from './common.types'
 import type { IndexerReadError } from './errors'
 
@@ -27,13 +28,24 @@ export type NameDetail = Readonly<{
   resolver: Address | null
   registrationStatus: NameRegistrationStatus | null
   expiresAt: Date | null
+  /** When the registrar grace ends; `expiresAt` itself for a name with none, such as a subname. */
+  graceEndsAt: Date | null
   registeredAt: Date | null
+  /** The current registration's handle; a re-registration gets a new one. */
+  registrationId: string | null
   createdAt: Date | null
   /** When the name provably moved from v1 to v2. */
   migratedAt: Date | null
+  /**
+   * Why the name provably resolves to nothing: `no_live_ens_v2_entry` is an
+   * ENSv1 name with no ENSv2 entry, `ens_v2_path_no_resolver` an ENSv2 path
+   * with no resolver. Null when it resolves, or when that is not proven.
+   */
+  unresolvableReason: 'no_live_ens_v2_entry' | 'ens_v2_path_no_resolver' | null
 }>
 
 /** Resolves to null when the backend has not indexed the name at all. */
 export type ReadNameDetail = (
   query: NameDetailQuery,
+  options?: ReadOptions,
 ) => ResultAsync<NameDetail | null, IndexerReadError>

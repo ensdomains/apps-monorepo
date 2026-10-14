@@ -5,6 +5,8 @@ import { loadEnv } from 'vite'
 try {
   const config = assertNetworkConfig(
     loadEnv(process.env.NODE_ENV ?? 'production', process.cwd(), 'VITE_'),
+    // Matches src/config.ts.
+    { allowMissingEndpoints: true, rpcUrlVar: 'VITE_RPC_URL' },
   )
   console.log(`network config ok: ${config.network}`)
 } catch (error) {

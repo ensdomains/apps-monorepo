@@ -51,7 +51,7 @@ it.skipIf(!enabled)(
       eoaAddress: owner.address,
       chain: sepolia,
       publicClient,
-      rhinestoneApiKey: API_KEY,
+      rhinestoneAuth: { mode: 'apiKey', apiKey: API_KEY },
     })
     if (init.isErr()) throw init.error
     const account = init.value.client
