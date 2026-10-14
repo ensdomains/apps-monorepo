@@ -70,6 +70,23 @@ describe('RenewalRouteError', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('treats a rejection rehydrated from SSR the same', async () => {
+    await renderRouteError(
+      'sub.alice.eth',
+      Object.assign(new Error('Subnames are not supported'), {
+        _tag: 'RenewableNameError',
+        reason: 'SUBNAMES_NOT_SUPPORTED',
+      }),
+    )
+
+    expect(
+      await screen.findByRole('link', { name: 'Back to profile' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Try again' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('keeps the retry action for a transient failure', async () => {
     const reset = await renderRouteError('alice.eth', new Error('fetch failed'))
 

@@ -33,8 +33,18 @@ export class RenewalNotAllowedError extends TaggedError(
   'RenewalNotAllowedError',
 )<{ readonly message: string }> {}
 
+const FIXED_REJECTION_TAGS: ReadonlySet<string> = new Set([
+  'RenewableNameError',
+  'RenewalNotAllowedError',
+])
+
+/** Matched by tag: SSR re-creates loader errors on the client, so instanceof fails there. */
 export const isFixedRenewalRejection = (error: unknown) =>
-  error instanceof RenewableNameError || error instanceof RenewalNotAllowedError
+  typeof error === 'object' &&
+  error !== null &&
+  '_tag' in error &&
+  typeof error._tag === 'string' &&
+  FIXED_REJECTION_TAGS.has(error._tag)
 
 export const parseRenewableName = (name: string) =>
   parseName(name).andThen((parsedName) => {
