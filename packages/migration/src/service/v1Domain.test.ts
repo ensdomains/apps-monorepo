@@ -120,6 +120,28 @@ describe('toV1Domain', () => {
     })
   })
 
+  it('reads RFC 3339 expiries as the unix seconds the classifier expects', () => {
+    const rfc3339 = '2100-01-01T00:00:00Z'
+    const name = wrapped('alice.eth', 196_609)
+    expect(
+      toV1Domain(
+        {
+          ...name,
+          ens_v1: {
+            ...name.ens_v1,
+            expires_at: rfc3339,
+            wrapper_expires_at: rfc3339,
+          },
+        },
+        NO_PARENTS,
+        NAME_WRAPPER,
+      ),
+    ).toMatchObject({
+      registration: { expiryDate: FUTURE },
+      wrappedDomain: { expiryDate: FUTURE },
+    })
+  })
+
   it('credits a wrapped name to its holder and its registry slot to the NameWrapper', () => {
     expect(
       toV1Domain(wrapped('alice.eth', 196_609), NO_PARENTS, NAME_WRAPPER),
