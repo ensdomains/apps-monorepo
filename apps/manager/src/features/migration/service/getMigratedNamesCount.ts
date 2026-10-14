@@ -1,4 +1,5 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
+import { isStale, retryStale } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -19,14 +20,17 @@ class GetMigratedNamesCountError extends TaggedError(
  * A name registered natively on ENSv2 does not count.
  */
 export const getMigratedNamesCount = (address: Address) =>
-  bigname
-    .addressNames(address.toLowerCase(), {
-      relation: ['owner'],
-      is_migrated: 'true',
-      dedupe: 'name',
-      include: ['total_count'],
-      page_size: 1,
-    })
+  retryStale(
+    () =>
+      bigname.addressNames(address.toLowerCase(), {
+        relation: ['owner'],
+        is_migrated: 'true',
+        dedupe: 'name',
+        include: ['total_count'],
+        page_size: 1,
+      }),
+    isStale,
+  )
     .mapErr((error) => new GetMigratedNamesCountError({ cause: error }))
     .andThen(({ data, page }) => {
       if (page?.total_count != null) return okAsync(page.total_count)

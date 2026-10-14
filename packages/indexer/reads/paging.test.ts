@@ -1,12 +1,9 @@
-import type {
-  NameSummary,
-  Page,
-  ReadNamesForAddress,
-} from '@ens-apps/indexer/reads'
-import { IndexerReadError } from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
-import { describe, expect, it, vi } from 'vitest'
-import { readAllNames } from './readNamePages'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Page } from './common.types'
+import { IndexerReadError } from './errors'
+import type { NameSummary, ReadNamesForAddress } from './namesForAddress.types'
+import { readAllNames } from './paging'
 
 const ADDRESS = '0x0000000000000000000000000000000000000abc'
 
@@ -37,24 +34,34 @@ const page = (
 const failure = (kind: IndexerReadError['kind']) =>
   new IndexerReadError({ message: kind, kind, cause: new Error(kind) })
 
+/** Runs the stale backoff on fake timers instead of waiting it out. */
+const settle = async <T>(result: PromiseLike<T>): Promise<T> => {
+  const settled = Promise.resolve(result)
+  await vi.runAllTimersAsync()
+  return settled
+}
+
 describe('readAllNames', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
   it('reads every page in order', async () => {
     const readNames = vi
       .fn<ReadNamesForAddress>()
       .mockReturnValueOnce(okAsync(page(['a.eth'], 'next')))
       .mockReturnValueOnce(okAsync(page(['b.eth'])))
 
-    const result = await readAllNames(readNames, { address: ADDRESS })
+    const result = await settle(readAllNames(readNames, { address: ADDRESS }))
 
     expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
       'a.eth',
       'b.eth',
     ])
-    expect(readNames).toHaveBeenNthCalledWith(2, {
-      address: ADDRESS,
-      pageSize: 200,
-      cursor: 'next',
-    })
+    expect(readNames).toHaveBeenNthCalledWith(
+      2,
+      { address: ADDRESS, pageSize: 200, cursor: 'next' },
+      { signal: undefined },
+    )
   })
 
   it('retries a stale page with the same cursor instead of losing the read', async () => {
@@ -64,7 +71,7 @@ describe('readAllNames', () => {
       .mockReturnValueOnce(errAsync(failure('stale')))
       .mockReturnValueOnce(okAsync(page(['b.eth'])))
 
-    const result = await readAllNames(readNames, { address: ADDRESS })
+    const result = await settle(readAllNames(readNames, { address: ADDRESS }))
 
     expect(result._unsafeUnwrap()).toHaveLength(2)
     expect(readNames.mock.calls.map(([query]) => query.cursor)).toEqual([
@@ -82,7 +89,7 @@ describe('readAllNames', () => {
       .fn<ReadNamesForAddress>()
       .mockReturnValue(errAsync(failure(kind)))
 
-    const result = await readAllNames(readNames, { address: ADDRESS })
+    const result = await settle(readAllNames(readNames, { address: ADDRESS }))
 
     expect(result._unsafeUnwrapErr().kind).toBe(kind)
     expect(readNames).toHaveBeenCalledTimes(calls)

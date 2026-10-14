@@ -44,14 +44,33 @@ describe('getPrimaryNameDomains', () => {
     const result = await getPrimaryNameDomains(readNames, ADDRESS)
 
     expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
-    expect(readNames).toHaveBeenCalledWith({
-      address: ADDRESS,
-      relations: ['owner'],
-      protocol: 'v2',
-      sort: 'name',
-      order: 'asc',
-      pageSize: 200,
-    })
+    expect(readNames).toHaveBeenCalledWith(
+      {
+        address: ADDRESS,
+        relations: ['owner'],
+        protocol: 'v2',
+        sort: 'name',
+        order: 'asc',
+        pageSize: 200,
+      },
+      expect.anything(),
+    )
+  })
+
+  it('offers no name that cannot be set as primary', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() =>
+      okAsync(
+        page([
+          summary('alice.eth', '0x01'),
+          summary(`[${'1'.repeat(64)}].eth`, '0x02'),
+          summary('ALICE.eth', '0x03'),
+        ]),
+      ),
+    )
+
+    const result = await getPrimaryNameDomains(readNames, ADDRESS)
+
+    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
   })
 
   it('follows the cursor until every page is read', async () => {
@@ -75,6 +94,7 @@ describe('getPrimaryNameDomains', () => {
     expect(readNames).toHaveBeenNthCalledWith(
       3,
       expect.objectContaining({ cursor: 'c2' }),
+      expect.anything(),
     )
   })
 

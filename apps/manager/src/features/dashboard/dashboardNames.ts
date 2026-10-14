@@ -1,9 +1,5 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
+import { type AddressName, toExactSeconds } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ProtocolVersion } from '@ens-apps/indexer/reads'
-import {
-  SECONDS_PER_DAY,
-  V2_GRACE_PERIOD_DAYS,
-} from '@ens-apps/utils/gracePeriod'
 import type { Address, Hex } from 'viem'
 import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
 
@@ -72,41 +68,20 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
 export const isHeldName = (name: DashboardName): boolean =>
   name.nameRoles.includes('owner') || name.isLapsed
 
-const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
-const ETH_2LD = /^[^.]+\.eth$/
-
-const parseSeconds = (timestamp: string | undefined): bigint | null =>
-  timestamp !== undefined && /^\d+$/.test(timestamp) ? BigInt(timestamp) : null
-
 /**
- * An ENSv2 `.eth` name the address held until it expired, still renewable.
- * It holds no current role, so it carries none.
+ * A row `readGraceNames` kept: an ENSv2 `.eth` name the address held until it
+ * expired, still renewable. It holds no current role, so it carries none.
  */
-export const toGraceName = (
-  row: AddressName,
-  address: Address,
-  now: Date,
-): DashboardName | null => {
-  const expiryDate = parseSeconds(row.expires_at)
-  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
-  const isGrace =
-    row.authority === 'ens_v2' &&
-    row.status === 'expired' &&
-    row.lapsed_registration?.release_kind === 'expired' &&
-    row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
-    expiryDate !== null &&
-    expiryDate <= nowSeconds &&
-    nowSeconds < expiryDate + V2_GRACE_SECONDS &&
-    ETH_2LD.test(row.name) &&
-    isNormalizedName(row.name)
-  if (!isGrace) return null
+export const toGraceName = (row: AddressName): DashboardName | null => {
+  const expiryDate = toExactSeconds(row.expires_at)
+  if (expiryDate === null || !isNormalizedName(row.name)) return null
   return {
     key: row.namehash,
     name: row.name,
     protocol: 'v2',
     expiryDate,
     servedExpiry: expiryDate,
-    createdAt: parseSeconds(row.created_at),
+    createdAt: toExactSeconds(row.created_at),
     nameRoles: [],
     isLapsed: true,
   }

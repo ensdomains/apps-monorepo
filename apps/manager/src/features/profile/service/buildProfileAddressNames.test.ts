@@ -29,6 +29,8 @@ describe('isDisplayableProfileName', () => {
     ['alice.eth', true],
     ['abc.addr.reverse', false],
     ['[1234].eth', false],
+    [`a.[${'1'.repeat(64)}].eth`, false],
+    ['ALICE.eth', false],
   ])('%s -> %s', (name, expected) => {
     expect(isDisplayableProfileName(name)).toBe(expected)
   })

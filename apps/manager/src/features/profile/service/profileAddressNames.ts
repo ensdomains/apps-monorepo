@@ -5,6 +5,7 @@ import type {
   NamesForAddressQuery,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
+import { readNamesPage } from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
@@ -15,7 +16,6 @@ import { skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
-import { readNamesPage } from '@/features/shared/service/readNamePages'
 import { bigname } from '@/lib/bigname'
 import {
   type ProfileAddressName,

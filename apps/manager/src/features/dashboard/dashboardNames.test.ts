@@ -111,7 +111,7 @@ describe('isListedName', () => {
 
 describe('toGraceName', () => {
   it('lists an expired ENSv2 .eth name of this owner without roles', () => {
-    expect(toGraceName(lapsed(), OWNER, NOW)).toEqual({
+    expect(toGraceName(lapsed())).toEqual({
       key: '0x02',
       name: 'grace.eth',
       protocol: 'v2',
@@ -123,45 +123,17 @@ describe('toGraceName', () => {
     })
   })
 
-  it('lists a name in the last second of its grace', () => {
-    expect(
-      toGraceName(
-        lapsed({ expires_at: String(nowSeconds - 86_400 * 28 + 1) }),
-        OWNER,
-        NOW,
-      ),
-    ).not.toBeNull()
+  it('reads an RFC 3339 expiry', () => {
+    const expiresAt = new Date((nowSeconds - 86_400) * 1000).toISOString()
+
+    expect(toGraceName(lapsed({ expires_at: expiresAt }))?.expiryDate).toBe(
+      BigInt(nowSeconds - 86_400),
+    )
   })
 
-  it.each([
-    { case: 'an ENSv1 name', row: lapsed({ authority: 'ens_v1' }) },
-    { case: 'a subname', row: lapsed({ name: 'sub.grace.eth' }) },
-    { case: 'an un-normalised name', row: lapsed({ name: 'GRACE.eth' }) },
-    {
-      case: 'another owner',
-      row: lapsed({
-        lapsed_registration: {
-          owner: '0x2222222222222222222222222222222222222222',
-          release_kind: 'expired',
-        },
-      }),
-    },
-    {
-      case: 'a burned registration',
-      row: lapsed({
-        lapsed_registration: { owner: OWNER, release_kind: 'burned' },
-      }),
-    },
-    {
-      case: 'a name past grace',
-      row: lapsed({ expires_at: String(nowSeconds - 86_400 * 60) }),
-    },
-    {
-      case: 'a name whose grace ends now',
-      row: lapsed({ expires_at: String(nowSeconds - 86_400 * 28) }),
-    },
-  ])('skips $case', ({ row }) => {
-    expect(toGraceName(row, OWNER, NOW)).toBeNull()
+  // Which rows are in grace is tested with the shared grace read.
+  it('skips an un-normalised name', () => {
+    expect(toGraceName(lapsed({ name: 'GRACE.eth' }))).toBeNull()
   })
 })
 

@@ -76,14 +76,17 @@ describe('readProfileNamesChunk', () => {
       await readProfileNamesChunk(readNames, QUERY, undefined)
     )._unsafeUnwrap()
 
-    expect(readNames).toHaveBeenCalledWith({
-      address: ADDRESS,
-      relations: undefined,
-      sort: 'created',
-      order: 'desc',
-      pageSize: PROFILE_NAMES_CHUNK_SIZE,
-      includeTotal: true,
-    })
+    expect(readNames).toHaveBeenCalledWith(
+      {
+        address: ADDRESS,
+        relations: undefined,
+        sort: 'created',
+        order: 'desc',
+        pageSize: PROFILE_NAMES_CHUNK_SIZE,
+        includeTotal: true,
+      },
+      expect.anything(),
+    )
     expect(readNames).toHaveBeenCalledTimes(1)
     expect(chunk).toMatchObject({
       names: [
@@ -125,6 +128,7 @@ describe('readProfileNamesChunk', () => {
 
     expect(readNames).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: 'next' }),
+      expect.anything(),
     )
     expect(chunk).toMatchObject({
       names: [{ label: 'one.eth' }, { label: 'two.eth' }],
@@ -149,6 +153,7 @@ describe('readProfileNamesChunk', () => {
         contains: 'al',
         cursor: 'next',
       }),
+      expect.anything(),
     )
     expect(readNames.mock.calls[0]?.[0]).not.toHaveProperty('includeTotal')
   })
@@ -174,6 +179,7 @@ describe('readProfileNamesChunk', () => {
 
     expect(readNames).toHaveBeenCalledWith(
       expect.objectContaining({ relations: ['manager', 'role_holder'] }),
+      expect.anything(),
     )
     expect(chunk.names.map(({ label }) => label)).toEqual([
       'managed.eth',
@@ -267,6 +273,7 @@ describe('getProfileNameCounts', () => {
         pageSize: 1,
         includeTotal: true,
       }),
+      expect.anything(),
     )
     expect(counts).toEqual({ owned: 7, managed: 3 })
   })

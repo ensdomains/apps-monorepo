@@ -2,13 +2,14 @@ import {
   type BignameError,
   isStale,
   type NameRecords,
+  retryStale,
 } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok } from 'neverthrow'
+import { errAsync, ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
-import { checkNotAborted, retryOnStale } from './bignameLookup'
+import { checkNotAborted } from './bignameLookup'
 
 export type V1ProfileKeys = {
   readonly id: string
@@ -75,27 +76,23 @@ export const toV1ProfileKeys = (
 
 // The resolver route serves the source resolver's inventory even when a name
 // read withholds records; naming the one key keeps it under the 200-key limit.
-const readProfileKeys = ResultFn(async function* ({
-  id,
-  name,
-  resolver,
-}: V1ProfileSource) {
-  const response = yield* (
-    await retryOnStale(
-      () =>
-        bigname.resolverRecords(envConfig.chain.id, resolver.toLowerCase(), {
-          name,
-          include: ['inventory'],
-          keys: ['contenthash'],
-        }),
-      isStale,
-    )
-  ).orElse((error) =>
-    // Not indexed at this resolver: left out, so the caller fails closed.
-    error.code === 'not_found' ? ok(null) : err(error),
+const readProfileKeys = ({ id, name, resolver }: V1ProfileSource) =>
+  retryStale(
+    () =>
+      bigname.resolverRecords(envConfig.chain.id, resolver.toLowerCase(), {
+        name,
+        include: ['inventory'],
+        keys: ['contenthash'],
+      }),
+    isStale,
   )
-  return ok(response ? toV1ProfileKeys(id, response.data) : [])
-})
+    .map(({ data }) => toV1ProfileKeys(id, data))
+    .orElse((error) =>
+      // Not indexed at this resolver: left out, so the caller fails closed.
+      error.code === 'not_found'
+        ? okAsync<V1ProfileKeys[], BignameError>([])
+        : errAsync(error),
+    )
 
 export const getV1ProfileKeys = ResultFn(async function* (
   sources: readonly V1ProfileSource[],

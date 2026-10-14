@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { toDate, toExactSeconds, toExpiresAt, toUnixSeconds } from './adapters'
+import {
+  toDate,
+  toExactSeconds,
+  toExpiresAt,
+  toExpirySeconds,
+  toUnixSeconds,
+} from './adapters'
 
 describe('toUnixSeconds', () => {
   it.each([
@@ -85,5 +91,22 @@ describe('toExactSeconds', () => {
     expect(toExactSeconds('2026-10-30T22:33:48Z')).toBe(1_793_399_628n)
     expect(toExactSeconds(undefined)).toBeNull()
     expect(toExactSeconds('soon')).toBeNull()
+  })
+})
+
+describe('toExpirySeconds', () => {
+  it('reads the lease before the top-level expiry, in seconds', () => {
+    expect(
+      toExpirySeconds({
+        expires_at: '1885693968',
+        ens_v1: { expires_at: '1786176876' },
+      }),
+    ).toBe(1786176876n)
+    expect(toExpirySeconds({ expires_at: '1885693968' })).toBe(1885693968n)
+  })
+
+  it('is null without an expiry or past what a Date holds', () => {
+    expect(toExpirySeconds({})).toBeNull()
+    expect(toExpirySeconds({ expires_at: '18446744073709551615' })).toBeNull()
   })
 })

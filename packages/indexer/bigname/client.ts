@@ -8,6 +8,9 @@ export type BignameClientOptions = {
   readonly fetch?: typeof fetch
 }
 
+/** Per-call options; `signal` cancels the request in flight. */
+type RequestOptions = Readonly<{ signal?: AbortSignal }>
+
 type QueryValue = string | number | boolean | readonly string[] | undefined
 type Query = Readonly<Record<string, QueryValue>>
 
@@ -104,15 +107,17 @@ export const createBignameClient = (
     path: string,
     query?: Query,
     body?: unknown,
+    signal?: AbortSignal,
   ) {
     const url = `${base}${path}${toSearchParams(query)}`
     const init: RequestInit =
       body === undefined
-        ? { method: 'GET' }
+        ? { method: 'GET', signal }
         : {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(body),
+            signal,
           }
 
     const response = yield* ResultAsync.fromPromise(
@@ -141,55 +146,144 @@ export const createBignameClient = (
   const request = <Data, Res extends T.Envelope<Data> = T.Envelope<Data>>(
     path: string,
     query?: Query,
-    body?: unknown,
+    { signal, body }: RequestOptions & Readonly<{ body?: unknown }> = {},
   ): ResultAsync<Res, BignameError> =>
-    send(path, query, body).map((envelope) => envelope as Res)
+    send(path, query, body, signal).map((envelope) => envelope as Res)
 
   const seg = encodeURIComponent
 
   return {
-    status: () => request<T.StatusData>('/v1/status'),
-    names: (query: T.NamesQuery) =>
-      request<readonly T.NameListingRow[]>('/v1/names', query),
-    name: (name: string, query?: T.NameRecordQuery) =>
-      request<T.NameRecord>(`/v1/names/${seg(name)}`, query),
-    nameRecords: (name: string, query?: T.NameRecordsQuery) =>
-      request<T.NameRecords>(`/v1/names/${seg(name)}/records`, query),
-    subnames: (name: string, query?: T.SubnamesQuery) =>
-      request<readonly T.Subname[]>(`/v1/names/${seg(name)}/subnames`, query),
-    nameHistory: (name: string, query?: T.NameHistoryQuery) =>
+    status: (options?: RequestOptions) =>
+      request<T.StatusData>('/v1/status', undefined, options),
+    names: (query: T.NamesQuery, options?: RequestOptions) =>
+      request<readonly T.NameListingRow[]>('/v1/names', query, options),
+    name: (name: string, query?: T.NameRecordQuery, options?: RequestOptions) =>
+      request<T.NameRecord>(`/v1/names/${seg(name)}`, query, options),
+    nameRecords: (
+      name: string,
+      query?: T.NameRecordsQuery,
+      options?: RequestOptions,
+    ) =>
+      request<T.NameRecords>(`/v1/names/${seg(name)}/records`, query, options),
+    subnames: (
+      name: string,
+      query?: T.SubnamesQuery,
+      options?: RequestOptions,
+    ) =>
+      request<readonly T.Subname[]>(
+        `/v1/names/${seg(name)}/subnames`,
+        query,
+        options,
+      ),
+    nameHistory: (
+      name: string,
+      query?: T.NameHistoryQuery,
+      options?: RequestOptions,
+    ) =>
       request<readonly T.NameHistoryRow[]>(
         `/v1/names/${seg(name)}/history`,
         query,
+        options,
       ),
-    addressNames: (address: string, query?: T.AddressNamesQuery) =>
+    addressNames: (
+      address: string,
+      query?: T.AddressNamesQuery,
+      options?: RequestOptions,
+    ) =>
       request<readonly T.AddressName[]>(
         `/v1/addresses/${seg(address)}/names`,
         query,
+        options,
       ),
-    addressHistory: (address: string, query?: T.AddressHistoryQuery) =>
-      request<readonly T.AddressHistoryRow[]>(
+    addressHistory: (
+      address: string,
+      query?: T.AddressHistoryQuery,
+      options?: RequestOptions,
+    ) =>
+      request<readonly T.EventRow[]>(
         `/v1/addresses/${seg(address)}/history`,
         query,
+        options,
       ),
-    events: (query?: T.EventsQuery) =>
-      request<readonly T.EventsRow[]>('/v1/events', query),
-    permissions: (query: T.PermissionsQuery) =>
+    events: (query?: T.EventsQuery, options?: RequestOptions) =>
+      request<readonly T.EventRow[]>('/v1/events', query, options),
+    permissions: (query: T.PermissionsQuery, options?: RequestOptions) =>
       request<readonly T.PermissionRow[], T.PermissionsResponse>(
         '/v1/permissions',
         query,
+        options,
       ),
     resolverRecords: (
       chainId: number,
       address: string,
       query: T.ResolverRecordsQuery,
+      options?: RequestOptions,
     ) =>
       request<T.NameRecords>(
         `/v1/resolvers/${chainId}/${seg(address)}/records`,
         query,
+        options,
       ),
-    lookup: (body: T.LookupRequest) =>
-      request<readonly T.LookupResult[]>('/v1/lookup', undefined, body),
+    lookup: (body: T.LookupRequest, options?: RequestOptions) =>
+      request<readonly T.LookupResult[]>('/v1/lookup', undefined, {
+        ...options,
+        body,
+      }),
+    registry: (
+      chainId: number,
+      address: string,
+      query?: T.RegistryQuery,
+      options?: RequestOptions,
+    ) =>
+      request<T.Registry>(
+        `/v1/registries/${chainId}/${seg(address)}`,
+        query,
+        options,
+      ),
+    registryLabels: (
+      chainId: number,
+      address: string,
+      query?: T.RegistryLabelsQuery,
+      options?: RequestOptions,
+    ) =>
+      request<readonly T.RegistryLabel[]>(
+        `/v1/registries/${chainId}/${seg(address)}/labels`,
+        query,
+        options,
+      ),
+    resolver: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+      options?: RequestOptions,
+    ) =>
+      request<T.ResolverOverview>(
+        `/v1/resolvers/${chainId}/${seg(address)}`,
+        query,
+        options,
+      ),
+    resolverLinks: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+      options?: RequestOptions,
+    ) =>
+      request<readonly T.ResolverLink[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/links`,
+        query,
+        options,
+      ),
+    resolverRoles: (
+      chainId: number,
+      address: string,
+      query?: T.ResolverQuery,
+      options?: RequestOptions,
+    ) =>
+      request<readonly T.ResolverRole[]>(
+        `/v1/resolvers/${chainId}/${seg(address)}/roles`,
+        query,
+        options,
+      ),
   }
 }
 

@@ -12,7 +12,12 @@ import {
   toRelations,
 } from './adapters'
 import type { BignameClient } from './client'
-import type { AddressName, AddressNamesQuery, Authority } from './types'
+import type {
+  AddressName,
+  AddressNamesQuery,
+  Authority,
+  GrantScope,
+} from './types'
 
 const SORT_FIELDS = {
   name: 'name',
@@ -32,6 +37,7 @@ const toInclude = (
 ): AddressNamesQuery['include'] => {
   const include = [
     ...(query.includeCounts ? (['counts'] as const) : []),
+    ...(query.includeRoles ? (['role_summary'] as const) : []),
     ...(query.includeTotal ? (['total_count'] as const) : []),
   ]
   return include.length > 0 ? include : undefined
@@ -53,7 +59,27 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   cursor: query.cursor,
 })
 
-const toNameSummary = (row: AddressName): NameSummary => ({
+// Resolver, record manager and account grants are powers elsewhere, not on the name.
+const NAME_SCOPES: ReadonlySet<GrantScope['kind']> = new Set([
+  'registration',
+  'registry',
+  'root',
+])
+
+const toHeldPowers = (row: AddressName, address: string) => {
+  const holder = row.role_summary?.find(
+    (summary) => summary.address.toLowerCase() === address.toLowerCase(),
+  )
+  return [
+    ...new Set(
+      holder?.grants
+        .filter((grant) => NAME_SCOPES.has(grant.grant_scope.kind))
+        .flatMap((grant) => grant.powers),
+    ),
+  ]
+}
+
+const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   name: row.name,
   displayName: row.display_name,
   namehash: row.namehash,
@@ -68,15 +94,18 @@ const toNameSummary = (row: AddressName): NameSummary => ({
   createdAt: toDate(row.created_at),
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),
   ...(row.record_count !== undefined && { recordCount: row.record_count }),
+  ...(row.role_summary !== undefined && {
+    heldPowers: toHeldPowers(row, address),
+  }),
 })
 
 export const readNamesForAddress =
   (client: BignameClient): ReadNamesForAddress =>
-  (query) =>
+  (query, options) =>
     client
-      .addressNames(query.address, toQuery(query))
+      .addressNames(query.address, toQuery(query), options)
       .map(({ data, page }) => ({
-        items: data.map(toNameSummary),
+        items: data.map((row) => toNameSummary(row, query.address)),
         nextCursor: page?.next_cursor ?? null,
         totalCount: page?.total_count ?? null,
       }))

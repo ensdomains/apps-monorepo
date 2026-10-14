@@ -10,14 +10,12 @@ import { BignameError } from '@ens-apps/indexer/bigname'
 import { classifyNames } from '@ens-apps/migration'
 import { errAsync, okAsync } from 'neverthrow'
 import { namehash } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
-import { readV1NamesForAddress, toV1Domain } from './v1Names'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readV1NamesForAddress } from './v1Names'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
 const USER = '0x1111111111111111111111111111111111111111'
-const OTHER = '0x2222222222222222222222222222222222222222'
-const NAME_WRAPPER = '0x0635513f179d50a207757e05759cbd106d7dfce8'
 const SEPOLIA = 11155111
 const FUTURE = '4102444800'
 const CANNOT_UNWRAP = 1
@@ -71,246 +69,6 @@ const wrapped = (
 
 const unwrapped2ld = (name: string, overrides: Partial<LookupRecord> = {}) =>
   record(name, { ens_v1: { expires_at: FUTURE }, ...overrides })
-
-const NO_PARENTS: ReadonlyMap<string, number> = new Map()
-
-const classify = (records: readonly LookupRecord[], parentFuses = NO_PARENTS) =>
-  classifyNames(
-    records.map((row) => toV1Domain(row, parentFuses, NAME_WRAPPER)),
-    USER,
-    SEPOLIA,
-  )
-
-describe('toV1Domain', () => {
-  it('reads the ENSv1 resolver, which late grace can withhold from the top level', () => {
-    const v1Resolver = {
-      chain_id: 11155111,
-      address: '0x8fade66b79cc9f707ab26799354482eb93a5b7dd',
-    } as const
-    const topLevel = {
-      ...v1Resolver,
-      address: '0x2222222222222222222222222222222222222222',
-    } as const
-
-    expect(
-      toV1Domain(
-        unwrapped2ld('alice.eth', {
-          ens_v1: { expires_at: FUTURE, resolver: v1Resolver },
-        }),
-        NO_PARENTS,
-        NAME_WRAPPER,
-      ).resolver,
-    ).toEqual({ address: v1Resolver.address })
-    expect(
-      toV1Domain(
-        unwrapped2ld('alice.eth', {
-          resolver: topLevel,
-          ens_v1: { expires_at: FUTURE, resolver: null },
-        }),
-        NO_PARENTS,
-        NAME_WRAPPER,
-      ).resolver,
-    ).toBeNull()
-  })
-
-  it('reads an unwrapped 2LD registrant from the holder and registry owner from the manager', () => {
-    expect(
-      toV1Domain(
-        unwrapped2ld('alice.eth', { manager: OTHER }),
-        NO_PARENTS,
-        NAME_WRAPPER,
-      ),
-    ).toMatchObject({
-      labelName: 'alice',
-      owner: { id: OTHER },
-      registrant: { id: USER },
-      wrappedOwner: null,
-      parent: { name: 'eth', wrappedDomain: null },
-      registration: { expiryDate: FUTURE },
-      wrappedDomain: null,
-    })
-  })
-
-  it('credits a wrapped name to its holder and its registry slot to the NameWrapper', () => {
-    expect(
-      toV1Domain(wrapped('alice.eth', 196_609), NO_PARENTS, NAME_WRAPPER),
-    ).toMatchObject({
-      owner: { id: NAME_WRAPPER },
-      registrant: { id: NAME_WRAPPER },
-      wrappedOwner: { id: USER },
-      wrappedDomain: { expiryDate: FUTURE, fuses: 196_609 },
-    })
-  })
-
-  it('keeps an unset wrapper expiry as zero and carries the parent fuses', () => {
-    const child = wrapped('sub.alice.eth', 0, {
-      ens_v1: {
-        expires_at: null,
-        wrapper_fuses: fuses(0),
-        wrapper_expires_at: null,
-        wrapper_expires_at_reason: 'not_set',
-      },
-    })
-    expect(
-      toV1Domain(child, new Map([['alice.eth', 196_609]]), NAME_WRAPPER),
-    ).toMatchObject({
-      registrant: null,
-      registration: null,
-      parent: { name: 'alice.eth', wrappedDomain: { fuses: 196_609 } },
-      wrappedDomain: { expiryDate: '0', fuses: 0 },
-    })
-  })
-})
-
-describe('toV1Domain migration availability', () => {
-  it('flags a name bigname reports without a live ENSv2 entry as unreserved', () => {
-    const domain = toV1Domain(
-      unwrapped2ld('alice.eth', {
-        unresolvable_reason: 'no_live_ens_v2_entry',
-      }),
-      NO_PARENTS,
-      NAME_WRAPPER,
-    )
-    expect(domain.isUnreserved).toBe(true)
-    expect(domain.isLeaseMissing).toBeUndefined()
-  })
-
-  it('flags a .eth name without a lease, but never a subname', () => {
-    expect(
-      toV1Domain(
-        record('alice.eth', { ens_v1: { expires_at: null } }),
-        NO_PARENTS,
-        NAME_WRAPPER,
-      ).isLeaseMissing,
-    ).toBe(true)
-    expect(
-      toV1Domain(
-        record('sub.alice.eth', { ens_v1: { expires_at: null } }),
-        NO_PARENTS,
-        NAME_WRAPPER,
-      ).isLeaseMissing,
-    ).toBeUndefined()
-  })
-
-  it('leaves a reserved name with a lease unflagged', () => {
-    const domain = toV1Domain(
-      unwrapped2ld('alice.eth'),
-      NO_PARENTS,
-      NAME_WRAPPER,
-    )
-    expect(domain).not.toHaveProperty('isUnreserved')
-    expect(domain).not.toHaveProperty('isLeaseMissing')
-  })
-
-  it('offers no upgrade for an unreserved name through the adapter', () => {
-    const { classified, ineligible } = classify([
-      unwrapped2ld('alice.eth', {
-        unresolvable_reason: 'no_live_ens_v2_entry',
-      }),
-    ])
-    expect(classified).toEqual([])
-    expect(ineligible.map(({ reason }) => reason)).toEqual(['not-reserved'])
-  })
-})
-
-describe('classification through the adapter', () => {
-  it('migrates a previously unwrapped name using its registrar token and registry controller', () => {
-    const { classified } = classify([
-      unwrapped2ld('alice.eth', {
-        manager: OTHER,
-        ens_v1: {
-          expires_at: FUTURE,
-          wrapper_state: 'emancipated',
-          wrapper_fuses: fuses(PARENT_CANNOT_CONTROL | IS_DOT_ETH),
-        },
-      }),
-    ])
-
-    expect(classified).toMatchObject([
-      {
-        action: 'migrate',
-        tokenType: 'unwrapped',
-        registryController: OTHER,
-        domain: { wrappedOwner: null, wrappedDomain: null },
-      },
-    ])
-  })
-
-  it('keeps an emancipated subname with no expiry eligible to copy', () => {
-    const child = wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL, {
-      ens_v1: {
-        expires_at: null,
-        wrapper_state: 'emancipated',
-        wrapper_fuses: fuses(PARENT_CANNOT_CONTROL),
-        wrapper_expires_at: null,
-        wrapper_expires_at_reason: 'no_expiry',
-      },
-    })
-    const { classified, ineligible } = classify([
-      unwrapped2ld('alice.eth'),
-      child,
-    ])
-
-    expect(ineligible).toEqual([])
-    expect(classified).toMatchObject([
-      { action: 'migrate', tokenType: 'unwrapped' },
-      {
-        action: 'copy',
-        tokenType: 'unlocked-child',
-        sourceExpiry: 18_446_744_073_709_551_615n,
-      },
-    ])
-  })
-
-  it('migrates an unwrapped 2LD and records a distinct registry controller', () => {
-    const { classified } = classify([
-      unwrapped2ld('alice.eth', { manager: OTHER }),
-    ])
-    expect(classified).toMatchObject([
-      {
-        action: 'migrate',
-        tokenType: 'unwrapped',
-        registryController: OTHER,
-        managerAddress: null,
-      },
-    ])
-  })
-
-  it('migrates a locked wrapped 2LD', () => {
-    expect(classify([wrapped('alice.eth', 196_609)]).classified).toMatchObject([
-      { action: 'migrate', tokenType: 'locked-2ld' },
-    ])
-  })
-
-  it('migrates an emancipated child of a locked parent as detached', () => {
-    const { classified } = classify(
-      [wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL)],
-      new Map([['alice.eth', 196_609]]),
-    )
-    expect(classified).toMatchObject([
-      { action: 'migrate', tokenType: 'detached-child' },
-    ])
-  })
-
-  it('copies a registry child under an unwrapped parent being migrated', () => {
-    const { classified } = classify([
-      unwrapped2ld('alice.eth'),
-      record('sub.alice.eth', { status: 'active' }),
-    ])
-    expect(
-      classified.map(({ action, tokenType }) => ({ action, tokenType })),
-    ).toEqual([
-      { action: 'migrate', tokenType: 'unwrapped' },
-      { action: 'copy', tokenType: 'registry-child' },
-    ])
-  })
-
-  it('leaves a name someone else holds unclassified', () => {
-    expect(
-      classify([unwrapped2ld('alice.eth', { owner: OTHER })]).classified,
-    ).toEqual([])
-  })
-})
 
 const listRow = (
   name: string,
@@ -371,7 +129,17 @@ const lookupFromFixtures = vi.fn<BignameClient['lookup']>((body) =>
 const stale = () =>
   new BignameError({ code: 'stale', status: 409, message: 'stale' })
 
+/** Runs the stale backoff on fake timers instead of waiting it out. */
+const settle = async <T>(result: PromiseLike<T>): Promise<T> => {
+  const settled = Promise.resolve(result)
+  await vi.runAllTimersAsync()
+  return settled
+}
+
 describe('readV1NamesForAddress', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
   it('does not use retained fuses from an unwrapped parent to detach its child', async () => {
     const parent = unwrapped2ld('alice.eth', {
       ens_v1: {
@@ -384,20 +152,22 @@ describe('readV1NamesForAddress', () => {
     })
     const child = wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL)
     const rows = new Map([parent, child].map((row) => [row.name, row]))
-    const result = await readV1NamesForAddress(
-      {
-        addressNames: () =>
-          okAsync(listPage([listRow('alice.eth'), listRow('sub.alice.eth')])),
-        lookup: (body) =>
-          okAsync(
-            lookupResponse(
-              body.inputs.flatMap((input) =>
-                'name' in input ? (rows.get(input.name) ?? []) : [],
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () =>
+            okAsync(listPage([listRow('alice.eth'), listRow('sub.alice.eth')])),
+          lookup: (body) =>
+            okAsync(
+              lookupResponse(
+                body.inputs.flatMap((input) =>
+                  'name' in input ? (rows.get(input.name) ?? []) : [],
+                ),
               ),
             ),
-          ),
-      },
-      USER,
+        },
+        USER,
+      ),
     )
     const { classified } = classifyNames(result._unsafeUnwrap(), USER, SEPOLIA)
 
@@ -426,9 +196,8 @@ describe('readV1NamesForAddress', () => {
     )
     lookupFromFixtures.mockClear()
 
-    const result = await readV1NamesForAddress(
-      { addressNames, lookup: lookupFromFixtures },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress({ addressNames, lookup: lookupFromFixtures }, USER),
     )
 
     expect(addressNames).toHaveBeenCalledWith(
@@ -437,6 +206,7 @@ describe('readV1NamesForAddress', () => {
         relation: 'any',
         authority: ['ens_v1', 'ens_v0'],
       }),
+      expect.anything(),
     )
     expect(lookupFromFixtures.mock.calls.map(([body]) => body.inputs)).toEqual([
       [{ name: 'alice.eth' }, { name: 'bob.eth' }, { name: 'sub.bob.eth' }],
@@ -454,39 +224,42 @@ describe('readV1NamesForAddress', () => {
   })
 
   it('fails instead of classifying around a name it could not read', async () => {
-    const result = await readV1NamesForAddress(
-      {
-        addressNames: () => okAsync(listPage([listRow('alice.eth')])),
-        lookup: () =>
-          okAsync({
-            data: [
-              { input: { name: 'alice.eth' }, kind: 'name', status: 'stale' },
-            ],
-            meta: { as_of: {} },
-          }),
-      },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () => okAsync(listPage([listRow('alice.eth')])),
+          lookup: () =>
+            okAsync({
+              data: [
+                { input: { name: 'alice.eth' }, kind: 'name', status: 'stale' },
+              ],
+              meta: { as_of: {} },
+            }),
+        },
+        USER,
+      ),
     )
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetV1NamesError')
   })
 
-  it('restarts the listing from the first page when its cursor goes stale', async () => {
+  // Retry and restart are tested with the shared pager; this shows the listing uses it.
+  it('sends a stale page again with its cursor', async () => {
     const addressNames = vi
       .fn<BignameClient['addressNames']>()
       .mockReturnValueOnce(okAsync(listPage([listRow('alice.eth')], 'next')))
       .mockReturnValueOnce(errAsync(stale()))
-      .mockReturnValue(okAsync(listPage([listRow('alice.eth')])))
+      .mockReturnValue(okAsync(listPage([listRow('bob.eth')])))
 
-    const result = await readV1NamesForAddress(
-      { addressNames, lookup: lookupFromFixtures },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress({ addressNames, lookup: lookupFromFixtures }, USER),
     )
 
     expect(addressNames).toHaveBeenCalledTimes(3)
-    expect(addressNames.mock.calls[2]?.[1]?.cursor).toBeUndefined()
+    expect(addressNames.mock.calls[2]?.[1]?.cursor).toBe('next')
     expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
       'alice.eth',
+      'bob.eth',
     ])
   })
 
@@ -495,12 +268,14 @@ describe('readV1NamesForAddress', () => {
       .fn<BignameClient['lookup']>()
       .mockReturnValue(errAsync(stale()))
 
-    const result = await readV1NamesForAddress(
-      {
-        addressNames: () => okAsync(listPage([listRow('alice.eth')])),
-        lookup,
-      },
-      USER,
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () => okAsync(listPage([listRow('alice.eth')])),
+          lookup,
+        },
+        USER,
+      ),
     )
 
     expect(lookup).toHaveBeenCalledTimes(3)
