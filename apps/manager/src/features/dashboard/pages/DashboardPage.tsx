@@ -94,7 +94,7 @@ export const DashboardPage = () => {
   const defaultName = reverseName ?? null
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:pb-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:items-start md:gap-8 md:pb-10">
       {migrationEnabled && <MigrationModal />}
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         {migrationEnabled && (
