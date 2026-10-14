@@ -121,13 +121,16 @@ describe('getRoleChangeLogs via bigname', () => {
   it('reads the current registration’s permission rows, oldest first', async () => {
     await read()
 
-    expect(mockName).toHaveBeenCalledWith(NAME)
+    expect(mockName).toHaveBeenCalledWith(NAME, undefined, {
+      signal: expect.any(AbortSignal),
+    })
     expect(mockEvents).toHaveBeenCalledWith(
       expect.objectContaining({
         registration_id: REGISTRATION,
         type: ['permission'],
         order: 'asc',
       }),
+      { signal: expect.any(AbortSignal) },
     )
     expect(mockGetLogs).not.toHaveBeenCalled()
   })
@@ -235,6 +238,7 @@ describe('getRoleChangeLogs via bigname', () => {
       await vi.advanceTimersByTimeAsync(INDEXED_ROLE_EVENTS_TIMEOUT_MS)
 
       expect((await pending)._unsafeUnwrap()).toEqual(logs)
+      expect(mockName.mock.lastCall?.[2]?.signal.aborted).toBe(true)
     } finally {
       vi.useRealTimers()
     }
