@@ -15,9 +15,9 @@ export const ProfileLoading = ({ name }: ProfileLoadingProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false
 
   return (
-    <div className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5">
+    <div className="relative -mt-13.5 profile-desktop:-mt-20 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] profile-desktop:pb-28.5">
       <ProfileBannerLoading shouldReduceMotion={shouldReduceMotion} />
-      <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
+      <div className="relative z-10 mx-auto -mt-21 profile-desktop:-mt-11.25 w-full max-w-97.5 profile-desktop:max-w-226.25 space-y-0">
         <ProfileHeaderLoading
           name={name}
           shouldReduceMotion={shouldReduceMotion}

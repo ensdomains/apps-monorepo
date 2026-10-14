@@ -20,26 +20,29 @@ const SkeletonCardLoading = ({
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
-  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-4 text-left lg:landscape:min-h-33.5 lg:landscape:rounded-xl lg:landscape:p-[24.25px]">
+  <Card className="relative min-h-28 profile-desktop:min-h-33.5 w-full items-start gap-2 profile-desktop:rounded-xl rounded-[14px] p-4 profile-desktop:p-[24.25px] text-left">
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
-          className="size-7 rounded-md lg:landscape:size-7.5"
+          className="profile-desktop:size-7.5 size-7 rounded-md"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
       <SkeletonBlock
-        className={tw('h-[16.5px] rounded-sm lg:landscape:h-4.5', labelWidth)}
+        className={tw(
+          'h-[16.5px] profile-desktop:h-4.5 rounded-sm',
+          labelWidth,
+        )}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
     <SkeletonBlock
-      className="absolute top-4 right-4 size-5 rounded lg:landscape:top-[24.25px] lg:landscape:right-[24.25px] lg:landscape:size-7.5"
+      className="absolute profile-desktop:top-[24.25px] top-4 profile-desktop:right-[24.25px] right-4 profile-desktop:size-7.5 size-5 rounded"
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock
       className={tw(
-        'h-[19.5px] max-w-full rounded-sm lg:landscape:h-5',
+        'h-[19.5px] profile-desktop:h-5 max-w-full rounded-sm',
         valueWidth,
       )}
       shouldReduceMotion={shouldReduceMotion}
@@ -61,7 +64,7 @@ const cardPlaceholders = [
   {
     id: 'mailing-address',
     labelWidth: 'w-[96px]',
-    valueWidth: 'w-[128px] lg:landscape:w-[168px]',
+    valueWidth: 'w-[128px] profile-desktop:w-[168px]',
   },
 ]
 
@@ -75,7 +78,7 @@ export const ProfileSkeletonCardSectionLoading = ({
     shouldReduceMotion={shouldReduceMotion}
     titleWidth={titleWidth}
   >
-    <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
+    <div className="grid grid-cols-2 profile-desktop:grid-cols-3 gap-3 profile-desktop:gap-6">
       {cardPlaceholders.map(({ id, labelWidth, valueWidth }) => (
         <SkeletonCardLoading
           key={id}

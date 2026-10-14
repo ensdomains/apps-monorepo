@@ -32,9 +32,9 @@ type ProfileAddressesSectionProps = {
 }
 
 const addressCardPaddingClassName =
-  'has-[>svg]:px-4 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
+  'has-[>svg]:px-4 profile-desktop:p-[24.25px] profile-desktop:has-[>svg]:px-[24.25px]'
 const addressCardSurfaceClassName =
-  'flex-row items-center rounded-[14px] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl'
+  'flex-row items-center rounded-[14px] transition hover:bg-ens-quartz-50 profile-desktop:rounded-xl'
 
 const AddressValue = ({
   className = '',
@@ -44,7 +44,7 @@ const AddressValue = ({
   readonly value: string
 }) => (
   <span
-    className={`truncate font-mono text-[12px] tracking-[0.84px] lg:landscape:text-[13px] lg:landscape:tracking-[0.91px] ${className}`}
+    className={`truncate font-mono profile-desktop:text-[13px] text-[12px] profile-desktop:tracking-[0.91px] tracking-[0.84px] ${className}`}
   >
     {truncateAddress(value)}
   </span>
@@ -52,7 +52,7 @@ const AddressValue = ({
 
 const ChainAddressValue = ({ value }: { readonly value: string }) => (
   <span
-    className="min-w-0 truncate text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] lg:landscape:w-21.25 lg:landscape:text-sm lg:landscape:leading-[1.1] lg:landscape:tracking-[-0.28px]"
+    className="profile-desktop:w-21.25 min-w-0 truncate profile-desktop:text-sm text-[13px] text-ens-quartz-400 leading-[1.2] profile-desktop:leading-[1.1] profile-desktop:tracking-[-0.28px] tracking-[-0.26px]"
     title={value}
   >
     {formatChainSpecificAddress(value)}
@@ -92,11 +92,11 @@ const ReceivingChainIcons = ({
   if (withIcon.length === 0) return null
 
   return (
-    <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1 lg:landscape:min-w-50">
+    <div className="flex profile-desktop:min-w-50 max-w-full shrink-0 flex-wrap items-center gap-1">
       {withIcon.map((chain) => (
         <ChainIconTooltip
           chain={chain}
-          iconClassName="size-4.5 object-contain lg:landscape:size-6.5"
+          iconClassName="size-4.5 object-contain profile-desktop:size-6.5"
           key={`${chain.coinType}-${chain.value}`}
           triggerClassName="inline-flex shrink-0"
         />
@@ -121,7 +121,7 @@ const MainAddressCard = ({
   return (
     <Card
       asChild
-      className={`${addressCardSurfaceClassName} ${addressCardPaddingClassName} h-auto min-h-13.75 w-full justify-between gap-2 py-4 lg:landscape:max-w-141`}
+      className={`${addressCardSurfaceClassName} ${addressCardPaddingClassName} h-auto min-h-13.75 w-full profile-desktop:max-w-141 justify-between gap-2 py-4`}
     >
       <CopyableButton
         iconClassName={profileCardCopyIconClassName}
@@ -130,9 +130,9 @@ const MainAddressCard = ({
         variant="ghost"
       >
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <div className="flex min-w-0 items-center gap-2 lg:landscape:h-6.5 lg:landscape:gap-4">
+          <div className="flex profile-desktop:h-6.5 min-w-0 items-center gap-2 profile-desktop:gap-4">
             <div className="flex min-w-0 items-center gap-1">
-              <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-sm">
+              <div className="profile-desktop:size-[25.576px] size-5.5 shrink-0 overflow-hidden profile-desktop:rounded-sm rounded-full bg-ens-quartz-100">
                 <ImageFallback.Root className="contents">
                   <ImageFallback.Image
                     alt={`${name} avatar`}
@@ -148,7 +148,7 @@ const MainAddressCard = ({
                   </ImageFallback.Fallback>
                 </ImageFallback.Root>
               </div>
-              <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 lg:landscape:text-sm lg:landscape:leading-[0.96] lg:landscape:tracking-[-0.28px]">
+              <span className="truncate font-semi-mono profile-desktop:text-sm text-[13px] text-ens-quartz-900 profile-desktop:leading-[0.96] profile-desktop:tracking-[-0.28px]">
                 {name}
               </span>
             </div>
@@ -174,7 +174,7 @@ const ChainAddressCard = ({
     className={cn(
       addressCardSurfaceClassName,
       addressCardPaddingClassName,
-      'h-16.25 w-full justify-between gap-1 px-2 py-0 has-[>svg]:px-2 lg:landscape:h-auto lg:landscape:min-h-[88.5px] lg:landscape:gap-2 lg:landscape:px-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]',
+      'h-16.25 profile-desktop:h-auto profile-desktop:min-h-[88.5px] w-full justify-between gap-1 profile-desktop:gap-2 profile-desktop:px-[24.25px] px-2 py-0 has-[>svg]:px-2 profile-desktop:has-[>svg]:px-[24.25px]',
     )}
   >
     <CopyableButton
@@ -183,11 +183,11 @@ const ChainAddressCard = ({
       value={address.value}
       variant="ghost"
     >
-      <div className="flex min-w-0 flex-1 items-center gap-0.5 lg:landscape:gap-0">
+      <div className="flex min-w-0 flex-1 items-center gap-0.5 profile-desktop:gap-0">
         <ChainIconTooltip
           chain={address}
-          iconClassName="size-6 object-contain lg:landscape:size-7"
-          triggerClassName="flex size-6 shrink-0 items-center justify-center lg:landscape:size-10 lg:landscape:p-2"
+          iconClassName="size-6 object-contain profile-desktop:size-7"
+          triggerClassName="flex size-6 shrink-0 items-center justify-center profile-desktop:size-10 profile-desktop:p-2"
         />
         <ChainAddressValue value={address.value} />
       </div>
@@ -227,7 +227,7 @@ export const ProfileAddressesSection = ({
             <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
               <Trans>Chain-specific addresses</Trans>
             </h3>
-            <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 lg:landscape:grid-cols-3 lg:landscape:gap-6">
+            <div className="grid grid-cols-1 profile-desktop:grid-cols-3 gap-3 profile-desktop:gap-6 min-[375px]:grid-cols-2">
               {chainAddresses.map((address) => (
                 <ChainAddressCard
                   address={address}

@@ -27,10 +27,10 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
     : { type: 'spring' as const, stiffness: 420, damping: 28 }
 
   return (
-    <h1 className="w-full max-w-full text-center font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px] lg:landscape:w-auto lg:landscape:text-left">
+    <h1 className="profile-desktop:w-auto w-full max-w-full profile-desktop:text-left text-center font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px]">
       <button
         aria-label={`${address} — ${t`Copy to clipboard`}`}
-        className="group relative inline-block max-w-[calc(100%-34px)] cursor-pointer rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2 lg:landscape:max-w-full"
+        className="group relative inline-block max-w-[calc(100%-34px)] profile-desktop:max-w-full cursor-pointer rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2"
         onClick={() => copy(address)}
         title={t`Copy to clipboard`}
         type="button"
@@ -117,20 +117,20 @@ export const AddressProfileHeader = ({
   const avatarUrl = avatar.data ?? undefined
 
   return (
-    <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">
+    <div className="flex w-full flex-col gap-5 profile-desktop:gap-6">
       {primaryName ? (
         <ProfileAvatar
           avatarLoading={avatar.isLoading}
           avatarUrl={avatarUrl}
-          className="mx-auto -mt-14 size-42.5 rounded-xl shadow-none lg:landscape:hidden"
+          className="mx-auto -mt-14 profile-desktop:hidden size-42.5 rounded-xl shadow-none"
           name={primaryName}
         />
       ) : null}
-      <div className="flex flex-col items-center gap-4 lg:landscape:flex-row lg:landscape:justify-between">
+      <div className="flex profile-desktop:flex-row flex-col items-center profile-desktop:justify-between gap-4">
         <AddressLabel address={address} />
         {primaryName ? (
           <Link
-            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover lg:landscape:h-11"
+            className="inline-flex h-12.5 profile-desktop:h-11 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover"
             params={{ name: primaryName }}
             to="/$name"
           >
@@ -144,8 +144,8 @@ export const AddressProfileHeader = ({
       </div>
 
       {primaryName ? (
-        <div className="flex flex-col gap-5 lg:landscape:grid lg:landscape:grid-cols-[max-content_minmax(0,1fr)] lg:landscape:items-start lg:landscape:gap-5.5">
-          <div className="relative hidden size-45 lg:landscape:block">
+        <div className="flex profile-desktop:grid profile-desktop:grid-cols-[max-content_minmax(0,1fr)] flex-col profile-desktop:items-start gap-5 profile-desktop:gap-5.5">
+          <div className="relative profile-desktop:block hidden size-45">
             <ProfileAvatar
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}

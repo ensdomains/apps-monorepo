@@ -42,7 +42,7 @@ export const ProfileMobileActions = ({
   renewalProtocol,
   url,
 }: ProfileMobileActionsProps) => (
-  <div className="flex w-full items-center justify-between lg:landscape:hidden">
+  <div className="flex profile-desktop:hidden w-full items-center justify-between">
     <ProfileRenewAction
       className={renewActionClassName}
       isOwner={isOwner}
@@ -76,7 +76,7 @@ export const ProfileActions = ({
   return (
     <>
       {hasMobileStatusBanner ? null : (
-        <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
+        <div className="absolute inset-x-0 top-118.5 z-30 profile-desktop:hidden">
           <div className="mx-auto w-full max-w-97.5 px-5">
             <ProfileMobileActions
               avatarUrl={avatarUrl}

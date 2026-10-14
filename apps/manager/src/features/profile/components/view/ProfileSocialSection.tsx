@@ -17,13 +17,13 @@ import {
 import { getSecondarySocialRecords } from './ProfileView.helpers'
 
 const socialLabelClassName =
-  'truncate text-ens-quartz-500 text-xs leading-[16.5px] lg:landscape:leading-4.5'
+  'truncate text-ens-quartz-500 text-xs leading-[16.5px] profile-desktop:leading-4.5'
 const socialValueClassName =
-  'truncate text-ens-quartz-700 text-[12px] leading-[19.5px] lg:landscape:text-sm lg:landscape:leading-6'
+  'truncate text-ens-quartz-700 text-[12px] leading-[19.5px] profile-desktop:text-sm profile-desktop:leading-6'
 const socialTrailingIconClassName =
-  'size-[18px] shrink-0 text-ens-quartz-400 lg:landscape:size-7.5 lg:landscape:text-ens-quartz-700'
+  'size-[18px] shrink-0 text-ens-quartz-400 profile-desktop:size-7.5 profile-desktop:text-ens-quartz-700'
 const socialCardPaddingClassName =
-  'p-3 has-[>svg]:px-3 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
+  'p-3 has-[>svg]:px-3 profile-desktop:p-[24.25px] profile-desktop:has-[>svg]:px-[24.25px]'
 
 const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   const recordDef = getRecordDef(record.key)
@@ -31,13 +31,13 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   const href = getRecordHref(recordDef, displayValue)
   const content = (
     <>
-      <div className="flex size-5.25 shrink-0 items-center justify-center text-ens-quartz-900 lg:landscape:size-9 lg:landscape:rounded-[10px] lg:landscape:bg-white">
+      <div className="flex profile-desktop:size-9 size-5.25 shrink-0 items-center justify-center profile-desktop:rounded-[10px] profile-desktop:bg-white text-ens-quartz-900">
         <IconRenderer
-          className="size-4 lg:landscape:size-5"
+          className="profile-desktop:size-5 size-4"
           icon={recordDef?.icon}
         />
       </div>
-      <div className="min-w-0 flex-1 lg:landscape:h-10.5">
+      <div className="profile-desktop:h-10.5 min-w-0 flex-1">
         <p className={socialLabelClassName}>{recordDef?.name ?? record.key}</p>
         <p className={socialValueClassName}>
           {recordDef?.displayPrefix}
@@ -46,7 +46,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `flex-row rounded-[14px] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl ${socialCardPaddingClassName} min-h-17 w-full items-center gap-1 font-sans text-left lg:landscape:min-h-22.75 lg:landscape:gap-2`
+  const className = `flex-row rounded-[14px] transition hover:bg-ens-quartz-50 profile-desktop:rounded-xl ${socialCardPaddingClassName} min-h-17 w-full items-center gap-1 font-sans text-left profile-desktop:min-h-22.75 profile-desktop:gap-2`
 
   if (href) {
     return (
@@ -86,7 +86,7 @@ export const ProfileSocialSection = ({
 
   return (
     <ProfileCard title={<Trans>Social</Trans>}>
-      <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
+      <div className="grid grid-cols-2 profile-desktop:grid-cols-3 gap-3 profile-desktop:gap-6">
         {socialRecords.map((record) => (
           <SocialCard key={`${record.key}-${record.value}`} record={record} />
         ))}

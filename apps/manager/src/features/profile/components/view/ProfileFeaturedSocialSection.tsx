@@ -14,7 +14,7 @@ export const ProfileFeaturedSocialSection = ({
 
   return (
     <ProfileCard title={<Trans>Featured</Trans>}>
-      <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
+      <div className="grid grid-cols-2 profile-desktop:grid-cols-3 gap-3 profile-desktop:gap-6">
         {featuredSocials.map((item) => (
           <ProfileContactCard item={item} key={item.key} />
         ))}

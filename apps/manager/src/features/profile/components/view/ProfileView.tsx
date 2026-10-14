@@ -156,7 +156,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   return (
     <div
-      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5"
+      className="relative -mt-13.5 profile-desktop:-mt-20 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] profile-desktop:pb-28.5"
       style={expiry.isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
       <ProfileThemeColorProvider value={profileThemeColor}>
@@ -167,26 +167,26 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           name={name}
         />
         <ProfileMigrationBanner
-          className="absolute inset-x-4 top-32 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
+          className="absolute inset-x-4 top-32 z-20 mx-auto profile-desktop:block hidden max-w-275.5"
           isMigrationEnabled={migrationEnabled}
           name={name}
         />
         <ProfileGracePeriodBanner
-          className="absolute inset-x-4 top-24.5 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
+          className="absolute inset-x-4 top-24.5 z-20 mx-auto profile-desktop:block hidden max-w-275.5"
           expiry={expiry}
           isOwner={resolvedIsOwner}
           name={name}
           protocol={ownerData?.protocol}
         />
-        <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
+        <div className="relative z-10 mx-auto -mt-21 profile-desktop:-mt-11.25 w-full max-w-97.5 profile-desktop:max-w-226.25 space-y-0">
           <div>
             <ProfileMigrationBanner
-              className="mb-6 lg:landscape:hidden"
+              className="mb-6 profile-desktop:hidden"
               isMigrationEnabled={migrationEnabled}
               name={name}
             />
             <ProfileGracePeriodBanner
-              className="mb-6 lg:landscape:hidden"
+              className="mb-6 profile-desktop:hidden"
               expiry={expiry}
               isOwner={resolvedIsOwner}
               name={name}

@@ -32,7 +32,7 @@ const ProfileOffer = ({
   readonly onOpen: () => void
 }) => (
   // Match the surrounding profile sections' quarter-pixel border to keep content aligned.
-  <section className="border-[0.25px] border-transparent bg-transparent px-5 py-6 lg:landscape:px-8 lg:landscape:pt-8 lg:landscape:pb-6">
+  <section className="border-[0.25px] border-transparent bg-transparent profile-desktop:px-8 px-5 py-6 profile-desktop:pt-8 profile-desktop:pb-6">
     <div className="flex items-center justify-between gap-3">
       <h2 className="font-sans text-base text-ens-quartz-900 leading-normal">
         <Trans>ENSv2 commemorative NFT</Trans>

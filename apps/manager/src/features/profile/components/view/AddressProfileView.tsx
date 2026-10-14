@@ -76,7 +76,7 @@ export const AddressProfileView = ({
 
   return (
     <div
-      className="relative -mt-13.5 min-h-screen bg-ens-quartz-25 pb-12 lg:landscape:-mt-20"
+      className="relative -mt-13.5 profile-desktop:-mt-20 min-h-screen bg-ens-quartz-25 pb-12"
       style={themeVars as CSSProperties}
     >
       <ProfileThemeColorProvider value={themeVars['--theme-color']}>
@@ -85,7 +85,7 @@ export const AddressProfileView = ({
           headerRecord={records?.base.header?.trim()}
           name={primaryName ?? address}
         />
-        <div className="relative z-10 mx-auto -mt-21 w-[calc(100%-40px)] max-w-[809.257px] space-y-6 lg:landscape:-mt-11.25">
+        <div className="relative z-10 mx-auto -mt-21 profile-desktop:-mt-11.25 w-[calc(100%-40px)] max-w-[809.257px] space-y-6">
           <AddressProfileHeader
             address={address}
             addressNames={addressNames}
