@@ -4,6 +4,7 @@ import {
   isStale,
   type LookupRecord,
   type LookupResponse,
+  type LookupResult,
   retryStale,
 } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
@@ -33,7 +34,25 @@ export const checkNotAborted = <E>(
 const toError = (cause: BignameError | Error) =>
   new BignameLookupError({ cause })
 
-/** Detail records for every name; any answer that is not `ok` fails the read rather than leaving a gap. */
+/** The one `ok` record answering each input, or the first input without one. */
+const recordsInOrder = (
+  batch: readonly string[],
+  results: readonly LookupResult[],
+): Result<LookupRecord[], string> => {
+  const records: LookupRecord[] = []
+  for (const [index, name] of batch.entries()) {
+    const answers = results.filter(
+      ({ input }) => 'name' in input && input.id === String(index),
+    )
+    const record = answers[0]?.status === 'ok' ? answers[0].record : undefined
+    if (answers.length !== 1 || !record)
+      return err(`${name}: ${answers[0]?.status ?? 'no answer'}`)
+    records.push(record)
+  }
+  return ok(records)
+}
+
+/** Detail records for every name, in order; a missing, repeated or failed answer fails the read rather than leaving a gap. */
 export const lookupNames = ResultFn(async function* (
   lookup: BignameClient['lookup'],
   names: readonly string[],
@@ -49,25 +68,17 @@ export const lookupNames = ResultFn(async function* (
           {
             namespace: 'ens',
             profile: 'detail',
-            inputs: batch.map((name) => ({ name })),
+            inputs: batch.map((name, index) => ({ id: String(index), name })),
           },
           { signal },
         ),
       isStale,
       { signal: options.signal },
     ).mapErr(toError)
-    const failed = response.data.find(
-      (result) => result.status !== 'ok' || !result.record,
+    const batchRecords = yield* recordsInOrder(batch, response.data).mapErr(
+      (failure) => toError(new Error(`bigname lookup failed for ${failure}`)),
     )
-    if (failed) {
-      return yield* err(
-        toError(new Error(`bigname lookup returned ${failed.status}`)),
-      )
-    }
-    records = [
-      ...records,
-      ...response.data.flatMap((result) => result.record ?? []),
-    ]
+    records = [...records, ...batchRecords]
   }
   return ok(records)
 })

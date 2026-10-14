@@ -3,7 +3,6 @@ import type {
   AddressNamesResponse,
   BignameClient,
   LookupRecord,
-  LookupResponse,
   WrapperFuses,
 } from '@ens-apps/indexer/bigname'
 import { BignameError } from '@ens-apps/indexer/bigname'
@@ -98,15 +97,19 @@ const listPage = (
   meta: { as_of: {} },
 })
 
-const lookupResponse = (records: readonly LookupRecord[]): LookupResponse => ({
-  data: records.map((row) => ({
-    input: { name: row.name },
-    kind: 'name',
-    status: 'ok',
-    record: row,
-  })),
-  meta: { as_of: {} },
-})
+/** Answers each input bigname knows, echoing it back as bigname does. */
+const lookupFrom =
+  (records: ReadonlyMap<string, LookupRecord>): BignameClient['lookup'] =>
+  (body) =>
+    okAsync({
+      data: body.inputs.flatMap((input) => {
+        const record = 'name' in input ? records.get(input.name) : undefined
+        return record
+          ? [{ input, kind: 'name' as const, status: 'ok' as const, record }]
+          : []
+      }),
+      meta: { as_of: {} },
+    })
 
 const recordsByName = new Map(
   [
@@ -116,14 +119,8 @@ const recordsByName = new Map(
   ].map((row) => [row.name, row]),
 )
 
-const lookupFromFixtures = vi.fn<BignameClient['lookup']>((body) =>
-  okAsync(
-    lookupResponse(
-      body.inputs.flatMap((input) =>
-        'name' in input ? (recordsByName.get(input.name) ?? []) : [],
-      ),
-    ),
-  ),
+const lookupFromFixtures = vi.fn<BignameClient['lookup']>(
+  lookupFrom(recordsByName),
 )
 
 const stale = () =>
@@ -157,14 +154,7 @@ describe('readV1NamesForAddress', () => {
         {
           addressNames: () =>
             okAsync(listPage([listRow('alice.eth'), listRow('sub.alice.eth')])),
-          lookup: (body) =>
-            okAsync(
-              lookupResponse(
-                body.inputs.flatMap((input) =>
-                  'name' in input ? (rows.get(input.name) ?? []) : [],
-                ),
-              ),
-            ),
+          lookup: lookupFrom(rows),
         },
         USER,
       ),
@@ -209,8 +199,12 @@ describe('readV1NamesForAddress', () => {
       expect.anything(),
     )
     expect(lookupFromFixtures.mock.calls.map(([body]) => body.inputs)).toEqual([
-      [{ name: 'alice.eth' }, { name: 'bob.eth' }, { name: 'sub.bob.eth' }],
-      [{ name: 'bob.eth' }],
+      [
+        { id: '0', name: 'alice.eth' },
+        { id: '1', name: 'bob.eth' },
+        { id: '2', name: 'sub.bob.eth' },
+      ],
+      [{ id: '0', name: 'bob.eth' }],
     ])
     expect(
       result
@@ -235,6 +229,21 @@ describe('readV1NamesForAddress', () => {
               ],
               meta: { as_of: {} },
             }),
+        },
+        USER,
+      ),
+    )
+
+    expect(result._unsafeUnwrapErr()._tag).toBe('GetV1NamesError')
+  })
+
+  it('fails when bigname leaves a requested name unanswered', async () => {
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () =>
+            okAsync(listPage([listRow('alice.eth'), listRow('carol.eth')])),
+          lookup: lookupFrom(recordsByName),
         },
         USER,
       ),

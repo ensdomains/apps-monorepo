@@ -17,13 +17,13 @@ const CHUNK: ProfileNamesChunk = {
 
 vi.mock('../service/profileAddressNames', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../service/profileAddressNames')>()),
-  profileNamesInfiniteQueryOptions: ({ search }: { search: string }) => ({
+  getProfileNamesInfiniteQueryOptions: ({ search }: { search: string }) => ({
     queryKey: ['names', search],
     queryFn: () => CHUNK,
     initialPageParam: undefined,
     getNextPageParam: () => undefined,
   }),
-  profileNameCountsQueryOptions: () => ({
+  getProfileNameCountsQueryOptions: () => ({
     queryKey: ['counts'],
     queryFn: () => ({ owned: 3, managed: 1000 }),
   }),
