@@ -10,12 +10,25 @@
  * Auto-resumes rather than asking: the user navigated back to
  * `/register/$name` deliberately, and a confirmation prompt in front of a flow
  * they already paid to start is friction without a decision behind it.
+ *
+ * A run that had already FAILED is the exception. It comes back on the failure
+ * screen instead, and continues from its commitment only on Try Again: a
+ * failed register does not mean a failed commitment, but replaying the failure
+ * unasked is not a resume either.
  */
 
 import { msg } from '@lingui/core/macro'
-import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -28,8 +41,10 @@ import {
   type ResumeStaleReason,
 } from '../service/assessResumableRegistration'
 import {
-  clearStoredRegistration,
+  clearStoredRegistrationIfUnchanged,
   loadStoredRegistration,
+  type StoredRegistrationKey,
+  storedRegistrationKey,
 } from '../service/registrationPersistence'
 import type { RegistrationV2UiActor } from './registrationUi.machine'
 
@@ -57,6 +72,17 @@ export type RegistrationResumeState =
   | { readonly status: 'discarded'; readonly reason: ResumeStaleReason }
   /** `registration.resume` has been dispatched. */
   | { readonly status: 'resumed' }
+  /**
+   * A run that failed with its commitment on-chain is back on the failure
+   * screen. Nothing re-runs on load: `retry` continues it from that commitment,
+   * through the same session gate and dispatch as a resume.
+   */
+  | { readonly status: 'failed'; readonly retry: () => void }
+
+type ContinuableVerdict = Extract<
+  ResumeAssessment,
+  { status: 'resumable' | 'failed' }
+>
 
 const CHECKING: RegistrationResumeState = { status: 'checking' }
 const IDLE: RegistrationResumeState = { status: 'idle' }
@@ -70,14 +96,18 @@ export const DISCONNECT_GRACE_MS = 2_000
 
 function discardStaleRecord(
   label: string,
-  reason: ResumeStaleReason,
+  verdict: Extract<ResumeAssessment, { status: 'stale' }>,
 ): RegistrationResumeState {
-  clearStoredRegistration()
+  const { reason } = verdict
+  // Only the write that was assessed: another tab may have replaced it while
+  // the chain was read, and its record holds the only copy of its secret.
+  clearStoredRegistrationIfUnchanged(verdict.run)
 
   // Only the expiry gets a notice: it is the one stale reason where the user
   // did something (paid for a commitment) whose silent disappearance would
-  // read as a bug. The rest are technical mismatches for which a quiet
-  // restart is the correct surface.
+  // read as a bug. The rest are technical mismatches, or a run that failed
+  // before it paid for anything, for which a quiet restart is the correct
+  // surface.
   if (reason === 'commitment-expired') {
     toast(translateMessage(expiredMessage), {
       id: `registration-resume-${label}`,
@@ -100,6 +130,11 @@ type SettledDecision =
       readonly kind: 'dispatch'
       readonly verdict: Extract<ResumeAssessment, { status: 'resumable' }>
     }
+  /** A failed run owned by the connected wallet — show it, run nothing. */
+  | {
+      readonly kind: 'restore-failure'
+      readonly verdict: Extract<ResumeAssessment, { status: 'failed' }>
+    }
 
 function decideFromVerdict(
   verdict: ResumeAssessment,
@@ -121,7 +156,7 @@ function decideFromVerdict(
 
     return {
       kind: 'state',
-      state: discardStaleRecord(label, verdict.reason),
+      state: discardStaleRecord(label, verdict),
       latch: true,
     }
   }
@@ -140,7 +175,9 @@ function decideFromVerdict(
     }
   }
 
-  return { kind: 'dispatch', verdict }
+  return verdict.status === 'failed'
+    ? { kind: 'restore-failure', verdict }
+    : { kind: 'dispatch', verdict }
 }
 
 /**
@@ -149,7 +186,7 @@ function decideFromVerdict(
  * effect was cleaned up mid-flight and nothing may be reported.
  */
 async function enableSessionAndDispatch(params: {
-  verdict: Extract<ResumeAssessment, { status: 'resumable' }>
+  verdict: ContinuableVerdict
   label: string
   account: ReturnType<typeof useSmartAccountContext>
   uiActor: RegistrationV2UiActor
@@ -162,18 +199,21 @@ async function enableSessionAndDispatch(params: {
   // rejects one with too little headroom left to outlive the commitment
   // cooldown — the case that would otherwise strand a paid commitment with an
   // unsignable reveal.
-  if (needsSessionBeforeRegistration(account)) {
-    const signer = await account.enableSession()
-    if (!signer) {
-      // Rejected or failed. Leave the record in place and stay un-latched so
-      // a reconnect can still resume.
-      return isCancelled() ? null : { status: 'idle' }
-    }
+  const enabled = needsSessionBeforeRegistration(account)
+    ? await account.enableSession()
+    : undefined
+  if (enabled === null) {
+    // Rejected or failed. Leave the record in place and stay un-latched so
+    // a reconnect can still resume.
+    return isCancelled() ? null : { status: 'idle' }
   }
 
-  // Prompt-free in the common case: rebuilt from the stored authorization
-  // signature, with no wallet interaction.
-  const hcaSessionEnable = await account.getSessionEnablePayload()
+  // A session enabled just now is used as returned: `account` was captured
+  // before the prompt, so its signer and payload still describe the session
+  // this one replaced. Otherwise the payload is prompt-free, rebuilt from the
+  // stored authorization signature.
+  const hcaSessionEnable =
+    enabled?.hcaSessionEnable ?? (await account.getSessionEnablePayload())
 
   if (isCancelled()) return null
 
@@ -183,7 +223,7 @@ async function enableSessionAndDispatch(params: {
     confirmedData: verdict.confirmedData,
     record: verdict.stored.record,
     postRegistrationSetup: verdict.stored.postRegistrationSetup,
-    account,
+    account: enabled ? { ...account, signer: enabled.signer } : account,
     hcaSessionEnable,
   })
   toast(translateMessage(resumingMessage), {
@@ -192,6 +232,81 @@ async function enableSessionAndDispatch(params: {
   })
 
   return { status: 'resumed' }
+}
+
+/** The stored write a verdict is about; none when nothing was stored. */
+const assessedRun = (
+  verdict: ResumeAssessment,
+): StoredRegistrationKey | undefined =>
+  match(verdict)
+    .with({ status: 'none' }, () => undefined)
+    .with({ status: 'stale' }, ({ run }) => run)
+    .otherwise(({ stored }) => storedRegistrationKey(stored))
+
+const isSameRun = (
+  a: StoredRegistrationKey | undefined,
+  b: StoredRegistrationKey | undefined,
+): boolean => !!a && !!b && a.label === b.label && a.updatedAt === b.updatedAt
+
+/**
+ * Try Again on a restored failure. Returns the state to settle on, or null to
+ * leave the failure screen as it is, with Try Again still on it.
+ *
+ * Re-assessed rather than acting on the verdict the page loaded with: while
+ * the failure screen sat open, the commitment may have expired, or another
+ * tab may have finished, discarded or replaced the stored run.
+ */
+async function continueFailedRun(params: {
+  label: string
+  account: ReturnType<typeof useSmartAccountContext>
+  uiActor: RegistrationV2UiActor
+  assess: () => Promise<ResumeAssessment>
+}): Promise<RegistrationResumeState | null> {
+  const { label, account, uiActor } = params
+
+  // The assessment and the session prompt both leave time to move on: Back to
+  // Quote, another name, another wallet. Only the screen Try Again was
+  // pressed on may be continued.
+  const isCancelled = () =>
+    uiActor.getSnapshot().context.restoredRun?.label !== label
+
+  const verdict = await params.assess()
+  if (isCancelled()) return null
+
+  // The stored run is gone, or another tab has replaced it with a run of its
+  // own (resumed, restarted, or finished). Either way the failure on screen is
+  // over, and the newer record is not this screen's to resume or discard: back
+  // to pricing, storage untouched.
+  const restored = uiActor.getSnapshot().context.restoredRun
+  if (!isSameRun(assessedRun(verdict), restored)) {
+    uiActor.send({ type: 'cancel' })
+    return IDLE
+  }
+
+  const decision = decideFromVerdict(verdict, label, account.ownerAddress)
+
+  if (decision.kind === 'state') {
+    // Nothing left to continue from: `decideFromVerdict` has discarded the
+    // stale record. A run another wallet owns stays put, with Try Again on
+    // screen for when its owner reconnects.
+    if (decision.state.status !== 'discarded') return null
+    uiActor.send({ type: 'cancel' })
+    return decision.state
+  }
+
+  const next = await enableSessionAndDispatch({
+    verdict: decision.verdict,
+    label,
+    account,
+    uiActor,
+    isCancelled,
+  })
+
+  // The machine can still refuse the run (the wallet busy in another tab, an
+  // account not ready), which leaves the restored failure on screen. Try
+  // Again stays routed here then, so the next press re-checks.
+  const isRefused = uiActor.getSnapshot().context.restoredRun !== undefined
+  return next?.status === 'resumed' && !isRefused ? next : null
 }
 
 export function useRegistrationResume(params: {
@@ -240,8 +355,14 @@ export function useRegistrationResume(params: {
   // time while the first is still waiting on the wallet. The effect keys on
   // the primitives that change a DECISION instead.
   const accountRef = useRef(account)
+  // Read through a ref for the same reason: Try Again is handed to the decision
+  // below, which must not re-run (and re-prompt) because a dependency changed
+  // identity.
+  const queryClient = useQueryClient()
+  const queryClientRef = useRef(queryClient)
   useEffect(() => {
     accountRef.current = account
+    queryClientRef.current = queryClient
   })
 
   const assessment = useQuery({
@@ -263,6 +384,68 @@ export function useRegistrationResume(params: {
   // Bumped by a suspend so the decision below runs again even when none of its
   // inputs changed, e.g. a verdict fetched during the disconnect grace period.
   const [suspensions, countSuspension] = useReducer((n: number) => n + 1, 0)
+
+  const isRetrying = useRef(false)
+
+  // Try Again on a restored failure.
+  const retryFailedRun = useCallback(() => {
+    if (isRetrying.current) return
+    isRetrying.current = true
+    const current = accountRef.current
+
+    continueFailedRun({
+      label,
+      account: current,
+      uiActor,
+      assess: () =>
+        queryClientRef.current.fetchQuery({
+          ...getResumeAssessmentQueryOptions({
+            label,
+            ownerAddress: current.ownerAddress,
+            signerType: current.signer?.type,
+          }),
+          staleTime: 0,
+        }),
+    })
+      .then((next) => {
+        if (next) setSettled({ label, state: next })
+      })
+      .catch((error: unknown) => {
+        // Leaves the failure screen as it was, with Try Again still on it.
+        console.warn('⚠️ [REGISTRATION] Retrying failed registration:', error)
+      })
+      .finally(() => {
+        isRetrying.current = false
+      })
+  }, [label, uiActor])
+
+  // Every decision that sends no `registration.resume` on load.
+  const settleWithoutDispatch = useCallback(
+    (decision: Exclude<SettledDecision, { kind: 'dispatch' }>) => {
+      if (decision.kind === 'state') {
+        if (decision.latch) decidedForLabel.current = label
+        setSettled({ label, state: decision.state })
+        return
+      }
+
+      // Shown, not resumed: re-entering a failed run on load would replay the
+      // failure, or open a wallet prompt nobody asked for.
+      const { stored, confirmedData } = decision.verdict
+      uiActor.send({
+        type: 'registration.failure.restore',
+        confirmedData,
+        run: storedRegistrationKey(stored),
+      })
+      decidedForLabel.current = label
+      // Dropped unless the page was still on pricing, so nothing is shown.
+      const isShown = uiActor.getSnapshot().context.restoredRun !== undefined
+      setSettled({
+        label,
+        state: isShown ? { status: 'failed', retry: retryFailedRun } : IDLE,
+      })
+    },
+    [label, uiActor, retryFailedRun],
+  )
 
   // A live run belongs to the wallet that started it, and stops the moment
   // that wallet is gone: its record stays, as a closed tab would leave it, and
@@ -327,9 +510,8 @@ export function useRegistrationResume(params: {
 
     const decision = decideFromVerdict(verdict, label, ownerAddress)
 
-    if (decision.kind === 'state') {
-      if (decision.latch) decidedForLabel.current = label
-      setSettled({ label, state: decision.state })
+    if (decision.kind !== 'dispatch') {
+      settleWithoutDispatch(decision)
       return
     }
 
@@ -371,6 +553,7 @@ export function useRegistrationResume(params: {
     hasInitialized,
     ownerAddress,
     suspensions,
+    settleWithoutDispatch,
   ])
 
   if (settled?.label === label) return settled.state
