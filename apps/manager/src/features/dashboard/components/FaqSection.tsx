@@ -79,7 +79,7 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
 ]
 
 export const FaqSection = () => (
-  <Card className="block rounded-none xs:rounded-xl px-4 py-6 md:rounded-xl md:px-6 md:py-8">
+  <Card className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8">
     <h2 className="mb-3 text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
       <Trans>Frequently Asked Questions</Trans>
     </h2>

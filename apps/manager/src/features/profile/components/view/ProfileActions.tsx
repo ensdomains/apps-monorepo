@@ -5,7 +5,6 @@ import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
   desktopActionContainerClassName,
-  desktopActionContainerStyle,
   editActionClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
@@ -89,10 +88,7 @@ export const ProfileActions = ({
         </div>
       )}
 
-      <div
-        className={desktopActionContainerClassName}
-        style={desktopActionContainerStyle}
-      >
+      <div className={desktopActionContainerClassName}>
         <div className="flex items-center gap-6">
           <ProfileFavoriteAction name={name} />
           <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />

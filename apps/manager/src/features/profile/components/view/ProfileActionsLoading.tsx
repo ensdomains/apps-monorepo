@@ -1,7 +1,4 @@
-import {
-  desktopActionContainerClassName,
-  desktopActionContainerStyle,
-} from './ProfileAction.styles'
+import { desktopActionContainerClassName } from './ProfileAction.styles'
 import { SkeletonBlock } from './ProfileLoadingPrimitives'
 
 const ActionIconButtonLoading = ({
@@ -53,10 +50,7 @@ export const ProfileActionsLoading = ({
       </div>
     </div>
 
-    <div
-      className={desktopActionContainerClassName}
-      style={desktopActionContainerStyle}
-    >
+    <div className={desktopActionContainerClassName}>
       <div className="flex items-center gap-6">
         <ActionIconButtonLoading shouldReduceMotion={shouldReduceMotion} />
         <ActionIconButtonLoading shouldReduceMotion={shouldReduceMotion} />

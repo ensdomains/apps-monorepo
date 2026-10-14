@@ -115,7 +115,7 @@ export const DashboardPage = () => {
         ) : (
           <Card
             asChild
-            className="flex flex-col items-start gap-3 rounded-none xs:rounded-xl px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
+            className="flex flex-col items-start gap-3 rounded-none xs:rounded-xl px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:px-6 md:py-8"
           >
             <motion.div {...stagger(2, shouldReduceMotion)}>
               <span className="font-sans text-[16px] text-foreground">
@@ -140,7 +140,7 @@ export const DashboardPage = () => {
         )}
         <Card
           asChild
-          className="block rounded-none xs:rounded-xl px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
           <motion.div {...stagger(3, shouldReduceMotion)}>
             <NamesTable
@@ -154,7 +154,7 @@ export const DashboardPage = () => {
         {commemorativeNftEnabled ? <CommemorativeNftDashboard /> : null}
         <Card
           asChild
-          className="block rounded-none xs:rounded-xl px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
           <motion.div {...stagger(4, shouldReduceMotion)}>
             <EducationCarousel />
