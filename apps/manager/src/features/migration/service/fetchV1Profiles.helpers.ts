@@ -3,6 +3,7 @@ import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
 export type NameForFetch = {
+  readonly name: string
   readonly nodeHex: Hex
   readonly v1ResolverAddress: Address
 }
@@ -11,7 +12,7 @@ export type ProfileKeyEntry = {
   readonly id: string
   readonly texts: readonly string[]
   readonly coinTypes: readonly number[]
-  readonly contentHash: string | null
+  readonly hasContentHash: boolean
   readonly abiContentTypes: readonly bigint[]
 }
 
@@ -81,7 +82,7 @@ export const buildProfileMulticallPlan = (
         args: [name.nodeHex, coinType],
       })
     }
-    if (entry.contentHash && entry.contentHash !== '0x') {
+    if (entry.hasContentHash) {
       calls.push({ name, kind: 'contenthash' })
       contracts.push({
         address: name.v1ResolverAddress,

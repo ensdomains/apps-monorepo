@@ -1,5 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DashboardName } from '@/features/dashboard/mergedNames'
 import { resolveDashboardGraceBanner } from './resolveDashboardGraceBanner'
+
+const dashboardName = (
+  name: string,
+  expiryDate: number,
+  protocol: DashboardName['protocol'] = 'v2',
+): DashboardName => ({
+  key: '0x01',
+  name,
+  protocol,
+  expiryDate: BigInt(expiryDate),
+  servedExpiry: null,
+  createdAt: null,
+  nameRoles: ['owner'],
+  isLapsed: false,
+})
 
 describe('resolveDashboardGraceBanner', () => {
   beforeEach(() => {
@@ -27,8 +43,7 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: graceEnd,
         isPastGrace: false,
       },
-      v2Names: [],
-      v1Classified: [],
+      names: [],
     })
 
     expect(result).toEqual({
@@ -56,17 +71,7 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
-      v2Names: [],
-      v1Classified: [
-        {
-          label: 'legacy.eth',
-          domain: {
-            id: 'v1-1',
-            name: 'legacy.eth',
-            registration: { expiryDate: expired },
-          },
-        } as never,
-      ],
+      names: [dashboardName('legacy.eth', expired, 'v1')],
     })
 
     expect(result).toEqual({ show: false })
@@ -88,21 +93,13 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
-      v2Names: [
-        {
-          id: 'v2-1',
-          name: 'grace.eth',
-          expiryDate: expired,
-        } as never,
-        {
-          id: 'v2-2',
-          name: 'active.eth',
-          expiryDate: Math.floor(
-            new Date('2025-01-01T00:00:00Z').getTime() / 1000,
-          ),
-        } as never,
+      names: [
+        dashboardName('grace.eth', expired),
+        dashboardName(
+          'active.eth',
+          Math.floor(new Date('2025-01-01T00:00:00Z').getTime() / 1000),
+        ),
       ],
-      v1Classified: [],
     })
 
     expect(result).toEqual({
@@ -126,15 +123,12 @@ describe('resolveDashboardGraceBanner', () => {
         displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
-      v2Names: [
-        {
-          name: 'active.eth',
-          expiryDate: Math.floor(
-            new Date('2025-01-01T00:00:00Z').getTime() / 1000,
-          ),
-        } as never,
+      names: [
+        dashboardName(
+          'active.eth',
+          Math.floor(new Date('2025-01-01T00:00:00Z').getTime() / 1000),
+        ),
       ],
-      v1Classified: [],
     })
 
     expect(result).toEqual({ show: false })

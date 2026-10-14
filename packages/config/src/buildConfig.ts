@@ -52,15 +52,23 @@ export type EnsChain = Extract<
   { id: 11155111 }
 >
 
-export type BuildConfigInput<AllowMissing extends boolean = false> = {
+export type EndpointKey = keyof NetworkEndpoints
+
+export type BuildConfigInput<
+  K extends EndpointKey = EndpointKey,
+  AllowMissing extends boolean = false,
+> = {
   /** Network name, typically from env. No default: absent or unknown throws. */
   readonly network: string | undefined
   /** The app's own RPC endpoint. The network's public fallbacks follow it. */
   readonly rpcUrl?: string | undefined
+  /**
+   * The endpoints this app reads; only these must be configured. Defaults to
+   * every endpoint, so an app that does not say still fails closed.
+   */
+  readonly endpoints?: readonly K[]
   /** Per-endpoint overrides, typically from env. Empty or absent falls back. */
-  readonly overrides?: Partial<
-    Record<keyof NetworkEndpoints, string | undefined>
-  >
+  readonly overrides?: Partial<Record<K, string | undefined>>
   /**
    * Resolve an endpoint the network has no deployment for to `null` instead
    * of throwing, for an app that runs without it.
@@ -68,7 +76,10 @@ export type BuildConfigInput<AllowMissing extends boolean = false> = {
   readonly allowMissingEndpoints?: AllowMissing
 }
 
-export type EnsAppConfig<AllowMissing extends boolean = false> = Readonly<{
+export type EnsAppConfig<
+  K extends EndpointKey = EndpointKey,
+  AllowMissing extends boolean = false,
+> = Readonly<{
   network: EnsNetwork
   isTestnet: boolean
   chain: EnsChain
@@ -76,10 +87,7 @@ export type EnsAppConfig<AllowMissing extends boolean = false> = Readonly<{
   rpcUrls: readonly string[]
   rpcFallbacks: readonly string[]
   endpoints: Readonly<
-    Record<
-      keyof NetworkEndpoints,
-      AllowMissing extends true ? string | null : string
-    >
+    Record<K, AllowMissing extends true ? string | null : string>
   >
 }>
 
@@ -114,14 +122,14 @@ const resolveNetwork = (network: string | undefined): EnsNetwork => {
   return network
 }
 
-const resolveEndpoints = (
+const resolveEndpoints = <K extends EndpointKey>(
   network: EnsNetwork,
-  overrides: BuildConfigInput['overrides'],
+  keys: readonly K[],
+  overrides: BuildConfigInput<K>['overrides'],
   allowMissing: boolean,
-): Record<keyof NetworkEndpoints, string | null> => {
+): Record<K, string | null> => {
   const profile = NETWORKS[network].endpoints
-  const keys = Object.keys(profile) as (keyof NetworkEndpoints)[]
-  const resolved: Partial<Record<keyof NetworkEndpoints, string | null>> = {}
+  const resolved: Partial<Record<K, string | null>> = {}
   const missing: string[] = []
   for (const key of keys) {
     // `||`: an override that is set but empty must fall through. A supplied
@@ -137,7 +145,7 @@ const resolveEndpoints = (
       `Network ${network} has no endpoint configured for: ${missing.join(', ')}. Deploy the service and add it to NETWORKS, or pass an override.`,
     )
   }
-  return resolved as Record<keyof NetworkEndpoints, string | null>
+  return resolved as Record<K, string | null>
 }
 
 export const assertEnsV2Deployed = (
@@ -168,12 +176,16 @@ export const orderedRpcUrls = (
  * Resolve the app configuration for one network. Pure: reads no env and
  * creates no clients, so it runs in the browser, both workers and tests.
  */
-export const buildConfig = <AllowMissing extends boolean = false>({
+export const buildConfig = <
+  K extends EndpointKey = EndpointKey,
+  AllowMissing extends boolean = false,
+>({
   network: requestedNetwork,
   rpcUrl,
+  endpoints: endpointKeys,
   overrides,
   allowMissingEndpoints,
-}: BuildConfigInput<AllowMissing>): EnsAppConfig<AllowMissing> => {
+}: BuildConfigInput<K, AllowMissing>): EnsAppConfig<K, AllowMissing> => {
   const network = resolveNetwork(requestedNetwork)
   const profile = NETWORKS[network]
 
@@ -181,6 +193,7 @@ export const buildConfig = <AllowMissing extends boolean = false>({
   const rpcUrls = orderedRpcUrls(primaryRpcUrl, profile.rpcFallbacks)
   const endpoints = resolveEndpoints(
     network,
+    endpointKeys ?? (Object.keys(profile.endpoints) as K[]),
     overrides,
     allowMissingEndpoints === true,
   )
@@ -194,8 +207,9 @@ export const buildConfig = <AllowMissing extends boolean = false>({
     chain: chain as EnsChain,
     rpcUrls: Object.freeze(rpcUrls),
     rpcFallbacks: profile.rpcFallbacks,
-    endpoints: Object.freeze(
-      endpoints,
-    ) as EnsAppConfig<AllowMissing>['endpoints'],
+    endpoints: Object.freeze(endpoints) as EnsAppConfig<
+      K,
+      AllowMissing
+    >['endpoints'],
   })
 }
