@@ -78,7 +78,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
           height="28px"
           rounded="rounded-sm"
         />
-        <span className="font-mono text-sm truncate">{row.original.name}</span>
+        <span className="text-entity-base truncate">{row.original.name}</span>
         <CopyButton value={row.original.name} />
       </div>
     ),
@@ -105,7 +105,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
               height="28px"
               rounded="rounded-sm"
             />
-            <span className="font-mono text-sm truncate">{other}</span>
+            <span className="text-entity-base truncate">{other}</span>
             <CopyButton value={other} />
           </div>
         ))}
@@ -119,7 +119,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
     header: 'Record',
     size: 96,
     cell: ({ row }) => (
-      <span className="font-mono text-sm text-muted-foreground">
+      <span className="text-entity-base text-muted-foreground">
         #{row.original.recordId}
       </span>
     ),
@@ -336,7 +336,7 @@ function RouteComponent() {
                         height="28px"
                         rounded="rounded-sm"
                       />
-                      <span className="font-mono text-sm truncate">
+                      <span className="text-entity-base truncate">
                         {row.original.name}
                       </span>
                       <CopyButton value={row.original.name} />
@@ -367,7 +367,7 @@ function RouteComponent() {
                           height="24px"
                           rounded="rounded-sm"
                         />
-                        <span className="font-mono text-sm truncate">
+                        <span className="text-entity-base truncate">
                           {other}
                         </span>
                         <CopyButton value={other} />

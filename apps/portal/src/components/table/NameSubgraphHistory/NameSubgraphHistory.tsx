@@ -123,7 +123,7 @@ export const NameSubgraphHistory = ({
       {enableHeader && <HistorySectionHeader />}
       <NameSubgraphHistoryTable {...{ name, data, category }} />
       {isCut && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           Showing the latest {data.length}
           {totalCount !== undefined && ` of up to ${totalCount}`} events
         </p>

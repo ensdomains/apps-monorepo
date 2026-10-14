@@ -266,11 +266,11 @@ const CreateSubnameForm = ({
             <span className="text-base">.{name}</span>
           </div>
           {isLabelTaken && (
-            <p className="text-sm text-danger">
+            <p className="text-p text-danger">
               {trimmedLabel}.{name} is already registered.
             </p>
           )}
-          {labelError && <p className="text-sm text-danger">{labelError}</p>}
+          {labelError && <p className="text-p text-danger">{labelError}</p>}
         </Field>
 
         <Field data-invalid={ownerInvalid}>
@@ -292,12 +292,12 @@ const CreateSubnameForm = ({
 
         {match({ isConnected, prepareError })
           .with({ isConnected: false }, () => (
-            <p className="text-sm text-warning">
+            <p className="text-p text-warning">
               Please connect your wallet to create a subname.
             </p>
           ))
           .with({ prepareError: P.string.minLength(1) }, ({ prepareError }) => (
-            <p className="text-sm text-danger">Error: {prepareError}</p>
+            <p className="text-p text-danger">Error: {prepareError}</p>
           ))
           .otherwise(() => null)}
 

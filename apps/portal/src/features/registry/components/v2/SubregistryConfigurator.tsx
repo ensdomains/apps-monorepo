@@ -78,9 +78,7 @@ const CustomRegistryAddressField = ({
         onChange={(e) => onChange(e.target.value.trim())}
         onBlur={() => setTouched(true)}
       />
-      {error ? (
-        <p className="text-sm mt-1.5 text-destructive">{error}</p>
-      ) : null}
+      {error ? <p className="text-p mt-1.5 text-destructive">{error}</p> : null}
     </div>
   )
 }

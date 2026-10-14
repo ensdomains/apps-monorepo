@@ -54,14 +54,12 @@ describe('PageHeading', () => {
     expect(link).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring')
   })
 
-  it('lets an overview page override the heading size', () => {
-    render(
-      <PageHeading className="font-serif text-4xl">jooooe.eth</PageHeading>,
-    )
+  it('lets an overview page override the heading font', () => {
+    render(<PageHeading className="font-serif">jooooe.eth</PageHeading>)
 
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toHaveClass('text-4xl')
-    expect(heading).not.toHaveClass('text-page-title')
+    expect(heading).toHaveClass('font-serif', 'text-h1')
+    expect(heading).not.toHaveClass('font-sans')
   })
 
   it('renders no breadcrumb on an overview page', () => {

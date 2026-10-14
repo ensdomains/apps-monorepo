@@ -28,7 +28,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     id: 'date',
     header: 'Date',
     cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground whitespace-nowrap mt-4">
+      <div className="text-base text-muted-foreground whitespace-nowrap mt-4">
         {formatTimestamp(row.original.timestamp)}
       </div>
     ),
@@ -39,7 +39,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     cell: ({ row }) => (
       <div className="space-y-1 flex flex-col">
         <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
-        <span className="text-sm text-muted-foreground">RoleChanged</span>
+        <span className="text-base text-muted-foreground">RoleChanged</span>
       </div>
     ),
   },
@@ -50,7 +50,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
       row.original.sender ? (
         <AddressDisplay address={row.original.sender} />
       ) : (
-        <span className="text-xs text-muted-foreground">Loading…</span>
+        <span className="text-small text-muted-foreground">Loading…</span>
       ),
   },
 ]
@@ -92,7 +92,7 @@ export const RegistryUserRoleHistory = ({
       <HistorySectionHeader />
       {match({ isLoading, error, count: rows.length })
         .with({ isLoading: true }, () => (
-          <p className="text-sm text-muted-foreground">Loading history…</p>
+          <p className="text-p text-muted-foreground">Loading history…</p>
         ))
         .with({ error: P.nonNullable }, () => (
           <ErrorMessage

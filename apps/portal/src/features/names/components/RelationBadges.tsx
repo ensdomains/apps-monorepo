@@ -20,12 +20,12 @@ export const RelationBadges = ({
   const labels = relationLabels(relations)
   return match({ roleCount, labels })
     .with({ roleCount: P.union('loading', 'unavailable') }, ({ roleCount }) => (
-      <Badge variant="outline" className="text-muted-foreground text-xs">
+      <Badge variant="outline" className="text-muted-foreground text-small">
         {roleCount === 'loading' ? 'Counting roles…' : 'Roles unknown'}
       </Badge>
     ))
     .with({ roleCount: P.number.gt(0) }, ({ roleCount }) => (
-      <Badge variant="secondary" className="text-xs">
+      <Badge variant="secondary" className="text-small">
         {roleCount} {roleCount === 1 ? 'Role' : 'Roles'}
       </Badge>
     ))
@@ -33,7 +33,7 @@ export const RelationBadges = ({
     .otherwise(() => (
       <div className="flex flex-row gap-1">
         {labels.map((label) => (
-          <Badge key={label} variant="secondary" className="text-xs">
+          <Badge key={label} variant="secondary" className="text-small">
             {label}
           </Badge>
         ))}

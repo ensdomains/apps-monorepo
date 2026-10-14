@@ -78,7 +78,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
     cell: ({ row }) => (
       <span
         className={cn(
-          'text-sm',
+          'block pt-1.5 text-base',
           row.original.isRoot ? 'text-muted-foreground' : 'font-mono',
         )}
       >
@@ -164,7 +164,7 @@ export const ResolverRolesTable = ({
       )}
       {unknownScopes.length > 0 && (
         <>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-p text-muted-foreground mb-4">
             Some role scopes are unavailable. These grants cannot be edited, and
             accounts with these grants cannot be removed.
           </p>

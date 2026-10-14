@@ -72,14 +72,14 @@ const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
         </Badge>
       ))}
       {added.length === 0 && removed.length === 0 && (
-        <span className="text-muted-foreground text-sm">No change</span>
+        <span className="text-muted-foreground text-base">No change</span>
       )}
     </div>
   )
 }
 
 const RoleCountChange = ({ entry }: { readonly entry: RoleHistoryEntry }) => (
-  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+  <div className="flex items-center gap-2 text-small text-muted-foreground">
     <span>{entry.oldRoles.length} roles</span>
     <ArrowRight className="size-3" />
     <span>{entry.newRoles.length} roles</span>
@@ -96,7 +96,7 @@ const MoreButton = ({ onClick }: { readonly onClick: () => void }) => (
     }}
   >
     <ArrowRightFromLineIcon className="h-4 w-4" />
-    <span className="text-sm font-medium">More</span>
+    <span className="text-base font-medium">More</span>
   </Button>
 )
 
@@ -112,23 +112,23 @@ const RoleHistoryMobileCard = ({
       <MoreButton onClick={onMoreClick} />
     </div>
 
-    <div className="text-sm font-medium">Date</div>
-    <div className="text-base text-muted-foreground">
+    <div className="text-base font-medium">Date</div>
+    <div className="text-p text-muted-foreground">
       {formatTimestamp(entry.timestamp)}
     </div>
 
-    <div className="text-sm font-medium">Account</div>
-    <div className="text-base">
+    <div className="text-base font-medium">Account</div>
+    <div className="text-p">
       <AddressDisplay address={entry.account} />
     </div>
 
-    <div className="text-sm font-medium">Changes</div>
-    <div className="text-base">
+    <div className="text-base font-medium">Changes</div>
+    <div className="text-p">
       <RoleDiff entry={entry} />
     </div>
 
-    <div className="text-sm font-medium">Roles</div>
-    <div className="text-base">
+    <div className="text-base font-medium">Roles</div>
+    <div className="text-p">
       <RoleCountChange entry={entry} />
     </div>
   </div>
@@ -174,9 +174,7 @@ export const RoleHistoryTable = ({
 
   if (!data || data.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm p-4">
-        No role history found.
-      </p>
+      <p className="text-muted-foreground text-p p-4">No role history found.</p>
     )
   }
 
@@ -215,7 +213,7 @@ export const RoleHistoryTable = ({
           <TableBody>
             {data.map((entry) => (
               <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-                <TableCell className="px-4 sm:px-6 h-10 py-1 text-sm text-muted-foreground">
+                <TableCell className="px-4 sm:px-6 h-10 py-1 text-base text-muted-foreground">
                   {formatTimestamp(entry.timestamp)}
                 </TableCell>
                 <TableCell className="px-4 sm:px-6 h-10 py-1">

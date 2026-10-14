@@ -91,7 +91,7 @@ export const ExtendNameModal = ({
     >
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader className={stepTitle ? '' : 'sr-only'}>
-          <DialogTitle className="text-xl">{stepTitle}</DialogTitle>
+          <DialogTitle>{stepTitle}</DialogTitle>
         </DialogHeader>
         {match(step)
           .with('disclaimer', () => (

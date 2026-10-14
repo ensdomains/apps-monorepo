@@ -83,7 +83,7 @@ export const columns: ColumnDef<NameRow>[] = [
       const expiryDate = row.original.expiryDate
       if (!expiryDate) {
         return (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-small">
             Does not expire
           </Badge>
         )

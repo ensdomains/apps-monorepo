@@ -9,7 +9,7 @@ export const ResolverCollectionNotice = ({
   readonly status?: Completeness
 }) =>
   status && status !== 'full' ? (
-    <p className="text-sm text-muted-foreground">
+    <p className="text-p text-muted-foreground">
       {status === 'unsupported'
         ? `The ${collection} for this resolver are unavailable.`
         : `Only some ${collection} for this resolver are available. The list may be incomplete.`}

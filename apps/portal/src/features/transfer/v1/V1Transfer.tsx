@@ -17,7 +17,7 @@ const Name = ({ children }: { readonly children: ReactNode }) => (
 )
 
 const Muted = ({ children }: { readonly children: ReactNode }) => (
-  <p className="text-quartz-900/60 text-sm mt-2">{children}</p>
+  <p className="text-quartz-900/60 text-p mt-2">{children}</p>
 )
 
 /**

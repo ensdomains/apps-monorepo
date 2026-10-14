@@ -72,7 +72,7 @@ const NodeRolesSection = ({
     {match(rolesStatus)
       .with('loading', () => <Skeleton className="h-6 w-full" />)
       .with('error', () => (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           Couldn’t load this node’s roles.
         </p>
       ))
@@ -82,7 +82,7 @@ const NodeRolesSection = ({
     {match({ rolesStatus, hasRoles: roles.length > 0 })
       .with({ rolesStatus: P.union('loading', 'error') }, () => null)
       .with({ hasRoles: false, rolesStatus: 'full' }, () => (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           No roles assigned for this node.
         </p>
       ))
@@ -99,13 +99,13 @@ const NodeRolesSection = ({
             <TableBody>
               {roles.map((role) => (
                 <TableRow key={`${role.account}-${role.roleBitmap}`}>
-                  <TableCell className={cn(cellClassName, 'font-mono text-xs')}>
+                  <TableCell className={cn(cellClassName, 'text-smallmono')}>
                     <div className="flex items-center gap-1">
                       {truncateAddress(role.account)}
                       <CopyButton value={role.account} />
                     </div>
                   </TableCell>
-                  <TableCell className={cn(cellClassName, 'font-mono text-xs')}>
+                  <TableCell className={cn(cellClassName, 'text-smallmono')}>
                     {role.roleBitmap}
                   </TableCell>
                 </TableRow>
@@ -171,7 +171,7 @@ export const NodeDetailSheet = ({
           {node ? (
             <div className="flex flex-col gap-0">
               {isInactive && (
-                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-sm bg-garnet-100 p-6 text-sm text-garnet-900">
+                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-sm bg-garnet-100 p-6 text-p text-garnet-900">
                   This node is inactive. The records and roles are read only.
                 </div>
               )}
@@ -193,12 +193,12 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recordsError ? (
-                  <p className="text-sm text-danger">
+                  <p className="text-p text-danger">
                     Failed to load records:{' '}
                     {extractErrorMessage(recordsError, 'Unknown error')}
                   </p>
                 ) : records.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-p text-muted-foreground">
                     No records set for this node.
                   </p>
                 ) : (

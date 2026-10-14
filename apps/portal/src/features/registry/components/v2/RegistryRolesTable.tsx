@@ -73,7 +73,7 @@ export const RegistryRolesTable = ({
   const rows = roles?.holders ?? []
   // Normal for every registry outside the ENS manifest, so a note, not a warning.
   const operatorNote = roles?.areOperatorRolesUnlisted && (
-    <p className="mt-2 text-muted-foreground text-sm">
+    <p className="mt-2 text-muted-foreground text-p">
       Some roles inherited from a parent registry or granted by this registry's
       contract may not be listed.
     </p>

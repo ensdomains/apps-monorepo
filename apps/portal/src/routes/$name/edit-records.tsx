@@ -432,7 +432,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 min-w-[140px]">
             <label
               htmlFor={typeSelectId}
-              className="text-xs text-muted-foreground flex items-center gap-1"
+              className="text-small text-muted-foreground flex items-center gap-1"
             >
               Type
             </label>
@@ -441,7 +441,7 @@ const EditRecordsContent = ({
                 id={typeSelectId}
                 value={selectedType}
                 onChange={(e) => handleTypeChange(e.target.value as RecordType)}
-                className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
                 {RECORD_TYPES.map((type) => (
@@ -459,7 +459,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 min-w-[220px]">
               <label
                 htmlFor={keyInputId}
-                className="text-xs text-muted-foreground flex items-center gap-1"
+                className="text-small text-muted-foreground flex items-center gap-1"
               >
                 Coin
               </label>
@@ -477,7 +477,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
               <label
                 htmlFor={keyInputId}
-                className="text-xs text-muted-foreground flex items-center gap-1"
+                className="text-small text-muted-foreground flex items-center gap-1"
               >
                 Key
               </label>
@@ -487,7 +487,7 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
                 placeholder=""
-                className="h-9 w-full rounded-sm border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               />
             </div>
           )}
@@ -496,7 +496,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
             <label
               htmlFor={valueInputId}
-              className="text-xs text-muted-foreground"
+              className="text-small text-muted-foreground"
             >
               Value
             </label>
@@ -506,13 +506,15 @@ const EditRecordsContent = ({
               value={valueInput}
               onChange={(e) => setValueInput(e.target.value)}
               placeholder=""
-              className="h-9 w-full rounded-sm border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             />
           </div>
 
           {/* Add Button */}
           <div className="flex flex-col gap-1 justify-end">
-            <span className="text-xs text-transparent select-none">Action</span>
+            <span className="text-small text-transparent select-none">
+              Action
+            </span>
             <Button
               variant="default"
               onClick={handleAddRecord}
