@@ -1,5 +1,5 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { useEffect, useState } from 'react'
-import type { V1Domain } from '../service/v1SubgraphClient'
 import { getNextNameExpiryBoundary } from './useEligibleV1Names.helpers'
 
 const MAX_TIMEOUT_MS = 2_147_483_647

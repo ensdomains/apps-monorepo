@@ -14,7 +14,10 @@ import {
   type IneligibleName,
 } from '@/features/migration/service/classifyNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { getGracePeriodNames } from './useEligibleV1Names.helpers'
+import {
+  getGracePeriodNames,
+  getUnavailableNames,
+} from './useEligibleV1Names.helpers'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 import { useV1NameClassificationTime } from './useV1NameClassificationTime'
 
@@ -34,6 +37,7 @@ type EligibleV1NamesRecoveryState =
 type ClassificationState = {
   readonly classified: readonly ClassifiedName[]
   readonly gracePeriodNames: readonly IneligibleName[]
+  readonly unavailableNames: readonly IneligibleName[]
   readonly recoveryState: EligibleV1NamesRecoveryState
 }
 
@@ -49,12 +53,13 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     enabled,
   )
 
-  const { classified, gracePeriodNames, recoveryState } =
+  const { classified, gracePeriodNames, unavailableNames, recoveryState } =
     useMemo<ClassificationState>(() => {
       if (!enabled || !resolvedOwnerAddress) {
         return {
           classified: [],
           gracePeriodNames: [],
+          unavailableNames: [],
           recoveryState: { status: 'none' },
         }
       }
@@ -68,6 +73,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
               }).classified,
             ],
             gracePeriodNames: [],
+            unavailableNames: [],
             recoveryState: { status: 'recovering' },
           }
         } catch (error) {
@@ -75,6 +81,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
           return {
             classified: [],
             gracePeriodNames: [],
+            unavailableNames: [],
             recoveryState: { status: 'stale', error },
           }
         }
@@ -83,6 +90,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
         return {
           classified: [],
           gracePeriodNames: [],
+          unavailableNames: [],
           recoveryState: { status: 'none' },
         }
       }
@@ -94,6 +102,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
       return {
         classified,
         gracePeriodNames: getGracePeriodNames(ineligible, nowSeconds),
+        unavailableNames: getUnavailableNames(ineligible),
         recoveryState: { status: 'none' },
       }
     }, [
@@ -124,6 +133,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   return {
     eligible,
     gracePeriodNames,
+    unavailableNames,
     recoveryState,
     isPending:
       enabled &&

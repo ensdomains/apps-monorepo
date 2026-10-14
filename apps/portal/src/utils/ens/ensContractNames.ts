@@ -62,7 +62,9 @@ const contractPills = new Map<string, string>()
 for (const chainId of Object.values(supportedL1Chains)) {
   const contracts = ensL1Contracts[chainId]
   for (const key of supportedL1Contracts) {
-    const { address } = contracts[key]
+    // Widened: ensjs holds an undeployed contract as 0x0, even though every
+    // address it ships today is deployed.
+    const address: Address = contracts[key].address
     if (address === zeroAddress) continue
     const normalized = address.toLowerCase()
     contractNames.set(normalized, contractDisplayNames[key])

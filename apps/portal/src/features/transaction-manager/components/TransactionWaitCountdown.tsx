@@ -25,7 +25,7 @@ export const TransactionWaitCountdown = ({
   return (
     <span
       className={
-        'inline-flex items-center gap-1 text-xs text-muted-foreground ' +
+        'inline-flex items-center gap-1 text-small text-muted-foreground ' +
         (className ?? '')
       }
     >

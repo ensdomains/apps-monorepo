@@ -47,6 +47,7 @@ import {
 } from 'viem'
 import { AccountInitError, AccountVerificationError } from '../../errors'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
+import { type RhinestoneAuth, toSdkAuth } from './auth'
 import {
   getDestinationContracts,
   ONCHAIN_ACCOUNT_ID,
@@ -86,7 +87,6 @@ export type RhinestoneInitError = AccountInitError | AccountVerificationError
 
 export interface RhinestoneInitConfig {
   readonly chain: Chain
-  readonly rhinestoneApiKey: string
 }
 
 export interface RhinestoneInitResult {
@@ -116,8 +116,8 @@ export interface InitializeRhinestoneAccountParams {
   readonly chain: Chain
   /** Public client for on-chain adopt-existing verification reads. */
   readonly publicClient: PublicClient
-  /** Rhinestone API key. Required. */
-  readonly rhinestoneApiKey: string
+  /** How the SDK authenticates to the orchestrator. */
+  readonly rhinestoneAuth: RhinestoneAuth
   /** Override the Rhinestone orchestrator endpoint (e.g. local `/orchestrator`). */
   readonly rhinestoneEndpointUrl?: string
   /** Per-chain RPC overrides for the SDK. */
@@ -353,10 +353,10 @@ export function getHcaDirectExecutionReadiness(
 }
 
 function makeSdk(params: {
-  chain: Chain
-  rhinestoneApiKey: string
-  rhinestoneEndpointUrl?: string
-  rhinestoneCustomRpcUrls?: Record<number, string>
+  readonly chain: Chain
+  readonly rhinestoneAuth: RhinestoneAuth
+  readonly rhinestoneEndpointUrl?: string
+  readonly rhinestoneCustomRpcUrls?: Record<number, string>
 }): RhinestoneSDK {
   const defaultRpcUrl = params.chain.rpcUrls.default.http[0]
   const urls: Record<number, string> = {
@@ -364,7 +364,7 @@ function makeSdk(params: {
     ...(params.rhinestoneCustomRpcUrls ?? {}),
   }
   return new RhinestoneSDK({
-    auth: { mode: 'apiKey', apiKey: params.rhinestoneApiKey },
+    auth: toSdkAuth(params.rhinestoneAuth),
     provider: { type: 'custom', urls },
     ...(params.rhinestoneEndpointUrl
       ? { endpointUrl: params.rhinestoneEndpointUrl }
@@ -470,9 +470,12 @@ export async function verifyStandaloneHca(
 export function initializeRhinestoneAccount(
   params: InitializeRhinestoneAccountParams,
 ): ResultAsync<RhinestoneInitResult, RhinestoneInitError> {
-  if (!params.rhinestoneApiKey) {
+  if (
+    params.rhinestoneAuth.mode === 'apiKey' &&
+    !params.rhinestoneAuth.apiKey
+  ) {
     return errAsync(
-      new AccountInitError({ message: 'rhinestoneApiKey is required' }),
+      new AccountInitError({ message: 'rhinestoneAuth.apiKey is required' }),
     )
   }
 
@@ -543,10 +546,7 @@ export function initializeRhinestoneAccount(
         address: hca,
         ownerAddress: params.eoaAddress,
         alreadyDeployed,
-        config: {
-          chain: params.chain,
-          rhinestoneApiKey: params.rhinestoneApiKey,
-        },
+        config: { chain: params.chain },
         refresh: () => initializeRhinestoneAccount(params),
       }
     })(),

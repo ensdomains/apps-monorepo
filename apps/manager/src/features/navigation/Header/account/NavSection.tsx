@@ -1,9 +1,9 @@
 import { Trans } from '@lingui/react/macro'
-import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
+import { type LinkOptions, linkOptions } from '@tanstack/react-router'
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
-import { tw } from '@/utils/tailwind'
+import { AccountMenuItemLink } from './AccountMenuItem'
 
 type NavSectionProps = {
   readonly onAction: () => void
@@ -52,27 +52,17 @@ export const NavSection = ({ onAction }: NavSectionProps) => {
   const navItems = getNavItems(reverseNameQuery.data ?? undefined)
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <>
       {navItems.map(({ id, icon, label, link }) => (
-        <Link
-          activeProps={{
-            className: tw`bg-ens-quartz-50 font-[450] ms-wght-300`,
-          }}
-          className="flex items-center gap-2 rounded border-ens-quartz-100 border-b p-3 text-ens-quartz-500 transition-all aria-disabled:cursor-not-allowed aria-disabled:text-ens-quartz-350"
-          inactiveProps={{
-            className: tw`font-normal not-aria-disabled:hover:bg-ens-quartz-50 not-aria-disabled:hover:font-[450] not-aria-disabled:hover:ms-wght-300`,
-          }}
+        <AccountMenuItemLink
           key={id}
-          onClick={() => {
-            if (link.disabled) return
-            onAction()
-          }}
-          {...link}
+          link={link}
+          onClick={onAction}
+          prefix={icon}
         >
-          {icon}
-          <span className="text-base">{label}</span>
-        </Link>
+          {label}
+        </AccountMenuItemLink>
       ))}
-    </div>
+    </>
   )
 }

@@ -1,6 +1,7 @@
 import { logger } from '@ens-apps/utils/logger'
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
+import { isTestnet } from '@/config'
 import { backendClient } from '@/utils/backend-client'
 
 export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
@@ -13,7 +14,7 @@ export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
  * — none of it is Warp-sponsored), so the owner needs sepETH before they hit
  * "Begin upgrade". `/wallet/fund` decides server-side whether to drip: it tops
  * the address up to a target ETH balance only when it's low AND actually owns
- * v1 names (V1 subgraph check), and it does NOT return until the drip
+ * v1 names (bigname check), and it does NOT return until the drip
  * transaction is confirmed on-chain. That makes the request a reliable gate —
  * once it resolves, any ETH the owner was owed is already spendable.
  *
@@ -33,7 +34,8 @@ export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
 export const useMigrationGasFunding = (
   ownerAddress: Address | string | null | undefined,
 ): MigrationGasFundingStatus => {
-  const enabled = !!ownerAddress
+  // The faucet only exists on testnet.
+  const enabled = isTestnet && !!ownerAddress
 
   const query = useQuery({
     queryKey: [

@@ -15,7 +15,7 @@ import {
   parseProxyDeployedAddress,
 } from '@/features/resolver/utils/permissionedResolver'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
@@ -35,12 +35,12 @@ interface UseDeployPermissionedResolverParams {
 }
 
 const permissionedResolverImpl = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensPermissionedResolverImpl',
 })
 
 const verifiableFactory = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensVerifiableFactory',
 })
 
@@ -122,7 +122,7 @@ const deployPermissionedResolver = async ({
 export const useDeployPermissionedResolver = ({
   name,
 }: UseDeployPermissionedResolverParams) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()

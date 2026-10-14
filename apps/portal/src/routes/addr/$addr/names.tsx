@@ -81,7 +81,7 @@ const STATUS_FILTER_GROUPS: FilterGroup[] = [
     options: [
       { label: 'Expired', value: 'expired' },
       { label: 'Grace', value: 'grace' },
-      { label: 'Temporary premium', value: 'premium' },
+      { label: 'Price cooldown', value: 'premium' },
     ],
   },
 ]
@@ -317,7 +317,7 @@ const NamesList = ({
               {rowCount} selected
             </div>
             {nonCanonicalCount > 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-p text-muted-foreground">
                 {nonCanonicalCount} selected name(s) have a non-normalized label
                 and can’t be extended here: a renewal would go to a different
                 name.
@@ -367,7 +367,7 @@ const NamesList = ({
               </InputGroupAddon>
             </InputGroup>
             {loader.canShowMore && hasActiveFilters && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-p text-muted-foreground">
                 Filters cover the {names.length} names shown so far. Show more
                 to include the rest.
               </p>

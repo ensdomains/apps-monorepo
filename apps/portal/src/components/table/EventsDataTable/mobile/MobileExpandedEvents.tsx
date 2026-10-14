@@ -22,11 +22,11 @@ export const MobileExpandedEvents = <TEvent extends BaseEvent = BaseEvent>({
             key={`${event.id}-${index}`}
             className="pl-4 border-l-2 border-border flex flex-col gap-2"
           >
-            <div className="text-sm font-medium">Event</div>
+            <div className="text-base font-medium">Event</div>
             <div className="text-base">{event.type}</div>
             {fromAddress && (
               <>
-                <div className="text-sm font-medium">From</div>
+                <div className="text-base font-medium">From</div>
                 <AddressDisplay address={fromAddress as Address} />
               </>
             )}

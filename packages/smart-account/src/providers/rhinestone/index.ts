@@ -21,6 +21,11 @@
  */
 
 export {
+  type RhinestoneAuth,
+  rhinestoneAuthHeaders,
+  toSdkAuth,
+} from './auth'
+export {
   commitLegGasLimit,
   estimateHcaBudget,
   HCA_ACCOUNT_DEPLOY_GAS,

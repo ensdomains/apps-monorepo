@@ -1,25 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { ROLES_FROM_BLOCK } from './rolesFromBlock'
+import {
+  MAINNET_ROLES_FROM_BLOCK,
+  SEPOLIA_ROLES_FROM_BLOCK,
+} from './rolesFromBlock'
 
 /**
- * Deployment blocks measured on Sepolia with `eth_getCode` (no code the block
- * before, code at it). The root registry is the earliest v2 contract and the
- * ancestor of every registry, so no role event can predate it.
+ * Deployment blocks of each network's live root and .eth registries, measured
+ * with `eth_getCode` (no code the block before, code at it). Mainnet's root was
+ * redeployed after its .eth registry, so either can be the earliest.
  */
-const ROOT_REGISTRY_DEPLOYMENT = 11_820_291n
-const ETH_REGISTRY_DEPLOYMENT = 11_820_399n
+const NETWORKS = {
+  mainnet: {
+    fromBlock: MAINNET_ROLES_FROM_BLOCK,
+    rootRegistry: 26_183_742n,
+    ethRegistry: 26_105_621n,
+  },
+  sepolia: {
+    fromBlock: SEPOLIA_ROLES_FROM_BLOCK,
+    rootRegistry: 11_820_291n,
+    ethRegistry: 11_820_399n,
+  },
+} as const
 
-describe('ROLES_FROM_BLOCK', () => {
-  // Raising this past the root registry silently empties its role table:
-  // its three root grants all sit in its deployment block, so a later start
-  // returns zero logs and the page reads as "nobody holds these roles".
-  it('starts no later than the earliest v2 registry', () => {
-    expect(ROLES_FROM_BLOCK).toBeLessThanOrEqual(ROOT_REGISTRY_DEPLOYMENT)
-  })
+describe.each([
+  'mainnet',
+  'sepolia',
+] as const)('ROLES_FROM_BLOCK on %s', (network) => {
+  // Raising this past a live registry's deployment silently empties its role
+  // table: its root grants all sit in its deployment block, so a later start
+  // returns zero logs and the page reads as "nobody holds these roles". On
+  // Sepolia this also rules out anchoring on the .eth registry, 108 blocks on.
+  it('starts no later than the earliest live v2 registry', () => {
+    const { fromBlock, rootRegistry, ethRegistry } = NETWORKS[network]
+    const earliest = rootRegistry < ethRegistry ? rootRegistry : ethRegistry
 
-  // The .eth registry is 108 blocks later, which is why anchoring on it was
-  // wrong. Kept as a guard so that mistake cannot come back quietly.
-  it('is not anchored on the .eth registry instead', () => {
-    expect(ROLES_FROM_BLOCK).toBeLessThan(ETH_REGISTRY_DEPLOYMENT)
+    expect(fromBlock).toBeLessThanOrEqual(earliest)
   })
 })

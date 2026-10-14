@@ -21,12 +21,12 @@ import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { envConfig } from '@/config'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
-import type { sepoliaWithEns } from '@/lib/wagmi'
+import type { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
 import type { ReverseResolutionNetwork } from '../config'
 
-type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
+type EnsV1Client = Client<Transport, typeof ensChain>
 
 export type ReverseResolutionResult = {
   coinType: number

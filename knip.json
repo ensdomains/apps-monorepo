@@ -6,7 +6,6 @@
     "**/node_modules/**"
   ],
   "ignoreDependencies": [
-    "omnipin",
     "@vitest/coverage-v8",
     "@storybook/react-vite",
     "storybook"

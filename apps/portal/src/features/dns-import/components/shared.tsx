@@ -69,7 +69,7 @@ export const StatusChip = ({
 }) => (
   <div
     className={cn(
-      'flex items-center gap-2 rounded-sm px-4 py-2 text-sm font-mono',
+      'flex items-center gap-2 rounded-sm px-4 py-2 text-entity-base',
       tone === 'warning' && 'bg-message-warning-fill text-message-warning-text',
       tone === 'danger' && 'bg-message-danger-fill text-message-danger-text',
       tone === 'success' && 'bg-message-success-fill text-message-success-text',
