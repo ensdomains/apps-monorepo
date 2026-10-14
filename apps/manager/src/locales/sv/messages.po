@@ -262,10 +262,6 @@ msgstr ""
 msgid "Additional fee"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx
-#~ msgid "Address"
-#~ msgstr ""
-
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
 msgstr ""
@@ -1182,10 +1178,6 @@ msgstr ""
 msgid "Go to dashboard"
 msgstr ""
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-#~ msgid "Go to ENS Explorer"
-#~ msgstr ""
-
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Go to page {page}"
 msgstr ""
@@ -1252,10 +1244,6 @@ msgstr ""
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr ""
-
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#~ msgid "Inbox"
-#~ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
@@ -2382,10 +2370,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting..."
 msgstr "Anger..."
-
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#~ msgid "Settings"
-#~ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
