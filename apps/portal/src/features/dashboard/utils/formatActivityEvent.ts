@@ -77,13 +77,6 @@ const formatRecordEvent = (
       value: asValue(parsed.kind === 'text' ? parsed.key : 'avatar'),
     })
   if (parsed?.kind === 'contenthash') return { text: 'Contenthash updated' }
-  // Anyone can set any string as their own reverse record and nothing here
-  // forward-verifies it, so the name is a neutral value pill, not a name badge.
-  if (key === 'name')
-    return activity({
-      text: 'Primary name updated',
-      value: asValue(value),
-    })
   return activity({ text: 'Record updated', value: asValue(key) })
 }
 

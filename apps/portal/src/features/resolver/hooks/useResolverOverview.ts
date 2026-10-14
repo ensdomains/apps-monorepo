@@ -312,8 +312,9 @@ const toResolverNode =
     resolver: { id: resolver.address, address: resolver.address },
   })
 
+/** A row bigname derived from state has no transaction to show. */
 const toResolverEvent = (row: EventRow): ResolverEvent[] =>
-  row.block_number === null
+  row.block_number === null || row.transaction_hash === null
     ? []
     : [
         {

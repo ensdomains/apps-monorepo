@@ -327,6 +327,22 @@ describe('getResolverOverviewQueryOptions', () => {
     })
   })
 
+  it('skips events with no transaction', async () => {
+    const event = (id: string, transaction_hash: string | null) => ({
+      id,
+      type: 'resolver',
+      block_number: 1,
+      timestamp: '1790999568',
+      transaction_hash,
+      data: null,
+    })
+    bigname.events.mockReturnValue(
+      page([event('derived', null), event('emitted', '0xabc')]),
+    )
+    const { events } = (await readOverview()) ?? {}
+    expect(events?.map(({ id }) => id)).toEqual(['emitted'])
+  })
+
   it('renders without recent events when bigname cannot serve them', async () => {
     bigname.events.mockReturnValue(
       errAsync(new BignameError({ code: 'internal_error', message: 'boom' })),
