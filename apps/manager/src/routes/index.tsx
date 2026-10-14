@@ -14,6 +14,9 @@ import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
+/** How long the landing page waits on the names check before rendering. */
+const HAS_NAMES_WAIT_MS = 3000
+
 const LandingPage = () => {
   const navigate = useNavigate()
   useRedirectToDashboard()
@@ -103,10 +106,16 @@ export const Route = createFileRoute('/')({
     // If the user is connected and has names, redirect to the dashboard, otherwise let them stay on the landing page
     if (landing || !connectedAddress || !isAddress(connectedAddress)) return
 
-    // An unreachable indexer leaves the user on the landing page.
-    const hasNames = await queryClient
-      .fetchQuery(getHasDashboardNamesQueryOptions(connectedAddress))
-      .catch(() => false)
+    // An unreachable or slow indexer leaves the user on the landing page;
+    // `useRedirectToDashboard` still redirects once the answer arrives.
+    const hasNames = await Promise.race([
+      queryClient
+        .fetchQuery(getHasDashboardNamesQueryOptions(connectedAddress))
+        .catch(() => false),
+      new Promise<false>((resolve) =>
+        setTimeout(() => resolve(false), HAS_NAMES_WAIT_MS),
+      ),
+    ])
     if (hasNames) throw redirect({ to: '/dashboard' })
   },
 })
