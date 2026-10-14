@@ -1,4 +1,9 @@
-import { buildConfig, NetworkConfigError } from './buildConfig'
+import {
+  type BuildConfigInput,
+  buildConfig,
+  type EndpointKey,
+  NetworkConfigError,
+} from './buildConfig'
 
 /**
  * Build-time guard: resolve the network configuration from a loaded env and
@@ -11,19 +16,33 @@ import { buildConfig, NetworkConfigError } from './buildConfig'
  *
  * Takes an already-loaded env rather than reading `process.env` so callers can
  * pass Vite's `loadEnv`, which applies the same `.env` precedence the app will
- * see at build time.
+ * see at build time. `endpoints`, `allowMissingEndpoints` and `rpcUrlVar` must match the
+ * app's own call.
  */
 export const assertNetworkConfig = (
   env: Readonly<Record<string, string | undefined>>,
+  {
+    endpoints,
+    allowMissingEndpoints,
+    rpcUrlVar = 'VITE_SEPOLIA_RPC_URL',
+  }: Pick<
+    BuildConfigInput<EndpointKey, boolean>,
+    'endpoints' | 'allowMissingEndpoints'
+  > & {
+    /** The variable holding the app's RPC override; the manager's by default. */
+    readonly rpcUrlVar?: string
+  } = {},
 ) => {
   try {
     const config = buildConfig({
       network: env.VITE_ENS_NETWORK,
-      rpcUrl: env.VITE_SEPOLIA_RPC_URL,
+      rpcUrl: env[rpcUrlVar],
+      ...(endpoints && { endpoints }),
       overrides: {
         indexerGraphql: env.VITE_INDEXER_GRAPHQL_URL,
         bignameApi: env.VITE_BIGNAME_API_URL,
       },
+      allowMissingEndpoints,
     })
     return config
   } catch (error) {

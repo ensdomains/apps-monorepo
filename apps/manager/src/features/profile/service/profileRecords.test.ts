@@ -1,7 +1,9 @@
+import { BignameError } from '@ens-apps/indexer/bigname'
 import {
   publicResolverMultiAddrSnippet,
   publicResolverSingleAddrSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { errAsync, okAsync } from 'neverthrow'
 import { decodeFunctionData, encodeAbiParameters, type Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,12 +11,11 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getRecords: vi.fn(),
   resolveNameData: vi.fn(),
-  graphqlRequest: vi.fn(),
+  nameRecords: vi.fn(),
 }))
 
-vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
-vi.mock('@ens-apps/indexer/urql', () => ({
-  graphqlRequest: mocks.graphqlRequest,
+vi.mock('@/lib/bigname', () => ({
+  bigname: { nameRecords: mocks.nameRecords },
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   getRecords: mocks.getRecords,
@@ -37,13 +38,15 @@ import { getProfileRecords } from './profileRecords'
 
 const resolverAddress = '0x2222222222222222222222222222222222222222'
 const ethAddress = '0x1111111111111111111111111111111111111111'
+const knownKeys = (keys: readonly string[]) =>
+  okAsync({ data: { inventory: { known_keys: keys } } })
 const bytesResult = (value: Hex) =>
   encodeAbiParameters([{ type: 'bytes' }], [value])
 
 describe('profile records', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.graphqlRequest.mockResolvedValue({ domain: { resolver: null } })
+    mocks.nameRecords.mockReturnValue(knownKeys([]))
     mocks.getRecords.mockResolvedValue({
       texts: [{ key: 'theme', value: '#123456' }],
       contentHash: { protocolType: 'ipfs', decoded: 'example' },
@@ -53,10 +56,13 @@ describe('profile records', () => {
   })
 
   it.each([
-    { description: 'not indexed yet', indexedTexts: ['theme'] },
-    { description: 'already indexed', indexedTexts: ['theme', 'links'] },
+    { description: 'not indexed yet', indexedKeys: ['text:theme'] },
+    {
+      description: 'already indexed',
+      indexedKeys: ['text:theme', 'text:links'],
+    },
   ])('loads all saved links when the links key is $description', async ({
-    indexedTexts,
+    indexedKeys,
   }) => {
     const linksRecord = {
       key: 'links',
@@ -65,11 +71,7 @@ describe('profile records', () => {
         { name: 'Blog', url: 'https://blog.example.com' },
       ]),
     }
-    mocks.graphqlRequest.mockResolvedValue({
-      domain: {
-        resolver: { address: resolverAddress, texts: indexedTexts },
-      },
-    })
+    mocks.nameRecords.mockReturnValue(knownKeys(indexedKeys))
     mocks.getRecords.mockImplementationOnce(
       async (_client, { texts }: { texts: string[] }) => ({
         texts: texts.includes('links') ? [linksRecord] : [],
@@ -159,6 +161,54 @@ describe('profile records', () => {
         value: 'znc3p7CFNTsz1s6CceskrTxKevQLPoDK4cK',
       },
     ])
+  })
+
+  it('reads every indexed text key and supported coin type', async () => {
+    mocks.nameRecords.mockReturnValue(
+      knownKeys([
+        'text:com.github',
+        'addr:2147483658',
+        'addr:999999',
+        'contenthash',
+      ]),
+    )
+    mocks.resolveNameData.mockResolvedValue(null)
+
+    await getProfileRecords('keys.eth')
+
+    expect(mocks.nameRecords).toHaveBeenCalledWith('keys.eth', {
+      namespace: 'ens',
+      include: ['inventory'],
+    })
+    expect(mocks.getRecords).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({
+        texts: ['avatar', 'theme', 'links', 'com.github'],
+      }),
+    )
+    const [, parameters] = mocks.resolveNameData.mock.calls[0] ?? []
+    expect(parameters.data).toHaveLength(4)
+  })
+
+  it('reads the static keys for a name bigname has not indexed', async () => {
+    mocks.nameRecords.mockReturnValue(
+      errAsync(
+        new BignameError({
+          code: 'not_found',
+          status: 404,
+          message: 'missing',
+        }),
+      ),
+    )
+    mocks.resolveNameData.mockResolvedValue(null)
+
+    const result = await getProfileRecords('unregistered.eth')
+
+    expect(result.isOk()).toBe(true)
+    expect(mocks.getRecords).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({ texts: ['avatar', 'theme', 'links'] }),
+    )
   })
 
   it('returns no coins when the universal resolver has no result', async () => {

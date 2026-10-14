@@ -5,7 +5,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, parseAbi } from 'viem'
 import { type ReadContractErrorType, readContract } from 'viem/actions'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { resolveCanonicalRegistry } from '../utils/canonicalRegistry'
 
@@ -13,7 +13,7 @@ import { resolveCanonicalRegistry } from '../utils/canonicalRegistry'
 // (root, "eth") and root.getSubregistry("eth") points back at it). ensjs has
 // no entry for the root, so the root is read off that parent pointer.
 const ETH_REGISTRY = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensRegistry',
 })
 

@@ -5,7 +5,6 @@ import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
   desktopActionContainerClassName,
-  desktopActionContainerStyle,
   editActionClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
@@ -42,7 +41,7 @@ export const ProfileMobileActions = ({
   renewalProtocol,
   url,
 }: ProfileMobileActionsProps) => (
-  <div className="flex w-full items-center justify-between lg:landscape:hidden">
+  <div className="flex w-full items-center justify-between xl:hidden">
     <ProfileRenewAction
       className={renewActionClassName}
       isOwner={isOwner}
@@ -76,7 +75,7 @@ export const ProfileActions = ({
   return (
     <>
       {hasMobileStatusBanner ? null : (
-        <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
+        <div className="absolute inset-x-0 top-118.5 z-30 xl:hidden">
           <div className="mx-auto w-full max-w-97.5 px-5">
             <ProfileMobileActions
               avatarUrl={avatarUrl}
@@ -89,10 +88,7 @@ export const ProfileActions = ({
         </div>
       )}
 
-      <div
-        className={desktopActionContainerClassName}
-        style={desktopActionContainerStyle}
-      >
+      <div className={desktopActionContainerClassName}>
         <div className="flex items-center gap-6">
           <ProfileFavoriteAction name={name} />
           <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />

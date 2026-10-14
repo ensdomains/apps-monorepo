@@ -22,7 +22,7 @@ describe('fetchIntentOperationStatus', () => {
 
     const status = await fetchIntentOperationStatus({
       intentId: INTENT_ID,
-      apiKey: 'rs_test',
+      auth: { mode: 'apiKey', apiKey: 'rs_test' },
     })
 
     expect(status).toBe('COMPLETED')
@@ -33,13 +33,48 @@ describe('fetchIntentOperationStatus', () => {
     )
   })
 
+  it('sends a bearer token in jwt mode, the way the SDK does', async () => {
+    const fetch = respondWith({ status: 'COMPLETED' })
+    vi.stubGlobal('fetch', fetch)
+
+    await fetchIntentOperationStatus({
+      intentId: 1n,
+      auth: { mode: 'jwt', getAccessToken: async () => 'tok' },
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer tok', 'x-api-key': 'jwt' },
+      }),
+    )
+  })
+
+  it('is inconclusive (null) when no access token can be minted', async () => {
+    const fetch = respondWith({ status: 'COMPLETED' })
+    vi.stubGlobal('fetch', fetch)
+
+    await expect(
+      fetchIntentOperationStatus({
+        intentId: 1n,
+        auth: {
+          mode: 'jwt',
+          getAccessToken: async () => {
+            throw new Error('token endpoint down')
+          },
+        },
+      }),
+    ).resolves.toBeNull()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('honors an endpoint override, without doubling slashes', async () => {
     const fetch = respondWith({ status: 'PENDING' })
     vi.stubGlobal('fetch', fetch)
 
     await fetchIntentOperationStatus({
       intentId: 1n,
-      apiKey: 'rs_test',
+      auth: { mode: 'apiKey', apiKey: 'rs_test' },
       endpointUrl: 'http://localhost:4000/orchestrator/',
     })
 
@@ -66,7 +101,10 @@ describe('fetchIntentOperationStatus', () => {
     vi.stubGlobal('fetch', fetch)
 
     await expect(
-      fetchIntentOperationStatus({ intentId: 1n, apiKey: 'rs_test' }),
+      fetchIntentOperationStatus({
+        intentId: 1n,
+        auth: { mode: 'apiKey', apiKey: 'rs_test' },
+      }),
     ).resolves.toBeNull()
   })
 })

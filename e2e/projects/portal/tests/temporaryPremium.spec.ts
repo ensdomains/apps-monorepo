@@ -17,7 +17,7 @@
  * Prerequisites:
  *   - Anvil fork running on localhost:8545
  *   - Portal app running on PORTAL_APP_URL (default localhost:3001)
- *     with VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545
+ *     with VITE_RPC_URL=http://127.0.0.1:8545
  */
 import {
   connectWithHeadlessWallet,

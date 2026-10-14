@@ -5,22 +5,22 @@ type UnreadBadgeProps = {
   readonly className?: string
 }
 
-export const UnreadBadge = ({ className }: UnreadBadgeProps) => {
-  const unreadCountQuery = useUnreadNotificationsCount()
+const MAX_DISPLAYED_COUNT = 9
 
-  if (!unreadCountQuery.data || unreadCountQuery.data === 0) return null
-
-  return (
-    <div
-      className={tw(
-        'size-fit rounded-full bg-ens-signal-danger-100 px-1.5 py-0.75 text-ens-signal-danger-600 text-sm leading-ens-none',
-        className,
-      )}
-    >
-      {unreadCountQuery.data}
-    </div>
-  )
+type UnreadCountPillProps = UnreadBadgeProps & {
+  readonly count: number
 }
+
+export const UnreadCountPill = ({ count, className }: UnreadCountPillProps) => (
+  <span
+    className={tw(
+      'flex size-5 items-center justify-center rounded-full bg-ens-signal-danger-100 text-ens-signal-danger-600 text-xs leading-none tracking-ens-wide',
+      className,
+    )}
+  >
+    {count > MAX_DISPLAYED_COUNT ? `${MAX_DISPLAYED_COUNT}+` : count}
+  </span>
+)
 
 export const UnreadDot = ({ className }: UnreadBadgeProps) => {
   const unreadCountQuery = useUnreadNotificationsCount()

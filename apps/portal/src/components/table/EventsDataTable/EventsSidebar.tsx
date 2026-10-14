@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { chain } from '@/config'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
@@ -94,14 +95,14 @@ const TransactionDetails = ({
 
         {formattedTimestamp && (
           <InfoRow label="Timestamp">
-            <span className="text-sm">{formattedTimestamp} UTC</span>
+            <span className="text-base">{formattedTimestamp} UTC</span>
           </InfoRow>
         )}
 
         {data && (
           <>
             <InfoRow label="Network">
-              <span className="text-sm">Sepolia</span>
+              <span className="text-base">{chain.name}</span>
             </InfoRow>
 
             <InfoRow label="From">
@@ -112,7 +113,7 @@ const TransactionDetails = ({
               {data.to ? (
                 <AddressDisplay address={data.to} variant="contract" />
               ) : (
-                <span className="text-sm text-muted-foreground">
+                <span className="text-base text-muted-foreground">
                   Contract Creation
                 </span>
               )}

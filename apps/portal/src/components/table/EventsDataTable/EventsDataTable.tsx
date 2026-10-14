@@ -20,6 +20,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { chain } from '@/config'
 import {
   filterByDateRange,
   filterByEventTypes,
@@ -38,7 +39,7 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
   enableSearch = true,
   enableTransactionCount = true,
   enableNetwork = true,
-  defaultNetwork = { name: 'Sepolia', icon: '/icons/eth.svg' },
+  defaultNetwork = { name: chain.name, icon: '/icons/eth.svg' },
   onTransactionClick,
 }: EventsTableConfig<TEvent>) => {
   const [sorting, setSorting] = useState<SortingState>([])

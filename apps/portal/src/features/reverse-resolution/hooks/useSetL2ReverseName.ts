@@ -80,7 +80,7 @@ export function useSetL2ReverseName({
       )
       if (!registrarAddress) {
         throw new Error(
-          `No L2 reverse registrar for chain ${reverseRegistrarChainId} (sepolia)`,
+          `No L2 reverse registrar for chain ${reverseRegistrarChainId} (${envConfig.network})`,
         )
       }
 

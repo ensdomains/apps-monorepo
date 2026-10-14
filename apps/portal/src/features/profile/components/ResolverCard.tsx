@@ -52,7 +52,7 @@ export const ResolverCard = ({
         onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
       >
         <ResolverIcon className="size-8 shrink-0 text-neutral-7" />
-        <span className="text-sm text-muted-foreground">Resolver</span>
+        <span className="text-base text-muted-foreground">Resolver</span>
       </button>
       {value}
     </div>
