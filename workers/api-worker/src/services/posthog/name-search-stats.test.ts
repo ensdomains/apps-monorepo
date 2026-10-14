@@ -6,6 +6,7 @@ afterEach(() => {
 })
 
 describe('getUniqueSearchesLast30dFromPostHog', () => {
+  // Fixtures use fake PostHog URLs rather than Wrangler's generated literals.
   it('calls the endpoint run API and normalizes the unique search count', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -24,7 +25,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
     ).resolves.toMatchObject({ value: 17 })
@@ -65,7 +66,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'july24.eth',
       ),
     ).resolves.toMatchObject({ value: 4 })
@@ -92,7 +93,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
     ).resolves.toMatchObject({ value: 42 })
@@ -110,7 +111,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
     ).resolves.toMatchObject({ value: 0 })

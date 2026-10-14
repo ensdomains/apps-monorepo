@@ -103,7 +103,7 @@
     ]
   },
   // Mainnet deployment smoke testing: /health works without infrastructure.
-  // Full API readiness is incomplete; see DEPLOYMENT_READINESS.md.
+  // Full API readiness still depends on mainnet RPC and indexer support.
   "env": {
     "mainnet": {
       "name": "app-api-worker-mainnet",
@@ -117,7 +117,7 @@
         "EMAIL_FROM_ADDRESS": "noreply@notifications.ens.domains",
         "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
         "VAPID_PUBLIC_KEY": "BP9pVofGPBglBRVCoxJ9_XU6ABerkWXE2jHeODVvW-byCav9WJxPZxV_r_eqnW-CboMKBj8uyFZqBI-YZIA3gNs",
-        "MANAGER_APP_URL": "https://sepolia.app.ens.domains",
+        "MANAGER_APP_URL": "https://app.ens.domains",
         "POSTHOG": {
           "host": "https://eu.posthog.com",
           "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"

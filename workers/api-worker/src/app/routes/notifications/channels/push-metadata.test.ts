@@ -3,13 +3,13 @@ import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { getPushRegistrationMetadata } from './push-metadata'
 
-const publicKey =
+const PUBLIC_KEY =
   'BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs'
 
 describe('push registration provenance', () => {
   it('records the browser origin and a compact fingerprint of the configured key', async () => {
     expect(
-      await getPushRegistrationMetadata('https://app.example:8443', publicKey),
+      await getPushRegistrationMetadata('https://app.example:8443', PUBLIC_KEY),
     ).toEqual({
       origin: 'https://app.example:8443',
       // Fixed SHA-256 vector calculated independently from the decoded key.
@@ -18,18 +18,21 @@ describe('push registration provenance', () => {
   })
 
   it('identifies the same key regardless of base64url padding', async () => {
-    const unpadded = await getPushRegistrationMetadata(undefined, publicKey)
-    const padded = await getPushRegistrationMetadata(undefined, `${publicKey}=`)
+    const unpadded = await getPushRegistrationMetadata(undefined, PUBLIC_KEY)
+    const padded = await getPushRegistrationMetadata(
+      undefined,
+      `${PUBLIC_KEY}=`,
+    )
 
     expect(unpadded.vapidKeyId).toMatch(/^[A-Za-z0-9_-]{22}$/)
     expect(padded.vapidKeyId).toBe(unpadded.vapidKeyId)
   })
 
   it('distinguishes a different key', async () => {
-    const original = await getPushRegistrationMetadata(undefined, publicKey)
+    const original = await getPushRegistrationMetadata(undefined, PUBLIC_KEY)
     const changed = await getPushRegistrationMetadata(
       undefined,
-      `${publicKey.slice(0, -3)}AAA`,
+      `${PUBLIC_KEY.slice(0, -3)}AAA`,
     )
 
     expect(changed.vapidKeyId).not.toBe(original.vapidKeyId)
@@ -62,7 +65,7 @@ describe('push registration provenance', () => {
       auth: 'auth',
       p256dh: 'encryption-key',
       origin: 'https://app.example',
-      vapidPublicKey: publicKey,
+      vapidPublicKey: PUBLIC_KEY,
     })
 
     expect(parsed.origin).toBe('https://app.example')
