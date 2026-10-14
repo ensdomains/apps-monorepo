@@ -130,7 +130,7 @@ describe('initializeRhinestoneAccount (fresh HCA)', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient: makePublicClient(), // getCode → '0x' (undeployed)
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
 
     expect(result.isOk()).toBe(true)
@@ -163,7 +163,7 @@ describe('initializeRhinestoneAccount (fresh HCA)', () => {
       publicClient: makePublicClient({
         getCode: vi.fn().mockResolvedValue('0xabcdef'),
       }),
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
 
     expect(result.isOk()).toBe(true)
@@ -183,7 +183,7 @@ describe('initializeRhinestoneAccount (fresh HCA)', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient: makePublicClient(),
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
     const value = result._unsafeUnwrap()
     expect(value.alreadyDeployed).toBe(false)
@@ -191,13 +191,13 @@ describe('initializeRhinestoneAccount (fresh HCA)', () => {
     expect(value.ownerAddress).toBe(OWNER)
   })
 
-  it('errors (tagged) when rhinestoneApiKey is empty', async () => {
+  it('errors (tagged) when the api key is empty', async () => {
     const result = await initializeRhinestoneAccount({
       ownerAccount: makeOwnerAccount(),
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient: makePublicClient(),
-      rhinestoneApiKey: '',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: '' },
     })
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr()._tag).toBe('AccountInitError')
@@ -214,7 +214,7 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient,
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
     expect(result._unsafeUnwrap().alreadyDeployed).toBe(true)
     // Second createAccount call carries initData.
@@ -242,7 +242,7 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient,
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
     expect(result.isErr()).toBe(true)
     const error = result._unsafeUnwrapErr()
@@ -269,7 +269,7 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient,
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
     expect(result._unsafeUnwrapErr()._tag).toBe('AccountVerificationError')
     expect((result._unsafeUnwrapErr() as any).field).toBe('accountId')
@@ -293,7 +293,7 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient,
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
     })
     expect(result._unsafeUnwrapErr()._tag).toBe('AccountVerificationError')
     expect((result._unsafeUnwrapErr() as any).field).toBe('authorizedOwner')
@@ -308,7 +308,7 @@ describe('direct owner execution readiness', () => {
         eoaAddress: OWNER,
         chain: CHAIN,
         publicClient: makePublicClient(),
-        rhinestoneApiKey: 'k',
+        rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
       })
     )._unsafeUnwrap()
 
@@ -333,7 +333,7 @@ describe('direct owner execution readiness', () => {
         publicClient: makePublicClient({
           getCode: vi.fn().mockResolvedValue('0xabcd'),
         }),
-        rhinestoneApiKey: 'k',
+        rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
       })
     )._unsafeUnwrap()
 
@@ -449,7 +449,7 @@ describe('direct owner execution readiness', () => {
         eoaAddress: OWNER,
         chain: CHAIN,
         publicClient,
-        rhinestoneApiKey: 'k',
+        rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
       })
     )._unsafeUnwrap()
     expect(initial.alreadyDeployed).toBe(false)
@@ -470,7 +470,7 @@ describe('SDK options', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient: makePublicClient(),
-      rhinestoneApiKey: 'test-api-key',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'test-api-key' },
     })
     const opts = vi.mocked(RhinestoneSDK).mock.calls[0]?.[0] as any
     expect(opts.auth).toMatchObject({ mode: 'apiKey', apiKey: 'test-api-key' })
@@ -483,7 +483,7 @@ describe('SDK options', () => {
       eoaAddress: OWNER,
       chain: CHAIN,
       publicClient: makePublicClient(),
-      rhinestoneApiKey: 'k',
+      rhinestoneAuth: { mode: 'apiKey', apiKey: 'k' },
       rhinestoneEndpointUrl: '/orchestrator',
       rhinestoneCustomRpcUrls: { 31337: 'http://127.0.0.1:8545' },
     })

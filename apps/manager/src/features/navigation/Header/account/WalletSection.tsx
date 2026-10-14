@@ -1,6 +1,6 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
-import { ShieldOff, WalletIcon } from 'lucide-react'
+import { WalletIcon } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { useAccount } from 'wagmi'
@@ -12,12 +12,14 @@ import { truncateAddress } from '@/lib/utils'
 import { useWalletDisconnect } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { AccountMenuItemButton, AccountMenuItemStatus } from './AccountMenuItem'
 
 type WalletSectionProps = {
   readonly onAction: () => void
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
+  const { t } = useLingui()
   const {
     accountAddress,
     ownerAddress,
@@ -46,7 +48,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   }
 
   return (
-    <div className="mb-3 space-y-4">
+    <>
       {/* Show the user's wallet address, never the HCA (WEB-678). The live
           wagmi account comes first: the machine's ownerAddress can be stale
           for a render during a wallet switch. */}
@@ -55,53 +57,57 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         isLoading,
       })
         .with({ walletAddress: P.nonNullable }, ({ walletAddress }) => (
-          <button
-            className="flex w-full items-center gap-2"
+          <AccountMenuItemButton
             onClick={() => copy(walletAddress)}
-            type="button"
+            prefix={
+              <>
+                <span className="flex group-hover:hidden group-focus-visible:hidden">
+                  <MSymbol
+                    className="ms-opsz-20"
+                    symbol="account_balance_wallet"
+                  />
+                </span>
+                <span className="hidden group-hover:flex group-focus-visible:flex">
+                  <MSymbol className="ms-opsz-20" symbol="content_copy" />
+                </span>
+              </>
+            }
+            title={t`Copy wallet address`}
           >
-            <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
-            <span className="font-[350] text-base text-ens-quartz-400">
-              <Trans>Address</Trans>
-            </span>
-            <span className="text-sm leading-ens-tight">
-              {copied ? <Trans>Copied!</Trans> : truncateAddress(walletAddress)}
-            </span>
-            <MSymbol className="ms-opsz-20" symbol="content_copy" />
-          </button>
+            {copied ? (
+              <Trans>Copied!</Trans>
+            ) : (
+              <span className="font-mono">
+                {truncateAddress(walletAddress)}
+              </span>
+            )}
+          </AccountMenuItemButton>
         ))
         .with({ isLoading: true }, () => (
-          <div
+          <AccountMenuItemStatus
             aria-busy="true"
             aria-live="polite"
-            className="flex w-full items-center gap-2"
-          >
-            <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
-            <span className="font-[350] text-base text-ens-quartz-400">
-              <Trans>Address</Trans>
-            </span>
-            <span className="flex items-center gap-2 text-ens-quartz-400 text-sm leading-ens-tight">
+            className="text-ens-quartz-400"
+            prefix={
               <span className="size-3 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
-              <Trans>Deploying smart account…</Trans>
-            </span>
-          </div>
+            }
+          >
+            <Trans>Deploying smart account…</Trans>
+          </AccountMenuItemStatus>
         ))
         .otherwise(() => null)}
 
       {shouldShowSiweButton && (
-        <button
-          className="flex w-full items-center gap-2"
+        <AccountMenuItemButton
+          className="text-ens-lapis-core"
           onClick={() => {
             backendAuthStore.trigger.resetModal()
             onAction()
           }}
-          type="button"
+          prefix={<WalletIcon className="size-5 text-ens-lapis-core" />}
         >
-          <WalletIcon className="size-5 text-ens-lapis-core" />
-          <span className="text-base text-ens-lapis-core leading-ens-tight">
-            <Trans>Verify wallet ownership</Trans>
-          </span>
-        </button>
+          <Trans>Verify wallet ownership</Trans>
+        </AccountMenuItemButton>
       )}
 
       {/* Shown for any HCA, not just one with a session saved HERE: sessions
@@ -112,16 +118,9 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           and unlike the rest of the HCA flow it is a gas-paying owner
           transaction, hence the confirm step. EOA mode has no HCA. */}
       {accountAddress && !isFeatureEnabled('USE_EOA') && (
-        <button
-          className="flex w-full items-center gap-2 rounded-lg"
-          onClick={() => setIsRevokeOpen(true)}
-          type="button"
-        >
-          <ShieldOff className="size-5 text-ens-quartz-900" />
-          <span className="text-ens-quartz-900 text-sm">
-            <Trans>Revoke smart sessions</Trans>
-          </span>
-        </button>
+        <AccountMenuItemButton onClick={() => setIsRevokeOpen(true)}>
+          <Trans>Revoke smart sessions</Trans>
+        </AccountMenuItemButton>
       )}
 
       <RevokeSessionsModal
@@ -143,20 +142,16 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         smartAccountAddress={accountAddress ?? undefined}
       />
 
-      <button
-        className="flex w-full items-center gap-2 rounded-lg"
+      <AccountMenuItemButton
         onClick={() => void handleDisconnect()}
-        type="button"
+        prefix={
+          isDisconnecting ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+          ) : null
+        }
       >
-        {isDisconnecting ? (
-          <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
-        ) : (
-          <MSymbol className="ms-opsz-20" symbol="logout" />
-        )}
-        <span className="text-ens-quartz-900 text-sm">
-          <Trans>Disconnect</Trans>
-        </span>
-      </button>
-    </div>
+        <Trans>Disconnect</Trans>
+      </AccountMenuItemButton>
+    </>
   )
 }

@@ -1,6 +1,12 @@
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { zeroAddress } from 'viem'
+import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import { buildConfig, NetworkConfigError } from './buildConfig'
+import {
+  assertEnsV2Deployed,
+  buildConfig,
+  NetworkConfigError,
+} from './buildConfig'
 import { ENS_NETWORKS, NETWORKS } from './networks'
 
 const SEPOLIA_RPC = 'https://rpc.example/sepolia/key'
@@ -45,20 +51,14 @@ describe('buildConfig', () => {
   describe('ENSv2 deployment guard', () => {
     // ensjs carries a key for every network but fills undeployed ones with the
     // zero address, so a lookup returns 0x0 instead of throwing. Without this
-    // guard a mainnet build would send calls to 0x0.
+    // guard a build for such a network would send calls to 0x0.
     it('refuses a network whose ENSv2 contracts are the zero address', () => {
       expect(() =>
-        buildConfig({
-          network: 'mainnet',
-          rpcUrl: 'https://rpc.example/mainnet',
-          // Supplied so the endpoint check passes and the contract check is
-          // what actually fails.
-          overrides: {
-            indexerGraphql: 'https://indexer.example/',
-            bignameApi: 'https://bigname.example/',
-          },
+        assertEnsV2Deployed('sepolia', {
+          ...buildSepolia().chain.contracts,
+          ensRegistry: { address: zeroAddress },
         }),
-      ).toThrow(/ENSv2 is not deployed on mainnet.*ensRegistry/s)
+      ).toThrow(/ENSv2 is not deployed on sepolia.*ensRegistry/s)
     })
 
     it('passes for sepolia, where ENSv2 is deployed', () => {
@@ -68,6 +68,34 @@ describe('buildConfig', () => {
       expect(config.chain.contracts.ensEthRegistrar.address).not.toBe(
         zeroAddress,
       )
+    })
+
+    it('passes for mainnet, now that ensjs carries its ENSv2 addresses', () => {
+      const config = buildConfig({
+        network: 'mainnet',
+        allowMissingEndpoints: true,
+      })
+
+      expect(config.isTestnet).toBe(false)
+      expect(config.chain.id).toBe(NETWORKS.mainnet.chainId)
+      expect(config.chain.contracts.ensRegistry.address).not.toBe(zeroAddress)
+    })
+  })
+
+  describe('v1 subgraph', () => {
+    it("keeps ensjs's subgraph when the profile has no override", () => {
+      expect(buildSepolia().chain.subgraphs.ens.url).toBe(
+        extendChainWithEns(sepolia).subgraphs.ens.url,
+      )
+    })
+
+    it('uses the profile override on mainnet', () => {
+      const { chain } = buildConfig({
+        network: 'mainnet',
+        allowMissingEndpoints: true,
+      })
+
+      expect(chain.subgraphs.ens.url).toBe(NETWORKS.mainnet.v1SubgraphUrl)
     })
   })
 
@@ -158,7 +186,27 @@ describe('buildConfig', () => {
     it('names the endpoint when a network has no deployment for it', () => {
       expect(() =>
         buildConfig({ network: 'mainnet', rpcUrl: 'https://rpc.example' }),
-      ).toThrow(/no endpoint configured for: indexerGraphql/)
+      ).toThrow(/no endpoint configured for: bignameApi/)
+    })
+
+    it('resolves an endpoint with no deployment to null when the app allows it', () => {
+      const { endpoints } = buildConfig({
+        network: 'mainnet',
+        allowMissingEndpoints: true,
+      })
+
+      // Profile nulls come through as null, configured endpoints unchanged.
+      expect(endpoints).toEqual(NETWORKS.mainnet.endpoints)
+    })
+
+    it('still rejects a malformed override when missing endpoints are allowed', () => {
+      expect(() =>
+        buildConfig({
+          network: 'mainnet',
+          allowMissingEndpoints: true,
+          overrides: { indexerGraphql: 'not-a-url' },
+        }),
+      ).toThrow(/Invalid endpoint indexerGraphql/)
     })
 
     it('resolves the bigname endpoint from the profile and from an override', () => {
@@ -238,16 +286,14 @@ describe('undeployed contracts', () => {
   // omitting it, so a lookup succeeds and the call goes to 0x0. The build
   // guard is what turns that into a failure, and it must cover the reverse
   // set too now that ensjs carries those keys.
-  it('fails a mainnet build naming every zero-address contract', () => {
+  it('names every zero-address contract, the reverse set included', () => {
     expect(() =>
-      buildConfig({
-        network: 'mainnet',
-        overrides: {
-          indexerGraphql: 'https://indexer.example/',
-          bignameApi: 'https://bigname.example/',
-        },
+      assertEnsV2Deployed('sepolia', {
+        ...buildSepolia().chain.contracts,
+        ensDefaultReverseRegistrar: { address: zeroAddress },
+        ensReverseRegistrarAdapter: { address: zeroAddress },
       }),
-    ).toThrow(/ensDefaultReverseRegistrar/)
+    ).toThrow(/ensDefaultReverseRegistrar, ensReverseRegistrarAdapter/)
   })
 
   it('does not fail sepolia, where they are deployed', () => {

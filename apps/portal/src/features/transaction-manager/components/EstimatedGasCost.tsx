@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
 import { useTransactionGasEstimate } from '../hooks/useTransactionGasEstimate'
 import type { Transaction } from '../types'
@@ -89,7 +89,7 @@ export const EstimatedGasCost = ({
             return undefined
           })({
             walletClient: readyWalletClient,
-            chainId: sepoliaWithEns.id,
+            chainId: ensChain.id,
           }).unwrapOr(undefined)
         : undefined,
     [readyWalletClient, prepareIntent],

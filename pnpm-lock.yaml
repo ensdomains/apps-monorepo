@@ -168,11 +168,11 @@ catalogs:
       specifier: ^1.54.2
       version: 1.54.3
     '@ensdomains/ensjs':
-      specifier: ^5.0.0
-      version: 5.0.0
+      specifier: ^5.2.1
+      version: 5.2.1
     '@ensdomains/ensjs-abi':
-      specifier: ^5.0.0
-      version: 5.0.0
+      specifier: ^5.0.2
+      version: 5.0.2
     '@posthog/react':
       specifier: ^1.10.3
       version: 1.10.3
@@ -191,6 +191,9 @@ catalogs:
     happy-dom:
       specifier: ^20.13.2
       version: 20.13.2
+    jose:
+      specifier: ^6.0.0
+      version: 6.2.12
     posthog-js:
       specifier: ^1.398.3
       version: 1.404.1
@@ -323,10 +326,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       '@ensdomains/etherloom':
         specifier: 0.1.0-alpha.4
         version: 0.1.0-alpha.4
@@ -380,7 +383,7 @@ importers:
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -432,6 +435,9 @@ importers:
       graphql:
         specifier: ^17.0.2
         version: 17.0.2
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       lottie-web:
         specifier: 5.13.0
         version: 5.13.0
@@ -639,10 +645,10 @@ importers:
         version: 1.0.0
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -848,6 +854,9 @@ importers:
       happy-dom:
         specifier: 'catalog:'
         version: 20.13.2
+      omnipin:
+        specifier: ^3.1.3
+        version: 3.1.3
       tailwindcss:
         specifier: ^4.2.4
         version: 4.2.4
@@ -871,10 +880,10 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       '@ensdomains/headless-web3-provider':
         specifier: ^1.0.8
         version: 1.0.8(supports-color@10.2.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
@@ -899,7 +908,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.6.5)
@@ -930,10 +939,10 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.6.5)
@@ -1033,7 +1042,7 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@urql/core':
         specifier: ^6.0.3
         version: 6.0.3(graphql@17.0.2)
@@ -1079,7 +1088,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.6.5)
@@ -1097,10 +1106,10 @@ importers:
         version: link:../config
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.6.5)
@@ -1145,13 +1154,13 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       neverthrow:
         specifier: ^8.1.1
         version: 8.2.0
@@ -1185,13 +1194,13 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.0
+        version: 5.0.2
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       idb:
         specifier: ^8.0.3
         version: 8.0.3
@@ -1228,7 +1237,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-query':
         specifier: ^5.104.0
         version: 5.104.0(react@19.2.5)
@@ -1302,7 +1311,7 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.12.18)(valibot@1.2.0(typescript@7.0.2))
@@ -1422,10 +1431,6 @@ packages:
     resolution: {integrity: sha512-RgHBCvtjbOK2gXSNBNIkNoEc9qoVEtau3hj8gEqKQuL3HZAibKarWFEI3Lfm6EYKkLalOh8eSrj9b+ch9H/VBA==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/generator@7.29.7':
-    resolution: {integrity: sha512-DkXD5OJQaAQIdZ1bt3UZdEnHAn9Imd3IVBdX03UFe+ony9Ojw5pzr9YVKGDY1jt+Gcn/FnGkNf8r+Vj5NOJWtQ==}
-    engines: {node: '>=6.9.0'}
-
   '@babel/generator@7.29.8':
     resolution: {integrity: sha512-gZbepsdh3WDtgZKWL+vTPh71LSBrm/Y4/QDZBVCcYfmeTEEuoOYwlSy+G1StfJg+/Zy550u/3TATbm7qDbbMtg==}
     engines: {node: '>=6.9.0'}
@@ -1468,11 +1473,6 @@ packages:
     resolution: {integrity: sha512-1k2lAGRMfHTcwuNYcCNUmaUffmQv8KWMfh2iJUUeRlwlwH4FdNG7mfPI10NPfLHJFThE4Tyr4mv7kTNZOiPuBg==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/parser@7.29.7':
-    resolution: {integrity: sha512-hnORnjP/1P/zFEndoeX+n+t1RwWRJiJpM/jO7FW32Kn9r5+sJB2JWOdYo4L6k78j15eCwY3Gm/7364B1EMwtNg==}
-    engines: {node: '>=6.0.0'}
-    hasBin: true
-
   '@babel/parser@7.29.9':
     resolution: {integrity: sha512-CjXrNHTnvqBVqHgdBysY3vk2T8tpJHb5/RMeHJBTyVa9xgugCB0CJTx/3oO8RV2QRQP391RWpB7D6hLjm8V9uA==}
     engines: {node: '>=6.0.0'}
@@ -1497,10 +1497,6 @@ packages:
 
   '@babel/traverse@7.29.7':
     resolution: {integrity: sha512-EhlfNQtZ+NK22w5BM61ciuiq1m58ed33Wr1Xan//ZRTy6hgjnwyCffRYwzsGXdASJSUJ1guZILsErh1eQcl+zw==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/types@7.29.7':
-    resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.8':
@@ -1614,6 +1610,7 @@ packages:
 
   '@cloudflare/vitest-pool-workers@0.16.18':
     resolution: {integrity: sha512-TEktXyevK9lkTWouElbIcDPK3YEfV+Szqgnlq5sNk+KYZR3LiDdYDaGNmUYgiT2LiiFeGU2yzCrcgmN8mJhqWQ==}
+    deprecated: '@cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates.'
     peerDependencies:
       '@vitest/runner': ^4.1.0
       '@vitest/snapshot': ^4.1.0
@@ -1733,9 +1730,6 @@ packages:
   '@ensdomains/address-encoder@1.0.0-rc.3':
     resolution: {integrity: sha512-8o6zH69rObIqDY4PusEWuN9jvVOct+9jj9AOPO7ifc3ev8nmsly0e8TE1sHkhk0iKFbd3DlSsUnJ+yuRWmdLCQ==}
 
-  '@ensdomains/address-encoder@1.1.1':
-    resolution: {integrity: sha512-yg7s+suCuKRhaGsgLu57W/jxIs/Lnqs/SU7jT7UwS4ATSnW94jbUCbmyyZ82CQwKsmwaUE8uYvvVb4N6lfz29A==}
-
   '@ensdomains/address-encoder@1.1.4':
     resolution: {integrity: sha512-hBY6VxVw9A1cMPOKDIvPB2nlmgaw2dvrrj/p/9tkGWmD+qdfKYZTdZuSdFcUGxhhzEB4HeLG/a98ytlTq84KcA==}
 
@@ -1746,17 +1740,20 @@ packages:
     resolution: {integrity: sha512-OCIC7VchGx7A40P9TQxvgP+A6naAv+l/aEGwE8QwCB2o4EdNSRQlD7vBbg7pOZ9nqxKkkJfVwb8cW4HdCHB9HA==}
     engines: {node: '>=20.19.0'}
 
-  '@ensdomains/ensjs-abi@5.0.0':
-    resolution: {integrity: sha512-LuH+BsuRJCbVIpe1IzBvlISlJOm95eahSO4Kvr7j3ZfNinulxcnvJMfZYrRABU2WT7mAwvj5yKF+YlwA3qSGfg==}
+  '@ensdomains/ensjs-abi@5.0.2':
+    resolution: {integrity: sha512-i11DsYnaTR4suEPab0qNnZhIfHtsGQz2txa/Ae5b0/RGzkb+TKYy4867MfSqMnkCjV/YkLntd/oX3GTml/IfKw==}
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs@5.0.0':
-    resolution: {integrity: sha512-snqLAPh36OIb3GauJQZ3MRalMcrfqgu/EHCU+FlfAUGx1s5THBtG5lheWz0W6sUJ/2cC1SR5XODpD2bUtrLLpQ==}
+  '@ensdomains/ensjs@5.2.1':
+    resolution: {integrity: sha512-0yLCqZ3LjXwGgKIEiwDPZ+7cvFI1AUIpyni6/k8/4L2DTlJXUAtEpwSp2VKM7OF/VO5UPvFMlZlOQvkXI5YtXw==}
     engines: {node: '>=22'}
     peerDependencies:
+      '@ensdomains/dnsprovejs': ^0.5.4 || ^1.0.0
       graphql: ^16.0.0 || ^17.0.0
       viem: ^2.9.2
     peerDependenciesMeta:
+      '@ensdomains/dnsprovejs':
+        optional: true
       graphql:
         optional: true
 
@@ -7172,6 +7169,9 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
+  jose@6.2.12:
+    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
+
   js-sha256@0.10.1:
     resolution: {integrity: sha512-5obBtsz9301ULlsgggLg542s/jqtddfOpV5KJc4hajc9JV8GeY2gZHSVpYBn4nWqAUTJ9v+xwtbJ1mIBgIH5Vw==}
 
@@ -7686,6 +7686,11 @@ packages:
   ofetch@1.5.1:
     resolution: {integrity: sha512-2W4oUZlVaqAPAil6FUg/difl6YhqhUR7x2eZY4bQCko22UXg3hptq9KLQdqFClV+Wu85UX7hNtdGTngi/1BxcA==}
 
+  omnipin@3.1.3:
+    resolution: {integrity: sha512-jcRWHvKrX/eiv6HLLtfH7jihzomSXLzYXLxASXr28Nd+SEW5m4/vWAA1Y5e/v6EHt22TICIMz9TolS42Ue+dww==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   on-exit-leak-free@0.2.0:
     resolution: {integrity: sha512-dqaz3u44QbRXQooZLTUKU41ZrzYrcvLISVgbrzbyCMxpmSLJvZ3ZamIJIZ29P6OhZIkNIQKosdeM6t1LYbA9hg==}
 
@@ -7875,10 +7880,6 @@ packages:
   picomatch@2.3.2:
     resolution: {integrity: sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==}
     engines: {node: '>=8.6'}
-
-  picomatch@4.0.5:
-    resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
-    engines: {node: '>=12'}
 
   picomatch@4.0.7:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
@@ -8590,9 +8591,6 @@ packages:
     engines: {node: '>=16.20.0'}
     hasBin: true
 
-  ufo@1.6.3:
-    resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
-
   ufo@1.6.4:
     resolution: {integrity: sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA==}
 
@@ -9296,14 +9294,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/generator@7.29.7':
-    dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
-      '@jridgewell/gen-mapping': 0.3.13
-      '@jridgewell/trace-mapping': 0.3.31
-      jsesc: 3.1.0
-
   '@babel/generator@7.29.8':
     dependencies:
       '@babel/parser': 7.29.9
@@ -9351,10 +9341,6 @@ snapshots:
       '@babel/template': 7.29.7
       '@babel/types': 7.29.8
 
-  '@babel/parser@7.29.7':
-    dependencies:
-      '@babel/types': 7.29.7
-
   '@babel/parser@7.29.9':
     dependencies:
       '@babel/types': 7.29.8
@@ -9385,11 +9371,6 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
-
-  '@babel/types@7.29.7':
-    dependencies:
-      '@babel/helper-string-parser': 7.29.7
-      '@babel/helper-validator-identifier': 7.29.7
 
   '@babel/types@7.29.8':
     dependencies:
@@ -9621,12 +9602,6 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
-  '@ensdomains/address-encoder@1.1.1':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.6
-
   '@ensdomains/address-encoder@1.1.4':
     dependencies:
       '@noble/curves': 1.9.7
@@ -9648,18 +9623,19 @@ snapshots:
       dns-packet: 5.6.1
       typescript-logging: 1.0.1
 
-  '@ensdomains/ensjs-abi@5.0.0': {}
+  '@ensdomains/ensjs-abi@5.0.2': {}
 
-  '@ensdomains/ensjs@5.0.0(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@ensdomains/ensjs@5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
-      '@ensdomains/address-encoder': 1.1.1
+      '@ensdomains/address-encoder': 1.1.4
       '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/ensjs-abi': 5.0.0
+      '@ensdomains/ensjs-abi': 5.0.2
       dns-packet: 5.6.1
       ts-pattern: 5.9.0
       viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
     optionalDependencies:
+      '@ensdomains/dnsprovejs': 1.0.0
       graphql: 17.0.2
 
   '@ensdomains/etherloom@0.1.0-alpha.4': {}
@@ -10058,9 +10034,9 @@ snapshots:
 
   '@graphql-codegen/cli@7.3.1(@types/node@24.10.2)(crossws@0.3.5)(graphql@17.0.2)(supports-color@10.2.2)(typescript@7.0.2)':
     dependencies:
-      '@babel/generator': 7.29.7
+      '@babel/generator': 7.29.8
       '@babel/template': 7.29.7
-      '@babel/types': 7.29.7
+      '@babel/types': 7.29.8
       '@graphql-codegen/client-preset': 6.1.3(graphql@17.0.2)
       '@graphql-codegen/core': 6.2.0(graphql@17.0.2)
       '@graphql-codegen/plugin-helpers': 7.2.1(graphql@17.0.2)
@@ -10354,10 +10330,10 @@ snapshots:
   '@graphql-tools/graphql-tag-pluck@8.3.36(graphql@17.0.2)(supports-color@10.2.2)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
-      '@babel/parser': 7.29.7
+      '@babel/parser': 7.29.9
       '@babel/plugin-syntax-import-assertions': 7.27.1(@babel/core@7.29.7(supports-color@10.2.2))
       '@babel/traverse': 7.29.7(supports-color@10.2.2)
-      '@babel/types': 7.29.7
+      '@babel/types': 7.29.8
       '@graphql-tools/utils': 12.0.0(graphql@17.0.2)
       graphql: 17.0.2
       tslib: 2.8.1
@@ -10861,7 +10837,7 @@ snapshots:
   '@lingui/babel-plugin-lingui-macro@6.3.0(supports-color@10.2.2)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
-      '@babel/types': 7.29.7
+      '@babel/types': 7.29.8
       '@lingui/conf': 6.3.0
       '@lingui/message-utils': 6.3.0
     transitivePeerDependencies:
@@ -10870,9 +10846,9 @@ snapshots:
   '@lingui/cli@6.3.0(supports-color@10.2.2)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
-      '@babel/generator': 7.29.7
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
+      '@babel/generator': 7.29.8
+      '@babel/parser': 7.29.9
+      '@babel/types': 7.29.8
       '@lingui/babel-plugin-extract-messages': 6.3.0
       '@lingui/babel-plugin-lingui-macro': 6.3.0(supports-color@10.2.2)
       '@lingui/conf': 6.3.0
@@ -12263,7 +12239,7 @@ snapshots:
   '@react-email/render@2.0.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       html-to-text: 9.0.5
-      prettier: 3.8.3
+      prettier: 3.9.9
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
 
@@ -12560,11 +12536,13 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
-  '@rhinestone/sdk@1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@rhinestone/sdk@1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@rhinestone/shared-configs': 1.6.10(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       solady: 0.1.26
       viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
+    optionalDependencies:
+      jose: 6.2.12
     transitivePeerDependencies:
       - typescript
 
@@ -12625,7 +12603,7 @@ snapshots:
   '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@8.0.0)(rolldown@1.0.3)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       rolldown: 1.0.3
     optionalDependencies:
       '@babel/runtime': 8.0.0
@@ -13532,14 +13510,6 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@wagmi/connectors@8.1.0(@wagmi/core@3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5)))(@walletconnect/ethereum-provider@2.21.8(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.6.5))(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
-    dependencies:
-      '@wagmi/core': 3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
-      viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
-    optionalDependencies:
-      '@walletconnect/ethereum-provider': 2.21.8(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.6.5)
-      typescript: 7.0.2
-
   '@wagmi/connectors@8.1.0(@wagmi/core@3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.6.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5)))(@walletconnect/ethereum-provider@2.21.8(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.6.5))(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@wagmi/core': 3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.6.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
@@ -14235,9 +14205,9 @@ snapshots:
   babel-dead-code-elimination@1.0.12(supports-color@10.2.2):
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
-      '@babel/parser': 7.29.7
+      '@babel/parser': 7.29.9
       '@babel/traverse': 7.29.7(supports-color@10.2.2)
-      '@babel/types': 7.29.7
+      '@babel/types': 7.29.8
     transitivePeerDependencies:
       - supports-color
 
@@ -14868,9 +14838,9 @@ snapshots:
     dependencies:
       walk-up-path: 4.0.0
 
-  fdir@6.5.0(picomatch@4.0.5):
+  fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
-      picomatch: 4.0.5
+      picomatch: 4.0.7
 
   fetch-blob@3.2.0:
     dependencies:
@@ -15001,7 +14971,7 @@ snapshots:
       iron-webcrypto: 1.2.1
       node-mock-http: 1.0.4
       radix3: 1.1.2
-      ufo: 1.6.3
+      ufo: 1.6.4
       uncrypto: 0.1.3
 
   h3@2.0.1-rc.20:
@@ -15189,6 +15159,8 @@ snapshots:
 
   jiti@2.7.0: {}
 
+  jose@6.2.12: {}
+
   js-sha256@0.10.1: {}
 
   js-tokens@10.0.0: {}
@@ -15220,13 +15192,13 @@ snapshots:
 
   knip@6.32.2:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.5)
+      fdir: 6.5.0(picomatch@4.0.7)
       formatly: 0.3.0
       get-tsconfig: 4.14.1
       jiti: 2.7.0
       oxc-parser: 0.143.0
       oxc-resolver: 11.24.2
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       smol-toml: 1.8.0
       strip-json-comments: 5.0.3
       tinyglobby: 0.2.17
@@ -15463,8 +15435,8 @@ snapshots:
 
   magicast@0.5.2:
     dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
+      '@babel/parser': 7.29.9
+      '@babel/types': 7.29.8
       source-map-js: 1.2.1
 
   make-dir@4.0.0:
@@ -15622,7 +15594,9 @@ snapshots:
     dependencies:
       destr: 2.0.5
       node-fetch-native: 1.6.7
-      ufo: 1.6.3
+      ufo: 1.6.4
+
+  omnipin@3.1.3: {}
 
   on-exit-leak-free@0.2.0: {}
 
@@ -15929,8 +15903,6 @@ snapshots:
 
   picomatch@2.3.2: {}
 
-  picomatch@4.0.5: {}
-
   picomatch@4.0.7: {}
 
   pino-abstract-transport@0.5.0:
@@ -16005,7 +15977,8 @@ snapshots:
 
   preact@10.29.7: {}
 
-  prettier@3.8.3: {}
+  prettier@3.8.3:
+    optional: true
 
   prettier@3.9.9: {}
 
@@ -16645,8 +16618,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.5)
-      picomatch: 4.0.5
+      fdir: 6.5.0(picomatch@4.0.7)
+      picomatch: 4.0.7
 
   tinypool@2.1.0: {}
 
@@ -16722,8 +16695,6 @@ snapshots:
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
 
-  ufo@1.6.3: {}
-
   ufo@1.6.4: {}
 
   uint8array-extras@1.6.0: {}
@@ -16784,7 +16755,7 @@ snapshots:
       lru-cache: 11.5.1
       node-fetch-native: 1.6.7
       ofetch: 1.5.1
-      ufo: 1.6.3
+      ufo: 1.6.4
     optionalDependencies:
       idb-keyval: 6.2.6
 
@@ -16932,8 +16903,8 @@ snapshots:
 
   vite@8.0.16(@types/node@22.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
-      lightningcss: 1.32.0
-      picomatch: 4.0.5
+      lightningcss: 1.33.0
+      picomatch: 4.0.7
       postcss: 8.5.15
       rolldown: 1.0.3
       tinyglobby: 0.2.17
@@ -16947,8 +16918,8 @@ snapshots:
 
   vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
-      lightningcss: 1.32.0
-      picomatch: 4.0.5
+      lightningcss: 1.33.0
+      picomatch: 4.0.7
       postcss: 8.5.15
       rolldown: 1.0.3
       tinyglobby: 0.2.17

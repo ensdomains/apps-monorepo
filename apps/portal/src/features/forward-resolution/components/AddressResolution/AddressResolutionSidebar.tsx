@@ -50,7 +50,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
@@ -104,7 +104,7 @@ const Banner = ({
         .with('pending', () => (
           <>
             <Clock className="size-6 shrink-0" />
-            <span className="text-sm">
+            <span className="text-p">
               Primary name is set on {label} — waiting for L1 verification
               {lagEstimate ? ` (${lagEstimate})` : ''}.
             </span>
@@ -114,11 +114,11 @@ const Banner = ({
           <>
             <TriangleAlert className="size-6 shrink-0" />
             <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-sm">
+              <span className="text-p">
                 Can't verify reverse resolution on {label} right now
               </span>
               {errorDetail && (
-                <code className="font-mono text-xs opacity-80 break-all">
+                <code className="text-smallmono opacity-80 break-all">
                   {errorDetail}
                 </code>
               )}
@@ -128,7 +128,7 @@ const Banner = ({
         .with('mismatch', () => (
           <>
             <XCircle className="size-6 shrink-0" />
-            <span className="text-sm">
+            <span className="text-p">
               The set address does not resolve back to this name on {label}
             </span>
           </>
@@ -182,7 +182,7 @@ const AddressField = ({
   <InfoRow label="Address">
     <div className="flex-1 flex flex-col gap-2">
       {addressSource === 'default' && (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-p text-muted-foreground">
           No record is set for this network — showing the ENSIP-19 default (
           <code className="font-mono">0x80000000</code>).
         </span>
@@ -203,7 +203,7 @@ const AddressField = ({
           </EntityBadge>
         )
       ) : (
-        <span className="font-mono text-sm text-muted-foreground/50">null</span>
+        <span className="text-entity-base text-muted-foreground/50">null</span>
       )}
       {canEdit && (
         <div className="flex gap-2">
@@ -246,7 +246,7 @@ const PrimaryNameRow = ({
       <Badge
         variant="outline"
         className={cn(
-          'text-xs border-transparent',
+          'text-small border-transparent',
           match(status)
             .with('verified', () => 'bg-success-fill text-success-text')
             .with('pending', () => 'bg-accent-fill text-accent-text')
@@ -289,7 +289,7 @@ const PrimaryNameRow = ({
                 {address.slice(0, 6)}…{address.slice(-4)}
               </span>
             }
-            className="font-mono text-sm"
+            className="text-entity-base"
           />
         </div>
       )}
@@ -452,7 +452,7 @@ const useAddressRecordEditor = (
 
   const setPrimaryTxId = scopeTransactionId(SET_PRIMARY_TX_ID, attempt.scope)
   const { setReverseResolution } = useSetReverseResolution({
-    chainId: sepoliaWithEns.id,
+    chainId: ensChain.id,
     id: setPrimaryTxId,
   })
   const { setL2ReverseNameAsync, isPending: isSettingL2PrimaryName } =

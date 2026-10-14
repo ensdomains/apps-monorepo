@@ -33,7 +33,7 @@ export const InfoRow = ({
   >
     <div className="flex items-center gap-4">
       {Icon ? <Icon className="size-4 shrink-0 text-neutral-7" /> : null}
-      <span className="text-ui w-28 shrink-0 whitespace-nowrap">{label}</span>
+      <span className="text-base w-28 shrink-0 whitespace-nowrap">{label}</span>
     </div>
     <div className={cn('min-w-0 sm:pl-0', Icon && 'pl-8')}>{children}</div>
   </div>

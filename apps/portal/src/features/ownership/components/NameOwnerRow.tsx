@@ -23,7 +23,7 @@ import type { ProtocolVersion } from '@/utils/types'
  */
 const DnsOwnerLabel = () => (
   <Tooltip>
-    <TooltipTrigger className="inline-flex items-center gap-1 cursor-help text-ui">
+    <TooltipTrigger className="inline-flex items-center gap-1 cursor-help text-base">
       DNS owner
       <CircleHelp className="size-3.5 shrink-0 text-neutral-7" />
     </TooltipTrigger>
@@ -57,13 +57,13 @@ const DnsOwnerRow = ({
   if (isLoading)
     return (
       <InfoRow icon={ShieldPersonIcon} label={<DnsOwnerLabel />}>
-        <span className="text-sm text-muted-foreground">Loading</span>
+        <span className="text-base text-muted-foreground">Loading</span>
       </InfoRow>
     )
   if (!dnsOwner)
     return (
       <InfoRow icon={ShieldPersonIcon} label={<DnsOwnerLabel />}>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-p text-muted-foreground">
           Could not read the domain's <code>_ens</code> record
         </span>
       </InfoRow>
@@ -115,7 +115,7 @@ const V1OwnerRow = ({
   if (error)
     return (
       <InfoRow icon={ShieldPersonIcon} label={label}>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-base text-muted-foreground">
           Failed to load owner
         </span>
       </InfoRow>
@@ -123,14 +123,16 @@ const V1OwnerRow = ({
   if (isLoading)
     return (
       <InfoRow icon={ShieldPersonIcon} label={label}>
-        <span className="text-sm text-muted-foreground">Loading</span>
+        <span className="text-base text-muted-foreground">Loading</span>
       </InfoRow>
     )
   // No result and no error — a paused query, or no V1 owner at any level.
   if (!data)
     return (
       <InfoRow icon={ShieldPersonIcon} label={label}>
-        <span className="text-sm text-muted-foreground">Owner unavailable</span>
+        <span className="text-base text-muted-foreground">
+          Owner unavailable
+        </span>
       </InfoRow>
     )
 

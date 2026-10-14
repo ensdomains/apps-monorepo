@@ -462,7 +462,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     signer: {
       type: 'rhinestone',
       account: {} as never,
-      config: { accountAddress: HCA_ADDRESS, rhinestoneApiKey: 'k' },
+      config: { accountAddress: HCA_ADDRESS },
     },
     accountAddress: HCA_ADDRESS,
     ownerAddress: EOA_ADDRESS,

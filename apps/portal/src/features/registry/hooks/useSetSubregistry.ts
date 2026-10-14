@@ -12,7 +12,7 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 import { setSubregistry } from '@/features/registry/helpers/setSubregistry'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
@@ -33,7 +33,7 @@ export const useSetSubregistry = ({
   parentRegistry,
   id,
 }: UseSetSubregistryParams) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()

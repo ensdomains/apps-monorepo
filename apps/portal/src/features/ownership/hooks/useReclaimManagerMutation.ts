@@ -11,7 +11,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { prepareTransferV1NameTransaction } from '@/features/transfer/v1/writes'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getV1NameManagerQueryOptions } from '../queries/getV1NameManager'
 
@@ -70,14 +70,14 @@ export const useReclaimManagerMutation = ({
             name,
             account: walletClient.account.address,
             walletClient,
-            chainId: sepoliaWithEns.id,
+            chainId: ensChain.id,
           }),
           createEOASigner(walletClient),
           {
             id,
             description: `Reclaim manager role - ${name}`,
             publicClient,
-            chainId: sepoliaWithEns.id,
+            chainId: ensChain.id,
           },
         ),
       )
