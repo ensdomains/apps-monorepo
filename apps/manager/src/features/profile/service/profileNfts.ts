@@ -1,14 +1,20 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
+import { chain, envConfig } from '@/config'
 
 const DEFAULT_LIMIT = 40
-const DEFAULT_CHAIN_ID = 11155111
+const DEFAULT_CHAIN_ID = chain.id
 const DEV_ALCHEMY_API_KEY = 'demo'
 const IPFS_HTTP_GATEWAY = 'https://ipfs.euc.li/ipfs/'
-const SUPPORTED_NFT_CHAIN_IDS = [11155111] as const
+const SUPPORTED_NFT_CHAIN_IDS = [chain.id] as const
+const ALCHEMY_NETWORKS = {
+  mainnet: 'eth-mainnet',
+  sepolia: 'eth-sepolia',
+} as const satisfies Record<EnsNetwork, string>
 
 type SupportedNftChainId = (typeof SUPPORTED_NFT_CHAIN_IDS)[number]
 type TokenStandard = 'erc721' | 'erc1155'
@@ -70,7 +76,8 @@ const getAlchemyApiKey = () => {
   return DEV_ALCHEMY_API_KEY
 }
 
-const resolveAlchemyNetwork = (_chainId: SupportedNftChainId) => 'eth-sepolia'
+const resolveAlchemyNetwork = (_chainId: SupportedNftChainId) =>
+  ALCHEMY_NETWORKS[envConfig.network]
 
 const getTokenStandard = (
   tokenType: string | null | undefined,
@@ -137,7 +144,7 @@ export const buildAlchemyNftsEndpoint = ({
 export const getNftChainPriority = (
   _chainId: number | undefined,
 ): readonly SupportedNftChainId[] => {
-  return [11155111]
+  return SUPPORTED_NFT_CHAIN_IDS
 }
 
 export const mapAlchemyNftsToAvatarNfts = ({

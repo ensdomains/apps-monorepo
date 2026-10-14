@@ -2,6 +2,7 @@ import { createStore } from '@xstate/store-react'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
 import * as v from 'valibot'
+import { isTestnet } from '@/config'
 import { DEBUG_FEATURES_ENABLED } from './debug-features'
 import { persist } from './xstate-store'
 
@@ -108,7 +109,9 @@ export const ALLOWED_SIWE_DOMAINS = [
   'app.ens.domains',
 ] as const
 export type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
-export const DEFAULT_SIWE_DOMAIN: AllowedSiweDomain = 'sepolia.app.ens.domains'
+export const DEFAULT_SIWE_DOMAIN: AllowedSiweDomain = isTestnet
+  ? 'sepolia.app.ens.domains'
+  : 'app.ens.domains'
 
 export const getSiweDomain = (): AllowedSiweDomain => {
   if (typeof window !== 'undefined') {
