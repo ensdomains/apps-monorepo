@@ -6,7 +6,10 @@ import {
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
-import { parseRenewableName } from '@/features/renew/utils/renewableName'
+import {
+  parseRenewableName,
+  RenewalNotAllowedError,
+} from '@/features/renew/utils/renewableName'
 import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalRouteError'
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
@@ -35,7 +38,9 @@ export const Route = createFileRoute('/renew-v1/$name')({
     }
 
     if (ownerData?.protocol !== 'v1') {
-      throw new Error('This ENSv1 name is not reserved or registered.')
+      throw new RenewalNotAllowedError({
+        message: 'This ENSv1 name is not reserved or registered.',
+      })
     }
 
     const [expiryData, isRenewable] = await Promise.all([
@@ -44,9 +49,10 @@ export const Route = createFileRoute('/renew-v1/$name')({
     ])
 
     if (!isRenewable) {
-      throw new Error(
-        'This ENSv1 name is upgraded, unreserved, or outside its renewal window.',
-      )
+      throw new RenewalNotAllowedError({
+        message:
+          'This ENSv1 name is upgraded, unreserved, or outside its renewal window.',
+      })
     }
 
     if (!expiryData?.expiry) {

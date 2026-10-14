@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { parseName } from '@/features/register-v2/utils/name-parser'
+import { isFixedRenewalRejection } from '@/features/renew/utils/renewableName'
 import { cn } from '@/lib/utils'
 import { RenewPageLayout } from './RenewPageLayout'
 
@@ -15,9 +15,7 @@ export const RenewalRouteError = ({
   readonly name: string
   readonly reset: () => void
 }) => {
-  const isSubname = parseName(name)
-    .map(({ subLabels }) => subLabels.length > 0)
-    .unwrapOr(false)
+  const canRetry = !isFixedRenewalRejection(error)
 
   return (
     <RenewPageLayout>
@@ -34,22 +32,19 @@ export const RenewalRouteError = ({
           )}
         </p>
         <div
-          className={cn(
-            'mt-8 grid w-full gap-2',
-            !isSubname && 'sm:grid-cols-2',
-          )}
+          className={cn('mt-8 grid w-full gap-2', canRetry && 'sm:grid-cols-2')}
         >
           <LinkButton
             className="h-14 w-full"
             params={{ name }}
             size="lg"
             to="/$name"
-            variant="lightBlue"
+            variant={canRetry ? 'lightBlue' : 'blue'}
           >
             <ArrowLeft aria-hidden="true" />
             <Trans>Back to profile</Trans>
           </LinkButton>
-          {isSubname ? null : (
+          {canRetry ? (
             <Button
               className="h-14 w-full"
               onClick={reset}
@@ -60,7 +55,7 @@ export const RenewalRouteError = ({
               <RefreshCw aria-hidden="true" />
               <Trans>Try again</Trans>
             </Button>
-          )}
+          ) : null}
         </div>
       </Card>
     </RenewPageLayout>

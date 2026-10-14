@@ -10,6 +10,7 @@ import {
 } from '@/features/profile/service/profileExpiry'
 import {
   canRenewV2Name,
+  RenewalNotAllowedError,
   resolveRenewalLabel,
   toCanonicalRenewableName,
 } from '@/features/renew/utils/renewableName'
@@ -56,14 +57,16 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (expiryData?.protocol !== 'v2') {
-      throw new Error('This name is not available for renewal.')
+      throw new RenewalNotAllowedError({
+        message: 'This name is not available for renewal.',
+      })
     }
 
     if (expiryData.expiry === null) {
       if (expiryData.isNonExpiring) {
-        throw new Error(
-          'This name has no expiry, so there is nothing to renew.',
-        )
+        throw new RenewalNotAllowedError({
+          message: 'This name has no expiry, so there is nothing to renew.',
+        })
       }
 
       // No expiry record at all means the label is unregistered.
@@ -85,7 +88,9 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (!canRenewV2Name(name, expiryDate)) {
-      throw new Error('This name is outside its renewal window.')
+      throw new RenewalNotAllowedError({
+        message: 'This name is outside its renewal window.',
+      })
     }
 
     return {

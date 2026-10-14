@@ -28,6 +28,14 @@ export class RenewableNameError<
   }
 }
 
+/** The route refused the name for a reason a retry cannot change. */
+export class RenewalNotAllowedError extends TaggedError(
+  'RenewalNotAllowedError',
+)<{ readonly message: string }> {}
+
+export const isFixedRenewalRejection = (error: unknown) =>
+  error instanceof RenewableNameError || error instanceof RenewalNotAllowedError
+
 export const parseRenewableName = (name: string) =>
   parseName(name).andThen((parsedName) => {
     if (parsedName.tld !== 'eth') {
