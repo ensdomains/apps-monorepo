@@ -84,7 +84,7 @@ afterEach(() => {
   eventsRef.hasFailingPage = false
 })
 
-const renderTable = async (events: readonly RecentActivityEvent[]) => {
+const renderRows = (events: readonly RecentActivityEvent[]) => {
   eventsRef.current = events
   render(
     <QueryClientProvider
@@ -95,6 +95,10 @@ const renderTable = async (events: readonly RecentActivityEvent[]) => {
       <RecentActivityTable />
     </QueryClientProvider>,
   )
+}
+
+const renderTable = async (events: readonly RecentActivityEvent[]) => {
+  renderRows(events)
   await screen.findByText('Primary name updated')
 }
 
@@ -119,6 +123,22 @@ describe('RecentActivityTable', () => {
     await renderTable([primaryNameEvent('vitalik.eth', 'alice.eth')])
 
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
+  })
+
+  it('offers older events when the newest page shows none', async () => {
+    eventsRef.hasFailingPage = true
+    renderRows([])
+
+    expect(
+      await screen.findByRole('button', { name: 'Load more events' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('No recent activity')).not.toBeInTheDocument()
+  })
+
+  it('says there is no activity when nothing is left to read', async () => {
+    renderRows([])
+
+    expect(await screen.findByText('No recent activity')).toBeInTheDocument()
   })
 
   it('keeps the events shown when the next page fails', async () => {

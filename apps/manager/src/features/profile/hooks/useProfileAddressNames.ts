@@ -56,9 +56,9 @@ export const useProfileAddressNames = ({
     PROFILE_NAMES_PAGE_SIZE,
   )
   // Until the managed list is read through, its own total still counts the
-  // owned names it hides; bigname's managed count is exact.
+  // owned names it hides; bigname's managed count is exact, but unsearched.
   const total =
-    scope === 'managed' && !current.isComplete && counts
+    scope === 'managed' && !search.trim() && !current.isComplete && counts
       ? counts.managed
       : current.total
 

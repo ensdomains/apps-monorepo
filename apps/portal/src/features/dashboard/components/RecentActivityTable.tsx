@@ -36,6 +36,7 @@ export const RecentActivityTable = () => {
         // A failed Load more keeps the events already shown.
         error: isFetchNextPageError ? null : error,
         count: events.length,
+        hasNextPage,
       })
         .with({ isLoading: true }, () => (
           <div className="flex items-center justify-center py-8">
@@ -49,7 +50,8 @@ export const RecentActivityTable = () => {
             description="Error fetching recent activity. Please refresh the page."
           />
         ))
-        .with({ count: 0 }, () => (
+        // A page can hold only rows the feed hides; older ones may still show.
+        .with({ count: 0, hasNextPage: false }, () => (
           <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
             No recent activity
           </div>
@@ -118,7 +120,7 @@ export const RecentActivityTable = () => {
           Couldn’t load more events.
         </p>
       )}
-      {events.length > 0 && hasNextPage && (
+      {hasNextPage && (
         <button
           type="button"
           onClick={() => void fetchNextPage()}
