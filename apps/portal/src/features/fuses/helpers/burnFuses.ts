@@ -16,7 +16,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 // ============================================================================
 // Types
@@ -95,7 +95,7 @@ export function prepareBurnFusesTransaction({
   // ensNameWrapper contract.
   const client = {
     ...walletClient,
-    chain: sepoliaWithEns,
+    chain: ensChain,
   } as unknown as Parameters<typeof setFusesWriteParameters>[0]
 
   const writeParams = setFusesWriteParameters(client, {

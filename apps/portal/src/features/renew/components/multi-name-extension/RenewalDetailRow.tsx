@@ -14,10 +14,10 @@ export const RenewalDetailRow = ({
   valueClassName,
 }: RenewalDetailRowProps) => (
   <div className="flex items-center justify-between">
-    <dt className={cn('text-sm text-muted-foreground', labelClassName)}>
+    <dt className={cn('text-base text-muted-foreground', labelClassName)}>
       {label}
     </dt>
-    <dd className={cn('text-sm text-foreground m-0', valueClassName)}>
+    <dd className={cn('text-base text-foreground m-0', valueClassName)}>
       {value}
     </dd>
   </div>

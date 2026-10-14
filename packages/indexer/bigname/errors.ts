@@ -5,7 +5,7 @@ export const BIGNAME_API_ERROR_CODES = [
   'invalid_input', // 400
   'not_found', // 404
   'request_timeout', // 408
-  'stale', // 409, a cursor's publication moved on: restart without it
+  'stale', // 409, usually temporary: send the same request again
   'conflict', // 409
   'unsupported', // 422
   'rate_limited', // 429
@@ -33,6 +33,6 @@ export const isBignameApiErrorCode = (
   typeof value === 'string' &&
   (BIGNAME_API_ERROR_CODES as readonly string[]).includes(value)
 
-/** A current-state collection cursor whose publication moved on. */
+/** bigname's `stale` answer: usually temporary, so the same request is worth sending again. */
 export const isStale = (error: unknown): error is BignameError =>
   error instanceof BignameError && error.code === 'stale'

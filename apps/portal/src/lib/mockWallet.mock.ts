@@ -8,7 +8,7 @@ import type { Address } from 'viem'
 // automated browser (Playwright / agents) never has to click through the
 // connect modal or a signing prompt. The `mock` connector forwards
 // `eth_sendTransaction`/`eth_sign*` as raw JSON-RPC to the connected chain's
-// default RPC URL, so point `VITE_SEPOLIA_RPC_URL` at a local node
+// default RPC URL, so point `VITE_RPC_URL` at a local node
 // (Anvil/Hardhat) whose account is unlocked. NEVER enable in production.
 
 // First account of the well-known `test test … junk` mnemonic that local dev

@@ -3,15 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import * as v from 'valibot'
+import { isAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import patternBg from '@/assets/pattern-bg.svg'
-import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
+import { getHasDashboardNamesQueryOptions } from '@/features/dashboard/service/queries/hasDashboardNames'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
 import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
+
+/** How long the landing page waits on the names check before rendering. */
+const HAS_NAMES_WAIT_MS = 3000
 
 const LandingPage = () => {
   const navigate = useNavigate()
@@ -61,16 +65,7 @@ const useRedirectToDashboard = () => {
   const { ownerAddress } = useSmartAccountContext()
   const { isConnecting, isReconnecting } = useConnection()
 
-  const hasDomains = useQuery({
-    ...getDomainsQuery({
-      where: {
-        owner: ownerAddress,
-      },
-      first: 1,
-    }),
-    enabled: !!ownerAddress,
-    select: (data) => data?.domains.length > 0,
-  })
+  const hasDomains = useQuery(getHasDashboardNamesQueryOptions(ownerAddress))
 
   useEffect(() => {
     // Defer the redirect until the wallet connection has settled. Navigating
@@ -108,20 +103,19 @@ export const Route = createFileRoute('/')({
     // Cookie based check for wallet connection which allows server side redirects and faster loading times
     const connectedAddress = getConnectionCookie()
 
-    // If the user is connected and has domains, redirect to the dashboard, otherwise let them stay on the landing page
-    if (connectedAddress) {
-      const domains = await queryClient.fetchQuery(
-        getDomainsQuery({
-          where: {
-            owner: connectedAddress,
-          },
-          first: 1,
-        }),
-      )
+    // If the user is connected and has names, redirect to the dashboard, otherwise let them stay on the landing page
+    if (landing || !connectedAddress || !isAddress(connectedAddress)) return
 
-      if (domains.domains.length > 0 && !landing) {
-        throw redirect({ to: '/dashboard' })
-      }
-    }
+    // An unreachable or slow indexer leaves the user on the landing page;
+    // `useRedirectToDashboard` still redirects once the answer arrives.
+    const hasNames = await Promise.race([
+      queryClient
+        .fetchQuery(getHasDashboardNamesQueryOptions(connectedAddress))
+        .catch(() => false),
+      new Promise<false>((resolve) =>
+        setTimeout(() => resolve(false), HAS_NAMES_WAIT_MS),
+      ),
+    ])
+    if (hasNames) throw redirect({ to: '/dashboard' })
   },
 })

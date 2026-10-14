@@ -28,17 +28,23 @@ export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
         <h3 className="text-3xl font-medium font-serif">
           No registry configured
         </h3>
-        <p className="text-base">
+        <p className="text-p">
           This name must be upgraded to ENSv2 before it can deploy and manage
           its own registry.
         </p>
       </div>
-      <Button asChild className="w-full">
-        <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
-          <Plus className="size-4" />
-          Upgrade name to ENSv2
-        </a>
-      </Button>
+      {MANAGER_UPGRADE_URL && (
+        <Button asChild className="w-full">
+          <a
+            href={MANAGER_UPGRADE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Plus className="size-4" />
+            Upgrade name to ENSv2
+          </a>
+        </Button>
+      )}
     </RegistryPanel>
   )
 }

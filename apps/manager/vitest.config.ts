@@ -30,6 +30,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'cloudflare:workers': fileURLToPath(
+        new URL('./src/test-utils/cloudflareWorkers.mock.ts', import.meta.url),
+      ),
     },
     // Force a single instance of @rhinestone/sdk. pnpm installs two physically
     // distinct copies (one paired with zod@3 via the WalletConnect peer chain in

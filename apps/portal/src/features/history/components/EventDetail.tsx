@@ -108,7 +108,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
     >
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
-          <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
+          <tr className="text-left text-smallcaps text-muted-foreground">
             <th className="w-28 py-1.5 pr-3 font-medium @2xl/timeline:w-34">
               Parameter
             </th>

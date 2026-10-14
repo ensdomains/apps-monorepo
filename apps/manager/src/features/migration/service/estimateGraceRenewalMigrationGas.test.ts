@@ -126,6 +126,58 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('estimateGraceRenewalMigrationGas', () => {
   it.each([
+    false,
+    true,
+  ])('estimates migration after restoring a late-grace reservation (wrapped: %s)', async (isWrapped) => {
+    const lateGrace = {
+      ...makeName('late.eth', isWrapped),
+      registration: { expiryDate: (NOW - 70n * DAY).toString() },
+      isUnreserved: true as const,
+    }
+    const input = params()
+    input.domains = [lateGrace]
+    input.quote = {
+      ...input.quote,
+      items: [
+        {
+          ...makeItem(lateGrace),
+          registrationExpiry: NOW - 70n * DAY,
+          duration: 77n * DAY,
+        },
+      ],
+    }
+
+    await expect(
+      estimateGraceRenewalMigrationGas(input),
+    ).resolves.toMatchObject({
+      gasUnits: 1_200n,
+    })
+    expect(lateGrace.isUnreserved).toBe(true)
+  })
+
+  it('does not clear an unreserved name when the quote will not renew it', async () => {
+    const unreserved = { ...active, isUnreserved: true as const }
+    const input = params()
+    input.domains = [unreserved]
+    input.quote = {
+      ...input.quote,
+      items: [
+        {
+          ...makeItem(unreserved),
+          registrationExpiry: NOW + 100n * DAY,
+          targetExpiry: NOW + 100n * DAY,
+          duration: 0n,
+          amount: 0n,
+        },
+      ],
+    }
+
+    await expect(estimateGraceRenewalMigrationGas(input)).rejects.toThrow(
+      'every selected name',
+    )
+  })
+
+  it.each([
     { optedIn: ['grace.eth'], requiresManagerRestoration: true },
     { optedIn: [], requiresManagerRestoration: false },
   ])("estimates with the owner's manager restoration choice: $optedIn", async ({

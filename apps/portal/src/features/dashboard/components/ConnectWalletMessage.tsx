@@ -17,7 +17,7 @@ export const ConnectWalletMessage = () => {
         />
         <Button
           size="sm"
-          className="h-7 rounded-xs bg-neutral-9 px-1.5 text-sm text-neutral-0 hover:bg-neutral-8"
+          className="h-7 rounded-xs bg-neutral-9 px-1.5 text-base text-neutral-0 hover:bg-neutral-8"
           onClick={() => openConnectModal?.()}
         >
           Connect wallet

@@ -7,7 +7,7 @@ export function createClient(env: Env) {
   // from a Cloudflare secret. The network's shared public fallbacks sit behind
   // it, and are used alone when the secret is unset (e.g. `wrangler dev`
   // without a `.dev.vars`) — a failed OG/SSR read means a broken preview card.
-  const urls = orderedRpcUrls(env.SEPOLIA_RPC_URL, envConfig.rpcFallbacks)
+  const urls = orderedRpcUrls(env.RPC_URL, envConfig.rpcFallbacks)
   return createPublicClient({
     chain: envConfig.chain,
     // rank: false keeps the declared order (secret-configured primary first).

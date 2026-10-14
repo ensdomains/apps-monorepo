@@ -54,7 +54,6 @@ function mapRhinestoneConfig(
   const smartConfig: SmartAccountConfig = {
     chain: result.config.chain,
     accountAddress: result.address,
-    rhinestoneApiKey: result.config.rhinestoneApiKey,
   }
 
   return {
