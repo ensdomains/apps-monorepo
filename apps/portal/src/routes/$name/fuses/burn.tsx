@@ -230,7 +230,7 @@ function RouteComponent() {
           <Link
             to="/$name/fuses"
             params={{ name }}
-            className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
+            className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-base font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -251,7 +251,7 @@ function RouteComponent() {
           <div className="flex flex-col gap-1">
             <span className="font-medium">Fuse expiry</span>
             <div className="flex items-center h-10 px-2 border border-border rounded bg-background">
-              <span className="flex-1 text-sm">{expiryLabel ?? 'N/A'}</span>
+              <span className="flex-1 text-base">{expiryLabel ?? 'N/A'}</span>
               <Calendar className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>
@@ -299,7 +299,7 @@ function RouteComponent() {
           </Button>
 
           {!address && (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-p">
               Connect your wallet to burn fuses
             </p>
           )}
@@ -350,7 +350,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are not available for ENSv2 names.</p>
-        <p className="text-quartz-900/60 text-sm mt-2">
+        <p className="text-quartz-900/60 text-p mt-2">
           Only ENSv1 names have fuses.
         </p>
       </>
@@ -380,7 +380,7 @@ const ExpiredNameMessage = ({
             This name has expired. The Name Wrapper rejects every owner change
             on an expired name, so burning fuses would fail on-chain.
           </p>
-          <p className="text-quartz-900/60 text-sm mt-2">
+          <p className="text-quartz-900/60 text-p mt-2">
             {isInGrace
               ? 'Renew the name to burn fuses again.'
               : 'This name is no longer registered.'}
@@ -398,7 +398,7 @@ const NotOwnerMessage = () => (
     description={
       <>
         <p>You are not the owner of this name.</p>
-        <p className="text-quartz-900/60 text-sm mt-2">
+        <p className="text-quartz-900/60 text-p mt-2">
           Only the owner can burn fuses on this name.
         </p>
       </>
