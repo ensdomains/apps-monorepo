@@ -1,11 +1,14 @@
-import { labelhash, zeroAddress } from 'viem'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { labelhash, namehash, zeroAddress } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  GRACE_PERIOD_DAYS,
   MS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
 } from '@/features/grace/utils/gracePeriod'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 const mocks = vi.hoisted(() => ({
   client: {},
@@ -253,6 +256,98 @@ describe('getOwner', () => {
       protocol: 'v1',
     })
     expect(mocks.readContract).not.toHaveBeenCalled()
+  })
+
+  describe('wrapped V1 name in its grace period', () => {
+    const wrappedOwner = '0x0000000000000000000000000000000000000004'
+    const NAME_WRAPPER = getChainContractAddress({
+      chain: sepoliaWithEns,
+      contract: 'ensNameWrapper',
+    })
+
+    const mockReads = (getData: () => Promise<unknown>) =>
+      mocks.readContract.mockImplementation(
+        (_client: unknown, { functionName }: { functionName: string }) =>
+          functionName === 'getData'
+            ? getData()
+            : Promise.resolve({ ...graceState, latestOwner: zeroAddress }),
+      )
+
+    beforeEach(() => {
+      mocks.getV1Owner.mockResolvedValue({
+        owner: NAME_WRAPPER,
+        registrant: null,
+        ownershipLevel: 'registry',
+      })
+      mocks.getV1Expiry.mockResolvedValue({
+        expiry,
+        gracePeriod: GRACE_PERIOD_DAYS * 24 * 60 * 60,
+        status: 'gracePeriod',
+      })
+    })
+
+    it('reads the owner the NameWrapper retains', async () => {
+      mockReads(() => Promise.resolve([wrappedOwner, 196608, 0n]))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: wrappedOwner,
+        protocol: 'v1',
+      })
+      expect(mocks.readContract).toHaveBeenCalledWith(
+        mocks.client,
+        expect.objectContaining({
+          address: NAME_WRAPPER,
+          functionName: 'getData',
+          args: [BigInt(namehash('wrapped.eth'))],
+        }),
+      )
+    })
+
+    it('does not read the NameWrapper outside grace', async () => {
+      vi.setSystemTime(expiryDate.getTime() - MS_PER_DAY)
+      mockReads(() => Promise.resolve([wrappedOwner, 196608, 0n]))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: NAME_WRAPPER,
+        protocol: 'v1',
+      })
+      expect(mocks.readContract).not.toHaveBeenCalledWith(
+        mocks.client,
+        expect.objectContaining({ functionName: 'getData' }),
+      )
+    })
+
+    it('reports no owner when the NameWrapper holds none', async () => {
+      mockReads(() => Promise.resolve([zeroAddress, 0, 0n]))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: undefined,
+        protocol: 'v1',
+      })
+    })
+
+    it('returns an error when the expiry cannot be read', async () => {
+      mockReads(() => Promise.resolve([wrappedOwner, 196608, 0n]))
+      mocks.getV1Expiry.mockRejectedValue(new Error('RPC unavailable'))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result.isErr()).toBe(true)
+    })
+
+    it('returns an error when the NameWrapper cannot be read', async () => {
+      mockReads(() => Promise.reject(new Error('RPC unavailable')))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result.isErr()).toBe(true)
+    })
   })
 
   it('returns null when neither protocol has an owner or registration', async () => {
