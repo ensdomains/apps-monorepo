@@ -44,6 +44,10 @@ vi.mock('@/features/profile/service/profileReverseName', () => ({
   profileReverseNameQuery: vi.fn(),
 }))
 
+vi.mock('@/components/NameFallbackCard', () => ({
+  NameFallbackCard: () => null,
+}))
+
 vi.mock('@/features/profile/components/view/ProfileView', async () => {
   const { useState } = await import('react')
   return {
