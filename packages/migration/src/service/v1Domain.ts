@@ -1,4 +1,8 @@
-import type { LookupRecord, WrapperFuses } from '@ens-apps/indexer/bigname'
+import {
+  type LookupRecord,
+  toExactSeconds,
+  type WrapperFuses,
+} from '@ens-apps/indexer/bigname'
 import { labelhash, zeroAddress } from 'viem'
 
 export type V1Domain = {
@@ -49,8 +53,12 @@ const currentWrapperFuses = (record: LookupRecord): WrapperFuses | undefined =>
     ? undefined
     : record.ens_v1.wrapper_fuses
 
+/** Decimal unix seconds, the form the classifier reads with `BigInt`. */
+const toSecondsString = (value: string | null | undefined): string | null =>
+  toExactSeconds(value)?.toString() ?? null
+
 const wrapperExpiryOf = (ensV1: LookupRecord['ens_v1']): string =>
-  ensV1?.wrapper_expires_at ??
+  toSecondsString(ensV1?.wrapper_expires_at) ??
   (ensV1?.wrapper_expires_at_reason === 'no_expiry'
     ? MAX_WRAPPER_EXPIRY.toString()
     : '0')
@@ -112,6 +120,7 @@ export const toV1Domain = (
   const registryOwner = wrapperFuses ? nameWrapper : (record.manager ?? holder)
   const registrant = wrapperFuses ? nameWrapper : (record.registrant ?? holder)
   const isDotEth2ld = parentName === 'eth'
+  const registrationExpiry = toSecondsString(ensV1?.expires_at)
   return {
     id: record.namehash,
     labelName: label,
@@ -123,8 +132,8 @@ export const toV1Domain = (
     wrappedOwner: wrapperFuses ? { id: holder } : null,
     parent: toParent(parentName, parentFuses),
     registration:
-      isDotEth2ld && ensV1?.expires_at
-        ? { expiryDate: ensV1.expires_at }
+      isDotEth2ld && registrationExpiry
+        ? { expiryDate: registrationExpiry }
         : null,
     wrappedDomain: wrapperFuses
       ? {
@@ -132,7 +141,7 @@ export const toV1Domain = (
           fuses: wrapperFuses.fuses,
         }
       : null,
-    ...(isDotEth2ld && !ensV1?.expires_at && { isLeaseMissing: true }),
+    ...(isDotEth2ld && !registrationExpiry && { isLeaseMissing: true }),
     ...(record.unresolvable_reason === 'no_live_ens_v2_entry' && {
       isUnreserved: true,
     }),

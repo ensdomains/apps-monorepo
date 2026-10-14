@@ -139,7 +139,7 @@ export const readProfileNamesChunk = ResultFn(async function* (
   return ok(chunk)
 })
 
-export const profileNamesInfiniteQueryOptions = (query: ProfileNamesQuery) =>
+export const getProfileNamesInfiniteQueryOptions = (query: ProfileNamesQuery) =>
   resultInfiniteQueryOptions({
     queryKey: qk('profile', 'address_names', {
       address: query.address.toLowerCase(),
@@ -195,7 +195,9 @@ export const getProfileNameCounts = (
     )
     .mapErr((error) => new GetProfileAddressNamesError({ cause: error }))
 
-export const profileNameCountsQueryOptions = (address: Address | undefined) =>
+export const getProfileNameCountsQueryOptions = (
+  address: Address | undefined,
+) =>
   resultQueryOptions({
     queryKey: qk('profile', 'address_name_counts', {
       address: address?.toLowerCase() ?? null,

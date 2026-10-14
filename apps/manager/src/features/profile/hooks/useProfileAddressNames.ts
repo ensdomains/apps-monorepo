@@ -6,10 +6,10 @@ import {
 import type { Address } from 'viem'
 import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
 import {
+  getProfileNameCountsQueryOptions,
+  getProfileNamesInfiniteQueryOptions,
   PROFILE_NAMES_PAGE_SIZE,
   type ProfileNamesScope,
-  profileNameCountsQueryOptions,
-  profileNamesInfiniteQueryOptions,
   toProfileNamesPage,
 } from '../service/profileAddressNames'
 
@@ -36,7 +36,7 @@ export const useProfileAddressNames = ({
   page,
 }: Options) => {
   const query = useInfiniteQuery({
-    ...profileNamesInfiniteQueryOptions({
+    ...getProfileNamesInfiniteQueryOptions({
       address,
       scope,
       sortField,
@@ -47,7 +47,7 @@ export const useProfileAddressNames = ({
   })
   // Only your own profile splits owned from managed names.
   const { data: counts = null } = useQuery(
-    profileNameCountsQueryOptions(scope === 'all' ? undefined : address),
+    getProfileNameCountsQueryOptions(scope === 'all' ? undefined : address),
   )
 
   const current = toProfileNamesPage(
