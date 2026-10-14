@@ -6,6 +6,7 @@ import {
 } from '@ens-apps/indexer/bigname'
 import { match, P } from 'ts-pattern'
 import { isAddress, zeroAddress } from 'viem'
+import { isFuseChange } from '@/features/history/eventTypes'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordValueText } from '@/utils/history/recordValue'
@@ -255,7 +256,7 @@ const describePermission = (
           slots: [account],
         }
       : { label: 'added registrar controller', slots: [account] }
-  if (!powers && fuses !== undefined)
+  if (isFuseChange({ powers, fuses }))
     return { icon: 'fuses', label: 'set fuses', slots: [] }
   // A change on a registry's root resource has no name: its
   // roles cover every name of the registry, so the row says "root" and names
