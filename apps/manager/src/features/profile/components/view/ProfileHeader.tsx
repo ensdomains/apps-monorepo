@@ -32,7 +32,7 @@ export const ProfileHeader = ({
 }: ProfileHeaderProps) => (
   <div
     className={cn(
-      'relative min-h-130.75 profile-desktop:min-h-0 profile-desktop:space-y-[21.7px] rounded-none bg-transparent profile-desktop:px-8 profile-desktop:pt-0 shadow-none',
+      'relative min-h-130.75 rounded-none bg-transparent shadow-none xl:min-h-0 xl:space-y-[21.7px] xl:px-8 xl:pt-0',
       hasMobileStatusBanner ? 'pt-0' : 'pt-15.5',
     )}
   >
@@ -40,23 +40,21 @@ export const ProfileHeader = ({
       avatarLoading={avatarLoading}
       avatarUrl={avatarUrl}
       className={cn(
-        'profile-desktop:hidden',
+        'xl:hidden',
         hasMobileStatusBanner
           ? 'mx-auto mb-6'
           : 'absolute -top-33 left-1/2 -translate-x-1/2',
       )}
       name={name}
     />
-    <div className="profile-desktop:block flex flex-col items-center profile-desktop:space-y-3.25">
+    <div className="flex flex-col items-center xl:block xl:space-y-3.25">
       <ProfileNameBadge name={name} />
       {hasMobileStatusBanner ? (
-        <div className="mt-6 profile-desktop:hidden w-full px-5">
-          {mobileActions}
-        </div>
+        <div className="mt-6 w-full px-5 xl:hidden">{mobileActions}</div>
       ) : null}
       <div
         className={cn(
-          'profile-desktop:mt-0 w-full profile-desktop:px-0 px-5',
+          'w-full px-5 xl:mt-0 xl:px-0',
           hasMobileStatusBanner ? 'mt-6' : 'mt-10',
         )}
       >
@@ -67,18 +65,18 @@ export const ProfileHeader = ({
           registrationDate={registrationDate}
         />
       </div>
-      <div className="mt-6 profile-desktop:hidden w-[calc(100%-40px)] border-ens-quartz-200 border-t" />
+      <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
     </div>
     <div
       className={cn(
-        'profile-desktop:mt-0 flex profile-desktop:flex-row flex-col profile-desktop:items-stretch gap-6 profile-desktop:px-0 px-5',
+        'flex flex-col gap-6 px-5 xl:mt-0 xl:flex-row xl:items-stretch xl:px-0',
         hasMobileStatusBanner ? 'mt-6' : 'mt-29',
       )}
     >
       <ProfileAvatar
         avatarLoading={avatarLoading}
         avatarUrl={avatarUrl}
-        className="profile-desktop:block hidden"
+        className="hidden xl:block"
         name={name}
       />
       <ProfileAbout records={records} />

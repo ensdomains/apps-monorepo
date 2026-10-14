@@ -21,16 +21,16 @@ export const ProfileBannerLoading = ({
 }: {
   readonly shouldReduceMotion: boolean
 }) => (
-  <div className="relative h-74 profile-desktop:h-90.25 w-full">
+  <div className="relative h-74 w-full xl:h-90.25">
     <div className="absolute inset-0 overflow-hidden">
       <img
         alt=""
         aria-hidden="true"
-        className="absolute profile-desktop:top-0 top-14 h-60 profile-desktop:h-130 w-full object-cover"
+        className="absolute top-14 h-60 w-full object-cover xl:top-0 xl:h-130"
         src={loadingHeaderCoverUrl}
       />
       {!shouldReduceMotion && (
-        <div className="pointer-events-none absolute profile-desktop:top-0 top-14 h-60 profile-desktop:h-130 w-full animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent" />
+        <div className="pointer-events-none absolute top-14 h-60 w-full animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent xl:top-0 xl:h-130" />
       )}
     </div>
     <div className="mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)] pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm" />
@@ -110,23 +110,23 @@ const ProfileDetailLoading = ({
   readonly symbol: MaterialSymbolProps['symbol']
   readonly valueWidth: string
 }) => (
-  <div className="flex min-w-0 profile-desktop:flex-row flex-col items-start profile-desktop:items-center gap-0 profile-desktop:gap-1.5">
+  <div className="flex min-w-0 flex-col items-start gap-0 xl:flex-row xl:items-center xl:gap-1.5">
     <div
       className={cn(
-        'flex items-center profile-desktop:text-base text-ens-quartz-400 text-xs leading-5.25 profile-desktop:leading-normal',
+        'flex items-center text-ens-quartz-400 text-xs leading-5.25 xl:text-base xl:leading-normal',
         iconGapClassName,
       )}
     >
       <MSymbol className="ms-opsz-20 ms-wght-300 shrink-0" symbol={symbol} />
       <span>{label}</span>
     </div>
-    <div className="flex min-w-0 items-center gap-1 pl-6 profile-desktop:pl-0">
+    <div className="flex min-w-0 items-center gap-1 pl-6 xl:pl-0">
       <SkeletonBlock
-        className={tw('h-4.5 profile-desktop:h-5 rounded-sm', valueWidth)}
+        className={tw('h-4.5 rounded-sm xl:h-5', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       {hasCopy ? (
-        <Copy className="profile-desktop:size-4 size-3.5 shrink-0 text-ens-quartz-400" />
+        <Copy className="size-3.5 shrink-0 text-ens-quartz-400 xl:size-4" />
       ) : null}
     </div>
   </div>
@@ -140,52 +140,52 @@ export const ProfileHeaderLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <motion.div
-    className="relative min-h-130.75 profile-desktop:min-h-0 profile-desktop:space-y-[21.7px] rounded-none bg-transparent profile-desktop:px-8 profile-desktop:pt-0 pt-15.5 shadow-none"
+    className="relative min-h-130.75 rounded-none bg-transparent pt-15.5 shadow-none xl:min-h-0 xl:space-y-[21.7px] xl:px-8 xl:pt-0"
     {...getMotionProps(shouldReduceMotion)}
   >
     <NeutralAvatarLoading
-      className="absolute -top-33 left-1/2 profile-desktop:hidden size-45.5 -translate-x-1/2 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+      className="absolute -top-33 left-1/2 size-45.5 -translate-x-1/2 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] xl:hidden"
       shouldReduceMotion={shouldReduceMotion}
     />
-    <div className="profile-desktop:block flex flex-col items-center profile-desktop:space-y-3.25">
+    <div className="flex flex-col items-center xl:block xl:space-y-3.25">
       <ProfileNameBadgeLoading
         name={name}
         shouldReduceMotion={shouldReduceMotion}
       />
-      <div className="mt-10 profile-desktop:mt-0 w-full profile-desktop:px-0 px-5">
-        <div className="profile-desktop:flex grid w-full profile-desktop:max-w-full grid-cols-3 profile-desktop:flex-wrap profile-desktop:items-center gap-3 profile-desktop:gap-x-6 profile-desktop:gap-y-3">
+      <div className="mt-10 w-full px-5 xl:mt-0 xl:px-0">
+        <div className="grid w-full grid-cols-3 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3">
           <ProfileDetailLoading
             hasCopy
             iconGapClassName="gap-0.5"
             label="Owner"
             shouldReduceMotion={shouldReduceMotion}
             symbol="key_vertical"
-            valueWidth="w-15 profile-desktop:w-21"
+            valueWidth="w-15 xl:w-21"
           />
           <ProfileDetailLoading
             label="Registered"
             shouldReduceMotion={shouldReduceMotion}
             symbol="calendar_clock"
-            valueWidth="w-14 profile-desktop:w-28"
+            valueWidth="w-14 xl:w-28"
           />
           <ProfileDetailLoading
             label="Expires"
             shouldReduceMotion={shouldReduceMotion}
             symbol="history"
-            valueWidth="w-14 profile-desktop:w-28"
+            valueWidth="w-14 xl:w-28"
           />
         </div>
       </div>
-      <div className="mt-6 profile-desktop:hidden w-[calc(100%-40px)] border-ens-quartz-200 border-t" />
+      <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
     </div>
 
-    <div className="mt-29 profile-desktop:mt-0 flex profile-desktop:flex-row flex-col profile-desktop:items-stretch gap-6 profile-desktop:px-0 px-5">
+    <div className="mt-29 flex flex-col gap-6 px-5 xl:mt-0 xl:flex-row xl:items-stretch xl:px-0">
       <NeutralAvatarLoading
-        className="profile-desktop:block hidden size-45.5 shrink-0 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+        className="hidden size-45.5 shrink-0 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] xl:block"
         shouldReduceMotion={shouldReduceMotion}
       />
-      <Card className="min-h-0 profile-desktop:min-h-45.5 profile-desktop:max-w-158.75 flex-1 profile-desktop:rounded-xl rounded-none border-0 profile-desktop:border-[0.5px] bg-transparent profile-desktop:bg-white p-0 profile-desktop:p-6 profile-desktop:shadow-temp-card shadow-none">
-        <div className="grid w-full profile-desktop:grid-cols-[minmax(0,346.5px)_228px] gap-8 profile-desktop:gap-3">
+      <Card className="min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:max-w-158.75 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card">
+        <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,346.5px)_228px] xl:gap-3">
           <div className="min-w-0">
             <SkeletonBlock
               className="h-5 w-16"
@@ -206,14 +206,14 @@ export const ProfileHeaderLoading = ({
               />
             </div>
           </div>
-          <div className="profile-desktop:flex grid min-w-0 grid-cols-3 profile-desktop:flex-col profile-desktop:justify-start gap-4 profile-desktop:gap-1.5">
+          <div className="grid min-w-0 grid-cols-3 gap-4 xl:flex xl:flex-col xl:justify-start xl:gap-1.5">
             {['timezone', 'language', 'location'].map((id, index) => (
               <div
-                className="flex min-w-0 items-start profile-desktop:items-center gap-1"
+                className="flex min-w-0 items-start gap-1 xl:items-center"
                 key={id}
               >
                 <SkeletonBlock
-                  className="profile-desktop:size-6 size-5 shrink-0 rounded"
+                  className="size-5 shrink-0 rounded xl:size-6"
                   shouldReduceMotion={shouldReduceMotion}
                 />
                 <SkeletonBlock

@@ -20,31 +20,25 @@ const SkeletonCardLoading = ({
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
-  <Card className="relative min-h-28 profile-desktop:min-h-33.5 w-full items-start gap-2 profile-desktop:rounded-xl rounded-[14px] p-4 profile-desktop:p-[24.25px] text-left">
+  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-4 text-left xl:min-h-33.5 xl:rounded-xl xl:p-[24.25px]">
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
-          className="profile-desktop:size-7.5 size-7 rounded-md"
+          className="size-7 rounded-md xl:size-7.5"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
       <SkeletonBlock
-        className={tw(
-          'h-[16.5px] profile-desktop:h-4.5 rounded-sm',
-          labelWidth,
-        )}
+        className={tw('h-[16.5px] rounded-sm xl:h-4.5', labelWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
     <SkeletonBlock
-      className="absolute profile-desktop:top-[24.25px] top-4 profile-desktop:right-[24.25px] right-4 profile-desktop:size-7.5 size-5 rounded"
+      className="absolute top-4 right-4 size-5 rounded xl:top-[24.25px] xl:right-[24.25px] xl:size-7.5"
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock
-      className={tw(
-        'h-[19.5px] profile-desktop:h-5 max-w-full rounded-sm',
-        valueWidth,
-      )}
+      className={tw('h-[19.5px] max-w-full rounded-sm xl:h-5', valueWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
   </Card>
@@ -64,7 +58,7 @@ const cardPlaceholders = [
   {
     id: 'mailing-address',
     labelWidth: 'w-[96px]',
-    valueWidth: 'w-[128px] profile-desktop:w-[168px]',
+    valueWidth: 'w-[128px] xl:w-[168px]',
   },
 ]
 
@@ -78,7 +72,7 @@ export const ProfileSkeletonCardSectionLoading = ({
     shouldReduceMotion={shouldReduceMotion}
     titleWidth={titleWidth}
   >
-    <div className="grid grid-cols-2 profile-desktop:grid-cols-3 gap-3 profile-desktop:gap-6">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6">
       {cardPlaceholders.map(({ id, labelWidth, valueWidth }) => (
         <SkeletonCardLoading
           key={id}

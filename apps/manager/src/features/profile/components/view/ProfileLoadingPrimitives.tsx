@@ -45,7 +45,7 @@ export const ProfileSectionLoading = ({
 }: ProfileSectionLoadingProps) => (
   <motion.section
     className={tw(
-      'border-[0.25px] border-transparent bg-transparent profile-desktop:px-8 px-5 py-6 profile-desktop:pt-8 profile-desktop:pb-6 shadow-none',
+      'border-[0.25px] border-transparent bg-transparent px-5 py-6 shadow-none xl:px-8 xl:pt-8 xl:pb-6',
       className,
     )}
     {...getMotionProps(shouldReduceMotion, index * 0.05)}

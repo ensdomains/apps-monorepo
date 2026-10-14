@@ -8,9 +8,6 @@
 @import "./theme.css";
 @import "./material-symbol.css";
 
-/* The profile page's desktop breakpoint: the narrowest width its actions column clears the content. Width only, a tall window is still a desktop. */
-@custom-variant profile-desktop (@media (min-width: 1280px));
-
 /* ===============================
  * Global
  * ===============================

@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 
 export const profileCardCopyIconClassName =
-  'ml-0 size-4 shrink-0 text-ens-quartz-400 profile-desktop:size-6 profile-desktop:text-ens-quartz-700'
+  'ml-0 size-4 shrink-0 text-ens-quartz-400 xl:size-6 xl:text-ens-quartz-700'
 
 export const profileCardTrailingIconStrokeWidth = 1.33
 
@@ -26,7 +26,7 @@ export const ProfileCard = ({
   <section
     className={cn(
       profileCardClassName,
-      'profile-desktop:px-8 px-5 py-6 profile-desktop:pt-8 profile-desktop:pb-6',
+      'px-5 py-6 xl:px-8 xl:pt-8 xl:pb-6',
       className,
     )}
   >

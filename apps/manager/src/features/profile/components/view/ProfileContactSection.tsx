@@ -14,17 +14,17 @@ import { getContactItems, type ProfileContactItem } from './ProfileView.helpers'
 
 const contactCardSurfaceClassName = 'transition hover:bg-ens-quartz-50'
 const contactLabelClassName =
-  'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] profile-desktop:text-xs profile-desktop:leading-4.5 profile-desktop:tracking-[-0.132px]'
+  'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
 const contactValueClassName =
-  'w-full truncate text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] profile-desktop:text-sm profile-desktop:text-ens-quartz-700 profile-desktop:leading-normal profile-desktop:tracking-[-0.154px]'
+  'w-full truncate text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] xl:text-sm xl:text-ens-quartz-700 xl:leading-normal xl:tracking-[-0.154px]'
 const contactTrailingIconClassName =
-  'absolute top-4 right-4 ml-0 size-6 shrink-0 text-ens-quartz-400 profile-desktop:top-[24.25px] profile-desktop:right-[24.25px] profile-desktop:size-7.5 profile-desktop:text-ens-quartz-700'
+  'absolute top-4 right-4 ml-0 size-6 shrink-0 text-ens-quartz-400 xl:top-[24.25px] xl:right-[24.25px] xl:size-7.5 xl:text-ens-quartz-700'
 const contactCopyIconClassName = cn(
   profileCardCopyIconClassName,
-  'absolute profile-desktop:top-[24.25px] top-4 profile-desktop:right-[24.25px] right-4',
+  'absolute top-4 right-4 xl:top-[24.25px] xl:right-[24.25px]',
 )
 const contactCardPaddingClassName =
-  'p-4 has-[>svg]:px-4 profile-desktop:p-[24.25px] profile-desktop:has-[>svg]:px-[24.25px]'
+  'p-4 has-[>svg]:px-4 xl:p-[24.25px] xl:has-[>svg]:px-[24.25px]'
 
 export const ProfileContactCard = ({
   item,
@@ -36,7 +36,7 @@ export const ProfileContactCard = ({
       <div className="flex w-full min-w-0 flex-col items-start gap-2">
         <div className="flex w-full items-center justify-between">
           <IconRenderer
-            className="profile-desktop:size-7.5 size-7 text-ens-quartz-900"
+            className="size-7 text-ens-quartz-900 xl:size-7.5"
             icon={item.icon}
           />
         </div>
@@ -49,7 +49,7 @@ export const ProfileContactCard = ({
     </>
   )
 
-  const className = `${contactCardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 text-left profile-desktop:min-h-33.5`
+  const className = `${contactCardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 text-left xl:min-h-33.5`
 
   if (item.href) {
     return (
@@ -89,7 +89,7 @@ export const ProfileContactSection = ({
 
   return (
     <ProfileCard title={<Trans>Contact</Trans>}>
-      <div className="grid grid-cols-2 profile-desktop:grid-cols-3 gap-3 profile-desktop:gap-6">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6">
         {contacts.map((item) => (
           <ProfileContactCard item={item} key={item.key} />
         ))}

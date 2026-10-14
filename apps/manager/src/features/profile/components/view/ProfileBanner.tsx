@@ -16,19 +16,19 @@ export const ProfileBanner = ({
   headerUrl,
   name,
 }: ProfileBannerProps) => (
-  <div className="relative h-74 profile-desktop:h-90.25 w-full">
+  <div className="relative h-74 w-full xl:h-90.25">
     <div className="absolute inset-0 overflow-hidden">
       <ImageFallback.Root className="contents">
         <ImageFallback.Image
           alt={`${name} banner`}
-          className="absolute profile-desktop:top-0 top-14 h-60 profile-desktop:h-130 w-full object-cover"
+          className="absolute top-14 h-60 w-full object-cover xl:top-0 xl:h-130"
           src={headerUrl}
         />
         <ImageFallback.Fallback>
           <img
             alt=""
             aria-hidden="true"
-            className="absolute profile-desktop:top-0 top-14 h-60 profile-desktop:h-130 w-full object-cover"
+            className="absolute top-14 h-60 w-full object-cover xl:top-0 xl:h-130"
             src={defaultHeaderUrl}
           />
           {headerLoading ? (

@@ -40,7 +40,7 @@ export const ProfileActionsLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <>
-    <div className="absolute inset-x-0 top-118.5 z-30 profile-desktop:hidden">
+    <div className="absolute inset-x-0 top-118.5 z-30 xl:hidden">
       <div className="mx-auto flex w-full max-w-97.5 items-center justify-between px-5">
         <ActionTextButtonLoading
           className="w-34"

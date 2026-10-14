@@ -12,7 +12,7 @@ export const ProfileAgentSection = ({
 
   return (
     <ProfileCard title={<Trans>Agents</Trans>}>
-      <div className="grid profile-desktop:grid-cols-2 gap-4 profile-desktop:gap-6">
+      <div className="grid gap-4 xl:grid-cols-2 xl:gap-6">
         {records.agentRegistrations.map((record) => (
           <AgentRecordCard key={record.key} record={record} />
         ))}

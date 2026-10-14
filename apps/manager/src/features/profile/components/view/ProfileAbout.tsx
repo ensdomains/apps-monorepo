@@ -103,10 +103,10 @@ const AboutMetaItem = ({
 
   return (
     <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
-      <span className="flex profile-desktop:size-6 size-5 shrink-0 items-center justify-center text-ens-quartz-700 leading-none">
+      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-700 leading-none xl:size-6">
         {icon}
       </span>
-      <span className="min-w-0 profile-desktop:text-sm text-[12px] leading-4.5 profile-desktop:leading-normal">
+      <span className="min-w-0 text-[12px] leading-4.5 xl:text-sm xl:leading-normal">
         {value}
       </span>
     </div>
@@ -136,8 +136,8 @@ export const ProfileAbout = ({
       className={cn(
         'wrap-anywhere flex min-h-0 min-w-0 flex-1',
         primaryName
-          ? 'min-h-47 profile-desktop:min-h-45 profile-desktop:max-w-158.75 p-6'
-          : 'profile-desktop:min-h-45.5 profile-desktop:max-w-158.75 profile-desktop:rounded-xl rounded-none border-0 profile-desktop:border-[0.5px] bg-transparent profile-desktop:bg-white p-0 profile-desktop:p-6 profile-desktop:shadow-temp-card shadow-none',
+          ? 'min-h-47 p-6 xl:min-h-45 xl:max-w-158.75'
+          : 'rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:max-w-158.75 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card',
         className,
       )}
     >
@@ -147,7 +147,7 @@ export const ProfileAbout = ({
             'grid w-full min-w-0',
             primaryName
               ? 'gap-3'
-              : 'profile-desktop:grid-cols-[minmax(0,346.5px)_228px] gap-8 profile-desktop:gap-3',
+              : 'gap-8 xl:grid-cols-[minmax(0,346.5px)_228px] xl:gap-3',
           )}
         >
           <div className="min-w-0">
@@ -182,11 +182,11 @@ export const ProfileAbout = ({
             ) : null}
           </div>
           {primaryName ? null : (
-            <div className="profile-desktop:flex grid min-w-0 grid-cols-3 profile-desktop:flex-col profile-desktop:justify-start gap-4 profile-desktop:gap-1.5">
+            <div className="grid min-w-0 grid-cols-3 gap-4 xl:flex xl:flex-col xl:justify-start xl:gap-1.5">
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 profile-desktop:ms-opsz-24 profile-desktop:text-[24px] text-[20px]"
+                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
                     symbol="language"
                   />
                 }
@@ -195,7 +195,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 profile-desktop:ms-opsz-24 profile-desktop:text-[24px] text-[20px]"
+                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
                     symbol="translate"
                   />
                 }
@@ -204,7 +204,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 profile-desktop:ms-opsz-24 profile-desktop:text-[24px] text-[20px]"
+                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
                     symbol="distance"
                   />
                 }
