@@ -31,9 +31,9 @@ const CheckRow = ({ check }: { readonly check: DnssecCheck }) => (
   <li className="flex items-start gap-2">
     <StatusIcon status={check.status} className="mt-0.5" />
     <div className="flex flex-col min-w-0">
-      <span className="text-sm font-medium">{check.title}</span>
+      <span className="text-p font-medium">{check.title}</span>
       {check.detail && (
-        <span className="text-sm text-muted-foreground whitespace-pre-line wrap-break-word">
+        <span className="text-p text-muted-foreground whitespace-pre-line wrap-break-word">
           {check.detail}
         </span>
       )}
@@ -49,12 +49,12 @@ const RecordsDisclosure = ({
   readonly isDefaultOpen: boolean
 }) => (
   <Collapsible defaultOpen={isDefaultOpen} className="group/records">
-    <CollapsibleTrigger className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+    <CollapsibleTrigger className="inline-flex items-center gap-1 text-base text-muted-foreground hover:text-foreground cursor-pointer">
       <ChevronRight className="size-4 transition-transform group-data-[state=open]/records:rotate-90" />
       {lines.length} {lines.length === 1 ? 'record' : 'records'}
     </CollapsibleTrigger>
     <CollapsibleContent>
-      <pre className="mt-2 rounded-md bg-neutral-1 p-3 font-mono text-xs leading-relaxed overflow-x-auto">
+      <pre className="mt-2 rounded-md bg-neutral-1 p-3 text-smallmono leading-relaxed overflow-x-auto">
         {lines.join('\n')}
       </pre>
     </CollapsibleContent>
@@ -94,10 +94,10 @@ export const DnssecStepItem = ({
         )}
       >
         <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-mono text-base font-medium break-all">
+          <span className="font-mono text-p font-medium break-all">
             {getStepLabel(step)}
           </span>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-base text-muted-foreground">
             {getStepCaption(step)}
           </span>
           <StatusBadge status={step.status} className="ml-auto">
@@ -105,7 +105,7 @@ export const DnssecStepItem = ({
           </StatusBadge>
         </div>
         {isUntrusted && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             Not trusted — a link above this one is broken.
           </p>
         )}

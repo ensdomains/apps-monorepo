@@ -21,6 +21,8 @@ catalog:
   "@posthog/react": ^1.10.3
   viem: ^2.52.2
   "@rhinestone/sdk": 1.8.0
+  # Peer of @rhinestone/sdk/jwt-server, which signs the orchestrator access tokens.
+  jose: ^6.0.0
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.

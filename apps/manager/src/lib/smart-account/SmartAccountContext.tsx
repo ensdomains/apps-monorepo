@@ -173,18 +173,6 @@ function detectWalletSource(
 }
 
 /**
- * Resolve the Rhinestone API key, allowing a `local-dev` placeholder when a
- * local orchestrator endpoint is configured.
- */
-function resolveRhinestoneApiKey(): string | undefined {
-  const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
-  return (
-    import.meta.env.VITE_RHINESTONE_API_KEY ||
-    (isLocalOrchestrator ? 'local-dev' : undefined)
-  )
-}
-
-/**
  * The factory deployment to send before `revokeSessions()`, when the owner
  * chose to deploy an undeployed HCA in order to revoke it.
  *
@@ -239,7 +227,6 @@ function buildRevokeDeploymentCall(params: {
 interface BuildRhinestoneSignerParams {
   readonly baseClient: unknown
   readonly accountAddress: Address
-  readonly rhinestoneApiKey: string
   readonly sessionContext: RhinestoneSigner['session'] | undefined
   /** Verified owner (machine + wagmi agree), or null on divergence. */
   readonly sessionOwnerAddress: Address | null
@@ -275,7 +262,6 @@ function buildRhinestoneSigner(
     config: {
       chain: appChain,
       accountAddress: params.accountAddress,
-      rhinestoneApiKey: params.rhinestoneApiKey,
       defaultInfra: 'warp',
     },
     ...(attachSession ? { session: sessionContext } : {}),
@@ -698,11 +684,6 @@ export const SmartAccountContextProvider = ({
         }
         return new Error('Smart account or verified owner unavailable')
       }
-      const rhinestoneApiKey = resolveRhinestoneApiKey()
-      if (!rhinestoneApiKey) {
-        return new Error('Rhinestone API key not configured')
-      }
-
       const rhinestoneAccount =
         baseClient as unknown as RhinestoneSigner['account']
 
@@ -745,7 +726,6 @@ export const SmartAccountContextProvider = ({
       const signer = buildRhinestoneSigner({
         baseClient,
         accountAddress,
-        rhinestoneApiKey,
         sessionContext: buildSessionContext({
           session: result.value.session,
           chain: appChain,
@@ -918,12 +898,6 @@ export const SmartAccountContextProvider = ({
 
     if (!baseClient || !accountAddress) return null
 
-    const rhinestoneApiKey = resolveRhinestoneApiKey()
-    if (!rhinestoneApiKey) {
-      logger.error('Rhinestone API key not configured - cannot create signer')
-      return null
-    }
-
     // HCA signer. A scoped session, if active, is attached so registration
     // Intents are signed by the ephemeral session key (prompt-free) via the
     // HCA's `HCAOwnerAndSessionValidator` — a policy-scoped SmartSession, not
@@ -932,7 +906,6 @@ export const SmartAccountContextProvider = ({
     return buildRhinestoneSigner({
       baseClient,
       accountAddress,
-      rhinestoneApiKey,
       sessionContext,
       sessionOwnerAddress,
       machineOwner: snapshot.context.ownerAddress,

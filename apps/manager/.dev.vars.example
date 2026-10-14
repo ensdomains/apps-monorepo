@@ -1,1 +1,10 @@
 VITE_TELEGRAM_BOT_ID=""
+
+# Rhinestone orchestrator access tokens are minted server-side from these.
+# Production holds them as Cloudflare secrets (`wrangler secret put`), never in
+# the repo. Register the public half of the JWK in the Rhinestone dashboard.
+RHINESTONE_JWT_PRIVATE_KEY='{"kty":"EC","crv":"P-256","x":"","y":"","d":""}'
+RHINESTONE_INTEGRATOR_ID=""
+RHINESTONE_PROJECT_ID=""
+RHINESTONE_APP_ID=""
+RHINESTONE_KEY_ID=""

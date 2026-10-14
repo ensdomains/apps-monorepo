@@ -7,7 +7,7 @@ type SupportLinkListProps = {
 
 /** Registrar help links shown under a DNS check, as one sentence. */
 export const SupportLinkList = ({ title, items }: SupportLinkListProps) => (
-  <p className="text-sm text-muted-foreground">
+  <p className="text-p text-muted-foreground">
     {title}{' '}
     {items.map((item, index) => (
       <Fragment key={item.label}>

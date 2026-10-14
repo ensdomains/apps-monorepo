@@ -91,7 +91,7 @@ export function CoinSelect({
         </div>
         <div className="max-h-[300px] overflow-y-auto p-1">
           {filteredCoins.length === 0 ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
+            <div className="py-6 text-center text-base text-muted-foreground">
               No coins found.
             </div>
           ) : (
@@ -101,7 +101,7 @@ export function CoinSelect({
                 type="button"
                 onClick={() => handleSelect(coin)}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
+                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-base outline-none',
                   'hover:bg-accent hover:text-accent-foreground',
                   'focus:bg-accent focus:text-accent-foreground',
                   selectedCoin?.name === coin.name && 'bg-accent',

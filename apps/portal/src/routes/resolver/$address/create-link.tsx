@@ -80,7 +80,7 @@ const NodeOption = ({ node }: NodeOptionProps) => (
       height="28px"
       rounded="rounded-sm"
     />
-    <span className="font-mono text-sm">{node.name}</span>
+    <span className="text-entity-base">{node.name}</span>
     <CopyButton value={node.name} />
   </div>
 )
@@ -219,14 +219,14 @@ function RouteComponent() {
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm">
+                  <span className="text-entity-base">
                     {selectedFromNode.name}
                   </span>
                   <CopyButton value={selectedFromNode.name} />
                 </div>
                 {selectedFromNode.owner?.id && (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground truncate">
+                    <span className="text-smallmono text-muted-foreground truncate">
                       {selectedFromNode.owner.id}
                     </span>
                     <CopyButton value={selectedFromNode.owner.id} />
@@ -236,7 +236,7 @@ function RouteComponent() {
             </div>
           )}
           {isAlreadyLinked && (
-            <p className="text-sm text-danger">
+            <p className="text-p text-danger">
               {fromName} is already linked to another record. Linking again
               re-points it; the previous record is kept on the resolver.
             </p>
@@ -273,14 +273,14 @@ function RouteComponent() {
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm">
+                  <span className="text-entity-base">
                     {selectedToNode.name}
                   </span>
                   <CopyButton value={selectedToNode.name} />
                 </div>
                 {selectedToNode.owner?.id && (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground truncate">
+                    <span className="text-smallmono text-muted-foreground truncate">
                       {selectedToNode.owner.id}
                     </span>
                     <CopyButton value={selectedToNode.owner.id} />
@@ -292,18 +292,18 @@ function RouteComponent() {
         </Field>
 
         {!isConnected && (
-          <p className="text-sm text-warning">
+          <p className="text-p text-warning">
             Please connect your wallet to link a name.
           </p>
         )}
         {isConnected && canLink === false && (
-          <p className="text-sm text-danger">
+          <p className="text-p text-danger">
             Your account does not have the ROLE_LINK permission on this
             resolver.
           </p>
         )}
         {mutation.error && (
-          <p className="text-sm text-danger">{mutation.error.message}</p>
+          <p className="text-p text-danger">{mutation.error.message}</p>
         )}
 
         <Button
