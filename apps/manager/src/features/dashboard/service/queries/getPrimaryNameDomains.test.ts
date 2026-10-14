@@ -57,6 +57,22 @@ describe('getPrimaryNameDomains', () => {
     )
   })
 
+  it('offers no name that cannot be set as primary', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(() =>
+      okAsync(
+        page([
+          summary('alice.eth', '0x01'),
+          summary(`[${'1'.repeat(64)}].eth`, '0x02'),
+          summary('ALICE.eth', '0x03'),
+        ]),
+      ),
+    )
+
+    const result = await getPrimaryNameDomains(readNames, ADDRESS)
+
+    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
+  })
+
   it('follows the cursor until every page is read', async () => {
     const pages = [
       page([summary('a.eth', '0x01')], 'c1'),

@@ -1,4 +1,8 @@
 import type { NameSummary } from '@ens-apps/indexer/reads'
+import {
+  hasEncodedLabelhash,
+  isNormalizedName,
+} from '@/features/register-v2/utils/name-parser'
 
 export type ProfileAddressNameProtocol = 'v1' | 'v2'
 export type ProfileAddressNameRoleCategory = 'owned' | 'managed'
@@ -16,7 +20,9 @@ export type ProfileAddressName = {
 const MS_PER_SECOND = 1000
 
 export const isDisplayableProfileName = (name: string): boolean =>
-  !name.includes('.addr.reverse') && !name.startsWith('[')
+  !name.includes('.addr.reverse') &&
+  isNormalizedName(name) &&
+  !hasEncodedLabelhash(name)
 
 const toSeconds = (date: Date | null): number | null =>
   date ? Math.floor(date.getTime() / MS_PER_SECOND) : null
