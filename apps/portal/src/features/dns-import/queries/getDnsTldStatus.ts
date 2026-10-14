@@ -5,7 +5,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type GetOwnerErrorType, getOwner } from '@ensdomains/ensjs/public/v1'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetDnsTldStatusError extends TaggedError('GetDnsTldStatusError')<{
@@ -41,7 +41,7 @@ export const getDnsTldStatus = ResultFn(async function* ({
 
   const owner = ownerData?.owner ?? null
   const dnsRegistrar = getChainContractAddress({
-    chain: sepoliaWithEns,
+    chain: ensChain,
     contract: 'ensLegacyDnsRegistrar',
   })
 

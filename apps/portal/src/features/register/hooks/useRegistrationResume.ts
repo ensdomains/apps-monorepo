@@ -26,7 +26,7 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import type { PaymentToken } from '../constants/paymentTokens'
 import {
@@ -62,7 +62,7 @@ const assessStoredRegistration = ResultFn(async function* ({
   return ok(
     await assessRegistrationResume({
       name,
-      chainId: sepoliaWithEns.id,
+      chainId: ensChain.id,
       client,
       record: loadStoredRegistration(),
     }),

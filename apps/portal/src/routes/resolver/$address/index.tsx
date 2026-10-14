@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
@@ -14,6 +13,7 @@ import {
   PageHeading,
 } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
+import { chain } from '@/config'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
@@ -35,7 +35,7 @@ export const Route = createFileRoute('/resolver/$address/')({
   },
 })
 
-const sepoliaUrl = sepolia.blockExplorers.default.url
+const blockExplorerUrl = chain.blockExplorers.default.url
 const RECENT_EVENT_LIMIT = 5
 
 function RouteComponent() {
@@ -104,7 +104,7 @@ function RouteComponent() {
           {
             label: 'Contract',
             value: address,
-            href: `${sepoliaUrl}/address/${address}` as HttpsUrl,
+            href: `${blockExplorerUrl}/address/${address}` as HttpsUrl,
           },
         ]}
       />

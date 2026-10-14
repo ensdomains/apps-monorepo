@@ -14,7 +14,7 @@ vi.mock('@ensdomains/ensjs/chain', () => ({
   },
 }))
 vi.mock('@/lib/wagmi', () => ({
-  sepoliaWithEns: { id: 11155111 },
+  ensChain: { id: 11155111 },
 }))
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')

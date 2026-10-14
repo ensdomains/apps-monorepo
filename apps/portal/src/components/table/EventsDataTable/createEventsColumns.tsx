@@ -5,6 +5,7 @@ import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
+import { chain } from '@/config'
 import { formatUnixDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import type { BaseEvent, EventsTableData } from './types'
 
@@ -18,7 +19,7 @@ type ColumnConfig = {
 export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   enableSidebar = true,
   enableNetwork = true,
-  defaultNetworkName = 'Sepolia',
+  defaultNetworkName = chain.name,
   defaultNetworkIcon = '/icons/eth.svg',
 }: ColumnConfig = {}): ColumnDef<EventsTableData<TEvent>>[] => {
   const baseColumns: ColumnDef<EventsTableData<TEvent>>[] = [

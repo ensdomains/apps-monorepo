@@ -9,7 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, Hash } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   changeResolver,
@@ -42,7 +42,7 @@ export const useChangeResolver = ({
   target,
   id = CHANGE_RESOLVER_TX_ID,
 }: UseChangeResolverParams) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
