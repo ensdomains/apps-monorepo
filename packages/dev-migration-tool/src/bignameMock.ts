@@ -149,14 +149,38 @@ const json = (body: unknown, status = 200) =>
 
 type Forward = () => Promise<Response>
 
+// The panel's names live on the local fork, so they still answer when the
+// hosted API is down.
+const tryForward = (forward: Forward): Promise<Response> =>
+  forward().catch(() =>
+    json(
+      { error: { code: 'unavailable', message: 'bigname unreachable' } },
+      502,
+    ),
+  )
+
+const EMPTY_PAGE: AddressNamesResponse = {
+  data: [],
+  page: {
+    cursor: null,
+    next_cursor: null,
+    page_size: 0,
+    total_count: 0,
+    has_more: false,
+  },
+  meta: { as_of: {} },
+}
+
 async function addressNames(
   forward: Forward,
   names: readonly ActiveName[],
   params: URLSearchParams,
 ): Promise<Response> {
-  const real = await forward()
-  if (!real.ok || !listsV1Names(params)) return real
-  const page = (await real.json()) as AddressNamesResponse
+  if (!listsV1Names(params)) return forward()
+  const real = await tryForward(forward)
+  const page = real.ok
+    ? ((await real.json()) as AddressNamesResponse)
+    : EMPTY_PAGE
   const injected = (await withLiveExpiry(names))
     .filter((name) => matchesQuery(name, params))
     .map((name) => toAddressRow(buildMockRecord(name)))
@@ -178,17 +202,28 @@ async function lookup(
   names: readonly ActiveName[],
   body: string,
 ): Promise<Response> {
-  const real = await forward()
-  if (!real.ok) return real
   const request = JSON.parse(body) as LookupRequest
-  const response = (await real.json()) as LookupResponse
   const live = await withLiveExpiry(names)
+  const local = request.inputs.map((input) =>
+    'name' in input ? findByName(live, input.name) : undefined,
+  )
+  const real = await tryForward(forward)
+  // Without the hosted answer only a batch of panel names can be served.
+  if (!real.ok && local.some((name) => !name)) return real
+  const response: LookupResponse = real.ok
+    ? ((await real.json()) as LookupResponse)
+    : {
+        data: request.inputs.map((input) => ({
+          input,
+          kind: 'name',
+          status: 'not_found',
+        })),
+        meta: { as_of: {} },
+      }
   return json({
     ...response,
     data: response.data.map((result, index) => {
-      const input = request.inputs[index]
-      const name =
-        input && 'name' in input ? findByName(live, input.name) : undefined
+      const name = local[index]
       return name
         ? { ...result, status: 'ok', record: buildMockRecord(name) }
         : result
@@ -230,17 +265,18 @@ function resolverRecords(name: ActiveName, resolver: string): Response {
 }
 
 /**
+ * `path` is the request's route under the bigname base, e.g. `/v1/lookup`.
  * Answers the bigname reads that must see panel-created names, which exist
  * only on the local fork: the connected account's name list, lookups and
  * name detail. Every other request goes through untouched.
  */
 export async function answerBignameRequest(
   url: URL,
+  path: string,
   init: RequestInit | undefined,
   names: readonly ActiveName[],
   forward: Forward,
 ): Promise<Response> {
-  const path = url.pathname
   const addressMatch = path.match(/^\/v1\/addresses\/([^/]+)\/names$/)
   if (addressMatch?.[1]?.toLowerCase() === OWNER)
     return addressNames(forward, names, url.searchParams)

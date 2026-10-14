@@ -27,13 +27,20 @@ import {
   useInvalidateMigrationQueriesOnMount,
 } from './MigrationTestPanel.hooks'
 
-/** bigname's hosts, or the deployment's own override of them. */
-function isBignameRequest(url: URL): boolean {
-  if (!url.pathname.startsWith('/v1/')) return false
-  return (
-    url.hostname.endsWith('bigname.sh') ||
-    (BIGNAME_API_URL !== undefined && url.href.startsWith(BIGNAME_API_URL))
-  )
+/**
+ * The request's route under bigname's base (a bigname.sh host, or the app's
+ * override, which may sit under a path or be root-relative), or null.
+ */
+function bignamePath(url: URL): string | null {
+  if (BIGNAME_API_URL !== undefined) {
+    const base = new URL(BIGNAME_API_URL, window.location.origin)
+    const prefix = base.pathname.replace(/\/+$/, '')
+    if (url.origin === base.origin && url.pathname.startsWith(`${prefix}/v1/`))
+      return url.pathname.slice(prefix.length)
+  }
+  return url.hostname.endsWith('bigname.sh') && url.pathname.startsWith('/v1/')
+    ? url.pathname
+    : null
 }
 
 // ---------------------------------------------------------------------------
@@ -69,9 +76,10 @@ export function setInjectedNames(names: ActiveName[]): void {
           ? input.href
           : (input as Request).url
     const url = new URL(href, window.location.origin)
-    if (!isBignameRequest(url) || _injectedNames.length === 0)
+    const path = bignamePath(url)
+    if (path === null || _injectedNames.length === 0)
       return origFetch(input, init)
-    return answerBignameRequest(url, init, _injectedNames, () =>
+    return answerBignameRequest(url, path, init, _injectedNames, () =>
       origFetch(input, init),
     )
   }
