@@ -1,5 +1,5 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
@@ -49,15 +49,15 @@ export const getSubregistryHistory = ({
   // normalize has no canonical node to look up, and reading a fallback spelling
   // would miss the real node's events and read as `never-configured` — the one
   // verdict that offers the write. Unknown instead, which the hook fails closed.
-  let normalizedName: string
-  try {
-    normalizedName = normalize(name)
-  } catch {
+  const normalized = fromSync(
+    () => normalize(name),
+    (cause) => cause,
+  )
+  if (normalized.isErr())
     return okAsync<number | null, GetSubregistryHistoryError>(null)
-  }
 
   return bigname
-    .nameHistory(normalizedName, {
+    .nameHistory(normalized.value, {
       type: ['subregistry'],
       include: ['data'],
       page_size: SUBREGISTRY_HISTORY_WINDOW,

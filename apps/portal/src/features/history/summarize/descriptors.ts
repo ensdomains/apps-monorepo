@@ -100,15 +100,20 @@ export const recordFamily = (
   if (event.kind === 'RecordVersionChanged') return 'cleared'
   const key = event.data?.key
   if (!key) return 'other'
-  const parsed = parseRecordKey(key)
-  if (parsed?.kind === 'text' || parsed?.kind === 'avatar') return 'text'
-  if (parsed?.kind === 'addr') return 'address'
-  if (parsed?.kind === 'contenthash') return 'contenthash'
-  if (key === 'name') return 'name'
-  if (key.startsWith('abi')) return 'abi'
-  if (key.startsWith('pubkey')) return 'pubkey'
-  if (key.startsWith('interface')) return 'interface'
-  return 'other'
+  return match(parseRecordKey(key)?.kind)
+    .returnType<RecordFamily>()
+    .with(P.union('text', 'avatar'), () => 'text')
+    .with('addr', () => 'address')
+    .with('contenthash', () => 'contenthash')
+    .otherwise(() =>
+      match(key)
+        .returnType<RecordFamily>()
+        .with('name', () => 'name')
+        .with(P.string.startsWith('abi'), () => 'abi')
+        .with(P.string.startsWith('pubkey'), () => 'pubkey')
+        .with(P.string.startsWith('interface'), () => 'interface')
+        .otherwise(() => 'other'),
+    )
 }
 
 /** The text key of a `text:<key>` row, sanitized; the key is attacker-authored. */

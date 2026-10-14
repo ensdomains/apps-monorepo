@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
+import { getAddressNamesQueryKey } from '@/features/dashboard/hooks/useAddressNames'
 import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import type { ProtocolVersion } from '@/utils/types'
@@ -6,8 +7,8 @@ import { invalidateRegistryLabelQueries } from './invalidateRegistryQueries'
 
 /**
  * After a subname is created or deleted: the parent's subnames now, then
- * again with the registry's label count, table, feed and occupancy once
- * bigname has indexed the write.
+ * again with the registry's label count, table, feed and occupancy, and the
+ * address names lists, once bigname has indexed the write.
  */
 export const refreshSubnameQueries = (
   queryClient: QueryClient,
@@ -24,6 +25,9 @@ export const refreshSubnameQueries = (
       await Promise.all([
         invalidateSubnames(),
         invalidateRegistryLabelQueries(queryClient),
+        queryClient.invalidateQueries({
+          queryKey: [getAddressNamesQueryKey.key],
+        }),
       ])
     },
   })
