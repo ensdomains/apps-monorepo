@@ -20,7 +20,7 @@ export const DnsOutOfSyncBanner = ({
     <CircleAlert className="size-6 shrink-0 self-start" strokeWidth={1.5} />
     <div className="flex flex-col gap-1 flex-1">
       <AlertTitle>DNS record is out of sync</AlertTitle>
-      <p className="text-sm">
+      <p className="text-p">
         The domain {name} currently designates a different Ethereum address than
         the one controlling this name. Verify carefully before sending funds or
         trusting this identity. The DNS owner can take the manager role back at

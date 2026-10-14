@@ -199,10 +199,10 @@ const RegistryContractRow = ({
     {privilegeWarning}
     {showInlineMeta ? (
       <div className="flex flex-row items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
-        <span className="text-sm text-muted-foreground font-mono">
+        <span className="text-entity-base text-muted-foreground">
           Chain ID: {chainId}
         </span>
-        <span className="text-sm text-muted-foreground font-mono">
+        <span className="text-entity-base text-muted-foreground">
           {protocolVersion}
         </span>
       </div>
@@ -254,7 +254,7 @@ const RegistrySummaryDetails = ({
           />
         </div>
       ) : null}
-      <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
+      <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-base text-muted-foreground lg:-mt-2">
         <dt className="py-2 h-9">Chain ID:</dt>
         <dd className="flex items-center h-9">{chainId}</dd>
         <dt className="py-2 h-9">Protocol Version:</dt>

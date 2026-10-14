@@ -54,7 +54,7 @@ const columns: ColumnDef<column>[] = [
       const expiryDate = row.original.expiryDate
       if (!expiryDate) {
         return (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-small">
             Does not expire
           </Badge>
         )
@@ -144,10 +144,10 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
       {showAssigned && (
         <section className="flex flex-col gap-2 border-t border-border pt-6 mt-6">
-          <h3 className="text-sm font-medium">
+          <h3 className="text-base font-medium">
             {`Names assigned to this address (${assigned.length})`}
           </h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             Anyone who owns a name can point a subname at any address. These
             were granted by someone else's name, not acquired by this address.
           </p>
@@ -176,7 +176,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
         <Link
           to="/addr/$addr/names"
           params={{ addr: address }}
-          className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center justify-center gap-1 border-t border-border p-4 text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripHorizontal className="size-4" />
           Go to full list ({allData.length})

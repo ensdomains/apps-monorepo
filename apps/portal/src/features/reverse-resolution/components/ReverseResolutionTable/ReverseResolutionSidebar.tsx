@@ -102,7 +102,7 @@ const ReverseNameField = ({
         <div className="flex items-center gap-2 mb-2">
           <span className="font-mono">{displayName}</span>
           {isInheritingDefault && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-small">
               Default
             </Badge>
           )}
@@ -111,7 +111,7 @@ const ReverseNameField = ({
         isDefaultRow && <span className="text-muted-foreground">null</span>
       )}
       {isDefaultRow ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-p text-muted-foreground">
           The default reverse name is set through the name's Address Resolution
           page.
         </p>
@@ -699,7 +699,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
             {!isPrimaryName && displayName && (
               <div className="flex items-center gap-3 bg-danger-fill text-danger-text p-4 rounded-md">
                 <XCircle className="w-6 h-6 shrink-0" />
-                <span className="text-sm">
+                <span className="text-p">
                   {mismatchReason({
                     displayName,
                     label,
@@ -738,12 +738,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
               <InfoRow label="Primary name">
                 <div className="flex items-center gap-2 flex-wrap">
                   {isPrimaryName ? (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-small">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>True</span>
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-small">
                       <XCircle className="w-4 h-4" />
                       <span>False</span>
                     </Badge>

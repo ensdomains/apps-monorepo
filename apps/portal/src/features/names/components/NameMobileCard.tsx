@@ -57,7 +57,7 @@ export const NameMobileCard = ({
       </div>
 
       {/* Expiry section */}
-      <div className="text-sm font-medium text-muted-foreground">Expiry</div>
+      <div className="text-base font-medium text-muted-foreground">Expiry</div>
       <div className="flex items-center gap-2">
         {expiryDate ? (
           <>
@@ -68,7 +68,7 @@ export const NameMobileCard = ({
               'grace' && <GraceBadge />}
           </>
         ) : (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-small">
             Does not expire
           </Badge>
         )}
@@ -91,7 +91,9 @@ export const NameMobileCard = ({
       {/* Roles section (for names page) */}
       {hasRoles && (
         <>
-          <div className="text-sm font-medium text-muted-foreground">Roles</div>
+          <div className="text-base font-medium text-muted-foreground">
+            Roles
+          </div>
           <RelationBadges relations={relations} roleCount={roleCount} />
         </>
       )}

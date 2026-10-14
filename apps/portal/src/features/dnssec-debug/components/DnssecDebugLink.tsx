@@ -20,7 +20,7 @@ export const DnssecDebugLink = ({
     params={{ name }}
     search={{ from: source }}
     className={cn(
-      'inline-flex w-fit items-center gap-1.5 text-sm font-medium underline underline-offset-2 hover:opacity-80',
+      'inline-flex w-fit items-center gap-1.5 text-base font-medium underline underline-offset-2 hover:opacity-80',
       className,
     )}
   >

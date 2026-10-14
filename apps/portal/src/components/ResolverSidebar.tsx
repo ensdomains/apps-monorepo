@@ -140,7 +140,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
             <div className="size-6 shrink-0 rounded bg-neutral-2 group-data-[active=true]/title:bg-neutral-3 flex items-center justify-center">
               <ResolverIcon className="size-3.5 text-neutral-6" />
             </div>
-            <span className="group-data-[collapsible=icon]:hidden text-sm font-mono font-medium text-foreground break-all leading-tight">
+            <span className="group-data-[collapsible=icon]:hidden text-entity-base font-medium text-foreground break-all leading-tight">
               {truncateAddress(address, 6, 4, '...')}
             </span>
           </Link>
@@ -158,7 +158,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
                       tooltip={item.title}
                     >
                       <item.icon className="size-4" />
-                      <span className="text-sm">{item.title}</span>
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   ) : (
                     <SidebarMenuButton asChild tooltip={item.title}>
@@ -169,7 +169,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
                         }}
                       >
                         <item.icon className="size-4" />
-                        <span className="text-sm">{item.title}</span>
+                        <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   )}

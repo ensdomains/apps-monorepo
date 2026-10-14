@@ -106,7 +106,7 @@ export const ActionSummaryRow = ({
         {iconBadge}
         <div className="flex min-w-0 flex-1 flex-col gap-4 @2xl/timeline:gap-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[13px] text-muted-foreground">
+            <span className="text-smallmono text-muted-foreground">
               {dateLabel}
             </span>
             <div className="ml-auto">{counts}</div>
@@ -119,7 +119,7 @@ export const ActionSummaryRow = ({
           and this grid cannot drift apart. */}
       <div className="hidden min-w-0 grid-cols-[calc(var(--label-x)-0.75rem)_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 @2xl/timeline:grid">
         <div className="flex items-center gap-5">
-          <span className="w-30 shrink-0 text-right font-mono text-[13px] text-muted-foreground">
+          <span className="w-30 shrink-0 text-right text-smallmono text-muted-foreground">
             {desktopDateLabel}
           </span>
           {iconBadge}

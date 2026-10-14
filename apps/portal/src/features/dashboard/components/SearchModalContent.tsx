@@ -85,7 +85,7 @@ export const SearchModalContent = ({
         variant="command"
       />
       {searchValue && isTldsLoading && !hasAnySection && (
-        <div className="py-6 text-center text-sm text-muted-foreground">
+        <div className="py-6 text-center text-base text-muted-foreground">
           Checking supported TLDs…
         </div>
       )}

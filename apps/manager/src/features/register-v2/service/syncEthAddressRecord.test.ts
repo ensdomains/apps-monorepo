@@ -135,7 +135,6 @@ describe('syncEthAddressRecord', () => {
         account: {} as never,
         config: {
           accountAddress: SMART_ACCOUNT,
-          rhinestoneApiKey: 'k',
           chain: sepolia,
         },
       },

@@ -97,7 +97,7 @@ const TokenInfoCard = ({
             <SheetTrigger asChild>
               <Button variant="default" size="sm" className="gap-1 shrink-0">
                 <ArrowRightFromLineIcon className="size-4" />
-                <span className="text-xs font-medium">More</span>
+                <span className="text-small font-medium">More</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full p-0">
@@ -136,13 +136,13 @@ const TokenInfoCard = ({
                     </InfoRow>
 
                     <InfoRow label="Last changed">
-                      <span className="font-mono text-sm ">—</span>
+                      <span className="text-entity-base ">—</span>
                     </InfoRow>
                   </div>
 
                   <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
                     <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="text-base">
+                    <p className="text-p">
                       The Token ID will change anytime the roles are updated.
                     </p>
                   </div>
@@ -340,7 +340,7 @@ function RouteComponent() {
 
         <InfoRow label="Normalization">
           <div className="flex flex-row gap-2 items-center flex-wrap">
-            <span className="font-mono text-sm">
+            <span className="text-entity-base">
               {hasEmoji ? `${encoding} + Emoji` : encoding}
             </span>
             <div
@@ -356,7 +356,7 @@ function RouteComponent() {
               )}
               <span
                 className={cn(
-                  'text-xs font-medium',
+                  'text-small font-medium',
                   normalized ? 'text-peridot-900' : 'text-garnet-900',
                 )}
               >
@@ -452,7 +452,7 @@ function RouteComponent() {
                   </InfoRow>
 
                   <InfoRow label="Normalization">
-                    <span className="text-sm ">{part.type as string}</span>
+                    <span className="text-base ">{part.type as string}</span>
                   </InfoRow>
 
                   <InfoRow label="Bytes">

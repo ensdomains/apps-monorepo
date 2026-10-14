@@ -207,7 +207,7 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
       </div>
       <div>
         {events.length === 0 ? (
-          <p className="text-muted-foreground text-sm py-4">
+          <p className="text-muted-foreground text-p py-4">
             No history available for this record.
           </p>
         ) : (

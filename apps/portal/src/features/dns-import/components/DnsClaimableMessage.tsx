@@ -20,7 +20,7 @@ const IMPORT_COLUMN_CLASS = 'max-w-xl mt-6'
 
 /** The record's parts, highlighted the way the design calls them out. */
 const InlineCode = ({ children }: { readonly children: ReactNode }) => (
-  <code className="rounded-sm bg-current/10 px-1 font-mono text-sm">
+  <code className="rounded-sm bg-current/10 px-1 text-entity-base">
     {children}
   </code>
 )
