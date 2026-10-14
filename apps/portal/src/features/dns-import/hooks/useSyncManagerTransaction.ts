@@ -14,12 +14,12 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { prepareSyncManagerTransaction } from '../helpers/syncManager'
 import { getDnsImportDataResult } from '../queries/getDnsImportData'
 import { getDnsOwnerQueryOptions } from '../queries/getDnsOwner'
 
-const CHAIN_ID = sepoliaWithEns.id
+const CHAIN_ID = ensChain.id
 
 /**
  * Sync Manager (WEB-465): re-proves the `_ens` TXT record and runs a plain
@@ -83,7 +83,7 @@ export const useSyncManagerTransaction = ({
       }
       const id = transactionManager.startTransaction(
         prepareSyncManagerTransaction({
-          chain: sepoliaWithEns,
+          chain: ensChain,
           name,
           dnsImportData: proof,
           from: walletClient.account.address,
@@ -113,7 +113,7 @@ export const useSyncManagerTransaction = ({
             prepare: connectedAddress
               ? ({ walletClient }) =>
                   prepareSyncManagerTransaction({
-                    chain: sepoliaWithEns,
+                    chain: ensChain,
                     name,
                     dnsImportData: proof,
                     from: walletClient.account.address,

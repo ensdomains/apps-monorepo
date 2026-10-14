@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { chain } from '@/config'
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -128,7 +129,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
         {txData && (
           <>
             <InfoRow label="Network">
-              <span className="text-base">Sepolia</span>
+              <span className="text-base">{chain.name}</span>
             </InfoRow>
 
             <InfoRow label="From">

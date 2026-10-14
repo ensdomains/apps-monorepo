@@ -9,6 +9,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { chain } from '@/config'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import {
   type AddressNameHistory,
@@ -18,7 +19,7 @@ import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { partitionAddressHistory } from '../nameAttribution'
 
 const defaultNetwork = {
-  name: 'Sepolia',
+  name: chain.name,
   icon: '/icons/eth.svg',
 }
 

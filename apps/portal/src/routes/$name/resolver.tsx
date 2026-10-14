@@ -4,7 +4,6 @@ import type { GetEnsResolverErrorType } from '@wagmi/core'
 import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
-import { sepolia } from 'viem/chains'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -16,6 +15,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { chain } from '@/config'
 import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { RESOLVER_HISTORY_TYPES } from '@/features/history/eventTypes'
@@ -48,7 +48,7 @@ export const Route = createFileRoute('/$name/resolver')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-const sepoliaUrl = sepolia.blockExplorers.default.url
+const blockExplorerUrl = chain.blockExplorers.default.url
 
 const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
   ([name, value]) => [value, name as ResolverInterfaceName] as const,
@@ -79,7 +79,7 @@ const ResolverAddressValue = ({ address }: { address: Address }) => (
   <EntityBadge
     variant="contract"
     address={address}
-    etherscanHref={`${sepoliaUrl}/address/${address}`}
+    etherscanHref={`${blockExplorerUrl}/address/${address}`}
     className="max-w-full truncate"
   >
     {address}

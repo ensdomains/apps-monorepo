@@ -5,7 +5,9 @@
  * Returns `null` for unset, relative (`/rpc`, already covered by `'self'`), or
  * unparseable values, so only real absolute http(s) entries are added.
  */
-export const originFromEnvUrl = (value: string | undefined): string | null => {
+export const originFromEnvUrl = (
+  value: string | null | undefined,
+): string | null => {
   if (!value || value.startsWith('/')) return null
   try {
     const { protocol, origin } = new URL(value)

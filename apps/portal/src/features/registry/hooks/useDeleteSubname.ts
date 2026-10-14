@@ -10,7 +10,7 @@ import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { deleteSubname } from '../helpers/deleteSubname'
 import { refreshSubnameQueries } from '../utils/refreshSubnameQueries'
 
@@ -64,7 +64,7 @@ export const useDeleteSubname = ({
   name,
   registryAddress,
 }: UseDeleteSubnameParams) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
   const queryClient = useQueryClient()

@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import { isSepoliaBuild } from '@/config'
 
 /**
  * Official `ExtendedDNSResolver` deployments — the resolver an `ENS1` TXT
@@ -6,12 +7,12 @@ import type { Address } from 'viem'
  * canonical `dnsname.ens.eth` name points at that deployment, so the record is
  * displayed in its name form there; other chains have no such name and show
  * the raw address. Verification accepts either form (the resolver in a found
- * record is compared by address after resolution).
+ * record is compared by address after resolution). Only the build's network
+ * is included.
  */
-export const EXTENDED_DNS_RESOLVER_MAP: Record<number, Address> = {
-  1: '0x238A8F792dFA6033814B18618aD4100654aeef01',
-  11155111: '0x0EF1aF80c24B681991d675176D9c07d8C9236B9a',
-}
+export const EXTENDED_DNS_RESOLVER_MAP: Record<number, Address> = isSepoliaBuild
+  ? { 11155111: '0x0EF1aF80c24B681991d675176D9c07d8C9236B9a' }
+  : { 1: '0x238A8F792dFA6033814B18618aD4100654aeef01' }
 
 /** The resolver value users should put in their `ENS1` TXT record. */
 export const getOffchainResolverDisplay = (chainId: number): string =>

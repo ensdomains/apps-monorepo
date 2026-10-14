@@ -6,7 +6,7 @@ import { MANAGER_ENDPOINTS } from '../src/endpoints'
 try {
   const config = assertNetworkConfig(
     loadEnv(process.env.NODE_ENV ?? 'production', process.cwd(), 'VITE_'),
-    MANAGER_ENDPOINTS,
+    { endpoints: MANAGER_ENDPOINTS },
   )
   console.log(`network config ok: ${config.network}`)
 } catch (error) {

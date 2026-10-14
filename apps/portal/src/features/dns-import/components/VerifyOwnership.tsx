@@ -12,7 +12,7 @@ import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryN
 import { EstimatedGasCost } from '@/features/transaction-manager/components/EstimatedGasCost'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { getTLD } from '@/utils/ens/tldHelpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { DNS_TXT_RECORD_HELPER_LINKS } from '../constants'
@@ -132,7 +132,7 @@ const buildRecord = (
   connectedAddress: Address | undefined,
 ): DnsRecordSpec =>
   type === 'offchain'
-    ? getOffchainVerificationRecord(sepoliaWithEns.id, connectedAddress)
+    ? getOffchainVerificationRecord(ensChain.id, connectedAddress)
     : getOnchainVerificationRecord(connectedAddress)
 
 /** Record table + found chip + per-state messages while ownership is unverified. */

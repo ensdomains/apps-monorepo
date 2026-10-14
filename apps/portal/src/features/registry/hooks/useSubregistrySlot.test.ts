@@ -9,10 +9,10 @@ vi.mock('@/lib/bigname', () => ({
   },
 }))
 
-const { sepoliaWithEns } = await import('@/lib/wagmi')
+const { ensChain } = await import('@/lib/wagmi')
 const { getSubregistryHistory } = await import('./useSubregistrySlot')
 
-const V1_REGISTRY = sepoliaWithEns.contracts.ensRegistry?.address.toLowerCase()
+const V1_REGISTRY = ensChain.contracts.ensRegistry?.address.toLowerCase()
 const V2_REGISTRY = '0x541c00000000000000000000000000000000976f'
 
 const rows = (contracts: (string | null | undefined)[], hasMore = false) => ({

@@ -29,7 +29,7 @@ import { RegistryHistoryByAddress } from '@/features/registry/components/v2/Regi
 import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -42,7 +42,7 @@ export const Route = createFileRoute('/registry/$address/')({
 const PROTOCOL = 'ENSv2'
 
 const FACTORY_ADDRESS = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensVerifiableFactory',
 })
 

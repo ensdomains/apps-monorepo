@@ -11,7 +11,7 @@ import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { revokeRoles } from '../helpers/revokeRoles'
 import { invalidateRolesQueries } from '../utils/invalidateRolesQueries'
@@ -26,7 +26,7 @@ type UseRevokeRolesParameters = {
 }
 
 export function useRevokeRoles() {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()

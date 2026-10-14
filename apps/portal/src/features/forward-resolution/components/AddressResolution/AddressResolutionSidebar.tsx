@@ -53,7 +53,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
@@ -456,7 +456,7 @@ const useAddressRecordEditor = (
 
   const setPrimaryTxId = scopeTransactionId(SET_PRIMARY_TX_ID, attempt.scope)
   const { setReverseResolution } = useSetReverseResolution({
-    chainId: sepoliaWithEns.id,
+    chainId: ensChain.id,
     id: setPrimaryTxId,
   })
   const { setL2ReverseNameAsync, isPending: isSettingL2PrimaryName } =

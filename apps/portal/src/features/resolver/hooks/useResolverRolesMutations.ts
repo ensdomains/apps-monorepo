@@ -9,7 +9,7 @@ import {
   type ResolverRevocation,
   ROOT_RESOURCE,
 } from '@/lib/roles/resolverRoles'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverOverview } from './useResolverOverview'
 
@@ -26,7 +26,7 @@ export type RevokeResolverGrantParams = {
  * indexer has caught up.
  */
 export const useResolverRolesMutations = (resolverAddress: Address) => {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })

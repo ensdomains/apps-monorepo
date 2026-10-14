@@ -28,7 +28,7 @@ vi.mock('wagmi', async (importOriginal) => {
 
 // The wallet/chain plumbing behind the submit path is irrelevant to the gating
 // assertions, and pulls in the wagmi config + transaction manager.
-vi.mock('@/lib/wagmi', () => ({ sepoliaWithEns: { id: 11155111 } }))
+vi.mock('@/lib/wagmi', () => ({ ensChain: { id: 11155111 } }))
 vi.mock('@/features/fuses/helpers/burnFuses', () => ({
   burnFuses: vi.fn(),
   prepareBurnFusesTransaction: vi.fn(),
