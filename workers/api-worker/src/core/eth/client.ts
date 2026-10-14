@@ -11,6 +11,15 @@ export type ViemClient =
     : never
 
 export const createEnsClient = (env: CloudflareBindings) => {
+  // This client only has a Sepolia RPC binding today. Fail closed until a
+  // network-specific production transport is implemented.
+  if (env.CHAIN !== 'sepolia') {
+    return error({
+      code: 'UNSUPPORTED_CHAIN',
+      message: 'ENS client is only configured for Sepolia',
+    })
+  }
+
   if (!env.SEPOLIA_RPC_URL) {
     return error({
       code: 'MISSING_SEPOLIA_RPC_URL',

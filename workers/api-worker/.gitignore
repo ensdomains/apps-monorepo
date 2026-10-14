@@ -21,6 +21,7 @@ node_modules/
 .env
 .env.production
 .dev.vars
+.local-secrets/
 
 # logs
 logs/
