@@ -1,6 +1,7 @@
 import { parseRecordKey } from '@ens-apps/indexer/bigname'
 import { match } from 'ts-pattern'
 import { type Address, isAddress } from 'viem'
+import { isFuseChange } from '@/features/history/eventTypes'
 import {
   formatPower,
   humanizeType,
@@ -170,7 +171,7 @@ export const formatActivityEvent = (
       formatRootPermissionEvent,
     )
     .with({ type: 'permission' }, ({ data }) =>
-      data?.powers === undefined && data?.fuses !== undefined
+      isFuseChange(data)
         ? { text: 'Fuses updated' }
         : activity({
             text: 'Roles updated',

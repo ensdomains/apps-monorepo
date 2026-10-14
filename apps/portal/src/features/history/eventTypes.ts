@@ -32,8 +32,24 @@ export const OWNERSHIP_HISTORY_TYPES = [
   'expiry',
   'transfer',
   'authority',
+  'permission',
   'migration',
 ] as const satisfies readonly EventType[]
+
+/** A `permission` row that sets NameWrapper fuses rather than granting roles. */
+export const isFuseChange = (
+  data:
+    | { readonly powers?: unknown; readonly fuses?: number | null }
+    | null
+    | undefined,
+): boolean => !data?.powers && data?.fuses != null
+
+/**
+ * Narrows `OWNERSHIP_HISTORY_TYPES` to fuse changes among the `permission`
+ * rows; role grants stay on the roles page.
+ */
+export const isOwnershipEvent = (event: TimelineEvent): boolean =>
+  event.type !== 'permission' || isFuseChange(event.data)
 
 export const RESOLVER_HISTORY_TYPES = [
   'resolver',
