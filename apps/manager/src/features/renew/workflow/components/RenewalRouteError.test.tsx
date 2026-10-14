@@ -6,18 +6,17 @@ import {
 } from '@tanstack/react-router'
 import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import {
-  RenewableNameError,
-  RenewalNotAllowedError,
-} from '@/features/renew/utils/renewableName'
 import { render } from '@/utils/test-utils'
 import { RenewalRouteError } from './RenewalRouteError'
 
-const renderRouteError = async (name: string, error: unknown) => {
-  const reset = vi.fn()
+const renderRouteError = async (
+  name: string,
+  message: string,
+  onRetry?: () => void,
+) => {
   const rootRoute = createRootRoute({
     component: () => (
-      <RenewalRouteError error={error} name={name} reset={reset} />
+      <RenewalRouteError message={message} name={name} onRetry={onRetry} />
     ),
   })
   const nameRoute = createRoute({
@@ -31,16 +30,11 @@ const renderRouteError = async (name: string, error: unknown) => {
 
   await router.load()
   render(<RouterProvider router={router} />)
-
-  return reset
 }
 
 describe('RenewalRouteError', () => {
-  it('shows only the profile link when the name itself is refused', async () => {
-    await renderRouteError(
-      'sub.alice.eth',
-      new RenewableNameError({ reason: 'SUBNAMES_NOT_SUPPORTED' }),
-    )
+  it('shows only the profile link for a refused renewal', async () => {
+    await renderRouteError('sub.alice.eth', 'Subnames are not supported')
 
     expect(screen.getByText('Subnames are not supported')).toBeInTheDocument()
     expect(
@@ -51,50 +45,15 @@ describe('RenewalRouteError', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows only the profile link when the route refused the renewal', async () => {
-    await renderRouteError(
-      'alice.eth',
-      new RenewalNotAllowedError({
-        message: 'This name is outside its renewal window.',
-      }),
-    )
-
-    expect(
-      screen.getByText('This name is outside its renewal window.'),
-    ).toBeInTheDocument()
-    expect(
-      await screen.findByRole('link', { name: 'Back to profile' }),
-    ).toHaveAttribute('href', '/alice.eth')
-    expect(
-      screen.queryByRole('button', { name: 'Try again' }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('treats a rejection rehydrated from SSR the same', async () => {
-    await renderRouteError(
-      'sub.alice.eth',
-      Object.assign(new Error('Subnames are not supported'), {
-        _tag: 'RenewableNameError',
-        reason: 'SUBNAMES_NOT_SUPPORTED',
-      }),
-    )
-
-    expect(
-      await screen.findByRole('link', { name: 'Back to profile' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: 'Try again' }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('keeps the retry action for a transient failure', async () => {
-    const reset = await renderRouteError('alice.eth', new Error('fetch failed'))
+  it('keeps the retry action when the route failed', async () => {
+    const onRetry = vi.fn()
+    await renderRouteError('alice.eth', 'fetch failed', onRetry)
 
     expect(
       await screen.findByRole('link', { name: 'Back to profile' }),
     ).toHaveAttribute('href', '/alice.eth')
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(reset).toHaveBeenCalledOnce()
+    expect(onRetry).toHaveBeenCalledOnce()
   })
 })

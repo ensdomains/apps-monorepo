@@ -2,20 +2,19 @@ import { Trans } from '@lingui/react/macro'
 import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { isFixedRenewalRejection } from '@/features/renew/utils/renewableName'
 import { cn } from '@/lib/utils'
 import { RenewPageLayout } from './RenewPageLayout'
 
 export const RenewalRouteError = ({
-  error,
+  message,
   name,
-  reset,
+  onRetry,
 }: {
-  readonly error: unknown
+  readonly message?: string
   readonly name: string
-  readonly reset: () => void
+  readonly onRetry?: () => void
 }) => {
-  const canRetry = !isFixedRenewalRejection(error)
+  const canRetry = onRetry !== undefined
 
   return (
     <RenewPageLayout>
@@ -27,7 +26,7 @@ export const RenewalRouteError = ({
           <Trans>This name can’t be renewed here</Trans>
         </h1>
         <p className="mt-3 max-w-md text-ens-quartz-500 text-sm leading-5">
-          {(error instanceof Error && error.message) || (
+          {message || (
             <Trans>We couldn’t confirm that this name is renewable.</Trans>
           )}
         </p>
@@ -47,7 +46,7 @@ export const RenewalRouteError = ({
           {canRetry ? (
             <Button
               className="h-14 w-full"
-              onClick={reset}
+              onClick={onRetry}
               size="lg"
               type="button"
               variant="blue"

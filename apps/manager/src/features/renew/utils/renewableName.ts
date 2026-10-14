@@ -28,23 +28,16 @@ export class RenewableNameError<
   }
 }
 
-/** The route refused the name for a reason a retry cannot change. */
-export class RenewalNotAllowedError extends TaggedError(
-  'RenewalNotAllowedError',
-)<{ readonly message: string }> {}
+/** A refusal is loader data, not a thrown error: SSR keeps only an error's message. */
+export type RenewalRefusal = {
+  readonly status: 'refused'
+  readonly message: string
+}
 
-const FIXED_REJECTION_TAGS: ReadonlySet<string> = new Set([
-  'RenewableNameError',
-  'RenewalNotAllowedError',
-])
-
-/** Matched by tag: SSR re-creates loader errors on the client, so instanceof fails there. */
-export const isFixedRenewalRejection = (error: unknown) =>
-  typeof error === 'object' &&
-  error !== null &&
-  '_tag' in error &&
-  typeof error._tag === 'string' &&
-  FIXED_REJECTION_TAGS.has(error._tag)
+export const refuseRenewal = (message: string): RenewalRefusal => ({
+  status: 'refused',
+  message,
+})
 
 export const parseRenewableName = (name: string) =>
   parseName(name).andThen((parsedName) => {

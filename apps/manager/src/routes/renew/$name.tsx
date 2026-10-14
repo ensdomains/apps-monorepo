@@ -10,7 +10,7 @@ import {
 } from '@/features/profile/service/profileExpiry'
 import {
   canRenewV2Name,
-  RenewalNotAllowedError,
+  refuseRenewal,
   resolveRenewalLabel,
   toCanonicalRenewableName,
 } from '@/features/renew/utils/renewableName'
@@ -40,7 +40,7 @@ export const Route = createFileRoute('/renew/$name')({
     const renewalLabel = resolveRenewalLabel(name)
 
     if (renewalLabel.isErr()) {
-      throw renewalLabel.error
+      return refuseRenewal(renewalLabel.error.message)
     }
 
     // Fetched rather than read through the cache: a name registered moments ago
@@ -57,16 +57,14 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (expiryData?.protocol !== 'v2') {
-      throw new RenewalNotAllowedError({
-        message: 'This name is not available for renewal.',
-      })
+      return refuseRenewal('This name is not available for renewal.')
     }
 
     if (expiryData.expiry === null) {
       if (expiryData.isNonExpiring) {
-        throw new RenewalNotAllowedError({
-          message: 'This name has no expiry, so there is nothing to renew.',
-        })
+        return refuseRenewal(
+          'This name has no expiry, so there is nothing to renew.',
+        )
       }
 
       // No expiry record at all means the label is unregistered.
@@ -88,12 +86,11 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (!canRenewV2Name(name, expiryDate)) {
-      throw new RenewalNotAllowedError({
-        message: 'This name is outside its renewal window.',
-      })
+      return refuseRenewal('This name is outside its renewal window.')
     }
 
     return {
+      status: 'renewable' as const,
       label: renewalLabel.value,
       currentExpiry: expiryData.expiry,
     }
@@ -103,13 +100,29 @@ export const Route = createFileRoute('/renew/$name')({
 })
 
 function RouteComponent() {
-  const { label, currentExpiry } = Route.useLoaderData()
+  const data = Route.useLoaderData()
+  const { name } = Route.useParams()
+
+  if (data.status === 'refused') {
+    return <RenewalRouteError message={data.message} name={name} />
+  }
+
   return (
-    <RenewalPage currentExpiry={currentExpiry} label={label} protocol="v2" />
+    <RenewalPage
+      currentExpiry={data.currentExpiry}
+      label={data.label}
+      protocol="v2"
+    />
   )
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const { name } = Route.useParams()
-  return <RenewalRouteError error={error} name={name} reset={reset} />
+  return (
+    <RenewalRouteError
+      message={error instanceof Error ? error.message : undefined}
+      name={name}
+      onRetry={reset}
+    />
+  )
 }
