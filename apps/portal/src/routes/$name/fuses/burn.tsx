@@ -33,7 +33,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/fuses/burn')({
   component: RouteComponent,
@@ -58,7 +58,7 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
   const queryClient = useQueryClient()
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
 
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()

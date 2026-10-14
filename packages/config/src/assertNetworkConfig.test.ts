@@ -24,6 +24,15 @@ describe('assertNetworkConfig', () => {
     expect(config.endpoints.bignameApi).toBe('http://127.0.0.1:4010')
   })
 
+  it('reads the rpc override from the variable the app names', () => {
+    const config = assertNetworkConfig(
+      { VITE_ENS_NETWORK: 'sepolia', VITE_RPC_URL: '/rpc' },
+      { rpcUrlVar: 'VITE_RPC_URL' },
+    )
+
+    expect(config.rpcUrls[0]).toBe('/rpc')
+  })
+
   it('treats an empty string like an unset variable', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
@@ -39,15 +48,20 @@ describe('assertNetworkConfig', () => {
     expect(() => assertNetworkConfig({})).toThrow(/Set VITE_ENS_NETWORK/)
   })
 
-  // The build must not produce a bundle aimed at contracts that do not exist.
-  it('refuses a network with no ENSv2 deployment', () => {
-    expect(() =>
-      assertNetworkConfig({
-        VITE_ENS_NETWORK: 'mainnet',
-        VITE_INDEXER_GRAPHQL_URL: 'https://indexer.example/',
-        VITE_BIGNAME_API_URL: 'https://bigname.example/',
-      }),
-    ).toThrow(/ENSv2 is not deployed/)
+  // The build must not ship without a service the app depends on.
+  it('refuses a network missing an endpoint the app needs', () => {
+    expect(() => assertNetworkConfig({ VITE_ENS_NETWORK: 'mainnet' })).toThrow(
+      /no endpoint configured for/,
+    )
+  })
+
+  it('passes that network for an app that runs without the endpoint', () => {
+    const config = assertNetworkConfig(
+      { VITE_ENS_NETWORK: 'mainnet' },
+      { allowMissingEndpoints: true },
+    )
+
+    expect(config.network).toBe('mainnet')
   })
 })
 

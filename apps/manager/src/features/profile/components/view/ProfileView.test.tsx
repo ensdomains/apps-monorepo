@@ -1,7 +1,7 @@
 import { skipToken } from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { Suspense } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { render, stubImagePreload } from '@/utils/test-utils'
@@ -9,8 +9,15 @@ import { ProfileView } from './ProfileView'
 
 const mocks = vi.hoisted(() => ({
   getProfileRecords: vi.fn<() => Promise<ProfileRecordsResult>>(),
+  expiryFails: false,
 }))
 
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({ children }: { readonly children: React.ReactNode }) => (
+    <a href="/">{children}</a>
+  ),
+}))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => false,
@@ -38,18 +45,26 @@ vi.mock('@/features/profile/service/profileOwner', () => ({
   profileOwnerQuery: (name: string) => ({
     queryKey: ['profile-owner', name],
     queryFn: skipToken,
-    initialData: null,
+    initialData: mocks.expiryFails
+      ? { owner: '0x0000000000000000000000000000000000000001', protocol: 'v2' }
+      : null,
   }),
 }))
 vi.mock('@/features/profile/service/profileExpiry', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('@/features/profile/service/profileExpiry')
   >()),
-  profileExpiryQuery: (name: string) => ({
-    queryKey: ['profile-expiry', name],
-    queryFn: skipToken,
-    initialData: null,
-  }),
+  profileExpiryQuery: (name: string) =>
+    mocks.expiryFails
+      ? {
+          queryKey: ['profile-expiry', name],
+          queryFn: () => Promise.reject(new Error('indexer down')),
+        }
+      : {
+          queryKey: ['profile-expiry', name],
+          queryFn: skipToken,
+          initialData: null,
+        },
 }))
 vi.mock('@/features/profile/service/profileRegistration', () => ({
   profileRegistrationQuery: (name: string) => ({
@@ -207,5 +222,28 @@ describe('ProfileView images', () => {
 
     await waitFor(() => expectFallbacks(container))
     expect(mocks.getProfileRecords).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('ProfileView expiry read failure', () => {
+  beforeEach(() => {
+    mocks.expiryFails = true
+    mocks.getProfileRecords.mockReset()
+    mocks.getProfileRecords.mockResolvedValue({ texts: [], coins: [] })
+  })
+
+  afterEach(() => {
+    mocks.expiryFails = false
+  })
+
+  it('keeps an owned profile visible and says editing is paused', async () => {
+    renderProfile()
+
+    expect(
+      await screen.findByText(/Couldn’t check when this name expires/),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Failed to load registration data for this name.'),
+    ).not.toBeInTheDocument()
   })
 })

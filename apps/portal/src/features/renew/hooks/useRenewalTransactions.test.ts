@@ -13,7 +13,7 @@ import {
 } from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { buildRenewIntent } from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { useRenewalTransactions } from './useRenewalTransactions'
@@ -139,7 +139,7 @@ const USDC = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 
 // `renewNameWriteParameters` is a pure encode — it only reads chain contract
 // addresses off the client.
-const publicClient = { chain: sepoliaWithEns } as unknown as PublicClient
+const publicClient = { chain: ensChain } as unknown as PublicClient
 
 const renewParams = (name: string) => ({
   name,

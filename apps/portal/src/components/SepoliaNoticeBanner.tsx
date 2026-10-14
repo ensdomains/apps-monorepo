@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Alert, AlertClose, AlertDescription } from '@/components/ui/alert'
+import { isSepoliaBuild } from '@/config'
 
 const LAST_SEPOLIA_DEPLOYMENT_DATE = 'October 1, 2026'
 const SEPOLIA_NOTICE_DISMISSED_KEY = `sepolia-notice-dismissed-${LAST_SEPOLIA_DEPLOYMENT_DATE}`
 
-export const SepoliaNoticeBanner = () => {
+const SepoliaNotice = () => {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
@@ -34,3 +35,6 @@ export const SepoliaNoticeBanner = () => {
     </div>
   )
 }
+
+// Sepolia resets don't apply to mainnet, so a mainnet bundle leaves it out.
+export const SepoliaNoticeBanner = isSepoliaBuild ? SepoliaNotice : () => null

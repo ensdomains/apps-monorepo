@@ -5,6 +5,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { chain } from '@/config'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -22,7 +23,7 @@ type AddressHistoryData = {
 }
 
 const defaultNetwork = {
-  name: 'Sepolia',
+  name: chain.name,
   icon: '/icons/eth.svg',
 }
 

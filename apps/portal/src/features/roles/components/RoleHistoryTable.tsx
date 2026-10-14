@@ -25,7 +25,7 @@ import {
   getRoleHistoryQueryOptions,
   type RoleHistoryEntry,
 } from '@/features/roles/hooks/useRoleHistory'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 
@@ -41,7 +41,7 @@ const roleHistoryEntryToTransaction = (
   blockNumber: Number(entry.blockNumber),
   timestamp: entry.timestamp,
   from: entry.account,
-  network: { name: 'Sepolia', chainId: sepoliaWithEns.id },
+  network: { name: 'Sepolia', chainId: ensChain.id },
   events: [
     {
       id: `${entry.transactionHash}-eac-roles-changed`,

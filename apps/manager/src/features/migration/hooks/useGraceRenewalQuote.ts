@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
@@ -5,7 +6,6 @@ import {
   type GraceRenewalQuote,
   getGraceRenewalQuote,
 } from '../service/graceRenewal'
-import type { V1Domain } from '../service/v1SubgraphClient'
 
 export type GraceRenewalQuoteState =
   | { readonly status: 'idle' }

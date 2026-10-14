@@ -6,6 +6,7 @@ import type {
   NameRelation,
   Page,
   ProtocolVersion,
+  ReadOptions,
 } from './common.types'
 import type { IndexerReadError } from './errors'
 
@@ -18,9 +19,17 @@ export type NamesForAddressQuery = Readonly<{
   migratedOnly?: boolean
   /** Name prefix. */
   prefix?: string
-  sort?: 'name' | 'expiry' | 'registered'
+  /** A fragment the name contains; takes precedence over `prefix`. */
+  contains?: string
+  /** Direct children of this parent only, e.g. `eth` excludes subnames. */
+  parent?: string
+  sort?: 'name' | 'expiry' | 'registered' | 'created'
   order?: 'asc' | 'desc'
   includeCounts?: boolean
+  /** Read the powers `address` holds on each name. */
+  includeRoles?: boolean
+  /** Ask for an exact `totalCount` even above the backend's candidate cap. */
+  includeTotal?: boolean
   pageSize?: number
   cursor?: string
 }>
@@ -39,13 +48,21 @@ export type NameSummary = Readonly<{
   registrationStatus: NameRegistrationStatus
   /** Null when the name does not expire. */
   expiresAt: Date | null
+  /**
+   * The served expiry in exact unix seconds, which the backend sorts by. A
+   * reserved ENSv1 name serves its ENSv2 reservation here; `expiresAt` keeps the lease.
+   */
+  servedExpiry: bigint | null
   registeredAt: Date | null
   createdAt: Date | null
   /** Only with `includeCounts`. */
   subnameCount?: number
   recordCount?: number
+  /** Only with `includeRoles`: the distinct powers `address` holds on the name and its registry. */
+  heldPowers?: readonly string[]
 }>
 
 export type ReadNamesForAddress = (
   query: NamesForAddressQuery,
+  options?: ReadOptions,
 ) => ResultAsync<Page<NameSummary>, IndexerReadError>

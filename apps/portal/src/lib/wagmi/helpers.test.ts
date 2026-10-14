@@ -9,7 +9,7 @@ const mockConfig = {
 
 vi.mock('../wagmi', () => ({
   wagmiConfig: mockConfig,
-  sepoliaWithEns: { ...sepolia, id: 11155111 },
+  ensChain: { ...sepolia, id: 11155111 },
 }))
 
 // Mock getConnectorClient from @wagmi/core
