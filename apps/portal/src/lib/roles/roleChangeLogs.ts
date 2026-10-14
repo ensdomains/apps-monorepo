@@ -125,7 +125,7 @@ const readRegistrationRoleRows = ResultFn(async function* (
   const toError = (cause: BignameError) =>
     new IndexedRoleChangeLogsError({ reason: 'failed', cause })
   const registration = yield* bigname
-    .name(normalizeOrLower(name))
+    .name(normalizeOrLower(name), undefined, { signal })
     .map(({ data }) => data.registration_id)
     .orElse((error) =>
       error.code === 'not_found'
@@ -137,15 +137,18 @@ const readRegistrationRoleRows = ResultFn(async function* (
       new IndexedRoleChangeLogsError({ reason: 'unindexed', cause: undefined }),
     )
   const rows = yield* readAllCollectionPages<EventRow>(
-    (cursor) =>
-      bigname.events({
-        registration_id: registration,
-        type: ['permission'],
-        include: ['data', 'raw'],
-        order: 'asc',
-        page_size: MAX_PAGE_SIZE,
-        ...(cursor && { cursor }),
-      }),
+    (cursor, pageSignal) =>
+      bigname.events(
+        {
+          registration_id: registration,
+          type: ['permission'],
+          include: ['data', 'raw'],
+          order: 'asc',
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: pageSignal },
+      ),
     // Past the cap the node answers instead, so the walk stops there.
     { limit: INDEXED_ROLE_EVENTS_MAX_ROWS, signal },
   ).mapErr(toError)

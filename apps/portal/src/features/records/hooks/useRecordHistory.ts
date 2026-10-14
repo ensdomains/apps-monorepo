@@ -110,15 +110,19 @@ const getRecordHistory = (
   signal?: AbortSignal,
 ) =>
   readAllCollectionPages<NameHistoryRow>(
-    (cursor) =>
-      bigname.nameHistory(normalizeOrLower(name), {
-        type: ['record'],
-        ...(!isFamily(key) && { record_key: key }),
-        include: ['data', 'raw'],
-        order: 'desc',
-        page_size: MAX_PAGE_SIZE,
-        ...(cursor && { cursor }),
-      }),
+    (cursor, pageSignal) =>
+      bigname.nameHistory(
+        normalizeOrLower(name),
+        {
+          type: ['record'],
+          ...(!isFamily(key) && { record_key: key }),
+          include: ['data', 'raw'],
+          order: 'desc',
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
+        { signal: pageSignal },
+      ),
     { signal },
   )
     .map((rows) =>

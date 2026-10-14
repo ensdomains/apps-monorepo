@@ -169,6 +169,7 @@ describe('getNameRolesAccounts', () => {
 
     expect(mockEvents).toHaveBeenCalledWith(
       expect.objectContaining({ registration_id: REGISTRATION }),
+      { signal: expect.any(AbortSignal) },
     )
     expect(mockReadContract).toHaveBeenCalledWith(
       expect.objectContaining({
