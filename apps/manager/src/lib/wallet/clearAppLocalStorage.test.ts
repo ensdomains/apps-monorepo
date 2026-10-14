@@ -1,3 +1,4 @@
+import { CONSENT_STORAGE_KEY } from '@ens-apps/analytics-consent/consent'
 import { afterEach, describe, expect, it } from 'vitest'
 import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/registrationPersistence'
 import { clearAppLocalStorage } from './clearAppLocalStorage'
@@ -15,6 +16,14 @@ describe('clearAppLocalStorage', () => {
     expect(localStorage.getItem(REGISTRATION_RESUME_STORAGE_KEY)).toBe(
       '{"v":1}',
     )
+  })
+
+  it('keeps the analytics choice on disconnect', () => {
+    localStorage.setItem(CONSENT_STORAGE_KEY, 'declined')
+
+    clearAppLocalStorage()
+
+    expect(localStorage.getItem(CONSENT_STORAGE_KEY)).toBe('declined')
   })
 
   it('keeps the wallet connection and HCA sessions, and clears the rest', () => {

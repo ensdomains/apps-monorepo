@@ -1,6 +1,7 @@
 // Must import from the same module path as provider.tsx — mixing the default
 // `posthog-js` build with `module.full.no-external` would bundle PostHog twice
 // and run two separate SDK instances. See provider.tsx for why we use this build.
+import { readConsent } from '@ens-apps/analytics-consent/consent'
 import posthog, {
   type CaptureOptions,
 } from 'posthog-js/dist/module.full.no-external'
@@ -34,6 +35,7 @@ export function track<N extends PostHogEvent>(
   name: N,
   ...args: PostHogEvents[N] extends undefined ? [] : [PostHogEvents[N]]
 ): void {
+  if (readConsent() !== 'accepted') return
   posthog.capture(name, args[0])
 }
 
@@ -42,5 +44,6 @@ export function trackWithOptions<N extends PostHogEvent>(
   args: PostHogEvents[N],
   options: CaptureOptions,
 ): void {
+  if (readConsent() !== 'accepted') return
   posthog.capture(name, args, options)
 }

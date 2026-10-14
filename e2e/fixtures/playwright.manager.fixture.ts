@@ -26,6 +26,7 @@ import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
+import { presetDeclinedConsent } from './presetDeclinedConsent.js'
 import { createTime, type Time } from './time.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -229,6 +230,7 @@ export const test = base.extend<ManagerFixtures>({
   // This prevents connection-refused errors in CI where Panoptes isn't running.
   page: async ({ page }, use) => {
     await indexerMock.installIfEnabled(page)
+    await presetDeclinedConsent(page)
     await use(page)
   },
 

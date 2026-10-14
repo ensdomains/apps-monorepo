@@ -276,6 +276,9 @@ importers:
 
   apps/manager:
     dependencies:
+      '@ens-apps/analytics-consent':
+        specifier: workspace:*
+        version: link:../../packages/analytics-consent
       '@ens-apps/config':
         specifier: workspace:^
         version: link:../../packages/config
@@ -595,6 +598,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@ens-apps/analytics-consent':
+        specifier: workspace:*
+        version: link:../../packages/analytics-consent
       '@ens-apps/config':
         specifier: workspace:^
         version: link:../../packages/config
@@ -894,6 +900,34 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+
+  packages/analytics-consent:
+    dependencies:
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.404.1
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@types/node':
+        specifier: ^24.10.2
+        version: 24.10.2
+      '@types/react':
+        specifier: ^19.1.12
+        version: 19.2.7
+      happy-dom:
+        specifier: 'catalog:'
+        version: 20.13.2
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/config:
     dependencies:
@@ -1614,6 +1648,7 @@ packages:
 
   '@cloudflare/vitest-pool-workers@0.16.18':
     resolution: {integrity: sha512-TEktXyevK9lkTWouElbIcDPK3YEfV+Szqgnlq5sNk+KYZR3LiDdYDaGNmUYgiT2LiiFeGU2yzCrcgmN8mJhqWQ==}
+    deprecated: '@cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates.'
     peerDependencies:
       '@vitest/runner': ^4.1.0
       '@vitest/snapshot': ^4.1.0

@@ -49,6 +49,10 @@ describe('getPageTitle', () => {
     expect(getPageTitle('/')).toBe('ENS Explorer App')
   })
 
+  it('titles the privacy policy page', () => {
+    expect(getPageTitle('/privacy')).toBe('Privacy Policy — ENS Explorer App')
+  })
+
   it('decodes percent-encoded names', () => {
     expect(getPageTitle('/caf%C3%A9.eth')).toBe('café.eth — ENS Explorer App')
   })

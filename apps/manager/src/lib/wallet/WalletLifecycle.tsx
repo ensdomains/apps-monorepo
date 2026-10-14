@@ -2,6 +2,7 @@ import { transactionManager } from '@ens-apps/transaction-manager'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
+import { track } from '@/lib/posthog/events'
 import { backendAuthStore } from '@/utils/backend-client'
 import { clearAppLocalStorage } from './clearAppLocalStorage'
 
@@ -28,8 +29,9 @@ export const WalletLifecycle = () => {
       transactionManager.clearAllAndPersistence()
       backendAuthStore.trigger.signOut()
       clearAppLocalStorage()
-      // POSTHOG_LAUNCH_PAUSE: disconnect analytics paused. Restore the @/lib/posthog/events track import when re-enabling.
-      // track('wallet:disconnect')
+      // Tracked before reset() so the event keeps the wallet identity; the
+      // track helper drops it unless analytics were accepted.
+      track('wallet:disconnect')
       posthog.reset()
     },
   })

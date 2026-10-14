@@ -32,6 +32,7 @@ import {
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
+import { presetDeclinedConsent } from './presetDeclinedConsent.js'
 import { createTime, type Time } from './time.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
@@ -194,6 +195,12 @@ type PortalFixtures = {
 }
 
 export const test = base.extend<PortalFixtures>({
+  // The consent banner postdates these suites: keep it out of every page.
+  page: async ({ page }, use) => {
+    await presetDeclinedConsent(page)
+    await use(page)
+  },
+
   accounts: async ({}, use) => {
     await use(createAccounts())
   },

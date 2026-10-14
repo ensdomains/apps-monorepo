@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { ConsentBanner } from '@/features/consent/ConsentBanner'
 import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
@@ -94,6 +95,7 @@ export const Route = createRootRoute({
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
+        <ConsentBanner />
         <TanStackRouterDevtools position="bottom-right" />
       </>
     )

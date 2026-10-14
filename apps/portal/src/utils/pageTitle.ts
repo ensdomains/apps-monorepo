@@ -91,8 +91,12 @@ const tldTitle = (pathname: string): string | null => {
  *
  * @param registerName the raw `?name=` value; only `/register` reads it
  */
+const staticTitle = (pathname: string): string | null =>
+  pathname === '/privacy' ? withSuffix('Privacy Policy') : null
+
 export function getPageTitle(pathname: string, registerName?: string): string {
   return (
+    staticTitle(pathname) ??
     addressTitle(pathname) ??
     contractTitle(pathname) ??
     nameTitle(pathname) ??

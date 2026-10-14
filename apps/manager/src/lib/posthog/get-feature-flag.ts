@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { PostHog } from 'posthog-node'
 import { isAddress } from 'viem'
 import { getConnectionCookie } from '@/lib/connection-cookie'
+import { getConsentCookie } from '@/lib/consent-cookie'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 
 type PostHogFeatureFlag =
@@ -37,6 +38,11 @@ export const getFeatureFlag = createServerFn({ method: 'GET' })
 
     if (!walletAddress || !isAddress(walletAddress)) return null
 
+    // Without an accepted choice the switch is checked anonymously, mirroring
+    // the client SDK's anonymous mode: a fresh random identity and no person
+    // properties. Switches aimed at named wallets apply only after accepting.
+    const identified = getConsentCookie() === 'accepted'
+
     const apiKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY
     const host = import.meta.env.VITE_PUBLIC_POSTHOG_HOST
 
@@ -50,8 +56,11 @@ export const getFeatureFlag = createServerFn({ method: 'GET' })
     })
 
     try {
-      const enabled = await posthog.isFeatureEnabled(data.flag, walletAddress, {
-        personProperties: { address: walletAddress },
+      const distinctId = identified
+        ? walletAddress
+        : globalThis.crypto.randomUUID()
+      const enabled = await posthog.isFeatureEnabled(data.flag, distinctId, {
+        ...(identified ? { personProperties: { address: walletAddress } } : {}),
         sendFeatureFlagEvents: false,
       })
 

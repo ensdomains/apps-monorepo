@@ -10,6 +10,7 @@ import { lazy, Suspense } from 'react'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
+import { ConsentBanner } from '@/features/consent/ConsentBanner'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 // Deep import, NOT the feature barrel: the barrel re-exports the whole
 // register workflow (steps, machines, transaction-manager deps), which would
@@ -123,6 +124,7 @@ function RootComponent() {
               },
             }}
           />
+          <ConsentBanner />
         </RootProviders>
 
         <DevDrawer />
