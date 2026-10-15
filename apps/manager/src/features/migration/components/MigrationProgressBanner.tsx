@@ -30,7 +30,7 @@ export const MigrationProgressBanner = () => {
   const progressPercent = Math.min(100, Math.max(0, (migrated / total) * 100))
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8">
+    <div className="relative overflow-hidden xs:rounded-lg bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:px-6 md:py-8">
       <GrainOverlay />
       <div className="relative z-10 flex flex-col gap-6">
         <div className="flex flex-col gap-1">
