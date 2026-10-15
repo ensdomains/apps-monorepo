@@ -19,6 +19,7 @@ import {
   getRegistryRootRolesQueryOptions,
   type RootRoleHolder,
 } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { isRegistryRole } from '@/lib/roles/permissions'
 import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
@@ -118,7 +119,7 @@ export const RegistryRolesTable = ({
           }}
           registryAddress={address}
           account={editingRow?.account ?? null}
-          currentRoles={editingRow?.roles ?? []}
+          currentRoles={editingRow?.roles.filter(isRegistryRole) ?? []}
         />
       )}
     </div>

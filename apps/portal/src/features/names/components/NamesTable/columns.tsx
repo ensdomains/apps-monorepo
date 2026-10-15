@@ -1,3 +1,4 @@
+import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import type { ColumnDef } from '@tanstack/react-table'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
@@ -15,6 +16,8 @@ import { RelationBadges } from '../RelationBadges'
 export type NameRow = {
   name: string | null
   expiryDate?: Date | null
+  graceEndDate: Date | null
+  status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]
   roleCount?: RoleCount
   protocolVersion: ProtocolVersion
@@ -88,8 +91,7 @@ export const columns: ColumnDef<NameRow>[] = [
           </Badge>
         )
       }
-      const isV2 = row.original.protocolVersion === 'ENSv2'
-      const status = getNameStatus(expiryDate, isV2)
+      const status = getNameStatus(row.original)
       return (
         <div className="flex items-center gap-2">
           <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>

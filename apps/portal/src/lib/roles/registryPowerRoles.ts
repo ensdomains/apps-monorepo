@@ -1,5 +1,19 @@
 import type { Power, RegistryPower } from '@ens-apps/indexer/bigname'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
+
+/** Registry roles ensjs does not list yet: `can_name` and its admin bit. */
+const EXTRA_REGISTRY_ROLES = {
+  ROLE_CAN_NAME: 1n << 120n,
+  ROLE_CAN_NAME_ADMIN: 1n << 248n,
+} as const
+
+export type RegistryRole = Role | keyof typeof EXTRA_REGISTRY_ROLES
+
+/** Every registry role in bit order, ensjs's first. */
+export const REGISTRY_ROLE_ORDER = [
+  ...Object.keys(registryRoles),
+  ...Object.keys(EXTRA_REGISTRY_ROLES),
+] as readonly RegistryRole[]
 
 /**
  * bigname's ENSv2 registry powers, keyed to the ensjs role each one is. The
@@ -7,7 +21,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
  * roles, so bigname's powers are folded back into them rather than giving
  * those components a second vocabulary.
  */
-const REGISTRY_POWER_ROLES: Readonly<Record<RegistryPower, Role>> = {
+const REGISTRY_POWER_ROLES: Readonly<Record<RegistryPower, RegistryRole>> = {
   registrar: 'ROLE_REGISTRAR',
   admin_registrar: 'ROLE_REGISTRAR_ADMIN',
   register_reserved: 'ROLE_REGISTER_RESERVED',
@@ -28,13 +42,17 @@ const REGISTRY_POWER_ROLES: Readonly<Record<RegistryPower, Role>> = {
   admin_set_uri: 'ROLE_SET_URI_ADMIN',
   upgrade: 'ROLE_UPGRADE',
   admin_upgrade: 'ROLE_UPGRADE_ADMIN',
+  can_name: 'ROLE_CAN_NAME',
+  admin_can_name: 'ROLE_CAN_NAME_ADMIN',
 }
 
 const isRegistryPower = (power: Power): power is RegistryPower =>
   Object.hasOwn(REGISTRY_POWER_ROLES, power)
 
-/** Registry powers as ensjs roles; powers with no registry role are dropped. */
-export const registryPowersToRoles = (powers: readonly Power[]): Role[] =>
+/** Registry powers as registry roles; powers with no registry role are dropped. */
+export const registryPowersToRoles = (
+  powers: readonly Power[],
+): RegistryRole[] =>
   powers.flatMap((power) =>
     isRegistryPower(power) ? [REGISTRY_POWER_ROLES[power]] : [],
   )

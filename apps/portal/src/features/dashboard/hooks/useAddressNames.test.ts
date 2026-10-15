@@ -144,6 +144,7 @@ describe('getAddressNames', () => {
           status: 'expired',
           relations: ['former_owner'],
           expires_at: String(NOW_SECONDS - 86_400n),
+          grace_ends_at: String(NOW_SECONDS + 86_400n * 27n),
           lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
         }),
       ],

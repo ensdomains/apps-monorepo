@@ -98,10 +98,13 @@ export function createIndexerMock() {
   const expiryOf = (d: MockDomain) =>
     d.expiryDate ?? nowSeconds() + 28 * 24 * 3600
   const createdOf = (d: MockDomain) => d.createdAt ?? nowSeconds() - 3600
+  const isPastExpiry = (d: MockDomain) => expiryOf(d) <= nowSeconds()
   // bigname drops an expired ENSv2 name from its holder's relations; the
   // holder is its former owner until the name is registered again.
-  const isLapsed = (d: MockDomain) =>
-    d.protocol !== 'v1' && expiryOf(d) <= nowSeconds()
+  const isLapsed = (d: MockDomain) => d.protocol !== 'v1' && isPastExpiry(d)
+  // ENSv2 grace is 28 days; an ENSv1 lease's is 90.
+  const graceEndOf = (d: MockDomain) =>
+    expiryOf(d) + (d.protocol === 'v1' ? 90 : 28) * 24 * 3600
 
   function nameFields(d: MockDomain) {
     const resolver = resolverOf(d)
@@ -115,12 +118,18 @@ export function createIndexerMock() {
       registered_at: String(createdOf(d)),
       created_at: String(createdOf(d)),
       expires_at: expiresAt,
+      grace_ends_at: String(graceEndOf(d)),
       ...(isLapsed(d)
         ? {
             status: 'expired',
             lapsed_registration: { owner, release_kind: 'expired' },
           }
-        : { owner, manager: owner, status: 'active' }),
+        : {
+            owner,
+            manager: owner,
+            // An ENSv1 name in grace keeps its owner but reads expired.
+            status: isPastExpiry(d) ? 'expired' : 'active',
+          }),
       ...(d.protocol === 'v1'
         ? {
             authority: 'ens_v1',
@@ -360,7 +369,7 @@ export function createIndexerMock() {
       if (match) return route.reply({ match, params, body })
     }
     console.log(`[mock-indexer] unhandled bigname route: ${method} ${path}`)
-    return ok({ data: [], meta: META })
+    return notFound
   }
 
   async function routeHandler(route: Route) {
@@ -385,8 +394,10 @@ export function createIndexerMock() {
     } catch (err) {
       console.error('[mock-indexer] error handling request:', err)
       await route.fulfill({
-        status: 200,
-        json: { data: [], meta: META },
+        status: 500,
+        json: {
+          error: { code: 'internal', message: String(err), details: {} },
+        },
         headers: CORS_HEADERS,
       })
     }

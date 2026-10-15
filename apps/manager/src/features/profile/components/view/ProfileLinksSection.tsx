@@ -14,7 +14,7 @@ import {
 import { useLinkPreviewPattern } from './useLinkPreviewPattern'
 
 const linkPreviewClassName =
-  'group h-51.25 min-w-0 gap-0 overflow-hidden rounded-[14px] p-0 text-left transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl'
+  'group h-51.25 min-w-0 gap-0 overflow-hidden rounded-[14px] p-0 text-left transition hover:bg-ens-quartz-50 xl:rounded-xl'
 const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
@@ -72,7 +72,7 @@ export const ProfileLinksSection = ({
 
   return (
     <ProfileCard title={<Trans>Links</Trans>}>
-      <div className="grid gap-4 lg:landscape:grid-cols-3 lg:landscape:gap-6">
+      <div className="grid gap-4 xl:grid-cols-3 xl:gap-6">
         {links.map((link) => (
           <LinkPreview key={`${link.name}-${link.href}`} link={link} />
         ))}

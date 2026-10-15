@@ -31,6 +31,7 @@ export type SelectedName = {
   readonly name: string
   readonly isV2: boolean
   readonly expiryDate?: Date | null
+  readonly graceEndDate?: Date | null
 }
 
 export type MultiRenewalEntry = {

@@ -1,3 +1,4 @@
+import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -13,6 +14,8 @@ import { RelationBadges } from './RelationBadges'
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
+  graceEndDate: Date | null
+  status: NameRegistrationStatus
   relations?: readonly AddressNameRelation[]
   /** ENSv2 only: the roles the address holds on the name. */
   roleCount?: RoleCount
@@ -27,9 +30,10 @@ export interface NameMobileCardProps {
 export const NameMobileCard = ({
   name,
   expiryDate,
+  graceEndDate,
+  status,
   relations = [],
   roleCount,
-  protocolVersion,
   recordCount,
   subdomainCount,
   isSelected = false,
@@ -64,7 +68,7 @@ export const NameMobileCard = ({
             <span className="text-base">
               {formatDateTime(dateToPlainDate(expiryDate))}
             </span>
-            {getNameStatus(expiryDate, protocolVersion === 'ENSv2') ===
+            {getNameStatus({ expiryDate, graceEndDate, status }) ===
               'grace' && <GraceBadge />}
           </>
         ) : (

@@ -20,14 +20,14 @@ import { Timestamp } from './Timestamp'
  * transaction when history has it.
  */
 const RegisteredRow = ({
-  registrationId,
+  name,
   registeredAt,
 }: {
-  readonly registrationId: string | null
+  readonly name: string
   readonly registeredAt: number
 }) => {
   const { data: registrationTxHash } = useQuery(
-    getRegistrationTxQueryOptions({ registrationId }),
+    getRegistrationTxQueryOptions({ name, registeredAt }),
   )
   const registrationTxUrl = useBlockExplorerTxUrl(
     registrationTxHash ?? undefined,
@@ -110,10 +110,7 @@ export const ExpiryWithRegistrationData = ({
         <ExpiresRow expiry={data.expiry} />
       )}
       {data.registeredAt !== null && (
-        <RegisteredRow
-          registrationId={data.registrationId}
-          registeredAt={data.registeredAt}
-        />
+        <RegisteredRow name={name} registeredAt={data.registeredAt} />
       )}
       {graceEndDate && <GraceEndsRow graceEndDate={graceEndDate} />}
     </>

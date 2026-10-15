@@ -59,8 +59,7 @@ const columns: ColumnDef<column>[] = [
           </Badge>
         )
       }
-      const isV2 = row.original.protocolVersion === 'ENSv2'
-      const status = getNameStatus(expiryDate, isV2)
+      const status = getNameStatus(row.original)
       return (
         <div className="flex items-center gap-2">
           <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
@@ -125,6 +124,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
             key={name.name}
             name={name.name}
             expiryDate={name.expiryDate}
+            graceEndDate={name.graceEndDate}
+            status={name.status}
             relations={name.relations}
             roleCount={name.roleCount}
             protocolVersion={name.protocolVersion}
@@ -157,6 +158,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 key={name.name}
                 name={name.name}
                 expiryDate={name.expiryDate}
+                graceEndDate={name.graceEndDate}
+                status={name.status}
                 relations={name.relations}
                 roleCount={name.roleCount}
                 protocolVersion={name.protocolVersion}

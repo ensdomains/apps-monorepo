@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileRecords } from '@/features/profile/types'
 import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
+import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
   formatChainSpecificAddress,
   formatProfileDetailDate,
@@ -27,6 +28,65 @@ const makeRecords = (
 })
 
 describe('ProfileView helpers', () => {
+  it('prepares three contact cards promptly despite a grouped 270,000-key primary-contact record', () => {
+    const value = JSON.stringify([
+      ...Array(90_000).fill('email'),
+      ...Array(90_000).fill('mail'),
+      ...Array(90_000).fill('phone'),
+    ])
+    const start = performance.now()
+    const records = transformProfileRecords({
+      texts: [
+        { key: 'domains.ens.primary-contacts', value },
+        { key: 'email', value: 'person@example.com' },
+        { key: 'mail', value: 'Canada' },
+        { key: 'phone', value: '+1 555 0100' },
+        { key: 'com.twitter', value: 'ensdomains' },
+      ],
+      coins: [],
+    })
+    const contacts = getContactItems(records)
+    const featured = getFeaturedSocialItems(records)
+    const secondary = getSecondarySocialRecords(records)
+    const elapsed = performance.now() - start
+
+    expect(contacts.map(({ key }) => key)).toEqual(['email', 'mail', 'phone'])
+    expect(featured).toEqual([])
+    expect(secondary).toEqual([{ key: 'com.twitter', value: 'ensdomains' }])
+    expect(elapsed).toBeLessThan(1000)
+  })
+
+  it('prepares only three featured cards from duplicated and excess primary keys', () => {
+    const records = transformProfileRecords({
+      texts: [
+        {
+          key: 'domains.ens.primary-contacts',
+          value: JSON.stringify([
+            'com.twitter',
+            'com.twitter',
+            'org.telegram',
+            'com.github',
+            'com.discord',
+          ]),
+        },
+        { key: 'com.twitter', value: 'ensdomains' },
+        { key: 'org.telegram', value: 'ensdomains' },
+        { key: 'com.github', value: 'ensdomains' },
+        { key: 'com.discord', value: 'ensdomains' },
+      ],
+      coins: [],
+    })
+
+    expect(getFeaturedSocialItems(records).map(({ key }) => key)).toEqual([
+      'com.twitter',
+      'org.telegram',
+      'com.github',
+    ])
+    expect(getSecondarySocialRecords(records)).toEqual([
+      { key: 'com.discord', value: 'ensdomains' },
+    ])
+  })
+
   it('formats chain-specific addresses with the first and last five characters', () => {
     expect(
       formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),

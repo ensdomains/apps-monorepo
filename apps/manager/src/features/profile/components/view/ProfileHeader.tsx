@@ -32,7 +32,7 @@ export const ProfileHeader = ({
 }: ProfileHeaderProps) => (
   <div
     className={cn(
-      'relative min-h-130.75 rounded-none bg-transparent shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0',
+      'relative min-h-130.75 rounded-none bg-transparent shadow-none xl:min-h-0 xl:space-y-[21.7px] xl:px-8 xl:pt-0',
       hasMobileStatusBanner ? 'pt-0' : 'pt-15.5',
     )}
   >
@@ -40,23 +40,21 @@ export const ProfileHeader = ({
       avatarLoading={avatarLoading}
       avatarUrl={avatarUrl}
       className={cn(
-        'lg:landscape:hidden',
+        'xl:hidden',
         hasMobileStatusBanner
           ? 'mx-auto mb-6'
           : 'absolute -top-33 left-1/2 -translate-x-1/2',
       )}
       name={name}
     />
-    <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-3.25">
+    <div className="flex flex-col items-center xl:block xl:space-y-3.25">
       <ProfileNameBadge name={name} />
       {hasMobileStatusBanner ? (
-        <div className="mt-6 w-full px-5 lg:landscape:hidden">
-          {mobileActions}
-        </div>
+        <div className="mt-6 w-full px-5 xl:hidden">{mobileActions}</div>
       ) : null}
       <div
         className={cn(
-          'w-full px-5 lg:landscape:mt-0 lg:landscape:px-0',
+          'w-full px-5 xl:mt-0 xl:px-0',
           hasMobileStatusBanner ? 'mt-6' : 'mt-10',
         )}
       >
@@ -67,18 +65,18 @@ export const ProfileHeader = ({
           registrationDate={registrationDate}
         />
       </div>
-      <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t lg:landscape:hidden" />
+      <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
     </div>
     <div
       className={cn(
-        'flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0',
+        'flex flex-col gap-6 px-5 xl:mt-0 xl:flex-row xl:items-stretch xl:px-0',
         hasMobileStatusBanner ? 'mt-6' : 'mt-29',
       )}
     >
       <ProfileAvatar
         avatarLoading={avatarLoading}
         avatarUrl={avatarUrl}
-        className="hidden lg:landscape:block"
+        className="hidden xl:block"
         name={name}
       />
       <ProfileAbout records={records} />

@@ -18,6 +18,7 @@ import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { bigname } from '@/lib/bigname'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { previousPowers } from '@/lib/roles/permissionPowers'
+import { isRegistryRole } from '@/lib/roles/permissions'
 import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
@@ -92,6 +93,9 @@ const toRoleChangeLogs = (
   registryAddress: Address,
   resource: bigint,
 ): RoleChangeLog[] => {
+  // ensjs cannot encode `can_name`, and the log scan's decode drops its bits.
+  const toBitmap = (powers: readonly Power[]) =>
+    encodeRoleBitmap(registryPowersToRoles(powers).filter(isRegistryRole))
   const lastSeen = new Map<Address, readonly Power[]>()
   return rows.filter(isRegistryRoleChange(registryAddress)).flatMap((row) => {
     const data = row.data ?? {}
@@ -110,8 +114,8 @@ const toRoleChangeLogs = (
         args: {
           resource,
           account,
-          oldRoleBitmap: encodeRoleBitmap(registryPowersToRoles(before)),
-          newRoleBitmap: encodeRoleBitmap(registryPowersToRoles(powers)),
+          oldRoleBitmap: toBitmap(before),
+          newRoleBitmap: toBitmap(powers),
         },
       },
     ]
