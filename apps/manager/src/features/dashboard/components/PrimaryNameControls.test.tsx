@@ -33,7 +33,7 @@ describe('primary name labels', () => {
       'group-focus-visible:visible',
     )
     expect(button.lastElementChild).toHaveTextContent('Primary Name')
-    expect(button.lastElementChild).toHaveClass('text-[14px]', 'md:text-[16px]')
+    expect(button.lastElementChild).toHaveClass('text-sm', 'md:text-base')
   })
 
   it('renders the passive checkmark before the label without exposing it to assistive technology', () => {

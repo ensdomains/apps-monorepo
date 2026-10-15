@@ -28,7 +28,8 @@ export const PrimaryNameButton = ({
         symbol="published_with_changes"
       />
     </span>
-    <span className="font-sans text-[14px] leading-[1.15] tracking-[-0.24px] md:text-[16px]">
+    {/* Figma specifies 115% line height and -0.24px tracking; no shared tokens match those exact label metrics. */}
+    <span className="font-sans text-sm leading-[1.15] tracking-[-0.24px] md:text-base">
       <Trans>Primary Name</Trans>
     </span>
   </button>
