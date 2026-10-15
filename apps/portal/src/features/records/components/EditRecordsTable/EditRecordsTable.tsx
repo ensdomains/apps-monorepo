@@ -278,17 +278,19 @@ export const EditRecordsTable = ({
     globalFilterFn: 'includesString',
   })
 
-  const selectedRowCount = Object.keys(rowSelection).length
+  const selectedRows = table
+    .getSelectedRowModel()
+    .rows.filter((row) => row.getCanSelect())
+  const selectedRowCount = selectedRows.length
 
-  const handleBulkDelete = useCallback(() => {
-    const selected = table.getSelectedRowModel().rows
-    for (const row of selected) {
+  const handleBulkDelete = () => {
+    for (const row of selectedRows) {
       onDeleteRecord?.(row.original)
     }
     setRowSelection({})
     setPendingDeleteId(null)
     setBulkDeleteOpen(false)
-  }, [table, onDeleteRecord])
+  }
 
   return (
     <>
@@ -337,7 +339,8 @@ export const EditRecordsTable = ({
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
               const rowId = getRecordId(row.original)
-              const isPendingDelete = pendingDeleteId === rowId
+              const isPendingDelete =
+                pendingDeleteId === rowId && row.getCanSelect()
 
               return (
                 <React.Fragment key={row.id}>
