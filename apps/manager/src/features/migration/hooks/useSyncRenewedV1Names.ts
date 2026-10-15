@@ -1,8 +1,8 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useEffect } from 'react'
-import type { V1Domain } from '../service/v1SubgraphClient'
 import { useMigrationUiContext } from '../state/migrationUi.context'
 
 export const useSyncRenewedV1Names = (): void => {

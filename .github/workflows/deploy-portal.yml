@@ -1,21 +1,33 @@
-name: Deploy Portal to IPFS
+name: Deploy Portal to Swarm
 
 on:
   release:
     types: [published]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-portal
+
 jobs:
   deploy:
     if: contains(github.event.release.name, 'portal') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: swarm
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            apps/portal
+            packages
+            patches
 
       - name: Setup pnpm and Node.js
-        uses: pnpm/setup@v2
+        uses: pnpm/setup@v3
         env:
           # pnpm/setup has no frozen-lockfile input; force it via config env.
           PNPM_CONFIG_FROZEN_LOCKFILE: true
@@ -23,57 +35,44 @@ jobs:
           runtime: node@lts
           cache: true
 
-      - name: Type check Portal
-        run: pnpm typecheck:portal
-
       - name: Build Portal app
         run: pnpm build:portal
         env:
-          VITE_ENS_NETWORK: ${{ vars.VITE_ENS_NETWORK }}
+          VITE_ENS_NETWORK: mainnet
           VITE_INDEXER_GRAPHQL_URL: ${{ vars.VITE_INDEXER_GRAPHQL_URL }}
 
-      - name: Verify build output
-        run: |
-          if [ ! -d "apps/portal/dist" ]; then
-            echo "❌ Build failed - dist directory not found"
-            exit 1
-          fi
-          echo "✅ Build verification passed"
+      - name: Pack static assets
+        working-directory: apps/portal
+        run: pnpm exec omnipin pack dist/client --tar --name portal --dist "$RUNNER_TEMP"
 
-      - name: Deploy to IPFS
-        id: deploy
-        run: |
-          echo "🚀 Deploying Portal to IPFS..."
-          output=$(pnpm omnipin deploy --ens ${{ vars.PORTAL_ENS }} --safe ${{ vars.PORTAL_SAFE }})
-          echo "$output"
-
-          # Extract CID from output
-          cid=$(echo "$output" | grep -oP 'Root CID: \K\S+' || echo "")
-          if [ -z "$cid" ]; then
-            echo "❌ Failed to extract CID from deployment output"
-            exit 1
-          fi
-
-          echo "✅ Deployment successful!"
-          echo "CID=$cid" >> $GITHUB_OUTPUT
-          echo "Deployment Output:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$output" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🌐 **IPFS Gateway URLs:**" >> $GITHUB_STEP_SUMMARY
-          echo "- dweb.link: https://$cid.ipfs.dweb.link" >> $GITHUB_STEP_SUMMARY
+      - name: Install hoverfly
+        working-directory: ${{ runner.temp }}
         env:
-          OMNIPIN_STORACHA_PROOF: ${{ secrets.OMNIPIN_STORACHA_PROOF }}
-          OMNIPIN_STORACHA_TOKEN: ${{ secrets.OMNIPIN_STORACHA_TOKEN }}
-
-      - name: Notify deployment status
-        if: always()
+          HOVERFLY_VERSION: v0.2.0
         run: |
-          if [ "${{ steps.deploy.outcome }}" == "success" ]; then
-            echo "✅ Portal deployment completed successfully!"
-            echo "CID: ${{ steps.deploy.outputs.cid }}"
-          else
-            echo "❌ Portal deployment failed!"
-            exit 1
-          fi
+          curl -fsSL "https://github.com/omnipin/hoverfly/releases/download/$HOVERFLY_VERSION/hoverfly-$HOVERFLY_VERSION-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz --strip-components=1
+          # The release's bundled seed goes stale; main refreshes it hourly.
+          curl -fsSL -o peers.json https://raw.githubusercontent.com/omnipin/hoverfly/main/peers.seed.json
+
+      - name: Upload to Swarm
+        id: upload
+        working-directory: ${{ runner.temp }}
+        env:
+          SWARM_KEY: ${{ secrets.SWARM_KEY }}
+          SWARM_BATCH: ${{ secrets.SWARM_BATCH }}
+        run: |
+          set -o pipefail
+          ./hoverfly vanity-overlay --key "$SWARM_KEY" --max-attempts 100000
+          ./hoverfly upload --batch "$SWARM_BATCH" --key "$SWARM_KEY" --error-document index.html portal.tar | tee upload.log
+          root=$(grep -oP 'manifest root: \K[0-9a-f]{64}' upload.log)
+          echo "root=$root" >> "$GITHUB_OUTPUT"
+          echo "Swarm root: \`$root\` ($(grep -oP 'subdomain:\s+\K\S+' upload.log))" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Propose ens.eth contenthash update to the Safe
+        working-directory: apps/portal
+        env:
+          OMNIPIN_PK: ${{ secrets.OMNIPIN_PK }}
+          PORTAL_SAFE: ${{ vars.PORTAL_SAFE }}
+          ROOT: ${{ steps.upload.outputs.root }}
+        run: pnpm exec omnipin ens "$ROOT" ens.eth --safe "$PORTAL_SAFE"

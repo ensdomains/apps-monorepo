@@ -8,6 +8,8 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { Route } from './index'
 
+const loaderState = vi.hoisted(() => ({ name: 'example.eth' }))
+
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
@@ -17,7 +19,7 @@ vi.mock('@tanstack/react-router', () => ({
       select,
     }: {
       select: (data: { fallback: undefined; name: string }) => unknown
-    }) => select({ fallback: undefined, name: 'example.eth' }),
+    }) => select({ fallback: undefined, name: loaderState.name }),
   }),
   redirect: (options: unknown) => ({ options }),
 }))
@@ -42,11 +44,23 @@ vi.mock('@/features/profile/service/profileReverseName', () => ({
   profileReverseNameQuery: vi.fn(),
 }))
 
-vi.mock('@/features/profile/components/view/ProfileView', () => ({
-  ProfileView: ({ name }: { name: string }) => (
-    <div data-testid="profile-view">{name}</div>
-  ),
+vi.mock('@/components/NameFallbackCard', () => ({
+  NameFallbackCard: () => null,
 }))
+
+vi.mock('@/features/profile/components/view/ProfileView', async () => {
+  const { useState } = await import('react')
+  return {
+    ProfileView: ({ name }: { name: string }) => {
+      const [mountedFor] = useState(name)
+      return (
+        <div data-mounted-for={mountedFor} data-testid="profile-view">
+          {name}
+        </div>
+      )
+    },
+  }
+})
 
 vi.mock('@/features/profile/components/view/ProfileLoading', () => ({
   ProfileLoading: ({ name }: { name: string }) => (
@@ -108,6 +122,7 @@ const runLoader = async (name: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  loaderState.name = 'example.eth'
 })
 
 describe('/$name client-rendered profile route', () => {
@@ -119,6 +134,18 @@ describe('/$name client-rendered profile route', () => {
     renderRouteOption('component')
 
     expect(screen.getByTestId('profile-view').textContent).toBe('example.eth')
+  })
+
+  it('starts a fresh profile session when the name changes', () => {
+    const Component = Route.options.component as ComponentType
+    const { rerender } = render(<Component />)
+
+    loaderState.name = 'other.eth'
+    rerender(<Component />)
+
+    const view = screen.getByTestId('profile-view')
+    expect(view.textContent).toBe('other.eth')
+    expect(view.dataset.mountedFor).toBe('other.eth')
   })
 
   it('always renders the canonical profile loading state while pending', () => {

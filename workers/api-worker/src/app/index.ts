@@ -12,6 +12,8 @@ import webhookApp from './routes/webhook'
 
 const app = createApp()
   .use('/*', cors())
+  // Liveness only: does not claim database, indexer or delivery readiness.
+  .get('/health', (c) => c.json({ status: 'ok', chain: c.env.CHAIN }))
   .route('/', authApp)
   .route('/', favoritesApp)
   .route('/', namesApp)
