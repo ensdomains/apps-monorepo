@@ -156,6 +156,71 @@ test.describe('Names read from bigname', () => {
     await expectListed(page, [held, lapsed])
   })
 
+  test('the grace banner names the ENSv2 name that expired first, with its grace end and a Renew link', {
+    tag: ['@scenario:B7', '@scenario:B6'],
+  }, async ({ connectedPage: page, mockIndexer, accounts }) => {
+    const prefix = uniquePrefix('graceb')
+    const owner = accounts.getAddress('user')
+    const first = `${prefix}first.eth`
+    const second = `${prefix}second.eth`
+    const active = `${prefix}active.eth`
+    const v1 = `${prefix}vone.eth`
+    const firstExpiry = nowSeconds() - 10 * DAY
+    addName(mockIndexer, {
+      name: second,
+      owner,
+      expiryDate: nowSeconds() - 3 * DAY,
+    })
+    addName(mockIndexer, { name: first, owner, expiryDate: firstExpiry })
+    addName(mockIndexer, { name: active, owner })
+    // An ENSv1 name in grace that expired even earlier: the dashboard banner
+    // renews ENSv2 names only, so it must not win.
+    addName(mockIndexer, {
+      name: v1,
+      owner,
+      expiryDate: nowSeconds() - 20 * DAY,
+      protocol: 'v1',
+    })
+
+    await openDashboard(page, prefix)
+    await expectListed(page, [first, second, active, v1])
+
+    // One banner, for the name that expired first.
+    await expect(page.getByText('One of your names expired.')).toBeVisible({
+      timeout: 20_000,
+    })
+    const renew = page.getByRole('link', { name: 'Renew', exact: true })
+    await expect(renew).toHaveCount(1)
+    await expect(renew).toHaveAttribute('href', `/renew/${first}`)
+    const graceEnd = new Date(
+      (firstExpiry + 28 * DAY) * 1000,
+    ).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    await expect(
+      page.getByText(/now in its 28-day grace period/),
+      "the grace end is the first name's expiry + 28 days",
+    ).toContainText(graceEnd.replace(/^(\w+) /, (m) => m))
+
+    // The badge marks every name in grace — ENSv1 too (the banner skips
+    // those; the badge does not) — and never an active one. A row is the
+    // outermost element holding exactly one "More options" control.
+    const rowOf = (name: string) =>
+      page
+        .getByRole('button', { name: `More options for ${name}`, exact: true })
+        .locator(
+          'xpath=ancestor::div[count(.//button[starts-with(@aria-label,"More options for")])=1][last()]',
+        )
+    for (const name of [first, second, v1])
+      await expect(
+        rowOf(name).getByText('Grace period').first(),
+        `${name} carries the grace badge`,
+      ).toBeVisible()
+    await expect(rowOf(active).getByText('Grace period')).toHaveCount(0)
+  })
+
   test('your profile splits the names you own from the ones you manage', async ({
     profileConnectedPage: page,
     mockIndexer,

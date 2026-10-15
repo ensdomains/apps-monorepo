@@ -49,6 +49,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { grantNameRoles, type Role } from '../helpers/role-assertions.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -133,6 +134,8 @@ const PARA_EOA = privateKeyToAccount(PARA_EOA_KEY)
 export type V2NameConfig = {
   /** The label (without `.eth`). A timestamp suffix is appended for uniqueness. */
   label: string
+  /** Register `label` exactly, with no suffix (the caller guarantees it is free). */
+  exactLabel?: boolean
   /**
    * Duration in seconds.
    *  - Positive: name will expire this many seconds from now.
@@ -148,6 +151,27 @@ export type V2NameConfig = {
    * - `'other'`: Anvil's first account (not the authenticated user)
    */
   owner?: 'user' | 'other'
+  /**
+   * Registry roles to grant on the name once it is registered — plan item H1.
+   *
+   * Signed by the owner, so the owner must hold the matching `_ADMIN` role.
+   * A freshly registered name does **not** grant its owner everything —
+   * measured against the current deployment, the owner receives exactly:
+   *
+   *     ROLE_SET_RESOLVER      ROLE_SET_RESOLVER_ADMIN
+   *     ROLE_SET_SUBREGISTRY   ROLE_SET_SUBREGISTRY_ADMIN
+   *     ROLE_CAN_TRANSFER_ADMIN
+   *
+   * So `ROLE_SET_RESOLVER` and `ROLE_SET_SUBREGISTRY` are grantable here and
+   * anything else (`ROLE_RENEW`, `ROLE_UNREGISTER`, `ROLE_REGISTRAR`, …)
+   * reverts `EACCannotGrantRoles` — the registrar keeps those at the registry
+   * root. Grant those from a root-holding signer instead.
+   *
+   * Use this to build a scenario's precondition (a second wallet that already
+   * holds `ROLE_SET_RESOLVER`), never to grant the role whose granting is the
+   * thing under test.
+   */
+  roles?: { account: Address; roles: Role[] }[]
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +221,9 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     const ownerAddress = isOther ? resolvedOther.address : resolvedUser.address
     const ownerAccount = isOther ? resolvedOther : resolvedUser
     const timestamp = Math.floor(Date.now() / 1000)
-    const uniqueLabel = `${config.label}-${timestamp}`
+    const uniqueLabel = config.exactLabel
+      ? config.label
+      : `${config.label}-${timestamp}`
 
     const requestedDuration = config.duration ?? MIN_REGISTRATION_DURATION
     let registrationDuration: number
@@ -387,6 +413,19 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
         }),
       )
       console.log(`[makeV2Name] set ${records.length} record(s) on ${ethName}`)
+    }
+
+    // ── 9b. Grant requested registry roles (plan item H1) ────────────
+    for (const grant of config.roles ?? []) {
+      await grantNameRoles(
+        { label: uniqueLabel },
+        grant.account,
+        grant.roles,
+        ownerAccount,
+      )
+      console.log(
+        `[makeV2Name] granted ${grant.roles.join(', ')} on ${ethName} → ${grant.account}`,
+      )
     }
 
     console.log(`[makeV2Name] ✅ registered ${ethName}`)
