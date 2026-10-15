@@ -524,6 +524,10 @@ msgstr "Checking resolver"
 msgid "Checking status…"
 msgstr "Checking status…"
 
+#: src/features/renew/workflow/renewing/RenewingStep.tsx
+msgid "Checking the last attempt"
+msgstr "Checking the last attempt"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
 msgstr "Checking token allowance"
@@ -1135,6 +1139,10 @@ msgstr "for"
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
 msgstr "Frequently Asked Questions"
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "From your wallet"
+msgstr "From your wallet"
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
@@ -2129,8 +2137,8 @@ msgstr "Renewal price"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/renew/state/renewalUi.context.tsx
-msgid "Renewals are paid in USDC out of your smart account. Your wallet will be asked to approve this exact amount — nothing more."
-msgstr "Renewals are paid in USDC out of your smart account. Your wallet will be asked to approve this exact amount — nothing more."
+msgid "Renewals are paid in USDC out of your smart account."
+msgstr "Renewals are paid in USDC out of your smart account."
 
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "Renewing"
@@ -2373,8 +2381,8 @@ msgid "Set up this name’s resolver?"
 msgstr "Set up this name’s resolver?"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
-msgstr "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
+msgid "Setting a primary name is paid in USDC."
+msgstr "Setting a primary name is paid in USDC."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting ETH address record"
@@ -3468,6 +3476,14 @@ msgstr "Your wallet address can only have one primary name, which will display i
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+msgstr "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."
 msgstr "Your wallet shows the final fee before you approve."
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "Your wallet will be asked to approve this exact amount — nothing more."
+msgstr "Your wallet will be asked to approve this exact amount — nothing more."

@@ -178,6 +178,7 @@ export const useBulkRenew = ({
   const renewItems: readonly RenewItem[] = names.map((n) => ({
     label: n.label,
     duration: durationForName(selection, n.currentExpiry),
+    currentExpiry: n.currentExpiry,
   }))
 
   // Avatars/theme for the breakdown rows.

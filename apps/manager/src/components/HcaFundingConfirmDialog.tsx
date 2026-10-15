@@ -31,6 +31,7 @@ interface HcaFundingConfirmDialogProps {
   readonly prompt: HcaFundingPrompt | null
   /** What the payment is for. */
   readonly title: ReactNode
+  /** What the USDC pays for; the dialog adds how the wallet authorizes it. */
   readonly description: ReactNode
   /** What the action costs, before what the account already holds. */
   readonly lines?: readonly HcaFundingLine[]
@@ -41,12 +42,11 @@ interface HcaFundingConfirmDialogProps {
 }
 
 /**
- * Shows the USDC a funding permit will authorize, and takes the decision.
+ * Shows the USDC an intent moves out of the wallet, and takes the decision.
  *
  * The standalone-HCA route is user-paid: an action the account cannot cover
- * pulls the shortfall from the owner's wallet with an EIP-2612 permit. The
- * permit is signed for EXACTLY the figure shown here — the wallet prompt that
- * follows asks for this amount and no more.
+ * pulls the shortfall from the owner's wallet, under an EIP-2612 permit signed
+ * for EXACTLY this figure or a standing allowance that already covers it.
  */
 export const HcaFundingConfirmDialog = ({
   prompt,
@@ -68,7 +68,21 @@ export const HcaFundingConfirmDialog = ({
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>{title}</AlertDialogTitle>
-        <AlertDialogDescription>{description}</AlertDialogDescription>
+        <AlertDialogDescription>
+          {description}{' '}
+          {prompt?.requiresPermit === false ? (
+            <Trans>
+              Your wallet has already given your smart account an allowance that
+              covers this, so you won't be asked to approve it: the amount moves
+              when you sign.
+            </Trans>
+          ) : (
+            <Trans>
+              Your wallet will be asked to approve this exact amount — nothing
+              more.
+            </Trans>
+          )}
+        </AlertDialogDescription>
       </AlertDialogHeader>
 
       {prompt && (
@@ -97,7 +111,11 @@ export const HcaFundingConfirmDialog = ({
           )}
           <div className="flex items-baseline justify-between gap-4 border-ens-gray-two border-t pt-2">
             <dt className="font-medium text-foreground">
-              <Trans>You approve</Trans>
+              {prompt.requiresPermit ? (
+                <Trans>You approve</Trans>
+              ) : (
+                <Trans>From your wallet</Trans>
+              )}
             </dt>
             <dd className="font-medium font-mono text-foreground">
               {usdc(prompt.permitValue)}

@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useState } from 'react'
 import { match } from 'ts-pattern'
+import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -106,10 +107,11 @@ export const BulkRenewDialog = ({
 
   const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
 
-  // No smart-account gate: bulk renewal takes the direct-wallet route (the
-  // registrar charges `msg.sender`, and the scoped HCA session does not
-  // allowlist `renew`), so it works wherever a wallet is connected — including
-  // the EOA fork. Each name is its own transaction rather than one atomic batch.
+  // The route depends on the account: a smart account renews as owner-signed
+  // intents paid in USDC (chunked, one `renewBatch` per intent), and a plain
+  // EOA keeps the direct-wallet route — one transaction per name. Either way
+  // this is never gated on the scoped HCA session, whose policy allowlists only
+  // `commit`/`register`.
   const renderBody = (): ReactNode => {
     if (submit.phase === 'success') {
       return (
@@ -218,24 +220,53 @@ export const BulkRenewDialog = ({
   }
 
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogContent
-        className="flex max-h-[90vh] flex-col overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
-        showCloseButton
-      >
-        <AnimatePresence initial={false} mode="wait">
-          <motion.div
-            animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-col gap-5"
-            exit={{ opacity: 0 }}
-            initial={{ opacity: 0 }}
-            key={view}
-            transition={{ duration: 0.2 }}
-          >
-            {renderBody()}
-          </motion.div>
-        </AnimatePresence>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogContent
+          className="flex max-h-[90vh] flex-col overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
+          showCloseButton
+        >
+          <AnimatePresence initial={false} mode="wait">
+            <motion.div
+              animate={{ opacity: 1 }}
+              className="flex min-h-0 flex-col gap-5"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key={view}
+              transition={{ duration: 0.2 }}
+            >
+              {renderBody()}
+            </motion.div>
+          </AnimatePresence>
+        </DialogContent>
+      </Dialog>
+      <HcaFundingConfirmDialog
+        description={
+          <Trans>Renewals are paid in USDC out of your smart account.</Trans>
+        }
+        lines={[
+          {
+            // The rent plus the small headroom the renewer's approval carries,
+            // because the price is re-read when the renewal executes.
+            label: <Trans>Renewal price</Trans>,
+            amount: submit.fundingPrompt?.requiredUsdc ?? 0n,
+          },
+          {
+            label: <Trans>Network fee</Trans>,
+            amount: submit.fundingPrompt?.quotedFeeUsdc ?? 0n,
+          },
+        ]}
+        note={
+          <Trans>
+            The renewal price includes a 10% buffer: the rent is priced when the
+            renewal executes, slightly after this quote.
+          </Trans>
+        }
+        onApprove={submit.approveFunding}
+        onDecline={submit.declineFunding}
+        prompt={submit.fundingPrompt}
+        title={<Trans>Approve the renewal payment?</Trans>}
+      />
+    </>
   )
 }

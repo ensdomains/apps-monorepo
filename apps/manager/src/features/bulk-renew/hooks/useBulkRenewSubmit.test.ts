@@ -1,18 +1,36 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
+import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { act, renderHook } from '@testing-library/react'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 import type { RenewItem } from '../types'
 
-// Mocked transaction-manager actors + app singletons. Declared via vi.hoisted so
-// the vi.mock factories below can reference them.
+// Mocked transaction-manager actors, the renew intent service, and app
+// singletons. Declared via vi.hoisted so the vi.mock factories below can
+// reference them.
 const mocks = vi.hoisted(() => ({
   pollTransactionStatusActor: vi.fn(),
   readPaymentTokenAllowanceActor: vi.fn(),
   submitApprovalActor: vi.fn(),
   submitRenewActor: vi.fn(),
+  submitHcaRenewal: vi.fn(),
+  getExpiry: vi.fn(),
   useSmartAccountContext: vi.fn(),
+  useHcaFundingPrompt: vi.fn(),
   invalidateQueries: vi.fn(),
+}))
+
+// The hook imports the decline error from the package root, whose barrel pulls
+// in the registration machine. Stub just that binding so the harness doesn't
+// have to load the whole package for a `instanceof` check.
+vi.mock('@ens-apps/transaction-manager', () => ({
+  HcaFundingDeclinedError: class HcaFundingDeclinedError extends Error {
+    constructor() {
+      super('Funding was not approved, so no signature was requested.')
+      this.name = 'HcaFundingDeclinedError'
+    }
+  },
 }))
 
 vi.mock(
@@ -24,15 +42,26 @@ vi.mock(
     submitRenewActor: mocks.submitRenewActor,
   }),
 )
+// The intent service is the smart-account route's whole I/O surface: it quotes,
+// funds and submits, and resolves once the fill has landed.
+vi.mock('@/features/renew/service/hcaRenewal', () => ({
+  HCA_RENEWAL_INTENT_MAX_ITEMS: 25,
+  submitHcaRenewal: mocks.submitHcaRenewal,
+}))
+vi.mock('@/features/profile/service/profileExpiry', () => ({
+  getExpiry: mocks.getExpiry,
+}))
 vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
 vi.mock('@/utils/router/root-context', () => ({
   getQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }))
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: mocks.useSmartAccountContext,
+  useHcaFundingPrompt: mocks.useHcaFundingPrompt,
 }))
 
 import {
+  RENEWED_CHECK_FAILED_MESSAGE,
   useBulkRenewSubmit,
   WALLET_REQUIRED_MESSAGE,
 } from './useBulkRenewSubmit'
@@ -42,13 +71,14 @@ const HCA = '0x1111111111111111111111111111111111111111' as const
 
 const walletClient = { account: { address: EOA } }
 
-/** HCA-mode account: still renews from the connected wallet, not the HCA. */
+/** Smart-account mode: the renewal runs as an owner-signed intent on the HCA. */
 const hcaAccount = {
   signer: { type: 'rhinestone' },
   ownerAddress: EOA,
   accountAddress: HCA,
   walletClient,
 } as any
+/** EOA-only mode: no HCA, so the wallet route submits and pays. */
 const eoaAccount = {
   signer: { type: 'eoa', walletClient },
   ownerAddress: EOA,
@@ -62,8 +92,18 @@ const disconnected = {
   walletClient: null,
 } as any
 
+const CURRENT_EXPIRY = 1_800_000_000n
+
 const items = (labels: string[]): RenewItem[] =>
-  labels.map((label) => ({ label, duration: 31_557_600n }))
+  labels.map((label) => ({
+    label,
+    duration: 31_557_600n,
+    currentExpiry: CURRENT_EXPIRY,
+  }))
+
+/** What the chain reports for every name's expiry. */
+const expiryOnChain = (expiry: bigint) =>
+  okAsync({ expiry, isNonExpiring: false, protocol: 'v2' })
 
 const args = {
   items: items(['one', 'two', 'three']),
@@ -74,16 +114,33 @@ const args = {
 const renewedLabels = () =>
   mocks.submitRenewActor.mock.calls.map((call) => call[0]?.label)
 
+/** Labels passed to each intent the hook submitted, in order. */
+const intentLabels = () =>
+  mocks.submitHcaRenewal.mock.calls.map((call) =>
+    call[0].items.map((item: RenewItem) => item.label),
+  )
+
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.pollTransactionStatusActor.mockReturnValue(okAsync(undefined))
   mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(0n))
   mocks.submitApprovalActor.mockReturnValue(okAsync('approval-tx'))
   mocks.submitRenewActor.mockReturnValue(okAsync('renew-tx'))
+  mocks.submitHcaRenewal.mockResolvedValue({
+    txId: 'intent-tx',
+    quotedFeeUsdc: 1_000_000n,
+  })
+  mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY))
   mocks.useSmartAccountContext.mockReturnValue(hcaAccount)
+  mocks.useHcaFundingPrompt.mockReturnValue({
+    prompt: null,
+    confirmFunding: vi.fn(),
+    approve: vi.fn(),
+    decline: vi.fn(),
+  })
 })
 
-describe('useBulkRenewSubmit', () => {
+describe('useBulkRenewSubmit (smart account)', () => {
   it('fails fast when no wallet is connected', async () => {
     mocks.useSmartAccountContext.mockReturnValue(disconnected)
     const { result } = renderHook(() => useBulkRenewSubmit())
@@ -94,7 +151,204 @@ describe('useBulkRenewSubmit', () => {
 
     expect(result.current.phase).toBe('error')
     expect(result.current.errorMessage).toBe(WALLET_REQUIRED_MESSAGE)
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
     expect(mocks.submitRenewActor).not.toHaveBeenCalled()
+  })
+
+  it('renews the whole selection in one intent, with no approve transaction', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(intentLabels()).toEqual([['one', 'two', 'three']])
+    // The intent funds its own rent (permit/transferFrom inside the batch), so
+    // nothing goes through the wallet-route actors.
+    expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()
+    expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
+    expect(mocks.submitRenewActor).not.toHaveBeenCalled()
+    expect(result.current.statuses).toEqual({
+      one: 'done',
+      two: 'done',
+      three: 'done',
+    })
+    expect(mocks.invalidateQueries).toHaveBeenCalled()
+    // Nothing has failed yet, so nothing needs re-reading.
+    expect(mocks.getExpiry).not.toHaveBeenCalled()
+  })
+
+  it('renews against the canonical v2 registrar with the connected owner', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    const input = mocks.submitHcaRenewal.mock.calls[0]?.[0]
+    expect(input.renewerAddress).toBe(
+      envConfig.chain.contracts.ensEthRegistrar.address,
+    )
+    expect(input.protocol).toBe('v2')
+    expect(input.ownerAddress).toBe(EOA)
+    expect(input.signer.type).toBe('rhinestone')
+    // The configured network, never a fallback chain.
+    expect(input.chainId).toBe(envConfig.chain.id)
+  })
+
+  it('does not charge again for a chunk that renewed but failed its wait', async () => {
+    // The fill landed but the wait errored, so the run never recorded it.
+    mocks.submitHcaRenewal.mockRejectedValueOnce(
+      new Error('Timed out waiting for the intent'),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit(args)
+    })
+    expect(result.current.phase).toBe('error')
+
+    mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY + 31_557_600n))
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+    expect(result.current.statuses).toEqual({
+      one: 'done',
+      two: 'done',
+      three: 'done',
+    })
+  })
+
+  it('refuses to retry when it cannot tell what already renewed', async () => {
+    mocks.submitHcaRenewal.mockRejectedValueOnce(
+      new Error('Timed out waiting for the intent'),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    mocks.getExpiry.mockReturnValue(errAsync(new Error('rpc down')))
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(result.current.errorMessage).toBe(RENEWED_CHECK_FAILED_MESSAGE)
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+  })
+
+  it('splits a large selection into one intent per chunk', async () => {
+    const many = items(Array.from({ length: 26 }, (_, i) => `name${i}`))
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({ ...args, items: many })
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+  })
+
+  it('surfaces a failed intent and resumes after the chunks that landed', async () => {
+    const many = items(Array.from({ length: 26 }, (_, i) => `name${i}`))
+    mocks.submitHcaRenewal
+      .mockResolvedValueOnce({ txId: 'intent-1', quotedFeeUsdc: 1_000_000n })
+      .mockRejectedValueOnce(new Error('The intent could not be filled'))
+      .mockResolvedValueOnce({ txId: 'intent-3', quotedFeeUsdc: 1_000_000n })
+
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit({ ...args, items: many })
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(result.current.errorMessage).toBe('The intent could not be filled')
+    // The first chunk really did renew on-chain, so its names are done and the
+    // failed chunk's names are marked.
+    expect(result.current.statuses.name0).toBe('done')
+    expect(result.current.statuses.name25).toBe('error')
+
+    await act(async () => {
+      await result.current.submit({ ...args, items: many })
+    })
+
+    expect(result.current.phase).toBe('success')
+    // Chunk 1 is NOT paid for a second time.
+    expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1, 1])
+  })
+
+  it('returns to idle when the funding prompt is declined', async () => {
+    mocks.submitHcaRenewal.mockRejectedValue(new HcaFundingDeclinedError())
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    // Nothing was signed and nothing was spent: no error, and the names are
+    // still pending rather than failed.
+    expect(result.current.phase).toBe('idle')
+    expect(result.current.errorMessage).toBeUndefined()
+    expect(result.current.statuses).toEqual({
+      one: 'pending',
+      two: 'pending',
+      three: 'pending',
+    })
+  })
+
+  it('ignores a stale submission after the dialog is reset mid-flight', async () => {
+    // Gate the intent so we can reset while it is in-flight.
+    let releaseIntent: () => void = () => {}
+    mocks.submitHcaRenewal.mockReturnValue(
+      new Promise((resolve) => {
+        releaseIntent = () =>
+          resolve({ txId: 'intent-tx', quotedFeeUsdc: 1_000_000n })
+      }),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    let submitPromise!: Promise<void>
+    await act(async () => {
+      submitPromise = result.current.submit(args)
+      // Flush pre-intent microtasks so we park on the gated submission.
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+    expect(result.current.phase).toBe('renewing')
+
+    act(() => {
+      result.current.reset()
+    })
+    expect(result.current.phase).toBe('idle')
+
+    await act(async () => {
+      releaseIntent()
+      await submitPromise
+    })
+    expect(result.current.phase).toBe('idle')
+  })
+
+  it('reset() clears status and returns to idle', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    act(() => {
+      result.current.reset()
+    })
+
+    expect(result.current.phase).toBe('idle')
+    expect(result.current.statuses).toEqual({})
+  })
+})
+
+describe('useBulkRenewSubmit (EOA only)', () => {
+  beforeEach(() => {
+    mocks.useSmartAccountContext.mockReturnValue(eoaAccount)
   })
 
   it('approves the summed price once, then renews each name in its own tx', async () => {
@@ -111,14 +365,13 @@ describe('useBulkRenewSubmit', () => {
       3_000_000n,
     )
     expect(renewedLabels()).toEqual(['one', 'two', 'three'])
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).toHaveBeenCalled()
   })
 
   it('renews from the connected wallet, never through the HCA', async () => {
-    // `AbstractETHRegistrar.renew` charges `msg.sender` with no HCA unwrap, so
-    // the EOA must be the sender AND the payer — routing this through the HCA
-    // would bill the smart account instead. The signer type IS the guarantee:
-    // an EOA request never reaches the intent transport at all.
+    // Without an HCA there is no intent route: `AbstractETHRegistrar.renew`
+    // charges `msg.sender`, so the EOA must be both the sender and the payer.
     const { result } = renderHook(() => useBulkRenewSubmit())
 
     await act(async () => {
@@ -134,11 +387,11 @@ describe('useBulkRenewSubmit', () => {
   })
 
   it('authorizes against the canonical registrar, not a separate deployment', async () => {
-    // Regression guard, inverted from what it used to assert: renewal is NOT an
-    // HCA flow, so it must leave the registrar and token to the actors' own
-    // canonical defaults. Overriding them with the standalone-HCA deployment
-    // approved -- and renewed on -- a registrar that had never registered the
-    // name, which reverts `NameNotRenewable(label)`.
+    // Regression guard, inverted from what it used to assert: renewal must leave
+    // the registrar and token to the actors' own canonical defaults. Overriding
+    // them with the standalone-HCA deployment approved -- and renewed on -- a
+    // registrar that had never registered the name, which reverts
+    // `NameNotRenewable(label)`.
     const { result } = renderHook(() => useBulkRenewSubmit())
 
     await act(async () => {
@@ -165,20 +418,6 @@ describe('useBulkRenewSubmit', () => {
     expect(mocks.readPaymentTokenAllowanceActor.mock.calls[0]?.[0]?.owner).toBe(
       EOA,
     )
-  })
-
-  it('works in EOA mode', async () => {
-    // Previously refused outright: the atomic-batch model required a smart
-    // account. The direct-wallet route has no such constraint.
-    mocks.useSmartAccountContext.mockReturnValue(eoaAccount)
-    const { result } = renderHook(() => useBulkRenewSubmit())
-
-    await act(async () => {
-      await result.current.submit(args)
-    })
-
-    expect(result.current.phase).toBe('success')
-    expect(renewedLabels()).toEqual(['one', 'two', 'three'])
   })
 
   it('skips approval when the allowance already covers the batch', async () => {
