@@ -3,6 +3,7 @@ import type {
   PersonalNotificationPayloads,
   SupportedNotifications,
 } from '@ens-apps/shared-schema/notifications'
+import { getEmailContext } from '#services/email/context.js'
 import type { RenderedEmail } from '#services/email/render.js'
 import { renderNameExpiryEmail } from '#services/email/templates/NameExpiryEmail.js'
 import { renderNameTransferredEmail } from '#services/email/templates/NameTransferredEmail.js'
@@ -15,7 +16,10 @@ export const emailTemplates: {
   [K in SupportedNotifications<'email'>]: EmailTemplate<K>
 } = {
   'name-expiry': (payload) =>
-    renderNameExpiryEmail(payload, { managerAppUrl: env.MANAGER_APP_URL }),
+    renderNameExpiryEmail(getEmailContext(), payload, {
+      managerAppUrl: env.MANAGER_APP_URL,
+    }),
 
-  'name-transferred': (payload) => renderNameTransferredEmail(payload),
+  'name-transferred': (payload) =>
+    renderNameTransferredEmail(getEmailContext(), payload),
 }
