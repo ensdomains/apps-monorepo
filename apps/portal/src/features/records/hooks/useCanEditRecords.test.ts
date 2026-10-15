@@ -77,8 +77,16 @@ vi.mock('@tanstack/react-query', async () => {
 
       return enabled === false ? { ...stub, isLoading: false } : stub
     },
-    useQueries: ({ queries }: { queries: readonly unknown[] }) =>
-      queries.map((_, index) => roleQueries[index] ?? idle()),
+    useQueries: ({
+      queries,
+      combine,
+    }: {
+      queries: readonly unknown[]
+      combine?: (results: QueryStub[]) => unknown
+    }) => {
+      const results = queries.map((_, index) => roleQueries[index] ?? idle())
+      return combine ? combine(results) : results
+    },
   }
 })
 

@@ -118,7 +118,7 @@ export function useCanEditRecords({
 
   const isPermissioned = isPermissionedQuery.data === true
 
-  const roleQueries = useQueries({
+  const { grantedRoles, roleQueries } = useQueries({
     queries: roles.map((role) => ({
       ...getHasRolesQueryOptions({
         resolverAddress: (resolverAddress ??
@@ -131,6 +131,10 @@ export function useCanEditRecords({
       enabled:
         enabled && !!connectedAddress && !!resolverAddress && isPermissioned,
     })),
+    combine: (results) => ({
+      grantedRoles: roles.filter((_, index) => results[index]?.data === true),
+      roleQueries: results,
+    }),
   })
 
   const isV2 = ownerQuery.data?.protocolVersion === 'ENSv2'
@@ -178,23 +182,24 @@ export function useCanEditRecords({
     !!resolverAddress &&
     hasOwnResolver === true
 
-  const grantedRoles = new Set(
-    roles.filter((_, index) => roleQueries[index]?.data === true),
-  )
-
   const canEdit = match({ isSettled, isPermissioned, isV2 })
     .with({ isSettled: false }, () => false)
-    .with({ isPermissioned: true }, () => grantedRoles.size > 0)
+    .with({ isPermissioned: true }, () => grantedRoles.length > 0)
     .with({ isV2: true }, () => publicResolverV2Query.data === true)
     .otherwise(() => isOwner)
 
-  const editableTypes: ReadonlySet<RecordType> = new Set(
-    canEdit
-      ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
-          (type) =>
-            !isPermissioned || grantedRoles.has(RECORD_TYPE_ROLES[type]),
-        )
-      : [],
+  const editableTypes = useMemo<ReadonlySet<RecordType>>(
+    () =>
+      new Set(
+        canEdit
+          ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
+              (type) =>
+                !isPermissioned ||
+                grantedRoles.includes(RECORD_TYPE_ROLES[type]),
+            )
+          : [],
+      ),
+    [canEdit, isPermissioned, grantedRoles],
   )
 
   return {
