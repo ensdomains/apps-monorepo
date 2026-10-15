@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
-import { Link } from '@tanstack/react-router'
+import { LinkButton } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 
@@ -30,18 +31,8 @@ export const NameFallbackCard = ({
   const isLongName = name.length > LONG_NAME_THRESHOLD
 
   return (
-    <div
-      className={cn(
-        'mx-auto mt-24 max-w-md rounded-lg border-[#dededf] border-[0.25px] bg-white p-6 shadow-[0px_21px_28px_0px_rgba(14,61,104,0.06)]',
-        isLongName ? 'w-full' : 'w-fit',
-      )}
-    >
-      <div
-        className={cn(
-          'flex flex-col items-center',
-          isLongName ? 'gap-8' : 'gap-12',
-        )}
-      >
+    <Card className="mx-auto mt-12 w-full-[32px] max-w-xl items-center gap-0 px-5 py-10 text-center sm:px-10 sm:py-12">
+      <div className="flex w-full flex-col items-center gap-8">
         <div className="flex w-full flex-col items-center gap-3">
           <span
             className={cn(
@@ -75,14 +66,16 @@ export const NameFallbackCard = ({
             )}
           </span>
         </div>
-        <Link
-          className="flex h-13 items-center justify-center gap-2.5 rounded bg-ens-lapis-100 px-6 font-medium font-mono text-[13px] text-ens-lapis-500 uppercase tracking-[1.56px]"
+        <LinkButton
+          className="h-14 w-full"
+          size="lg"
           to="/dashboard"
+          variant="lightBlue"
         >
           <MSymbol className="ms-opsz-20" symbol="undo" />
           <Trans>Return to Dashboard</Trans>
-        </Link>
+        </LinkButton>
       </div>
-    </div>
+    </Card>
   )
 }

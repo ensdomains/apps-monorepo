@@ -3,12 +3,18 @@ import type { Address } from 'viem'
 import { normalizeEthName } from '@/features/profile/service/profileName'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
+import { cn } from '@/lib/utils'
 import {
   desktopActionContainerClassName,
   editActionClassName,
+  editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
+  profileBarActionsClassName,
+  profileButtonClassName,
+  profileStickyBarClassName,
   renewActionClassName,
+  renewBarActionClassName,
 } from './ProfileAction.styles'
 import { ProfileEditAction } from './ProfileEditAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
@@ -17,7 +23,6 @@ import { ProfileShareAction } from './ProfileShareAction'
 
 type ProfileActionsProps = {
   readonly avatarUrl?: string
-  readonly hasMobileStatusBanner: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
   readonly isUpgradeRequired: boolean
@@ -29,35 +34,8 @@ type ProfileActionsProps = {
   readonly url: string
 }
 
-type ProfileMobileActionsProps = Pick<
-  ProfileActionsProps,
-  'avatarUrl' | 'isOwner' | 'name' | 'renewalProtocol' | 'url'
->
-
-export const ProfileMobileActions = ({
-  avatarUrl,
-  isOwner,
-  name,
-  renewalProtocol,
-  url,
-}: ProfileMobileActionsProps) => (
-  <div className="flex w-full items-center justify-between xl:hidden">
-    <ProfileRenewAction
-      className={renewActionClassName}
-      isOwner={isOwner}
-      name={name}
-      protocol={renewalProtocol}
-    />
-    <div className="flex shrink-0 items-center gap-4">
-      <ProfileFavoriteAction name={name} />
-      <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-    </div>
-  </div>
-)
-
 export const ProfileActions = ({
   avatarUrl,
-  hasMobileStatusBanner,
   isInGrace,
   isOwner,
   isUpgradeRequired,
@@ -71,23 +49,41 @@ export const ProfileActions = ({
   const { t } = useLingui()
   const canEditProfile =
     isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
+  const hasFloatingBar = canEditProfile && !isUpgradeRequired && !isInGrace
+  const hasBottomNav = isUpgradeRequired && !isInGrace
+
+  const barActions = (
+    <>
+      <ProfileFavoriteAction name={name} />
+      <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+      <ProfileRenewAction
+        className={renewBarActionClassName}
+        isBarAction
+        isOwner={isOwner}
+        name={name}
+        protocol={renewalProtocol}
+      />
+    </>
+  )
+
+  if (hasFloatingBar) {
+    return (
+      <ProfileEditAction
+        className={profileButtonClassName}
+        isInGrace={isInGrace}
+        isOwner={isOwner}
+        leftActions={barActions}
+        name={name}
+        onUpdated={onUpdated}
+        owner={owner}
+        protocol={renewalProtocol}
+        records={records}
+      />
+    )
+  }
 
   return (
     <>
-      {hasMobileStatusBanner ? null : (
-        <div className="absolute inset-x-0 top-118.5 z-30 xl:hidden">
-          <div className="mx-auto w-full max-w-97.5 px-5">
-            <ProfileMobileActions
-              avatarUrl={avatarUrl}
-              isOwner={isOwner}
-              name={name}
-              renewalProtocol={renewalProtocol}
-              url={url}
-            />
-          </div>
-        </div>
-      )}
-
       <div className={desktopActionContainerClassName}>
         <div className="flex items-center gap-6">
           <ProfileFavoriteAction name={name} />
@@ -101,9 +97,12 @@ export const ProfileActions = ({
         />
       </div>
 
-      {(canEditProfile || isUpgradeRequired) && !isInGrace ? (
+      {hasBottomNav ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
+            <div className={cn(profileBarActionsClassName, 'w-full xl:hidden')}>
+              {barActions}
+            </div>
             <ProfileEditAction
               className={editActionClassName}
               isInGrace={isInGrace}
@@ -117,7 +116,16 @@ export const ProfileActions = ({
             />
           </div>
         </nav>
-      ) : null}
+      ) : (
+        <nav
+          aria-label={t`Profile actions`}
+          className={profileStickyBarClassName}
+        >
+          <div className={cn(editBottomBarContentClassName, 'justify-start')}>
+            <div className={profileBarActionsClassName}>{barActions}</div>
+          </div>
+        </nav>
+      )}
     </>
   )
 }
