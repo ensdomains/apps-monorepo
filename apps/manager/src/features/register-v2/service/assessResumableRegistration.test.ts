@@ -1,5 +1,8 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { buildRegistrationRecord } from '@ens-apps/transaction-manager'
+import {
+  buildRegistrationRecord,
+  getResumeTarget,
+} from '@ens-apps/transaction-manager'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
@@ -187,7 +190,10 @@ describe('assessResumableRegistration', () => {
       publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE - 1n),
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'commitment-expired',
+    })
   })
 
   it('discards a commitment exactly at the age limit', async () => {
@@ -199,7 +205,10 @@ describe('assessResumableRegistration', () => {
       publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'commitment-expired',
+    })
   })
 
   it('resumes a commitment one second inside the age limit', async () => {
@@ -277,13 +286,13 @@ describe('assessResumableRegistration', () => {
       label: 'leon',
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'label-mismatch' })
+    expect(result).toMatchObject({ status: 'stale', reason: 'label-mismatch' })
   })
 
   it('discards a record from another chain', async () => {
     const result = await assess({ stored: storedRegistration({ chainId: 1 }) })
 
-    expect(result).toEqual({ status: 'stale', reason: 'chain-mismatch' })
+    expect(result).toMatchObject({ status: 'stale', reason: 'chain-mismatch' })
   })
 
   it('discards a record written under the other signer mode', async () => {
@@ -300,7 +309,10 @@ describe('assessResumableRegistration', () => {
       stored: storedRegistration(),
     })
 
-    expect(result).toEqual({ status: 'stale', reason: 'signer-mode-mismatch' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'signer-mode-mismatch',
+    })
   })
 
   it('resumes when the signer mode still matches', async () => {
@@ -335,7 +347,132 @@ describe('assessResumableRegistration', () => {
   ])('discards a record left at the %s stage', async (stage) => {
     const result = await assess({ stored: storedRegistration({ stage }) })
 
-    expect(result).toEqual({ status: 'stale', reason: 'already-finished' })
+    expect(result).toMatchObject({
+      status: 'stale',
+      reason: 'already-finished',
+    })
+  })
+
+  describe('a failed run', () => {
+    /** A run whose register failed after its commitment landed. */
+    const failedRun = (
+      overrides: Parameters<typeof storedRegistration>[0] = {},
+    ): StoredRegistration => {
+      const stored = storedRegistration({ stage: 'error', ...overrides })
+      return {
+        ...stored,
+        record: {
+          ...stored.record,
+          context: {
+            ...stored.record.context,
+            registrationTxId: 'tx-reg-register',
+            registrationIntentId: 7n,
+          },
+        },
+      }
+    }
+
+    it('comes back with its commitment, for Try Again to continue from', async () => {
+      // A failed register does not mean a failed commitment. Discarding it
+      // would make the user pay for a second one.
+      const result = await assess({ stored: failedRun() })
+
+      expect(result.status).toBe('failed')
+      if (result.status !== 'failed') return
+      expect(result.stored.record.context.commitment).toEqual({
+        commitment: COMMITMENT,
+        secret: SECRET,
+      })
+      expect(result.confirmedData.basePriceNumber).toBe(4)
+    })
+
+    it('checks a register it already sent before revealing again', async () => {
+      // That register may have landed, or still be filling, and the
+      // commitment it consumed then reads as never recorded. Revalidating the
+      // commitment would fail a name the user already owns; verifying the
+      // register first finds it.
+      const result = await assess({ stored: failedRun() })
+
+      if (result.status !== 'failed') throw new Error(result.status)
+      expect(result.stored.record.context.registrationTxId).toBe(
+        'tx-reg-register',
+      )
+      expect(result.stored.record.context.registrationIntentId).toBe(7n)
+      expect(getResumeTarget(result.stored.record)).toBe(
+        'verifyingRegistration',
+      )
+    })
+
+    it('revalidates the commitment when no register went out', async () => {
+      const result = await assess({
+        stored: storedRegistration({ stage: 'error' }),
+      })
+
+      if (result.status !== 'failed') throw new Error(result.status)
+      expect(getResumeTarget(result.stored.record)).toBe('validatingCommitment')
+    })
+
+    it('keeps its commitment when the chain read fails', async () => {
+      const result = await assess({
+        stored: failedRun(),
+        publicClient: publicClientWith(new Error('rpc down')),
+      })
+
+      expect(result.status).toBe('failed')
+    })
+
+    it('starts over when it failed before holding a commitment', async () => {
+      const publicClient = publicClientWith(NOW)
+      const result = await assess({
+        stored: failedRun({ withCommitment: false }),
+        publicClient,
+      })
+
+      expect(result).toMatchObject({
+        status: 'stale',
+        reason: 'failed-before-commit',
+      })
+      expect(publicClient.readContract).not.toHaveBeenCalled()
+    })
+
+    it('keeps a commitment that has not landed yet', async () => {
+      // A commit can land after its run failed: the machine stops waiting
+      // after a few seconds, and a relayed commit can fill late. Discarding
+      // here would lose the only copy of its secret.
+      const result = await assess({
+        stored: failedRun(),
+        publicClient: publicClientWith(0n),
+      })
+
+      expect(result.status).toBe('failed')
+    })
+
+    it('starts over once its commitment has expired', async () => {
+      const result = await assess({
+        stored: failedRun(),
+        publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
+      })
+
+      expect(result).toMatchObject({
+        status: 'stale',
+        reason: 'commitment-expired',
+      })
+    })
+  })
+
+  it('names the stored write a stale verdict is about', async () => {
+    // A discard clears only that write, not one another tab saved since.
+    const stored = storedRegistration()
+    const result = await assess({
+      stored,
+      publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
+    })
+
+    expect(result).toEqual({
+      status: 'stale',
+      reason: 'commitment-expired',
+      run: { label: 'leon', updatedAt: stored.record.updatedAt },
+    })
   })
 
   it('keeps the stored price when the re-quote fails', async () => {

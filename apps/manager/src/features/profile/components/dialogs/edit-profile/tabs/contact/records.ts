@@ -1,4 +1,8 @@
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
+import {
+  isWithinPrimaryContactsRecordSize,
+  MAX_PRIMARY_CONTACTS_RECORD_ITEMS,
+} from '@/features/profile/utils/primaryContactLimits'
 import { validateEmail } from '@/features/profile/utils/validateUrl'
 import {
   type ContactMethod,
@@ -134,32 +138,42 @@ export const getContactValidationIssues = (
   })
 }
 
-const isContactMethodKey = (key: string): key is ContactMethodKey =>
-  contactMethodKeys.has(key as ContactMethodKey)
+const isContactMethodKey = (key: unknown): key is ContactMethodKey =>
+  typeof key === 'string' && contactMethodKeys.has(key as ContactMethodKey)
 
 const normalizePrimaryContactKeys = (
-  keys: readonly string[],
+  keys: readonly unknown[],
 ): ContactMethodKey[] => {
-  const validKeys = keys.filter(isContactMethodKey)
+  const uniqueKeys = new Set<ContactMethodKey>()
+  const limit = Math.min(keys.length, MAX_PRIMARY_CONTACTS_RECORD_ITEMS)
 
-  return validKeys
-    .filter((key, index) => validKeys.indexOf(key) === index)
-    .slice(0, maxPrimaryContactMethods)
+  // A bounded loop preserves order and stops as soon as all slots are filled.
+  for (let index = 0; index < limit; index++) {
+    const key = keys[index]
+    if (!isContactMethodKey(key)) continue
+
+    uniqueKeys.add(key)
+    if (uniqueKeys.size === maxPrimaryContactMethods) break
+  }
+
+  return [...uniqueKeys]
 }
 
 export const parsePrimaryContactKeys = (
   base: ProfileRecords['base'],
 ): ContactMethodKey[] => {
-  const serializedPrimaryContacts = base[primaryContactsRecordKey]?.trim()
+  const rawPrimaryContacts = base[primaryContactsRecordKey]
+  const serializedPrimaryContacts =
+    rawPrimaryContacts && isWithinPrimaryContactsRecordSize(rawPrimaryContacts)
+      ? rawPrimaryContacts.trim()
+      : undefined
 
-  if (serializedPrimaryContacts) {
+  if (serializedPrimaryContacts?.startsWith('[')) {
     try {
-      const parsed = JSON.parse(serializedPrimaryContacts)
+      const parsed: unknown = JSON.parse(serializedPrimaryContacts)
 
       if (Array.isArray(parsed)) {
-        return normalizePrimaryContactKeys(
-          parsed.filter((key): key is string => typeof key === 'string'),
-        )
+        return normalizePrimaryContactKeys(parsed)
       }
     } catch {
       // Fall through to the ENSIP-18 single-record fallback.

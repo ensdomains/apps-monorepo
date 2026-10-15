@@ -51,7 +51,7 @@ export const Layout = ({ children }: LayoutProps) => {
     >
       <div className="sticky inset-x-0 top-0 z-30 shrink-0">
         <Header
-          desktopBreakpoint={isProfilePage ? 'lg-landscape' : 'md'}
+          desktopBreakpoint={isProfilePage ? 'xl' : 'md'}
           hasMobileBlurredBackground={isProfilePage}
           profileThemeColor={
             isMigrationPage ? migrationHeaderColor : profileThemeColor
