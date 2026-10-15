@@ -10,6 +10,7 @@ import {
   HCA_STANDALONE_INTENT_GAS_LIMIT,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
+  hcaMaxIntentFeeUsdcFor,
   planHcaIntentFunding,
 } from './hca-intent-funding'
 
@@ -236,6 +237,31 @@ describe('planHcaIntentFunding', () => {
     expect(funding.incomingUsdc).toBe(600_000n)
   })
 
+  it('declares a first-pass inflow that scales with the declared limit', async () => {
+    // The planner prices the fee on the declared limit, so the placeholder has
+    // to scale with it: a 25-name renewal batch quotes ~9 USDC, above anything
+    // sized for the 300k shape, and under-declaring makes the quote fail before
+    // the user is ever asked to fund the batch.
+    readContract.mockResolvedValue(0n)
+    const gasLimit = 3_100_000n
+    const requiredUsdc = 2_000_000n
+
+    await planHcaIntentFunding({
+      ...params,
+      gasLimit,
+      requiredUsdc,
+      maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
+    })
+
+    const quoted = prepareTransaction.mock.calls[0]?.[0] as {
+      auxiliaryFunds?: Record<number, Record<Address, bigint>>
+    }
+    // What the batch spends, plus the fee ceiling for its own limit.
+    expect(quoted.auxiliaryFunds?.[sepolia.id]?.[C.usdc]).toBe(
+      requiredUsdc + hcaMaxIntentFeeUsdcFor(gasLimit),
+    )
+  })
+
   it('throws rather than guessing when the quote cannot be priced', async () => {
     // A wrong permit either under-funds (the fill reverts) or moves more of
     // the user's USDC than the action needed.
@@ -303,8 +329,10 @@ describe('planHcaIntentFunding', () => {
     expect(order).toEqual(['confirm', 'sign'])
     expect(confirmFunding).toHaveBeenCalledWith({
       permitValue: 500_000n,
+      requiresPermit: true,
       quotedFeeUsdc: 900_000n,
       hcaBalanceUsdc: 400_000n,
+      requiredUsdc: 0n,
     })
   })
 
@@ -341,5 +369,202 @@ describe('planHcaIntentFunding', () => {
         displayedValue: 500_000n,
       },
     })
+  })
+
+  it('quotes against the declared gas limit and its scaled fee ceiling', async () => {
+    readContract.mockResolvedValue(0n)
+    const gasLimit = 1_200_000n
+    // 15 USDC is above the 300k ceiling but legitimately below the ceiling for
+    // 1.2M: the rail prices on the declared limit, so the bound must come from
+    // the same limit or it rejects a fee the intent really costs.
+    prepareTransaction.mockResolvedValue(quoteOf(15_000_000n))
+
+    await expect(planHcaIntentFunding({ ...params, gasLimit })).rejects.toThrow(
+      /above the expected maximum/,
+    )
+
+    const funding = await planHcaIntentFunding({
+      ...params,
+      gasLimit,
+      maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
+    })
+
+    expect(prepareTransaction.mock.calls[0]?.[0]).toMatchObject({ gasLimit })
+    expect(funding.quotedFeeUsdc).toBe(15_000_000n)
+  })
+})
+
+describe('hcaMaxIntentFeeUsdcFor', () => {
+  it('keeps the standalone anchor, scaled down for smaller shapes', () => {
+    expect(hcaMaxIntentFeeUsdcFor(HCA_STANDALONE_INTENT_GAS_LIMIT)).toBe(
+      HCA_MAX_STANDALONE_INTENT_FEE_USDC,
+    )
+    expect(hcaMaxIntentFeeUsdcFor(150_000n)).toBe(5_000_000n)
+    // Rounded up, so a fee at the ceiling is never rejected.
+    expect(hcaMaxIntentFeeUsdcFor(150_001n)).toBe(5_000_034n)
+  })
+
+  it('adds only the per-million-gas rate above the anchor', () => {
+    // The single-renewal base and a full 25-name chunk: ~4x their measured
+    // ~3.2 and ~9.3 USDC fees, rather than the anchor's rate scaled to ~100.
+    expect(hcaMaxIntentFeeUsdcFor(600_000n)).toBe(13_000_000n)
+    expect(hcaMaxIntentFeeUsdcFor(3_000_000n)).toBe(37_000_000n)
+  })
+})
+
+describe('planHcaIntentFunding for an intent that also buys something', () => {
+  // A renewal pays rent out of the same USDC balance as the rail's own fee, so
+  // sizing the funding on the fee alone leaves the action unfunded.
+  const rentParams = { ...params, requiredUsdc: 2_000_000n }
+
+  /** USDC reads answered per function, since both `balanceOf` and the
+   * allowance are read from the same token contract. */
+  const mockUsdcReads = (input: {
+    hcaBalance: bigint
+    allowance: bigint
+    walletBalance: bigint
+  }) => {
+    readContract.mockImplementation(
+      (
+        _client: unknown,
+        { functionName, args }: { functionName: string; args: unknown[] },
+      ) => {
+        if (functionName === 'allowance')
+          return Promise.resolve(input.allowance)
+        return Promise.resolve(
+          args[0] === HCA ? input.hcaBalance : input.walletBalance,
+        )
+      },
+    )
+  }
+
+  it('funds the rent and the fee together', async () => {
+    readContract.mockResolvedValue(400_000n)
+
+    const funding = await planHcaIntentFunding(rentParams)
+
+    // 2.0 rent + 0.9 fee = 2.9 needed, minus the 0.4 the HCA already holds.
+    expect(funding.incomingUsdc).toBe(2_500_000n)
+    expect(signFundingPermit.mock.calls[0]?.[0]).toMatchObject({
+      value: 2_500_000n,
+    })
+  })
+
+  it('shows the rent as part of what the permit authorizes', async () => {
+    readContract.mockResolvedValue(0n)
+    const confirmFunding = vi.fn(() => true)
+
+    await planHcaIntentFunding({ ...rentParams, confirmFunding })
+
+    expect(confirmFunding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        permitValue: 2_900_000n,
+        requiredUsdc: 2_000_000n,
+      }),
+    )
+  })
+
+  it('bounds the permit over the rent plus the bounded fee', async () => {
+    readContract.mockResolvedValue(0n)
+
+    await planHcaIntentFunding(rentParams)
+
+    expect(signFundingPermit.mock.calls[0]?.[0]).toMatchObject({
+      value: 2_900_000n,
+      bounds: {
+        expectedMaximum: 2_000_000n + HCA_MAX_STANDALONE_INTENT_FEE_USDC,
+        displayedValue: 2_900_000n,
+      },
+    })
+  })
+
+  it('submits the bare action when the HCA covers the rent and the fee', async () => {
+    readContract.mockResolvedValue(5_000_000n)
+
+    const funding = await planHcaIntentFunding(rentParams)
+
+    expect(funding.calls).toEqual(actionCalls)
+    expect(funding.incomingUsdc).toBeUndefined()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('pulls with a standing allowance instead of a permit, after showing the amount', async () => {
+    // No permit is needed, but the USDC still leaves the wallet when the
+    // intent fills, so the user sees the figure before signing it.
+    mockUsdcReads({
+      hcaBalance: 400_000n,
+      allowance: 9_000_000n,
+      walletBalance: 9_000_000n,
+    })
+    const confirmFunding = vi.fn(() => true)
+
+    const funding = await planHcaIntentFunding({
+      ...rentParams,
+      confirmFunding,
+    })
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(confirmFunding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        permitValue: 2_500_000n,
+        requiresPermit: false,
+      }),
+    )
+    expect(funding.calls).toHaveLength(2)
+    expect(fnNameOf(funding.calls[0])).toBe('transferFrom')
+    expect(funding.calls[1]).toEqual(actionCalls[0])
+    expect(funding.incomingUsdc).toBe(2_500_000n)
+    expect(funding.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [C.usdc]: 2_500_000n },
+    })
+  })
+
+  it('builds nothing when the user declines an allowance-funded amount', async () => {
+    mockUsdcReads({
+      hcaBalance: 400_000n,
+      allowance: 9_000_000n,
+      walletBalance: 9_000_000n,
+    })
+
+    await expect(
+      planHcaIntentFunding({ ...rentParams, confirmFunding: () => false }),
+    ).rejects.toThrow(HcaFundingDeclinedError)
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('falls back to a permit when the standing allowance is short', async () => {
+    mockUsdcReads({
+      hcaBalance: 400_000n,
+      allowance: 2_499_999n,
+      walletBalance: 9_000_000n,
+    })
+    const confirmFunding = vi.fn(() => true)
+
+    const funding = await planHcaIntentFunding({
+      ...rentParams,
+      confirmFunding,
+    })
+
+    // One wei short is short: the partial allowance cannot be relied on to
+    // cover a pull that the fill needs in full.
+    expect(confirmFunding).toHaveBeenCalledWith(
+      expect.objectContaining({ requiresPermit: true }),
+    )
+    expect(fnNameOf(funding.calls[0])).toBe('permit')
+  })
+
+  it('names the wallet balance when a standing allowance cannot be pulled', async () => {
+    // Allowance present but the USDC is not: fail here rather than let the fill
+    // revert with an opaque SafeERC20 error.
+    mockUsdcReads({
+      hcaBalance: 0n,
+      allowance: 9_000_000n,
+      walletBalance: 1_000_000n,
+    })
+
+    await expect(planHcaIntentFunding(rentParams)).rejects.toThrow(
+      /connected wallet holds/,
+    )
+    expect(signFundingPermit).not.toHaveBeenCalled()
   })
 })

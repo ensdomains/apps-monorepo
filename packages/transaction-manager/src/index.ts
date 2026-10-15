@@ -21,6 +21,7 @@ export {
   type HcaFundingPrompt,
   HcaIntentFeeExceedsMaximumError,
   type HcaIntentFunding,
+  hcaMaxIntentFeeUsdcFor,
   type PlanHcaIntentFundingParams,
   planHcaIntentFunding,
 } from './helpers/hca-intent-funding'
