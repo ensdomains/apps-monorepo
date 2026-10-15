@@ -23,14 +23,14 @@ const toPrimaryNameDomain = (name: NameSummary): PrimaryNameDomain => ({
   name: name.name,
 })
 
-const NAME_QUERY = {
+const nameQuery = {
   protocol: 'v2',
   sort: 'name',
   order: 'asc',
 } as const
 
 const byName = (a: NameSummary, b: NameSummary) =>
-  a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+  Number(a.name > b.name) - Number(a.name < b.name)
 
 /**
  * Every owned ENSv2 name, plus every name whose ETH record still resolves to
@@ -48,13 +48,13 @@ export const getPrimaryNameDomains = (
   ResultAsync.combine([
     readAllNames(
       readNames,
-      { ...NAME_QUERY, address, relations: ['owner'] },
+      { ...nameQuery, address, relations: ['owner'] },
       { signal },
     ),
     ownerAddress
       ? readAllNames(
           readNames,
-          { ...NAME_QUERY, address: ownerAddress, resolvesTo: true },
+          { ...nameQuery, address: ownerAddress, resolvesTo: true },
           { signal },
         )
       : okAsync([]),
