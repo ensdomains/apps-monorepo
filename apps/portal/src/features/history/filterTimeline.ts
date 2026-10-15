@@ -4,25 +4,23 @@ import { dateToPlainDate } from '@/utils/temporal'
 import { humanizeType } from './summarize/descriptors'
 import { IGNORED_TYPES } from './summarize/summarizeEvents'
 
-const plainDateToUnixSecondsUtc = (date: Temporal.PlainDate): number =>
-  Math.floor(date.toZonedDateTime({ timeZone: 'UTC' }).epochMilliseconds / 1000)
+const plainDateToUnixSecondsLocal = (date: Temporal.PlainDate): number =>
+  Math.floor(
+    date.toZonedDateTime({ timeZone: Temporal.Now.timeZoneId() })
+      .epochMilliseconds / 1000,
+  )
 
-/**
- * The Date range chip as inclusive `timestamp_gte` / `timestamp_lte` bounds.
- *
- * Anchored in UTC because events are dated by their UTC calendar day everywhere
- * else (`unixSecondsToPlainDateUtc`); reading the picker `Date`'s own instant
- * would cut a day short for anyone west of UTC.
- */
+/** The Date range chip as inclusive `timestamp_gte` / `timestamp_lte` bounds, in local days. */
 export const dateRangeToTimestamps = (
   range: DateRange,
 ): { readonly from?: number; readonly to?: number } => ({
   ...(range.from && {
-    from: plainDateToUnixSecondsUtc(dateToPlainDate(range.from)),
+    from: plainDateToUnixSecondsLocal(dateToPlainDate(range.from)),
   }),
   ...(range.to && {
     to:
-      plainDateToUnixSecondsUtc(dateToPlainDate(range.to).add({ days: 1 })) - 1,
+      plainDateToUnixSecondsLocal(dateToPlainDate(range.to).add({ days: 1 })) -
+      1,
   }),
 })
 
