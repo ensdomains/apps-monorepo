@@ -38,6 +38,7 @@ import {
   type ResolverRole as ResolverRoleName,
 } from '@/lib/roles/resolverRoles'
 import { flattenHistoryData } from '@/utils/history/historyEventsToTableEvents'
+import { RESOLVER_ROLES_FOR_ACCOUNT } from './useResolverCallerAdminRoles'
 
 /**
  * A name that shares its record with at least one other name on this resolver.
@@ -610,9 +611,10 @@ const RESOLVER_QUERY_KEYS: ReadonlySet<unknown> = new Set([
   resolverOverviewQueryKey.key,
   resolverNodesQueryKey.key,
   resolverHistoryTimelineQueryKey.key,
+  RESOLVER_ROLES_FOR_ACCOUNT,
 ])
 
-/** Refreshes what a write to the resolver's links or roles changes. */
+/** Refreshes what a write to the resolver's links or roles changes, the caller's role reads included. */
 export const invalidateResolverOverview = (
   queryClient: QueryClient,
   address: Address,

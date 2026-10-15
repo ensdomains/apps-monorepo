@@ -7,8 +7,11 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
 import {
   type AccountRoleGroup,
+  type ResolverRole,
   ROOT_RESOURCE,
   ROOT_RESOURCE_LABEL,
+  resolverAdminRoleOf,
+  resolverPermissions,
   UNREADABLE_RESOURCE_LABEL,
 } from '@/lib/roles/resolverRoles'
 import { ResolverRolesSidebar } from './ResolverRolesSidebar'
@@ -73,6 +76,24 @@ vi.mock('@/features/resolver/hooks/useResolverRolesMutations', () => ({
   }),
 }))
 
+const allAdminRoles: ReadonlySet<ResolverRole> = new Set(
+  resolverPermissions.map(({ key }) => resolverAdminRoleOf(key)),
+)
+let callerAdminRoles = allAdminRoles
+
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueries: ({
+    combine,
+  }: {
+    readonly combine: (results: readonly { data: boolean }[]) => boolean
+  }) => combine([{ data: true }]),
+}))
+
+vi.mock('@/features/resolver/hooks/useResolverCallerAdminRoles', () => ({
+  useResolverCallerAdminRoles: () => callerAdminRoles,
+}))
+
 const group = (overrides: Partial<AccountRoleGroup>): AccountRoleGroup => ({
   account: alice,
   resource: ROOT_RESOURCE.toString(),
@@ -103,6 +124,7 @@ const userCheckbox = (roleKey: string) => {
 }
 
 beforeEach(() => {
+  callerAdminRoles = allAdminRoles
   steps = []
   openModal.mockClear()
   saveMutate.mockClear()
@@ -190,5 +212,18 @@ describe('ResolverRolesSidebar scope handling', () => {
     expect(saveMutate).not.toHaveBeenCalledWith(
       expect.objectContaining({ resource: ROOT_RESOURCE }),
     )
+  })
+})
+
+describe('ResolverRolesSidebar admin gating', () => {
+  // WEB-1818: every checkbox used to unlock on one page-wide flag, so a caller
+  // without a role's `_ADMIN` could tick it and the save reverted.
+  it('enables only the roles whose _ADMIN the caller holds', () => {
+    callerAdminRoles = new Set<ResolverRole>(['ROLE_SET_TEXT_ADMIN'])
+    renderSidebar(group({}))
+
+    expect(userCheckbox('ROLE_SET_TEXT')).toBeEnabled()
+    expect(userCheckbox('ROLE_SET_ADDRESS')).toBeDisabled()
+    expect(userCheckbox('ROLE_UPGRADE')).toBeDisabled()
   })
 })
