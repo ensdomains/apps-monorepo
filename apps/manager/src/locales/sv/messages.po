@@ -306,7 +306,7 @@ msgstr ""
 msgid "Another Registration Is Running"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
 
@@ -330,8 +330,13 @@ msgstr ""
 msgid "Approve restoring your managers in your wallet"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Approve the network fee?"
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/renew/state/renewalUi.context.tsx
+msgid "Approve the renewal payment?"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -455,11 +460,11 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
@@ -774,7 +779,7 @@ msgstr ""
 msgid "Couldn't verify your name records. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Covered by your account balance"
 msgstr ""
 
@@ -1524,7 +1529,9 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/renew/state/renewalUi.context.tsx
 msgid "Network fee"
 msgstr ""
 
@@ -2128,6 +2135,16 @@ msgstr ""
 msgid "Renewal Period"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/renew/state/renewalUi.context.tsx
+msgid "Renewal price"
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/renew/state/renewalUi.context.tsx
+msgid "Renewals are paid in USDC out of your smart account. Your wallet will be asked to approve this exact amount — nothing more."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "Renewing"
 msgstr ""
@@ -2368,7 +2385,7 @@ msgstr ""
 msgid "Set up this name’s resolver?"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
 msgstr ""
 
@@ -2710,6 +2727,11 @@ msgstr ""
 
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/renew/state/renewalUi.context.tsx
+msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -3232,7 +3254,7 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "You approve"
 msgstr ""
 

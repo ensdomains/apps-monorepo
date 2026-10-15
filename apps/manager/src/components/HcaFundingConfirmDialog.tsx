@@ -1,5 +1,6 @@
 import type { HcaFundingPrompt } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { formatUnits } from 'viem'
 import {
   AlertDialog,
@@ -12,7 +13,14 @@ import {
 import { Button } from '@/components/ui/button'
 
 /** USDC is 6dp. `formatUnits` trims trailing zeros, so 0.905736 shows exactly. */
-const usdc = (amount: bigint): string => `${formatUnits(amount, 6)} USDC`
+export const usdc = (amount: bigint): string => `${formatUnits(amount, 6)} USDC`
+
+/** One cost line of the breakdown, above the account-balance offset. */
+export interface HcaFundingLine {
+  readonly label: ReactNode
+  /** USDC (6dp). */
+  readonly amount: bigint
+}
 
 interface HcaFundingConfirmDialogProps {
   /**
@@ -21,6 +29,13 @@ interface HcaFundingConfirmDialogProps {
    * the action is parked on the user's answer.
    */
   readonly prompt: HcaFundingPrompt | null
+  /** What the payment is for. */
+  readonly title: ReactNode
+  readonly description: ReactNode
+  /** What the action costs, before what the account already holds. */
+  readonly lines?: readonly HcaFundingLine[]
+  /** Anything else the user needs to know to judge the figure. */
+  readonly note?: ReactNode
   readonly onApprove: () => void
   readonly onDecline: () => void
 }
@@ -35,6 +50,10 @@ interface HcaFundingConfirmDialogProps {
  */
 export const HcaFundingConfirmDialog = ({
   prompt,
+  title,
+  description,
+  lines,
+  note,
   onApprove,
   onDecline,
 }: HcaFundingConfirmDialogProps) => (
@@ -44,31 +63,28 @@ export const HcaFundingConfirmDialog = ({
       // so closing without a decision would hang it.
       if (!open) onDecline()
     }}
-    open={prompt !== null}
+    open={!!prompt}
   >
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>
-          <Trans>Approve the network fee?</Trans>
-        </AlertDialogTitle>
-        <AlertDialogDescription>
-          <Trans>
-            Setting a primary name is paid in USDC. Your wallet will be asked to
-            approve this exact amount — nothing more.
-          </Trans>
-        </AlertDialogDescription>
+        <AlertDialogTitle>{title}</AlertDialogTitle>
+        <AlertDialogDescription>{description}</AlertDialogDescription>
       </AlertDialogHeader>
 
       {prompt && (
         <dl className="flex flex-col gap-2 rounded-md bg-ens-lapis-dust px-3 py-2.5 font-sans text-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">
-              <Trans>Network fee</Trans>
-            </dt>
-            <dd className="font-mono text-foreground">
-              {usdc(prompt.quotedFeeUsdc)}
-            </dd>
-          </div>
+          {lines?.map(({ label, amount }, index) =>
+            amount > 0n ? (
+              <div
+                className="flex items-baseline justify-between gap-4"
+                // biome-ignore lint/suspicious/noArrayIndexKey: static cost lines, never reordered
+                key={index}
+              >
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="font-mono text-foreground">{usdc(amount)}</dd>
+              </div>
+            ) : null,
+          )}
           {prompt.hcaBalanceUsdc > 0n && (
             <div className="flex items-baseline justify-between gap-4">
               <dt className="text-muted-foreground">
@@ -88,6 +104,10 @@ export const HcaFundingConfirmDialog = ({
             </dd>
           </div>
         </dl>
+      )}
+
+      {prompt && note && (
+        <p className="font-sans text-muted-foreground text-xs">{note}</p>
       )}
 
       <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
