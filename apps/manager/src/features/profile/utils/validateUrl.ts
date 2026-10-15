@@ -1,8 +1,10 @@
 import * as v from 'valibot'
-import { createSafeUrlSchema } from './safeUrl'
+import { isValidUrlInput } from './safeUrl'
 
-const urlSchema = createSafeUrlSchema(
-  'Enter a valid URL (e.g. https://example.com)',
+const urlSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.check(isValidUrlInput, 'Enter a valid URL (e.g. https://example.com)'),
 )
 
 const emailSchema = v.pipe(

@@ -16,6 +16,14 @@ describe('getLinkValidationIssues', () => {
     expect(getLinkValidationIssues([{ name: '', url: 'https://' }])).toEqual([])
   })
 
+  it('rejects a link URL containing spaces', () => {
+    expect(
+      getLinkValidationIssues([
+        { name: 'Blog', url: 'https://example.com/a b' },
+      ]),
+    ).toContainEqual({ field: 'url', index: 0, message: 'Enter a valid URL' })
+  })
+
   it('asks for a link when a titled row only has the prefilled https://', () => {
     expect(
       getLinkValidationIssues([{ name: 'Blog', url: 'https://' }]),

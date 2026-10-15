@@ -1,6 +1,6 @@
 import { staticTextRecords, textRecords } from '@/features/profile/data/records'
 import type { LinkItem } from '@/features/profile/types'
-import { isSafeHttpUrl } from '@/features/profile/utils/safeUrl'
+import { isValidUrlInput } from '@/features/profile/utils/safeUrl'
 import { getUrlInputCheckValue } from '@/features/profile/utils/urlInputPrefix'
 
 export type LinkValidationField = 'name' | 'url'
@@ -44,7 +44,7 @@ export const getLinkValidationIssues = (
 
     if (getUrlInputCheckValue(link.url).trim() === '') {
       issues.push({ field: 'url', index, message: 'Enter a link' })
-    } else if (!isSafeHttpUrl(link.url)) {
+    } else if (!isValidUrlInput(link.url)) {
       issues.push({ field: 'url', index, message: 'Enter a valid URL' })
     }
 
