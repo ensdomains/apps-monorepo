@@ -52,6 +52,14 @@ vi.mock('@/lib/smart-account', () => ({
     ownerAddress: chain.owner,
     walletClient: { account: { address: chain.owner } },
   }),
+  // The funding prompt only parks a promise when the HCA cannot cover the
+  // action itself; the mocked service never gets that far.
+  useHcaFundingPrompt: () => ({
+    prompt: null,
+    confirmFunding: async () => true,
+    approve: () => {},
+    decline: () => {},
+  }),
 }))
 vi.mock('@/features/profile/service/setPrimaryName', () => ({
   setPrimaryName: (args: { readonly name: string }) => chain.submit(args),
