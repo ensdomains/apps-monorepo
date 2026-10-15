@@ -30,7 +30,7 @@ const V2NameRoles = ({
   name: string
   registryAddress: Address
   canManageRoles: boolean
-  callerAdminRoles: ReadonlySet<Role>
+  readonly callerAdminRoles: ReadonlySet<Role>
 }) => {
   const { labels } = getNameLabels(name)
 
@@ -207,7 +207,9 @@ export const NameRolesOverviewTable = ({
     account: address,
   })
 
-  const canManageRoles = permissions.some((permission) =>
+  // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
+  const canManageRoles = callerAdminRoles.size > 0
+  const canAddUser = permissions.some((permission) =>
     canCallerSetManagerRole(permission.key, callerAdminRoles, {
       is2LD: name.split('.').length === 2,
     }),
@@ -219,7 +221,7 @@ export const NameRolesOverviewTable = ({
         <h3 className="text-caps leading-none">parent registry / roles</h3>
         {address && (
           <AddUserButton
-            canManageRoles={canManageRoles}
+            canManageRoles={canAddUser}
             onClick={() => setAddUserOpen(true)}
           />
         )}

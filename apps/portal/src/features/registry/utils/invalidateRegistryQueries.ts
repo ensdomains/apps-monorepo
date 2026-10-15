@@ -29,6 +29,8 @@ const INDEXER_BACKED_KEYS = new Set<string>([
   CONTRACT_HISTORY_TIMELINE,
   // Labels table — its `roleHoldersCount` column reads `registry.roles`.
   'get-registry-labels',
+  // The caller's own root roles, which gate the add/edit sheets (on-chain).
+  'getNameRolesForAccount',
 ])
 
 /**
