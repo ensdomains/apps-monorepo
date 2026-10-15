@@ -302,8 +302,6 @@ describe('hasDisallowedChanges', () => {
     expect(hasDisallowedChanges([address], textOnly)).toBe(false)
   })
 
-  // WEB-1794: a role revoked mid-edit must not let a pending change of that
-  // type reach the save.
   it.each([
     { isNew: true },
     { isEdited: true },

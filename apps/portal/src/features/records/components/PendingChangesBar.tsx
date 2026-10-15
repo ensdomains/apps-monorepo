@@ -29,7 +29,6 @@ export const PendingChangesBar = ({
   isConnected?: boolean
   errorMessage?: string
   hasValidationErrors?: boolean
-  /** A pending change is of a record type the wallet can no longer write. */
   hasDisallowedChanges?: boolean
 }) => {
   const isBlocked = hasValidationErrors || hasDisallowedChanges

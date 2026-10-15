@@ -198,8 +198,6 @@ describe('useCanEditRecords', () => {
     ])
   })
 
-  // WEB-1794: one granted setter role opens the editor, but a type whose role
-  // is missing must stay out of reach rather than revert at submit.
   it('limits a permissioned resolver to the types whose setter role is held', () => {
     connectedAddress = STRANGER
     isPermissionedQuery = settled(true)
