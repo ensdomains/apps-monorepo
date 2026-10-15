@@ -1,27 +1,36 @@
 /** @jsxImportSource react */
-import { Heading, Text } from '@react-email/components'
+import type { EmailContext } from '../context.js'
 import { type RenderedEmail, renderEmail } from '../render.js'
-import { EmailLayout } from './EmailLayout.js'
+import { AppHost, EmailLayout, EmailParagraph } from './EmailLayout.js'
 
-const WelcomeEmail = () => (
-  <EmailLayout preview="Your email is verified for ENS notifications">
-    <Heading as="h1">Welcome to ENS Notifications!</Heading>
-    <Text>
-      Your email has been successfully verified and you're all set to receive
-      notifications about your ENS domains.
-    </Text>
-    <Text>You'll receive updates about:</Text>
-    <ul>
-      <li>Domain expiry reminders</li>
-      <li>Domain transfers</li>
-      <li>And other important events</li>
-    </ul>
-    <Text>
-      You can manage which notifications you receive at any time in Notification
-      Settings in the ENS Manager app.
-    </Text>
+const WelcomeEmail = ({ context }: { readonly context: EmailContext }) => (
+  <EmailLayout
+    context={context}
+    preview="Your email is verified for ENS notifications"
+    heading="You’re all set"
+    action={{
+      title: 'Choose what you hear about',
+      body: (
+        <>
+          Go to <AppHost context={context} /> in your browser and open
+          Notification Settings.
+        </>
+      ),
+    }}
+    reason="you verified this address in the ENS app"
+  >
+    <EmailParagraph centered>
+      Your email is verified. We’ll let you know before your names expire and
+      when one is transferred.
+    </EmailParagraph>
   </EmailLayout>
 )
 
-export const renderWelcomeEmail = (): Promise<RenderedEmail> =>
-  renderEmail('Welcome to ENS Notifications', <WelcomeEmail />)
+export const renderWelcomeEmail = (
+  context: EmailContext,
+): Promise<RenderedEmail> =>
+  renderEmail(
+    context,
+    'Welcome to ENS notifications',
+    <WelcomeEmail context={context} />,
+  )

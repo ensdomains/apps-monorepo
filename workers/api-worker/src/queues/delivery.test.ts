@@ -120,7 +120,7 @@ describe.each([
       expect(providers.email).toHaveBeenCalledWith(
         'test',
         expect.objectContaining({
-          subject: 'Domain grace period ended',
+          subject: '[Sepolia] Your name’s grace period has ended',
           personalizations: [{ to: [{ email: targets.email }] }],
           content: [
             {
