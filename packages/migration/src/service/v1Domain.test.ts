@@ -247,7 +247,7 @@ describe('classification through the adapter', () => {
     ])
   })
 
-  it('keeps an emancipated subname with no expiry eligible to copy', () => {
+  it('migrates an emancipated subname with no expiry as a detached child', () => {
     const child = wrapped('sub.alice.eth', PARENT_CANNOT_CONTROL, {
       ens_v1: {
         expires_at: null,
@@ -265,11 +265,7 @@ describe('classification through the adapter', () => {
     expect(ineligible).toEqual([])
     expect(classified).toMatchObject([
       { action: 'migrate', tokenType: 'unwrapped' },
-      {
-        action: 'copy',
-        tokenType: 'unlocked-child',
-        sourceExpiry: 18_446_744_073_709_551_615n,
-      },
+      { action: 'migrate', tokenType: 'detached-child' },
     ])
   })
 
