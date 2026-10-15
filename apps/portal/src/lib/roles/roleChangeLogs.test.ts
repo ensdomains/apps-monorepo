@@ -175,6 +175,14 @@ describe('getRoleChangeLogs via bigname', () => {
     ])
   })
 
+  it('leaves can_name out of the bitmaps, as the node scan decodes them', async () => {
+    indexed([row({ block: 10, powers: ['renew', 'can_name'] })])
+
+    const [log] = (await read())._unsafeUnwrap()
+
+    expect(log?.args.newRoleBitmap).toBe(registryRoles.ROLE_RENEW)
+  })
+
   it('narrows to one account and leaves out other contracts and scopes', async () => {
     const OTHER = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
     indexed([

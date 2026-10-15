@@ -9,12 +9,15 @@ import {
   toExactSeconds,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { type Address, getAddress, isAddressEqual, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { previousPowers } from '@/lib/roles/permissionPowers'
-import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
+import {
+  REGISTRY_ROLE_ORDER,
+  type RegistryRole,
+  registryPowersToRoles,
+} from '@/lib/roles/registryPowerRoles'
 import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 
@@ -26,7 +29,7 @@ const toError = (cause: BignameError) => new GetRootRoleReadsError({ cause })
 
 export type RootRoleHolder = {
   readonly account: Address
-  readonly roles: readonly Role[]
+  readonly roles: readonly RegistryRole[]
 }
 
 export type RegistryRootRoles = {
@@ -39,16 +42,10 @@ export type RegistryRootRoles = {
   readonly areOperatorRolesUnlisted: boolean
 }
 
-const ROLE_ORDER = Object.keys(registryRoles) as Role[]
-
-/**
- * Powers as ensjs roles in `registryRoles` order, which is what `decodeRoleBitmap`
- * gives the log scan. `can_name` and `admin_can_name` have no ensjs role and
- * are dropped, as the scan drops their bits.
- */
-const toRoles = (powers: readonly Power[]): Role[] => {
+/** Powers as registry roles, in bit order. */
+const toRoles = (powers: readonly Power[]): RegistryRole[] => {
   const held = new Set(registryPowersToRoles(powers))
-  return ROLE_ORDER.filter((role) => held.has(role))
+  return REGISTRY_ROLE_ORDER.filter((role) => held.has(role))
 }
 
 type RegistryParameters = {

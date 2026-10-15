@@ -37,7 +37,7 @@ const roleCounts = () =>
 beforeEach(() => vi.clearAllMocks())
 
 describe('getAddressRoleCountsQueryOptions', () => {
-  it('counts the ensjs roles the powers stand for, leaving out can_name', async () => {
+  it('counts the registry roles the powers stand for, can_name included', async () => {
     vi.mocked(bigname.addressNames).mockReturnValue(
       okAsync({
         data: [
@@ -59,7 +59,7 @@ describe('getAddressRoleCountsQueryOptions', () => {
       }),
     )
 
-    expect(await roleCounts()).toEqual(new Map([['alice.eth', 2]]))
+    expect(await roleCounts()).toEqual(new Map([['alice.eth', 4]]))
     expect(vi.mocked(bigname.addressNames).mock.calls[0]?.[1]).toMatchObject({
       authority: ['ens_v2'],
       include: ['role_summary'],

@@ -99,15 +99,20 @@ describe('getRegistryRootRoles', () => {
       )
     })
 
-    it('drops a holder whose only powers have no ensjs role', async () => {
+    it('keeps a holder whose only powers are can_name, which ensjs does not list', async () => {
       listPermissions.mockResolvedValue({
         ...mockPermissionsRegistryRoot,
         data: [
-          { ...mockPermissionsRegistryRoot.data[0], powers: ['can_name'] },
+          {
+            ...mockPermissionsRegistryRoot.data[0],
+            powers: ['admin_can_name', 'can_name'],
+          },
         ],
       })
 
-      expect((await run())._unsafeUnwrap().holders).toEqual([])
+      expect(
+        (await run())._unsafeUnwrap().holders.map(({ roles }) => roles),
+      ).toEqual([['ROLE_CAN_NAME', 'ROLE_CAN_NAME_ADMIN']])
     })
   })
 
