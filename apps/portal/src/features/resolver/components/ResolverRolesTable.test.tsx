@@ -92,7 +92,9 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQueries: ({
     combine,
   }: {
-    readonly combine: (results: readonly { data: boolean }[]) => boolean
+    readonly combine: (
+      results: readonly { readonly data: boolean }[],
+    ) => boolean
   }) => combine([{ data: true }]),
 }))
 

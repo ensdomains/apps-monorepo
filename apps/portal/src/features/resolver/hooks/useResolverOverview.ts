@@ -614,18 +614,25 @@ const RESOLVER_QUERY_KEYS: ReadonlySet<unknown> = new Set([
   RESOLVER_ROLES_FOR_ACCOUNT,
 ])
 
+const isResolver = (value: unknown, address: Address): boolean =>
+  String(value).toLowerCase() === address.toLowerCase()
+
 /** Refreshes what a write to the resolver's links or roles changes, the caller's role reads included. */
 export const invalidateResolverOverview = (
   queryClient: QueryClient,
   address: Address,
 ) =>
   queryClient.invalidateQueries({
-    predicate: ({ queryKey: [key, params] }) =>
-      RESOLVER_QUERY_KEYS.has(key) &&
-      typeof params === 'object' &&
-      params !== null &&
-      'address' in params &&
-      String(params.address).toLowerCase() === address.toLowerCase(),
+    predicate: ({ queryKey: [key, params] }) => {
+      if (typeof params !== 'object' || params === null) return false
+      if (RESOLVER_QUERY_KEYS.has(key))
+        return 'address' in params && isResolver(params.address, address)
+      return (
+        key === 'hasRoles' &&
+        'resolverAddress' in params &&
+        isResolver(params.resolverAddress, address)
+      )
+    },
   })
 
 export const getResolverOverviewQueryOptions = (
