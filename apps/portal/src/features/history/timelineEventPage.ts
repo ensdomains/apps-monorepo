@@ -182,8 +182,7 @@ export const fetchContractEventsPage = ({
 
 /**
  * A resolver's feed as its overview reads it: what it emitted plus the names
- * pointed at it or away from it. Read 200 at a time: bigname times out on this
- * filter at 50 and 100.
+ * pointed at it or away from it.
  */
 export const fetchResolverEventsPage = ({
   resolverAddress,

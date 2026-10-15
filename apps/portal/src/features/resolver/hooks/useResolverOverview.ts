@@ -441,8 +441,8 @@ const toOverview = (
 }
 
 /**
- * The newest events, or null when bigname fails to serve them: the filter has
- * answered 500 at some page sizes, and it must not take the other tabs down.
+ * The newest events, or null when bigname fails to serve them, so a failure
+ * does not take the other tabs down.
  */
 const readRecentEvents = (
   { chainId, address }: ResolverRef,
