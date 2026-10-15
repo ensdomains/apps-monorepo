@@ -1,6 +1,9 @@
+import { Trans } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
+import { useHcaFundingPrompt } from '@/lib/smart-account'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
 
@@ -25,8 +28,18 @@ export const RenewalUiProvider = ({
   currentExpiry: bigint
   protocol: RenewalProtocol
 }) => {
+  // The renewal intent is quoted inside the submit call, and only then is the
+  // funding amount known — so the machine parks on this promise and the dialog
+  // below resolves it. Nothing else asks the wallet for a signature first.
+  const {
+    prompt: fundingPrompt,
+    confirmFunding,
+    approve: approveFunding,
+    decline: declineFunding,
+  } = useHcaFundingPrompt()
+
   const uiActor = useActorRef(renewalUiMachine, {
-    input: { currentExpiry, protocol },
+    input: { currentExpiry, protocol, confirmFunding },
   })
   const previousLabel = useRef(label)
 
@@ -54,6 +67,33 @@ export const RenewalUiProvider = ({
       value={{ uiActor, label, currentExpiry, protocol }}
     >
       {children}
+      <HcaFundingConfirmDialog
+        description={
+          <Trans>Renewals are paid in USDC out of your smart account.</Trans>
+        }
+        lines={[
+          {
+            // The rent plus the small headroom the renewer's approval carries,
+            // because the price is re-read when the renewal executes.
+            label: <Trans>Renewal price</Trans>,
+            amount: fundingPrompt?.requiredUsdc ?? 0n,
+          },
+          {
+            label: <Trans>Network fee</Trans>,
+            amount: fundingPrompt?.quotedFeeUsdc ?? 0n,
+          },
+        ]}
+        note={
+          <Trans>
+            The renewal price includes a 10% buffer: the rent is priced when the
+            renewal executes, slightly after this quote.
+          </Trans>
+        }
+        onApprove={approveFunding}
+        onDecline={declineFunding}
+        prompt={fundingPrompt}
+        title={<Trans>Approve the renewal payment?</Trans>}
+      />
     </RenewalUiContext.Provider>
   )
 }

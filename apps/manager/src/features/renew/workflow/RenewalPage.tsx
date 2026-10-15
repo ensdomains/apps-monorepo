@@ -42,6 +42,8 @@ const RenewalPageContent = () => {
         'submittingRenewal',
         'submittingPlainRenewal',
         'waitingForRenewal',
+        'submittingHcaRenewal',
+        'checkingRenewed',
       ),
       () => <RenewingStep />,
     )

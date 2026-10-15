@@ -804,12 +804,7 @@ export const ChoosePrimaryNameDialog = ({
         }}
       />
       <HcaFundingConfirmDialog
-        description={
-          <Trans>
-            Setting a primary name is paid in USDC. Your wallet will be asked to
-            approve this exact amount — nothing more.
-          </Trans>
-        }
+        description={<Trans>Setting a primary name is paid in USDC.</Trans>}
         lines={[
           {
             label: <Trans>Network fee</Trans>,
