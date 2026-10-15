@@ -79,6 +79,7 @@ function EditRecordsPage() {
   const {
     canEdit,
     hasOwnResolver,
+    editableTypes,
     isLoading: isCanEditLoading,
   } = useCanEditRecords({ name })
 
@@ -219,6 +220,7 @@ function EditRecordsPage() {
       name={name}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
+      editableTypes={editableTypes}
     />
   )
 }
@@ -227,10 +229,12 @@ const EditRecordsContent = ({
   name,
   records: rawRecords,
   resolverAddress,
+  editableTypes,
 }: {
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
+  editableTypes: ReadonlySet<RecordType>
 }) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
@@ -449,7 +453,9 @@ const EditRecordsContent = ({
                 className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
-                {RECORD_TYPES.map((type) => (
+                {RECORD_TYPES.filter((type) =>
+                  editableTypes.has(type.value),
+                ).map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -586,6 +592,7 @@ const EditRecordsContent = ({
             <EditRecordsTable
               records={filteredRecords}
               globalFilter={globalFilter}
+              editableTypes={editableTypes}
               onDeleteRecord={deleteRecord}
               onUpdateRecord={updateRecord}
               validationErrors={validationErrors}

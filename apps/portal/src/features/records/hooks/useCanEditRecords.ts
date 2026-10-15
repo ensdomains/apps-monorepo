@@ -15,14 +15,17 @@ import {
   type ResolverSetterScope,
   ROOT_RESOURCE,
 } from '@/lib/roles/resolverRoles'
+import type { RecordType } from '@/utils/records/editRecordUtils'
+
+const RECORD_TYPE_ROLES = {
+  text: 'ROLE_SET_TEXT',
+  address: 'ROLE_SET_ADDRESS',
+  abi: 'ROLE_SET_ABI',
+  contentHash: 'ROLE_SET_CONTENTHASH',
+} as const satisfies Record<RecordType, ResolverPermissionKey>
 
 /** Roles that authorize writing common profile records on a permissioned resolver. */
-export const RECORD_EDIT_ROLES = [
-  'ROLE_SET_ADDRESS',
-  'ROLE_SET_TEXT',
-  'ROLE_SET_CONTENTHASH',
-  'ROLE_SET_ABI',
-] as const satisfies readonly ResolverPermissionKey[]
+export const RECORD_EDIT_ROLES = Object.values(RECORD_TYPE_ROLES)
 
 type UseCanEditRecordsParams = {
   name: string
@@ -50,6 +53,7 @@ type UseCanEditRecordsReturn = {
    */
   hasOwnResolver: boolean | undefined
   resolverAddress: Address | null | undefined
+  editableTypes: ReadonlySet<RecordType>
 }
 
 /**
@@ -174,13 +178,24 @@ export function useCanEditRecords({
     !!resolverAddress &&
     hasOwnResolver === true
 
+  const grantedRoles = new Set(
+    roles.filter((_, index) => roleQueries[index]?.data === true),
+  )
+
   const canEdit = match({ isSettled, isPermissioned, isV2 })
     .with({ isSettled: false }, () => false)
-    .with({ isPermissioned: true }, () =>
-      roleQueries.some((query) => query.data === true),
-    )
+    .with({ isPermissioned: true }, () => grantedRoles.size > 0)
     .with({ isV2: true }, () => publicResolverV2Query.data === true)
     .otherwise(() => isOwner)
+
+  const editableTypes: ReadonlySet<RecordType> = new Set(
+    canEdit
+      ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
+          (type) =>
+            !isPermissioned || grantedRoles.has(RECORD_TYPE_ROLES[type]),
+        )
+      : [],
+  )
 
   return {
     canEdit,
@@ -189,5 +204,6 @@ export function useCanEditRecords({
     isOwner,
     hasOwnResolver,
     resolverAddress,
+    editableTypes,
   }
 }

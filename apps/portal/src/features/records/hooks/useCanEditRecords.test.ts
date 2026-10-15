@@ -82,7 +82,9 @@ vi.mock('@tanstack/react-query', async () => {
   }
 })
 
-const { useCanEditRecords } = await import('./useCanEditRecords')
+const { RECORD_EDIT_ROLES, useCanEditRecords } = await import(
+  './useCanEditRecords'
+)
 
 const render = () =>
   renderHook(() => useCanEditRecords({ name: 'jobintime.xyz' })).result.current
@@ -173,7 +175,34 @@ describe('useCanEditRecords', () => {
   it('still refuses a stranger on a name that owns its resolver', () => {
     connectedAddress = STRANGER
 
-    expect(render().canEdit).toBe(false)
+    const result = render()
+
+    expect(result.canEdit).toBe(false)
+    expect(result.editableTypes.size).toBe(0)
+  })
+
+  it('lets the owner edit every record type on a non-permissioned resolver', () => {
+    expect([...render().editableTypes].sort()).toEqual([
+      'abi',
+      'address',
+      'contentHash',
+      'text',
+    ])
+  })
+
+  // WEB-1794: one granted setter role opens the editor, but a type whose role
+  // is missing must stay out of reach rather than revert at submit.
+  it('limits a permissioned resolver to the types whose setter role is held', () => {
+    connectedAddress = STRANGER
+    isPermissionedQuery = settled(true)
+    roleQueries = RECORD_EDIT_ROLES.map((role) =>
+      settled(role === 'ROLE_SET_TEXT'),
+    )
+
+    const result = render()
+
+    expect(result.canEdit).toBe(true)
+    expect([...result.editableTypes]).toEqual(['text'])
   })
 
   it('reports a failed role read as an error, not as no permission', () => {
