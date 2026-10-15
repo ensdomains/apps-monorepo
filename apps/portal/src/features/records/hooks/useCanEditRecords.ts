@@ -112,7 +112,7 @@ export function useCanEditRecords({
 
   const isPermissioned = isPermissionedQuery.data === true
 
-  const roleQueries = useQueries({
+  const { grantedRoles, isLoading: isRolesQueryLoading } = useQueries({
     queries: roles.map((role) => ({
       ...getHasRolesQueryOptions({
         resolverAddress: (resolverAddress ??
@@ -125,6 +125,10 @@ export function useCanEditRecords({
       enabled:
         enabled && !!connectedAddress && !!resolverAddress && isPermissioned,
     })),
+    combine: (results) => ({
+      grantedRoles: roles.filter((_, index) => results[index]?.data === true),
+      isLoading: results.some((result) => result.isLoading),
+    }),
   })
 
   const isOwner =
@@ -132,8 +136,7 @@ export function useCanEditRecords({
     !!ownerQuery.data?.owner &&
     isAddressEqual(connectedAddress, ownerQuery.data.owner)
 
-  const rolesLoading =
-    isPermissioned && roleQueries.some((query) => query.isLoading)
+  const rolesLoading = isPermissioned && isRolesQueryLoading
 
   const isLoading =
     (enabled &&
@@ -144,10 +147,7 @@ export function useCanEditRecords({
         rolesLoading)) ||
     false
 
-  const grantedRoles = new Set(
-    roles.filter((_, index) => roleQueries[index]?.data === true),
-  )
-  const hasResolverRole = grantedRoles.size > 0
+  const hasResolverRole = grantedRoles.length > 0
 
   const canEdit = (() => {
     if (!enabled || !connectedAddress || isLoading || !resolverAddress) {
@@ -165,13 +165,18 @@ export function useCanEditRecords({
     return isOwner
   })()
 
-  const editableTypes: ReadonlySet<RecordType> = new Set(
-    canEdit
-      ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
-          (type) =>
-            !isPermissioned || grantedRoles.has(RECORD_TYPE_ROLES[type]),
-        )
-      : [],
+  const editableTypes = useMemo<ReadonlySet<RecordType>>(
+    () =>
+      new Set(
+        canEdit
+          ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
+              (type) =>
+                !isPermissioned ||
+                grantedRoles.includes(RECORD_TYPE_ROLES[type]),
+            )
+          : [],
+      ),
+    [canEdit, isPermissioned, grantedRoles],
   )
 
   return {

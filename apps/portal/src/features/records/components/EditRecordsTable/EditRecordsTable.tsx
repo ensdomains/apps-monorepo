@@ -119,10 +119,6 @@ export const EditRecordsTable = ({
   const validationErrorsRef = useRef<ValidationError[]>(validationErrors)
   validationErrorsRef.current = validationErrors
 
-  const editableTypesRef = useRef(editableTypes)
-
-  editableTypesRef.current = editableTypes
-
   const handleDeleteClick = useCallback((record: EditableRecord) => {
     setPendingDeleteId(getRecordId(record))
   }, [])
@@ -224,7 +220,7 @@ export const EditRecordsTable = ({
           )
         },
         cell: ({ row }) => {
-          if (!editableTypesRef.current.has(row.original.type)) {
+          if (!editableTypes.has(row.original.type)) {
             return <span className="font-mono">{row.original.value}</span>
           }
 
@@ -246,7 +242,7 @@ export const EditRecordsTable = ({
         cell: ({ row }) => (
           <div className="flex items-center gap-1 justify-end">
             <CopyButton value={row.original.value} />
-            {editableTypesRef.current.has(row.original.type) && (
+            {editableTypes.has(row.original.type) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -261,7 +257,7 @@ export const EditRecordsTable = ({
         ),
       },
     ],
-    [onUpdateRecord, handleDeleteClick, getError],
+    [onUpdateRecord, handleDeleteClick, getError, editableTypes],
   )
 
   const table = useReactTable({
