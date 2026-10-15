@@ -41,6 +41,26 @@ describe('FailureStepView', () => {
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeVisible()
   })
 
+  it('explains a lost race instead of showing the raw error', () => {
+    renderView({
+      message:
+        'The contract function "getRegisterPrice" reverted with the following signature: 0x477707e8',
+      nameUnavailable: true,
+    })
+
+    expect(screen.getByText('Name No Longer Available')).toBeVisible()
+    expect(
+      screen.getByText(
+        'name-two.eth was registered by someone else just before your registration went through.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/getRegisterPrice/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Try Again' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to Quote' })).toBeVisible()
+  })
+
   it('still reports a real failure as one', () => {
     renderView()
 

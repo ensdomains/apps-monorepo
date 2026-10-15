@@ -1378,6 +1378,32 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
     expect(childRetryCount(actor)).toBe(0)
   })
 
+  // Lost before the reveal, the race only shows up as the registrar's revert.
+  it('reads a lost race off the registrar revert', async () => {
+    const revert = Object.assign(
+      new Error(
+        'The contract function "getRegisterPrice" reverted with the following signature: 0x477707e8 Contract Call: address: 0xa885 Docs: https://viem.sh Version: viem@2.52.2',
+      ),
+      {
+        shortMessage:
+          'The contract function "getRegisterPrice" reverted with the following signature:\n0x477707e8',
+      },
+    )
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: revert })
+    await flush()
+
+    const { context } = actor.getSnapshot()
+    expect(context.nameUnavailable).toBe(true)
+    expect(context.lastErrorMessage).not.toMatch(/Docs:|Version:/)
+
+    actor.send({ type: 'retry' })
+    await flush()
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
   it('still retries an ordinary failure', async () => {
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount))

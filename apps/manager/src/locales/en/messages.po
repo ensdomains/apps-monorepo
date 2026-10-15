@@ -112,6 +112,10 @@ msgstr "{gracePeriodNameCount, plural, one {Renew your grace-period name before 
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "{label}.eth was registered by someone else just before your registration went through."
+msgstr "{label}.eth was registered by someone else just before your registration went through."
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr "{migrated} out of {total} names upgraded"

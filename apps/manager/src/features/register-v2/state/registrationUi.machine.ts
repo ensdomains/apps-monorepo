@@ -39,6 +39,10 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import {
+  getRegistrationFailureMessage,
+  isNameNotAvailableError,
+} from '../service/registrationFailure'
+import {
   acquireRegistrationLock,
   getBlockingRegistration,
   releaseRegistrationLock,
@@ -436,7 +440,9 @@ const machineSetup = setup({
       lastErrorMessage: ({ event }) =>
         match(event)
           .with({ type: 'transaction.failed' }, ({ message }) => message)
-          .with({ type: '$error' }, ({ error }) => error.message)
+          .with({ type: '$error' }, ({ error }) =>
+            getRegistrationFailureMessage(error),
+          )
           .otherwise(() => undefined),
       nameUnavailable: ({ event }) =>
         match(event)
@@ -947,10 +953,14 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         actions: [
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
-            message: snapshot.context.error?.message,
+            message: getRegistrationFailureMessage(snapshot.context.error),
             // Lost a same-name race: the child refuses RETRY, so the failure
-            // screen must not offer one either.
-            nameUnavailable: snapshot.context.nameUnavailable === true,
+            // screen must not offer one either. A race lost before the reveal
+            // (price read, budget quote) only shows up as the registrar's
+            // revert, so read it off the error too.
+            nameUnavailable:
+              snapshot.context.nameUnavailable === true ||
+              isNameNotAvailableError(snapshot.context.error),
           })),
         ],
       },
@@ -1398,6 +1408,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             target: 'pricing',
             actions: [
               'releaseRegistrationLock',
+              // A name lost to someone else is still cached as available, so
+              // the quote would offer it again. Must run before the label is
+              // cleared.
+              'invalidateNameQueries',
               'clearRegistrationData',
               'clearError',
               'forwardCancel',
