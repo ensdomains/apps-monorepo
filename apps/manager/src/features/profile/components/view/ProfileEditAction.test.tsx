@@ -24,9 +24,9 @@ const renderAction = (
 ) =>
   render(
     <ProfileEditAction
+      canEdit
       className="edit"
       isInGrace={false}
-      isOwner
       name="stitch.eth"
       onUpdated={() => undefined}
       records={newEmptyProfileRecords()}
@@ -57,8 +57,8 @@ describe('ProfileEditAction', () => {
     expect(editButton()).not.toBeNull()
   })
 
-  it('hides editing for non-owners', () => {
-    renderAction({ isOwner: false, protocol: 'v2' })
+  it('hides editing when the viewer cannot write the records', () => {
+    renderAction({ canEdit: false, protocol: 'v2' })
     expect(editButton()).toBeNull()
   })
 

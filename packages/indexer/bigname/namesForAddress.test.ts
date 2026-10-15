@@ -51,6 +51,20 @@ describe('readNamesForAddress', () => {
     )
   })
 
+  it('asks for names whose ETH record resolves to the address', async () => {
+    const { client, fetch } = clientWith(envelope([], page))
+
+    await readNamesForAddress(client)({
+      address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+      relations: ['owner'],
+      resolvesTo: true,
+    })
+
+    expect(new URL(requestOf(fetch).url).searchParams.get('relation')).toBe(
+      'resolves_to',
+    )
+  })
+
   it('searches inside names, narrows by parent, sorts by first observation and asks for an exact total', async () => {
     const { client, fetch } = clientWith(envelope([], page))
 

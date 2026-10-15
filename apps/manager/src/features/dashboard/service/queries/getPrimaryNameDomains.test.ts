@@ -11,6 +11,7 @@ import { getPrimaryNameDomains } from './getPrimaryNameDomains'
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
 const ADDRESS = '0x0000000000000000000000000000000000000abc'
+const OWNER = '0x0000000000000000000000000000000000000def'
 
 const summary = (
   name: string,
@@ -109,6 +110,45 @@ describe('getPrimaryNameDomains', () => {
       vi.fn<ReadNamesForAddress>(() => errAsync(failure)),
       ADDRESS,
     )
+
+    expect(result._unsafeUnwrapErr()).toBe(failure)
+  })
+
+  it('adds names still resolving to the owner wallet, once each and in name order', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>((query) =>
+      okAsync(
+        page(
+          query.resolvesTo
+            ? [summary('alice.eth', '0x01'), summary('fox-1.eth', '0x02')]
+            : [summary('alice.eth', '0x01'), summary('zed.eth', '0x03')],
+        ),
+      ),
+    )
+
+    const result = await getPrimaryNameDomains(readNames, ADDRESS, OWNER)
+
+    expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
+      'alice.eth',
+      'fox-1.eth',
+      'zed.eth',
+    ])
+    expect(readNames).toHaveBeenCalledWith(
+      expect.objectContaining({ address: OWNER, resolvesTo: true }),
+      expect.anything(),
+    )
+  })
+
+  it('passes a failed resolving-names read on instead of listing only owned names', async () => {
+    const failure = new IndexerReadError({
+      message: 'unavailable',
+      kind: 'unavailable',
+      cause: new Error('down'),
+    })
+    const readNames = vi.fn<ReadNamesForAddress>((query) =>
+      query.resolvesTo ? errAsync(failure) : okAsync(page([])),
+    )
+
+    const result = await getPrimaryNameDomains(readNames, ADDRESS, OWNER)
 
     expect(result._unsafeUnwrapErr()).toBe(failure)
   })

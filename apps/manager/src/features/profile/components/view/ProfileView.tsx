@@ -17,6 +17,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
@@ -54,6 +55,27 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
     accountAddress: smartAccountAddress,
     ownerAddress,
   })
+}
+
+type UseCanEditRecordsParams = {
+  readonly enabled: boolean
+  readonly isOwner: boolean | undefined
+  readonly name: string
+}
+
+/** Owners edit; a non-owner edits only while its wallet can still write the name's resolver. */
+const useCanEditRecords = ({
+  enabled,
+  isOwner,
+  name,
+}: UseCanEditRecordsParams) => {
+  const { ownerAddress } = useSmartAccountContext()
+  const { data: canWriteResolver } = useQuery({
+    ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
+    enabled: enabled && isOwner === false && Boolean(ownerAddress),
+  })
+
+  return isOwner || canWriteResolver === true
 }
 
 const getProfileUrl = (name: string) =>
@@ -136,6 +158,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileReverseNameQuery(owner),
   })
   const isOwner = useIsOwner({ owner })
+  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+  const canEditRecords = useCanEditRecords({
+    enabled: !expiry.isInGrace,
+    isOwner: resolvedIsOwner,
+    name,
+  })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
@@ -164,7 +192,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ? undefined
     : themeVars['--theme-color']
   const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
-  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
   // have no matching tokens
@@ -243,6 +270,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         <ProfileDraftProvider value={setDraft}>
           <ProfileActions
             avatarUrl={avatarUrl}
+            canEditRecords={canEditRecords}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}

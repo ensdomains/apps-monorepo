@@ -23,6 +23,7 @@ import { ProfileShareAction } from './ProfileShareAction'
 
 type ProfileActionsProps = {
   readonly avatarUrl?: string
+  readonly canEditRecords?: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
   readonly isUpgradeRequired: boolean
@@ -36,6 +37,7 @@ type ProfileActionsProps = {
 
 export const ProfileActions = ({
   avatarUrl,
+  canEditRecords,
   isInGrace,
   isOwner,
   isUpgradeRequired,
@@ -48,7 +50,8 @@ export const ProfileActions = ({
 }: ProfileActionsProps) => {
   const { t } = useLingui()
   const canEditProfile =
-    isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
+    canEditRecords &&
+    (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
   const hasFloatingBar = canEditProfile && !isUpgradeRequired && !isInGrace
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
@@ -69,9 +72,9 @@ export const ProfileActions = ({
   if (hasFloatingBar) {
     return (
       <ProfileEditAction
+        canEdit={canEditRecords}
         className={profileButtonClassName}
         isInGrace={isInGrace}
-        isOwner={isOwner}
         leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
@@ -104,9 +107,9 @@ export const ProfileActions = ({
               {barActions}
             </div>
             <ProfileEditAction
+              canEdit={canEditRecords}
               className={editActionClassName}
               isInGrace={isInGrace}
-              isOwner={isOwner}
               isUpgradeRequired={isUpgradeRequired}
               name={name}
               onUpdated={onUpdated}
