@@ -1,6 +1,7 @@
 import type { NameDetail } from '@ens-apps/indexer/reads'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -13,14 +14,24 @@ import { RecordList } from '@/features/records/components/RecordList'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { queryClient } from '@/utils/queryClient'
 
-const UNRESOLVABLE_COPY: Readonly<
-  Record<NonNullable<NameDetail['unresolvableReason']>, string>
-> = {
-  no_live_ens_v2_entry:
-    'This ENSv1 name has no ENSv2 entry, so it does not resolve and has no records to show.',
-  ens_v2_path_no_resolver:
-    'No resolver is set on the path to this name, so it does not resolve and has no records to show.',
-}
+// An ENSv1 name with no ENSv2 entry still has its records on the ENSv1
+// resolver, and the upgrade copies them.
+const unresolvableCopy = (detail: NameDetail): string =>
+  match(detail)
+    .with(
+      { unresolvableReason: 'ens_v2_path_no_resolver' },
+      () =>
+        'No resolver is set on the path to this name, so it does not resolve and has no records to show.',
+    )
+    .with(
+      { registrationStatus: 'expired' },
+      () =>
+        "This name's registration has lapsed, so it does not resolve. Its ENSv1 records are kept and come back when it is renewed.",
+    )
+    .otherwise(
+      () =>
+        'This ENSv1 name is not reserved in ENSv2, so it does not resolve here. Its ENSv1 records are kept and move across when it is upgraded.',
+    )
 
 export const Route = createFileRoute('/$name/records')({
   component: App,
@@ -43,7 +54,6 @@ function App() {
   })
   const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
   const { data: detail } = useQuery(getNameDetailQueryOptions({ name }))
-  const unresolvableReason = detail?.unresolvableReason ?? null
 
   const isLoading =
     profileQuery.isLoading || ownerQuery.isLoading || isCanEditLoading
@@ -59,13 +69,13 @@ function App() {
     )
   }
 
-  if (unresolvableReason) {
+  if (detail?.unresolvableReason) {
     return (
       <div className="flex flex-col gap-8">
         <PageHeading parent={{ type: 'name', name }}>Records</PageHeading>
         <NoResultsMessage
           title="This name does not resolve"
-          description={UNRESOLVABLE_COPY[unresolvableReason]}
+          description={unresolvableCopy(detail)}
           className="mx-0"
         />
       </div>
