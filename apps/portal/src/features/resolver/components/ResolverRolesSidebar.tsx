@@ -1,6 +1,7 @@
+import { useQueries } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -21,10 +22,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import type {
   ResolverRolesAction,
   ResolverRolesSaveAction,
 } from '@/features/resolver/helpers/prepareResolverRolesIntent'
+import { useResolverCallerAdminRoles } from '@/features/resolver/hooks/useResolverCallerAdminRoles'
 import { useResolverRolesMutations } from '@/features/resolver/hooks/useResolverRolesMutations'
 import { buildResolverRolesTransactions } from '@/features/resolver/utils/buildResolverRolesTransactions'
 import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
@@ -39,6 +42,7 @@ import {
   type ResolverRole,
   ROOT_RESOURCE,
   ROOT_RESOURCE_LABEL,
+  resolverAdminRoleOf,
   resolverPermissions,
   resolverRoleGroupId,
 } from '@/lib/roles/resolverRoles'
@@ -72,6 +76,7 @@ const EditPermissionList = ({
   editedPermissions,
   onChange,
   canManageRoles,
+  callerAdminRoles,
   canGrant,
   disabled,
 }: {
@@ -82,6 +87,8 @@ const EditPermissionList = ({
     checked: boolean,
   ) => void
   readonly canManageRoles: boolean
+  /** The caller's `_ADMIN` roles on this row's resource, root included. */
+  readonly callerAdminRoles: ReadonlySet<ResolverRole>
   /** False for argument-scoped rows: roles there can only be revoked. */
   readonly canGrant: boolean
   readonly disabled: boolean
@@ -92,6 +99,9 @@ const EditPermissionList = ({
         admin: false,
         manager: false,
       }
+      const canSetRole =
+        canManageRoles &&
+        callerAdminRoles.has(resolverAdminRoleOf(permission.key))
 
       return (
         <div
@@ -113,9 +123,7 @@ const EditPermissionList = ({
                 id={`${permission.key}-manager`}
                 checked={rolePerms.manager}
                 disabled={
-                  !canManageRoles ||
-                  disabled ||
-                  (!canGrant && !rolePerms.manager)
+                  !canSetRole || disabled || (!canGrant && !rolePerms.manager)
                 }
                 onCheckedChange={(checked) =>
                   onChange(permission.key, 'manager', checked as boolean)
@@ -125,7 +133,7 @@ const EditPermissionList = ({
                 htmlFor={`${permission.key}-manager`}
                 className={cn(
                   'font-medium cursor-pointer',
-                  canManageRoles ? 'text-foreground' : 'text-muted-foreground',
+                  canSetRole ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
                 User
@@ -368,6 +376,25 @@ export const ResolverRolesSidebar = ({
   const revocations =
     removalPlan?.type === 'complete' ? removalPlan.revocations : NO_REVOCATIONS
 
+  const callerAdminRoles = useResolverCallerAdminRoles({
+    resolverAddress,
+    resource: group?.isRoot ? null : resource,
+    account: connectedAddress,
+  })
+  // Every scope must be revocable, or "Remove user" stops part-way.
+  const canRevokeAll = useQueries({
+    queries: revocations.map(({ resource, roles }) => ({
+      ...getHasRolesQueryOptions({
+        resolverAddress,
+        ...(resource === ROOT_RESOURCE ? {} : { resource }),
+        roles: [...new Set(roles.map(resolverAdminRoleOf))],
+        account: connectedAddress ?? zeroAddress,
+      }),
+      enabled: Boolean(connectedAddress),
+    })),
+    combine: (results) => results.every(({ data }) => data === true),
+  })
+
   useResetMutationsOnAccountChange(
     selectedAccount,
     saveMutation,
@@ -480,7 +507,8 @@ export const ResolverRolesSidebar = ({
                   disabled={
                     removeUserMutation.isPending ||
                     !isWalletConnected ||
-                    revocations.length === 0
+                    revocations.length === 0 ||
+                    !canRevokeAll
                   }
                   onClick={() => setConfirmOpen(true)}
                 >
@@ -530,6 +558,7 @@ export const ResolverRolesSidebar = ({
                     editedPermissions={editedPermissions}
                     onChange={handlePermissionChange}
                     canManageRoles={canEdit}
+                    callerAdminRoles={callerAdminRoles}
                     canGrant={group.isRoot}
                     disabled={saveMutation.isPending}
                   />

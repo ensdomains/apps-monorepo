@@ -1,11 +1,13 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { CONTRACT_HISTORY_TIMELINE } from '@/features/history/components/ContractHistoryTimeline'
+import { RESOLVER_ROLES_FOR_ACCOUNT } from '../hooks/useResolverCallerAdminRoles'
 import { RESOLVER_NODES } from '../hooks/useResolverNodes'
 
 const RESOLVER_SCOPED_QUERIES = new Set<unknown>([
   CONTRACT_HISTORY_TIMELINE,
   RESOLVER_NODES,
+  RESOLVER_ROLES_FOR_ACCOUNT,
 ])
 
 const isScopedTo = (
@@ -20,7 +22,7 @@ const isScopedTo = (
   isAddress(params.address) &&
   isAddressEqual(params.address, resolverAddress)
 
-/** Refetches the resolver overviews and this resolver's history and nodes after a write to it. */
+/** Refetches the resolver overviews and this resolver's history, nodes and role reads after a write to it. */
 export const invalidateResolverOverview = (
   queryClient: QueryClient,
   resolverAddress: Address,

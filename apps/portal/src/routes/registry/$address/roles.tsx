@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -11,9 +11,11 @@ import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
+import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
+import { canManageRegistryRootRoles } from '@/lib/roles/permissions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/roles')({
@@ -47,14 +49,13 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
 
   const callerAddress = walletClient?.account?.address
 
-  const { data: isAdmin = false } = useQuery({
-    ...getHasRolesQueryOptions({
+  const isAdmin = canManageRegistryRootRoles(
+    useCallerAdminRoles({
       registryAddress: address,
-      roles: ['ROLE_REGISTRAR_ADMIN'],
-      account: callerAddress ?? zeroAddress,
+      resource: ROOT_RESOURCE_ID,
+      account: callerAddress,
     }),
-    enabled: !!callerAddress,
-  })
+  )
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
 
