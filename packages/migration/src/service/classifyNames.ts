@@ -383,11 +383,13 @@ const classifyUnlockedWrapper = (
   }
   if (!parentName) return ineligible(domain, 'missing-parent')
 
-  const parentFuses = domain.parent?.wrappedDomain?.fuses
+  // NameWrapper burns PARENT_CANNOT_CONTROL only under a parent with
+  // CANNOT_UNWRAP, and clears it when the child expires, so the child's own
+  // fuses and expiry decide, as LibMigration's do. A parent that already
+  // migrated has no wrapper fuses left to read.
   if (
     hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
-    parentFuses !== undefined &&
-    hasFuse(BigInt(parentFuses), FUSES.CANNOT_UNWRAP)
+    BigInt(wrappedDomain.expiryDate) > nowSeconds
   ) {
     return {
       type: 'classified',
