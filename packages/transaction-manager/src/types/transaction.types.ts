@@ -196,7 +196,6 @@ export type SmartAccountConfig = {
   /** Required: a missing chain must fail loudly, never fall back to a default network. */
   readonly chain: Chain
   readonly accountAddress?: Address
-  readonly rhinestoneApiKey: string
 }
 
 export interface TransactionOptions {

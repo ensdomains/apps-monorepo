@@ -40,6 +40,8 @@ const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
   network: 'mainnet',
 }))
 
+vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+
 vi.mock('@/config', async () => {
   const { extendChainWithEns } = await import('@ensdomains/ensjs/chain')
   const { mainnet } = await import('viem/chains')
@@ -49,7 +51,7 @@ vi.mock('@/config', async () => {
         return mockEnvConfig.network
       },
       chain: extendChainWithEns(mainnet),
-      endpoints: { indexerGraphql: 'https://indexer.example/graphql' },
+      endpoints: { bignameApi: 'https://bigname.example' },
     },
   }
 })

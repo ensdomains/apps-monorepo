@@ -1,9 +1,9 @@
 import { Trans } from '@lingui/react/macro'
-import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
+import { type LinkOptions, linkOptions } from '@tanstack/react-router'
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
-import { tw } from '@/utils/tailwind'
+import { AccountMenuItemButton, AccountMenuItemLink } from './AccountMenuItem'
 
 type NavSectionProps = {
   readonly onAction: () => void
@@ -75,34 +75,26 @@ export const NavSection = ({
         id === 'profile' &&
         reverseNameQuery.isSuccess &&
         !reverseNameQuery.data ? (
-          <button
-            className="flex w-full cursor-pointer items-center gap-2 rounded border-ens-quartz-100 border-b p-3 text-ens-quartz-500 transition-all hover:bg-ens-quartz-50 hover:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
+          <AccountMenuItemButton
+            className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
             key={id}
             onClick={onChoosePrimaryName}
-            type="button"
+            prefix={icon}
           >
-            {icon}
-            <span className="text-base">{label}</span>
-          </button>
+            {label}
+          </AccountMenuItemButton>
         ) : (
-          <Link
-            activeProps={{
-              className: tw`bg-ens-quartz-50 font-[450] ms-wght-300`,
-            }}
-            className="flex items-center gap-2 rounded border-ens-quartz-100 border-b p-3 text-ens-quartz-500 transition-all aria-disabled:cursor-not-allowed aria-disabled:text-ens-quartz-350"
-            inactiveProps={{
-              className: tw`font-normal not-aria-disabled:hover:bg-ens-quartz-50 not-aria-disabled:hover:font-[450] not-aria-disabled:hover:ms-wght-300`,
-            }}
+          <AccountMenuItemLink
             key={id}
+            link={link}
             onClick={() => {
               if (link.disabled) return
               onAction()
             }}
-            {...link}
+            prefix={icon}
           >
-            {icon}
-            <span className="text-base">{label}</span>
-          </Link>
+            {label}
+          </AccountMenuItemLink>
         ),
       )}
     </div>

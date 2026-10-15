@@ -63,7 +63,7 @@ const MultiNameConfirmCardSkeleton = ({
     <NameAvatar name={name} height="40px" width="40px" rounded="rounded-sm" />
     <div className="flex flex-col flex-1 gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium truncate">{name}</span>
+        <span className="text-base font-medium truncate">{name}</span>
         <Skeleton className="h-3 w-24" />
       </div>
       <Skeleton className="h-3 w-full" />

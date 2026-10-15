@@ -90,7 +90,7 @@ export const TableMultiSelectFilter = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => onChange([])}
-                className="h-auto px-2 py-1 text-xs text-muted-foreground"
+                className="h-auto px-2 py-1 text-small text-muted-foreground"
               >
                 Reset
               </Button>
@@ -108,7 +108,7 @@ export const TableMultiSelectFilter = ({
             return (
               <div key={group.title} className="mb-6 last:mb-0">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold">{group.title}</h4>
+                  <h4 className="text-base font-semibold">{group.title}</h4>
                   {hasAnySelected && (
                     <Button
                       variant="link"
@@ -121,7 +121,7 @@ export const TableMultiSelectFilter = ({
                           ),
                         )
                       }}
-                      className="h-auto p-0 text-xs text-muted-foreground"
+                      className="h-auto p-0 text-small text-muted-foreground"
                     >
                       Deselect all
                     </Button>

@@ -5,6 +5,7 @@ import { Mountain, Search } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { DashboardPagination } from '@/features/dashboard/components/DashboardPagination'
@@ -28,6 +29,7 @@ import {
   NON_EXPIRING_DATE_LABEL,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { useProfileAddressNames } from '@/features/profile/hooks/useProfileAddressNames'
 import {
   PROFILE_NAMES_PAGE_SIZE,
   type ProfileAddressName,
@@ -35,6 +37,7 @@ import {
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
+import { useDebounce } from '@/hooks/useDebounce'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { tw } from '@/utils/tailwind'
 
@@ -62,29 +65,6 @@ const toSort = (field: SortField, dir: SortDir): Sort =>
 
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
-
-const getExpirySortValue = (expiry: number | null): number | null =>
-  expiry === 0 ? null : expiry
-
-const compareNames = (
-  a: ProfileAddressName,
-  b: ProfileAddressName,
-  field: SortField,
-  dir: SortDir,
-): number => {
-  const mul = dir === 'asc' ? 1 : -1
-  if (field === 'name') {
-    return a.label.localeCompare(b.label) * mul
-  }
-  const ax =
-    field === 'created' ? a.createdAt : getExpirySortValue(a.expiryDate)
-  const bx =
-    field === 'created' ? b.createdAt : getExpirySortValue(b.expiryDate)
-  if (ax === null && bx === null) return 0
-  if (ax === null) return 1
-  if (bx === null) return -1
-  return (ax - bx) * mul
-}
 
 const formatExpiryLabel = (expiryDate: number | null): string | null => {
   if (expiryDate === 0) return NON_EXPIRING_DATE_LABEL
@@ -161,19 +141,13 @@ const AddressNameRow = ({
 }
 
 export const AddressProfileNamesList = ({
-  addressNames,
+  address,
   primaryName,
   isConnectedView,
-  isPending = false,
-  isError = false,
-  isPlaceholderData = false,
 }: {
-  readonly addressNames: readonly ProfileAddressName[]
+  readonly address: Address
   readonly primaryName?: string
   readonly isConnectedView: boolean
-  readonly isPending?: boolean
-  readonly isError?: boolean
-  readonly isPlaceholderData?: boolean
 }) => {
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
@@ -183,8 +157,33 @@ export const AddressProfileNamesList = ({
   const [sort, setSort] = useState<Sort>('created-desc')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('owned')
   const { field: sortField, dir: sortDir } = parseSort(sort)
+  // Searching reads bigname, so wait for typing to pause.
+  const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
+    delay: 300,
+  })
 
-  const allNames = addressNames
+  const {
+    pageNames: pageItems,
+    total,
+    counts,
+    isPending: isNamesPending,
+    isPagePending,
+    isError,
+    isPlaceholderData,
+    loadPage,
+  } = useProfileAddressNames({
+    address,
+    scope: isConnectedView ? roleFilter : 'all',
+    sortField,
+    sortDir,
+    search,
+    page,
+  })
+  const isPending = isNamesPending || isPagePending
+  const onPageChange = (next: number) => {
+    setPage(next)
+    void loadPage(next)
+  }
 
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
@@ -204,40 +203,15 @@ export const AddressProfileNamesList = ({
     }
   }
 
-  const ownedCount = useMemo(
-    () => allNames.filter((name) => name.roleCategory === 'owned').length,
-    [allNames],
-  )
-  const managedCount = useMemo(
-    () => allNames.filter((name) => name.roleCategory === 'managed').length,
-    [allNames],
-  )
-
-  const filteredSorted = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    return allNames
-      .filter((name) => {
-        if (isConnectedView && name.roleCategory !== roleFilter) return false
-        if (q && !name.label.toLowerCase().includes(q)) return false
-        return true
-      })
-      .sort((a, b) => compareNames(a, b, sortField, sortDir))
-  }, [allNames, isConnectedView, roleFilter, searchQuery, sortDir, sortField])
-
-  const filterKey = `${searchQuery}:${sort}:${roleFilter}:${isConnectedView}`
+  const filterKey = `${address}:${searchQuery}:${sort}:${roleFilter}:${isConnectedView}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
     setPage(1)
   }
 
-  const total = filteredSorted.length
   const totalPages = Math.max(1, Math.ceil(total / PROFILE_NAMES_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = filteredSorted.slice(
-    (currentPage - 1) * PROFILE_NAMES_PAGE_SIZE,
-    currentPage * PROFILE_NAMES_PAGE_SIZE,
-  )
   const rangeStart =
     total === 0 ? 0 : (currentPage - 1) * PROFILE_NAMES_PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PROFILE_NAMES_PAGE_SIZE, total)
@@ -269,7 +243,7 @@ export const AddressProfileNamesList = ({
     {
       value: 'owned',
       label: t`Owned`,
-      count: ownedCount,
+      count: counts.owned ?? undefined,
       activeClassName:
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
@@ -277,7 +251,7 @@ export const AddressProfileNamesList = ({
     {
       value: 'managed',
       label: t`Managed`,
-      count: managedCount,
+      count: counts.managed ?? undefined,
       activeClassName:
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
@@ -399,7 +373,7 @@ export const AddressProfileNamesList = ({
         <DashboardPagination
           currentPage={currentPage}
           disabled={isPending}
-          onPageChange={setPage}
+          onPageChange={onPageChange}
           rangeEnd={rangeEnd}
           rangeStart={rangeStart}
           total={total}

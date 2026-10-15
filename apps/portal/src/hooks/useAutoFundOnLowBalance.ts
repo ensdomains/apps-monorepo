@@ -2,9 +2,9 @@ import { anvilSetupOwner, isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { erc20Abi } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useConnection, useReadContracts } from 'wagmi'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
+import { ensChain } from '@/lib/wagmi'
 import { useFundWallet } from './useFundWallet'
 
 const LOW_BALANCE_THRESHOLD = 500n
@@ -70,7 +70,7 @@ export function useAutoFundOnLowBalance() {
       description: 'Clearing bytecode and minting test tokens on Anvil...',
       id: `anvil-setup-${address}`,
     })
-    anvilSetupOwner(address, sepolia, {
+    anvilSetupOwner(address, ensChain, {
       USDC: PAYMENT_TOKENS[0].address,
       DAI: PAYMENT_TOKENS[1].address,
     })

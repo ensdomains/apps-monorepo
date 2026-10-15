@@ -1,6 +1,7 @@
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { NotificationsMenuItem } from '../notifications/NotificationsMenuItem'
+import { AccountMenuDivider } from './AccountMenuItem'
 import { LanguageSection } from './LanguageSection'
 import { NavSection } from './NavSection'
 import { WalletSection } from './WalletSection'
@@ -20,16 +21,20 @@ export const AccountContent = ({
   )
 
   return (
-    <div className="ms-wght-300 space-y-8">
-      <div className="flex flex-col gap-0.5">
-        <NavSection
-          onAction={onAction}
-          onChoosePrimaryName={onChoosePrimaryName}
-        />
-        <NotificationsMenuItem onAction={onAction} />
-      </div>
+    <div className="ms-wght-300 flex flex-col">
+      <NavSection
+        onAction={onAction}
+        onChoosePrimaryName={onChoosePrimaryName}
+      />
+      <NotificationsMenuItem onAction={onAction} />
+      <AccountMenuDivider />
       {isLanguageSelectorEnabled === true ? (
-        <LanguageSection onAction={onAction} />
+        <>
+          <div className="py-2">
+            <LanguageSection onAction={onAction} />
+          </div>
+          <AccountMenuDivider />
+        </>
       ) : null}
       <WalletSection onAction={onAction} />
     </div>

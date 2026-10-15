@@ -5,7 +5,7 @@ import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
 type HeaderProps = {
-  readonly desktopBreakpoint?: 'md' | 'lg-landscape'
+  readonly desktopBreakpoint?: 'md' | 'xl'
   readonly hasMobileBlurredBackground?: boolean
   readonly profileThemeColor?: string
   readonly transparentBackground?: boolean
@@ -18,9 +18,7 @@ export const Header = ({
   transparentBackground = false,
 }: HeaderProps) => {
   const isDesktop = useMediaQuery(
-    desktopBreakpoint === 'lg-landscape'
-      ? '(min-width: 1024px) and (orientation: landscape)'
-      : '(min-width: 768px)',
+    desktopBreakpoint === 'xl' ? '(min-width: 1280px)' : '(min-width: 768px)',
   )
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()

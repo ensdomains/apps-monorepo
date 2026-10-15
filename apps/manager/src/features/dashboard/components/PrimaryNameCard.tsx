@@ -113,7 +113,7 @@ export const PrimaryNameCard = ({
   return (
     <Card
       className={cn(
-        'flex flex-col gap-4 rounded-none p-4 md:rounded-xl md:p-6',
+        'flex flex-col gap-4 rounded-none xs:rounded-xl p-4 md:p-6',
         isInGrace && 'opacity-70',
       )}
       style={isInGrace ? undefined : (themeVars as React.CSSProperties)}

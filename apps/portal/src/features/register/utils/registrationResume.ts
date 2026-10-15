@@ -18,7 +18,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ResultAsync } from 'neverthrow'
 import { type Address, type Client, erc20Abi, type Hash, parseAbi } from 'viem'
 import { getBlock, readContract } from 'viem/actions'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { PAYMENT_TOKENS, type PaymentToken } from '../constants/paymentTokens'
 
 const registrarAbi = parseAbi([
@@ -28,7 +28,7 @@ const registrarAbi = parseAbi([
 
 /** The EOA path commits, approves and registers here (`submitCommitmentActor`). */
 const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensEthRegistrar',
 })
 

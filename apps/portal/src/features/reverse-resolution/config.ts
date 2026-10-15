@@ -3,6 +3,7 @@ import {
   type ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
 import type { Address } from 'viem'
+import { chain, envConfig } from '@/config'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
 
@@ -21,18 +22,12 @@ import { icons, names } from '@/lib/reverseRegistrarChainId'
  */
 
 /**
- * Standalone ENSv1 `DefaultReverseRegistrar` on Sepolia (ENSIP-19
- * `default.reverse`, coin type `0x80000000`). `setName(string)` sets the
- * caller's cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
- *
- * Do not use the chain's `ensDefaultReverseRegistrar`; that currently points
- * at a different Sepolia deployment.
- *
- * TODO: Sepolia-only; move to a network-keyed source (e.g. `@ens-apps/l2-primary`)
- * when mainnet is supported.
+ * Standalone ENSv1 `DefaultReverseRegistrar` (ENSIP-19 `default.reverse`, coin
+ * type `0x80000000`). `setName(string)` sets the caller's cross-chain primary
+ * name — NOT the ENSv2 permissioned-resolver path.
  */
-export const DEFAULT_REVERSE_REGISTRAR_ADDRESS =
-  '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47' as Address
+export const DEFAULT_REVERSE_REGISTRAR_ADDRESS: Address =
+  chain.contracts.ensDefaultReverseRegistrar.address
 
 /**
  * Chain/network configuration for reverse resolution display
@@ -73,7 +68,7 @@ const MAINNET_REVERSE_RECORD: ReverseResolutionNetwork = {
  * Create reverse resolution networks from reverseRegistrarChainId data.
  *
  * L2 reads (`nameForAddr`) are routed through the local `l2WagmiConfig`
- * (see `@/lib/wagmiL2`) instead of the global Sepolia-only wagmi config, so
+ * (see `@/lib/wagmiL2`) instead of the global L1-only wagmi config, so
  * including L2 entries here does NOT affect the explorer's main data path.
  */
 function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
@@ -87,17 +82,16 @@ function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
       reverseRegistrarChainIdKey,
     ) as ReverseRegistrarChainId
     // L1 rows (mainnet/"Ethereum") are represented by the Default + Mainnet
-    // rows above. Since the explorer operates against Sepolia, both the
-    // `60` and `1` entries collapse into those two rows.
+    // rows above, so both the `60` and `1` entries collapse into those two.
     if (reverseRegistrarChainId === 60) continue
     if (reverseRegistrarChainId === 1) continue
     networks.push({
-      // The explorer runs against Sepolia, where L2 reverse namespaces are
-      // keyed on TESTNET chain-id coin types (e.g. `0x80000000 | 84532` for
-      // Base Sepolia) — the mainnet-derived namespaces don't exist there.
+      // L2 reverse namespaces are keyed on the build network's chain ids: on
+      // Sepolia that means TESTNET coin types (e.g. `0x80000000 | 84532` for
+      // Base Sepolia), where the mainnet-derived namespaces don't exist.
       coinType: getCoinTypeForReverseRegistrarChainId(
         reverseRegistrarChainId,
-        'sepolia',
+        envConfig.network,
       ),
       reverseRegistrarChainId,
       label: names[reverseRegistrarChainId],

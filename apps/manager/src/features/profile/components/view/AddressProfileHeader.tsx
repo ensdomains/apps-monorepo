@@ -4,17 +4,16 @@ import { Link } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
-import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
+import { getNameExpiryStatus } from '@/features/grace/utils/gracePeriod'
 import {
   getProfileExpiryResultStatus,
-  getProfileNameExpiryStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import type { ProfileRecords } from '@/features/profile/types'
+import { getNameDetailQueryOptions } from '@/features/shared/service/nameDetail'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
-import { findPrimaryAddressName } from './addressProfilePrimary'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
 
@@ -27,10 +26,10 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
     : { type: 'spring' as const, stiffness: 420, damping: 28 }
 
   return (
-    <h1 className="w-full max-w-full text-center font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px] lg:landscape:w-auto lg:landscape:text-left">
+    <h1 className="w-full max-w-full text-center font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px] xl:w-auto xl:text-left">
       <button
         aria-label={`${address} — ${t`Copy to clipboard`}`}
-        className="group relative inline-block max-w-[calc(100%-34px)] cursor-pointer rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2 lg:landscape:max-w-full"
+        className="group relative inline-block max-w-[calc(100%-34px)] cursor-pointer rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2 xl:max-w-full"
         onClick={() => copy(address)}
         title={t`Copy to clipboard`}
         type="button"
@@ -65,28 +64,23 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   )
 }
 
-const useAddressProfileAvatar = ({
-  addressNames,
-  primaryName,
-  isNamesPending,
-  records,
-}: {
-  readonly addressNames: readonly ProfileAddressName[]
-  readonly primaryName?: string
-  readonly isNamesPending: boolean
-  readonly records: ProfileRecords | null
-}) => {
-  const primaryEntry = findPrimaryAddressName(addressNames, primaryName)
-  const isV1Primary = primaryEntry?.protocol === 'v1'
+// An ENSv1 primary name's grace follows its lease, which name detail serves.
+const useAddressProfileAvatar = (
+  primaryName: string | undefined,
+  records: ProfileRecords | null,
+) => {
+  const { data: detail, isPending: isDetailPending } = useQuery(
+    getNameDetailQueryOptions(primaryName),
+  )
+  const isV1Primary = detail?.protocol === 'v1'
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(primaryName ?? ''),
-    enabled: !!primaryName && !isNamesPending && !isV1Primary,
+    enabled: !!primaryName && !isDetailPending && !isV1Primary,
   })
 
-  const isInGrace =
-    isV1Primary && primaryEntry
-      ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1').isInGrace
-      : getProfileExpiryResultStatus(expiryData).isInGrace
+  const isInGrace = isV1Primary
+    ? getNameExpiryStatus(detail.expiresAt, 'v1').isInGrace
+    : getProfileExpiryResultStatus(expiryData).isInGrace
 
   return useQuery(
     imageRecordQuery(
@@ -97,40 +91,31 @@ const useAddressProfileAvatar = ({
 
 export const AddressProfileHeader = ({
   address,
-  addressNames,
   primaryName,
-  isNamesPending = false,
   records,
 }: {
   readonly address: Address
-  readonly addressNames: readonly ProfileAddressName[]
   readonly primaryName?: string
-  readonly isNamesPending?: boolean
   readonly records: ProfileRecords | null
 }) => {
-  const avatar = useAddressProfileAvatar({
-    addressNames,
-    primaryName,
-    isNamesPending,
-    records,
-  })
+  const avatar = useAddressProfileAvatar(primaryName, records)
   const avatarUrl = avatar.data ?? undefined
 
   return (
-    <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">
+    <div className="flex w-full flex-col gap-5 xl:gap-6">
       {primaryName ? (
         <ProfileAvatar
           avatarLoading={avatar.isLoading}
           avatarUrl={avatarUrl}
-          className="mx-auto -mt-14 size-42.5 rounded-xl shadow-none lg:landscape:hidden"
+          className="mx-auto -mt-14 size-42.5 rounded-xl shadow-none xl:hidden"
           name={primaryName}
         />
       ) : null}
-      <div className="flex flex-col items-center gap-4 lg:landscape:flex-row lg:landscape:justify-between">
+      <div className="flex flex-col items-center gap-4 xl:flex-row xl:justify-between">
         <AddressLabel address={address} />
         {primaryName ? (
           <Link
-            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover lg:landscape:h-11"
+            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover xl:h-11"
             params={{ name: primaryName }}
             to="/$name"
           >
@@ -144,8 +129,8 @@ export const AddressProfileHeader = ({
       </div>
 
       {primaryName ? (
-        <div className="flex flex-col gap-5 lg:landscape:grid lg:landscape:grid-cols-[max-content_minmax(0,1fr)] lg:landscape:items-start lg:landscape:gap-5.5">
-          <div className="relative hidden size-45 lg:landscape:block">
+        <div className="flex flex-col gap-5 xl:grid xl:grid-cols-[max-content_minmax(0,1fr)] xl:items-start xl:gap-5.5">
+          <div className="relative hidden size-45 xl:block">
             <ProfileAvatar
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}

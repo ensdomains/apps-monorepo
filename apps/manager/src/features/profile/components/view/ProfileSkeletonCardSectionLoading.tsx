@@ -20,28 +20,25 @@ const SkeletonCardLoading = ({
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
-  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-4 text-left lg:landscape:min-h-33.5 lg:landscape:rounded-xl lg:landscape:p-[24.25px]">
+  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-4 text-left xl:min-h-33.5 xl:rounded-xl xl:p-[24.25px]">
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
-          className="size-7 rounded-md lg:landscape:size-7.5"
+          className="size-7 rounded-md xl:size-7.5"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
       <SkeletonBlock
-        className={tw('h-[16.5px] rounded-sm lg:landscape:h-4.5', labelWidth)}
+        className={tw('h-[16.5px] rounded-sm xl:h-4.5', labelWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
     <SkeletonBlock
-      className="absolute top-4 right-4 size-5 rounded lg:landscape:top-[24.25px] lg:landscape:right-[24.25px] lg:landscape:size-7.5"
+      className="absolute top-4 right-4 size-5 rounded xl:top-[24.25px] xl:right-[24.25px] xl:size-7.5"
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock
-      className={tw(
-        'h-[19.5px] max-w-full rounded-sm lg:landscape:h-5',
-        valueWidth,
-      )}
+      className={tw('h-[19.5px] max-w-full rounded-sm xl:h-5', valueWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
   </Card>
@@ -61,7 +58,7 @@ const cardPlaceholders = [
   {
     id: 'mailing-address',
     labelWidth: 'w-[96px]',
-    valueWidth: 'w-[128px] lg:landscape:w-[168px]',
+    valueWidth: 'w-[128px] xl:w-[168px]',
   },
 ]
 
@@ -75,7 +72,7 @@ export const ProfileSkeletonCardSectionLoading = ({
     shouldReduceMotion={shouldReduceMotion}
     titleWidth={titleWidth}
   >
-    <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6">
       {cardPlaceholders.map(({ id, labelWidth, valueWidth }) => (
         <SkeletonCardLoading
           key={id}

@@ -14,11 +14,19 @@ const NODE_A: Hex =
 const NODE_B: Hex =
   '0x2222222222222222222222222222222222222222222222222222222222222222'
 
-const A: NameForFetch = { nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }
+const A: NameForFetch = {
+  name: 'a.eth',
+  nodeHex: NODE_A,
+  v1ResolverAddress: V1_RESOLVER,
+}
 const profileKeys = (
-  overrides: Omit<ProfileKeyEntry, 'contentHash' | 'abiContentTypes'> &
-    Partial<Pick<ProfileKeyEntry, 'contentHash' | 'abiContentTypes'>>,
-): ProfileKeyEntry => ({ contentHash: null, abiContentTypes: [], ...overrides })
+  overrides: Omit<ProfileKeyEntry, 'hasContentHash' | 'abiContentTypes'> &
+    Partial<Pick<ProfileKeyEntry, 'hasContentHash' | 'abiContentTypes'>>,
+): ProfileKeyEntry => ({
+  hasContentHash: false,
+  abiContentTypes: [],
+  ...overrides,
+})
 
 describe('indexNamesByNode', () => {
   it('keys entries by lowercased nodeHex', () => {

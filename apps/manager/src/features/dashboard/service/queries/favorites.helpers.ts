@@ -1,4 +1,4 @@
-import { OrderDirection } from '@ens-apps/indexer'
+import type { SortDir } from '../../mergedNames'
 import type { FavoriteEntry as ApiFavoriteEntry } from './getFavorites'
 
 export type FavoriteEntry = {
@@ -24,15 +24,15 @@ export const filterFavoritesBySearch = (
 export const sortFavorites = (
   favorites: readonly FavoriteEntry[],
   sortField: 'name' | 'addedAt',
-  sortDirection: OrderDirection,
+  sortDirection: SortDir,
 ): readonly FavoriteEntry[] => {
   return [...favorites].sort((a, b) => {
     if (sortField === 'name') {
       const comparison = a.label.localeCompare(b.label)
-      return sortDirection === OrderDirection.Asc ? comparison : -comparison
+      return sortDirection === 'asc' ? comparison : -comparison
     }
     const comparison = a.addedAt - b.addedAt
-    return sortDirection === OrderDirection.Asc ? comparison : -comparison
+    return sortDirection === 'asc' ? comparison : -comparison
   })
 }
 

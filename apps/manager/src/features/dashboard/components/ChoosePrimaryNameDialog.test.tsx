@@ -32,6 +32,14 @@ const chain = vi.hoisted(() => ({
   submit: vi.fn(),
 }))
 
+const dashboardNamesMock = vi.hoisted(() => ({
+  useDashboardNames: vi.fn(),
+}))
+
+const eligibilityMock = vi.hoisted(() => ({
+  useDashboardMigrationEligibility: vi.fn(),
+}))
+
 // Keep the real reverse query, QueryClient, chooser, useSetPrimaryName mutation,
 // Dashboard, card, MyNamesList and NavSection. Stub only IO and unrelated panels.
 vi.mock('viem/actions', async (original) => ({
@@ -128,6 +136,11 @@ vi.mock('../useDashboardV1Names', () => ({
     isError: false,
   }),
 }))
+vi.mock('../useDashboardNames', () => ({
+  ...dashboardNamesMock,
+  DASHBOARD_PAGE_SIZE: 5,
+}))
+vi.mock('../useDashboardMigrationEligibility', () => eligibilityMock)
 vi.mock('./NamesTable', () => ({
   NamesTable: ({ primaryLabel }: { readonly primaryLabel: string | null }) => (
     <section aria-label="My Names">
@@ -199,6 +212,43 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
       .mockImplementation(async ({ name }: { readonly name: string }) => {
         chain.primaryName = name
       })
+    dashboardNamesMock.useDashboardNames.mockReturnValue({
+      pageNames: [
+        {
+          key: '0x01',
+          name: 'alpha.eth',
+          protocol: 'v2',
+          expiryDate: 2_000_000_000n,
+          servedExpiry: null,
+          createdAt: 0n,
+          nameRoles: ['owner'],
+          isLapsed: false,
+        },
+        {
+          key: '0x02',
+          name: 'beta.eth',
+          protocol: 'v2',
+          expiryDate: 2_000_000_000n,
+          servedExpiry: null,
+          createdAt: 0n,
+          nameRoles: ['owner'],
+          isLapsed: false,
+        },
+      ],
+      total: 2,
+      addresses: [chain.owner],
+      hasAddresses: true,
+      isPending: false,
+      isPagePending: false,
+      isError: false,
+      isGraceError: false,
+      loadPage: vi.fn(),
+    })
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
+      isPending: false,
+      isError: false,
+    })
   })
 
   it.each([

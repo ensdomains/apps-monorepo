@@ -140,7 +140,7 @@ function RouteComponent() {
           </InputGroupAddon>
         </InputGroup>
         {loader.canShowMore && Boolean(table.getState().globalFilter) && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-p text-muted-foreground">
             Search covers the {names.length} names shown so far. Show more to
             include the rest.
           </p>

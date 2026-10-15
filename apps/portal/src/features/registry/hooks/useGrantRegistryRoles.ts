@@ -12,7 +12,7 @@ import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { invalidateRegistryQueries } from '@/features/registry/utils/invalidateRegistryQueries'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { grantRegistryRoles } from '../helpers/grantRegistryRoles'
 
@@ -24,7 +24,7 @@ type UseGrantRegistryRolesParameters = {
 }
 
 export function useGrantRegistryRolesMutation() {
-  const chainId = sepoliaWithEns.id
+  const chainId = ensChain.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()

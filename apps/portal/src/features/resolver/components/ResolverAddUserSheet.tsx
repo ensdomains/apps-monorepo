@@ -32,7 +32,7 @@ import {
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
 
@@ -89,7 +89,7 @@ const RolePermissionList = ({
       >
         <div className="flex flex-col gap-1 flex-1 min-w-64">
           <div className="font-medium">{permission.title}</div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-p text-muted-foreground">
             {permission.description}
           </div>
         </div>
@@ -124,7 +124,7 @@ const RolePermissionList = ({
   </div>
 )
 
-const chainId = sepoliaWithEns.id
+const chainId = ensChain.id
 
 type ResolverAddUserSheetProps = {
   readonly open: boolean
@@ -334,7 +334,7 @@ export const ResolverAddUserSheet = ({
                         className="flex flex-col gap-0.5 cursor-pointer font-normal"
                       >
                         <span className="font-medium">{option.label}</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-p text-muted-foreground">
                           {option.hint}
                         </span>
                       </Label>
@@ -378,7 +378,7 @@ export const ResolverAddUserSheet = ({
                   )}
                 </Field>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-p text-muted-foreground">
                   Grants{' '}
                   <span className="font-medium text-foreground">
                     {scopeKind === 'text' ? 'Set Text' : 'Set Address'}

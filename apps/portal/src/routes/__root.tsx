@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { isSepoliaBuild } from '@/config'
 import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
@@ -17,20 +18,25 @@ import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { ensChain, wagmiConfig } from '@/lib/wagmi'
 import { getPageTitle } from '@/utils/pageTitle'
 import { queryClient } from '@/utils/queryClient'
+
+// Tops up test USDC/DAI from the Sepolia faucet; a mainnet bundle leaves it out.
+const AutoFundOnLowBalance = () => {
+  useAutoFundOnLowBalance()
+  return null
+}
 
 function TransactionManagerSetup({ children }: { children: ReactNode }) {
   const publicClient = usePublicClient()
 
-  useAutoFundOnLowBalance()
   useTransactionModalRouteReset()
   useTransactionManagerAccount()
 
   useEffect(() => {
     if (publicClient) {
-      transactionManager.setPublicClient(sepoliaWithEns.id, publicClient)
+      transactionManager.setPublicClient(ensChain.id, publicClient)
     }
   }, [publicClient])
 
@@ -78,6 +84,7 @@ export const Route = createRootRoute({
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             {isMockWalletEnabled && <MockWalletAutoConnect />}
+            {isSepoliaBuild && <AutoFundOnLowBalance />}
             <ConnectModalProvider>
               <TransactionManagerSetup>
                 <PHProvider>
