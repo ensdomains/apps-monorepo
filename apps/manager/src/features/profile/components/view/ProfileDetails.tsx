@@ -15,9 +15,9 @@ type ProfileDetailsProps = {
 }
 
 const detailLabelClassName =
-  'relative flex items-center text-ens-quartz-400 text-xs leading-5.25 lg:landscape:text-base lg:landscape:leading-normal'
+  'relative flex items-center text-ens-quartz-400 text-xs leading-5.25 xl:text-base xl:leading-normal'
 const detailValueClassName =
-  'font-sans text-[11px] text-ens-quartz-700 leading-4.5 tracking-[0.77px] lg:landscape:text-[13px] lg:landscape:leading-normal lg:landscape:tracking-[0.91px]'
+  'font-sans text-[11px] text-ens-quartz-700 leading-4.5 tracking-[0.77px] xl:text-[13px] xl:leading-normal xl:tracking-[0.91px]'
 
 export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
   <div className="inline-flex max-w-full items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
@@ -34,15 +34,15 @@ const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
   return (
     <button
       aria-label={t`Copy to clipboard`}
-      className="inline-flex size-4 shrink-0 items-center justify-center text-ens-quartz-400 lg:landscape:size-5"
+      className="inline-flex size-4 shrink-0 items-center justify-center text-ens-quartz-400 xl:size-5"
       onClick={() => copy(value)}
       title={t`Copy to clipboard`}
       type="button"
     >
       {copied ? (
-        <Check className="size-3.5 lg:landscape:size-4" />
+        <Check className="size-3.5 xl:size-4" />
       ) : (
-        <Copy className="size-3.5 lg:landscape:size-4" />
+        <Copy className="size-3.5 xl:size-4" />
       )}
     </button>
   )
@@ -61,8 +61,8 @@ const ProfileDetailDateValue = ({
 
   return (
     <>
-      <span className="lg:landscape:hidden">{mobileValue}</span>
-      <span className="hidden lg:landscape:inline">{desktopValue}</span>
+      <span className="xl:hidden">{mobileValue}</span>
+      <span className="hidden xl:inline">{desktopValue}</span>
     </>
   )
 }
@@ -80,14 +80,14 @@ const ProfileDetail = ({
   readonly copyValue?: string
   readonly labelPaddingClassName?: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0 lg:landscape:flex-row lg:landscape:items-baseline lg:landscape:gap-1.5">
+  <div className="flex min-w-0 flex-col items-start gap-0 xl:flex-row xl:items-baseline xl:gap-1.5">
     <div className={cn(detailLabelClassName, labelPaddingClassName)}>
       <span className="absolute inset-y-0 left-0 flex items-center">
         {icon}
       </span>
       <span>{label}</span>
     </div>
-    <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
+    <div className="flex min-w-0 items-center gap-1 pl-6 xl:pl-0">
       <span className={`${detailValueClassName} truncate`}>{value}</span>
       {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
     </div>
@@ -109,7 +109,7 @@ export const ProfileDetails = ({
   const formattedExpiryDate = formatProfileDetailDate(displayExpiryDate)
 
   return (
-    <div className="grid w-full grid-cols-3 gap-3 lg:landscape:flex lg:landscape:max-w-full lg:landscape:flex-wrap lg:landscape:items-center lg:landscape:gap-x-6 lg:landscape:gap-y-3">
+    <div className="grid w-full grid-cols-3 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3">
       {owner ? (
         <ProfileDetail
           copyValue={owner}

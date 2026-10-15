@@ -1,7 +1,4 @@
-import {
-  desktopActionContainerClassName,
-  desktopActionContainerStyle,
-} from './ProfileAction.styles'
+import { desktopActionContainerClassName } from './ProfileAction.styles'
 import { SkeletonBlock } from './ProfileLoadingPrimitives'
 
 const ActionIconButtonLoading = ({
@@ -40,7 +37,7 @@ export const ProfileActionsLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <>
-    <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
+    <div className="absolute inset-x-0 top-118.5 z-30 xl:hidden">
       <div className="mx-auto flex w-full max-w-97.5 items-center justify-between px-5">
         <ActionTextButtonLoading
           className="w-34"
@@ -53,10 +50,7 @@ export const ProfileActionsLoading = ({
       </div>
     </div>
 
-    <div
-      className={desktopActionContainerClassName}
-      style={desktopActionContainerStyle}
-    >
+    <div className={desktopActionContainerClassName}>
       <div className="flex items-center gap-6">
         <ActionIconButtonLoading shouldReduceMotion={shouldReduceMotion} />
         <ActionIconButtonLoading shouldReduceMotion={shouldReduceMotion} />

@@ -39,28 +39,36 @@ export async function ensureProfilePillField(
 }
 
 /**
- * Clicks the "Save Profile" button in the edit-profile dialog header.
- * The dialog closes automatically once the on-chain save succeeds.
+ * Previews the pending edits and publishes them from the floating bar.
+ * Closing the editor with "Preview" swaps the bar to Discard / Edit /
+ * "Publish changes", and publishing goes out as the on-chain save.
  *
  * In-place record writes always go out as a plain `eth_sendTransaction` from
  * the owner EOA (see EditProfileDialog.machine.ts's `getPendingSave`), even in
  * Rhinestone HCA mode — unlike the sign-typed-data intents that
- * PERMITTED_SIGN_KINDS auto-authorizes. Authorize it here or the dialog spins
- * on "Saving" until `waitForProfileUpdated` times out.
+ * PERMITTED_SIGN_KINDS auto-authorizes. Authorize it here or the bar stays on
+ * "Publishing…" until `waitForProfileUpdated` times out.
  */
 export async function saveProfileChanges(
   page: Page,
   wallet: Web3ProviderBackend,
 ) {
+  await page.getByRole('button', { name: 'Preview' }).click()
   await Promise.all([
-    page.getByRole('button', { name: 'Save Profile' }).click(),
+    page.getByRole('button', { name: 'Publish changes' }).click(),
     authorizeTransaction(wallet, 30_000),
   ])
 }
 
 export async function waitForProfileUpdated(page: Page, timeout = 90_000) {
-  // The edit-profile dialog closes automatically when the save succeeds.
-  await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout })
+  // Once the save succeeds the preview bar swaps back to the regular profile
+  // actions, so the owner's "Edit Profile" button is back.
+  await expect(page.getByRole('button', { name: 'Edit Profile' })).toBeVisible({
+    timeout,
+  })
+  await expect(
+    page.getByRole('button', { name: 'Publish changes' }),
+  ).toHaveCount(0)
 }
 
 /**

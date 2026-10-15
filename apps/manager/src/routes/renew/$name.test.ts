@@ -65,6 +65,7 @@ describe('/renew/$name loader', () => {
     expect(fetchQuery).toHaveBeenCalledOnce()
     expect(ensureQueryData).not.toHaveBeenCalled()
     expect(outcome).toEqual({
+      status: 'renewable',
       label: 'android17',
       currentExpiry: EXPIRY_2030,
     })
@@ -93,7 +94,7 @@ describe('/renew/$name loader', () => {
       protocol: 'v2',
     })
 
-    expect(outcome).toBeInstanceOf(Error)
+    expect(outcome).toMatchObject({ status: 'refused' })
     expect(outcome).not.toHaveProperty('redirect')
     expect(fetchQuery).not.toHaveBeenCalled()
   })
@@ -105,7 +106,7 @@ describe('/renew/$name loader', () => {
       protocol: 'v2',
     })
 
-    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
+    expect(outcome).toMatchObject({ status: 'refused' })
     expect(fetchQuery).not.toHaveBeenCalled()
   })
 
@@ -132,10 +133,10 @@ describe('/renew/$name loader', () => {
       protocol: 'v2',
     })
 
-    expect(outcome).toBeInstanceOf(Error)
-    expect((outcome as Error).message).toBe(
-      'This name has no expiry, so there is nothing to renew.',
-    )
+    expect(outcome).toEqual({
+      status: 'refused',
+      message: 'This name has no expiry, so there is nothing to renew.',
+    })
   })
 
   it('distinguishes a name outside its renewal window', async () => {
@@ -180,7 +181,11 @@ describe('/renew/$name loader', () => {
         queryKey: [expect.objectContaining({ name: 'alice.eth' })],
       }),
     )
-    expect(outcome).toEqual({ label: 'alice', currentExpiry: EXPIRY_2030 })
+    expect(outcome).toEqual({
+      status: 'renewable',
+      label: 'alice',
+      currentExpiry: EXPIRY_2030,
+    })
   })
 
   it.each([
@@ -197,7 +202,7 @@ describe('/renew/$name loader', () => {
     })
 
     expect(fetchQuery).not.toHaveBeenCalled()
-    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
+    expect(outcome).toMatchObject({ status: 'refused' })
   })
 
   it('routes a v1 name to the v1 renewal flow', async () => {

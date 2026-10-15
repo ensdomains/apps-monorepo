@@ -34,7 +34,7 @@ describe('createClient', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    const client = createClient({ SEPOLIA_RPC_URL: 'https://rpc.test/' } as Env)
+    const client = createClient({ RPC_URL: 'https://rpc.test/' } as Env)
 
     await expect(client.call({ to: RESOLVER, data: '0x' })).rejects.toThrow()
     expect(fetchMock).not.toHaveBeenCalledWith(

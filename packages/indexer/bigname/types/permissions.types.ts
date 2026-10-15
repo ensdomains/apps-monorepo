@@ -5,25 +5,76 @@ import type {
   Hex,
   Namespace,
   RegistrationId,
+  RegistryRef,
   ResolverRef,
   Timestamp,
   WrapperFuses,
   WrapperState,
 } from './common.types'
 
+/** The ENSv2 registry powers the apps fold into ensjs registry roles. */
+export type RegistryPower =
+  | 'registrar'
+  | 'admin_registrar'
+  | 'register_reserved'
+  | 'admin_register_reserved'
+  | 'set_parent'
+  | 'admin_set_parent'
+  | 'unregister'
+  | 'admin_unregister'
+  | 'renew'
+  | 'admin_renew'
+  | 'set_subregistry'
+  | 'admin_set_subregistry'
+  | 'set_resolver'
+  | 'admin_set_resolver'
+  | 'can_transfer_admin'
+  | 'was_reserved'
+  | 'set_uri'
+  | 'admin_set_uri'
+  | 'upgrade'
+  | 'admin_upgrade'
+
+/** The ENSv2 resolver powers the apps fold into ensjs resolver roles. */
+export type ResolverPower =
+  | 'set_addr'
+  | 'set_text'
+  | 'set_contenthash'
+  | 'set_abi'
+  | 'set_interface'
+  | 'set_name'
+  | 'set_data'
+  | 'link'
+  | 'can_name'
+  | 'upgrade'
+  | 'admin_set_addr'
+  | 'admin_set_text'
+  | 'admin_set_contenthash'
+  | 'admin_set_abi'
+  | 'admin_set_interface'
+  | 'admin_set_name'
+  | 'admin_set_data'
+  | 'admin_link'
+  | 'admin_can_name'
+  | 'admin_upgrade'
+
 /**
  * Permission rows, role summaries, permission event data: one effective power.
- * Closed ~60-value snake_case vocabulary; see api-v1.md "Permission powers vocabulary"
- * (`registration_control`, `resolver_control`, `registry_control`, `set_resolver`, ENSv2
- * `ROLE_*` names and their `admin_*` counterparts, ...). Not enumerated here.
+ * The two typed sets cover what the apps read; bigname's vocabulary is wider
+ * and grows, so any other string is accepted too.
  */
-export type Power = string
+export type Power = RegistryPower | ResolverPower | (string & {})
 
 /** Address-name rows, reverse lookup rows: address-to-name relation values. */
-export type Relation = 'owner' | 'manager' | 'registrant' | 'resolves_to'
+export type Relation =
+  | 'owner'
+  | 'manager'
+  | 'role_holder'
+  | 'resolves_to'
+  | 'former_owner'
 
 /** Authority relations that `any` expands to. */
-export type AuthorityRelation = 'owner' | 'manager' | 'registrant'
+export type AuthorityRelation = 'owner' | 'manager' | 'role_holder'
 
 /**
  * `relation` query/body filter: one authority relation, a comma-separated set of them,
@@ -50,9 +101,11 @@ export type GrantScopeKind =
 /** `GET /v1/permissions`, `include=role_summary`: `grant_scope` `{kind, detail}`. */
 export type GrantScope =
   | Readonly<{
-      kind: 'root' | 'registry' | 'registration'
+      kind: 'registry' | 'registration'
       detail: Readonly<Record<never, never>>
     }>
+  /** A registry's root resource; history rows name the registry. */
+  | Readonly<{ kind: 'root'; detail: Readonly<{ registry?: RegistryRef }> }>
   | Readonly<{ kind: 'resolver'; detail: Readonly<{ resolver: ResolverRef }> }>
   | Readonly<{
       kind: 'record_manager'
@@ -121,6 +174,8 @@ export type PermissionsSubject =
       registration_id?: RegistrationId
       address: Address
     }>
+  /** One registry's grants, as `<chain_id>:<address>`. */
+  | Readonly<{ registry: `${number}:${string}` }>
 
 /** `GET /v1/permissions`: query. */
 export type PermissionsQuery = PermissionsSubject &
@@ -185,11 +240,12 @@ export type PermissionRow = Readonly<{
   grant_relation?: GrantRelation
   grant_scope: GrantScope
   powers: readonly Power[]
-  registration_id: RegistrationId
+  /** Absent on a registry's root rows. */
+  registration_id?: RegistrationId
   /** ENSv2 record-ID resolver grants only. */
   record_resource?: RecordResource
   name?: string
-  authority_context: AuthorityContext
+  authority_context?: AuthorityContext
   /** Present exactly when `wrapper_fuses` is present (current ENSv1 wrapper registrations). */
   wrapper_state?: WrapperState
   wrapper_fuses?: WrapperFuses

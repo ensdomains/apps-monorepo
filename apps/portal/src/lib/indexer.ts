@@ -12,7 +12,10 @@ import { envConfig } from '@/config'
  * Portal reads these payloads generically (`Object.entries` over event detail
  * objects), so an injected `__typename` would surface as a rendered field.
  */
-const client = createPlainClient(envConfig.endpoints.indexerGraphql)
+const url = envConfig.endpoints.indexerGraphql
+// Null on a network with no indexer deployed: its reads fail here rather than
+// reach another network's indexer.
+const client = url ? createPlainClient(url) : null
 
 /**
  * Run an indexer query and resolve to its `data`, throwing on failure — every
@@ -22,5 +25,10 @@ export const graphqlIndexerClient = {
   request: <Data, Variables extends AnyVariables = AnyVariables>(
     query: DocumentInput<Data, Variables>,
     variables?: Variables,
-  ): Promise<Data> => graphqlRequest(client, query, variables),
+  ): Promise<Data> =>
+    client
+      ? graphqlRequest(client, query, variables)
+      : Promise.reject(
+          new Error(`No ENSv2 indexer is deployed for ${envConfig.network}`),
+        ),
 }

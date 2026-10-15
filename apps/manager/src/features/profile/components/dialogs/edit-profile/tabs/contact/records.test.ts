@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { contactMethods, defaultEnabledContactMethodKeys } from './constants'
 import * as contactRecordHelpers from './records'
 import {
@@ -8,6 +8,7 @@ import {
   getContactValidationIssues,
   getIsPrimaryContactToggleDisabled,
   getPrimarySocialContactKeys,
+  parsePrimaryContactKeys,
 } from './records'
 
 describe('contact record helpers', () => {
@@ -22,6 +23,144 @@ describe('contact record helpers', () => {
 
     return method
   }
+
+  describe('parsePrimaryContactKeys', () => {
+    it('keeps the first three distinct supported keys in order', () => {
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': JSON.stringify([
+            null,
+            1,
+            true,
+            { key: 'phone' },
+            ['phone'],
+            'unsupported',
+            'com.github',
+            'com.github',
+            'email',
+            'com.twitter',
+            'phone',
+          ]),
+        }),
+      ).toEqual(['com.github', 'email', 'com.twitter'])
+    })
+
+    it('does not scan past the first 64 array elements', () => {
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': JSON.stringify([
+            ...Array(64).fill('email'),
+            'com.github',
+            'phone',
+          ]),
+        }),
+      ).toEqual(['email'])
+    })
+
+    it('includes supported keys at the element limit', () => {
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': JSON.stringify([
+            ...Array(62).fill('email'),
+            'com.github',
+            'phone',
+          ]),
+        }),
+      ).toEqual(['email', 'com.github', 'phone'])
+    })
+
+    it('accepts 4 KiB and uses the single-contact fallback one byte over it', () => {
+      const value = '["email"]'.padEnd(4 * 1024, ' ')
+
+      expect(
+        parsePrimaryContactKeys({ 'domains.ens.primary-contacts': value }),
+      ).toEqual(['email'])
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': `${value} `,
+          'primary-contact': 'phone',
+        }),
+      ).toEqual(['phone'])
+    })
+
+    it('enforces the UTF-8 byte limit before parsing', () => {
+      const value = JSON.stringify(['email', 'é'.repeat(2042)])
+
+      expect(new TextEncoder().encode(value)).toHaveLength(4 * 1024)
+      expect(
+        parsePrimaryContactKeys({ 'domains.ens.primary-contacts': value }),
+      ).toEqual(['email'])
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': `${value} `,
+          'primary-contact': 'phone',
+        }),
+      ).toEqual(['phone'])
+    })
+
+    it.each([
+      '["email"]'.padStart(4 * 1024 + 1, ' '),
+      '{"key":"email"}',
+      '"email"',
+      'null',
+      '42',
+    ])('rejects oversized or non-array input before JSON parsing', (value) => {
+      const parse = vi.spyOn(JSON, 'parse')
+      try {
+        expect(
+          parsePrimaryContactKeys({
+            'domains.ens.primary-contacts': value,
+            'primary-contact': ' com.github ',
+          }),
+        ).toEqual(['com.github'])
+        expect(parse).not.toHaveBeenCalled()
+      } finally {
+        parse.mockRestore()
+      }
+    })
+
+    it('rejects a grouped 270,000-key payload within the processing budget', () => {
+      const value = JSON.stringify([
+        ...Array(90_000).fill('email'),
+        ...Array(90_000).fill('mail'),
+        ...Array(90_000).fill('phone'),
+      ])
+      const start = performance.now()
+      const result = parsePrimaryContactKeys({
+        'domains.ens.primary-contacts': value,
+      })
+      const elapsed = performance.now() - start
+
+      expect(result).toEqual([])
+      // Allow slow CI workers while catching the reported multi-second stall.
+      expect(elapsed).toBeLessThan(1000)
+    })
+
+    it.each([
+      '[invalid]',
+      'not-json',
+      '',
+    ])('uses the single-contact fallback for malformed JSON', (value) => {
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': value,
+          'primary-contact': ' com.github ',
+        }),
+      ).toEqual(['com.github'])
+    })
+
+    it.each([
+      '[]',
+      '[null,1,"unsupported"]',
+    ])('keeps a valid array authoritative over the single-contact fallback', (value) => {
+      expect(
+        parsePrimaryContactKeys({
+          'domains.ens.primary-contacts': value,
+          'primary-contact': 'com.github',
+        }),
+      ).toEqual([])
+    })
+  })
 
   describe('defaultEnabledContactMethodKeys', () => {
     it('preselects only X and Telegram by default', () => {

@@ -18,7 +18,7 @@ export { WALLETCONNECT_PROJECT_ID }
 
 // Failover across the app's attributed primary and the network's shared
 // public endpoints.
-export const sepoliaFallbackTransport = fallback(
+export const fallbackTransport = fallback(
   envConfig.rpcUrls.map((url) =>
     http(url, {
       retryCount: 2,
@@ -32,7 +32,8 @@ export const sepoliaFallbackTransport = fallback(
   { rank: false, retryCount: 2 },
 )
 
-export const sepoliaWithEns = envConfig.chain
+// The build's network, mainnet or Sepolia, with its ENS contracts.
+export const ensChain = envConfig.chain
 
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the
@@ -41,7 +42,7 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns],
+  chains: [ensChain],
   connectors: [
     walletConnect({
       projectId: WALLETCONNECT_PROJECT_ID,
@@ -55,6 +56,6 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: sepoliaFallbackTransport,
+      transport: fallbackTransport,
     }),
 })

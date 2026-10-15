@@ -4,6 +4,7 @@ import { readNameDetail } from './nameDetail'
 import type { NameRecord } from './types'
 
 const record = {
+  registration_id: 'b7506129-820d-5c4f-a396-515a1e148743',
   name: 'alice.eth',
   display_name: 'alice.eth',
   namespace: 'ens',
@@ -16,6 +17,7 @@ const record = {
   registered_at: '1790594976',
   created_at: '1790594976',
   expires_at: '1885289376',
+  grace_ends_at: '1887708576',
   resolver: {
     chain_id: 11155111,
     address: '0x6a57f0a929949027f954c66f4889514d5a5fd1d8',
@@ -40,10 +42,29 @@ describe('readNameDetail', () => {
       resolver: '0x6a57f0a929949027f954c66f4889514d5a5fd1d8',
       registrationStatus: 'active',
       expiresAt: new Date('2029-09-28T11:29:36Z'),
+      graceEndsAt: new Date('2029-10-26T11:29:36Z'),
       registeredAt: new Date('2026-09-28T11:29:36Z'),
+      registrationId: 'b7506129-820d-5c4f-a396-515a1e148743',
       createdAt: new Date('2026-09-28T11:29:36Z'),
       migratedAt: null,
+      unresolvableReason: null,
     })
+  })
+
+  it('says why an ENSv1 name provably resolves to nothing', async () => {
+    const { client } = clientWith(
+      envelope({
+        ...record,
+        authority: 'ens_v1',
+        unresolvable_reason: 'no_live_ens_v2_entry',
+      }),
+    )
+
+    const detail = (
+      await readNameDetail(client)({ name: 'alice.eth' })
+    )._unsafeUnwrap()
+
+    expect(detail?.unresolvableReason).toBe('no_live_ens_v2_entry')
   })
 
   it('keeps an unsupported name identifiable with no protocol', async () => {

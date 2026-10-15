@@ -1,9 +1,9 @@
-import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
+import type { NameDetail } from '@ens-apps/indexer/reads'
 import { useQuery } from '@tanstack/react-query'
-import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { getSearchNameQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
+import { getNameDetailQueryOptions } from '@/features/shared/service/nameDetail'
 import { classifyNameSearch } from './classifyNameSearch'
 import { getSearchNameKind } from './getSearchNameKind'
 import type {
@@ -78,6 +78,13 @@ export const toTldSupportSignal = ({
   return isDnsSecEnabled ? { status: 'supported' } : { status: 'unsupported' }
 }
 
+/**
+ * Whether the index says the name is held. Unsupported names count as held:
+ * bigname knows them but cannot serve their fields.
+ */
+export const isHeldInIndex = (detail: NameDetail | null | undefined): boolean =>
+  detail != null && detail.registrationStatus !== 'unregistered'
+
 const getTld = (name: string) => name.slice(name.lastIndexOf('.') + 1)
 
 export const useNameClassification = (name: string): NameClassification => {
@@ -96,16 +103,7 @@ export const useNameClassification = (name: string): NameClassification => {
   })
 
   const indexerQuery = useQuery({
-    ...getDomainsQuery(
-      isProfileName
-        ? {
-            where: { name },
-            first: 1,
-            orderBy: Domain_OrderBy.Name,
-            orderDirection: OrderDirection.Asc,
-          }
-        : undefined,
-    ),
+    ...getNameDetailQueryOptions(isProfileName ? name : undefined),
     enabled: isProfileName,
   })
 
@@ -116,7 +114,7 @@ export const useNameClassification = (name: string): NameClassification => {
     hasOwner: Boolean(ownerQuery.data?.owner),
     indexerPending: indexerQuery.data === undefined && !indexerQuery.isError,
     indexerError: indexerQuery.isError,
-    indexerHit: (indexerQuery.data?.domains.length ?? 0) > 0,
+    indexerHit: isHeldInIndex(indexerQuery.data),
   })
 
   // TLD support only decides between not-imported and not-found, so skip the

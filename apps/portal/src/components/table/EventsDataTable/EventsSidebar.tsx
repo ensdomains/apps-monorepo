@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { chain } from '@/config'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
@@ -101,7 +102,7 @@ const TransactionDetails = ({
         {data && (
           <>
             <InfoRow label="Network">
-              <span className="text-base">Sepolia</span>
+              <span className="text-base">{chain.name}</span>
             </InfoRow>
 
             <InfoRow label="From">

@@ -16,7 +16,7 @@ import {
 } from '../service/migrationCompletionCheckpoint'
 import { runEligibilityChecks } from '../service/preflightChecks'
 import { withRequestDeadline } from '../service/requestDeadline'
-import { getV1NamesForAddress } from '../service/v1SubgraphClient'
+import { getV1NamesForAddress } from '../service/v1Names'
 import { getCommemorativeNftContractAddress } from './config'
 import { trackNftEvent } from './diagnostics'
 import {
