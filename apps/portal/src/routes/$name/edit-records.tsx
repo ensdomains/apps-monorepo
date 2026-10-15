@@ -35,7 +35,10 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
-import type { RecordType } from '@/utils/records/editRecordUtils'
+import {
+  hasDisallowedChanges,
+  type RecordType,
+} from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
 
@@ -240,13 +243,15 @@ const EditRecordsContent = ({
   const { isConnected } = useAccount()
 
   // Form state
-  const [selectedType, setSelectedType] = useState<RecordType | ''>('')
+  const [pickedType, setPickedType] = useState<RecordType | ''>('')
+  const selectedType =
+    pickedType !== '' && editableTypes.has(pickedType) ? pickedType : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
-    setSelectedType(newType)
+    setPickedType(newType)
     setKeyInput('') // Reset key when type changes
   }
 
@@ -295,6 +300,7 @@ const EditRecordsContent = ({
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
   const hasValidationErrors = validationErrors.length > 0
+  const isSaveBlocked = hasDisallowedChanges(records, editableTypes)
 
   // Navigate to records page after sync completes.
   // This avoids the issue where deleted records reappear if we clear local state
@@ -363,6 +369,8 @@ const EditRecordsContent = ({
   })
 
   const handleOpenSaveRecordsFlow = () => {
+    if (isSaveBlocked) return
+
     if (isWrongChain) {
       switchToRequiredNetwork()
       return
@@ -416,7 +424,7 @@ const EditRecordsContent = ({
     addRecord(selectedType, keyInput, valueInput)
 
     // Reset form
-    setSelectedType('')
+    setPickedType('')
     setKeyInput('')
     setValueInput('')
   }
@@ -615,6 +623,7 @@ const EditRecordsContent = ({
         isConnected={isConnected}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
+        hasDisallowedChanges={isSaveBlocked}
       />
       <TransactionModal
         transactions={[

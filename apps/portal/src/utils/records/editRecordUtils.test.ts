@@ -3,6 +3,7 @@ import {
   createNewRecord,
   type EditableRecord,
   getRecordId,
+  hasDisallowedChanges,
   mergeRecordsWithChanges,
 } from './editRecordUtils'
 
@@ -281,5 +282,33 @@ describe('createNewRecord', () => {
       value: '[{"type":"function"}]',
     })
     expect(record._uid).toBeDefined()
+  })
+})
+
+describe('hasDisallowedChanges', () => {
+  const textOnly = new Set(['text'] as const)
+  const address = { type: 'address' as const, key: 'ETH', value: '0x1', id: 60 }
+
+  it('allows changes to types the wallet can still write', () => {
+    expect(
+      hasDisallowedChanges(
+        [{ type: 'text', key: 'name', value: 'Jane', isEdited: true }],
+        textOnly,
+      ),
+    ).toBe(false)
+  })
+
+  it('ignores untouched records of other types', () => {
+    expect(hasDisallowedChanges([address], textOnly)).toBe(false)
+  })
+
+  // WEB-1794: a role revoked mid-edit must not let a pending change of that
+  // type reach the save.
+  it.each([
+    { isNew: true },
+    { isEdited: true },
+    { isDeleted: true },
+  ])('flags a pending change of a type the wallet lost (%o)', (flag) => {
+    expect(hasDisallowedChanges([{ ...address, ...flag }], textOnly)).toBe(true)
   })
 })
