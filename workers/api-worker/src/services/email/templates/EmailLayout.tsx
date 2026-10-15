@@ -79,17 +79,21 @@ const nameStyle: CSSProperties = {
   lineHeight: '26px',
   wordBreak: 'break-all',
 }
+// Long ENS names repeat inside sentences; break them only where they would
+// overflow, so ordinary words still wrap whole.
+const wrapLongWords: CSSProperties = {
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
+}
 const paragraphStyle: CSSProperties = {
+  ...wrapLongWords,
   margin: '0 0 20px',
   color: COLOR.body,
   fontSize: '16px',
   lineHeight: '24px',
 }
 const detailStyle: CSSProperties = { ...paragraphStyle, margin: '0 0 6px' }
-const detailValueStyle: CSSProperties = {
-  color: COLOR.ink,
-  wordBreak: 'break-all',
-}
+const detailValueStyle: CSSProperties = { color: COLOR.ink }
 const actionStyle: CSSProperties = {
   ...columnStyle,
   marginTop: '30px',
@@ -106,6 +110,7 @@ const actionTitleStyle: CSSProperties = {
   lineHeight: '24px',
 }
 const actionBodyStyle: CSSProperties = {
+  ...wrapLongWords,
   margin: 0,
   color: COLOR.body,
   fontSize: '15px',

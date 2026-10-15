@@ -50,6 +50,8 @@ const getNameExpiryCopy = (
   isOwner: boolean,
 ): NameExpiryCopy => {
   const { name } = expiry
+  // Favourite watchers get every stage too, so only owners hear "your name".
+  const byRole = (owner: string, watcher: string) => (isOwner ? owner : watcher)
   const graceDetails = [
     {
       label: 'Grace period ends in',
@@ -61,38 +63,62 @@ const getNameExpiryCopy = (
     },
   ]
   return match(expiry.noticeKind)
-    .with('pre-expiry', () => ({
-      subject: isOwner
-        ? 'Your name is expiring'
-        : 'A name you watch is expiring',
-      heading: isOwner
-        ? 'Your name is expiring'
-        : 'A name you watch is expiring',
-      body: isOwner
-        ? `Renew ${name} before it expires to keep ownership and avoid temporary premiums after expiry.`
-        : `${name} expires soon. If it isn’t renewed, it enters a grace period and then becomes available for anyone to register.`,
-      details: [
-        { label: 'Expires in', value: formatDayCount(expiry.daysUntilExpiry) },
-        { label: 'Expiry date', value: formatEmailDate(expiry.expiryDate) },
-      ],
-      actionTitle: 'Renew in the ENS app',
-    }))
-    .with('grace-start', () => ({
-      subject: 'Your name has expired',
-      heading: 'Your name has expired',
-      body: `${name} has expired, but you can still renew it during the grace period. After that, anyone can register it.`,
-      details: graceDetails,
-      actionTitle: 'Renew in the ENS app',
-    }))
+    .with('pre-expiry', () => {
+      const title = byRole(
+        'Your name is expiring',
+        'A name you watch is expiring',
+      )
+      return {
+        subject: title,
+        heading: title,
+        body: byRole(
+          `Renew ${name} before it expires to keep ownership and avoid temporary premiums after expiry.`,
+          `${name} expires soon. If it isn’t renewed, it enters a grace period and then becomes available for anyone to register.`,
+        ),
+        details: [
+          {
+            label: 'Expires in',
+            value: formatDayCount(expiry.daysUntilExpiry),
+          },
+          { label: 'Expiry date', value: formatEmailDate(expiry.expiryDate) },
+        ],
+        actionTitle: 'Renew in the ENS app',
+      }
+    })
+    .with('grace-start', () => {
+      const title = byRole(
+        'Your name has expired',
+        'A name you watch has expired',
+      )
+      return {
+        subject: title,
+        heading: title,
+        body: byRole(
+          `${name} has expired, but you can still renew it during the grace period. After that, anyone can register it.`,
+          `${name} has expired, but it can still be renewed during the grace period. After that, anyone can register it.`,
+        ),
+        details: graceDetails,
+        actionTitle: 'Renew in the ENS app',
+      }
+    })
     .with('grace-ending', () => ({
-      subject: 'Your name’s grace period is ending',
+      subject: byRole(
+        'Your name’s grace period is ending',
+        'A name you watch is near the end of its grace period',
+      ),
       heading: 'Grace period ending',
-      body: `${name} has expired. You can still renew it until the grace period ends. After that, anyone can register it.`,
+      body: byRole(
+        `${name} has expired. You can still renew it until the grace period ends. After that, anyone can register it.`,
+        `${name} has expired. It can still be renewed until the grace period ends. After that, anyone can register it.`,
+      ),
       details: graceDetails,
       actionTitle: 'Renew in the ENS app',
     }))
     .with('premium-start', () => ({
-      subject: 'Your name’s grace period has ended',
+      subject: byRole(
+        'Your name’s grace period has ended',
+        'A name you watch is out of its grace period',
+      ),
       heading: 'Grace period ended',
       body: `${name} is out of its grace period. Anyone can now register it, at a temporary premium that falls each day.`,
       details: [

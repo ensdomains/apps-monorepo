@@ -202,6 +202,40 @@ describe('name expiry email', () => {
     expect(watcher.subject).toBe('A name you watch is expiring')
     expect(watcher.text).toContain('you are watching this name')
   })
+
+  // Favourite watchers receive every stage after the 30-day notice.
+  it.each([
+    ['expiry-7d', 'A name you watch is expiring'],
+    ['grace-start', 'A name you watch has expired'],
+    ['grace-1d', 'A name you watch is near the end of its grace period'],
+    ['premium-start', 'A name you watch is out of its grace period'],
+  ] as const)('never calls a watched name yours at %s', async (stage, subject) => {
+    const email = await renderNameExpiryEmail(
+      mainnet,
+      expiryPayload({ stage, isOwner: false, watchReason: 'favourited' }),
+      { managerAppUrl, now: expiry },
+    )
+    expect(email.subject).toBe(subject)
+    for (const part of [email.html, email.text]) {
+      expect(part).not.toMatch(/\byour name\b/i)
+      expect(part).not.toMatch(/\byou can still renew\b/i)
+    }
+  })
+
+  it('lets long names wrap instead of widening the email', async () => {
+    const email = await renderNameExpiryEmail(
+      mainnet,
+      expiryPayload({ name: `${'a'.repeat(80)}.eth` }),
+      { managerAppUrl, now: expiry },
+    )
+    const nameBlocks =
+      email.html.match(/<p[^>]*>(?:(?!<\/p>).)*?a{80}\.eth/gs) ?? []
+    // The chip, the body and the directions all repeat the name.
+    expect(nameBlocks).toHaveLength(3)
+    for (const block of nameBlocks) {
+      expect(block).toMatch(/overflow-wrap:anywhere|word-break:break-all/)
+    }
+  })
 })
 
 describe('name transferred email', () => {
