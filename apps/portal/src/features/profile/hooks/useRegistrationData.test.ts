@@ -4,20 +4,21 @@ import { describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import { getRegistrationTxQueryOptions } from './useRegistrationData'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { events: vi.fn() } }))
+vi.mock('@/lib/bigname', () => ({ bigname: { nameHistory: vi.fn() } }))
 
 const TX = '0x94139e4aecf39b7b78dd14b45df241b83f911ea2029ec92646a6881060fcfba4'
 
 describe('getRegistrationTxQueryOptions', () => {
-  it('reads the oldest registration row of the current registration', async () => {
-    vi.mocked(bigname.events).mockReturnValue(
+  it('reads the first registration row from registered_at, so a migrated name links its ENSv1 registration', async () => {
+    vi.mocked(bigname.nameHistory).mockReturnValue(
       okAsync({
         data: [
           {
             id: 'a'.repeat(64),
             type: 'registration',
+            name: 'goatagent.eth',
+            registration_id: null,
             namespace: 'ens',
-            registration_id: 'reg-1',
             block_number: 1,
             timestamp: '1791041136',
             transaction_hash: TX,
@@ -29,15 +30,19 @@ describe('getRegistrationTxQueryOptions', () => {
     )
 
     const hash = await new QueryClient().fetchQuery(
-      getRegistrationTxQueryOptions({ registrationId: 'reg-1' }),
+      getRegistrationTxQueryOptions({
+        name: 'GoatAgent.eth',
+        registeredAt: 1768579704,
+      }),
     )
 
     expect(hash).toBe(TX)
-    expect(bigname.events).toHaveBeenCalledWith(
+    expect(bigname.nameHistory).toHaveBeenCalledWith(
+      'goatagent.eth',
       {
-        registration_id: 'reg-1',
         type: ['registration'],
         order: 'asc',
+        from_timestamp: '1768579704',
         page_size: 1,
       },
       { signal: expect.any(AbortSignal) },

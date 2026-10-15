@@ -2,14 +2,15 @@ import {
   type BignameError,
   isStale,
   retryStale,
+  secondsToTimestamp,
 } from '@ens-apps/indexer/bigname'
 import type { NameDetail } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { skipToken } from '@tanstack/react-query'
 import type { Hash } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { getNameDetailQueryOptions } from './useNameDetail'
 
 type GetRegistrationDataParameters = { readonly name: string }
@@ -22,7 +23,6 @@ const toSeconds = (date: Date | null | undefined): number | null =>
 const toRegistrationData = (detail: NameDetail | null) => ({
   createdAt: toSeconds(detail?.createdAt),
   registeredAt: toSeconds(detail?.registeredAt),
-  registrationId: detail?.registrationId ?? null,
   expiry: toSeconds(detail?.expiresAt),
   graceEnd: toSeconds(detail?.graceEndsAt),
 })
@@ -39,21 +39,28 @@ class GetRegistrationTxError extends TaggedError('GetRegistrationTxError')<{
   cause: BignameError
 }> {}
 
-type GetRegistrationTxParameters = { readonly registrationId: string | null }
+type GetRegistrationTxParameters = {
+  readonly name: string
+  readonly registeredAt: number
+}
 
 const getRegistrationTxQueryKey = createQueryKey<
   'get-registration-tx',
   GetRegistrationTxParameters
 >('get-registration-tx')
 
-const readRegistrationTx = (registrationId: string, signal: AbortSignal) =>
+const readRegistrationTx = (
+  { name, registeredAt }: GetRegistrationTxParameters,
+  signal: AbortSignal,
+) =>
   retryStale(
     (requestSignal) =>
-      bigname.events(
+      bigname.nameHistory(
+        normalizeOrLower(name),
         {
-          registration_id: registrationId,
           type: ['registration'],
           order: 'asc',
+          from_timestamp: secondsToTimestamp(registeredAt),
           page_size: 1,
         },
         { signal: requestSignal },
@@ -65,16 +72,14 @@ const readRegistrationTx = (registrationId: string, signal: AbortSignal) =>
     .mapErr((cause) => new GetRegistrationTxError({ cause }))
 
 /**
- * The transaction that started the current registration: its oldest
- * `registration` row. Anchored on the registration, so a name released and
- * registered again links its new registration, as `registered_at` dates it.
+ * The transaction `registered_at` dates: the name's first `registration` row
+ * from then on. Anchored on the name, not `registration_id`, which for a
+ * migrated name is the migration grant.
  */
-export const getRegistrationTxQueryOptions = ({
-  registrationId,
-}: GetRegistrationTxParameters) =>
+export const getRegistrationTxQueryOptions = (
+  params: GetRegistrationTxParameters,
+) =>
   resultQueryOptions({
-    queryKey: getRegistrationTxQueryKey({ registrationId }),
-    queryFn: registrationId
-      ? ({ signal }) => readRegistrationTx(registrationId, signal)
-      : skipToken,
+    queryKey: getRegistrationTxQueryKey(params),
+    queryFn: ({ signal }) => readRegistrationTx(params, signal),
   })
