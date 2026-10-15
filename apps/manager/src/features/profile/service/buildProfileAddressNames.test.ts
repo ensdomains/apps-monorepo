@@ -19,6 +19,7 @@ const summary = (
   registrationStatus: 'active',
   expiresAt: null,
   servedExpiry: null,
+  graceEndsAt: null,
   registeredAt: null,
   createdAt: null,
   ...overrides,

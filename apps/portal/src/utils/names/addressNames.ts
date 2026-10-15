@@ -1,5 +1,9 @@
 import { type AddressName, toDate } from '@ens-apps/indexer/bigname'
-import type { NameRelation, NameSummary } from '@ens-apps/indexer/reads'
+import type {
+  NameRegistrationStatus,
+  NameRelation,
+  NameSummary,
+} from '@ens-apps/indexer/reads'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -11,6 +15,8 @@ export type AddressNameItem = {
   readonly name: string
   /** Null when the name does not expire. */
   readonly expiryDate: Date | null
+  readonly graceEndDate: Date | null
+  readonly status: NameRegistrationStatus
   readonly subdomainCount?: number
   readonly recordCount?: number
   readonly relations: readonly AddressNameRelation[]
@@ -43,6 +49,8 @@ export const toAddressNameItem = (
     : {
         name: summary.name,
         expiryDate: summary.expiresAt,
+        graceEndDate: summary.graceEndsAt,
+        status: summary.registrationStatus,
         subdomainCount: summary.subnameCount,
         recordCount: summary.recordCount,
         relations: summary.relations,
@@ -54,6 +62,8 @@ export const toGraceItem = (row: AddressName): AddressNameItem => ({
   name: row.name,
   // A subregistry can mint an expiry a Date cannot hold; it reads as none.
   expiryDate: toValidDate(toDate(row.expires_at)),
+  graceEndDate: toValidDate(toDate(row.grace_ends_at)),
+  status: row.status,
   relations: ['former_owner'],
   protocolVersion: 'ENSv2',
 })

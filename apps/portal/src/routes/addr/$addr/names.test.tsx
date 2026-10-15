@@ -41,12 +41,16 @@ const NAMES: AddressNameItem[] = [
   {
     name: V1_NAME,
     expiryDate: new Date(Date.now() + 365 * MS_PER_DAY),
+    graceEndDate: null,
+    status: 'active',
     relations: ['owner', 'manager'],
     protocolVersion: 'ENSv1',
   },
   {
     name: V2_NAME,
     expiryDate: new Date(Date.now() + 730 * MS_PER_DAY),
+    graceEndDate: null,
+    status: 'active',
     relations: ['owner'],
     protocolVersion: 'ENSv2',
   },

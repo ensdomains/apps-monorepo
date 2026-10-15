@@ -45,6 +45,8 @@ const DAY = 24n * 60n * 60n
 const item = (name: string, expiryDate: Date): AddressNameItem => ({
   name,
   expiryDate,
+  graceEndDate: null,
+  status: 'active',
   relations: ['owner'],
   protocolVersion: 'ENSv2',
 })

@@ -41,21 +41,24 @@ export const isInV2Grace = (
   nowSeconds: bigint,
 ): boolean => {
   const expiry = toExactSeconds(row.expires_at)
+  const graceEnd = toExactSeconds(row.grace_ends_at)
   return (
     row.authority === 'ens_v2' &&
     row.status === 'expired' &&
     row.lapsed_registration?.release_kind === 'expired' &&
     row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
     expiry !== null &&
+    graceEnd !== null &&
     expiry <= nowSeconds &&
-    nowSeconds < expiry + V2_GRACE_SECONDS &&
+    nowSeconds < graceEnd &&
     isEth2ld(row.name)
   )
 }
 
 /**
- * Every ENSv2 `.eth` name the address can still renew in grace. The expiry
- * window narrows the read; `isInV2Grace` decides each row.
+ * Every ENSv2 `.eth` name the address can still renew in grace. bigname has no
+ * grace-end filter, so the expiry window narrows the read and `isInV2Grace`
+ * decides each row from its `grace_ends_at`.
  */
 export const readGraceNames = (
   client: Pick<BignameClient, 'addressNames'>,

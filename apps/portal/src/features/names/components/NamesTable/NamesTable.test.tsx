@@ -21,6 +21,8 @@ const { columns } = await import('./columns')
 const row = (name: string, expiryDate: Date | null): AddressNameItem => ({
   name,
   expiryDate,
+  graceEndDate: null,
+  status: 'active',
   relations: ['owner'],
   protocolVersion: 'ENSv2',
 })

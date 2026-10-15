@@ -40,6 +40,7 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
+// Status and grace end as bigname serves them.
 const row = (
   name: string,
   expiryMs: number,
@@ -47,6 +48,10 @@ const row = (
 ): AddressNameItem => ({
   name,
   expiryDate: new Date(expiryMs),
+  graceEndDate: new Date(
+    expiryMs + (protocolVersion === 'ENSv1' ? 90 : 28) * MS_PER_DAY,
+  ),
+  status: expiryMs < Date.now() ? 'expired' : 'active',
   relations: ['owner'],
   protocolVersion,
 })
