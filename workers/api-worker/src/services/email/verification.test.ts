@@ -19,9 +19,12 @@ it('sends a code and wallet context in both email parts without a verification l
   expect(result.isOk()).toBe(true)
   const mail = sendMailV3.mock.calls[0]?.[1] as {
     subject: string
+    from: { email: string; name: string }
     content: Array<{ type: string; value: string }>
   }
-  expect(mail.subject).toBe('Your ENS email verification code')
+  // The test worker is configured for Sepolia.
+  expect(mail.subject).toBe('[Sepolia] Your ENS email verification code')
+  expect(mail.from).toEqual({ email: 'ens@example.com', name: 'ENS (Sepolia)' })
   expect(mail.content.map((part) => part.type)).toEqual([
     'text/plain',
     'text/html',

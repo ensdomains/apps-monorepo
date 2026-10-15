@@ -16,7 +16,7 @@ export const sendRenderedEmail = ResultFn(async function* (
 ) {
   const result = yield* sendMailV3(apiKey, {
     personalizations: [{ to: [{ email: to }] }],
-    from: { email: from },
+    from: { email: from, name: email.fromName },
     subject: email.subject,
     // SendGrid requires text/plain to precede text/html.
     content: [

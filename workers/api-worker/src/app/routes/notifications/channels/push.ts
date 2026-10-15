@@ -7,6 +7,7 @@ import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { logger } from '#utils/logger.js'
+import { getPushRegistrationMetadata } from './push-metadata.js'
 
 // allowed push service endpoint prefixes (for SSRF protection)
 const ALLOWED_PUSH_ENDPOINTS = [
@@ -70,6 +71,10 @@ export default createApp()
       const subscription = c.req.valid('json')
       const now = Date.now()
       const pushData = {
+        ...(await getPushRegistrationMetadata(
+          c.req.header('Origin'),
+          c.env.VAPID_PUBLIC_KEY,
+        )),
         auth: subscription.keys.auth,
         p256dh: subscription.keys.p256dh,
         expirationTime: subscription.expirationTime ?? null,
