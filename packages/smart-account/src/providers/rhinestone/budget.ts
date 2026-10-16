@@ -44,11 +44,7 @@
 
 import type { PublicClient } from 'viem'
 import { formatUnits, isAddressEqual, zeroAddress } from 'viem'
-import {
-  BASE_SEPOLIA_CHAIN_ID,
-  getDestinationContracts,
-  SEPOLIA_CHAIN_ID,
-} from './manifest'
+import { getDestinationContracts, SEPOLIA_CHAIN_ID } from './manifest'
 import type { QuotedGasRefund } from './refund-caps'
 import { readRegisterPrice } from './registration-calls'
 
@@ -242,7 +238,6 @@ const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
  */
 const FLOOR_GAS_PRICE_WEI: Record<number, bigint> = {
   [SEPOLIA_CHAIN_ID]: 2_000_000_000n,
-  [BASE_SEPOLIA_CHAIN_ID]: 2_000_000_000n,
 }
 
 /**

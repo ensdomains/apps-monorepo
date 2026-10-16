@@ -1,12 +1,7 @@
 import { getAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import {
-  DESTINATION_CONTRACTS,
-  getDestinationContracts,
-  SHARED_CONTRACTS,
-  SOURCE_CONTRACTS,
-} from './manifest'
+import { DESTINATION_CONTRACTS, getDestinationContracts } from './manifest'
 
 /**
  * Guards against a mis-checksummed contract address reaching viem, which
@@ -106,20 +101,4 @@ describe('mainnet destination manifest', () => {
       usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     })
   })
-})
-
-describe('contract manifest addresses', () => {
-  it.each(addressEntriesOf(SOURCE_CONTRACTS))(
-    'SOURCE_CONTRACTS.%s is checksummed',
-    (label, address) => {
-      expectChecksummed(label, address)
-    },
-  )
-
-  it.each(Object.entries(SHARED_CONTRACTS))(
-    'SHARED_CONTRACTS.%s is checksummed',
-    (label, address) => {
-      expectChecksummed(label, address)
-    },
-  )
 })
