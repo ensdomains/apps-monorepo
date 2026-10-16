@@ -10,7 +10,7 @@ import {
  * exit non-zero if it is unusable.
  *
  * The apps resolve the same config at boot, but that only surfaces after a
- * deploy. Running the identical pure `buildConfig` as a `prebuild` step moves
+ * deploy. Running the identical pure `buildConfig` in the Vite config moves
  * the failure into CI, so a build whose network is unset, unknown, or missing
  * an ENSv2 deployment never ships.
  *

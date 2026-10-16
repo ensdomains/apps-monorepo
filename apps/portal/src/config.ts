@@ -52,7 +52,7 @@ export const envConfig = buildConfig({
     bignameApi: import.meta.env?.VITE_BIGNAME_API_URL,
   },
   // A service the network has no deployment for resolves to null and the
-  // explorer runs without it. Keep in step with scripts/check-network-config.ts.
+  // explorer runs without it. Keep in step with the validation in vite.config.ts.
   allowMissingEndpoints: true,
 })
 
