@@ -16,7 +16,7 @@ const NETWORK_BADGES: Readonly<Record<number, string | undefined>> = {
   [optimismSepolia.id]: coinIcons.op,
 }
 
-/** A payment row that bridges the wallet's shortfall in from an L2. */
+/** A payment row that pays the registration from an L2, bridging it in first. */
 export const L2SourceListItem = ({
   option,
   bridgeAmountRaw,
@@ -43,9 +43,7 @@ export const L2SourceListItem = ({
   const bridgeAmount = bridgeAmountRaw === null ? '—' : toUsd(bridgeAmountRaw)
 
   const fee =
-    option.status === 'not-needed' ? (
-      <Trans>Not needed, your wallet covers it</Trans>
-    ) : isSelected && feeRaw !== undefined ? (
+    isSelected && feeRaw !== undefined ? (
       <Trans>
         Bridge {bridgeAmount} to your wallet, fee {toUsd(feeRaw)}
       </Trans>
@@ -84,7 +82,7 @@ export const L2SourceListItem = ({
           }
         />
       }
-      isAvailable={option.status !== 'not-needed'}
+      isAvailable
       isFeeLoading={isSelected && isQuoteLoading}
       isFunded={option.status === 'available'}
       isSelected={isSelected}

@@ -193,8 +193,7 @@ describe('TokenPickerContent', () => {
     hcaBalance: 0n,
   }
 
-  it('offers the L2 that can cover the shortfall when the wallet is short', () => {
-    containerMocks.walletBalance = '0'
+  it('lists the wallet USDC and every L2 USDC, including ones that cannot pay', () => {
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
       [baseSepolia.id]: 25_000_000n,
@@ -203,23 +202,30 @@ describe('TokenPickerContent', () => {
     }
     renderContainer()
 
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeEnabled()
     expect(
       screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).toBeEnabled()
-    expect(screen.getByText('Bridge $5.00 to your wallet')).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByText('Not enough USDC on Arbitrum Sepolia'),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on OP Sepolia' }),
+    ).toBeDisabled()
   })
 
-  it('leaves the picker as it was when the wallet covers the registration', () => {
+  it('pays the whole registration from the chosen L2, not just a shortfall', () => {
+    containerMocks.walletBalance = '3000000'
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
     renderContainer()
 
     expect(
-      screen.queryByRole('button', { name: /USDC on/ }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /^Load \d+ more$/ }),
-    ).not.toBeInTheDocument()
+      screen.getAllByText('Bridge $5.00 to your wallet').length,
+    ).toBeGreaterThan(0)
   })
 
   const captureRevalidatedNamePriceError = async () => {
@@ -770,7 +776,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     ...overrides,
   })
 
-  it('offers an L2 that covers the shortfall when the wallet cannot', () => {
+  it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
     const payment = l2Payment()
     renderPicker({
       funding: underfunded,
@@ -779,6 +785,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       l2Payment: payment,
     })
 
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
     expect(screen.getByText('Bridge $5.00 to your wallet')).toBeVisible()
     fireEvent.click(
       screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
@@ -822,17 +829,18 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).toBeDisabled()
   })
 
-  it('hides an L2 row the wallet does not need', () => {
+  it('keeps an L2 without enough USDC listed next to a funded wallet', () => {
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [usdc],
-      l2Payment: l2Payment({ options: [baseSepoliaOption('not-needed')] }),
+      l2Payment: l2Payment({ options: [baseSepoliaOption('insufficient')] }),
     })
 
     expect(
-      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeDisabled()
+    expect(screen.getByText('Not enough USDC on Base Sepolia')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })
 })

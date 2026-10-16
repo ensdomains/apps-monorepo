@@ -15,6 +15,7 @@ import {
 /** The registration picker's L2 rows, and what choosing one does. */
 export type L2PaymentProps = Readonly<{
   options: readonly L2PaymentOption[]
+  /** What choosing a row bridges into the wallet; `null` until quoted. */
   bridgeAmountRaw: bigint | null
   /** Unset while the wallet row is the choice. */
   selectedChainId: number | undefined
@@ -28,15 +29,14 @@ export type L2PaymentProps = Readonly<{
 }>
 
 /**
- * L2 rows that bridge the wallet's shortfall in, sized from the same debit the
- * wallet row is gated on, and a pick-up of a bridge already in flight. Only
- * offered while the wallet is short: a covered wallet sees its own row alone.
+ * A row per L2 the registration can be paid from, listed next to the wallet's
+ * own USDC: choosing one bridges the wallet debit in from that L2 before
+ * registering. Also picks up a bridge already in flight.
  */
 export const useL2Payment = ({
   uiActor,
   owner,
   walletDebitRaw,
-  walletBalanceRaw,
   isQuoteStale,
   isEnabled,
   fundingSourceChainId,
@@ -44,7 +44,6 @@ export const useL2Payment = ({
   readonly uiActor: RegistrationV2UiActor
   readonly owner: Address | null
   readonly walletDebitRaw: bigint | undefined
-  readonly walletBalanceRaw: bigint | null
   /** The debit on screen belongs to another primary-name choice. */
   readonly isQuoteStale: boolean
   /** Off on the EOA route, which has no budget to bridge towards. */
@@ -53,21 +52,19 @@ export const useL2Payment = ({
 }): L2PaymentProps | undefined => {
   useL2FundingResume({ uiActor, ownerAddress: owner })
   const bridgeAmountRaw =
-    walletDebitRaw === undefined || walletBalanceRaw === null || isQuoteStale
+    walletDebitRaw === undefined || isQuoteStale
       ? null
-      : getL2BridgeAmount({ walletDebitRaw, walletBalanceRaw })
-  // Only read the L2s once the wallet is known to be short.
+      : getL2BridgeAmount(walletDebitRaw)
   const balances = useQuery(
-    getL2BalancesQueryOptions(
-      isEnabled && owner && bridgeAmountRaw ? owner : undefined,
-    ),
+    getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
-  const options = isEnabled
-    ? getL2PaymentOptions({ sources: l2Sources, balances, bridgeAmountRaw })
-    : []
+  // Nothing to bridge when the account's credit covers the whole registration.
+  const options =
+    isEnabled && bridgeAmountRaw !== 0n
+      ? getL2PaymentOptions({ sources: l2Sources, balances, bridgeAmountRaw })
+      : []
   const selected = options.find(
-    ({ source, status }) =>
-      source.chain.id === fundingSourceChainId && status !== 'not-needed',
+    ({ source }) => source.chain.id === fundingSourceChainId,
   )
   const route =
     owner && bridgeAmountRaw && selected?.status === 'available'
@@ -80,7 +77,7 @@ export const useL2Payment = ({
   const quoteQuery = useQuery(getL2BridgeQuoteQueryOptions(route))
   const quote = route ? quoteQuery.data : undefined
 
-  if (!bridgeAmountRaw || options.length === 0) return undefined
+  if (options.length === 0) return undefined
   return {
     options,
     bridgeAmountRaw,

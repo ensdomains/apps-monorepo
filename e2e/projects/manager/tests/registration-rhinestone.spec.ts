@@ -57,7 +57,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // picker. Click through it (the single ENABLE intent is auto-authorized via
     // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await page.getByRole('button', { name: 'Select USDC', exact: true }).click()
 
     createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {

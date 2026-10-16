@@ -8,25 +8,18 @@ export const l2PaymentOptionId = (chainId: number): L2PaymentOptionId =>
   `l2:${chainId}:usdc`
 
 /**
- * What must be bridged for the wallet to cover `walletDebitRaw`: the shortfall,
- * raised to the bridge minimum. Zero when the wallet already covers it.
+ * What paying from an L2 bridges into the wallet: the whole wallet debit, so
+ * the L2 pays for the registration, raised to the bridge minimum. Zero when the
+ * registration takes nothing from the wallet.
  */
-export const getL2BridgeAmount = ({
-  walletDebitRaw,
-  walletBalanceRaw,
-}: {
-  readonly walletDebitRaw: bigint
-  readonly walletBalanceRaw: bigint
-}): bigint => {
-  const shortfall = walletDebitRaw - walletBalanceRaw
-  if (shortfall <= 0n) return 0n
-  return shortfall > L2_BRIDGE_MIN_AMOUNT_OUT
-    ? shortfall
+export const getL2BridgeAmount = (walletDebitRaw: bigint): bigint => {
+  if (walletDebitRaw <= 0n) return 0n
+  return walletDebitRaw > L2_BRIDGE_MIN_AMOUNT_OUT
+    ? walletDebitRaw
     : L2_BRIDGE_MIN_AMOUNT_OUT
 }
 
 type L2PaymentOptionStatus =
-  | 'not-needed'
   | 'loading'
   | 'unavailable'
   | 'insufficient'
@@ -45,15 +38,14 @@ const getStatus = (
   isLoaded: boolean,
   balanceRaw: bigint | null,
 ): L2PaymentOptionStatus => {
-  if (bridgeAmountRaw === 0n) return 'not-needed'
   if (bridgeAmountRaw === null || !isLoaded) return 'loading'
   if (balanceRaw === null) return 'unavailable'
   return balanceRaw > bridgeAmountRaw ? 'available' : 'insufficient'
 }
 
 /**
- * One row per L2 source. `bridgeAmountRaw` is `null` while the wallet debit is
- * unknown; a `null` balance is a failed read.
+ * One row per L2 source. `bridgeAmountRaw` is `null` until the registration's
+ * cost is quoted; a `null` balance is a failed read.
  */
 export const getL2PaymentOptions = ({
   sources,

@@ -1,65 +1,55 @@
-import { baseSepolia, type optimismSepolia } from 'viem/chains'
+import { baseSepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import type { L2Source } from '@/l2Sources'
 import { getL2BridgeAmount, getL2PaymentOptions } from './paymentOptions'
 
-const source = (chain: typeof baseSepolia | typeof optimismSepolia) =>
-  ({
-    chain,
-    usdc: '0x0000000000000000000000000000000000000001',
-    rpcUrls: [],
-  }) as L2Source
+const source = {
+  chain: baseSepolia,
+  usdc: '0x0000000000000000000000000000000000000001',
+  rpcUrls: [],
+} as L2Source
 
 describe('getL2BridgeAmount', () => {
-  it('bridges exactly the shortfall above the minimum', () => {
-    expect(
-      getL2BridgeAmount({
-        walletDebitRaw: 5_000_000n,
-        walletBalanceRaw: 1_500_000n,
-      }),
-    ).toBe(3_500_000n)
+  it('bridges the whole wallet debit, so the L2 pays for the registration', () => {
+    expect(getL2BridgeAmount(5_000_000n)).toBe(5_000_000n)
   })
 
-  it('raises a small shortfall to the bridge minimum', () => {
-    expect(
-      getL2BridgeAmount({
-        walletDebitRaw: 5_000_000n,
-        walletBalanceRaw: 4_900_000n,
-      }),
-    ).toBe(1_000_000n)
+  it('raises a small debit to the bridge minimum', () => {
+    expect(getL2BridgeAmount(400_000n)).toBe(1_000_000n)
   })
 
-  it('bridges nothing when the wallet already covers the debit', () => {
-    expect(
-      getL2BridgeAmount({
-        walletDebitRaw: 5_000_000n,
-        walletBalanceRaw: 5_000_000n,
-      }),
-    ).toBe(0n)
+  it('bridges nothing when the registration takes nothing from the wallet', () => {
+    expect(getL2BridgeAmount(0n)).toBe(0n)
   })
 })
 
 describe('getL2PaymentOptions', () => {
-  const statuses = (
-    bridgeAmountRaw: bigint | null,
-    balances: Record<number, bigint | null> | undefined,
-  ) =>
-    getL2PaymentOptions({
-      sources: [source(baseSepolia)],
-      balances,
-      bridgeAmountRaw,
-    }).map(({ id, status }) => [id, status])
-
   it.each([
-    ['not-needed', 0n, { [baseSepolia.id]: 0n }],
-    ['loading', null, { [baseSepolia.id]: 9_000_000n }],
-    ['loading', 2_000_000n, undefined],
-    ['unavailable', 2_000_000n, { [baseSepolia.id]: null }],
-    ['insufficient', 2_000_000n, { [baseSepolia.id]: 2_000_000n }],
-    ['available', 2_000_000n, { [baseSepolia.id]: 2_000_001n }],
-  ] as const)('is %s for a bridge of %s', (status, bridgeAmountRaw, balances) => {
-    expect(statuses(bridgeAmountRaw, balances)).toEqual([
-      [`l2:${baseSepolia.id}:usdc`, status],
-    ])
+    ['loading', 'not read yet', undefined, 2_000_000n],
+    [
+      'loading',
+      'read, before the cost is quoted',
+      { [baseSepolia.id]: 9n },
+      null,
+    ],
+    ['unavailable', 'a failed read', { [baseSepolia.id]: null }, 2_000_000n],
+    [
+      'insufficient',
+      'only the bridge amount',
+      { [baseSepolia.id]: 2_000_000n },
+      2_000_000n,
+    ],
+    [
+      'available',
+      'above the bridge amount',
+      { [baseSepolia.id]: 2_000_001n },
+      2_000_000n,
+    ],
+  ] as const)('is %s for %s', (status, _, balances, bridgeAmountRaw) => {
+    expect(
+      getL2PaymentOptions({ sources: [source], balances, bridgeAmountRaw }).map(
+        ({ id, status }) => [id, status],
+      ),
+    ).toEqual([[`l2:${baseSepolia.id}:usdc`, status]])
   })
 })
