@@ -1,12 +1,14 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { type Address, isAddressEqual } from 'viem'
+import { match } from 'ts-pattern'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useNameHasOwnResolver } from '@/features/records/hooks/useNameHasOwnResolver'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { getCanModifyOnPublicResolverV2QueryOptions } from '@/features/resolver/queries/getCanModifyOnPublicResolverV2'
 import {
   computeResolverResource,
   type ResolverPermissionKey,
@@ -57,7 +59,9 @@ type UseCanEditRecordsReturn = {
  *   resource (every name) or on the setter argument in `scope`. Roles are per
  *   resolver, not per name, so after a transfer that keeps the resolver the
  *   previous owner typically retains them while the new token owner does not.
- * - Non-permissioned / V1-style resolvers: falls back to token ownership.
+ * - V2 names on any other resolver: only PublicResolverV2's own
+ *   `canModifyName` counts; ownership grants nothing elsewhere.
+ * - V1 names on a non-permissioned resolver: falls back to token ownership.
  *
  * Either way the name must own its resolver. One inherited through ENSIP-10
  * wildcard resolution — a DNS name resolving through its TLD's
@@ -125,47 +129,58 @@ export function useCanEditRecords({
     })),
   })
 
+  const isV2 = ownerQuery.data?.protocolVersion === 'ENSv2'
+
+  const publicResolverV2Query = useQuery({
+    ...getCanModifyOnPublicResolverV2QueryOptions({
+      resolverAddress: resolverAddress ?? zeroAddress,
+      name,
+      account: connectedAddress ?? zeroAddress,
+    }),
+    enabled:
+      enabled &&
+      !!connectedAddress &&
+      !!resolverAddress &&
+      isV2 &&
+      isPermissionedQuery.isSuccess &&
+      !isPermissioned,
+  })
+
   const isOwner =
     !!connectedAddress &&
     !!ownerQuery.data?.owner &&
     isAddressEqual(connectedAddress, ownerQuery.data.owner)
 
-  const rolesLoading =
-    isPermissioned && roleQueries.some((query) => query.isLoading)
+  // A disabled query is neither loading nor errored, so each read only counts
+  // once its `enabled` gate opens.
+  const queries = [
+    ownerQuery,
+    resolverQuery,
+    ownResolverQuery,
+    isPermissionedQuery,
+    ...roleQueries,
+    publicResolverV2Query,
+  ]
+  const isLoading = enabled && queries.some((query) => query.isLoading)
+  const isError = queries.some((query) => query.isError)
 
-  const isLoading =
-    (enabled &&
-      (ownerQuery.isLoading ||
-        resolverQuery.isLoading ||
-        ownResolverQuery.isLoading ||
-        (!!resolverAddress && isPermissionedQuery.isLoading) ||
-        rolesLoading)) ||
-    false
+  // Anything but a definite "yes" blocks the write: the query throws rather
+  // than guessing when it cannot reach the chain, and a write sent on an
+  // unverified resolver is the failure this check exists to prevent.
+  const isSettled =
+    enabled &&
+    !!connectedAddress &&
+    !isLoading &&
+    !!resolverAddress &&
+    hasOwnResolver === true
 
-  const isError =
-    ownerQuery.isError ||
-    resolverQuery.isError ||
-    ownResolverQuery.isError ||
-    isPermissionedQuery.isError ||
-    (isPermissioned && roleQueries.some((query) => query.isError))
-
-  const hasResolverRole = roleQueries.some((query) => query.data === true)
-
-  const canEdit = (() => {
-    if (!enabled || !connectedAddress || isLoading || !resolverAddress) {
-      return false
-    }
-
-    // Anything but a definite "yes" blocks the write: the query throws rather
-    // than guessing when it cannot reach the chain, and a write sent on an
-    // unverified resolver is the failure this check exists to prevent.
-    if (hasOwnResolver !== true) return false
-
-    if (isPermissioned) return hasResolverRole
-
-    // Public / non-permissioned resolvers: token owner can edit.
-    return isOwner
-  })()
+  const canEdit = match({ isSettled, isPermissioned, isV2 })
+    .with({ isSettled: false }, () => false)
+    .with({ isPermissioned: true }, () =>
+      roleQueries.some((query) => query.data === true),
+    )
+    .with({ isV2: true }, () => publicResolverV2Query.data === true)
+    .otherwise(() => isOwner)
 
   return {
     canEdit,
