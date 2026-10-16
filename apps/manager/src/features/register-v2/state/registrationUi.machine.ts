@@ -1,4 +1,7 @@
-import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
+import type {
+  HcaSessionEnablePayload,
+  L2BridgeRoute,
+} from '@ens-apps/smart-account'
 import {
   type PersistedRegistrationRecord,
   type RegistrationEvent,
@@ -38,6 +41,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import type { L2FundingRecord } from '../service/l2FundingPersistence'
 import {
   acquireRegistrationLock,
   getBlockingRegistration,
@@ -49,6 +53,8 @@ import {
 } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
+import { l2FundingActors } from './l2Funding.actors'
+import { type L2FundingInput, l2FundingMachine } from './l2Funding.machine'
 import {
   getRegistrationStageProgress,
   type MaxProgressReached,
@@ -58,6 +64,7 @@ import {
 import type { RegistrationPostRegistrationSetup } from './registrationAutoSetup'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
+const L2_FUNDING_ACTOR_ID = 'l2Funding'
 
 type RegistrationSnapshot = SnapshotFrom<typeof registrationMachine>
 
@@ -102,6 +109,10 @@ type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
+  /** The L2 row picked to bridge from; the registration still pays in `selectedToken`. */
+  fundingSourceChainId?: number
+  /** What the L2 funding child runs with, set on the way into `pricing.funding`. */
+  fundingRun?: L2FundingInput
   lastErrorMessage?: string
   /**
    * The registration failed because another address registered the name first.
@@ -157,6 +168,20 @@ type Events =
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | { type: 'pricing.fundingSource.select'; chainId: number }
+  | {
+      type: 'pricing.funding.start'
+      route: L2BridgeRoute
+      /** The source amount of the quote the user was shown. */
+      agreedAmountIn: bigint
+    }
+  | {
+      /** A bridge already submitted, picked back up from storage. */
+      type: 'pricing.funding.resume'
+      route: L2BridgeRoute
+      record: L2FundingRecord
+    }
+  | { type: 'pricing.funding.dismiss' }
   | {
       type: 'registration.start'
       label: string
@@ -303,10 +328,12 @@ const machineSetup = setup({
     input: {} as Input,
     children: {} as {
       [REGISTRATION_V2_ACTOR_ID]: 'registrationFlow'
+      [L2_FUNDING_ACTOR_ID]: 'l2Funding'
     },
   },
   actors: {
     registrationFlow: registrationMachine,
+    l2Funding: l2FundingMachine.provide({ actors: l2FundingActors }),
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
@@ -424,6 +451,40 @@ const machineSetup = setup({
           ? event.token
           : context.selectedToken,
     }),
+    setFundingSource: assign({
+      fundingSourceChainId: ({ event, context }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? event.chainId
+          : context.fundingSourceChainId,
+      // Every row ends up paying the registration in wallet USDC.
+      selectedToken: () => 'USDC' as const,
+    }),
+    clearFundingSource: assign({ fundingSourceChainId: () => undefined }),
+    setFundingRun: assign({
+      fundingRun: ({ event, context }) =>
+        match(event)
+          .with(
+            { type: 'pricing.funding.start' },
+            ({ route, agreedAmountIn }): L2FundingInput => ({
+              route,
+              agreedAmountIn,
+            }),
+          )
+          .with(
+            { type: 'pricing.funding.resume' },
+            ({ route, record }): L2FundingInput => ({
+              route,
+              agreedAmountIn: record.amountIn,
+              record,
+            }),
+          )
+          .otherwise(() => context.fundingRun),
+    }),
+    refreshWalletBalances: () => {
+      getQueryClient()?.invalidateQueries({
+        queryKey: $qk({ $scope: 'wallet' }),
+      })
+    },
     clearError: assign({
       lastErrorMessage: () => undefined,
       nameUnavailable: () => false,
@@ -1013,7 +1074,18 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               target: 'duration',
             },
             'pricing.token.select': {
-              actions: 'setToken',
+              actions: ['setToken', 'clearFundingSource'],
+            },
+            'pricing.fundingSource.select': {
+              actions: 'setFundingSource',
+            },
+            'pricing.funding.start': {
+              target: 'funding',
+              actions: 'setFundingRun',
+            },
+            'pricing.funding.resume': {
+              target: 'funding',
+              actions: 'setFundingRun',
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
@@ -1028,6 +1100,31 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                 startRegistrationAction,
               ],
             },
+          },
+        },
+        // Bridging USDC in from an L2. Closing the dialog stops the child; a
+        // bridge it already submitted is picked back up from storage.
+        funding: {
+          invoke: {
+            id: L2_FUNDING_ACTOR_ID,
+            src: 'l2Funding',
+            input: ({ context }) => {
+              if (!context.fundingRun) throw new Error('Funding without a run')
+              return context.fundingRun
+            },
+            onDone: [
+              {
+                guard: ({ event }) => event.output.funded,
+                target: 'tokens',
+                actions: ['clearFundingSource', 'refreshWalletBalances'],
+              },
+              { target: 'tokens' },
+            ],
+            onError: { target: 'tokens' },
+          },
+          exit: assign({ fundingRun: () => undefined }),
+          on: {
+            'pricing.funding.dismiss': { target: 'duration' },
           },
         },
       },
@@ -1456,4 +1553,11 @@ export const getRegistrationV2ChildActor = (
 ) =>
   snapshot.children[REGISTRATION_V2_ACTOR_ID] as
     | ActorRefFrom<typeof registrationMachine>
+    | undefined
+
+export const getL2FundingActor = (
+  snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
+) =>
+  snapshot.children[L2_FUNDING_ACTOR_ID] as
+    | ActorRefFrom<typeof l2FundingMachine>
     | undefined

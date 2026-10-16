@@ -1,11 +1,13 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
+import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
+import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
@@ -33,6 +35,23 @@ const INSUFFICIENT_USDC: StablecoinBalance = {
   formattedBalance: '0.00',
 }
 
+const l2Option = (
+  chain: typeof baseSepolia | typeof arbitrumSepolia | typeof optimismSepolia,
+  balanceRaw: bigint | null,
+  status: L2PaymentOption['status'],
+): L2PaymentOption => ({
+  id: l2PaymentOptionId(chain.id),
+  source: { chain, usdc: FUNDED_USDC.address, rpcUrls: [] },
+  balanceRaw,
+  status,
+})
+
+const FIXTURE_L2_OPTIONS: readonly L2PaymentOption[] = [
+  l2Option(baseSepolia, 400_000_000n, 'available'),
+  l2Option(arbitrumSepolia, 100_000_000n, 'insufficient'),
+  l2Option(optimismSepolia, null, 'unavailable'),
+]
+
 interface TokenPickerDialogShellProps {
   readonly label: string
   readonly defaultOpen?: boolean
@@ -48,6 +67,8 @@ interface TokenPickerDialogShellProps {
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
   readonly isFeeTooltipOpen?: boolean
+  /** L2 rows to bridge the shortfall from; selecting one quotes a fixed fee. */
+  readonly l2Options?: readonly L2PaymentOption[]
 }
 
 export const TokenPickerDialogShell = ({
@@ -65,11 +86,13 @@ export const TokenPickerDialogShell = ({
   funding,
   isQuotingFunding = false,
   isFeeTooltipOpen,
+  l2Options,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const [selectedToken, setSelectedToken] = useState<
     SUPPORTED_TOKEN | undefined
   >(initialSelectedToken)
+  const [selectedChainId, setSelectedChainId] = useState<number>()
 
   return (
     <PaymentDialogBase
@@ -86,10 +109,26 @@ export const TokenPickerDialogShell = ({
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
+        l2Payment={
+          l2Options && {
+            options: l2Options,
+            bridgeAmountRaw: 352_000_000n,
+            selectedChainId,
+            feeRaw: selectedChainId === undefined ? undefined : 12_573n,
+            isQuoteLoading: false,
+            hasQuoteFailed: false,
+            canBridge: selectedChainId !== undefined,
+            onSelect: setSelectedChainId,
+            onBridge: () => {},
+          }
+        }
         label={label}
         methodErrorMessage={methodErrorMessage}
         onNext={() => {}}
-        onSelectCoin={setSelectedToken}
+        onSelectCoin={(coin) => {
+          setSelectedChainId(undefined)
+          setSelectedToken(coin)
+        }}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -351,6 +390,7 @@ const meta = {
   },
   argTypes: {
     stablecoinBalances: { control: false },
+    l2Options: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
       options: [undefined, 'USDC'],
@@ -388,6 +428,13 @@ export const InsufficientUSDC: Story = {
       hcaCredit: 0,
       isLoading: false,
     },
+  },
+}
+
+export const BridgeFromL2: Story = {
+  args: {
+    ...InsufficientUSDC.args,
+    l2Options: FIXTURE_L2_OPTIONS,
   },
 }
 

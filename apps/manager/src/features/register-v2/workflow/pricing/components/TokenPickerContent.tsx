@@ -28,13 +28,16 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import { type L2PaymentProps, useL2Payment } from '../hooks/useL2Payment'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
+import type { L2PaymentOption } from '../lib/paymentOptions'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import {
   computeRegistrationFunding,
   getRegistrationShortfallCause,
   type RegistrationShortfallCause,
 } from '../lib/registrationFunding'
+import { L2SourceListItem } from './L2SourceListItem'
 import { PaymentBreakdown } from './PaymentBreakdown'
 import {
   PaymentMethodList,
@@ -165,9 +168,14 @@ export const TokenPickerContent = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const domainName = `${label}.eth`
-  const [duration, selectedToken] = useSelector(
+  const [duration, selectedToken, fundingSourceChainId] = useSelector(
     uiActor,
-    (state) => [state.context.duration, state.context.selectedToken] as const,
+    (state) =>
+      [
+        state.context.duration,
+        state.context.selectedToken,
+        state.context.fundingSourceChainId,
+      ] as const,
   )
   const pricingQuery = useQuery({
     ...getRegisterPriceQueryOptions(
@@ -261,6 +269,16 @@ export const TokenPickerContent = () => {
     walletBalanceRaw: usdcBalanceRaw,
     ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
     decimals: USDC_DECIMALS,
+  })
+
+  const l2Payment = useL2Payment({
+    uiActor,
+    owner: account.ownerAddress,
+    walletDebitRaw: funding?.walletDebitRaw,
+    walletBalanceRaw: usdcBalanceRaw,
+    isQuoteStale: budgetQuery.isPlaceholderData,
+    isEnabled: isBudgetRequired,
+    fundingSourceChainId,
   })
 
   // An explicit toggle choice always wins. Otherwise resolve the eligibility
@@ -506,6 +524,7 @@ export const TokenPickerContent = () => {
       isLoadingBalances={isLoadingBalances}
       isQuoteStale={budgetQuery.isPlaceholderData}
       isQuotingFunding={budgetQuery.isLoading}
+      l2Payment={l2Payment}
       label={label}
       methodErrorMessage={methodErrorMessage}
       onNext={() => availabilityMutation.mutate()}
@@ -518,6 +537,59 @@ export const TokenPickerContent = () => {
     />
   )
 }
+
+const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
+  l2Payment?.options.find(
+    ({ source }) => source.chain.id === l2Payment.selectedChainId,
+  )
+
+const getL2MethodItems = (
+  l2Payment: L2PaymentProps | undefined,
+  selectedL2: L2PaymentOption | undefined,
+): PaymentMethodListItem[] => {
+  if (!l2Payment) return []
+  return l2Payment.options.map((option) => ({
+    id: option.id,
+    isAvailable: option.status !== 'not-needed',
+    isFunded: option.status === 'available',
+    isCommon: false,
+    content: (
+      <L2SourceListItem
+        bridgeAmountRaw={l2Payment.bridgeAmountRaw}
+        feeRaw={l2Payment.feeRaw}
+        hasQuoteFailed={l2Payment.hasQuoteFailed}
+        isQuoteLoading={l2Payment.isQuoteLoading}
+        isSelected={option === selectedL2}
+        onSelect={() => l2Payment.onSelect(option.source.chain.id)}
+        option={option}
+      />
+    ),
+  }))
+}
+
+/** The sheet's one button: register from the wallet, or bridge from an L2. */
+const getPrimaryAction = ({
+  selectedL2,
+  l2Payment,
+  canRegister,
+  isConnected,
+  nextMessage,
+  onNext,
+}: {
+  readonly selectedL2: L2PaymentOption | undefined
+  readonly l2Payment: L2PaymentProps | undefined
+  readonly canRegister: boolean
+  readonly isConnected: boolean
+  readonly nextMessage: ReactNode
+  readonly onNext: () => void
+}): { label: ReactNode; onClick: () => void; isEnabled: boolean } =>
+  selectedL2 && l2Payment
+    ? {
+        label: <Trans>Bridge from {selectedL2.source.chain.name}</Trans>,
+        onClick: l2Payment.onBridge,
+        isEnabled: isConnected && l2Payment.canBridge,
+      }
+    : { label: nextMessage, onClick: onNext, isEnabled: canRegister }
 
 /**
  * The single message slot under the token list. The error wins when there is
@@ -564,6 +636,7 @@ export const TokenPickerContentBase = ({
   isFeeTooltipOpen,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
+  l2Payment,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -598,6 +671,8 @@ export const TokenPickerContentBase = ({
   readonly isQuoteStale?: boolean
   /** A required budget quote failed, so checkout must remain blocked. */
   readonly hasBudgetQuoteFailed?: boolean
+  /** Registration only: rows that bridge the wallet's shortfall in from an L2. */
+  readonly l2Payment?: L2PaymentProps
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -648,7 +723,7 @@ export const TokenPickerContentBase = ({
       selectedCoinBalance.decimals,
     ) >= requiredAmount
 
-  const canNext =
+  const canRegister =
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
@@ -658,7 +733,20 @@ export const TokenPickerContentBase = ({
     // Refuse rather than proceed on a figure that cannot fund the batch.
     !hasBudgetQuoteFailed
 
-  const paymentMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
+  const selectedL2 = getSelectedL2(l2Payment)
+  const action = getPrimaryAction({
+    selectedL2,
+    l2Payment,
+    canRegister,
+    isConnected,
+    nextMessage,
+    onNext,
+  })
+  const canNext = action.isEnabled
+  const walletSelection = selectedL2 ? undefined : selectedToken
+  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2)
+
+  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
     (stablecoin) => {
       const balance = decimalBigintToNumber(
         BigInt(stablecoin.balance),
@@ -683,7 +771,7 @@ export const TokenPickerContentBase = ({
             networkFee={displayedNetworkFee}
             onSelectCoin={onSelectCoin}
             priceUSD={requiredAmount ?? 0}
-            selectedCoin={selectedToken}
+            selectedCoin={walletSelection}
             showNetworkFeeDetails={showNetworkFeeDetails}
             stablecoin={stablecoin}
           />
@@ -691,6 +779,7 @@ export const TokenPickerContentBase = ({
       }
     },
   )
+  const paymentMethodItems = [...walletMethodItems, ...l2MethodItems]
 
   return (
     // `min-h-0` lets the registration sheet scroll within its viewport rather
@@ -817,9 +906,9 @@ export const TokenPickerContentBase = ({
           canNext && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
         disabled={!canNext}
-        onClick={onNext}
+        onClick={action.onClick}
       >
-        {nextMessage}
+        {action.label}
       </Button>
     </div>
   )

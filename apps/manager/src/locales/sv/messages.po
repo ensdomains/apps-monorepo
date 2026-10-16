@@ -290,6 +290,10 @@ msgstr ""
 msgid "Allow this temporary account to move this name."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Allow USDC on {from}"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
@@ -346,6 +350,10 @@ msgstr ""
 msgid "Approve this name in your wallet"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Approve USDC on {from} in your wallet. This is needed once per network and uses a little ETH for gas."
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve your names"
 msgstr ""
@@ -386,6 +394,7 @@ msgstr ""
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
 msgid "Back"
 msgstr ""
 
@@ -399,6 +408,7 @@ msgstr ""
 msgid "Back to Quote"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "balance"
 msgstr ""
@@ -421,6 +431,28 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Bot access needed"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Bridge {bridgeAmount} to your wallet"
+msgstr ""
+
+#. placeholder {0}: toUsd(feeRaw)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Bridge {bridgeAmount} to your wallet, fee {0}"
+msgstr ""
+
+#. placeholder {0}: selectedL2.source.chain.name
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Bridge from {0}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Bridging from {chainName} isn't available right now"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Bridging USDC"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -496,6 +528,10 @@ msgstr ""
 msgid "Check status"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Check the transfer before you continue."
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Check your wallet activity first. Only discard if the previous renewal was never sent or was cancelled. If it is still pending and you renew again, you could pay twice. Discarding does not cancel a wallet transaction."
 msgstr ""
@@ -522,6 +558,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Checking the route from {from}."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -681,6 +721,10 @@ msgstr ""
 msgid "Contact methods"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Continue"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
 msgstr ""
@@ -756,6 +800,10 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Couldn't read your balance on {chainName}"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -1219,6 +1267,10 @@ msgstr "Hur kan jag säkra mitt ENS-namn?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "How does bridging work?"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "How it works"
@@ -1230,6 +1282,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "If the transfer completes, the USDC arrives in your wallet on {to}. If it doesn't, it stays on {from}."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
@@ -1287,6 +1343,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Keep this window open while the transaction confirms."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Keep waiting"
 msgstr ""
 
 #: src/features/migration/components/value-props/migrationValueProps.ts
@@ -1560,6 +1620,10 @@ msgstr ""
 msgid "NFT traits"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "No bridge from {from} is available right now."
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepNameList.tsx
 msgid "No eligible names found for this wallet"
 msgstr ""
@@ -1614,8 +1678,16 @@ msgstr ""
 msgid "not enough funds to pay network fees"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Not enough USDC on {chainName}"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Not needed, your wallet covers it"
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -1782,6 +1854,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your registration"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Preparing your transfer"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
@@ -2214,6 +2290,10 @@ msgstr ""
 msgid "Review permissions"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Review the transfer"
+msgstr ""
+
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Revoke sessions"
 msgstr ""
@@ -2311,12 +2391,21 @@ msgstr ""
 msgid "Select payment"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Select USDC on {chainName}"
+msgstr ""
+
 #: src/features/dashboard/components/PrimaryNameListControls.tsx
 msgid "Selected: {selectedName}"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Send Verification"
+msgstr ""
+
+#. placeholder {0}: usd(route.amountOut)
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Sending {0} to your wallet on {to}. This usually takes under a minute."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2445,6 +2534,11 @@ msgstr ""
 msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 msgstr ""
 
+#. placeholder {0}: usd(amountIn)
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Sign in your wallet to send {0} from {from} to your wallet on {to}."
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Sign once to enable gasless transactions for your ENS operations."
 msgstr ""
@@ -2455,6 +2549,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Sign the gasless payment approval in your wallet"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "Sign the transfer"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -2632,6 +2730,14 @@ msgstr ""
 msgid "That's generous of you!"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The bridge didn't complete, so your USDC stays on {from}."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The bridge fee changed. Check the new amount before you continue."
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The commemorative NFT could not be minted. Please try again."
 msgstr ""
@@ -2688,6 +2794,10 @@ msgstr ""
 msgid "The pending code will stop working."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The quote expired before it was signed. Check it and sign again."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "The registrar requires a short wait between commit and register"
 msgstr ""
@@ -2713,8 +2823,28 @@ msgstr ""
 msgid "The replacement resolver could not be verified. Please try again."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The request was declined in your wallet."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The transfer couldn't be submitted."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The transfer didn't go through"
+msgstr ""
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "The upgrade contracts don't match this account. Please contact support."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "The USDC approval on {from} didn't go through."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "The USDC is bridged to your wallet first, then the registration is paid from there. You approve USDC once per network and sign the transfer."
 msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
@@ -2735,6 +2865,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "This is taking longer than usual"
 msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
@@ -2828,6 +2962,7 @@ msgstr ""
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
 msgstr ""
@@ -2953,6 +3088,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "USD"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "USDC on {chainName}"
 msgstr ""
 
 #: src/features/landing/IntegrationsSection.tsx
@@ -3142,6 +3281,10 @@ msgstr ""
 msgid "We couldn’t confirm that this name is renewable."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "We couldn't reach {from}. Check your connection."
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't read your current records."
 msgstr ""
@@ -3268,6 +3411,10 @@ msgstr ""
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "You need a little ETH on {from} to approve USDC."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr ""
@@ -3282,6 +3429,14 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "You pay now"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "You receive on {to}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
+msgid "You send on {from}"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
