@@ -1,5 +1,5 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
-import { readGraceNames, readNamesForAddress } from '@ens-apps/indexer/bigname'
+import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -11,8 +11,9 @@ import { bigname } from '@/lib/bigname'
 import {
   mergeAddressNames,
   toAddressNameItem,
-  toGraceItem,
+  toLapsedItem,
 } from '@/utils/names/addressNames'
+import { readLapsedNames } from '@/utils/names/lapsedNames'
 
 class GetAddressNamesError extends TaggedError('GetAddressNamesError')<{
   cause: BignameError | IndexerReadError
@@ -29,7 +30,7 @@ const readNames = readNamesForAddress(bigname)
 
 /**
  * Every name the address owns, manages or holds a role on, in either era,
- * plus the ENSv2 names it can still renew in grace. Names that only resolve
+ * plus the names it held through their grace and price cooldown. Names that only resolve
  * to the address are on its resolution page instead.
  */
 export const getAddressNames = (
@@ -45,18 +46,16 @@ export const getAddressNames = (
       { address, includeCounts: true },
       { signal },
     ).mapErr(toError),
-    // bigname drops an ENSv2 name from `relation=any` once it expires, though
-    // its holder can still renew it for 28 days.
-    readGraceNames(
+    readLapsedNames(
       bigname,
       address,
       now.epochNanoseconds / NS_PER_SECOND,
       signal,
     ).mapErr(toError),
-  ]).map(([summaries, graceRows]) =>
+  ]).map(([summaries, lapsedRows]) =>
     mergeAddressNames(
       summaries.flatMap((summary) => toAddressNameItem(summary) ?? []),
-      graceRows.map(toGraceItem),
+      lapsedRows.map(toLapsedItem),
     ),
   )
 

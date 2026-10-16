@@ -40,7 +40,7 @@ export const getNameStatus = (
   now = new Date(),
 ): string => {
   if (!expiryDate) return 'no-expiry'
-  if (status !== 'expired') return 'registered'
+  if (status !== 'expired' && status !== 'released') return 'registered'
   if (!graceEndDate) return 'expired'
   if (now < graceEndDate) return 'grace'
   const premiumEnd = graceEndDate.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY
