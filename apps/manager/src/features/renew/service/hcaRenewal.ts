@@ -19,7 +19,7 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { getRenewPrice } from '../data/queries/renewPricing.query'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 
@@ -38,6 +38,9 @@ import type { RenewalProtocol } from '../utils/renewalProtocol'
  */
 export const HCA_RENEWAL_INTENT_GAS_LIMIT_BASE = 600_000n
 export const HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM = 100_000n
+
+/** Room for a second permit + `transferFrom` pair when the rent is not in USDC. */
+export const HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS = 150_000n
 
 /**
  * Most names one intent may carry.
@@ -76,7 +79,8 @@ export interface SubmitHcaRenewalParams {
   readonly renewerAddress: Address
   /** Which renewer that is — selects the live price read. */
   readonly protocol: RenewalProtocol
-  readonly token: SUPPORTED_TOKEN
+  /** What the rent is paid in. The intent's fee is always USDC. */
+  readonly token: RENEWAL_TOKEN
   /** The smart-account signer from the account context. */
   readonly signer: RhinestoneSigner
   /** The owner EOA the HCA belongs to. Funds the shortfall, signs the intent. */
@@ -107,7 +111,7 @@ export interface SubmitHcaRenewalParams {
  */
 const readAuthorizedRent = ResultFn(async function* (
   items: readonly HcaRenewalItem[],
-  token: SUPPORTED_TOKEN,
+  token: RENEWAL_TOKEN,
   protocol: RenewalProtocol,
 ) {
   const prices = yield* ResultAsync.combine(
@@ -123,11 +127,12 @@ const readAuthorizedRent = ResultFn(async function* (
 })
 
 /**
- * Renew one or more names as a single owner-signed HCA intent, paid in USDC.
+ * Renew one or more names as a single owner-signed HCA intent, with the rent in
+ * the chosen stable and the intent's fee in USDC.
  *
  * There is no plain transaction and no gas token on this route: the wallet
- * signs typed data (the intent, plus a funding permit only when the HCA is
- * short), and the HCA executes the calls out of its own USDC balance.
+ * signs typed data (the intent, plus a funding permit per token the HCA is
+ * short of), and the HCA executes the calls out of its own balances.
  *
  * `renew` charges `msg.sender`, so the payer is the HCA, and the intent is
  * owner-signed — `HCAOwnerAndSessionValidator` allowlists only `commit` and
@@ -186,9 +191,9 @@ export async function submitHcaRenewal(
 
   await assertPaymentTokenSupported(publicClient, renewerAddress, tokenAddress)
 
-  // A renewal the HCA already holds an allowance for needs no approval; a
-  // settled registration leaves nothing standing (its permit is consumed to
-  // zero), so this normally does add one — cheaply, and inside the same intent.
+  // Skip the approval when the HCA's standing allowance to the renewer already
+  // covers it, e.g. a bulk chunk's leftover headroom. Registration's
+  // `approve(price)` is pulled in full by `register`, so this usually adds one.
   const standingAllowance = await publicClient.readContract({
     address: tokenAddress,
     abi: erc20Abi,
@@ -219,7 +224,9 @@ export async function submitHcaRenewal(
     },
   ]
 
-  const gasLimit = hcaRenewalIntentGasLimit(items.length)
+  const gasLimit =
+    hcaRenewalIntentGasLimit(items.length) +
+    (token === 'USDC' ? 0n : HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS)
 
   // Owner-signed on purpose: `renew` is not one of the calls
   // `HCAOwnerAndSessionValidator` allows a session to make, so the intent has
@@ -234,8 +241,14 @@ export async function submitHcaRenewal(
     publicClient,
     chainId,
     calls: actionCalls,
-    // The rent the calls pull, on top of the fee: both come from the HCA.
-    requiredUsdc: rentTotal,
+    // The rent the calls pull, on top of the fee: both come from the HCA. In
+    // USDC it shares the fee's funding; in any other stable it is its own leg.
+    tokenSpend: {
+      token: tokenAddress,
+      symbol: TOKENS[token].symbol,
+      decimals: TOKENS[token].decimals,
+      amount: rentTotal,
+    },
     gasLimit,
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
     // The amounts are quoted here, not on any earlier screen, so this is the

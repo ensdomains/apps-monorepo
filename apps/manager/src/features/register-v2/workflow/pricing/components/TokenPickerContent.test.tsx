@@ -313,6 +313,32 @@ describe('TokenPickerContentBase', () => {
     expect(onSelectCoin).not.toHaveBeenCalled()
   })
 
+  it('lets a wallet through that only covers what the account does not', () => {
+    // A renewal: 1,000 USDC in the wallet against a 1,200 price, with 300 USDC
+    // already in the smart account, which pays first.
+    renderPicker({
+      accountCredit: { USDC: 300 },
+      nextMessage: 'Renew Name',
+      pricingData: 1_200,
+      selectedToken: 'USDC',
+      showNetworkFeeDetails: false,
+    })
+
+    expect(screen.getByRole('button', { name: 'Renew Name' })).toBeEnabled()
+  })
+
+  it('checks each coin against the account credit in that coin only', () => {
+    renderPicker({
+      accountCredit: { DAI: 300 },
+      nextMessage: 'Renew Name',
+      pricingData: 1_200,
+      selectedToken: 'USDC',
+      showNetworkFeeDetails: false,
+    })
+
+    expect(screen.getByRole('button', { name: 'Renew Name' })).toBeDisabled()
+  })
+
   it('lets checkout through when the HCA already covers the whole budget', () => {
     // A debit of 0 is a real state, not a missing quote: an aborted
     // registration that funded the commit but never revealed leaves the HCA

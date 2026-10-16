@@ -10,7 +10,7 @@ import {
 import { err, fromPromise, ok } from 'neverthrow'
 import { parseAbi } from 'viem'
 import { chain } from '@/config'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 
 const ETH_REGISTRAR = getChainContractAddress({
@@ -99,7 +99,7 @@ export class GetRenewPriceError extends TaggedError('GetRenewPriceError')<{
 export const getRenewPrice = ResultFn(async function* (
   label: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN | undefined,
+  token: RENEWAL_TOKEN | undefined,
 ) {
   if (!token) {
     return err(new MissingTokenError({}))
@@ -120,7 +120,7 @@ export const getRenewPrice = ResultFn(async function* (
 export const getRenewPriceQueryOptions = (
   label: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN | undefined,
+  token: RENEWAL_TOKEN | undefined,
 ) => {
   return resultQueryOptions({
     queryKey: $qk({

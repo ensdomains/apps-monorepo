@@ -20,8 +20,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   getSmartAccountAddress: mocks.getSmartAccountAddress,
-  // 10 USDC per declared 300k of gas; the scaling itself is covered in the
-  // transaction-manager suite.
+  // A stand-in ceiling that scales with the limit; the real curve is covered in
+  // the transaction-manager suite.
   hcaMaxIntentFeeUsdcFor: (gasLimit: bigint) =>
     (gasLimit * 10_000_000n) / 300_000n,
   planHcaIntentFunding: mocks.planHcaIntentFunding,
@@ -51,6 +51,7 @@ import { TOKENS } from '@/lib/tokens'
 import {
   HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
   HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
+  HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
   submitHcaRenewal,
 } from './hcaRenewal'
 
@@ -141,7 +142,12 @@ describe('submitHcaRenewal', () => {
     await submitHcaRenewal(params)
 
     expect(fundingParams()).toMatchObject({
-      requiredUsdc: 1_100_000n,
+      tokenSpend: {
+        token: USDC,
+        symbol: 'USDC',
+        decimals: 6,
+        amount: 1_100_000n,
+      },
       gasLimit: HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
       maxFeeUsdc: 20_000_000n,
       ownerAddress: OWNER,
@@ -162,10 +168,50 @@ describe('submitHcaRenewal', () => {
     // One batch call for all three, plus the single approval.
     expect(actionCalls()).toHaveLength(2)
     expect(fundingParams()).toMatchObject({
-      requiredUsdc: 3_300_000n,
+      tokenSpend: { amount: 3_300_000n },
       gasLimit:
         HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
         2n * HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
+    })
+  })
+
+  it('pays the rent in DAI as a leg of its own, the fee still in USDC', async () => {
+    const DAI = TOKENS.DAI.address
+
+    await submitHcaRenewal({ ...params, token: 'DAI' })
+
+    expect(mocks.getRenewPrice).toHaveBeenCalledWith(
+      'alice',
+      31_536_000n,
+      'DAI',
+      'v2',
+    )
+    expect(mocks.assertPaymentTokenSupported).toHaveBeenCalledWith(
+      publicClient,
+      RENEWER,
+      DAI,
+    )
+    // The HCA approves and renews in DAI…
+    expect(approveCall()).toMatchObject({ to: DAI })
+    expect(mocks.encodeRenewData).toHaveBeenCalledWith(
+      'alice',
+      31_536_000n,
+      DAI,
+    )
+    // …and the rail funds it beside the fee, with room for the second pair.
+    expect(fundingParams()).toMatchObject({
+      tokenSpend: {
+        token: DAI,
+        symbol: 'DAI',
+        decimals: 18,
+        amount: 1_100_000n,
+      },
+      gasLimit:
+        HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
+        HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
+    })
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { rhinestoneParams: { feeAsset: 'USDC' } },
     })
   })
 
