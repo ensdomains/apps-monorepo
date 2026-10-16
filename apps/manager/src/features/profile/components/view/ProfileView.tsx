@@ -8,6 +8,7 @@ import { CommemorativeNftProfileSection } from '@/features/migration/components/
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
+import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
@@ -136,6 +137,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileReverseNameQuery(owner),
   })
   const isOwner = useIsOwner({ owner })
+  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+  const canEditRecords = useCanEditRecords({
+    enabled: !expiry.isInGrace,
+    isOwner: resolvedIsOwner,
+    name,
+  })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
@@ -164,7 +171,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ? undefined
     : themeVars['--theme-color']
   const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
-  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
   // have no matching tokens
@@ -243,6 +249,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         <ProfileDraftProvider value={setDraft}>
           <ProfileActions
             avatarUrl={avatarUrl}
+            canEditRecords={canEditRecords}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}

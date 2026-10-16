@@ -8,8 +8,8 @@ import { ProfileUpgradePopover } from './ProfileUpgradePopover'
 
 type ProfileEditActionProps = {
   readonly className: string
+  readonly canEdit?: boolean
   readonly isInGrace: boolean
-  readonly isOwner?: boolean
   readonly isUpgradeRequired?: boolean
   readonly leftActions?: ReactNode
   readonly name: string
@@ -20,8 +20,8 @@ type ProfileEditActionProps = {
 }
 
 export const ProfileEditAction = ({
+  canEdit,
   isInGrace,
-  isOwner,
   isUpgradeRequired = false,
   leftActions,
   name,
@@ -36,7 +36,7 @@ export const ProfileEditAction = ({
   const isUnmigratedEthName =
     protocol === 'v1' && normalizeEthName(name) !== null
 
-  if (isInGrace || (!isOwner && !isUpgradeRequired)) return null
+  if (isInGrace || (!canEdit && !isUpgradeRequired)) return null
 
   if (isUpgradeRequired) {
     return <ProfileUpgradePopover className={className} />

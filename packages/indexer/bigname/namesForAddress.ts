@@ -46,7 +46,11 @@ const toInclude = (
 const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   // Unscoped, bigname also lists other namespaces such as Basenames.
   namespace: 'ens',
-  relation: query.relations?.length ? query.relations : 'any',
+  relation: query.resolvesTo
+    ? 'resolves_to'
+    : query.relations?.length
+      ? query.relations
+      : 'any',
   authority: query.protocol && AUTHORITIES[query.protocol],
   is_migrated: query.migratedOnly ? 'true' : undefined,
   parent: query.parent,
