@@ -40,6 +40,12 @@ const rolesQuery: QueryStub = {
   isError: false,
 }
 
+const ethAddressEdit = { canEdit: true, isLoading: false, isError: false }
+
+vi.mock('@/features/records/hooks/useCanEditRecords', () => ({
+  useCanEditRecords: () => ethAddressEdit,
+}))
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
     '@tanstack/react-query',
@@ -100,6 +106,11 @@ describe('useTransferDetachTargets', () => {
     Object.assign(rolesQuery, {
       data: { decoded: ['ROLE_SET_RESOLVER', 'ROLE_SET_SUBREGISTRY'] },
       isSuccess: true,
+      isError: false,
+    })
+    Object.assign(ethAddressEdit, {
+      canEdit: true,
+      isLoading: false,
       isError: false,
     })
   })
@@ -189,5 +200,34 @@ describe('useTransferDetachTargets', () => {
 
     expect(isOptionVisible.detachResolver).toBe(false)
     expect(isOptionVisible.setEthAddress).toBe(false)
+  })
+
+  // A name still on its previous owner's resolver: `setAddress` reverts on the
+  // first step without `ROLE_SET_ADDRESS` there.
+  it('hides the ETH-address option when the owner cannot set the address on the resolver', () => {
+    ethAddressEdit.canEdit = false
+
+    const { isOptionVisible, isSettled } = render('sub.alice.eth')
+
+    expect(isOptionVisible.setEthAddress).toBe(false)
+    expect(isOptionVisible.detachResolver).toBe(true)
+    expect(isSettled).toBe(true)
+  })
+
+  it('is not settled while the resolver permission is loading', () => {
+    Object.assign(ethAddressEdit, { canEdit: false, isLoading: true })
+
+    expect(render('sub.alice.eth').isSettled).toBe(false)
+  })
+
+  // Hiding the option on a failed read would let the transfer go ahead with
+  // the ETH address still pointing at the sender.
+  it('reports failed when the resolver permission read errors', () => {
+    Object.assign(ethAddressEdit, { canEdit: false, isError: true })
+
+    const { isSettled, hasFailed } = render('sub.alice.eth')
+
+    expect(hasFailed).toBe(true)
+    expect(isSettled).toBe(false)
   })
 })
