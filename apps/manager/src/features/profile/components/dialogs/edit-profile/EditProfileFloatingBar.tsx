@@ -97,12 +97,12 @@ const useMeasuredHeight = (ref: RefObject<HTMLElement | null>) => {
 // Figma-spec card: the 12px radius, 0.25px border and layered shadows have no
 // matching tokens. The open shadow is the elevated state while the editor is up.
 const containerClassName =
-  'pointer-events-auto relative mx-auto w-full max-w-226.25 overflow-hidden border-ens-quartz-200 border-t bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] transition-shadow duration-300 xl:rounded-xl xl:border-[0.25px] xl:border-ens-quartz-300 xl:border-solid xl:shadow-[0_2px_12px_rgba(0,0,0,0.06)] xl:data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)]'
+  'pointer-events-auto relative mx-auto w-full max-w-97.5 overflow-hidden border-ens-quartz-200 border-t bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] transition-shadow duration-300 xs:rounded-xl xs:border-[0.25px] xs:border-ens-quartz-300 xs:border-solid xs:shadow-[0_2px_12px_rgba(0,0,0,0.06)] xs:data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)] xl:max-w-226.25'
 
 // Figma-spec offset: the bar floats 30px above the bottom (plus the device
 // safe area), which has no matching spacing token.
 const sectionClassName =
-  'pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] xl:px-4'
+  'pointer-events-none fixed inset-x-0 bottom-0 z-40 xs:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] xs:px-4'
 
 interface EditProfileFloatingBarProps {
   readonly children: ReactNode
