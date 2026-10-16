@@ -138,6 +138,7 @@ export const ProfileAbout = ({
     ? getSafeProfileHref(records.base.url)
     : undefined
   const fullName = records?.base.name?.trim()
+  const description = records?.base.description?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records?.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
@@ -177,8 +178,8 @@ export const ProfileAbout = ({
                 </span>
               </h2>
             )}
-            {records?.base.description ? (
-              <ProfileDescription description={records.base.description} />
+            {description ? (
+              <ProfileDescription description={description} />
             ) : isOwner && !primaryName ? (
               <p className="mt-3 text-ens-quartz-400 text-sm leading-normal">
                 <Trans>Share a fun fact about this name</Trans>

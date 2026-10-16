@@ -19,7 +19,12 @@ describe('ProfileAbout', () => {
   })
 
   it('prompts the owner to fill in an empty description', () => {
-    render(<ProfileAbout isOwner records={newEmptyProfileRecords()} />)
+    render(
+      <ProfileAbout
+        isOwner
+        records={{ ...newEmptyProfileRecords(), base: { description: '   ' } }}
+      />,
+    )
 
     expect(
       screen.getByRole('heading', { name: 'Profile Description' }),
