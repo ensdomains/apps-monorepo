@@ -7,7 +7,6 @@ interface PrimaryNameV1WarningProps {
   readonly upgradeableNameCount: number
 }
 
-/** Names that must be upgraded to ENSv2 before they can be a primary name. */
 export const PrimaryNameV1Warning = ({
   isError,
   upgradeableNameCount,

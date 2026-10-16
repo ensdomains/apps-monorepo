@@ -360,7 +360,6 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
 describe('chooser ENSv2 upgrade warning', () => {
   const WARNING = 'Only ENSv2 Names Supported'
 
-  // Mirrors the real hook: nothing is eligible while it is disabled.
   const eligibility = (state: {
     readonly eligibleKeys?: ReadonlySet<string>
     readonly isPending?: boolean

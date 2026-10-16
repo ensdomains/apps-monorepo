@@ -435,7 +435,6 @@ const useSetupResolverMutation = ({
   })
 }
 
-// Only names the owner can upgrade belong in the ENSv2 warning.
 const useUpgradeWarning = (open: boolean) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
