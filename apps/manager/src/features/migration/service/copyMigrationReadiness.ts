@@ -24,6 +24,7 @@ import {
   type DirectClassifiedName,
   FUSES,
   hasFuse,
+  wrappedCopyExpiry,
 } from './classifyNames'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
@@ -167,13 +168,11 @@ const assertWrappedSourceFresh = async (params: {
       `"${copy.domain.name}" became locked after selection`,
     )
   }
-  // Parent-controlled NameWrapper subnames may retain an unset zero expiry.
-  // Once emancipated, the same value is already expired.
-  const hasNoIndependentExpiry =
-    expiry === 0n && !hasFuse(BigInt(fuses), FUSES.PARENT_CANNOT_CONTROL)
-  const sourceExpired =
-    !hasNoIndependentExpiry && expiry <= BigInt(Math.floor(Date.now() / 1000))
-  if (expiry !== copy.sourceExpiry || sourceExpired) {
+  const liveExpiry = wrappedCopyExpiry(expiry, BigInt(fuses))
+  if (
+    liveExpiry !== copy.sourceExpiry ||
+    liveExpiry <= BigInt(Math.floor(Date.now() / 1000))
+  ) {
     throw sourceError(
       copy,
       'source-expiry-changed',

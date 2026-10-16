@@ -98,6 +98,36 @@ describe('checkOwnership', () => {
     expect([...ids]).toEqual(['0xa1'])
   })
 
+  it('keeps a parent-controlled wrapped copy with an unset zero expiry', async () => {
+    multicallMock.mockResolvedValueOnce([ok([OWNER, 0, 0n] as const)])
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'wrapped.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'unlocked-child',
+    })
+
+    const ids = await checkOwnership(publicClient, [copy], OWNER)
+
+    expect(ids.size).toBe(0)
+  })
+
+  it('marks an emancipated wrapped copy with a zero expiry', async () => {
+    multicallMock.mockResolvedValueOnce([
+      ok([OWNER, Number(FUSES.PARENT_CANNOT_CONTROL), 0n] as const),
+    ])
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'wrapped.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'unlocked-child',
+    })
+
+    const ids = await checkOwnership(publicClient, [copy], OWNER)
+
+    expect([...ids]).toEqual(['0xa1'])
+  })
+
   it('checks a registry-only copy through LegacyRegistry.owner(namehash)', async () => {
     multicallMock.mockResolvedValueOnce([ok(OWNER), ok(OTHER)])
     const owned = makeClassified({

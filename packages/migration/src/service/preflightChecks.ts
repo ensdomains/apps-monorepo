@@ -11,7 +11,12 @@ import {
 } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
-import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import {
+  type ClassifiedName,
+  FUSES,
+  hasFuse,
+  wrappedCopyExpiry,
+} from './classifyNames'
 import { GRACE_PERIOD_SECONDS } from './constants'
 
 const RESERVED_STATUS = 1
@@ -81,7 +86,7 @@ const isWrappedResultUnavailable = (
   nowSeconds: bigint,
 ): boolean =>
   name.action === 'copy'
-    ? result[2] <= nowSeconds
+    ? wrappedCopyExpiry(result[2], BigInt(result[1])) <= nowSeconds
     : !isWrappedTokenTransferable(result[1], result[2], nowSeconds)
 
 export const checkOwnership = async (
