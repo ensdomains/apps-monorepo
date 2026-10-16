@@ -196,7 +196,7 @@ const DescriptionField = ({
       <textarea
         aria-describedby={`${descriptionCharacterCountId}${hasDescriptionError ? ` ${descriptionErrorMessageId}` : ''}`}
         aria-invalid={hasDescriptionError}
-        aria-label={t`Description`}
+        aria-label={t`Profile Description`}
         className={cn(
           fieldClassName,
           'min-h-[101px] resize-none',
@@ -206,7 +206,7 @@ const DescriptionField = ({
         disabled={disabled}
         maxLength={DESCRIPTION_MAX_LENGTH}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={t`Description`}
+        placeholder={t`Profile Description`}
         value={description}
       />
       <p

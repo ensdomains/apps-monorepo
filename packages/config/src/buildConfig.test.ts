@@ -48,6 +48,14 @@ describe('buildConfig', () => {
     })
   })
 
+  it.each([
+    'sepolia',
+    'mainnet',
+  ] as const)('uses the %s backend without inheriting the other network', (network) => {
+    const config = buildConfig({ network, allowMissingEndpoints: true })
+    expect(config.appApiUrl).toBe(`https://${network}.app-api.ens.domains`)
+  })
+
   describe('ENSv2 deployment guard', () => {
     // ensjs carries a key for every network but fills undeployed ones with the
     // zero address, so a lookup returns 0x0 instead of throwing. Without this

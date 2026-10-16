@@ -94,6 +94,16 @@ const createWalletClient = (privateKey: string | undefined, rpcUrl: string) => {
 
 export default createApp()
   .basePath('/wallet')
+  .use('/*', async (c, next) => {
+    // Both funding and the advertised mock tokens are Sepolia-only. Run this
+    // before validation, database injection, KV access or loading the key.
+    if (c.env?.CHAIN !== 'sepolia') {
+      throw new HTTPException(404, {
+        message: 'Wallet faucet is only available on Sepolia',
+      })
+    }
+    await next()
+  })
   .post(
     '/fund',
     injectDb,

@@ -8,6 +8,59 @@ import {
 } from './transformRecords'
 
 describe('profile transformRecords utils', () => {
+  describe('primary contacts record limits', () => {
+    const transformPrimaryContacts = (value: string) =>
+      transformProfileRecords({
+        texts: [
+          { key: 'domains.ens.primary-contacts', value },
+          { key: 'primary-contact', value: 'phone' },
+          { key: 'description', value: 'Profile remains available' },
+        ],
+        coins: [],
+      })
+
+    it('drops a grouped 270,000-key record before it reaches any consumer', () => {
+      const value = JSON.stringify([
+        ...Array(90_000).fill('email'),
+        ...Array(90_000).fill('mail'),
+        ...Array(90_000).fill('phone'),
+      ])
+      const result = transformPrimaryContacts(value)
+
+      expect('domains.ens.primary-contacts' in result.base).toBe(false)
+      expect(result.unknown).toEqual([])
+      expect(result.base['primary-contact']).toBe('phone')
+      expect(result.base.description).toBe('Profile remains available')
+    })
+
+    it('preserves a record at 4 KiB and drops one byte over it', () => {
+      const value = '["email"]'.padEnd(4 * 1024, ' ')
+
+      expect(
+        transformPrimaryContacts(value).base['domains.ens.primary-contacts'],
+      ).toBe(value)
+      expect(
+        transformPrimaryContacts(`${value} `).base[
+          'domains.ens.primary-contacts'
+        ],
+      ).toBeUndefined()
+    })
+
+    it('enforces the raw UTF-8 byte limit', () => {
+      const value = JSON.stringify(['email', 'é'.repeat(2042)])
+
+      expect(new TextEncoder().encode(value)).toHaveLength(4 * 1024)
+      expect(
+        transformPrimaryContacts(value).base['domains.ens.primary-contacts'],
+      ).toBe(value)
+      expect(
+        transformPrimaryContacts(`${value} `).base[
+          'domains.ens.primary-contacts'
+        ],
+      ).toBeUndefined()
+    })
+  })
+
   describe('links record limits', () => {
     const link = { name: 'Website', url: 'https://example.com' }
     const transformLinks = (value: string) =>

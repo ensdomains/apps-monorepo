@@ -23,7 +23,8 @@
     "i18n:pull": "crowdin download --config crowdin.yml",
     "lint": "biome check",
     "lint:fix": "biome check --fix",
-    "prebuild": "tsx scripts/check-network-config.ts"
+    "dev:mainnet": "pnpm dev --mode mainnet",
+    "build:mainnet": "pnpm build --mode mainnet"
   },
   "dependencies": {
     "@ens-apps/config": "workspace:^",

@@ -2,7 +2,7 @@
  * Content-Security-Policy + security headers for the portal worker.
  *
  * The portal is served by this Cloudflare Worker only in production
- * (`vite.config.ts` mounts `cloudflare()` only when `mode !== 'development'`),
+ * (`vite.config.ts` mounts `cloudflare()` for builds and previews),
  * so applying CSP here automatically exempts the Vite dev server / HMR.
  *
  * The policy is delivered two ways (see `worker.ts`):

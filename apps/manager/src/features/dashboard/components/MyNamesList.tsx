@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   type MergedItem,
@@ -19,10 +19,12 @@ import { tw } from '@/utils/tailwind'
 import { type DashboardName, isHeldName } from '../dashboardNames'
 import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
 import { DASHBOARD_PAGE_SIZE, useDashboardNames } from '../useDashboardNames'
+import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 import { nameRowRecordsQuery } from './nameRowRecordsQuery'
+import { PrimaryNameButton } from './PrimaryNameButton'
 
 export type Sort = `${SortField}-${SortDir}`
 
@@ -80,6 +82,7 @@ const AnimatedNameRow = ({
   onToggleSelect,
   isV1Renewable,
   isEligibilityPending,
+  primaryNameAction,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -95,6 +98,7 @@ const AnimatedNameRow = ({
   readonly onToggleSelect: (name: DashboardName) => void
   readonly isV1Renewable: boolean
   readonly isEligibilityPending: boolean
+  readonly primaryNameAction?: ReactNode
 }) => {
   const {
     label,
@@ -175,6 +179,7 @@ const AnimatedNameRow = ({
         nameRoles={nameRoles}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(item.name)}
+        primaryNameAction={primaryNameAction}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
         selectable={!isV1 && isRenewable && isHeldName(item.name)}
         showFavoriteButton
@@ -200,6 +205,10 @@ export const MyNamesList = ({
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
+  const [isChooserOpen, setIsChooserOpen] = useState(false)
+  const primaryNameTriggerRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const hasUpdatedPrimaryNameRef = useRef(false)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const {
@@ -279,7 +288,23 @@ export const MyNamesList = ({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full" ref={listRef} tabIndex={-1}>
+      <ChoosePrimaryNameDialog
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          // Successful refetches can remove the old trigger after this closes.
+          const target = hasUpdatedPrimaryNameRef.current
+            ? listRef.current
+            : (primaryNameTriggerRef.current ?? listRef.current)
+          hasUpdatedPrimaryNameRef.current = false
+          target?.focus()
+        }}
+        onOpenChange={setIsChooserOpen}
+        onUpdated={() => {
+          hasUpdatedPrimaryNameRef.current = true
+        }}
+        open={isChooserOpen}
+      />
       {hasPartialError ? (
         <div
           className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-red-600 text-sm"
@@ -337,6 +362,15 @@ export const MyNamesList = ({
                   name={row.name}
                   onToggleFavorite={onToggleFavorite}
                   onToggleSelect={onToggleSelect}
+                  primaryNameAction={
+                    row.metadata.isPrimary ? (
+                      <PrimaryNameButton
+                        className="h-5 py-0"
+                        onClick={() => setIsChooserOpen(true)}
+                        ref={primaryNameTriggerRef}
+                      />
+                    ) : undefined
+                  }
                   profileRecords={profileRecordState?.records}
                   selectedLabels={selectedLabels}
                   shouldReduceMotion={shouldReduceMotion}

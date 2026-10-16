@@ -30,7 +30,7 @@ const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 // covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
-  originFromEnvUrl(import.meta.env?.VITE_API_URL),
+  originFromEnvUrl(import.meta.env?.VITE_API_URL || envConfig.appApiUrl),
   originFromEnvUrl(import.meta.env?.VITE_RHINESTONE_ENDPOINT_URL),
   COMMEMORATIVE_ASSET_ORIGIN,
   DQA_ORIGIN,

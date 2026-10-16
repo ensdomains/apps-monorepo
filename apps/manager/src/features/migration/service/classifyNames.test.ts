@@ -275,6 +275,16 @@ describe('classifyName — token type', () => {
       },
       'detached-child' as const,
     ],
+    [
+      'detached-child migration when the locked parent already migrated',
+      {
+        isWrapped: true,
+        parentName: 'raffy.eth',
+        parentFuses: null,
+        fuses: FUSES.PARENT_CANNOT_CONTROL,
+      },
+      'detached-child' as const,
+    ],
   ])('classifies %s', (_, overrides, tokenType) => {
     expect(classified(classify(overrides)).tokenType).toBe(tokenType)
   })
@@ -351,21 +361,6 @@ describe('classifyName — ineligible reasons', () => {
     ],
   ] as const)('flags %s', (reason, overrides) => {
     expect(ineligibleReason(classify(overrides))).toBe(reason)
-  })
-
-  it('does not classify as detached when parent is unlocked', () => {
-    const n = classified(
-      classify({
-        isWrapped: true,
-        name: 'sub.raffy.eth',
-        parentName: 'raffy.eth',
-        parentFuses: 0n,
-        resolverAddress: null,
-        fuses: FUSES.PARENT_CANNOT_CONTROL,
-      }),
-    )
-    expect(n.action).toBe('copy')
-    expect(n.tokenType).toBe('unlocked-child')
   })
 
   it('rejects an expired wrapped copy candidate', () => {

@@ -12,5 +12,5 @@ import { buildConfig, type EnsAppConfig } from '@ens-apps/config'
 export const getConfig = (env: CloudflareBindings): EnsAppConfig =>
   buildConfig({
     network: env.CHAIN,
-    rpcUrl: env.SEPOLIA_RPC_URL,
+    rpcUrl: env.CHAIN === 'sepolia' ? env.SEPOLIA_RPC_URL : undefined,
   })
