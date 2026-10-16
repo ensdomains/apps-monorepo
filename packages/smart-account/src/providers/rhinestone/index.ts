@@ -70,6 +70,21 @@ export {
   type IntentOperationStatus,
 } from './intent-status'
 export {
+  createL2BridgeAccount,
+  L2_BRIDGE_MIN_AMOUNT_OUT,
+  L2BridgeExpiredError,
+  type L2BridgeQuote,
+  L2BridgeRejectedError,
+  type L2BridgeRoute,
+  L2BridgeSubmitError,
+  L2BridgeUnavailableError,
+  l2BridgeMaxFee,
+  PERMIT2_ADDRESS,
+  quoteL2Bridge,
+  RHINESTONE_ACROSS_ARBITER,
+  submitL2Bridge,
+} from './l2-bridge'
+export {
   computeResolverSalt,
   DEFAULT_SESSION_VALIDITY_SECONDS,
   DESTINATION_CONTRACTS,
