@@ -27,21 +27,28 @@ import {
 } from '@/components/ui/input-group'
 import { columns } from '@/features/forward-resolution/components/ForwardNamesTable/columns'
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
-import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
+import {
+  getResolvedNamesForAddressQueryOptions,
+  RESOLVED_NAMES_PAGE_SIZE,
+} from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
-const RESOLVED_NAMES_INITIAL_COUNT = 100
+// Stable identity: a fresh `[]` each render makes the table recompute its row
+// model, which auto-resets the page index and re-renders.
+const NO_ROWS: never[] = []
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) =>
-    queryClient.prefetchInfiniteQuery(
+  // Started, not awaited, so the page renders while the first names load.
+  loader: ({ params }) => {
+    void queryClient.prefetchInfiniteQuery(
       getResolvedNamesForAddressQueryOptions({
         address: params.addr as Address,
       }),
-    ),
+    )
+  },
 })
 
 function RouteComponent() {
@@ -49,36 +56,31 @@ function RouteComponent() {
 
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const {
-    data,
-    error,
-    isLoading,
-    hasNextPage,
-    fetchNextPage,
-    isFetchNextPageError,
-  } = useInfiniteQuery(getResolvedNamesForAddressQueryOptions({ address }))
-
-  const loadedNames = useMemo(
-    () => data?.pages.flatMap((page) => page.names) ?? [],
-    [data],
+  const query = useInfiniteQuery(
+    getResolvedNamesForAddressQueryOptions({ address }),
   )
-
+  const loaded = useMemo(
+    () => query.data?.pages.flatMap((page) => page.names) ?? NO_ROWS,
+    [query.data],
+  )
   const loader = useListLoader({
-    initialCount: RESOLVED_NAMES_INITIAL_COUNT,
-    loaded: loadedNames.length,
-    hasMore: hasNextPage,
-    fetchMore: infiniteFetchMore(fetchNextPage, (page) => page.names.length),
+    initialCount: RESOLVED_NAMES_PAGE_SIZE,
+    loaded: loaded.length,
+    hasMore: query.hasNextPage,
+    fetchMore: infiniteFetchMore(
+      query.fetchNextPage,
+      (page) => page.names.length,
+    ),
     resetKey: address,
   })
-
-  // Memoised: a fresh array makes the table recompute its row model and re-render.
-  const names = useMemo(
-    () => loadedNames.slice(0, loader.shown),
-    [loadedNames, loader.shown],
+  const data = useMemo(
+    () => loaded.slice(0, loader.shown),
+    [loaded, loader.shown],
   )
+  const isEthereumOnly = query.data?.pages[0]?.isEthereumOnly ?? false
 
   const table = useReactTable({
-    data: names,
+    data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -92,18 +94,19 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (isLoading) return <LoadingMessage />
+  if (query.isLoading) return <LoadingMessage />
 
-  if (error && !isFetchNextPageError) {
+  // A failed Load more keeps the rows; the loader says it failed.
+  if (query.error && !query.isFetchNextPageError) {
     return (
       <ErrorMessage
         title="Data unavailable"
-        description={extractErrorMessage(error)}
+        description={extractErrorMessage(query.error)}
       />
     )
   }
 
-  if (loadedNames.length === 0) {
+  if (data.length === 0) {
     return (
       <>
         <header className="flex flex-col gap-4">
@@ -113,7 +116,7 @@ function RouteComponent() {
         </header>
         <NoResultsMessage
           title="No names found"
-          description="This address doesn't resolve to any ENS names yet."
+          description="No ENS name has an address record on an EVM network that points at this address."
           className="mx-0"
         />
       </>
@@ -139,10 +142,17 @@ function RouteComponent() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
-        {loader.canShowMore && Boolean(table.getState().globalFilter) && (
+        {table.getState().globalFilter &&
+          (query.hasNextPage || loaded.length > data.length) && (
+            <p className="text-p text-muted-foreground">
+              Searching the {data.length} names loaded so far. More or All
+              searches the rest.
+            </p>
+          )}
+        {isEthereumOnly && (
           <p className="text-p text-muted-foreground">
-            Search covers the {names.length} names shown so far. Show more to
-            include the rest.
+            One of these names stores this address under more networks than can
+            be listed, so only Ethereum address records are matched.
           </p>
         )}
       </header>

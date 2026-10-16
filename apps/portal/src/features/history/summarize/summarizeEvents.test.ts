@@ -1,39 +1,52 @@
+import type { EventDataByType } from '@ens-apps/indexer/bigname'
 import type { Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import {
+  mockEventRootPermissionChanged,
+  mockHistoryRegistration,
+  mockHistoryRegistrationPayment,
+} from '@/test-utils/bigname/bigname.mock'
+import {
+  type EventType,
+  type TimelineEvent,
+  toTimelineEvents,
+} from '../timelineEvent'
 import { summarizeEvents } from './summarizeEvents'
 
 const ZERO = '0x0000000000000000000000000000000000000000'
 const OWNER = '0x1111111111111111111111111111111111111111'
+const RESOLVER = '0x2222222222222222222222222222222222222222'
 
-const event = (
-  type: string,
+const event = <TType extends EventType>(
+  type: TType,
   id: string,
-  extra: Partial<TimelineIndexerEvent> = {},
-): TimelineIndexerEvent =>
+  data: EventDataByType[TType] = {},
+  extra: Partial<Omit<TimelineEvent, 'type' | 'data'>> = {},
+): TimelineEvent =>
   ({
     id,
     type,
     name: 'alice.eth',
+    registrationId: null,
     transactionHash: '0xabc' as Hex,
     blockNumber: 1,
+    logIndex: 0,
     timestamp: 1_700_000_000,
+    data,
     ...extra,
-  }) as TimelineIndexerEvent
+  }) as TimelineEvent
 
 const records = [
-  event('AddressChanged', 'r1', {
-    asAddressChanged: { address: OWNER, coinType: 60 },
-  }),
-  event('TextChanged', 'r2', { asTextChanged: { key: 'avatar', value: 'x' } }),
-  event('TextChanged', 'r3', { asTextChanged: { key: 'url', value: 'y' } }),
+  event('record', 'r1', { key: 'addr:60', coin_type: 60, value: OWNER }),
+  event('record', 'r2', { key: 'text:avatar', value: 'x' }),
+  event('record', 'r3', { key: 'text:url', value: 'y' }),
 ]
 
-describe('summarizeEvents — records recipe vs structural events', () => {
-  it('headlines a v2 register-and-seed-records transaction as the register', () => {
+describe('summarizeEvents — records recipe vs structural rows', () => {
+  it('headlines a register-and-seed-records transaction as the registration', () => {
     const [action] = summarizeEvents([
-      event('NameRegistered', '1', { asNameRegistered: { name: 'alice.eth' } }),
-      event('Transfer', '2', { asTransfer: { from: ZERO, to: OWNER } }),
+      event('registration', '1', { owner: OWNER }),
+      event('transfer', '2', { from: ZERO, to: OWNER }),
       ...records,
     ])
 
@@ -44,52 +57,105 @@ describe('summarizeEvents — records recipe vs structural events', () => {
 
   it('still headlines a resolver change plus records as the records', () => {
     const [action] = summarizeEvents([
-      event('ResolverUpdated', '1', { asResolverUpdated: { resolver: OWNER } }),
+      event('resolver', '1', {
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
       ...records,
     ])
 
     expect(action.label).toBe('set 3 records')
   })
 
-  it('does not let a mint Transfer — which describes as nothing — swallow the recipe', () => {
+  it('does not let a mint — which describes as nothing — swallow the recipe', () => {
     const [action] = summarizeEvents([
-      event('Transfer', '1', { asTransfer: { from: ZERO, to: OWNER } }),
+      event('transfer', '1', { to: OWNER }),
       ...records,
     ])
 
     expect(action.label).toBe('set 3 records')
   })
 
-  it('lets a real Transfer headline over the records', () => {
+  it('lets a real transfer headline over the records', () => {
     const [action] = summarizeEvents([
-      event('Transfer', '1', { asTransfer: { from: OWNER, to: ZERO } }),
+      event('transfer', '1', { from: OWNER, to: RESOLVER }),
       ...records,
     ])
 
     expect(action.label).toBe('transferred')
   })
+
+  it('counts both legacy setAddr rows returned by bigname', () => {
+    // `setAddr(node, a)` logs both AddrChanged and AddressChanged; bigname keeps
+    // both as `addr:60` rows with the same value.
+    const [action] = summarizeEvents([
+      event(
+        'record',
+        'a1',
+        { key: 'addr:60', value: OWNER },
+        { kind: 'RecordChanged' },
+      ),
+      event(
+        'record',
+        'a2',
+        { key: 'addr:60', value: OWNER },
+        { kind: 'RecordChanged' },
+      ),
+      event('record', 't1', { key: 'text:url', value: 'y' }),
+    ])
+
+    expect(action.label).toBe('set 3 records')
+    expect(action.events).toHaveLength(3)
+  })
+})
+
+describe('summarizeEvents — grouping', () => {
+  it('makes one action per transaction, keyed by its hash', () => {
+    const actions = summarizeEvents([
+      event('renewal', '1', {}, { transactionHash: '0xaa', timestamp: 2 }),
+      event('expiry', '2', {}, { transactionHash: '0xaa', timestamp: 2 }),
+      event('renewal', '3', {}, { transactionHash: '0xbb', timestamp: 1 }),
+    ])
+
+    expect(actions.map((action) => action.id)).toEqual(['0xaa', '0xbb'])
+    expect(actions[0].txHash).toBe('0xaa')
+    expect(actions[0].label).toBe('renewed')
+    expect(actions[0].events).toHaveLength(2)
+  })
+
+  it('gives a state-derived row an action of its own, with no transaction', () => {
+    // A lapse after grace has no transaction hash or log index.
+    const [release] = summarizeEvents([
+      event('release', 'lapse', {}, { transactionHash: null }),
+    ])
+
+    expect(release.id).toBe('row:lapse')
+    expect(release.txHash).toBeUndefined()
+    expect(release.label).toBe('released')
+  })
 })
 
 describe('summarizeEvents — includeSubjectName', () => {
-  const resolverUpdated = event('ResolverUpdated', '1', {
-    name: 'profile.allora.eth',
-    asResolverUpdated: { resolver: OWNER },
-  })
+  const resolverChanged = event(
+    'resolver',
+    '1',
+    { resolver: { chain_id: 11155111, address: RESOLVER } },
+    { name: 'profile.allora.eth' },
+  )
 
   it('leaves a name-page row untouched by default', () => {
-    const [action] = summarizeEvents([resolverUpdated])
+    const [action] = summarizeEvents([resolverChanged])
 
     expect(action.label).toBe('updated resolver to')
     expect(action.slots.map((slot) => slot.kind)).toEqual(['contract'])
   })
 
   it('closes an anonymous row with its subject when asked', () => {
-    const [action] = summarizeEvents([resolverUpdated], {
+    const [action] = summarizeEvents([resolverChanged], {
       includeSubjectName: true,
     })
 
     expect(action.slots).toEqual([
-      { kind: 'contract', value: OWNER, label: 'resolver' },
+      { kind: 'contract', value: RESOLVER, label: 'resolver' },
       { kind: 'connective', value: 'on' },
       { kind: 'name', value: 'profile.allora.eth' },
     ])
@@ -98,10 +164,12 @@ describe('summarizeEvents — includeSubjectName', () => {
   it('does not repeat a name the descriptor already renders', () => {
     const [action] = summarizeEvents(
       [
-        event('LabelRegistered', '1', {
-          name: 'profile.allora.eth',
-          asLabelRegistered: { name: 'profile.allora.eth' },
-        }),
+        event(
+          'registration',
+          '1',
+          {},
+          { name: 'profile.allora.eth', subject: 'child' },
+        ),
       ],
       { includeSubjectName: true },
     )
@@ -114,12 +182,7 @@ describe('summarizeEvents — includeSubjectName', () => {
 
   it('reads "{verb} on {name}" when the descriptor has no slots of its own', () => {
     const [action] = summarizeEvents(
-      [
-        event('SubregistryUpdated', '1', {
-          name: 'renewal.allora.eth',
-          data: JSON.stringify({ registry: ZERO }),
-        }),
-      ],
+      [event('subregistry', '1', {}, { name: 'renewal.allora.eth' })],
       { includeSubjectName: true },
     )
 
@@ -131,10 +194,171 @@ describe('summarizeEvents — includeSubjectName', () => {
   })
 })
 
-describe('summarizeEvents — a type without a descriptor', () => {
-  it('still reads on from the actor', () => {
-    expect(summarizeEvents([event('ApprovalForAll', '1')])[0].label).toBe(
-      'emitted approval for all',
+describe('summarizeEvents — a transaction of mints only', () => {
+  it('still reads on from the actor, naming the raw kind', () => {
+    expect(
+      summarizeEvents([
+        event(
+          'transfer',
+          '1',
+          { to: OWNER },
+          { kind: 'TokenControlTransferred' },
+        ),
+      ])[0].label,
+    ).toBe('emitted token control transferred')
+  })
+})
+
+describe('summarizeEvents — ENSv1 to ENSv2 migration', () => {
+  // The rows bigname serves for envoy1084.eth's migration transaction
+  // (0x517a7105…, Sepolia), trimmed to one row per kind.
+  const migrationTx = [
+    event(
+      'permission',
+      'p',
+      { address: OWNER, powers: ['set_resolver'] },
+      { kind: 'PermissionChanged', logIndex: 152 },
+    ),
+    event(
+      'registration',
+      'g',
+      { action_role: 'registered', owner: OWNER },
+      { kind: 'RegistrationGranted', logIndex: 149 },
+    ),
+    event(
+      'migration',
+      'm',
+      { migration_path: 'unwrapped' },
+      { kind: 'MigrationApplied', logIndex: 149 },
+    ),
+    event(
+      'transfer',
+      't',
+      { from: OWNER, to: RESOLVER },
+      { kind: 'TokenControlTransferred', logIndex: 148 },
+    ),
+  ]
+
+  it('headlines the transaction as the migration, with its path', () => {
+    const [action] = summarizeEvents(migrationTx)
+    expect(action).toMatchObject({
+      icon: 'migrate',
+      label: 'migrated',
+      slots: [
+        { kind: 'name', value: 'alice.eth' },
+        { kind: 'connective', value: 'to ENSv2' },
+        { kind: 'connective', value: '(unwrapped)' },
+      ],
+    })
+    expect(action.events).toHaveLength(4)
+  })
+})
+
+describe('summarizeEvents — ENSv1 wraps', () => {
+  // The rows bigname serves for a wrap (vintagelabel.eth, tx 0x8684…3667).
+  const wrap = [
+    event('authority', '1', { owner: OWNER }),
+    event('transfer', '2', { from: OWNER, to: RESOLVER }),
+    event(
+      'authority',
+      '3',
+      { owner: RESOLVER },
+      { kind: 'AuthorityEpochChanged' },
+    ),
+    event(
+      'authority',
+      '4',
+      { from: OWNER, owner: RESOLVER },
+      { kind: 'AuthorityTransferred' },
+    ),
+    event('subregistry', '5', {}),
+    event('authority', '6', { action: 'name_wrapped', owner: OWNER }),
+    event('permission', '7', { fuses: 196608 }),
+  ]
+
+  it('headlines a wrap as the wrap', () => {
+    const [action] = summarizeEvents(wrap)
+    expect(action.label).toBe('wrapped')
+    expect(action.slots).toEqual([{ kind: 'name', value: 'alice.eth' }])
+  })
+
+  it('ranks a subregistry row with no link under the transfer', () => {
+    const [action] = summarizeEvents(
+      wrap.filter((row) => row.type !== 'authority'),
     )
+    expect(action.label).toBe('transferred')
+  })
+
+  it('still says unlinked when that is the whole transaction', () => {
+    const [action] = summarizeEvents([event('subregistry', '1', {})])
+    expect(action.label).toBe('unlinked subregistry')
+  })
+})
+
+describe('summarizeEvents — newer rows', () => {
+  it('headlines an ENSv2 reservation over its resolver row', () => {
+    const [action] = summarizeEvents([
+      event('resolver', '1', {
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
+      event('reservation', '2', { action: 'registration_reserved' }),
+    ])
+    expect(action.label).toBe('reserved')
+  })
+
+  it('ranks a record link under a resolver change', () => {
+    const [action] = summarizeEvents([
+      event('resolver', '1', {
+        action: 'resolver_record_linked',
+        record_id: '7',
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
+      event('resolver', '2', {
+        resolver: { chain_id: 11155111, address: RESOLVER },
+      }),
+    ])
+    expect(action.label).toBe('updated resolver to')
+  })
+})
+
+describe('summarizeEvents', () => {
+  it('counts a registration once, though bigname serves it as two rows', () => {
+    const registered = mockHistoryRegistrationPayment
+    const linked = {
+      ...registered,
+      id: 'b'.repeat(64),
+      log_index: 43,
+      data: { ...registered.data, action_role: 'linked' },
+    } as const
+    const [action] = summarizeEvents(toTimelineEvents([linked, registered]))
+
+    expect(action.label).toBe('registered')
+    expect(action.events.map(({ id }) => id)).toEqual([registered.id])
+    expect(action.events[0].data).toHaveProperty('base_cost')
+  })
+
+  it('renders a root role change in a registry feed, which has no name to lead with', () => {
+    const [action] = summarizeEvents(
+      toTimelineEvents([mockEventRootPermissionChanged]),
+      { includeSubjectName: true },
+    )
+    expect(action.label).toBe('revoked root roles')
+    expect(action.icon).toBe('revoke')
+    expect(action.slots.some((slot) => slot.kind === 'name')).toBe(false)
+    expect(action.slots.at(-1)).toEqual({
+      kind: 'contract',
+      value: mockEventRootPermissionChanged.contract_address,
+      isRegistry: true,
+    })
+  })
+
+  it('leaves rows without a charge as served', () => {
+    const rows = toTimelineEvents([
+      mockHistoryRegistration,
+      { ...mockHistoryRegistration, id: 'f'.repeat(64) },
+    ])
+    const [action] = summarizeEvents(rows)
+    expect(action.events).toEqual(rows)
+    expect(action.events[0]).toBe(rows[0])
   })
 })

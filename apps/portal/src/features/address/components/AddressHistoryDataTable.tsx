@@ -1,44 +1,55 @@
 import { useMemo } from 'react'
 import type { Address, Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import {
+  ListLoader,
+  type ListLoaderProps,
+} from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { chain } from '@/config'
-import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
+  type AddressNameHistory,
   groupAddressHistoryByName,
-  type V1NameHistory,
-  type V2NameHistory,
 } from '@/utils/history/transformAddressHistory'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { partitionAddressHistory } from '../nameAttribution'
-
-type AddressHistoryData = {
-  readonly v1Events?: readonly V1NameHistory[]
-  readonly v2Events?: readonly V2NameHistory[]
-}
 
 const defaultNetwork = {
   name: chain.name,
   icon: '/icons/eth.svg',
 }
 
+/** Each transaction row with its sender from the receipt, where one was read. */
+const withSenders = <T extends { transactionID: Hash; from: Address | null }>(
+  rows: readonly T[],
+  senders: ReadonlyMap<Hash, Address> | undefined,
+): T[] =>
+  senders
+    ? rows.map((tx) => ({
+        ...tx,
+        from: senders.get(tx.transactionID) || tx.from,
+      }))
+    : []
+
 export const AddressHistoryDataTable = ({
   address,
   history,
+  heldNames,
+  loader,
 }: {
   readonly address: Address
-  readonly history: AddressHistoryData
+  readonly history: readonly AddressNameHistory[]
+  /** Every name whose token the address holds, loaded or not. */
+  readonly heldNames: ReadonlySet<string>
+  /** Pages the history in; the rows shown are already cut to its window. */
+  readonly loader: ListLoaderProps
 }) => {
   // One group per name, so each name's provenance survives until it is judged
-  const groups = useMemo(
-    () => groupAddressHistoryByName(history.v1Events, history.v2Events),
-    [history.v1Events, history.v2Events],
-  )
+  const groups = useMemo(() => groupAddressHistoryByName(history), [history])
 
   // Metadata is fetched for every name, acquired or not: the transaction senders
   // are themselves one of the signals the attribution depends on.
@@ -47,26 +58,10 @@ export const AddressHistoryDataTable = ({
     [groups],
   )
 
-  const blocksNeedingTimestamps = useMemo(
-    () =>
-      allEvents
-        .filter((event) => !event.timestamp)
-        .map((event) => BigInt(event.blockNumber)),
-    [allEvents],
-  )
-
   const transactionHashes = useMemo(
-    () => allEvents.map((event) => event.transactionID as Hash),
+    () => allEvents.map((event) => event.transactionID),
     [allEvents],
   )
-
-  const {
-    data: timestampsData,
-    isLoading: isLoadingTimestamps,
-    error: timestampsError,
-  } = useBlockTimestamps({
-    blocks: blocksNeedingTimestamps,
-  })
 
   // Fetch senders for all transactions
   const {
@@ -75,41 +70,29 @@ export const AddressHistoryDataTable = ({
     error: sendersError,
   } = useTransactionSenders({
     transactionHashes,
+    keepPrevious: true,
   })
 
   const { acquired, assigned, assignedNameCount } = useMemo(
-    () => partitionAddressHistory(groups, address, sendersData),
-    [groups, address, sendersData],
+    () => partitionAddressHistory(groups, address, sendersData, heldNames),
+    [groups, address, sendersData, heldNames],
   )
 
+  // bigname dates every row, so only the sender comes from the chain.
   const acquiredEvents = useMemo(
-    () => enrichEventsWithMetadata(acquired, timestampsData, sendersData),
-    [acquired, timestampsData, sendersData],
+    () => withSenders(acquired, sendersData),
+    [acquired, sendersData],
   )
 
   const assignedEvents = useMemo(
-    () => enrichEventsWithMetadata(assigned, timestampsData, sendersData),
-    [assigned, timestampsData, sendersData],
+    () => withSenders(assigned, sendersData),
+    [assigned, sendersData],
   )
 
-  if (isLoadingTimestamps && isLoadingSenders) {
-    return <LoadingMessage title="Loading transaction data" />
-  }
-  if (isLoadingTimestamps) {
-    return <LoadingMessage title="Loading timestamps" />
-  }
-  if (isLoadingSenders) {
+  if (isLoadingSenders && !sendersData) {
     return <LoadingMessage title="Loading transaction senders" />
   }
 
-  if (timestampsError) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching timestamps. Please refresh the page."
-      />
-    )
-  }
   if (sendersError) {
     return (
       <ErrorMessage
@@ -122,11 +105,13 @@ export const AddressHistoryDataTable = ({
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'addr', addr: address }}>
-        {acquiredEvents.length === 0
-          ? 'History'
-          : `History (${acquiredEvents.length})`}
+        History
       </PageHeading>
-      {acquiredEvents.length === 0 ? (
+      {acquiredEvents.length === 0 && loader.canShowMore ? (
+        <p className="text-muted-foreground text-p">
+          Nothing to show in what has loaded so far.
+        </p>
+      ) : acquiredEvents.length === 0 ? (
         <NoResultsMessage
           title="No history yet"
           description="This address doesn't have any recorded history. Activity will appear here once transactions are made."
@@ -143,6 +128,7 @@ export const AddressHistoryDataTable = ({
           defaultNetwork={defaultNetwork}
         />
       )}
+      <ListLoader {...loader} />
       {assignedEvents.length > 0 && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">

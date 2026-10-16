@@ -47,7 +47,7 @@ export function useGrantRoles() {
       })
     },
     onSuccess: () => {
-      invalidateRolesQueries(queryClient)
+      invalidateRolesQueries(queryClient, { isIndexed: false })
       pollForIndexerSync({
         invalidateQueries: () => invalidateRolesQueries(queryClient),
       })

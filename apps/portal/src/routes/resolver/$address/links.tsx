@@ -1,3 +1,4 @@
+import type { Completeness } from '@ens-apps/indexer/bigname'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
@@ -37,10 +38,12 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import { prepareUnlinkTransaction } from '@/features/resolver/helpers/linkRecords'
 import {
   getResolverOverviewQueryOptions,
   type ResolverLink,
+  resolverCollectionCount,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useUnlink } from '@/features/resolver/hooks/useUnlink'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -56,7 +59,7 @@ export const Route = createFileRoute('/resolver/$address/links')({
   loader: ({ params }) => {
     return queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({
-        address: params.address as Address,
+        address: params.address,
       }),
     )
   },
@@ -148,6 +151,15 @@ const deleteColumn: ColumnDef<ResolverLink> = {
   enableSorting: false,
 }
 
+const LinksEmptyState = ({ status }: { readonly status?: Completeness }) =>
+  status && status !== 'full' ? null : (
+    <NoResultsMessage
+      title="No linked names yet"
+      description="Link a name to another name's record so both serve the same records."
+      className="mx-0"
+    />
+  )
+
 const UNLINK_TX_ID = 'tx-unlink'
 
 function RouteComponent() {
@@ -169,11 +181,11 @@ function RouteComponent() {
     data: resolver,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverOverviewQueryOptions({ address: address }))
 
   const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
-      resolverAddress: address as Address,
+      resolverAddress: address,
       roles: ['ROLE_LINK'],
       account: accountAddress as Address,
     }),
@@ -190,7 +202,7 @@ function RouteComponent() {
   )
 
   const unlinkMutation = useUnlink({
-    resolverAddress: address as Address,
+    resolverAddress: address,
     walletClient,
     publicClient,
     chainId,
@@ -231,8 +243,10 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-          {links.length > 0 ? `Links (${links.length})` : 'Links'}
+        <PageHeading parent={{ type: 'resolver', address: address }}>
+          {links.length > 0
+            ? `Links (${resolverCollectionCount(links.length, resolver?.linksStatus)})`
+            : 'Links'}
         </PageHeading>
         {canLink && (
           <Button asChild>
@@ -273,7 +287,7 @@ function RouteComponent() {
                 ? ({ walletClient, chainId }) =>
                     prepareUnlinkTransaction({
                       sourceName: pendingUnlink.name,
-                      resolverAddress: address as Address,
+                      resolverAddress: address,
                       walletClient,
                       chainId,
                     })
@@ -293,12 +307,12 @@ function RouteComponent() {
         ]}
       />
 
+      <ResolverCollectionNotice
+        collection="links"
+        status={resolver?.linksStatus}
+      />
       {links.length === 0 ? (
-        <NoResultsMessage
-          title="No linked names yet"
-          description="Link a name to another name's record so both serve the same records."
-          className="mx-0"
-        />
+        <LinksEmptyState status={resolver?.linksStatus} />
       ) : (
         <>
           {/* Mobile view */}

@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -22,8 +24,13 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
 import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
+import {
+  prefetchResolverPage,
+  useResolverNodesList,
+} from '@/features/resolver/hooks/useResolverNodesList'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
@@ -33,22 +40,15 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-link')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address as Address,
-      }),
-    )
-  },
+  loader: ({ params }) => prefetchResolverPage(params.address),
 })
 
 interface PageHeaderProps {
-  readonly address: string
+  readonly address: Address
 }
 
 const PageHeader = ({ address }: PageHeaderProps) => (
@@ -62,7 +62,7 @@ const PageHeader = ({ address }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+    <PageHeading parent={{ type: 'resolver', address: address }}>
       Link a name
     </PageHeading>
   </div>
@@ -87,6 +87,48 @@ const NodeOption = ({ node }: NodeOptionProps) => (
 
 const CREATE_LINK_TX_ID = 'tx-create-link'
 
+type LinksState = 'loading' | 'unknown' | 'read'
+
+// Until the overview is read, whether a name is linked is unknown.
+const toLinksState = (overview: {
+  readonly isPending: boolean
+  readonly isError: boolean
+}): LinksState =>
+  match(overview)
+    .returnType<LinksState>()
+    .with({ isError: true }, () => 'unknown')
+    .with({ isPending: true }, () => 'loading')
+    .otherwise(() => 'read')
+
+const LinkStateNotice = ({
+  name,
+  linksState,
+  isAlreadyLinked,
+}: {
+  readonly name: string
+  readonly linksState: LinksState
+  readonly isAlreadyLinked: boolean
+}) =>
+  match({ linksState, isAlreadyLinked })
+    .with({ linksState: 'loading' }, () => (
+      <p className="text-p text-muted-foreground">
+        Checking whether this name is already linked…
+      </p>
+    ))
+    .with({ linksState: 'unknown' }, () => (
+      <p className="text-p text-muted-foreground">
+        Couldn’t check whether this name is already linked. Linking again
+        re-points it.
+      </p>
+    ))
+    .with({ isAlreadyLinked: true }, () => (
+      <p className="text-p text-danger">
+        {name} is already linked to another record. Linking again re-points it;
+        the previous record is kept on the resolver.
+      </p>
+    ))
+    .otherwise(() => null)
+
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
@@ -108,14 +150,18 @@ function RouteComponent() {
   const createLinkTxId = scopeTransactionId(CREATE_LINK_TX_ID, attempt.scope)
 
   const {
-    data: resolver,
-    isLoading,
-    error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+    query: nodesQuery,
+    loadedNodes,
+    nodes,
+    loader,
+  } = useResolverNodesList(address)
+  // Only the existing links come from the overview.
+  const overview = useQuery(getResolverOverviewQueryOptions({ address }))
+  const resolver = overview.data
 
   const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
-      resolverAddress: address as Address,
+      resolverAddress: address,
       roles: ['ROLE_LINK'],
       account: accountAddress as Address,
     }),
@@ -124,7 +170,10 @@ function RouteComponent() {
 
   const canLink = Boolean(hasLinkRole)
 
-  const nodes = resolver?.nodes ?? []
+  const nodesByName = new Map(nodes.map((node) => [node.name, node]))
+  const partialSearchHint = loader.canShowMore
+    ? `Covers the ${nodes.length} names shown so far. More or All includes the rest.`
+    : null
   const existingLinks = resolver?.links ?? []
 
   const nameOptions = nodes.map((n) => n.name)
@@ -132,20 +181,15 @@ function RouteComponent() {
     .filter((n) => n.name !== fromName)
     .map((n) => n.name)
 
-  const selectedFromNode = fromName
-    ? (nodes.find((n) => n.name === fromName) ?? null)
-    : null
+  const selectedFromNode = fromName ? (nodesByName.get(fromName) ?? null) : null
+  const selectedToNode = toName ? (nodesByName.get(toName) ?? null) : null
 
-  const selectedToNode = toName
-    ? (nodes.find((n) => n.name === toName) ?? null)
-    : null
-
-  const isAlreadyLinked = fromName
-    ? existingLinks.some((l) => l.name === fromName)
-    : false
+  const linksState = toLinksState(overview)
+  const isAlreadyLinked =
+    linksState === 'read' && existingLinks.some((l) => l.name === fromName)
 
   const mutation = useLinkToNode({
-    resolverAddress: address as Address,
+    resolverAddress: address,
     walletClient,
     publicClient,
     chainId,
@@ -160,16 +204,16 @@ function RouteComponent() {
     if (accountAddress) attempt.start(accountAddress)
   }
 
-  if (isLoading) return <LoadingMessage />
-  if (error)
+  if (nodesQuery.isLoading) return <LoadingMessage />
+  if (nodesQuery.error && !nodesQuery.isFetchNextPageError)
     return (
       <ErrorMessage
         title="Failed to load resolver"
-        description={extractErrorMessage(error, '')}
+        description={extractErrorMessage(nodesQuery.error, '')}
       />
     )
 
-  if (nodes.length === 0) {
+  if (loadedNodes.length === 0 && !nodesQuery.hasNextPage) {
     return (
       <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />
@@ -185,9 +229,19 @@ function RouteComponent() {
     <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
 
+      <ResolverCollectionNotice
+        collection="links"
+        status={resolver?.linksStatus}
+      />
+
+      <ListLoader {...loader} />
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field data-invalid={isAlreadyLinked}>
           <FieldLabel>Name</FieldLabel>
+          {partialSearchHint && (
+            <p className="text-p text-muted-foreground">{partialSearchHint}</p>
+          )}
           <Combobox
             value={fromName}
             onValueChange={(val) => {
@@ -198,13 +252,14 @@ function RouteComponent() {
             <ComboboxInput placeholder="Select a name..." />
             <ComboboxContent>
               <ComboboxList>
-                {nameOptions.map((name) => (
-                  <ComboboxItem key={name} value={name}>
-                    <NodeOption
-                      node={nodes.find((n) => n.name === name) as ResolverNode}
-                    />
-                  </ComboboxItem>
-                ))}
+                {nameOptions.map((name) => {
+                  const node = nodesByName.get(name)
+                  return node ? (
+                    <ComboboxItem key={name} value={name}>
+                      <NodeOption node={node} />
+                    </ComboboxItem>
+                  ) : null
+                })}
                 <ComboboxEmpty>No names found</ComboboxEmpty>
               </ComboboxList>
             </ComboboxContent>
@@ -235,16 +290,20 @@ function RouteComponent() {
               </div>
             </div>
           )}
-          {isAlreadyLinked && (
-            <p className="text-p text-danger">
-              {fromName} is already linked to another record. Linking again
-              re-points it; the previous record is kept on the resolver.
-            </p>
+          {fromName && (
+            <LinkStateNotice
+              name={fromName}
+              linksState={linksState}
+              isAlreadyLinked={isAlreadyLinked}
+            />
           )}
         </Field>
 
         <Field>
           <FieldLabel>Use the record of</FieldLabel>
+          {partialSearchHint && (
+            <p className="text-p text-muted-foreground">{partialSearchHint}</p>
+          )}
           <Combobox value={toName} onValueChange={setToName}>
             <ComboboxInput
               placeholder="Select a name..."
@@ -252,13 +311,14 @@ function RouteComponent() {
             />
             <ComboboxContent>
               <ComboboxList>
-                {nodeOptions.map((name) => (
-                  <ComboboxItem key={name} value={name}>
-                    <NodeOption
-                      node={nodes.find((n) => n.name === name) as ResolverNode}
-                    />
-                  </ComboboxItem>
-                ))}
+                {nodeOptions.map((name) => {
+                  const node = nodesByName.get(name)
+                  return node ? (
+                    <ComboboxItem key={name} value={name}>
+                      <NodeOption node={node} />
+                    </ComboboxItem>
+                  ) : null
+                })}
                 <ComboboxEmpty>No names available</ComboboxEmpty>
               </ComboboxList>
             </ComboboxContent>
@@ -343,7 +403,7 @@ function RouteComponent() {
                     prepareLinkToNodeTransaction({
                       sourceName: pendingLink.fromName,
                       targetName: pendingLink.toName,
-                      resolverAddress: address as Address,
+                      resolverAddress: address,
                       walletClient,
                       chainId,
                     })

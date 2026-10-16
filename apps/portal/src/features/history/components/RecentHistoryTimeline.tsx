@@ -22,8 +22,6 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
   const model = useNameHistoryTimeline({
     name,
     limit: RECENT_ACTION_LIMIT,
-    // The preview renders no filter chips, so their vocabulary is not read.
-    shouldFetchEventTypes: false,
   })
 
   const heading = <h2 className="text-foreground text-h2">Recent History</h2>
@@ -68,7 +66,8 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
           >
             full History
           </Link>
-          {model.totalCount !== undefined && ` (${model.totalCount} events)`}
+          {model.totalCount !== undefined &&
+            ` (${model.totalIsUpperBound ? 'up to ' : ''}${model.totalCount} events)`}
         </>
       }
       emptyTitle="No recent activity"

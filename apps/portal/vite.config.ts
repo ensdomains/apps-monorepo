@@ -12,6 +12,7 @@ import {
   assertDeploymentEnvironment,
   assertNetworkConfig,
 } from '../../packages/config/src/index'
+import { PORTAL_ENDPOINTS } from './src/endpoints'
 
 const locales = dirname(
   fileURLToPath(import.meta.resolve('@ensdomains/locales')),
@@ -23,6 +24,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
   assertDeploymentEnvironment(env, mode)
   // Validate here so direct Vite commands and --mode use the same env files.
   assertNetworkConfig(env, {
+    endpoints: PORTAL_ENDPOINTS,
     allowMissingEndpoints: true,
     rpcUrlVar: 'VITE_RPC_URL',
   })
@@ -50,11 +52,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
           target: 'http://127.0.0.1:3007',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/orchestrator/, ''),
-        },
-        '/indexer': {
-          target: 'http://127.0.0.1:5655',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/indexer/, ''),
         },
       },
     },

@@ -1,7 +1,7 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { getTransaction } from 'viem/actions'
@@ -53,6 +53,15 @@ const getTransactionSendersQueryOptions = ({
 
 export const useTransactionSenders = ({
   enabled = true,
+  keepPrevious = false,
   ...params
-}: GetTransactionSendersParameters & { readonly enabled?: boolean }) =>
-  useQuery({ ...getTransactionSendersQueryOptions(params), enabled })
+}: GetTransactionSendersParameters & {
+  readonly enabled?: boolean
+  /** Keep the last senders on screen while a longer list's are read. */
+  readonly keepPrevious?: boolean
+}) =>
+  useQuery({
+    ...getTransactionSendersQueryOptions(params),
+    enabled,
+    ...(keepPrevious && { placeholderData: keepPreviousData }),
+  })

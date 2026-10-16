@@ -10,7 +10,7 @@ import {
   buildRemoveUserPlan,
   type RemoveUserPlan,
 } from '@/features/roles/utils/removeUserPlan'
-import { isAdminRole } from '@/lib/roles/permissions'
+import { isAdminRole, isRegistryRole } from '@/lib/roles/permissions'
 import { getLabel } from '@/utils/token/getLabel'
 
 type UseRemoveUserPlanParameters = {
@@ -86,7 +86,9 @@ export const useRemoveUserPlan = ({
     () =>
       hasRootHolders
         ? new Set<Role>(
-            rootHolders.flatMap((holder) => holder.roles.filter(isAdminRole)),
+            rootHolders.flatMap((holder) =>
+              holder.roles.filter(isRegistryRole).filter(isAdminRole),
+            ),
           )
         : undefined,
     [hasRootHolders, rootHolders],

@@ -6,7 +6,7 @@ import {
   type ResolverGrantScope,
 } from '@/features/resolver/helpers/grantResolverRoles'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { invalidateResolverOverview } from '../utils/invalidateResolverOverview'
+import { invalidateResolverOverview } from './useResolverOverview'
 
 interface UseGrantResolverRolesOptions {
   readonly resolverAddress: Address

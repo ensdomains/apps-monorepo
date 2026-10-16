@@ -1,83 +1,94 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import {
+  infiniteFetchMore,
+  useListLoader,
+} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { AddressHistoryDataTable } from '@/features/address/components/AddressHistoryDataTable'
-import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
-import { getV1HistoryForAddressQueryOptions } from '@/features/address/hooks/useV1HistoryForAddress'
+import {
+  ADDRESS_HISTORY_PAGE_SIZE,
+  countWholeTransactions,
+  getAddressHeldNamesQueryOptions,
+  getAddressHistoryPagesQueryOptions,
+  toAddressNameHistory,
+} from '@/features/address/hooks/useAddressHistory'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/history')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) =>
-    Promise.all([
-      queryClient.prefetchQuery(
-        getV1HistoryForAddressQueryOptions({
-          address: params.addr as Address,
-        }),
-      ),
-      queryClient.prefetchQuery(
-        getV2HistoryForAddressQueryOptions({
-          address: params.addr as Address,
-        }),
-      ),
-    ]),
+  // Started, not awaited, so the page renders while the first rows load.
+  loader: ({ params }) => {
+    const address = params.addr as Address
+    void queryClient.prefetchInfiniteQuery(
+      getAddressHistoryPagesQueryOptions({ address }),
+    )
+    void queryClient.prefetchQuery(getAddressHeldNamesQueryOptions({ address }))
+  },
 })
 
 function RouteComponent() {
   const { addr } = Route.useParams() as { addr: Address }
 
-  // Fetch V1 history (L1 subgraph)
-  const {
-    data: v1Data,
-    isLoading: isLoadingV1,
-    error: v1Error,
-  } = useQuery(getV1HistoryForAddressQueryOptions({ address: addr }))
+  const pages = useInfiniteQuery(
+    getAddressHistoryPagesQueryOptions({ address: addr }),
+  )
+  const heldNames = useQuery(getAddressHeldNamesQueryOptions({ address: addr }))
 
-  // Fetch V2 history (L2 indexer)
-  const {
-    data: v2Data,
-    isLoading: isLoadingV2,
-    error: v2Error,
-  } = useQuery(getV2HistoryForAddressQueryOptions({ address: addr }))
+  const rows = useMemo(
+    () => pages.data?.pages.flatMap((page) => page.rows) ?? [],
+    [pages.data],
+  )
+  const loader = useListLoader({
+    initialCount: ADDRESS_HISTORY_PAGE_SIZE,
+    loaded: rows.length,
+    hasMore: pages.hasNextPage,
+    fetchMore: infiniteFetchMore(
+      pages.fetchNextPage,
+      (page) => page.rows.length,
+    ),
+    resetKey: addr,
+    countShown: (window) =>
+      countWholeTransactions(rows, window, pages.hasNextPage),
+  })
+  const history = useMemo(
+    () =>
+      heldNames.data
+        ? toAddressNameHistory(
+            addr,
+            rows.slice(0, loader.shown),
+            heldNames.data,
+          )
+        : [],
+    [addr, rows, loader.shown, heldNames.data],
+  )
 
-  if (isLoadingV1) {
-    return <LoadingMessage />
-  }
-
-  if (isLoadingV2) {
-    return <LoadingMessage />
-  }
-
-  if (v1Error) {
+  // A failed Load more keeps the rows; the loader says it failed.
+  const historyError = pages.isFetchNextPageError ? null : pages.error
+  // Errors before loading, so a slow ownership read never hides a history error.
+  const error = historyError ?? heldNames.error
+  if (error) {
     return (
       <ErrorMessage
-        title="Error loading V1 history"
-        description={extractErrorMessage(v1Error, '')}
+        title="Error loading history"
+        description={extractErrorMessage(error, '')}
       />
     )
   }
-
-  if (v2Error) {
-    return (
-      <ErrorMessage
-        title="Error loading V2 history"
-        description={extractErrorMessage(v2Error, '')}
-      />
-    )
-  }
+  if (pages.isLoading || !heldNames.data) return <LoadingMessage />
 
   return (
     <AddressHistoryDataTable
       address={addr}
-      history={{
-        v1Events: v1Data,
-        v2Events: v2Data,
-      }}
+      history={history}
+      heldNames={heldNames.data}
+      loader={loader}
     />
   )
 }
