@@ -11,7 +11,11 @@ export const useIntercomClearance = (bar: HTMLElement | null) => {
     if (!bar) return
 
     const apply = () => {
-      const { top } = bar.getBoundingClientRect()
+      const { height, top } = bar.getBoundingClientRect()
+      if (height === 0) {
+        resetIntercomLauncherClearance()
+        return
+      }
       setIntercomLauncherClearance(
         window.innerHeight - top + INTERCOM_LAUNCHER_GAP,
       )
