@@ -10,8 +10,9 @@ import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import {
-  isOwnershipEvent,
+  OWNERSHIP_HISTORY_KINDS,
   OWNERSHIP_HISTORY_TYPES,
+  OWNERSHIP_TYPE_LABELS,
 } from '@/features/history/eventTypes'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
@@ -147,7 +148,8 @@ function RouteComponent() {
       <HistoryTimeline
         name={name}
         scope={OWNERSHIP_HISTORY_TYPES}
-        eventFilter={isOwnershipEvent}
+        kinds={OWNERSHIP_HISTORY_KINDS}
+        typeLabels={OWNERSHIP_TYPE_LABELS}
         heading={<h2 className="text-caps text-foreground">History</h2>}
         emptyTitle="No ownership history"
         emptyDescription="Registrations, renewals and transfers for this name will appear here as they happen."

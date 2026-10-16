@@ -57,15 +57,15 @@ export const toAddressNameItem = (
         protocolVersion: summary.protocol === 'v1' ? 'ENSv1' : 'ENSv2',
       }
 
-/** An ENSv2 name in grace, which the address can still renew. */
-export const toGraceItem = (row: AddressName): AddressNameItem => ({
+/** A name the address held until it expired, in grace or price cooldown. */
+export const toLapsedItem = (row: AddressName): AddressNameItem => ({
   name: row.name,
   // A subregistry can mint an expiry a Date cannot hold; it reads as none.
   expiryDate: toValidDate(toDate(row.expires_at)),
   graceEndDate: toValidDate(toDate(row.grace_ends_at)),
   status: row.status,
   relations: ['former_owner'],
-  protocolVersion: 'ENSv2',
+  protocolVersion: row.authority === 'ens_v2' ? 'ENSv2' : 'ENSv1',
 })
 
 const byExpiry = (a: AddressNameItem, b: AddressNameItem) => {

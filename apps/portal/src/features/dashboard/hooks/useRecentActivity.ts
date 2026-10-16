@@ -54,16 +54,30 @@ const isOwnerlessAuthority = (row: EventRow): boolean =>
   row.data?.action !== 'name_wrapped' &&
   row.data?.action !== 'name_unwrapped'
 
-/** The reverse `name` record write; its `primary_name` row already says it. */
-const isReverseNameRecord = (row: EventRow): boolean =>
-  row.type === 'record' && row.data?.key === 'name'
+/**
+ * A `name` record write beside a `primary_name` row in the same transaction,
+ * which already says it. A `name` write without one (set directly on the
+ * reverse resolver, or on a forward name) stays.
+ */
+const isEchoedNameRecord = (
+  row: EventRow,
+  primaryNameTxs: ReadonlySet<string>,
+): boolean =>
+  row.type === 'record' &&
+  row.data?.key === 'name' &&
+  !!row.transaction_hash &&
+  primaryNameTxs.has(row.transaction_hash)
 
-const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
+const toActivityEvent = (
+  row: EventRow,
+  primaryNameTxs: ReadonlySet<string>,
+): RecentActivityEvent[] => {
   const timestamp = toUnixSeconds(row.timestamp)
   // A state-derived row has no transaction to link, nor a place in the feed.
   if (!row.transaction_hash || row.block_number === null || !timestamp)
     return []
-  if (isOwnerlessAuthority(row) || isReverseNameRecord(row)) return []
+  if (isOwnerlessAuthority(row) || isEchoedNameRecord(row, primaryNameTxs))
+    return []
   // A record write bigname could not attribute to a name carries none.
   const name = row.name || null
   // A row is its payload plus fields read here, so it stands in for one.
@@ -78,6 +92,19 @@ const toActivityEvent = (row: EventRow): RecentActivityEvent[] => {
       contractAddress: row.contract_address ?? null,
     },
   ]
+}
+
+const toActivityEvents = (rows: readonly EventRow[]): RecentActivityEvent[] => {
+  const primaryNameTxs = new Set(
+    rows.flatMap((row) =>
+      row.type === 'primary_name' && row.transaction_hash
+        ? [row.transaction_hash]
+        : [],
+    ),
+  )
+  return mergeRegistrationTwins(rows).flatMap((row) =>
+    toActivityEvent(row, primaryNameTxs),
+  )
 }
 
 /**
@@ -96,7 +123,7 @@ const getRecentActivityPage = (cursor: string | undefined) =>
     .map(
       ({ data, page }): RecentActivityPage => ({
         // A twin whose partner is on the next page stays, as in the timeline.
-        events: mergeRegistrationTwins(data).flatMap(toActivityEvent),
+        events: toActivityEvents(data),
         endCursor: page?.next_cursor ?? null,
         hasNextPage: page?.has_more ?? false,
       }),

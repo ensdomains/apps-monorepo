@@ -27,6 +27,7 @@ export const dateRangeToTimestamps = (
  */
 export const buildEventTypeGroups = (
   eventTypes: readonly EventType[],
+  labels: Readonly<Partial<Record<EventType, string>>> = {},
 ): FilterGroup[] => {
   const present = new Set(eventTypes)
   const types = HISTORY_EVENT_TYPES.filter((type) => present.has(type))
@@ -35,7 +36,7 @@ export const buildEventTypeGroups = (
     {
       title: 'Event type',
       options: types.map((type) => ({
-        label: HISTORY_EVENT_TYPE_LABELS[type],
+        label: labels[type] ?? HISTORY_EVENT_TYPE_LABELS[type],
         value: type,
       })),
     },

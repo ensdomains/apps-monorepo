@@ -1,3 +1,4 @@
+import type { EventKind } from '@ens-apps/indexer/bigname'
 import {
   type InfiniteData,
   keepPreviousData,
@@ -212,6 +213,8 @@ type UseNameHistoryTimelineParameters = {
   readonly name: string
   /** What the surface may ever show, as bigname types. */
   readonly scope?: readonly EventType[]
+  /** Raw kinds the surface reads, intersecting `scope` in the query. */
+  readonly kinds?: readonly EventKind[]
   /** Narrows loaded rows within `scope`, where bigname has no query filter. */
   readonly eventFilter?: (event: TimelineEvent) => boolean
   readonly selectedTypes?: readonly EventType[]
@@ -244,6 +247,7 @@ const narrowScope = (
 export const useNameHistoryTimeline = ({
   name,
   scope,
+  kinds,
   eventFilter,
   selectedTypes,
   from,
@@ -258,6 +262,7 @@ export const useNameHistoryTimeline = ({
   const feedScope = {
     name,
     eventTypes: narrowScope(facet, selectedTypes),
+    ...(kinds && { kinds }),
     from,
     to,
     // Children's registrations belong to the full history only; a facet

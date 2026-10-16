@@ -328,6 +328,16 @@ describe('getNameStatus', () => {
     expect(expired(daysAgo(graceEnded))).toBe(status)
   })
 
+  it('is in price cooldown for a name bigname released when its grace ended', () => {
+    expect(
+      getNameStatus({
+        expiryDate: daysAgo(100),
+        graceEndDate: daysAgo(10),
+        status: 'released',
+      }),
+    ).toBe('premium')
+  })
+
   it('is expired for an expired name with no grace', () => {
     expect(expired(null)).toBe('expired')
   })

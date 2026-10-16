@@ -24,6 +24,11 @@ const unresolvableCopy = (detail: NameDetail): string =>
         'No resolver is set on the path to this name, so it does not resolve and has no records to show.',
     )
     .with(
+      { registrationStatus: 'released' },
+      () =>
+        "This name's registration has ended and it is open to register, so it does not resolve.",
+    )
+    .with(
       { registrationStatus: 'expired' },
       () =>
         "This name's registration has lapsed, so it does not resolve. Its ENSv1 records are kept and come back when it is renewed.",
