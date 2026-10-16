@@ -41,6 +41,7 @@ import {
 import {
   getRegistrationFailureMessage,
   isNameNotAvailableError,
+  isNameTakenByOther,
 } from '../service/registrationFailure'
 import {
   acquireRegistrationLock,
@@ -311,6 +312,13 @@ const machineSetup = setup({
   },
   actors: {
     registrationFlow: registrationMachine,
+    checkNameTakenByOther: fromPromise(
+      ({
+        input,
+      }: {
+        input: Parameters<typeof isNameTakenByOther>[0] | undefined
+      }) => (input ? isNameTakenByOther(input) : Promise.resolve(false)),
+    ),
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
@@ -1358,6 +1366,24 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     success: {},
     failure: {
+      // A reverted register says nothing about why, so ask the registry
+      // whether someone else got the name first
+      invoke: {
+        src: 'checkNameTakenByOther',
+        input: ({ context }) =>
+          context.nameUnavailable || !context.confirmedData
+            ? undefined
+            : {
+                label: context.confirmedData.label,
+                owner: context.confirmedData.ownerAddress,
+                chainId: context.chainId,
+                publicClient: defaultPublicClient,
+              },
+        onDone: {
+          guard: ({ event }) => event.output,
+          actions: assign({ nameUnavailable: () => true }),
+        },
+      },
       on: {
         retry: [
           {

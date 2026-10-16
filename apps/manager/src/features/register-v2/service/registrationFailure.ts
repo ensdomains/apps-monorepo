@@ -1,4 +1,16 @@
-import { toFunctionSelector } from 'viem'
+import { getDestinationContracts } from '@ens-apps/smart-account'
+import {
+  type Address,
+  isAddressEqual,
+  labelhash,
+  type PublicClient,
+  toFunctionSelector,
+  zeroAddress,
+} from 'viem'
+import {
+  registryGetStateAbi,
+  STATUS_REGISTERED,
+} from './orphanRegistrationCleanup'
 
 // The registrar reverts with this once the label is taken, from both
 // `getRegisterPrice` and `register`. Our ABIs don't declare it, so viem only
@@ -61,4 +73,32 @@ export const getRegistrationFailureMessage = (
     .find((value): value is string => typeof value === 'string' && !!value)
 
   return (shortMessage ?? outer.message).replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Whether another address now holds the name, read from the registry.
+ * A failed read counts as "no", so the generic failure screen stays.
+ */
+export const isNameTakenByOther = async (params: {
+  readonly label: string
+  readonly owner: Address
+  readonly chainId: number
+  readonly publicClient: PublicClient
+}): Promise<boolean> => {
+  try {
+    const state = await params.publicClient.readContract({
+      address: getDestinationContracts(params.chainId).ethRegistry,
+      abi: registryGetStateAbi,
+      functionName: 'getState',
+      args: [BigInt(labelhash(params.label))],
+    })
+
+    return (
+      Number(state.status) === STATUS_REGISTERED &&
+      !isAddressEqual(state.latestOwner, zeroAddress) &&
+      !isAddressEqual(state.latestOwner, params.owner)
+    )
+  } catch {
+    return false
+  }
 }

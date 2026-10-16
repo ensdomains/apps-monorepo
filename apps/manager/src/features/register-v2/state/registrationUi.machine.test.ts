@@ -148,6 +148,12 @@ vi.mock('@/utils/router/root-context', () => ({
   getQueryClient: () => undefined,
 }))
 
+const isNameTakenByOther = vi.fn(async () => false)
+vi.mock('../service/registrationFailure', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../service/registrationFailure')>()),
+  isNameTakenByOther: () => isNameTakenByOther(),
+}))
+
 vi.mock('../service/registrationPersistence', () => ({
   clearStoredRegistrationIfUnchanged: vi.fn(),
 }))
@@ -1397,6 +1403,25 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
     const { context } = actor.getSnapshot()
     expect(context.nameUnavailable).toBe(true)
     expect(context.lastErrorMessage).not.toMatch(/Docs:|Version:/)
+
+    actor.send({ type: 'retry' })
+    await flush()
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  // A reverted register carries no reason, so the registry has to say who won.
+  it('reads a lost race off the registry when the revert says nothing', async () => {
+    isNameTakenByOther.mockResolvedValueOnce(true)
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('Transaction 0xabc reverted'),
+    })
+    await flush()
+
+    expect(actor.getSnapshot().context.nameUnavailable).toBe(true)
 
     actor.send({ type: 'retry' })
     await flush()
