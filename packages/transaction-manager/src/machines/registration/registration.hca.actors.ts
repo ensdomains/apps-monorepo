@@ -736,6 +736,8 @@ export function signFundingPermitActor(input: {
   publicClient: PublicClient
   chainId: number
   bounds?: PermitValueBounds
+  /** The token permitted. Defaults to the deployment's USDC. */
+  token?: { address: Address; symbol: string; decimals: number }
 }): ResultAsync<PermitSignature, Error> {
   // Before anything else, including the RPC reads: a refusal must never reach
   // the wallet, and must not depend on a network round-trip succeeding first.
@@ -762,19 +764,23 @@ export function signFundingPermitActor(input: {
     )
   }
 
-  const contracts = getDestinationContracts(input.chainId)
+  const token = input.token ?? {
+    address: getDestinationContracts(input.chainId).usdc,
+    symbol: 'USDC',
+    decimals: 6,
+  }
 
   return fromPromise(
     (async () => {
       const [nonce, walletBalance] = await Promise.all([
         readContract(input.publicClient, {
-          address: contracts.usdc,
+          address: token.address,
           abi: erc2612Abi,
           functionName: 'nonces',
           args: [input.wallet],
         }),
         readContract(input.publicClient, {
-          address: contracts.usdc,
+          address: token.address,
           abi: erc2612Abi,
           functionName: 'balanceOf',
           args: [input.wallet],
@@ -800,11 +806,13 @@ export function signFundingPermitActor(input: {
       // A wallet holding between the two passes the UI and then fails
       // simulation, which is exactly the window this check closes.
       if (walletBalance < input.value) {
+        const amount = (value: bigint) =>
+          `${formatUnits(value, token.decimals)} ${token.symbol}`
         throw new Error(
-          `Insufficient USDC to fund the registration. Need ` +
-            `${formatUnits(input.value, 6)} USDC in ${input.wallet}, ` +
-            `but it holds ${formatUnits(walletBalance, 6)} USDC ` +
-            `(short by ${formatUnits(input.value - walletBalance, 6)} USDC). ` +
+          `Insufficient ${token.symbol} to fund the registration. Need ` +
+            `${amount(input.value)} in ${input.wallet}, ` +
+            `but it holds ${amount(walletBalance)} ` +
+            `(short by ${amount(input.value - walletBalance)}). ` +
             `The funding amount covers the registration price plus the ` +
             `execution costs of both the commit and register legs, so it is ` +
             `larger than the price shown at checkout.`,
@@ -825,26 +833,26 @@ export function signFundingPermitActor(input: {
       }
       try {
         const resolved = await getEip712Domain(input.publicClient, {
-          address: contracts.usdc,
+          address: token.address,
         })
         domain = {
           name: resolved.domain.name ?? '',
           version: resolved.domain.version ?? '1',
           chainId: Number(resolved.domain.chainId ?? input.chainId),
           verifyingContract:
-            (resolved.domain.verifyingContract as Address) ?? contracts.usdc,
+            (resolved.domain.verifyingContract as Address) ?? token.address,
         }
       } catch {
         const [name, version] = await Promise.all([
           readContract(input.publicClient, {
-            address: contracts.usdc,
+            address: token.address,
             abi: erc2612Abi,
             functionName: 'name',
           }),
           // `version()` is optional on ERC-2612 tokens; default to "1" only
           // when the token doesn't expose it.
           readContract(input.publicClient, {
-            address: contracts.usdc,
+            address: token.address,
             abi: erc2612Abi,
             functionName: 'version',
           }).catch(() => '1'),
@@ -853,7 +861,7 @@ export function signFundingPermitActor(input: {
           name,
           version,
           chainId: input.chainId,
-          verifyingContract: contracts.usdc,
+          verifyingContract: token.address,
         }
       }
 

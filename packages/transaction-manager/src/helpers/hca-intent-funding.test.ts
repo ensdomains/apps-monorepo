@@ -82,29 +82,72 @@ const params = {
   calls: actionCalls,
 }
 
+type Reads = {
+  readonly hcaBalance?: bigint
+  readonly walletBalance?: bigint
+  /** The wallet's standing allowance to the HCA. */
+  readonly allowance?: bigint
+}
+
+/**
+ * Token reads answered per call, since balances and allowances come off the
+ * same contracts. The wallet holds plenty unless a test says otherwise, and
+ * `tokens` overrides the reads for one token.
+ */
+const mockReads = (
+  reads: Reads & { readonly tokens?: Record<Address, Reads> } = {},
+) => {
+  readContract.mockImplementation(
+    (
+      _client: unknown,
+      {
+        address,
+        functionName,
+        args,
+      }: { address: Address; functionName: string; args: unknown[] },
+    ) => {
+      const read = {
+        hcaBalance: 0n,
+        walletBalance: 1_000_000_000_000_000_000_000n,
+        allowance: 0n,
+        ...reads,
+        ...reads.tokens?.[address],
+      }
+      if (functionName === 'allowance') return Promise.resolve(read.allowance)
+      return Promise.resolve(
+        args[0] === HCA ? read.hcaBalance : read.walletBalance,
+      )
+    },
+  )
+}
+
+/** What the mocked permit actor resolves to. */
+const signedPermit = () => ({
+  match: (ok: (v: unknown) => unknown) =>
+    ok({
+      owner: OWNER,
+      spender: HCA,
+      value: 900_000n,
+      deadline: 1_800_000_000n,
+      v: 27,
+      r: `0x${'11'.repeat(32)}` as Hex,
+      s: `0x${'22'.repeat(32)}` as Hex,
+    }),
+})
+
 beforeEach(() => {
   vi.clearAllMocks()
   readContract.mockReset()
+  mockReads()
   prepareTransaction.mockResolvedValue(quoteOf(900_000n))
-  signFundingPermit.mockReturnValue({
-    match: (ok: (v: unknown) => unknown) =>
-      ok({
-        owner: OWNER,
-        spender: HCA,
-        value: 900_000n,
-        deadline: 1_800_000_000n,
-        v: 27,
-        r: `0x${'11'.repeat(32)}` as Hex,
-        s: `0x${'22'.repeat(32)}` as Hex,
-      }),
-  })
+  signFundingPermit.mockReturnValue(signedPermit())
 })
 
 describe('planHcaIntentFunding', () => {
   // At ~1 Mwei the quoted spend leaves out most of the relay fee the refund
   // overhead carries; the permit has to cover what will actually be pulled.
   it('funds the relay fee carried in the refund overhead, not just the spend', async () => {
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
     prepareTransaction.mockResolvedValue({
       intentRoute: {
         ...quoteOf(3_000n).intentRoute,
@@ -138,7 +181,7 @@ describe('planHcaIntentFunding', () => {
 
   it('funds the shortfall when the HCA cannot cover the fee', async () => {
     // Registration leaves the HCA with ~nothing, so this is the normal case.
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
 
     const funding = await planHcaIntentFunding(params)
 
@@ -158,7 +201,7 @@ describe('planHcaIntentFunding', () => {
   it('permits only the shortfall, not the whole fee', async () => {
     // Double-charging a standing balance would move more of the user's USDC
     // into the HCA than the action needs.
-    readContract.mockResolvedValue(400_000n)
+    mockReads({ hcaBalance: 400_000n })
 
     const funding = await planHcaIntentFunding(params)
 
@@ -171,7 +214,7 @@ describe('planHcaIntentFunding', () => {
   })
 
   it('skips funding entirely when the HCA already covers the fee', async () => {
-    readContract.mockResolvedValue(5_000_000n)
+    mockReads({ hcaBalance: 5_000_000n })
 
     const funding = await planHcaIntentFunding(params)
 
@@ -185,7 +228,7 @@ describe('planHcaIntentFunding', () => {
     // The fee is charged for the batch that actually fills. Quoting the bare
     // action would under-size the permit by the funding pair's own cost — the
     // same class of bug as quoting a reveal without its primary-name call.
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
 
     await planHcaIntentFunding(params)
 
@@ -211,7 +254,7 @@ describe('planHcaIntentFunding', () => {
   it('declares a first-pass inflow so an empty HCA can be priced at all', async () => {
     // The planner credits only balances it can already see and refuses to
     // quote an account below the fee, so an empty HCA needs the declaration.
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
 
     await planHcaIntentFunding(params)
 
@@ -225,7 +268,7 @@ describe('planHcaIntentFunding', () => {
     // 0.3 USDC against a 0.9 fee is exactly as unpriceable to the planner as
     // an empty account — and it is where a settled registration leaves the
     // HCA. Keying the declaration on "exactly zero" made this band throw.
-    readContract.mockResolvedValue(300_000n)
+    mockReads({ hcaBalance: 300_000n })
 
     const funding = await planHcaIntentFunding(params)
 
@@ -242,7 +285,7 @@ describe('planHcaIntentFunding', () => {
     // to scale with it: a 25-name renewal batch quotes ~9 USDC, above anything
     // sized for the 300k shape, and under-declaring makes the quote fail before
     // the user is ever asked to fund the batch.
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
     const gasLimit = 3_100_000n
     const requiredUsdc = 2_000_000n
 
@@ -265,7 +308,7 @@ describe('planHcaIntentFunding', () => {
   it('throws rather than guessing when the quote cannot be priced', async () => {
     // A wrong permit either under-funds (the fill reverts) or moves more of
     // the user's USDC than the action needed.
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
     prepareTransaction.mockResolvedValue({ intentRoute: {} })
 
     await expect(planHcaIntentFunding(params)).rejects.toThrow(
@@ -288,7 +331,7 @@ describe('planHcaIntentFunding', () => {
     // The fee is parsed out of an orchestrator HTTP response and becomes the
     // value of an EIP-2612 permit. A response that names an absurd figure must
     // stop here, not reach the wallet.
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
     prepareTransaction.mockResolvedValue(
       quoteOf(HCA_MAX_STANDALONE_INTENT_FEE_USDC + 1n),
     )
@@ -300,7 +343,7 @@ describe('planHcaIntentFunding', () => {
   })
 
   it('shows the amount before asking for the signature', async () => {
-    readContract.mockResolvedValue(400_000n)
+    mockReads({ hcaBalance: 400_000n })
     const order: string[] = []
     const confirmFunding = vi.fn((prompt: HcaFundingPrompt) => {
       order.push('confirm')
@@ -337,7 +380,7 @@ describe('planHcaIntentFunding', () => {
   })
 
   it('requests no signature when the user declines the amount', async () => {
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
 
     await expect(
       planHcaIntentFunding({ ...params, confirmFunding: () => false }),
@@ -347,7 +390,7 @@ describe('planHcaIntentFunding', () => {
 
   it('does not prompt when no funding is needed', async () => {
     // Nothing is being permitted, so there is nothing to consent to.
-    readContract.mockResolvedValue(5_000_000n)
+    mockReads({ hcaBalance: 5_000_000n })
     const confirmFunding = vi.fn(() => true)
 
     await planHcaIntentFunding({ ...params, confirmFunding })
@@ -356,7 +399,7 @@ describe('planHcaIntentFunding', () => {
   })
 
   it('bounds the permit it asks for against the standalone ceiling', async () => {
-    readContract.mockResolvedValue(400_000n)
+    mockReads({ hcaBalance: 400_000n })
 
     await planHcaIntentFunding(params)
 
@@ -372,7 +415,7 @@ describe('planHcaIntentFunding', () => {
   })
 
   it('quotes against the declared gas limit and its scaled fee ceiling', async () => {
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
     const gasLimit = 1_200_000n
     // 15 USDC is above the 300k ceiling but legitimately below the ceiling for
     // 1.2M: the rail prices on the declared limit, so the bound must come from
@@ -417,29 +460,8 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   // sizing the funding on the fee alone leaves the action unfunded.
   const rentParams = { ...params, requiredUsdc: 2_000_000n }
 
-  /** USDC reads answered per function, since both `balanceOf` and the
-   * allowance are read from the same token contract. */
-  const mockUsdcReads = (input: {
-    hcaBalance: bigint
-    allowance: bigint
-    walletBalance: bigint
-  }) => {
-    readContract.mockImplementation(
-      (
-        _client: unknown,
-        { functionName, args }: { functionName: string; args: unknown[] },
-      ) => {
-        if (functionName === 'allowance')
-          return Promise.resolve(input.allowance)
-        return Promise.resolve(
-          args[0] === HCA ? input.hcaBalance : input.walletBalance,
-        )
-      },
-    )
-  }
-
   it('funds the rent and the fee together', async () => {
-    readContract.mockResolvedValue(400_000n)
+    mockReads({ hcaBalance: 400_000n })
 
     const funding = await planHcaIntentFunding(rentParams)
 
@@ -451,7 +473,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   })
 
   it('shows the rent as part of what the permit authorizes', async () => {
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
     const confirmFunding = vi.fn(() => true)
 
     await planHcaIntentFunding({ ...rentParams, confirmFunding })
@@ -465,7 +487,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   })
 
   it('bounds the permit over the rent plus the bounded fee', async () => {
-    readContract.mockResolvedValue(0n)
+    mockReads({ hcaBalance: 0n })
 
     await planHcaIntentFunding(rentParams)
 
@@ -479,7 +501,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   })
 
   it('submits the bare action when the HCA covers the rent and the fee', async () => {
-    readContract.mockResolvedValue(5_000_000n)
+    mockReads({ hcaBalance: 5_000_000n })
 
     const funding = await planHcaIntentFunding(rentParams)
 
@@ -491,7 +513,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   it('pulls with a standing allowance instead of a permit, after showing the amount', async () => {
     // No permit is needed, but the USDC still leaves the wallet when the
     // intent fills, so the user sees the figure before signing it.
-    mockUsdcReads({
+    mockReads({
       hcaBalance: 400_000n,
       allowance: 9_000_000n,
       walletBalance: 9_000_000n,
@@ -520,7 +542,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   })
 
   it('builds nothing when the user declines an allowance-funded amount', async () => {
-    mockUsdcReads({
+    mockReads({
       hcaBalance: 400_000n,
       allowance: 9_000_000n,
       walletBalance: 9_000_000n,
@@ -533,7 +555,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   })
 
   it('falls back to a permit when the standing allowance is short', async () => {
-    mockUsdcReads({
+    mockReads({
       hcaBalance: 400_000n,
       allowance: 2_499_999n,
       walletBalance: 9_000_000n,
@@ -556,7 +578,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
   it('names the wallet balance when a standing allowance cannot be pulled', async () => {
     // Allowance present but the USDC is not: fail here rather than let the fill
     // revert with an opaque SafeERC20 error.
-    mockUsdcReads({
+    mockReads({
       hcaBalance: 0n,
       allowance: 9_000_000n,
       walletBalance: 1_000_000n,
@@ -566,5 +588,141 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
       /connected wallet holds/,
     )
     expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+})
+
+describe('planHcaIntentFunding for a spend in another token', () => {
+  // A renewal paid in DAI: the rent is a leg of its own, the fee stays USDC.
+  const DAI = '0x00000000000000000000000000000000000000da' as Address
+  const ONE_DAI = 10n ** 18n
+  const daiParams = {
+    ...params,
+    tokenSpend: {
+      token: DAI,
+      symbol: 'DAI',
+      decimals: 18,
+      amount: 2n * ONE_DAI,
+    },
+  }
+
+  /** Each call's target and decoded function name. */
+  const shapeOf = (calls: readonly Call[]) =>
+    calls.map((call) =>
+      call.to === ACTION_TARGET ? 'action' : `${call.to}:${fnNameOf(call)}`,
+    )
+
+  it('funds the token and the fee as separate legs, token first', async () => {
+    const funding = await planHcaIntentFunding(daiParams)
+
+    expect(shapeOf(funding.calls)).toEqual([
+      `${DAI}:permit`,
+      `${DAI}:transferFrom`,
+      `${C.usdc}:permit`,
+      `${C.usdc}:transferFrom`,
+      'action',
+    ])
+    // The rent never enters the USDC funding: only the fee is pulled in USDC.
+    expect(funding.incomingUsdc).toBe(900_000n)
+    expect(funding.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [C.usdc]: 900_000n },
+    })
+    expect(
+      signFundingPermit.mock.calls.map(([input]) => [
+        input.token.address,
+        input.value,
+      ]),
+    ).toEqual([
+      [DAI, 2n * ONE_DAI],
+      [C.usdc, 900_000n],
+    ])
+    // And the quote is taken over that same, fully funded shape.
+    expect(prepareTransaction.mock.calls[0]?.[0].calls).toHaveLength(5)
+  })
+
+  it('shows both legs in one prompt before any signature', async () => {
+    mockReads({ tokens: { [DAI]: { hcaBalance: ONE_DAI / 2n } } })
+    const order: string[] = []
+    const confirmFunding = vi.fn(() => {
+      order.push('confirm')
+      return true
+    })
+    signFundingPermit.mockImplementation(() => {
+      order.push('sign')
+      return signedPermit()
+    })
+
+    await planHcaIntentFunding({ ...daiParams, confirmFunding })
+
+    expect(order).toEqual(['confirm', 'sign', 'sign'])
+    expect(confirmFunding).toHaveBeenCalledWith({
+      permitValue: 900_000n,
+      requiresPermit: true,
+      quotedFeeUsdc: 900_000n,
+      hcaBalanceUsdc: 0n,
+      requiredUsdc: 0n,
+      token: {
+        symbol: 'DAI',
+        decimals: 18,
+        required: 2n * ONE_DAI,
+        hcaBalance: ONE_DAI / 2n,
+        permitValue: (3n * ONE_DAI) / 2n,
+        requiresPermit: true,
+      },
+    })
+  })
+
+  it('funds only the fee when the account already holds the token', async () => {
+    mockReads({ tokens: { [DAI]: { hcaBalance: 2n * ONE_DAI } } })
+
+    const funding = await planHcaIntentFunding(daiParams)
+
+    expect(shapeOf(funding.calls)).toEqual([
+      `${C.usdc}:permit`,
+      `${C.usdc}:transferFrom`,
+      'action',
+    ])
+  })
+
+  it('pulls the token under a standing allowance without a permit', async () => {
+    mockReads({ tokens: { [DAI]: { allowance: 2n * ONE_DAI } } })
+
+    const funding = await planHcaIntentFunding(daiParams)
+
+    expect(shapeOf(funding.calls).slice(0, 2)).toEqual([
+      `${DAI}:transferFrom`,
+      `${C.usdc}:permit`,
+    ])
+  })
+
+  it('checks the wallet holds every leg before showing anything', async () => {
+    // Short of DAI: refusing here beats a prompt the fill can't honour, or a
+    // first permit signed for nothing.
+    mockReads({ tokens: { [DAI]: { walletBalance: ONE_DAI } } })
+    const confirmFunding = vi.fn(() => true)
+
+    await expect(
+      planHcaIntentFunding({ ...daiParams, confirmFunding }),
+    ).rejects.toThrow(/wallet holds 1 DAI/)
+    expect(confirmFunding).not.toHaveBeenCalled()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('folds a USDC spend into the fee funding', async () => {
+    const funding = await planHcaIntentFunding({
+      ...params,
+      tokenSpend: {
+        token: C.usdc,
+        symbol: 'USDC',
+        decimals: 6,
+        amount: 2_000_000n,
+      },
+    })
+
+    expect(funding.incomingUsdc).toBe(2_900_000n)
+    expect(shapeOf(funding.calls)).toEqual([
+      `${C.usdc}:permit`,
+      `${C.usdc}:transferFrom`,
+      'action',
+    ])
   })
 })

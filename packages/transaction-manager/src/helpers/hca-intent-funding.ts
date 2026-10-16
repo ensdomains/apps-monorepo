@@ -21,7 +21,8 @@
  * out of the same balance, so the funding is sized over both. The shortfall is
  * always shown to the user before anything is signed, then pulled under either
  * a permit signed for exactly that amount or a standing allowance that already
- * covers it (in which case only the `transferFrom` is needed).
+ * covers it (in which case only the `transferFrom` is needed). A spend in
+ * another token (`tokenSpend`) is funded the same way, as a leg of its own.
  *
  * Sponsorship is deliberately NOT the answer here — see `signer.types.ts`.
  */
@@ -43,6 +44,7 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import {
+  type PermitValueBounds,
   readHcaUsdcBalanceActor,
   readUsdcSpend,
   signFundingPermitActor,
@@ -126,6 +128,29 @@ export interface HcaFundingPrompt {
    * renewal pulls, say. Zero for an intent that only pays its own fee.
    */
   readonly requiredUsdc: bigint
+  /** Present when the action spends a token other than USDC; the fee stays USDC. */
+  readonly token?: HcaFundingTokenLeg
+}
+
+/** The non-USDC half of a prompt, in that token's own units. */
+export interface HcaFundingTokenLeg {
+  readonly symbol: string
+  readonly decimals: number
+  /** What the action spends in this token. */
+  readonly required: bigint
+  /** What the HCA already holds of it. */
+  readonly hcaBalance: bigint
+  /** Moved from the wallet: what the HCA is short. Zero when it is covered. */
+  readonly permitValue: bigint
+  readonly requiresPermit: boolean
+}
+
+/** What an intent's calls spend in one token, on top of the USDC fee. */
+export interface HcaTokenSpend {
+  readonly token: Address
+  readonly symbol: string
+  readonly decimals: number
+  readonly amount: bigint
 }
 
 /** The user saw the funding amount and declined it. Not an error condition. */
@@ -280,7 +305,7 @@ async function quoteIntentUsdc(input: {
 }
 
 export interface HcaIntentFunding {
-  /** The batch to submit: `calls`, preceded by the funding pair when needed. */
+  /** The batch to submit: `calls`, preceded by each funding pair needed. */
   readonly calls: readonly Call[]
   /** USDC (6dp) this intent pulls in. Absent when no funding was needed. */
   readonly incomingUsdc?: bigint
@@ -316,6 +341,11 @@ export interface PlanHcaIntentFundingParams {
    */
   readonly requiredUsdc?: bigint
   /**
+   * What the calls spend in a token of their choosing — a renewal's rent. In
+   * USDC it joins `requiredUsdc`; any other token is funded as its own leg.
+   */
+  readonly tokenSpend?: HcaTokenSpend
+  /**
    * Declared gas limit the rail prices the quote against. Defaults to
    * {@link HCA_STANDALONE_INTENT_GAS_LIMIT}; pass a larger one for a batch the
    * default would under-fund.
@@ -342,6 +372,111 @@ export interface PlanHcaIntentFundingParams {
   ) => Promise<boolean> | boolean
 }
 
+/** One token the wallet tops the HCA up with. */
+type FundingLeg = {
+  readonly token: Address
+  readonly symbol: string
+  readonly decimals: number
+  /** What the HCA is short of this token. */
+  readonly shortfall: bigint
+  /** `false` when a standing allowance on the wallet already covers the pull. */
+  readonly requiresPermit: boolean
+}
+
+/**
+ * How the wallet funds one leg: a standing allowance when one covers it, else a
+ * permit. Checks the wallet holds it first, so nothing shown to the user (or
+ * signed by them) can then fail for want of funds.
+ */
+async function planFundingLeg(
+  owner: { publicClient: PublicClient; ownerAddress: Address; hca: Address },
+  leg: Omit<FundingLeg, 'requiresPermit'>,
+): Promise<FundingLeg> {
+  const [allowance, walletBalance] = await Promise.all([
+    readContract(owner.publicClient, {
+      address: leg.token,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [owner.ownerAddress, owner.hca],
+    }),
+    readContract(owner.publicClient, {
+      address: leg.token,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [owner.ownerAddress],
+    }),
+  ])
+  if (walletBalance < leg.shortfall) {
+    throw new Error(
+      `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
+        `${leg.symbol} moved into the smart account, but the connected ` +
+        `wallet holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`,
+    )
+  }
+  return { ...leg, requiresPermit: allowance < leg.shortfall }
+}
+
+/** The calls that move one leg into the HCA: its permit when needed, then the pull. */
+async function legCalls(
+  leg: FundingLeg,
+  input: {
+    ownerAddress: Address
+    hca: Address
+    approvalSigner: Signer
+    publicClient: PublicClient
+    chainId: number
+  },
+  bounds?: PermitValueBounds,
+): Promise<Call[]> {
+  const pull: Call = {
+    to: leg.token,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: erc2612Abi,
+      functionName: 'transferFrom',
+      args: [input.ownerAddress, input.hca, leg.shortfall],
+    }),
+  }
+  if (!leg.requiresPermit) return [pull]
+
+  const permit = await signFundingPermitActor({
+    wallet: input.ownerAddress,
+    hca: input.hca,
+    value: leg.shortfall,
+    approvalSigner: input.approvalSigner,
+    publicClient: input.publicClient,
+    chainId: input.chainId,
+    token: { address: leg.token, symbol: leg.symbol, decimals: leg.decimals },
+    ...(bounds ? { bounds } : {}),
+  }).match(
+    (signed) => signed,
+    (error) => {
+      throw error
+    },
+  )
+
+  return [
+    {
+      to: leg.token,
+      value: 0n,
+      data: encodeFunctionData({
+        abi: erc2612Abi,
+        functionName: 'permit',
+        args: [
+          permit.owner,
+          permit.spender,
+          permit.value,
+          permit.deadline,
+          permit.v,
+          permit.r,
+          permit.s,
+        ],
+      }),
+    },
+    pull,
+  ]
+}
+
 /**
  * Size and attach funding for a standalone HCA intent.
  *
@@ -360,14 +495,13 @@ export async function planHcaIntentFunding(
   const {
     signer,
     ownerAddress,
-    approvalSigner,
     publicClient,
     chainId,
     calls,
-    requiredUsdc = 0n,
+    requiredUsdc: usdcSpend = 0n,
+    tokenSpend,
     gasLimit = HCA_STANDALONE_INTENT_GAS_LIMIT,
     maxFeeUsdc = HCA_MAX_STANDALONE_INTENT_FEE_USDC,
-    confirmFunding,
   } = params
 
   const chain = publicClient.chain
@@ -377,6 +511,14 @@ export async function planHcaIntentFunding(
 
   const hca = signer.account.getAddress() as Address
   const usdc = getDestinationContracts(chainId).usdc
+
+  // A USDC spend shares the fee's funding; any other token is a leg of its own.
+  const otherSpend =
+    tokenSpend && !isAddressEqual(tokenSpend.token, usdc)
+      ? tokenSpend
+      : undefined
+  const requiredUsdc =
+    usdcSpend + (tokenSpend && !otherSpend ? tokenSpend.amount : 0n)
 
   // Deliberately NOT `unwrapOr(0n)`: an unread balance is unknown, not empty.
   // `balance` sets the shortfall the permit is signed for, so defaulting it to
@@ -394,8 +536,21 @@ export async function planHcaIntentFunding(
     },
   )
 
+  // Same for the other token: a failed read throws rather than reading as zero.
+  const tokenBalance = otherSpend
+    ? await readContract(publicClient, {
+        address: otherSpend.token,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [hca],
+      })
+    : 0n
+
   const fundedCalls: Call[] = [
     ...placeholderPermitCalls(usdc, ownerAddress, hca),
+    ...(otherSpend
+      ? placeholderPermitCalls(otherSpend.token, ownerAddress, hca)
+      : []),
     ...calls,
   ]
 
@@ -444,123 +599,126 @@ export async function planHcaIntentFunding(
   // the rail's fee. Both are pulled from the same balance, so the funding is
   // sized over the sum.
   const targetUsdc = requiredUsdc + quotedFeeUsdc
+  const usdcShortfall = bigintMax(targetUsdc - balance, 0n)
+  const tokenShortfall = otherSpend
+    ? bigintMax(otherSpend.amount - tokenBalance, 0n)
+    : 0n
 
-  if (balance >= targetUsdc) {
+  if (usdcShortfall === 0n && tokenShortfall === 0n) {
     // The HCA already covers it — submit the bare action. The quote was taken
     // over a larger batch, so it only over-estimated, which is safe here
     // because nothing is being permitted.
     return { calls: [...calls], quotedFeeUsdc }
   }
 
-  const shortfall = targetUsdc - balance
-  const transferFromCall: Call = {
-    to: usdc,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: erc2612Abi,
-      functionName: 'transferFrom',
-      args: [ownerAddress, hca, shortfall],
-    }),
-  }
-
-  // A standing allowance on the owner's wallet already authorizes pulling this
-  // much into the HCA, so the transfer alone funds it and no permit is signed.
-  const standingAllowance = await readContract(publicClient, {
-    address: usdc,
-    abi: erc20Abi,
-    functionName: 'allowance',
-    args: [ownerAddress, hca],
-  })
-  const requiresPermit = standingAllowance < shortfall
-
-  if (!requiresPermit) {
-    // The pull still needs the owner to hold it; failing here names the cause
-    // instead of letting the fill revert with an opaque SafeERC20 error.
-    const ownerBalance = await readContract(publicClient, {
-      address: usdc,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [ownerAddress],
-    })
-    if (ownerBalance < shortfall) {
-      throw new Error(
-        `This action needs ${formatUnits(shortfall, 6)} USDC moved into the ` +
-          `smart account, but the connected wallet holds ` +
-          `${formatUnits(ownerBalance, 6)} USDC.`,
-      )
-    }
-  }
-
-  // Show the amount before anything is signed, permit or not: either way it
-  // leaves the wallet when the intent fills.
-  if (confirmFunding) {
-    const approved = await confirmFunding({
-      permitValue: shortfall,
-      requiresPermit,
-      quotedFeeUsdc,
-      hcaBalanceUsdc: balance,
-      requiredUsdc,
-    })
-    if (!approved) throw new HcaFundingDeclinedError()
-  }
-
-  if (!requiresPermit) {
-    return {
-      calls: [transferFromCall, ...calls],
-      incomingUsdc: shortfall,
-      auxiliaryFunds: { [chainId]: { [usdc]: shortfall } },
-      quotedFeeUsdc,
-    }
-  }
-
-  const permit = await signFundingPermitActor({
-    wallet: ownerAddress,
+  return fundShortfalls(params, {
     hca,
-    value: shortfall,
-    approvalSigner,
-    publicClient,
-    chainId,
-    bounds: {
-      // The permit tops the HCA up to what the intent spends, so the ceiling
-      // nets off the standing balance exactly as the value does, over the same
-      // two components (what it buys, plus the bounded fee).
-      expectedMaximum: bigintMax(requiredUsdc + maxFeeUsdc - balance, 0n),
-      // What `confirmFunding` just put on screen. Equal by construction here,
-      // so this asserts the two can never drift apart if the order of these
-      // steps is ever changed.
-      displayedValue: shortfall,
-    },
-  }).match(
-    (signed) => signed,
-    (error) => {
-      throw error
-    },
-  )
+    usdc,
+    balance,
+    requiredUsdc,
+    quotedFeeUsdc,
+    maxFeeUsdc,
+    usdcShortfall,
+    otherSpend,
+    tokenBalance,
+    tokenShortfall,
+  })
+}
+
+/** The quoted figures {@link fundShortfalls} funds against. */
+type QuotedFunding = {
+  readonly hca: Address
+  readonly usdc: Address
+  /** The HCA's USDC balance. */
+  readonly balance: bigint
+  readonly requiredUsdc: bigint
+  readonly quotedFeeUsdc: bigint
+  readonly maxFeeUsdc: bigint
+  readonly usdcShortfall: bigint
+  readonly otherSpend: HcaTokenSpend | undefined
+  readonly tokenBalance: bigint
+  readonly tokenShortfall: bigint
+}
+
+/**
+ * Plan each leg, show the amounts, then sign — in that order, so nothing is
+ * signed for a figure the user did not see or a wallet that cannot pay it.
+ */
+async function fundShortfalls(
+  params: PlanHcaIntentFundingParams,
+  quoted: QuotedFunding,
+): Promise<HcaIntentFunding> {
+  const { ownerAddress, approvalSigner, publicClient, chainId, calls } = params
+  const { hca, usdc, balance, requiredUsdc, usdcShortfall, otherSpend } = quoted
+
+  const owner = { publicClient, ownerAddress, hca }
+  const usdcLeg =
+    usdcShortfall > 0n
+      ? await planFundingLeg(owner, {
+          token: usdc,
+          symbol: 'USDC',
+          decimals: 6,
+          shortfall: usdcShortfall,
+        })
+      : null
+  const tokenLeg =
+    otherSpend && quoted.tokenShortfall > 0n
+      ? await planFundingLeg(owner, {
+          token: otherSpend.token,
+          symbol: otherSpend.symbol,
+          decimals: otherSpend.decimals,
+          shortfall: quoted.tokenShortfall,
+        })
+      : null
+
+  // Show the amounts before anything is signed, permit or not: either way they
+  // leave the wallet when the intent fills.
+  const approved = await (params.confirmFunding?.({
+    permitValue: usdcShortfall,
+    requiresPermit: usdcLeg?.requiresPermit ?? false,
+    quotedFeeUsdc: quoted.quotedFeeUsdc,
+    hcaBalanceUsdc: balance,
+    requiredUsdc,
+    ...(otherSpend
+      ? {
+          token: {
+            symbol: otherSpend.symbol,
+            decimals: otherSpend.decimals,
+            required: otherSpend.amount,
+            hcaBalance: quoted.tokenBalance,
+            permitValue: quoted.tokenShortfall,
+            requiresPermit: tokenLeg?.requiresPermit ?? false,
+          },
+        }
+      : {}),
+  }) ?? true)
+  if (!approved) throw new HcaFundingDeclinedError()
+
+  const signing = { ownerAddress, hca, approvalSigner, publicClient, chainId }
+  const tokenCalls = tokenLeg ? await legCalls(tokenLeg, signing) : []
+  const usdcCalls = usdcLeg
+    ? await legCalls(usdcLeg, signing, {
+        // The permit tops the HCA up to what the intent spends, so the ceiling
+        // nets off the standing balance exactly as the value does, over the
+        // same two components (what it buys, plus the bounded fee).
+        expectedMaximum: bigintMax(
+          requiredUsdc + quoted.maxFeeUsdc - balance,
+          0n,
+        ),
+        // What `confirmFunding` just put on screen. Equal by construction, so
+        // this asserts the two can never drift apart if these steps reorder.
+        displayedValue: usdcShortfall,
+      })
+    : []
 
   return {
-    calls: [
-      {
-        to: usdc,
-        value: 0n,
-        data: encodeFunctionData({
-          abi: erc2612Abi,
-          functionName: 'permit',
-          args: [
-            permit.owner,
-            permit.spender,
-            permit.value,
-            permit.deadline,
-            permit.v,
-            permit.r,
-            permit.s,
-          ],
-        }),
-      },
-      transferFromCall,
-      ...calls,
-    ],
-    incomingUsdc: shortfall,
-    auxiliaryFunds: { [chainId]: { [usdc]: shortfall } },
-    quotedFeeUsdc,
+    calls: [...tokenCalls, ...usdcCalls, ...calls],
+    ...(usdcShortfall > 0n
+      ? {
+          incomingUsdc: usdcShortfall,
+          auxiliaryFunds: { [chainId]: { [usdc]: usdcShortfall } },
+        }
+      : {}),
+    quotedFeeUsdc: quoted.quotedFeeUsdc,
   }
 }
