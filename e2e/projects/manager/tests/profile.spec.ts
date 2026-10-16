@@ -121,7 +121,8 @@ test.describe('ENS profile', () => {
 
     // General tab: Custom link is visible by default — fill with an invalid URL.
     // Validation fires immediately on change.
-    await page.getByPlaceholder('https://yourwebsite.com').fill('not-a-url')
+    // Spaces keep it invalid even with the https:// prefilled on focus
+    await page.getByPlaceholder('https://yourwebsite.com').fill('not a url')
     await expect(
       page.getByText('Enter a valid URL (e.g. https://example.com)'),
     ).toBeVisible({ timeout: 10_000 })
@@ -149,7 +150,7 @@ test.describe('ENS profile', () => {
     // Use exact match to distinguish from the General-tab "Enter a valid URL
     // (e.g. https://example.com)" message which may still be in the DOM.
     await page.getByRole('tab', { name: 'Links' }).click()
-    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not-a-url')
+    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not a url')
     await expect(
       page.getByText('Enter a valid URL', { exact: true }),
     ).toBeVisible({ timeout: 10_000 })
