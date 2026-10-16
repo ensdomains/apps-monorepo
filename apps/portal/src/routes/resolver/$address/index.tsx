@@ -136,6 +136,14 @@ function RouteComponent() {
         </CounterCard>
       </div>
 
+      {resolver?.mirrorRegistry && (
+        <p className="text-p text-muted-foreground">
+          This resolver mirrors the ENSv1 registry at{' '}
+          {truncateAddress(resolver.mirrorRegistry)}. The ENSv1 names it answers
+          for are counted under the resolvers set for them there, not here.
+        </p>
+      )}
+
       <ResolverDetails
         resolverAddress={address}
         typeValue={<ResolverTypeValue resolverAddress={address} />}
