@@ -130,11 +130,13 @@ export const useTransferDetachTargets = ({
       registriesQuery.isSuccess &&
       ethAddressQuery.isSuccess &&
       rolesQuery.isSuccess &&
-      !ethAddressEdit.isLoading,
+      !ethAddressEdit.isLoading &&
+      !ethAddressEdit.isError,
     hasFailed:
       ownResolverQuery.isError ||
       registriesQuery.isError ||
       ethAddressQuery.isError ||
-      rolesQuery.isError,
+      rolesQuery.isError ||
+      ethAddressEdit.isError,
   }
 }

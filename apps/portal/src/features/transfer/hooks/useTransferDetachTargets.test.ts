@@ -40,7 +40,7 @@ const rolesQuery: QueryStub = {
   isError: false,
 }
 
-const ethAddressEdit = { canEdit: true, isLoading: false }
+const ethAddressEdit = { canEdit: true, isLoading: false, isError: false }
 
 vi.mock('@/features/records/hooks/useCanEditRecords', () => ({
   useCanEditRecords: () => ethAddressEdit,
@@ -108,7 +108,11 @@ describe('useTransferDetachTargets', () => {
       isSuccess: true,
       isError: false,
     })
-    Object.assign(ethAddressEdit, { canEdit: true, isLoading: false })
+    Object.assign(ethAddressEdit, {
+      canEdit: true,
+      isLoading: false,
+      isError: false,
+    })
   })
 
   it('offers every option for a subname that has its own resolver and registry', () => {
@@ -214,5 +218,16 @@ describe('useTransferDetachTargets', () => {
     Object.assign(ethAddressEdit, { canEdit: false, isLoading: true })
 
     expect(render('sub.alice.eth').isSettled).toBe(false)
+  })
+
+  // Hiding the option on a failed read would let the transfer go ahead with
+  // the ETH address still pointing at the sender.
+  it('reports failed when the resolver permission read errors', () => {
+    Object.assign(ethAddressEdit, { canEdit: false, isError: true })
+
+    const { isSettled, hasFailed } = render('sub.alice.eth')
+
+    expect(hasFailed).toBe(true)
+    expect(isSettled).toBe(false)
   })
 })
