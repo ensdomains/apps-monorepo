@@ -12,6 +12,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 
 // Mock all external dependencies
 vi.mock('wagmi', () => ({
+  useConfig: vi.fn().mockReturnValue({}),
   useWalletClient: vi.fn().mockReturnValue({ data: null }),
   usePublicClient: vi.fn().mockReturnValue({ chain: { id: 11155111 } }),
   useConnection: vi.fn().mockReturnValue({

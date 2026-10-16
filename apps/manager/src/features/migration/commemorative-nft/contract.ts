@@ -13,6 +13,7 @@ import {
   parseAbi,
 } from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { withRequestDeadline } from '../service/requestDeadline'
 import { getCommemorativeNftContractAddress } from './config'
 import type { PendingNftClaim } from './pendingClaim'
@@ -167,6 +168,7 @@ export const claimCommemorativeNft = async (params: {
   }
 
   try {
+    await ensureWalletChain(params.wagmiConfig, params.chainId)
     return await writeContract(params.wagmiConfig, {
       abi: COMMEMORATIVE_NFT_ABI,
       account: params.walletAddress,
