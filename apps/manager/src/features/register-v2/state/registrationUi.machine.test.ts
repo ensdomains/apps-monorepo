@@ -1,7 +1,17 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
-import type { Address } from 'viem'
+import type { L2BridgeQuote, L2BridgeRoute } from '@ens-apps/smart-account'
+import { type Address, maxUint256 } from 'viem'
+import { baseSepolia, sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { assign, createActor, createMachine } from 'xstate'
+import {
+  assign,
+  createActor,
+  createMachine,
+  fromPromise,
+  waitFor,
+} from 'xstate'
+import type { L2FundingRecord } from '../service/l2FundingPersistence'
+import { type L2FundingArrival, l2FundingMachine } from './l2Funding.machine'
 
 /**
  * Events the stubbed registration child accepts. `FORCE_*` are test-only
@@ -206,6 +216,7 @@ import {
 import { clearStoredRegistrationIfUnchanged } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import {
+  getL2FundingActor,
   getRegistrationV2ChildActor,
   getSuspendableRunOwner,
   registrationV2UiMachine,
@@ -1526,5 +1537,110 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(childRetryCount(actor)).toBe(1)
+  })
+})
+
+describe('L2 funding', () => {
+  const route: L2BridgeRoute = {
+    owner: EOA_ADDRESS,
+    sourceChain: baseSepolia,
+    sourceToken: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    targetChain: sepolia,
+    targetToken: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    amountOut: 5_000_000n,
+  }
+  const record: L2FundingRecord = {
+    owner: EOA_ADDRESS,
+    sourceChainId: baseSepolia.id,
+    amountOut: route.amountOut,
+    amountIn: 5_012_573n,
+    intentId: 42n,
+    balanceBefore: 0n,
+    submittedAt: Date.now(),
+  }
+
+  const startWithFunding = (arrival: () => Promise<L2FundingArrival>) => {
+    const actor = createActor(
+      registrationV2UiMachine.provide({
+        actors: {
+          l2Funding: l2FundingMachine.provide({
+            actors: {
+              readAllowance: fromPromise<bigint, { route: L2BridgeRoute }>(
+                async () => maxUint256,
+              ),
+              requote: fromPromise<L2BridgeQuote, { route: L2BridgeRoute }>(
+                async () =>
+                  ({
+                    route,
+                    amountIn: record.amountIn,
+                    amountReceived: route.amountOut,
+                    deadline: 0n,
+                  }) as unknown as L2BridgeQuote,
+              ),
+              submit: fromPromise<L2FundingRecord, { quote: L2BridgeQuote }>(
+                async () => record,
+              ),
+              awaitArrival: fromPromise<
+                L2FundingArrival,
+                { record: L2FundingRecord }
+              >(arrival),
+            },
+          }),
+        },
+      }),
+      { input: { chainId: 11155111 } },
+    )
+    actor.start()
+    actor.send({ type: 'pricing.step.next' })
+    return actor
+  }
+
+  it('picks an L2 row without changing what the registration pays in', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    expect(actor.getSnapshot().context).toMatchObject({
+      fundingSourceChainId: baseSepolia.id,
+      selectedToken: 'USDC',
+    })
+
+    actor.send({ type: 'pricing.token.select', token: 'USDC' })
+    expect(actor.getSnapshot().context.fundingSourceChainId).toBeUndefined()
+  })
+
+  it('returns to the picker with the wallet chosen once the funds arrive', async () => {
+    const actor = startWithFunding(async () => ({ outcome: 'arrived' }))
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    actor.send({
+      type: 'pricing.funding.start',
+      route,
+      agreedAmountIn: record.amountIn,
+    })
+    expect(actor.getSnapshot().matches({ pricing: 'funding' })).toBe(true)
+
+    const back = await waitFor(actor, (s) => s.matches({ pricing: 'tokens' }))
+    expect(back.context.fundingSourceChainId).toBeUndefined()
+    expect(back.context.selectedToken).toBe('USDC')
+  })
+
+  it('closes the dialog and stops the flow when dismissed mid-bridge', async () => {
+    const actor = startWithFunding(() => new Promise(() => {}))
+    actor.send({
+      type: 'pricing.funding.start',
+      route,
+      agreedAmountIn: record.amountIn,
+    })
+    const child = getL2FundingActor(actor.getSnapshot())
+    if (!child) throw new Error('funding child missing')
+    await waitFor(child, (s) => s.matches('bridging'))
+
+    actor.send({ type: 'pricing.funding.dismiss' })
+    expect(actor.getSnapshot().matches({ pricing: 'duration' })).toBe(true)
+    expect(getL2FundingActor(actor.getSnapshot())).toBeUndefined()
   })
 })

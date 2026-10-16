@@ -40,7 +40,7 @@ export const typedDataChainId = (params: unknown): number | undefined => {
  * Everything else passes straight through.
  */
 export const followChain = <TChain extends Chain>(
-  client: WalletClient<Transport, Chain | undefined, Account>,
+  client: Readonly<{ account: Account; request: unknown }>,
   chain: TChain,
   ensureChain: (chainId: number) => Promise<void>,
 ): WalletClient<Transport, TChain, Account> => {
