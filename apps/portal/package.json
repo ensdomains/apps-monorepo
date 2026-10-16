@@ -20,7 +20,8 @@
     "deploy:version": "wrangler versions upload",
     "knip": "knip",
     "cf-typegen": "wrangler types",
-    "prebuild": "tsx scripts/check-network-config.ts"
+    "dev:mainnet": "pnpm dev --mode mainnet",
+    "build:mainnet": "vite build --mode mainnet && tsc --noEmit"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",

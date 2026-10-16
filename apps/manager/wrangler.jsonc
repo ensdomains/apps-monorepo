@@ -19,6 +19,21 @@
     }
   ],
   "preview_urls": true,
+  // Build with pnpm build:mainnet. Assets and observability are inherited;
+  // rate-limit bindings and credentials are configured separately per Worker.
+  "env": {
+    "mainnet": {
+      "name": "manager-app-v4-mainnet",
+      "preview_urls": false,
+      "ratelimits": [
+        {
+          "name": "RHINESTONE_TOKEN_RATE_LIMIT",
+          "namespace_id": "1002",
+          "simple": { "limit": 30, "period": 60 }
+        }
+      ]
+    }
+  },
   // Assets stay top-level. Previews explicitly share the staging rate limiter.
   "previews": {
     "ratelimits": [

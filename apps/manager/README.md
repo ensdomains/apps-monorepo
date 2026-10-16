@@ -26,12 +26,12 @@ prerequisites, repository-wide commands and conventions.
 ## Running locally
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local # optional overrides
 pnpm dev                 # http://localhost:3000
 ```
 
-The example env targets Sepolia and the hosted backend at `sepolia.app-api.ens.domains`;
-to run the backend too, see [`workers/api-worker`](../../workers/api-worker).
+The committed defaults target Sepolia and the hosted backend at
+`sepolia.app-api.ens.domains`; to run the backend too, see [`workers/api-worker`](../../workers/api-worker).
 
 `VITE_ENS_NETWORK` is required and the build fails without it. Every other
 variable is documented inline in [`.env.example`](.env.example). Three of them
@@ -43,6 +43,20 @@ are debug-only and must never reach a production deploy:
   browsers.
 - `VITE_ENABLE_DEBUG_FEATURES` exposes the `/debug/*` routes and the backend
   override. It is on automatically in `vite dev`.
+
+## Environments
+
+`pnpm dev` / `pnpm build` use Sepolia; `pnpm dev:mainnet` / `pnpm build:mainnet`
+select mainnet. See [app environment configuration](../../README.md#app-environments)
+for env-file layering, local overrides and deployment behavior.
+
+Mainnet requires a Bigname endpoint in the network profile or
+`VITE_BIGNAME_API_URL`; validation fails until one is supplied. The mainnet
+Telegram bot ID is intentionally empty until provisioned. Configure the new
+Worker's domain routing and Rhinestone credentials separately:
+`RHINESTONE_JWT_PRIVATE_KEY`, `RHINESTONE_INTEGRATOR_ID`,
+`RHINESTONE_PROJECT_ID`, `RHINESTONE_APP_ID`, `RHINESTONE_KEY_ID`.
+The mainnet token rate limiter uses a separate namespace.
 
 ## Notes
 

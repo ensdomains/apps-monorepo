@@ -36,9 +36,7 @@ jobs:
           cache: true
 
       - name: Build Portal app
-        run: pnpm build:portal
-        env:
-          VITE_ENS_NETWORK: mainnet
+        run: pnpm build:portal:mainnet
 
       - name: Pack static assets
         working-directory: apps/portal

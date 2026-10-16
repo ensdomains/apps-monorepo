@@ -8,9 +8,13 @@ import { WalletSection } from './WalletSection'
 
 type AccountContentProps = {
   readonly onAction: () => void
+  readonly onChoosePrimaryName: () => void
 }
 
-export const AccountContent = ({ onAction }: AccountContentProps) => {
+export const AccountContent = ({
+  onAction,
+  onChoosePrimaryName,
+}: AccountContentProps) => {
   const isLanguageSelectorEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.I18N,
     false,
@@ -18,7 +22,10 @@ export const AccountContent = ({ onAction }: AccountContentProps) => {
 
   return (
     <div className="ms-wght-300 flex flex-col">
-      <NavSection onAction={onAction} />
+      <NavSection
+        onAction={onAction}
+        onChoosePrimaryName={onChoosePrimaryName}
+      />
       <NotificationsMenuItem onAction={onAction} />
       <AccountMenuDivider />
       {isLanguageSelectorEnabled === true ? (

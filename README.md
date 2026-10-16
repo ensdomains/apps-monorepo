@@ -10,8 +10,9 @@ behind them.
 | [`workers/api-worker`](workers/api-worker) | Backend for the manager: auth, favorites, notifications, migration faucet. Hono on Cloudflare Workers with Postgres and Queues. | https://sepolia.app-api.ens.domains |
 
 Shared code lives in `packages/`, end-to-end tests in `e2e/`. The official app
-origins are listed in [TRADEMARK.md](TRADEMARK.md). ENSv2 is deployed on
-Sepolia only; each build targets one network via `VITE_ENS_NETWORK`.
+origins are listed in [TRADEMARK.md](TRADEMARK.md). Each build targets one
+network: Sepolia by default, or mainnet via the `dev:mainnet` / `build:mainnet`
+app scripts.
 
 ## Setup
 
@@ -19,11 +20,11 @@ Sepolia only; each build targets one network via `VITE_ENS_NETWORK`.
 pnpm install
 
 # Manager, http://localhost:3000
-cp apps/manager/.env.example apps/manager/.env
+cp apps/manager/.env.example apps/manager/.env.local # optional overrides
 pnpm --filter manager dev
 
 # Explorer, http://localhost:3001
-cp apps/portal/.env.example apps/portal/.env
+cp apps/portal/.env.example apps/portal/.env.local # optional overrides
 pnpm --filter portal dev
 
 # API worker, http://localhost:2999
@@ -37,6 +38,36 @@ pnpm dev
 The brand typefaces are not in the repository; official deployments load them
 from `fonts.ens.dev` and everything else falls back to the generic family. See
 [`apps/portal/src/assets/fonts/README.md`](apps/portal/src/assets/fonts/README.md).
+
+## App environments
+
+Manager and Portal use Sepolia for `pnpm dev` and `pnpm build`. Their
+`dev:mainnet` and `build:mainnet` scripts select Vite mode `mainnet`.
+`.env.mainnet` sets `CLOUDFLARE_ENV=mainnet`, which also selects Wrangler's
+`env.mainnet`; the default Worker remains Sepolia.
+
+- `.env`: committed common public settings and Sepolia defaults.
+- `.env.local`: ignored personal overrides for common settings.
+- `.env.mainnet`: committed mainnet overrides.
+- `.env.mainnet.local`: ignored personal mainnet overrides.
+
+Use `.env.mainnet.local` for network-specific overrides: Vite and Wrangler
+order `.env.local` and `.env.mainnet` differently. Keep environment selectors
+out of `.env.local`. The Vite configs reject browser/Worker target mismatches.
+Network endpoints and backend API defaults live in
+[`packages/config`](packages/config/src/networks.ts); env overrides remain
+available for local development and the existing `.env.ci` E2E templates.
+
+`VITE_*` values are public and compiled into the browser bundle. Local Worker
+secrets can go in ignored env files without that prefix; do not also create
+`.dev.vars`, which disables Worker-side env-file loading. Deployed Worker
+settings/bindings belong in Wrangler and private values in Cloudflare secrets.
+Build env files do not provision deployed Worker secrets.
+
+Build the intended environment immediately before deploying its generated
+configuration. Selecting an environment only at deploy time cannot retarget an
+existing Vite build. PR previews use default Sepolia builds; mainnet Workers
+have preview URLs disabled. See each app's README for provisioning requirements.
 
 ## Conventions
 
