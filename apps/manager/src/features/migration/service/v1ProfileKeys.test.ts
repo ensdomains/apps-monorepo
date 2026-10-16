@@ -2,14 +2,17 @@ import type { NameRecords, RecordInventory } from '@ens-apps/indexer/bigname'
 import { BignameError } from '@ens-apps/indexer/bigname'
 import { errAsync, okAsync } from 'neverthrow'
 import type { PublicClient } from 'viem'
-import { namehash } from 'viem'
+import { namehash, zeroHash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { resolverRecords } = vi.hoisted(() => ({ resolverRecords: vi.fn() }))
-vi.mock('@/lib/bigname', () => ({ bigname: { resolverRecords } }))
+const { resolverRecords, events } = vi.hoisted(() => ({
+  resolverRecords: vi.fn(),
+  events: vi.fn(),
+}))
+vi.mock('@/lib/bigname', () => ({ bigname: { resolverRecords, events } }))
 
 import { fetchV1Profiles, ProfileFetchError } from './fetchV1Profiles'
-import { getV1ProfileKeys, hasV1ProfileRecords } from './v1ProfileKeys'
+import { getV1ProfileKeys } from './v1ProfileKeys'
 
 const RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd'
 
@@ -42,8 +45,19 @@ const answer = (data: Partial<NameRecords> = {}) =>
     meta: { as_of: {} },
   })
 
+const recordEvents = (keys: readonly string[], nextCursor: string | null) =>
+  okAsync({
+    data: keys.map((key) => ({ type: 'record', data: { key } })),
+    page: { next_cursor: nextCursor },
+    meta: {},
+  })
+
 describe('getV1ProfileKeys', () => {
-  beforeEach(() => resolverRecords.mockReset())
+  beforeEach(() => {
+    resolverRecords.mockReset()
+    events.mockReset()
+    events.mockReturnValue(recordEvents([], null))
+  })
 
   it('reads known and unset keys from the source resolver', async () => {
     resolverRecords.mockReturnValue(
@@ -75,8 +89,40 @@ describe('getV1ProfileKeys', () => {
         coinTypes: [60, 2147483658],
         hasContentHash: true,
         abiContentTypes: [1n, 4n],
+        interfaceIds: [],
       },
     ])
+  })
+
+  it('lists interface ids from every page of the resolver record events', async () => {
+    resolverRecords.mockReturnValue(answer())
+    events
+      .mockReturnValueOnce(
+        recordEvents(['interface:0x01FFC9A7', 'text:url'], 'page-2'),
+      )
+      .mockReturnValueOnce(
+        recordEvents(['interface:0x01ffc9a7', 'interface:0x12345678'], null),
+      )
+
+    const [keys] = (
+      await getV1ProfileKeys([source('alice.eth')])
+    )._unsafeUnwrap()
+
+    expect(events).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        name: 'alice.eth',
+        resolver: `11155111:${RESOLVER}`,
+        type: ['record'],
+      }),
+      expect.anything(),
+    )
+    expect(events).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ cursor: 'page-2' }),
+      expect.anything(),
+    )
+    expect(keys?.interfaceIds).toEqual(['0x01ffc9a7', '0x12345678'])
   })
 
   it('counts a contenthash the answer serves even when the inventory omits it', async () => {
@@ -107,8 +153,16 @@ describe('getV1ProfileKeys', () => {
       ])
     )._unsafeUnwrap()
 
-    expect(keys.map(({ id }) => id)).toEqual([namehash('alice.eth')])
-    expect(keys.some(hasV1ProfileRecords)).toBe(false)
+    expect(keys).toEqual([
+      {
+        id: namehash('alice.eth'),
+        texts: [],
+        coinTypes: [],
+        hasContentHash: false,
+        abiContentTypes: [],
+        interfaceIds: [],
+      },
+    ])
   })
 
   it('leaves out names with unavailable ABI inventories so migration fails closed', async () => {
@@ -154,6 +208,7 @@ describe('getV1ProfileKeys', () => {
     const multicall = vi.fn(async () => [
       { status: 'success', result: [16n, '0x1234'] },
       { status: 'success', result: [1n << 255n, '0xabcd'] },
+      { status: 'success', result: [zeroHash, zeroHash] },
     ])
 
     const profiles = await fetchV1Profiles({

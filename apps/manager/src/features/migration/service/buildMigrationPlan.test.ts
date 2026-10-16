@@ -1,7 +1,13 @@
 import { computeResolverAddress } from '@ens-apps/smart-account'
 import { Storage } from 'happy-dom'
 import { err, ok } from 'neverthrow'
-import { type Address, type Hex, namehash, type PublicClient } from 'viem'
+import {
+  type Address,
+  type Hex,
+  namehash,
+  type PublicClient,
+  zeroHash,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeClassified, makeDomain, OWNER } from './_fixtures'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
@@ -9,10 +15,12 @@ import {
   assertLockedResolverReplacementRecordSafety,
   buildMigrationPlan,
   buildMigrationRecoveryPlan,
+  namesWithDroppedPubkey,
 } from './buildMigrationPlan'
 import { FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import type { Profile } from './fetchV1Profiles'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -60,6 +68,11 @@ const HCA: Address = '0x00000000000000000000000000000000000000ca'
 const KNOWN_PUBLIC_RESOLVER: Address =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
 const CUSTOM_RESOLVER: Address = '0x00000000000000000000000000000000000000cc'
+
+const UNSET_PUBKEY = {
+  status: 'success',
+  result: [zeroHash, zeroHash],
+} as const
 
 const publicClientWithProfileResults = (
   results: readonly {
@@ -110,7 +123,14 @@ const makeRecoveryTree = () => {
     profiles: new Map([
       [
         namehash(root.name),
-        { texts: [], addresses: [], contentHash: null, abis: [] },
+        {
+          texts: [],
+          addresses: [],
+          contentHash: null,
+          abis: [],
+          interfaces: [],
+          pubkey: null,
+        },
       ],
       [
         namehash(copy.name),
@@ -119,6 +139,8 @@ const makeRecoveryTree = () => {
           addresses: [],
           contentHash: null,
           abis: [],
+          interfaces: [],
+          pubkey: null,
         },
       ],
     ]),
@@ -155,6 +177,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           coinTypes: [],
           hasContentHash: false,
           abiContentTypes: [],
+          interfaceIds: [],
         },
       ]) as never,
     )
@@ -162,7 +185,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
     await expect(
       assertLockedResolverReplacementRecordSafety(
         [name],
-        publicClientWithProfileResults(),
+        publicClientWithProfileResults([UNSET_PUBKEY]),
       ),
     ).resolves.toBeUndefined()
   })
@@ -177,6 +200,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           coinTypes: ['60'],
           hasContentHash: false,
           abiContentTypes: [],
+          interfaceIds: [],
         },
       ]) as never,
     )
@@ -187,6 +211,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         publicClientWithProfileResults([
           { status: 'success', result: 'a@b.c' },
           { status: 'success', result: '0x1234' as Hex },
+          UNSET_PUBKEY,
         ]),
       ),
     ).rejects.toMatchObject({
@@ -208,6 +233,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           coinTypes: [],
           hasContentHash: true,
           abiContentTypes: [1n],
+          interfaceIds: [],
         },
       ]) as never,
     )
@@ -218,6 +244,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         publicClientWithProfileResults([
           { status: 'success', result: '0xe301' as Hex },
           { status: 'success', result: [1n, '0x5b5d' as Hex] },
+          UNSET_PUBKEY,
         ]),
       ),
     ).rejects.toMatchObject({
@@ -225,6 +252,40 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
       reason: 'records-not-replayable',
       contentHashRecordCount: 1,
       abiRecordCount: 1,
+    })
+  })
+
+  it('blocks replacement when only interface and pubkey records exist', async () => {
+    const name = lockedKnownResolver()
+    getV1ProfileKeysMock.mockReturnValueOnce(
+      ok([
+        {
+          id: name.domain.id,
+          texts: [],
+          coinTypes: [],
+          contentHash: null,
+          abiContentTypes: [],
+          interfaceIds: ['0x01ffc9a7'],
+        },
+      ]) as never,
+    )
+
+    await expect(
+      assertLockedResolverReplacementRecordSafety(
+        [name],
+        publicClientWithProfileResults([
+          {
+            status: 'success',
+            result: '0x000000000000000000000000000000000000beef' as Address,
+          },
+          { status: 'success', result: [`0x${'aa'.repeat(32)}`, zeroHash] },
+        ]),
+      ),
+    ).rejects.toMatchObject({
+      name: 'LockedResolverRecordSafetyError',
+      reason: 'records-not-replayable',
+      interfaceRecordCount: 1,
+      pubkeyRecordCount: 1,
     })
   })
 
@@ -269,6 +330,39 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
       ),
     ).resolves.toBeUndefined()
     expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('namesWithDroppedPubkey', () => {
+  it('lists only names moving to the owned resolver that have a pubkey', () => {
+    const profile = (pubkey: Profile['pubkey']) =>
+      ({ pubkey }) as unknown as Profile
+    const pubkey = { x: zeroHash, y: `0x${'aa'.repeat(32)}` } as const
+
+    expect(
+      namesWithDroppedPubkey({
+        classified: [
+          makeClassified({
+            name: 'a.eth',
+            resolverStrategy: 'to-owned-permres',
+          }),
+          makeClassified({
+            name: 'b.eth',
+            resolverStrategy: 'to-owned-permres',
+          }),
+          makeClassified({
+            name: 'c.eth',
+            resolverStrategy: 'keep-v1',
+            v1ResolverAddress: CUSTOM_RESOLVER,
+          }),
+        ],
+        profiles: new Map([
+          [namehash('a.eth'), profile(pubkey)],
+          [namehash('b.eth'), profile(null)],
+          [namehash('c.eth'), profile(pubkey)],
+        ]),
+      }),
+    ).toEqual(['a.eth'])
   })
 })
 
@@ -459,7 +553,14 @@ describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
       profiles: new Map([
         [
           namehash(root.name),
-          { texts: [], addresses: [], contentHash: null, abis: [] },
+          {
+            texts: [],
+            addresses: [],
+            contentHash: null,
+            abis: [],
+            interfaces: [],
+            pubkey: null,
+          },
         ],
       ]),
       ownedPermRes: computeResolverAddress({ chainId: 11155111, hca: HCA }),

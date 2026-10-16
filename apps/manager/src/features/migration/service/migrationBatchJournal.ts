@@ -141,6 +141,9 @@ type StoredRecoveryProfile = {
     readonly contentType: string
     readonly value: Hex
   }[]
+  /** Absent on snapshots written before interface replay existed, which replay none. */
+  readonly interfaces?: Profile['interfaces']
+  readonly pubkey?: Profile['pubkey']
 }
 
 type StoredRecoverySnapshot = Omit<
@@ -310,7 +313,22 @@ const parseStoredProfile = (value: unknown): StoredRecoveryProfile | null => {
         isRecord(entry) &&
         isUintString(entry.contentType) &&
         isHex(entry.value),
-    )
+    ) ||
+    (value.interfaces !== undefined &&
+      (!Array.isArray(value.interfaces) ||
+        !value.interfaces.every(
+          (entry) =>
+            isRecord(entry) &&
+            typeof entry.interfaceId === 'string' &&
+            /^0x[0-9a-fA-F]{8}$/.test(entry.interfaceId) &&
+            typeof entry.implementer === 'string' &&
+            isAddress(entry.implementer),
+        ))) ||
+    (value.pubkey !== undefined &&
+      value.pubkey !== null &&
+      (!isRecord(value.pubkey) ||
+        !isTransactionHash(value.pubkey.x) ||
+        !isTransactionHash(value.pubkey.y)))
   ) {
     return null
   }
@@ -609,6 +627,8 @@ const hydrateRecovery = (
           contentType: BigInt(contentType),
           value,
         })),
+        interfaces: profile.interfaces ?? [],
+        pubkey: profile.pubkey ?? null,
       },
     ]),
   ),
@@ -636,6 +656,8 @@ const storeRecovery = (
       contentType: contentType.toString(),
       value,
     })),
+    interfaces: profile.interfaces,
+    pubkey: profile.pubkey,
   })),
   plannedApprovals: recovery.plannedApprovals.map((approval) => ({
     id: approval.id,

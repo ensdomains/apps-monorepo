@@ -1846,6 +1846,10 @@ msgstr ""
 msgid "Profile actions"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Public key records can't be carried over by this upgrade and will stop resolving for {nameList}."
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
 msgstr ""
