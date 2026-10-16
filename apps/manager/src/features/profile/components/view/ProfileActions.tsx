@@ -1,4 +1,5 @@
 import { useLingui } from '@lingui/react/macro'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { normalizeEthName } from '@/features/profile/service/profileName'
 import type { ProfileRecords } from '@/features/profile/types'
@@ -20,6 +21,7 @@ import { ProfileEditAction } from './ProfileEditAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
 import { ProfileRenewAction } from './ProfileRenewAction'
 import { ProfileShareAction } from './ProfileShareAction'
+import { useIntercomClearance } from './useIntercomClearance'
 
 type ProfileActionsProps = {
   readonly avatarUrl?: string
@@ -47,6 +49,8 @@ export const ProfileActions = ({
   url,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
+  const [bar, setBar] = useState<HTMLElement | null>(null)
+  useIntercomClearance(bar)
   const canEditProfile =
     isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
   const hasFloatingBar = canEditProfile && !isUpgradeRequired && !isInGrace
@@ -98,7 +102,11 @@ export const ProfileActions = ({
       </div>
 
       {hasBottomNav ? (
-        <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
+        <nav
+          aria-label={t`Profile actions`}
+          className={editBottomNavClassName}
+          ref={setBar}
+        >
           <div className={editBottomNavContentClassName}>
             <div className={cn(profileBarActionsClassName, 'w-full xl:hidden')}>
               {barActions}
@@ -120,6 +128,7 @@ export const ProfileActions = ({
         <nav
           aria-label={t`Profile actions`}
           className={profileStickyBarClassName}
+          ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-start')}>
             <div className={profileBarActionsClassName}>{barActions}</div>

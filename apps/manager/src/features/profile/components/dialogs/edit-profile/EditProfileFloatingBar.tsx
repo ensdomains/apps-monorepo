@@ -14,6 +14,7 @@ import {
   editBottomBarContentClassName,
   profileBarActionsClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
+import { useIntercomClearance } from '@/features/profile/components/view/useIntercomClearance'
 
 const OPEN_HEIGHT_RATIO = 0.7
 
@@ -124,6 +125,8 @@ export const EditProfileFloatingBar = ({
   const barRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const barHeight = useMeasuredHeight(barRef)
+  const [section, setSection] = useState<HTMLElement | null>(null)
+  useIntercomClearance(section)
 
   useEffect(() => {
     if (isOpen) editorRef.current?.focus({ preventScroll: true })
@@ -145,6 +148,7 @@ export const EditProfileFloatingBar = ({
       aria-label={t`Profile actions`}
       className={sectionClassName}
       onKeyDown={handleKeyDown}
+      ref={setSection}
     >
       <motion.div
         animate={{

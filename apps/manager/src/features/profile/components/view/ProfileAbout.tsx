@@ -113,6 +113,16 @@ const AboutMetaItem = ({
   )
 }
 
+export const hasAboutContent = (records: ProfileRecords | null) =>
+  Boolean(
+    records?.base.name?.trim() ||
+      records?.base.description?.trim() ||
+      records?.base.url?.trim() ||
+      formatLanguage(records?.base.language) ||
+      getContactRecordValue(records, 'timezone') ||
+      getContactRecordValue(records, 'location'),
+  )
+
 export const ProfileAbout = ({
   className,
   records,
@@ -129,6 +139,8 @@ export const ProfileAbout = ({
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records?.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
+
+  if (!primaryName && !hasAboutContent(records)) return null
 
   return (
     <Card

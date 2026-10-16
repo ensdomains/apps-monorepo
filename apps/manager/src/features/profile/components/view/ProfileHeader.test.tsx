@@ -26,7 +26,10 @@ describe('ProfileHeader', () => {
       <ProfileHeader
         avatarLoading={false}
         name="example.eth"
-        records={newEmptyProfileRecords()}
+        records={{
+          ...newEmptyProfileRecords(),
+          base: { description: 'Builder of things' },
+        }}
       />,
     )
 
