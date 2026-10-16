@@ -3,7 +3,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
+import { unixSecondsToPlainDateLocal } from '@/utils/temporal'
 import { formatTimelineTime } from '../formatTimelineDate'
 import type { TimelineEvent } from '../timelineEvent'
 import { TransactionSenderBadge, type TransactionSenders } from './AccountBadge'
@@ -36,7 +36,7 @@ export const TransactionHeaderRow = ({
       right={
         <EntityBadge
           variant="tx"
-          label={formatExpiryDate(unixSecondsToPlainDateUtc(event.timestamp))}
+          label={formatExpiryDate(unixSecondsToPlainDateLocal(event.timestamp))}
           copyValue={txHash}
           etherscanHref={txUrl}
           compact

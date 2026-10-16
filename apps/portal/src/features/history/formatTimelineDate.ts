@@ -1,10 +1,10 @@
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
+import { unixSecondsToPlainDateLocal } from '@/utils/temporal'
 
-/** Time of day, e.g. "1:32 PM" (UTC) — used in "initiated at {time}". */
+/** Time of day, e.g. "1:32 PM" (local) — used in "initiated at {time}". */
 export const formatTimelineTime = (unixSeconds: number): string =>
   Temporal.Instant.fromEpochMilliseconds(unixSeconds * 1000)
-    .toZonedDateTimeISO('UTC')
+    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
     .toPlainTime()
     .toLocaleString('en-US', {
       hour: 'numeric',
@@ -13,8 +13,8 @@ export const formatTimelineTime = (unixSeconds: number): string =>
     })
 
 export const formatTimelineDate = (unixSeconds: number): string => {
-  const date = unixSecondsToPlainDateUtc(unixSeconds)
-  const today = Temporal.Now.plainDateISO('UTC')
+  const date = unixSecondsToPlainDateLocal(unixSeconds)
+  const today = Temporal.Now.plainDateISO()
 
   if (date.equals(today)) return 'Today'
   if (date.equals(today.subtract({ days: 1 }))) return 'Yesterday'
