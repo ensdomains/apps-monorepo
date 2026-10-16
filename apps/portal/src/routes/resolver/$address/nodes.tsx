@@ -199,8 +199,8 @@ function RouteComponent() {
       </InputGroup>
       {loader.canShowMore && globalFilter && (
         <p className="text-p text-muted-foreground">
-          Search covers the {nodes.length} nodes shown so far. Show more to
-          include the rest.
+          Search covers the {nodes.length} nodes shown so far. More or All
+          includes the rest.
         </p>
       )}
 

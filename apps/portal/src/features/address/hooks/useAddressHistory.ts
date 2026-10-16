@@ -40,14 +40,23 @@ type GetAddressHistoryParameters = {
 const toError = (cause: BignameError | IndexerReadError) =>
   new GetAddressHistoryError({ cause })
 
-const readHistoryPage = (address: Address, pageSize: number, cursor?: string) =>
-  bigname.addressHistory(address.toLowerCase(), {
-    relation: 'any',
-    include: ['data', 'raw'],
-    order: 'desc',
-    page_size: pageSize,
-    ...(cursor && { cursor }),
-  })
+const readHistoryPage = (
+  address: Address,
+  pageSize: number,
+  cursor: string | undefined,
+  signal: AbortSignal | undefined,
+) =>
+  bigname.addressHistory(
+    address.toLowerCase(),
+    {
+      relation: 'any',
+      include: ['data', 'raw'],
+      order: 'desc',
+      page_size: pageSize,
+      ...(cursor && { cursor }),
+    },
+    { signal },
+  )
 
 /**
  * The names the address holds the token of, from a `relation=owner` names read:
@@ -125,7 +134,7 @@ export const getAddressHistoryQueryOptions = (
     queryKey: getAddressHistoryQueryKey(params),
     queryFn: ({ queryKey: [, { address, pageSize }], signal }) =>
       ResultAsync.combine([
-        readHistoryPage(address, pageSize).mapErr(toError),
+        readHistoryPage(address, pageSize, undefined, signal).mapErr(toError),
         readHeldNames(address, signal),
       ]).map(([{ data }, heldNames]) => ({
         history: toAddressNameHistory(address, data, heldNames),
@@ -176,10 +185,17 @@ export const getAddressHistoryPagesQueryOptions = (params: {
 }) =>
   resultInfiniteQueryOptions({
     queryKey: getAddressHistoryPagesQueryKey(params),
-    queryFn: ({ queryKey: [, { address }], pageParam }) =>
+    queryFn: ({ queryKey: [, { address }], pageParam, signal }) =>
       retryStale(
-        () => readHistoryPage(address, ADDRESS_HISTORY_PAGE_SIZE, pageParam),
+        (requestSignal) =>
+          readHistoryPage(
+            address,
+            ADDRESS_HISTORY_PAGE_SIZE,
+            pageParam,
+            requestSignal,
+          ),
         isStale,
+        { signal },
       )
         .map(
           ({ data, page }): AddressHistoryPage => ({

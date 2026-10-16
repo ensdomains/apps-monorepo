@@ -58,6 +58,7 @@ const read = (pageSize = 200) => {
   })
   return (queryFn as (context: unknown) => Promise<unknown>)({
     queryKey,
+    signal: new AbortController().signal,
   } as unknown as QueryFunctionContext)
 }
 
@@ -73,12 +74,16 @@ describe('getAddressHistoryQueryOptions', () => {
   it('reads one short page for the teaser, every relation with payloads', async () => {
     getAddressHistory.mockResolvedValue(page([]))
     await read(5)
-    expect(getAddressHistory).toHaveBeenCalledWith(ADDRESS.toLowerCase(), {
-      relation: 'any',
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: 5,
-    })
+    expect(getAddressHistory).toHaveBeenCalledWith(
+      ADDRESS.toLowerCase(),
+      {
+        relation: 'any',
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size: 5,
+      },
+      { signal: expect.any(AbortSignal) },
+    )
     expect(getAddressHistory).toHaveBeenCalledTimes(1)
   })
 

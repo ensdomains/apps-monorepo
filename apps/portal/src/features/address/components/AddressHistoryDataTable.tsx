@@ -107,7 +107,11 @@ export const AddressHistoryDataTable = ({
       <PageHeading parent={{ type: 'addr', addr: address }}>
         History
       </PageHeading>
-      {acquiredEvents.length === 0 ? (
+      {acquiredEvents.length === 0 && loader.canShowMore ? (
+        <p className="text-muted-foreground text-p">
+          Nothing to show in what has loaded so far.
+        </p>
+      ) : acquiredEvents.length === 0 ? (
         <NoResultsMessage
           title="No history yet"
           description="This address doesn't have any recorded history. Activity will appear here once transactions are made."

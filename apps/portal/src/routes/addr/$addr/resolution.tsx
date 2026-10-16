@@ -145,8 +145,8 @@ function RouteComponent() {
         {table.getState().globalFilter &&
           (query.hasNextPage || loaded.length > data.length) && (
             <p className="text-p text-muted-foreground">
-              Searching the {data.length} names loaded so far. Load more to
-              search the rest.
+              Searching the {data.length} names loaded so far. More or All
+              searches the rest.
             </p>
           )}
         {isEthereumOnly && (

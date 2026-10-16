@@ -172,7 +172,7 @@ function RouteComponent() {
 
   const nodesByName = new Map(nodes.map((node) => [node.name, node]))
   const partialSearchHint = loader.canShowMore
-    ? `Covers the ${nodes.length} names shown so far. Show more to include the rest.`
+    ? `Covers the ${nodes.length} names shown so far. More or All includes the rest.`
     : null
   const existingLinks = resolver?.links ?? []
 
