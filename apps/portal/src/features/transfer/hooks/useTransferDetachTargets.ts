@@ -1,7 +1,9 @@
 import { useQueries } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { getLabel } from '@/utils/token/getLabel'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
@@ -87,6 +89,13 @@ export const useTransferDetachTargets = ({
       ],
     })
 
+  // `set-eth-addr` reverts without `ROLE_SET_ADDRESS` on the name's resolver.
+  const ethAddressEdit = useCanEditRecords({
+    name,
+    roles: ['ROLE_SET_ADDRESS'],
+    scope: { kind: 'address', coinType: BigInt(MAINNET_COIN_TYPE) },
+  })
+
   const subregistryAddress = registriesQuery.data?.[0]
   const hasOwnResolver = !!ownResolverQuery.data
   const hasSubregistry =
@@ -103,7 +112,8 @@ export const useTransferDetachTargets = ({
         ethAddressQuery.isSuccess &&
         hasEthAddress &&
         ownResolverQuery.isSuccess &&
-        hasOwnResolver,
+        hasOwnResolver &&
+        ethAddressEdit.canEdit,
       detachResolver:
         ownResolverQuery.isSuccess &&
         hasOwnResolver &&
@@ -119,7 +129,8 @@ export const useTransferDetachTargets = ({
       ownResolverQuery.isSuccess &&
       registriesQuery.isSuccess &&
       ethAddressQuery.isSuccess &&
-      rolesQuery.isSuccess,
+      rolesQuery.isSuccess &&
+      !ethAddressEdit.isLoading,
     hasFailed:
       ownResolverQuery.isError ||
       registriesQuery.isError ||
