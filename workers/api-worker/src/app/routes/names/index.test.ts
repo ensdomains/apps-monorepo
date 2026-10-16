@@ -44,6 +44,7 @@ vi.mock('#services/posthog/name-search-stats.js', () => ({
 
 import namesApp from './index'
 
+// Partial fixture with fake endpoints, deliberately different from generated vars.
 const env = {
   CHAIN: 'sepolia',
   SEPOLIA_RPC_URL: 'https://rpc.example',
@@ -53,7 +54,7 @@ const env = {
       'api/environments/test/query_endpoints/unique-searches/run/',
   },
   POSTHOG_PERSONAL_API_KEY: 'secret',
-} as CloudflareBindings
+} as unknown as CloudflareBindings
 
 beforeEach(() => {
   selectResults.length = 0

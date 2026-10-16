@@ -19,6 +19,16 @@
     }
   ],
   "preview_urls": true,
+  // Assets stay top-level. Previews explicitly share the staging rate limiter.
+  "previews": {
+    "ratelimits": [
+      {
+        "name": "RHINESTONE_TOKEN_RATE_LIMIT",
+        "namespace_id": "1001",
+        "simple": { "limit": 30, "period": 60 }
+      }
+    ]
+  },
   "observability": {
     "enabled": true
   }

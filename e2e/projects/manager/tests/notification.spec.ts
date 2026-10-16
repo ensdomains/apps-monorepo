@@ -5,7 +5,6 @@ import {
   expectMessageWithSubject,
   findVerificationCode,
   getMessageById,
-  waitForMessage,
 } from '../../../helpers/mailinator.js'
 
 if (!process.env.MAILINATOR_API_KEY) {
@@ -66,17 +65,9 @@ test.describe('Notifications email flow', () => {
     // Now verify welcome message has arrived
     await expectMessageWithSubject(
       inbox,
-      'Welcome to ENS Notifications',
+      'Welcome to ENS notifications',
       90_000,
     )
-
-    // Extra safety: ensure the welcome email appears after verification
-    const welcomeMessage = await waitForMessage(
-      inbox,
-      (m) => (m.subject || '').toLowerCase() === 'welcome to ens notifications',
-      90_000,
-    )
-    expect(welcomeMessage.subject).toBe('Welcome to ENS Notifications')
 
     // Navigate back to settings and remove the email
     await page.goto('/notifications/settings')

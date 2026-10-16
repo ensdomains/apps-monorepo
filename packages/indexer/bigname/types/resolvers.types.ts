@@ -18,6 +18,8 @@ export type ResolverQuery = Readonly<{
   finality?: Finality
   cursor?: Cursor
   page_size?: number
+  /** Overview only: counts `bound_names`, at some cost in latency. */
+  include?: readonly 'total_count'[]
 }>
 
 /** `GET /v1/resolvers/{chain_id}/{address}`: the overview and its bound names. */

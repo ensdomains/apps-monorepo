@@ -20,6 +20,9 @@ export const channelDefinitions = {
       auth: v.string(),
       p256dh: v.string(),
       expirationTime: v.optional(v.nullable(v.number())),
+      // Registration provenance; older subscriptions predate these fields.
+      origin: v.optional(v.nullable(v.string())),
+      vapidKeyId: v.optional(v.nullable(v.string())),
     }),
   },
 } as const satisfies Record<

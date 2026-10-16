@@ -30,7 +30,7 @@ export const useResolverNodesList = (address: Address) => {
   const loader = useListLoader({
     initialCount: RESOLVER_NODES_PAGE_SIZE,
     loaded: loadedNodes.length,
-    total: query.data?.pages.at(-1)?.totalCount ?? undefined,
+    total: query.data?.pages[0]?.totalCount ?? undefined,
     hasMore: query.hasNextPage,
     fetchMore: infiniteFetchMore(
       query.fetchNextPage,
