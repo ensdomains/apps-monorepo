@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   getMigrationBatchJournalRevision,
@@ -19,7 +20,7 @@ type RecoveryState = {
 }
 
 export const useMigrationRecoverySnapshot = () => {
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const { ownerAddress, accountAddress: hcaAddress } = useSmartAccountContext()
   const chainId = publicClient?.chain?.id
   const journalRevision = useSyncExternalStore(

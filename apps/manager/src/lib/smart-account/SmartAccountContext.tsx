@@ -47,10 +47,17 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
+import {
+  useConfig,
+  useConnection,
+  usePublicClient,
+  useWalletClient,
+} from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
 import { chain as appChain, isTestnet } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+import { followChain } from '@/lib/wallet/followChain'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
@@ -367,7 +374,21 @@ export const SmartAccountContextProvider = ({
   const queryClient = useQueryClient()
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const wagmiConfig = useConfig()
+  // Pinned to the app chain while the wallet may sit on an L2; chain-bound
+  // requests move the wallet back first.
+  const { data: connectorWalletClient } = useWalletClient({
+    chainId: appChain.id,
+    assertChainId: false,
+  })
+  const wagmiWalletClient = useMemo(
+    () =>
+      connectorWalletClient &&
+      followChain(connectorWalletClient, appChain, (chainId) =>
+        ensureWalletChain(wagmiConfig, chainId),
+      ),
+    [connectorWalletClient, wagmiConfig],
+  )
   const wagmiPublicClient = usePublicClient({ chainId: appChain.id })
 
   // True while the connector is still establishing/restoring a session, so
