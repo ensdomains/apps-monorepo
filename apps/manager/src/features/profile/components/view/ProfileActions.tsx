@@ -1,9 +1,10 @@
 import { useLingui } from '@lingui/react/macro'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { normalizeEthName } from '@/features/profile/service/profileName'
+import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
+import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
   desktopActionContainerClassName,
@@ -21,7 +22,6 @@ import { ProfileEditAction } from './ProfileEditAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
 import { ProfileRenewAction } from './ProfileRenewAction'
 import { ProfileShareAction } from './ProfileShareAction'
-import { useIntercomClearance } from './useIntercomClearance'
 
 type ProfileActionsProps = {
   readonly avatarUrl?: string
@@ -51,9 +51,13 @@ export const ProfileActions = ({
   const { t } = useLingui()
   const [bar, setBar] = useState<HTMLElement | null>(null)
   useIntercomClearance(bar)
-  const canEditProfile =
-    isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
-  const hasFloatingBar = canEditProfile && !isUpgradeRequired && !isInGrace
+  const hasFloatingBar = canEditProfileHere({
+    isInGrace,
+    isOwner,
+    isUpgradeRequired,
+    name,
+    protocol: renewalProtocol,
+  })
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
   const barActions = (

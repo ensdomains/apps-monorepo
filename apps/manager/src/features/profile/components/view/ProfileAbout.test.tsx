@@ -18,10 +18,20 @@ describe('ProfileAbout', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('prompts the owner to fill in an empty description', () => {
+  it('renders nothing for a visitor when the only record is a non-http url', () => {
+    const { container } = render(
+      <ProfileAbout
+        records={{ ...newEmptyProfileRecords(), base: { url: 'ftp://x.y' } }}
+      />,
+    )
+
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('prompts an editing owner to fill in an empty description', () => {
     render(
       <ProfileAbout
-        isOwner
+        canEdit
         records={{ ...newEmptyProfileRecords(), base: { description: '   ' } }}
       />,
     )

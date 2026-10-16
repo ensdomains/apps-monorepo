@@ -113,24 +113,14 @@ const AboutMetaItem = ({
   )
 }
 
-export const hasAboutContent = (records: ProfileRecords | null) =>
-  Boolean(
-    records?.base.name?.trim() ||
-      records?.base.description?.trim() ||
-      records?.base.url?.trim() ||
-      formatLanguage(records?.base.language) ||
-      getContactRecordValue(records, 'timezone') ||
-      getContactRecordValue(records, 'location'),
-  )
-
 export const ProfileAbout = ({
+  canEdit = false,
   className,
-  isOwner = false,
   records,
   primaryName,
 }: {
+  readonly canEdit?: boolean
   readonly className?: string
-  readonly isOwner?: boolean
   readonly records: ProfileRecords | null
   readonly primaryName?: string
 }) => {
@@ -143,7 +133,11 @@ export const ProfileAbout = ({
   const language = formatLanguage(records?.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
-  if (!primaryName && !isOwner && !hasAboutContent(records)) return null
+  const hasContent = Boolean(
+    fullName || description || websiteHref || timezone || language || location,
+  )
+
+  if (!primaryName && !canEdit && !hasContent) return null
 
   return (
     <Card
@@ -180,7 +174,8 @@ export const ProfileAbout = ({
             )}
             {description ? (
               <ProfileDescription description={description} />
-            ) : isOwner && !primaryName ? (
+            ) : null}
+            {!description && canEdit ? (
               <p className="mt-3 text-ens-quartz-400 text-sm leading-normal">
                 <Trans>Share a fun fact about this name</Trans>
               </p>

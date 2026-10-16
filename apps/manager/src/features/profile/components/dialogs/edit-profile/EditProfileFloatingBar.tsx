@@ -14,7 +14,7 @@ import {
   editBottomBarContentClassName,
   profileBarActionsClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
-import { useIntercomClearance } from '@/features/profile/components/view/useIntercomClearance'
+import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 
 const OPEN_HEIGHT_RATIO = 0.7
 

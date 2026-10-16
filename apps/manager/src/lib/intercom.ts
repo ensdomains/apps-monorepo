@@ -17,22 +17,13 @@ export const initializeIntercom = createIsomorphicFn().client(
 )
 
 const DEFAULT_LAUNCHER_PADDING = 20
+const LAUNCHER_GAP = 16
 
-export const INTERCOM_LAUNCHER_GAP = 16
-
-/** Lifts the launcher so it clears `clearance` px from the viewport bottom. */
-export const setIntercomLauncherClearance = (clearance: number) => {
-  try {
-    update({
-      vertical_padding: Math.max(
-        DEFAULT_LAUNCHER_PADDING,
-        Math.round(clearance),
-      ),
-    })
-  } catch (error) {
-    console.warn('[intercom] update failed', error)
-  }
-}
-
-export const resetIntercomLauncherClearance = () =>
-  setIntercomLauncherClearance(DEFAULT_LAUNCHER_PADDING)
+/** Lifts the launcher above whatever ends `clearance` px from the viewport bottom; 0 restores the default. */
+export const setIntercomLauncherClearance = (clearance: number) =>
+  update({
+    vertical_padding: Math.max(
+      DEFAULT_LAUNCHER_PADDING,
+      Math.round(clearance) + LAUNCHER_GAP,
+    ),
+  })

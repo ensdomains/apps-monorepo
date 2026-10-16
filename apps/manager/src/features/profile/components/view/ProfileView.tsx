@@ -8,6 +8,7 @@ import { CommemorativeNftProfileSection } from '@/features/migration/components/
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
+import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
@@ -165,6 +166,13 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     : themeVars['--theme-color']
   const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
   const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+  const canEditProfile = canEditProfileHere({
+    isInGrace: expiry.isInGrace || isExpiryError,
+    isOwner: resolvedIsOwner,
+    isUpgradeRequired,
+    name,
+    protocol: ownerData?.protocol,
+  })
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
   // have no matching tokens
@@ -210,9 +218,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
             <ProfileHeader
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
+              canEdit={canEditProfile}
               displayExpiryDate={expiry.displayExpiryDate}
               hasMobileStatusBanner={hasMobileStatusBanner}
-              isOwner={resolvedIsOwner}
               name={name}
               owner={owner}
               ownerReverseName={ownerReverseName.data}
