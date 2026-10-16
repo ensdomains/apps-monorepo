@@ -13,14 +13,17 @@ import {
   type ResolverSetterScope,
   ROOT_RESOURCE,
 } from '@/lib/roles/resolverRoles'
+import type { RecordType } from '@/utils/records/editRecordUtils'
+
+const RECORD_TYPE_ROLES = {
+  text: 'ROLE_SET_TEXT',
+  address: 'ROLE_SET_ADDRESS',
+  abi: 'ROLE_SET_ABI',
+  contentHash: 'ROLE_SET_CONTENTHASH',
+} as const satisfies Record<RecordType, ResolverPermissionKey>
 
 /** Roles that authorize writing common profile records on a permissioned resolver. */
-export const RECORD_EDIT_ROLES = [
-  'ROLE_SET_ADDRESS',
-  'ROLE_SET_TEXT',
-  'ROLE_SET_CONTENTHASH',
-  'ROLE_SET_ABI',
-] as const satisfies readonly ResolverPermissionKey[]
+export const RECORD_EDIT_ROLES = Object.values(RECORD_TYPE_ROLES)
 
 type UseCanEditRecordsParams = {
   name: string
@@ -46,6 +49,7 @@ type UseCanEditRecordsReturn = {
    */
   hasOwnResolver: boolean | undefined
   resolverAddress: Address | null | undefined
+  editableTypes: ReadonlySet<RecordType>
 }
 
 /**
@@ -108,7 +112,7 @@ export function useCanEditRecords({
 
   const isPermissioned = isPermissionedQuery.data === true
 
-  const roleQueries = useQueries({
+  const { grantedRoles, isLoading: isRolesQueryLoading } = useQueries({
     queries: roles.map((role) => ({
       ...getHasRolesQueryOptions({
         resolverAddress: (resolverAddress ??
@@ -121,6 +125,10 @@ export function useCanEditRecords({
       enabled:
         enabled && !!connectedAddress && !!resolverAddress && isPermissioned,
     })),
+    combine: (results) => ({
+      grantedRoles: roles.filter((_, index) => results[index]?.data === true),
+      isLoading: results.some((result) => result.isLoading),
+    }),
   })
 
   const isOwner =
@@ -128,8 +136,7 @@ export function useCanEditRecords({
     !!ownerQuery.data?.owner &&
     isAddressEqual(connectedAddress, ownerQuery.data.owner)
 
-  const rolesLoading =
-    isPermissioned && roleQueries.some((query) => query.isLoading)
+  const rolesLoading = isPermissioned && isRolesQueryLoading
 
   const isLoading =
     (enabled &&
@@ -140,7 +147,7 @@ export function useCanEditRecords({
         rolesLoading)) ||
     false
 
-  const hasResolverRole = roleQueries.some((query) => query.data === true)
+  const hasResolverRole = grantedRoles.length > 0
 
   const canEdit = (() => {
     if (!enabled || !connectedAddress || isLoading || !resolverAddress) {
@@ -158,11 +165,26 @@ export function useCanEditRecords({
     return isOwner
   })()
 
+  const editableTypes = useMemo<ReadonlySet<RecordType>>(
+    () =>
+      new Set(
+        canEdit
+          ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
+              (type) =>
+                !isPermissioned ||
+                grantedRoles.includes(RECORD_TYPE_ROLES[type]),
+            )
+          : [],
+      ),
+    [canEdit, isPermissioned, grantedRoles],
+  )
+
   return {
     canEdit,
     isLoading,
     isOwner,
     hasOwnResolver,
     resolverAddress,
+    editableTypes,
   }
 }

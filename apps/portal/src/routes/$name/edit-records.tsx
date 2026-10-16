@@ -35,7 +35,10 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
-import type { RecordType } from '@/utils/records/editRecordUtils'
+import {
+  hasDisallowedChanges,
+  type RecordType,
+} from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
 
@@ -79,6 +82,7 @@ function EditRecordsPage() {
   const {
     canEdit,
     hasOwnResolver,
+    editableTypes,
     isLoading: isCanEditLoading,
   } = useCanEditRecords({ name })
 
@@ -219,6 +223,7 @@ function EditRecordsPage() {
       name={name}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
+      editableTypes={editableTypes}
     />
   )
 }
@@ -227,22 +232,26 @@ const EditRecordsContent = ({
   name,
   records: rawRecords,
   resolverAddress,
+  editableTypes,
 }: {
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
+  editableTypes: ReadonlySet<RecordType>
 }) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
 
   // Form state
-  const [selectedType, setSelectedType] = useState<RecordType | ''>('')
+  const [pickedType, setPickedType] = useState<RecordType | ''>('')
+  const selectedType =
+    pickedType !== '' && editableTypes.has(pickedType) ? pickedType : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
-    setSelectedType(newType)
+    setPickedType(newType)
     setKeyInput('') // Reset key when type changes
   }
 
@@ -291,6 +300,7 @@ const EditRecordsContent = ({
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
   const hasValidationErrors = validationErrors.length > 0
+  const isSaveBlocked = hasDisallowedChanges(records, editableTypes)
 
   // Navigate to records page after sync completes.
   // This avoids the issue where deleted records reappear if we clear local state
@@ -359,6 +369,8 @@ const EditRecordsContent = ({
   })
 
   const handleOpenSaveRecordsFlow = () => {
+    if (isSaveBlocked) return
+
     if (isWrongChain) {
       switchToRequiredNetwork()
       return
@@ -412,7 +424,7 @@ const EditRecordsContent = ({
     addRecord(selectedType, keyInput, valueInput)
 
     // Reset form
-    setSelectedType('')
+    setPickedType('')
     setKeyInput('')
     setValueInput('')
   }
@@ -449,7 +461,9 @@ const EditRecordsContent = ({
                 className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
-                {RECORD_TYPES.map((type) => (
+                {RECORD_TYPES.filter((type) =>
+                  editableTypes.has(type.value),
+                ).map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -586,6 +600,7 @@ const EditRecordsContent = ({
             <EditRecordsTable
               records={filteredRecords}
               globalFilter={globalFilter}
+              editableTypes={editableTypes}
               onDeleteRecord={deleteRecord}
               onUpdateRecord={updateRecord}
               validationErrors={validationErrors}
@@ -608,6 +623,7 @@ const EditRecordsContent = ({
         isConnected={isConnected}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
+        hasDisallowedChanges={isSaveBlocked}
       />
       <TransactionModal
         transactions={[
