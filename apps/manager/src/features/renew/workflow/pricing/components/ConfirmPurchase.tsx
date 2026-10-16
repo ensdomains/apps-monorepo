@@ -29,15 +29,17 @@ export const ConfirmPurchase = () => {
     }),
   })
 
-  // Renewal uses the DIRECT WALLET route: the connected EOA approves + renews
-  // itself (the scoped HCA session does not permit renewal). The EOA is
-  // `_msgSender()` and the rent payer.
-  const ownerAddress = account.walletClient?.account?.address ?? null
+  // Two routes. On a smart account the renewal is an owner-signed intent paid
+  // out of the HCA, with the connected wallet only signing typed data.
+  // Otherwise it falls back to the direct-wallet route, where the EOA approves
+  // and renews itself as `msg.sender`.
+  const walletClient = account.walletClient as WalletClient | undefined
+  const ownerAddress = account.ownerAddress ?? null
 
-  // The EOA signer that both submits and pays for the renewal.
-  const renewalSigner: Signer | undefined = account.walletClient
-    ? { type: 'eoa', walletClient: account.walletClient as WalletClient }
-    : undefined
+  // The account context's signer already reflects the active route: a
+  // rhinestone signer with an HCA configured, an EOA signer without one.
+  const renewalSigner: Signer | undefined =
+    account.signer ?? (walletClient ? { type: 'eoa', walletClient } : undefined)
 
   return (
     <ConfirmPurchaseBase
@@ -46,7 +48,8 @@ export const ConfirmPurchase = () => {
         selectedToken !== undefined &&
         !pricingQuery.isLoading &&
         !!renewalSigner &&
-        !!ownerAddress
+        !!ownerAddress &&
+        !!walletClient
       }
       label={label}
       nextMessage={<Trans>Renew Name</Trans>}
@@ -55,7 +58,8 @@ export const ConfirmPurchase = () => {
           !pricingQuery.data ||
           !selectedToken ||
           !renewalSigner ||
-          !ownerAddress
+          !ownerAddress ||
+          !walletClient
         ) {
           return
         }
@@ -65,6 +69,7 @@ export const ConfirmPurchase = () => {
           label,
           signer: renewalSigner,
           ownerAddress,
+          walletClient,
           duration,
           token: selectedToken,
           priceRaw: pricingQuery.data.rawPrice,

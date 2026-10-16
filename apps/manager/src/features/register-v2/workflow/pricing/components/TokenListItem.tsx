@@ -2,7 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { TOKEN_SYMBOL } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -23,7 +23,7 @@ const MainnetBadge = () => (
   </span>
 )
 
-export const TokenListItem = ({
+export const TokenListItem = <T extends TOKEN_SYMBOL>({
   stablecoin,
   selectedCoin,
   priceUSD,
@@ -35,9 +35,9 @@ export const TokenListItem = ({
   isFeeTooltipOpen,
 }: {
   readonly stablecoin: StablecoinBalance
-  readonly selectedCoin: SUPPORTED_TOKEN | undefined
+  readonly selectedCoin: T | undefined
   readonly priceUSD: number
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly onSelectCoin: (coin: T) => void
   readonly networkFee?: number
   readonly isNetworkFeeLoading?: boolean
   readonly showNetworkFeeDetails?: boolean
@@ -66,7 +66,7 @@ export const TokenListItem = ({
           !isFunded && 'cursor-not-allowed opacity-50',
         )}
         disabled={!isFunded}
-        onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+        onClick={() => onSelectCoin(stablecoin.symbol as T)}
         type="button"
       >
         <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export const TokenListItem = ({
       isFunded={isFunded}
       isSelected={isSelected}
       name={stablecoin.symbol}
-      onSelect={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+      onSelect={() => onSelectCoin(stablecoin.symbol as T)}
       selectLabel={t`Select ${stablecoin.symbol}`}
     />
   )

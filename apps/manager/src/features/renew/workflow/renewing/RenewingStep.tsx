@@ -32,6 +32,17 @@ export const RenewingStep = () => {
       <div className="mx-auto max-w-6xl pt-3 md:w-full-[32px]">
         <RegistrationProgressBar
           {...match(step)
+            // One owner-signed intent does the whole job: allowance, rent and
+            // fee. It is submitted and awaited in a single step, so there is
+            // nothing to show in between.
+            .with('submittingHcaRenewal', () => ({
+              label: t`Submitting renewal`,
+              progress: 50,
+            }))
+            .with('checkingRenewed', () => ({
+              label: t`Checking the last attempt`,
+              progress: 10,
+            }))
             .with('checkingAllowance', () => ({
               label: t`Checking allowance`,
               progress: 20,

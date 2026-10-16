@@ -134,6 +134,10 @@ msgstr ""
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{permits, plural, one {Your wallet will be asked to approve this exact amount — nothing more.} other {Your wallet will be asked to approve these exact amounts — nothing more.}}"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
 msgstr ""
@@ -302,7 +306,7 @@ msgstr ""
 msgid "Another Registration Is Running"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
 
@@ -326,8 +330,12 @@ msgstr ""
 msgid "Approve restoring your managers in your wallet"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Approve the network fee?"
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Approve the renewal payment?"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -451,11 +459,11 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
@@ -522,6 +530,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
+msgstr ""
+
+#: src/features/renew/workflow/renewing/RenewingStep.tsx
+msgid "Checking the last attempt"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -770,7 +782,7 @@ msgstr ""
 msgid "Couldn't verify your name records. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Covered by your account balance"
 msgstr ""
 
@@ -1135,6 +1147,10 @@ msgstr ""
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "From your wallet"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
@@ -1520,7 +1536,8 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Network fee"
 msgstr ""
 
@@ -2120,6 +2137,18 @@ msgstr ""
 msgid "Renewal Period"
 msgstr ""
 
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewal price"
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid in USDC out of your smart account."
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "Renewing"
 msgstr ""
@@ -2360,8 +2389,8 @@ msgstr ""
 msgid "Set up this name’s resolver?"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
-msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Setting a primary name is paid in USDC."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2702,6 +2731,10 @@ msgstr ""
 
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -3224,7 +3257,7 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "You approve"
 msgstr ""
 
@@ -3449,6 +3482,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+msgstr ""
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx

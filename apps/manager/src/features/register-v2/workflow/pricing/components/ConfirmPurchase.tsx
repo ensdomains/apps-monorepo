@@ -12,7 +12,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type TOKEN_SYMBOL, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -157,7 +157,7 @@ export const ConfirmPurchaseBase = ({
   label: string
   pricingData: number | undefined
   onNext: () => void
-  selectedToken: SUPPORTED_TOKEN | undefined
+  selectedToken: TOKEN_SYMBOL | undefined
   errorMessage?: string | null
   nextMessage: ReactNode
   canNext: boolean
