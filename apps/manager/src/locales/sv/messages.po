@@ -220,10 +220,6 @@ msgstr ""
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr ""
 
-#: src/features/profile/components/view/ProfileAbout.tsx
-msgid "About"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -813,10 +809,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying the resolver"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
-msgid "Description"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
@@ -1846,6 +1838,11 @@ msgstr ""
 msgid "Profile actions"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Profile Description"
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
 msgstr ""
@@ -2393,6 +2390,10 @@ msgstr "Anger..."
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Share a fun fact about this name"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx

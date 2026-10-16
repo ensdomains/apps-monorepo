@@ -212,6 +212,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarUrl={avatarUrl}
               displayExpiryDate={expiry.displayExpiryDate}
               hasMobileStatusBanner={hasMobileStatusBanner}
+              isOwner={resolvedIsOwner}
               name={name}
               owner={owner}
               ownerReverseName={ownerReverseName.data}

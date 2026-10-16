@@ -12,7 +12,7 @@ export const generalShortcuts = [
   { field: 'avatar', label: 'Profile picture', symbol: 'face' },
   { field: 'header', label: 'Banner', symbol: 'wall_art' },
   { field: 'url', label: 'Custom link', symbol: 'link' },
-  { field: 'description', label: 'Description', symbol: 'text_ad' },
+  { field: 'description', label: 'Profile Description', symbol: 'text_ad' },
   { field: 'name', label: 'Full name', symbol: 'badge' },
   { field: 'location', label: 'Location', symbol: 'add_location_alt' },
   { field: 'timezone', label: 'Timezone', symbol: 'captive_portal' },

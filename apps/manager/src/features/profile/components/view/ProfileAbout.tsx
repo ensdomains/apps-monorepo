@@ -81,7 +81,7 @@ const ProfileDescription = ({
       <DialogContent className="overflow-hidden">
         <DialogHeader>
           <DialogTitle>
-            <Trans>About</Trans>
+            <Trans>Profile Description</Trans>
           </DialogTitle>
         </DialogHeader>
         <DialogDescription className="wrap-anywhere min-h-0 overflow-y-auto whitespace-pre-wrap text-ens-quartz-700 text-sm leading-normal">
@@ -125,10 +125,12 @@ export const hasAboutContent = (records: ProfileRecords | null) =>
 
 export const ProfileAbout = ({
   className,
+  isOwner = false,
   records,
   primaryName,
 }: {
   readonly className?: string
+  readonly isOwner?: boolean
   readonly records: ProfileRecords | null
   readonly primaryName?: string
 }) => {
@@ -140,7 +142,7 @@ export const ProfileAbout = ({
   const language = formatLanguage(records?.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
-  if (!primaryName && !hasAboutContent(records)) return null
+  if (!primaryName && !isOwner && !hasAboutContent(records)) return null
 
   return (
     <Card
@@ -149,7 +151,7 @@ export const ProfileAbout = ({
         'wrap-anywhere flex min-h-0 min-w-0 flex-1',
         primaryName
           ? 'min-h-47 p-6 xl:min-h-45 xl:max-w-158.75'
-          : 'rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:max-w-158.75 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card',
+          : 'p-6 xl:min-h-45.5 xl:max-w-158.75',
         className,
       )}
     >
@@ -171,12 +173,16 @@ export const ProfileAbout = ({
             ) : (
               <h2 className="text-base text-ens-quartz-700 leading-normal">
                 <span className="block">
-                  {fullName || <Trans>About</Trans>}
+                  {fullName || <Trans>Profile Description</Trans>}
                 </span>
               </h2>
             )}
             {records?.base.description ? (
               <ProfileDescription description={records.base.description} />
+            ) : isOwner && !primaryName ? (
+              <p className="mt-3 text-ens-quartz-400 text-sm leading-normal">
+                <Trans>Share a fun fact about this name</Trans>
+              </p>
             ) : null}
             {websiteHref ? (
               <a

@@ -18,6 +18,17 @@ describe('ProfileAbout', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('prompts the owner to fill in an empty description', () => {
+    render(<ProfileAbout isOwner records={newEmptyProfileRecords()} />)
+
+    expect(
+      screen.getByRole('heading', { name: 'Profile Description' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Share a fun fact about this name'),
+    ).toBeInTheDocument()
+  })
+
   it('renders when only a meta record is set', () => {
     render(
       <ProfileAbout
@@ -28,7 +39,9 @@ describe('ProfileAbout', () => {
       />,
     )
 
-    expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Profile Description' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('UTC+2')).toBeInTheDocument()
   })
 })

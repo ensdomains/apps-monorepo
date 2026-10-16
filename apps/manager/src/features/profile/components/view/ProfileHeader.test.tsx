@@ -34,7 +34,7 @@ describe('ProfileHeader', () => {
     )
 
     const aboutContainer = screen
-      .getByRole('heading', { name: 'About' })
+      .getByRole('heading', { name: 'Profile Description' })
       .closest('section')?.parentElement
 
     expect(aboutContainer).toHaveClass('mt-29', 'xl:mt-0')

@@ -215,10 +215,6 @@ msgstr "A simpler way to get paid."
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 
-#: src/features/profile/components/view/ProfileAbout.tsx
-msgid "About"
-msgstr "About"
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr "Account address:"
@@ -809,10 +805,6 @@ msgstr "Deploying smart account…"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
-
-#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
-msgid "Description"
-msgstr "Description"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
@@ -1841,6 +1833,11 @@ msgstr "Privacy Policy"
 msgid "Profile actions"
 msgstr "Profile actions"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Profile Description"
+msgstr "Profile Description"
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
 msgstr "Publish"
@@ -2389,6 +2386,10 @@ msgstr "Setting..."
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
+
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Share a fun fact about this name"
+msgstr "Share a fun fact about this name"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Share on Telegram"
