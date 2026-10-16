@@ -234,7 +234,7 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      { page_size: 200 },
+      { page_size: 1, include: ['total_count'] },
       { signal: expect.any(AbortSignal) },
     )
     expect(bigname.events).toHaveBeenCalledWith(
@@ -379,7 +379,25 @@ describe('getResolverNodesQueryOptions', () => {
     expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      expect.objectContaining({ page_size: 100 }),
+      { page_size: 100, include: ['total_count'] },
+      { signal: expect.any(AbortSignal) },
+    )
+  })
+
+  it('counts the bound names on the first page only', async () => {
+    bigname.resolver
+      .mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
+      .mockReturnValueOnce(overview(['b.eth']))
+
+    await new QueryClient().fetchInfiniteQuery({
+      ...getResolverNodesQueryOptions({ address: ADDRESS }),
+      pages: 2,
+    })
+
+    expect(bigname.resolver).toHaveBeenLastCalledWith(
+      11155111,
+      RESOLVER,
+      { page_size: 100, cursor: 'more' },
       { signal: expect.any(AbortSignal) },
     )
   })

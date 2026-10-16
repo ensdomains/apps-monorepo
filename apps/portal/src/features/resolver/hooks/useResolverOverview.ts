@@ -101,7 +101,7 @@ export type ResolverOverview = {
    * Names whose current registration declares this resolver: bigname's
    * count when it gives one, else the first page's length, a lower bound
    * while `nodeCountIsLowerBound` (shown as "N+"). Null when bigname could
-   * not serve the bound names (it times out on the busiest ENSv1 resolvers).
+   * not serve the bound names.
    */
   readonly nodeCount: number | null
   readonly nodeCountIsLowerBound: boolean
@@ -179,12 +179,8 @@ export const pruneLinksAfterUnlink = (
     }))
     .filter((link) => link.sharedWith.length > 0)
 
-/**
- * Bound names on the overview's first page. bigname gives `bound_names` no
- * total, so `nodeCount` is this page's length, marked as a lower bound while
- * more pages follow.
- */
-const OVERVIEW_NODES_PAGE_SIZE = MAX_PAGE_SIZE
+/** The overview only counts bound names, so it reads one row and the total. */
+const OVERVIEW_NODES_PAGE_SIZE = 1
 /** Events listed; a busy resolver's full feed is `/v1/events`, paged. */
 const RESOLVER_EVENTS_PAGE_SIZE = MAX_PAGE_SIZE
 
@@ -381,7 +377,7 @@ const readOverview = (
       bigname.resolver(
         chainId,
         address,
-        { page_size: OVERVIEW_NODES_PAGE_SIZE },
+        { page_size: OVERVIEW_NODES_PAGE_SIZE, include: ['total_count'] },
         { signal: requestSignal },
       ),
     isStale,
@@ -518,7 +514,7 @@ const getResolverOverview = (
 export type ResolverNodesPage = {
   readonly nodes: readonly ResolverNode[]
   readonly nextCursor: string | null
-  /** bigname gives `bound_names` no total yet; null until it does. */
+  /** Counted on the first page only; null on later pages. */
   readonly totalCount: number | null
 }
 
@@ -534,7 +530,9 @@ const readBoundNamesPage = (
       bigname.resolver(
         resolver.chainId,
         resolver.address,
-        { page_size: RESOLVER_NODES_PAGE_SIZE, ...(cursor && { cursor }) },
+        cursor
+          ? { page_size: RESOLVER_NODES_PAGE_SIZE, cursor }
+          : { page_size: RESOLVER_NODES_PAGE_SIZE, include: ['total_count'] },
         { signal: requestSignal },
       ),
     isStale,
