@@ -126,8 +126,9 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
   /** What the wallet must cover in a coin; `undefined` until it is priced. */
   readonly walletShareOf: (symbol: string) => number | undefined
 }) => {
+  // Every source stays listed, the ones that can't pay shown with the reason.
   if (showNetworkFeeDetails) {
-    return <PaymentMethodList items={paymentMethodItems} />
+    return <PaymentMethodList defaultExpanded items={paymentMethodItems} />
   }
 
   return (
@@ -303,7 +304,6 @@ export const TokenPickerContent = () => {
     uiActor,
     owner: account.ownerAddress,
     walletDebitRaw: funding?.walletDebitRaw,
-    walletBalanceRaw: usdcBalanceRaw,
     isQuoteStale: budgetQuery.isPlaceholderData,
     isEnabled: isBudgetRequired,
     fundingSourceChainId,
@@ -628,7 +628,7 @@ const getL2MethodItems = (
   if (!l2Payment) return []
   return l2Payment.options.map((option) => ({
     id: option.id,
-    isAvailable: option.status !== 'not-needed',
+    isAvailable: true,
     isFunded: option.status === 'available',
     isCommon: false,
     content: (

@@ -1902,10 +1902,6 @@ msgstr ""
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Not needed, your wallet covers it"
-msgstr ""
-
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"

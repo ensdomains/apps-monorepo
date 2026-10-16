@@ -1897,10 +1897,6 @@ msgstr "Not enough USDC on {chainName}"
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 msgstr "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Not needed, your wallet covers it"
-msgstr "Not needed, your wallet covers it"
-
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
