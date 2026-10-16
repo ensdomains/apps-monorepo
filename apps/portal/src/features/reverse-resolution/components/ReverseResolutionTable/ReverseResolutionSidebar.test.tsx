@@ -9,8 +9,10 @@ const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const VISITOR = '0x2222222222222222222222222222222222222222' as Address
 
 let connectedAddress: Address = OWNER
-/** Whether the connected wallet owns the name in the row, not the address. */
-let isNameOwner = true
+/** Whether the connected wallet can set the row name's address record. */
+let canSetAddress = true
+let isNameAuthorityError = false
+let canEditParams: unknown
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
@@ -26,9 +28,16 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
   useQuery: () => ({ data: undefined, isLoading: false, isPending: false }),
 }))
-// The ownership rule itself is covered in useIsNameOwner.test.ts.
-vi.mock('@/features/ownership/hooks/useIsNameOwner', () => ({
-  useIsNameOwner: () => ({ isOwner: isNameOwner, isLoading: false }),
+// The permission rule itself is covered in useCanEditRecords.test.ts.
+vi.mock('@/features/records/hooks/useCanEditRecords', () => ({
+  useCanEditRecords: (params: unknown) => {
+    canEditParams = params
+    return {
+      canEdit: canSetAddress,
+      isLoading: false,
+      isError: isNameAuthorityError,
+    }
+  },
 }))
 vi.mock('./hooks/useReverseResolutionMutations', () => ({
   useReverseResolutionMutations: () => ({
@@ -131,29 +140,52 @@ const reverseNameInput = () =>
 describe('ReverseResolutionSidebar', () => {
   beforeEach(() => {
     connectedAddress = OWNER
-    isNameOwner = true
+    canSetAddress = true
+    isNameAuthorityError = false
+    canEditParams = undefined
   })
 
   // Closing the mismatch is a `setAddr` on the *name's* resolver, so it needs
-  // authority over the name — which address equality alone never established.
-  it('disables "Set primary name" when the wallet does not own the name, and says why', () => {
-    isNameOwner = false
+  // `ROLE_SET_ADDRESS` there, not just ownership of the name.
+  it('asks for ROLE_SET_ADDRESS scoped to the row coin type', () => {
+    renderSidebar(OWNER)
+
+    expect(canEditParams).toEqual({
+      name: 'someone-elses.eth',
+      roles: ['ROLE_SET_ADDRESS'],
+      scope: { kind: 'address', coinType: BigInt(MAINNET_COIN_TYPE) },
+    })
+  })
+
+  it('disables "Set primary name" when the wallet cannot set the address, and says why', () => {
+    canSetAddress = false
 
     renderSidebar(OWNER)
 
     expect(setPrimaryButton()).toBeDisabled()
     expect(
       screen.getByText(
-        /Only the owner of someone-elses\.eth can point it back at this address/,
+        /Only an account that can edit someone-elses\.eth's address records can point it back/,
       ),
     ).toBeInTheDocument()
+  })
+
+  it('disables "Set primary name" when the permission read fails, without claiming a refusal', () => {
+    canSetAddress = false
+    isNameAuthorityError = true
+
+    renderSidebar(OWNER)
+
+    expect(setPrimaryButton()).toBeDisabled()
+    expect(screen.getByText(/We couldn't check/)).toBeInTheDocument()
+    expect(screen.queryByText(/Only an account/)).not.toBeInTheDocument()
   })
 
   // Pointing your own address at a name you don't own is a legal `setName`
   // producing an unverified record. Gating the forward write must not take the
   // reverse write away.
-  it('still lets a non-owner edit the reverse name for their own address', () => {
-    isNameOwner = false
+  it('still lets a wallet without the role edit the reverse name for their own address', () => {
+    canSetAddress = false
 
     renderSidebar(OWNER)
 
@@ -161,11 +193,11 @@ describe('ReverseResolutionSidebar', () => {
     expect(screen.getByRole('button', { name: 'Update' })).toBeInTheDocument()
   })
 
-  it('offers "Set primary name" to the owner of the name', () => {
+  it('offers "Set primary name" to a wallet that can set the address', () => {
     renderSidebar(OWNER)
 
     expect(setPrimaryButton()).toBeEnabled()
-    expect(screen.queryByText(/Only the owner of/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Only an account/)).not.toBeInTheDocument()
     // The plain mismatch wording, with no ownership aside.
     expect(
       screen.getByText(
@@ -183,9 +215,9 @@ describe('ReverseResolutionSidebar', () => {
     expect(reverseNameInput()).toBeDisabled()
   })
 
-  it('offers a visitor nothing even when they own the name', () => {
+  it('offers a visitor nothing even when they can set the address', () => {
     connectedAddress = VISITOR
-    isNameOwner = true
+    canSetAddress = true
 
     renderSidebar(OWNER)
 
