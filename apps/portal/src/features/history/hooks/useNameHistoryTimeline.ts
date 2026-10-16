@@ -1,3 +1,4 @@
+import type { EventKind } from '@ens-apps/indexer/bigname'
 import {
   resultInfiniteQueryOptions,
   resultQueryOptions,
@@ -26,6 +27,8 @@ export type NameHistoryScope = {
    * were reached. `undefined` reads every type.
    */
   readonly eventTypes?: readonly EventType[]
+  /** Raw kinds, intersecting `eventTypes` in the query. */
+  readonly kinds?: readonly EventKind[]
   /** Inclusive unix-second bounds from the Date range chip. */
   readonly from?: number
   readonly to?: number
@@ -50,6 +53,7 @@ export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
       fetchNameHistoryPage({
         name: scope.name,
         types: scope.eventTypes,
+        kinds: scope.kinds,
         from: scope.from,
         to: scope.to,
         includeChildRegistrations: scope.includeChildRegistrations,
@@ -78,6 +82,7 @@ export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
       fetchNameHistoryPage({
         name: scope.name,
         types: scope.eventTypes,
+        kinds: scope.kinds,
         from: scope.from,
         to: scope.to,
         includeChildRegistrations: scope.includeChildRegistrations,

@@ -1,3 +1,4 @@
+import type { EventKind } from '@ens-apps/indexer/bigname'
 import {
   type EventType,
   HISTORY_EVENT_TYPES,
@@ -34,7 +35,60 @@ export const OWNERSHIP_HISTORY_TYPES = [
   'authority',
   'permission',
   'migration',
+  'reservation',
 ] as const satisfies readonly EventType[]
+
+// Exhaustive over bigname's raw kinds, so a new kind fails the build here.
+const EVENT_KINDS: Readonly<Record<EventKind, true>> = {
+  RegistrationGranted: true,
+  LabelRegistered: true,
+  RegistrationRenewed: true,
+  RegistrationReleased: true,
+  ExpiryChanged: true,
+  TokenControlTransferred: true,
+  AuthorityTransferred: true,
+  AuthorityEpochChanged: true,
+  ResolverChanged: true,
+  RecordChanged: true,
+  RecordVersionChanged: true,
+  ReverseChanged: true,
+  PermissionChanged: true,
+  RootPermissionChanged: true,
+  PermissionScopeChanged: true,
+  RolesChanged: true,
+  EACRolesChanged: true,
+  SubregistryChanged: true,
+  MigrationApplied: true,
+  AccountPermissionChanged: true,
+  RegistrationReserved: true,
+  ResolverRecordLinked: true,
+  TokenRegenerated: true,
+  RegistryCreated: true,
+  ParentChanged: true,
+  Upgraded: true,
+}
+
+const ROLE_CHANGE_KINDS: ReadonlySet<EventKind> = new Set([
+  'PermissionChanged',
+  'RootPermissionChanged',
+  'RolesChanged',
+  'EACRolesChanged',
+  'AccountPermissionChanged',
+])
+
+/**
+ * Every raw kind but role changes. `kind` intersects `type`, so with
+ * `OWNERSHIP_HISTORY_TYPES` the `permission` rows left are the fuse changes
+ * (`PermissionScopeChanged`), and role grants stay on the roles page.
+ */
+export const OWNERSHIP_HISTORY_KINDS: readonly EventKind[] = (
+  Object.keys(EVENT_KINDS) as EventKind[]
+).filter((kind) => !ROLE_CHANGE_KINDS.has(kind))
+
+/** The ownership page's `permission` rows are only fuse changes. */
+export const OWNERSHIP_TYPE_LABELS: Readonly<
+  Partial<Record<EventType, string>>
+> = { permission: 'Fuses' }
 
 /** A `permission` row that sets NameWrapper fuses rather than granting roles. */
 export const isFuseChange = (
@@ -43,13 +97,6 @@ export const isFuseChange = (
     | null
     | undefined,
 ): boolean => !data?.powers && data?.fuses != null
-
-/**
- * Narrows `OWNERSHIP_HISTORY_TYPES` to fuse changes among the `permission`
- * rows; role grants stay on the roles page.
- */
-export const isOwnershipEvent = (event: TimelineEvent): boolean =>
-  event.type !== 'permission' || isFuseChange(event.data)
 
 export const RESOLVER_HISTORY_TYPES = [
   'resolver',

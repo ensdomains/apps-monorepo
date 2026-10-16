@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isAddressRecordEvent,
   isFuseChange,
-  isOwnershipEvent,
+  OWNERSHIP_HISTORY_KINDS,
   toHistoryEventTypes,
 } from './eventTypes'
 
@@ -55,39 +55,6 @@ describe('isAddressRecordEvent', () => {
   })
 })
 
-describe('isOwnershipEvent', () => {
-  const row = {
-    id: 'row',
-    name: 'test.eth',
-    registrationId: null,
-    transactionHash: null,
-    blockNumber: 1,
-    logIndex: null,
-    timestamp: 1,
-  } as const
-
-  it('keeps fuse changes and drops role grants', () => {
-    expect(
-      isOwnershipEvent({
-        ...row,
-        type: 'permission',
-        data: { fuses: 65_537 },
-      }),
-    ).toBe(true)
-    expect(
-      isOwnershipEvent({
-        ...row,
-        type: 'permission',
-        data: { powers: ['set_resolver'] },
-      }),
-    ).toBe(false)
-  })
-
-  it('keeps every other ownership type', () => {
-    expect(isOwnershipEvent({ ...row, type: 'transfer', data: {} })).toBe(true)
-  })
-})
-
 describe('isFuseChange', () => {
   it('reads the nulls bigname sends for the absent half', () => {
     expect(isFuseChange({ fuses: 65_537, powers: null })).toBe(true)
@@ -95,5 +62,20 @@ describe('isFuseChange', () => {
       false,
     )
     expect(isFuseChange({ fuses: null, powers: null })).toBe(false)
+  })
+})
+
+describe('OWNERSHIP_HISTORY_KINDS', () => {
+  it('keeps fuse changes and leaves role changes out', () => {
+    expect(OWNERSHIP_HISTORY_KINDS).toContain('PermissionScopeChanged')
+    expect(OWNERSHIP_HISTORY_KINDS).toContain('RegistrationGranted')
+    for (const kind of [
+      'PermissionChanged',
+      'RootPermissionChanged',
+      'RolesChanged',
+      'EACRolesChanged',
+      'AccountPermissionChanged',
+    ] as const)
+      expect(OWNERSHIP_HISTORY_KINDS).not.toContain(kind)
   })
 })

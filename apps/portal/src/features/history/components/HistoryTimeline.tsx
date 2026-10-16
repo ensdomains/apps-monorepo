@@ -1,3 +1,4 @@
+import type { EventKind } from '@ens-apps/indexer/bigname'
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
@@ -200,6 +201,10 @@ interface HistoryTimelineProps
   readonly name: string
   /** What the surface may ever show, as bigname types. */
   readonly scope?: readonly EventType[]
+  /** Raw kinds, intersecting `scope` in the query. */
+  readonly kinds?: readonly EventKind[]
+  /** Chip labels that differ on this surface. */
+  readonly typeLabels?: Readonly<Partial<Record<EventType, string>>>
   /**
    * Narrows loaded rows within `scope` where bigname has no query filter (e.g.
    * one record family). Totals are hidden while it is set.
@@ -216,6 +221,8 @@ interface HistoryTimelineProps
 export const HistoryTimeline = ({
   name,
   scope,
+  kinds,
+  typeLabels,
   eventFilter,
   heading,
   showFilters = true,
@@ -228,6 +235,7 @@ export const HistoryTimeline = ({
   const model = useNameHistoryTimeline({
     name,
     scope,
+    kinds,
     eventFilter,
     selectedTypes,
     ...dateRangeToTimestamps(dateRange),
@@ -246,7 +254,7 @@ export const HistoryTimeline = ({
     )
   }
 
-  const eventTypeGroups = buildEventTypeGroups(model.eventTypes)
+  const eventTypeGroups = buildEventTypeGroups(model.eventTypes, typeLabels)
 
   return (
     <HistoryTimelineView

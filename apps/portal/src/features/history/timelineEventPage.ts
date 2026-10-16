@@ -1,6 +1,7 @@
 import {
   type BignameError,
   type Envelope,
+  type EventKind,
   type EventRow,
   type EventType,
   isStale,
@@ -87,6 +88,8 @@ export type NameHistoryPageParameters = {
   readonly name: string
   /** A positive type set; omitted reads every type. */
   readonly types?: readonly EventType[]
+  /** Raw kinds, intersecting `types`; omitted reads every kind. */
+  readonly kinds?: readonly EventKind[]
   /** Inclusive unix-second bounds. */
   readonly from?: number
   readonly to?: number
@@ -108,6 +111,7 @@ const EMPTY_PAGE: TimelinePage = {
 export const fetchNameHistoryPage = ({
   name,
   types,
+  kinds,
   from,
   to,
   order = 'desc',
@@ -130,6 +134,7 @@ export const fetchNameHistoryPage = ({
                   ? ['data', 'raw', 'child_registrations']
                   : ['data', 'raw'],
               ...(types && { type: types }),
+              ...(kinds && { kind: kinds }),
               ...(from !== undefined && {
                 from_timestamp: secondsToTimestamp(from),
               }),
