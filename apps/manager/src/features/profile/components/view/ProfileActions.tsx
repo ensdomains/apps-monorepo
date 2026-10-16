@@ -1,7 +1,6 @@
 import { useLingui } from '@lingui/react/macro'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
@@ -25,6 +24,7 @@ import { ProfileShareAction } from './ProfileShareAction'
 
 type ProfileActionsProps = {
   readonly avatarUrl?: string
+  readonly canEdit: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
   readonly isUpgradeRequired: boolean
@@ -38,6 +38,7 @@ type ProfileActionsProps = {
 
 export const ProfileActions = ({
   avatarUrl,
+  canEdit,
   isInGrace,
   isOwner,
   isUpgradeRequired,
@@ -51,13 +52,7 @@ export const ProfileActions = ({
   const { t } = useLingui()
   const [bar, setBar] = useState<HTMLElement | null>(null)
   useIntercomClearance(bar)
-  const hasFloatingBar = canEditProfileHere({
-    isInGrace,
-    isOwner,
-    isUpgradeRequired,
-    name,
-    protocol: renewalProtocol,
-  })
+  const hasFloatingBar = canEdit
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
   const barActions = (

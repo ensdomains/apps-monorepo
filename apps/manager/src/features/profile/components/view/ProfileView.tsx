@@ -252,6 +252,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         <ProfileDraftProvider value={setDraft}>
           <ProfileActions
             avatarUrl={avatarUrl}
+            canEdit={canEditProfile}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}
