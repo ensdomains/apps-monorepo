@@ -89,7 +89,6 @@ export const useTransferDetachTargets = ({
       ],
     })
 
-  // `set-eth-addr` reverts without `ROLE_SET_ADDRESS` on the name's resolver.
   const ethAddressEdit = useCanEditRecords({
     name,
     roles: ['ROLE_SET_ADDRESS'],
