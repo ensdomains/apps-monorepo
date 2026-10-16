@@ -130,6 +130,7 @@ describe('powersToResolverRoleBitmap', () => {
 const ADDRESS = '0x231B0Ee14048e9dCcD1d247744d114a4EB5E8E63'
 const RESOLVER = ADDRESS.toLowerCase()
 const HOLDER = '0x8e8d000000000000000000000000000000003216'
+const REGISTRY = '0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e'
 
 const page = <T>(
   data: readonly T[],
@@ -160,12 +161,21 @@ const overview = (
   {
     next = null,
     total = null,
-  }: { next?: string | null; total?: number | null } = {},
+    mirror,
+  }: {
+    readonly next?: string | null
+    readonly total?: number | null
+    readonly mirror?: {
+      readonly kind: string
+      readonly registry: { readonly chain_id: number; readonly address: string }
+    }
+  } = {},
 ) =>
   okAsync({
     data: {
       chain_id: 11155111,
       address: RESOLVER,
+      ...(mirror && { mirror }),
       bound_names: {
         data: names.map((name) => ({
           name,
@@ -245,6 +255,7 @@ describe('getResolverOverviewQueryOptions', () => {
       address: RESOLVER,
       nodeCount: 1,
       nodeCountIsLowerBound: false,
+      mirrorRegistry: null,
       linkCount: 2,
       linksStatus: 'full',
       roleHolderCount: 1,
@@ -304,6 +315,22 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(await readOverview()).toMatchObject({
       nodeCount: 2,
       nodeCountIsLowerBound: true,
+    })
+  })
+
+  it('names the ENSv1 registry a mirror resolver answers through', async () => {
+    bigname.resolver.mockReturnValue(
+      overview(['reverse'], {
+        mirror: {
+          kind: 'ensv1_registry',
+          registry: { chain_id: 11155111, address: REGISTRY },
+        },
+      }),
+    )
+
+    expect(await readOverview()).toMatchObject({
+      nodeCount: 1,
+      mirrorRegistry: REGISTRY,
     })
   })
 

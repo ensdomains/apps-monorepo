@@ -105,6 +105,11 @@ export type ResolverOverview = {
    */
   readonly nodeCount: number | null
   readonly nodeCountIsLowerBound: boolean
+  /**
+   * Set on an ENSv1 mirror resolver: it answers through this ENSv1 registry's
+   * resolvers, which count those names, so its own node count stays small.
+   */
+  readonly mirrorRegistry: string | null
   readonly linkCount: number | null
   readonly linksStatus: Completeness
   readonly rolesStatus: Completeness
@@ -419,6 +424,7 @@ const toOverview = (
       !!boundNames &&
       boundNames.page.total_count === null &&
       boundNames.page.has_more,
+    mirrorRegistry: overview?.data.mirror?.registry.address ?? null,
     links: resolverLinks,
     linkCount: links.status === 'unsupported' ? null : resolverLinks.length,
     linksStatus: links.status,
