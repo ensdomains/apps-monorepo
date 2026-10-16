@@ -1,9 +1,12 @@
 import { plainTextSelectors, render } from '@react-email/components'
 import type { ReactElement } from 'react'
+import { type EmailContext, isTestnet, networkLabel } from './context.js'
 
 /** Provider-neutral output of a transactional email template. */
 export interface RenderedEmail {
   readonly subject: string
+  /** Display name of the sender, so testnet mail is told apart in the inbox. */
+  readonly fromName: string
   readonly html: string
   readonly text: string
 }
@@ -21,8 +24,10 @@ const PLAIN_TEXT_SELECTORS = [
  *
  * Transactional emails are deliberately link-free (no buttons, no URLs), so
  * that a lookalike email carrying a link is easy to recognise as fake.
+ * Testnet emails are marked in the subject and sender name.
  */
 export const renderEmail = async (
+  context: EmailContext,
   subject: string,
   element: ReactElement,
 ): Promise<RenderedEmail> => {
@@ -33,5 +38,12 @@ export const renderEmail = async (
       htmlToTextOptions: { selectors: PLAIN_TEXT_SELECTORS },
     }),
   ])
-  return { subject, html, text }
+  if (!isTestnet(context)) return { subject, fromName: 'ENS', html, text }
+  const label = networkLabel(context)
+  return {
+    subject: `[${label}] ${subject}`,
+    fromName: `ENS (${label})`,
+    html,
+    text,
+  }
 }

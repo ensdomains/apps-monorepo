@@ -37,6 +37,14 @@ export const unixSecondsToPlainDateUtc = (
     .toZonedDateTimeISO('UTC')
     .toPlainDate()
 
+/** Convert a Unix timestamp (seconds) to a Temporal.PlainDate in the viewer's time zone. */
+export const unixSecondsToPlainDateLocal = (
+  seconds: number,
+): Temporal.PlainDate =>
+  Temporal.Instant.fromEpochMilliseconds(seconds * 1000)
+    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
+    .toPlainDate()
+
 /**
  * Normalize an `Invalid Date` to `null` — a name with no expiry reports
  * `max(uint64)`, which overflows the Date range but is still truthy, so it

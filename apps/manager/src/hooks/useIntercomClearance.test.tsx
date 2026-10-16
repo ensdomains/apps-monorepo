@@ -1,0 +1,84 @@
+import { update } from '@intercom/messenger-js-sdk'
+import { act, render } from '@testing-library/react'
+import { useState } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useIntercomClearance } from './useIntercomClearance'
+
+vi.mock('@intercom/messenger-js-sdk', () => ({ update: vi.fn() }))
+
+const BAR_HEIGHT = 90
+
+const Bar = () => {
+  const [bar, setBar] = useState<HTMLElement | null>(null)
+  useIntercomClearance(bar)
+  return <nav ref={setBar} />
+}
+
+const mockBar = (height: number) =>
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    height,
+    top: 800 - height,
+  } as DOMRect)
+
+describe('useIntercomClearance', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.mocked(update).mockClear()
+    vi.stubGlobal('innerHeight', 800)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    )
+    mockBar(BAR_HEIGHT)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('lifts the launcher above the bar and resets on unmount', () => {
+    const { unmount } = render(<Bar />)
+
+    expect(update).toHaveBeenLastCalledWith({
+      vertical_padding: BAR_HEIGHT + 16,
+    })
+
+    unmount()
+
+    expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+  })
+
+  it('keeps the default padding while the bar is display:none', () => {
+    mockBar(0)
+
+    render(<Bar />)
+
+    expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+  })
+
+  it('only tells Intercom when the settled clearance changed', () => {
+    render(<Bar />)
+    expect(update).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+      window.dispatchEvent(new Event('resize'))
+      vi.advanceTimersByTime(200)
+    })
+    expect(update).toHaveBeenCalledTimes(1)
+
+    mockBar(BAR_HEIGHT + 40)
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+      vi.advanceTimersByTime(200)
+    })
+    expect(update).toHaveBeenCalledTimes(2)
+    expect(update).toHaveBeenLastCalledWith({
+      vertical_padding: BAR_HEIGHT + 40 + 16,
+    })
+  })
+})

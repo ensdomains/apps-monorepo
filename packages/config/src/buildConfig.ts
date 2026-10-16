@@ -82,6 +82,7 @@ export type EnsAppConfig<
 > = Readonly<{
   network: EnsNetwork
   isTestnet: boolean
+  appApiUrl: string
   chain: EnsChain
   /** Primary first, then the network's public fallbacks, deduped. */
   rpcUrls: readonly string[]
@@ -204,6 +205,7 @@ export const buildConfig = <
   return Object.freeze({
     network,
     isTestnet: profile.isTestnet,
+    appApiUrl: profile.appApiUrl,
     chain: chain as EnsChain,
     rpcUrls: Object.freeze(rpcUrls),
     rpcFallbacks: profile.rpcFallbacks,

@@ -138,7 +138,9 @@ describe('GeneralTab description', () => {
   it('keeps a legacy description intact but flags an over-limit edit', () => {
     render(<LegacyDescriptionHarness />)
 
-    const description = screen.getByRole('textbox', { name: 'Description' })
+    const description = screen.getByRole('textbox', {
+      name: 'Profile Description',
+    })
     expect(description).toHaveValue('A'.repeat(700))
     expect(description).toHaveAttribute('aria-invalid', 'false')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

@@ -219,10 +219,6 @@ msgstr "A simpler way to get paid."
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 
-#: src/features/profile/components/view/ProfileAbout.tsx
-msgid "About"
-msgstr "About"
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr "Account address:"
@@ -813,10 +809,6 @@ msgstr "Deploying smart account…"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
-
-#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
-msgid "Description"
-msgstr "Description"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
@@ -1680,6 +1672,10 @@ msgstr "One of your names now has its own subname registry. Upgrading it would d
 msgid "One username everywhere"
 msgstr "One username everywhere"
 
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "Only ENSv2 Names Supported"
+msgstr "Only ENSv2 Names Supported"
+
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr "Open navigation"
@@ -1824,6 +1820,7 @@ msgid "Primary name"
 msgstr "Primary name"
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
+#: src/features/dashboard/components/PrimaryNameButton.tsx
 msgid "Primary Name"
 msgstr "Primary Name"
 
@@ -1843,6 +1840,11 @@ msgstr "Privacy Policy"
 #: src/features/profile/components/view/ProfileActions.tsx
 msgid "Profile actions"
 msgstr "Profile actions"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Profile Description"
+msgstr "Profile Description"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
@@ -2361,10 +2363,6 @@ msgstr "Set up temporary access"
 msgid "Set up this name’s resolver?"
 msgstr "Set up this name’s resolver?"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Set which ENS name displays as your identity across apps and wallets."
-msgstr "Set which ENS name displays as your identity across apps and wallets."
-
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
 msgstr "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
@@ -2396,6 +2394,10 @@ msgstr "Setting..."
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
+
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Share a fun fact about this name"
+msgstr "Share a fun fact about this name"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Share on Telegram"
@@ -3273,6 +3275,10 @@ msgstr "You need to connect a wallet to see your stablecoin balances"
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr "You need to verify your wallet ownership to manage your notification preferences."
 
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
+msgstr "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "You pay now"
 msgstr "You pay now"
@@ -3438,6 +3444,10 @@ msgstr "Your upgrades are still being verified. Check again in a moment."
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your upgrades still need to be verified. Check again to continue."
 msgstr "Your upgrades still need to be verified. Check again to continue."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets."
+msgstr "Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."

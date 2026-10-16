@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { primaryContactsRecordKey } from '../components/dialogs/edit-profile/tabs/contact/constants'
 import {
   allSections,
   getRecordDef,
@@ -17,6 +18,7 @@ import {
   transformAgentRegistrationRecord,
 } from './agentRegistration'
 import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
+import { isWithinPrimaryContactsRecordSize } from './primaryContactLimits'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
 
 const emptyProfileRecords = (): ProfileRecords => ({
@@ -131,6 +133,13 @@ export const transformProfileRecords = (
     acc: ProfileRecords,
     { key, value }: TextRecordInput,
   ): ProfileRecords => {
+    if (
+      key === primaryContactsRecordKey &&
+      !isWithinPrimaryContactsRecordSize(value)
+    ) {
+      return acc
+    }
+
     // Agent-registration records (ENSIP-25) are matched by the fixed
     // `agent-registration` key prefix and routed to the agent transform.
     // Records that fail to parse fall through to the standard handling below.

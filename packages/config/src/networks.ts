@@ -29,6 +29,8 @@ export type NetworkEndpoints = {
 export type NetworkProfile = {
   readonly chainId: SupportedL1ChainId
   readonly isTestnet: boolean
+  /** App backend API; local/E2E builds can override it with VITE_API_URL. */
+  readonly appApiUrl: string
   /**
    * Public failover RPC endpoints. Each app supplies its own attributed
    * primary; these are the shared, uncorrelated backups behind it.
@@ -52,6 +54,7 @@ export const NETWORKS = {
   mainnet: {
     chainId: supportedL1Chains.mainnet,
     isTestnet: false,
+    appApiUrl: 'https://mainnet.app-api.ens.domains',
     rpcFallbacks: ['https://ethereum-rpc.publicnode.com'],
     // ensjs points mainnet at api.alpha.blue.ensnode.io, which serves Railway's
     // wildcard certificate, so browsers refuse it. This is ENSNode's Railway
@@ -65,6 +68,7 @@ export const NETWORKS = {
   sepolia: {
     chainId: supportedL1Chains.sepolia,
     isTestnet: true,
+    appApiUrl: 'https://sepolia.app-api.ens.domains',
     rpcFallbacks: [
       'https://ethereum-sepolia-rpc.publicnode.com',
       // Tenderly over 1rpc.io: 1rpc's free tier rate-limits quickly, which

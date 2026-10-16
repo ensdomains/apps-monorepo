@@ -1,104 +1,182 @@
 /** @jsxImportSource react */
-import { Heading, Text } from '@react-email/components'
-import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import {
   buildNameExpiryDeliveryContext,
-  formatCalendarDate,
   formatDayCount,
   type NameExpiryDeliveryContext,
   type NameExpiryPayload,
   type NameExpiryRenderOptions,
 } from '#services/delivery/templates/name-expiry.js'
+import type { EmailContext } from '../context.js'
 import { type RenderedEmail, renderEmail } from '../render.js'
-import { EmailLayout } from './EmailLayout.js'
+import {
+  AppHost,
+  EmailDetail,
+  EmailLayout,
+  EmailParagraph,
+} from './EmailLayout.js'
 
 interface NameExpiryCopy {
   readonly subject: string
-  readonly body: ReactNode
-  readonly action: string
+  readonly heading: string
+  readonly body: string
+  readonly details: readonly { label: string; value: string }[]
+  readonly actionTitle: string
 }
 
 interface NameExpiryEmailProps {
+  readonly context: EmailContext
+  readonly expiry: NameExpiryDeliveryContext
   readonly copy: NameExpiryCopy
   readonly isOwner: boolean
 }
 
-const RENEW_ACTION = 'Open the ENS Manager app to renew this name.'
-const REGISTER_ACTION = 'Open the ENS Manager app to register this name.'
+const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'UTC',
+})
+
+/** "22 Oct 2026, 18:00 UTC": unambiguous for readers in any locale. */
+export const formatEmailDate = (date: Date): string =>
+  `${DATE_FORMAT.format(date)} UTC`
 
 const getNameExpiryCopy = (
-  context: NameExpiryDeliveryContext,
+  expiry: NameExpiryDeliveryContext,
+  isOwner: boolean,
 ): NameExpiryCopy => {
-  const name = <strong>{context.name}</strong>
-  return match(context.noticeKind)
-    .with('pre-expiry', () => ({
-      subject: 'Domain expiration alert',
-      body: (
-        <>
-          {name} expires on {formatCalendarDate(context.expiryDate)} (in{' '}
-          {formatDayCount(context.daysUntilExpiry)}).
-        </>
-      ),
-      action: RENEW_ACTION,
-    }))
-    .with('grace-start', () => ({
-      subject: 'Domain grace period started',
-      body: (
-        <>
-          {name} has expired but can still be renewed until{' '}
-          {formatCalendarDate(context.graceEndDate)}.
-        </>
-      ),
-      action: RENEW_ACTION,
-    }))
+  const { name } = expiry
+  // Favourite watchers get every stage too, so only owners hear "your name".
+  const byRole = (owner: string, watcher: string) => (isOwner ? owner : watcher)
+  const graceDetails = [
+    {
+      label: 'Grace period ends in',
+      value: formatDayCount(expiry.daysUntilGraceEnd),
+    },
+    {
+      label: 'Grace period end date',
+      value: formatEmailDate(expiry.graceEndDate),
+    },
+  ]
+  return match(expiry.noticeKind)
+    .with('pre-expiry', () => {
+      const title = byRole(
+        'Your name is expiring',
+        'A name you watch is expiring',
+      )
+      return {
+        subject: title,
+        heading: title,
+        body: byRole(
+          `Renew ${name} before it expires to keep ownership and avoid temporary premiums after expiry.`,
+          `${name} expires soon. If it isn’t renewed, it enters a grace period and then becomes available for anyone to register.`,
+        ),
+        details: [
+          {
+            label: 'Expires in',
+            value: formatDayCount(expiry.daysUntilExpiry),
+          },
+          { label: 'Expiry date', value: formatEmailDate(expiry.expiryDate) },
+        ],
+        actionTitle: 'Renew in the ENS app',
+      }
+    })
+    .with('grace-start', () => {
+      const title = byRole(
+        'Your name has expired',
+        'A name you watch has expired',
+      )
+      return {
+        subject: title,
+        heading: title,
+        body: byRole(
+          `${name} has expired, but you can still renew it during the grace period. After that, anyone can register it.`,
+          `${name} has expired, but it can still be renewed during the grace period. After that, anyone can register it.`,
+        ),
+        details: graceDetails,
+        actionTitle: 'Renew in the ENS app',
+      }
+    })
     .with('grace-ending', () => ({
-      subject: 'Domain grace period ending soon',
-      body: (
-        <>
-          The grace period for {name} ends in{' '}
-          {formatDayCount(context.daysUntilGraceEnd)} (
-          {formatCalendarDate(context.graceEndDate)}). Renew now to keep the
-          name.
-        </>
+      subject: byRole(
+        'Your name’s grace period is ending',
+        'A name you watch is near the end of its grace period',
       ),
-      action: RENEW_ACTION,
+      heading: 'Grace period ending',
+      body: byRole(
+        `${name} has expired. You can still renew it until the grace period ends. After that, anyone can register it.`,
+        `${name} has expired. It can still be renewed until the grace period ends. After that, anyone can register it.`,
+      ),
+      details: graceDetails,
+      actionTitle: 'Renew in the ENS app',
     }))
     .with('premium-start', () => ({
-      subject: 'Domain grace period ended',
-      body: (
-        <>
-          {name} is no longer in its grace period and has entered the temporary
-          premium period.
-        </>
+      subject: byRole(
+        'Your name’s grace period has ended',
+        'A name you watch is out of its grace period',
       ),
-      action: REGISTER_ACTION,
+      heading: 'Grace period ended',
+      body: `${name} is out of its grace period. Anyone can now register it, at a temporary premium that falls each day.`,
+      details: [
+        {
+          label: 'Grace period ended',
+          value: formatEmailDate(expiry.graceEndDate),
+        },
+      ],
+      actionTitle: 'Register in the ENS app',
     }))
     .exhaustive()
 }
 
-const NameExpiryEmail = ({ copy, isOwner }: NameExpiryEmailProps) => (
-  <EmailLayout preview={copy.subject}>
-    <Heading as="h1">{copy.subject}</Heading>
-    <Text>{copy.body}</Text>
-    <Text>{copy.action}</Text>
-    <Text>
-      {isOwner
-        ? 'You are receiving this because you own this name.'
-        : 'You are receiving this because you are watching this name.'}
-    </Text>
+const NameExpiryEmail = ({
+  context,
+  expiry,
+  copy,
+  isOwner,
+}: NameExpiryEmailProps) => (
+  <EmailLayout
+    context={context}
+    preview={`${copy.subject}: ${expiry.name}`}
+    heading={copy.heading}
+    name={expiry.name}
+    action={{
+      title: copy.actionTitle,
+      body: (
+        <>
+          Go to <AppHost context={context} /> in your browser, then search for{' '}
+          {expiry.name}.
+        </>
+      ),
+    }}
+    reason={isOwner ? 'you own this name' : 'you are watching this name'}
+  >
+    <EmailParagraph>{copy.body}</EmailParagraph>
+    {copy.details.map((detail) => (
+      <EmailDetail key={detail.label} {...detail} />
+    ))}
   </EmailLayout>
 )
 
 export const renderNameExpiryEmail = (
+  context: EmailContext,
   payload: NameExpiryPayload,
   options: NameExpiryRenderOptions,
 ): Promise<RenderedEmail> => {
-  const copy = getNameExpiryCopy(
-    buildNameExpiryDeliveryContext(payload, options),
-  )
+  const isOwner = payload.watchReason === 'owned'
+  const expiry = buildNameExpiryDeliveryContext(payload, options)
+  const copy = getNameExpiryCopy(expiry, isOwner)
   return renderEmail(
+    context,
     copy.subject,
-    <NameExpiryEmail copy={copy} isOwner={payload.watchReason === 'owned'} />,
+    <NameExpiryEmail
+      context={context}
+      expiry={expiry}
+      copy={copy}
+      isOwner={isOwner}
+    />,
   )
 }
