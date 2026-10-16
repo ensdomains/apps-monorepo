@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { ok } from 'neverthrow'
+import { ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TransferSubject } from '../types'
@@ -87,6 +87,11 @@ vi.mock('../queries/getOwnResolver', () => ({
 const getEnsTokenId = vi.fn(() => ok(1n))
 vi.mock('@/features/profile/hooks/useTokenId', () => ({
   getEnsTokenId: () => getEnsTokenId(),
+}))
+
+const getIsRegistryEmancipated = vi.fn(() => okAsync(true))
+vi.mock('../queries/getIsRegistryEmancipated', () => ({
+  getIsRegistryEmancipated: () => getIsRegistryEmancipated(),
 }))
 
 const subject: TransferSubject = { kind: 'v2', registryAddress: REGISTRY }
@@ -222,6 +227,40 @@ describe('useTransferName — move preflight', () => {
     })
     expect(buildTransferStepIntent).toHaveBeenCalledWith(
       { kind },
+      expect.anything(),
+    )
+  })
+
+  // A subregistry whose parent owner kept its root roles isn't emancipated, so
+  // `safeTransferFrom` reverts with `TransferUnsafeUntilRegistryIsEmancipated`
+  // for every name in it, even with nobody else on the name itself.
+  it('moves a name in an unemancipated registry with unsafeTransfer', async () => {
+    getIsRegistryEmancipated.mockReturnValueOnce(okAsync(false))
+    const { result } = renderTransfer('sub.alice.eth')
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
+        options,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.transactions).toHaveLength(1)
+    })
+    // The preflight simulated it, and the submit sends it.
+    expect(buildTransferStepIntent).toHaveBeenCalledWith(
+      { kind: 'transfer-token-unsafe' },
+      expect.anything(),
+    )
+    await act(async () => {
+      await result.current.transactions[0].onStart?.()
+    })
+    expect(buildTransferStepIntent).toHaveBeenLastCalledWith(
+      { kind: 'transfer-token-unsafe' },
       expect.anything(),
     )
   })
