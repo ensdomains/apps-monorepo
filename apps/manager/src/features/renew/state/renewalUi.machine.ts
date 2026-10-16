@@ -22,21 +22,21 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
 // Two routes pay for a renewal. A smart-account signer renews as an
 // owner-signed HCA intent: no plain transactions, no gas token, and the rent
-// comes out of the account's USDC (funded in the same intent when short). An
-// EOA signer keeps the direct-wallet route: allowance check, approve and renew
-// as plain wagmi transactions. `renew` charges `msg.sender`, so each route pays
-// as itself.
+// (in the chosen stable) and fee (in USDC) come out of the account, funded in
+// the same intent when short. An EOA signer keeps the direct-wallet route:
+// allowance check, approve and renew as plain wagmi transactions. `renew`
+// charges `msg.sender`, so each route pays as itself.
 
 type SubmissionData = {
   label: string
   duration: bigint
-  token: SUPPORTED_TOKEN
+  token: RENEWAL_TOKEN
   /** Price in token units */
   priceRaw: bigint
 
@@ -84,7 +84,7 @@ export const renewalUiMachine = setup({
       protocol: RenewalProtocol
       renewerAddress: Address
       duration: bigint
-      selectedToken: SUPPORTED_TOKEN | undefined
+      selectedToken: RENEWAL_TOKEN | undefined
       lastErrorMessage?: string
       submissionData?: SubmissionData
       approvalTxId?: string
@@ -105,12 +105,12 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
       | { type: 'pricing.duration.set'; duration: bigint }
-      | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+      | { type: 'pricing.token.select'; token: RENEWAL_TOKEN | undefined }
       | {
           type: 'renewal.start'
           label: string
           duration: bigint
-          token: SUPPORTED_TOKEN
+          token: RENEWAL_TOKEN
           /** Price in token units */
           priceRaw: bigint
           signer: Signer
@@ -289,8 +289,8 @@ export const renewalUiMachine = setup({
             },
             'renewal.start': [
               {
-                // Smart-account signer: one owner-signed intent, paid in USDC
-                // out of the account itself.
+                // Smart-account signer: one owner-signed intent, paid out of
+                // the account itself.
                 guard: 'startsHcaRenewal',
                 target: '#renewalUi.submittingHcaRenewal',
                 actions: 'startRenewal',

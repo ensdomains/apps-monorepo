@@ -138,6 +138,10 @@ msgstr ""
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{permits, plural, one {Your wallet will be asked to approve this exact amount — nothing more.} other {Your wallet will be asked to approve these exact amounts — nothing more.}}"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
 msgstr ""
@@ -334,8 +338,7 @@ msgstr ""
 msgid "Approve the network fee?"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-#: src/features/renew/state/renewalUi.context.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Approve the renewal payment?"
 msgstr ""
 
@@ -1537,9 +1540,8 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/renew/state/renewalUi.context.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Network fee"
 msgstr ""
 
@@ -2143,14 +2145,16 @@ msgstr ""
 msgid "Renewal Period"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-#: src/features/renew/state/renewalUi.context.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Renewal price"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-#: src/features/renew/state/renewalUi.context.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Renewals are paid in USDC out of your smart account."
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
@@ -2737,8 +2741,7 @@ msgstr ""
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-#: src/features/renew/state/renewalUi.context.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
 msgstr ""
 
@@ -3499,8 +3502,4 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."
-msgstr ""
-
-#: src/components/HcaFundingConfirmDialog.tsx
-msgid "Your wallet will be asked to approve this exact amount — nothing more."
 msgstr ""

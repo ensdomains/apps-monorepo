@@ -3,15 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useConnection } from 'wagmi'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
+import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, RENEWAL_TOKEN_SYMBOLS, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const TokenPickerContent = () => {
   const { label, uiActor, protocol } = useRenewalUiContext()
   const account = useSmartAccountContext()
+  const balances = useRenewalBalances()
   const { isConnected: isEoaConnected } = useConnection()
   const isConnected = protocol === 'v1' ? isEoaConnected : account.isConnected
   const [duration, selectedToken] = useSelector(
@@ -33,14 +35,16 @@ export const TokenPickerContent = () => {
       ),
   })
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
+  const onSelectCoin = (coin: RENEWAL_TOKEN) => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
   return (
     <TokenPickerContentBase
+      acceptedTokens={RENEWAL_TOKEN_SYMBOLS}
+      accountCredit={balances.accountCredit}
       isConnected={isConnected}
-      isLoadingBalances={account.isLoadingBalances}
+      isLoadingBalances={balances.isLoading}
       label={label}
       nextMessage={<Trans>Renew Name</Trans>}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
@@ -48,7 +52,7 @@ export const TokenPickerContent = () => {
       pricingData={pricingQuery.data}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
-      stablecoinBalances={account.stablecoinBalances}
+      stablecoinBalances={balances.wallet}
     />
   )
 }

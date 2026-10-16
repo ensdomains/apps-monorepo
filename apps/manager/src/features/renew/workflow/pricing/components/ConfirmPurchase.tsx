@@ -30,7 +30,7 @@ export const ConfirmPurchase = () => {
   })
 
   // Two routes. On a smart account the renewal is an owner-signed intent paid
-  // in USDC out of the HCA, with the connected wallet only signing typed data.
+  // out of the HCA, with the connected wallet only signing typed data.
   // Otherwise it falls back to the direct-wallet route, where the EOA approves
   // and renews itself as `msg.sender`.
   const walletClient = account.walletClient as WalletClient | undefined

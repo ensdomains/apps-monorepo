@@ -27,7 +27,7 @@ import {
   useHcaFundingPrompt,
   useSmartAccountContext,
 } from '@/lib/smart-account'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
@@ -36,11 +36,11 @@ import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
 const SETTLE_MS = 600
 
 // Bulk renewal takes whichever route the account has. With a smart account the
-// whole selection renews as owner-signed HCA intents, paid in USDC out of the
-// account — one intent per chunk of names, each renewing its chunk atomically
-// in a single `renewBatch`. Without one it falls back to the direct-wallet
-// route: the connected EOA approves once and renews each name itself, one
-// transaction per name.
+// whole selection renews as owner-signed HCA intents paid out of the account
+// (rent in the chosen stable, fee in USDC) — one intent per chunk of names,
+// each renewing its chunk atomically in a single `renewBatch`. Without one it
+// falls back to the direct-wallet route: the connected EOA approves once and
+// renews each name itself, one transaction per name.
 //
 // The wallet route cannot use the HCA. `AbstractETHRegistrar.renew` charges
 // `msg.sender` with no HCA unwrap, and the scoped session's policy allowlists
@@ -58,7 +58,7 @@ type Context = {
   /** The connected EOA — `msg.sender` for `renew`, and the rent payer. */
   readonly signer: Signer
   readonly ownerAddress: Address
-  readonly token: SUPPORTED_TOKEN
+  readonly token: RENEWAL_TOKEN
 }
 
 /**
@@ -127,7 +127,7 @@ type HcaContext = {
   readonly signer: RhinestoneSigner
   readonly ownerAddress: Address
   readonly walletClient: WalletClient
-  readonly token: SUPPORTED_TOKEN
+  readonly token: RENEWAL_TOKEN
 }
 
 /** Split the selection into the batches an intent can carry. */
@@ -215,7 +215,7 @@ type SmartAccount = ReturnType<typeof useSmartAccountContext>
  */
 const resolveContext = (
   account: SmartAccount,
-  token: SUPPORTED_TOKEN,
+  token: RENEWAL_TOKEN,
 ): Context | null => {
   const walletClient = account.walletClient
   const ownerAddress = walletClient?.account?.address
@@ -233,7 +233,7 @@ const resolveContext = (
  */
 const resolveHcaContext = (
   account: SmartAccount,
-  token: SUPPORTED_TOKEN,
+  token: RENEWAL_TOKEN,
 ): HcaContext | null => {
   const { signer, ownerAddress, walletClient } = account
   if (signer?.type !== 'rhinestone' || !ownerAddress || !walletClient) {
@@ -282,7 +282,7 @@ const refreshDashboardNames = () => {
 
 type SubmitArgs = {
   readonly items: readonly RenewItem[]
-  readonly token: SUPPORTED_TOKEN
+  readonly token: RENEWAL_TOKEN
   /** Summed quoted price in token units, used to size the allowance. */
   readonly sumPriceRaw: bigint
 }
@@ -305,7 +305,7 @@ export type UseBulkRenewSubmit = {
 
 /**
  * Drives the bulk renewal. With a smart account each chunk of names is one
- * owner-signed intent paid in USDC; otherwise the connected EOA approves the
+ * owner-signed intent paid from the account; otherwise the connected EOA approves the
  * summed spend once and renews each name in its own transaction. Names that
  * already renewed are remembered so a retry resumes rather than re-paying.
  */

@@ -8,12 +8,13 @@ import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/p
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import {
   type StablecoinBalance,
   useSmartAccountContext,
 } from '@/lib/smart-account'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { hasInsufficientBalance } from '@/utils/payment'
 import type {
@@ -34,6 +35,8 @@ type BulkRenewPayment = {
   readonly isConnected: boolean
   readonly isLoadingBalances: boolean
   readonly stablecoinBalances: readonly StablecoinBalance[]
+  /** What the smart account already holds of each coin; it pays first. */
+  readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
   /** True when the wallet is connected and the selected coin covers the total. */
   readonly canConfirm: boolean
 }
@@ -64,12 +67,16 @@ export const useBulkRenew = ({
 }: {
   readonly names: readonly BulkRenewName[]
   readonly selection: Selection
-  readonly selectedToken: SUPPORTED_TOKEN
+  readonly selectedToken: RENEWAL_TOKEN
   readonly open: boolean
 }): UseBulkRenewResult => {
   const count = names.length
-  const { stablecoinBalances, isLoadingBalances, isConnected } =
-    useSmartAccountContext()
+  const { isConnected } = useSmartAccountContext()
+  const {
+    wallet: stablecoinBalances,
+    accountCredit,
+    isLoading: isLoadingBalances,
+  } = useRenewalBalances()
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
@@ -227,12 +234,17 @@ export const useBulkRenew = ({
       isConnected,
       isLoadingBalances,
       stablecoinBalances,
+      accountCredit,
       canConfirm:
         isConnected &&
         !isLoadingBalances &&
         pricesReady &&
         grandTotal > 0 &&
-        !hasInsufficientBalance(selectedBalanceUsd, grandTotal),
+        // The account's own balance pays first; the wallet covers the rest.
+        !hasInsufficientBalance(
+          selectedBalanceUsd + (accountCredit[selectedToken] ?? 0),
+          grandTotal,
+        ),
     },
   }
 }

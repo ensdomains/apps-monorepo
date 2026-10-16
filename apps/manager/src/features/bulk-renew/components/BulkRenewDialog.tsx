@@ -3,7 +3,6 @@ import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useState } from 'react'
 import { match } from 'ts-pattern'
-import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,7 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import { RenewalFundingDialog } from '@/features/renew/components/RenewalFundingDialog'
+import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
@@ -48,7 +48,7 @@ export const BulkRenewDialog = ({
     kind: 'preset',
     years: 1,
   })
-  const [selectedToken, setSelectedToken] = useState<SUPPORTED_TOKEN>('USDC')
+  const [selectedToken, setSelectedToken] = useState<RENEWAL_TOKEN>('USDC')
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
@@ -108,7 +108,7 @@ export const BulkRenewDialog = ({
   const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
 
   // The route depends on the account: a smart account renews as owner-signed
-  // intents paid in USDC (chunked, one `renewBatch` per intent), and a plain
+  // intents paid from the account (chunked, one `renewBatch` per intent), and a plain
   // EOA keeps the direct-wallet route — one transaction per name. Either way
   // this is never gated on the scoped HCA session, whose policy allowlists only
   // `commit`/`register`.
@@ -155,6 +155,7 @@ export const BulkRenewDialog = ({
           <NamesBreakdown rows={summaryRows} total={grandTotal} />
 
           <PaymentMethodSection
+            accountCredit={payment.accountCredit}
             isConnected={payment.isConnected}
             isLoadingBalances={payment.isLoadingBalances}
             onSelectCoin={setSelectedToken}
@@ -240,32 +241,10 @@ export const BulkRenewDialog = ({
           </AnimatePresence>
         </DialogContent>
       </Dialog>
-      <HcaFundingConfirmDialog
-        description={
-          <Trans>Renewals are paid in USDC out of your smart account.</Trans>
-        }
-        lines={[
-          {
-            // The rent plus the small headroom the renewer's approval carries,
-            // because the price is re-read when the renewal executes.
-            label: <Trans>Renewal price</Trans>,
-            amount: submit.fundingPrompt?.requiredUsdc ?? 0n,
-          },
-          {
-            label: <Trans>Network fee</Trans>,
-            amount: submit.fundingPrompt?.quotedFeeUsdc ?? 0n,
-          },
-        ]}
-        note={
-          <Trans>
-            The renewal price includes a 10% buffer: the rent is priced when the
-            renewal executes, slightly after this quote.
-          </Trans>
-        }
+      <RenewalFundingDialog
         onApprove={submit.approveFunding}
         onDecline={submit.declineFunding}
         prompt={submit.fundingPrompt}
-        title={<Trans>Approve the renewal payment?</Trans>}
       />
     </>
   )
