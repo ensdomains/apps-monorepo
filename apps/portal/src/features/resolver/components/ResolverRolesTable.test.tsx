@@ -5,7 +5,11 @@ import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResolverRole } from '@/features/resolver/hooks/useResolverOverview'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { ROOT_RESOURCE } from '@/lib/roles/resolverRoles'
+import {
+  ROOT_RESOURCE,
+  resolverAdminRoleOf,
+  resolverPermissions,
+} from '@/lib/roles/resolverRoles'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { ResolverRolesTable } from './ResolverRolesTable'
 
@@ -73,6 +77,22 @@ vi.mock('@/features/resolver/hooks/useResolverRolesMutations', () => ({
     isWalletConnected: true,
     connectedAddress: admin,
   }),
+}))
+
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueries: ({
+    combine,
+  }: {
+    readonly combine: (
+      results: readonly { readonly data: boolean }[],
+    ) => boolean
+  }) => combine([{ data: true }]),
+}))
+
+vi.mock('@/features/resolver/hooks/useResolverCallerAdminRoles', () => ({
+  useResolverCallerAdminRoles: () =>
+    new Set(resolverPermissions.map(({ key }) => resolverAdminRoleOf(key))),
 }))
 
 const role = (

@@ -37,6 +37,41 @@ describe('invalidateResolverOverview', () => {
     expect(queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(false)
   })
 
+  it('marks this resolver’s role checks stale, so a revoked admin stops gating', async () => {
+    const queryClient = new QueryClient()
+    const rolesKey = [
+      'get-resolver-roles-for-account',
+      { address: RESOLVER, resource: '0', account: OTHER_CONTRACT },
+    ]
+    const hasRolesKey = [
+      'hasRoles',
+      { resolverAddress: RESOLVER, roles: ['ROLE_SET_TEXT_ADMIN'] },
+    ]
+    const otherHasRolesKey = [
+      'hasRoles',
+      { resolverAddress: OTHER_CONTRACT, roles: ['ROLE_SET_TEXT_ADMIN'] },
+    ]
+    const registryHasRolesKey = ['hasRoles', { registryAddress: RESOLVER }]
+    for (const key of [
+      rolesKey,
+      hasRolesKey,
+      otherHasRolesKey,
+      registryHasRolesKey,
+    ])
+      queryClient.setQueryData(key, true)
+
+    await invalidateResolverOverview(queryClient, getAddress(RESOLVER))
+
+    expect(queryClient.getQueryState(rolesKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(hasRolesKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(otherHasRolesKey)?.isInvalidated).toBe(
+      false,
+    )
+    expect(queryClient.getQueryState(registryHasRolesKey)?.isInvalidated).toBe(
+      false,
+    )
+  })
+
   it('skips a scoped query whose key carries no address', async () => {
     const queryClient = new QueryClient()
     const bareKey = ['get-resolver-nodes']

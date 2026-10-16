@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import {
   computeRoleDiff,
-  getAccountAdminRoles,
   getRemovableRoles,
   getSoleAdminRoles,
   isAdminRole,
@@ -13,7 +12,6 @@ import {
 
 const ALICE = '0xAAaAAAaaAaAAaAAAAaAaaAAaAaaaAaaaAAaAAaaA' as Address
 const BOB = '0xBbBBbbBBbbBBBbbBBbBbbbbBbBbbBBbbBBbBbBBb' as Address
-const CAROL = '0xcCCccCCCCCcCcCCCcCcccCcCcCCCCccCcccCccCC' as Address
 
 const rows = (
   entries: Array<{ account: Address; roles: Role[] }>,
@@ -37,38 +35,6 @@ describe('toAdminRole', () => {
     expect(toAdminRole('ROLE_SET_RESOLVER_ADMIN' as Role)).toBe(
       'ROLE_SET_RESOLVER_ADMIN',
     )
-  })
-})
-
-describe('getAccountAdminRoles', () => {
-  const data = rows([
-    {
-      account: ALICE,
-      roles: [
-        'ROLE_REGISTRAR',
-        'ROLE_REGISTRAR_ADMIN',
-        'ROLE_SET_RESOLVER_ADMIN',
-      ] as Role[],
-    },
-    { account: BOB, roles: ['ROLE_RENEW'] as Role[] },
-  ])
-
-  it('returns only the _ADMIN roles for the account (case-insensitive)', () => {
-    const result = getAccountAdminRoles(data, ALICE.toLowerCase() as Address)
-    expect([...result].sort()).toEqual([
-      'ROLE_REGISTRAR_ADMIN',
-      'ROLE_SET_RESOLVER_ADMIN',
-    ])
-  })
-
-  it('returns empty for an account with no admin roles', () => {
-    expect(getAccountAdminRoles(data, BOB).size).toBe(0)
-  })
-
-  it('returns empty for unknown account / missing inputs', () => {
-    expect(getAccountAdminRoles(data, CAROL).size).toBe(0)
-    expect(getAccountAdminRoles(undefined, ALICE).size).toBe(0)
-    expect(getAccountAdminRoles(data, undefined).size).toBe(0)
   })
 })
 

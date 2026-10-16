@@ -12,6 +12,8 @@ describe('invalidateRegistryQueries', () => {
       ['get-registry-root-role-holders', { registryAddress: '0x1' }],
       ['get-registry-role-history-for-account', { registryAddress: '0x1' }],
       ['get-contract-history-timeline', { address: '0x1' }],
+      // The caller's own root roles: a self-revoke must close the sheets.
+      ['getNameRolesForAccount', { registryAddress: '0x1', resource: '0' }],
     ] as const
     for (const key of keys) queryClient.setQueryData(key, [])
 

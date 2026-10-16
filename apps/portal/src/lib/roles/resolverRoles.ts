@@ -32,6 +32,10 @@ export type { ResolverRole, ResolverSetterScope }
 /** A role a user can be granted from the UI, admin variants excluded. */
 export type ResolverPermissionKey = Exclude<ResolverRole, `${string}_ADMIN`>
 
+/** The `_ADMIN` role EAC requires to grant or revoke `role`. */
+export const resolverAdminRoleOf = (role: ResolverRole): ResolverRole =>
+  (role.endsWith('_ADMIN') ? role : `${role}_ADMIN`) as ResolverRole
+
 type ResolverPermission = {
   key: ResolverPermissionKey
   title: string

@@ -7,8 +7,12 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
 import {
   type AccountRoleGroup,
+  type ResolverRevocation,
+  type ResolverRole,
   ROOT_RESOURCE,
   ROOT_RESOURCE_LABEL,
+  resolverAdminRoleOf,
+  resolverPermissions,
   UNREADABLE_RESOURCE_LABEL,
 } from '@/lib/roles/resolverRoles'
 import { ResolverRolesSidebar } from './ResolverRolesSidebar'
@@ -73,6 +77,28 @@ vi.mock('@/features/resolver/hooks/useResolverRolesMutations', () => ({
   }),
 }))
 
+const allAdminRoles: ReadonlySet<ResolverRole> = new Set(
+  resolverPermissions.map(({ key }) => resolverAdminRoleOf(key)),
+)
+let callerAdminRoles = allAdminRoles
+/** Each scope's on-chain revoke check; `undefined` is still loading. */
+let revokeChecks: readonly { readonly data: boolean | undefined }[] = [
+  { data: true },
+]
+
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueries: ({
+    combine,
+  }: {
+    readonly combine: (results: typeof revokeChecks) => boolean
+  }) => combine(revokeChecks),
+}))
+
+vi.mock('@/features/resolver/hooks/useResolverCallerAdminRoles', () => ({
+  useResolverCallerAdminRoles: () => callerAdminRoles,
+}))
+
 const group = (overrides: Partial<AccountRoleGroup>): AccountRoleGroup => ({
   account: alice,
   resource: ROOT_RESOURCE.toString(),
@@ -84,11 +110,14 @@ const group = (overrides: Partial<AccountRoleGroup>): AccountRoleGroup => ({
   ...overrides,
 })
 
-const renderSidebar = (g: AccountRoleGroup) =>
+const renderSidebar = (
+  g: AccountRoleGroup,
+  revocations: readonly ResolverRevocation[] = [],
+) =>
   render(
     <ResolverRolesSidebar
       group={g}
-      removalPlan={{ type: 'complete', revocations: [] }}
+      removalPlan={{ type: 'complete', revocations }}
       open
       setOpen={vi.fn()}
       resolverAddress={resolverAddress}
@@ -103,6 +132,8 @@ const userCheckbox = (roleKey: string) => {
 }
 
 beforeEach(() => {
+  callerAdminRoles = allAdminRoles
+  revokeChecks = [{ data: true }]
   steps = []
   openModal.mockClear()
   saveMutate.mockClear()
@@ -190,5 +221,56 @@ describe('ResolverRolesSidebar scope handling', () => {
     expect(saveMutate).not.toHaveBeenCalledWith(
       expect.objectContaining({ resource: ROOT_RESOURCE }),
     )
+  })
+})
+
+describe('ResolverRolesSidebar admin gating', () => {
+  // WEB-1818: every checkbox used to unlock on one page-wide flag, so a caller
+  // without a role's `_ADMIN` could tick it and the save reverted.
+  it('enables only the roles whose _ADMIN the caller holds', () => {
+    callerAdminRoles = new Set<ResolverRole>(['ROLE_SET_TEXT_ADMIN'])
+    renderSidebar(group({}))
+
+    expect(userCheckbox('ROLE_SET_TEXT')).toBeEnabled()
+    expect(userCheckbox('ROLE_SET_ADDRESS')).toBeDisabled()
+    expect(userCheckbox('ROLE_UPGRADE')).toBeDisabled()
+  })
+
+  describe('Remove user across scopes', () => {
+    const revocations: readonly ResolverRevocation[] = [
+      {
+        resource: ROOT_RESOURCE,
+        resourceLabel: ROOT_RESOURCE_LABEL,
+        roles: ['ROLE_SET_ADDRESS'],
+      },
+      {
+        resource: avatar,
+        resourceLabel: 'text "avatar"',
+        roles: ['ROLE_SET_TEXT'],
+      },
+    ]
+    const removeUser = () =>
+      screen.getByRole('button', { name: /Remove user/i })
+
+    it('is enabled when every scope can be revoked', () => {
+      revokeChecks = [{ data: true }, { data: true }]
+      renderSidebar(group({}), revocations)
+
+      expect(removeUser()).toBeEnabled()
+    })
+
+    it('is disabled when one scope is denied, so it cannot stop part-way', () => {
+      revokeChecks = [{ data: true }, { data: false }]
+      renderSidebar(group({}), revocations)
+
+      expect(removeUser()).toBeDisabled()
+    })
+
+    it('is disabled while a scope is still being checked', () => {
+      revokeChecks = [{ data: true }, { data: undefined }]
+      renderSidebar(group({}), revocations)
+
+      expect(removeUser()).toBeDisabled()
+    })
   })
 })
