@@ -9,7 +9,7 @@
  * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
  * when ensjs exposes them. Until then, this local, chain-keyed table remains
  * the complete source. Keep it grouped per chain so a redeploy is a
- * single-block edit and adding a source chain is additive.
+ * single-block edit.
  *
  * SDK patch SHA-256: 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf
  * (byte-identical to contracts-v2 `patches/@rhinestone%2Fsdk@1.8.0.patch` @ 95de2ee0,
@@ -18,7 +18,7 @@
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type Address, encodeAbiParameters, keccak256, stringToHex } from 'viem'
-import { baseSepolia, sepolia } from 'viem/chains'
+import { sepolia } from 'viem/chains'
 
 /**
  * The ENS-side contracts are sourced from ensjs, which is the source of truth
@@ -28,7 +28,6 @@ import { baseSepolia, sepolia } from 'viem/chains'
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 export const SEPOLIA_CHAIN_ID = sepolia.id
-export const BASE_SEPOLIA_CHAIN_ID = baseSepolia.id
 
 export const STANDALONE_HCA_VERSION = 'ens-standalone-1.1.0' as const
 export const ONCHAIN_ACCOUNT_ID = 'ens-standalone-hca.1.1.0' as const
@@ -60,25 +59,6 @@ export interface DestinationContracts {
   readonly publicResolverV2: Address
   readonly defaultReverseRegistrarHcaAdapter: Address
   readonly usdc: Address
-}
-
-/** Contracts on a supported source (funding) chain. */
-export interface SourceContracts {
-  readonly usdc: Address
-  readonly hcaFundingSessionValidator: Address
-}
-
-/**
- * Chain-agnostic contracts shared across the Rhinestone route.
- *
- * NOTE: the Across adapter/arbiter is intentionally NOT here. Per the handoff
- * doc, the frontend does not supply an Across adapter address — the source
- * validator reads the active Permit2 Across adapter from the Rhinestone Router
- * at claim time, and it is not part of the source permission ID.
- */
-export interface SharedContracts {
-  readonly nexusFactory: Address
-  readonly permit2: Address
 }
 
 export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
@@ -137,18 +117,6 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
   },
 }
 
-export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
-  [baseSepolia.id]: {
-    usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-    hcaFundingSessionValidator: '0x6Fc0FdE0960003acb24810fFd5dB6224b3d88974',
-  },
-}
-
-export const SHARED_CONTRACTS: SharedContracts = {
-  nexusFactory: '0x0000000000679A258c64d2F20F310e12B64b7375',
-  permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
-}
-
 /**
  * Resolve the destination contract table for a chain, throwing a clear error if
  * the chain is not a supported registration chain.
@@ -158,21 +126,6 @@ export function getDestinationContracts(chainId: number): DestinationContracts {
   if (!contracts) {
     throw new Error(
       `No standalone-HCA destination contracts configured for chain ${chainId}`,
-    )
-  }
-  return contracts
-}
-
-/**
- * Resolve the source contract table for a chain, throwing a clear error if the
- * chain is not an enabled source (funding) chain. Arbitrum Sepolia is
- * intentionally absent — it has no approved source validator.
- */
-export function getSourceContracts(chainId: number): SourceContracts {
-  const contracts = SOURCE_CONTRACTS[chainId]
-  if (!contracts) {
-    throw new Error(
-      `No standalone-HCA source contracts configured for chain ${chainId}`,
     )
   }
   return contracts
