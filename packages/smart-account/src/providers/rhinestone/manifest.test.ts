@@ -60,7 +60,7 @@ describe('remediated Sepolia destination manifest', () => {
       publicResolverV2: '0xdC4a563d00F5c3012b699794eB9e13A561Be386F',
       defaultReverseRegistrarHcaAdapter:
         '0x36f97328e843e37520cbF530e9402791c2754066',
-      usdc: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
+      usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     })
   })
 

@@ -487,6 +487,8 @@ export const SmartAccountContextProvider = ({
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
+      // Circle's FiatToken keeps balances at slot 9 and has no open `mint`.
+      usdcBalanceSlot: 9n,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
@@ -559,8 +561,9 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
-    // The faucet mints MockUSDC, which is also the payment token of the
-    // standalone-HCA route, so auto-fund runs on real Sepolia too.
+    // The faucet mints MockUSDC, not the Circle USDC the route pays in, so on
+    // real Sepolia a top-up never clears the low balance and would repeat.
+    if (!isTimeTravelEnabled()) return
 
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
