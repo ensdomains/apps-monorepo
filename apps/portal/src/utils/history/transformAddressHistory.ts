@@ -1,5 +1,5 @@
 import type { Hash } from 'viem'
-import type { SubgraphEvent } from './groupEventsByTransactionId'
+import type { HistoryTableEvent } from './groupEventsByTransactionId'
 
 /**
  * Provenance signals carried alongside a single name's events so that
@@ -44,7 +44,7 @@ export type AddressNameHistory = NameProvenance & {
  * judged would carry a stranger's events into a row about the address's own name.
  */
 export type NameHistoryGroup = NameProvenance & {
-  readonly events: readonly SubgraphEvent[]
+  readonly events: readonly HistoryTableEvent[]
 }
 
 /**

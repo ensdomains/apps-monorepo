@@ -2,7 +2,7 @@
   "name": "@ens-apps/dev-migration-tool",
   "version": "1.0.0",
   "license": "MIT",
-  "description": "DEV-only migration test tooling — create V1 name states and trigger migration from the browser.",
+  "description": "DEV-only migration test tooling \u2014 create V1 name states and trigger migration from the browser.",
   "type": "module",
   "private": true,
   "sideEffects": [
@@ -17,6 +17,7 @@
     "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/indexer": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "viem": "catalog:"

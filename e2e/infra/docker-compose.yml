@@ -43,7 +43,7 @@
 # it. Which anvil release first regressed this was not bisected.
 #
 # Anvil and the mockestrator are therefore pinned to digests verified green.
-# Alto, the paymaster and Panoptes are deliberately left on moving tags for now:
+# Alto and the paymaster are deliberately left on moving tags for now:
 # the standalone-HCA path does not route through the bundler or paymaster, and
 # CI mocks the indexer (E2E_MOCK_INDEXER=true). Pin them too if they ever drift.
 #
@@ -134,74 +134,6 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  # Panoptes ENS Indexer: indexes ENS V2 events from the Anvil fork.
-  # Provides a GraphQL API on port 5655 for domain lookups, dashboard, etc.
-  panoptes-indexer:
-    image: ghcr.io/mdtanrikulu/panoptes:latest
-    networks:
-      e2e:
-        aliases:
-          - panoptes-indexer
-    command: ["/app/ensv2-indexer-v2"]
-    volumes:
-      - panoptes-data:/app/data
-      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
-    environment:
-      - DATABASE_PATH=/app/data/ens_v2.db
-      - RAINBOW_PATH=/app/data/ens_rainbow.db
-      - RPC_URL=http://anvil:8545
-      - NETWORK=sepolia
-      - CONTRACTS_PATH=/app/config/contracts.json
-      - BATCH_SIZE=10000
-      - POLL_INTERVAL=2
-      - RATE_LIMIT_PER_SECOND=100
-      - STATUS_PORT=3001
-      - WEBHOOKS_ENABLED=false
-    depends_on:
-      anvil:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "/app/healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: on-failure
-
-  panoptes-api:
-    image: ghcr.io/mdtanrikulu/panoptes:latest
-    networks:
-      e2e:
-        aliases:
-          - panoptes-api
-    command: ["/app/api-entrypoint.sh"]
-    ports:
-      - "5655:5655"
-    volumes:
-      - panoptes-data:/app/data:ro
-      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
-    environment:
-      - DATABASE_PATH=/app/data/ens_v2.db
-      - RAINBOW_PATH=/app/data/ens_rainbow.db
-      - DOWNLOAD_RAINBOW=false
-      - NETWORK=sepolia
-      - CONTRACTS_PATH=/app/config/contracts.json
-      - RPC_URL=http://anvil:8545
-      - API_PORT=5655
-      - GRAPHQL_MAX_DEPTH=10
-      - GRAPHQL_MAX_COST=1000
-      - WEBHOOKS_ENABLED=false
-      - METRICS_ENABLED=false
-    depends_on:
-      - panoptes-indexer
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5655/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    restart: on-failure
-
   # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
   # Only needed when running the standalone-HCA e2e tests (VITE_FF_USE_EOA=false).
   mockestrator:
@@ -280,8 +212,6 @@ services:
       start_period: 10s
 
 volumes:
-  panoptes-data:
-    driver: local
   dqa-data:
     driver: local
 

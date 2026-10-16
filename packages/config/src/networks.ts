@@ -21,8 +21,7 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
  * than as a silent cross-network request.
  */
 export type NetworkEndpoints = {
-  /** ENSv2 indexer (Ponder) GraphQL endpoint. */
-  readonly indexerGraphql: string | null
+  /** bigname REST indexer. */
   readonly bignameApi: string | null
 }
 
@@ -61,7 +60,7 @@ export const NETWORKS = {
     // host; drop the override once that domain has its own certificate.
     v1SubgraphUrl: 'https://ensnode-api-production.up.railway.app/subgraph',
     endpoints: {
-      indexerGraphql: 'https://mainnet-graphql.ens.dev/',
+      // No mainnet bigname deployment yet.
       bignameApi: null,
     },
   },
@@ -76,7 +75,6 @@ export const NETWORKS = {
       'https://sepolia.gateway.tenderly.co',
     ],
     endpoints: {
-      indexerGraphql: 'https://staging-graphql.ens.dev/',
       bignameApi: 'https://sepolia.api.bigname.sh',
     },
   },

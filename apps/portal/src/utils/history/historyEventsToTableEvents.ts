@@ -5,7 +5,7 @@ import {
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
 import { isObject } from '@/utils/isObject'
-import type { SubgraphEvent } from './groupEventsByTransactionId'
+import type { HistoryTableEvent } from './groupEventsByTransactionId'
 import { formatHistoryAmount } from './historyPayment'
 import { mergeRegistrationTwins } from './registrationTwins'
 import { rootPermissionRegistry } from './rootPermission'
@@ -73,9 +73,9 @@ export const historyEventLogId = (row: NameHistoryRow | EventRow): string =>
  * `mergeRegistrationTwins`). A row with no transaction (a state-derived
  * lapse) has nothing to group under and is left out.
  */
-export const historyEventsToSubgraphEvents = (
+export const historyEventsToTableEvents = (
   rows: readonly NameHistoryRow[],
-): (SubgraphEvent & Record<string, unknown>)[] =>
+): (HistoryTableEvent & Record<string, unknown>)[] =>
   mergeRegistrationTwins(rows).flatMap((row) => {
     const timestamp = toUnixSeconds(row.timestamp)
     if (!row.transaction_hash || row.block_number === null) return []
