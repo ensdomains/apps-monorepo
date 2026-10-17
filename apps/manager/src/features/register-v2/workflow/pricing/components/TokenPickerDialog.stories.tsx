@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
+import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
@@ -35,21 +36,27 @@ const INSUFFICIENT_USDC: StablecoinBalance = {
   formattedBalance: '0.00',
 }
 
-const l2Option = (
+const l2Row = (
   chain: typeof baseSepolia | typeof arbitrumSepolia | typeof optimismSepolia,
   balanceRaw: bigint | null,
   status: L2PaymentOption['status'],
-): L2PaymentOption => ({
-  id: l2PaymentOptionId(chain.id),
-  source: { chain, usdc: FUNDED_USDC.address, rpcUrls: [] },
-  balanceRaw,
-  status,
+  amountInRaw?: bigint,
+): L2PaymentRow => ({
+  option: {
+    id: l2PaymentOptionId(chain.id),
+    source: { chain, usdc: FUNDED_USDC.address, rpcUrls: [] },
+    balanceRaw,
+    status,
+  },
+  amountInRaw,
+  isQuoteLoading: false,
+  hasQuoteFailed: false,
 })
 
-const FIXTURE_L2_OPTIONS: readonly L2PaymentOption[] = [
-  l2Option(baseSepolia, 400_000_000n, 'available'),
-  l2Option(arbitrumSepolia, 100_000_000n, 'insufficient'),
-  l2Option(optimismSepolia, null, 'unavailable'),
+const FIXTURE_L2_ROWS: readonly L2PaymentRow[] = [
+  l2Row(baseSepolia, 400_000_000n, 'available', 352_012_573n),
+  l2Row(arbitrumSepolia, 100_000_000n, 'insufficient'),
+  l2Row(optimismSepolia, null, 'unavailable'),
 ]
 
 interface TokenPickerDialogShellProps {
@@ -67,8 +74,8 @@ interface TokenPickerDialogShellProps {
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
   readonly isFeeTooltipOpen?: boolean
-  /** L2 rows to bridge the shortfall from; selecting one quotes a fixed fee. */
-  readonly l2Options?: readonly L2PaymentOption[]
+  /** L2 rows the registration can be paid from. */
+  readonly l2Rows?: readonly L2PaymentRow[]
 }
 
 export const TokenPickerDialogShell = ({
@@ -86,7 +93,7 @@ export const TokenPickerDialogShell = ({
   funding,
   isQuotingFunding = false,
   isFeeTooltipOpen,
-  l2Options,
+  l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const [selectedToken, setSelectedToken] = useState<
@@ -110,16 +117,10 @@ export const TokenPickerDialogShell = ({
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
         l2Payment={
-          l2Options && {
-            options: l2Options,
-            bridgeAmountRaw: 352_000_000n,
+          l2Rows && {
+            rows: l2Rows,
             selectedChainId,
-            feeRaw: selectedChainId === undefined ? undefined : 12_573n,
-            isQuoteLoading: false,
-            hasQuoteFailed: false,
-            canBridge: selectedChainId !== undefined,
             onSelect: setSelectedChainId,
-            onBridge: () => {},
           }
         }
         label={label}
@@ -390,7 +391,7 @@ const meta = {
   },
   argTypes: {
     stablecoinBalances: { control: false },
-    l2Options: { control: false },
+    l2Rows: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
       options: [undefined, 'USDC'],
@@ -431,10 +432,10 @@ export const InsufficientUSDC: Story = {
   },
 }
 
-export const BridgeFromL2: Story = {
+export const PayFromL2: Story = {
   args: {
     ...InsufficientUSDC.args,
-    l2Options: FIXTURE_L2_OPTIONS,
+    l2Rows: FIXTURE_L2_ROWS,
   },
 }
 

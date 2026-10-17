@@ -1,4 +1,3 @@
-import { L2_FUNDING_STORAGE_KEY } from '@/features/register-v2/service/l2FundingPersistence'
 import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/registrationPersistence'
 
 // Blanket localStorage.clear() corrupts reconnection — preserve wagmi.*
@@ -18,14 +17,10 @@ import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/
 // owner can pick it back up on reconnect; wiping the record here left nothing
 // to resume. It is bound to its owner, and any other wallet is shown plain
 // pricing.
-//
-// The in-flight L2 bridge record stays for the same reason: without it a
-// reconnect would offer a second bridge while the first is still arriving.
 const PRESERVED_KEY_PREFIXES = [
   'wagmi',
   'ens-session',
   REGISTRATION_RESUME_STORAGE_KEY,
-  L2_FUNDING_STORAGE_KEY,
 ] as const
 
 export const clearAppLocalStorage = () => {

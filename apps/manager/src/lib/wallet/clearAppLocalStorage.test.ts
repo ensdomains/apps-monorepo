@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { L2_FUNDING_STORAGE_KEY } from '@/features/register-v2/service/l2FundingPersistence'
 import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/registrationPersistence'
 import { clearAppLocalStorage } from './clearAppLocalStorage'
 
@@ -16,14 +15,6 @@ describe('clearAppLocalStorage', () => {
     expect(localStorage.getItem(REGISTRATION_RESUME_STORAGE_KEY)).toBe(
       '{"v":1}',
     )
-  })
-
-  it('keeps an in-flight L2 bridge so a reconnect does not offer another', () => {
-    localStorage.setItem(L2_FUNDING_STORAGE_KEY, '{}')
-
-    clearAppLocalStorage()
-
-    expect(localStorage.getItem(L2_FUNDING_STORAGE_KEY)).toBe('{}')
   })
 
   it('keeps the wallet connection and HCA sessions, and clears the rest', () => {

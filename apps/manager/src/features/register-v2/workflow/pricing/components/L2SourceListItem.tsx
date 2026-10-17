@@ -4,7 +4,7 @@ import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import type { L2PaymentOption } from '../lib/paymentOptions'
+import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
@@ -16,64 +16,61 @@ const NETWORK_BADGES: Readonly<Record<number, string | undefined>> = {
   [optimismSepolia.id]: coinIcons.op,
 }
 
-/** A payment row that pays the registration from an L2, bridging it in first. */
+/** A payment row that pays the registration with the wallet's USDC on an L2. */
 export const L2SourceListItem = ({
-  option,
-  bridgeAmountRaw,
-  feeRaw,
+  row,
+  networkFee,
   isSelected,
-  isQuoteLoading,
-  hasQuoteFailed,
   onSelect,
 }: {
-  readonly option: L2PaymentOption
-  readonly bridgeAmountRaw: bigint | null
-  /** The selected row's quoted bridge fee, once quoted. */
-  readonly feeRaw?: bigint
+  readonly row: L2PaymentRow
+  /** What the registration costs on top of the name, paid from here, once quoted. */
+  readonly networkFee: number | undefined
   readonly isSelected: boolean
-  readonly isQuoteLoading: boolean
-  readonly hasQuoteFailed: boolean
   readonly onSelect: () => void
 }) => {
   const { t } = useLingui()
+  const { option } = row
   const chainName = option.source.chain.name
   const badge = NETWORK_BADGES[option.source.chain.id]
-  const toUsd = (raw: bigint) =>
-    formatUsd(decimalBigintToNumber(raw, USDC_DECIMALS))
-  const bridgeAmount = bridgeAmountRaw === null ? '—' : toUsd(bridgeAmountRaw)
-
-  const fee =
-    isSelected && feeRaw !== undefined ? (
-      <Trans>
-        Bridge {bridgeAmount} to your wallet, fee {toUsd(feeRaw)}
-      </Trans>
-    ) : (
-      <Trans>Bridge {bridgeAmount} to your wallet</Trans>
-    )
+  // A balance just over what the HCA is sent can still fall short of the fee.
+  const isShortOfQuote =
+    row.amountInRaw !== undefined &&
+    option.balanceRaw !== null &&
+    option.balanceRaw < row.amountInRaw
 
   const error =
-    option.status === 'insufficient' ? (
+    option.status === 'insufficient' || isShortOfQuote ? (
       <Trans>Not enough USDC on {chainName}</Trans>
     ) : option.status === 'unavailable' ? (
       <Trans>Couldn't read your balance on {chainName}</Trans>
-    ) : isSelected && hasQuoteFailed ? (
-      <Trans>Bridging from {chainName} isn't available right now</Trans>
+    ) : row.hasQuoteFailed ? (
+      <Trans>Paying from {chainName} isn't available right now</Trans>
     ) : undefined
 
   return (
     <PaymentMethodRow
-      amount={option.balanceRaw === null ? '—' : toUsd(option.balanceRaw)}
+      amount={
+        option.balanceRaw === null
+          ? '—'
+          : formatUsd(decimalBigintToNumber(option.balanceRaw, USDC_DECIMALS))
+      }
       amountLabel={<Trans>balance</Trans>}
       error={error}
-      fee={fee}
-      feeTooltip={
+      fee={
         <Trans>
-          The USDC is bridged to your wallet first, then the registration is
-          paid from there. You approve USDC once per network and sign the
-          transfer.
+          {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
         </Trans>
       }
-      feeTooltipLabel={t`How does bridging work?`}
+      feeTooltip={
+        <Trans>
+          An estimate of what the on-chain transactions that register your name
+          cost, including moving the USDC from {chainName}. It is paid there
+          with the name price, in one signature. The first time, you also
+          approve USDC on {chainName}.
+        </Trans>
+      }
+      feeTooltipLabel={t`What is the network fee?`}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}
@@ -83,8 +80,9 @@ export const L2SourceListItem = ({
         />
       }
       isAvailable
-      isFeeLoading={isSelected && isQuoteLoading}
-      isFunded={option.status === 'available'}
+      isFeeLoading={row.isQuoteLoading}
+      // Selectable while quoting; the action waits for the quote.
+      isFunded={option.status === 'available' && !isShortOfQuote}
       isSelected={isSelected}
       name={t`USDC on ${chainName}`}
       onSelect={onSelect}

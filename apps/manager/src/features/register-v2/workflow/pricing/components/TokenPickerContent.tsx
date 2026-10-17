@@ -28,9 +28,13 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
-import { type L2PaymentProps, useL2Payment } from '../hooks/useL2Payment'
+import {
+  canPayFromL2,
+  type L2PaymentProps,
+  type L2PaymentRow,
+  useL2Payment,
+} from '../hooks/useL2Payment'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
-import type { L2PaymentOption } from '../lib/paymentOptions'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import {
   computeRegistrationFunding,
@@ -275,11 +279,21 @@ export const TokenPickerContent = () => {
   const l2Payment = useL2Payment({
     uiActor,
     owner: account.ownerAddress,
-    walletDebitRaw: funding?.walletDebitRaw,
+    // What an L2 payment is quoted into; the EOA route has no HCA.
+    hca:
+      account.signer?.type === 'rhinestone' && account.accountAddress
+        ? {
+            address: account.accountAddress,
+            config: account.signer.account.config,
+          }
+        : undefined,
+    budget: budgetQuery.data,
     isQuoteStale: budgetQuery.isPlaceholderData,
     isEnabled: isBudgetRequired,
     fundingSourceChainId,
   })
+  const l2FundingChainId = l2Payment?.selectedChainId
+  const isPaidFromL2 = l2FundingChainId !== undefined
 
   // An explicit toggle choice always wins. Otherwise resolve the eligibility
   // lookups (already in flight for the toggle default — fetchQuery dedupes)
@@ -335,6 +349,8 @@ export const TokenPickerContent = () => {
       ...(funding && !budgetQuery.isPlaceholderData
         ? { displayedWalletDebit: funding.walletDebitRaw }
         : {}),
+      // Paid from an L2, the commit leg is signed there by the wallet.
+      ...(l2FundingChainId === undefined ? {} : { l2FundingChainId }),
     })
   }
 
@@ -370,7 +386,9 @@ export const TokenPickerContent = () => {
           })
         : null
 
+      // A chosen L2 pays instead, so the wallet's own balance is no gate.
       if (
+        !isPaidFromL2 &&
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
         shortfallCause !== null
@@ -539,57 +557,70 @@ export const TokenPickerContent = () => {
 }
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
-  l2Payment?.options.find(
-    ({ source }) => source.chain.id === l2Payment.selectedChainId,
+  l2Payment?.rows.find(
+    ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
   )
+
+/**
+ * The sheet's figures when an L2 quoted at `amountInRaw` pays: it is charged
+ * that, and the fee line carries whatever that takes over the name price.
+ */
+const getL2FundingSummary = (
+  funding: RegistrationFundingSummary,
+  amountInRaw: bigint,
+): RegistrationFundingSummary => {
+  const walletDebit = decimalBigintToNumber(amountInRaw, USDC_DECIMALS)
+  const total = walletDebit + funding.hcaCredit
+  return {
+    ...funding,
+    walletDebit,
+    total,
+    networkFee: total - funding.registration,
+  }
+}
+
+/** A chosen L2 pays in place of the wallet, so only its own quote must cover it. */
+const canPaySelection = (
+  selectedL2: L2PaymentRow | undefined,
+  canWalletPay: boolean,
+) => (selectedL2 ? canPayFromL2(selectedL2) : canWalletPay)
+
+/** With an L2 chosen and quoted, the sheet shows what that L2 is charged. */
+const getShownFunding = (
+  funding: RegistrationFundingSummary | undefined,
+  selectedL2: L2PaymentRow | undefined,
+) =>
+  funding && selectedL2?.amountInRaw !== undefined
+    ? getL2FundingSummary(funding, selectedL2.amountInRaw)
+    : funding
 
 const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
-  selectedL2: L2PaymentOption | undefined,
+  selectedL2: L2PaymentRow | undefined,
+  funding: RegistrationFundingSummary | undefined,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
-  return l2Payment.options.map((option) => ({
-    id: option.id,
+  return l2Payment.rows.map((row) => ({
+    id: row.option.id,
     isAvailable: true,
-    isFunded: option.status === 'available',
+    isFunded: row.option.status === 'available',
     isCommon: false,
     content: (
       <L2SourceListItem
-        bridgeAmountRaw={l2Payment.bridgeAmountRaw}
-        feeRaw={l2Payment.feeRaw}
-        hasQuoteFailed={l2Payment.hasQuoteFailed}
-        isQuoteLoading={l2Payment.isQuoteLoading}
-        isSelected={option === selectedL2}
-        onSelect={() => l2Payment.onSelect(option.source.chain.id)}
-        option={option}
+        isSelected={row === selectedL2}
+        networkFee={
+          funding && row.amountInRaw !== undefined
+            ? getPaymentBreakdownFigures(
+                getL2FundingSummary(funding, row.amountInRaw),
+              ).networkFee
+            : undefined
+        }
+        onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
+        row={row}
       />
     ),
   }))
 }
-
-/** The sheet's one button: register from the wallet, or bridge from an L2. */
-const getPrimaryAction = ({
-  selectedL2,
-  l2Payment,
-  canRegister,
-  isConnected,
-  nextMessage,
-  onNext,
-}: {
-  readonly selectedL2: L2PaymentOption | undefined
-  readonly l2Payment: L2PaymentProps | undefined
-  readonly canRegister: boolean
-  readonly isConnected: boolean
-  readonly nextMessage: ReactNode
-  readonly onNext: () => void
-}): { label: ReactNode; onClick: () => void; isEnabled: boolean } =>
-  selectedL2 && l2Payment
-    ? {
-        label: <Trans>Bridge from {selectedL2.source.chain.name}</Trans>,
-        onClick: l2Payment.onBridge,
-        isEnabled: isConnected && l2Payment.canBridge,
-      }
-    : { label: nextMessage, onClick: onNext, isEnabled: canRegister }
 
 /**
  * The single message slot under the token list. The error wins when there is
@@ -671,7 +702,7 @@ export const TokenPickerContentBase = ({
   readonly isQuoteStale?: boolean
   /** A required budget quote failed, so checkout must remain blocked. */
   readonly hasBudgetQuoteFailed?: boolean
-  /** Registration only: rows that bridge the wallet's shortfall in from an L2. */
+  /** Registration only: rows that pay the registration from an L2. */
   readonly l2Payment?: L2PaymentProps
 }) => {
   const { t } = useLingui()
@@ -697,14 +728,20 @@ export const TokenPickerContentBase = ({
   // What the registration costs before any standing credit is applied.
   const displayTotal = funding?.total ?? pricingData
 
+  const selectedL2 = getSelectedL2(l2Payment)
+  const shownFunding = getShownFunding(funding, selectedL2)
+
   // With USDC already in the HCA the headline is the wallet debit. The credit
   // line and the method-level fee use the same rounded figures, so the amounts
   // shown on screen remain checkable.
-  const {
-    hasAccountCredit,
-    headlineAmount,
-    networkFee: displayedNetworkFee,
-  } = getPaymentHeadline(funding, displayTotal)
+  const { networkFee: displayedNetworkFee } = getPaymentHeadline(
+    funding,
+    displayTotal,
+  )
+  const { hasAccountCredit, headlineAmount } = getPaymentHeadline(
+    shownFunding,
+    displayTotal,
+  )
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -723,28 +760,19 @@ export const TokenPickerContentBase = ({
       selectedCoinBalance.decimals,
     ) >= requiredAmount
 
-  const canRegister =
+  const canNext =
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
     !isQuoteStale &&
-    hasBalances &&
-    hasSufficientBalanceForSelectedCoin &&
     // Refuse rather than proceed on a figure that cannot fund the batch.
-    !hasBudgetQuoteFailed
-
-  const selectedL2 = getSelectedL2(l2Payment)
-  const action = getPrimaryAction({
-    selectedL2,
-    l2Payment,
-    canRegister,
-    isConnected,
-    nextMessage,
-    onNext,
-  })
-  const canNext = action.isEnabled
+    !hasBudgetQuoteFailed &&
+    canPaySelection(
+      selectedL2,
+      hasBalances && hasSufficientBalanceForSelectedCoin,
+    )
   const walletSelection = selectedL2 ? undefined : selectedToken
-  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2)
+  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
     (stablecoin) => {
@@ -815,7 +843,7 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          <PaymentBreakdown funding={funding} />
+          <PaymentBreakdown funding={shownFunding} />
         </div>
 
         <div className="flex w-full flex-col gap-4">
@@ -906,9 +934,9 @@ export const TokenPickerContentBase = ({
           canNext && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
         disabled={!canNext}
-        onClick={action.onClick}
+        onClick={onNext}
       >
-        {action.label}
+        {nextMessage}
       </Button>
     </div>
   )

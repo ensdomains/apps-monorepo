@@ -8,7 +8,6 @@ import {
 import { cn } from '@/lib/utils'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { usePricingStep } from '../../../state/registrationUi.selectors'
-import { L2FundingView } from './L2FundingView'
 import { TokenPickerContent } from './TokenPickerContent'
 
 export const TokenPickerDialog = () => {
@@ -16,15 +15,12 @@ export const TokenPickerDialog = () => {
 
   const pricingStep = usePricingStep(uiActor)
 
-  const isOpen = pricingStep === 'tokens' || pricingStep === 'funding'
+  const isOpen = pricingStep === 'tokens'
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       if (pricingStep === 'tokens') {
         uiActor.send({ type: 'pricing.step.previous' })
-      }
-      if (pricingStep === 'funding') {
-        uiActor.send({ type: 'pricing.funding.dismiss' })
       }
     }
   }
@@ -36,7 +32,7 @@ export const TokenPickerDialog = () => {
       registrationLayout
       title={''}
     >
-      {pricingStep === 'funding' ? <L2FundingView /> : <TokenPickerContent />}
+      <TokenPickerContent />
     </PaymentDialogBase>
   )
 }

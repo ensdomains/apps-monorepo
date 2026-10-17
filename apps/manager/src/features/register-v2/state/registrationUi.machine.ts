@@ -1,8 +1,6 @@
-import type {
-  HcaSessionEnablePayload,
-  L2BridgeRoute,
-} from '@ens-apps/smart-account'
+import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
   registrationMachine,
@@ -41,7 +39,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
-import type { L2FundingRecord } from '../service/l2FundingPersistence'
+import { getL2FundingSource } from '../service/l2FundingSource'
 import {
   acquireRegistrationLock,
   getBlockingRegistration,
@@ -53,8 +51,6 @@ import {
 } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
-import { l2FundingActors } from './l2Funding.actors'
-import { type L2FundingInput, l2FundingMachine } from './l2Funding.machine'
 import {
   getRegistrationStageProgress,
   type MaxProgressReached,
@@ -64,7 +60,6 @@ import {
 import type { RegistrationPostRegistrationSetup } from './registrationAutoSetup'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
-const L2_FUNDING_ACTOR_ID = 'l2Funding'
 
 type RegistrationSnapshot = SnapshotFrom<typeof registrationMachine>
 
@@ -109,10 +104,8 @@ type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
-  /** The L2 row picked to bridge from; the registration still pays in `selectedToken`. */
+  /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
   fundingSourceChainId?: number
-  /** What the L2 funding child runs with, set on the way into `pricing.funding`. */
-  fundingRun?: L2FundingInput
   lastErrorMessage?: string
   /**
    * The registration failed because another address registered the name first.
@@ -170,19 +163,6 @@ type Events =
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
   | { type: 'pricing.fundingSource.select'; chainId: number }
   | {
-      type: 'pricing.funding.start'
-      route: L2BridgeRoute
-      /** The source amount of the quote the user was shown. */
-      agreedAmountIn: bigint
-    }
-  | {
-      /** A bridge already submitted, picked back up from storage. */
-      type: 'pricing.funding.resume'
-      route: L2BridgeRoute
-      record: L2FundingRecord
-    }
-  | { type: 'pricing.funding.dismiss' }
-  | {
       type: 'registration.start'
       label: string
       duration: bigint
@@ -204,6 +184,8 @@ type Events =
        * budget quote failed and only the rent was displayed.
        */
       displayedWalletDebit?: bigint
+      /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */
+      l2FundingChainId?: number
     }
   | {
       /**
@@ -328,12 +310,10 @@ const machineSetup = setup({
     input: {} as Input,
     children: {} as {
       [REGISTRATION_V2_ACTOR_ID]: 'registrationFlow'
-      [L2_FUNDING_ACTOR_ID]: 'l2Funding'
     },
   },
   actors: {
     registrationFlow: registrationMachine,
-    l2Funding: l2FundingMachine.provide({ actors: l2FundingActors }),
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
@@ -460,31 +440,6 @@ const machineSetup = setup({
       selectedToken: () => 'USDC' as const,
     }),
     clearFundingSource: assign({ fundingSourceChainId: () => undefined }),
-    setFundingRun: assign({
-      fundingRun: ({ event, context }) =>
-        match(event)
-          .with(
-            { type: 'pricing.funding.start' },
-            ({ route, agreedAmountIn }): L2FundingInput => ({
-              route,
-              agreedAmountIn,
-            }),
-          )
-          .with(
-            { type: 'pricing.funding.resume' },
-            ({ route, record }): L2FundingInput => ({
-              route,
-              agreedAmountIn: record.amountIn,
-              record,
-            }),
-          )
-          .otherwise(() => context.fundingRun),
-    }),
-    refreshWalletBalances: () => {
-      getQueryClient()?.invalidateQueries({
-        queryKey: $qk({ $scope: 'wallet' }),
-      })
-    },
     clearError: assign({
       lastErrorMessage: () => undefined,
       nameUnavailable: () => false,
@@ -730,6 +685,25 @@ const blockingRegistrationFor = (context: Context): string | null => {
 const registrationLockMessage = (blockingName: string | null): string =>
   `${blockingName ?? 'Another name'} is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.`
 
+/**
+ * The L2 a start pays from, whose wallet signs the commit leg there. One the
+ * run cannot pay from refuses the start rather than paying from the wallet.
+ */
+const getStartL2Funding = (
+  chainId: number | undefined,
+  owner: Address,
+  isHcaRegistration: boolean,
+): L2FundingSource | Error | undefined => {
+  if (chainId === undefined) return undefined
+  const source = isHcaRegistration
+    ? getL2FundingSource(owner, chainId)
+    : undefined
+  return (
+    source ??
+    new Error('Cannot register: paying from that network is not supported.')
+  )
+}
+
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, event }) => {
     if (event.type !== 'registration.start') {
@@ -763,8 +737,7 @@ const startRegistrationAction = machineSetup.createAction(
     const ownerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
-    const resolverOwnerAddress =
-      event.account.ownerAddress ?? event.account.accountAddress
+    const resolverOwnerAddress = ownerAddress
 
     const approvalSigner: Signer | undefined = event.account.walletClient
       ? { type: 'eoa', walletClient: event.account.walletClient }
@@ -781,6 +754,15 @@ const startRegistrationAction = machineSetup.createAction(
           'Cannot register: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
         ),
       })
+    }
+
+    const l2Funding = getStartL2Funding(
+      event.l2FundingChainId,
+      ownerAddress,
+      isHcaRegistration,
+    )
+    if (l2Funding instanceof Error) {
+      return enqueue.raise({ type: '$error', error: l2Funding })
     }
 
     // The HCA reveal batch sets the ETH addr record itself and, when opted
@@ -861,6 +843,7 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
+        l2Funding,
         // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.
@@ -979,6 +962,15 @@ const resumeRegistrationAction = machineSetup.createAction(
           approvalSigner,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
+          // A run paid from an L2 keeps paying from it; one the app no longer
+          // lists falls back to the funding permit.
+          l2Funding:
+            event.record.context.l2FundingChainId === undefined
+              ? undefined
+              : getL2FundingSource(
+                  ownerAddress,
+                  event.record.context.l2FundingChainId,
+                ),
           // Lets a resumed verification ask the orchestrator whether the
           // persisted reveal intent is still filling or dead, instead of
           // sitting out the full grace poll before showing the retry screen.
@@ -1079,14 +1071,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.fundingSource.select': {
               actions: 'setFundingSource',
             },
-            'pricing.funding.start': {
-              target: 'funding',
-              actions: 'setFundingRun',
-            },
-            'pricing.funding.resume': {
-              target: 'funding',
-              actions: 'setFundingRun',
-            },
             'pricing.dialog.dismiss': {
               target: 'duration',
             },
@@ -1100,31 +1084,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                 startRegistrationAction,
               ],
             },
-          },
-        },
-        // Bridging USDC in from an L2. Closing the dialog stops the child; a
-        // bridge it already submitted is picked back up from storage.
-        funding: {
-          invoke: {
-            id: L2_FUNDING_ACTOR_ID,
-            src: 'l2Funding',
-            input: ({ context }) => {
-              if (!context.fundingRun) throw new Error('Funding without a run')
-              return context.fundingRun
-            },
-            onDone: [
-              {
-                guard: ({ event }) => event.output.funded,
-                target: 'tokens',
-                actions: ['clearFundingSource', 'refreshWalletBalances'],
-              },
-              { target: 'tokens' },
-            ],
-            onError: { target: 'tokens' },
-          },
-          exit: assign({ fundingRun: () => undefined }),
-          on: {
-            'pricing.funding.dismiss': { target: 'duration' },
           },
         },
       },
@@ -1553,11 +1512,4 @@ export const getRegistrationV2ChildActor = (
 ) =>
   snapshot.children[REGISTRATION_V2_ACTOR_ID] as
     | ActorRefFrom<typeof registrationMachine>
-    | undefined
-
-export const getL2FundingActor = (
-  snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
-) =>
-  snapshot.children[L2_FUNDING_ACTOR_ID] as
-    | ActorRefFrom<typeof l2FundingMachine>
     | undefined
