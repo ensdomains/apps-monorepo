@@ -3,6 +3,7 @@ export { getAtomicBatchSupport } from './actors/eoa-batch-transport.actor'
 // Errors
 export {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,
