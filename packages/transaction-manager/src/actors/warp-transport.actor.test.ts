@@ -590,8 +590,23 @@ describe('submitWarpTransaction — paid from an L2', () => {
 
     const error = result._unsafeUnwrapErr()
     expect(error).toBeInstanceOf(L2PaymentNotSentError)
-    expect(error.cause).toBe(refusal)
+    expect((error.cause as Error).cause).toBe(refusal)
     expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  // A wallet can reject with a bare object, which says nothing as a cause.
+  it('names the step and the reason in what it reports', async () => {
+    const { source, request, signer } = setup()
+    source.getAccount.mockRejectedValueOnce({ code: -32603, message: 'nope' })
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error).toBeInstanceOf(L2PaymentNotSentError)
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not reach the wallet on Base Sepolia: nope',
+    )
   })
 
   it('reports a failed approval as never sent, without quoting', async () => {
