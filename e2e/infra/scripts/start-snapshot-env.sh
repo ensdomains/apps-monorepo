@@ -110,6 +110,7 @@ if [[ -n "$FUND_ADDRESS" ]]; then
   echo ""
   echo "=== Funding account: $FUND_ADDRESS ==="
   bash "$SCRIPT_DIR/fund-account.sh" "$FUND_ADDRESS"
+  bash "$SCRIPT_DIR/fund-rhinestone-account.sh" "$FUND_ADDRESS"
 fi
 
 echo ""

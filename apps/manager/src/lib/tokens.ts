@@ -1,13 +1,18 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { chain } from '@/config'
 
-const { usdc, dai } = chain.contracts
+const { dai } = chain.contracts
 
 /**
- * Addresses come from the chain. Decimals and symbols are the only things
- * ensjs does not carry, so they are the only things declared here.
+ * USDC is the HCA route's payment token from the manifest (not ensjs' MockUSDC),
+ * so every flow pays in the same token. Decimals and symbols are declared here.
  */
 export const TOKENS = {
-  USDC: { address: usdc.address, decimals: 6, symbol: 'USDC' },
+  USDC: {
+    address: getDestinationContracts(chain.id).usdc,
+    decimals: 6,
+    symbol: 'USDC',
+  },
   DAI: { address: dai.address, decimals: 18, symbol: 'DAI' },
 } as const
 

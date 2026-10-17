@@ -1,11 +1,14 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
+import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
+import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
@@ -33,6 +36,29 @@ const INSUFFICIENT_USDC: StablecoinBalance = {
   formattedBalance: '0.00',
 }
 
+const l2Row = (
+  chain: typeof baseSepolia | typeof arbitrumSepolia | typeof optimismSepolia,
+  balanceRaw: bigint | null,
+  status: L2PaymentOption['status'],
+  amountInRaw?: bigint,
+): L2PaymentRow => ({
+  option: {
+    id: l2PaymentOptionId(chain.id),
+    source: { chain, usdc: FUNDED_USDC.address, rpcUrls: [] },
+    balanceRaw,
+    status,
+  },
+  amountInRaw,
+  isQuoteLoading: false,
+  hasQuoteFailed: false,
+})
+
+const FIXTURE_L2_ROWS: readonly L2PaymentRow[] = [
+  l2Row(baseSepolia, 400_000_000n, 'available', 352_012_573n),
+  l2Row(arbitrumSepolia, 100_000_000n, 'insufficient'),
+  l2Row(optimismSepolia, null, 'unavailable'),
+]
+
 interface TokenPickerDialogShellProps {
   readonly label: string
   readonly defaultOpen?: boolean
@@ -48,6 +74,8 @@ interface TokenPickerDialogShellProps {
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
   readonly isFeeTooltipOpen?: boolean
+  /** L2 rows the registration can be paid from. */
+  readonly l2Rows?: readonly L2PaymentRow[]
 }
 
 export const TokenPickerDialogShell = ({
@@ -65,11 +93,13 @@ export const TokenPickerDialogShell = ({
   funding,
   isQuotingFunding = false,
   isFeeTooltipOpen,
+  l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const [selectedToken, setSelectedToken] = useState<
     SUPPORTED_TOKEN | undefined
   >(initialSelectedToken)
+  const [selectedChainId, setSelectedChainId] = useState<number>()
 
   return (
     <PaymentDialogBase
@@ -86,10 +116,20 @@ export const TokenPickerDialogShell = ({
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
+        l2Payment={
+          l2Rows && {
+            rows: l2Rows,
+            selectedChainId,
+            onSelect: setSelectedChainId,
+          }
+        }
         label={label}
         methodErrorMessage={methodErrorMessage}
         onNext={() => {}}
-        onSelectCoin={setSelectedToken}
+        onSelectCoin={(coin) => {
+          setSelectedChainId(undefined)
+          setSelectedToken(coin)
+        }}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -351,6 +391,7 @@ const meta = {
   },
   argTypes: {
     stablecoinBalances: { control: false },
+    l2Rows: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
       options: [undefined, 'USDC'],
@@ -388,6 +429,13 @@ export const InsufficientUSDC: Story = {
       hcaCredit: 0,
       isLoading: false,
     },
+  },
+}
+
+export const PayFromL2: Story = {
+  args: {
+    ...InsufficientUSDC.args,
+    l2Rows: FIXTURE_L2_ROWS,
   },
 }
 

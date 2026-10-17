@@ -8,7 +8,7 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { useBalance, useWalletClient } from 'wagmi'
+import { useBalance } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
@@ -217,8 +217,8 @@ export const MigrationPage = () => {
     client: hcaClient,
     error: hcaError,
     refreshAccount,
+    walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
-  const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'

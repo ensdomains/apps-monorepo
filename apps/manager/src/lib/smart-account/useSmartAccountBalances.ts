@@ -17,10 +17,7 @@ import type { EthBalance, StablecoinBalance } from './types'
  * Exported so the affordability gates can match balances against the SAME
  * address this list is built from. They must not resolve the token
  * independently: a lookup keyed on a different USDC would silently find nothing
- * and read as "no balance" rather than failing loudly. Since #1037 the manifest
- * token and `SUPPORTED_TOKENS.USDC` are both ensjs MockUSDC, but that equality
- * is a deployment fact, not a guarantee — share the constant instead of
- * relying on it.
+ * and read as "no balance" rather than failing loudly.
  */
 export const HCA_PAYMENT_TOKEN: Address = getDestinationContracts(chain.id).usdc
 

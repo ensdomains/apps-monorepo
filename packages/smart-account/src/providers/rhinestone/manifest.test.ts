@@ -1,12 +1,7 @@
 import { getAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import {
-  DESTINATION_CONTRACTS,
-  getDestinationContracts,
-  SHARED_CONTRACTS,
-  SOURCE_CONTRACTS,
-} from './manifest'
+import { DESTINATION_CONTRACTS, getDestinationContracts } from './manifest'
 
 /**
  * Guards against a mis-checksummed contract address reaching viem, which
@@ -65,7 +60,7 @@ describe('remediated Sepolia destination manifest', () => {
       publicResolverV2: '0xdC4a563d00F5c3012b699794eB9e13A561Be386F',
       defaultReverseRegistrarHcaAdapter:
         '0x36f97328e843e37520cbF530e9402791c2754066',
-      usdc: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
+      usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     })
   })
 
@@ -76,19 +71,5 @@ describe('remediated Sepolia destination manifest', () => {
     for (const [label, address] of addressEntriesOf(DESTINATION_CONTRACTS)) {
       expectChecksummed(label, address)
     }
-  })
-})
-
-describe('contract manifest addresses', () => {
-  it.each(
-    addressEntriesOf(SOURCE_CONTRACTS),
-  )('SOURCE_CONTRACTS.%s is checksummed', (label, address) => {
-    expectChecksummed(label, address)
-  })
-
-  it.each(
-    Object.entries(SHARED_CONTRACTS),
-  )('SHARED_CONTRACTS.%s is checksummed', (label, address) => {
-    expectChecksummed(label, address)
   })
 })

@@ -115,6 +115,12 @@ export class TransactionSubmissionError
   }
 }
 
+/**
+ * An L2-paid intent stopped before it left the app: the approval, the quote or
+ * the signature failed. Nothing can fill, so there is nothing to wait for.
+ */
+export class L2PaymentNotSentError extends TransactionSubmissionError {}
+
 /** One violation in words, for a message a person reads. */
 function describeRefundViolation(v: GasRefundViolation): string {
   switch (v.field) {

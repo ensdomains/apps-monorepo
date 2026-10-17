@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
 import type { Address } from 'viem'
+import { baseSepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
@@ -10,7 +11,11 @@ import { assign, createActor, createMachine } from 'xstate'
  * hoisted `vi.mock` factory below can still reference it.
  */
 type RegistrationStubEvent =
-  | { type: 'START_REGISTRATION'; primaryName?: string }
+  | {
+      type: 'START_REGISTRATION'
+      primaryName?: string
+      l2Funding?: { chain: { id: number } }
+    }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_ERROR'; error: Error; nameUnavailable?: boolean }
@@ -39,6 +44,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       nameUnavailable: undefined as boolean | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
+      /** The L2 the run was handed to pay from. */
+      l2FundingChainId: undefined as number | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
       resumed: undefined as
         | { stage: string; context: any; deps: any }
@@ -54,6 +61,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.primaryName
+                  : undefined,
+              l2FundingChainId: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.l2Funding?.chain.id
                   : undefined,
             }),
           },
@@ -859,7 +870,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 })
 
 const resumeRecord = (
-  overrides: { stage?: string; primaryName?: string } = {},
+  overrides: {
+    stage?: string
+    primaryName?: string
+    l2FundingChainId?: number
+  } = {},
 ) => ({
   v: 1,
   fingerprint: 'test-fingerprint',
@@ -880,12 +895,18 @@ const resumeRecord = (
       secret: `0x${'cd'.repeat(32)}` as const,
     },
     primaryName: overrides.primaryName,
+    l2FundingChainId: overrides.l2FundingChainId,
   },
 })
 
 const resumeEvent = (
   account: SmartAccountContextValue,
-  overrides: { stage?: string; primaryName?: string; totalPrice?: bigint } = {},
+  overrides: {
+    stage?: string
+    primaryName?: string
+    totalPrice?: bigint
+    l2FundingChainId?: number
+  } = {},
 ) =>
   ({
     type: 'registration.resume' as const,
@@ -1442,5 +1463,68 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(childRetryCount(actor)).toBe(1)
+  })
+})
+
+describe('paying from an L2', () => {
+  const smartAccount = {
+    signer: {
+      type: 'rhinestone',
+      account: {} as never,
+      config: { accountAddress: HCA_ADDRESS },
+    },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } } as any,
+  } as unknown as SmartAccountContextValue
+
+  it('picks an L2 row without changing what the registration pays in', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    expect(actor.getSnapshot().context).toMatchObject({
+      fundingSourceChainId: baseSepolia.id,
+      selectedToken: 'USDC',
+    })
+
+    actor.send({ type: 'pricing.token.select', token: 'USDC' })
+    expect(actor.getSnapshot().context.fundingSourceChainId).toBeUndefined()
+  })
+
+  it('hands the registration the L2 it pays from', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      ...startEvent(smartAccount),
+      l2FundingChainId: baseSepolia.id,
+    })
+
+    expect(
+      (getChild(actor).getSnapshot().context as any).l2FundingChainId,
+    ).toBe(baseSepolia.id)
+    actor.stop()
+  })
+
+  it('refuses to start from an L2 the app does not list', () => {
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(smartAccount), l2FundingChainId: 1 })
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
+    actor.stop()
+  })
+
+  it('keeps paying from the same L2 when a run resumes', () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(smartAccount, { l2FundingChainId: baseSepolia.id }))
+
+    const { resumed } = getChild(actor).getSnapshot().context as any
+    expect(resumed.deps.l2Funding.chain.id).toBe(baseSepolia.id)
+    actor.stop()
   })
 })

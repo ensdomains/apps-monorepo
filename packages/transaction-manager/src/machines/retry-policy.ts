@@ -1,5 +1,6 @@
 import {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionSubmissionError,
@@ -27,6 +28,9 @@ export const isRetryableSubmissionError = (error: unknown): boolean => {
   // Checked against the session's signed caps before signing. A re-quote moments
   // later lands the same side of them; the fix is a new session, not a retry.
   if (error instanceof SessionRefundCapExceededError) return false
+
+  // Nothing went out, and resending would put another wallet prompt up.
+  if (error instanceof L2PaymentNotSentError) return false
 
   // The orchestrator says so itself — an `INSUFFICIENT_BALANCE` simulation,
   // say, fails identically on every resubmission.

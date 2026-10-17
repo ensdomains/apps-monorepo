@@ -30,11 +30,16 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => {
   }
 })
 
-// Keep the dev-only Anvil owner setup out of these tests.
+// Auto-fund only runs against a local Anvil fork; enable that path but keep the
+// Anvil owner setup itself out of these tests.
 vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@ens-apps/dev-time-travel')>()
-  return { ...actual, isTimeTravelEnabled: () => false }
+  return {
+    ...actual,
+    isTimeTravelEnabled: () => true,
+    anvilSetupOwner: vi.fn().mockResolvedValue(undefined),
+  }
 })
 
 import {

@@ -3,11 +3,12 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import {
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../../errors/transaction.errors'
-import type { Signer } from '../../types/signer.types'
+import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
 import { registrationMachine } from './registration.machine'
@@ -62,6 +63,8 @@ const startHcaRegistration = (overrides: {
   validateCommitment?: ReturnType<typeof vi.fn>
   /** Orchestrator status lookup for the reveal intent. */
   fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+  /** Pays the commit leg from an L2 instead of a permit. */
+  l2Funding?: L2FundingSource
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -135,6 +138,7 @@ const startHcaRegistration = (overrides: {
     ...(overrides.fetchIntentStatus
       ? { fetchIntentStatus: overrides.fetchIntentStatus }
       : {}),
+    ...(overrides.l2Funding ? { l2Funding: overrides.l2Funding } : {}),
   })
 
   return { actor, estimateHcaBudget, signFundingPermit, submitFundingAndCommit }
@@ -380,6 +384,105 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit).toHaveBeenCalledOnce()
     // A stale commitment is cleared too, so the reveal can't bind to it.
     expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+  })
+})
+
+describe('registrationMachine — paid from an L2', () => {
+  const l2Funding = { chain: { id: 84532 } } as unknown as L2FundingSource
+
+  it('commits from the L2 for one unit, with no budget, balance or permit', async () => {
+    const readHcaUsdcBalance = vi.fn(async () => 0n)
+    const {
+      actor,
+      estimateHcaBudget,
+      signFundingPermit,
+      submitFundingAndCommit,
+    } = startHcaRegistration({ readHcaUsdcBalance, l2Funding })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(estimateHcaBudget).not.toHaveBeenCalled()
+    expect(readHcaUsdcBalance).not.toHaveBeenCalled()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    const { input } = submitFundingAndCommit.mock.calls[0][0]
+    expect(input.permit).toBeUndefined()
+    expect(input.l2Payment).toEqual({ source: l2Funding, amount: 1n })
+  })
+
+  const resumeAtCooldown = (actors: Record<string, unknown>) => {
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: Date.now(),
+          })) as never,
+          waitAfterCommitment: fromPromise(async () => undefined) as never,
+          ...actors,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        l2FundingChainId: 84532,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        l2Funding,
+      },
+    })
+    return actor
+  }
+
+  it('reveals from the L2 as well, held to the price checkout showed', async () => {
+    const submitRevealBatch = vi.fn(() => new Promise(() => {}))
+    const actor = resumeAtCooldown({
+      submitRevealBatch: fromPromise(submitRevealBatch) as never,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingRhinestoneBundle'))
+
+    expect(submitRevealBatch.mock.calls[0][0].input.l2Payment).toEqual({
+      source: l2Funding,
+      bounds: { displayedValue: 5_000_000n },
+    })
+    actor.stop()
+  })
+
+  it('offers a retry, not a wait, when the reveal payment never left the app', async () => {
+    const verifyRegistration = vi.fn(async () => ({ verified: false }))
+    const actor = resumeAtCooldown({
+      submitRevealBatch: fromPromise(async () => 'tx-reg-register') as never,
+      pollTransactionStatus: fromPromise(async () => {
+        throw new L2PaymentNotSentError(
+          {} as TransactionRequest,
+          new Error('Could not reach the wallet on Base Sepolia: nope'),
+        )
+      }) as never,
+      verifyRegistration: fromPromise(verifyRegistration) as never,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(verifyRegistration).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
+    )
+    actor.stop()
   })
 })
 

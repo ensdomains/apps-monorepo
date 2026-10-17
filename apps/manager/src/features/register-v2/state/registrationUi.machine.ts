@@ -1,5 +1,6 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
   registrationMachine,
@@ -38,6 +39,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import { getL2FundingSource } from '../service/l2FundingSource'
 import {
   getRegistrationFailureMessage,
   isNameNotAvailableError,
@@ -107,6 +109,8 @@ type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
+  /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
+  fundingSourceChainId?: number
   lastErrorMessage?: string
   /**
    * The registration failed because another address registered the name first.
@@ -162,6 +166,7 @@ type Events =
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | { type: 'pricing.fundingSource.select'; chainId: number }
   | {
       type: 'registration.start'
       label: string
@@ -184,6 +189,8 @@ type Events =
        * budget quote failed and only the rent was displayed.
        */
       displayedWalletDebit?: bigint
+      /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */
+      l2FundingChainId?: number
     }
   | {
       /**
@@ -436,6 +443,15 @@ const machineSetup = setup({
           ? event.token
           : context.selectedToken,
     }),
+    setFundingSource: assign({
+      fundingSourceChainId: ({ event, context }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? event.chainId
+          : context.fundingSourceChainId,
+      // Every row ends up paying the registration in wallet USDC.
+      selectedToken: () => 'USDC' as const,
+    }),
+    clearFundingSource: assign({ fundingSourceChainId: () => undefined }),
     clearError: assign({
       lastErrorMessage: () => undefined,
       nameUnavailable: () => false,
@@ -683,6 +699,25 @@ const blockingRegistrationFor = (context: Context): string | null => {
 const registrationLockMessage = (blockingName: string | null): string =>
   `${blockingName ?? 'Another name'} is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.`
 
+/**
+ * The L2 a start pays from, whose wallet signs the commit leg there. One the
+ * run cannot pay from refuses the start rather than paying from the wallet.
+ */
+const getStartL2Funding = (
+  chainId: number | undefined,
+  owner: Address,
+  isHcaRegistration: boolean,
+): L2FundingSource | Error | undefined => {
+  if (chainId === undefined) return undefined
+  const source = isHcaRegistration
+    ? getL2FundingSource(owner, chainId)
+    : undefined
+  return (
+    source ??
+    new Error('Cannot register: paying from that network is not supported.')
+  )
+}
+
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, event }) => {
     if (event.type !== 'registration.start') {
@@ -716,8 +751,7 @@ const startRegistrationAction = machineSetup.createAction(
     const ownerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
-    const resolverOwnerAddress =
-      event.account.ownerAddress ?? event.account.accountAddress
+    const resolverOwnerAddress = ownerAddress
 
     const approvalSigner: Signer | undefined = event.account.walletClient
       ? { type: 'eoa', walletClient: event.account.walletClient }
@@ -734,6 +768,15 @@ const startRegistrationAction = machineSetup.createAction(
           'Cannot register: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
         ),
       })
+    }
+
+    const l2Funding = getStartL2Funding(
+      event.l2FundingChainId,
+      ownerAddress,
+      isHcaRegistration,
+    )
+    if (l2Funding instanceof Error) {
+      return enqueue.raise({ type: '$error', error: l2Funding })
     }
 
     // The HCA reveal batch sets the ETH addr record itself and, when opted
@@ -814,6 +857,7 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
+        l2Funding,
         // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.
@@ -932,6 +976,15 @@ const resumeRegistrationAction = machineSetup.createAction(
           approvalSigner,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
+          // A run paid from an L2 keeps paying from it; one the app no longer
+          // lists falls back to the funding permit.
+          l2Funding:
+            event.record.context.l2FundingChainId === undefined
+              ? undefined
+              : getL2FundingSource(
+                  ownerAddress,
+                  event.record.context.l2FundingChainId,
+                ),
           // Lets a resumed verification ask the orchestrator whether the
           // persisted reveal intent is still filling or dead, instead of
           // sitting out the full grace poll before showing the retry screen.
@@ -1031,7 +1084,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               target: 'duration',
             },
             'pricing.token.select': {
-              actions: 'setToken',
+              actions: ['setToken', 'clearFundingSource'],
+            },
+            'pricing.fundingSource.select': {
+              actions: 'setFundingSource',
             },
             'pricing.dialog.dismiss': {
               target: 'duration',

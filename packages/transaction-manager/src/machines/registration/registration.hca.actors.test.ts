@@ -9,7 +9,12 @@ import type { Address, Hex, PublicClient } from 'viem'
 import { decodeFunctionData, isAddressEqual, parseAbi, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { EOASigner, Signer } from '../../types/signer.types'
+import type {
+  EOASigner,
+  L2FundingSource,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 import {
@@ -202,6 +207,69 @@ describe('submitFundingAndCommitActor', () => {
     expect(result._unsafeUnwrapErr().message).toMatch(message)
     expect(startTransaction).not.toHaveBeenCalled()
   })
+
+  describe('paid from an L2', () => {
+    const source = { chain: { id: 84532 } } as unknown as L2FundingSource
+    const hcaSigner = {
+      type: 'rhinestone',
+      account: { id: 'hca' },
+      config: { chain: sepolia },
+      session: { session: {} },
+    } as unknown as RhinestoneSigner
+
+    it('has the wallet pay the commit leg there, delivering the shortfall to the HCA', async () => {
+      const result = await submitFundingAndCommitActor({
+        ...input,
+        signer: hcaSigner,
+        sessionEnable,
+        l2Payment: { source, amount: 15_000_000n },
+      })
+
+      expect(result.isOk()).toBe(true)
+      const request = submittedRequest()
+      // The commit alone: the intent itself delivers the funding.
+      expect(request.rhinestoneParams.calls.map((c) => c.to)).toEqual([
+        C.ethRegistrar,
+      ])
+      expect(request.rhinestoneParams.tokenRequests).toEqual([
+        { address: C.usdc, amount: 15_000_000n },
+      ])
+      expect(request.rhinestoneParams.sessionEnableData).toBeUndefined()
+      expect(request.rhinestoneParams.auxiliaryFunds).toBeUndefined()
+
+      const [, signer, options] = startTransaction.mock.calls[0] as unknown as [
+        unknown,
+        RhinestoneSigner,
+        { retryCount?: number },
+      ]
+      // Signed by the wallet on the L2, so no session goes with it.
+      expect(signer).toEqual({
+        type: 'rhinestone',
+        account: hcaSigner.account,
+        config: hcaSigner.config,
+        l2Funding: source,
+      })
+      // A resend would ask the wallet to sign a second payment.
+      expect(options.retryCount).toBe(0)
+    })
+
+    it('refuses a payment above what checkout showed, before the wallet is asked', async () => {
+      const result = await submitFundingAndCommitActor({
+        ...input,
+        signer: hcaSigner,
+        l2Payment: {
+          source,
+          amount: 20_000_000n,
+          bounds: { displayedValue: 15_000_000n },
+        },
+      })
+
+      expect(result._unsafeUnwrapErr().message).toMatch(
+        /Refusing to request a signature/,
+      )
+      expect(startTransaction).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('submitRevealBatchActor', () => {
@@ -230,6 +298,67 @@ describe('submitRevealBatchActor', () => {
     expect(submittedRequest().rhinestoneParams.sessionEnableData).toBe(
       sessionEnable.enableData,
     )
+  })
+
+  describe('paid from an L2', () => {
+    const source = { chain: { id: 84532 } } as unknown as L2FundingSource
+    const hcaSigner = {
+      type: 'rhinestone',
+      account: { id: 'hca' },
+      config: { chain: sepolia },
+      session: { session: {} },
+    } as unknown as RhinestoneSigner
+    const revealClient = () =>
+      ({
+        chain: sepolia,
+        readContract: vi.fn().mockResolvedValue([5_000_000n, 0n]),
+        getCode: vi.fn().mockResolvedValue('0x'),
+      }) as unknown as PublicClient
+    const input = {
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      duration: 31_536_000n,
+      secret: `0x${'dd'.repeat(32)}` as Hex,
+      sessionEnable,
+      signer: hcaSigner,
+    }
+
+    it('has the wallet pay it there, delivering exactly the price to the HCA', async () => {
+      const result = await submitRevealBatchActor({
+        ...input,
+        publicClient: revealClient(),
+        l2Payment: { source },
+      })
+
+      expect(result.isOk()).toBe(true)
+      const request = submittedRequest()
+      expect(request.rhinestoneParams.tokenRequests).toEqual([
+        { address: C.usdc, amount: 5_000_000n },
+      ])
+      expect(request.rhinestoneParams.sessionEnableData).toBeUndefined()
+      const [, signer, options] = startTransaction.mock.calls[0] as unknown as [
+        unknown,
+        RhinestoneSigner,
+        { retryCount?: number },
+      ]
+      expect(signer.l2Funding).toBe(source)
+      expect(signer.session).toBeUndefined()
+      expect(options.retryCount).toBe(0)
+    })
+
+    it('refuses a price above what checkout showed, before the wallet is asked', async () => {
+      const result = await submitRevealBatchActor({
+        ...input,
+        publicClient: revealClient(),
+        l2Payment: { source, bounds: { displayedValue: 1_000_000n } },
+      })
+
+      expect(result._unsafeUnwrapErr().message).toMatch(
+        /Refusing to request a signature/,
+      )
+      expect(startTransaction).not.toHaveBeenCalled()
+    })
   })
 })
 

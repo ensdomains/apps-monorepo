@@ -5,10 +5,11 @@ import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import {
   isUserRejectionError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../../errors/transaction.errors'
-import type { Signer } from '../../types/signer.types'
+import type { L2FundingSource, Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
 import {
@@ -30,6 +31,8 @@ import {
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
+  type L2CommitPayment,
+  type L2RevealPayment,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   signFundingPermitActor,
@@ -62,7 +65,9 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    and last wallet prompt (the 1st was the session authorization, signed in
  *    the app BEFORE the machine starts)
  * 3. `submittingSetupBundle` — ONE session-signed request: permit +
- *    transferFrom + commit; deploys the HCA lazily
+ *    transferFrom + commit; deploys the HCA lazily. With `l2Funding` there is
+ *    no budget or permit: each leg is an intent the wallet signs on the L2,
+ *    paying its own fee there, and the reveal's delivers the price
  * 4. Shared cooldown spine (against the standalone registrar)
  * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
  *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA?);
@@ -136,6 +141,12 @@ const canReauthorizeSession = (
   error.isFixableByNewSession &&
   !!context.reauthorizeSession &&
   (context.sessionReauthorizations ?? 0) < MAX_SESSION_REAUTHORIZATIONS
+
+/**
+ * Paid from an L2, the commit leg's intent delivers one unit: an intent with
+ * nothing to deliver has no route from the L2. The reveal brings the price.
+ */
+const L2_COMMIT_DELIVERY = 1n
 
 // Fallback wait used when the machine can't read MIN_COMMITMENT_AGE from the
 // registrar (e.g. RPC error). The production v2 ETHRegistrar is configured
@@ -218,6 +229,12 @@ export type RegistrationContext = {
    * outside revocation.
    */
   hcaSessionEnable?: HcaSessionEnableParams
+  /**
+   * Standalone-HCA: pays both legs with the wallet's USDC on an L2 instead of
+   * from the HCA. Runtime dep injected on START_REGISTRATION and RESUME; only
+   * its chain id is persisted.
+   */
+  l2Funding?: L2FundingSource
   /**
    * Standalone-HCA: asks the host app for a new session when a leg's quoted
    * gas refund outgrows the current one's caps. Runtime dep injected on
@@ -330,6 +347,8 @@ export type RegistrationEvent =
       displayedWalletDebit?: bigint
       /** Standalone-HCA: session-enable payload (omit once enabled). */
       hcaSessionEnable?: HcaSessionEnableParams
+      /** Standalone-HCA: pay from an L2. See `RegistrationContext.l2Funding`. */
+      l2Funding?: L2FundingSource
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
       /**
@@ -369,6 +388,8 @@ export type RegistrationEvent =
         publicClient: PublicClient
         /** Rebuilt from the app's session store, never persisted. */
         hcaSessionEnable?: HcaSessionEnableParams
+        /** Rebuilt from the record's `l2FundingChainId`. */
+        l2Funding?: L2FundingSource
         /**
          * Orchestrator status lookup for the persisted reveal intent, so a
          * resumed verification can fail fast on a dead intent instead of
@@ -458,6 +479,7 @@ export const registrationMachine = setup({
         hca: Address
         duration: bigint
         permit?: PermitSignature
+        l2Payment?: L2CommitPayment
         sessionEnable?: HcaSessionEnableParams
         signer: Signer
         publicClient: PublicClient
@@ -474,6 +496,7 @@ export const registrationMachine = setup({
         duration: bigint
         secret: Hex
         sessionEnable?: HcaSessionEnableParams
+        l2Payment?: L2RevealPayment
         signer: Signer
         publicClient: PublicClient
         primaryName?: string
@@ -677,6 +700,8 @@ export const registrationMachine = setup({
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    isL2Funded: ({ context }) =>
+      context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
   },
 
   actions: {
@@ -705,8 +730,13 @@ export const registrationMachine = setup({
       if (event.type !== 'RESUME') return context
 
       // `signerType` exists only to pick the registrar when reading a record
-      // back; the live `signer` supersedes it here.
-      const { signerType: _signerType, ...restored } = event.context
+      // back, and `l2FundingChainId` to rebuild the L2 source; the live deps
+      // supersede both here.
+      const {
+        signerType: _signerType,
+        l2FundingChainId: _l2FundingChainId,
+        ...restored
+      } = event.context
 
       return {
         ...context,
@@ -715,6 +745,7 @@ export const registrationMachine = setup({
         approvalSigner: event.deps.approvalSigner,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
+        l2Funding: event.deps.l2Funding,
         fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
         reauthorizeSession: event.deps.reauthorizeSession,
         sessionReauthTarget: undefined,
@@ -867,6 +898,7 @@ export const registrationMachine = setup({
               hcaBudget: ({ event }) => event.hcaBudget,
               displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
               hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
+              l2Funding: ({ event }) => event.l2Funding,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
@@ -927,6 +959,12 @@ export const registrationMachine = setup({
         })
       },
       always: [
+        {
+          // Paid from an L2: each leg's intent pays its own way there, so
+          // there is no budget to size and no permit to sign.
+          guard: 'isL2Funded',
+          target: 'submittingSetupBundle',
+        },
         {
           // Standalone-HCA: compute the funding budget at runtime, check
           // whether the HCA already holds enough USDC (skips the funding
@@ -995,6 +1033,8 @@ export const registrationMachine = setup({
 
     checkingHcaFunding: {
       entry: ['logTransition'],
+      // A retried L2-paid commit has no funding to check.
+      always: [{ guard: 'isL2Funded', target: 'submittingSetupBundle' }],
       invoke: {
         src: 'readHcaUsdcBalance',
         input: ({ context }) => ({
@@ -1132,6 +1172,10 @@ export const registrationMachine = setup({
           hca: context.accountAddress!,
           duration: context.duration,
           permit: context.permit,
+          l2Payment: context.l2Funding && {
+            source: context.l2Funding,
+            amount: L2_COMMIT_DELIVERY,
+          },
           // Always attach the proof: the validator rejects any session
           // signature without it (see `hcaSessionEnable`). It costs no wallet
           // prompt, since it is rebuilt from the stored authorization.
@@ -1651,6 +1695,11 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           secret: context.commitment!.secret,
           sessionEnable: context.hcaSessionEnable,
+          // Never more than checkout showed, with the usual drift allowance.
+          l2Payment: context.l2Funding && {
+            source: context.l2Funding,
+            bounds: { displayedValue: context.tokenPrice },
+          },
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1723,11 +1772,13 @@ export const registrationMachine = setup({
               registrationIntentId: () => undefined,
             }),
           },
-          // Refused before signing for a cap a new session would not raise.
-          // Nothing was submitted, so skip the on-chain grace poll.
+          // Refused before signing for a cap a new session would not raise, or
+          // an L2 payment that never left the app. Nothing was submitted, so
+          // skip the on-chain grace poll.
           {
             guard: ({ event }) =>
-              event.error instanceof SessionRefundCapExceededError,
+              event.error instanceof SessionRefundCapExceededError ||
+              event.error instanceof L2PaymentNotSentError,
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
