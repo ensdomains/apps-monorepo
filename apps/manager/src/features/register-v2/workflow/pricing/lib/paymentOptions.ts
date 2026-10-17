@@ -1,23 +1,10 @@
-import { L2_BRIDGE_MIN_AMOUNT_OUT } from '@ens-apps/smart-account'
 import type { L2Source } from '@/l2Sources'
 
-/** The payment row for USDC bridged in from an L2. */
+/** The payment row for the registration paid with USDC on an L2. */
 type L2PaymentOptionId = `l2:${number}:usdc`
 
 export const l2PaymentOptionId = (chainId: number): L2PaymentOptionId =>
   `l2:${chainId}:usdc`
-
-/**
- * What paying from an L2 bridges into the wallet: the whole wallet debit, so
- * the L2 pays for the registration, raised to the bridge minimum. Zero when the
- * registration takes nothing from the wallet.
- */
-export const getL2BridgeAmount = (walletDebitRaw: bigint): bigint => {
-  if (walletDebitRaw <= 0n) return 0n
-  return walletDebitRaw > L2_BRIDGE_MIN_AMOUNT_OUT
-    ? walletDebitRaw
-    : L2_BRIDGE_MIN_AMOUNT_OUT
-}
 
 type L2PaymentOptionStatus =
   | 'loading'
@@ -32,29 +19,30 @@ export type L2PaymentOption = Readonly<{
   status: L2PaymentOptionStatus
 }>
 
-// A balance must exceed the bridge amount: the bridge fee is paid on top.
+// A balance must exceed what the HCA is sent: the route's fee comes on top.
 const getStatus = (
-  bridgeAmountRaw: bigint | null,
+  amountRaw: bigint | null,
   isLoaded: boolean,
   balanceRaw: bigint | null,
 ): L2PaymentOptionStatus => {
-  if (bridgeAmountRaw === null || !isLoaded) return 'loading'
+  if (amountRaw === null || !isLoaded) return 'loading'
   if (balanceRaw === null) return 'unavailable'
-  return balanceRaw > bridgeAmountRaw ? 'available' : 'insufficient'
+  return balanceRaw > amountRaw ? 'available' : 'insufficient'
 }
 
 /**
- * One row per L2 source. `bridgeAmountRaw` is `null` until the registration's
- * cost is quoted; a `null` balance is a failed read.
+ * One row per L2 source. `amountRaw`, what paying from an L2 sends the HCA, is
+ * `null` until the registration's cost is quoted; a `null` balance is a failed
+ * read.
  */
 export const getL2PaymentOptions = ({
   sources,
   balances,
-  bridgeAmountRaw,
+  amountRaw,
 }: {
   readonly sources: readonly L2Source[]
   readonly balances: Readonly<Record<number, bigint | null>> | undefined
-  readonly bridgeAmountRaw: bigint | null
+  readonly amountRaw: bigint | null
 }): readonly L2PaymentOption[] =>
   sources.map((source) => {
     const balanceRaw = balances?.[source.chain.id] ?? null
@@ -62,6 +50,6 @@ export const getL2PaymentOptions = ({
       id: l2PaymentOptionId(source.chain.id),
       source,
       balanceRaw,
-      status: getStatus(bridgeAmountRaw, balances !== undefined, balanceRaw),
+      status: getStatus(amountRaw, balances !== undefined, balanceRaw),
     }
   })

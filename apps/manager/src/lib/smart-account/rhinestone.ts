@@ -24,7 +24,6 @@ import {
   fetchIntentOperationStatus,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
-  type L2BridgeRoute,
   type RhinestoneAuth,
 } from '@ens-apps/smart-account'
 import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
@@ -140,19 +139,19 @@ export function buildIntentStatusFetcher():
 }
 
 /**
- * An SDK account for the wallet itself, to bridge USDC in from an L2. Reads the
+ * An SDK account for the wallet itself, to pay with its USDC on an L2. Reads the
  * source L2 and the app chain over the app's own RPCs.
  */
 export function createBridgeAccount(params: {
   readonly eoa: Account
-  readonly route: L2BridgeRoute
+  readonly sourceChainId: number
 }) {
   const { rhinestoneAuth, rhinestoneEndpointUrl } = resolveSdkEnv()
   const rpcUrls: Record<number, string> = {}
   const sourceRpcUrl = l2Sources.find(
-    ({ chain }) => chain.id === params.route.sourceChain.id,
+    ({ chain }) => chain.id === params.sourceChainId,
   )?.rpcUrls[0]
-  if (sourceRpcUrl) rpcUrls[params.route.sourceChain.id] = sourceRpcUrl
+  if (sourceRpcUrl) rpcUrls[params.sourceChainId] = sourceRpcUrl
   const appRpcUrl = appChain.rpcUrls.default.http[0]
   if (appRpcUrl) rpcUrls[appChain.id] = appRpcUrl
   return createL2BridgeAccount({

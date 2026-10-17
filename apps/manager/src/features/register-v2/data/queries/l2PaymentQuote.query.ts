@@ -24,17 +24,19 @@ const quoteAccount = (address: Address) =>
   })
 
 /**
- * The bridge quote shown on a selected L2 row. Quotes live two minutes, so it
- * refreshes well inside that; the funding flow re-quotes before signing anyway.
+ * What paying the registration from an L2 costs there. Quotes live two
+ * minutes, so it refreshes well inside that; the registration re-quotes before
+ * the wallet signs anyway.
  */
-export const getL2BridgeQuoteQueryOptions = (
+export const getL2PaymentQuoteQueryOptions = (
   route: L2BridgeRoute | undefined,
 ) =>
   resultQueryOptions({
     queryKey: $qk({
       $scope: 'registration',
-      $action: 'l2-bridge-quote',
+      $action: 'l2-payment-quote',
       owner: route?.owner,
+      hca: route?.recipient.address,
       sourceChainId: route?.sourceChain.id,
       amountOut: route?.amountOut.toString(),
     }),
@@ -42,7 +44,7 @@ export const getL2BridgeQuoteQueryOptions = (
       route
         ? createBridgeAccount({
             eoa: quoteAccount(route.owner),
-            route,
+            sourceChainId: route.sourceChain.id,
           }).andThen((account) => quoteL2Bridge(account, route))
         : errAsync(new L2BridgeUnavailableError({ message: 'No route.' })),
     enabled: !!route,
