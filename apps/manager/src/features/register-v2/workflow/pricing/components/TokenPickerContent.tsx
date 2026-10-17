@@ -315,8 +315,10 @@ export const TokenPickerContent = () => {
             config: account.signer.account.config,
           }
         : undefined,
-    budget: budgetQuery.data,
-    isQuoteStale: budgetQuery.isPlaceholderData,
+    label,
+    duration: BigInt(Math.ceil(duration)),
+    priceRaw: pricingQuery.data?.rawPrice,
+    primaryName: setAsPrimary ? domainName : undefined,
     isEnabled: isBudgetRequired,
     fundingSourceChainId,
   })
@@ -641,19 +643,21 @@ const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
 
 /**
  * The sheet's figures when an L2 quoted at `amountInRaw` pays: it is charged
- * that, and the fee line carries whatever that takes over the name price.
+ * that, the fee line carries whatever that takes over the name price, and the
+ * account's credit is not drawn on.
  */
 const getL2FundingSummary = (
-  funding: RegistrationFundingSummary,
+  registration: number,
   amountInRaw: bigint,
 ): RegistrationFundingSummary => {
-  const walletDebit = decimalBigintToNumber(amountInRaw, USDC_DECIMALS)
-  const total = walletDebit + funding.hcaCredit
+  const total = decimalBigintToNumber(amountInRaw, USDC_DECIMALS)
   return {
-    ...funding,
-    walletDebit,
+    registration,
+    networkFee: total - registration,
     total,
-    networkFee: total - funding.registration,
+    walletDebit: total,
+    hcaCredit: 0,
+    isLoading: false,
   }
 }
 
@@ -667,15 +671,16 @@ const canPaySelection = (
 const getShownFunding = (
   funding: RegistrationFundingSummary | undefined,
   selectedL2: L2PaymentRow | undefined,
+  price: number | undefined,
 ) =>
-  funding && selectedL2?.amountInRaw !== undefined
-    ? getL2FundingSummary(funding, selectedL2.amountInRaw)
+  price !== undefined && selectedL2?.amountInRaw !== undefined
+    ? getL2FundingSummary(price, selectedL2.amountInRaw)
     : funding
 
 const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
-  funding: RegistrationFundingSummary | undefined,
+  price: number | undefined,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   return l2Payment.rows.map((row) => ({
@@ -687,9 +692,9 @@ const getL2MethodItems = (
       <L2SourceListItem
         isSelected={row === selectedL2}
         networkFee={
-          funding && row.amountInRaw !== undefined
+          price !== undefined && row.amountInRaw !== undefined
             ? getPaymentBreakdownFigures(
-                getL2FundingSummary(funding, row.amountInRaw),
+                getL2FundingSummary(price, row.amountInRaw),
               ).networkFee
             : undefined
         }
@@ -865,7 +870,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const displayTotal = funding?.total ?? pricingData
 
   const selectedL2 = getSelectedL2(l2Payment)
-  const shownFunding = getShownFunding(funding, selectedL2)
+  const shownFunding = getShownFunding(funding, selectedL2, pricingData)
 
   // With USDC already in the HCA the headline is the wallet debit. The credit
   // line and the method-level fee use the same rounded figures, so the amounts
@@ -913,7 +918,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       hasBalances && hasSufficientBalanceForSelectedCoin,
     )
   const walletSelection = selectedL2 ? undefined : selectedToken
-  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
+  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, pricingData)
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
