@@ -2,6 +2,7 @@
 // Errors
 export {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,

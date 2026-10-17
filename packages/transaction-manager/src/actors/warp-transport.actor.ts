@@ -30,6 +30,7 @@ import { type Chain, type Hash, isAddress } from 'viem'
 import {
   ChainIdMismatchError,
   extractOrchestratorErrorContext,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
@@ -150,7 +151,7 @@ function submitL2FundedIntent(
     otherPayments.length > 0
   ) {
     return errAsync(
-      new TransactionSubmissionError(
+      new L2PaymentNotSentError(
         request,
         new Error('An L2-paid intent needs exactly one token request'),
       ),
@@ -158,6 +159,7 @@ function submitL2FundedIntent(
   }
   const targetToken = payment.address
   const amountOut = payment.amount
+  let isSubmitted = false
 
   return fromPromise(
     (async () => {
@@ -177,6 +179,7 @@ function submitL2FundedIntent(
         }),
       )
       const intent = await unwrap(submitL2Bridge(wallet, quote))
+      isSubmitted = true
       reportIntentSubmitted(request, intent.id)
       console.log('🧾 [WARP] L2-paid intent submitted:', {
         intentId: intent.id.toString(),
@@ -194,7 +197,10 @@ function submitL2FundedIntent(
       })
       return status.fill.hash
     })(),
-    (error) => new TransactionSubmissionError(request, error),
+    (error) =>
+      isSubmitted
+        ? new TransactionSubmissionError(request, error)
+        : new L2PaymentNotSentError(request, error),
   )
 }
 

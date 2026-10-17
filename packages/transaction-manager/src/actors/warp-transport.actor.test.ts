@@ -24,6 +24,7 @@ import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
@@ -576,7 +577,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
       signer,
     })
 
-    expect(result._unsafeUnwrapErr()).toBeInstanceOf(TransactionSubmissionError)
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
     expect(source.ensureAllowance).not.toHaveBeenCalled()
   })
 
@@ -588,8 +589,33 @@ describe('submitWarpTransaction — paid from an L2', () => {
     const result = await submitWarpTransaction({ request, signer })
 
     const error = result._unsafeUnwrapErr()
-    expect(error).toBeInstanceOf(TransactionSubmissionError)
+    expect(error).toBeInstanceOf(L2PaymentNotSentError)
     expect(error.cause).toBe(refusal)
     expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed approval as never sent, without quoting', async () => {
+    const { source, request, signer } = setup()
+    source.ensureAllowance.mockRejectedValueOnce(
+      new Error('insufficient funds for gas'),
+    )
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(quoteL2Bridge).not.toHaveBeenCalled()
+  })
+
+  // Submitted, so it may still fill: the caller checks the chain instead.
+  it('reports a fill it lost track of as sent', async () => {
+    const { wallet, request, signer } = setup()
+    wallet.waitForExecution.mockRejectedValueOnce(new Error('timed out'))
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error).toBeInstanceOf(TransactionSubmissionError)
+    expect(error).not.toBeInstanceOf(L2PaymentNotSentError)
   })
 })

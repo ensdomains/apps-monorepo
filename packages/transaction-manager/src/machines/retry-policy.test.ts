@@ -1,13 +1,8 @@
-import {
-  L2BridgeExpiredError,
-  L2BridgeRejectedError,
-  L2BridgeSubmitError,
-  L2BridgeUnavailableError,
-} from '@ens-apps/smart-account'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionSubmissionError,
@@ -57,16 +52,11 @@ describe('isRetryableSubmissionError', () => {
     ).toBe(false)
   })
 
-  // Raised before the intent leaves the app; a resend only prompts again.
-  it.each([
-    new L2BridgeUnavailableError({ message: 'No route' }),
-    new L2BridgeRejectedError({ message: 'Refused' }),
-    new L2BridgeExpiredError({ message: 'Expired' }),
-    new L2BridgeSubmitError({ message: 'Not submitted' }),
-  ])('does not resend an unsent L2 payment ($_tag)', (cause) => {
+  // Nothing left the app; a resend only prompts again.
+  it('does not resend an L2 payment that was never sent', () => {
     expect(
       isRetryableSubmissionError(
-        new TransactionSubmissionError(request, cause),
+        new L2PaymentNotSentError(request, new Error('insufficient funds')),
       ),
     ).toBe(false)
   })
