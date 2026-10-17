@@ -320,6 +320,21 @@ export function withBudgetDrift(value: bigint): bigint {
 }
 
 /**
+ * What a commit leg paid from an L2 delivers to the HCA: what the reveal
+ * still needs. That intent pays the commit's own fee, so `commitCost` is left
+ * out, and it delivers at least one unit because an intent with nothing to
+ * deliver has no route from the L2. Zero when the HCA holds the whole budget.
+ */
+export function l2CommitDelivery(
+  budget: Readonly<{ total: bigint; commitCost: bigint }>,
+  hcaBalance: bigint,
+): bigint {
+  if (hcaBalance >= budget.total) return 0n
+  const needed = budget.total - budget.commitCost - hcaBalance
+  return needed > 0n ? needed : 1n
+}
+
+/**
  * The orchestrator quoted a budget above {@link hcaBudgetMaximum}.
  *
  * Thrown rather than clamped: a figure this far out means the quote is wrong or
