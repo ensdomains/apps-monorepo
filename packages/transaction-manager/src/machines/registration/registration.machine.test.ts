@@ -7,7 +7,7 @@ import {
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../../errors/transaction.errors'
-import type { Signer } from '../../types/signer.types'
+import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
 import { registrationMachine } from './registration.machine'
@@ -62,6 +62,8 @@ const startHcaRegistration = (overrides: {
   validateCommitment?: ReturnType<typeof vi.fn>
   /** Orchestrator status lookup for the reveal intent. */
   fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+  /** Pays the commit leg from an L2 instead of a permit. */
+  l2Funding?: L2FundingSource
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -135,6 +137,7 @@ const startHcaRegistration = (overrides: {
     ...(overrides.fetchIntentStatus
       ? { fetchIntentStatus: overrides.fetchIntentStatus }
       : {}),
+    ...(overrides.l2Funding ? { l2Funding: overrides.l2Funding } : {}),
   })
 
   return { actor, estimateHcaBudget, signFundingPermit, submitFundingAndCommit }
@@ -380,6 +383,66 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit).toHaveBeenCalledOnce()
     // A stale commitment is cleared too, so the reveal can't bind to it.
     expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+  })
+})
+
+describe('registrationMachine — paid from an L2', () => {
+  const l2Funding = { chain: { id: 84532 } } as unknown as L2FundingSource
+
+  it('pays what the reveal still needs in the commit leg instead of signing a permit', async () => {
+    const balance = 1_000_000n
+    const { actor, signFundingPermit, submitFundingAndCommit } =
+      startHcaRegistration({
+        balances: [balance],
+        displayedWalletDebit: BUDGET - balance,
+        l2Funding,
+      })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    const { input } = submitFundingAndCommit.mock.calls[0][0]
+    expect(input.permit).toBeUndefined()
+    expect(input.l2Payment).toEqual({
+      source: l2Funding,
+      // The L2 intent pays the commit's own 4 USDC, so the HCA is not sent it.
+      amount: BUDGET - 4_000_000n - balance,
+      // Bounded exactly as the permit would have been.
+      bounds: {
+        expectedMaximum: 30_000_000n - balance,
+        displayedValue: BUDGET - balance,
+      },
+    })
+  })
+
+  it('pays nothing from the L2 when the HCA already covers the budget', async () => {
+    const { actor, submitFundingAndCommit } = startHcaRegistration({
+      balances: [BUDGET],
+      l2Funding,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(submitFundingAndCommit.mock.calls[0][0].input.l2Payment).toBe(
+      undefined,
+    )
+  })
+
+  it('pays as if the HCA were empty when the balance read fails', async () => {
+    const { actor, signFundingPermit, submitFundingAndCommit } =
+      startHcaRegistration({
+        readHcaUsdcBalance: vi.fn(async () => {
+          throw new Error('rpc down')
+        }),
+        l2Funding,
+      })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(submitFundingAndCommit.mock.calls[0][0].input.l2Payment.amount).toBe(
+      BUDGET - 4_000_000n,
+    )
   })
 })
 

@@ -1,4 +1,7 @@
-import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
+import {
+  type HcaBudgetBreakdown,
+  l2CommitDelivery,
+} from '@ens-apps/smart-account'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
@@ -8,7 +11,7 @@ import {
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../../errors/transaction.errors'
-import type { Signer } from '../../types/signer.types'
+import type { L2FundingSource, Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
 import {
@@ -30,6 +33,7 @@ import {
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
+  type L2CommitPayment,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   signFundingPermitActor,
@@ -62,7 +66,9 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    and last wallet prompt (the 1st was the session authorization, signed in
  *    the app BEFORE the machine starts)
  * 3. `submittingSetupBundle` — ONE session-signed request: permit +
- *    transferFrom + commit; deploys the HCA lazily
+ *    transferFrom + commit; deploys the HCA lazily. With `l2Funding` the
+ *    permit is skipped and the wallet pays this leg on the L2 instead, its
+ *    intent delivering the shortfall to the HCA
  * 4. Shared cooldown spine (against the standalone registrar)
  * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
  *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA?);
@@ -136,6 +142,47 @@ const canReauthorizeSession = (
   error.isFixableByNewSession &&
   !!context.reauthorizeSession &&
   (context.sessionReauthorizations ?? 0) < MAX_SESSION_REAUTHORIZATIONS
+
+/**
+ * The last gate before the wallet signs for funding, as a permit or an L2
+ * payment. Both bounds are on the shortfall, not the budget, so the ceiling
+ * has the standing balance netted off it the same way the amount does.
+ *
+ * `expectedMaximum` is absent only when the caller supplied `hcaBudget`
+ * directly: there is no estimate to bound, and the figure came from the app
+ * rather than from the orchestrator.
+ */
+const fundingBounds = (context: RegistrationContext): PermitValueBounds => ({
+  ...(context.hcaBudgetBreakdown
+    ? {
+        expectedMaximum: bigintMax(
+          context.hcaBudgetBreakdown.expectedMaximum -
+            (context.hcaUsdcBalance ?? 0n),
+          0n,
+        ),
+      }
+    : {}),
+  ...(context.displayedWalletDebit !== undefined
+    ? { displayedValue: context.displayedWalletDebit }
+    : {}),
+})
+
+/** The commit leg's L2 payment; none when the HCA already holds the budget. */
+const getL2CommitPayment = (
+  context: RegistrationContext,
+): L2CommitPayment | undefined => {
+  // A caller-supplied budget has no breakdown, so it is delivered whole.
+  const amount = l2CommitDelivery(
+    {
+      total: context.hcaBudget ?? 0n,
+      commitCost: context.hcaBudgetBreakdown?.commitCost ?? 0n,
+    },
+    context.hcaUsdcBalance ?? 0n,
+  )
+  return context.l2Funding && amount > 0n
+    ? { source: context.l2Funding, amount, bounds: fundingBounds(context) }
+    : undefined
+}
 
 // Fallback wait used when the machine can't read MIN_COMMITMENT_AGE from the
 // registrar (e.g. RPC error). The production v2 ETHRegistrar is configured
@@ -218,6 +265,12 @@ export type RegistrationContext = {
    * outside revocation.
    */
   hcaSessionEnable?: HcaSessionEnableParams
+  /**
+   * Standalone-HCA: funds the HCA from the wallet's USDC on an L2, in the
+   * commit leg, instead of with the funding permit. Runtime dep injected on
+   * START_REGISTRATION and RESUME; only its chain id is persisted.
+   */
+  l2Funding?: L2FundingSource
   /**
    * Standalone-HCA: asks the host app for a new session when a leg's quoted
    * gas refund outgrows the current one's caps. Runtime dep injected on
@@ -330,6 +383,8 @@ export type RegistrationEvent =
       displayedWalletDebit?: bigint
       /** Standalone-HCA: session-enable payload (omit once enabled). */
       hcaSessionEnable?: HcaSessionEnableParams
+      /** Standalone-HCA: fund the HCA from an L2. See `RegistrationContext.l2Funding`. */
+      l2Funding?: L2FundingSource
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
       /**
@@ -369,6 +424,8 @@ export type RegistrationEvent =
         publicClient: PublicClient
         /** Rebuilt from the app's session store, never persisted. */
         hcaSessionEnable?: HcaSessionEnableParams
+        /** Rebuilt from the record's `l2FundingChainId`. */
+        l2Funding?: L2FundingSource
         /**
          * Orchestrator status lookup for the persisted reveal intent, so a
          * resumed verification can fail fast on a dead intent instead of
@@ -458,6 +515,7 @@ export const registrationMachine = setup({
         hca: Address
         duration: bigint
         permit?: PermitSignature
+        l2Payment?: L2CommitPayment
         sessionEnable?: HcaSessionEnableParams
         signer: Signer
         publicClient: PublicClient
@@ -705,8 +763,13 @@ export const registrationMachine = setup({
       if (event.type !== 'RESUME') return context
 
       // `signerType` exists only to pick the registrar when reading a record
-      // back; the live `signer` supersedes it here.
-      const { signerType: _signerType, ...restored } = event.context
+      // back, and `l2FundingChainId` to rebuild the L2 source; the live deps
+      // supersede both here.
+      const {
+        signerType: _signerType,
+        l2FundingChainId: _l2FundingChainId,
+        ...restored
+      } = event.context
 
       return {
         ...context,
@@ -715,6 +778,7 @@ export const registrationMachine = setup({
         approvalSigner: event.deps.approvalSigner,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
+        l2Funding: event.deps.l2Funding,
         fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
         reauthorizeSession: event.deps.reauthorizeSession,
         sessionReauthTarget: undefined,
@@ -867,6 +931,7 @@ export const registrationMachine = setup({
               hcaBudget: ({ event }) => event.hcaBudget,
               displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
               hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
+              l2Funding: ({ event }) => event.l2Funding,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
@@ -1021,6 +1086,14 @@ export const registrationMachine = setup({
             }),
           },
           {
+            // Paid from an L2: the commit leg itself delivers the shortfall.
+            guard: ({ context }) => context.l2Funding !== undefined,
+            target: 'submittingSetupBundle',
+            actions: assign({
+              hcaUsdcBalance: ({ event }) => event.output as bigint,
+            }),
+          },
+          {
             target: 'signingFundingPermit',
             actions: assign({
               hcaUsdcBalance: ({ event }) => event.output as bigint,
@@ -1032,10 +1105,18 @@ export const registrationMachine = setup({
         // over-large permit still registers (the surplus stays in the
         // user-owned HCA and is credited on the next run), whereas assuming a
         // balance we could not read risks an under-funded, reverting reveal.
-        onError: {
-          target: 'signingFundingPermit',
-          actions: assign({ hcaUsdcBalance: () => 0n }),
-        },
+        // An L2 payment is sized the same way.
+        onError: [
+          {
+            guard: ({ context }) => context.l2Funding !== undefined,
+            target: 'submittingSetupBundle',
+            actions: assign({ hcaUsdcBalance: () => 0n }),
+          },
+          {
+            target: 'signingFundingPermit',
+            actions: assign({ hcaUsdcBalance: () => 0n }),
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
@@ -1071,27 +1152,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
-          // Last gate before the wallet prompt. Both bounds are on the PERMIT
-          // value (the shortfall), not the budget, so the ceiling has the
-          // standing balance netted off it the same way the value does.
-          //
-          // `expectedMaximum` is absent only when the caller supplied
-          // `hcaBudget` directly: there is no estimate to bound, and the figure
-          // came from the app rather than from the orchestrator.
-          bounds: {
-            ...(context.hcaBudgetBreakdown
-              ? {
-                  expectedMaximum: bigintMax(
-                    context.hcaBudgetBreakdown.expectedMaximum -
-                      (context.hcaUsdcBalance ?? 0n),
-                    0n,
-                  ),
-                }
-              : {}),
-            ...(context.displayedWalletDebit !== undefined
-              ? { displayedValue: context.displayedWalletDebit }
-              : {}),
-          } satisfies PermitValueBounds,
+          bounds: fundingBounds(context),
         }),
         onDone: {
           target: 'submittingSetupBundle',
@@ -1132,6 +1193,7 @@ export const registrationMachine = setup({
           hca: context.accountAddress!,
           duration: context.duration,
           permit: context.permit,
+          l2Payment: getL2CommitPayment(context),
           // Always attach the proof: the validator rejects any session
           // signature without it (see `hcaSessionEnable`). It costs no wallet
           // prompt, since it is rebuilt from the stored authorization.

@@ -122,6 +122,7 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  L2FundingSource,
   RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,

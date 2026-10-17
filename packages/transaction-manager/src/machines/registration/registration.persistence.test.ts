@@ -271,6 +271,22 @@ describe('registration record serialization', () => {
     expect(serialized.signerType).toBe('rhinestone')
   })
 
+  it('keeps only the chain id of the L2 a run pays from', () => {
+    const record = buildRegistrationRecord(
+      'waitingForCommitment',
+      baseContext({
+        signer: rhinestoneSigner,
+        l2Funding: { chain: { id: 84532 } } as never,
+      }),
+      42,
+    )
+
+    const result = parseRegistrationRecord(serializeRegistrationRecord(record))
+
+    expect(result._unsafeUnwrap().context.l2FundingChainId).toBe(84532)
+    expect(result._unsafeUnwrap().context).not.toHaveProperty('l2Funding')
+  })
+
   it('discards corrupt JSON', () => {
     expect(parseRegistrationRecord('{ not json').isErr()).toBe(true)
   })
