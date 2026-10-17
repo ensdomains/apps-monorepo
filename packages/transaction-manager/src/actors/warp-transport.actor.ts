@@ -14,20 +14,28 @@
 
 import {
   findGasRefundViolations,
+  l2BridgeMaxFee,
+  quoteL2Bridge,
   readQuotedGasRefunds,
+  submitL2Bridge,
 } from '@ens-apps/smart-account'
 import { logger } from '@ens-apps/utils/logger'
-import type { TokenRequest, Transaction } from '@rhinestone/sdk'
+import type {
+  RhinestoneAccount,
+  TokenRequest,
+  Transaction,
+} from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash } from 'viem'
+import { type Chain, type Hash, isAddress } from 'viem'
 import {
   ChainIdMismatchError,
   extractOrchestratorErrorContext,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
-import type { RhinestoneSigner } from '../types/signer.types'
+import type { L2FundingSource, RhinestoneSigner } from '../types/signer.types'
 import type {
+  RhinestoneTransactionRequest,
   SessionEnableData,
   TransactionRequest,
 } from '../types/transaction.types'
@@ -99,6 +107,95 @@ function assertWithinSessionRefundCaps(
     })),
   })
   throw capError
+}
+
+/** Hand the intent id to the request's observer; a broken one must not fail the send. */
+function reportIntentSubmitted(
+  request: RhinestoneTransactionRequest,
+  intentId: bigint | undefined,
+): void {
+  if (intentId === undefined) return
+  try {
+    request.rhinestoneParams.onIntentSubmitted?.(intentId)
+  } catch (error) {
+    logger.debug('⚠️ [WARP] onIntentSubmitted observer threw:', error)
+  }
+}
+
+const unwrap = <T, E>(result: ResultAsync<T, E>): Promise<T> =>
+  result.match(
+    (value) => value,
+    (error) => {
+      throw error
+    },
+  )
+
+/**
+ * An intent the wallet pays from an L2. The quote must pass
+ * `validateL2BridgeQuote` before the wallet is asked to sign, and the HCA runs
+ * the calls on `chain` once Across delivers the request's one token request.
+ */
+function submitL2FundedIntent(
+  request: RhinestoneTransactionRequest,
+  hca: RhinestoneAccount,
+  chain: Chain,
+  source: L2FundingSource,
+): ResultAsync<Hash, TransactionSubmissionError> {
+  const [payment, ...otherPayments] =
+    request.rhinestoneParams.tokenRequests ?? []
+  if (
+    !payment ||
+    payment.amount === undefined ||
+    !isAddress(payment.address) ||
+    otherPayments.length > 0
+  ) {
+    return errAsync(
+      new TransactionSubmissionError(
+        request,
+        new Error('An L2-paid intent needs exactly one token request'),
+      ),
+    )
+  }
+  const targetToken = payment.address
+  const amountOut = payment.amount
+
+  return fromPromise(
+    (async () => {
+      // Approve first: an approval can outlast a two-minute quote.
+      await source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut))
+      const wallet = await source.getAccount()
+      const quote = await unwrap(
+        quoteL2Bridge(wallet, {
+          owner: wallet.getAddress(),
+          sourceChain: source.chain,
+          sourceToken: source.token,
+          targetChain: chain,
+          targetToken,
+          amountOut,
+          recipient: { address: hca.getAddress(), config: hca.config },
+          calls: request.rhinestoneParams.calls,
+        }),
+      )
+      const intent = await unwrap(submitL2Bridge(wallet, quote))
+      reportIntentSubmitted(request, intent.id)
+      console.log('🧾 [WARP] L2-paid intent submitted:', {
+        intentId: intent.id.toString(),
+        sourceChainId: source.chain.id,
+        amountIn: quote.amountIn.toString(),
+      })
+
+      const status = await wallet.waitForExecution(intent, false)
+      if (!status.fill.hash) {
+        throw new Error('No transaction hash returned from Warp execution')
+      }
+      console.log('🧾 [WARP] L2-paid intent filled:', {
+        intentId: intent.id.toString(),
+        fillHash: status.fill.hash,
+      })
+      return status.fill.hash
+    })(),
+    (error) => new TransactionSubmissionError(request, error),
+  )
 }
 
 export function submitWarpTransaction(
@@ -195,6 +292,10 @@ export function submitWarpTransaction(
         ),
       ),
     )
+  }
+
+  if (signer.l2Funding) {
+    return submitL2FundedIntent(request, account, chain, signer.l2Funding)
   }
 
   const nowMs = (): number =>
@@ -304,14 +405,10 @@ export function submitWarpTransaction(
 
       // Hand the id to the caller before waiting on the fill: a tab closed
       // mid-fill is precisely the case the observer exists for.
-      const rawIntentId = (transaction as { id?: bigint } | undefined)?.id
-      if (rawIntentId !== undefined) {
-        try {
-          request.rhinestoneParams.onIntentSubmitted?.(rawIntentId)
-        } catch (error) {
-          logger.debug('⚠️ [WARP] onIntentSubmitted observer threw:', error)
-        }
-      }
+      reportIntentSubmitted(
+        request,
+        (transaction as { id?: bigint } | undefined)?.id,
+      )
       // NOTE: no `gasLimit` to report — submitted intents deliberately carry
       // none, so the ceiling on a filled intent is the orchestrator's own
       // estimate, not something this app sets. (`gasLimit` is passed only to

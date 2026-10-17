@@ -46,8 +46,9 @@ export const REGISTRATION_PERSISTENCE_VERSION = 1
  *
  * Deliberately absent, and why:
  *
- *  - `signer` / `approvalSigner` / `publicClient` — live objects, rebuilt by
- *    the app before it dispatches `RESUME`.
+ *  - `signer` / `approvalSigner` / `publicClient` / `l2Funding` — live
+ *    objects, rebuilt by the app before it dispatches `RESUME` (the last from
+ *    `l2FundingChainId`).
  *  - `hcaSessionEnable` — rebuilt from the app's own session store.
  *  - `permit` — EIP-2612 deadline is 1 hour, and the nonce is not tracked here.
  *    A resumed run re-signs it (one wallet prompt), which is the whole cost of
@@ -68,6 +69,8 @@ export type PersistedRegistrationContext = {
   ownerAddress?: Address
   resolverOwnerAddress?: Address
   primaryName?: string
+  /** The L2 a run pays from, so a resumed one keeps paying from it. */
+  l2FundingChainId?: number
 
   // Flow state
   resolverAddress?: Address
@@ -227,6 +230,7 @@ export function serializeRegistrationContext(
     ownerAddress: context.ownerAddress,
     resolverOwnerAddress: context.resolverOwnerAddress,
     primaryName: context.primaryName,
+    l2FundingChainId: context.l2Funding?.chain.id,
     resolverAddress: context.resolverAddress,
     resolverTxId: context.resolverTxId,
     resolverSalt: context.resolverSalt,
@@ -312,6 +316,7 @@ const persistedContextSchema = v.object({
   ownerAddress: v.optional(addressSchema),
   resolverOwnerAddress: v.optional(addressSchema),
   primaryName: v.optional(v.string()),
+  l2FundingChainId: v.optional(v.number()),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),
   resolverSalt: v.optional(v.bigint()),

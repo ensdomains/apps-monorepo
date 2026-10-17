@@ -7,23 +7,39 @@
 import {
   buildHcaSessionConfig,
   getDestinationContracts,
+  type L2BridgeQuote,
+  L2BridgeRejectedError,
+  quoteL2Bridge,
   sizeRefundCaps,
+  submitL2Bridge,
 } from '@ens-apps/smart-account'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type {
+  RhinestoneAccount,
+  RhinestoneAccountConfig,
+  TransactionResult,
+} from '@rhinestone/sdk'
+import { errAsync, okAsync } from 'neverthrow'
 import type { Address, Hash, Hex } from 'viem'
-import { mainnet, sepolia } from 'viem/chains'
+import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ChainIdMismatchError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
-import type { RhinestoneSigner } from '../types/signer.types'
+import type { L2FundingSource, RhinestoneSigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
   RhinestoneTransactionRequest,
 } from '../types/transaction.types'
 import { submitWarpTransaction } from './warp-transport.actor'
+
+// The route rules are `validateL2BridgeQuote`'s, tested in smart-account.
+vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ens-apps/smart-account')>()),
+  quoteL2Bridge: vi.fn(),
+  submitL2Bridge: vi.fn(),
+}))
 
 // ── Fixtures ───────────────────────────────────────────────────────────
 
@@ -472,5 +488,108 @@ describe('submitWarpTransaction — session refund caps', () => {
     })
 
     expect(result.isOk()).toBe(true)
+  })
+})
+
+describe('submitWarpTransaction — paid from an L2', () => {
+  const OWNER = '0xd509C22482895c538D302556756630520677b76f' as Address
+  const HCA = '0xcD5d6F82dbFDfAdf0f944EE7c0AD9eD9c8e4961d' as Address
+  const BASE_USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address
+  const USDC = getDestinationContracts(sepolia.id).usdc
+  const HCA_CONFIG = { account: { type: 'hca' } } as RhinestoneAccountConfig
+  const QUOTE = { amountIn: 5_012_000n } as L2BridgeQuote
+  const INTENT = {
+    type: 'intent',
+    id: 7n,
+    targetChain: sepolia.id,
+  } satisfies TransactionResult
+
+  const setup = () => {
+    const wallet = {
+      getAddress: () => OWNER,
+      waitForExecution: vi.fn(async () => ({ fill: { hash: MOCK_TX_HASH } })),
+    }
+    const source = {
+      chain: baseSepolia,
+      token: BASE_USDC,
+      getAccount: vi.fn(async () => wallet as unknown as RhinestoneAccount),
+      ensureAllowance: vi.fn(async () => {}),
+    } satisfies L2FundingSource
+    const signer = createMockSigner()
+    Object.assign(signer.account, { getAddress: () => HCA, config: HCA_CONFIG })
+    const onIntentSubmitted = vi.fn()
+    const request = createRhinestoneRequest({
+      rhinestoneParams: {
+        calls: MOCK_CALLS,
+        tokenRequests: [{ address: USDC, amount: 5_000_000n }],
+        onIntentSubmitted,
+      },
+    })
+    return {
+      wallet,
+      source,
+      request,
+      onIntentSubmitted,
+      signer: { ...signer, l2Funding: source },
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(QUOTE))
+    vi.mocked(submitL2Bridge).mockReturnValue(okAsync(INTENT))
+  })
+
+  it('approves Permit2, quotes the HCA calls from the L2 and waits for the fill', async () => {
+    const { wallet, source, request, onIntentSubmitted, signer } = setup()
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    // The fee cap's worth on top, so any route the validator accepts is allowed.
+    expect(source.ensureAllowance).toHaveBeenCalledWith(6_000_000n)
+    expect(quoteL2Bridge).toHaveBeenCalledWith(wallet, {
+      owner: OWNER,
+      sourceChain: baseSepolia,
+      sourceToken: BASE_USDC,
+      targetChain: sepolia,
+      targetToken: USDC,
+      amountOut: 5_000_000n,
+      recipient: { address: HCA, config: HCA_CONFIG },
+      calls: MOCK_CALLS,
+    })
+    expect(source.ensureAllowance.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(quoteL2Bridge).mock.invocationCallOrder[0] ?? 0,
+    )
+    expect(submitL2Bridge).toHaveBeenCalledWith(wallet, QUOTE)
+    expect(onIntentSubmitted).toHaveBeenCalledWith(7n)
+    expect(wallet.waitForExecution).toHaveBeenCalledWith(INTENT, false)
+    // Nothing goes through the HCA's own session path.
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it('needs exactly one token request', async () => {
+    const { source, signer } = setup()
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(TransactionSubmissionError)
+    expect(source.ensureAllowance).not.toHaveBeenCalled()
+  })
+
+  it('does not ask for a signature when the quote is refused', async () => {
+    const { request, signer } = setup()
+    const refusal = new L2BridgeRejectedError({ message: 'Refused' })
+    vi.mocked(quoteL2Bridge).mockReturnValue(errAsync(refusal))
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(TransactionSubmissionError)
+    expect(error.cause).toBe(refusal)
+    expect(submitL2Bridge).not.toHaveBeenCalled()
   })
 })

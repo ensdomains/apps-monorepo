@@ -15,6 +15,8 @@
  *     validator keeps no session state. `sponsored: { gas:false,
  *     bridging:false, swaps:false }`, `feeAsset: 'USDC'` — execution costs are
  *     refunded from the HCA's USDC.
+ *     Paid from an L2 instead, the wallet signs the leg: one Permit2 transfer
+ *     there, whose intent delivers the funding to the HCA before the commit.
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
  *       price re-read immediately before; exact-ordered reveal batch from
  *       `buildRevealBatch` (deployProxy? → approve(price) → register(wallet) →
@@ -74,7 +76,11 @@ import {
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
-import type { RhinestoneSigner, Signer } from '../../types/signer.types'
+import type {
+  L2FundingSource,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import type {
   Call,
   RhinestoneTransactionRequest,
@@ -620,6 +626,8 @@ function buildUserPaidRequest(params: {
    * needs telling.
    */
   incomingUsdc?: bigint
+  /** USDC (6dp) an L2-paid intent delivers to the HCA before its calls run. */
+  deliveredUsdc?: bigint
 }): RhinestoneTransactionRequest {
   const contracts = getDestinationContracts(params.chainId)
   return {
@@ -631,6 +639,13 @@ function buildUserPaidRequest(params: {
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
+        : {}),
+      ...(params.deliveredUsdc !== undefined
+        ? {
+            tokenRequests: [
+              { address: contracts.usdc, amount: params.deliveredUsdc },
+            ],
+          }
         : {}),
       ...(params.incomingUsdc !== undefined && params.incomingUsdc > 0n
         ? {
@@ -972,6 +987,13 @@ function prepareFundingPermit(
   )
 }
 
+/** The commit leg paid from an L2, delivering `amount` to the HCA. */
+export interface L2CommitPayment {
+  readonly source: L2FundingSource
+  readonly amount: bigint
+  readonly bounds?: PermitValueBounds
+}
+
 /**
  * Sign the HCA funding permit — the SECOND (and last) wallet prompt:
  * EIP-2612 permit with `owner = wallet`, `spender = HCA`, `value = budget`.
@@ -1137,6 +1159,9 @@ export function signFundingPermitForTokenActor(
  * session-signed, user-paid request. Deploys the HCA lazily when absent.
  * Generates the secret + commitment here so the reveal binds to the exact same
  * inputs.
+ *
+ * With `l2Payment` the wallet signs it instead, paying on the L2, and the
+ * intent delivers the funding to the HCA in place of the permit pair.
  */
 export function submitFundingAndCommitActor(input: {
   name: string
@@ -1144,6 +1169,7 @@ export function submitFundingAndCommitActor(input: {
   hca: Address
   duration: bigint
   permit?: PermitSignature
+  l2Payment?: L2CommitPayment
   sessionEnable?: HcaSessionEnableParams
   signer: Signer
   publicClient: PublicClient
@@ -1152,6 +1178,15 @@ export function submitFundingAndCommitActor(input: {
   { txId: string; resolverAddress: Address; commitment: CommitmentData },
   Error
 > {
+  const { l2Payment } = input
+  // Like the permit: a refusal must never reach the wallet.
+  const refusal =
+    l2Payment?.bounds && rejectPermitValue(l2Payment.amount, l2Payment.bounds)
+  if (refusal) return errAsync(new Error(refusal))
+  if (l2Payment && input.signer.type !== 'rhinestone') {
+    return errAsync(new Error('An L2-paid commit needs the HCA signer.'))
+  }
+
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
@@ -1224,22 +1259,40 @@ export function submitFundingAndCommitActor(input: {
         from: input.hca,
         chainId,
         calls,
-        sessionEnableData: input.sessionEnable?.enableData,
-        // Exactly the permit's value — the amount this batch pulls in, and
-        // nothing the HCA already holds. `signFundingPermitActor` is signed for
-        // `budget - balance`, so the permit value IS the inflow; declaring the
-        // whole budget would double-count the standing balance.
-        ...(input.permit ? { incomingUsdc: input.permit.value } : {}),
+        ...(l2Payment
+          ? { deliveredUsdc: l2Payment.amount }
+          : {
+              sessionEnableData: input.sessionEnable?.enableData,
+              // Exactly the permit's value — the amount this batch pulls in,
+              // and nothing the HCA already holds. `signFundingPermitActor` is
+              // signed for `budget - balance`, so the permit value IS the
+              // inflow; declaring the whole budget would double-count the
+              // standing balance.
+              ...(input.permit ? { incomingUsdc: input.permit.value } : {}),
+            }),
       })
+
+      // The wallet signs an L2-paid leg itself, so no session goes with it.
+      const signer: Signer =
+        l2Payment && input.signer.type === 'rhinestone'
+          ? {
+              type: 'rhinestone',
+              account: input.signer.account,
+              config: input.signer.config,
+              l2Funding: l2Payment.source,
+            }
+          : input.signer
 
       const txId = transactionManager.startTransaction(
         { type: 'custom', request },
-        input.signer,
+        signer,
         {
           id: input.id,
           description: `Set up registration for ${label}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,
+          // A resend would ask the wallet to sign a second payment.
+          ...(l2Payment ? { retryCount: 0 } : {}),
         },
       )
 
