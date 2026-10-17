@@ -160,12 +160,15 @@ function submitL2FundedIntent(
   const targetToken = payment.address
   const amountOut = payment.amount
   let isSubmitted = false
+  let step = 'approve USDC for Permit2'
 
   return fromPromise(
     (async () => {
       // Approve first: an approval can outlast a two-minute quote.
       await source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut))
+      step = 'reach the wallet'
       const wallet = await source.getAccount()
+      step = 'quote the payment'
       const quote = await unwrap(
         quoteL2Bridge(wallet, {
           owner: wallet.getAddress(),
@@ -178,6 +181,7 @@ function submitL2FundedIntent(
           calls: request.rhinestoneParams.calls,
         }),
       )
+      step = 'sign the payment'
       const intent = await unwrap(submitL2Bridge(wallet, quote))
       isSubmitted = true
       reportIntentSubmitted(request, intent.id)
@@ -197,11 +201,33 @@ function submitL2FundedIntent(
       })
       return status.fill.hash
     })(),
-    (error) =>
-      isSubmitted
-        ? new TransactionSubmissionError(request, error)
-        : new L2PaymentNotSentError(request, error),
+    (error) => {
+      logger.error(`🛑 [WARP] L2 payment failed (${step}):`, error)
+      if (isSubmitted) return new TransactionSubmissionError(request, error)
+      // Named, so the screen says which step failed even when a wallet
+      // rejects with a bare object rather than an Error.
+      return new L2PaymentNotSentError(
+        request,
+        new Error(
+          `Could not ${step} on ${source.chain.name}: ${describeError(error)}`,
+          { cause: error },
+        ),
+      )
+    },
   )
+}
+
+const describeError = (error: unknown): string => {
+  if (error instanceof Error) return error.message
+  const message = (error as { message?: unknown } | null)?.message
+  if (typeof message === 'string') return message
+  try {
+    return JSON.stringify(error, (_, v) =>
+      typeof v === 'bigint' ? v.toString() : v,
+    )
+  } catch {
+    return String(error)
+  }
 }
 
 export function submitWarpTransaction(
