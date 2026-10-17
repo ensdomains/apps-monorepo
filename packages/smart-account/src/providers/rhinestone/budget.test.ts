@@ -10,6 +10,7 @@ import {
   HCA_RESOLVER_DEPLOY_GAS,
   HcaBudgetExceedsMaximumError,
   hcaBudgetMaximum,
+  l2CommitDelivery,
   legFeeUsdc,
   primaryNameGas,
   type QuoteLegResult,
@@ -260,6 +261,15 @@ describe('estimateHcaBudget', () => {
     // legitimately disagree as gas moves. The allowance is one-directional.
     expect(withBudgetDrift(USDC(10))).toBe(USDC(12) + USDC(1) / 2n)
     expect(withBudgetDrift(0n)).toBe(0n)
+  })
+
+  it('has an L2-paid commit deliver what the reveal needs, not its own fee', () => {
+    const budget = { total: USDC(15), commitCost: USDC(4) }
+    expect(l2CommitDelivery(budget, USDC(1))).toBe(USDC(10))
+    // The HCA holds everything: nothing to pay from an L2.
+    expect(l2CommitDelivery(budget, USDC(15))).toBe(0n)
+    // Enough for the reveal but not the commit: one unit keeps the L2 route.
+    expect(l2CommitDelivery(budget, USDC(12))).toBe(1n)
   })
 
   it('survives a throwing quoter and reports the failure', async () => {

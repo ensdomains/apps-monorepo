@@ -1,8 +1,9 @@
 import type {
   PreparedTransactionData,
   RhinestoneAccount,
+  RhinestoneAccountConfig,
 } from '@rhinestone/sdk'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { baseSepolia, sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -19,11 +20,21 @@ import {
 } from './l2-bridge'
 
 const OWNER: Address = '0xd509C22482895c538D302556756630520677b76f'
+const HCA: Address = '0xcD5d6F82dbFDfAdf0f944EE7c0AD9eD9c8e4961d'
+const REGISTRAR: Address = '0xF633E7FC17E2bBE0D0965D18eC1821DCb754a3d3'
 const ATTACKER = '0x6666666666666666666666666666666666666666'
 const SOURCE_USDC: Address = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 const TARGET_USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 const NOW = 1_800_000_000n
 const ZERO_VT = `0x${'00'.repeat(32)}`
+const COMMIT = {
+  to: REGISTRAR,
+  value: 0n,
+  data: `0xf14fcbc8${'ab'.repeat(32)}` as Hex,
+}
+const HCA_CONFIG = {
+  account: { type: 'hca' },
+} as unknown as RhinestoneAccountConfig
 
 const route: L2BridgeRoute = {
   owner: OWNER,
@@ -32,9 +43,14 @@ const route: L2BridgeRoute = {
   targetChain: sepolia,
   targetToken: TARGET_USDC,
   amountOut: 5_000_000n,
+  recipient: { address: HCA, config: HCA_CONFIG },
+  calls: [COMMIT],
 }
 
-// Shaped like a live Base Sepolia → Sepolia quote; the orchestrator lowercases.
+type SignedOp = { to: string; value: unknown; data: string }
+
+// Shaped like a live Base Sepolia → Sepolia quote; the orchestrator lowercases,
+// and sends op values as strings.
 const baseQuote = () => {
   const element = {
     chainId: '84532',
@@ -84,14 +100,19 @@ const baseQuote = () => {
         deadline: NOW + 120n,
         mandate: {
           target: {
-            recipient: OWNER.toLowerCase(),
+            recipient: HCA.toLowerCase(),
             tokenOut: [received],
             targetChain: 11155111n,
             fillExpiry: NOW + 120n,
           },
           minGas: 0n,
           originOps: { vt: ZERO_VT, ops: [] as unknown[] },
-          destOps: { vt: ZERO_VT, ops: [] as unknown[] },
+          destOps: {
+            vt: ZERO_VT,
+            ops: [
+              { to: REGISTRAR.toLowerCase(), value: '0', data: COMMIT.data },
+            ] as SignedOp[],
+          },
           q: ZERO_VT,
         },
       },
@@ -118,7 +139,7 @@ const validate = (edit: (quote: Quote) => void = () => {}) => {
 const op = { to: ATTACKER, value: 0n, data: '0x' }
 
 describe('validateL2BridgeQuote', () => {
-  it('accepts a route that only moves USDC between the owner’s wallets', () => {
+  it('accepts a route that pays the recipient and runs only its calls', () => {
     const result = validate()
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toMatchObject({
@@ -221,6 +242,12 @@ describe('validateL2BridgeQuote', () => {
       },
     ],
     [
+      'payment to the owner instead of the recipient',
+      (q) => {
+        q.permit.message.mandate.target.recipient = OWNER
+      },
+    ],
+    [
       'another target chain',
       (q) => {
         q.permit.message.mandate.target.targetChain = 1n
@@ -254,9 +281,51 @@ describe('validateL2BridgeQuote', () => {
       },
     ],
     [
-      'a destination operation',
+      'an extra destination operation',
       (q) => {
         q.permit.message.mandate.destOps.ops.push(op)
+      },
+    ],
+    [
+      'a missing destination operation',
+      (q) => {
+        q.permit.message.mandate.destOps.ops = []
+      },
+    ],
+    [
+      'a changed destination call',
+      (q) => {
+        q.permit.message.mandate.destOps.ops[0] = {
+          to: REGISTRAR,
+          value: '0',
+          data: `0xf14fcbc8${'cd'.repeat(32)}`,
+        }
+      },
+    ],
+    [
+      'a destination call to another contract',
+      (q) => {
+        q.permit.message.mandate.destOps.ops[0] = { ...op, data: COMMIT.data }
+      },
+    ],
+    [
+      'a destination call with value',
+      (q) => {
+        q.permit.message.mandate.destOps.ops[0] = {
+          to: REGISTRAR,
+          value: '1',
+          data: COMMIT.data,
+        }
+      },
+    ],
+    [
+      'a destination call with an unreadable value',
+      (q) => {
+        q.permit.message.mandate.destOps.ops[0] = {
+          to: REGISTRAR,
+          value: undefined,
+          data: COMMIT.data,
+        }
       },
     ],
     [
@@ -304,6 +373,14 @@ describe('validateL2BridgeQuote', () => {
       }).isOk(),
     ).toBe(true)
   })
+
+  it('matches a destination value sent as a bigint', () => {
+    expect(
+      validate((q) => {
+        q.permit.message.mandate.destOps.ops[0] = { ...COMMIT, value: 0n }
+      }).isOk(),
+    ).toBe(true)
+  })
 })
 
 describe('l2BridgeMaxFee', () => {
@@ -339,7 +416,7 @@ const fakeAccount = () => {
 const asAccount = (account: object) => account as unknown as RhinestoneAccount
 
 describe('quoteL2Bridge', () => {
-  it('asks for an unsponsored bridge of the source token to the owner', async () => {
+  it('asks for an unsponsored payment to the recipient, running its calls', async () => {
     const { account } = fakeAccount()
     const result = await quoteL2Bridge(asAccount(account), route, () => NOW)
     expect(result.isOk()).toBe(true)
@@ -348,19 +425,10 @@ describe('quoteL2Bridge', () => {
       targetChain: sepolia,
       sourceAssets: { [baseSepolia.id]: [SOURCE_USDC] },
       tokenRequests: [{ address: TARGET_USDC, amount: 5_000_000n }],
+      recipient: HCA_CONFIG,
+      calls: [COMMIT],
       sponsored: { gas: false, bridging: false, swaps: false },
     })
-  })
-
-  it('refuses an amount below the minimum without quoting', async () => {
-    const { account } = fakeAccount()
-    const result = await quoteL2Bridge(
-      asAccount(account),
-      { ...route, amountOut: 999_999n },
-      () => NOW,
-    )
-    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2BridgeRejectedError)
-    expect(account.prepareTransaction).not.toHaveBeenCalled()
   })
 })
 
@@ -368,14 +436,14 @@ describe('submitL2Bridge', () => {
   const quoted = async (account: ReturnType<typeof fakeAccount>['account']) =>
     (await quoteL2Bridge(asAccount(account), route, () => NOW))._unsafeUnwrap()
 
-  it('submits a timely signature and returns the intent id', async () => {
+  it('submits a timely signature and returns the intent', async () => {
     const { account } = fakeAccount()
     const result = await submitL2Bridge(
       asAccount(account),
       await quoted(account),
       () => NOW + 30n,
     )
-    expect(result._unsafeUnwrap()).toBe(42n)
+    expect(result._unsafeUnwrap()).toMatchObject({ id: 42n })
   })
 
   it('does not submit a signature that lands near the deadline', async () => {

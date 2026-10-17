@@ -1,8 +1,7 @@
 /**
- * Bridge an L2's USDC to the same wallet on the target chain with a
- * wallet-funded Rhinestone intent: the wallet signs one Permit2 witness
- * transfer on the L2 and Across delivers to it on the target. No smart account
- * or session is involved on either chain.
+ * Pay for an intent on the target chain with the wallet's USDC on an L2: the
+ * wallet signs one Permit2 witness transfer on the L2, and Across delivers the
+ * USDC to a smart account on the target, which then runs the intent's calls.
  */
 
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -10,6 +9,7 @@ import type {
   IntentRoute,
   PreparedTransactionData,
   RhinestoneAccount,
+  RhinestoneAccountConfig,
   TransactionResult,
 } from '@rhinestone/sdk'
 import {
@@ -27,8 +27,10 @@ import {
   type Chain,
   isAddress,
   isAddressEqual,
+  isHex,
 } from 'viem'
 import type { RhinestoneAuth } from './auth'
+import type { Call } from './registration-calls'
 import { createRhinestoneSdk } from './sdk'
 
 /** Canonical Permit2, the only spender a source token is approved for. */
@@ -41,9 +43,6 @@ export const PERMIT2_ADDRESS: Address =
  */
 export const RHINESTONE_ACROSS_ARBITER: Address =
   '0xA162fabb9a0EeF2736485A587aAAB3d015e14224'
-
-/** Smallest amount bridged (USDC, 6 decimals). */
-export const L2_BRIDGE_MIN_AMOUNT_OUT = 1_000_000n
 
 // Quotes are issued for two minutes; one signable for longer is refused.
 const MAX_PERMIT_LIFETIME_S = 600n
@@ -59,7 +58,7 @@ export function l2BridgeMaxFee(amountOut: bigint): bigint {
 }
 
 export type L2BridgeRoute = Readonly<{
-  /** Pays on the source chain and is paid on the target. */
+  /** The wallet paying on the source chain. */
   owner: Address
   sourceChain: Chain
   sourceToken: Address
@@ -67,6 +66,10 @@ export type L2BridgeRoute = Readonly<{
   targetToken: Address
   /** What must arrive on the target chain. */
   amountOut: bigint
+  /** The smart account paid on the target; its config lets the SDK deploy it. */
+  recipient: Readonly<{ address: Address; config: RhinestoneAccountConfig }>
+  /** What `recipient` runs on the target chain once paid. */
+  calls: readonly Call[]
 }>
 
 export type L2BridgeQuote = Readonly<{
@@ -101,7 +104,7 @@ export class L2BridgeSubmitError extends TaggedError('L2BridgeSubmitError')<{
   cause?: unknown
 }> {}
 
-/** An SDK account for the wallet itself, paying from and paid to `eoa`. */
+/** An SDK account for the wallet itself, paying from `eoa` on the source chain. */
 export function createL2BridgeAccount(params: {
   readonly eoa: Account
   readonly auth: RhinestoneAuth
@@ -115,7 +118,7 @@ export function createL2BridgeAccount(params: {
     }),
     (cause) =>
       new L2BridgeUnavailableError({
-        message: 'Could not set up the bridge.',
+        message: 'Could not set up the payment.',
         cause,
       }),
   )
@@ -130,22 +133,19 @@ export function quoteL2Bridge(
   L2BridgeQuote,
   L2BridgeUnavailableError | L2BridgeRejectedError
 > {
-  if (route.amountOut < L2_BRIDGE_MIN_AMOUNT_OUT) {
-    return errAsync(
-      new L2BridgeRejectedError({ message: 'Below the bridge minimum.' }),
-    )
-  }
   return fromPromise(
     account.prepareTransaction({
       sourceChains: [route.sourceChain],
       targetChain: route.targetChain,
       sourceAssets: { [route.sourceChain.id]: [route.sourceToken] },
       tokenRequests: [{ address: route.targetToken, amount: route.amountOut }],
+      recipient: route.recipient.config,
+      calls: [...route.calls],
       sponsored: { gas: false, bridging: false, swaps: false },
     }),
     (cause) =>
       new L2BridgeUnavailableError({
-        message: 'No bridge route is available.',
+        message: `No route from ${route.sourceChain.name} is available.`,
         cause,
       }),
   ).andThen((prepared) =>
@@ -161,6 +161,12 @@ export function quoteL2Bridge(
 type TransactionMessages = ReturnType<
   RhinestoneAccount['getTransactionMessages']
 >
+
+type SignedOp = {
+  readonly to: string
+  readonly value: unknown
+  readonly data: string
+}
 
 /** The Permit2 batch-witness transfer the SDK builds for an Across route. */
 type BridgePermit = {
@@ -180,7 +186,7 @@ type BridgePermit = {
       readonly targetChain: bigint
     }
     readonly originOps: { readonly ops: readonly unknown[] }
-    readonly destOps: { readonly ops: readonly unknown[] }
+    readonly destOps: { readonly ops: readonly SignedOp[] }
   }
 }
 
@@ -189,10 +195,26 @@ const sameAddress = (value: unknown, expected: Address): boolean =>
   isAddress(value, { strict: false }) &&
   isAddressEqual(value, expected)
 
+// Ops come from the orchestrator's JSON, so a value may be a decimal string.
+const sameValue = (value: unknown, expected: bigint): boolean => {
+  try {
+    return BigInt(value as bigint | string) === expected
+  } catch {
+    return false
+  }
+}
+
+const sameOp = (op: SignedOp | undefined, call: Call): boolean =>
+  !!op &&
+  sameAddress(op.to, call.to) &&
+  sameValue(op.value, call.value) &&
+  isHex(op.data) &&
+  op.data.toLowerCase() === call.data.toLowerCase()
+
 /**
  * Accept a prepared route only if what the wallet would sign moves the quoted
- * USDC from the owner on the source chain to the owner on the target, through
- * Rhinestone's arbiter, with nothing executed along the way:
+ * USDC from the owner on the source chain to the recipient on the target,
+ * through Rhinestone's arbiter, running exactly the route's calls there:
  *
  * 1. the intent is the owner's;
  * 2. it has one element, on the source chain, settled by Across from Permit2;
@@ -200,9 +222,10 @@ const sameAddress = (value: unknown, expected: Address): boolean =>
  *    canonical Permit2, open now and for at most 10 minutes;
  * 4. its spender is Rhinestone's Across arbiter;
  * 5. it permits only the source token, at most `amountOut` plus the fee cap;
- * 6. it pays the owner on the target chain;
+ * 6. it pays the recipient on the target chain;
  * 7. it delivers only the target token, at least `amountOut`;
- * 8. it runs no operations on either chain;
+ * 8. it runs nothing on the source chain, and only `calls`, in order, on the
+ *    target;
  * 9. the only setup it asks for is a Permit2 allowance on the source token.
  */
 export function validateL2BridgeQuote(params: {
@@ -243,7 +266,7 @@ function rejectIntent(
     settlement?.settlementLayer !== 'ACROSS' ||
     settlement.fundingMethod !== 'PERMIT2'
   ) {
-    return 'The route does not bridge from the chosen chain.'
+    return 'The route does not pay from the chosen chain.'
   }
 
   const requirements = Object.entries(tokenRequirements ?? {}).flatMap(
@@ -302,10 +325,10 @@ function readPermit(
 
   const { target, originOps, destOps } = permit.mandate
   if (
-    !sameAddress(target.recipient, route.owner) ||
+    !sameAddress(target.recipient, route.recipient.address) ||
     target.targetChain !== BigInt(route.targetChain.id)
   ) {
-    return err('The route pays another wallet or chain.')
+    return err('The route pays another account or chain.')
   }
 
   const [received, ...otherReceived] = target.tokenOut
@@ -318,8 +341,12 @@ function readPermit(
     return err('The route delivers less than requested.')
   }
 
-  if (originOps.ops.length > 0 || destOps.ops.length > 0) {
-    return err('The route runs extra operations.')
+  if (
+    originOps.ops.length > 0 ||
+    destOps.ops.length !== route.calls.length ||
+    !route.calls.every((call, index) => sameOp(destOps.ops[index], call))
+  ) {
+    return err('The route runs other operations than requested.')
   }
 
   return ok({
@@ -330,40 +357,41 @@ function readPermit(
 }
 
 /**
- * Have the wallet sign the quoted permit and submit the intent, returning its
- * id. A signature that lands too close to the deadline is not submitted.
+ * Have the wallet sign the quoted permit and submit the intent. A signature
+ * that lands too close to the deadline is not submitted.
  */
 export function submitL2Bridge(
   account: RhinestoneAccount,
   quote: L2BridgeQuote,
   now: () => bigint = unixNow,
-): ResultAsync<bigint, L2BridgeExpiredError | L2BridgeSubmitError> {
+): ResultAsync<TransactionResult, L2BridgeExpiredError | L2BridgeSubmitError> {
   return fromPromise(
     account.signTransaction(quote.prepared),
     (cause) =>
-      new L2BridgeSubmitError({ message: 'The bridge was not signed.', cause }),
-  )
-    .andThen(
-      (
-        signed,
-      ): ResultAsync<
-        TransactionResult,
-        L2BridgeExpiredError | L2BridgeSubmitError
-      > =>
-        now() + SUBMIT_MARGIN_S >= quote.deadline
-          ? errAsync(
-              new L2BridgeExpiredError({
-                message: 'The quote expired before it was signed.',
+      new L2BridgeSubmitError({
+        message: 'The payment was not signed.',
+        cause,
+      }),
+  ).andThen(
+    (
+      signed,
+    ): ResultAsync<
+      TransactionResult,
+      L2BridgeExpiredError | L2BridgeSubmitError
+    > =>
+      now() + SUBMIT_MARGIN_S >= quote.deadline
+        ? errAsync(
+            new L2BridgeExpiredError({
+              message: 'The quote expired before it was signed.',
+            }),
+          )
+        : fromPromise(
+            account.submitTransaction(signed),
+            (cause) =>
+              new L2BridgeSubmitError({
+                message: 'The payment could not be submitted.',
+                cause,
               }),
-            )
-          : fromPromise(
-              account.submitTransaction(signed),
-              (cause) =>
-                new L2BridgeSubmitError({
-                  message: 'The bridge could not be submitted.',
-                  cause,
-                }),
-            ),
-    )
-    .map((result) => result.id)
+          ),
+  )
 }
