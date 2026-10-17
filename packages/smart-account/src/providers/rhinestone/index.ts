@@ -39,7 +39,6 @@ export {
   type HcaBudgetParams,
   type HcaLeg,
   hcaBudgetMaximum,
-  l2CommitDelivery,
   legFeeUsdc,
   primaryNameGas,
   QUOTED_GAS_OVERHEAD_HEADROOM,

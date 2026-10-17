@@ -15,8 +15,9 @@
  *     validator keeps no session state. `sponsored: { gas:false,
  *     bridging:false, swaps:false }`, `feeAsset: 'USDC'` — execution costs are
  *     refunded from the HCA's USDC.
- *     Paid from an L2 instead, the wallet signs the leg: one Permit2 transfer
- *     there, whose intent delivers the funding to the HCA before the commit.
+ *     Paid from an L2, the wallet signs each leg there instead: one Permit2
+ *     transfer whose intent pays the leg's fee, and for the reveal delivers
+ *     the price to the HCA.
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
  *       price re-read immediately before; exact-ordered reveal batch from
  *       `buildRevealBatch` (deployProxy? → approve(price) → register(wallet) →
@@ -934,14 +935,31 @@ export interface L2CommitPayment {
   readonly bounds?: PermitValueBounds
 }
 
+/** The reveal paid from an L2, delivering the price it re-reads. */
+export interface L2RevealPayment {
+  readonly source: L2FundingSource
+  readonly bounds?: PermitValueBounds
+}
+
+// The wallet signs an L2-paid leg itself, so no session goes with it.
+const payFromL2 = (signer: Signer, source: L2FundingSource): Signer =>
+  signer.type === 'rhinestone'
+    ? {
+        type: 'rhinestone',
+        account: signer.account,
+        config: signer.config,
+        l2Funding: source,
+      }
+    : signer
+
 /**
  * Commit leg: fund the HCA (when needed) and submit the commitment — ONE
  * session-signed, user-paid request. Deploys the HCA lazily when absent.
  * Generates the secret + commitment here so the reveal binds to the exact same
  * inputs.
  *
- * With `l2Payment` the wallet signs it instead, paying on the L2, and the
- * intent delivers the funding to the HCA in place of the permit pair.
+ * With `l2Payment` the wallet signs it on the L2 instead, paying its fee
+ * there, so there is no funding pair.
  */
 export function submitFundingAndCommitActor(input: {
   name: string
@@ -1052,20 +1070,9 @@ export function submitFundingAndCommitActor(input: {
             }),
       })
 
-      // The wallet signs an L2-paid leg itself, so no session goes with it.
-      const signer: Signer =
-        l2Payment && input.signer.type === 'rhinestone'
-          ? {
-              type: 'rhinestone',
-              account: input.signer.account,
-              config: input.signer.config,
-              l2Funding: l2Payment.source,
-            }
-          : input.signer
-
       const txId = transactionManager.startTransaction(
         { type: 'custom', request },
-        signer,
+        l2Payment ? payFromL2(input.signer, l2Payment.source) : input.signer,
         {
           id: input.id,
           description: `Set up registration for ${label}.eth`,
@@ -1251,6 +1258,9 @@ function firstFailure(
  * Reveal leg: re-read the CURRENT price, then submit the exact-ordered reveal
  * batch session-signed (no wallet prompt). It carries the same session
  * authorization as the commit: the validator keeps no session state.
+ *
+ * With `l2Payment` the wallet signs it on the L2 instead, and its intent
+ * delivers the price to the HCA before the batch runs.
  */
 export function submitRevealBatchActor(input: {
   name: string
@@ -1259,6 +1269,7 @@ export function submitRevealBatchActor(input: {
   duration: bigint
   secret: Hex
   sessionEnable?: HcaSessionEnableParams
+  l2Payment?: L2RevealPayment
   signer: Signer
   publicClient: PublicClient
   primaryName?: string
@@ -1266,6 +1277,10 @@ export function submitRevealBatchActor(input: {
   /** Receives the orchestrator's intent id the moment the intent is accepted. */
   onIntentSubmitted?: (intentId: bigint) => void
 }): ResultAsync<string, Error> {
+  const { l2Payment } = input
+  if (l2Payment && input.signer.type !== 'rhinestone') {
+    return errAsync(new Error('An L2-paid reveal needs the HCA signer.'))
+  }
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
@@ -1283,6 +1298,10 @@ export function submitRevealBatchActor(input: {
         label,
         duration: input.duration,
       })
+      // Like the permit: a refusal must never reach the wallet.
+      const refusal =
+        l2Payment?.bounds && rejectPermitValue(price, l2Payment.bounds)
+      if (refusal) throw new Error(refusal)
 
       const resolverDeployed = await isResolverDeployed({
         publicClient: input.publicClient,
@@ -1307,7 +1326,9 @@ export function submitRevealBatchActor(input: {
         from: input.hca,
         chainId,
         calls: toCalls(revealCalls),
-        sessionEnableData: input.sessionEnable?.enableData,
+        ...(l2Payment
+          ? { deliveredUsdc: price }
+          : { sessionEnableData: input.sessionEnable?.enableData }),
       })
 
       const txId = transactionManager.startTransaction(
@@ -1323,12 +1344,14 @@ export function submitRevealBatchActor(input: {
               }
             : request,
         },
-        input.signer,
+        l2Payment ? payFromL2(input.signer, l2Payment.source) : input.signer,
         {
           id: input.id,
           description: `Register ${label}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,
+          // A resend would ask the wallet to sign a second payment.
+          ...(l2Payment ? { retryCount: 0 } : {}),
         },
       )
 

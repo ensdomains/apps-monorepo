@@ -3,6 +3,7 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import {
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
@@ -389,60 +390,99 @@ describe('registrationMachine — standalone-HCA funding', () => {
 describe('registrationMachine — paid from an L2', () => {
   const l2Funding = { chain: { id: 84532 } } as unknown as L2FundingSource
 
-  it('pays what the reveal still needs in the commit leg instead of signing a permit', async () => {
-    const balance = 1_000_000n
-    const { actor, signFundingPermit, submitFundingAndCommit } =
-      startHcaRegistration({
-        balances: [balance],
-        displayedWalletDebit: BUDGET - balance,
-        l2Funding,
-      })
+  it('commits from the L2 for one unit, with no budget, balance or permit', async () => {
+    const readHcaUsdcBalance = vi.fn(async () => 0n)
+    const {
+      actor,
+      estimateHcaBudget,
+      signFundingPermit,
+      submitFundingAndCommit,
+    } = startHcaRegistration({ readHcaUsdcBalance, l2Funding })
 
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
+    expect(estimateHcaBudget).not.toHaveBeenCalled()
+    expect(readHcaUsdcBalance).not.toHaveBeenCalled()
     expect(signFundingPermit).not.toHaveBeenCalled()
     const { input } = submitFundingAndCommit.mock.calls[0][0]
     expect(input.permit).toBeUndefined()
-    expect(input.l2Payment).toEqual({
-      source: l2Funding,
-      // The L2 intent pays the commit's own 4 USDC, so the HCA is not sent it.
-      amount: BUDGET - 4_000_000n - balance,
-      // Bounded exactly as the permit would have been.
-      bounds: {
-        expectedMaximum: 30_000_000n - balance,
-        displayedValue: BUDGET - balance,
+    expect(input.l2Payment).toEqual({ source: l2Funding, amount: 1n })
+  })
+
+  const resumeAtCooldown = (actors: Record<string, unknown>) => {
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: Date.now(),
+          })) as never,
+          waitAfterCommitment: fromPromise(async () => undefined) as never,
+          ...actors,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        l2FundingChainId: 84532,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        l2Funding,
       },
     })
-  })
+    return actor
+  }
 
-  it('pays nothing from the L2 when the HCA already covers the budget', async () => {
-    const { actor, submitFundingAndCommit } = startHcaRegistration({
-      balances: [BUDGET],
-      l2Funding,
+  it('reveals from the L2 as well, held to the price checkout showed', async () => {
+    const submitRevealBatch = vi.fn(() => new Promise(() => {}))
+    const actor = resumeAtCooldown({
+      submitRevealBatch: fromPromise(submitRevealBatch) as never,
     })
 
-    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+    await waitFor(actor, (s) => s.matches('submittingRhinestoneBundle'))
 
-    expect(submitFundingAndCommit.mock.calls[0][0].input.l2Payment).toBe(
-      undefined,
-    )
+    expect(submitRevealBatch.mock.calls[0][0].input.l2Payment).toEqual({
+      source: l2Funding,
+      bounds: { displayedValue: 5_000_000n },
+    })
+    actor.stop()
   })
 
-  it('pays as if the HCA were empty when the balance read fails', async () => {
-    const { actor, signFundingPermit, submitFundingAndCommit } =
-      startHcaRegistration({
-        readHcaUsdcBalance: vi.fn(async () => {
-          throw new Error('rpc down')
-        }),
-        l2Funding,
-      })
+  it('offers a retry, not a wait, when the reveal payment never left the app', async () => {
+    const verifyRegistration = vi.fn(async () => ({ verified: false }))
+    const actor = resumeAtCooldown({
+      submitRevealBatch: fromPromise(async () => 'tx-reg-register') as never,
+      pollTransactionStatus: fromPromise(async () => {
+        throw new L2PaymentNotSentError(
+          {} as TransactionRequest,
+          new Error('Could not reach the wallet on Base Sepolia: nope'),
+        )
+      }) as never,
+      verifyRegistration: fromPromise(verifyRegistration) as never,
+    })
 
-    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+    await waitFor(actor, (s) => s.matches('error'))
 
-    expect(signFundingPermit).not.toHaveBeenCalled()
-    expect(submitFundingAndCommit.mock.calls[0][0].input.l2Payment.amount).toBe(
-      BUDGET - 4_000_000n,
+    expect(verifyRegistration).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
     )
+    actor.stop()
   })
 })
 

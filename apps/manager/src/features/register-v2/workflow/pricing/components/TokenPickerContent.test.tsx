@@ -236,7 +236,7 @@ describe('TokenPickerContent', () => {
   it('lists the wallet USDC and every L2 USDC, including ones that cannot pay', () => {
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
-      [baseSepolia.id]: 25_000_000n,
+      [baseSepolia.id]: 250_000_000n,
       [arbitrumSepolia.id]: 0n,
       [optimismSepolia.id]: null,
     }
@@ -257,23 +257,23 @@ describe('TokenPickerContent', () => {
     ).toBeDisabled()
   })
 
-  it('quotes the registration from each L2 that can pay, leaving out the commit fee it pays itself', () => {
+  it('quotes the registration at its price from each L2 that can pay', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
-    containerMocks.renderBudget = { ...fiveUsdcBudget, commitCost: 100_000n }
+    containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
-      [baseSepolia.id]: 25_000_000n,
+      [baseSepolia.id]: 250_000_000n,
       [arbitrumSepolia.id]: 0n,
     }
-    containerMocks.l2AmountIn = 4_912_000n
+    containerMocks.l2AmountIn = 100_030_000n
     renderContainer()
 
-    // Only Base Sepolia holds enough to be quoted, for the reveal's share.
+    // Only Base Sepolia holds enough to be quoted, at the $100 name price —
+    // the account's budget for paying from Sepolia plays no part.
     const quoted = [...new Set(containerMocks.l2QuoteKeys)]
     expect(quoted).toHaveLength(1)
     expect(quoted[0]).toContain(`${baseSepolia.id}`)
-    expect(quoted[0]).toContain('"4900000"')
-    // $4.912 charged there for a $4.80 name.
-    expect(screen.getByText('Base Sepolia est. fee: $0.11')).toBeVisible()
+    expect(quoted[0]).toContain('"100000000"')
+    expect(screen.getByText('Base Sepolia est. fee: $0.03')).toBeVisible()
   })
 
   it('registers from the chosen L2 whatever the wallet holds', async () => {
@@ -281,8 +281,8 @@ describe('TokenPickerContent', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.revalidatedBudget = fiveUsdcBudget
-    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
-    containerMocks.l2AmountIn = 5_012_000n
+    containerMocks.l2Balances = { [baseSepolia.id]: 250_000_000n }
+    containerMocks.l2AmountIn = 100_030_000n
     containerMocks.fundingSourceChainId = baseSepolia.id
     renderContainer()
 
@@ -867,6 +867,7 @@ describe('TokenPickerContentBase L2 rows', () => {
   it('registers from a chosen L2 once quoted, and totals what it is charged', () => {
     renderPicker({
       funding: underfunded,
+      pricingData: 4.8,
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: l2Payment(

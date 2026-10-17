@@ -290,10 +290,6 @@ msgstr "Allow the renewal contract to use USDC for your renewals."
 msgid "Allow this temporary account to move this name."
 msgstr "Allow this temporary account to move this name."
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
-msgstr "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
-
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
@@ -2486,6 +2482,10 @@ msgstr "Sign once to enable seamless transactions."
 msgid "Sign the gasless payment approval in your wallet"
 msgstr "Sign the gasless payment approval in your wallet"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Sign the second payment in your wallet to register the name"
+msgstr "Sign the second payment in your wallet to register the name"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
@@ -3223,6 +3223,10 @@ msgstr "What is a primary name?"
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "What is the network fee?"
 msgstr "What is the network fee?"
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "What the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in two signatures: one to commit, and one to register after the short wait. The first time, you also approve USDC on {chainName}."
+msgstr "What the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in two signatures: one to commit, and one to register after the short wait. The first time, you also approve USDC on {chainName}."
 
 #. placeholder {0}: f.total.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

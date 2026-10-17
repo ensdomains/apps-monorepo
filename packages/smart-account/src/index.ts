@@ -100,7 +100,6 @@ export {
   L2BridgeUnavailableError,
   LEGACY_REFUND_CAPS,
   l2BridgeMaxFee,
-  l2CommitDelivery,
   legFeeUsdc,
   MAX_REFUND_GAS_OVERHEAD_CEILING,
   maxQuotedGasOverhead,

@@ -21,13 +21,13 @@ describe('getL2PaymentOptions', () => {
     ['unavailable', 'a failed read', { [baseSepolia.id]: null }, 2_000_000n],
     [
       'insufficient',
-      'only what the HCA is sent, with nothing for the fee',
+      'only the price, with nothing for the fees',
       { [baseSepolia.id]: 2_000_000n },
       2_000_000n,
     ],
     [
       'available',
-      'above what the HCA is sent',
+      'above the price',
       { [baseSepolia.id]: 2_000_001n },
       2_000_000n,
     ],

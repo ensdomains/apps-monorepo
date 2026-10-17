@@ -19,7 +19,7 @@ export type L2PaymentOption = Readonly<{
   status: L2PaymentOptionStatus
 }>
 
-// A balance must exceed what the HCA is sent: the route's fee comes on top.
+// A balance must exceed the name's price: the intents' fees come on top.
 const getStatus = (
   amountRaw: bigint | null,
   isLoaded: boolean,
@@ -31,9 +31,8 @@ const getStatus = (
 }
 
 /**
- * One row per L2 source. `amountRaw`, what paying from an L2 sends the HCA, is
- * `null` until the registration's cost is quoted; a `null` balance is a failed
- * read.
+ * One row per L2 source. `amountRaw`, the name's price, is `null` until it is
+ * read; a `null` balance is a failed read.
  */
 export const getL2PaymentOptions = ({
   sources,

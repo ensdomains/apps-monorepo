@@ -299,6 +299,67 @@ describe('submitRevealBatchActor', () => {
       sessionEnable.enableData,
     )
   })
+
+  describe('paid from an L2', () => {
+    const source = { chain: { id: 84532 } } as unknown as L2FundingSource
+    const hcaSigner = {
+      type: 'rhinestone',
+      account: { id: 'hca' },
+      config: { chain: sepolia },
+      session: { session: {} },
+    } as unknown as RhinestoneSigner
+    const revealClient = () =>
+      ({
+        chain: sepolia,
+        readContract: vi.fn().mockResolvedValue([5_000_000n, 0n]),
+        getCode: vi.fn().mockResolvedValue('0x'),
+      }) as unknown as PublicClient
+    const input = {
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      duration: 31_536_000n,
+      secret: `0x${'dd'.repeat(32)}` as Hex,
+      sessionEnable,
+      signer: hcaSigner,
+    }
+
+    it('has the wallet pay it there, delivering exactly the price to the HCA', async () => {
+      const result = await submitRevealBatchActor({
+        ...input,
+        publicClient: revealClient(),
+        l2Payment: { source },
+      })
+
+      expect(result.isOk()).toBe(true)
+      const request = submittedRequest()
+      expect(request.rhinestoneParams.tokenRequests).toEqual([
+        { address: C.usdc, amount: 5_000_000n },
+      ])
+      expect(request.rhinestoneParams.sessionEnableData).toBeUndefined()
+      const [, signer, options] = startTransaction.mock.calls[0] as unknown as [
+        unknown,
+        RhinestoneSigner,
+        { retryCount?: number },
+      ]
+      expect(signer.l2Funding).toBe(source)
+      expect(signer.session).toBeUndefined()
+      expect(options.retryCount).toBe(0)
+    })
+
+    it('refuses a price above what checkout showed, before the wallet is asked', async () => {
+      const result = await submitRevealBatchActor({
+        ...input,
+        publicClient: revealClient(),
+        l2Payment: { source, bounds: { displayedValue: 1_000_000n } },
+      })
+
+      expect(result._unsafeUnwrapErr().message).toMatch(
+        /Refusing to request a signature/,
+      )
+      expect(startTransaction).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('verifyHcaRegistrationActor', () => {
