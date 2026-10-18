@@ -6,7 +6,7 @@ import {
   type MockParameters,
   mock,
 } from '@wagmi/core'
-import { UserRejectedRequestError } from 'viem'
+import { SwitchChainError, UserRejectedRequestError } from 'viem'
 import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { ensureWalletChain, WalletChainError } from './ensureWalletChain'
@@ -61,6 +61,23 @@ describe('ensureWalletChain', () => {
     await expect(
       ensureWalletChain(config, baseSepolia.id),
     ).rejects.toBeInstanceOf(UserRejectedRequestError)
+  })
+
+  // Frame, for a chain it lists but has turned off.
+  it('asks for a chain the wallet has turned off to be turned on', async () => {
+    const { config, connector } = await setup({ connectOn: sepolia.id })
+    vi.spyOn(
+      connector as NonNullable<typeof connector>,
+      'switchChain',
+    ).mockRejectedValueOnce(
+      new SwitchChainError({
+        code: 4901,
+        message: 'unknown chain: 0x14a34',
+      } as unknown as Error),
+    )
+    await expect(ensureWalletChain(config, baseSepolia.id)).rejects.toThrow(
+      'Turn on Base Sepolia in your wallet, then try again.',
+    )
   })
 
   it('refuses without a connection and leaves the app chain alone', async () => {

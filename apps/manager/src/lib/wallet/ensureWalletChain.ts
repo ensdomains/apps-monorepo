@@ -12,6 +12,9 @@ const inFlight = new Map<number, Promise<void>>()
  * rethrows the wallet's rejection, so callers treat it as a cancel. Concurrent
  * calls share one prompt. Chains outside the config are left to the wallet,
  * which rejects a request for another chain itself.
+ *
+ * A chain the wallet doesn't know gets wagmi's add-chain prompt (4902). One it
+ * lists but has turned off answers 4901, which only the user can fix.
  */
 export const ensureWalletChain = (
   config: Config,
@@ -26,8 +29,19 @@ export const ensureWalletChain = (
   return run
 }
 
+// wagmi passes the wallet's own answer on as the cause of its error.
+const isChainTurnedOff = (error: unknown): boolean => {
+  let current = error as { code?: unknown; cause?: unknown } | undefined
+  for (let depth = 0; current && depth < 4; depth++) {
+    if (current.code === 4901) return true
+    current = current.cause as typeof current
+  }
+  return false
+}
+
 const moveWallet = async (config: Config, chainId: number): Promise<void> => {
-  if (!config.chains.some(({ id }) => id === chainId)) return
+  const chain = config.chains.find(({ id }) => id === chainId)
+  if (!chain) return
   // Without a connection wagmi's `switchChain` repoints the app's default
   // chain instead, which every unpinned hook would follow.
   const { connector } = getConnection(config)
@@ -38,5 +52,14 @@ const moveWallet = async (config: Config, chainId: number): Promise<void> => {
     })
   }
   if ((await connector.getChainId()) === chainId) return
-  await switchChain(config, { chainId, connector })
+  try {
+    await switchChain(config, { chainId, connector })
+  } catch (error) {
+    if (!isChainTurnedOff(error)) throw error
+    throw new WalletChainError({
+      chainId,
+      message: `Turn on ${chain.name} in your wallet, then try again.`,
+      cause: error,
+    })
+  }
 }
