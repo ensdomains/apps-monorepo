@@ -95,9 +95,8 @@ const navigationSections: readonly NavigationSection[] = [
       },
       {
         label: msg`Trademark Guidelines`,
-        linkOptions: linkOptions({
-          to: '/legal/trademark-guidelines',
-        }),
+        href: 'https://ens.domains/legal/trademark-guidelines',
+        target: '_blank',
       },
       {
         label: msg`Bug bounty`,
