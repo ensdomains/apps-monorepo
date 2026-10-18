@@ -1,10 +1,14 @@
-import { getCoderByCoinName } from '@ensdomains/address-encoder'
+import {
+  coinNameToTypeMap,
+  getCoderByCoinType,
+} from '@ensdomains/address-encoder'
 import {
   getProtocolType,
   isValidContentHash as isValidEncodedContentHash,
 } from '@ensdomains/ensjs/utils'
 import { getAddress } from 'viem'
-import type { EditableRecord } from './editRecordUtils'
+import { isOutOfRangeEvmCoinType } from '@/lib/utils'
+import { type EditableRecord, getRecordId } from './editRecordUtils'
 
 export interface ValidationError {
   recordId: string
@@ -45,8 +49,8 @@ function isValidEmail(value: string): boolean {
 /**
  * Normalizes an ETH address to checksum format if possible.
  */
-function normalizeCoinAddress(coin: string, address: string): string {
-  if (coin.toLowerCase() === 'eth') {
+function normalizeCoinAddress(coinType: number, address: string): string {
+  if (coinType === coinNameToTypeMap.eth) {
     try {
       return getAddress(address)
     } catch {
@@ -57,15 +61,18 @@ function normalizeCoinAddress(coin: string, address: string): string {
 }
 
 /**
- * Validates a cryptocurrency address using the address-encoder library.
- * Returns an error message if invalid, or null if valid.
+ * Validates a cryptocurrency address for a coin type using the address-encoder
+ * library. Returns an error message if invalid, or null if valid.
  */
-function validateCryptoAddress(coin: string, address: string): string | null {
+function validateCryptoAddress(
+  coinType: number,
+  address: string,
+): string | null {
   if (!address) return null // Empty is valid (means deletion)
 
   try {
-    const normalizedAddress = normalizeCoinAddress(coin, address)
-    const coder = getCoderByCoinName(coin.toLowerCase())
+    const normalizedAddress = normalizeCoinAddress(coinType, address)
+    const coder = getCoderByCoinType(coinType)
     coder.decode(normalizedAddress)
     return null // Valid
   } catch (e: unknown) {
@@ -80,6 +87,25 @@ function validateCryptoAddress(coin: string, address: string): string | null {
     }
     return 'Invalid address format'
   }
+}
+
+/**
+ * Validates an address record. Rejects an out-of-range EVM coin type before it
+ * aliases the chain it wraps (WEB-1447).
+ */
+function validateAddressRecord(
+  coinType: number,
+  key: string,
+  value: string,
+): string | null {
+  if (isOutOfRangeEvmCoinType(coinType)) {
+    return `Invalid coin type ${coinType}`
+  }
+
+  const error = validateCryptoAddress(coinType, value)
+  return error
+    ? `Invalid ${(key || 'eth').toUpperCase()} address: ${error}`
+    : null
 }
 
 /**
@@ -161,12 +187,8 @@ export function validateRecord(record: EditableRecord): string | null {
   }
 
   if (type === 'address') {
-    // Validate all cryptocurrency addresses using address-encoder
-    const coin = record.key || 'eth'
-    const error = validateCryptoAddress(coin, value)
-    if (error) {
-      return `Invalid ${coin.toUpperCase()} address: ${error}`
-    }
+    const error = validateAddressRecord(record.id, record.key, value)
+    if (error) return error
   }
 
   if (type === 'contentHash') {
@@ -198,18 +220,8 @@ export function validateRecords(records: EditableRecord[]): ValidationError[] {
 
     const error = validateRecord(record)
     if (error) {
-      // Include _uid in recordId for new records to ensure uniqueness
-      const uid = record._uid ? `-${record._uid}` : ''
-      const recordId =
-        record.type === 'contentHash'
-          ? `contentHash${uid}`
-          : record.type === 'abi'
-            ? `abi${uid}`
-            : record.type === 'address'
-              ? `address-${record.key}${uid}`
-              : `text-${record.key}${uid}`
-
-      errors.push({ recordId, message: error })
+      // Reuse getRecordId so validation ids and edit/delete ids cannot drift.
+      errors.push({ recordId: getRecordId(record), message: error })
     }
   }
 

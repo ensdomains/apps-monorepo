@@ -17,6 +17,9 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
 /**
  * Gets a unique identifier for a record based on its type, key, and optional _uid.
  *
+ * Address records key on the coin type, not the display symbol: two coin types
+ * can share a symbol, which would make a delete target the wrong slot (WEB-1447).
+ *
  * For new records (with _uid), the _uid is appended to ensure uniqueness
  * when multiple records of the same type/key exist.
  *
@@ -29,7 +32,7 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
  *
  * @example
  * getRecordId({ type: 'address', key: 'ETH', value: '0x...', id: 60, _uid: 'abc123' })
- * // 'address-ETH-abc123'
+ * // 'address-60-abc123'
  *
  * @example
  * getRecordId({ type: 'contentHash', value: 'ipfs://...', _uid: 'xyz789' })
@@ -46,7 +49,7 @@ export const getRecordId = (record: NameRecord | EditableRecord): string => {
     return `abi${uid}`
   }
   if (record.type === 'address') {
-    return `address-${record.key}${uid}`
+    return `address-${record.id}${uid}`
   }
   return `text-${record.key}${uid}`
 }
