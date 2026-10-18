@@ -39,16 +39,41 @@ describe('followChain', () => {
     ])
   })
 
-  it("moves the wallet to the typed data domain's chain before signing", async () => {
-    const { client, ensureChain, forwarded } = setup()
-    await client.signTypedData({
+  const signForBase = (client: ReturnType<typeof setup>['client']) =>
+    client.signTypedData({
       domain: { name: 'Permit2', chainId: baseSepolia.id },
       types: TYPES,
       primaryType: 'Upload',
       message: { upload: 'avatar' },
     })
+
+  it('asks a wallet to sign for another chain where it is', async () => {
+    const { client, ensureChain, forwarded } = setup()
+    await signForBase(client)
+    expect(ensureChain).not.toHaveBeenCalled()
+    expect(forwarded).toHaveBeenCalledOnce()
+  })
+
+  it("moves a wallet that refuses to the domain's chain and asks again", async () => {
+    const { client, ensureChain, forwarded } = setup()
+    // MetaMask's answer when the domain is not the active chain.
+    forwarded.mockRejectedValueOnce({
+      code: -32602,
+      message: 'Provided chainId "84532" must match the active chainId',
+    })
+    await signForBase(client)
     expect(ensureChain).toHaveBeenCalledExactlyOnceWith(baseSepolia.id)
-    expect(ensureChain).toHaveBeenCalledBefore(forwarded)
+    expect(forwarded).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not move a wallet whose user declined to sign', async () => {
+    const { client, ensureChain, forwarded } = setup()
+    forwarded.mockRejectedValueOnce({ code: 4001, message: 'User rejected' })
+    await expect(signForBase(client)).rejects.toBeInstanceOf(
+      UserRejectedRequestError,
+    )
+    expect(ensureChain).not.toHaveBeenCalled()
+    expect(forwarded).toHaveBeenCalledOnce()
   })
 
   it('passes chain-agnostic signatures straight through', async () => {

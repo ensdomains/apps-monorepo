@@ -9,6 +9,7 @@ import {
   getDestinationContracts,
   type L2BridgeQuote,
   L2BridgeRejectedError,
+  L2BridgeSubmitError,
   quoteL2Bridge,
   sizeRefundCaps,
   submitL2Bridge,
@@ -606,6 +607,26 @@ describe('submitWarpTransaction — paid from an L2', () => {
     expect(error).toBeInstanceOf(L2PaymentNotSentError)
     expect(error.message).toBe(
       'Failed to submit transaction: Could not reach the wallet on Base Sepolia: nope',
+    )
+  })
+
+  it("reports the wallet's own reason under a refused signature", async () => {
+    const { request, signer } = setup()
+    vi.mocked(submitL2Bridge).mockReturnValue(
+      errAsync(
+        new L2BridgeSubmitError({
+          message: 'The payment was not signed.',
+          cause: new Error('Chain 84532 is not added to the wallet'),
+        }),
+      ),
+    )
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not sign the payment on Base Sepolia: The payment was not signed. Chain 84532 is not added to the wallet',
     )
   })
 

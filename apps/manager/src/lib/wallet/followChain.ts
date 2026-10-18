@@ -33,11 +33,14 @@ export const typedDataChainId = (params: unknown): number | undefined => {
   return Number.isSafeInteger(id) && id > 0 ? id : undefined
 }
 
+const isDeclined = (error: unknown): boolean =>
+  (error as { code?: unknown } | null)?.code === 4001
+
 /**
  * A wallet client for `chain` over a connector client that may be on another
- * chain. Transactions first move the wallet to `chain`; typed data first moves
- * it to the domain's chain, which wallets refuse to sign for from elsewhere.
- * Everything else passes straight through.
+ * chain. Transactions first move the wallet to `chain`. Typed data goes as it
+ * is, since most wallets sign for any chain; one that refuses, short of the
+ * user declining, is moved to the domain's chain and asked once more.
  */
 export const followChain = <TChain extends Chain>(
   client: Readonly<{ account: Account; request: unknown }>,
@@ -51,13 +54,18 @@ export const followChain = <TChain extends Chain>(
     transport: custom(
       {
         async request({ method, params }) {
-          const chainId = CHAIN_BOUND_METHODS.has(method)
-            ? chain.id
-            : method === 'eth_signTypedData_v4'
+          if (CHAIN_BOUND_METHODS.has(method)) await ensureChain(chain.id)
+          const domainChainId =
+            method === 'eth_signTypedData_v4'
               ? typedDataChainId(params)
               : undefined
-          if (chainId !== undefined) await ensureChain(chainId)
-          return forward({ method, params })
+          try {
+            return await forward({ method, params })
+          } catch (error) {
+            if (domainChainId === undefined || isDeclined(error)) throw error
+            await ensureChain(domainChainId)
+            return forward({ method, params })
+          }
         },
       },
       { retryCount: 0 },

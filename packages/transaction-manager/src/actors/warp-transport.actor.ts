@@ -217,10 +217,19 @@ function submitL2FundedIntent(
   )
 }
 
+// Every message down the cause chain: the outermost alone ("The payment was
+// not signed.") hides the wallet's own reason.
 const describeError = (error: unknown): string => {
-  if (error instanceof Error) return error.message
-  const message = (error as { message?: unknown } | null)?.message
-  if (typeof message === 'string') return message
+  const messages: string[] = []
+  let current = error as { shortMessage?: unknown; message?: unknown } | null
+  for (let depth = 0; current && depth < 6; depth++) {
+    const message = current.shortMessage ?? current.message
+    if (typeof message === 'string' && message && !messages.includes(message)) {
+      messages.push(message)
+    }
+    current = (current as { cause?: unknown }).cause as typeof current
+  }
+  if (messages.length > 0) return messages.join(' ')
   try {
     return JSON.stringify(error, (_, v) =>
       typeof v === 'bigint' ? v.toString() : v,
