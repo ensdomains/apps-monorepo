@@ -1,3 +1,4 @@
+import { encodeAsToContentType } from '@ensdomains/ensjs/utils'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { match } from 'ts-pattern'
@@ -8,14 +9,21 @@ import { useNameHasOwnResolver } from '@/features/records/hooks/useNameHasOwnRes
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { getResolverSetterGrantsQueryOptions } from '@/features/resolver/hooks/useResolverSetterGrants'
 import { getCanModifyOnPublicResolverV2QueryOptions } from '@/features/resolver/queries/getCanModifyOnPublicResolverV2'
 import {
   computeResolverResource,
   type ResolverPermissionKey,
   type ResolverSetterScope,
   ROOT_RESOURCE,
+  resolverSetterScopeRole,
 } from '@/lib/roles/resolverRoles'
-import type { RecordType } from '@/utils/records/editRecordUtils'
+import {
+  ALL_EDITABLE_TYPES,
+  type EditableTypes,
+  NO_EDITABLE_TYPES,
+  type RecordType,
+} from '@/utils/records/editRecordUtils'
 
 const RECORD_TYPE_ROLES = {
   text: 'ROLE_SET_TEXT',
@@ -26,6 +34,30 @@ const RECORD_TYPE_ROLES = {
 
 /** Roles that authorize writing common profile records on a permissioned resolver. */
 export const RECORD_EDIT_ROLES = Object.values(RECORD_TYPE_ROLES)
+
+const toPermissionedEditableTypes = (
+  grantedRoles: readonly ResolverPermissionKey[],
+  grantedScopes: readonly ResolverSetterScope[],
+): EditableTypes => ({
+  text: grantedRoles.includes(RECORD_TYPE_ROLES.text)
+    ? 'all'
+    : new Set(
+        grantedScopes.flatMap((scope) =>
+          scope.kind === 'text' ? [scope.key] : [],
+        ),
+      ),
+  address: grantedRoles.includes(RECORD_TYPE_ROLES.address)
+    ? 'all'
+    : new Set(
+        grantedScopes.flatMap((scope) =>
+          scope.kind === 'address' ? [scope.coinType] : [],
+        ),
+      ),
+  abi:
+    grantedRoles.includes(RECORD_TYPE_ROLES.abi) ||
+    grantedScopes.some((scope) => scope.kind === 'abi'),
+  contentHash: grantedRoles.includes(RECORD_TYPE_ROLES.contentHash),
+})
 
 type UseCanEditRecordsParams = {
   name: string
@@ -53,14 +85,16 @@ type UseCanEditRecordsReturn = {
    */
   hasOwnResolver: boolean | undefined
   resolverAddress: Address | null | undefined
-  editableTypes: ReadonlySet<RecordType>
+  editableTypes: EditableTypes
 }
 
 /**
  * Whether the connected wallet can edit records for `name`.
  *
  * - Permissioned resolvers: authorized by resolver `ROLE_SET_*` on the root
- *   resource (every name) or on the setter argument in `scope`. Roles are per
+ *   resource (every name) or on the setter argument in `scope`. Without a
+ *   `scope`, grants on single text keys or coin types count too, and open only
+ *   those keys in `editableTypes`. Roles are per
  *   resolver, not per name, so after a transfer that keeps the resolver the
  *   previous owner typically retains them while the new token owner does not.
  * - V2 names on any other resolver: only PublicResolverV2's own
@@ -102,8 +136,7 @@ export function useCanEditRecords({
 
   const isPermissionedQuery = useQuery({
     ...getIsPermissionedResolverQueryOptions({
-      resolverAddress: (resolverAddress ??
-        '0x0000000000000000000000000000000000000000') as Address,
+      resolverAddress: resolverAddress ?? zeroAddress,
     }),
     enabled: enabled && !!resolverAddress,
   })
@@ -118,21 +151,49 @@ export function useCanEditRecords({
 
   const isPermissioned = isPermissionedQuery.data === true
 
-  const { grantedRoles, roleQueries } = useQueries({
-    queries: roles.map((role) => ({
+  const canReadRoles =
+    enabled && !!connectedAddress && !!resolverAddress && isPermissioned
+  const roleHolder = {
+    resolverAddress: resolverAddress ?? zeroAddress,
+    account: connectedAddress ?? zeroAddress,
+  }
+  const isReadingGrants = canReadRoles && !scope
+
+  const grantsQuery = useQuery({
+    ...getResolverSetterGrantsQueryOptions(roleHolder),
+    // A disabled query still serves its cached grants.
+    select: (grants) =>
+      isReadingGrants
+        ? grants.filter(
+            (grant) =>
+              grant.kind !== 'abi' ||
+              grant.contentType === BigInt(encodeAsToContentType('json')),
+          )
+        : [],
+    enabled: isReadingGrants,
+  })
+  const { data: scopes = [] } = grantsQuery
+
+  const { grantedRoles, grantedScopes, roleQueries } = useQueries({
+    queries: [
+      ...roles.map((role) => ({ role, resource })),
+      ...scopes.map((grant) => ({
+        role: resolverSetterScopeRole(grant),
+        resource: computeResolverResource(grant),
+      })),
+    ].map((check) => ({
       ...getHasRolesQueryOptions({
-        resolverAddress: (resolverAddress ??
-          '0x0000000000000000000000000000000000000000') as Address,
-        resource,
-        roles: [role],
-        account: (connectedAddress ??
-          '0x0000000000000000000000000000000000000000') as Address,
+        ...roleHolder,
+        resource: check.resource,
+        roles: [check.role],
       }),
-      enabled:
-        enabled && !!connectedAddress && !!resolverAddress && isPermissioned,
+      enabled: canReadRoles,
     })),
     combine: (results) => ({
       grantedRoles: roles.filter((_, index) => results[index]?.data === true),
+      grantedScopes: scopes.filter(
+        (_, index) => results[roles.length + index]?.data === true,
+      ),
       roleQueries: results,
     }),
   })
@@ -140,11 +201,7 @@ export function useCanEditRecords({
   const isV2 = ownerQuery.data?.protocolVersion === 'ENSv2'
 
   const publicResolverV2Query = useQuery({
-    ...getCanModifyOnPublicResolverV2QueryOptions({
-      resolverAddress: resolverAddress ?? zeroAddress,
-      name,
-      account: connectedAddress ?? zeroAddress,
-    }),
+    ...getCanModifyOnPublicResolverV2QueryOptions({ ...roleHolder, name }),
     enabled:
       enabled &&
       !!connectedAddress &&
@@ -166,6 +223,7 @@ export function useCanEditRecords({
     resolverQuery,
     ownResolverQuery,
     isPermissionedQuery,
+    ...(isReadingGrants ? [grantsQuery] : []),
     ...roleQueries,
     publicResolverV2Query,
   ]
@@ -184,23 +242,12 @@ export function useCanEditRecords({
 
   const canEdit = match({ isSettled, isPermissioned, isV2 })
     .with({ isSettled: false }, () => false)
-    .with({ isPermissioned: true }, () => grantedRoles.length > 0)
+    .with(
+      { isPermissioned: true },
+      () => grantedRoles.length + grantedScopes.length > 0,
+    )
     .with({ isV2: true }, () => publicResolverV2Query.data === true)
     .otherwise(() => isOwner)
-
-  const editableTypes = useMemo<ReadonlySet<RecordType>>(
-    () =>
-      new Set(
-        canEdit
-          ? (Object.keys(RECORD_TYPE_ROLES) as RecordType[]).filter(
-              (type) =>
-                !isPermissioned ||
-                grantedRoles.includes(RECORD_TYPE_ROLES[type]),
-            )
-          : [],
-      ),
-    [canEdit, isPermissioned, grantedRoles],
-  )
 
   return {
     canEdit,
@@ -209,6 +256,11 @@ export function useCanEditRecords({
     isOwner,
     hasOwnResolver,
     resolverAddress,
-    editableTypes,
+    editableTypes: match({ canEdit, isPermissioned })
+      .with({ canEdit: false }, () => NO_EDITABLE_TYPES)
+      .with({ isPermissioned: false }, () => ALL_EDITABLE_TYPES)
+      .otherwise(() =>
+        toPermissionedEditableTypes(grantedRoles, grantedScopes),
+      ),
   }
 }
