@@ -1,6 +1,6 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, parseAbi } from 'viem'
+import { decodeFunctionData, getAddress, parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
@@ -11,6 +11,7 @@ import {
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
   hcaMaxIntentFeeUsdcFor,
+  type PermitKind,
   planHcaIntentFunding,
 } from './hca-intent-funding'
 
@@ -25,7 +26,8 @@ vi.mock('../machines/registration/registration.hca.actors', async (orig) => ({
   ...(await orig<
     typeof import('../machines/registration/registration.hca.actors')
   >()),
-  signFundingPermitActor: (...args: unknown[]) => signFundingPermit(...args),
+  signFundingPermitForTokenActor: (...args: unknown[]) =>
+    signFundingPermit(...args),
 }))
 
 const C = getDestinationContracts(sepolia.id)
@@ -121,18 +123,35 @@ const mockReads = (
   )
 }
 
-/** What the mocked permit actor resolves to. */
-const signedPermit = () => ({
+const signature = {
+  v: 27,
+  r: `0x${'11'.repeat(32)}` as Hex,
+  s: `0x${'22'.repeat(32)}` as Hex,
+}
+
+/** What the mocked permit actor resolves to, in the token's permit shape. */
+const signedPermit = (kind: PermitKind = 'eip2612') => ({
   match: (ok: (v: unknown) => unknown) =>
-    ok({
-      owner: OWNER,
-      spender: HCA,
-      value: 900_000n,
-      deadline: 1_800_000_000n,
-      v: 27,
-      r: `0x${'11'.repeat(32)}` as Hex,
-      s: `0x${'22'.repeat(32)}` as Hex,
-    }),
+    ok(
+      kind === 'dai-legacy'
+        ? {
+            kind,
+            holder: OWNER,
+            spender: HCA,
+            nonce: 4n,
+            expiry: 1_800_000_000n,
+            allowed: true,
+            ...signature,
+          }
+        : {
+            kind,
+            owner: OWNER,
+            spender: HCA,
+            value: 900_000n,
+            deadline: 1_800_000_000n,
+            ...signature,
+          },
+    ),
 })
 
 beforeEach(() => {
@@ -140,7 +159,10 @@ beforeEach(() => {
   readContract.mockReset()
   mockReads()
   prepareTransaction.mockResolvedValue(quoteOf(900_000n))
-  signFundingPermit.mockReturnValue(signedPermit())
+  signFundingPermit.mockImplementation(
+    (input: { token?: { permitKind?: PermitKind } }) =>
+      signedPermit(input.token?.permitKind),
+  )
 })
 
 describe('planHcaIntentFunding', () => {
@@ -705,6 +727,87 @@ describe('planHcaIntentFunding for a spend in another token', () => {
     ).rejects.toThrow(/wallet holds 1 DAI/)
     expect(confirmFunding).not.toHaveBeenCalled()
     expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  describe('with mainnet DAI’s legacy permit', () => {
+    const daiPermitAbi = parseAbi([
+      'function permit(address holder, address spender, uint256 nonce, uint256 expiry, bool allowed, uint8 v, bytes32 r, bytes32 s)',
+    ])
+    const legacyParams = {
+      ...daiParams,
+      tokenSpend: {
+        ...daiParams.tokenSpend,
+        permitKind: 'dai-legacy' as const,
+      },
+    }
+
+    it('encodes DAI’s own permit, not EIP-2612’s', async () => {
+      const funding = await planHcaIntentFunding(legacyParams)
+
+      const [permitCall] = funding.calls
+      expect(permitCall?.data.slice(0, 10)).toBe('0x8fcbaf0c')
+      expect(
+        decodeFunctionData({ abi: daiPermitAbi, data: permitCall?.data as Hex })
+          .args,
+      ).toEqual([
+        OWNER,
+        getAddress(HCA),
+        4n,
+        1_800_000_000n,
+        true,
+        27,
+        signature.r,
+        signature.s,
+      ])
+      expect(signFundingPermit.mock.calls[0]?.[0].token.permitKind).toBe(
+        'dai-legacy',
+      )
+      // The USDC fee leg keeps its exact-value EIP-2612 permit.
+      expect(signFundingPermit.mock.calls[1]?.[0].token.permitKind).toBe(
+        'eip2612',
+      )
+    })
+
+    it('quotes against the legacy permit’s longer calldata', async () => {
+      await planHcaIntentFunding(legacyParams)
+
+      const quoted: Call[] = prepareTransaction.mock.calls[0]?.[0].calls
+      const daiPlaceholder = quoted.find(
+        (call) => call.to === DAI && call.data.startsWith('0x8fcbaf0c'),
+      )
+      expect(daiPlaceholder).toBeDefined()
+    })
+
+    it('tells the prompt the allowance is unlimited', async () => {
+      const confirmFunding = vi.fn(() => true)
+
+      await planHcaIntentFunding({ ...legacyParams, confirmFunding })
+
+      expect(confirmFunding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          token: expect.objectContaining({
+            requiresPermit: true,
+            unlimitedAllowance: true,
+          }),
+        }),
+      )
+    })
+
+    it('skips the permit once its unlimited allowance stands', async () => {
+      // DAI never decrements a max allowance, so later renewals just pull.
+      mockReads({ tokens: { [DAI]: { allowance: 2n ** 256n - 1n } } })
+      const confirmFunding = vi.fn(() => true)
+
+      const funding = await planHcaIntentFunding({
+        ...legacyParams,
+        confirmFunding,
+      })
+
+      expect(shapeOf(funding.calls)[0]).toBe(`${DAI}:transferFrom`)
+      expect(confirmFunding.mock.calls[0]?.[0].token).not.toHaveProperty(
+        'unlimitedAllowance',
+      )
+    })
   })
 
   it('folds a USDC spend into the fee funding', async () => {

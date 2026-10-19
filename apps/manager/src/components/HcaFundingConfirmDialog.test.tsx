@@ -51,6 +51,31 @@ describe('HcaFundingConfirmDialog', () => {
     ).toBeInTheDocument()
   })
 
+  it('discloses the unlimited allowance mainnet DAI’s permit grants', () => {
+    renderDialog({
+      permitValue: 900_000n,
+      requiresPermit: true,
+      quotedFeeUsdc: 900_000n,
+      hcaBalanceUsdc: 0n,
+      requiredUsdc: 0n,
+      token: {
+        symbol: 'DAI',
+        decimals: 18,
+        required: 2n * ONE_DAI,
+        hcaBalance: 0n,
+        permitValue: 2n * ONE_DAI,
+        requiresPermit: true,
+        unlimitedAllowance: true,
+      },
+    })
+
+    expect(screen.getByText(/unlimited DAI allowance/)).toBeInTheDocument()
+    expect(screen.queryByText(/nothing more/)).not.toBeInTheDocument()
+    // The DAI row is what moves, not what is approved; USDC stays exact.
+    expect(screen.getAllByText('You approve')).toHaveLength(1)
+    expect(screen.getByText('From your wallet')).toBeInTheDocument()
+  })
+
   it('does not promise an approval a standing allowance makes unnecessary', () => {
     renderDialog({
       permitValue: 2_500_000n,

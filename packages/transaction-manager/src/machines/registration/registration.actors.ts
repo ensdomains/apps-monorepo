@@ -235,6 +235,31 @@ export type PermitSignature = {
   s: Hex
 }
 
+/**
+ * A signed legacy DAI permit.
+ *
+ * DAI predates EIP-2612 and implements its own `permit`, signing a different
+ * struct (`holder` / `nonce` / `expiry` / `allowed` with no `value`). The
+ * allowance is all-or-nothing: `allowed = true` sets it to `type(uint256).max`.
+ *
+ * Kept separate from {@link PermitSignature} so a signature of one shape can
+ * never be encoded as the other — the two are not interchangeable.
+ */
+export type DaiPermitSignature = {
+  /** DAI's name for the signer; EIP-2612 calls it `owner`. */
+  holder: Address
+  spender: Address
+  /** Read from `nonces(holder)` before signing. */
+  nonce: bigint
+  /** Absolute Unix timestamp. DAI treats `0` as "never expires". */
+  expiry: bigint
+  /** `true` grants an unlimited allowance; DAI has no per-value approval. */
+  allowed: boolean
+  v: number
+  r: Hex
+  s: Hex
+}
+
 /** Shared `ETHRegistrar.register` call for submit + gas estimate. */
 export function encodeRegisterCall({
   name,

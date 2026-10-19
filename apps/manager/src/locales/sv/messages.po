@@ -154,6 +154,10 @@ msgstr ""
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{unlimitedSymbol} can't be approved for an exact amount, so your wallet will be asked to give your smart account an unlimited {unlimitedSymbol} allowance. It stays in place until you revoke it; only the amounts below move now."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
 msgid "{value, plural, one {# day} other {# days}}"
 msgstr ""
