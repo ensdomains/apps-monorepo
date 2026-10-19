@@ -93,7 +93,6 @@ const AddressRoute = (
 const RESOLVED = '0x55e55C649895940826a852820d9e1A076Ec47b09'
 const profileWithEthAddress = {
   records: { coins: [{ coinType: 60, symbol: 'eth', value: RESOLVED }] },
-  subgraphRecords: {},
 }
 
 beforeEach(() => {
@@ -131,7 +130,7 @@ describe('address route', () => {
 
   it('hands an unimported DNS name to the DNS message', () => {
     routeName = 'google.com'
-    profileResult = settled({ records: { coins: [] }, subgraphRecords: {} })
+    profileResult = settled({ records: { coins: [] } })
 
     render(<AddressRoute />)
 
@@ -144,7 +143,7 @@ describe('address route', () => {
 
   it('still reports an ownerless .eth name as not registered', () => {
     routeName = 'nobody.eth'
-    profileResult = settled({ records: { coins: [] }, subgraphRecords: {} })
+    profileResult = settled({ records: { coins: [] } })
 
     render(<AddressRoute />)
 

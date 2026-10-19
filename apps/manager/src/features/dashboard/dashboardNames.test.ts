@@ -30,6 +30,7 @@ const summary = (overrides: Partial<NameSummary> = {}): NameSummary => ({
   registrationStatus: 'active',
   expiresAt: new Date('2027-01-01T00:00:00Z'),
   servedExpiry: null,
+  graceEndsAt: null,
   registeredAt: null,
   createdAt: new Date('2025-01-01T00:00:00Z'),
   ...overrides,

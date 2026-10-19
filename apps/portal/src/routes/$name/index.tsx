@@ -89,12 +89,7 @@ const Profile = ({
   const isEthTld = tld === 'eth'
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const profileQuery = useQuery(
-    getProfileQueryOptions({
-      name,
-      protocolVersion: ownerQuery.data?.protocolVersion,
-    }),
-  )
+  const profileQuery = useQuery(getProfileQueryOptions({ name }))
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
