@@ -6,6 +6,7 @@ import type {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
 import { bigname } from '@/lib/bigname'
 
 export class GetNameHistoryError extends TaggedError('GetNameHistoryError')<{
@@ -38,6 +39,12 @@ export type NameHistoryPage = {
 const getNameHistory = ({ name, ...params }: GetNameHistoryParameters) =>
   bigname
     .nameHistory(name, { ...params, include: ['data', 'raw'] })
+    .andThen((envelope) =>
+      dropUnassignedRecords(envelope.data).map((data) => ({
+        ...envelope,
+        data,
+      })),
+    )
     .map(
       ({ data, page }): NameHistoryPage => ({
         rows: data,

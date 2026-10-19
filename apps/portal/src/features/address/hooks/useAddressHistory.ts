@@ -16,6 +16,7 @@ import {
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
+import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
 import { bigname } from '@/lib/bigname'
 import {
   flattenHistoryData,
@@ -46,17 +47,24 @@ const readHistoryPage = (
   cursor: string | undefined,
   signal: AbortSignal | undefined,
 ) =>
-  bigname.addressHistory(
-    address.toLowerCase(),
-    {
-      relation: 'any',
-      include: ['data', 'raw'],
-      order: 'desc',
-      page_size: pageSize,
-      ...(cursor && { cursor }),
-    },
-    { signal },
-  )
+  bigname
+    .addressHistory(
+      address.toLowerCase(),
+      {
+        relation: 'any',
+        include: ['data', 'raw'],
+        order: 'desc',
+        page_size: pageSize,
+        ...(cursor && { cursor }),
+      },
+      { signal },
+    )
+    .andThen((envelope) =>
+      dropUnassignedRecords(envelope.data, signal).map((data) => ({
+        ...envelope,
+        data,
+      })),
+    )
 
 /**
  * The names the address holds the token of, from a `relation=owner` names read:

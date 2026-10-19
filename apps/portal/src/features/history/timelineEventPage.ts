@@ -16,6 +16,7 @@ import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
+import { dropUnassignedRecords } from './assignedResolvers'
 import { type TimelineEvent, toTimelineEvents } from './timelineEvent'
 
 export class GetTimelineEventPageError extends TaggedError(
@@ -126,25 +127,34 @@ export const fetchNameHistoryPage = ({
     ? okAsync<TimelinePage, GetTimelineEventPageError>(EMPTY_PAGE)
     : wrap(
         (requestSignal) =>
-          bigname.nameHistory(
-            normalizeOrLower(name),
-            {
-              include:
-                includeChildRegistrations && canIncludeChildRegistrations(name)
-                  ? ['data', 'raw', 'child_registrations']
-                  : ['data', 'raw'],
-              ...(types && { type: types }),
-              ...(kinds && { kind: kinds }),
-              ...(from !== undefined && {
-                from_timestamp: secondsToTimestamp(from),
-              }),
-              ...(to !== undefined && { to_timestamp: secondsToTimestamp(to) }),
-              order,
-              page_size: pageSize,
-              ...(cursor && { cursor }),
-            },
-            { signal: requestSignal },
-          ),
+          bigname
+            .nameHistory(
+              normalizeOrLower(name),
+              {
+                include:
+                  includeChildRegistrations &&
+                  canIncludeChildRegistrations(name)
+                    ? ['data', 'raw', 'child_registrations']
+                    : ['data', 'raw'],
+                ...(types && { type: types }),
+                ...(kinds && { kind: kinds }),
+                ...(from !== undefined && {
+                  from_timestamp: secondsToTimestamp(from),
+                }),
+                ...(to !== undefined && {
+                  to_timestamp: secondsToTimestamp(to),
+                }),
+                order,
+                page_size: pageSize,
+                ...(cursor && { cursor }),
+              },
+              { signal: requestSignal },
+            )
+            .andThen((envelope) =>
+              dropUnassignedRecords(envelope.data, requestSignal).map(
+                (data) => ({ ...envelope, data }),
+              ),
+            ),
         signal,
       )
 

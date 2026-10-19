@@ -9,6 +9,7 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Hash } from 'viem'
+import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
 import { bigname } from '@/lib/bigname'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { recordValueText } from '@/utils/history/recordValue'
@@ -125,6 +126,7 @@ const getRecordHistory = (
       ),
     { signal },
   )
+    .andThen((rows) => dropUnassignedRecords(rows, signal))
     .map((rows) =>
       rows.filter((row) => matchesKey(row, key)).flatMap(toRecordHistoryEvent),
     )

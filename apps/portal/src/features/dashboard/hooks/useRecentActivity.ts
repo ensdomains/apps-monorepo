@@ -9,6 +9,7 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address, Hash } from 'viem'
+import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
 import { bigname } from '@/lib/bigname'
 import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 
@@ -120,6 +121,9 @@ const getRecentActivityPage = (cursor: string | undefined) =>
       include: ['data', 'raw'],
       ...(cursor && { cursor }),
     })
+    .andThen(({ data, page }) =>
+      dropUnassignedRecords(data).map((rows) => ({ data: rows, page })),
+    )
     .map(
       ({ data, page }): RecentActivityPage => ({
         // A twin whose partner is on the next page stays, as in the timeline.

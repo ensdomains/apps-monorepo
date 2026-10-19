@@ -1,5 +1,5 @@
 import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
-import { ResultAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getNameHistory = vi.fn()
@@ -11,6 +11,10 @@ vi.mock('@/lib/bigname', () => ({
     events: (...args: unknown[]) =>
       ResultAsync.fromPromise(listEvents(...args), (e) => e),
   },
+}))
+// Which resolvers a name pointed at is covered in assignedResolvers.test.ts.
+vi.mock('./assignedResolvers', () => ({
+  dropUnassignedRecords: (rows: readonly unknown[]) => okAsync([...rows]),
 }))
 
 const { fetchContractEventsPage, fetchNameHistoryPage } = await import(
