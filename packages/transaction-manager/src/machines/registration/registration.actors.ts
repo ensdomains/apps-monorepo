@@ -247,17 +247,17 @@ export type PermitSignature = {
  */
 export type DaiPermitSignature = {
   /** DAI's name for the signer; EIP-2612 calls it `owner`. */
-  holder: Address
-  spender: Address
+  readonly holder: Address
+  readonly spender: Address
   /** Read from `nonces(holder)` before signing. */
-  nonce: bigint
+  readonly nonce: bigint
   /** Absolute Unix timestamp. DAI treats `0` as "never expires". */
-  expiry: bigint
+  readonly expiry: bigint
   /** `true` grants an unlimited allowance; DAI has no per-value approval. */
-  allowed: boolean
-  v: number
-  r: Hex
-  s: Hex
+  readonly allowed: boolean
+  readonly v: number
+  readonly r: Hex
+  readonly s: Hex
 }
 
 /** Shared `ETHRegistrar.register` call for submit + gas estimate. */

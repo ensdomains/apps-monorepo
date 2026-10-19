@@ -787,7 +787,7 @@ describe('planHcaIntentFunding for a spend in another token', () => {
         expect.objectContaining({
           token: expect.objectContaining({
             requiresPermit: true,
-            unlimitedAllowance: true,
+            hasUnlimitedAllowance: true,
           }),
         }),
       )
@@ -805,7 +805,7 @@ describe('planHcaIntentFunding for a spend in another token', () => {
 
       expect(shapeOf(funding.calls)[0]).toBe(`${DAI}:transferFrom`)
       expect(confirmFunding.mock.calls[0]?.[0].token).not.toHaveProperty(
-        'unlimitedAllowance',
+        'hasUnlimitedAllowance',
       )
     })
   })

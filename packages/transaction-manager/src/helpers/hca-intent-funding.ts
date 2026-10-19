@@ -159,7 +159,7 @@ export interface HcaFundingTokenLeg {
    * DAI's legacy permit only grants an unlimited, non-depleting allowance, so
    * the prompt must say so instead of promising an exact amount.
    */
-  readonly unlimitedAllowance?: boolean
+  readonly hasUnlimitedAllowance?: boolean
 }
 
 /** What an intent's calls spend in one token, on top of the USDC fee. */
@@ -730,7 +730,7 @@ const tokenPromptLeg = (
   permitValue: quoted.tokenShortfall,
   requiresPermit: leg?.requiresPermit ?? false,
   ...(leg?.requiresPermit && leg.permitKind === 'dai-legacy'
-    ? { unlimitedAllowance: true }
+    ? { hasUnlimitedAllowance: true }
     : {}),
 })
 

@@ -65,7 +65,7 @@ describe('HcaFundingConfirmDialog', () => {
         hcaBalance: 0n,
         permitValue: 2n * ONE_DAI,
         requiresPermit: true,
-        unlimitedAllowance: true,
+        hasUnlimitedAllowance: true,
       },
     })
 

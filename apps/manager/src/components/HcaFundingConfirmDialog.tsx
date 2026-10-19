@@ -1,6 +1,7 @@
 import type { HcaFundingPrompt } from '@ens-apps/transaction-manager'
 import { Plural, Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
+import { match, P } from 'ts-pattern'
 import { formatUnits } from 'viem'
 import {
   AlertDialog,
@@ -42,7 +43,7 @@ const legsOf = (prompt: HcaFundingPrompt) => {
     ),
     debit: prompt.permitValue,
     requiresPermit: prompt.requiresPermit,
-    unlimitedAllowance: false,
+    hasUnlimitedAllowance: false,
   }
   const { token } = prompt
   return token
@@ -53,7 +54,7 @@ const legsOf = (prompt: HcaFundingPrompt) => {
           covered: min(token.hcaBalance, token.required),
           debit: token.permitValue,
           requiresPermit: token.requiresPermit,
-          unlimitedAllowance: token.unlimitedAllowance ?? false,
+          hasUnlimitedAllowance: token.hasUnlimitedAllowance ?? false,
         },
         usdc,
       ]
@@ -102,7 +103,7 @@ export const HcaFundingConfirmDialog = ({
   const debits = legs.filter((leg) => leg.debit > 0n)
   const permits = debits.filter((leg) => leg.requiresPermit).length
   const unlimitedSymbol = debits.find(
-    (leg) => leg.requiresPermit && leg.unlimitedAllowance,
+    (leg) => leg.requiresPermit && leg.hasUnlimitedAllowance,
   )?.symbol
 
   return (
@@ -119,26 +120,29 @@ export const HcaFundingConfirmDialog = ({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
             {description}{' '}
-            {prompt && permits === 0 ? (
-              <Trans>
-                Your wallet has already given your smart account an allowance
-                that covers this, so you won't be asked to approve it: the
-                amount moves when you sign.
-              </Trans>
-            ) : unlimitedSymbol ? (
-              <Trans>
-                {unlimitedSymbol} can't be approved for an exact amount, so your
-                wallet will be asked to give your smart account an unlimited{' '}
-                {unlimitedSymbol} allowance. It stays in place until you revoke
-                it; only the amounts below move now.
-              </Trans>
-            ) : (
-              <Plural
-                one="Your wallet will be asked to approve this exact amount — nothing more."
-                other="Your wallet will be asked to approve these exact amounts — nothing more."
-                value={permits}
-              />
-            )}
+            {match({ hasNoPermits: !!prompt && permits === 0, unlimitedSymbol })
+              .with({ hasNoPermits: true }, () => (
+                <Trans>
+                  Your wallet has already given your smart account an allowance
+                  that covers this, so you won't be asked to approve it: the
+                  amount moves when you sign.
+                </Trans>
+              ))
+              .with({ unlimitedSymbol: P.string }, ({ unlimitedSymbol }) => (
+                <Trans>
+                  {unlimitedSymbol} can't be approved for an exact amount, so
+                  your wallet will be asked to give your smart account an
+                  unlimited {unlimitedSymbol} allowance. It stays in place until
+                  you revoke it; only the amounts below move now.
+                </Trans>
+              ))
+              .otherwise(() => (
+                <Plural
+                  one="Your wallet will be asked to approve this exact amount — nothing more."
+                  other="Your wallet will be asked to approve these exact amounts — nothing more."
+                  value={permits}
+                />
+              ))}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -182,7 +186,7 @@ export const HcaFundingConfirmDialog = ({
                 key={leg.symbol}
               >
                 <dt className="font-medium text-foreground">
-                  {leg.requiresPermit && !leg.unlimitedAllowance ? (
+                  {leg.requiresPermit && !leg.hasUnlimitedAllowance ? (
                     <Trans>You approve</Trans>
                   ) : (
                     <Trans>From your wallet</Trans>
