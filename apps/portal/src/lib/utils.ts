@@ -31,7 +31,7 @@ export function cn(...inputs: CxOptions) {
 const SLIP44_MSB = 0x80000000
 const ENSIP11_MAX_COIN_TYPE = 0xffffffff
 
-export function isValidEvmCoinType(coinType: number): boolean {
+function isValidEvmCoinType(coinType: number): boolean {
   return coinType >= SLIP44_MSB && coinType <= ENSIP11_MAX_COIN_TYPE
 }
 
