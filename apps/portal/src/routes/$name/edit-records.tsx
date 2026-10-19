@@ -36,6 +36,8 @@ import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import {
+  canEditType,
+  type EditableTypes,
   hasDisallowedChanges,
   type RecordType,
 } from '@/utils/records/editRecordUtils'
@@ -84,6 +86,7 @@ function EditRecordsPage() {
     hasOwnResolver,
     editableTypes,
     isLoading: isCanEditLoading,
+    isError: isPermissionsError,
   } = useCanEditRecords({ name })
 
   const isLoading =
@@ -204,16 +207,29 @@ function EditRecordsPage() {
           </Link>
           <h1 className="text-h1">{name}</h1>
         </div>
-        <ErrorMessage
-          title="Permission Denied"
-          description={
-            <>
-              You don't have permission to edit records for{' '}
-              <strong>{name}</strong>. Record edits require the relevant
-              resolver roles (or ownership on a non-permissioned resolver).
-            </>
-          }
-        />
+        {isPermissionsError ? (
+          <ErrorMessage
+            title="Permissions unavailable"
+            description={
+              <>
+                We couldn’t read your resolver permissions for{' '}
+                <strong>{name}</strong>, so editing is disabled. Try again in a
+                moment.
+              </>
+            }
+          />
+        ) : (
+          <ErrorMessage
+            title="Permission Denied"
+            description={
+              <>
+                You don't have permission to edit records for{' '}
+                <strong>{name}</strong>. Record edits require the relevant
+                resolver roles (or ownership on a non-permissioned resolver).
+              </>
+            }
+          />
+        )}
       </div>
     )
   }
@@ -237,7 +253,7 @@ const EditRecordsContent = ({
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
-  editableTypes: ReadonlySet<RecordType>
+  editableTypes: EditableTypes
 }) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
@@ -245,7 +261,9 @@ const EditRecordsContent = ({
   // Form state
   const [pickedType, setPickedType] = useState<RecordType | ''>('')
   const selectedType =
-    pickedType !== '' && editableTypes.has(pickedType) ? pickedType : ''
+    pickedType !== '' && canEditType(editableTypes, pickedType)
+      ? pickedType
+      : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
@@ -462,7 +480,7 @@ const EditRecordsContent = ({
               >
                 <option value="">Select...</option>
                 {RECORD_TYPES.filter((type) =>
-                  editableTypes.has(type.value),
+                  canEditType(editableTypes, type.value),
                 ).map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
@@ -486,6 +504,11 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={setKeyInput}
                 placeholder="Select coin..."
+                coinTypes={
+                  editableTypes.address === 'all'
+                    ? undefined
+                    : editableTypes.address
+                }
                 // Sits in a row of plain inputs, so it takes their flat fill
                 // rather than the outline button's dark tint.
                 className="dark:bg-background dark:hover:bg-accent"
@@ -500,14 +523,33 @@ const EditRecordsContent = ({
               >
                 Key
               </label>
-              <input
-                id={keyInputId}
-                type="text"
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                placeholder=""
-                className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              />
+              {editableTypes.text === 'all' ? (
+                <input
+                  id={keyInputId}
+                  type="text"
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                  placeholder=""
+                  className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                />
+              ) : (
+                <div className="relative">
+                  <select
+                    id={keyInputId}
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                  >
+                    <option value="">Select...</option>
+                    {[...editableTypes.text].toSorted().map((key) => (
+                      <option key={key} value={key}>
+                        {key}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              )}
             </div>
           )}
 

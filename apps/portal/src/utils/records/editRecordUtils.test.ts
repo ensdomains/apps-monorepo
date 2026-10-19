@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canEditType,
   createNewRecord,
   type EditableRecord,
+  type EditableTypes,
   getRecordId,
   hasDisallowedChanges,
   mergeRecordsWithChanges,
+  NO_EDITABLE_TYPES,
 } from './editRecordUtils'
 
 describe('getRecordId', () => {
@@ -286,7 +289,7 @@ describe('createNewRecord', () => {
 })
 
 describe('hasDisallowedChanges', () => {
-  const textOnly = new Set(['text'] as const)
+  const textOnly: EditableTypes = { ...NO_EDITABLE_TYPES, text: 'all' }
   const address = { type: 'address' as const, key: 'ETH', value: '0x1', id: 60 }
 
   it('allows changes to types the wallet can still write', () => {
@@ -308,5 +311,49 @@ describe('hasDisallowedChanges', () => {
     { isDeleted: true },
   ])('flags a pending change of a type the wallet lost (%o)', (flag) => {
     expect(hasDisallowedChanges([{ ...address, ...flag }], textOnly)).toBe(true)
+  })
+
+  it('checks the key, not just the type, when a type is scoped', () => {
+    const avatarAndEth: EditableTypes = {
+      ...NO_EDITABLE_TYPES,
+      text: new Set(['avatar']),
+      address: new Set([60n]),
+    }
+    const edited = { isEdited: true }
+
+    expect(
+      hasDisallowedChanges(
+        [
+          { type: 'text', key: 'avatar', value: 'a', ...edited },
+          { ...address, ...edited },
+        ],
+        avatarAndEth,
+      ),
+    ).toBe(false)
+    expect(
+      hasDisallowedChanges(
+        [{ type: 'text', key: 'name', value: 'Jane', ...edited }],
+        avatarAndEth,
+      ),
+    ).toBe(true)
+    expect(
+      hasDisallowedChanges(
+        [{ type: 'address', key: 'BTC', value: 'bc1', id: 0, ...edited }],
+        avatarAndEth,
+      ),
+    ).toBe(true)
+  })
+})
+
+describe('canEditType', () => {
+  it('opens a type with at least one granted key', () => {
+    const types: EditableTypes = {
+      ...NO_EDITABLE_TYPES,
+      text: new Set(['avatar']),
+    }
+
+    expect(canEditType(types, 'text')).toBe(true)
+    expect(canEditType(types, 'address')).toBe(false)
+    expect(canEditType(NO_EDITABLE_TYPES, 'text')).toBe(false)
   })
 })

@@ -2,26 +2,37 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { RecordType } from '@/utils/records/editRecordUtils'
+import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import {
+  ALL_EDITABLE_TYPES,
+  type EditableTypes,
+  NO_EDITABLE_TYPES,
+} from '@/utils/records/editRecordUtils'
 import { EditRecordsTable } from './EditRecordsTable'
 
 const address = { type: 'address' as const, key: 'ETH', value: '0x1', id: 60 }
 const text = { type: 'text' as const, key: 'name', value: 'Jane' }
+const avatar = { type: 'text' as const, key: 'avatar', value: 'ipfs://a' }
 
-const renderTable = (editableTypes: ReadonlySet<RecordType>) => {
+const TEXT_ONLY: EditableTypes = { ...NO_EDITABLE_TYPES, text: 'all' }
+
+const renderTable = (
+  editableTypes: EditableTypes,
+  records: NameRecord[] = [address, text],
+) => {
   const onDeleteRecord = vi.fn()
   const view = render(
     <EditRecordsTable
-      records={[address, text]}
+      records={records}
       globalFilter=""
       editableTypes={editableTypes}
       onDeleteRecord={onDeleteRecord}
     />,
   )
-  const rerender = (types: ReadonlySet<RecordType>) =>
+  const rerender = (types: EditableTypes) =>
     view.rerender(
       <EditRecordsTable
-        records={[address, text]}
+        records={records}
         globalFilter=""
         editableTypes={types}
         onDeleteRecord={onDeleteRecord}
@@ -32,30 +43,26 @@ const renderTable = (editableTypes: ReadonlySet<RecordType>) => {
 
 describe('EditRecordsTable', () => {
   it('closes an open delete confirmation when its type stops being editable', async () => {
-    const { onDeleteRecord, rerender } = renderTable(
-      new Set(['address', 'text']),
-    )
+    const { onDeleteRecord, rerender } = renderTable(ALL_EDITABLE_TYPES)
 
     await userEvent.click(
       screen.getAllByRole('button', { name: 'Delete record' })[0],
     )
     expect(screen.getByText('Remove ETH?')).toBeTruthy()
 
-    rerender(new Set(['text']))
+    rerender(TEXT_ONLY)
 
     expect(screen.queryByText('Remove ETH?')).toBeNull()
     expect(onDeleteRecord).not.toHaveBeenCalled()
   })
 
   it('bulk-deletes only rows that are still editable', async () => {
-    const { onDeleteRecord, rerender } = renderTable(
-      new Set(['address', 'text']),
-    )
+    const { onDeleteRecord, rerender } = renderTable(ALL_EDITABLE_TYPES)
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }))
     expect(screen.getByText('2 selected')).toBeTruthy()
 
-    rerender(new Set(['text']))
+    rerender(TEXT_ONLY)
     expect(screen.getByText('1 selected')).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
@@ -65,5 +72,16 @@ describe('EditRecordsTable', () => {
     expect(onDeleteRecord).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'text', key: 'name' }),
     )
+  })
+
+  it('leaves text rows outside the granted keys read-only', () => {
+    renderTable({ ...NO_EDITABLE_TYPES, text: new Set(['avatar']) }, [
+      avatar,
+      text,
+    ])
+
+    const deletes = screen.getAllByRole('button', { name: 'Delete record' })
+    expect(deletes).toHaveLength(1)
+    expect(screen.getByText('Jane')).toBeTruthy()
   })
 })

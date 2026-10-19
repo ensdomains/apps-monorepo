@@ -1,6 +1,11 @@
-import { computeResolverResource } from '@ensdomains/ensjs/utils/v2'
+import {
+  computeResolverResource,
+  encodeResolverRoleBitmap,
+} from '@ensdomains/ensjs/utils/v2'
+import { toHex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
+  decodeSetterGrants,
   describeResolverResource,
   formatSetterScope,
   groupRolesByAccount,
@@ -222,5 +227,131 @@ describe('planAccountRemoval', () => {
     )
 
     expect(plan).toEqual({ type: 'unreadable' })
+  })
+})
+
+describe('decodeSetterGrants', () => {
+  const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+  const eth = computeResolverResource({ kind: 'address', coinType: 60n })
+  const jsonAbi = computeResolverResource({ kind: 'abi', contentType: 1n })
+  const hex = (resource: bigint) => toHex(resource, { size: 32 })
+  const word = (value: bigint) => toHex(value, { size: 32 })
+
+  it('decodes text and coin-type grants from their revealed preimages', () => {
+    expect(
+      decodeSetterGrants(
+        [
+          {
+            resource: avatar,
+            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
+          },
+          {
+            resource: eth,
+            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_ADDRESS']),
+          },
+        ],
+        [
+          {
+            resource: hex(avatar),
+            recordKind: 'text',
+            recordKey: 'avatar',
+            coinType: '-1',
+          },
+          {
+            resource: hex(eth),
+            recordKind: 'addr',
+            recordKey: word(60n),
+            coinType: '60',
+          },
+        ],
+      ),
+    ).toEqual([
+      { kind: 'text', key: 'avatar' },
+      { kind: 'address', coinType: 60n },
+    ])
+  })
+
+  it('reads a uint argument from the raw word when no coin type is given', () => {
+    expect(
+      decodeSetterGrants(
+        [
+          {
+            resource: jsonAbi,
+            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_ABI']),
+          },
+        ],
+        [
+          {
+            resource: hex(jsonAbi),
+            recordKind: 'argument',
+            recordKey: word(1n),
+            coinType: '-1',
+          },
+        ],
+      ),
+    ).toEqual([{ kind: 'abi', contentType: 1n }])
+  })
+
+  it('drops a preimage that does not hash to the grant’s resource', () => {
+    expect(
+      decodeSetterGrants(
+        [
+          {
+            resource: avatar,
+            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
+          },
+        ],
+        [
+          {
+            resource: hex(avatar),
+            recordKind: 'text',
+            recordKey: 'header',
+            coinType: '-1',
+          },
+        ],
+      ),
+    ).toEqual([])
+  })
+
+  it('drops a grant with no revealed preimage, and root grants', () => {
+    expect(
+      decodeSetterGrants(
+        [
+          {
+            resource: avatar,
+            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
+          },
+          {
+            resource: ROOT_RESOURCE,
+            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
+          },
+        ],
+        [],
+      ),
+    ).toEqual([])
+  })
+
+  it('ignores admin bits and roles edit-records does not write', () => {
+    expect(
+      decodeSetterGrants(
+        [
+          {
+            resource: avatar,
+            roleBitmap: encodeResolverRoleBitmap([
+              'ROLE_SET_TEXT_ADMIN',
+              'ROLE_SET_DATA',
+            ]),
+          },
+        ],
+        [
+          {
+            resource: hex(avatar),
+            recordKind: 'text',
+            recordKey: 'avatar',
+            coinType: '-1',
+          },
+        ],
+      ),
+    ).toEqual([])
   })
 })

@@ -4,6 +4,7 @@ import { ok } from 'neverthrow'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ResolverSetterScope } from '@/lib/roles/resolverRoles'
 
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const STRANGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
@@ -38,6 +39,9 @@ let ownResolverQuery: QueryStub = idle()
 let isPermissionedQuery: QueryStub = idle()
 let roleQueries: QueryStub[] = []
 let publicResolverV2Query: QueryStub = idle()
+let grantsQuery: QueryStub = idle()
+/** Whether the setter-grants read was enabled on the last render. */
+let grantsEnabled: boolean | undefined
 /** What the own-resolver check was asked, captured off its query key. */
 let ownResolverParams: unknown
 
@@ -60,10 +64,24 @@ vi.mock('@tanstack/react-query', async () => {
     useQuery: ({
       queryKey,
       enabled,
+      select,
     }: {
       queryKey: readonly unknown[]
       enabled?: boolean
+      select?: (data: never) => unknown
     }) => {
+      if (queryKey[0] === 'get-resolver-setter-grants') {
+        grantsEnabled = enabled
+        if (enabled === false) return idle()
+        return {
+          ...grantsQuery,
+          data:
+            select && grantsQuery.data !== undefined
+              ? select(grantsQuery.data as never)
+              : grantsQuery.data,
+        }
+      }
+
       const stub = match(queryKey[0])
         .with('get-ens-owner', () => ownerQuery)
         .with('get-name-resolver-address', () => resolverQuery)
@@ -93,9 +111,16 @@ vi.mock('@tanstack/react-query', async () => {
 const { RECORD_EDIT_ROLES, useCanEditRecords } = await import(
   './useCanEditRecords'
 )
+const { ALL_EDITABLE_TYPES, NO_EDITABLE_TYPES } = await import(
+  '@/utils/records/editRecordUtils'
+)
 
-const render = () =>
-  renderHook(() => useCanEditRecords({ name: 'jobintime.xyz' })).result.current
+const render = (scope?: ResolverSetterScope) =>
+  renderHook(() => useCanEditRecords({ name: 'jobintime.xyz', scope })).result
+    .current
+
+/** Root checks for every record role, all refused, then one per scope. */
+const rootRefused = () => RECORD_EDIT_ROLES.map(() => settled(false))
 
 describe('useCanEditRecords', () => {
   beforeEach(() => {
@@ -106,6 +131,8 @@ describe('useCanEditRecords', () => {
     isPermissionedQuery = settled(false)
     roleQueries = []
     publicResolverV2Query = idle()
+    grantsQuery = idle()
+    grantsEnabled = undefined
     ownResolverParams = undefined
   })
 
@@ -186,16 +213,11 @@ describe('useCanEditRecords', () => {
     const result = render()
 
     expect(result.canEdit).toBe(false)
-    expect(result.editableTypes.size).toBe(0)
+    expect(result.editableTypes).toEqual(NO_EDITABLE_TYPES)
   })
 
   it('lets the owner edit every record type on a non-permissioned resolver', () => {
-    expect([...render().editableTypes].sort()).toEqual([
-      'abi',
-      'address',
-      'contentHash',
-      'text',
-    ])
+    expect(render().editableTypes).toEqual(ALL_EDITABLE_TYPES)
   })
 
   it('limits a permissioned resolver to the types whose setter role is held', () => {
@@ -208,7 +230,86 @@ describe('useCanEditRecords', () => {
     const result = render()
 
     expect(result.canEdit).toBe(true)
-    expect([...result.editableTypes]).toEqual(['text'])
+    expect(result.editableTypes).toEqual({ ...NO_EDITABLE_TYPES, text: 'all' })
+  })
+
+  describe('argument-scoped grants', () => {
+    beforeEach(() => {
+      connectedAddress = STRANGER
+      isPermissionedQuery = settled(true)
+    })
+
+    it('lets in a wallet whose only grant is one text key', () => {
+      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+      roleQueries = [...rootRefused(), settled(true)]
+
+      const result = render()
+
+      expect(result.canEdit).toBe(true)
+      expect(result.editableTypes).toEqual({
+        ...NO_EDITABLE_TYPES,
+        text: new Set(['avatar']),
+      })
+    })
+
+    it('adds a coin-type grant alongside a root text role', () => {
+      grantsQuery = settled([{ kind: 'address', coinType: 60n }])
+      roleQueries = [
+        ...RECORD_EDIT_ROLES.map((role) => settled(role === 'ROLE_SET_TEXT')),
+        settled(true),
+      ]
+
+      expect(render().editableTypes).toEqual({
+        ...NO_EDITABLE_TYPES,
+        text: 'all',
+        address: new Set([60n]),
+      })
+    })
+
+    it('opens nothing for a grant the chain does not confirm', () => {
+      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+      roleQueries = [...rootRefused(), settled(false)]
+
+      const result = render()
+
+      expect(result.canEdit).toBe(false)
+      expect(result.editableTypes).toEqual(NO_EDITABLE_TYPES)
+    })
+
+    it('ignores an ABI grant for a content type records are not saved as', () => {
+      grantsQuery = settled([{ kind: 'abi', contentType: 2n }])
+      roleQueries = [...rootRefused(), settled(true)]
+
+      expect(render().canEdit).toBe(false)
+    })
+
+    it('stays loading while the grants are read', () => {
+      grantsQuery = loading()
+      roleQueries = rootRefused()
+
+      const result = render()
+
+      expect(result.isLoading).toBe(true)
+      expect(result.canEdit).toBe(false)
+    })
+
+    it('reports a failed grants read instead of a plain refusal', () => {
+      grantsQuery = { data: undefined, isLoading: false, isError: true }
+      roleQueries = rootRefused()
+
+      const result = render()
+
+      expect(result.canEdit).toBe(false)
+      expect(result.isError).toBe(true)
+    })
+
+    it('skips the grants read for a caller asking about one argument', () => {
+      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+
+      render({ kind: 'address', coinType: 60n })
+
+      expect(grantsEnabled).toBe(false)
+    })
   })
 
   it('reports a failed role read as an error, not as no permission', () => {
