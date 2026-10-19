@@ -175,8 +175,34 @@ describe('recordsToTableData', () => {
     expect(result[2]).toMatchObject({ key: 'BNB', type: 'address' })
   })
 
+  it('names the L2s keyed on testnet chain ids', () => {
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [
+        { coinType: 2147568180, value: 'a', symbol: 'Unknown Chain (84532)' },
+        {
+          coinType: 2158639068,
+          value: 'b',
+          symbol: 'Unknown Chain (11155420)',
+        },
+        { coinType: 2155261425, value: 'c', symbol: 'zora' },
+        { coinType: 60, value: 'd', symbol: 'eth' },
+      ],
+      contentHash: null,
+      abi: null,
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    expect(
+      recordsToTableData(records).map((record) =>
+        'key' in record ? record.key : null,
+      ),
+    ).toEqual(['Base', 'Optimism', 'zora', 'eth'])
+  })
+
   it('labels an out-of-range EVM coin type instead of the chain it aliases (WEB-1447)', () => {
-    // Both render as "Unknown Chain (84532)"; only the first is that chain.
+    // address-encoder names both "Unknown Chain (84532)"; only the first is
+    // that chain, Base Sepolia, which is named after Base.
     const records: GetRecordsReturnType = {
       texts: [],
       coins: [
@@ -199,7 +225,7 @@ describe('recordsToTableData', () => {
     const result = recordsToTableData(records)
 
     expect(result[0]).toMatchObject({
-      key: 'Unknown Chain (84532)',
+      key: 'Base',
       type: 'address',
       id: 2147568180,
     })
