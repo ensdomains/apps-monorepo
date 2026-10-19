@@ -33,10 +33,12 @@ import {
 } from '@/components/ui/table'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
+import { healName } from '@/utils/ens/localLabels'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
-// A child bigname cannot label is shown as `[labelhash].parent`, never linked.
+// A child neither bigname nor this browser can label is shown as
+// `[labelhash].parent`, never linked.
 const SubnameBadge = ({ name }: { readonly name: string }) => {
   const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
   return (
@@ -127,7 +129,9 @@ function buildColumns(
   return [
     ...(onDeleteClick ? [selectColumn] : []),
     {
-      accessorKey: 'name',
+      id: 'name',
+      // Display, sort and search only: row identity stays the served name.
+      accessorFn: (row) => healName(row.name),
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -136,7 +140,7 @@ function buildColumns(
           Subname
         </SortButton>
       ),
-      cell: ({ row }) => <SubnameBadge name={row.original.name} />,
+      cell: ({ getValue }) => <SubnameBadge name={getValue<string>()} />,
     },
     {
       accessorKey: 'owner',
@@ -339,7 +343,7 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <SubnameBadge name={row.original.name} />
+                    <SubnameBadge name={row.getValue<string>('name')} />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
@@ -366,7 +370,7 @@ export const SubnamesTable = ({
                   <div className="border-b border-border bg-muted px-6 py-3">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">
-                        Remove {row.original.name}?
+                        Remove {row.getValue<string>('name')}?
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
@@ -453,7 +457,7 @@ export const SubnamesTable = ({
                       <TableCell colSpan={columns.length} className="px-6 py-3">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">
-                            Remove {row.original.name}?
+                            Remove {row.getValue<string>('name')}?
                           </span>
                           <div className="flex items-center gap-2">
                             <Button

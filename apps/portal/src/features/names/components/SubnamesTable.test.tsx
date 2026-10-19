@@ -1,6 +1,8 @@
+import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { Address } from 'viem'
+import { type Address, labelhash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
+import { rememberName } from '@/utils/ens/localLabels'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -191,6 +193,24 @@ describe('SubnamesTable', () => {
     expect(screen.getAllByText(placeholder).length).toBeGreaterThan(0)
     expect(linkedNames).toContain('sub.test.eth')
     expect(linkedNames).not.toContain(placeholder)
+  })
+
+  it('heals an unknown label this browser has opened', () => {
+    const placeholder = `${encodeLabelhash(labelhash('🔥'))}.test.eth`
+    rememberName('🔥.test.eth')
+    render(
+      <SubnamesTable
+        subnames={[createMockSubname(placeholder)]}
+        name="test.eth"
+      />,
+    )
+    localStorage.clear()
+
+    const linkedNames = screen
+      .getAllByTestId('entity-badge')
+      .map((badge) => badge.getAttribute('data-name'))
+    expect(linkedNames).toContain('🔥.test.eth')
+    expect(screen.queryByText(placeholder)).not.toBeInTheDocument()
   })
 
   it('renders create button when canCreateSubname is true', () => {
