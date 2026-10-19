@@ -15,13 +15,7 @@ import { l2PublicClients, wagmiConfig } from '@/lib/wagmi'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { followChain } from '@/lib/wallet/followChain'
 
-// Wallets can reject with a bare object; keep it as the cause for its message.
-const toError = (error: unknown): Error =>
-  error instanceof Error
-    ? error
-    : new Error('The wallet did not respond.', { cause: error })
-
-export const findL2Source = (chainId: number): L2Source | undefined =>
+const findL2Source = (chainId: number): L2Source | undefined =>
   l2Sources.find((source) => source.chain.id === chainId)
 
 const sourceClient = (source: L2Source) => {
@@ -52,15 +46,15 @@ export const getL2FundingSource = (
   return {
     chain: source.chain,
     token: source.usdc,
+    // A wallet rejects with whatever it likes (often a bare `{ code, message }`),
+    // so it is carried through untouched: the transport reads the reason off it.
     getAccount: () =>
-      ResultAsync.fromPromise(
-        sourceWalletClient(owner, source),
-        toError,
-      ).andThen((walletClient) =>
-        createBridgeAccount({
-          eoa: walletClientToAccount(walletClient),
-          sourceChainId: source.chain.id,
-        }),
+      ResultAsync.fromSafePromise(sourceWalletClient(owner, source)).andThen(
+        (walletClient) =>
+          createBridgeAccount({
+            eoa: walletClientToAccount(walletClient),
+            sourceChainId: source.chain.id,
+          }),
       ),
     // Unlimited, once per L2: Permit2 only moves tokens against a signed permit.
     ensureAllowance: async (amount) => {

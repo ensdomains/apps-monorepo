@@ -95,7 +95,7 @@ export interface L2FundingSource {
   /** The USDC paid on `chain`. */
   readonly token: Address
   /** The wallet's SDK account on `chain`, which signs the transfer. */
-  readonly getAccount: () => ResultAsync<RhinestoneAccount, Error>
+  readonly getAccount: () => ResultAsync<RhinestoneAccount, unknown>
   /** Have Permit2 allowed to move `amount` of `token`, asking the wallet if not. */
   readonly ensureAllowance: (amount: bigint) => Promise<void>
 }
