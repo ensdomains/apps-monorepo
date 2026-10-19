@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
-import { setIntercomLauncherClearance } from '@/lib/intercom'
+import {
+  LAUNCHER_RIGHT_PADDING,
+  LAUNCHER_SIZE,
+  setIntercomLauncherClearance,
+} from '@/lib/intercom'
 
 const SETTLE_MS = 100
-const LAUNCHER_SIZE = 60
-const LAUNCHER_RIGHT_PADDING = 20
 
 /** Lifts Intercom only when a fixed bottom bar overlaps its default position. */
 export const useIntercomClearance = (bar: HTMLElement | null) => {

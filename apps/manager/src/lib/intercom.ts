@@ -17,6 +17,8 @@ export const initializeIntercom = createIsomorphicFn().client(
 )
 
 const DEFAULT_LAUNCHER_PADDING = 20
+export const LAUNCHER_SIZE = 60
+export const LAUNCHER_RIGHT_PADDING = 20
 const LAUNCHER_GAP = 16
 
 /** Lifts the launcher above whatever ends `clearance` px from the viewport bottom; 0 restores the default. */
