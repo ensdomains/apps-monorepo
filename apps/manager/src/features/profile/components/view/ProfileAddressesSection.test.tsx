@@ -29,12 +29,12 @@ describe('ProfileAddressesSection', () => {
     }
 
     const { getAllByRole, getByRole } = render(
-      <ProfileAddressesSection name="example.eth" records={records} />,
+      <ProfileAddressesSection records={records} />,
     )
 
     expect(getAllByRole('button')).toHaveLength(2)
-    const mainCard = getByRole('button', { name: /example.eth/ })
-    const solCard = getByRole('button', { name: /examp\.\.\.dress/ })
+    const mainCard = getByRole('button', { name: /Examp…dress/ })
+    const solCard = getByRole('button', { name: /examp…dress/ })
     expect(mainCard).toHaveAttribute('title', iostValue)
     expect(solCard).toHaveAttribute('title', solValue)
     expect(within(mainCard).getByRole('img', { name: 'icon' })).toHaveAttribute(

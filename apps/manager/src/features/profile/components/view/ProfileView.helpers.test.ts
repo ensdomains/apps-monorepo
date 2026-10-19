@@ -90,11 +90,15 @@ describe('ProfileView helpers', () => {
   it('formats chain-specific addresses with the first and last five characters', () => {
     expect(
       formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
-    ).toBe('bc1qx...x0wlh')
-    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe(
-      'DE5op...89xyz',
-    )
+    ).toBe('bc1qx…x0wlh')
+    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe('DE5op…89xyz')
     expect(formatChainSpecificAddress('abc123')).toBe('abc123')
+  })
+
+  it('keeps the 0x prefix in front of the first five hex characters', () => {
+    expect(
+      formatChainSpecificAddress('0xCC6925b3a1d6e7f8091a2b3c4d5e6f708192a3b4'),
+    ).toBe('0xCC692…2a3b4')
   })
 
   it('formats dates as compact uppercase labels for mobile', () => {

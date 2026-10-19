@@ -7,24 +7,14 @@ import { ProfileLinksSection } from './ProfileLinksSection'
 import { ProfileSocialSection } from './ProfileSocialSection'
 
 type ProfileCardsProps = {
-  readonly avatarUrl?: string
-  readonly name: string
   readonly records: ProfileRecords
 }
 
-export const ProfileCards = ({
-  avatarUrl,
-  name,
-  records,
-}: ProfileCardsProps) => (
+export const ProfileCards = ({ records }: ProfileCardsProps) => (
   <div className="space-y-0">
     <ProfileFeaturedSocialSection records={records} />
     <ProfileContactSection records={records} />
-    <ProfileAddressesSection
-      avatarUrl={avatarUrl}
-      name={name}
-      records={records}
-    />
+    <ProfileAddressesSection records={records} />
     <ProfileSocialSection records={records} />
     <ProfileLinksSection records={records} />
     <ProfileAgentSection records={records} />

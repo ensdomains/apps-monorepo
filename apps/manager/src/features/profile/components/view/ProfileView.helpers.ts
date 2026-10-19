@@ -81,10 +81,12 @@ const CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH = 5
 
 export const formatChainSpecificAddress = (value: string): string => {
   const trimmed = value.trim()
+  const prefix = trimmed.startsWith('0x') ? '0x' : ''
+  const body = trimmed.slice(prefix.length)
 
-  if (trimmed.length <= CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH * 2) return trimmed
+  if (body.length <= CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH * 2) return trimmed
 
-  return `${trimmed.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}...${trimmed.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
+  return `${prefix}${body.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}…${body.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
 }
 
 /**
