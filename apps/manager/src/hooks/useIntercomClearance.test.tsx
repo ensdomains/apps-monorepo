@@ -17,6 +17,8 @@ const Bar = () => {
 const mockBar = (height: number) =>
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     height,
+    left: 0,
+    right: window.innerWidth,
     top: 800 - height,
   } as DOMRect)
 

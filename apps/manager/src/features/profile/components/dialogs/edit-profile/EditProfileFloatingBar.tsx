@@ -125,8 +125,8 @@ export const EditProfileFloatingBar = ({
   const barRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const barHeight = useMeasuredHeight(barRef)
-  const [section, setSection] = useState<HTMLElement | null>(null)
-  useIntercomClearance(section)
+  const [container, setContainer] = useState<HTMLDivElement | null>(null)
+  useIntercomClearance(container)
 
   useEffect(() => {
     if (isOpen) editorRef.current?.focus({ preventScroll: true })
@@ -148,7 +148,6 @@ export const EditProfileFloatingBar = ({
       aria-label={t`Profile actions`}
       className={sectionClassName}
       onKeyDown={handleKeyDown}
-      ref={setSection}
     >
       <motion.div
         animate={{
@@ -157,6 +156,7 @@ export const EditProfileFloatingBar = ({
         className={containerClassName}
         data-open={isOpen}
         initial={false}
+        ref={setContainer}
         transition={heightTransition}
       >
         <motion.div
