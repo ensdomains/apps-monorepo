@@ -37,6 +37,8 @@ type UseCanEditRecordsParams = {
 type UseCanEditRecordsReturn = {
   canEdit: boolean
   isLoading: boolean
+  /** A read failed, so `canEdit` is unknown rather than `false`. */
+  isError: boolean
   /** True when the connected wallet is the name token owner. */
   isOwner: boolean
   /**
@@ -140,6 +142,13 @@ export function useCanEditRecords({
         rolesLoading)) ||
     false
 
+  const isError =
+    ownerQuery.isError ||
+    resolverQuery.isError ||
+    ownResolverQuery.isError ||
+    isPermissionedQuery.isError ||
+    (isPermissioned && roleQueries.some((query) => query.isError))
+
   const hasResolverRole = roleQueries.some((query) => query.data === true)
 
   const canEdit = (() => {
@@ -161,6 +170,7 @@ export function useCanEditRecords({
   return {
     canEdit,
     isLoading,
+    isError,
     isOwner,
     hasOwnResolver,
     resolverAddress,
