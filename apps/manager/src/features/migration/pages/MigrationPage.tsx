@@ -127,8 +127,8 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
         <div>
           <Trans>
             Your wallet and your smart account both lost permission to update
-            one of these names&apos; records. Restore the permission in your
-            profile, then try again. Nothing was submitted.
+            your names&apos; records. Restore the permission in your profile,
+            then try again. No names were changed.
           </Trans>
         </div>
       )

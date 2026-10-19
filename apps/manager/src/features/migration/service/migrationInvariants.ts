@@ -457,6 +457,15 @@ export const checkMigrationHcaReadiness = async (params: {
 
 export type MigrationResolverWriter = 'hca' | 'wallet'
 
+/**
+ * Which account writes the resolver's records. A resolver that is not verified
+ * yet is deployed and written by the HCA, so it is the default.
+ */
+export const resolverWriterFor = (
+  readiness: MigrationResolverReadiness | undefined,
+): MigrationResolverWriter =>
+  readiness?.status === 'verified' ? readiness.writer : 'hca'
+
 export type MigrationResolverReadiness =
   | { readonly status: 'not-required' }
   | { readonly status: 'deployment-required'; readonly resolver: Address }

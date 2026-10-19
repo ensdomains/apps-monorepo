@@ -984,10 +984,6 @@ msgstr "Download WebP"
 msgid "Downloading artwork…"
 msgstr "Downloading artwork…"
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
-msgstr "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
-
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Edit"
@@ -3578,6 +3574,10 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Your names are upgraded one batch at a time. If an upgrade transaction fails, none of the names in that batch change. Earlier batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgstr "Your names are upgraded one batch at a time. If an upgrade transaction fails, none of the names in that batch change. Earlier batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names can't be upgraded"
 msgstr "Your names can't be upgraded"
@@ -3659,9 +3659,13 @@ msgstr "Your wallet address can only have one primary ENS name, which will displ
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again."
+msgstr "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again."
+
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "Your wallet and your smart account both lost permission to update one of these names' records. Restore the permission in your profile, then try again. Nothing was submitted."
-msgstr "Your wallet and your smart account both lost permission to update one of these names' records. Restore the permission in your profile, then try again. Nothing was submitted."
+msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
+msgstr "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts

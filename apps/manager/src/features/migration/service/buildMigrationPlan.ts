@@ -76,6 +76,7 @@ import {
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
   getRequiredMigrationContracts,
+  resolverWriterFor,
 } from './migrationInvariants'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
@@ -183,6 +184,22 @@ const innerExecutionGas = (params: {
   return STATIC_INNER_EXECUTION_GAS[params.execution.phase]
 }
 
+const sumExecutionGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly executions: readonly AtomicMigrationInnerExecution[]
+}): bigint =>
+  params.executions.reduce(
+    (gas, execution) =>
+      gas +
+      innerExecutionGas({
+        execution,
+        classifiedByName: params.classifiedByName,
+        profiles: params.profiles,
+      }),
+    0n,
+  )
+
 const previewAtomicBatchGas = (params: {
   readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
   readonly profiles: ReadonlyMap<Hex, Profile>
@@ -199,18 +216,16 @@ const previewAtomicBatchGas = (params: {
         : 200_000n)
     )
   }, 0n)
-  const executionGas = params.innerExecutions.reduce(
-    (gas, execution) =>
-      gas +
-      innerExecutionGas({
-        execution,
-        classifiedByName: params.classifiedByName,
-        profiles: params.profiles,
-      }),
-    0n,
-  )
 
-  return PER_BATCH_OVERHEAD + nameGas + executionGas
+  return (
+    PER_BATCH_OVERHEAD +
+    nameGas +
+    sumExecutionGas({
+      classifiedByName: params.classifiedByName,
+      profiles: params.profiles,
+      executions: params.innerExecutions,
+    })
+  )
 }
 
 /**
@@ -222,16 +237,7 @@ const previewWalletReplayGas = (params: {
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly walletExecutions: readonly AtomicMigrationInnerExecution[]
 }): bigint =>
-  params.walletExecutions.reduce(
-    (gas, execution) =>
-      gas +
-      innerExecutionGas({
-        execution,
-        classifiedByName: params.classifiedByName,
-        profiles: params.profiles,
-      }),
-    0n,
-  )
+  sumExecutionGas({ ...params, executions: params.walletExecutions })
 
 /**
  * The batch's own gas plus the replay the owner wallet sends. Both preview and
@@ -547,10 +553,7 @@ export const buildMigrationPlan = async (params: {
   const walletCoAdminGranted =
     preflight.hcaResolverReadiness?.status === 'verified' &&
     preflight.hcaResolverReadiness.walletHasWildcardRoles
-  const resolverWriter =
-    preflight.hcaResolverReadiness?.status === 'verified'
-      ? preflight.hcaResolverReadiness.writer
-      : 'hca'
+  const resolverWriter = resolverWriterFor(preflight.hcaResolverReadiness)
   const atomicPlan = await buildAtomicMigrationBatches({
     chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
@@ -836,10 +839,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    resolverWriter:
-      resolverReadiness.status === 'verified'
-        ? resolverReadiness.writer
-        : 'hca',
+    resolverWriter: resolverWriterFor(resolverReadiness),
     maxOuterGas: TARGET_GAS,
     estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
       previewBatchGas({

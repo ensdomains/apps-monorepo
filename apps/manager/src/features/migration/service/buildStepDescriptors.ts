@@ -1,5 +1,8 @@
 import type { Address } from 'viem'
-import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
+import {
+  type AtomicMigrationBatch,
+  walletReplayNames,
+} from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
   MigrationApprovalId,
@@ -157,11 +160,13 @@ export const buildStepDescriptors = (
     ).length
     const copyCount = batch.operations.length - migrateCount
     // Ahead of the batch: the replay has to land before the names migrate.
+    // Count only the names whose records the call carries, not every name in
+    // the batch.
     if (batch.walletCall) {
       descriptors.push({
         type: 'record-replay',
         index,
-        count: batch.names.length,
+        count: walletReplayNames(batch).length,
       })
     }
     descriptors.push({

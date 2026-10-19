@@ -29,6 +29,8 @@ import { TARGET_GAS } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   buildAtomicMigrationBatches,
+  maxBatchGas,
+  walletReplayNames,
 } from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type {
@@ -76,10 +78,12 @@ import {
 import {
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
+  resolverWriterFor,
 } from './migrationInvariants'
 import {
   describeRecoveredOperations,
   describeUpgradeOperations,
+  nameCount,
 } from './migrationProgressCopy'
 import {
   reconcileAtomicMigrationBatch,
@@ -1284,6 +1288,18 @@ const recoverMaskedRpcEstimate = async (params: {
   }
 }
 
+/** The one estimate request both the wrapped HCA call and the wallet replay use. */
+const estimateCallGas = (params: {
+  readonly ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>
+  readonly call: Call
+}): Promise<bigint> =>
+  params.ctx.publicClient.estimateGas({
+    account: params.ctx.walletAddress,
+    to: params.call.to,
+    data: params.call.data,
+    value: params.call.value,
+  })
+
 /**
  * Live estimate of the outer `executeByOwner` call. A permission-missing revert
  * can be a lagging approval head rather than a real refusal, so it retries
@@ -1297,12 +1313,7 @@ const estimateOuterCallGas = async (params: {
   let retryIndex = 0
   while (true) {
     try {
-      return await params.ctx.publicClient.estimateGas({
-        account: params.ctx.walletAddress,
-        to: params.call.to,
-        data: params.call.data,
-        value: params.call.value,
-      })
+      return await estimateCallGas(params)
     } catch (error) {
       const decodedError = decodeMigrationError(error)
       const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
@@ -1327,20 +1338,8 @@ const estimateOuterCallGas = async (params: {
   }
 }
 
-/**
- * Live estimate of the owner-wallet record replay. It is a plain transaction,
- * so there is no wrapper or approval head to lag behind it.
- */
-const estimateWalletCallGas = async (params: {
-  readonly ctx: MigrationCtx
-  readonly call: Call
-}): Promise<bigint> =>
-  params.ctx.publicClient.estimateGas({
-    account: params.ctx.walletAddress,
-    to: params.call.to,
-    data: params.call.data,
-    value: params.call.value,
-  })
+/** Keep 10% headroom over an estimate, rounding up. */
+const withGasBuffer = (gas: bigint): bigint => (gas * 110n + 99n) / 100n
 
 const buildNextAtomicBatch = async (params: {
   readonly ctx: MigrationCtx
@@ -1391,10 +1390,7 @@ const buildNextAtomicBatch = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    resolverWriter:
-      resolverReadiness.status === 'verified'
-        ? resolverReadiness.writer
-        : 'hca',
+    resolverWriter: resolverWriterFor(resolverReadiness),
     maxOuterGas: TARGET_GAS,
     firstBatchOnly: true,
     initialBatchSize,
@@ -1404,18 +1400,16 @@ const buildNextAtomicBatch = async (params: {
         call,
         retryPermissionHeadLag,
       }),
+      // The replay is a plain transaction, so nothing can lag behind it and the
+      // masked dRPC recovery (an ERC-1155 wrapper ceiling) does not apply.
       walletGas: walletCall
-        ? await estimateWalletCallGas({ ctx, call: walletCall })
+        ? await estimateCallGas({ ctx, call: walletCall })
         : 0n,
     }),
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
-  if (
-    batch.estimatedGas <= 0n ||
-    batch.estimatedGas > TARGET_GAS ||
-    batch.walletEstimatedGas > TARGET_GAS
-  ) {
+  if (batch.estimatedGas <= 0n || maxBatchGas(batch) > TARGET_GAS) {
     throw new Error('Migration batch exceeds the supported gas budget')
   }
   return batch
@@ -1563,7 +1557,9 @@ const prepareExecutionPlan = async (params: {
 /**
  * True when the batch's profile records are already on the resolver, which is
  * what a retry sees after its wallet replay landed but the outer call did not.
- * Reads are idempotent to re-run, so any failure falls through to sending it.
+ * Uses the shared reconciler so a deterministic mismatch (resend) is not
+ * confused with an indeterminate read: the latter stops the run instead of
+ * guessing from a partial picture.
  */
 const walletReplayAlreadyApplied = async (params: {
   readonly publicClient: PublicClient
@@ -1573,18 +1569,15 @@ const walletReplayAlreadyApplied = async (params: {
     (expectation) => expectation.type.startsWith('profile-'),
   )
   if (profileExpectations.length === 0) return false
-  try {
-    await verifyAtomicMigrationBatch({
-      publicClient: params.publicClient,
-      batch: {
-        index: params.batch.index,
-        verificationExpectations: profileExpectations,
-      },
-    })
-    return true
-  } catch {
-    return false
-  }
+
+  const reconciliation = await reconcileAtomicMigrationBatch({
+    publicClient: params.publicClient,
+    batch: {
+      index: params.batch.index,
+      verificationExpectations: profileExpectations,
+    },
+  })
+  return reconciliation.status === 'complete'
 }
 
 /**
@@ -1600,7 +1593,8 @@ const replayWalletRecords = async (params: {
   const { batch } = params
   if (!batch.walletCall) return
 
-  const description = `Copy records for ${batch.names.join(', ')}`
+  const replayNames = walletReplayNames(batch)
+  const description = `Copying records for ${nameCount(replayNames.length)}`
   if (await walletReplayAlreadyApplied(params)) {
     params.ctx.tracker.next()
     params.ctx.tracker.emit('Records already copied')
@@ -1612,7 +1606,7 @@ const replayWalletRecords = async (params: {
     batch.walletCall,
     description,
     undefined,
-    (batch.walletEstimatedGas * 110n + 99n) / 100n,
+    withGasBuffer(batch.walletEstimatedGas),
   )
   params.ctx.tracker.next()
   params.ctx.tracker.emit('Records copied')
@@ -1688,7 +1682,7 @@ const executeRemainingAtomicBatches = async (params: {
           }
           removePendingAtomicMigrationIntent(journalScope, intent.id)
         },
-        (batch.estimatedGas * 110n + 99n) / 100n,
+        withGasBuffer(batch.estimatedGas),
       )
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,
