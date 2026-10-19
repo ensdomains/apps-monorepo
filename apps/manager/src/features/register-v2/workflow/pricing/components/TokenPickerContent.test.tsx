@@ -222,6 +222,14 @@ describe('TokenPickerContent', () => {
     const view = renderContainer()
 
     try {
+      expect(
+        screen.getByRole('button', { name: 'Preparing registration...' }),
+      ).toBeDisabled()
+      expect(
+        screen.getByRole('switch', {
+          name: 'Set jeff.eth as your primary name',
+        }),
+      ).toBeDisabled()
       vi.advanceTimersByTime(75_000)
       expect(getBlockingRegistration(owner, 'other.eth')).toBe('jeff.eth')
     } finally {

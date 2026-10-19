@@ -813,140 +813,144 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   )
 
   return (
-    // `min-h-0` lets the registration sheet scroll within its viewport rather
-    // than clipping the total and action button on short screens.
-    <fieldset
-      className={cn(
-        'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 pt-2 pb-6',
-        showNetworkFeeDetails ? undefined : 'px-4',
-      )}
-      disabled={isBusy}
-    >
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
-          {(premiumLabel || isInPriceCooldown) && (
-            <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-              {premiumLabel && (
-                <DomainAttributePill
-                  label={t(premiumLabel.label)}
-                  variant={premiumLabel.variant}
-                />
-              )}
-              {isInPriceCooldown && <PriceCooldownPill />}
-            </div>
-          )}
-          <span
-            className={cn(
-              'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
-              'whitespace-normal leading-ens-none tracking-[-0.8px]',
-              'text-ens-gray',
-              getDomainSizeClasses(domainName),
+    // A fieldset's anonymous content box prevents its flex children shrinking
+    // in Chromium. Keep disabling controls here and let a div own the layout.
+    <fieldset className="contents" disabled={isBusy}>
+      <div
+        className={cn(
+          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 pt-2 pb-6',
+          showNetworkFeeDetails ? undefined : 'px-4',
+        )}
+      >
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
+          <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
+            {(premiumLabel || isInPriceCooldown) && (
+              <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                {premiumLabel && (
+                  <DomainAttributePill
+                    label={t(premiumLabel.label)}
+                    variant={premiumLabel.variant}
+                  />
+                )}
+                {isInPriceCooldown && <PriceCooldownPill />}
+              </div>
             )}
-            title={domainName}
-          >
-            {domainName}
-          </span>
+            <span
+              className={cn(
+                'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
+                'whitespace-normal leading-ens-none tracking-[-0.8px]',
+                'text-ens-gray',
+                getDomainSizeClasses(domainName),
+              )}
+              title={domainName}
+            >
+              {domainName}
+            </span>
 
-          <PaymentBreakdown funding={funding} />
-        </div>
-
-        <div className="flex w-full flex-col gap-4">
-          <h2 className="text-center font-medium text-[18px] leading-ens-none">
-            <Trans>Select payment</Trans>
-          </h2>
-          {match({
-            isLoadingBalances,
-            hasBalances,
-            stablecoinsCount: stablecoinBalances?.length ?? 0,
-            isConnected,
-            pricingLoading,
-          })
-            .with({ isConnected: false }, () => (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="mb-2 text-ens-gray text-sm">
-                  <Trans>Please connect your wallet first</Trans>
-                </div>
-                <div className="text-ens-gray-three text-xs">
-                  <Trans>
-                    You need to connect a wallet to see your stablecoin balances
-                  </Trans>
-                </div>
-              </div>
-            ))
-            .with({ isLoadingBalances: true }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>Loading your stablecoin balances...</Trans>
-                </div>
-              </div>
-            ))
-            .with({ pricingLoading: true }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>Loading pricing...</Trans>
-                </div>
-              </div>
-            ))
-            .with({ stablecoinsCount: 0 }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>No stablecoins available</Trans>
-                </div>
-              </div>
-            ))
-            .with({ stablecoinsCount: P.number.gt(0) }, () => (
-              <PaymentMethods
-                onSelectCoin={onSelectCoin}
-                paymentMethodItems={paymentMethodItems}
-                selectedToken={selectedToken}
-                showNetworkFeeDetails={showNetworkFeeDetails}
-                stablecoinBalances={stablecoinBalances}
-                walletShareOf={walletShareOf}
-              />
-            ))
-            .otherwise(() => undefined)}
-
-          <PickerMessage
-            errorMessage={globalErrorMessage}
-            infoMessage={infoMessage}
-          />
-
-          <div className="flex flex-col items-center gap-1.5">
-            <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-              <Trans>Stables accepted</Trans>
-            </p>
-            <div className="flex items-center gap-1">
-              {acceptedTokens.map((symbol) => {
-                const Icon = STABLECOINS[symbol]?.icon ?? USDCIcon
-                return <Icon className="h-7 w-7" key={symbol} />
-              })}
-            </div>
+            <PaymentBreakdown funding={funding} />
           </div>
 
-          {footer}
+          <div className="flex w-full flex-col gap-4">
+            <h2 className="text-center font-medium text-[18px] leading-ens-none">
+              <Trans>Select payment</Trans>
+            </h2>
+            {match({
+              isLoadingBalances,
+              hasBalances,
+              stablecoinsCount: stablecoinBalances?.length ?? 0,
+              isConnected,
+              pricingLoading,
+            })
+              .with({ isConnected: false }, () => (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-2 text-ens-gray text-sm">
+                    <Trans>Please connect your wallet first</Trans>
+                  </div>
+                  <div className="text-ens-gray-three text-xs">
+                    <Trans>
+                      You need to connect a wallet to see your stablecoin
+                      balances
+                    </Trans>
+                  </div>
+                </div>
+              ))
+              .with({ isLoadingBalances: true }, () => (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-ens-gray-two text-sm">
+                    <Trans>Loading your stablecoin balances...</Trans>
+                  </div>
+                </div>
+              ))
+              .with({ pricingLoading: true }, () => (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-ens-gray-two text-sm">
+                    <Trans>Loading pricing...</Trans>
+                  </div>
+                </div>
+              ))
+              .with({ stablecoinsCount: 0 }, () => (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-ens-gray-two text-sm">
+                    <Trans>No stablecoins available</Trans>
+                  </div>
+                </div>
+              ))
+              .with({ stablecoinsCount: P.number.gt(0) }, () => (
+                <PaymentMethods
+                  onSelectCoin={onSelectCoin}
+                  paymentMethodItems={paymentMethodItems}
+                  selectedToken={selectedToken}
+                  showNetworkFeeDetails={showNetworkFeeDetails}
+                  stablecoinBalances={stablecoinBalances}
+                  walletShareOf={walletShareOf}
+                />
+              ))
+              .otherwise(() => undefined)}
+
+            <PickerMessage
+              errorMessage={globalErrorMessage}
+              infoMessage={infoMessage}
+            />
+
+            <div className="flex flex-col items-center gap-1.5">
+              <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
+                <Trans>Stables accepted</Trans>
+              </p>
+              <div className="flex items-center gap-1">
+                {acceptedTokens.map((symbol) => {
+                  const Icon = STABLECOINS[symbol]?.icon ?? USDCIcon
+                  return <Icon className="h-7 w-7" key={symbol} />
+                })}
+              </div>
+            </div>
+
+            {footer}
+          </div>
         </div>
+
+        <PaymentTotalRow
+          hasAccountCredit={hasAccountCredit}
+          isEstimate={!!funding || hasBudgetQuoteFailed}
+          total={headlineAmount}
+        />
+
+        <Button
+          aria-busy={isBusy}
+          className={cn(
+            'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
+            'hover:bg-ens-gray-two',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            actionClasses,
+          )}
+          disabled={isBusy || !canNext}
+          onClick={onNext}
+        >
+          {isBusy && (
+            <LoaderCircle aria-hidden="true" className="animate-spin" />
+          )}
+          {nextMessage}
+        </Button>
       </div>
-
-      <PaymentTotalRow
-        hasAccountCredit={hasAccountCredit}
-        isEstimate={!!funding || hasBudgetQuoteFailed}
-        total={headlineAmount}
-      />
-
-      <Button
-        aria-busy={isBusy}
-        className={cn(
-          'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
-          'hover:bg-ens-gray-two',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          actionClasses,
-        )}
-        disabled={isBusy || !canNext}
-        onClick={onNext}
-      >
-        {isBusy && <LoaderCircle aria-hidden="true" className="animate-spin" />}
-        {nextMessage}
-      </Button>
     </fieldset>
   )
 }
