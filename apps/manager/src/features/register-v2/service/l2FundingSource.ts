@@ -5,6 +5,7 @@ import {
   walletClientToAccount,
 } from '@rhinestone/sdk'
 import { getConnectorClient } from '@wagmi/core'
+import { ResultAsync } from 'neverthrow'
 import { type Address, erc20Abi, maxUint256 } from 'viem'
 import { chain, l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
@@ -13,6 +14,12 @@ import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { l2PublicClients, wagmiConfig } from '@/lib/wagmi'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { followChain } from '@/lib/wallet/followChain'
+
+// Wallets can reject with a bare object; keep it as the cause for its message.
+const toError = (error: unknown): Error =>
+  error instanceof Error
+    ? error
+    : new Error('The wallet did not respond.', { cause: error })
 
 export const findL2Source = (chainId: number): L2Source | undefined =>
   l2Sources.find((source) => source.chain.id === chainId)
@@ -45,15 +52,15 @@ export const getL2FundingSource = (
   return {
     chain: source.chain,
     token: source.usdc,
-    getAccount: async () =>
-      createBridgeAccount({
-        eoa: walletClientToAccount(await sourceWalletClient(owner, source)),
-        sourceChainId: source.chain.id,
-      }).match(
-        (account) => account,
-        (error) => {
-          throw error
-        },
+    getAccount: () =>
+      ResultAsync.fromPromise(
+        sourceWalletClient(owner, source),
+        toError,
+      ).andThen((walletClient) =>
+        createBridgeAccount({
+          eoa: walletClientToAccount(walletClient),
+          sourceChainId: source.chain.id,
+        }),
       ),
     // Unlimited, once per L2: Permit2 only moves tokens against a signed permit.
     ensureAllowance: async (amount) => {

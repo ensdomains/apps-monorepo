@@ -121,7 +121,7 @@ function reportIntentSubmitted(
   try {
     request.rhinestoneParams.onIntentSubmitted?.(intentId)
   } catch (error) {
-    logger.debug('⚠️ [WARP] onIntentSubmitted observer threw:', error)
+    logger.debug('[WARP] onIntentSubmitted observer threw:', error)
   }
 }
 
@@ -158,7 +158,7 @@ function submitL2FundedIntent(
   // Named, so the screen says which step failed even when a wallet rejects
   // with a bare object rather than an Error.
   const notSent = (step: string) => (error: unknown) => {
-    logger.error(`🛑 [WARP] L2 payment failed (${step}):`, error)
+    logger.error(`[WARP] L2 payment failed (${step}):`, error)
     return new L2PaymentNotSentError(
       request,
       new Error(
@@ -168,7 +168,7 @@ function submitL2FundedIntent(
     )
   }
   const afterSent = (error: unknown) => {
-    logger.error('🛑 [WARP] L2 payment failed (wait for the fill):', error)
+    logger.error('[WARP] L2 payment failed (wait for the fill):', error)
     return new TransactionSubmissionError(request, error)
   }
 
@@ -178,10 +178,9 @@ function submitL2FundedIntent(
       source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
       notSent('approve USDC for Permit2'),
     )
-    const wallet = yield* fromPromise(
-      source.getAccount(),
-      notSent('reach the wallet'),
-    )
+    const wallet = yield* source
+      .getAccount()
+      .mapErr(notSent('reach the wallet'))
     const quote = yield* quoteL2Bridge(wallet, {
       owner: wallet.getAddress(),
       sourceChain: source.chain,
@@ -211,7 +210,7 @@ function submitL2FundedIntent(
       notSent('sign the payment'),
     )
     reportIntentSubmitted(request, intent.id)
-    console.log('🧾 [WARP] L2-paid intent submitted:', {
+    console.log('[WARP] L2-paid intent submitted:', {
       intentId: intent.id.toString(),
       sourceChainId: source.chain.id,
       amountIn: quote.amountIn.toString(),
@@ -228,7 +227,7 @@ function submitL2FundedIntent(
         ),
       )
     }
-    console.log('🧾 [WARP] L2-paid intent filled:', {
+    console.log('[WARP] L2-paid intent filled:', {
       intentId: intent.id.toString(),
       fillHash: status.fill.hash,
     })

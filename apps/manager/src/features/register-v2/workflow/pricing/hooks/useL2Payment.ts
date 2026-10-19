@@ -1,5 +1,6 @@
 import type { RhinestoneAccountConfig } from '@rhinestone/sdk'
 import { useQueries, useQuery } from '@tanstack/react-query'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { l2Sources } from '@/config'
 import type { HcaBudgetQuote } from '../../../data/queries/hcaBudget.query'
@@ -37,6 +38,17 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   row.option.balanceRaw !== null &&
   row.option.balanceRaw >= row.amountInRaw
 
+/** What the permit would carry: the budget less what the account holds. */
+const getShortfall = (
+  budget: HcaBudgetQuote | undefined,
+  isQuoteStale: boolean,
+): bigint | null => {
+  if (budget === undefined || isQuoteStale) return null
+  return budget.total > budget.hcaBalance
+    ? budget.total - budget.hcaBalance
+    : 0n
+}
+
 /**
  * A row per L2 the registration can be paid from, listed next to the wallet's
  * own USDC. Every row with the balance for it is quoted: paid from an L2, the
@@ -64,13 +76,7 @@ export const useL2Payment = ({
   readonly isEnabled: boolean
   readonly fundingSourceChainId: number | undefined
 }): L2PaymentProps | undefined => {
-  // What the permit would carry: the budget less what the account holds.
-  const amountRaw =
-    budget === undefined || isQuoteStale
-      ? null
-      : budget.total > budget.hcaBalance
-        ? budget.total - budget.hcaBalance
-        : 0n
+  const amountRaw = getShortfall(budget, isQuoteStale)
   const balances = useQuery(
     getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
@@ -97,9 +103,11 @@ export const useL2Payment = ({
     const quote = quotes[index]
     return {
       option,
-      // The account's credit covers it all: nothing is bridged or charged.
-      amountInRaw:
-        amountRaw === 0n ? 0n : isQuoted ? quote?.data?.amountIn : undefined,
+      amountInRaw: match({ amountRaw, isQuoted })
+        // The account's credit covers it all: nothing is bridged or charged.
+        .with({ amountRaw: 0n }, () => 0n)
+        .with({ isQuoted: true }, () => quote?.data?.amountIn)
+        .otherwise(() => undefined),
       isQuoteLoading: isQuoted && !!quote?.isLoading,
       hasQuoteFailed: isQuoted && !!quote?.isError,
     }

@@ -514,7 +514,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
     const source = {
       chain: baseSepolia,
       token: BASE_USDC,
-      getAccount: vi.fn(async () => wallet as unknown as RhinestoneAccount),
+      getAccount: vi.fn(() => okAsync(wallet as unknown as RhinestoneAccount)),
       ensureAllowance: vi.fn(async () => {}),
     } satisfies L2FundingSource
     const signer = createMockSigner()
@@ -641,7 +641,13 @@ describe('submitWarpTransaction — paid from an L2', () => {
   // A wallet can reject with a bare object, which says nothing as a cause.
   it('names the step and the reason in what it reports', async () => {
     const { source, request, signer } = setup()
-    source.getAccount.mockRejectedValueOnce({ code: -32603, message: 'nope' })
+    source.getAccount.mockReturnValueOnce(
+      errAsync(
+        new Error('The wallet did not respond.', {
+          cause: { code: -32603, message: 'nope' },
+        }),
+      ),
+    )
 
     const error = (
       await submitWarpTransaction({ request, signer })
@@ -649,7 +655,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
 
     expect(error).toBeInstanceOf(L2PaymentNotSentError)
     expect(error.message).toBe(
-      'Failed to submit transaction: Could not reach the wallet on Base Sepolia: nope',
+      'Failed to submit transaction: Could not reach the wallet on Base Sepolia: The wallet did not respond. nope',
     )
   })
 

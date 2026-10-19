@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { match } from 'ts-pattern'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
@@ -39,14 +40,21 @@ export const L2SourceListItem = ({
     option.balanceRaw !== null &&
     option.balanceRaw < row.amountInRaw
 
-  const error =
-    option.status === 'insufficient' || isShortOfQuote ? (
+  const error = match({
+    status: option.status,
+    isShortOfQuote,
+    hasQuoteFailed: row.hasQuoteFailed,
+  })
+    .with({ status: 'insufficient' }, { isShortOfQuote: true }, () => (
       <Trans>Not enough USDC on {chainName}</Trans>
-    ) : option.status === 'unavailable' ? (
+    ))
+    .with({ status: 'unavailable' }, () => (
       <Trans>Couldn't read your balance on {chainName}</Trans>
-    ) : row.hasQuoteFailed ? (
+    ))
+    .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying from {chainName} isn't available right now</Trans>
-    ) : undefined
+    ))
+    .otherwise(() => undefined)
 
   return (
     <PaymentMethodRow

@@ -1,4 +1,5 @@
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
+import type { ResultAsync } from 'neverthrow'
 import type { Address, Chain, WalletClient } from 'viem'
 
 import type { SessionEnableData, SmartAccountConfig } from './transaction.types'
@@ -94,7 +95,7 @@ export interface L2FundingSource {
   /** The USDC paid on `chain`. */
   readonly token: Address
   /** The wallet's SDK account on `chain`, which signs the transfer. */
-  readonly getAccount: () => Promise<RhinestoneAccount>
+  readonly getAccount: () => ResultAsync<RhinestoneAccount, Error>
   /** Have Permit2 allowed to move `amount` of `token`, asking the wallet if not. */
   readonly ensureAllowance: (amount: bigint) => Promise<void>
 }
