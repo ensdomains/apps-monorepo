@@ -25,7 +25,7 @@ type ProfileAddressesSectionProps = {
   readonly records: ProfileRecords
 }
 
-// A 24px icon row inside 24px padding, so every address card is 72px tall.
+// Figma frame values: 0.25px border, 2/6 shadow, 24px icon row in 24px padding (72px rows).
 const addressCardClassName =
   'h-auto min-h-18 w-full flex-row items-center justify-between gap-3 rounded-xl border-[0.25px] border-ens-quartz-300 p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition has-[>svg]:px-6 hover:bg-ens-quartz-50'
 
@@ -64,7 +64,7 @@ const ReceivingChainIcons = ({
   if (withIcon.length === 0) return null
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1">
+    <div className="flex max-w-full flex-wrap items-center gap-1">
       {withIcon.map((chain) => (
         <ChainIconTooltip
           chain={chain}
@@ -89,7 +89,7 @@ const MainAddressCard = ({
       value={address.value}
       variant="ghost"
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
         <ReceivingChainIcons chains={chains} />
         <AddressValue value={address.value} />
       </div>
@@ -133,7 +133,7 @@ export const ProfileAddressesSection = ({
           <MainAddressCard address={mainAddress} chains={receivingChains} />
         ) : null}
         {chainAddresses.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-3 xl:gap-6 min-[375px]:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6">
             {chainAddresses.map((address) => (
               <ChainAddressCard
                 address={address}
