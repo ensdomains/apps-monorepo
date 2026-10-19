@@ -308,6 +308,12 @@ export type RegistrationContext = {
    * still fill.
    */
   l2BridgeIntentId?: bigint
+  /**
+   * `l2BridgeIntentId` came from an abandoned run, sized for that run's
+   * registration, so once it lands the balance is read again rather than
+   * assumed to cover this one.
+   */
+  isL2BridgeFromPriorRun?: boolean
   /** USDC (6dp) checkout showed the L2 being charged, fee included. */
   displayedL2Charge?: bigint
   /**
@@ -431,6 +437,11 @@ export type RegistrationEvent =
       l2Funding?: L2FundingSource
       /** See `RegistrationContext.displayedL2Charge`. */
       displayedL2Charge?: bigint
+      /**
+       * A bridge an abandoned run sent that may not have settled yet; this run
+       * waits for it before paying. See `isL2BridgeFromPriorRun`.
+       */
+      pendingL2BridgeIntentId?: bigint
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
       /**
@@ -981,6 +992,7 @@ export const registrationMachine = setup({
     L2_BRIDGE_SUBMITTED: {
       actions: assign({
         l2BridgeIntentId: ({ event }) => event.intentId,
+        isL2BridgeFromPriorRun: () => false,
       }),
     },
     // Accepted from anywhere, since the owning wallet can go away at any point
@@ -1031,7 +1043,9 @@ export const registrationMachine = setup({
               hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
               l2Funding: ({ event }) => event.l2Funding,
               l2BridgeTxId: () => undefined,
-              l2BridgeIntentId: () => undefined,
+              l2BridgeIntentId: ({ event }) => event.pendingL2BridgeIntentId,
+              isL2BridgeFromPriorRun: ({ event }) =>
+                event.pendingL2BridgeIntentId !== undefined,
               displayedL2Charge: ({ event }) => event.displayedL2Charge,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
@@ -1371,13 +1385,17 @@ export const registrationMachine = setup({
         }),
         onDone: [
           {
-            guard: ({ event }) => event.output === 'landed',
+            guard: ({ context, event }) =>
+              event.output === 'landed' && !context.isL2BridgeFromPriorRun,
             target: 'submittingSetupBundle',
             actions: assign({ l2BridgeIntentId: () => undefined }),
           },
           {
             target: 'checkingHcaFunding',
-            actions: assign({ l2BridgeIntentId: () => undefined }),
+            actions: assign({
+              l2BridgeIntentId: () => undefined,
+              isL2BridgeFromPriorRun: () => false,
+            }),
           },
         ],
         onError: {

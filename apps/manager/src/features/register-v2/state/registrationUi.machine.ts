@@ -40,6 +40,7 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import { getL2FundingSource } from '../service/l2FundingSource'
+import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
   isNameNotAvailableError,
@@ -668,7 +669,7 @@ const getStartL2Funding = (
 }
 
 const startRegistrationAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, event }) => {
+  enqueueActions(({ enqueue, context, event }) => {
     if (event.type !== 'registration.start') {
       return enqueue.raise({
         type: '$error',
@@ -807,6 +808,11 @@ const startRegistrationAction = machineSetup.createAction(
         displayedWalletDebit: event.displayedWalletDebit,
         l2Funding,
         displayedL2Charge: event.displayedL2Charge,
+        // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
+        pendingL2BridgeIntentId: readPendingL2Bridge(
+          context.chainId,
+          event.account.accountAddress,
+        ),
         // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.

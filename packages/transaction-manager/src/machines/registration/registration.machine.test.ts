@@ -67,6 +67,7 @@ const startHcaRegistration = (overrides: {
   /** Funds the HCA from an L2 instead of with a permit. */
   l2Funding?: L2FundingSource
   displayedL2Charge?: bigint
+  pendingL2BridgeIntentId?: bigint
   submitL2Bridge?: ReturnType<typeof vi.fn>
   awaitL2Bridge?: ReturnType<typeof vi.fn>
 }) => {
@@ -152,6 +153,7 @@ const startHcaRegistration = (overrides: {
     ...(overrides.displayedL2Charge !== undefined
       ? { displayedL2Charge: overrides.displayedL2Charge }
       : {}),
+    pendingL2BridgeIntentId: overrides.pendingL2BridgeIntentId,
   })
 
   return {
@@ -545,6 +547,37 @@ describe('registrationMachine — paid from an L2', () => {
     await waitFor(actor, (s) => s.matches('error'))
     actor.send({ type: 'RETRY' })
     await waitFor(actor, () => submitL2Bridge.mock.calls.length === 2)
+  })
+
+  // A cancelled run's bridge may still arrive, and was sized for that run.
+  it("waits for a cancelled run's bridge, then reads the balance again", async () => {
+    const { actor, submitL2Bridge, awaitL2Bridge, submitFundingAndCommit } =
+      startHcaRegistration({
+        // Short before the old bridge lands, covered after.
+        balances: [0n, BUDGET],
+        l2Funding,
+        pendingL2BridgeIntentId: 9n,
+      })
+
+    await waitFor(actor, () => submitFundingAndCommit.mock.calls.length > 0)
+
+    expect(awaitL2Bridge.mock.calls[0][0].input.intentId).toBe(9n)
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.l2BridgeIntentId).toBeUndefined()
+  })
+
+  it("bridges the rest when a cancelled run's bridge does not cover this one", async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n, 1_000_000n],
+      l2Funding,
+      pendingL2BridgeIntentId: 9n,
+    })
+
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.amount).toBe(
+      BUDGET - 1_000_000n,
+    )
   })
 
   it('carries what checkout showed the L2 charging into the bridge', async () => {

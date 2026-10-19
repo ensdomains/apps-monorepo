@@ -76,6 +76,8 @@ export type PersistedRegistrationContext = {
    * paying again.
    */
   l2BridgeIntentId?: bigint
+  /** Whether that bridge came from an abandoned run; see the machine context. */
+  isL2BridgeFromPriorRun?: boolean
 
   // Flow state
   resolverAddress?: Address
@@ -237,6 +239,7 @@ export function serializeRegistrationContext(
     primaryName: context.primaryName,
     l2FundingChainId: context.l2Funding?.chain.id,
     l2BridgeIntentId: context.l2BridgeIntentId,
+    isL2BridgeFromPriorRun: context.isL2BridgeFromPriorRun,
     resolverAddress: context.resolverAddress,
     resolverTxId: context.resolverTxId,
     resolverSalt: context.resolverSalt,
@@ -324,6 +327,7 @@ const persistedContextSchema = v.object({
   primaryName: v.optional(v.string()),
   l2FundingChainId: v.optional(v.number()),
   l2BridgeIntentId: v.optional(v.bigint()),
+  isL2BridgeFromPriorRun: v.optional(v.boolean()),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),
   resolverSalt: v.optional(v.bigint()),

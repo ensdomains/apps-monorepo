@@ -356,10 +356,6 @@ msgid "Analytics consent"
 msgstr "Analytics consent"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
-#~ msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
-#~ msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
-
-#: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another address registered this name first, so it can no longer be registered here. Look for a different name."
 msgstr "Another address registered this name first, so it can no longer be registered here. Look for a different name."
 
@@ -611,10 +607,6 @@ msgstr "Carried over from your earlier attempt."
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Carving your name into the blockchain"
 msgstr "Carving your name into the blockchain"
-
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-#~ msgid "Chain-specific addresses"
-#~ msgstr "Chain-specific addresses"
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Check again"
@@ -1626,10 +1618,6 @@ msgstr "Look for a different name"
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"
 msgstr "Lowest upfront cost"
-
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-#~ msgid "Main receiving address"
-#~ msgstr "Main receiving address"
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
@@ -2712,10 +2700,6 @@ msgstr "Set up this name’s resolver?"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting a primary name is paid in USDC."
 msgstr "Setting a primary name is paid in USDC."
-
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
-#~ msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
-#~ msgstr "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting ETH address record"
