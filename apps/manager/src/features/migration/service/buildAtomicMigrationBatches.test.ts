@@ -1060,6 +1060,33 @@ describe('buildAtomicMigrationBatches', () => {
     ).toEqual(['alice.eth', 'bob.eth', 'carol.eth'])
   })
 
+  it('splits when the wallet replay, not the HCA call, exceeds the limit', async () => {
+    const classified = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
+      makeName(name, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+
+    const plan = await buildPlan({
+      classified,
+      maxOuterGas: 250n,
+      estimateBatchGas: ({ names }) => ({
+        outerGas: BigInt(names.length) * 10n,
+        walletGas: BigInt(names.length) * 100n,
+      }),
+    })
+
+    expect(plan.batches.map((batch) => batch.names)).toEqual([
+      ['alice.eth', 'bob.eth'],
+      ['carol.eth'],
+    ])
+    expect(plan.batches.map((batch) => batch.walletEstimatedGas)).toEqual([
+      200n,
+      100n,
+    ])
+  })
+
   it('splits a copy tree only after each node setup and registration unit', async () => {
     const root = makeName('example.eth', {
       action: 'migrate',

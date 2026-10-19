@@ -220,9 +220,9 @@ const previewAtomicBatchGas = (params: {
 const previewWalletReplayGas = (params: {
   readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
   readonly profiles: ReadonlyMap<Hex, Profile>
-  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly walletExecutions: readonly AtomicMigrationInnerExecution[]
 }): bigint =>
-  params.innerExecutions.reduce(
+  params.walletExecutions.reduce(
     (gas, execution) =>
       gas +
       innerExecutionGas({

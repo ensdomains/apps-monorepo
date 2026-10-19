@@ -1411,7 +1411,11 @@ const buildNextAtomicBatch = async (params: {
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
-  if (batch.estimatedGas <= 0n || batch.estimatedGas > TARGET_GAS) {
+  if (
+    batch.estimatedGas <= 0n ||
+    batch.estimatedGas > TARGET_GAS ||
+    batch.walletEstimatedGas > TARGET_GAS
+  ) {
     throw new Error('Migration batch exceeds the supported gas budget')
   }
   return batch

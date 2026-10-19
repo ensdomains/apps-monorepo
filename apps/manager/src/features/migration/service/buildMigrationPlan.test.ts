@@ -399,6 +399,50 @@ describe('buildMigrationPlan resolver preservation', () => {
   })
 })
 
+describe('buildMigrationPlan gas preview', () => {
+  it('prices the wallet replay from the wallet executions only', async () => {
+    await buildMigrationPlan({
+      domains: [makeDomain()],
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      preflight: {
+        skipFetchProfilesPhase: true,
+        hcaReadiness: { status: 'deployment-required', hca: HCA },
+      },
+    })
+    const estimate =
+      buildAtomicMigrationBatchesMock.mock.calls[0]?.[0].estimateBatchGas
+    if (!estimate) throw new Error('preview estimator was not passed')
+    const execution = {
+      phase: 'wallet-co-admin-grant',
+      name: 'alice.eth',
+      names: ['alice.eth'],
+      call: { to: HCA, data: '0x', value: 0n },
+    } as const
+    const request = {
+      call: execution.call,
+      walletCall: null,
+      names: [],
+    }
+
+    expect(
+      await estimate({
+        ...request,
+        innerExecutions: [execution],
+        walletExecutions: [],
+      }),
+    ).toEqual({ outerGas: 150_000n, walletGas: 0n })
+    expect(
+      await estimate({
+        ...request,
+        innerExecutions: [],
+        walletExecutions: [execution],
+      }),
+    ).toEqual({ outerGas: 80_000n, walletGas: 70_000n })
+  })
+})
+
 describe('buildMigrationRecoveryPlan', () => {
   it('converts a saved collection-wide registration grant to token approvals', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
