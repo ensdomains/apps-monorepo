@@ -241,26 +241,51 @@ function submitL2FundedIntent(
   })()
 }
 
-// Every message down the cause chain: the outermost alone ("The payment was
+// JSON for an object with no message; skips repeats, so a circular one works.
+const stringifyReason = (value: object): string | undefined => {
+  const seen = new WeakSet<object>()
+  try {
+    const json = JSON.stringify(value, (_, v: unknown) => {
+      if (typeof v === 'bigint') return v.toString()
+      if (v && typeof v === 'object') {
+        if (seen.has(v)) return undefined
+        seen.add(v)
+      }
+      return v
+    })
+    return json && json !== '{}' ? json : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// Every reason down the cause chain: the outermost alone ("The payment was
 // not signed.") hides the wallet's own reason.
 const describeError = (error: unknown): string => {
-  const messages: string[] = []
-  let current = error as { shortMessage?: unknown; message?: unknown } | null
-  for (let depth = 0; current && depth < 6; depth++) {
-    const message = current.shortMessage ?? current.message
-    if (typeof message === 'string' && message && !messages.includes(message)) {
-      messages.push(message)
+  const reasons: string[] = []
+  let current: unknown = error
+  for (let depth = 0; current != null && depth < 6; depth++) {
+    if (typeof current !== 'object') {
+      const text = String(current)
+      if (text && !reasons.includes(text)) reasons.push(text)
+      break
     }
-    current = (current as { cause?: unknown }).cause as typeof current
+    const { shortMessage, message, cause } = current as {
+      shortMessage?: unknown
+      message?: unknown
+      cause?: unknown
+    }
+    const text = shortMessage ?? message
+    if (typeof text !== 'string' || !text) {
+      // Its JSON already carries any cause, so the walk stops here.
+      const json = stringifyReason(current)
+      if (json) reasons.push(json)
+      break
+    }
+    if (!reasons.includes(text)) reasons.push(text)
+    current = cause
   }
-  if (messages.length > 0) return messages.join(' ')
-  try {
-    return JSON.stringify(error, (_, v) =>
-      typeof v === 'bigint' ? v.toString() : v,
-    )
-  } catch {
-    return String(error)
-  }
+  return reasons.length > 0 ? reasons.join(' ') : 'no reason was given'
 }
 
 export function submitWarpTransaction(

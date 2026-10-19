@@ -680,6 +680,44 @@ describe('submitWarpTransaction — paid from an L2', () => {
     )
   })
 
+  // Wallets reject with bare, sometimes circular, objects that have no message.
+  it('reports a reason that has no message', async () => {
+    const { request, signer } = setup()
+    const reason: Record<string, unknown> = { code: 4100 }
+    reason.self = reason
+    vi.mocked(submitL2Bridge).mockReturnValue(
+      errAsync(
+        new L2BridgeSubmitError({
+          message: 'The payment was not signed.',
+          cause: reason,
+        }),
+      ),
+    )
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not sign the payment on Base Sepolia: The payment was not signed. {"code":4100}',
+    )
+  })
+
+  it('says so when the wallet gives no reason at all', async () => {
+    const { source, request, signer } = setup()
+    const reason: Record<string, unknown> = {}
+    reason.self = reason
+    source.getAccount.mockReturnValueOnce(errAsync(reason as never))
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not reach the wallet on Base Sepolia: no reason was given',
+    )
+  })
+
   it("reports the wallet's own reason under a refused signature", async () => {
     const { request, signer } = setup()
     vi.mocked(submitL2Bridge).mockReturnValue(
