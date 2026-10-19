@@ -1,7 +1,9 @@
 /**
- * Pay for an intent on the target chain with the wallet's USDC on an L2: the
- * wallet signs one Permit2 witness transfer on the L2, and Across delivers the
- * USDC to a smart account on the target, which then runs the intent's calls.
+ * Move the wallet's USDC on an L2 to a smart account on the target chain: the
+ * wallet signs one Permit2 witness transfer on the L2, and Across delivers it.
+ * Any calls run from Across's handler on the target, not from the recipient,
+ * which only receives what is left afterwards; so the recipient's own calls
+ * must follow as its own intents.
  */
 
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -68,7 +70,7 @@ export type L2BridgeRoute = Readonly<{
   amountOut: bigint
   /** The smart account paid on the target; its config lets the SDK deploy it. */
   recipient: Readonly<{ address: Address; config: RhinestoneAccountConfig }>
-  /** What `recipient` runs on the target chain once paid. */
+  /** Run on the target by Across's handler, before `recipient` is paid. */
   calls: readonly Call[]
 }>
 

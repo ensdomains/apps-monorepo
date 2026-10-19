@@ -1,17 +1,11 @@
-import {
-  buildCommitCall,
-  buildRevealBatch,
-  computeResolverAddress,
-  type L2BridgeRoute,
-  PERMIT2_ADDRESS,
-} from '@ens-apps/smart-account'
+import { type L2BridgeRoute, PERMIT2_ADDRESS } from '@ens-apps/smart-account'
 import type { L2FundingSource } from '@ens-apps/transaction-manager'
 import {
   type RhinestoneAccountConfig,
   walletClientToAccount,
 } from '@rhinestone/sdk'
 import { getConnectorClient } from '@wagmi/core'
-import { type Address, erc20Abi, keccak256, maxUint256, toHex } from 'viem'
+import { type Address, erc20Abi, maxUint256 } from 'viem'
 import { chain, l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
 import { createBridgeAccount } from '@/lib/smart-account/rhinestone'
@@ -41,7 +35,7 @@ const sourceWalletClient = async (owner: Address, source: L2Source) =>
     (chainId) => ensureWalletChain(wagmiConfig, chainId),
   )
 
-/** Pays a registration's commit leg from the owner's USDC on `chainId`. */
+/** Funds a registration from the owner's USDC on `chainId`. */
 export const getL2FundingSource = (
   owner: Address,
   chainId: number,
@@ -86,58 +80,28 @@ export const getL2FundingSource = (
   }
 }
 
-// A quote prices gas, so a stand-in secret and commitment do.
-const QUOTE_SECRET = keccak256(toHex('ens-apps:l2-payment-quote'))
-
-export type L2QuoteParams = Readonly<{
-  owner: Address
-  source: L2Source
-  hca: Readonly<{ address: Address; config: RhinestoneAccountConfig }>
-  label: string
-  duration: bigint
-  price: bigint
-  primaryName: string | undefined
-}>
-
 /**
- * The two intents a registration paid from `source` runs, as the registration
- * machine builds them: the commit, delivering one unit, and the reveal,
- * delivering the price.
+ * What a quote for paying `amountOut` into the HCA from `source` asks for. It
+ * runs nothing on Sepolia: the legs then run from the HCA, as they would after
+ * the permit.
  */
-export const getL2QuoteRoutes = (
-  params: L2QuoteParams,
-  resolverDeployed: boolean,
-): readonly [L2BridgeRoute, L2BridgeRoute] => {
-  const leg = (amountOut: bigint, calls: L2BridgeRoute['calls']) => ({
-    owner: params.owner,
-    sourceChain: params.source.chain,
-    sourceToken: params.source.usdc,
-    targetChain: chain,
-    targetToken: HCA_PAYMENT_TOKEN,
-    amountOut,
-    recipient: params.hca,
-    calls,
-  })
-  return [
-    leg(1n, [buildCommitCall({ chainId: chain.id, commitment: QUOTE_SECRET })]),
-    leg(
-      params.price,
-      buildRevealBatch({
-        chainId: chain.id,
-        hca: params.hca.address,
-        resolver: getL2QuoteResolver(params),
-        resolverDeployed,
-        label: params.label,
-        wallet: params.owner,
-        secret: QUOTE_SECRET,
-        price: params.price,
-        duration: params.duration,
-        ...(params.primaryName ? { setPrimaryName: params.primaryName } : {}),
-      }),
-    ),
-  ]
-}
-
-/** The HCA's resolver, which the reveal deploys if it is not there yet. */
-export const getL2QuoteResolver = (params: L2QuoteParams) =>
-  computeResolverAddress({ chainId: chain.id, hca: params.hca.address })
+export const getL2QuoteRoute = ({
+  owner,
+  source,
+  hca,
+  amountOut,
+}: {
+  readonly owner: Address
+  readonly source: L2Source
+  readonly hca: Readonly<{ address: Address; config: RhinestoneAccountConfig }>
+  readonly amountOut: bigint
+}): L2BridgeRoute => ({
+  owner,
+  sourceChain: source.chain,
+  sourceToken: source.usdc,
+  targetChain: chain,
+  targetToken: HCA_PAYMENT_TOKEN,
+  amountOut,
+  recipient: hca,
+  calls: [],
+})

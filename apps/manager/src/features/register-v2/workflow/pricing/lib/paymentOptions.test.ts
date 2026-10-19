@@ -20,14 +20,20 @@ describe('getL2PaymentOptions', () => {
     ],
     ['unavailable', 'a failed read', { [baseSepolia.id]: null }, 2_000_000n],
     [
+      'available',
+      'nothing to bridge, since the account credit covers it',
+      { [baseSepolia.id]: 0n },
+      0n,
+    ],
+    [
       'insufficient',
-      'only the price, with nothing for the fees',
+      'only what the HCA is sent, with nothing for the fee',
       { [baseSepolia.id]: 2_000_000n },
       2_000_000n,
     ],
     [
       'available',
-      'above the price',
+      'above what the HCA is sent',
       { [baseSepolia.id]: 2_000_001n },
       2_000_000n,
     ],

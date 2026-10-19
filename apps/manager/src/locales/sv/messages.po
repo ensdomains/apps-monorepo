@@ -344,6 +344,10 @@ msgstr ""
 msgid "Allow this temporary account to move this name."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
 msgstr ""
@@ -2819,10 +2823,6 @@ msgstr ""
 msgid "Sign the gasless payment approval in your wallet"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Sign the second payment in your wallet to register the name"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
@@ -3659,10 +3659,6 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "What is the network fee?"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "What the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in two signatures: one to commit, and one to register after the short wait. The first time, you also approve USDC on {chainName}."
 msgstr ""
 
 #. placeholder {0}: f.total.toFixed(2)

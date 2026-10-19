@@ -30,27 +30,12 @@ export const getRegistrationStageMessages = (
     .returnType<StageMessages>()
     .with(
       {
-        stage: P.union('submittingSetupBundle', 'waitingForCommitment'),
-        txState: P.union(undefined, 'submitting'),
+        stage: P.union('bridgingFromL2', 'waitingForL2Bridge'),
         l2ChainName: P.string,
       },
       ({ l2ChainName }) => ({
         stageLabel: msg`Paying from ${l2ChainName}`,
         stageDescription: msg`Approve USDC on ${l2ChainName} if your wallet asks, then sign the payment`,
-      }),
-    )
-    .with(
-      {
-        stage: P.union(
-          'submittingRhinestoneBundle',
-          'waitingForRhinestoneBundle',
-        ),
-        txState: P.union(undefined, 'submitting'),
-        l2ChainName: P.string,
-      },
-      ({ l2ChainName }) => ({
-        stageLabel: msg`Paying from ${l2ChainName}`,
-        stageDescription: msg`Sign the second payment in your wallet to register the name`,
       }),
     )
     .with({ stage: 'idle' }, () => ({

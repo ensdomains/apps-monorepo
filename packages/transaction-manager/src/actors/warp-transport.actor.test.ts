@@ -570,6 +570,22 @@ describe('submitWarpTransaction — paid from an L2', () => {
     expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
   })
 
+  it('pays one that only delivers, with nothing to run on the target', async () => {
+    const { wallet, request, signer } = setup()
+    const bridge = {
+      ...request,
+      rhinestoneParams: { ...request.rhinestoneParams, calls: [] },
+    }
+
+    const result = await submitWarpTransaction({ request: bridge, signer })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    expect(quoteL2Bridge).toHaveBeenCalledWith(
+      wallet,
+      expect.objectContaining({ amountOut: 5_000_000n, calls: [] }),
+    )
+  })
+
   it('needs exactly one token request', async () => {
     const { source, signer } = setup()
 

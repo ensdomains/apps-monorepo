@@ -2,8 +2,10 @@ import type { RhinestoneAccountConfig } from '@rhinestone/sdk'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { l2Sources } from '@/config'
+import type { HcaBudgetQuote } from '../../../data/queries/hcaBudget.query'
 import { getL2BalancesQueryOptions } from '../../../data/queries/l2Balances.query'
 import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQuote.query'
+import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
 import {
   getL2PaymentOptions,
@@ -37,17 +39,16 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
 
 /**
  * A row per L2 the registration can be paid from, listed next to the wallet's
- * own USDC. Every row with the balance for it is quoted for both legs, each an
- * intent the wallet signs there; the reveal's delivers the price to the HCA.
+ * own USDC. Every row with the balance for it is quoted: paid from an L2, the
+ * wallet signs one intent there that bridges what the permit would carry into
+ * the HCA, and the registration then runs as it does from Sepolia.
  */
 export const useL2Payment = ({
   uiActor,
   owner,
   hca,
-  label,
-  duration,
-  priceRaw,
-  primaryName,
+  budget,
+  isQuoteStale,
   isEnabled,
   fundingSourceChainId,
 }: {
@@ -56,49 +57,49 @@ export const useL2Payment = ({
   readonly hca:
     | Readonly<{ address: Address; config: RhinestoneAccountConfig }>
     | undefined
-  readonly label: string
-  readonly duration: bigint
-  /** The name's price for `duration`; `undefined` until read. */
-  readonly priceRaw: bigint | undefined
-  readonly primaryName: string | undefined
-  /** Off on the EOA route, which has no HCA to pay into. */
+  readonly budget: HcaBudgetQuote | undefined
+  /** The budget on screen belongs to another primary-name choice. */
+  readonly isQuoteStale: boolean
+  /** Off on the EOA route, which has no budget to pay towards. */
   readonly isEnabled: boolean
   readonly fundingSourceChainId: number | undefined
 }): L2PaymentProps | undefined => {
+  // What the permit would carry: the budget less what the account holds.
+  const amountRaw =
+    budget === undefined || isQuoteStale
+      ? null
+      : budget.total > budget.hcaBalance
+        ? budget.total - budget.hcaBalance
+        : 0n
   const balances = useQuery(
     getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
   const options = isEnabled
-    ? getL2PaymentOptions({
-        sources: l2Sources,
-        balances,
-        amountRaw: priceRaw ?? null,
-      })
+    ? getL2PaymentOptions({ sources: l2Sources, balances, amountRaw })
     : []
-  const quoted = options.map((option) =>
-    owner && hca && priceRaw !== undefined && option.status === 'available'
-      ? {
+  const routes = options.map((option) =>
+    owner && hca && amountRaw && option.status === 'available'
+      ? getL2QuoteRoute({
           owner,
           source: option.source,
           hca,
-          label,
-          duration,
-          price: priceRaw,
-          primaryName,
-        }
+          amountOut: amountRaw,
+        })
       : undefined,
   )
   const quotes = useQueries({
-    queries: quoted.map((params) => getL2PaymentQuoteQueryOptions(params)),
+    queries: routes.map((route) => getL2PaymentQuoteQueryOptions(route)),
   })
 
   if (options.length === 0) return undefined
   const rows = options.map((option, index): L2PaymentRow => {
-    const isQuoted = quoted[index] !== undefined
+    const isQuoted = routes[index] !== undefined
     const quote = quotes[index]
     return {
       option,
-      amountInRaw: isQuoted ? quote?.data?.amountIn : undefined,
+      // The account's credit covers it all: nothing is bridged or charged.
+      amountInRaw:
+        amountRaw === 0n ? 0n : isQuoted ? quote?.data?.amountIn : undefined,
       isQuoteLoading: isQuoted && !!quote?.isLoading,
       hasQuoteFailed: isQuoted && !!quote?.isError,
     }

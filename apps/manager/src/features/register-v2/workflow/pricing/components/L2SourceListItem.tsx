@@ -64,10 +64,10 @@ export const L2SourceListItem = ({
       }
       feeTooltip={
         <Trans>
-          What the on-chain transactions that register your name cost, including
-          moving the USDC from {chainName}. It is paid there with the name
-          price, in two signatures: one to commit, and one to register after the
-          short wait. The first time, you also approve USDC on {chainName}.
+          An estimate of what the on-chain transactions that register your name
+          cost, including moving the USDC from {chainName}. It is paid there
+          with the name price, in one signature. The first time, you also
+          approve USDC on {chainName}.
         </Trans>
       }
       feeTooltipLabel={t`What is the network fee?`}

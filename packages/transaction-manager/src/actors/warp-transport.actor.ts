@@ -312,7 +312,8 @@ export function submitWarpTransaction(
     )
   }
 
-  if (!calls || calls.length === 0) {
+  // Only an L2 payment may run nothing: it just delivers the HCA's funding.
+  if (!calls || (calls.length === 0 && !signer.l2Funding)) {
     return errAsync(
       new TransactionSubmissionError(
         request,
