@@ -279,13 +279,16 @@ describe('registration record serialization', () => {
     // `hcaRegistrarAddress` throws for an unconfigured chain. This runs on
     // every persisted snapshot, so a throw here would kill the registration
     // that persistence exists to protect.
+    //
+    // Mainnet was the "unconfigured" stand-in here until the manifest added
+    // it. Use a chain id no manifest entry can carry.
     const record = buildRegistrationRecord(
       'commitmentCooldown',
-      baseContext({ chainId: 1, signer: rhinestoneSigner }),
+      baseContext({ chainId: 999_999, signer: rhinestoneSigner }),
       0,
     )
 
-    expect(record.fingerprint).toContain('unconfigured-chain-1')
+    expect(record.fingerprint).toContain('unconfigured-chain-999999')
     // Unresumable by construction, and distinct from a configured chain's.
     expect(
       parseRegistrationRecord(serializeRegistrationRecord(record)).isOk(),

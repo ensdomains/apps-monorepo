@@ -1,10 +1,16 @@
 /**
  * Standalone-HCA contract manifest.
  *
- * Provenance: the 2026-10-01 Sepolia v2 redeploy, contracts-v2
- * `contracts/deployments/sepolia` @ `95de2ee0`. The ENS-side addresses come
- * from ensjs (ensdomains/ensjs#389, which targets the same deployment); the
- * rest are pinned below because ensjs does not expose them yet.
+ * Provenance, per chain:
+ *   - Sepolia: the 2026-10-01 Sepolia v2 redeploy, contracts-v2
+ *     `contracts/deployments/sepolia` @ `95de2ee0`.
+ *   - Mainnet: the 2026-10-18 v2 namespace (first written 2026-10-02). It
+ *     lists addresses but no deploy blocks, so the factory block below was
+ *     read on chain.
+ *
+ * ENS-side addresses come from ensjs (ensdomains/ensjs#389 for Sepolia, #423
+ * for mainnet). The rest are pinned below because ensjs does not expose them
+ * yet.
  *
  * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
  * when ensjs exposes them. Until then, this local, chain-keyed table remains
@@ -13,12 +19,14 @@
  *
  * SDK patch SHA-256: 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf
  * (byte-identical to contracts-v2 `patches/@rhinestone%2Fsdk@1.8.0.patch` @ 95de2ee0,
- * the patch built for this deployment's validator).
+ * the patch built for this deployment's validator). It reads the factory,
+ * implementation, validator and proxy logic from the account config, so the
+ * same pinned SDK works on both chains.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type Address, encodeAbiParameters, keccak256, stringToHex } from 'viem'
-import { baseSepolia, sepolia } from 'viem/chains'
+import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 
 /**
  * The ENS-side contracts are sourced from ensjs, which is the source of truth
@@ -26,6 +34,7 @@ import { baseSepolia, sepolia } from 'viem/chains'
  * stay hardcoded only because ensjs has no entry for them yet.
  */
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const ensjsMainnet = ensL1Contracts[supportedL1Chains.mainnet]
 
 export const SEPOLIA_CHAIN_ID = sepolia.id
 export const BASE_SEPOLIA_CHAIN_ID = baseSepolia.id
@@ -34,7 +43,7 @@ export const STANDALONE_HCA_VERSION = 'ens-standalone-1.1.0' as const
 export const ONCHAIN_ACCOUNT_ID = 'ens-standalone-hca.1.1.0' as const
 export const USER_SALT = 0n
 
-/** Contracts on the registration chain (Sepolia). */
+/** Contracts on a supported registration chain. */
 export interface DestinationContracts {
   readonly standaloneHcaFactory: Address
   readonly standaloneHcaImplementation: Address
@@ -135,6 +144,50 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // stale entry.
     usdc: ensjsSepolia.usdc.address,
   },
+  [mainnet.id]: {
+    standaloneHcaFactory: ensjsMainnet.ensHcaFactory.address,
+    verifiableFactory: ensjsMainnet.ensVerifiableFactory.address,
+    permissionedResolverImpl: ensjsMainnet.ensPermissionedResolverImpl.address,
+    ethRegistrar: ensjsMainnet.ensEthRegistrar.address,
+    ethRegistry: ensjsMainnet.ensRegistry.address,
+    unlockedMigrationController:
+      ensjsMainnet.ensUnlockedMigrationController.address,
+    userRegistryImpl: ensjsMainnet.ensUserRegistryImpl.address,
+    defaultReverseRegistrarHcaAdapter:
+      ensjsMainnet.ensDefaultReverseRegistrarAdapter.address,
+    // Canonical mainnet USDC. The registrar charges it; the funding permit
+    // and the intent fee are denominated in it.
+    usdc: ensjsMainnet.usdc.address,
+
+    // ensjs still has the 10-02 addresses for these (as of 5.2.3), so they
+    // are pinned here. MigrationHelper.LOCKED_CONTROLLER() returns the
+    // controller below, so the pair is consistent. Go back to the ensjs
+    // lookups when 5.2.4 is in the catalog.
+    migrationHelper: '0x0b92006fa187B4c98d0A7Dfc9d3b918b6D243485',
+    lockedMigrationController: '0xc46Bf3B6C7eBcFFd4EcfC3b012a1726a2463694d',
+
+    // Not in ensjs. These are from the 2026-10-18 mainnet namespace; the
+    // validator's factory, proxy logic, resolver, registry and reverse
+    // registrar getters return the values below (checked 2026-10-19).
+    //
+    // The factory does not approve this implementation yet, so deploying an
+    // account fails the app's hca-implementation-approved invariant until
+    // the owner approves it.
+    standaloneHcaImplementation: '0x116F462FA078ec0009e9b25DCd60309E70aaC4F4',
+    hcaOwnerAndSessionValidator: '0xa818428ed2F3F949bdc71b8A15bDD7B5D27ce938',
+    // The factory deploys this in its constructor and exposes it as
+    // proxyLogic, so it is read from ensVerifiableFactory above. Keep the two
+    // in sync: proxy addresses are derived from this bytecode.
+    verifiableFactoryProxyLogic: '0x8E77da0dAb32EfCc1C75e0Bd0e17680EBe0b1414',
+    // First block with code, 2026-10-02 — ~76 minutes before the namespace
+    // write, so proxies exist in between. This is the fromBlock for the
+    // proxy scan; the namespace block would be too late.
+    verifiableFactoryDeployBlock: 26_105_299n,
+    rootRegistry: '0x2553c09bE6447BeFfdB86FA622ad41fB8f77A91e',
+    publicResolverSet: '0xfFCedA021CBDF20f1a66ebbef32E49d208cAbf62',
+    wrapperRegistryImpl: '0xCF3Edb3f5501DE63B57254D910b6782eE370039B',
+    publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',
+  },
 }
 
 export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
@@ -166,7 +219,9 @@ export function getDestinationContracts(chainId: number): DestinationContracts {
 /**
  * Resolve the source contract table for a chain, throwing a clear error if the
  * chain is not an enabled source (funding) chain. Arbitrum Sepolia is
- * intentionally absent — it has no approved source validator.
+ * intentionally absent: it has no approved source validator. Mainnet is
+ * absent because it pays in its own USDC, so the funding intent runs on the
+ * destination chain and needs no source validator.
  */
 export function getSourceContracts(chainId: number): SourceContracts {
   const contracts = SOURCE_CONTRACTS[chainId]
