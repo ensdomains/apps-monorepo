@@ -14,11 +14,17 @@ const Bar = () => {
   return <nav ref={setBar} />
 }
 
-const mockBar = (height: number) =>
+const mockBar = (
+  height: number,
+  {
+    left = 0,
+    right = window.innerWidth,
+  }: { left?: number; right?: number } = {},
+) =>
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     height,
-    left: 0,
-    right: window.innerWidth,
+    left,
+    right,
     top: 800 - height,
   } as DOMRect)
 
@@ -27,6 +33,7 @@ describe('useIntercomClearance', () => {
     vi.useFakeTimers()
     vi.mocked(update).mockClear()
     vi.stubGlobal('innerHeight', 800)
+    vi.stubGlobal('innerWidth', 1200)
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -59,6 +66,49 @@ describe('useIntercomClearance', () => {
 
     render(<Bar />)
 
+    expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+  })
+
+  it.each([
+    { side: 'left', left: 100, right: 1120 },
+    { side: 'right', left: 1180, right: 1200 },
+  ])('keeps the default padding for a bar to the $side of the launcher', ({
+    left,
+    right,
+  }) => {
+    mockBar(BAR_HEIGHT, { left, right })
+
+    render(<Bar />)
+
+    expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+  })
+
+  it('updates padding as resizing moves the launcher into and out of overlap', () => {
+    mockBar(BAR_HEIGHT, { left: 100, right: 1000 })
+
+    render(<Bar />)
+
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+
+    act(() => {
+      vi.stubGlobal('innerWidth', 1000)
+      window.dispatchEvent(new Event('resize'))
+      vi.advanceTimersByTime(200)
+    })
+
+    expect(update).toHaveBeenCalledTimes(2)
+    expect(update).toHaveBeenLastCalledWith({
+      vertical_padding: BAR_HEIGHT + 16,
+    })
+
+    act(() => {
+      vi.stubGlobal('innerWidth', 1200)
+      window.dispatchEvent(new Event('resize'))
+      vi.advanceTimersByTime(200)
+    })
+
+    expect(update).toHaveBeenCalledTimes(3)
     expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
   })
 
