@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils'
 import {
   type EditableRecord,
   getRecordId,
+  type RecordType,
 } from '@/utils/records/editRecordUtils'
 import {
   getRecordError,
@@ -44,6 +45,7 @@ import {
 type EditRecordsTableProps = {
   records: NameRecord[]
   globalFilter: string
+  editableTypes: ReadonlySet<RecordType>
   onDeleteRecord?: (record: EditableRecord) => void
   onUpdateRecord?: (record: EditableRecord, newValue: string) => void
   validationErrors?: ValidationError[]
@@ -102,6 +104,7 @@ const EditableValueCell = memo(function EditableValueCell({
 export const EditRecordsTable = ({
   records,
   globalFilter,
+  editableTypes,
   onDeleteRecord,
   onUpdateRecord,
   validationErrors = [],
@@ -158,6 +161,7 @@ export const EditRecordsTable = ({
         cell: ({ row }) => (
           <Checkbox
             checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
             aria-label="Select row"
           />
@@ -216,6 +220,10 @@ export const EditRecordsTable = ({
           )
         },
         cell: ({ row }) => {
+          if (!editableTypes.has(row.original.type)) {
+            return <span className="font-mono">{row.original.value}</span>
+          }
+
           const recordId = getRecordId(row.original)
           const error = getError(recordId)
 
@@ -234,25 +242,28 @@ export const EditRecordsTable = ({
         cell: ({ row }) => (
           <div className="flex items-center gap-1 justify-end">
             <CopyButton value={row.original.value} />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 hover:text-destructive"
-              onClick={() => handleDeleteClick(row.original)}
-            >
-              <Trash2 className="size-4" />
-              <span className="sr-only">Delete record</span>
-            </Button>
+            {editableTypes.has(row.original.type) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 hover:text-destructive"
+                onClick={() => handleDeleteClick(row.original)}
+              >
+                <Trash2 className="size-4" />
+                <span className="sr-only">Delete record</span>
+              </Button>
+            )}
           </div>
         ),
       },
     ],
-    [onUpdateRecord, handleDeleteClick, getError],
+    [onUpdateRecord, handleDeleteClick, getError, editableTypes],
   )
 
   const table = useReactTable({
     data: records as EditableRecord[],
     columns: editColumns,
+    enableRowSelection: (row) => editableTypes.has(row.original.type),
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -267,17 +278,19 @@ export const EditRecordsTable = ({
     globalFilterFn: 'includesString',
   })
 
-  const selectedRowCount = Object.keys(rowSelection).length
+  const selectedRows = table
+    .getSelectedRowModel()
+    .rows.filter((row) => row.getCanSelect())
+  const selectedRowCount = selectedRows.length
 
-  const handleBulkDelete = useCallback(() => {
-    const selected = table.getSelectedRowModel().rows
-    for (const row of selected) {
+  const handleBulkDelete = () => {
+    for (const row of selectedRows) {
       onDeleteRecord?.(row.original)
     }
     setRowSelection({})
     setPendingDeleteId(null)
     setBulkDeleteOpen(false)
-  }, [table, onDeleteRecord])
+  }
 
   return (
     <>
@@ -326,7 +339,8 @@ export const EditRecordsTable = ({
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
               const rowId = getRecordId(row.original)
-              const isPendingDelete = pendingDeleteId === rowId
+              const isPendingDelete =
+                pendingDeleteId === rowId && row.getCanSelect()
 
               return (
                 <React.Fragment key={row.id}>
