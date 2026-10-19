@@ -223,6 +223,30 @@ describe('validateRecord', () => {
     })
   })
 
+  describe('address validation (out-of-range EVM coin type)', () => {
+    it('rejects a coin type above the ENSIP-11 range', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'Unknown Chain (84532)',
+        value: '0x1234567890123456789012345678901234567890',
+        // Base Sepolia + 2**32
+        id: 6442535476,
+      }
+      expect(validateRecord(record)).toContain('Invalid coin type')
+    })
+
+    it('accepts a well-formed EVM coin type that has no registered name', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'Unknown Chain (84532)',
+        value: '0x1234567890123456789012345678901234567890',
+        // Base Sepolia
+        id: 2147568180,
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+  })
+
   describe('text records without special validation', () => {
     it('accepts any value for non-validated text keys', () => {
       const record: EditableRecord = {
@@ -534,8 +558,8 @@ describe('validateRecords', () => {
     ]
     const errors = validateRecords(records)
     expect(errors).toHaveLength(2)
-    expect(errors[0].recordId).toBe('address-ETH-uid1')
-    expect(errors[1].recordId).toBe('address-ETH-uid2')
+    expect(errors[0].recordId).toBe('address-60-uid1')
+    expect(errors[1].recordId).toBe('address-60-uid2')
   })
 
   it('uses _uid for contentHash and abi records to ensure uniqueness', () => {

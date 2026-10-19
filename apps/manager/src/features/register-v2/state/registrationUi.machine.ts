@@ -39,6 +39,11 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import {
+  getRegistrationFailureMessage,
+  isNameNotAvailableError,
+  isNameTakenByOther,
+} from '../service/registrationFailure'
+import {
   acquireRegistrationLock,
   getBlockingRegistration,
   releaseRegistrationLock,
@@ -307,6 +312,13 @@ const machineSetup = setup({
   },
   actors: {
     registrationFlow: registrationMachine,
+    checkNameTakenByOther: fromPromise(
+      ({
+        input,
+      }: {
+        input: Parameters<typeof isNameTakenByOther>[0] | undefined
+      }) => (input ? isNameTakenByOther(input) : Promise.resolve(false)),
+    ),
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
@@ -436,7 +448,9 @@ const machineSetup = setup({
       lastErrorMessage: ({ event }) =>
         match(event)
           .with({ type: 'transaction.failed' }, ({ message }) => message)
-          .with({ type: '$error' }, ({ error }) => error.message)
+          .with({ type: '$error' }, ({ error }) =>
+            getRegistrationFailureMessage(error),
+          )
           .otherwise(() => undefined),
       nameUnavailable: ({ event }) =>
         match(event)
@@ -947,10 +961,14 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         actions: [
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
-            message: snapshot.context.error?.message,
+            message: getRegistrationFailureMessage(snapshot.context.error),
             // Lost a same-name race: the child refuses RETRY, so the failure
-            // screen must not offer one either.
-            nameUnavailable: snapshot.context.nameUnavailable === true,
+            // screen must not offer one either. A race lost before the reveal
+            // (price read, budget quote) only shows up as the registrar's
+            // revert, so read it off the error too.
+            nameUnavailable:
+              snapshot.context.nameUnavailable === true ||
+              isNameNotAvailableError(snapshot.context.error),
           })),
         ],
       },
@@ -1348,6 +1366,24 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     success: {},
     failure: {
+      // A reverted register says nothing about why, so ask the registry
+      // whether someone else got the name first
+      invoke: {
+        src: 'checkNameTakenByOther',
+        input: ({ context }) =>
+          context.nameUnavailable || !context.confirmedData
+            ? undefined
+            : {
+                label: context.confirmedData.label,
+                owner: context.confirmedData.ownerAddress,
+                chainId: context.chainId,
+                publicClient: defaultPublicClient,
+              },
+        onDone: {
+          guard: ({ event }) => event.output,
+          actions: assign({ nameUnavailable: () => true }),
+        },
+      },
       on: {
         retry: [
           {
@@ -1398,6 +1434,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             target: 'pricing',
             actions: [
               'releaseRegistrationLock',
+              // A name lost to someone else is still cached as available, so
+              // the quote would offer it again. Must run before the label is
+              // cleared.
+              'invalidateNameQueries',
               'clearRegistrationData',
               'clearError',
               'forwardCancel',

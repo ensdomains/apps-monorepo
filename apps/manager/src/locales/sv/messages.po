@@ -117,6 +117,10 @@ msgstr ""
 msgid "{label} avatar"
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "{label}.eth was registered by someone else just before your registration went through."
+msgstr ""
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr ""
@@ -218,10 +222,6 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
-msgstr ""
-
-#: src/features/profile/components/view/ProfileAbout.tsx
-msgid "About"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -813,10 +813,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying the resolver"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
-msgid "Description"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
@@ -1681,6 +1677,10 @@ msgstr ""
 msgid "One username everywhere"
 msgstr ""
 
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "Only ENSv2 Names Supported"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr ""
@@ -1844,6 +1844,11 @@ msgstr ""
 #: src/features/profile/components/dialogs/edit-profile/EditProfileFloatingBar.tsx
 #: src/features/profile/components/view/ProfileActions.tsx
 msgid "Profile actions"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Profile Description"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
@@ -2393,6 +2398,10 @@ msgstr "Anger..."
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Share a fun fact about this name"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -3269,6 +3278,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx

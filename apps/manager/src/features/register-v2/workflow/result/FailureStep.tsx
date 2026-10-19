@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Clock, XCircle } from 'lucide-react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
@@ -94,8 +94,20 @@ export const FailureStepView = ({
               ))}
           </p>
           <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
-            {message ??
-              t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
+            {match({ nameUnavailable, message })
+              .with(
+                { nameUnavailable: true },
+                () =>
+                  t`${label}.eth was registered by someone else just before your registration went through.`,
+              )
+              .with(
+                { message: P.string.minLength(1) },
+                ({ message }) => message,
+              )
+              .otherwise(
+                () =>
+                  t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`,
+              )}
           </p>
         </div>
       </div>

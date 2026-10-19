@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NavSection } from '@/features/navigation/Header/account/NavSection'
 import { render } from '@/utils/test-utils'
 import { DashboardPage } from '../pages/DashboardPage'
+import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { MyNamesList } from './MyNamesList'
 
 type NameQueryParams = { readonly name: string }
@@ -39,6 +40,8 @@ const dashboardNamesMock = vi.hoisted(() => ({
 const eligibilityMock = vi.hoisted(() => ({
   useDashboardMigrationEligibility: vi.fn(),
 }))
+
+const featureFlags = vi.hoisted(() => ({ migration: false }))
 
 // Keep the real reverse query, QueryClient, chooser, useSetPrimaryName mutation,
 // Dashboard, card, MyNamesList and NavSection. Stub only IO and unrelated panels.
@@ -155,7 +158,10 @@ vi.mock('./NamesTable', () => ({
     </section>
   ),
 }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
+vi.mock('@posthog/react', () => ({
+  useFeatureFlagEnabled: (flag: string) =>
+    flag === 'migration' && featureFlags.migration,
+}))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => false,
 }))
@@ -348,5 +354,76 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     ).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await expectPrimary('alpha.eth')
+  })
+})
+
+describe('chooser ENSv2 upgrade warning', () => {
+  const WARNING = 'Only ENSv2 Names Supported'
+
+  const eligibility = (state: {
+    readonly eligibleKeys?: ReadonlySet<string>
+    readonly isPending?: boolean
+    readonly isError?: boolean
+  }) =>
+    eligibilityMock.useDashboardMigrationEligibility.mockImplementation(
+      (enabled: boolean) => ({
+        eligibleKeys: enabled ? (state.eligibleKeys ?? new Set()) : new Set(),
+        isPending: enabled && (state.isPending ?? false),
+        isError: enabled && (state.isError ?? false),
+      }),
+    )
+
+  const openChooser = async () => {
+    render(
+      <ChoosePrimaryNameDialog>
+        <button type="button">Open chooser</button>
+      </ChoosePrimaryNameDialog>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Open chooser' }))
+    return screen.findByRole('dialog', { name: 'Choose Primary Name' })
+  }
+
+  beforeEach(() => {
+    featureFlags.migration = true
+    chain.read.mockReset().mockResolvedValue('alpha.eth')
+  })
+
+  it('warns when the owner has a name that can be upgraded', async () => {
+    eligibility({ eligibleKeys: new Set(['0xlegacy']) })
+
+    const dialog = await openChooser()
+
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(WARNING)
+  })
+
+  it('shows the same warning when the V1 lookup fails', async () => {
+    eligibility({ isError: true })
+
+    const dialog = await openChooser()
+
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(WARNING)
+  })
+
+  it.each([
+    ['no name can be upgraded', {}],
+    [
+      'eligibility is still loading',
+      { eligibleKeys: new Set(['0xlegacy']), isPending: true },
+    ],
+  ])('does not warn when %s', async (_, state) => {
+    eligibility(state)
+
+    const dialog = await openChooser()
+
+    expect(within(dialog).queryByText(WARNING)).not.toBeInTheDocument()
+  })
+
+  it('does not warn while upgrading is switched off', async () => {
+    featureFlags.migration = false
+    eligibility({ eligibleKeys: new Set(['0xlegacy']), isError: true })
+
+    const dialog = await openChooser()
+
+    expect(within(dialog).queryByText(WARNING)).not.toBeInTheDocument()
   })
 })

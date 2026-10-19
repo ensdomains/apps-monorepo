@@ -12,6 +12,7 @@ import { parseAbi } from 'viem'
 import { chain } from '@/config'
 import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
+import { isNameNotAvailableError } from '../../service/registrationFailure'
 
 const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -85,7 +86,8 @@ export const getRegisterPriceQueryOptions = (
       durationInSeconds,
       token,
     }),
-    throwOnError: true,
+    // A taken name is handled by the availability guard, not the route error
+    throwOnError: (error) => !isNameNotAvailableError(error),
     queryFn: () => getRegisterPrice(name, durationInSeconds, token),
     refetchInterval: PRICING_REFETCH_INTERVAL_MS,
     refetchOnWindowFocus: true,

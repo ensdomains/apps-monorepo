@@ -29,6 +29,20 @@ export function cn(...inputs: CxOptions) {
 }
 
 const SLIP44_MSB = 0x80000000
+const ENSIP11_MAX_COIN_TYPE = 0xffffffff
+
+function isValidEvmCoinType(coinType: number): boolean {
+  return coinType >= SLIP44_MSB && coinType <= ENSIP11_MAX_COIN_TYPE
+}
+
+/**
+ * True for an EVM coin type above the ENSIP-11 range. address-encoder derives
+ * its chain id with 32-bit operators, so such a value truncates onto the chain
+ * it wraps (WEB-1447).
+ */
+export function isOutOfRangeEvmCoinType(coinType: number): boolean {
+  return coinType >= SLIP44_MSB && !isValidEvmCoinType(coinType)
+}
 
 // The chainId → coinType direction has no local counterpart: use
 // `evmChainIdToCoinType` from `@ensdomains/address-encoder/utils`. This inverse
