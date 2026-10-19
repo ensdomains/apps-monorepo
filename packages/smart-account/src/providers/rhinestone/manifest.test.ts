@@ -1,5 +1,5 @@
 import { getAddress } from 'viem'
-import { sepolia } from 'viem/chains'
+import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   DESTINATION_CONTRACTS,
@@ -76,6 +76,35 @@ describe('remediated Sepolia destination manifest', () => {
     for (const [label, address] of addressEntriesOf(DESTINATION_CONTRACTS)) {
       expectChecksummed(label, address)
     }
+  })
+})
+
+describe('mainnet destination manifest', () => {
+  it('pins the complete migration namespace and current HCA deployment', () => {
+    const contracts = getDestinationContracts(mainnet.id)
+
+    expect(contracts).toEqual({
+      standaloneHcaFactory: '0x742bf21897a78e2C98cC5f5C5473A370a081e561',
+      standaloneHcaImplementation: '0x116F462FA078ec0009e9b25DCd60309E70aaC4F4',
+      hcaOwnerAndSessionValidator: '0xa818428ed2F3F949bdc71b8A15bDD7B5D27ce938',
+      verifiableFactory: '0x77510ba162dfeA3d8989E3f0928a691B345730D2',
+      verifiableFactoryProxyLogic: '0x8E77da0dAb32EfCc1C75e0Bd0e17680EBe0b1414',
+      verifiableFactoryDeployBlock: 26_105_299n,
+      permissionedResolverImpl: '0x565b0F456a04Ac9b48758190e90030623Cff57C5',
+      ethRegistrar: '0xD6D8369e55c94Ae8AFA714E6cF7AB5bE54D5CC81',
+      ethRegistry: '0xf60aba43E1f7F3DAB1186Ff03B561401C9Df85E2',
+      rootRegistry: '0x2553c09bE6447BeFfdB86FA622ad41fB8f77A91e',
+      migrationHelper: '0x0b92006fa187B4c98d0A7Dfc9d3b918b6D243485',
+      unlockedMigrationController: '0xaB821Ca676CF2e0790Fa273526a165CFa86aEB64',
+      lockedMigrationController: '0xc46Bf3B6C7eBcFFd4EcfC3b012a1726a2463694d',
+      publicResolverSet: '0xfFCedA021CBDF20f1a66ebbef32E49d208cAbf62',
+      userRegistryImpl: '0x75FF9AdBcFcE2469B097AC68f6Ae650EaE1351Bb',
+      wrapperRegistryImpl: '0xCF3Edb3f5501DE63B57254D910b6782eE370039B',
+      publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',
+      defaultReverseRegistrarHcaAdapter:
+        '0xd86E32499eCAFe9c181dd7410f93A1a9bB61ef0d',
+      usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    })
   })
 })
 
