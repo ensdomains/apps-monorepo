@@ -33,9 +33,10 @@ import {
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import { cn } from '@/lib/utils'
 import {
+  canEditRecord,
   type EditableRecord,
+  type EditableTypes,
   getRecordId,
-  type RecordType,
 } from '@/utils/records/editRecordUtils'
 import {
   getRecordError,
@@ -45,7 +46,7 @@ import {
 type EditRecordsTableProps = {
   records: NameRecord[]
   globalFilter: string
-  editableTypes: ReadonlySet<RecordType>
+  editableTypes: EditableTypes
   onDeleteRecord?: (record: EditableRecord) => void
   onUpdateRecord?: (record: EditableRecord, newValue: string) => void
   validationErrors?: ValidationError[]
@@ -220,7 +221,7 @@ export const EditRecordsTable = ({
           )
         },
         cell: ({ row }) => {
-          if (!editableTypes.has(row.original.type)) {
+          if (!canEditRecord(editableTypes, row.original)) {
             return <span className="font-mono">{row.original.value}</span>
           }
 
@@ -242,7 +243,7 @@ export const EditRecordsTable = ({
         cell: ({ row }) => (
           <div className="flex items-center gap-1 justify-end">
             <CopyButton value={row.original.value} />
-            {editableTypes.has(row.original.type) && (
+            {canEditRecord(editableTypes, row.original) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -263,7 +264,7 @@ export const EditRecordsTable = ({
   const table = useReactTable({
     data: records as EditableRecord[],
     columns: editColumns,
-    enableRowSelection: (row) => editableTypes.has(row.original.type),
+    enableRowSelection: (row) => canEditRecord(editableTypes, row.original),
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),

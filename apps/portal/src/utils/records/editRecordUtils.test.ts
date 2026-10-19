@@ -3,9 +3,11 @@ import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import {
   createNewRecord,
   type EditableRecord,
+  type EditableTypes,
   getRecordId,
   hasDisallowedChanges,
   mergeRecordsWithChanges,
+  NO_EDITABLE_TYPES,
 } from './editRecordUtils'
 
 describe('getRecordId', () => {
@@ -318,7 +320,7 @@ describe('createNewRecord', () => {
 })
 
 describe('hasDisallowedChanges', () => {
-  const textOnly = new Set(['text'] as const)
+  const textOnly: EditableTypes = { ...NO_EDITABLE_TYPES, text: 'all' }
   const address = { type: 'address' as const, key: 'ETH', value: '0x1', id: 60 }
 
   it('allows changes to types the wallet can still write', () => {
@@ -334,11 +336,25 @@ describe('hasDisallowedChanges', () => {
     expect(hasDisallowedChanges([address], textOnly)).toBe(false)
   })
 
-  it.each([
-    { isNew: true },
-    { isEdited: true },
-    { isDeleted: true },
-  ])('flags a pending change of a type the wallet lost (%o)', (flag) => {
-    expect(hasDisallowedChanges([{ ...address, ...flag }], textOnly)).toBe(true)
+  it.each([{ isNew: true }, { isEdited: true }, { isDeleted: true }])(
+    'flags a pending change of a type the wallet lost (%o)',
+    (flag) => {
+      expect(hasDisallowedChanges([{ ...address, ...flag }], textOnly)).toBe(
+        true,
+      )
+    },
+  )
+
+  it('checks the key, not just the type, when a type is scoped', () => {
+    const avatarOnly: EditableTypes = {
+      ...NO_EDITABLE_TYPES,
+      text: new Set(['avatar']),
+    }
+    const edit = (key: string) => [
+      { type: 'text' as const, key, value: 'x', isEdited: true },
+    ]
+
+    expect(hasDisallowedChanges(edit('avatar'), avatarOnly)).toBe(false)
+    expect(hasDisallowedChanges(edit('name'), avatarOnly)).toBe(true)
   })
 })

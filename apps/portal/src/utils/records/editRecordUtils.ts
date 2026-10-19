@@ -163,13 +163,69 @@ export function createNewRecord(
     .exhaustive()
 }
 
-/** Whether a pending change touches a record type outside `editableTypes`. */
+/** Every key of a record type, or only these. */
+type EditableKeys<K> = 'all' | ReadonlySet<K>
+
+/** What a wallet may write per record type: text keys, coin types, and the keyless types. */
+export type EditableTypes = {
+  readonly text: EditableKeys<string>
+  readonly address: EditableKeys<bigint>
+  readonly abi: boolean
+  readonly contentHash: boolean
+}
+
+export const NO_EDITABLE_TYPES: EditableTypes = {
+  text: new Set(),
+  address: new Set(),
+  abi: false,
+  contentHash: false,
+}
+
+export const ALL_EDITABLE_TYPES: EditableTypes = {
+  text: 'all',
+  address: 'all',
+  abi: true,
+  contentHash: true,
+}
+
+const hasKey = <K>(keys: EditableKeys<K>, key: K) =>
+  keys === 'all' || keys.has(key)
+
+const hasAnyKey = <K>(keys: EditableKeys<K>) => keys === 'all' || keys.size > 0
+
+/** Whether any record of `type` is writable. */
+export const canEditType = (
+  editableTypes: EditableTypes,
+  type: RecordType,
+): boolean =>
+  match(type)
+    .with('text', () => hasAnyKey(editableTypes.text))
+    .with('address', () => hasAnyKey(editableTypes.address))
+    .with('abi', () => editableTypes.abi)
+    .with('contentHash', () => editableTypes.contentHash)
+    .exhaustive()
+
+/** Whether `record` is writable, down to its text key or coin type. */
+export const canEditRecord = (
+  editableTypes: EditableTypes,
+  record: NameRecord,
+): boolean =>
+  match(record)
+    .with({ type: 'text' }, ({ key }) => hasKey(editableTypes.text, key))
+    .with({ type: 'address' }, ({ id }) =>
+      hasKey(editableTypes.address, BigInt(id)),
+    )
+    .with({ type: 'abi' }, () => editableTypes.abi)
+    .with({ type: 'contentHash' }, () => editableTypes.contentHash)
+    .exhaustive()
+
+/** Whether a pending change touches a record outside `editableTypes`. */
 export const hasDisallowedChanges = (
   records: readonly EditableRecord[],
-  editableTypes: ReadonlySet<RecordType>,
+  editableTypes: EditableTypes,
 ): boolean =>
   records.some(
     (record) =>
       (record.isNew || record.isEdited || record.isDeleted) &&
-      !editableTypes.has(record.type),
+      !canEditRecord(editableTypes, record),
   )

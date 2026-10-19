@@ -1,6 +1,12 @@
-import { computeResolverResource } from '@ensdomains/ensjs/utils/v2'
+import {
+  computeResolverResource,
+  encodeResolverRoleBitmap,
+  type ResolverRole,
+} from '@ensdomains/ensjs/utils/v2'
+import { toHex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
+  decodeSetterGrants,
   describeResolverResource,
   formatSetterScope,
   groupRolesByAccount,
@@ -222,5 +228,41 @@ describe('planAccountRemoval', () => {
     )
 
     expect(plan).toEqual({ type: 'unreadable' })
+  })
+})
+
+describe('decodeSetterGrants', () => {
+  const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+  const eth = computeResolverResource({ kind: 'address', coinType: 60n })
+  const grant = (resource: bigint, role: ResolverRole) => ({
+    resource,
+    roleBitmap: encodeResolverRoleBitmap([role]),
+  })
+  const named = (resource: bigint, recordKey: string, coinType = '-1') => ({
+    resource: toHex(resource, { size: 32 }),
+    recordKind: 'argument',
+    recordKey,
+    coinType,
+  })
+
+  it('decodes text and coin-type grants from their preimages', () => {
+    expect(
+      decodeSetterGrants(
+        [grant(avatar, 'ROLE_SET_TEXT'), grant(eth, 'ROLE_SET_ADDRESS')],
+        [named(avatar, 'avatar'), named(eth, toHex(60n, { size: 32 }), '60')],
+      ),
+    ).toEqual([
+      { kind: 'text', key: 'avatar' },
+      { kind: 'address', coinType: 60n },
+    ])
+  })
+
+  it('drops a preimage that does not hash back to its resource', () => {
+    expect(
+      decodeSetterGrants(
+        [grant(avatar, 'ROLE_SET_TEXT')],
+        [named(avatar, 'header')],
+      ),
+    ).toEqual([])
   })
 })
