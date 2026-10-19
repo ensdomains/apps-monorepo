@@ -758,6 +758,71 @@ const startVerifyingRegistration = (options: {
 }
 
 describe('registrationMachine — RESUME', () => {
+  it.each([
+    0n,
+    5_000_000n,
+  ])('keeps a validated EOA commitment without a transaction ID after checking allowance %s', async (allowance) => {
+    const checkResolverDeployment = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: Date.now() + 60_000,
+          })) as never,
+          readPaymentAuthorization: fromPromise(async () => ({
+            allowance,
+            livePrice: 5_000_000n,
+          })) as never,
+          submitApproval: fromPromise(async () => 'tx-approve') as never,
+          pollTransactionStatus: fromPromise(async () => undefined) as never,
+          waitAfterCommitment: fromPromise(
+            () => new Promise(() => {}),
+          ) as never,
+          checkResolverDeployment: fromPromise(
+            checkResolverDeployment,
+          ) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'eoa',
+        accountAddress: WALLET,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+      },
+      deps: {
+        approveBeforeCommit: true,
+        signer: { type: 'eoa' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    await waitFor(
+      actor,
+      (state) =>
+        state.matches('commitmentCooldown') ||
+        state.matches('checkingResolver'),
+    )
+    expect(actor.getSnapshot().matches('commitmentCooldown')).toBe(true)
+    expect(actor.getSnapshot().context.commitment).toEqual({
+      commitment: COMMITMENT,
+      secret: SECRET,
+    })
+    expect(checkResolverDeployment).not.toHaveBeenCalled()
+    actor.stop()
+  })
+
   it('routes a stored commitment straight to on-chain validation', async () => {
     const validateCommitment = vi.fn(() => new Promise(() => {}))
     const submitFundingAndCommit = vi.fn(() => new Promise(() => {}))

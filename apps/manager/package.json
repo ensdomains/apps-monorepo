@@ -23,7 +23,8 @@
     "i18n:pull": "crowdin download --config crowdin.yml",
     "lint": "biome check",
     "lint:fix": "biome check --fix",
-    "prebuild": "tsx scripts/check-network-config.ts"
+    "dev:mainnet": "pnpm dev --mode mainnet",
+    "build:mainnet": "pnpm build --mode mainnet"
   },
   "dependencies": {
     "@ens-apps/config": "workspace:^",
@@ -61,6 +62,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@rhinestone/sdk": "catalog:",
+    "jose": "catalog:",
     "@tailwindcss/vite": "^4.2.4",
     "@tanstack/react-form": "^1.23.5",
     "@tanstack/react-hotkeys": "^0.10.0",
@@ -77,7 +79,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "graphql": "^17.0.2",
     "lottie-web": "5.13.0",
     "lucide": "^0.542.0",
     "lucide-react": "^0.542.0",

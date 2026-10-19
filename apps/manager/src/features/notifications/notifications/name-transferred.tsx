@@ -1,3 +1,4 @@
+import { chain } from '@/config'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { NameCardTemplate } from '@/features/notifications/shared/templates'
 import type { KindComponent } from './contracts'
@@ -15,7 +16,7 @@ export const NameTransferredComponent: KindComponent<'name-transferred'> = ({
     action={
       <a
         className={getNotificationActionButtonClass(layout)}
-        href={`https://etherscan.io/tx/${payload.txHash}`}
+        href={`${chain.blockExplorers.default.url}/tx/${payload.txHash}`}
         onClick={onAction}
         rel="noopener noreferrer"
         target="_blank"

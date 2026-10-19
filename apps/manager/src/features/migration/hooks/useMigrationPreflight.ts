@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
@@ -6,7 +7,6 @@ import {
   EMPTY_PREFLIGHT,
   type MigrationPreflight,
 } from '@/features/migration/service/computeMigrationPreflight'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 
 type HookParams = {
   eoa: Address | undefined

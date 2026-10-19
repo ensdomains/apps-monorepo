@@ -1,3 +1,4 @@
+import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addSeconds } from 'date-fns'
 import { useMemo } from 'react'
@@ -8,12 +9,14 @@ import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/p
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
+import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import {
   type StablecoinBalance,
   useSmartAccountContext,
 } from '@/lib/smart-account'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { hasInsufficientBalance } from '@/utils/payment'
 import type {
@@ -34,6 +37,13 @@ type BulkRenewPayment = {
   readonly isConnected: boolean
   readonly isLoadingBalances: boolean
   readonly stablecoinBalances: readonly StablecoinBalance[]
+  /** What the smart account already holds of each coin; it pays first. */
+  readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
+  /**
+   * What the selection funds before account credit: the total, plus the
+   * approval's headroom on the intent route, which moves into the account too.
+   */
+  readonly fundedTotal: number
   /** True when the wallet is connected and the selected coin covers the total. */
   readonly canConfirm: boolean
 }
@@ -64,12 +74,19 @@ export const useBulkRenew = ({
 }: {
   readonly names: readonly BulkRenewName[]
   readonly selection: Selection
-  readonly selectedToken: SUPPORTED_TOKEN
+  readonly selectedToken: RENEWAL_TOKEN
   readonly open: boolean
 }): UseBulkRenewResult => {
   const count = names.length
-  const { stablecoinBalances, isLoadingBalances, isConnected } =
-    useSmartAccountContext()
+  const { isConnected, signer } = useSmartAccountContext()
+  // `null` while the signer initializes: nothing is confirmable until the
+  // route is known, so a smart account never falls back to the wallet route.
+  const route = getRenewalPaymentRoute(signer)
+  const {
+    wallet: stablecoinBalances,
+    accountCredit,
+    isLoading: isLoadingBalances,
+  } = useRenewalBalances()
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
@@ -178,6 +195,7 @@ export const useBulkRenew = ({
   const renewItems: readonly RenewItem[] = names.map((n) => ({
     label: n.label,
     duration: durationForName(selection, n.currentExpiry),
+    currentExpiry: n.currentExpiry,
   }))
 
   // Avatars/theme for the breakdown rows.
@@ -205,6 +223,14 @@ export const useBulkRenew = ({
     endDate: newExpiryDateForName(selection, n.currentExpiry),
   }))
 
+  const fundedTotal =
+    route === 'intent'
+      ? decimalBigintToNumber(
+          authorizedPaymentAmount(sumPriceRaw),
+          tokenDecimals,
+        )
+      : grandTotal
+
   const selectedBalance = stablecoinBalances.find(
     (b) => b.symbol === selectedToken,
   )
@@ -226,12 +252,19 @@ export const useBulkRenew = ({
       isConnected,
       isLoadingBalances,
       stablecoinBalances,
+      accountCredit,
+      fundedTotal,
       canConfirm:
         isConnected &&
+        route !== null &&
         !isLoadingBalances &&
         pricesReady &&
         grandTotal > 0 &&
-        !hasInsufficientBalance(selectedBalanceUsd, grandTotal),
+        // The account's own balance pays first; the wallet covers the rest.
+        !hasInsufficientBalance(
+          selectedBalanceUsd + (accountCredit[selectedToken] ?? 0),
+          fundedTotal,
+        ),
     },
   }
 }

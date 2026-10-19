@@ -61,7 +61,6 @@ describe('initializeRhinestoneAccount (standalone HCA)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     i18n.loadAndActivate({ locale: 'en', messages: {} })
-    vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
     mockCreateAccount.mockResolvedValue({
       getAddress: () => MOCK_SMART_ACCOUNT_ADDRESS,
     })
@@ -81,7 +80,6 @@ describe('initializeRhinestoneAccount (standalone HCA)', () => {
     expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
     expect(result.ownerAddress).toBe(MOCK_OWNER_ADDRESS)
     expect(result.alreadyDeployed).toBe(false)
-    expect(result.config.rhinestoneApiKey).toBe('test-rhinestone-key')
 
     const cfg = mockCreateAccount.mock.calls[0]?.[0]
     expect(cfg.account).toMatchObject({
@@ -94,7 +92,7 @@ describe('initializeRhinestoneAccount (standalone HCA)', () => {
     expect(cfg).not.toHaveProperty('initData')
   })
 
-  it('configures the SDK with auth apiKey + custom provider, no bundler', async () => {
+  it('configures the SDK with server-minted access tokens + custom provider, no bundler', async () => {
     await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
       publicClient: mockPublicClient,
@@ -103,10 +101,9 @@ describe('initializeRhinestoneAccount (standalone HCA)', () => {
     expect(walletClientToAccount).toHaveBeenCalledWith(mockWalletClient)
 
     const opts = vi.mocked(RhinestoneSDK).mock.calls[0]?.[0] as any
-    expect(opts.auth).toMatchObject({
-      mode: 'apiKey',
-      apiKey: 'test-rhinestone-key',
-    })
+    // No key in the client: the SDK asks the getter, which mints server-side.
+    expect(opts.auth).toMatchObject({ mode: 'experimental_jwt' })
+    expect(typeof opts.auth.accessToken).toBe('function')
     expect(opts.provider?.type).toBe('custom')
     expect(opts).not.toHaveProperty('bundler')
   })
@@ -139,21 +136,20 @@ describe('initializeRhinestoneAccount (standalone HCA)', () => {
     const config: RhinestoneConfig = result.config
     expect(config).toEqual({
       chain: expect.objectContaining({ id: 11155111 }),
-      rhinestoneApiKey: 'test-rhinestone-key',
     })
   })
 
-  it('uses a credential-free placeholder in development', async () => {
-    vi.stubEnv('VITE_RHINESTONE_API_KEY', '')
+  it('uses a placeholder key only against the local mockestrator', async () => {
+    vi.stubEnv('VITE_RHINESTONE_ENDPOINT_URL', '/orchestrator')
 
-    const result = await initializeRhinestoneAccount({
+    await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
       publicClient: mockPublicClient,
     })
 
-    expect(result.config.rhinestoneApiKey).toBe('local-dev')
     expect(vi.mocked(RhinestoneSDK).mock.calls.at(-1)?.[0]).toMatchObject({
       auth: { mode: 'apiKey', apiKey: 'local-dev' },
+      endpointUrl: '/orchestrator',
     })
   })
 })

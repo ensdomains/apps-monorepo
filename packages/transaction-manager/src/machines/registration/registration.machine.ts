@@ -1848,6 +1848,7 @@ export const registrationMachine = setup({
           {
             guard: ({ context, event }) =>
               context.approveBeforeCommit === true &&
+              !context.commitment &&
               !context.commitmentTxId &&
               event.output.allowance >= event.output.livePrice,
             target: 'checkingResolver',
@@ -1951,7 +1952,9 @@ export const registrationMachine = setup({
         onDone: [
           {
             guard: ({ context }) =>
-              context.approveBeforeCommit === true && !context.commitmentTxId,
+              context.approveBeforeCommit === true &&
+              !context.commitment &&
+              !context.commitmentTxId,
             target: 'checkingResolver',
           },
           { target: 'commitmentCooldown' },

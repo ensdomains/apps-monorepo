@@ -1,12 +1,13 @@
 import { Trans } from '@lingui/react/macro'
-import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
+import { type LinkOptions, linkOptions } from '@tanstack/react-router'
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
-import { tw } from '@/utils/tailwind'
+import { AccountMenuItemButton, AccountMenuItemLink } from './AccountMenuItem'
 
 type NavSectionProps = {
   readonly onAction: () => void
+  readonly onChoosePrimaryName: () => void
 }
 
 const getNavItems = (
@@ -19,7 +20,9 @@ const getNavItems = (
 }[] => [
   {
     id: 'dashboard',
-    icon: <MSymbol className="ms-opsz-20" symbol="dashboard" />,
+    icon: (
+      <MSymbol aria-hidden="true" className="ms-opsz-20" symbol="dashboard" />
+    ),
     label: <Trans>Dashboard</Trans>,
     link: linkOptions({
       to: '/dashboard',
@@ -27,7 +30,13 @@ const getNavItems = (
   },
   {
     id: 'profile',
-    icon: <MSymbol className="ms-opsz-20" symbol="account_circle" />,
+    icon: (
+      <MSymbol
+        aria-hidden="true"
+        className="ms-opsz-20 ms-wght-300"
+        symbol="account_circle"
+      />
+    ),
     label: <Trans>Primary Name Profile</Trans>,
     link: linkOptions({
       to: '/$name',
@@ -39,7 +48,13 @@ const getNavItems = (
   },
   {
     id: 'upgrade-permissions',
-    icon: <MSymbol className="ms-opsz-20" symbol="key_vertical" />,
+    icon: (
+      <MSymbol
+        aria-hidden="true"
+        className="ms-opsz-20"
+        symbol="key_vertical"
+      />
+    ),
     label: <Trans>Upgrade permissions</Trans>,
     link: linkOptions({
       to: '/upgrade-permissions',
@@ -47,32 +62,41 @@ const getNavItems = (
   },
 ]
 
-export const NavSection = ({ onAction }: NavSectionProps) => {
+export const NavSection = ({
+  onAction,
+  onChoosePrimaryName,
+}: NavSectionProps) => {
   const reverseNameQuery = useConnectedReverseName()
   const navItems = getNavItems(reverseNameQuery.data ?? undefined)
 
   return (
     <div className="flex flex-col gap-0.5">
-      {navItems.map(({ id, icon, label, link }) => (
-        <Link
-          activeProps={{
-            className: tw`bg-ens-quartz-50 font-[450] ms-wght-300`,
-          }}
-          className="flex items-center gap-2 rounded border-ens-quartz-100 border-b p-3 text-ens-quartz-500 transition-all aria-disabled:cursor-not-allowed aria-disabled:text-ens-quartz-350"
-          inactiveProps={{
-            className: tw`font-normal not-aria-disabled:hover:bg-ens-quartz-50 not-aria-disabled:hover:font-[450] not-aria-disabled:hover:ms-wght-300`,
-          }}
-          key={id}
-          onClick={() => {
-            if (link.disabled) return
-            onAction()
-          }}
-          {...link}
-        >
-          {icon}
-          <span className="text-base">{label}</span>
-        </Link>
-      ))}
+      {navItems.map(({ id, icon, label, link }) =>
+        id === 'profile' &&
+        reverseNameQuery.isSuccess &&
+        !reverseNameQuery.data ? (
+          <AccountMenuItemButton
+            className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
+            key={id}
+            onClick={onChoosePrimaryName}
+            prefix={icon}
+          >
+            {label}
+          </AccountMenuItemButton>
+        ) : (
+          <AccountMenuItemLink
+            key={id}
+            link={link}
+            onClick={() => {
+              if (link.disabled) return
+              onAction()
+            }}
+            prefix={icon}
+          >
+            {label}
+          </AccountMenuItemLink>
+        ),
+      )}
     </div>
   )
 }

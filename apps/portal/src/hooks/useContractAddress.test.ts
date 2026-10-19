@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { createTestWrapper, sepoliaWithEns } from '@/test-utils'
+import { createTestWrapper, ensChain } from '@/test-utils'
 
 // Mock the wagmi lib to avoid pulling the full wallet stack into the test
 vi.mock('@/lib/wagmi', () => ({
-  sepoliaWithEns,
+  ensChain,
 }))
 
 // Dynamic import after mocking

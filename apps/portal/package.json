@@ -20,7 +20,8 @@
     "deploy:version": "wrangler versions upload",
     "knip": "knip",
     "cf-typegen": "wrangler types",
-    "prebuild": "tsx scripts/check-network-config.ts"
+    "dev:mainnet": "pnpm dev --mode mainnet",
+    "build:mainnet": "vite build --mode mainnet && tsc --noEmit"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
@@ -111,6 +112,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "catalog:",
     "happy-dom": "catalog:",
+    "omnipin": "^3.1.3",
     "tailwindcss": "^4.2.4",
     "tsx": "^4.21.0",
     "typescript": "catalog:",

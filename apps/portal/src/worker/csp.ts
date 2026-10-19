@@ -2,7 +2,7 @@
  * Content-Security-Policy + security headers for the portal worker.
  *
  * The portal is served by this Cloudflare Worker only in production
- * (`vite.config.ts` mounts `cloudflare()` only when `mode !== 'development'`),
+ * (`vite.config.ts` mounts `cloudflare()` for builds and previews),
  * so applying CSP here automatically exempts the Vite dev server / HMR.
  *
  * The policy is delivered two ways (see `worker.ts`):
@@ -17,6 +17,7 @@
 
 import { originFromEnvUrl } from '@ens-apps/config'
 import { envConfig } from '@/config'
+import { L2_CHAINS } from '@/lib/l2Chains'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -39,7 +40,7 @@ const OVERRIDE_CONNECT_ORIGINS = [
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
-// Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_INDEXER_GRAPHQL_URL
+// Per-deployment overrides via VITE_RPC_URL / VITE_INDEXER_GRAPHQL_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
   // Every RPC endpoint the viem transports may use: the app's attributed
@@ -82,11 +83,9 @@ const DEFAULT_CONNECT_HOSTS = [
   // compare resolvers to rule out a stale cache.
   'https://dns.google',
   // Etherscan API — proxy-contract verification fetch in
-  // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
-  // Host comes from the viem chain's blockExplorers.default.apiUrl: Sepolia
-  // today (api-sepolia), mainnet after cutover (api).
-  'https://api-sepolia.etherscan.io',
-  'https://api.etherscan.io',
+  // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy),
+  // at the chain's blockExplorers.default.apiUrl.
+  new URL(envConfig.chain.blockExplorers.default.apiUrl).origin,
   // ENS Cloudflare Workers (OG image, metadata, and other ENS-owned workers).
   'https://*.ens-cf.workers.dev',
   // IPFS gateways for NFT-metadata JSON resolution — viem's default (ipfs.io)
@@ -103,12 +102,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // Reown AppKit (formerly Web3Modal) config + analytics API — separate host
   // from *.walletconnect.*; AccountController fetches /appkit/v1/config here.
   'https://api.web3modal.org',
-  // viem default public L2 RPCs for L2 setName — src/lib/wagmiL2.ts
-  'https://sepolia.optimism.io',
-  'https://sepolia-rollup.arbitrum.io',
-  'https://sepolia.base.org',
-  'https://rpc.sepolia.linea.build',
-  'https://sepolia-rpc.scroll.io',
+  // viem's default public RPCs for the build's L2s, used for L2 setName
+  // (src/lib/wagmiL2.ts). Derived from the same chain list.
+  ...L2_CHAINS.flatMap((chain) => chain.rpcUrls.default.http)
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
   // CCIP-Read (ERC-3668) gateways — viem follows the UniversalResolver's
   // OffchainLookup reverts from the browser, so every gateway origin must be
   // allowlisted or resolution fails with a generic "HTTP request failed."

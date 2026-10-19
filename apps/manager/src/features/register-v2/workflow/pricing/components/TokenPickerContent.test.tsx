@@ -5,6 +5,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
+  acquireRegistrationLock,
+  getBlockingRegistration,
+  releaseRegistrationLock,
+} from '../../../service/registrationLock'
+import {
   TokenPickerContent,
   TokenPickerContentBase,
 } from './TokenPickerContent'
@@ -23,14 +28,24 @@ const containerMocks = vi.hoisted(() => ({
   walletBalance: '100000000',
   availabilityError: null as Error | null,
   fetchCalls: 0,
+  send: vi.fn(),
+  getSessionEnablePayload: vi.fn<() => Promise<undefined>>(),
+  getSnapshot: vi.fn<() => object>(),
+  isApproving: false,
 }))
 
 vi.mock('@xstate/react', () => ({
   useSelector: (actor: unknown, select: (state: unknown) => unknown) =>
     actor
       ? select({
-          matches: () => false,
-          context: { duration: 31_536_000, selectedToken: 'USDC' },
+          matches: () => containerMocks.isApproving,
+          context: {
+            duration: 31_536_000,
+            selectedToken: 'USDC',
+            confirmedData: containerMocks.isApproving
+              ? { ownerAddress: '0x1111111111111111111111111111111111111111' }
+              : undefined,
+          },
         })
       : select(undefined),
 }))
@@ -38,7 +53,10 @@ vi.mock('@xstate/react', () => ({
 vi.mock('../../../state/registrationUi.context', () => ({
   useRegistrationV2Context: () => ({
     label: 'jeff',
-    uiActor: { send: vi.fn(), getSnapshot: () => ({}) },
+    uiActor: {
+      send: containerMocks.send,
+      getSnapshot: containerMocks.getSnapshot,
+    },
   }),
 }))
 
@@ -61,7 +79,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
     ],
     isLoadingBalances: false,
     isConnected: true,
-    getSessionEnablePayload: vi.fn().mockResolvedValue(undefined),
+    getSessionEnablePayload: containerMocks.getSessionEnablePayload,
   }),
 }))
 
@@ -109,12 +127,16 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
         return { isAvailable: true }
       },
     }),
-    useMutation: (options: { mutationFn: () => Promise<unknown> }) => {
+    useMutation: (options: {
+      mutationFn: () => Promise<unknown>
+      onSuccess?: (data: unknown) => Promise<void>
+    }) => {
       const [error, setError] = React.useState<Error | null>(null)
       return {
         error,
         isError: error !== null,
-        mutate: () => void options.mutationFn().catch(setError),
+        mutate: () =>
+          void options.mutationFn().then(options.onSuccess).catch(setError),
       }
     },
   }
@@ -184,6 +206,70 @@ describe('TokenPickerContent', () => {
     containerMocks.walletBalance = '100000000'
     containerMocks.availabilityError = null
     containerMocks.fetchCalls = 0
+    containerMocks.isApproving = false
+    containerMocks.send.mockClear()
+    containerMocks.getSnapshot.mockReset().mockReturnValue({})
+    containerMocks.getSessionEnablePayload
+      .mockReset()
+      .mockResolvedValue(undefined)
+  })
+
+  it('keeps the wallet locked while payment approval takes longer than a minute', () => {
+    const owner = '0x1111111111111111111111111111111111111111'
+    vi.useFakeTimers()
+    containerMocks.isApproving = true
+    acquireRegistrationLock(owner, 'jeff.eth')
+    const view = renderContainer()
+
+    try {
+      vi.advanceTimersByTime(75_000)
+      expect(getBlockingRegistration(owner, 'other.eth')).toBe('jeff.eth')
+    } finally {
+      view.unmount()
+      releaseRegistrationLock(owner)
+      vi.useRealTimers()
+    }
+  })
+
+  it('starts registration after checking availability and preparing the session', async () => {
+    renderContainer()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'registration.start', label: 'jeff' }),
+      ),
+    )
+  })
+
+  it('ignores a click when the pricing snapshot changes while preparation is pending', async () => {
+    let finishPreparation: () => void = () => {
+      throw new Error('Session preparation has not started')
+    }
+    containerMocks.getSessionEnablePayload.mockReturnValue(
+      new Promise((resolve) => {
+        finishPreparation = () => resolve(undefined)
+      }),
+    )
+    renderContainer()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
+
+    await waitFor(() =>
+      expect(containerMocks.getSessionEnablePayload).toHaveBeenCalledOnce(),
+    )
+    containerMocks.getSnapshot.mockReturnValue({})
+    finishPreparation()
+
+    await waitFor(() =>
+      expect(containerMocks.getSnapshot).toHaveBeenCalledTimes(2),
+    )
+    expect(containerMocks.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'registration.start' }),
+    )
   })
 
   const captureRevalidatedNamePriceError = async () => {
@@ -321,6 +407,32 @@ describe('TokenPickerContentBase', () => {
     const onSelectCoin = renderPicker({ stablecoinBalances: [] })
 
     expect(onSelectCoin).not.toHaveBeenCalled()
+  })
+
+  it('lets a wallet through that only covers what the account does not', () => {
+    // A renewal: 1,000 USDC in the wallet against a 1,200 price, with 300 USDC
+    // already in the smart account, which pays first.
+    renderPicker({
+      accountCredit: { USDC: 300 },
+      nextMessage: 'Renew Name',
+      pricingData: 1_200,
+      selectedToken: 'USDC',
+      showNetworkFeeDetails: false,
+    })
+
+    expect(screen.getByRole('button', { name: 'Renew Name' })).toBeEnabled()
+  })
+
+  it('checks each coin against the account credit in that coin only', () => {
+    renderPicker({
+      accountCredit: { DAI: 300 },
+      nextMessage: 'Renew Name',
+      pricingData: 1_200,
+      selectedToken: 'USDC',
+      showNetworkFeeDetails: false,
+    })
+
+    expect(screen.getByRole('button', { name: 'Renew Name' })).toBeDisabled()
   })
 
   it('lets checkout through when the HCA already covers the whole budget', () => {

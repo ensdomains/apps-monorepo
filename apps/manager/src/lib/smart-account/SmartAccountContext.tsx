@@ -49,7 +49,7 @@ import {
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
-import { chain as appChain } from '@/config'
+import { chain as appChain, isTestnet } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -74,6 +74,12 @@ export interface RevokeSessionOptions {
    * soon as anyone deploys it, and `revokeSessions()` needs code to call.
    */
   readonly deployFirst?: boolean
+}
+
+/** A session just enabled, for the caller to start a flow with right away. */
+export interface EnabledSession {
+  readonly signer: Signer
+  readonly hcaSessionEnable: HcaSessionEnablePayload
 }
 
 export interface SmartAccountContextValue extends RhinestoneAccountState {
@@ -101,10 +107,11 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * the session off-chain, and nothing is written on-chain — every
    * session-signed intent carries that authorization inline, and the validator
    * checks it against the account's session nonce each time. Resolves with the
-   * session-attached signer to use IMMEDIATELY (avoids waiting for a React
-   * re-render of `signer`), or null on failure / the EOA-only path.
+   * session-attached signer and its enable payload to use IMMEDIATELY: until
+   * the next render, `signer` and `getSessionEnablePayload()` still describe
+   * the session this one replaced. Null on failure / the EOA-only path.
    */
-  readonly enableSession: () => Promise<Signer | null>
+  readonly enableSession: () => Promise<EnabledSession | null>
   /**
    * Replace the active session with one whose gas-overhead cap allows the
    * requested overhead — the registration machine's way out when a quote
@@ -173,18 +180,6 @@ function detectWalletSource(
 }
 
 /**
- * Resolve the Rhinestone API key, allowing a `local-dev` placeholder when a
- * local orchestrator endpoint is configured.
- */
-function resolveRhinestoneApiKey(): string | undefined {
-  const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
-  return (
-    import.meta.env.VITE_RHINESTONE_API_KEY ||
-    (isLocalOrchestrator ? 'local-dev' : undefined)
-  )
-}
-
-/**
  * The factory deployment to send before `revokeSessions()`, when the owner
  * chose to deploy an undeployed HCA in order to revoke it.
  *
@@ -239,7 +234,6 @@ function buildRevokeDeploymentCall(params: {
 interface BuildRhinestoneSignerParams {
   readonly baseClient: unknown
   readonly accountAddress: Address
-  readonly rhinestoneApiKey: string
   readonly sessionContext: RhinestoneSigner['session'] | undefined
   /** Verified owner (machine + wagmi agree), or null on divergence. */
   readonly sessionOwnerAddress: Address | null
@@ -275,7 +269,6 @@ function buildRhinestoneSigner(
     config: {
       chain: appChain,
       accountAddress: params.accountAddress,
-      rhinestoneApiKey: params.rhinestoneApiKey,
       defaultInfra: 'warp',
     },
     ...(attachSession ? { session: sessionContext } : {}),
@@ -568,6 +561,7 @@ export const SmartAccountContextProvider = ({
     // got a stable window and the EOA stayed at $0. We only need the owner
     // address and a loaded balance read.
     if (
+      !isTestnet ||
       !addressToFund ||
       balances.isLoadingBalances ||
       // A fund is already in flight — wait for it to settle before deciding
@@ -697,11 +691,6 @@ export const SmartAccountContextProvider = ({
         }
         return new Error('Smart account or verified owner unavailable')
       }
-      const rhinestoneApiKey = resolveRhinestoneApiKey()
-      if (!rhinestoneApiKey) {
-        return new Error('Rhinestone API key not configured')
-      }
-
       const rhinestoneAccount =
         baseClient as unknown as RhinestoneSigner['account']
 
@@ -744,7 +733,6 @@ export const SmartAccountContextProvider = ({
       const signer = buildRhinestoneSigner({
         baseClient,
         accountAddress,
-        rhinestoneApiKey,
         sessionContext: buildSessionContext({
           session: result.value.session,
           chain: appChain,
@@ -766,10 +754,16 @@ export const SmartAccountContextProvider = ({
     ],
   )
 
-  const enableSession = useCallback(async (): Promise<Signer | null> => {
-    const result = await authorizeSession()
-    return result instanceof Error ? null : result.signer
-  }, [authorizeSession])
+  const enableSession =
+    useCallback(async (): Promise<EnabledSession | null> => {
+      const result = await authorizeSession()
+      return result instanceof Error
+        ? null
+        : {
+            signer: result.signer,
+            hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
+          }
+    }, [authorizeSession])
 
   const reauthorizeSession = useCallback<ReauthorizeSession>(
     async ({ minGasOverhead }) => {
@@ -917,12 +911,6 @@ export const SmartAccountContextProvider = ({
 
     if (!baseClient || !accountAddress) return null
 
-    const rhinestoneApiKey = resolveRhinestoneApiKey()
-    if (!rhinestoneApiKey) {
-      logger.error('Rhinestone API key not configured - cannot create signer')
-      return null
-    }
-
     // HCA signer. A scoped session, if active, is attached so registration
     // Intents are signed by the ephemeral session key (prompt-free) via the
     // HCA's `HCAOwnerAndSessionValidator` — a policy-scoped SmartSession, not
@@ -931,7 +919,6 @@ export const SmartAccountContextProvider = ({
     return buildRhinestoneSigner({
       baseClient,
       accountAddress,
-      rhinestoneApiKey,
       sessionContext,
       sessionOwnerAddress,
       machineOwner: snapshot.context.ownerAddress,

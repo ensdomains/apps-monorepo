@@ -1,7 +1,9 @@
 /** @jsxImportSource react */
-import { Heading, Text } from '@react-email/components'
+import { Text } from '@react-email/components'
+import type { CSSProperties } from 'react'
+import type { EmailContext } from '../context.js'
 import { type RenderedEmail, renderEmail } from '../render.js'
-import { EmailLayout } from './EmailLayout.js'
+import { EmailLayout, EmailParagraph } from './EmailLayout.js'
 
 export interface VerificationEmailProps {
   readonly otp: string
@@ -9,36 +11,47 @@ export interface VerificationEmailProps {
   readonly expiresInMinutes: number
 }
 
-const otpStyle = {
-  fontSize: '32px',
-  fontWeight: 'bold',
-  letterSpacing: '0.2em',
+const otpStyle: CSSProperties = {
+  margin: '4px 0 26px',
+  color: '#02293b',
+  fontFamily: "Menlo, Consolas, 'Courier New', monospace",
+  fontSize: '36px',
+  letterSpacing: '0.28em',
+  lineHeight: '44px',
+  textAlign: 'center',
 }
 
-// Intentionally has no link or button: the code is typed into Notification
-// Settings by the signed-in wallet, so there is nothing here to phish.
+// Intentionally has no directions section: the code is typed into
+// Notification Settings by the signed-in wallet, so there is nothing here to
+// phish and nothing else to do.
 const VerificationEmail = ({
+  context,
   otp,
   accountAddress,
   expiresInMinutes,
-}: VerificationEmailProps) => (
-  <EmailLayout preview={`Your ENS email verification code is ${otp}`}>
-    <Heading as="h1">Verify your email for ENS notifications</Heading>
-    <Text>Enter this code in Notification Settings:</Text>
+}: VerificationEmailProps & { readonly context: EmailContext }) => (
+  <EmailLayout
+    context={context}
+    preview={`Your ENS email verification code is ${otp}`}
+    heading="Verify your email"
+    reason="this address was entered in ENS notification settings. If that wasn’t you, you can ignore this email"
+  >
+    <EmailParagraph centered>
+      {`Enter this code in Notification Settings in the ENS app. It expires in ${expiresInMinutes} minutes.`}
+    </EmailParagraph>
     <Text style={otpStyle}>{otp}</Text>
-    <Text>
-      Requested for wallet <strong>{accountAddress}</strong>.
-    </Text>
-    <Text>
-      {`This code expires in ${expiresInMinutes} minutes. If you did not request it, you can safely ignore this email.`}
-    </Text>
+    <EmailParagraph
+      centered
+    >{`Requested for wallet ${accountAddress}`}</EmailParagraph>
   </EmailLayout>
 )
 
 export const renderVerificationEmail = (
+  context: EmailContext,
   props: VerificationEmailProps,
 ): Promise<RenderedEmail> =>
   renderEmail(
+    context,
     'Your ENS email verification code',
-    <VerificationEmail {...props} />,
+    <VerificationEmail context={context} {...props} />,
   )

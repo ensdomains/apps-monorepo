@@ -6,9 +6,9 @@ export const RegistrationCompletionBanner = () => {
     <div className="flex items-start gap-3 rounded-lg border border-ens-peridot-border bg-ens-peridot-bg p-4">
       <CheckCircle2
         aria-hidden="true"
-        className="h-4 w-4 shrink-0 text-ens-peridot-text-dark"
+        className="mt-0.5 h-4 w-4 shrink-0 text-ens-peridot-text-dark"
       />
-      <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <p className="font-medium text-ens-peridot-text-dark text-sm leading-5">
           <Trans>Registration Complete!</Trans>
         </p>

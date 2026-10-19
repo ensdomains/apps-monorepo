@@ -33,7 +33,11 @@
     "e2e:portal": "pnpm --filter @ens-apps/e2e test:portal",
     "e2e:cross-app": "pnpm --filter @ens-apps/e2e test:cross-app",
     "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",
-    "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down"
+    "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down",
+    "build:portal:mainnet": "pnpm --filter=portal build:mainnet",
+    "build:manager:mainnet": "pnpm --filter=manager build:mainnet",
+    "dev:manager:mainnet": "pnpm --filter=manager dev:mainnet",
+    "dev:portal:mainnet": "pnpm --filter=portal dev:mainnet"
   },
   "packageManager": "pnpm@12.4.2",
   "devDependencies": {

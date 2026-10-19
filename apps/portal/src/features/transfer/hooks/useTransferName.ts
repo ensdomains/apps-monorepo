@@ -13,7 +13,7 @@ import {
   fromPromise,
   ok,
   okAsync,
-  type ResultAsync,
+  ResultAsync,
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
@@ -37,7 +37,7 @@ import {
 } from '@/features/transaction-manager/hooks/useTransactionGasEstimate'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
@@ -47,6 +47,7 @@ import {
   type GetEthAddressError,
   getEthAddressQueryOptions,
 } from '../queries/getEthAddress'
+import { getIsRegistryEmancipated } from '../queries/getIsRegistryEmancipated'
 import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
@@ -101,6 +102,11 @@ type NameReads = StartTransferParams & {
   readonly tokenId: bigint | null
   /** The name's own resolver, or null if it has none. */
   readonly resolverAddress: Address | null
+  /**
+   * `hasRemainingRoleHolders`, or the name's registry isn't emancipated: either
+   * way `safeTransferFrom` reverts. Always false for V1 subjects.
+   */
+  readonly isSafeTransferRefused: boolean
 }
 
 type SavedParams = NameReads & {
@@ -142,7 +148,7 @@ export type TransferControls = {
   readonly restoreEthAddress: () => void
 }
 
-const chainId = sepoliaWithEns.id
+const chainId = ensChain.id
 
 // Whether a step's calldata carries the recipient, so the modal shows it. A
 // `Record`, not a set of the true ones: a new step kind then fails to compile
@@ -420,6 +426,7 @@ export const useTransferName = ({
         ...params,
         tokenId: null,
         resolverAddress: state.resolverAddress,
+        isSafeTransferRefused: false,
       })
     })
 
@@ -466,8 +473,17 @@ export const useTransferName = ({
       ),
       (e) => e as GetOwnResolverError,
     ).andThen((resolverAddress) =>
-      getEnsTokenId({ label: getLabel(name), registryAddress }).map(
-        (tokenId): NameReads => ({ ...params, tokenId, resolverAddress }),
+      ResultAsync.combine([
+        getEnsTokenId({ label: getLabel(name), registryAddress }),
+        getIsRegistryEmancipated({ registryAddress }),
+      ]).map(
+        ([tokenId, isEmancipated]): NameReads => ({
+          ...params,
+          tokenId,
+          resolverAddress,
+          isSafeTransferRefused:
+            params.hasRemainingRoleHolders || !isEmancipated,
+        }),
       ),
     )
 
@@ -484,7 +500,7 @@ export const useTransferName = ({
       subject.kind,
       actor,
       reads.roleGrants,
-      reads.hasRemainingRoleHolders,
+      reads.isSafeTransferRefused,
     ).some((step) => step.kind === 'set-eth-addr')
     if (!resolverAddress || !writesResolver)
       return okAsync({
@@ -530,7 +546,7 @@ export const useTransferName = ({
           subject.kind,
           actor,
           params.roleGrants,
-          params.hasRemainingRoleHolders,
+          params.isSafeTransferRefused,
         )
         const move = plan.at(-1)
         if (!move) throw new Error('Transfer plan has no move step')
@@ -674,7 +690,7 @@ export const useTransferName = ({
           subject.kind,
           actor,
           savedParams.roleGrants,
-          savedParams.hasRemainingRoleHolders,
+          savedParams.isSafeTransferRefused,
         )
     const stepContext = { ...savedParams, name, subject }
 
@@ -758,7 +774,7 @@ export const useTransferName = ({
         subject.kind,
         actor,
         savedParams.roleGrants,
-        savedParams.hasRemainingRoleHolders,
+        savedParams.isSafeTransferRefused,
       )
     : []
   const move = plan.at(-1)

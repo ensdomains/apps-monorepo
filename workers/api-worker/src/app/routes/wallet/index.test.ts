@@ -4,7 +4,9 @@ import walletApp from './index'
 
 describe('GET /wallet/tokens', () => {
   it('returns the faucet stablecoin addresses, decimals, and chain id', async () => {
-    const res = await walletApp.request('/wallet/tokens')
+    const res = await walletApp.request('/wallet/tokens', undefined, {
+      CHAIN: 'sepolia',
+    } as CloudflareBindings)
 
     expect(res.status).toBe(200)
 
@@ -31,5 +33,36 @@ describe('GET /wallet/tokens', () => {
       decimals: 18,
       symbol: 'DAI',
     })
+  })
+})
+
+describe('Sepolia-only wallet routes', () => {
+  it.each([
+    'mainnet',
+    'unknown',
+    undefined,
+  ])('rejects funding and mock token metadata when CHAIN is %s', async (chain) => {
+    // Only CHAIN is available: accessing any infrastructure or key fails
+    // the test, even if Sepolia credentials were accidentally provisioned.
+    const env = new Proxy(
+      { CHAIN: chain },
+      {
+        get(target, property) {
+          if (property === 'CHAIN') return target.CHAIN
+          throw new Error(`Unexpected binding access: ${String(property)}`)
+        },
+      },
+    ) as CloudflareBindings
+
+    const tokens = await walletApp.request('/wallet/tokens', undefined, env)
+    const fund = await walletApp.request(
+      '/wallet/fund',
+      { method: 'POST' },
+      env,
+    )
+
+    expect(tokens.status).toBe(404)
+    expect(fund.status).toBe(404)
+    expect(await fund.text()).toBe('Wallet faucet is only available on Sepolia')
   })
 })

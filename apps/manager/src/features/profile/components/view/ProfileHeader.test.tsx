@@ -26,15 +26,18 @@ describe('ProfileHeader', () => {
       <ProfileHeader
         avatarLoading={false}
         name="example.eth"
-        records={newEmptyProfileRecords()}
+        records={{
+          ...newEmptyProfileRecords(),
+          base: { description: 'Builder of things' },
+        }}
       />,
     )
 
     const aboutContainer = screen
-      .getByRole('heading', { name: 'About' })
+      .getByRole('heading', { name: 'Profile Description' })
       .closest('section')?.parentElement
 
-    expect(aboutContainer).toHaveClass('mt-29', 'lg:landscape:mt-0')
+    expect(aboutContainer).toHaveClass('mt-29', 'xl:mt-0')
   })
 
   it('shows the full description when the two-line preview overflows', () => {

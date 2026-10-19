@@ -33,18 +33,18 @@ import { type Address, encodeFunctionData, namehash, zeroAddress } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { requireResourceIdForName } from '@/lib/resource/resourceId'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 
 const LEGACY_REGISTRY = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensLegacyRegistry',
 })
 const BASE_REGISTRAR = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensBaseRegistrarImplementation',
 })
 const NAME_WRAPPER = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensNameWrapper',
 })
 

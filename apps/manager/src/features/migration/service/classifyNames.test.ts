@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
@@ -17,7 +18,6 @@ import {
   managerRestorationCandidates,
   withManagerRestorationOptIn,
 } from './classifyNames'
-import type { V1Domain } from './v1SubgraphClient'
 
 const classify = (o: Parameters<typeof makeDomain>[0] = {}) =>
   classifyName(makeDomain(o), OWNER, sepolia.id)
@@ -103,7 +103,7 @@ describe('classifyName — expired wrap', () => {
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
   })
 
-  it('keeps a wrapped-owner candidate when subgraph wrapper expiry is stale', () => {
+  it('keeps a wrapped-owner candidate when the indexed wrapper expiry is stale', () => {
     const n = classified(
       classify({
         isWrapped: true,
@@ -130,6 +130,66 @@ describe('classifyName — grace period registrations', () => {
         }),
       ),
     ).toBe('expired-registration')
+  })
+})
+
+describe('classifyName — migration availability', () => {
+  const LIVE_LEASE = '99999999999'
+  const classifyWith = (
+    o: Parameters<typeof makeDomain>[0],
+    flags: Pick<V1Domain, 'isLeaseMissing' | 'isUnreserved'>,
+  ) => classifyName({ ...makeDomain(o), ...flags }, OWNER, sepolia.id)
+
+  it.each([
+    { case: 'unwrapped', o: { registrationExpiry: LIVE_LEASE } },
+    {
+      case: 'wrapped',
+      o: {
+        isWrapped: true,
+        registrationExpiry: LIVE_LEASE,
+        fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+      },
+    },
+  ])('offers no upgrade for an unreserved $case .eth name', ({ o }) => {
+    expect(ineligibleReason(classifyWith(o, { isUnreserved: true }))).toBe(
+      'not-reserved',
+    )
+  })
+
+  it('offers no upgrade for a .eth name listed without a lease', () => {
+    expect(ineligibleReason(classifyWith({}, { isLeaseMissing: true }))).toBe(
+      'missing-registration',
+    )
+  })
+
+  it('keeps a lease in grace on the renewal path even once its reservation lapsed', () => {
+    expect(
+      ineligibleReason(
+        classifyWith({ registrationExpiry: '100' }, { isUnreserved: true }),
+      ),
+    ).toBe('expired-registration')
+  })
+
+  it('still copies a registry-only child of an unreserved name', () => {
+    expect(
+      classified(
+        classifyWith(
+          {
+            name: 'sub.raffy.eth',
+            parentName: 'raffy.eth',
+            registrantId: null,
+            resolverAddress: null,
+          },
+          { isUnreserved: true },
+        ),
+      ),
+    ).toMatchObject({ action: 'copy', tokenType: 'registry-child' })
+  })
+
+  it('migrates a reserved .eth name with a live lease', () => {
+    expect(
+      classified(classifyWith({ registrationExpiry: LIVE_LEASE }, {})),
+    ).toMatchObject({ action: 'migrate', tokenType: 'unwrapped' })
   })
 })
 
@@ -215,6 +275,16 @@ describe('classifyName — token type', () => {
       },
       'detached-child' as const,
     ],
+    [
+      'detached-child migration when the locked parent already migrated',
+      {
+        isWrapped: true,
+        parentName: 'raffy.eth',
+        parentFuses: null,
+        fuses: FUSES.PARENT_CANNOT_CONTROL,
+      },
+      'detached-child' as const,
+    ],
   ])('classifies %s', (_, overrides, tokenType) => {
     expect(classified(classify(overrides)).tokenType).toBe(tokenType)
   })
@@ -291,21 +361,6 @@ describe('classifyName — ineligible reasons', () => {
     ],
   ] as const)('flags %s', (reason, overrides) => {
     expect(ineligibleReason(classify(overrides))).toBe(reason)
-  })
-
-  it('does not classify as detached when parent is unlocked', () => {
-    const n = classified(
-      classify({
-        isWrapped: true,
-        name: 'sub.raffy.eth',
-        parentName: 'raffy.eth',
-        parentFuses: 0n,
-        resolverAddress: null,
-        fuses: FUSES.PARENT_CANNOT_CONTROL,
-      }),
-    )
-    expect(n.action).toBe('copy')
-    expect(n.tokenType).toBe('unlocked-child')
   })
 
   it('rejects an expired wrapped copy candidate', () => {

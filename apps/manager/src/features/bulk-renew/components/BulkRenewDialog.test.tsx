@@ -92,6 +92,9 @@ beforeEach(() => {
     phase: submitPhase,
     statuses: {},
     errorMessage: undefined,
+    fundingPrompt: null,
+    approveFunding: vi.fn(),
+    declineFunding: vi.fn(),
     submit,
     reset,
   }))

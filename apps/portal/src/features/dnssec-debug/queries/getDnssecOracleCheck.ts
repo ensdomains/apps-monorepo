@@ -5,7 +5,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { fromPromise, fromSafePromise, ok } from 'neverthrow'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { dnssecOracleAbi } from '../constants'
 import type { ProofSet } from '../types'
@@ -42,7 +42,7 @@ export const getDnssecOracleCheck = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
   const address = getChainContractAddress({
-    chain: sepoliaWithEns,
+    chain: ensChain,
     contract: 'ensLegacyDnssecImpl',
   })
 

@@ -4,10 +4,13 @@ import {
 } from '@ens-apps/transaction-manager'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { useCallback, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Address, Hex, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
-import { useSmartAccountContext } from '@/lib/smart-account'
+import {
+  useHcaFundingPrompt,
+  useSmartAccountContext,
+} from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import {
   setPrimaryName,
@@ -63,30 +66,12 @@ export function useSetPrimaryName(
   const txActor = txId ? transactionManager.getTransaction(txId) : undefined
   const txHash = useSelector(txActor, (snapshot) => snapshot?.context.hash)
 
-  // The funding amount is only known once the intent has been quoted, which
-  // happens inside the submit call — so showing it means parking that call on a
-  // promise the UI resolves, rather than gathering consent up front from a
-  // figure we would have had to guess.
-  const [fundingPrompt, setFundingPrompt] = useState<HcaFundingPrompt | null>(
-    null,
-  )
-  const decideFundingRef = useRef<((approved: boolean) => void) | null>(null)
-
-  const requestFundingApproval = useCallback(
-    (prompt: HcaFundingPrompt) =>
-      new Promise<boolean>((resolve) => {
-        decideFundingRef.current = resolve
-        setFundingPrompt(prompt)
-      }),
-    [],
-  )
-
-  const settleFunding = useCallback((approved: boolean) => {
-    const decide = decideFundingRef.current
-    decideFundingRef.current = null
-    setFundingPrompt(null)
-    decide?.(approved)
-  }, [])
+  const {
+    prompt: fundingPrompt,
+    confirmFunding: requestFundingApproval,
+    approve: approveFunding,
+    decline: declineFunding,
+  } = useHcaFundingPrompt()
 
   const mutation = useMutation({
     onSuccess: options?.onSuccess,
@@ -140,12 +125,12 @@ export function useSetPrimaryName(
     error: mutation.error,
     txHash,
     fundingPrompt,
-    approveFunding: () => settleFunding(true),
-    declineFunding: () => settleFunding(false),
+    approveFunding,
+    declineFunding,
     reset: () => {
       // Settle any parked prompt first, or the submit promise never resolves
       // and the mutation is stuck pending behind a dialog that is now gone.
-      settleFunding(false)
+      declineFunding()
       mutation.reset()
       setTxId(undefined)
     },

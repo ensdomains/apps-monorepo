@@ -6,6 +6,7 @@ import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
 import { Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
+import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -55,6 +56,7 @@ interface NameRowProps {
   readonly avatarPending?: boolean
   readonly themeColor?: string | null
   readonly verified?: boolean
+  readonly primaryNameAction?: ReactNode
   readonly nameRole?: NameRole | null
   readonly nameRoles?: readonly NameRole[] | null
   readonly status?: NameStatus | null
@@ -73,8 +75,6 @@ interface NameRowProps {
   readonly onToggleSelect?: () => void
   readonly renewalProtocol?: RenewalProtocol
 }
-
-const explorerUrl = (label: string) => `${EXPLORER_URL}/${label}`
 
 const SelectedCheck = () => (
   <span className="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-ens-lapis-core">
@@ -105,10 +105,12 @@ const RowCta = ({
   readonly renewalProtocol: RenewalProtocol
 }) => {
   if (cta === 'manageExplorer') {
+    if (!EXPLORER_URL) return null
+
     return (
       <a
         className={ctaVariants({ kind: 'manageExplorer' })}
-        href={explorerUrl(label)}
+        href={`${EXPLORER_URL}/${label}`}
         rel="noopener noreferrer"
         target="_blank"
       >
@@ -255,9 +257,10 @@ const NameRowTop = ({
   isInGrace,
   expiringInDays,
   verified,
+  primaryNameAction,
 }: Pick<
   NameRowProps,
-  'status' | 'isInGrace' | 'expiringInDays' | 'verified'
+  'status' | 'isInGrace' | 'expiringInDays' | 'verified' | 'primaryNameAction'
 > & {
   readonly nameRoles: readonly NameRole[]
 }) => {
@@ -269,12 +272,16 @@ const NameRowTop = ({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
+        {verified
+          ? (primaryNameAction ?? (
+              <PrimaryBadge className="bg-ens-lapis-tint" />
+            ))
+          : null}
         {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
         {status === 'ensv1Only' && <Ensv1OnlyPill />}
         {nameRoles.map((role) => (
           <RolePill key={role} role={role} />
         ))}
-        {verified ? <PrimaryBadge className="bg-ens-lapis-tint" /> : null}
       </div>
       {isInGrace ? (
         <GracePeriodBadge />
@@ -486,6 +493,7 @@ export const NameRow = ({
   avatarPending = false,
   themeColor,
   verified = false,
+  primaryNameAction,
   nameRole = null,
   nameRoles = null,
   status = null,
@@ -515,6 +523,7 @@ export const NameRow = ({
         expiringInDays={expiringInDays}
         isInGrace={isInGrace}
         nameRoles={resolvedNameRoles}
+        primaryNameAction={primaryNameAction}
         status={status}
         verified={verified}
       />

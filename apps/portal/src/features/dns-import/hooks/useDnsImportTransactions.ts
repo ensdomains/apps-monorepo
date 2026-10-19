@@ -22,7 +22,7 @@ import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intent
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { getDnsImportDataQueryOptions } from '../queries/getDnsImportData'
 import { getDnsOwnerQueryOptions } from '../queries/getDnsOwner'
 
@@ -31,15 +31,15 @@ const resolverApprovalAbi = parseAbi([
   'function setApprovalForAll(address operator, bool approved)',
 ])
 
-const chainId = sepoliaWithEns.id
+const chainId = ensChain.id
 
 const dnsRegistrarAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensLegacyDnsRegistrar',
 })
 
 const publicResolverAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensPublicResolver',
 })
 
@@ -100,7 +100,7 @@ export const useDnsImportTransactions = ({
     dnsImportData: NonNullable<typeof importDataQuery.data>,
   ) =>
     importDnsName.makeFunctionData(
-      sepoliaWithEns,
+      ensChain,
       mode === 'claim'
         ? {
             name,

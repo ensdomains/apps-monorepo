@@ -13,7 +13,14 @@ type RegistrationStubEvent =
   | { type: 'START_REGISTRATION'; primaryName?: string }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
-  | { type: 'FORCE_ERROR'; error: Error; nameUnavailable?: boolean }
+  | { type: 'FORCE_APPROVAL_SUCCESS' }
+  | { type: 'FORCE_COMMITMENT_WITHOUT_TX_ID' }
+  | {
+      type: 'FORCE_ERROR'
+      error: Error
+      nameUnavailable?: boolean
+      retryTarget?: 'approvingToken'
+    }
   | { type: 'RETRY' }
   | { type: 'SUSPEND' }
 
@@ -22,6 +29,13 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     id: 'registrationStub',
     types: {} as { events: RegistrationStubEvent },
     on: {
+      FORCE_COMMITMENT_WITHOUT_TX_ID: {
+        actions: assign({
+          commitment: () => ({}),
+          commitmentTxId: () => undefined,
+          registerReadyTimestamp: () => Date.now() + 60_000,
+        }),
+      },
       SUSPEND: {
         target: '.idle',
         actions: assign({ suspended: () => true }),
@@ -31,11 +45,13 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       suspended: false,
       resolverAddress: undefined as Address | undefined,
       resolverTxId: 'tx-resolver',
-      commitmentTxId: 'tx-commit',
+      commitment: undefined as object | undefined,
+      commitmentTxId: 'tx-commit' as string | undefined,
       approvalTxId: 'tx-approve',
       registrationTxId: 'tx-register',
       registerReadyTimestamp: null as number | null,
       error: undefined as Error | undefined,
+      retryTarget: undefined as 'approvingToken' | undefined,
       nameUnavailable: undefined as boolean | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
@@ -95,6 +111,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
                 event.type === 'FORCE_ERROR'
                   ? event.nameUnavailable
                   : undefined,
+              retryTarget: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.retryTarget : undefined,
             }),
           },
           RETRY: {
@@ -105,17 +123,36 @@ vi.mock('@ens-apps/transaction-manager', () => ({
         },
       },
       success: {},
+      approvingToken: {
+        on: {
+          FORCE_APPROVAL_SUCCESS: 'commitmentCooldown',
+          FORCE_ERROR: {
+            target: 'error',
+            actions: assign({
+              error: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.error : undefined,
+            }),
+          },
+        },
+      },
+      commitmentCooldown: {},
       // The real machine leaves `error` on RETRY (except for a name another
       // address already registered, which the UI is expected to stop before
       // it ever reaches the child).
       error: {
         on: {
-          RETRY: {
-            target: 'running',
-            actions: assign({
-              retryCount: ({ context }) => context.retryCount + 1,
-            }),
-          },
+          RETRY: [
+            {
+              guard: ({ context }) => context.retryTarget === 'approvingToken',
+              target: 'approvingToken',
+            },
+            {
+              target: 'running',
+              actions: assign({
+                retryCount: ({ context }) => context.retryCount + 1,
+              }),
+            },
+          ],
         },
       },
     },
@@ -148,6 +185,16 @@ vi.mock('@/utils/router/root-context', () => ({
   getQueryClient: () => undefined,
 }))
 
+const isNameTakenByOther = vi.fn(async () => false)
+vi.mock('../service/registrationFailure', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../service/registrationFailure')>()),
+  isNameTakenByOther: () => isNameTakenByOther(),
+}))
+
+vi.mock('../service/registrationPersistence', () => ({
+  clearStoredRegistrationIfUnchanged: vi.fn(),
+}))
+
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
@@ -156,6 +203,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import { clearStoredRegistrationIfUnchanged } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import {
   getRegistrationV2ChildActor,
@@ -274,6 +322,51 @@ const asAnotherTab = <T>(run: () => T): T => {
 
 afterEach(() => {
   vi.clearAllMocks()
+})
+
+describe('registrationV2UiMachine — committed approval retries', () => {
+  it.each([
+    true,
+    false,
+  ])('preserves the run after repeated approval rejection (transaction ID: %s)', (hasTransactionId) => {
+    const actor = startActorInTokens()
+    actor.send(
+      startEvent({
+        signer: { type: 'eoa' },
+        accountAddress: EOA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {},
+      } as unknown as SmartAccountContextValue),
+    )
+    const confirmedData = actor.getSnapshot().context.confirmedData
+    if (!hasTransactionId) {
+      sendToChild(actor, { type: 'FORCE_COMMITMENT_WITHOUT_TX_ID' })
+    }
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('approval rejected'),
+      retryTarget: 'approvingToken',
+    })
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches({ pricing: 'approving' })).toBe(true)
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('approval rejected again'),
+      retryTarget: 'approvingToken',
+    })
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.confirmedData).toEqual(confirmedData)
+    expect(getChild(actor).getSnapshot().context.commitmentTxId).toBe(
+      hasTransactionId ? 'tx-commit' : undefined,
+    )
+    actor.send({ type: 'retry' })
+    sendToChild(actor, { type: 'FORCE_APPROVAL_SUCCESS' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    actor.stop()
+  })
 })
 
 describe('registrationV2UiMachine — HCA approval-signer guard', () => {
@@ -462,7 +555,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     signer: {
       type: 'rhinestone',
       account: {} as never,
-      config: { accountAddress: HCA_ADDRESS, rhinestoneApiKey: 'k' },
+      config: { accountAddress: HCA_ADDRESS },
     },
     accountAddress: HCA_ADDRESS,
     ownerAddress: EOA_ADDRESS,
@@ -1162,6 +1255,178 @@ describe('registrationV2UiMachine — registration.suspend', () => {
   })
 })
 
+describe('registrationV2UiMachine — a failed run restored after a reload', () => {
+  const hcaAccount = {
+    signer: { type: 'rhinestone' },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: {},
+  } as unknown as SmartAccountContextValue
+
+  /** The stored write the failure was restored from. */
+  const restoredRun = { label: 'example', updatedAt: 1 }
+
+  /** A fresh mount, as a reload leaves it, with a stored failure restored. */
+  const startRestoredFailure = () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+    actor.send({
+      type: 'registration.failure.restore',
+      confirmedData: resumeEvent(hcaAccount).confirmedData,
+      run: restoredRun,
+    })
+    return actor
+  }
+
+  const childResumed = (actor: ReturnType<typeof startActorInTokens>) =>
+    (
+      getChild(actor).getSnapshot() as unknown as {
+        context: { resumed?: unknown }
+      }
+    ).context.resumed
+
+  it('shows the failure screen without re-running the registration', () => {
+    const actor = startRestoredFailure()
+
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(actor.getSnapshot().context.restoredRun).toEqual(restoredRun)
+    // Nothing reaches the child until the user asks for it.
+    expect(getChild(actor).getSnapshot().value).toBe('idle')
+    expect(childResumed(actor)).toBeUndefined()
+  })
+
+  it('belongs to its owner, so a wallet switch suspends it', () => {
+    const actor = startRestoredFailure()
+
+    expect(getSuspendableRunOwner(actor.getSnapshot())).toBe(EOA_ADDRESS)
+
+    actor.send({ type: 'registration.suspend' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    // Kept for its owner, who gets the failure screen back on reconnect.
+    expect(clearStoredRegistrationIfUnchanged).not.toHaveBeenCalled()
+  })
+
+  it('leaves Try Again to the resume, since the child never resumed', () => {
+    const actor = startRestoredFailure()
+
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  it('continues from the stored commitment once resumed', () => {
+    const actor = startRestoredFailure()
+
+    actor.send(resumeEvent(hcaAccount, { stage: 'error' }))
+
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+    expect(childResumed(actor)).toMatchObject({
+      context: { commitment: { secret: `0x${'cd'.repeat(32)}` } },
+    })
+  })
+
+  it('discards the stored run on Back to Quote', () => {
+    const actor = startRestoredFailure()
+
+    actor.send({ type: 'cancel' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+    expect(clearStoredRegistrationIfUnchanged).toHaveBeenCalledExactlyOnceWith(
+      restoredRun,
+    )
+  })
+
+  it('stays restored when the wallet lock refuses the resume', async () => {
+    // Nothing reached the child, so Back to Quote must still discard the
+    // record, and Try Again must still go through the resume.
+    const { acquireRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    const actor = startRestoredFailure()
+
+    actor.send(resumeEvent(hcaAccount, { stage: 'error' }))
+
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(actor.getSnapshot().context.isWalletBusy).toBe(true)
+    expect(actor.getSnapshot().context.restoredRun).toEqual(restoredRun)
+    expect(getChild(actor).getSnapshot().value).toBe('idle')
+
+    actor.send({ type: 'cancel' })
+
+    expect(clearStoredRegistrationIfUnchanged).toHaveBeenCalledExactlyOnceWith(
+      restoredRun,
+    )
+  })
+
+  it('stays restored when the account is not ready to resume', () => {
+    const actor = startRestoredFailure()
+
+    actor.send(
+      resumeEvent(
+        {
+          signer: null,
+          accountAddress: null,
+          ownerAddress: null,
+          walletClient: null,
+        } as unknown as SmartAccountContextValue,
+        { stage: 'error' },
+      ),
+    )
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(actor.getSnapshot().context.restoredRun).toEqual(restoredRun)
+
+    // A machine retry would forward RETRY to an idle child and park the
+    // screen on registering.
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().value).toBe('failure')
+  })
+
+  it('keeps the stored run when the user moves to another name', () => {
+    const actor = startRestoredFailure()
+
+    actor.send({ type: 'label.changed' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+    expect(clearStoredRegistrationIfUnchanged).not.toHaveBeenCalled()
+  })
+
+  it("leaves a live failure's record to the persistence subscriber", () => {
+    // A live child cancels to idle, which clears its own record.
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: new Error('boom') })
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+
+    actor.send({ type: 'cancel' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(clearStoredRegistrationIfUnchanged).not.toHaveBeenCalled()
+  })
+
+  it('is not restored over a registration already running', () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+
+    actor.send({
+      type: 'registration.failure.restore',
+      confirmedData: resumeEvent(hcaAccount).confirmedData,
+      run: restoredRun,
+    })
+
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+    expect(actor.getSnapshot().context.restoredRun).toBeUndefined()
+  })
+})
+
 describe('registrationV2UiMachine — name lost to another registrant', () => {
   const eoaAccount = {
     signer: { type: 'eoa', walletClient: {} as never },
@@ -1197,6 +1462,51 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
     actor.send({ type: 'retry' })
     await flush()
 
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  // Lost before the reveal, the race only shows up as the registrar's revert.
+  it('reads a lost race off the registrar revert', async () => {
+    const revert = Object.assign(
+      new Error(
+        'The contract function "getRegisterPrice" reverted with the following signature: 0x477707e8 Contract Call: address: 0xa885 Docs: https://viem.sh Version: viem@2.52.2',
+      ),
+      {
+        shortMessage:
+          'The contract function "getRegisterPrice" reverted with the following signature:\n0x477707e8',
+      },
+    )
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: revert })
+    await flush()
+
+    const { context } = actor.getSnapshot()
+    expect(context.nameUnavailable).toBe(true)
+    expect(context.lastErrorMessage).not.toMatch(/Docs:|Version:/)
+
+    actor.send({ type: 'retry' })
+    await flush()
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  // A reverted register carries no reason, so the registry has to say who won.
+  it('reads a lost race off the registry when the revert says nothing', async () => {
+    isNameTakenByOther.mockResolvedValueOnce(true)
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('Transaction 0xabc reverted'),
+    })
+    await flush()
+
+    expect(actor.getSnapshot().context.nameUnavailable).toBe(true)
+
+    actor.send({ type: 'retry' })
+    await flush()
     expect(actor.getSnapshot().matches('failure')).toBe(true)
     expect(childRetryCount(actor)).toBe(0)
   })

@@ -1,12 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Clock, XCircle } from 'lucide-react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
-  const { uiActor, label } = RegisterV2Context.use()
+  const { uiActor, label, resume } = RegisterV2Context.use()
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
@@ -20,6 +20,19 @@ export const FailureStep = () => {
   const isWalletBusy = RegisterV2Context.useSelector(
     (state) => state.context.isWalletBusy,
   )
+  // A run that failed before this page loaded. Its machine never resumed, so
+  // Try Again resumes it rather than retrying it.
+  const isRestoredFailure = RegisterV2Context.useSelector(
+    (state) => state.context.restoredRun !== undefined,
+  )
+
+  const onRetry = () => {
+    if (!isRestoredFailure) {
+      uiActor.send({ type: 'retry' })
+      return
+    }
+    if (resume.status === 'failed') resume.retry()
+  }
 
   return (
     <FailureStepView
@@ -28,7 +41,7 @@ export const FailureStep = () => {
       message={message}
       nameUnavailable={nameUnavailable}
       onCancel={() => uiActor.send({ type: 'cancel' })}
-      onRetry={() => uiActor.send({ type: 'retry' })}
+      onRetry={onRetry}
     />
   )
 }
@@ -81,8 +94,20 @@ export const FailureStepView = ({
               ))}
           </p>
           <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
-            {message ??
-              t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
+            {match({ nameUnavailable, message })
+              .with(
+                { nameUnavailable: true },
+                () =>
+                  t`${label}.eth was registered by someone else just before your registration went through.`,
+              )
+              .with(
+                { message: P.string.minLength(1) },
+                ({ message }) => message,
+              )
+              .otherwise(
+                () =>
+                  t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`,
+              )}
           </p>
         </div>
       </div>

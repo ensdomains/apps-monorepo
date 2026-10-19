@@ -8,7 +8,7 @@ import {
 import { getAddressRecord } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, isAddressEqual } from 'viem'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { EXTENDED_DNS_RESOLVER_MAP } from '../constants'
 
@@ -61,7 +61,7 @@ export const getDnsOffchainStatus = ResultFn(async function* ({
     return ok<DnsOffchainStatus | null>(null)
   }
 
-  const official = EXTENDED_DNS_RESOLVER_MAP[sepoliaWithEns.id]
+  const official = EXTENDED_DNS_RESOLVER_MAP[ensChain.id]
   const resolverIsOfficial =
     official !== undefined &&
     isAddressEqual(offchainData.resolverAddress, official)

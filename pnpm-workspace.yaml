@@ -7,20 +7,22 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": ^5.0.0
-  "@ensdomains/ensjs-abi": ^5.0.0
+  "@ensdomains/ensjs": ^5.2.1
+  "@ensdomains/ensjs-abi": ^5.0.2
   xstate: ^5.24.0
   typescript: ^7.0.2
   vite: ^8.0.10
   vitest: ^4.1.11
   "@vitest/coverage-v8": ^4.1.11
   happy-dom: ^20.13.2
-  "@cloudflare/vite-plugin": ^1.54.2
-  wrangler: ^4.127.1
+  "@cloudflare/vite-plugin": ^1.63.2
+  wrangler: ^4.150.0
   posthog-js: ^1.398.3
   "@posthog/react": ^1.10.3
   viem: ^2.52.2
   "@rhinestone/sdk": 1.8.0
+  # Peer of @rhinestone/sdk/jwt-server, which signs the orchestrator access tokens.
+  jose: ^6.0.0
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
@@ -107,3 +109,7 @@ allowBuilds:
   oxc-resolver: false
   sharp: false
   workerd: false
+
+minimumReleaseAgeExclude:
+  - '@ensdomains/ensjs-abi@5.0.2'
+  - '@ensdomains/ensjs@5.2.0 || 5.2.1'

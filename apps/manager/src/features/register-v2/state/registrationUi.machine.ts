@@ -9,7 +9,7 @@ import {
 import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import {
   type Address,
   isAddressEqual,
@@ -41,10 +41,19 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import {
+  getRegistrationFailureMessage,
+  isNameNotAvailableError,
+  isNameTakenByOther,
+} from '../service/registrationFailure'
+import {
   acquireRegistrationLock,
   getBlockingRegistration,
   releaseRegistrationLock,
 } from '../service/registrationLock'
+import {
+  clearStoredRegistrationIfUnchanged,
+  type StoredRegistrationKey,
+} from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
 import {
@@ -58,6 +67,7 @@ import type { RegistrationPostRegistrationSetup } from './registrationAutoSetup'
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
 type RegistrationSnapshot = SnapshotFrom<typeof registrationMachine>
+type ApprovalOutcome = 'none' | 'failed' | 'rejected'
 
 type PostRegistrationData = {
   label: string
@@ -101,8 +111,7 @@ type Context = {
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
-  approvalFailed: boolean
-  approvalRejected: boolean
+  approvalOutcome: ApprovalOutcome
   /**
    * The registration failed because another address registered the name first.
    * Nothing to retry — the failure screen offers only a way back.
@@ -116,6 +125,17 @@ type Context = {
    * finishes in between, and the refusal still happened.
    */
   isWalletBusy: boolean
+  /**
+   * Set while the failure screen shows a run that failed before this page
+   * loaded: the stored write it was restored from. Its child machine never
+   * resumed, so `retry` and `cancel` have nothing to forward to: Try Again
+   * resumes it through `useRegistrationResume`, which owns the session gate,
+   * and Back to Quote discards that write, if it is still the stored one.
+   * Cleared only once the child takes the run, so a retry the wallet lock or
+   * an unready account refuses lands back here with the screen still
+   * restored.
+   */
+  restoredRun?: StoredRegistrationKey
   /** A start or resume the wallet lock refused; `retry` re-raises it once free. */
   pendingStart?: Extract<
     Events,
@@ -188,6 +208,18 @@ type Events =
     }
   | {
       /**
+       * Show a stored run that failed with its commitment on-chain, without
+       * resuming it. Re-entering it on load would replay the failure, or put a
+       * wallet prompt up before the user asked for one; this waits for Try
+       * Again instead, which continues from the same commitment.
+       */
+      type: 'registration.failure.restore'
+      confirmedData: RegistrationConfirmedData
+      /** The stored write the run was restored from. */
+      run: StoredRegistrationKey
+    }
+  | {
+      /**
        * A different wallet connected while a run is live. Back to pricing,
        * with the run suspended rather than cancelled so its owner can resume it.
        */
@@ -201,8 +233,8 @@ type Events =
       type: 'transaction.failed'
       message?: string
       nameUnavailable?: boolean
-      approvalFailed?: boolean
-      approvalRejected?: boolean
+      approvalOutcome?: ApprovalOutcome
+      hasCommitment?: boolean
     }
   | { type: 'retry' }
   | { type: 'cancel' }
@@ -291,6 +323,13 @@ const machineSetup = setup({
   },
   actors: {
     registrationFlow: registrationMachine,
+    checkNameTakenByOther: fromPromise(
+      ({
+        input,
+      }: {
+        input: Parameters<typeof isNameTakenByOther>[0] | undefined
+      }) => (input ? isNameTakenByOther(input) : Promise.resolve(false)),
+    ),
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
@@ -367,6 +406,7 @@ const machineSetup = setup({
     ),
   },
   guards: {
+    isRestoredFailure: ({ context }) => context.restoredRun !== undefined,
     hasPendingStart: ({ context }) => context.pendingStart !== undefined,
     isWalletRegisteringAnotherName: ({ context }) =>
       blockingRegistrationFor(context) !== null,
@@ -419,8 +459,7 @@ const machineSetup = setup({
     }),
     clearError: assign({
       lastErrorMessage: () => undefined,
-      approvalFailed: () => false,
-      approvalRejected: () => false,
+      approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
       isWalletBusy: () => false,
     }),
@@ -428,14 +467,16 @@ const machineSetup = setup({
       maxProgressReached: () => undefined,
     }),
     setError: assign({
-      approvalFailed: ({ event }) =>
-        event.type === 'transaction.failed' && event.approvalFailed === true,
-      approvalRejected: ({ event }) =>
-        event.type === 'transaction.failed' && event.approvalRejected === true,
+      approvalOutcome: ({ event }) =>
+        event.type === 'transaction.failed'
+          ? (event.approvalOutcome ?? 'none')
+          : 'none',
       lastErrorMessage: ({ event }) =>
         match(event)
           .with({ type: 'transaction.failed' }, ({ message }) => message)
-          .with({ type: '$error' }, ({ error }) => error.message)
+          .with({ type: '$error' }, ({ error }) =>
+            getRegistrationFailureMessage(error),
+          )
           .otherwise(() => undefined),
       nameUnavailable: ({ event }) =>
         match(event)
@@ -491,8 +532,22 @@ const machineSetup = setup({
 
       releaseRegistrationLock(confirmed.ownerAddress)
     },
+    // A live run's record is cleared by the persistence subscriber once its
+    // child cancels to idle. A restored failure has no live child, so its
+    // record has to be discarded here.
+    discardStoredRegistration: ({ context }) => {
+      if (context.restoredRun) {
+        clearStoredRegistrationIfUnchanged(context.restoredRun)
+      }
+    },
+    restoreFailure: assign(({ event, context }) =>
+      event.type === 'registration.failure.restore'
+        ? { confirmedData: event.confirmedData, restoredRun: event.run }
+        : context,
+    ),
     clearRegistrationData: assign({
       pendingStart: () => undefined,
+      restoredRun: () => undefined,
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
       postRegistrationData: () => undefined,
@@ -762,7 +817,9 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
-    enqueue.assign({ pendingStart: undefined })
+    // The child takes the run from here, so a restored failure is no longer
+    // what the failure screen would show.
+    enqueue.assign({ pendingStart: undefined, restoredRun: undefined })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -885,7 +942,9 @@ const resumeRegistrationAction = machineSetup.createAction(
       })
     }
 
-    enqueue.assign({ pendingStart: undefined })
+    // The child takes the run from here, so a restored failure is no longer
+    // what the failure screen would show.
+    enqueue.assign({ pendingStart: undefined, restoredRun: undefined })
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -932,23 +991,36 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         actions: [
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
-            message: snapshot.context.error?.message,
-            approvalFailed:
-              snapshot.context.retryTarget === 'signingFundingPermit' ||
-              snapshot.context.retryTarget === 'approvingToken',
-            approvalRejected: isUserRejectionError(snapshot.context.error),
+            message: getRegistrationFailureMessage(snapshot.context.error),
+            hasCommitment:
+              !!snapshot.context.commitment ||
+              !!snapshot.context.commitmentTxId,
+            approvalOutcome: match(snapshot.context.retryTarget)
+              .returnType<ApprovalOutcome>()
+              .with(P.union('signingFundingPermit', 'approvingToken'), () =>
+                isUserRejectionError(snapshot.context.error)
+                  ? 'rejected'
+                  : 'failed',
+              )
+              .otherwise(() => 'none'),
             // Lost a same-name race: the child refuses RETRY, so the failure
-            // screen must not offer one either.
-            nameUnavailable: snapshot.context.nameUnavailable === true,
+            // screen must not offer one either. A race lost before the reveal
+            // (price read, budget quote) only shows up as the registrar's
+            // revert, so read it off the error too.
+            nameUnavailable:
+              snapshot.context.nameUnavailable === true ||
+              isNameNotAvailableError(snapshot.context.error),
           })),
         ],
       },
       {
-        // A commitment ID is assigned only after all upfront approvals have
-        // completed and the commit has been submitted. Until then keep the
-        // payment dialog mounted so a rejected approval stays in context.
+        // New runs reach this point once the commitment is submitted. A
+        // resumed run can have a validated commitment and cooldown timestamp
+        // without a local transaction ID. Both have completed upfront approval.
         guard: ({ event: { snapshot } }) =>
-          !!snapshot.context.commitmentTxId &&
+          (!!snapshot.context.commitmentTxId ||
+            (!!snapshot.context.commitment &&
+              snapshot.context.registerReadyTimestamp != null)) &&
           !snapshot.matches('idle') &&
           !snapshot.matches('computingHcaBudget') &&
           !snapshot.matches('checkingHcaFunding') &&
@@ -974,8 +1046,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
-    approvalFailed: false,
-    approvalRejected: false,
+    approvalOutcome: 'none',
     nameUnavailable: false,
     isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
@@ -1012,6 +1083,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             ],
           },
         ],
+        // Scoped to `pricing` for the same reason as the resume above.
+        'registration.failure.restore': {
+          target: '#registrationV2Ui.failure',
+          actions: ['clearError', 'clearMaxProgress', 'restoreFailure'],
+        },
       },
       states: {
         duration: {
@@ -1059,7 +1135,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             },
             'transaction.failed': [
               {
-                guard: ({ event }) => event.approvalFailed === true,
+                guard: ({ event }) =>
+                  !event.hasCommitment &&
+                  (event.approvalOutcome === 'failed' ||
+                    event.approvalOutcome === 'rejected'),
                 target: 'tokens',
                 actions: [
                   'setError',
@@ -1406,8 +1485,31 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     success: {},
     failure: {
+      // A reverted register says nothing about why, so ask the registry
+      // whether someone else got the name first
+      invoke: {
+        src: 'checkNameTakenByOther',
+        input: ({ context }) =>
+          context.nameUnavailable || !context.confirmedData
+            ? undefined
+            : {
+                label: context.confirmedData.label,
+                owner: context.confirmedData.ownerAddress,
+                chainId: context.chainId,
+                publicClient: defaultPublicClient,
+              },
+        onDone: {
+          guard: ({ event }) => event.output,
+          actions: assign({ nameUnavailable: () => true }),
+        },
+      },
       on: {
         retry: [
+          {
+            // Nothing to forward to: the child never resumed. Try Again on a
+            // restored failure resumes it through `useRegistrationResume`.
+            guard: 'isRestoredFailure',
+          },
           {
             // Retry re-enters `registering` directly, so it needs the same
             // wallet guard the initial start has.
@@ -1453,15 +1555,32 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             ],
           },
         ],
-        cancel: {
-          target: 'pricing',
-          actions: [
-            'releaseRegistrationLock',
-            'clearRegistrationData',
-            'clearError',
-            'forwardCancel',
-          ],
-        },
+        cancel: [
+          {
+            // Back to Quote abandons the stored run, commitment included: the
+            // user has chosen to start over.
+            guard: 'isRestoredFailure',
+            target: 'pricing',
+            actions: [
+              'discardStoredRegistration',
+              'clearRegistrationData',
+              'clearError',
+            ],
+          },
+          {
+            target: 'pricing',
+            actions: [
+              'releaseRegistrationLock',
+              // A name lost to someone else is still cached as available, so
+              // the quote would offer it again. Must run before the label is
+              // cleared.
+              'invalidateNameQueries',
+              'clearRegistrationData',
+              'clearError',
+              'forwardCancel',
+            ],
+          },
+        ],
         // "Try Again" would carry on with the previous wallet's signer.
         'registration.suspend': {
           target: 'pricing',

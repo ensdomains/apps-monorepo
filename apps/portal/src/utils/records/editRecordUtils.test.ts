@@ -35,16 +35,16 @@ describe('getRecordId', () => {
     ).toBe('abi-xyz789')
   })
 
-  it('returns "address-{key}" for address records without _uid', () => {
+  it('returns "address-{id}" for address records without _uid', () => {
     expect(
       getRecordId({ type: 'address', key: 'ETH', value: '0x123', id: 60 }),
-    ).toBe('address-ETH')
+    ).toBe('address-60')
     expect(
       getRecordId({ type: 'address', key: 'BTC', value: 'bc1...', id: 0 }),
-    ).toBe('address-BTC')
+    ).toBe('address-0')
   })
 
-  it('returns "address-{key}-{_uid}" for address records with _uid', () => {
+  it('returns "address-{id}-{_uid}" for address records with _uid', () => {
     expect(
       getRecordId({
         type: 'address',
@@ -53,7 +53,26 @@ describe('getRecordId', () => {
         id: 60,
         _uid: 'def456',
       }),
-    ).toBe('address-ETH-def456')
+    ).toBe('address-60-def456')
+  })
+
+  it('keys distinct coin types with the same display symbol apart (WEB-1447)', () => {
+    // Both render as "Unknown Chain (84532)".
+    const baseSepolia = {
+      type: 'address',
+      key: 'Unknown Chain (84532)',
+      value: '0x123',
+      id: 2147568180,
+    } as const
+    const oversizedAlias = {
+      type: 'address',
+      key: 'Unknown Chain (84532)',
+      value: '0x123',
+      id: 6442535476,
+    } as const
+
+    expect(getRecordId(baseSepolia)).toBe('address-2147568180')
+    expect(getRecordId(oversizedAlias)).toBe('address-6442535476')
   })
 
   it('returns "text-{key}" for text records without _uid', () => {

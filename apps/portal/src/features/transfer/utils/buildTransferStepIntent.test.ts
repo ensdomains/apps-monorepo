@@ -15,7 +15,7 @@ import {
 } from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { describe, expect, it } from 'vitest'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
 import type { V1TransferSubject } from '../types'
 import { buildTransferStepIntent } from './buildTransferStepIntent'
@@ -28,15 +28,15 @@ const RESOLVER = getAddress('0x3333333333333333333333333333333333333333')
 const OTHER = getAddress('0xcccccccccccccccccccccccccccccccccccccccc')
 
 const REGISTRAR = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensBaseRegistrarImplementation',
 })
 const NAME_WRAPPER = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensNameWrapper',
 })
 const LEGACY_REGISTRY = getChainContractAddress({
-  chain: sepoliaWithEns,
+  chain: ensChain,
   contract: 'ensLegacyRegistry',
 })
 
@@ -55,7 +55,7 @@ const ctx = {
   isPermissionedResolver: false,
   previousEthAddress: null,
   walletClient: { account: { address: ME } } as WalletClientWithAccount,
-  chainId: sepoliaWithEns.id,
+  chainId: ensChain.id,
 }
 
 /** The EOA call an intent would send: its target and decoded calldata. */
@@ -138,7 +138,7 @@ describe('buildTransferStepIntent (v1)', () => {
     )
     expect(LEGACY_REGISTRY).not.toBe(
       getChainContractAddress({
-        chain: sepoliaWithEns,
+        chain: ensChain,
         contract: 'ensRegistry',
       }),
     )
@@ -327,7 +327,7 @@ describe('buildTransferStepIntent (role revocations)', () => {
     subject: { kind: 'v2', registryAddress: REGISTRY } as const,
     walletClient: {
       account: { address: ME },
-      chain: sepoliaWithEns,
+      chain: ensChain,
     } as unknown as WalletClientWithAccount,
   }
 

@@ -117,6 +117,10 @@ msgstr ""
 msgid "{label} avatar"
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "{label}.eth was registered by someone else just before your registration went through."
+msgstr ""
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr ""
@@ -132,6 +136,10 @@ msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
+msgstr ""
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{permits, plural, one {Your wallet will be asked to approve this exact amount — nothing more.} other {Your wallet will be asked to approve these exact amounts — nothing more.}}"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -220,10 +228,6 @@ msgstr ""
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr ""
 
-#: src/features/profile/components/view/ProfileAbout.tsx
-msgid "About"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -260,10 +264,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Additional fee"
-msgstr ""
-
-#: src/features/navigation/Header/account/WalletSection.tsx
-msgid "Address"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
@@ -310,12 +310,24 @@ msgstr ""
 msgid "Another Registration Is Running"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Approve and register"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx
+msgid "Approve and register name"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Approve in wallet"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -334,8 +346,16 @@ msgstr ""
 msgid "Approve restoring your managers in your wallet"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Approve the network fee?"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes."
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Approve the renewal payment?"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -459,12 +479,11 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
@@ -533,6 +552,10 @@ msgstr ""
 msgid "Checking status…"
 msgstr ""
 
+#: src/features/renew/workflow/renewing/RenewingStep.tsx
+msgid "Checking the last attempt"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
 msgstr ""
@@ -588,6 +611,10 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Complete required field in <0>{tabList}</0> before previewing and publishing"
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
@@ -723,12 +750,20 @@ msgstr ""
 msgid "Copy to clipboard"
 msgstr ""
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Copy wallet address"
+msgstr ""
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
+msgstr ""
+
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -767,7 +802,7 @@ msgstr ""
 msgid "Couldn't verify your name records. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Covered by your account balance"
 msgstr ""
 
@@ -809,10 +844,6 @@ msgid "Deploying the resolver"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
-msgid "Description"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
 msgstr ""
 
@@ -831,6 +862,10 @@ msgstr ""
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Did You Know?"
 msgstr "Visste du att?"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Discard"
+msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Discard renewal"
@@ -882,7 +917,11 @@ msgid "Each batch of your names is upgraded in a single transaction. If any part
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
-#: src/features/profile/components/view/ProfileEditAction.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Edit"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileUpgradePopover.tsx
 msgid "Edit Profile"
 msgstr ""
@@ -949,6 +988,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS app landing page"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Explorer"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -1125,6 +1168,10 @@ msgstr ""
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "From your wallet"
+msgstr ""
+
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
 msgstr ""
@@ -1168,10 +1215,6 @@ msgstr ""
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Go to dashboard"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Go to ENS Explorer"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPagination.tsx
@@ -1241,16 +1284,16 @@ msgstr ""
 msgid "In-app notifications are always enabled"
 msgstr ""
 
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-msgid "Inbox"
-msgstr ""
-
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
 msgstr ""
 
 #: src/components/NameFallbackCard.tsx
 msgid "is too short to register"
+msgstr ""
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "it has no ENSv2 reservation."
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -1496,6 +1539,10 @@ msgstr ""
 msgid "Names"
 msgstr ""
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Names could not be loaded"
+msgstr ""
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1509,7 +1556,8 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Network fee"
 msgstr ""
 
@@ -1555,6 +1603,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
+msgstr ""
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "no ENSv1 registration was found for it."
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx
@@ -1658,6 +1710,10 @@ msgstr ""
 msgid "One username everywhere"
 msgstr ""
 
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "Only ENSv2 Names Supported"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr ""
@@ -1694,6 +1750,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Pay with stablecoins"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Payment approval was cancelled. Approve the payment in your wallet to start registration."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1749,6 +1809,10 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Preparing registration..."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing the commitment"
 msgstr ""
@@ -1763,6 +1827,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your registration"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Preview"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
@@ -1798,6 +1866,7 @@ msgid "Primary name"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
+#: src/features/dashboard/components/PrimaryNameButton.tsx
 msgid "Primary Name"
 msgstr "Primärt namn"
 
@@ -1813,8 +1882,26 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileFloatingBar.tsx
 #: src/features/profile/components/view/ProfileActions.tsx
 msgid "Profile actions"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Profile Description"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publish"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publish changes"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
+msgid "Publishing…"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2011,6 +2098,7 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr ""
 
@@ -2081,6 +2169,18 @@ msgstr ""
 msgid "Renewal Period"
 msgstr ""
 
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewal price"
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid in USDC out of your smart account."
+msgstr ""
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "Renewing"
 msgstr ""
@@ -2124,6 +2224,10 @@ msgstr ""
 
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Reserving your name"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "Resolve errors before previewing changes."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -2197,18 +2301,8 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Save Profile"
-msgstr ""
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Saved favorites and searches"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Saving"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -2328,11 +2422,7 @@ msgid "Set up this name’s resolver?"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Set which ENS name displays as your identity across apps and wallets."
-msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
-
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
-msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
+msgid "Setting a primary name is paid in USDC."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2359,12 +2449,12 @@ msgstr ""
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-msgid "Settings"
-msgstr ""
-
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Share a fun fact about this name"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -2675,6 +2765,10 @@ msgstr ""
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr ""
 
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "The replacement resolver could not be verified. Please try again."
@@ -2682,6 +2776,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "The upgrade contracts don't match this account. Please contact support."
+msgstr ""
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "These names can't be upgraded"
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
@@ -3092,6 +3190,10 @@ msgstr ""
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't approve your payment. Please try again and approve the payment in your wallet."
+msgstr ""
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "We couldn't check your upgrade access."
 msgstr ""
@@ -3115,6 +3217,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't start your registration. Please try again."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -3191,7 +3297,7 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "You approve"
 msgstr ""
 
@@ -3209,6 +3315,14 @@ msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfilePreview.ts
+msgid "You have unpublished changes. Are you sure you want to leave?"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
+msgid "You haven't made changes yet. Edit your profile then click here to preview those changes."
 msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx
@@ -3229,6 +3343,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
+msgid "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
@@ -3328,6 +3446,10 @@ msgstr ""
 msgid "Your names are ready to upgrade"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names can't be upgraded"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"
 msgstr ""
@@ -3393,6 +3515,10 @@ msgstr ""
 msgid "Your upgrades still need to be verified. Check again to continue."
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr ""
@@ -3402,6 +3528,14 @@ msgstr ""
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve."
 msgstr ""

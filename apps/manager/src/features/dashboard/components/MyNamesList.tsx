@@ -2,30 +2,29 @@ import { Trans } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
-  buildMergedNamesList,
   type MergedItem,
   mergedRowMetadata,
   type NameVersion,
   type SortDir,
   type SortField,
+  toMergedItems,
 } from '@/features/dashboard/mergedNames'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
-import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import { type DashboardName, isHeldName } from '../dashboardNames'
+import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
+import { DASHBOARD_PAGE_SIZE, useDashboardNames } from '../useDashboardNames'
+import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { DashboardPagination } from './DashboardPagination'
-import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 import { nameRowRecordsQuery } from './nameRowRecordsQuery'
-
-const PAGE_SIZE = 5
-const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
+import { PrimaryNameButton } from './PrimaryNameButton'
 
 export type Sort = `${SortField}-${SortDir}`
 
@@ -39,7 +38,7 @@ interface MyNamesListProps {
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
   readonly selectedLabels?: ReadonlySet<string>
-  readonly onToggleSelect?: (label: string) => void
+  readonly onToggleSelect?: (name: DashboardName) => void
 }
 
 const EMPTY_SELECTION: ReadonlySet<string> = new Set()
@@ -82,6 +81,8 @@ const AnimatedNameRow = ({
   selectedLabels,
   onToggleSelect,
   isV1Renewable,
+  isEligibilityPending,
+  primaryNameAction,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -94,8 +95,10 @@ const AnimatedNameRow = ({
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
   readonly selectedLabels: ReadonlySet<string>
-  readonly onToggleSelect: (label: string) => void
+  readonly onToggleSelect: (name: DashboardName) => void
   readonly isV1Renewable: boolean
+  readonly isEligibilityPending: boolean
+  readonly primaryNameAction?: ReactNode
 }) => {
   const {
     label,
@@ -114,14 +117,20 @@ const AnimatedNameRow = ({
     records: profileRecords,
     isLoading: isProfileRecordsLoading,
   })
-  const nameRoles: readonly NameRole[] =
-    item.kind === 'v1'
-      ? (item.classified.nameRoles ?? OWNER_NAME_ROLES)
-      : (item.domain.nameRoles ?? OWNER_NAME_ROLES)
-  const { cta, status } = match({ isV1, isMigrationEligible })
+  const { nameRoles } = item.name
+  const { cta, status } = match({
+    isV1,
+    isMigrationEligible,
+    isEligibilityPending,
+  })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
       cta: expiryCta,
+      status: null,
+    }))
+    // An ENSv1 row shows no upgrade state until eligibility is known.
+    .with({ isV1: true, isEligibilityPending: true }, () => ({
+      cta: null,
       status: null,
     }))
     .with({ isV1: true, isMigrationEligible: true }, () => ({
@@ -169,9 +178,10 @@ const AnimatedNameRow = ({
         label={label}
         nameRoles={nameRoles}
         onToggleFavorite={() => onToggleFavorite(label)}
-        onToggleSelect={() => onToggleSelect(label)}
+        onToggleSelect={() => onToggleSelect(item.name)}
+        primaryNameAction={primaryNameAction}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
-        selectable={!isV1 && isRenewable}
+        selectable={!isV1 && isRenewable && isHeldName(item.name)}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}
@@ -195,63 +205,64 @@ export const MyNamesList = ({
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
+  const [isChooserOpen, setIsChooserOpen] = useState(false)
+  const primaryNameTriggerRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const hasUpdatedPrimaryNameRef = useRef(false)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const filterKey = `${searchQuery}:${version ?? 'all'}:${sort}`
+  const {
+    eligibleKeys,
+    isPending: isEligibilityPending,
+    isError: isEligibilityError,
+  } = useDashboardMigrationEligibility(migrationEnabled)
+
+  const {
+    pageNames,
+    total,
+    isPending: isNamesPending,
+    isPagePending,
+    isError: isNamesError,
+    isGraceError,
+    loadPage,
+    addresses,
+  } = useDashboardNames({
+    sortField,
+    sortDir,
+    search: searchQuery,
+    version,
+    page,
+  })
+
+  const filterKey = `${addresses.join(',')}:${searchQuery}:${version ?? 'all'}:${sort}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
     setPage(1)
   }
+  const onPageChange = (next: number) => {
+    setPage(next)
+    void loadPage(next)
+  }
 
-  const {
-    v1Names,
-    isPending: isV1Pending,
-    isError: isV1Error,
-  } = useDashboardV1Names({
-    migrationEnabled,
-  })
-
-  const {
-    v2Names,
-    isPending: isV2Pending,
-    isError: isV2Error,
-  } = useOwnedDomains()
-
-  const mergedSortedFiltered = useMemo(
-    () =>
-      buildMergedNamesList({
-        v2Names,
-        v1Classified: v1Names,
-        searchQuery,
-        sortField,
-        sortDir,
-        version,
-      }),
-    [v2Names, v1Names, searchQuery, sortField, sortDir, version],
-  )
-
-  const total = mergedSortedFiltered.length
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = mergedSortedFiltered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+  const pageItems = useMemo(
+    () => toMergedItems(pageNames, eligibleKeys),
+    [pageNames, eligibleKeys],
   )
-  const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
-  const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
+  const rangeStart =
+    total === 0 ? 0 : (currentPage - 1) * DASHBOARD_PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * DASHBOARD_PAGE_SIZE, total)
 
-  const isPending = isV2Pending || isV1Pending
-  const hasNames = v2Names.length > 0 || v1Names.length > 0
-  const hasError = isV2Error || isV1Error
-  const hasPartialError = hasError && hasNames
+  const isPending = isNamesPending || isPagePending
+  const hasNames = total > 0
+  const hasPartialError =
+    ((isNamesError || isGraceError) && hasNames) || isEligibilityError
   const pageRows = pageItems.map((item) => ({
     item,
     metadata: mergedRowMetadata(item, primaryLabel),
-    name:
-      item.kind === 'v2'
-        ? (item.domain.normalizedName ?? item.sortName)
-        : item.sortName,
+    name: item.sortName,
   }))
   const pageProfileRecords = useQueries({
     queries: pageRows.map(({ item, metadata, name }) => ({
@@ -268,7 +279,7 @@ export const MyNamesList = ({
     pageRows.filter(({ item }) => item.kind === 'v1').map(({ name }) => name),
   )
 
-  if (hasError && !hasNames) {
+  if (isNamesError && !hasNames) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
         <Trans>Error loading names</Trans>
@@ -277,7 +288,23 @@ export const MyNamesList = ({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full" ref={listRef} tabIndex={-1}>
+      <ChoosePrimaryNameDialog
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          // Successful refetches can remove the old trigger after this closes.
+          const target = hasUpdatedPrimaryNameRef.current
+            ? listRef.current
+            : (primaryNameTriggerRef.current ?? listRef.current)
+          hasUpdatedPrimaryNameRef.current = false
+          target?.focus()
+        }}
+        onOpenChange={setIsChooserOpen}
+        onUpdated={() => {
+          hasUpdatedPrimaryNameRef.current = true
+        }}
+        open={isChooserOpen}
+      />
       {hasPartialError ? (
         <div
           className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-red-600 text-sm"
@@ -322,6 +349,7 @@ export const MyNamesList = ({
                   favoriteLabels={favoriteLabels}
                   index={index}
                   isAuthenticated={isAuthenticated}
+                  isEligibilityPending={isEligibilityPending}
                   isProfileRecordsLoading={
                     profileRecordState?.isLoading ?? false
                   }
@@ -334,6 +362,15 @@ export const MyNamesList = ({
                   name={row.name}
                   onToggleFavorite={onToggleFavorite}
                   onToggleSelect={onToggleSelect}
+                  primaryNameAction={
+                    row.metadata.isPrimary ? (
+                      <PrimaryNameButton
+                        className="h-5 py-0"
+                        onClick={() => setIsChooserOpen(true)}
+                        ref={primaryNameTriggerRef}
+                      />
+                    ) : undefined
+                  }
                   profileRecords={profileRecordState?.records}
                   selectedLabels={selectedLabels}
                   shouldReduceMotion={shouldReduceMotion}
@@ -347,7 +384,7 @@ export const MyNamesList = ({
         <DashboardPagination
           currentPage={currentPage}
           disabled={isPending}
-          onPageChange={setPage}
+          onPageChange={onPageChange}
           rangeEnd={rangeEnd}
           rangeStart={rangeStart}
           total={total}

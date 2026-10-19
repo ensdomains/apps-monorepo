@@ -133,15 +133,15 @@ describe('decodeMigrationError — direct mappings', () => {
 
   it.each([
     [
-      'ProfileFetchError subgraph',
+      'ProfileFetchError indexer',
       new ProfileFetchError({
-        cause: new Error('subgraph 500'),
-        phase: 'subgraph',
+        cause: new Error('bigname 500'),
+        phase: 'indexer',
       }),
       {
         type: 'profile-fetch-failed',
-        phase: 'subgraph',
-        message: 'subgraph 500',
+        phase: 'indexer',
+        message: 'bigname 500',
       },
     ],
     [

@@ -5,80 +5,86 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
+import {
+  assertDeploymentEnvironment,
+  assertNetworkConfig,
+} from '../../packages/config/src/index'
+import { MANAGER_ENDPOINTS } from './src/endpoints'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:2999',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      // Local E2E: proxy RPC to Anvil fork.
-      '/rpc': {
-        target: 'http://127.0.0.1:8545',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/rpc/, ''),
-      },
-      // Local E2E: proxy bundler + paymaster to avoid CORS.
-      '/bundler': {
-        target: 'http://127.0.0.1:4337',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/bundler/, ''),
-      },
-      '/paymaster': {
-        target: 'http://127.0.0.1:3002',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/paymaster/, ''),
-      },
-      '/orchestrator': {
-        target: 'http://127.0.0.1:3007',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/orchestrator/, ''),
-      },
-      '/indexer': {
-        target: 'http://127.0.0.1:5655',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/indexer/, ''),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  assertDeploymentEnvironment(env, mode)
+  // Validate here so direct Vite commands and --mode use the same env files.
+  assertNetworkConfig(env, { endpoints: MANAGER_ENDPOINTS })
+  return {
+    server: {
+      port: 3000,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:2999',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        // Local E2E: proxy RPC to Anvil fork.
+        '/rpc': {
+          target: 'http://127.0.0.1:8545',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/rpc/, ''),
+        },
+        // Local E2E: proxy bundler + paymaster to avoid CORS.
+        '/bundler': {
+          target: 'http://127.0.0.1:4337',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/bundler/, ''),
+        },
+        '/paymaster': {
+          target: 'http://127.0.0.1:3002',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/paymaster/, ''),
+        },
+        '/orchestrator': {
+          target: 'http://127.0.0.1:3007',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/orchestrator/, ''),
+        },
       },
     },
-  },
-  plugins: [
-    cloudflare({
-      viteEnvironment: { name: 'ssr' },
-    }),
-    tanstackStart(),
-    viteReact(),
-    lingui(),
-    babel({
-      presets: [linguiTransformerBabelPreset()],
-    }),
-    tailwindcss(),
-  ],
-  optimizeDeps: {
-    // Pre-bundle deps that Vite discovers late (during route navigation).
-    // Without this, Vite re-optimises mid-session and triggers a full page
-    // reload, which can crash React (especially in headless CI browsers).
-    include: [
-      'buffer',
-      '@rhinestone/sdk',
-      '@rhinestone/sdk/actions/smart-sessions',
-      '@rhinestone/sdk/errors',
+    plugins: [
+      cloudflare({
+        viteEnvironment: { name: 'ssr' },
+      }),
+      tanstackStart(),
+      viteReact(),
+      lingui(),
+      babel({
+        presets: [linguiTransformerBabelPreset()],
+      }),
+      tailwindcss(),
     ],
-  },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    optimizeDeps: {
+      // Pre-bundle deps that Vite discovers late (during route navigation).
+      // Without this, Vite re-optimises mid-session and triggers a full page
+      // reload, which can crash React (especially in headless CI browsers).
+      include: [
+        'buffer',
+        '@rhinestone/sdk',
+        '@rhinestone/sdk/actions/smart-sessions',
+        '@rhinestone/sdk/errors',
+      ],
     },
-  },
-  build: {
-    rolldownOptions: {
-      experimental: {
-        lazyBarrel: true, // Reduces compiled modules for barrel exports
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-  },
+    build: {
+      rolldownOptions: {
+        experimental: {
+          lazyBarrel: true, // Reduces compiled modules for barrel exports
+        },
+      },
+    },
+  }
 })

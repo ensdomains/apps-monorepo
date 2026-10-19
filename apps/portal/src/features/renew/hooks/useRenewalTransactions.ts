@@ -19,7 +19,7 @@ import { buildApproveIntent } from '@/features/transaction-manager/helpers/inten
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { ensChain } from '@/lib/wagmi'
 import { buildRenewIntent, type RenewParams } from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
@@ -154,7 +154,7 @@ function buildRenewalApproveIntent(params: {
     token: params.tokenAddress,
     spender: params.renewer,
     amount: params.tokenPrice,
-    chainId: sepoliaWithEns.id,
+    chainId: ensChain.id,
   })
 }
 

@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { chain } from '@/config'
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -128,7 +129,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
         {txData && (
           <>
             <InfoRow label="Network">
-              <span className="text-sm">Sepolia</span>
+              <span className="text-base">{chain.name}</span>
             </InfoRow>
 
             <InfoRow label="From">
@@ -139,7 +140,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
               {txData.to ? (
                 <AddressDisplay address={txData.to} />
               ) : (
-                <span className="text-sm text-muted-foreground">
+                <span className="text-base text-muted-foreground">
                   Contract Creation
                 </span>
               )}
@@ -153,7 +154,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
 
         <div className="border rounded-sm overflow-hidden">
           <div className="border-b px-6 py-3 bg-muted">
-            <span className="text-sm font-medium">{event.type}</span>
+            <span className="text-base font-medium">{event.type}</span>
           </div>
 
           <div className="p-6 flex flex-col gap-8">
@@ -161,7 +162,9 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
               <CopyableRecord
                 value={event.type}
                 displayValue={
-                  <h3 className="text-xl font-medium">{event.type}</h3>
+                  <h3 className="text-h3 leading-7 font-medium">
+                    {event.type}
+                  </h3>
                 }
               />
 
@@ -174,7 +177,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                         {truncateAddress(txHash, 10, 8, '...')}
                       </span>
                     }
-                    className="text-sm flex-1 min-w-0"
+                    className="text-base flex-1 min-w-0"
                   />
                 </InfoRow>
               )}
@@ -211,16 +214,16 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                       <TableBody>
                         {Object.entries(parsed).map(([key, value], index) => (
                           <TableRow key={key} className="hover:bg-muted">
-                            <TableCell className="h-10 py-0 text-sm">
+                            <TableCell className="h-10 py-0 text-base">
                               {index}
                             </TableCell>
-                            <TableCell className="h-10 py-0 text-sm">
+                            <TableCell className="h-10 py-0 text-base">
                               {key}
                             </TableCell>
-                            <TableCell className="h-10 py-0 text-sm">
+                            <TableCell className="h-10 py-0 text-base">
                               {getEventFieldType(event.type, key)}
                             </TableCell>
-                            <TableCell className="h-10 py-0 text-sm">
+                            <TableCell className="h-10 py-0 text-base">
                               <CopyableRecord
                                 value={String(value)}
                                 displayValue={
@@ -241,13 +244,13 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                     Data
                   </h4>
                   <div className="border rounded-sm p-4 flex flex-col gap-2">
-                    <span className="text-sm text-danger">
+                    <span className="text-base text-danger">
                       Unable to parse event data
                     </span>
                     <CopyableRecord
                       value={parseError.raw}
                       displayValue={
-                        <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                        <pre className="text-smallmono text-muted-foreground whitespace-pre-wrap break-all">
                           {parseError.raw}
                         </pre>
                       }

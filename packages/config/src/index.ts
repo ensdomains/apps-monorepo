@@ -1,7 +1,9 @@
+export { assertDeploymentEnvironment } from './assertDeploymentEnvironment'
 export { assertNetworkConfig } from './assertNetworkConfig'
 export {
   type BuildConfigInput,
   buildConfig,
+  type EndpointKey,
   type EnsAppConfig,
   type EnsChain,
   NetworkConfigError,

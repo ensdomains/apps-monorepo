@@ -10,7 +10,6 @@
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
 import { envConfig } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
@@ -31,18 +30,12 @@ const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 // covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
-  originFromEnvUrl(import.meta.env?.VITE_API_URL),
+  originFromEnvUrl(import.meta.env?.VITE_API_URL || envConfig.appApiUrl),
   originFromEnvUrl(import.meta.env?.VITE_RHINESTONE_ENDPOINT_URL),
   COMMEMORATIVE_ASSET_ORIGIN,
   DQA_ORIGIN,
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
 ].filter((origin): origin is string => origin != null)
-
-// Subgraph endpoints ensjs resolves internally (getNameHistory). Derived from
-// its own chain config so the mainnet cutover can't silently fail closed.
-const SUBGRAPH_ORIGINS = Object.values(ensL1Subgraphs).map(
-  ({ ens }) => new URL(ens.url).origin,
-)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
@@ -54,14 +47,13 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexers, resolved in `@/config`.
-  ...[
-    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
-    originFromEnvUrl(envConfig.endpoints.bignameApi),
-  ].filter((origin): origin is string => origin !== null),
-  // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
-  // sepolia.app-api.ens.domains), v1 subgraph (v1-graphql.ens.dev). The
-  // wildcard families cover per-deployment and per-environment hosts.
+  // The indexer, resolved in `@/config`.
+  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
+    (origin): origin is string => origin !== null,
+  ),
+  // ENS-owned hosts: backend API (VITE_API_URL /
+  // sepolia.app-api.ens.domains). The wildcard families cover per-deployment
+  // and per-environment hosts.
   'https://*.ens.dev',
   // ENS-owned *.ens.domains: metadata avatar gateway, PostHog analytics host
   // (edge.ens.domains — VITE_PUBLIC_POSTHOG_HOST).
@@ -91,8 +83,6 @@ const DEFAULT_CONNECT_HOSTS = [
   'wss://*.walletconnect.org',
   // Reown AppKit (formerly Web3Modal) config + analytics API
   'https://api.web3modal.org',
-  // Subgraph endpoints ensjs resolves internally (see SUBGRAPH_ORIGINS).
-  ...SUBGRAPH_ORIGINS,
   // DNS-over-HTTPS — ensjs `getDnsTxtRecords` (utils/dnssec) defaults to
   // cloudflare-dns.com. Both hosts: CSP matches on host, not on service.
   'https://cloudflare-dns.com',

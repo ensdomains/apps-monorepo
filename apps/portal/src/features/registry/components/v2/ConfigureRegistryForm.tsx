@@ -122,7 +122,7 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
               <Plus className="size-3" />
               Configure registry
             </Button>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-p text-muted-foreground">
               You need the{' '}
               <strong className="text-foreground">Set Subregistry</strong> role
               to configure this registry. Ask an admin to grant it.

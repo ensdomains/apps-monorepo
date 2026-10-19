@@ -1,28 +1,25 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { labelhash, namehash, zeroAddress } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  GRACE_PERIOD_DAYS,
   MS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
 } from '@/features/grace/utils/gracePeriod'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 const mocks = vi.hoisted(() => ({
   client: {},
+  getV1Expiry: vi.fn(),
   getV1Owner: vi.fn(),
   getV2Owner: vi.fn(),
-  getV2Domain: vi.fn(),
-  queryV2Domain: vi.fn(),
   readContract: vi.fn(),
 }))
 
-vi.mock('@/lib/indexer-client', () => ({
-  indexerClient: {
-    query: mocks.queryV2Domain,
-  },
-}))
-
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
+  getExpiry: mocks.getV1Expiry,
   getOwner: mocks.getV1Owner,
 }))
 
@@ -46,6 +43,13 @@ import { getOwner } from './profileOwner'
 const previousOwner = '0x0000000000000000000000000000000000000002'
 const expiryDate = new Date('2026-07-01T00:00:00Z')
 const expiry = BigInt(expiryDate.getTime() / 1000)
+const graceState = {
+  expiry,
+  latestOwner: previousOwner,
+  resource: 0n,
+  status: 0,
+  tokenId: 0n,
+}
 
 describe('getOwner', () => {
   beforeEach(() => {
@@ -53,12 +57,11 @@ describe('getOwner', () => {
     vi.useFakeTimers()
     vi.setSystemTime(expiryDate.getTime() + MS_PER_DAY)
     mocks.getV2Owner.mockResolvedValue(null)
-    mocks.getV2Domain.mockResolvedValue({ data: { domain: null } })
-    mocks.queryV2Domain.mockReturnValue({ toPromise: mocks.getV2Domain })
+    mocks.getV1Expiry.mockResolvedValue(null)
     mocks.getV1Owner.mockResolvedValue(null)
     mocks.readContract.mockResolvedValue({
-      expiry,
-      latestOwner: previousOwner,
+      expiry: 0n,
+      latestOwner: zeroAddress,
       resource: 0n,
       status: 0,
       tokenId: 0n,
@@ -81,24 +84,13 @@ describe('getOwner', () => {
       owner: '0x0000000000000000000000000000000000000002',
       protocol: 'v2',
     })
-    expect(mocks.queryV2Domain).not.toHaveBeenCalled()
     expect(mocks.getV1Owner).not.toHaveBeenCalled()
     expect(mocks.readContract).not.toHaveBeenCalled()
   })
 
   it('recovers the on-chain owner of a V2 registration during grace', async () => {
-    const domainId = namehash('gloomy.eth')
-
     mocks.getV2Owner.mockResolvedValue(zeroAddress)
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: {
-          id: domainId,
-          owner: { id: '0x0000000000000000000000000000000000000001' },
-          expiryDate: '0',
-        },
-      },
-    })
+    mocks.readContract.mockResolvedValue(graceState)
 
     // Legacy registry ownership can remain after a name has migrated to V2.
     mocks.getV1Owner.mockResolvedValue({
@@ -113,9 +105,6 @@ describe('getOwner', () => {
     expect(result._unsafeUnwrap()).toEqual({
       owner: previousOwner,
       protocol: 'v2',
-    })
-    expect(mocks.queryV2Domain).toHaveBeenCalledWith(expect.anything(), {
-      id: domainId,
     })
     expect(mocks.getV1Owner).not.toHaveBeenCalled()
     expect(mocks.readContract).toHaveBeenCalledWith(
@@ -132,11 +121,7 @@ describe('getOwner', () => {
     'accountAddress',
     'ownerAddress',
   ] as const)('recognises the previous owner through %s without a third-party warning', async (addressKey) => {
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
+    mocks.readContract.mockResolvedValue(graceState)
 
     const result = await getOwner({ name: 'gloomy.eth' })
     const owner = result._unsafeUnwrap()?.owner
@@ -172,11 +157,7 @@ describe('getOwner', () => {
     ownsName,
   }) => {
     vi.setSystemTime(expiryDate.getTime() + elapsed)
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
+    mocks.readContract.mockResolvedValue(graceState)
 
     // Legacy registry ownership can remain after a name has migrated to V2.
     mocks.getV1Owner.mockResolvedValue({
@@ -195,27 +176,14 @@ describe('getOwner', () => {
   })
 
   it('does not invent an owner when the registry has none', async () => {
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
     mocks.readContract.mockResolvedValue({ expiry, latestOwner: zeroAddress })
 
     const result = await getOwner({ name: 'gloomy.eth' })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      owner: undefined,
-      protocol: 'v2',
-    })
+    expect(result._unsafeUnwrap()).toBeNull()
   })
 
   it('returns an error when the previous owner cannot be verified on-chain', async () => {
-    mocks.getV2Domain.mockResolvedValue({
-      data: {
-        domain: { id: namehash('gloomy.eth'), owner: { id: previousOwner } },
-      },
-    })
     mocks.readContract.mockRejectedValue(new Error('RPC unavailable'))
 
     const result = await getOwner({ name: 'gloomy.eth' })
@@ -238,9 +206,6 @@ describe('getOwner', () => {
   ])('keeps an indexed V1 name $status on V1', async ({ name, registrant }) => {
     const owner = '0x0000000000000000000000000000000000000001'
     mocks.getV2Owner.mockResolvedValue(zeroAddress)
-    mocks.getV2Domain.mockResolvedValue({
-      data: { domain: { id: namehash(name), owner: { id: zeroAddress } } },
-    })
     mocks.getV1Owner.mockResolvedValue({
       owner,
       registrant,
@@ -251,7 +216,10 @@ describe('getOwner', () => {
 
     expect(result._unsafeUnwrap()).toEqual({ owner, protocol: 'v1' })
     expect(mocks.getV1Owner).toHaveBeenCalledWith(mocks.client, { name })
-    expect(mocks.readContract).not.toHaveBeenCalled()
+    expect(mocks.readContract).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({ functionName: 'getState' }),
+    )
   })
 
   it('falls back to V1 ownership when V2 has no owner', async () => {
@@ -268,8 +236,10 @@ describe('getOwner', () => {
       owner: '0x0000000000000000000000000000000000000001',
       protocol: 'v1',
     })
-    expect(mocks.queryV2Domain).toHaveBeenCalled()
-    expect(mocks.readContract).not.toHaveBeenCalled()
+    expect(mocks.readContract).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({ functionName: 'getState' }),
+    )
   })
 
   it('skips the V2 2LD registration check for subnames', async () => {
@@ -285,8 +255,99 @@ describe('getOwner', () => {
       owner: '0x0000000000000000000000000000000000000001',
       protocol: 'v1',
     })
-    expect(mocks.queryV2Domain).not.toHaveBeenCalled()
     expect(mocks.readContract).not.toHaveBeenCalled()
+  })
+
+  describe('wrapped V1 name in its grace period', () => {
+    const wrappedOwner = '0x0000000000000000000000000000000000000004'
+    const NAME_WRAPPER = getChainContractAddress({
+      chain: sepoliaWithEns,
+      contract: 'ensNameWrapper',
+    })
+
+    const mockReads = (getData: () => Promise<unknown>) =>
+      mocks.readContract.mockImplementation(
+        (_client: unknown, { functionName }: { functionName: string }) =>
+          functionName === 'getData'
+            ? getData()
+            : Promise.resolve({ ...graceState, latestOwner: zeroAddress }),
+      )
+
+    beforeEach(() => {
+      mocks.getV1Owner.mockResolvedValue({
+        owner: NAME_WRAPPER,
+        registrant: null,
+        ownershipLevel: 'registry',
+      })
+      mocks.getV1Expiry.mockResolvedValue({
+        expiry,
+        gracePeriod: GRACE_PERIOD_DAYS * 24 * 60 * 60,
+        status: 'gracePeriod',
+      })
+    })
+
+    it('reads the owner the NameWrapper retains', async () => {
+      mockReads(() => Promise.resolve([wrappedOwner, 196608, 0n]))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: wrappedOwner,
+        protocol: 'v1',
+      })
+      expect(mocks.readContract).toHaveBeenCalledWith(
+        mocks.client,
+        expect.objectContaining({
+          address: NAME_WRAPPER,
+          functionName: 'getData',
+          args: [BigInt(namehash('wrapped.eth'))],
+        }),
+      )
+    })
+
+    it('does not read the NameWrapper outside grace', async () => {
+      vi.setSystemTime(expiryDate.getTime() - MS_PER_DAY)
+      mockReads(() => Promise.resolve([wrappedOwner, 196608, 0n]))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: NAME_WRAPPER,
+        protocol: 'v1',
+      })
+      expect(mocks.readContract).not.toHaveBeenCalledWith(
+        mocks.client,
+        expect.objectContaining({ functionName: 'getData' }),
+      )
+    })
+
+    it('reports no owner when the NameWrapper holds none', async () => {
+      mockReads(() => Promise.resolve([zeroAddress, 0, 0n]))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: undefined,
+        protocol: 'v1',
+      })
+    })
+
+    it('returns an error when the expiry cannot be read', async () => {
+      mockReads(() => Promise.resolve([wrappedOwner, 196608, 0n]))
+      mocks.getV1Expiry.mockRejectedValue(new Error('RPC unavailable'))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result.isErr()).toBe(true)
+    })
+
+    it('returns an error when the NameWrapper cannot be read', async () => {
+      mockReads(() => Promise.reject(new Error('RPC unavailable')))
+
+      const result = await getOwner({ name: 'wrapped.eth' })
+
+      expect(result.isErr()).toBe(true)
+    })
   })
 
   it('returns null when neither protocol has an owner or registration', async () => {
@@ -294,7 +355,10 @@ describe('getOwner', () => {
 
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBeNull()
-    expect(mocks.queryV2Domain).toHaveBeenCalled()
+    expect(mocks.readContract).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({ functionName: 'getState' }),
+    )
     expect(mocks.getV1Owner).toHaveBeenCalled()
   })
 })

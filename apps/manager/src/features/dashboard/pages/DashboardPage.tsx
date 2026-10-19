@@ -94,7 +94,7 @@ export const DashboardPage = () => {
   const defaultName = reverseName ?? null
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:pb-10">
+    <div className="mx-auto flex w-full xs:w-[calc(100%-2rem)] max-w-7xl flex-col gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:items-start md:gap-8 md:pb-10">
       {migrationEnabled && <MigrationModal />}
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         {migrationEnabled && (
@@ -103,7 +103,7 @@ export const DashboardPage = () => {
           </motion.div>
         )}
         <motion.div
-          className="w-full px-4 empty:hidden md:px-0"
+          className="w-full px-4 xs:px-0 empty:hidden"
           {...stagger(1, shouldReduceMotion)}
         >
           <DashboardGraceBanner primaryLabel={defaultName} />
@@ -115,7 +115,7 @@ export const DashboardPage = () => {
         ) : (
           <Card
             asChild
-            className="flex flex-col items-start gap-3 rounded-none px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
+            className="flex flex-col items-start gap-3 rounded-none xs:rounded-xl px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:px-6 md:py-8"
           >
             <motion.div {...stagger(2, shouldReduceMotion)}>
               <span className="font-sans text-[16px] text-foreground">
@@ -123,12 +123,13 @@ export const DashboardPage = () => {
               </span>
               <ChoosePrimaryNameDialog>
                 <button
-                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
                   type="button"
                 >
                   <MSymbol
+                    aria-hidden="true"
                     className="ms-opsz-20 ms-wght-500 text-sm"
-                    symbol="badge"
+                    symbol="published_with_changes"
                   />
                   <span className="whitespace-nowrap font-medium font-sans text-xs">
                     <Trans>Set primary name</Trans>
@@ -140,7 +141,7 @@ export const DashboardPage = () => {
         )}
         <Card
           asChild
-          className="block rounded-none px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
           <motion.div {...stagger(3, shouldReduceMotion)}>
             <NamesTable
@@ -154,7 +155,7 @@ export const DashboardPage = () => {
         {commemorativeNftEnabled ? <CommemorativeNftDashboard /> : null}
         <Card
           asChild
-          className="block rounded-none px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
           <motion.div {...stagger(4, shouldReduceMotion)}>
             <EducationCarousel />

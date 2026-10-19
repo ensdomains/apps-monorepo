@@ -3,7 +3,7 @@ import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Domain } from './v1Domain'
 
 const toAddress = (s: string | null | undefined): Address | null => {
   if (!s) return null
@@ -38,6 +38,8 @@ export type CopySource = 'name-wrapper' | 'registry'
 export type IneligibleReason =
   | 'unlocked-subname'
   | 'expired-registration'
+  | 'missing-registration'
+  | 'not-reserved'
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
@@ -232,6 +234,25 @@ const hasExpiredDotEthRegistration = (
   return false
 }
 
+/**
+ * Why a `.eth` 2LD cannot be moved now, if it cannot. A lease in grace comes
+ * before a missing reservation: a reservation lapses 62 days after the lease
+ * while ENSv1 grace lasts 90, and ETHRenewerV1 still renews it for 28 days
+ * after that, so the name stays on the renewal path.
+ */
+const unavailableDotEthReason = (
+  domain: V1Domain,
+  parentName: string | null,
+  nowSeconds: bigint,
+): IneligibleReason | null => {
+  if (parentName !== 'eth') return null
+  if (domain.isLeaseMissing) return 'missing-registration'
+  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+    return 'expired-registration'
+  }
+  return domain.isUnreserved ? 'not-reserved' : null
+}
+
 type ClassificationContext = {
   readonly chainId: SupportedL1ChainId
   readonly domain: V1Domain
@@ -291,9 +312,8 @@ const classifyWithoutActiveWrapper = (
   const registrant = domain.registrant
   if (registrant?.id.toLowerCase() !== ownerAddressLower) return null
   if (parentName !== 'eth') return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return ineligible(domain, 'expired-registration')
-  }
+  const unavailable = unavailableDotEthReason(domain, parentName, nowSeconds)
+  if (unavailable) return ineligible(domain, unavailable)
 
   const tokenHolder = toAddress(registrant.id)
   if (!tokenHolder) return null
@@ -363,11 +383,13 @@ const classifyUnlockedWrapper = (
   }
   if (!parentName) return ineligible(domain, 'missing-parent')
 
-  const parentFuses = domain.parent?.wrappedDomain?.fuses
+  // NameWrapper burns PARENT_CANNOT_CONTROL only under a parent with
+  // CANNOT_UNWRAP, and clears it when the child expires, so the child's own
+  // fuses and expiry decide, as LibMigration's do. A parent that already
+  // migrated has no wrapper fuses left to read.
   if (
     hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
-    parentFuses !== undefined &&
-    hasFuse(BigInt(parentFuses), FUSES.CANNOT_UNWRAP)
+    BigInt(wrappedDomain.expiryDate) > nowSeconds
   ) {
     return {
       type: 'classified',
@@ -471,9 +493,8 @@ const classifyActiveWrapper = (
   }
   const wrappedHolder = toAddress(wrappedOwner.id)
   if (!wrappedHolder) return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return ineligible(domain, 'expired-registration')
-  }
+  const unavailable = unavailableDotEthReason(domain, parentName, nowSeconds)
+  if (unavailable) return ineligible(domain, unavailable)
 
   const fuses = BigInt(wrappedDomain.fuses)
   return hasFuse(fuses, FUSES.CANNOT_UNWRAP)

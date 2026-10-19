@@ -22,11 +22,11 @@ import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { envConfig } from '@/config'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
-import type { sepoliaWithEns } from '@/lib/wagmi'
+import type { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
 
-type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
+type EnsV1Client = Client<Transport, typeof ensChain>
 
 const REVERSE_MATCH_NETWORK = envConfig.network
 

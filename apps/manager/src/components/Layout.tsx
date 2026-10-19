@@ -3,6 +3,7 @@ import { useMatches } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
 import { LayoutBackAndNoticeRow } from '@/components/LayoutBackAndNoticeRow'
+import { isTestnet } from '@/config'
 import { Header } from '@/features/navigation/Header/Header'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -29,7 +30,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = profileRouteMatch !== undefined
   const isProfilePage = isEnsNameProfilePage || isAddressProfilePage
-  const isSepoliaBannerVisible = !isMigrationPage && !isProfilePage
+  const isSepoliaBannerVisible = isTestnet && !isMigrationPage && !isProfilePage
   const profileName = profileRouteMatch?.params.name ?? ''
   const profileRecords = useQuery({
     ...profileRecordsQuery(profileName),
@@ -50,7 +51,7 @@ export const Layout = ({ children }: LayoutProps) => {
     >
       <div className="sticky inset-x-0 top-0 z-30 shrink-0">
         <Header
-          desktopBreakpoint={isProfilePage ? 'lg-landscape' : 'md'}
+          desktopBreakpoint={isProfilePage ? 'xl' : 'md'}
           hasMobileBlurredBackground={isProfilePage}
           profileThemeColor={
             isMigrationPage ? migrationHeaderColor : profileThemeColor

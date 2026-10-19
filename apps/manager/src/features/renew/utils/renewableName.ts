@@ -28,6 +28,17 @@ export class RenewableNameError<
   }
 }
 
+/** A refusal is loader data, not a thrown error: SSR keeps only an error's message. */
+export type RenewalRefusal = {
+  readonly status: 'refused'
+  readonly message: string
+}
+
+export const refuseRenewal = (message: string): RenewalRefusal => ({
+  status: 'refused',
+  message,
+})
+
 export const parseRenewableName = (name: string) =>
   parseName(name).andThen((parsedName) => {
     if (parsedName.tld !== 'eth') {
