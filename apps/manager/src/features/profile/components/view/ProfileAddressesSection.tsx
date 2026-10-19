@@ -8,10 +8,12 @@ import {
 } from '@/components/ui/tooltip'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import type { ProfileRecords } from '@/features/profile/types'
+import { cn } from '@/lib/utils'
 import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileTileClassName,
 } from './ProfileCard'
 import {
   formatChainSpecificAddress,
@@ -25,9 +27,11 @@ type ProfileAddressesSectionProps = {
   readonly records: ProfileRecords
 }
 
-// Figma frame values: 0.25px border, 2/6 shadow, 24px icon row in 24px padding (72px rows).
-const addressCardClassName =
-  'h-auto min-h-18 w-full flex-row items-center justify-between gap-3 rounded-xl border-[0.25px] border-ens-quartz-300 p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition has-[>svg]:px-6 hover:bg-ens-quartz-50'
+// A 24px icon row inside 24px padding, so every address card is 72px tall.
+const addressCardClassName = cn(
+  profileTileClassName,
+  'h-auto min-h-18 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50 has-[>svg]:px-6',
+)
 
 const AddressValue = ({ value }: { readonly value: string }) => (
   <span className="min-w-0 truncate font-mono text-[13px] text-ens-quartz-400 leading-[1.1] tracking-[-0.26px] xl:text-sm xl:tracking-[-0.28px]">
