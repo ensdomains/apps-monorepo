@@ -17,9 +17,9 @@ export const useIntercomClearance = (bar: HTMLElement | null) => {
       const { height, left, right, top } = bar.getBoundingClientRect()
       const launcherRight = window.innerWidth - LAUNCHER_RIGHT_PADDING
       const launcherLeft = launcherRight - LAUNCHER_SIZE
-      const overlapsLauncher = right > launcherLeft && left < launcherRight
+      const isLauncherOverlapping = right > launcherLeft && left < launcherRight
       const clearance =
-        height > 0 && overlapsLauncher
+        height > 0 && isLauncherOverlapping
           ? Math.round(window.innerHeight - top)
           : 0
       if (clearance === lastClearance) return
