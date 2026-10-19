@@ -76,27 +76,30 @@ describe('profile createDiff utils', () => {
           `sepolia/own.eth${key === 'header' ? '' : '/h'}`,
           `sepolia/own.eth${suffix}`,
         ],
-      ])('detects a different %s on the same upload worker', (_, oldPath, newPath) => {
-        const original = {
-          ...newEmptyProfileRecords(),
-          base: { [key]: `${base}${oldPath}` },
-        }
-        const current = {
-          ...newEmptyProfileRecords(),
-          base: { [key]: `${base}${newPath}` },
-        }
+      ])(
+        'detects a different %s on the same upload worker',
+        (_, oldPath, newPath) => {
+          const original = {
+            ...newEmptyProfileRecords(),
+            base: { [key]: `${base}${oldPath}` },
+          }
+          const current = {
+            ...newEmptyProfileRecords(),
+            base: { [key]: `${base}${newPath}` },
+          }
 
-        const diff = createDiff(original, current)
+          const diff = createDiff(original, current)
 
-        expect(Object.values(diff)).toEqual([
-          expect.objectContaining({
-            original: `${base}${oldPath}`,
-            current: `${base}${newPath}`,
-            type: 'modified',
-            fieldKey: key,
-          }),
-        ])
-      })
+          expect(Object.values(diff)).toEqual([
+            expect.objectContaining({
+              original: `${base}${oldPath}`,
+              current: `${base}${newPath}`,
+              type: 'modified',
+              fieldKey: key,
+            }),
+          ])
+        },
+      )
 
       it('does not rewrite an unchanged upload URL', () => {
         const imageUrl = `${base}sepolia/own.eth${suffix}`

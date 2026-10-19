@@ -718,9 +718,6 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.6.8
         version: 14.6.8(@testing-library/dom@10.4.2)
-      '@urql/core':
-        specifier: ^6.0.3
-        version: 6.0.3(graphql@17.0.2)
       '@wagmi/connectors':
         specifier: 'catalog:'
         version: 8.2.0(@wagmi/core@3.6.5(@tanstack/query-core@5.104.4)(@types/react@19.3.0)(react@19.3.1)(typescript@7.0.2)(use-sync-external-store@1.7.0(react@19.3.1))(viem@2.57.7(typescript@7.0.2)(zod@4.6.7)))(@walletconnect/ethereum-provider@2.21.8(@types/react@19.3.0)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7))(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
@@ -742,9 +739,6 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      graphql:
-        specifier: ^17.0.2
-        version: 17.0.2
       i18next:
         specifier: ^26.5.2
         version: 26.5.2(typescript@7.0.2)

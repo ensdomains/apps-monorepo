@@ -22,31 +22,31 @@ describe('profile image upload helpers', () => {
       imageUrl:
         'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/vitalik.eth/h',
     },
-  ] as const)('prepares a $type upload draft without signing or sending it', async ({
-    type,
-    imageUrl,
-  }) => {
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
+  ] as const)(
+    'prepares a $type upload draft without signing or sending it',
+    async ({ type, imageUrl }) => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
 
-    const file = new File([new Uint8Array([1, 2, 3])], 'avatar.jpg', {
-      type: 'image/jpeg',
-    })
+      const file = new File([new Uint8Array([1, 2, 3])], 'avatar.jpg', {
+        type: 'image/jpeg',
+      })
 
-    const upload = await prepareProfileImageUpload({
-      type,
-      name: 'vitalik.eth',
-      file,
-    })
+      const upload = await prepareProfileImageUpload({
+        type,
+        name: 'vitalik.eth',
+        file,
+      })
 
-    expect(upload).toMatchObject({
-      kind: type,
-      imageUrl,
-      name: 'vitalik.eth',
-    })
-    expect(upload.dataURL).toMatch(/^data:image\/jpeg;base64,/)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
+      expect(upload).toMatchObject({
+        kind: type,
+        imageUrl,
+        name: 'vitalik.eth',
+      })
+      expect(upload.dataURL).toMatch(/^data:image\/jpeg;base64,/)
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
 
   it('submits a prepared upload with a typed-data signature', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
