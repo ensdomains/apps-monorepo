@@ -5,6 +5,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { render } from '@/utils/test-utils'
 import { GeneralTab } from './GeneralTab'
+import { profileLanguageOptions } from './profileLanguages'
 
 const profileImageFieldMock = vi.hoisted(() => ({
   removeHandlers: new Map<string, () => void>(),
@@ -229,6 +230,46 @@ describe('GeneralTab language and timezone selectors', () => {
     expect(
       JSON.parse(screen.getByTestId('base-records').textContent ?? '{}'),
     ).toEqual({ language: '' })
+  })
+
+  it('picks the highlighted option with the keyboard', async () => {
+    render(<SelectorsHarness />)
+
+    const language = screen.getByRole('combobox', { name: 'Language' })
+    fireEvent.change(language, { target: { value: 'germ' } })
+    await screen.findByRole('option', { name: 'German' })
+
+    fireEvent.keyDown(language, { key: 'ArrowDown' })
+    fireEvent.keyDown(language, { key: 'Enter' })
+
+    expect(
+      JSON.parse(screen.getByTestId('base-records').textContent ?? '{}'),
+    ).toMatchObject({ language: 'de' })
+  })
+
+  it('lists every option from the chevron', async () => {
+    render(<SelectorsHarness />)
+
+    const language = screen.getByRole('combobox', { name: 'Language' })
+    const trigger = language.parentElement?.querySelector('button')
+    if (!trigger) throw new Error('missing combobox trigger')
+
+    fireEvent.click(trigger)
+
+    expect(await screen.findAllByRole('option')).toHaveLength(
+      profileLanguageOptions.length,
+    )
+  })
+
+  it('tells the user when nothing matches', async () => {
+    render(<SelectorsHarness />)
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {
+      target: { value: 'zzz' },
+    })
+
+    expect(await screen.findByText('No matches')).toBeInTheDocument()
+    expect(screen.queryByRole('option')).toBeNull()
   })
 
   it('filters timezones by offset text', async () => {
