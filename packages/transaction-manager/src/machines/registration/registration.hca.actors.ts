@@ -1008,13 +1008,13 @@ export interface L2BridgePayment {
  * legs stay session-signed from the HCA once it is funded.
  */
 export function submitL2BridgeActor(input: {
-  hca: Address
-  payment: L2BridgePayment
-  signer: Signer
-  publicClient: PublicClient
-  id?: string
+  readonly hca: Address
+  readonly payment: L2BridgePayment
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
   /** Receives the bridge intent's id once the orchestrator accepts it. */
-  onIntentSubmitted?: (intentId: bigint) => void
+  readonly onIntentSubmitted?: (intentId: bigint) => void
 }): ResultAsync<string, Error> {
   const { payment, signer } = input
   // Like the permit: a refusal must never reach the wallet.
@@ -1076,14 +1076,14 @@ const L2_BRIDGE_WAIT_MS = 10 * 60_000
  * unconfirmed payment is never followed by a second one.
  */
 export function awaitL2BridgeActor(input: {
-  intentId: bigint
-  fetchIntentStatus?: (
+  readonly intentId: bigint
+  readonly fetchIntentStatus?: (
     intentId: bigint,
     signal?: AbortSignal,
   ) => Promise<string | null>
-  signal?: AbortSignal
-  pollIntervalMs?: number
-  timeoutMs?: number
+  readonly signal?: AbortSignal
+  readonly pollIntervalMs?: number
+  readonly timeoutMs?: number
 }): ResultAsync<'landed' | 'dead', Error> {
   const { fetchIntentStatus, signal } = input
   if (!fetchIntentStatus) {

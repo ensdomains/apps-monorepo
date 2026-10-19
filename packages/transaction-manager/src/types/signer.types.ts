@@ -80,9 +80,9 @@ export interface RhinestoneSigner {
   /** Active scoped session, if any. Absent → owner-signed Intents. */
   session?: RhinestoneSessionContext
   /** Pays this signer's intents from the wallet's USDC on an L2 instead. */
-  l2Funding?: L2FundingSource
+  readonly l2Funding?: L2FundingSource
   /** USDC (6dp) checkout showed `l2Funding` being charged, fee included. */
-  l2DisplayedCharge?: bigint
+  readonly l2DisplayedCharge?: bigint
 }
 
 /**

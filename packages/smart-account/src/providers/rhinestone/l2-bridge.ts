@@ -6,17 +6,15 @@
  * must follow as its own intents.
  */
 
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import type {
   IntentRoute,
   PreparedTransactionData,
   RhinestoneAccount,
   RhinestoneAccountConfig,
-  TransactionResult,
 } from '@rhinestone/sdk'
 import {
   err,
-  errAsync,
   fromPromise,
   fromThrowable,
   ok,
@@ -127,15 +125,12 @@ export function createL2BridgeAccount(params: {
 }
 
 /** Quote `route`, returning it only if every rule in `validateL2BridgeQuote` holds. */
-export function quoteL2Bridge(
+export const quoteL2Bridge = ResultFn(async function* (
   account: RhinestoneAccount,
   route: L2BridgeRoute,
   now: () => bigint = unixNow,
-): ResultAsync<
-  L2BridgeQuote,
-  L2BridgeUnavailableError | L2BridgeRejectedError
-> {
-  return fromPromise(
+) {
+  const prepared = yield* fromPromise(
     account.prepareTransaction({
       sourceChains: [route.sourceChain],
       targetChain: route.targetChain,
@@ -150,15 +145,13 @@ export function quoteL2Bridge(
         message: `No route from ${route.sourceChain.name} is available.`,
         cause,
       }),
-  ).andThen((prepared) =>
-    fromThrowable(
-      () => account.getTransactionMessages(prepared),
-      () => new L2BridgeRejectedError({ message: 'Unreadable route.' }),
-    )().andThen((messages) =>
-      validateL2BridgeQuote({ route, prepared, messages, now: now() }),
-    ),
   )
-}
+  const messages = yield* fromThrowable(
+    () => account.getTransactionMessages(prepared),
+    () => new L2BridgeRejectedError({ message: 'Unreadable route.' }),
+  )()
+  return validateL2BridgeQuote({ route, prepared, messages, now: now() })
+})
 
 type TransactionMessages = ReturnType<
   RhinestoneAccount['getTransactionMessages']
@@ -362,38 +355,33 @@ function readPermit(
  * Have the wallet sign the quoted permit and submit the intent. A signature
  * that lands too close to the deadline is not submitted.
  */
-export function submitL2Bridge(
+export const submitL2Bridge = ResultFn(async function* (
   account: RhinestoneAccount,
   quote: L2BridgeQuote,
   now: () => bigint = unixNow,
-): ResultAsync<TransactionResult, L2BridgeExpiredError | L2BridgeSubmitError> {
-  return fromPromise(
+) {
+  const signed = yield* fromPromise(
     account.signTransaction(quote.prepared),
     (cause) =>
       new L2BridgeSubmitError({
         message: 'The payment was not signed.',
         cause,
       }),
-  ).andThen(
-    (
-      signed,
-    ): ResultAsync<
-      TransactionResult,
-      L2BridgeExpiredError | L2BridgeSubmitError
-    > =>
-      now() + SUBMIT_MARGIN_S >= quote.deadline
-        ? errAsync(
-            new L2BridgeExpiredError({
-              message: 'The quote expired before it was signed.',
-            }),
-          )
-        : fromPromise(
-            account.submitTransaction(signed),
-            (cause) =>
-              new L2BridgeSubmitError({
-                message: 'The payment could not be submitted.',
-                cause,
-              }),
-          ),
   )
-}
+  if (now() + SUBMIT_MARGIN_S >= quote.deadline) {
+    return err(
+      new L2BridgeExpiredError({
+        message: 'The quote expired before it was signed.',
+      }),
+    )
+  }
+  const submitted = yield* fromPromise(
+    account.submitTransaction(signed),
+    (cause) =>
+      new L2BridgeSubmitError({
+        message: 'The payment could not be submitted.',
+        cause,
+      }),
+  )
+  return ok(submitted)
+})
