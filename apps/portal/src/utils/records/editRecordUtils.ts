@@ -162,3 +162,14 @@ export function createNewRecord(
     .with('abi', () => ({ type: 'abi' as const, value, _uid }))
     .exhaustive()
 }
+
+/** Whether a pending change touches a record type outside `editableTypes`. */
+export const hasDisallowedChanges = (
+  records: readonly EditableRecord[],
+  editableTypes: ReadonlySet<RecordType>,
+): boolean =>
+  records.some(
+    (record) =>
+      (record.isNew || record.isEdited || record.isDeleted) &&
+      !editableTypes.has(record.type),
+  )
