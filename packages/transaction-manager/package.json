@@ -20,13 +20,13 @@
     "@ens-apps/config": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/address-encoder": "^1.1.2",
+    "@ensdomains/address-encoder": "^1.1.4",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
-    "idb": "^8.0.3",
-    "neverthrow": "^8.1.1",
-    "valibot": "^1.2.0",
+    "idb": "^8.0.4",
+    "neverthrow": "^8.2.0",
+    "valibot": "^1.5.0",
     "viem": "catalog:",
     "xstate": "catalog:"
   },
@@ -36,8 +36,8 @@
     "wagmi": "^3.0.2"
   },
   "devDependencies": {
-    "@types/react": "^19.0.6",
-    "react": "^19.2.5",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "wagmi": "catalog:"

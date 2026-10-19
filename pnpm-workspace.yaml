@@ -7,22 +7,22 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": ^5.2.1
-  "@ensdomains/ensjs-abi": ^5.0.2
-  xstate: ^5.24.0
+  "@ensdomains/ensjs": ^5.2.3
+  "@ensdomains/ensjs-abi": ^5.0.3
+  xstate: ^5.33.3
   typescript: ^7.0.2
-  vite: ^8.0.10
-  vitest: ^4.1.11
-  "@vitest/coverage-v8": ^4.1.11
-  happy-dom: ^20.13.2
+  vite: ^8.3.4
+  vitest: ^4.1.12
+  "@vitest/coverage-v8": ^4.1.12
+  happy-dom: ^20.14.6
   "@cloudflare/vite-plugin": ^1.64.0
   wrangler: ^4.151.3
   posthog-js: 1.404.1
-  "@posthog/react": ^1.10.3
-  viem: ^2.52.2
+  "@posthog/react": ^1.11.3
+  viem: ^2.57.7
   "@rhinestone/sdk": 1.8.0
   # Peer of @rhinestone/sdk/jwt-server, which signs the orchestrator access tokens.
-  jose: ^6.0.0
+  jose: ^6.2.12
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
@@ -35,15 +35,15 @@ catalog:
   # wagmi pins @wagmi/core and @wagmi/connectors to exact versions, so these
   # three only ever move together — bumping one alone just re-duplicates the
   # tree at wagmi's pinned version.
-  wagmi: ^3.7.6
-  "@wagmi/core": ^3.6.4
-  "@wagmi/connectors": ^8.1.0
+  wagmi: ^3.7.7
+  "@wagmi/core": ^3.6.5
+  "@wagmi/connectors": ^8.2.0
   # Optional peer of abitype (under viem). pnpm keys each viem copy by the zod it
   # resolves, and the apps otherwise pick up tanstack router's zod 3 while every
   # package gets zod 4. That splits viem into two module instances, and then
   # `instanceof` on viem errors fails across the app/package boundary. Declared
   # in the apps only to pin that peer; nothing imports it.
-  zod: ^4.6.5
+  zod: ^4.6.7
 
 dedupeDirectDeps: true
 
