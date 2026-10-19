@@ -1,5 +1,11 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { type Address, encodeFunctionData, erc20Abi, type Hex } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  erc20Abi,
+  type Hex,
+  type WalletClient,
+} from 'viem'
 
 /**
  * Builds the standard EOA {@link CustomTransactionIntent} that every
@@ -30,6 +36,24 @@ export function toEoaCustomIntent(params: {
       ...(params.gas != null ? { gas: params.gas } : {}),
     },
   }
+}
+
+/**
+ * {@link toEoaCustomIntent} sent from the wallet's own account, which the
+ * `prepare*Transaction` builders require before they encode anything.
+ */
+export function toEoaIntent(
+  walletClient: WalletClient,
+  params: {
+    readonly to: Address
+    readonly data: Hex
+    readonly chainId: number
+  },
+): CustomTransactionIntent {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
+  return toEoaCustomIntent({ from: walletClient.account.address, ...params })
 }
 
 /**

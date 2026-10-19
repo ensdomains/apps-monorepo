@@ -18,6 +18,7 @@ const NO_FUSES = {
   cannotTransfer: false,
   cannotSetResolver: false,
   cannotUnwrap: false,
+  cannotCreateSubdomain: false,
   parentCannotControl: false,
 }
 
