@@ -178,10 +178,6 @@ vi.mock('../service/syncEthAddressRecord', () => ({
 vi.mock('../../profile/service/setPrimaryName', () => ({
   submitPrimaryNameForward: vi.fn(async () => 'tx-primary-forward'),
   submitPrimaryNameReverse: vi.fn(async () => 'tx-primary-reverse'),
-  // Default to a clean owner: the cleanup pass is a no-op for anyone who has
-  // never set an `addr.reverse` name, which is the common case.
-  hasStaleAddrReverse: vi.fn(async () => false),
-  submitClearAddrReverse: vi.fn(() => 'tx-addr-reverse-clear'),
 }))
 
 vi.mock('@/features/shared/registration/pricing', () => ({
@@ -209,8 +205,6 @@ vi.mock('../service/registrationPersistence', () => ({
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
-  hasStaleAddrReverse,
-  submitClearAddrReverse,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
@@ -226,8 +220,6 @@ const waitForKnownTransaction = vi.mocked(waitForTransaction)
 const startSyncEthRecord = vi.mocked(startSyncEthAddressRecordTransaction)
 const startPrimaryNameForward = vi.mocked(submitPrimaryNameForward)
 const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
-const checkStaleAddrReverse = vi.mocked(hasStaleAddrReverse)
-const startAddrReverseClear = vi.mocked(submitClearAddrReverse)
 
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
@@ -744,86 +736,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     expect(startSyncEthRecord).not.toHaveBeenCalled()
     expect(startPrimaryNameForward).not.toHaveBeenCalled()
     expect(startPrimaryNameReverse).not.toHaveBeenCalled()
-    // The cleanup pass still runs, but finds nothing to clear and so never
-    // prompts the wallet.
-    expect(checkStaleAddrReverse).toHaveBeenCalledTimes(1)
-    expect(startAddrReverseClear).not.toHaveBeenCalled()
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(false)
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-  })
-
-  it('clears a shadowing addr.reverse from the owner EOA after an HCA bundle', async () => {
-    // `addr.reverse` outranks the `default.reverse` claim the reveal batch
-    // made, so without this the new primary name never resolves.
-    checkStaleAddrReverse.mockResolvedValueOnce(true)
-    waitForKnownTransaction.mockReturnValueOnce(
-      deferred<{ hash: '0xclear' }>().promise as never,
-    )
-
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    expect(startAddrReverseClear).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ownerAddress: EOA_ADDRESS,
-        signer: expect.objectContaining({ type: 'eoa' }),
-      }),
-    )
-    expect(actor.getSnapshot().context.addrReverseClearTxId).toBe(
-      'tx-addr-reverse-clear',
-    )
-    expect(
-      actor.getSnapshot().matches({
-        registering: { transaction: 'waitingForAddrReverseClear' },
-      }),
-    ).toBe(true)
-  })
-
-  it('reaches success once the addr.reverse clear confirms', async () => {
-    checkStaleAddrReverse.mockResolvedValueOnce(true)
-    waitForKnownTransaction.mockResolvedValueOnce({ hash: '0xclear' } as never)
-
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    // Attempted exactly once — the decision state is re-entered afterwards and
-    // must not loop back into the clear.
-    expect(startAddrReverseClear).toHaveBeenCalledTimes(1)
-    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(false)
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-  })
-
-  it('skips the addr.reverse cleanup when no primary name was bundled', async () => {
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    expect(checkStaleAddrReverse).not.toHaveBeenCalled()
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-  })
-
-  it('still succeeds when the addr.reverse clear is rejected', async () => {
-    checkStaleAddrReverse.mockRejectedValueOnce(new Error('user rejected'))
-
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    // The name is registered and the default claim is written; only the
-    // cleanup failed, so this is a flagged success, not a failure.
-    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
     expect(
       actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
     ).toBe(true)
@@ -1168,16 +1081,6 @@ describe('registrationV2UiMachine — registration.resume', () => {
       totalPrice: 1_200_000n,
       basePriceNumber: 1.2,
     })
-  })
-
-  it('carries the primary name the ORIGINAL run committed to', () => {
-    // The reveal batch already bundles it; re-deriving from current UI state
-    // could disagree with the batch that is in flight.
-    const actor = startActorInTokens()
-
-    actor.send(resumeEvent(hcaAccount, { primaryName: 'example.eth' }))
-
-    expect(actor.getSnapshot().context.hcaPrimaryName).toBe('example.eth')
   })
 
   it('restores the resolver so post-registration does not deploy a second one', () => {

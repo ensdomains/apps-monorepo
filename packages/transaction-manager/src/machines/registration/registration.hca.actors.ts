@@ -21,7 +21,7 @@
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
  *       price re-read immediately before; exact-ordered reveal batch from
  *       `buildRevealBatch` (deployProxy? → approve(price) → register(wallet) →
- *       setters → setNameWithHCA?).
+ *       setters → setNameWithHCA? → claimWithHCA?).
  */
 
 import { requireChainId } from '@ens-apps/config'
@@ -35,6 +35,7 @@ import {
   type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
+  hasAddrReverseResolver,
   type QuoteLegResult,
   readCommitment,
   readQuotedGasRefunds,
@@ -495,7 +496,9 @@ export function estimateHcaBudgetActor(input: {
             // → 3277666 both times). The rail prices `/intents/route` purely
             // on `destinationGasUnits`, so what actually funds these calls is
             // `registerLegGasLimit` below, built from the same inputs.
-            ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
+            ...(input.primaryName
+              ? { setPrimaryName: input.primaryName, clearAddrReverse: true }
+              : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
@@ -1535,6 +1538,14 @@ export function submitRevealBatchActor(input: {
         hca: input.hca,
       })
 
+      const clearAddrReverse = input.primaryName
+        ? await hasAddrReverseResolver({
+            publicClient: input.publicClient,
+            chainId,
+            wallet: input.wallet,
+          })
+        : false
+
       const revealCalls = buildRevealBatch({
         chainId,
         hca: input.hca,
@@ -1545,7 +1556,9 @@ export function submitRevealBatchActor(input: {
         secret: input.secret,
         price,
         duration: input.duration,
-        ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
+        ...(input.primaryName
+          ? { setPrimaryName: input.primaryName, clearAddrReverse }
+          : {}),
       })
 
       const request = buildUserPaidRequest({

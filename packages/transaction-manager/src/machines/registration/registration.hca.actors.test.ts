@@ -3,6 +3,7 @@
 import {
   computeResolverAddress,
   getDestinationContracts,
+  HCA_ADDR_REVERSE_CLEAR_GAS,
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
@@ -61,6 +62,8 @@ const C = getDestinationContracts(sepolia.id)
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
+const RESOLVER_WITH_RECORD =
+  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address
 const SESSION_KEY = '0x9999999999999999999999999999999999999999' as Address
 const COMMITMENT = `0x${'cc'.repeat(32)}` as Hex
 
@@ -315,6 +318,57 @@ describe('submitRevealBatchActor', () => {
     expect(submittedRequest().rhinestoneParams.sessionEnableData).toBe(
       sessionEnable.enableData,
     )
+  })
+
+  // `addr.reverse` outranks the `default.reverse` claim, so a leftover entry
+  // is cleared in the same session-signed batch, not by a wallet prompt.
+  it.each([
+    { label: 'clears', addrReverseResolver: RESOLVER_WITH_RECORD },
+    { label: 'leaves', addrReverseResolver: zeroAddress },
+  ])('$label addr.reverse per its resolver', async ({
+    addrReverseResolver,
+  }) => {
+    const revealClient = {
+      chain: sepolia,
+      readContract: vi.fn(({ functionName }: { functionName: string }) =>
+        Promise.resolve(
+          functionName === 'resolver' ? addrReverseResolver : [5_000_000n, 0n],
+        ),
+      ),
+      getCode: vi.fn().mockResolvedValue('0x'),
+    } as unknown as PublicClient
+
+    const result = await submitRevealBatchActor({
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      duration: 31_536_000n,
+      secret: `0x${'dd'.repeat(32)}` as Hex,
+      sessionEnable,
+      signer: rhinestoneSigner,
+      publicClient: revealClient,
+      primaryName: 'myname.eth',
+    })
+
+    expect(result.isOk()).toBe(true)
+    const calls = submittedRequest().rhinestoneParams.calls
+    const claim = calls.find((call) =>
+      isAddressEqual(call.to, C.reverseRegistrarHcaAdapter),
+    )
+    if (addrReverseResolver === zeroAddress) {
+      expect(claim).toBeUndefined()
+      return
+    }
+    // Last, after setNameWithHCA, for the wallet with resolver 0.
+    expect(claim).toBe(calls.at(-1))
+    const decoded = decodeFunctionData({
+      abi: parseAbi([
+        'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+      ]),
+      // biome-ignore lint/style/noNonNullAssertion: asserted defined above
+      data: claim!.data,
+    })
+    expect(decoded.args).toEqual([WALLET, zeroAddress])
   })
 })
 
@@ -982,7 +1036,9 @@ describe('estimateHcaBudgetActor', () => {
     await estimateHcaBudgetActor(input)
     const withoutName = registerLegParams().gasLimit
 
-    expect(withName - withoutName).toBe(primaryNameGas('myname.eth'))
+    expect(withName - withoutName).toBe(
+      primaryNameGas('myname.eth') + HCA_ADDR_REVERSE_CLEAR_GAS,
+    )
   })
 
   it('scales the widening with the name length', async () => {

@@ -67,6 +67,10 @@ export interface DestinationContracts {
   /** Replacement/default resolver written during migration. */
   readonly publicResolverV2: Address
   readonly defaultReverseRegistrarHcaAdapter: Address
+  /** The `addr.reverse` adapter; the reveal clears a shadowing entry through it. */
+  readonly reverseRegistrarHcaAdapter: Address
+  /** The v1 registry, which holds the `addr.reverse` resolver. */
+  readonly legacyRegistry: Address
   readonly usdc: Address
 }
 
@@ -87,6 +91,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
     defaultReverseRegistrarHcaAdapter:
       ensjsSepolia.ensDefaultReverseRegistrarAdapter.address,
+    reverseRegistrarHcaAdapter: ensjsSepolia.ensReverseRegistrarAdapter.address,
+    legacyRegistry: ensjsSepolia.ensLegacyRegistry.address,
 
     // Not in ensjs yet — contracts-v2 `deployments/sepolia` @ 95de2ee0.
     //
@@ -94,7 +100,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // expected `deployProxy` calldata and compares keccak hashes, and only
     // accepts known selectors on known targets. Its `VERIFIABLE_PROXY_LOGIC()`,
     // `PERMITTED_RESOLVER_IMPL()`, `VERIFIABLE_FACTORY()`, `ETH_REGISTRY()` and
-    // `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()` getters all agree with the
+    // `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()` and
+    // `REVERSE_REGISTRAR_HCA_ADAPTER()` getters all agree with the
     // values in this table. Re-read them after any redeploy.
     //
     // The implementation is the one the factory approves
@@ -128,6 +135,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     userRegistryImpl: ensjsMainnet.ensUserRegistryImpl.address,
     defaultReverseRegistrarHcaAdapter:
       ensjsMainnet.ensDefaultReverseRegistrarAdapter.address,
+    reverseRegistrarHcaAdapter: ensjsMainnet.ensReverseRegistrarAdapter.address,
+    legacyRegistry: ensjsMainnet.ensLegacyRegistry.address,
     // Canonical mainnet USDC. The registrar charges it; the funding permit
     // and the intent fee are denominated in it.
     usdc: ensjsMainnet.usdc.address,

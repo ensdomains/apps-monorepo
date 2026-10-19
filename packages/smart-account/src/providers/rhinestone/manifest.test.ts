@@ -60,6 +60,8 @@ describe('remediated Sepolia destination manifest', () => {
       publicResolverV2: '0xdC4a563d00F5c3012b699794eB9e13A561Be386F',
       defaultReverseRegistrarHcaAdapter:
         '0x36f97328e843e37520cbF530e9402791c2754066',
+      reverseRegistrarHcaAdapter: '0x56Bce5E727FAa9D237341Bb5B9E8a03D5919779d',
+      legacyRegistry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
       usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     })
   })
@@ -98,6 +100,8 @@ describe('mainnet destination manifest', () => {
       publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',
       defaultReverseRegistrarHcaAdapter:
         '0xd86E32499eCAFe9c181dd7410f93A1a9bB61ef0d',
+      reverseRegistrarHcaAdapter: '0x349151735790269a9C14668B58D7C83b5ecb9607',
+      legacyRegistry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
       usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     })
   })
