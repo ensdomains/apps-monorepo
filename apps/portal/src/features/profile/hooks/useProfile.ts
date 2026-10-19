@@ -78,6 +78,9 @@ const getProfile = ResultFn(async function* ({
       // default requested coins
       // EVM
       coinNameToTypeMap.eth,
+      // ENSIP-19 default address: read on-chain so a fresh write shows up
+      // without waiting for the indexer to list the coin type.
+      coinNameToTypeMap.default,
       coinNameToTypeMap.arb1,
       coinNameToTypeMap.op,
       coinNameToTypeMap.base,
