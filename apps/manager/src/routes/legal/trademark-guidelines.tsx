@@ -1,6 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { TrademarkGuidelinesPage } from '@/features/legal/pages/TrademarkGuidelinesPage'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/legal/trademark-guidelines')({
-  component: TrademarkGuidelinesPage,
+  beforeLoad: () => {
+    throw redirect({
+      href: 'https://ens.domains/legal/trademark-guidelines',
+      replace: true,
+    })
+  },
 })
