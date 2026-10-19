@@ -1,8 +1,13 @@
-import { NetworkConfigError } from '@ens-apps/config'
+import { type EnsChain, NetworkConfigError } from '@ens-apps/config'
 import { fromSync } from '@ens-apps/utils/neverthrow'
 import { ok, type Result } from 'neverthrow'
-import { createPublicClient, http } from 'viem'
-import { error } from '../../utils/result'
+import {
+  createPublicClient,
+  type HttpTransport,
+  http,
+  type PublicClient,
+} from 'viem'
+import { error, type GenericError } from '../../utils/result'
 import { getConfig } from '../config'
 
 export type ViemClient =
@@ -10,7 +15,9 @@ export type ViemClient =
     ? T
     : never
 
-export const createEnsClient = (env: CloudflareBindings) => {
+export const createEnsClient = (
+  env: CloudflareBindings,
+): Result<PublicClient<HttpTransport, EnsChain>, GenericError> => {
   if (env.CHAIN !== 'sepolia' && env.CHAIN !== 'mainnet') {
     return error({
       code: 'UNSUPPORTED_CHAIN',
