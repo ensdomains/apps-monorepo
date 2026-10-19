@@ -55,7 +55,7 @@ const unknownEntry = () => ({
 
 const askedIds = () =>
   (
-    multicall.mock.calls[0]?.[0] as {
+    multicall.mock.calls[0]![0] as {
       contracts: { args: readonly bigint[] }[]
     }
   ).contracts.map((c) => c.args[0])

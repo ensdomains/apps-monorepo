@@ -291,7 +291,7 @@ describe('setPrimaryNameWithHca', () => {
     )
 
     const calls = (
-      start.mock.calls[0]?.[0] as unknown as {
+      start.mock.calls[0]![0] as unknown as {
         request: { rhinestoneParams: { calls: { to: string; data: Hex }[] } }
       }
     ).request.rhinestoneParams.calls
@@ -322,7 +322,7 @@ describe('setPrimaryNameWithHca funding', () => {
     })
 
     const { rhinestoneParams } = (
-      start.mock.calls[0]?.[0] as unknown as {
+      start.mock.calls[0]![0] as unknown as {
         request: { rhinestoneParams: Record<string, unknown> }
       }
     ).request
@@ -353,7 +353,7 @@ describe('setPrimaryNameWithHca funding', () => {
     })
 
     const { rhinestoneParams } = (
-      start.mock.calls[0]?.[0] as unknown as {
+      start.mock.calls[0]![0] as unknown as {
         request: {
           rhinestoneParams: {
             calls: { data: Hex }[]
@@ -388,7 +388,7 @@ describe('setPrimaryNameWithHca funding', () => {
 
     expect(
       (
-        start.mock.calls[0]?.[0] as unknown as {
+        start.mock.calls[0]![0] as unknown as {
           request: { rhinestoneParams: Record<string, unknown> }
         }
       ).request.rhinestoneParams,
@@ -467,36 +467,32 @@ describe('primary-name identity validation', () => {
   }
 
   describe.each(Object.entries(submitters))('%s', (_, submit) => {
-    it.each([
-      'ALICE.eth',
-      'ALICE',
-      'cafe\u0301.eth',
-      'alice..eth',
-      '',
-    ])('rejects %j before resolving or submitting', async (name) => {
-      await expect(submit(name)).rejects.toThrow(/canonical/)
-      expect(getEnsAddress).not.toHaveBeenCalled()
-      expect(planFunding).not.toHaveBeenCalled()
-      expect(start).not.toHaveBeenCalled()
-    })
+    it.each(['ALICE.eth', 'ALICE', 'cafe\u0301.eth', 'alice..eth', ''])(
+      'rejects %j before resolving or submitting',
+      async (name) => {
+        await expect(submit(name)).rejects.toThrow(/canonical/)
+        expect(getEnsAddress).not.toHaveBeenCalled()
+        expect(planFunding).not.toHaveBeenCalled()
+        expect(start).not.toHaveBeenCalled()
+      },
+    )
 
-    it.each([
-      null,
-      zeroAddress,
-      HCA_ADDRESS,
-    ])('rejects an unmatched forward address %s', async (address) => {
-      vi.mocked(getEnsAddress).mockResolvedValue(address)
-      await expect(submit('alice.eth')).rejects.toThrow(
-        /does not resolve to the owner/,
-      )
-      expect(getEnsAddress).toHaveBeenCalledWith(expect.anything(), {
-        name: 'alice.eth',
-        coinType: 60n,
-        strict: true,
-      })
-      expect(planFunding).not.toHaveBeenCalled()
-      expect(start).not.toHaveBeenCalled()
-    })
+    it.each([null, zeroAddress, HCA_ADDRESS])(
+      'rejects an unmatched forward address %s',
+      async (address) => {
+        vi.mocked(getEnsAddress).mockResolvedValue(address)
+        await expect(submit('alice.eth')).rejects.toThrow(
+          /does not resolve to the owner/,
+        )
+        expect(getEnsAddress).toHaveBeenCalledWith(expect.anything(), {
+          name: 'alice.eth',
+          coinType: 60n,
+          strict: true,
+        })
+        expect(planFunding).not.toHaveBeenCalled()
+        expect(start).not.toHaveBeenCalled()
+      },
+    )
 
     it('does not submit when forward resolution fails', async () => {
       vi.mocked(getEnsAddress).mockRejectedValue(new Error('RPC unavailable'))

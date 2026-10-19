@@ -704,37 +704,40 @@ describe('verifyAtomicMigrationBatch', () => {
   it.each([
     ['expiry', { status: 2, expiry: EXPIRY + 1n, resource: RESOURCE }],
     ['resource', { status: 2, expiry: EXPIRY, resource: RESOURCE + 1n }],
-  ] as const)('rejects a copied name with a mismatched %s in getState', async (_field, state) => {
-    const readContract = vi.fn((request: ReadRequest) => {
-      if (request.functionName === 'getSubregistry') {
-        return Promise.resolve(PARENT_REGISTRY)
-      }
-      if (request.functionName === 'getState') {
-        return Promise.resolve({
-          ...state,
-          latestOwner: WALLET,
-          tokenId: 1n,
-        })
-      }
-      return Promise.reject(
-        new Error(`unexpected read: ${request.functionName}`),
-      )
-    })
-    const publicClient = { readContract } as unknown as PublicClient
+  ] as const)(
+    'rejects a copied name with a mismatched %s in getState',
+    async (_field, state) => {
+      const readContract = vi.fn((request: ReadRequest) => {
+        if (request.functionName === 'getSubregistry') {
+          return Promise.resolve(PARENT_REGISTRY)
+        }
+        if (request.functionName === 'getState') {
+          return Promise.resolve({
+            ...state,
+            latestOwner: WALLET,
+            tokenId: 1n,
+          })
+        }
+        return Promise.reject(
+          new Error(`unexpected read: ${request.functionName}`),
+        )
+      })
+      const publicClient = { readContract } as unknown as PublicClient
 
-    const error = await verifyAtomicMigrationBatch({
-      publicClient,
-      batch: {
-        index: 13,
-        verificationExpectations: [copyExpectations[5]],
-      },
-    }).catch((cause: unknown) => cause)
+      const error = await verifyAtomicMigrationBatch({
+        publicClient,
+        batch: {
+          index: 13,
+          verificationExpectations: [copyExpectations[5]],
+        },
+      }).catch((cause: unknown) => cause)
 
-    expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
-    expect(error).toMatchObject({
-      failures: [{ expectationId: 'copy:name-expiry' }],
-    })
-  })
+      expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
+      expect(error).toMatchObject({
+        failures: [{ expectationId: 'copy:name-expiry' }],
+      })
+    },
+  )
 })
 
 describe('reconcileAtomicMigrationBatch', () => {

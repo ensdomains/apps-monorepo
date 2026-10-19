@@ -46,25 +46,23 @@ describe('buildConfig', () => {
       ).toThrow(/Unknown network "holesky".*mainnet, sepolia/s)
     })
 
-    it.each([
-      '',
-      'SEPOLIA',
-      'Sepolia',
-      ' sepolia',
-    ])('rejects %o rather than coercing it', (network) => {
-      expect(() => buildSepolia({ network, rpcUrl: SEPOLIA_RPC })).toThrow(
-        NetworkConfigError,
-      )
-    })
+    it.each(['', 'SEPOLIA', 'Sepolia', ' sepolia'])(
+      'rejects %o rather than coercing it',
+      (network) => {
+        expect(() => buildSepolia({ network, rpcUrl: SEPOLIA_RPC })).toThrow(
+          NetworkConfigError,
+        )
+      },
+    )
   })
 
-  it.each([
-    'sepolia',
-    'mainnet',
-  ] as const)('uses the %s backend without inheriting the other network', (network) => {
-    const config = buildConfig({ network, allowMissingEndpoints: true })
-    expect(config.appApiUrl).toBe(`https://${network}.app-api.ens.domains`)
-  })
+  it.each(['sepolia', 'mainnet'] as const)(
+    'uses the %s backend without inheriting the other network',
+    (network) => {
+      const config = buildConfig({ network, allowMissingEndpoints: true })
+      expect(config.appApiUrl).toBe(`https://${network}.app-api.ens.domains`)
+    },
+  )
 
   describe('ENSv2 deployment guard', () => {
     // ensjs carries a key for every network but fills undeployed ones with the
@@ -133,16 +131,14 @@ describe('buildConfig', () => {
       ).toBe('/rpc')
     })
 
-    it.each([
-      '   ',
-      'not-a-url',
-      'ftp://rpc.example',
-      'rpc.example',
-    ])('rejects %o as an rpc url', (rpcUrl) => {
-      expect(() => buildSepolia({ network: 'sepolia', rpcUrl })).toThrow(
-        NetworkConfigError,
-      )
-    })
+    it.each(['   ', 'not-a-url', 'ftp://rpc.example', 'rpc.example'])(
+      'rejects %o as an rpc url',
+      (rpcUrl) => {
+        expect(() => buildSepolia({ network: 'sepolia', rpcUrl })).toThrow(
+          NetworkConfigError,
+        )
+      },
+    )
 
     // An app has no attributed endpoint on every network, so it may supply
     // none and ride the shared public fallbacks.

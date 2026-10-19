@@ -33,7 +33,7 @@ const supportsNameSetters = (supported: boolean) =>
   client.multicall.mockResolvedValue([{ status: 'success', result: supported }])
 
 const probedSelector = () =>
-  (client.call.mock.calls[0]?.[0] as { data: string }).data.slice(0, 10)
+  (client.call.mock.calls[0]![0] as { data: string }).data.slice(0, 10)
 
 beforeEach(() => {
   client.multicall.mockReset()

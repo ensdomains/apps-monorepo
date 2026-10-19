@@ -43,14 +43,14 @@ describe('resolveRenewalLabel', () => {
     expect(resolveRenewalLabel('alice.eth')._unsafeUnwrap()).toBe('alice')
   })
 
-  it.each([
-    'ALICE.eth',
-    'Alice.ETH',
-  ])('refuses %s rather than resolving it to a twin label', (name) => {
-    const result = resolveRenewalLabel(name)
-    expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().reason).toBe('LABEL_NOT_NORMALIZED')
-  })
+  it.each(['ALICE.eth', 'Alice.ETH'])(
+    'refuses %s rather than resolving it to a twin label',
+    (name) => {
+      const result = resolveRenewalLabel(name)
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().reason).toBe('LABEL_NOT_NORMALIZED')
+    },
+  )
 
   it('refuses an invisible character at parse time, before normalising', () => {
     const result = resolveRenewalLabel('ali\u00ADce.eth')

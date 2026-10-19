@@ -109,15 +109,17 @@ describe('mainnet destination manifest', () => {
 })
 
 describe('contract manifest addresses', () => {
-  it.each(
-    addressEntriesOf(SOURCE_CONTRACTS),
-  )('SOURCE_CONTRACTS.%s is checksummed', (label, address) => {
-    expectChecksummed(label, address)
-  })
+  it.each(addressEntriesOf(SOURCE_CONTRACTS))(
+    'SOURCE_CONTRACTS.%s is checksummed',
+    (label, address) => {
+      expectChecksummed(label, address)
+    },
+  )
 
-  it.each(
-    Object.entries(SHARED_CONTRACTS),
-  )('SHARED_CONTRACTS.%s is checksummed', (label, address) => {
-    expectChecksummed(label, address)
-  })
+  it.each(Object.entries(SHARED_CONTRACTS))(
+    'SHARED_CONTRACTS.%s is checksummed',
+    (label, address) => {
+      expectChecksummed(label, address)
+    },
+  )
 })

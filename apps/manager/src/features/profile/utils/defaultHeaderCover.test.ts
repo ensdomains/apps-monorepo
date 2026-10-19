@@ -16,16 +16,19 @@ describe('getDefaultHeaderCover', () => {
     ['#0082BB', '#0082BB'],
     ['#007C20', '#007C20'],
     ['#984D1B', '#984D1B'],
-  ])('generates the matching SVG cover for the %s profile theme', (themeColor, blendColor) => {
-    const cover = getDefaultHeaderCover({ themeColor })
-    const svg = decodeSvg(cover)
+  ])(
+    'generates the matching SVG cover for the %s profile theme',
+    (themeColor, blendColor) => {
+      const cover = getDefaultHeaderCover({ themeColor })
+      const svg = decodeSvg(cover)
 
-    expect(cover).toMatch(/^data:image\/svg\+xml,/)
-    expect(svg).toContain(`fill="${blendColor}" style="mix-blend-mode:color"`)
-    expect(svg).toContain('<use href="#')
-    expect(svg).not.toContain('<image')
-    expect(svg).not.toContain('data:image/png')
-  })
+      expect(cover).toMatch(/^data:image\/svg\+xml,/)
+      expect(svg).toContain(`fill="${blendColor}" style="mix-blend-mode:color"`)
+      expect(svg).toContain('<use href="#')
+      expect(svg).not.toContain('<image')
+      expect(svg).not.toContain('data:image/png')
+    },
+  )
 
   it('uses Lapis when the profile has no saved theme', () => {
     expect(decodeSvg(getDefaultHeaderCover({}))).toContain(

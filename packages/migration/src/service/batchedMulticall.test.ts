@@ -40,25 +40,28 @@ describe('batchedMulticall', () => {
     [5000, 1, [5000]],
     [5001, 2, [5000, 1]],
     [10001, 3, [5000, 5000, 1]],
-  ])('splits %i contracts across %i chunks', async (total, expectedCalls, chunkSizes) => {
-    let cursor = 0
-    for (const size of chunkSizes) {
-      respondSuccess(cursor, size)
-      cursor += size
-    }
-    const result = await batchedMulticall<number>(
-      publicClient as PublicClient,
-      fakeContracts(total),
-    )
-    expect(multicallMock).toHaveBeenCalledTimes(expectedCalls)
-    expect(result).toHaveLength(total)
-    chunkSizes.forEach((size, i) => {
-      expect(
-        (multicallMock.mock.calls[i]?.[1] as { contracts: unknown[] })
-          .contracts,
-      ).toHaveLength(size)
-    })
-  })
+  ])(
+    'splits %i contracts across %i chunks',
+    async (total, expectedCalls, chunkSizes) => {
+      let cursor = 0
+      for (const size of chunkSizes) {
+        respondSuccess(cursor, size)
+        cursor += size
+      }
+      const result = await batchedMulticall<number>(
+        publicClient as PublicClient,
+        fakeContracts(total),
+      )
+      expect(multicallMock).toHaveBeenCalledTimes(expectedCalls)
+      expect(result).toHaveLength(total)
+      chunkSizes.forEach((size, i) => {
+        expect(
+          (multicallMock.mock.calls[i]![1] as { contracts: unknown[] })
+            .contracts,
+        ).toHaveLength(size)
+      })
+    },
+  )
 
   it('preserves cross-chunk result ordering after flattening', async () => {
     respondSuccess(0, 5000)

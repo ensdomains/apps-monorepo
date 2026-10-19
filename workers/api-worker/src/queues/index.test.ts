@@ -38,15 +38,18 @@ describe.each(['sepolia', 'mainnet'])('%s queue routing', (chain) => {
     ['push-delivery', 'push'],
     ['event-ingestion', 'ingestion'],
     ['dlq', 'dlq'],
-  ] as const)('routes %s through the worker to its consumer', async (suffix, consumer) => {
-    const result = await runQueue(`${prefix}-${suffix}`, [{ id: 'job' }], env)
-    expect(consumers[consumer]).toHaveBeenCalledOnce()
-    expect(
-      Object.values(consumers).filter((handler) => handler.mock.calls.length),
-    ).toHaveLength(1)
-    expect(result.explicitAcks).toEqual(['message-0'])
-    expect(result.retryMessages).toEqual([])
-  })
+  ] as const)(
+    'routes %s through the worker to its consumer',
+    async (suffix, consumer) => {
+      const result = await runQueue(`${prefix}-${suffix}`, [{ id: 'job' }], env)
+      expect(consumers[consumer]).toHaveBeenCalledOnce()
+      expect(
+        Object.values(consumers).filter((handler) => handler.mock.calls.length),
+      ).toHaveLength(1)
+      expect(result.explicitAcks).toEqual(['message-0'])
+      expect(result.retryMessages).toEqual([])
+    },
+  )
 
   it('does not route the other environment’s queue', async () => {
     const other =

@@ -70,34 +70,33 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('useMigrationGasEstimate failure stages', () => {
-  it.each([
-    'preflight',
-    'plan',
-    'fee',
-  ] as const)('preserves a %s failure from the actual estimate pipeline', async (stage) => {
-    const cause = Object.assign(new Error('private RPC payload'), {
-      name: 'HttpRequestError',
-    })
-    if (stage === 'preflight') mocks.preflight.mockRejectedValue(cause)
-    if (stage === 'plan') mocks.plan.mockRejectedValue(cause)
-    if (stage === 'fee')
-      mocks.estimate.mockResolvedValue({ status: 'error', error: cause })
-    const { result, rerender, unmount } = renderHook(() =>
-      useMigrationGasEstimate(params),
-    )
-    const error = await invokeQuery().catch((error: unknown) => error)
-    mocks.query.mockReturnValue({ isError: true, error })
-    rerender()
-    expect(result.current).toEqual({
-      status: 'error',
-      stage,
-      cause,
-      reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
-    })
-    if (stage === 'preflight') expect(mocks.plan).not.toHaveBeenCalled()
-    if (stage !== 'fee') expect(mocks.estimate).not.toHaveBeenCalled()
-    unmount()
-  })
+  it.each(['preflight', 'plan', 'fee'] as const)(
+    'preserves a %s failure from the actual estimate pipeline',
+    async (stage) => {
+      const cause = Object.assign(new Error('private RPC payload'), {
+        name: 'HttpRequestError',
+      })
+      if (stage === 'preflight') mocks.preflight.mockRejectedValue(cause)
+      if (stage === 'plan') mocks.plan.mockRejectedValue(cause)
+      if (stage === 'fee')
+        mocks.estimate.mockResolvedValue({ status: 'error', error: cause })
+      const { result, rerender, unmount } = renderHook(() =>
+        useMigrationGasEstimate(params),
+      )
+      const error = await invokeQuery().catch((error: unknown) => error)
+      mocks.query.mockReturnValue({ isError: true, error })
+      rerender()
+      expect(result.current).toEqual({
+        status: 'error',
+        stage,
+        cause,
+        reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
+      })
+      if (stage === 'preflight') expect(mocks.plan).not.toHaveBeenCalled()
+      if (stage !== 'fee') expect(mocks.estimate).not.toHaveBeenCalled()
+      unmount()
+    },
+  )
 
   it('identifies recovery failures without rerunning initial preflight', async () => {
     mocks.recovery.mockReturnValue({

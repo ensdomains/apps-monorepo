@@ -107,30 +107,31 @@ describe('profile records', () => {
       description: 'already indexed',
       indexedKeys: ['text:theme', 'text:links'],
     },
-  ])('loads all saved links when the links key is $description', async ({
-    indexedKeys,
-  }) => {
-    const linksRecord = {
-      key: 'links',
-      value: JSON.stringify([
-        { name: 'Website', url: 'https://example.com' },
-        { name: 'Blog', url: 'https://blog.example.com' },
-      ]),
-    }
-    mocks.nameRecords.mockReturnValue(knownKeys(indexedKeys))
-    mocks.resolveNameData.mockResolvedValue(
-      profileResolution([], { links: linksRecord.value }),
-    )
+  ])(
+    'loads all saved links when the links key is $description',
+    async ({ indexedKeys }) => {
+      const linksRecord = {
+        key: 'links',
+        value: JSON.stringify([
+          { name: 'Website', url: 'https://example.com' },
+          { name: 'Blog', url: 'https://blog.example.com' },
+        ]),
+      }
+      mocks.nameRecords.mockReturnValue(knownKeys(indexedKeys))
+      mocks.resolveNameData.mockResolvedValue(
+        profileResolution([], { links: linksRecord.value }),
+      )
 
-    const result = (await getProfileRecords('links.eth'))._unsafeUnwrap()
+      const result = (await getProfileRecords('links.eth'))._unsafeUnwrap()
 
-    expect(result.texts).toEqual([linksRecord])
-    expect(mocks.resolveNameData).toHaveBeenCalledExactlyOnceWith(
-      mocks.client,
-      { name: 'links.eth', data: expect.any(Array) },
-    )
-    expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
-  })
+      expect(result.texts).toEqual([linksRecord])
+      expect(mocks.resolveNameData).toHaveBeenCalledExactlyOnceWith(
+        mocks.client,
+        { name: 'links.eth', data: expect.any(Array) },
+      )
+      expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
+    },
+  )
 
   it('omits an oversized ZEN record without losing other profile records', async () => {
     const resolution = profileResolution([

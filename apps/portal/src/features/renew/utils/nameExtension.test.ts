@@ -321,12 +321,12 @@ describe('getNameStatus', () => {
     { graceEnded: -3, status: 'grace' },
     { graceEnded: 10, status: 'premium' },
     { graceEnded: 30, status: 'expired' },
-  ])('is $status for an expired name whose grace ended $graceEnded days ago', ({
-    graceEnded,
-    status,
-  }) => {
-    expect(expired(daysAgo(graceEnded))).toBe(status)
-  })
+  ])(
+    'is $status for an expired name whose grace ended $graceEnded days ago',
+    ({ graceEnded, status }) => {
+      expect(expired(daysAgo(graceEnded))).toBe(status)
+    },
+  )
 
   it('is in price cooldown for a name bigname released when its grace ended', () => {
     expect(

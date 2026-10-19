@@ -103,13 +103,12 @@ describe('isListedName', () => {
       registrationStatus: 'active',
       listed: true,
     },
-  ] as const)('$name $registrationStatus listed: $listed', ({
-    name,
-    registrationStatus,
-    listed,
-  }) => {
-    expect(isListedName(summary({ name, registrationStatus }))).toBe(listed)
-  })
+  ] as const)(
+    '$name $registrationStatus listed: $listed',
+    ({ name, registrationStatus, listed }) => {
+      expect(isListedName(summary({ name, registrationStatus }))).toBe(listed)
+    },
+  )
 })
 
 describe('toGraceName', () => {

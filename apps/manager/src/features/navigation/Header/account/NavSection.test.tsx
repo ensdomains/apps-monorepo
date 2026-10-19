@@ -71,27 +71,27 @@ describe('NavSection primary name profile action', () => {
     expect(onChoosePrimaryName).toHaveBeenCalledOnce()
   })
 
-  it.each([
-    'pending',
-    'error',
-  ] as const)('does not offer the chooser while reverse-name state is %s', (status) => {
-    reverseNameMock.status = status
-    const onChoosePrimaryName = vi.fn()
-    const onAction = vi.fn()
-    render(
-      <NavSection
-        onAction={onAction}
-        onChoosePrimaryName={onChoosePrimaryName}
-      />,
-    )
+  it.each(['pending', 'error'] as const)(
+    'does not offer the chooser while reverse-name state is %s',
+    (status) => {
+      reverseNameMock.status = status
+      const onChoosePrimaryName = vi.fn()
+      const onAction = vi.fn()
+      render(
+        <NavSection
+          onAction={onAction}
+          onChoosePrimaryName={onChoosePrimaryName}
+        />,
+      )
 
-    expect(
-      screen.queryByRole('button', { name: 'Primary Name Profile' }),
-    ).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('Primary Name Profile'))
-    expect(onChoosePrimaryName).not.toHaveBeenCalled()
-    expect(onAction).not.toHaveBeenCalled()
-  })
+      expect(
+        screen.queryByRole('button', { name: 'Primary Name Profile' }),
+      ).not.toBeInTheDocument()
+      fireEvent.click(screen.getByText('Primary Name Profile'))
+      expect(onChoosePrimaryName).not.toHaveBeenCalled()
+      expect(onAction).not.toHaveBeenCalled()
+    },
+  )
 
   it('keeps a stable account icon on the configured profile link', () => {
     reverseNameMock.data = 'alpha.eth'

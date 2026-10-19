@@ -55,13 +55,16 @@ describe('getMigratedNamesCount', () => {
   it.each([
     [0, []],
     [1, [{ name: 'alice.eth' }]],
-  ])('counts the rows of a complete listing without a total: %i', async (expected, rows) => {
-    respond(listing(rows, { total_count: null, has_more: false }))
+  ])(
+    'counts the rows of a complete listing without a total: %i',
+    async (expected, rows) => {
+      respond(listing(rows, { total_count: null, has_more: false }))
 
-    const result = await getMigratedNamesCount(ADDR)
+      const result = await getMigratedNamesCount(ADDR)
 
-    expect(result._unsafeUnwrap()).toBe(expected)
-  })
+      expect(result._unsafeUnwrap()).toBe(expected)
+    },
+  )
 
   it('fails rather than guess when there is more and no total', async () => {
     respond(

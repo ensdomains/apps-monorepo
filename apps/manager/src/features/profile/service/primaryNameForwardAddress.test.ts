@@ -34,9 +34,12 @@ describe('hasPrimaryNameForwardAddress', () => {
     null,
     zeroAddress,
     '0x1111111111111111111111111111111111111111' as const,
-  ])('does not authorize a primary claim for unverified address %s', (resolvedAddress) => {
-    expect(hasPrimaryNameForwardAddress(resolvedAddress, owner)).toBe(false)
-  })
+  ])(
+    'does not authorize a primary claim for unverified address %s',
+    (resolvedAddress) => {
+      expect(hasPrimaryNameForwardAddress(resolvedAddress, owner)).toBe(false)
+    },
+  )
 
   it('does not authorize a primary claim before the wallet is known', () => {
     expect(hasPrimaryNameForwardAddress(owner, undefined)).toBe(false)
@@ -120,10 +123,13 @@ describe('getPrimaryNameForwardAddress', () => {
         args: ['0x1234'],
       }),
     ),
-  ])('propagates transport, gateway, and nonempty resolver errors', async (error) => {
-    vi.mocked(getEnsAddress).mockRejectedValue(error)
-    await expect(
-      getPrimaryNameForwardAddress(publicClient, 'alice.eth'),
-    ).rejects.toBe(error)
-  })
+  ])(
+    'propagates transport, gateway, and nonempty resolver errors',
+    async (error) => {
+      vi.mocked(getEnsAddress).mockRejectedValue(error)
+      await expect(
+        getPrimaryNameForwardAddress(publicClient, 'alice.eth'),
+      ).rejects.toBe(error)
+    },
+  )
 })
