@@ -7,6 +7,7 @@ const source = {
   chain: baseSepolia,
   usdc: '0x0000000000000000000000000000000000000001',
   rpcUrls: [],
+  client: {} as L2Source['client'],
 } as L2Source
 
 describe('getL2PaymentOptions', () => {

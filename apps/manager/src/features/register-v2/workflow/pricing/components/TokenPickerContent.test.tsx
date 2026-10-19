@@ -4,6 +4,7 @@ import { I18nProvider } from '@lingui/react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { L2Source } from '@/l2Sources'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
   acquireRegistrationLock,
@@ -983,7 +984,12 @@ describe('TokenPickerContentBase L2 rows', () => {
   ): L2PaymentRow => ({
     option: {
       id: l2PaymentOptionId(baseSepolia.id),
-      source: { chain: baseSepolia, usdc: emptyUsdc.address, rpcUrls: [] },
+      source: {
+        chain: baseSepolia,
+        usdc: emptyUsdc.address,
+        rpcUrls: [],
+        client: {} as L2Source['client'],
+      },
       balanceRaw: 25_000_000n,
       status,
     },

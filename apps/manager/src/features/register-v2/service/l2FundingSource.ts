@@ -11,18 +11,12 @@ import { chain, l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
 import { createBridgeAccount } from '@/lib/smart-account/rhinestone'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
-import { l2PublicClients, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { followChain } from '@/lib/wallet/followChain'
 
 const findL2Source = (chainId: number): L2Source | undefined =>
   l2Sources.find((source) => source.chain.id === chainId)
-
-const sourceClient = (source: L2Source) => {
-  const client = l2PublicClients.get(source.chain.id)
-  if (!client) throw new Error(`No client for chain ${source.chain.id}`)
-  return client
-}
 
 // Fresh per use, so a wallet that changed since the quote is caught by wagmi.
 const sourceWalletClient = async (owner: Address, source: L2Source) =>
@@ -58,7 +52,7 @@ export const getL2FundingSource = (
       ),
     // Unlimited, once per L2: Permit2 only moves tokens against a signed permit.
     ensureAllowance: async (amount) => {
-      const client = sourceClient(source)
+      const client = source.client
       const allowance = await client.readContract({
         address: source.usdc,
         abi: erc20Abi,

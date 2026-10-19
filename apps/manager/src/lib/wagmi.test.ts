@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { chain, l2Sources } from '@/config'
-import { l2PublicClients, wagmiConfig } from './wagmi'
+import { wagmiConfig } from './wagmi'
 
 describe('wagmiConfig', () => {
   // The first chain is wagmi's default and where connect sends a wallet on an
@@ -13,11 +13,8 @@ describe('wagmiConfig', () => {
   })
 
   it('reads each L2 source on its own chain', () => {
-    expect(l2PublicClients.size).toBe(l2Sources.length)
     for (const source of l2Sources) {
-      expect(l2PublicClients.get(source.chain.id)?.chain?.id).toBe(
-        source.chain.id,
-      )
+      expect(source.client.chain?.id).toBe(source.chain.id)
     }
   })
 })

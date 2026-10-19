@@ -1,6 +1,12 @@
 import type { EnsNetwork } from '@ens-apps/config'
-import type { Address, Chain } from 'viem'
+import {
+  type Address,
+  type Chain,
+  createPublicClient,
+  type PublicClient,
+} from 'viem'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import { failover } from '@/lib/rpc'
 
 /** An L2 the user can bridge USDC from to pay on the app chain. */
 export type L2Source = Readonly<{
@@ -9,9 +15,17 @@ export type L2Source = Readonly<{
   usdc: Address
   /** Primary first. The manager's drpc key does not allow L2s. */
   rpcUrls: readonly string[]
+  /**
+   * Reads on this L2, built once from `rpcUrls` and shared with wagmi, which
+   * registers the same transport for the chain.
+   */
+  client: PublicClient
 }>
 
-const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2Source[]>> = {
+/** A source before its read client is built for the configured network. */
+type L2SourceRpcs = Omit<L2Source, 'client'>
+
+const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
   sepolia: [
     {
       chain: baseSepolia,
@@ -42,4 +56,10 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2Source[]>> = {
 }
 
 export const getL2Sources = (network: EnsNetwork): readonly L2Source[] =>
-  L2_SOURCES[network]
+  L2_SOURCES[network].map((source) => ({
+    ...source,
+    client: createPublicClient({
+      chain: source.chain,
+      transport: failover(source.rpcUrls),
+    }),
+  }))
