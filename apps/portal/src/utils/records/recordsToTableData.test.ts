@@ -1,6 +1,22 @@
+import type { EnsNetwork } from '@ens-apps/config'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import { describe, expect, it } from 'vitest'
-import { recordsToTableData } from './recordsToTableData'
+import { describe, expect, it, vi } from 'vitest'
+
+const network = vi.hoisted(() => ({ value: 'sepolia' as EnsNetwork }))
+vi.mock('@/config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/config')>()
+  return {
+    ...actual,
+    envConfig: {
+      ...actual.envConfig,
+      get network() {
+        return network.value
+      },
+    },
+  }
+})
+
+const { recordsToTableData } = await import('./recordsToTableData')
 
 const MOCK_RESOLVER = '0x0000000000000000000000000000000000000000' as const
 
@@ -198,6 +214,31 @@ describe('recordsToTableData', () => {
         'key' in record ? record.key : null,
       ),
     ).toEqual(['Base', 'Optimism', 'zora', 'eth'])
+  })
+
+  it('keeps the address-encoder names on mainnet', async () => {
+    network.value = 'mainnet'
+    vi.resetModules()
+    const mainnet = await import('./recordsToTableData')
+    network.value = 'sepolia'
+
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [
+        { coinType: 2147492101, value: 'a', symbol: 'base' },
+        { coinType: 2147483658, value: 'b', symbol: 'op' },
+        { coinType: 2147568180, value: 'c', symbol: 'Unknown Chain (84532)' },
+      ],
+      contentHash: null,
+      abi: null,
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    expect(
+      mainnet
+        .recordsToTableData(records)
+        .map((record) => ('key' in record ? record.key : null)),
+    ).toEqual(['base', 'op', 'Unknown Chain (84532)'])
   })
 
   it('labels an out-of-range EVM coin type instead of the chain it aliases (WEB-1447)', () => {
