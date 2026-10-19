@@ -72,7 +72,7 @@ vi.mock('@tanstack/react-query', async () => {
     }) => {
       if (queryKey[0] === 'get-resolver-setter-grants') {
         grantsEnabled = enabled
-        if (enabled === false) return idle()
+        // A disabled query still serves whatever is cached for its key.
         return {
           ...grantsQuery,
           data:
@@ -301,6 +301,23 @@ describe('useCanEditRecords', () => {
 
       expect(result.canEdit).toBe(false)
       expect(result.isError).toBe(true)
+    })
+
+    it('ignores cached grants for a caller asking about one argument', () => {
+      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+      roleQueries = [...rootRefused(), settled(true)]
+
+      expect(render({ kind: 'address', coinType: 60n }).canEdit).toBe(false)
+    })
+
+    it('ignores a cached grants error for a caller asking about one argument', () => {
+      grantsQuery = { data: undefined, isLoading: false, isError: true }
+      roleQueries = RECORD_EDIT_ROLES.map(() => settled(true))
+
+      const result = render({ kind: 'address', coinType: 60n })
+
+      expect(result.isError).toBe(false)
+      expect(result.canEdit).toBe(true)
     })
 
     it('skips the grants read for a caller asking about one argument', () => {

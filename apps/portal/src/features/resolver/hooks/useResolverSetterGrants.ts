@@ -13,8 +13,8 @@ import {
 class GetResolverSetterGrantsError extends TaggedError(
   'GetResolverSetterGrantsError',
 )<{
-  reason: 'failed' | 'timeout'
-  cause: unknown
+  readonly reason: 'failed' | 'timeout'
+  readonly cause: unknown
 }> {}
 
 type GetResolverSetterGrantsParameters = {

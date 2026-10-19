@@ -21,7 +21,7 @@ type CoinSelectProps = {
   placeholder?: string
   className?: string
   /** Offer only these coin types; every supported coin when omitted. */
-  coinTypes?: ReadonlySet<bigint>
+  readonly coinTypes?: ReadonlySet<bigint>
 }
 
 export function CoinSelect({

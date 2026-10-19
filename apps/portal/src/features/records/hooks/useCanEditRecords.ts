@@ -157,16 +157,20 @@ export function useCanEditRecords({
     resolverAddress: resolverAddress ?? zeroAddress,
     account: connectedAddress ?? zeroAddress,
   }
+  const isReadingGrants = canReadRoles && !scope
 
   const grantsQuery = useQuery({
     ...getResolverSetterGrantsQueryOptions(roleHolder),
+    // A disabled query still serves its cached grants.
     select: (grants) =>
-      grants.filter(
-        (grant) =>
-          grant.kind !== 'abi' ||
-          grant.contentType === BigInt(encodeAsToContentType('json')),
-      ),
-    enabled: canReadRoles && !scope,
+      isReadingGrants
+        ? grants.filter(
+            (grant) =>
+              grant.kind !== 'abi' ||
+              grant.contentType === BigInt(encodeAsToContentType('json')),
+          )
+        : [],
+    enabled: isReadingGrants,
   })
   const { data: scopes = [] } = grantsQuery
 
@@ -197,11 +201,7 @@ export function useCanEditRecords({
   const isV2 = ownerQuery.data?.protocolVersion === 'ENSv2'
 
   const publicResolverV2Query = useQuery({
-    ...getCanModifyOnPublicResolverV2QueryOptions({
-      resolverAddress: resolverAddress ?? zeroAddress,
-      name,
-      account: connectedAddress ?? zeroAddress,
-    }),
+    ...getCanModifyOnPublicResolverV2QueryOptions({ ...roleHolder, name }),
     enabled:
       enabled &&
       !!connectedAddress &&
@@ -223,7 +223,7 @@ export function useCanEditRecords({
     resolverQuery,
     ownResolverQuery,
     isPermissionedQuery,
-    grantsQuery,
+    ...(isReadingGrants ? [grantsQuery] : []),
     ...roleQueries,
     publicResolverV2Query,
   ]
