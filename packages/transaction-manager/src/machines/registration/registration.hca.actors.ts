@@ -1068,12 +1068,15 @@ export function submitL2BridgeActor(input: {
 
 const L2_BRIDGE_POLL_MS = 4_000
 const L2_BRIDGE_WAIT_MS = 10 * 60_000
+// Unknown this long, a submission whose answer was lost never arrived.
+const L2_BRIDGE_UNKNOWN_MS = 60_000
 
 /**
  * Settle a bridge an earlier attempt (or tab) already sent before paying
  * again: `'landed'` once it filled, `'dead'` once the orchestrator gives up on
- * it. Anything else keeps waiting, and running out of time is an error, so an
- * unconfirmed payment is never followed by a second one.
+ * it, or once it stays unknown to the orchestrator. Anything else keeps
+ * waiting, and running out of time is an error, so an unconfirmed payment is
+ * never followed by a second one.
  */
 export function awaitL2BridgeActor(input: {
   readonly intentId: bigint
@@ -1084,6 +1087,7 @@ export function awaitL2BridgeActor(input: {
   readonly signal?: AbortSignal
   readonly pollIntervalMs?: number
   readonly timeoutMs?: number
+  readonly unknownMs?: number
 }): ResultAsync<'landed' | 'dead', Error> {
   const { fetchIntentStatus, signal } = input
   if (!fetchIntentStatus) {
@@ -1094,10 +1098,19 @@ export function awaitL2BridgeActor(input: {
   const deadline = Date.now() + (input.timeoutMs ?? L2_BRIDGE_WAIT_MS)
   return fromPromise(
     (async () => {
+      let unknownSince: number | undefined
       while (!signal?.aborted && Date.now() < deadline) {
         const status = await fetchIntentStatus(input.intentId, signal)
         if (status === 'FILLED' || status === 'COMPLETED') return 'landed'
         if (status === 'FAILED' || status === 'EXPIRED') return 'dead'
+        unknownSince =
+          status === 'NOT_FOUND' ? (unknownSince ?? Date.now()) : undefined
+        if (
+          unknownSince !== undefined &&
+          Date.now() - unknownSince >= (input.unknownMs ?? L2_BRIDGE_UNKNOWN_MS)
+        ) {
+          return 'dead'
+        }
         await sleepUnlessAborted(
           input.pollIntervalMs ?? L2_BRIDGE_POLL_MS,
           signal,

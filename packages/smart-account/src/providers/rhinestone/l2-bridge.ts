@@ -13,6 +13,7 @@ import type {
   RhinestoneAccount,
   RhinestoneAccountConfig,
 } from '@rhinestone/sdk'
+import { OrchestratorError } from '@rhinestone/sdk/errors'
 import {
   err,
   fromPromise,
@@ -103,6 +104,21 @@ export class L2BridgeSubmitError extends TaggedError('L2BridgeSubmitError')<{
   message: string
   cause?: unknown
 }> {}
+
+/**
+ * The signed intent was submitted but no answer said whether it was accepted,
+ * so it may still fill. `intentId` is its nonce, which the orchestrator also
+ * looks intents up by.
+ */
+export class L2BridgeUnconfirmedError extends TaggedError(
+  'L2BridgeUnconfirmedError',
+)<{ message: string; cause?: unknown; intentId: bigint }> {}
+
+// A 4xx is the orchestrator refusing it; anything else may have been accepted.
+const isRefusal = (error: unknown) =>
+  error instanceof OrchestratorError &&
+  error.statusCode !== undefined &&
+  error.statusCode < 500
 
 /** An SDK account for the wallet itself, paying from `eoa` on the source chain. */
 export function createL2BridgeAccount(params: {
@@ -378,10 +394,16 @@ export const submitL2Bridge = ResultFn(async function* (
   const submitted = yield* fromPromise(
     account.submitTransaction(signed),
     (cause) =>
-      new L2BridgeSubmitError({
-        message: 'The payment could not be submitted.',
-        cause,
-      }),
+      isRefusal(cause)
+        ? new L2BridgeSubmitError({
+            message: 'The payment could not be submitted.',
+            cause,
+          })
+        : new L2BridgeUnconfirmedError({
+            message: 'The payment was sent, but not confirmed.',
+            cause,
+            intentId: BigInt(quote.prepared.intentRoute.intentOp.nonce),
+          }),
   )
   return ok(submitted)
 })

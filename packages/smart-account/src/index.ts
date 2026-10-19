@@ -100,6 +100,7 @@ export {
   type L2BridgeRoute,
   L2BridgeSubmitError,
   L2BridgeUnavailableError,
+  L2BridgeUnconfirmedError,
   LEGACY_REFUND_CAPS,
   l2BridgeMaxFee,
   legFeeUsdc,

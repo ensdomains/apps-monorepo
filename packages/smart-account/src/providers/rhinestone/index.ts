@@ -78,6 +78,7 @@ export {
   type L2BridgeRoute,
   L2BridgeSubmitError,
   L2BridgeUnavailableError,
+  L2BridgeUnconfirmedError,
   l2BridgeMaxFee,
   PERMIT2_ADDRESS,
   quoteL2Bridge,

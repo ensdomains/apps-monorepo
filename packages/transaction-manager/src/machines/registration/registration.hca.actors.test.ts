@@ -300,7 +300,11 @@ describe('submitL2BridgeActor', () => {
 })
 
 describe('awaitL2BridgeActor', () => {
-  const run = (statuses: (string | null)[], timeoutMs = 1_000) => {
+  const run = (
+    statuses: (string | null)[],
+    timeoutMs = 1_000,
+    unknownMs = 1_000,
+  ) => {
     const fetchIntentStatus = vi.fn(async () => statuses.shift() ?? null)
     return {
       fetchIntentStatus,
@@ -309,9 +313,23 @@ describe('awaitL2BridgeActor', () => {
         fetchIntentStatus,
         pollIntervalMs: 0,
         timeoutMs,
+        unknownMs,
       }),
     }
   }
+
+  // A lost submission is never known to the orchestrator; one it holds is.
+  it('reports a bridge that stays unknown as dead', async () => {
+    const { result } = run(Array(5).fill('NOT_FOUND'), 1_000, 0)
+
+    expect((await result)._unsafeUnwrap()).toBe('dead')
+  })
+
+  it('keeps waiting on a bridge the orchestrator comes to know', async () => {
+    const { result } = run(['NOT_FOUND', 'PENDING', 'COMPLETED'])
+
+    expect((await result)._unsafeUnwrap()).toBe('landed')
+  })
 
   it('waits through pending until the bridge fills', async () => {
     const { fetchIntentStatus, result } = run([null, 'PENDING', 'COMPLETED'])

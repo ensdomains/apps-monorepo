@@ -10,6 +10,7 @@ import {
   type L2BridgeQuote,
   L2BridgeRejectedError,
   L2BridgeSubmitError,
+  L2BridgeUnconfirmedError,
   quoteL2Bridge,
   sizeRefundCaps,
   submitL2Bridge,
@@ -611,6 +612,26 @@ describe('submitWarpTransaction — paid from an L2', () => {
 
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
     expect(submitL2Bridge).toHaveBeenCalled()
+  })
+
+  // The orchestrator may have it, so the id must reach whoever settles it.
+  it('reports an unconfirmed submission as sent, with its id', async () => {
+    const { request, onIntentSubmitted, signer } = setup()
+    vi.mocked(submitL2Bridge).mockReturnValue(
+      errAsync(
+        new L2BridgeUnconfirmedError({
+          message: 'The payment was sent, but not confirmed.',
+          intentId: 77n,
+        }),
+      ),
+    )
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(TransactionSubmissionError)
+    expect(error).not.toBeInstanceOf(L2PaymentNotSentError)
+    expect(onIntentSubmitted).toHaveBeenCalledWith(77n)
   })
 
   it('needs exactly one token request', async () => {

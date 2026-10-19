@@ -3,6 +3,7 @@ import type {
   RhinestoneAccount,
   RhinestoneAccountConfig,
 } from '@rhinestone/sdk'
+import { BadRequestError } from '@rhinestone/sdk/errors'
 import type { Address, Hex } from 'viem'
 import { baseSepolia, sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
@@ -11,6 +12,7 @@ import {
   L2BridgeRejectedError,
   type L2BridgeRoute,
   L2BridgeSubmitError,
+  L2BridgeUnconfirmedError,
   l2BridgeMaxFee,
   PERMIT2_ADDRESS,
   quoteL2Bridge,
@@ -73,7 +75,11 @@ const baseQuote = () => {
     received,
     prepared: {
       intentRoute: {
-        intentOp: { sponsor: OWNER.toLowerCase(), elements: [element] },
+        intentOp: {
+          sponsor: OWNER.toLowerCase(),
+          nonce: '77',
+          elements: [element],
+        },
         tokenRequirements: {
           84532: {
             [SOURCE_USDC.toLowerCase()]: {
@@ -464,5 +470,29 @@ describe('submitL2Bridge', () => {
     const result = await submitL2Bridge(asAccount(account), quote, () => NOW)
     expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2BridgeSubmitError)
     expect(account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('reports a submission the orchestrator refused as not sent', async () => {
+    const { account } = fakeAccount()
+    const quote = await quoted(account)
+    account.submitTransaction.mockRejectedValueOnce(
+      new BadRequestError({ statusCode: 400 }),
+    )
+    const result = await submitL2Bridge(asAccount(account), quote, () => NOW)
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2BridgeSubmitError)
+  })
+
+  // The intent may have been accepted, so it must stay traceable by its nonce.
+  it.each([
+    ['a lost response', new TypeError('fetch failed')],
+    ['a server error', new BadRequestError({ statusCode: 502 })],
+  ])('reports %s as unconfirmed, with the intent id', async (_case, cause) => {
+    const { account } = fakeAccount()
+    const quote = await quoted(account)
+    account.submitTransaction.mockRejectedValueOnce(cause)
+    const result = await submitL2Bridge(asAccount(account), quote, () => NOW)
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(L2BridgeUnconfirmedError)
+    expect((error as L2BridgeUnconfirmedError).intentId).toBe(77n)
   })
 })

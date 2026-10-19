@@ -14,6 +14,7 @@
 
 import {
   findGasRefundViolations,
+  L2BridgeUnconfirmedError,
   l2BridgeMaxFee,
   quoteL2Bridge,
   readQuotedGasRefunds,
@@ -206,9 +207,14 @@ function submitL2FundedIntent(
         ),
       )
     }
-    const intent = yield* submitL2Bridge(wallet, quote).mapErr(
-      notSent('sign the payment'),
-    )
+    const intent = yield* submitL2Bridge(wallet, quote).mapErr((error) => {
+      if (error instanceof L2BridgeUnconfirmedError) {
+        // It may still fill, so the caller must settle it before paying again.
+        reportIntentSubmitted(request, error.intentId)
+        return afterSent(error)
+      }
+      return notSent('sign the payment')(error)
+    })
     reportIntentSubmitted(request, intent.id)
     console.log('[WARP] L2-paid intent submitted:', {
       intentId: intent.id.toString(),
