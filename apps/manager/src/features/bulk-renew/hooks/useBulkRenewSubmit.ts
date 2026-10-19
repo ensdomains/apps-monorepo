@@ -22,6 +22,7 @@ import {
   HCA_RENEWAL_INTENT_MAX_ITEMS,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
+import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
   useHcaFundingPrompt,
@@ -50,6 +51,9 @@ const SETTLE_MS = 600
 // owner key, which is exactly what `submitHcaRenewal` does.
 export const WALLET_REQUIRED_MESSAGE =
   'Bulk renewal requires a connected wallet to approve and pay for each renewal.'
+
+export const ACCOUNT_LOADING_MESSAGE =
+  'Your smart account is still loading. Please try again in a moment.'
 
 export const RENEWED_CHECK_FAILED_MESSAGE =
   "Couldn't confirm which names already renewed, so none were retried. Please try again."
@@ -207,7 +211,9 @@ const findAlreadyRenewed = ResultFn(async function* (
 type SmartAccount = ReturnType<typeof useSmartAccountContext>
 
 /**
- * Resolve the signer/owner context, or `null` if no wallet is connected.
+ * Resolve the wallet-route context, or `null` off that route: no wallet
+ * connected, a smart account (which renews by intent), or a signer still
+ * initializing — never a gas-paying fallback for a smart-account user.
  *
  * The owner is the connected wallet, NOT `account.ownerAddress` — `renew`
  * charges whoever sends it, so the allowance must be read for and authorized by
@@ -217,6 +223,7 @@ const resolveContext = (
   account: SmartAccount,
   token: RENEWAL_TOKEN,
 ): Context | null => {
+  if (getRenewalPaymentRoute(account.signer) !== 'wallet') return null
   const walletClient = account.walletClient
   const ownerAddress = walletClient?.account?.address
   if (!walletClient || !ownerAddress) return null
@@ -471,7 +478,11 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const hca = resolveHcaContext(account, token)
     const ctx = resolveContext(account, token)
     if (!hca && !ctx) {
-      setErrorMessage(WALLET_REQUIRED_MESSAGE)
+      setErrorMessage(
+        account.walletClient && !account.signer
+          ? ACCOUNT_LOADING_MESSAGE
+          : WALLET_REQUIRED_MESSAGE,
+      )
       setPhase('error')
       return
     }

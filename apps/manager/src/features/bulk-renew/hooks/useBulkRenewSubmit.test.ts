@@ -61,6 +61,7 @@ vi.mock('@/lib/smart-account', () => ({
 }))
 
 import {
+  ACCOUNT_LOADING_MESSAGE,
   RENEWED_CHECK_FAILED_MESSAGE,
   useBulkRenewSubmit,
   WALLET_REQUIRED_MESSAGE,
@@ -152,6 +153,25 @@ describe('useBulkRenewSubmit (smart account)', () => {
     expect(result.current.phase).toBe('error')
     expect(result.current.errorMessage).toBe(WALLET_REQUIRED_MESSAGE)
     expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
+    expect(mocks.submitRenewActor).not.toHaveBeenCalled()
+  })
+
+  it('never falls back to the gas-paying wallet route while the HCA initializes', async () => {
+    // The wallet is connected, but the rhinestone signer isn't built yet.
+    mocks.useSmartAccountContext.mockReturnValue({
+      ...hcaAccount,
+      signer: null,
+    })
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(result.current.errorMessage).toBe(ACCOUNT_LOADING_MESSAGE)
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
+    expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
     expect(mocks.submitRenewActor).not.toHaveBeenCalled()
   })
 

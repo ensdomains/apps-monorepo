@@ -44,6 +44,7 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import {
+  type PermitPurpose,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   readUsdcSpend,
@@ -370,6 +371,22 @@ export interface PlanHcaIntentFundingParams {
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /**
+   * What the funding pays for, as the permit's errors describe it. Defaults to
+   * {@link STANDALONE_INTENT_PERMIT_PURPOSE}.
+   */
+  readonly purpose?: PermitPurpose
+}
+
+export type { PermitPurpose }
+
+/** How a permit's errors describe a standalone intent with no purpose of its own. */
+export const STANDALONE_INTENT_PERMIT_PURPOSE: PermitPurpose = {
+  subject: 'this action',
+  shownAt: 'before you approved it',
+  costNote:
+    'The amount covers what the action spends plus its network fee, less ' +
+    'what the smart account already holds.',
 }
 
 /** One token the wallet tops the HCA up with. */
@@ -426,7 +443,8 @@ async function legCalls(
     publicClient: PublicClient
     chainId: number
   },
-  bounds?: PermitValueBounds,
+  bounds: PermitValueBounds,
+  purpose: PermitPurpose,
 ): Promise<Call[]> {
   const pull: Call = {
     to: leg.token,
@@ -447,7 +465,8 @@ async function legCalls(
     publicClient: input.publicClient,
     chainId: input.chainId,
     token: { address: leg.token, symbol: leg.symbol, decimals: leg.decimals },
-    ...(bounds ? { bounds } : {}),
+    bounds,
+    purpose,
   }).match(
     (signed) => signed,
     (error) => {
@@ -695,20 +714,34 @@ async function fundShortfalls(
   if (!approved) throw new HcaFundingDeclinedError()
 
   const signing = { ownerAddress, hca, approvalSigner, publicClient, chainId }
-  const tokenCalls = tokenLeg ? await legCalls(tokenLeg, signing) : []
+  const purpose = params.purpose ?? STANDALONE_INTENT_PERMIT_PURPOSE
+  // Each permit is bounded by what `confirmFunding` just put on screen. Equal
+  // by construction, so this asserts the two can never drift apart if these
+  // steps reorder.
+  const tokenCalls = tokenLeg
+    ? await legCalls(
+        tokenLeg,
+        signing,
+        { displayedValue: quoted.tokenShortfall },
+        purpose,
+      )
+    : []
   const usdcCalls = usdcLeg
-    ? await legCalls(usdcLeg, signing, {
-        // The permit tops the HCA up to what the intent spends, so the ceiling
-        // nets off the standing balance exactly as the value does, over the
-        // same two components (what it buys, plus the bounded fee).
-        expectedMaximum: bigintMax(
-          requiredUsdc + quoted.maxFeeUsdc - balance,
-          0n,
-        ),
-        // What `confirmFunding` just put on screen. Equal by construction, so
-        // this asserts the two can never drift apart if these steps reorder.
-        displayedValue: usdcShortfall,
-      })
+    ? await legCalls(
+        usdcLeg,
+        signing,
+        {
+          // The permit tops the HCA up to what the intent spends, so the
+          // ceiling nets off the standing balance exactly as the value does,
+          // over the same two components (what it buys, plus the bounded fee).
+          expectedMaximum: bigintMax(
+            requiredUsdc + quoted.maxFeeUsdc - balance,
+            0n,
+          ),
+          displayedValue: usdcShortfall,
+        },
+        purpose,
+      )
     : []
 
   return {

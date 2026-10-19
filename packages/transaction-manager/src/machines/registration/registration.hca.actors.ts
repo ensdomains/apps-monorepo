@@ -663,37 +663,74 @@ export function readHcaUsdcBalanceActor(input: {
  */
 export interface PermitValueBounds {
   /**
-   * Ceiling (USDC 6dp) derived WITHOUT the orchestrator's figures — the
-   * on-chain registration price plus a fixed execution-cost margin
-   * (`hcaBudgetMaximum`). Catches a quote that is simply too large, whatever
-   * the user was or was not shown.
+   * Ceiling (in the permitted token's units) derived WITHOUT the
+   * orchestrator's figures — the on-chain registration price plus a fixed
+   * execution-cost margin (`hcaBudgetMaximum`). Catches a quote that is simply
+   * too large, whatever the user was or was not shown.
    */
   readonly expectedMaximum?: bigint
   /**
-   * The USDC (6dp) figure the user was shown for THIS debit before the prompt.
-   * Catches a value that is plausible on its own but is not the one consented
-   * to. Only an upward divergence beyond `withBudgetDrift` refuses: being asked
-   * to approve less than was displayed has not misled anyone, and the two
-   * figures come from separate quotes that legitimately drift with gas.
+   * The figure (same units) the user was shown for THIS debit before the
+   * prompt. Catches a value that is plausible on its own but is not the one
+   * consented to. Only an upward divergence beyond `withBudgetDrift` refuses:
+   * being asked to approve less than was displayed has not misled anyone, and
+   * the two figures come from separate quotes that legitimately drift with gas.
    */
   readonly displayedValue?: bigint
 }
+
+/** The token a funding permit is signed over. */
+export interface PermitToken {
+  readonly address: Address
+  readonly symbol: string
+  readonly decimals: number
+}
+
+/**
+ * What a funding permit pays for, in the words its errors use. Registration is
+ * the default; standalone intents (renewal, primary name, records) pass theirs.
+ */
+export interface PermitPurpose {
+  /** What the permit funds, e.g. "the registration". */
+  readonly subject: string
+  /** Where the user saw the amount, e.g. "at checkout". */
+  readonly shownAt: string
+  /** Why the amount can exceed the price the user saw. */
+  readonly costNote: string
+}
+
+export const REGISTRATION_PERMIT_PURPOSE: PermitPurpose = {
+  subject: 'the registration',
+  shownAt: 'at checkout',
+  costNote:
+    'The funding amount covers the registration price plus the execution ' +
+    'costs of both the commit and register legs, so it is larger than the ' +
+    'price shown at checkout.',
+}
+
+const USDC_PERMIT_UNITS = { symbol: 'USDC', decimals: 6 } as const
 
 /**
  * Why this permit value must not be signed, or `null` when it is in bounds.
  *
  * Pure and exported so the refusal is testable without a wallet: the whole
  * point of the check is that it happens BEFORE any signature is requested.
+ * Amounts are in `token`'s units, USDC by default.
  */
 export function rejectPermitValue(
   value: bigint,
   bounds: PermitValueBounds,
+  token: Pick<PermitToken, 'symbol' | 'decimals'> = USDC_PERMIT_UNITS,
+  purpose: PermitPurpose = REGISTRATION_PERMIT_PURPOSE,
 ): string | null {
+  const amount = (units: bigint) =>
+    `${formatUnits(units, token.decimals)} ${token.symbol}`
+
   if (bounds.expectedMaximum !== undefined && value > bounds.expectedMaximum) {
     return (
       `Refusing to request a signature: the funding permit would authorize ` +
-      `${formatUnits(value, 6)} USDC, above the expected maximum of ` +
-      `${formatUnits(bounds.expectedMaximum, 6)} USDC for this registration. ` +
+      `${amount(value)}, above the expected maximum of ` +
+      `${amount(bounds.expectedMaximum)} for ${purpose.subject}. ` +
       `The amount is quoted by the payment relayer and this bound is computed ` +
       `independently from the on-chain price, so a value above it means the ` +
       `quote cannot be trusted.`
@@ -705,10 +742,9 @@ export function rejectPermitValue(
     if (value > allowed) {
       return (
         `Refusing to request a signature: the funding permit would authorize ` +
-        `${formatUnits(value, 6)} USDC, but ` +
-        `${formatUnits(bounds.displayedValue, 6)} USDC was shown at checkout. ` +
-        `Please start the registration again so the amount you approve is the ` +
-        `amount you were quoted.`
+        `${amount(value)}, but ${amount(bounds.displayedValue)} was shown ` +
+        `${purpose.shownAt}. Please start ${purpose.subject} again so the ` +
+        `amount you approve is the amount you were quoted.`
       )
     }
   }
@@ -737,12 +773,21 @@ export function signFundingPermitActor(input: {
   chainId: number
   bounds?: PermitValueBounds
   /** The token permitted. Defaults to the deployment's USDC. */
-  token?: { address: Address; symbol: string; decimals: number }
+  token?: PermitToken
+  /** What the permit funds, for its errors. Defaults to a registration. */
+  purpose?: PermitPurpose
 }): ResultAsync<PermitSignature, Error> {
+  const token = input.token ?? {
+    address: getDestinationContracts(input.chainId).usdc,
+    symbol: 'USDC',
+    decimals: 6,
+  }
+  const purpose = input.purpose ?? REGISTRATION_PERMIT_PURPOSE
+
   // Before anything else, including the RPC reads: a refusal must never reach
   // the wallet, and must not depend on a network round-trip succeeding first.
   const refusal = input.bounds
-    ? rejectPermitValue(input.value, input.bounds)
+    ? rejectPermitValue(input.value, input.bounds, token, purpose)
     : null
   if (refusal) return errAsync(new Error(refusal))
 
@@ -762,12 +807,6 @@ export function signFundingPermitActor(input: {
         `Permit signer ${account.address} does not match the wallet ${input.wallet}`,
       ),
     )
-  }
-
-  const token = input.token ?? {
-    address: getDestinationContracts(input.chainId).usdc,
-    symbol: 'USDC',
-    decimals: 6,
   }
 
   return fromPromise(
@@ -809,13 +848,11 @@ export function signFundingPermitActor(input: {
         const amount = (value: bigint) =>
           `${formatUnits(value, token.decimals)} ${token.symbol}`
         throw new Error(
-          `Insufficient ${token.symbol} to fund the registration. Need ` +
+          `Insufficient ${token.symbol} to fund ${purpose.subject}. Need ` +
             `${amount(input.value)} in ${input.wallet}, ` +
             `but it holds ${amount(walletBalance)} ` +
             `(short by ${amount(input.value - walletBalance)}). ` +
-            `The funding amount covers the registration price plus the ` +
-            `execution costs of both the commit and register legs, so it is ` +
-            `larger than the price shown at checkout.`,
+            purpose.costNote,
         )
       }
 

@@ -3,6 +3,7 @@ import {
   getSmartAccountAddress,
   type HcaFundingPrompt,
   hcaMaxIntentFeeUsdcFor,
+  type PermitPurpose,
   planHcaIntentFunding,
   type RhinestoneSigner,
   type RhinestoneTransactionRequest,
@@ -51,6 +52,15 @@ export const HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS = 150_000n
  * one wallet transaction per name.
  */
 export const HCA_RENEWAL_INTENT_MAX_ITEMS = 25
+
+/** How the funding permit's errors describe a renewal. */
+const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
+  subject: 'the renewal',
+  shownAt: 'in the renewal payment prompt',
+  costNote:
+    'The amount covers the renewal price with its 10% buffer, and in USDC ' +
+    'the network fee, less what the smart account already holds.',
+}
 
 /** Gas limit a renewal batch of `itemCount` names is quoted against. */
 export const hcaRenewalIntentGasLimit = (itemCount: number): bigint =>
@@ -254,6 +264,7 @@ export async function submitHcaRenewal(
     // The amounts are quoted here, not on any earlier screen, so this is the
     // only place they can be shown before a signature is requested.
     ...(confirmFunding ? { confirmFunding } : {}),
+    purpose: RENEWAL_PERMIT_PURPOSE,
   })
 
   const request: RhinestoneTransactionRequest = {

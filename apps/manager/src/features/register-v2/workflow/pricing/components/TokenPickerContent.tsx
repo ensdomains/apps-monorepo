@@ -557,6 +557,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   onNext,
   stablecoinBalances,
   accountCredit,
+  fundedAmount,
   acceptedTokens = ['USDC'],
   isLoadingBalances,
   isConnected,
@@ -586,6 +587,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
    * wallet only has to cover the rest.
    */
   readonly accountCredit?: Partial<Record<TOKEN_SYMBOL, number>>
+  /**
+   * What has to be funded before account credit, when that exceeds the price:
+   * a renewal intent funds its approval's headroom as well as the rent.
+   */
+  readonly fundedAmount?: number
   /** The coins shown under "Stables accepted". */
   readonly acceptedTokens?: readonly TOKEN_SYMBOL[]
   readonly isLoadingBalances: boolean
@@ -628,7 +634,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
   // the remainder itself — gating on the budget would block a wallet that only
   // owes the shortfall.
-  const requiredAmount = funding?.walletDebit ?? pricingData
+  const requiredAmount = funding?.walletDebit ?? fundedAmount ?? pricingData
   // The account's own balance of a coin pays first; the wallet covers the rest.
   const walletShareOf = (symbol: string) =>
     requiredAmount === undefined

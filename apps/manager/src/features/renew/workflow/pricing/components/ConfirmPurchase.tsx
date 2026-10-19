@@ -30,16 +30,15 @@ export const ConfirmPurchase = () => {
   })
 
   // Two routes. On a smart account the renewal is an owner-signed intent paid
-  // out of the HCA, with the connected wallet only signing typed data.
-  // Otherwise it falls back to the direct-wallet route, where the EOA approves
-  // and renews itself as `msg.sender`.
+  // out of the HCA, with the connected wallet only signing typed data. In
+  // EOA-only mode it takes the direct-wallet route, where the EOA approves and
+  // renews itself as `msg.sender`.
   const walletClient = account.walletClient as WalletClient | undefined
   const ownerAddress = account.ownerAddress ?? null
 
-  // The account context's signer already reflects the active route: a
-  // rhinestone signer with an HCA configured, an EOA signer without one.
-  const renewalSigner: Signer | undefined =
-    account.signer ?? (walletClient ? { type: 'eoa', walletClient } : undefined)
+  // The account context's signer selects the route. No wallet fallback while
+  // it is `null` (the HCA still initializing): that route would charge gas.
+  const renewalSigner: Signer | undefined = account.signer ?? undefined
 
   return (
     <ConfirmPurchaseBase

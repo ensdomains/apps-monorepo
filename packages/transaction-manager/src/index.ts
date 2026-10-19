@@ -24,6 +24,7 @@ export {
   type HcaIntentFunding,
   type HcaTokenSpend,
   hcaMaxIntentFeeUsdcFor,
+  type PermitPurpose,
   type PlanHcaIntentFundingParams,
   planHcaIntentFunding,
 } from './helpers/hca-intent-funding'

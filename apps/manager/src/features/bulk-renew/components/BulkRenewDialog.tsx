@@ -159,7 +159,7 @@ export const BulkRenewDialog = ({
             isConnected={payment.isConnected}
             isLoadingBalances={payment.isLoadingBalances}
             onSelectCoin={setSelectedToken}
-            priceUSD={grandTotal}
+            priceUSD={payment.fundedTotal}
             selectedToken={selectedToken}
             stablecoinBalances={payment.stablecoinBalances}
           />
