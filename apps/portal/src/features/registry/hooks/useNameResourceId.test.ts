@@ -53,12 +53,13 @@ const unknownEntry = () => ({
   },
 })
 
-const askedIds = () =>
-  (
-    multicall.mock.calls[0]![0] as {
-      contracts: { args: readonly bigint[] }[]
-    }
+const askedIds = () => {
+  const call = multicall.mock.calls[0]
+  if (!call) throw new Error('expected multicall to be called')
+  return (
+    call[0] as { contracts: { args: readonly bigint[] }[] }
   ).contracts.map((c) => c.args[0])
+}
 
 beforeEach(() => {
   multicall.mockReset()

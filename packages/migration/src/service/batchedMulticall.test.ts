@@ -55,10 +55,11 @@ describe('batchedMulticall', () => {
       expect(multicallMock).toHaveBeenCalledTimes(expectedCalls)
       expect(result).toHaveLength(total)
       chunkSizes.forEach((size, i) => {
-        expect(
-          (multicallMock.mock.calls[i]![1] as { contracts: unknown[] })
-            .contracts,
-        ).toHaveLength(size)
+        const call = multicallMock.mock.calls[i]
+        if (!call) throw new Error(`expected multicall chunk ${i} to be sent`)
+        expect((call[1] as { contracts: unknown[] }).contracts).toHaveLength(
+          size,
+        )
       })
     },
   )
