@@ -150,7 +150,7 @@ export const WeaveRegistration = ({
           <NameFill
             animate={nameAnimate}
             className={cn(
-              'w-full shrink-0 whitespace-normal break-all max-md:mt-3 max-md:text-center',
+              'wrap-anywhere w-full shrink-0 whitespace-normal max-md:mt-3 max-md:text-center',
               !singleLineName && !tallName && 'mt-[18px]',
             )}
             name={name}

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { EstimatedGasCost } from './EstimatedGasCost'
+import { NameWrapText } from './NameWrapText'
 
 type TransactionInfoContentProps = {
   readonly transaction: Transaction
@@ -39,8 +40,8 @@ export const TransactionInfoContent = ({
         <div className="flex p-4 border-b items-start gap-2 rounded-sm">
           <ArrowRight className="size-5 mt-0.5" />
           <div className="space-y-0.5 min-w-0">
-            <h3 className="text-p font-medium whitespace-normal leading-snug">
-              {transaction.transactionName}
+            <h3 className="text-p font-medium whitespace-normal leading-snug wrap-break-word">
+              <NameWrapText text={transaction.transactionName} />
             </h3>
             {transaction.details?.map(({ label, value }) => (
               <p key={label} className="text-smallmono break-all">

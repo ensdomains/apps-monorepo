@@ -20,6 +20,17 @@ export function segmentGraphemes(value: string): string[] {
   return Array.from(value)
 }
 
+const LABEL_BREAK = '\u200b'
+
+/**
+ * Adds a zero-width break after each label dot so a long name wraps at
+ * `sub.` / `name.` / `eth` instead of mid-label. Measurement and rendering
+ * must both use the result.
+ */
+export function withLabelBreaks(name: string): string {
+  return name.replace(/\.(?=[^.\s])/g, `.${LABEL_BREAK}`)
+}
+
 export function charFillFraction(fillPosition: number, index: number): number {
   return Math.max(0, Math.min(1, fillPosition - index))
 }
