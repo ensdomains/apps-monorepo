@@ -298,8 +298,8 @@ msgid "An estimate of what the two on-chain transactions that register your name
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
-msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
-msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+msgid "Another address registered this name first, so it can no longer be registered here. Look for a different name."
+msgstr "Another address registered this name first, so it can no longer be registered here. Look for a different name."
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another Registration Is Running"
@@ -1392,6 +1392,10 @@ msgstr "Loading…"
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Long-term identity"
 msgstr "Long-term identity"
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Look for a different name"
+msgstr "Look for a different name"
 
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"

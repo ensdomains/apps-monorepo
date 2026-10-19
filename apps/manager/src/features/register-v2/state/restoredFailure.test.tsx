@@ -54,6 +54,12 @@ vi.mock('@/lib/wagmi', async (importOriginal) => {
   }
 })
 
+// FailureStep navigates on "Look for a different name"; no router is mounted here
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useNavigate: () => vi.fn(),
+}))
+
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useChainId: () => 11155111,
