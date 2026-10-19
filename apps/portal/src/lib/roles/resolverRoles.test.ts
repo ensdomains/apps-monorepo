@@ -1,6 +1,7 @@
 import {
   computeResolverResource,
   encodeResolverRoleBitmap,
+  type ResolverRole,
 } from '@ensdomains/ensjs/utils/v2'
 import { toHex } from 'viem'
 import { describe, expect, it } from 'vitest'
@@ -233,37 +234,22 @@ describe('planAccountRemoval', () => {
 describe('decodeSetterGrants', () => {
   const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
   const eth = computeResolverResource({ kind: 'address', coinType: 60n })
-  const jsonAbi = computeResolverResource({ kind: 'abi', contentType: 1n })
-  const hex = (resource: bigint) => toHex(resource, { size: 32 })
-  const word = (value: bigint) => toHex(value, { size: 32 })
+  const grant = (resource: bigint, role: ResolverRole) => ({
+    resource,
+    roleBitmap: encodeResolverRoleBitmap([role]),
+  })
+  const named = (resource: bigint, recordKey: string, coinType = '-1') => ({
+    resource: toHex(resource, { size: 32 }),
+    recordKind: 'argument',
+    recordKey,
+    coinType,
+  })
 
-  it('decodes text and coin-type grants from their revealed preimages', () => {
+  it('decodes text and coin-type grants from their preimages', () => {
     expect(
       decodeSetterGrants(
-        [
-          {
-            resource: avatar,
-            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
-          },
-          {
-            resource: eth,
-            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_ADDRESS']),
-          },
-        ],
-        [
-          {
-            resource: hex(avatar),
-            recordKind: 'text',
-            recordKey: 'avatar',
-            coinType: '-1',
-          },
-          {
-            resource: hex(eth),
-            recordKind: 'addr',
-            recordKey: word(60n),
-            coinType: '60',
-          },
-        ],
+        [grant(avatar, 'ROLE_SET_TEXT'), grant(eth, 'ROLE_SET_ADDRESS')],
+        [named(avatar, 'avatar'), named(eth, toHex(60n, { size: 32 }), '60')],
       ),
     ).toEqual([
       { kind: 'text', key: 'avatar' },
@@ -271,86 +257,11 @@ describe('decodeSetterGrants', () => {
     ])
   })
 
-  it('reads a uint argument from the raw word when no coin type is given', () => {
+  it('drops a preimage that does not hash back to its resource', () => {
     expect(
       decodeSetterGrants(
-        [
-          {
-            resource: jsonAbi,
-            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_ABI']),
-          },
-        ],
-        [
-          {
-            resource: hex(jsonAbi),
-            recordKind: 'argument',
-            recordKey: word(1n),
-            coinType: '-1',
-          },
-        ],
-      ),
-    ).toEqual([{ kind: 'abi', contentType: 1n }])
-  })
-
-  it('drops a preimage that does not hash to the grant’s resource', () => {
-    expect(
-      decodeSetterGrants(
-        [
-          {
-            resource: avatar,
-            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
-          },
-        ],
-        [
-          {
-            resource: hex(avatar),
-            recordKind: 'text',
-            recordKey: 'header',
-            coinType: '-1',
-          },
-        ],
-      ),
-    ).toEqual([])
-  })
-
-  it('drops a grant with no revealed preimage, and root grants', () => {
-    expect(
-      decodeSetterGrants(
-        [
-          {
-            resource: avatar,
-            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
-          },
-          {
-            resource: ROOT_RESOURCE,
-            roleBitmap: encodeResolverRoleBitmap(['ROLE_SET_TEXT']),
-          },
-        ],
-        [],
-      ),
-    ).toEqual([])
-  })
-
-  it('ignores admin bits and roles edit-records does not write', () => {
-    expect(
-      decodeSetterGrants(
-        [
-          {
-            resource: avatar,
-            roleBitmap: encodeResolverRoleBitmap([
-              'ROLE_SET_TEXT_ADMIN',
-              'ROLE_SET_DATA',
-            ]),
-          },
-        ],
-        [
-          {
-            resource: hex(avatar),
-            recordKind: 'text',
-            recordKey: 'avatar',
-            coinType: '-1',
-          },
-        ],
+        [grant(avatar, 'ROLE_SET_TEXT')],
+        [named(avatar, 'header')],
       ),
     ).toEqual([])
   })

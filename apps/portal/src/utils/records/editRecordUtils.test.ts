@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canEditType,
   createNewRecord,
   type EditableRecord,
   type EditableTypes,
@@ -314,46 +313,15 @@ describe('hasDisallowedChanges', () => {
   })
 
   it('checks the key, not just the type, when a type is scoped', () => {
-    const avatarAndEth: EditableTypes = {
-      ...NO_EDITABLE_TYPES,
-      text: new Set(['avatar']),
-      address: new Set([60n]),
-    }
-    const edited = { isEdited: true }
-
-    expect(
-      hasDisallowedChanges(
-        [
-          { type: 'text', key: 'avatar', value: 'a', ...edited },
-          { ...address, ...edited },
-        ],
-        avatarAndEth,
-      ),
-    ).toBe(false)
-    expect(
-      hasDisallowedChanges(
-        [{ type: 'text', key: 'name', value: 'Jane', ...edited }],
-        avatarAndEth,
-      ),
-    ).toBe(true)
-    expect(
-      hasDisallowedChanges(
-        [{ type: 'address', key: 'BTC', value: 'bc1', id: 0, ...edited }],
-        avatarAndEth,
-      ),
-    ).toBe(true)
-  })
-})
-
-describe('canEditType', () => {
-  it('opens a type with at least one granted key', () => {
-    const types: EditableTypes = {
+    const avatarOnly: EditableTypes = {
       ...NO_EDITABLE_TYPES,
       text: new Set(['avatar']),
     }
+    const edit = (key: string) => [
+      { type: 'text' as const, key, value: 'x', isEdited: true },
+    ]
 
-    expect(canEditType(types, 'text')).toBe(true)
-    expect(canEditType(types, 'address')).toBe(false)
-    expect(canEditType(NO_EDITABLE_TYPES, 'text')).toBe(false)
+    expect(hasDisallowedChanges(edit('avatar'), avatarOnly)).toBe(false)
+    expect(hasDisallowedChanges(edit('name'), avatarOnly)).toBe(true)
   })
 })

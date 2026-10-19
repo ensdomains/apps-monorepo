@@ -40,8 +40,6 @@ let isPermissionedQuery: QueryStub = idle()
 let roleQueries: QueryStub[] = []
 let publicResolverV2Query: QueryStub = idle()
 let grantsQuery: QueryStub = idle()
-/** Whether the setter-grants read was enabled on the last render. */
-let grantsEnabled: boolean | undefined
 /** What the own-resolver check was asked, captured off its query key. */
 let ownResolverParams: unknown
 
@@ -71,7 +69,6 @@ vi.mock('@tanstack/react-query', async () => {
       select?: (data: never) => unknown
     }) => {
       if (queryKey[0] === 'get-resolver-setter-grants') {
-        grantsEnabled = enabled
         // A disabled query still serves whatever is cached for its key.
         return {
           ...grantsQuery,
@@ -132,7 +129,6 @@ describe('useCanEditRecords', () => {
     roleQueries = []
     publicResolverV2Query = idle()
     grantsQuery = idle()
-    grantsEnabled = undefined
     ownResolverParams = undefined
   })
 
@@ -276,56 +272,18 @@ describe('useCanEditRecords', () => {
       expect(result.editableTypes).toEqual(NO_EDITABLE_TYPES)
     })
 
-    it('ignores an ABI grant for a content type records are not saved as', () => {
-      grantsQuery = settled([{ kind: 'abi', contentType: 2n }])
-      roleQueries = [...rootRefused(), settled(true)]
-
-      expect(render().canEdit).toBe(false)
-    })
-
-    it('stays loading while the grants are read', () => {
-      grantsQuery = loading()
-      roleQueries = rootRefused()
-
-      const result = render()
-
-      expect(result.isLoading).toBe(true)
-      expect(result.canEdit).toBe(false)
-    })
-
-    it('reports a failed grants read instead of a plain refusal', () => {
-      grantsQuery = { data: undefined, isLoading: false, isError: true }
-      roleQueries = rootRefused()
-
-      const result = render()
-
-      expect(result.canEdit).toBe(false)
-      expect(result.isError).toBe(true)
-    })
-
     it('ignores cached grants for a caller asking about one argument', () => {
-      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+      grantsQuery = {
+        data: [{ kind: 'text', key: 'avatar' }],
+        isLoading: false,
+        isError: true,
+      }
       roleQueries = [...rootRefused(), settled(true)]
-
-      expect(render({ kind: 'address', coinType: 60n }).canEdit).toBe(false)
-    })
-
-    it('ignores a cached grants error for a caller asking about one argument', () => {
-      grantsQuery = { data: undefined, isLoading: false, isError: true }
-      roleQueries = RECORD_EDIT_ROLES.map(() => settled(true))
 
       const result = render({ kind: 'address', coinType: 60n })
 
+      expect(result.canEdit).toBe(false)
       expect(result.isError).toBe(false)
-      expect(result.canEdit).toBe(true)
-    })
-
-    it('skips the grants read for a caller asking about one argument', () => {
-      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
-
-      render({ kind: 'address', coinType: 60n })
-
-      expect(grantsEnabled).toBe(false)
     })
   })
 

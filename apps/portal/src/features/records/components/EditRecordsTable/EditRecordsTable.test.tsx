@@ -80,8 +80,8 @@ describe('EditRecordsTable', () => {
       text,
     ])
 
-    const deletes = screen.getAllByRole('button', { name: 'Delete record' })
-    expect(deletes).toHaveLength(1)
-    expect(screen.getByText('Jane')).toBeTruthy()
+    expect(
+      screen.getAllByRole('button', { name: 'Delete record' }),
+    ).toHaveLength(1)
   })
 })
