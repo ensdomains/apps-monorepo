@@ -2,7 +2,7 @@ import {
   computeWrapperRegistryAddress,
   getDestinationContracts,
 } from '@ens-apps/smart-account'
-import { mainnet, sepolia } from 'viem/chains'
+import { base, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import { getExpectedWrapperRegistry } from './wrapperRegistry'
 
@@ -27,8 +27,11 @@ describe('getExpectedWrapperRegistry', () => {
   })
 
   it('returns null on a chain without migration contracts', () => {
+    // Mainnet used to stand in for "no migration contracts" here, until the
+    // HCA manifest grew a mainnet entry. Base has no manifest entry, so it
+    // stays that example however the supported-chain list grows.
     expect(
-      getExpectedWrapperRegistry({ name: 'alice.eth', chainId: mainnet.id }),
+      getExpectedWrapperRegistry({ name: 'alice.eth', chainId: base.id }),
     ).toBeNull()
   })
 
