@@ -11,14 +11,17 @@ const profileImageFieldMock = vi.hoisted(() => ({
   themeColors: new Map<string, string | null | undefined>(),
 }))
 
+const visibleFieldsMock = vi.hoisted(() => ({
+  fields: ['avatar', 'header', 'description'] as readonly string[],
+}))
+
 vi.mock('../../EditProfileDialog.context', () => ({
   useEditProfileDialogActions: () => ({
     showField: vi.fn(),
     toggleField: vi.fn(),
   }),
   useEditProfileDialogStatus: () => ({ isSaving: false }),
-  useEditProfileVisibleFields: () =>
-    new Set(['avatar', 'header', 'description']),
+  useEditProfileVisibleFields: () => new Set(visibleFieldsMock.fields),
 }))
 
 vi.mock('./ProfileImageField', () => ({
@@ -151,5 +154,93 @@ describe('GeneralTab description', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Description must be 500 characters or fewer',
     )
+  })
+})
+
+const SelectorsHarness = ({
+  initial = {},
+}: {
+  readonly initial?: ProfileRecords['base']
+}) => {
+  const [values, setValues] = useState<ProfileRecords>({
+    ...newEmptyProfileRecords(),
+    base: initial,
+  })
+
+  return (
+    <>
+      <GeneralTab
+        name="test.eth"
+        onBaseChange={(base) =>
+          setValues((currentValues) => ({ ...currentValues, base }))
+        }
+        onContactChange={(contact) =>
+          setValues((currentValues) => ({ ...currentValues, contact }))
+        }
+        preparedImageUploads={[]}
+        values={values}
+      />
+      <output data-testid="base-records">{JSON.stringify(values.base)}</output>
+      <output data-testid="contact-records">
+        {JSON.stringify(values.contact)}
+      </output>
+    </>
+  )
+}
+
+describe('GeneralTab language and timezone selectors', () => {
+  beforeEach(() => {
+    visibleFieldsMock.fields = ['timezone', 'language']
+  })
+
+  it('filters languages as the user types and stores the picked code', async () => {
+    render(<SelectorsHarness />)
+
+    const language = screen.getByRole('combobox', { name: 'Language' })
+    fireEvent.change(language, { target: { value: 'fren' } })
+
+    const option = await screen.findByRole('option', { name: 'French' })
+    expect(screen.queryByRole('option', { name: 'German' })).toBeNull()
+
+    fireEvent.click(option)
+
+    expect(
+      JSON.parse(screen.getByTestId('base-records').textContent ?? '{}'),
+    ).toMatchObject({ language: 'fr' })
+    expect(language).toHaveValue('French')
+  })
+
+  it('shows the saved language label and keeps a value outside the list', () => {
+    render(<SelectorsHarness initial={{ language: 'xx-custom' }} />)
+
+    expect(screen.getByRole('combobox', { name: 'Language' })).toHaveValue(
+      'xx-custom',
+    )
+  })
+
+  it('clears the record when the text is removed', () => {
+    render(<SelectorsHarness initial={{ language: 'fr' }} />)
+
+    const language = screen.getByRole('combobox', { name: 'Language' })
+    expect(language).toHaveValue('French')
+
+    fireEvent.change(language, { target: { value: '' } })
+
+    expect(
+      JSON.parse(screen.getByTestId('base-records').textContent ?? '{}'),
+    ).toEqual({ language: '' })
+  })
+
+  it('filters timezones by offset text', async () => {
+    render(<SelectorsHarness />)
+
+    const timezone = screen.getByRole('combobox', { name: 'Timezone' })
+    fireEvent.change(timezone, { target: { value: '+5:4' } })
+
+    fireEvent.click(await screen.findByRole('option', { name: 'UTC+5:45' }))
+
+    expect(
+      JSON.parse(screen.getByTestId('contact-records').textContent ?? '[]'),
+    ).toEqual([{ key: 'timezone', value: 'UTC+5:45' }])
   })
 })
