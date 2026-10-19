@@ -1,6 +1,7 @@
 import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -11,6 +12,7 @@ import { getAddress } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -28,7 +30,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
@@ -47,6 +48,7 @@ import {
   ResolverChangeNotAuthorizedError,
   setupControlledResolver,
 } from '@/features/profile/service/setupControlledResolver'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import {
   type SmartAccountContextValue,
   useSmartAccountContext,
@@ -55,6 +57,7 @@ import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
 import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import type { PrimaryNameDomain } from '../service/queries/getPrimaryNameDomains'
+import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
 import { resolveDomainLabel } from '../utils'
 import {
   isConfirmationForSelection,
@@ -67,6 +70,7 @@ import {
   PrimaryNameListFooter,
   PrimaryNameSearch,
 } from './PrimaryNameListControls'
+import { PrimaryNameV1Warning } from './PrimaryNameV1Warning'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
@@ -431,6 +435,17 @@ const useSetupResolverMutation = ({
   })
 }
 
+const useUpgradeWarning = (open: boolean) => {
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
+  const { eligibleKeys, isPending, isError } = useDashboardMigrationEligibility(
+    open && migrationEnabled === true,
+  )
+  return { isError, upgradeableNameCount: isPending ? 0 : eligibleKeys.size }
+}
+
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
@@ -501,6 +516,7 @@ export const ChoosePrimaryNameDialog = ({
   })
   const { domains, isLoading, hasForwardAddressError, isSelectedNameOffered } =
     nameList
+  const upgradeWarning = useUpgradeWarning(open)
 
   const { isSuccess: recordsSettled, isError: isRecordsError } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
@@ -749,6 +765,7 @@ export const ChoosePrimaryNameDialog = ({
               selectedName={selectedName}
             />
 
+            <PrimaryNameV1Warning {...upgradeWarning} />
             {/* Error Message */}
             <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
             {/* Action Buttons */}
@@ -787,9 +804,17 @@ export const ChoosePrimaryNameDialog = ({
         }}
       />
       <HcaFundingConfirmDialog
+        description={<Trans>Setting a primary name is paid in USDC.</Trans>}
+        lines={[
+          {
+            label: <Trans>Network fee</Trans>,
+            amount: fundingPrompt?.quotedFeeUsdc ?? 0n,
+          },
+        ]}
         onApprove={approveFunding}
         onDecline={declineFunding}
         prompt={fundingPrompt}
+        title={<Trans>Approve the network fee?</Trans>}
       />
 
       <ResolverSetupConfirmDialog

@@ -85,21 +85,18 @@ const navigationSections: readonly NavigationSection[] = [
     links: [
       {
         label: msg`Privacy Policy`,
-        linkOptions: linkOptions({
-          to: '/legal/privacy-policy',
-        }),
+        href: 'https://ens.domains/legal/privacy-policy',
+        target: '_blank',
       },
       {
         label: msg`Terms of Use`,
-        linkOptions: linkOptions({
-          to: '/legal/terms-of-use',
-        }),
+        href: 'https://ens.domains/legal/terms-of-use',
+        target: '_blank',
       },
       {
         label: msg`Trademark Guidelines`,
-        linkOptions: linkOptions({
-          to: '/legal/trademark-guidelines',
-        }),
+        href: 'https://ens.domains/legal/trademark-guidelines',
+        target: '_blank',
       },
       {
         label: msg`Bug bounty`,

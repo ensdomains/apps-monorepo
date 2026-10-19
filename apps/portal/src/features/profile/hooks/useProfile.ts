@@ -20,6 +20,8 @@ type GetProfileParameters = {
 const DEFAULT_COINS = [
   // EVM
   coinNameToTypeMap.eth,
+  // ENSIP-19 default address, so a fresh write shows before bigname lists it
+  coinNameToTypeMap.default,
   coinNameToTypeMap.arb1,
   coinNameToTypeMap.op,
   coinNameToTypeMap.base,

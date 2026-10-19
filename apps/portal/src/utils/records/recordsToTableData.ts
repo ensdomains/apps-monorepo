@@ -1,9 +1,17 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import { isOutOfRangeEvmCoinType } from '@/lib/utils'
 
 type Entries<T> = {
   [K in keyof T]-?: [K, T[K]]
 }[keyof T][]
+
+/**
+ * Display key for an address row. An out-of-range EVM type renders as the chain
+ * it aliases, so name the raw type instead (WEB-1447).
+ */
+const addressRecordKey = (coinType: number, symbol: string): string =>
+  isOutOfRangeEvmCoinType(coinType) ? `Invalid coin type (${coinType})` : symbol
 
 export const recordsToTableData = (
   records: GetRecordsReturnType,
@@ -35,7 +43,12 @@ export const recordsToTableData = (
     }
     if (key === 'coins') {
       for (const { coinType, value: addr, symbol } of Object.values(value)) {
-        data.push({ key: symbol, value: addr, type: 'address', id: coinType })
+        data.push({
+          key: addressRecordKey(coinType, symbol),
+          value: addr,
+          type: 'address',
+          id: coinType,
+        })
       }
     }
   }

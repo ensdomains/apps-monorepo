@@ -175,6 +175,41 @@ describe('recordsToTableData', () => {
     expect(result[2]).toMatchObject({ key: 'BNB', type: 'address' })
   })
 
+  it('labels an out-of-range EVM coin type instead of the chain it aliases (WEB-1447)', () => {
+    // Both render as "Unknown Chain (84532)"; only the first is that chain.
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [
+        {
+          coinType: 2147568180,
+          value: 'base-addr',
+          symbol: 'Unknown Chain (84532)',
+        },
+        {
+          coinType: 6442535476,
+          value: 'alias-addr',
+          symbol: 'Unknown Chain (84532)',
+        },
+      ],
+      contentHash: null,
+      abi: null,
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    const result = recordsToTableData(records)
+
+    expect(result[0]).toMatchObject({
+      key: 'Unknown Chain (84532)',
+      type: 'address',
+      id: 2147568180,
+    })
+    expect(result[1]).toMatchObject({
+      key: 'Invalid coin type (6442535476)',
+      type: 'address',
+      id: 6442535476,
+    })
+  })
+
   it('should transform ABI record with object into table data', () => {
     const records: GetRecordsReturnType = {
       texts: [],

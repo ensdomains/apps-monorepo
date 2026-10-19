@@ -9,6 +9,7 @@ type ProfileHeaderProps = {
   readonly avatarUrl?: string
   readonly avatarLoading: boolean
   readonly displayExpiryDate?: Date | null
+  readonly canEdit?: boolean
   readonly hasMobileStatusBanner?: boolean
   readonly mobileActions?: React.ReactNode
   readonly name: string
@@ -22,6 +23,7 @@ export const ProfileHeader = ({
   avatarLoading,
   avatarUrl,
   displayExpiryDate,
+  canEdit,
   hasMobileStatusBanner = false,
   mobileActions,
   name,
@@ -79,7 +81,7 @@ export const ProfileHeader = ({
         className="hidden xl:block"
         name={name}
       />
-      <ProfileAbout records={records} />
+      <ProfileAbout canEdit={canEdit} records={records} />
     </div>
   </div>
 )

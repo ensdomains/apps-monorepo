@@ -175,8 +175,9 @@ export const buildTransferStepIntent = (
       })
       // The same move without the registry's safe-transfer checks (the sender
       // is the only role holder, the registry is emancipated), for a name whose
-      // other grants are staying behind. The receiver hook and the sender's
-      // `ROLE_CAN_TRANSFER_ADMIN` are still enforced.
+      // other grants are staying behind or whose registry isn't emancipated.
+      // The receiver hook and the sender's `ROLE_CAN_TRANSFER_ADMIN` are still
+      // enforced.
       .with(
         ['transfer-token-unsafe', { kind: 'v2' }],
         ([, { registryAddress }]) => {

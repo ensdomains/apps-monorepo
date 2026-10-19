@@ -534,6 +534,23 @@ describe('signFundingPermitActor', () => {
     expect(result.isOk()).toBe(true)
   })
 
+  it('words a refusal in the permitted token and the caller’s purpose', () => {
+    // Renewals and other standalone intents reach this too, some in DAI, so
+    // neither the units nor "the registration" can be assumed.
+    const refusal = rejectPermitValue(
+      3n * 10n ** 18n,
+      { displayedValue: 2n * 10n ** 18n },
+      { symbol: 'DAI', decimals: 18 },
+      { subject: 'the renewal', shownAt: 'in the prompt', costNote: '' },
+    )
+
+    expect(refusal).toMatch(
+      /authorize 3 DAI, but 2 DAI was shown in the prompt/,
+    )
+    expect(refusal).toMatch(/start the renewal again/)
+    expect(refusal).not.toMatch(/registration|USDC/)
+  })
+
   it('never refuses a value BELOW what was displayed', async () => {
     // Being asked to approve less than was quoted has not misled anyone — and
     // a cheaper re-quote is the common case when gas falls.

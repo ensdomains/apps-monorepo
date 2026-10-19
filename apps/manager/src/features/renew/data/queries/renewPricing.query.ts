@@ -11,7 +11,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 
 export class GetRenewPriceError extends TaggedError('GetRenewPriceError')<{
@@ -23,7 +23,7 @@ export { MissingTokenError }
 export const getRenewPrice = ResultFn(async function* (
   label: string,
   durationInSeconds: bigint,
-  token: SUPPORTED_TOKEN | undefined,
+  token: RENEWAL_TOKEN | undefined,
   protocol: RenewalProtocol,
 ) {
   if (!token) {
@@ -49,7 +49,7 @@ export const getRenewPrice = ResultFn(async function* (
 export const getRenewPriceQueryOptions = (
   label: string,
   durationInSeconds: bigint,
-  token: SUPPORTED_TOKEN | undefined,
+  token: RENEWAL_TOKEN | undefined,
   protocol: RenewalProtocol,
 ) => {
   const renewerAddress = getRenewerAddress(protocol)

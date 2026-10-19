@@ -359,7 +359,7 @@ describe('saveRecords encoding (integration)', () => {
           },
         ],
         editedValues: new Map([['text-description', 'new']]),
-        deletedIds: new Set(['address-base']),
+        deletedIds: new Set([`address-${baseCoinType}`]),
       },
       walletClient: mockWalletClient,
       publicClient: {} as any,
