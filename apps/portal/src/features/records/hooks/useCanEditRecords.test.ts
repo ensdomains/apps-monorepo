@@ -16,11 +16,20 @@ const OWN_RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd' as Address
 const INHERITED_RESOLVER =
   '0x0ef1af80c24b681991d675176d9c07d8c9236b9a' as Address
 
-type QueryStub = { readonly data: unknown; readonly isLoading: boolean }
+type QueryStub = {
+  readonly data: unknown
+  readonly isLoading: boolean
+  readonly isError?: boolean
+}
 
 const idle = (): QueryStub => ({ data: undefined, isLoading: false })
 const settled = (data: unknown): QueryStub => ({ data, isLoading: false })
 const loading = (): QueryStub => ({ data: undefined, isLoading: true })
+const failed = (): QueryStub => ({
+  data: undefined,
+  isLoading: false,
+  isError: true,
+})
 
 let connectedAddress: Address | undefined = OWNER
 let ownerQuery: QueryStub = idle()
@@ -162,5 +171,14 @@ describe('useCanEditRecords', () => {
     connectedAddress = STRANGER
 
     expect(render().canEdit).toBe(false)
+  })
+
+  it('reports a failed role read as an error, not as no permission', () => {
+    isPermissionedQuery = settled(true)
+    roleQueries = [failed()]
+
+    const result = render()
+    expect(result.canEdit).toBe(false)
+    expect(result.isError).toBe(true)
   })
 })
