@@ -74,6 +74,14 @@ msgstr ""
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
 msgstr ""
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx
+msgid "{count, plural, one {Copying records for # name in your wallet...} other {Copying records for # names in your wallet...}}"
+msgstr ""
+
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
 msgstr ""
@@ -3656,6 +3664,10 @@ msgstr ""
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your wallet and your smart account both lost permission to update one of these names' records. Restore the permission in your profile, then try again. Nothing was submitted."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
@@ -3663,6 +3675,10 @@ msgstr ""
 
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx

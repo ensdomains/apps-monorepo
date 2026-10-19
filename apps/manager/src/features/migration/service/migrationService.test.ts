@@ -275,6 +275,7 @@ const planFromClassified = (
               }
             : null,
         innerExecutions: [],
+        walletExecutions: [],
         verificationExpectations: [
           {
             id: `${name}:name-owner`,
@@ -341,7 +342,9 @@ const planFromClassified = (
               nameExecutions,
               innerExecutions: [],
               outerCall: { to: HCA, data: OUTER_DATA, value: 0n },
+              walletCall: null,
               estimatedGas: 500_000n,
+              walletEstimatedGas: 0n,
               verificationExpectations: nameExecutions.flatMap(
                 (execution) => execution.verificationExpectations,
               ),
@@ -419,6 +422,7 @@ beforeEach(() => {
     implementation: RESOLVER,
     hcaHasRootRoles: true,
     walletHasWildcardRoles: true,
+    writer: 'hca',
   })
   mocks.assertCopyMigrationReadiness.mockResolvedValue(undefined)
   mocks.assertCopySourcesFresh.mockResolvedValue(undefined)
@@ -426,14 +430,16 @@ beforeEach(() => {
     async ({
       hca,
       classified,
-      estimateOuterGas,
+      estimateBatchGas,
     }: BuildAtomicMigrationBatchesParams) => {
       const names = classified.map(({ domain }) => domain.name)
       const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
-      const estimatedGas = await estimateOuterGas({
+      const { outerGas } = await estimateBatchGas({
         call: outerCall,
         names,
         innerExecutions: [],
+        walletCall: null,
+        walletExecutions: [],
       })
       return {
         resolver: RESOLVER,
@@ -448,7 +454,9 @@ beforeEach(() => {
             nameExecutions: [],
             innerExecutions: [],
             outerCall,
-            estimatedGas,
+            walletCall: null,
+            estimatedGas: outerGas,
+            walletEstimatedGas: 0n,
             verificationExpectations: [],
           },
         ],
@@ -494,11 +502,18 @@ describe('executeMigration HCA orchestration', () => {
       async ({
         hca,
         classified,
-        estimateOuterGas,
+        estimateBatchGas,
       }: BuildAtomicMigrationBatchesParams) => {
         const first = classified.slice(0, 1)
         const names = first.map(({ domain }) => domain.name)
         const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const { outerGas } = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall: null,
+          walletExecutions: [],
+        })
         return {
           resolver: RESOLVER,
           batches: [
@@ -512,11 +527,9 @@ describe('executeMigration HCA orchestration', () => {
               nameExecutions: [],
               innerExecutions: [],
               outerCall,
-              estimatedGas: await estimateOuterGas({
-                call: outerCall,
-                names,
-                innerExecutions: [],
-              }),
+              walletCall: null,
+              estimatedGas: outerGas,
+              walletEstimatedGas: 0n,
               verificationExpectations: [],
             },
           ],
@@ -760,6 +773,60 @@ describe('executeMigration HCA orchestration', () => {
     const { progressEvents } = await runExecute({ onProgress })
     expect(progressEvents.at(-1)).toMatchObject({ currentStep: 1 })
     expect(progressEvents.at(-1)?.isAwaitingConfirmation).toBeUndefined()
+  })
+
+  it('replays records from the wallet before submitting the atomic batch', async () => {
+    const plan = planFor()
+    const walletCall = { to: RESOLVER, data: '0xrecords' as Hex, value: 0n }
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({ hca, classified }: BuildAtomicMigrationBatchesParams) => {
+        const names = classified.map(({ domain }) => domain.name)
+        return {
+          resolver: RESOLVER,
+          batches: [
+            {
+              index: 0,
+              names,
+              operations: classified.map(({ domain, action }) => ({
+                name: domain.name,
+                action,
+              })),
+              nameExecutions: [],
+              innerExecutions: [],
+              outerCall: { to: hca, data: OUTER_DATA, value: 0n },
+              walletCall,
+              estimatedGas: 500_000n,
+              walletEstimatedGas: 120_000n,
+              verificationExpectations: [],
+            },
+          ],
+        }
+      },
+    )
+
+    await runExecute({ plan })
+
+    const submitted = mocks.startTransaction.mock.calls.map((call) => {
+      const [request] = call as [
+        { request: { to: Address; data: Hex; gas?: bigint } },
+      ]
+      return request.request
+    })
+    const walletIndex = submitted.findIndex(
+      ({ to, data }: { to: Address; data: Hex }) =>
+        to === RESOLVER && data === walletCall.data,
+    )
+    const outerIndex = submitted.findIndex(
+      ({ to, data }: { to: Address; data: Hex }) =>
+        to === HCA && data === OUTER_DATA,
+    )
+    expect(walletIndex).toBeGreaterThanOrEqual(0)
+    // A failed replay must leave the names unmigrated, so it goes first.
+    expect(walletIndex).toBeLessThan(outerIndex)
+    expect(submitted[walletIndex]).toMatchObject({
+      from: OWNER,
+      gas: 132_000n,
+    })
   })
 
   it('submits executeByOwner as a wallet-paid EOA transaction targeting the HCA', async () => {

@@ -59,7 +59,7 @@ export type MigrationContractInvariant =
   | 'hca-implementation-approved'
   | 'resolver-certification'
   | 'resolver-implementation'
-  | 'resolver-hca-root-roles'
+  | 'resolver-writer-roles'
   | 'public-resolver-set-membership'
   | 'live-subregistry-overwrite'
 
@@ -455,6 +455,8 @@ export const checkMigrationHcaReadiness = async (params: {
   }
 }
 
+export type MigrationResolverWriter = 'hca' | 'wallet'
+
 export type MigrationResolverReadiness =
   | { readonly status: 'not-required' }
   | { readonly status: 'deployment-required'; readonly resolver: Address }
@@ -462,7 +464,12 @@ export type MigrationResolverReadiness =
       readonly status: 'verified'
       readonly resolver: Address
       readonly implementation: Address
-      readonly hcaHasRootRoles: true
+      /**
+       * Which account writes the resolver's records: the HCA, or the owner
+       * wallet when the HCA's roles were revoked from the portal.
+       */
+      readonly writer: MigrationResolverWriter
+      readonly hcaHasRootRoles: boolean
       readonly walletHasWildcardRoles: boolean
     }
 
@@ -472,9 +479,10 @@ export const getMigrationResolverAddress = (hca: Address): Address =>
 /**
  * Verify a reused HCA resolver; counterfactual resolvers remain deployable.
  *
- * The wallet's root roles come from the resolver's `initialize` (its second
- * grant) or a later `grantRootRoles`. We report that wallet grant separately
- * from the HCA's initializer grant even though both use `hasRootRoles` on-chain.
+ * Either the HCA or the owner wallet has to hold the resolver's root roles: the
+ * resolver checks them against the raw `msg.sender`, so the HCA's grant is not
+ * inherited by the wallet, or the other way round. When only the wallet holds
+ * them (the HCA's grant was revoked from the portal) it becomes the writer.
  */
 export const checkMigrationResolverReadiness = async (params: {
   readonly publicClient: PublicClient
@@ -529,9 +537,9 @@ export const checkMigrationResolverReadiness = async (params: {
       args: [ROLES_ALL, wallet],
     }),
   ])
-  if (!hcaHasRootRoles) {
+  if (!hcaHasRootRoles && !walletHasWildcardRoles) {
     throw new MigrationContractInvariantError({
-      invariant: 'resolver-hca-root-roles',
+      invariant: 'resolver-writer-roles',
       contractName: 'OwnedResolver',
       address: resolver,
       expected: ROLES_ALL.toString(),
@@ -542,7 +550,8 @@ export const checkMigrationResolverReadiness = async (params: {
     status: 'verified',
     resolver,
     implementation,
-    hcaHasRootRoles: true,
+    writer: hcaHasRootRoles ? 'hca' : 'wallet',
+    hcaHasRootRoles,
     walletHasWildcardRoles,
   }
 }

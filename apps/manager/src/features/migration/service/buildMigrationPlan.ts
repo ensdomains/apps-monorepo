@@ -32,6 +32,7 @@ import {
   type AtomicMigrationInnerExecution,
   buildAtomicMigrationBatches,
   buildAtomicMigrationInnerExecutions,
+  buildAtomicMigrationWalletCall,
 } from './buildAtomicMigrationBatches'
 import {
   buildStepDescriptors,
@@ -211,6 +212,42 @@ const previewAtomicBatchGas = (params: {
 
   return PER_BATCH_OVERHEAD + nameGas + executionGas
 }
+
+/**
+ * Gas for the owner-wallet record replay, which is a plain transaction rather
+ * than a wrapped `executeByOwner` call.
+ */
+const previewWalletReplayGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+}): bigint =>
+  params.innerExecutions.reduce(
+    (gas, execution) =>
+      gas +
+      innerExecutionGas({
+        execution,
+        classifiedByName: params.classifiedByName,
+        profiles: params.profiles,
+      }),
+    0n,
+  )
+
+/**
+ * The batch's own gas plus the replay the owner wallet sends. Both preview and
+ * execution split them the same way: `outerGas` is capped by `maxOuterGas`,
+ * `walletGas` is a plain EOA transaction.
+ */
+const previewBatchGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly names: readonly string[]
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly walletExecutions: readonly AtomicMigrationInnerExecution[]
+}): { readonly outerGas: bigint; readonly walletGas: bigint } => ({
+  outerGas: previewAtomicBatchGas(params),
+  walletGas: previewWalletReplayGas(params),
+})
 
 class LockedResolverRecordSafetyError extends TaggedError(
   'LockedResolverRecordSafetyError',
@@ -510,6 +547,10 @@ export const buildMigrationPlan = async (params: {
   const walletCoAdminGranted =
     preflight.hcaResolverReadiness?.status === 'verified' &&
     preflight.hcaResolverReadiness.walletHasWildcardRoles
+  const resolverWriter =
+    preflight.hcaResolverReadiness?.status === 'verified'
+      ? preflight.hcaResolverReadiness.writer
+      : 'hca'
   const atomicPlan = await buildAtomicMigrationBatches({
     chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
@@ -521,13 +562,15 @@ export const buildMigrationPlan = async (params: {
     defaultResolver: V2_CONTRACTS.DefaultResolver,
     resolverDeployed,
     walletCoAdminGranted,
+    resolverWriter,
     maxOuterGas: TARGET_GAS,
-    estimateOuterGas: ({ names, innerExecutions }) =>
-      previewAtomicBatchGas({
+    estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
+      previewBatchGas({
         classifiedByName,
         profiles,
         names,
         innerExecutions,
+        walletExecutions,
       }),
   })
   signal?.throwIfAborted()
@@ -793,13 +836,18 @@ export const buildMigrationRecoveryPlan = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
+    resolverWriter:
+      resolverReadiness.status === 'verified'
+        ? resolverReadiness.writer
+        : 'hca',
     maxOuterGas: TARGET_GAS,
-    estimateOuterGas: ({ names, innerExecutions }) =>
-      previewAtomicBatchGas({
+    estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
+      previewBatchGas({
         classifiedByName,
         profiles: snapshot.profiles,
         names,
         innerExecutions,
+        walletExecutions,
       }),
   })
   signal?.throwIfAborted()
@@ -908,6 +956,14 @@ export const adjustPlanForRetry = (
       const innerExecutions = buildAtomicMigrationInnerExecutions({
         nameExecutions,
       })
+      const walletCall = plan.ownedPermRes
+        ? buildAtomicMigrationWalletCall({
+            resolver: plan.ownedPermRes,
+            executions: nameExecutions.flatMap(
+              (execution) => execution.walletExecutions,
+            ),
+          })
+        : null
       return {
         ...batch,
         names: nameExecutions.map(
@@ -923,6 +979,9 @@ export const adjustPlanForRetry = (
           hca: plan.hcaAddress,
           calls: innerExecutions.map((execution) => execution.call),
         }),
+        walletCall,
+        // Re-derived from the same upper-bound heuristic as `estimatedGas`.
+        walletEstimatedGas: walletCall ? batch.walletEstimatedGas : 0n,
         verificationExpectations: nameExecutions.flatMap(
           (execution) => execution.verificationExpectations,
         ),

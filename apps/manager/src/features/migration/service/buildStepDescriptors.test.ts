@@ -352,3 +352,28 @@ describe('buildStepDescriptors role grants (WEB-1528)', () => {
     })
   })
 })
+
+describe('buildStepDescriptors owner-wallet record replay', () => {
+  it('puts the replay step before the batch it feeds', () => {
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [],
+      atomicBatches: [
+        {
+          ...batches(['alice.eth'])[0],
+          walletCall: {},
+        } as AtomicMigrationBatch,
+        batches(['bob.eth'])[0] as AtomicMigrationBatch,
+      ],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors.map(({ type }) => type)).toEqual([
+      'record-replay',
+      'atomic-batch',
+      'atomic-batch',
+    ])
+    expect(descriptors[0]).toMatchObject({ index: 0, count: 1 })
+    expect(descriptors[1]).toMatchObject({ type: 'atomic-batch', index: 0 })
+  })
+})

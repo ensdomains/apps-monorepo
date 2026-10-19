@@ -26,7 +26,10 @@ import {
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { TARGET_GAS } from './batchMigrate.constants'
-import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
+import {
+  type AtomicMigrationBatch,
+  buildAtomicMigrationBatches,
+} from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type {
   CopyClassifiedName,
@@ -1281,6 +1284,64 @@ const recoverMaskedRpcEstimate = async (params: {
   }
 }
 
+/**
+ * Live estimate of the outer `executeByOwner` call. A permission-missing revert
+ * can be a lagging approval head rather than a real refusal, so it retries
+ * briefly before falling back to the masked-estimate recovery.
+ */
+const estimateOuterCallGas = async (params: {
+  readonly ctx: MigrationCtx
+  readonly call: Call
+  readonly retryPermissionHeadLag: boolean
+}): Promise<bigint> => {
+  let retryIndex = 0
+  while (true) {
+    try {
+      return await params.ctx.publicClient.estimateGas({
+        account: params.ctx.walletAddress,
+        to: params.call.to,
+        data: params.call.data,
+        value: params.call.value,
+      })
+    } catch (error) {
+      const decodedError = decodeMigrationError(error)
+      const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
+      if (
+        params.retryPermissionHeadLag &&
+        retryDelay !== undefined &&
+        decodedError.type === 'permission-missing'
+      ) {
+        retryIndex += 1
+        await delay(retryDelay)
+        continue
+      }
+
+      const recoveredEstimate = await recoverMaskedRpcEstimate({
+        ctx: params.ctx,
+        call: params.call,
+        error: decodedError,
+      })
+      if (recoveredEstimate !== null) return recoveredEstimate
+      throw error
+    }
+  }
+}
+
+/**
+ * Live estimate of the owner-wallet record replay. It is a plain transaction,
+ * so there is no wrapper or approval head to lag behind it.
+ */
+const estimateWalletCallGas = async (params: {
+  readonly ctx: MigrationCtx
+  readonly call: Call
+}): Promise<bigint> =>
+  params.ctx.publicClient.estimateGas({
+    account: params.ctx.walletAddress,
+    to: params.call.to,
+    data: params.call.data,
+    value: params.call.value,
+  })
+
 const buildNextAtomicBatch = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1330,42 +1391,23 @@ const buildNextAtomicBatch = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
+    resolverWriter:
+      resolverReadiness.status === 'verified'
+        ? resolverReadiness.writer
+        : 'hca',
     maxOuterGas: TARGET_GAS,
     firstBatchOnly: true,
     initialBatchSize,
-    estimateOuterGas: async ({ call }) => {
-      let retryIndex = 0
-      while (true) {
-        try {
-          return await ctx.publicClient.estimateGas({
-            account: ctx.walletAddress,
-            to: call.to,
-            data: call.data,
-            value: call.value,
-          })
-        } catch (error) {
-          const decodedError = decodeMigrationError(error)
-          const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
-          if (
-            retryPermissionHeadLag &&
-            retryDelay !== undefined &&
-            decodedError.type === 'permission-missing'
-          ) {
-            retryIndex += 1
-            await delay(retryDelay)
-            continue
-          }
-
-          const recoveredEstimate = await recoverMaskedRpcEstimate({
-            ctx,
-            call,
-            error: decodedError,
-          })
-          if (recoveredEstimate !== null) return recoveredEstimate
-          throw error
-        }
-      }
-    },
+    estimateBatchGas: async ({ call, walletCall }) => ({
+      outerGas: await estimateOuterCallGas({
+        ctx,
+        call,
+        retryPermissionHeadLag,
+      }),
+      walletGas: walletCall
+        ? await estimateWalletCallGas({ ctx, call: walletCall })
+        : 0n,
+    }),
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
@@ -1514,6 +1556,64 @@ const prepareExecutionPlan = async (params: {
   }
 }
 
+/**
+ * True when the batch's profile records are already on the resolver, which is
+ * what a retry sees after its wallet replay landed but the outer call did not.
+ * Reads are idempotent to re-run, so any failure falls through to sending it.
+ */
+const walletReplayAlreadyApplied = async (params: {
+  readonly publicClient: PublicClient
+  readonly batch: AtomicMigrationBatch
+}): Promise<boolean> => {
+  const profileExpectations = params.batch.verificationExpectations.filter(
+    (expectation) => expectation.type.startsWith('profile-'),
+  )
+  if (profileExpectations.length === 0) return false
+  try {
+    await verifyAtomicMigrationBatch({
+      publicClient: params.publicClient,
+      batch: {
+        index: params.batch.index,
+        verificationExpectations: profileExpectations,
+      },
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Records the HCA can no longer write are replayed by the owner wallet first:
+ * a failed replay then leaves the names unmigrated, so a retry replays them
+ * instead of treating the batch as done and skipping its records.
+ */
+const replayWalletRecords = async (params: {
+  readonly ctx: MigrationCtx
+  readonly publicClient: PublicClient
+  readonly batch: AtomicMigrationBatch
+}): Promise<void> => {
+  const { batch } = params
+  if (!batch.walletCall) return
+
+  const description = `Copy records for ${batch.names.join(', ')}`
+  if (await walletReplayAlreadyApplied(params)) {
+    params.ctx.tracker.next()
+    params.ctx.tracker.emit('Records already copied')
+    return
+  }
+
+  await submitCall(
+    params.ctx,
+    batch.walletCall,
+    description,
+    undefined,
+    (batch.walletEstimatedGas * 110n + 99n) / 100n,
+  )
+  params.ctx.tracker.next()
+  params.ctx.tracker.emit('Records copied')
+}
+
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1545,6 +1645,15 @@ const executeRemainingAtomicBatches = async (params: {
       registryContext: params.plan.registryContext,
     })
     const description = describeUpgradeOperations(batch.operations)
+    try {
+      await replayWalletRecords({
+        ctx: params.ctx,
+        publicClient: params.publicClient,
+        batch,
+      })
+    } catch (error) {
+      throw wrapMigrationError(error, description)
+    }
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,

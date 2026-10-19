@@ -192,6 +192,23 @@ const StepCopy = ({ step }: StepCopyProps) =>
         <RoleGrantList roleGrants={roleGrants} />
       </>
     ))
+    .with({ type: 'record-replay' }, ({ count }) => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Plural
+            one="Copy records for # name"
+            other="Copy records for # names"
+            value={count}
+          />
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Your wallet sends this one, because your temporary account no longer
+            has permission to update these records.
+          </Trans>
+        </p>
+      </>
+    ))
     .with({ type: 'cleanup' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
@@ -215,6 +232,7 @@ const stepKey = (step: MigrationWalletRequestDescriptor): string =>
     )
     .with({ type: 'approval' }, ({ approvalId }) => `approval-${approvalId}`)
     .with({ type: 'atomic-batch' }, ({ index }) => `atomic-batch-${index}`)
+    .with({ type: 'record-replay' }, ({ index }) => `record-replay-${index}`)
     .with({ type: 'cleanup' }, ({ approvalId }) => `cleanup-${approvalId}`)
     .exhaustive()
 

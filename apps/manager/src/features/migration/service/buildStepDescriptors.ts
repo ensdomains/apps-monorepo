@@ -43,6 +43,15 @@ export type MigrationStepDescriptor =
       readonly roleGrants: readonly MigrationRoleGrantDescriptor[]
     }
   | {
+      /**
+       * The owner wallet replaying records the HCA can no longer write. Sits
+       * before its `atomic-batch` because it has to land first.
+       */
+      readonly type: 'record-replay'
+      readonly index: number
+      readonly count: number
+    }
+  | {
       readonly type: 'cleanup'
       readonly approvalId: MigrationApprovalId
     }
@@ -79,6 +88,41 @@ export type MigrationWalletRequestDescriptor =
   | MigrationStepDescriptor
   | { readonly type: 'renewal-approval' }
 
+const approvalDescriptor = (params: {
+  readonly approval: MigrationApproval
+  readonly registrationNameByTokenId: ReadonlyMap<bigint, string>
+  readonly registrationCount: number
+  readonly allRoleGrants: readonly MigrationRoleGrantDescriptor[]
+}): MigrationStepDescriptor => {
+  const { approval } = params
+  if (approval.kind === 'erc721-token') {
+    return {
+      type: 'approval',
+      approvalId: approval.id,
+      name: params.registrationNameByTokenId.get(approval.tokenId),
+      tokenId: approval.tokenId,
+    }
+  }
+
+  return {
+    type: 'approval',
+    approvalId: approval.id,
+    count:
+      approval.id === 'base-registrar:hca'
+        ? params.registrationCount
+        : undefined,
+    // What this approval will actually be spent on, so its copy can name the
+    // restoration instead of promising one. Left undefined when the plan grants
+    // nothing — a step must never advertise grants it does not carry, which is
+    // what a resumed run with no recorded opt-in produces. The addresses
+    // themselves are listed once, on the batch step that performs the grants.
+    roleGrants:
+      approval.id === 'eth-registry:hca' && params.allRoleGrants.length > 0
+        ? params.allRoleGrants
+        : undefined,
+  }
+}
+
 export const buildStepDescriptors = (
   params: BuildStepDescriptorsParams,
 ): MigrationStepDescriptor[] => {
@@ -97,34 +141,14 @@ export const buildStepDescriptors = (
   const allRoleGrants = params.atomicBatches.flatMap(roleGrantsForBatch)
 
   for (const approval of params.approvals) {
-    if (approval.kind === 'erc721-token') {
-      descriptors.push({
-        type: 'approval',
-        approvalId: approval.id,
-        name: registrationNameByTokenId.get(approval.tokenId),
-        tokenId: approval.tokenId,
-      })
-      continue
-    }
-
-    descriptors.push({
-      type: 'approval',
-      approvalId: approval.id,
-      count:
-        approval.id === 'base-registrar:hca'
-          ? params.registrationApprovalTargets.length
-          : undefined,
-      // What this approval will actually be spent on, so its copy can name the
-      // restoration instead of promising one. Left undefined when the plan
-      // grants nothing — a step must never advertise grants it does not carry,
-      // which is what a resumed run with no recorded opt-in produces. The
-      // addresses themselves are listed once, on the batch step that performs
-      // the grants.
-      roleGrants:
-        approval.id === 'eth-registry:hca' && allRoleGrants.length > 0
-          ? allRoleGrants
-          : undefined,
-    })
+    descriptors.push(
+      approvalDescriptor({
+        approval,
+        registrationNameByTokenId,
+        registrationCount: params.registrationApprovalTargets.length,
+        allRoleGrants,
+      }),
+    )
   }
 
   for (const [index, batch] of params.atomicBatches.entries()) {
@@ -132,6 +156,14 @@ export const buildStepDescriptors = (
       ({ action }) => action === 'migrate',
     ).length
     const copyCount = batch.operations.length - migrateCount
+    // Ahead of the batch: the replay has to land before the names migrate.
+    if (batch.walletCall) {
+      descriptors.push({
+        type: 'record-replay',
+        index,
+        count: batch.names.length,
+      })
+    }
     descriptors.push({
       type: 'atomic-batch',
       index,
