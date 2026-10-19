@@ -1596,6 +1596,10 @@ msgstr "no ENSv1 registration was found for it."
 msgid "No favorites to display"
 msgstr "No favorites to display"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "No matches"
+msgstr "No matches"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "No names found"
 msgstr "No names found"

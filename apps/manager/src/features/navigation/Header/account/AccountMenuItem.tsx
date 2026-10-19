@@ -24,7 +24,7 @@ const AccountMenuItemContent = ({
     <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-500">
       {prefix}
     </span>
-    <span className="min-w-0 truncate">{children}</span>
+    <span className="min-w-0 truncate leading-5">{children}</span>
   </>
 )
 
