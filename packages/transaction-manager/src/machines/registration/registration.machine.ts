@@ -29,6 +29,7 @@ import {
   verifyRegistrationActor,
 } from './registration.actors'
 import {
+  awaitL2BridgeActor,
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
@@ -302,6 +303,14 @@ export type RegistrationContext = {
   /** The L2 bridge's transaction, while `waitingForL2Bridge`. */
   l2BridgeTxId?: string
   /**
+   * The L2 bridge's orchestrator id, from submission until it settles.
+   * Persisted, so neither a retry nor a resumed run pays again while it may
+   * still fill.
+   */
+  l2BridgeIntentId?: bigint
+  /** USDC (6dp) checkout showed the L2 being charged, fee included. */
+  displayedL2Charge?: bigint
+  /**
    * Standalone-HCA: asks the host app for a new session when a leg's quoted
    * gas refund outgrows the current one's caps. Runtime dep injected on
    * START_REGISTRATION and RESUME, never persisted; absent, such a leg fails.
@@ -420,6 +429,8 @@ export type RegistrationEvent =
       hcaSessionEnable?: HcaSessionEnableParams
       /** Standalone-HCA: fund from an L2. See `RegistrationContext.l2Funding`. */
       l2Funding?: L2FundingSource
+      /** See `RegistrationContext.displayedL2Charge`. */
+      displayedL2Charge?: bigint
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
       /**
@@ -484,6 +495,11 @@ export type RegistrationEvent =
        * machine happens to be in — hence handled at the root.
        */
       type: 'INTENT_SUBMITTED'
+      intentId: bigint
+    }
+  | {
+      /** The L2 bridge's intent was accepted; see `l2BridgeIntentId`. */
+      type: 'L2_BRIDGE_SUBMITTED'
       intentId: bigint
     }
   | { type: 'RETRY' }
@@ -553,9 +569,22 @@ export const registrationMachine = setup({
         signer: Signer
         publicClient: PublicClient
         id?: string
+        onIntentSubmitted?: (intentId: bigint) => void
       }) => {
         return submitL2BridgeActor(input)
       },
+    ),
+    awaitL2Bridge: fromResultAsync(
+      (
+        input: {
+          intentId: bigint
+          fetchIntentStatus?: (
+            intentId: bigint,
+            signal?: AbortSignal,
+          ) => Promise<string | null>
+        },
+        { signal }: { signal: AbortSignal },
+      ) => awaitL2BridgeActor({ ...input, signal }),
     ),
     submitFundingAndCommit: fromResultAsync(
       (input: {
@@ -790,6 +819,9 @@ export const registrationMachine = setup({
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
+    hasUnsettledL2Bridge: ({ context }) =>
+      context.signer?.type === 'rhinestone' &&
+      context.l2BridgeIntentId !== undefined,
   },
 
   actions: {
@@ -946,6 +978,11 @@ export const registrationMachine = setup({
         registrationIntentId: ({ event }) => event.intentId,
       }),
     },
+    L2_BRIDGE_SUBMITTED: {
+      actions: assign({
+        l2BridgeIntentId: ({ event }) => event.intentId,
+      }),
+    },
     // Accepted from anywhere, since the owning wallet can go away at any point
     // of the run. Leaving the state stops whatever it had invoked, as closing
     // the tab would; the flow fields stay for the RESUME that picks it back up.
@@ -994,6 +1031,8 @@ export const registrationMachine = setup({
               hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
               l2Funding: ({ event }) => event.l2Funding,
               l2BridgeTxId: () => undefined,
+              l2BridgeIntentId: () => undefined,
+              displayedL2Charge: ({ event }) => event.displayedL2Charge,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
@@ -1152,6 +1191,14 @@ export const registrationMachine = setup({
             }),
           },
           {
+            // A bridge already sent may still fill: settle it before paying again.
+            guard: 'hasUnsettledL2Bridge',
+            target: 'awaitingL2Bridge',
+            actions: assign({
+              hcaUsdcBalance: ({ event }) => event.output as bigint,
+            }),
+          },
+          {
             // Paid from an L2: bridge the shortfall in instead of a permit.
             guard: 'isL2Funded',
             target: 'bridgingFromL2',
@@ -1173,6 +1220,11 @@ export const registrationMachine = setup({
         // balance we could not read risks an under-funded, reverting reveal.
         // An L2 bridge is sized the same way.
         onError: [
+          {
+            guard: 'hasUnsettledL2Bridge',
+            target: 'awaitingL2Bridge',
+            actions: assign({ hcaUsdcBalance: () => 0n }),
+          },
           {
             guard: 'isL2Funded',
             target: 'bridgingFromL2',
@@ -1239,7 +1291,7 @@ export const registrationMachine = setup({
       entry: ['logTransition'],
       invoke: {
         src: 'submitL2Bridge',
-        input: ({ context }) => ({
+        input: ({ context, self }) => ({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hca: context.accountAddress!,
           payment: {
@@ -1247,12 +1299,15 @@ export const registrationMachine = setup({
             source: context.l2Funding!,
             amount: fundingShortfall(context),
             bounds: fundingBounds(context),
+            displayedCharge: context.displayedL2Charge,
           },
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           id: REGISTRATION_TX_IDS.l2Bridge,
+          onIntentSubmitted: (intentId: bigint) =>
+            self.send({ type: 'L2_BRIDGE_SUBMITTED', intentId }),
         }),
         onDone: {
           target: 'waitingForL2Bridge',
@@ -1282,16 +1337,54 @@ export const registrationMachine = setup({
         // Not re-read: a lagging read would bridge the budget a second time.
         onDone: {
           target: 'submittingSetupBundle',
-          actions: assign({ l2BridgeTxId: () => undefined }),
+          actions: assign({
+            l2BridgeTxId: () => undefined,
+            l2BridgeIntentId: () => undefined,
+          }),
         },
-        // Retried like the permit, which re-reads the balance first: a bridge
-        // reported failed may still have landed.
+        // Retried like the permit. The intent id stays, so the retry settles
+        // that bridge first: one reported failed may still fill.
         onError: {
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
             retryTarget: () => 'signingFundingPermit' as const,
             l2BridgeTxId: () => undefined,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // A bridge from an earlier attempt or tab: wait for the orchestrator's
+    // verdict. Filled → commit as `waitingForL2Bridge` does; dead → pay anew.
+    awaitingL2Bridge: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'awaitL2Bridge',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guarded by hasUnsettledL2Bridge
+          intentId: context.l2BridgeIntentId!,
+          fetchIntentStatus: context.fetchRegistrationIntentStatus,
+        }),
+        onDone: [
+          {
+            guard: ({ event }) => event.output === 'landed',
+            target: 'submittingSetupBundle',
+            actions: assign({ l2BridgeIntentId: () => undefined }),
+          },
+          {
+            target: 'checkingHcaFunding',
+            actions: assign({ l2BridgeIntentId: () => undefined }),
+          },
+        ],
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+            retryTarget: () => 'signingFundingPermit' as const,
           }),
         },
       },

@@ -586,6 +586,33 @@ describe('submitWarpTransaction — paid from an L2', () => {
     )
   })
 
+  // The fee cap bounds the quote alone; checkout's figure is the consent.
+  it('refuses a charge above what checkout showed, before signing', async () => {
+    const { request, signer } = setup()
+
+    const result = await submitWarpTransaction({
+      request,
+      signer: { ...signer, l2DisplayedCharge: 4_000_000n },
+    })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(L2PaymentNotSentError)
+    expect(error.message).toContain('5.012 USDC')
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  it('signs a charge within drift of what checkout showed', async () => {
+    const { request, signer } = setup()
+
+    const result = await submitWarpTransaction({
+      request,
+      signer: { ...signer, l2DisplayedCharge: QUOTE.amountIn },
+    })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    expect(submitL2Bridge).toHaveBeenCalled()
+  })
+
   it('needs exactly one token request', async () => {
     const { source, signer } = setup()
 

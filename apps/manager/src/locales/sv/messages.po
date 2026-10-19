@@ -699,6 +699,10 @@ msgstr ""
 msgid "Checking your account…"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking your earlier payment"
+msgstr ""
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
 msgstr ""
@@ -3546,6 +3550,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the commitment confirmation"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for the payment you already signed to arrive"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts

@@ -694,6 +694,10 @@ msgstr "Checking whether your resolver is already deployed"
 msgid "Checking your account…"
 msgstr "Checking your account…"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking your earlier payment"
+msgstr "Checking your earlier payment"
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
 msgstr "Checking your subnames"
@@ -3542,6 +3546,10 @@ msgstr "Waiting for the approval confirmation"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the commitment confirmation"
 msgstr "Waiting for the commitment confirmation"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for the payment you already signed to arrive"
+msgstr "Waiting for the payment you already signed to arrive"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the registration confirmation"

@@ -66,7 +66,9 @@ const startHcaRegistration = (overrides: {
   fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
   /** Funds the HCA from an L2 instead of with a permit. */
   l2Funding?: L2FundingSource
+  displayedL2Charge?: bigint
   submitL2Bridge?: ReturnType<typeof vi.fn>
+  awaitL2Bridge?: ReturnType<typeof vi.fn>
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -88,6 +90,7 @@ const startHcaRegistration = (overrides: {
 
   const submitL2Bridge =
     overrides.submitL2Bridge ?? vi.fn(async () => 'tx-reg-l2-bridge')
+  const awaitL2Bridge = overrides.awaitL2Bridge ?? vi.fn(async () => 'landed')
 
   const balances = overrides.balances ?? [0n]
   let fundingChecks = 0
@@ -108,6 +111,7 @@ const startHcaRegistration = (overrides: {
         signFundingPermit: fromPromise(signFundingPermit) as never,
         submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
         submitL2Bridge: fromPromise(submitL2Bridge) as never,
+        awaitL2Bridge: fromPromise(awaitL2Bridge) as never,
         ...(overrides.pollTransactionStatus && {
           pollTransactionStatus: fromPromise(
             overrides.pollTransactionStatus,
@@ -145,6 +149,9 @@ const startHcaRegistration = (overrides: {
       ? { fetchIntentStatus: overrides.fetchIntentStatus }
       : {}),
     ...(overrides.l2Funding ? { l2Funding: overrides.l2Funding } : {}),
+    ...(overrides.displayedL2Charge !== undefined
+      ? { displayedL2Charge: overrides.displayedL2Charge }
+      : {}),
   })
 
   return {
@@ -153,6 +160,7 @@ const startHcaRegistration = (overrides: {
     signFundingPermit,
     submitFundingAndCommit,
     submitL2Bridge,
+    awaitL2Bridge,
   }
 }
 
@@ -486,6 +494,70 @@ describe('registrationMachine — paid from an L2', () => {
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
     expect(submitL2Bridge).toHaveBeenCalledOnce()
+  })
+
+  // The balance alone can't tell a bridge still filling from one never sent.
+  const sentBridge = () =>
+    vi.fn(
+      async ({
+        input,
+      }: {
+        input: { onIntentSubmitted?: (intentId: bigint) => void }
+      }) => {
+        input.onIntentSubmitted?.(9n)
+        return 'tx-reg-l2-bridge'
+      },
+    )
+
+  it('settles a sent bridge on retry instead of paying again', async () => {
+    const { actor, submitL2Bridge, awaitL2Bridge } = startHcaRegistration({
+      // Still filling when the retry reads the balance.
+      balances: [0n, 0n],
+      l2Funding,
+      submitL2Bridge: sentBridge(),
+      pollTransactionStatus: vi.fn(async () => {
+        throw new Error('lost track of the fill')
+      }),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.l2BridgeIntentId).toBe(9n)
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(awaitL2Bridge.mock.calls[0][0].input.intentId).toBe(9n)
+    expect(submitL2Bridge).toHaveBeenCalledOnce()
+    expect(actor.getSnapshot().context.l2BridgeIntentId).toBeUndefined()
+  })
+
+  it('pays again once the sent bridge is dead', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n, 0n],
+      l2Funding,
+      submitL2Bridge: sentBridge(),
+      awaitL2Bridge: vi.fn(async () => 'dead'),
+      pollTransactionStatus: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('intent failed'))
+        .mockImplementation(() => new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length === 2)
+  })
+
+  it('carries what checkout showed the L2 charging into the bridge', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      l2Funding,
+      displayedL2Charge: 10_050_000n,
+    })
+
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.displayedCharge).toBe(
+      10_050_000n,
+    )
   })
 })
 
@@ -1125,6 +1197,64 @@ describe('registrationMachine — RESUME', () => {
     // consume it treat "present" as "valid".
     expect(context.permit).toBeUndefined()
     expect(context.hcaBudget).toBeUndefined()
+    actor.stop()
+  })
+
+  it('waits for a stored L2 bridge instead of paying again', async () => {
+    const submitL2Bridge = vi.fn(async () => 'tx-reg-l2-bridge')
+    const awaitL2Bridge = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          estimateHcaBudget: fromPromise(async () => ({
+            total: BUDGET,
+            commitCost: 4_000_000n,
+            registerCost: 6_000_000n,
+            registrationPrice: 5_000_000n,
+            expectedMaximum: 30_000_000n,
+            source: 'quote' as const,
+          })) as never,
+          // The bridge has not landed yet.
+          readHcaUsdcBalance: fromPromise(async () => 0n) as never,
+          submitL2Bridge: fromPromise(submitL2Bridge) as never,
+          awaitL2Bridge: fromPromise(awaitL2Bridge) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForL2Bridge',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        l2FundingChainId: 84532,
+        l2BridgeIntentId: 9n,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+        l2Funding: { chain: { id: 84532 } } as unknown as L2FundingSource,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('awaitingL2Bridge'))
+
+    expect(awaitL2Bridge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ intentId: 9n }),
+      }),
+    )
+    expect(submitL2Bridge).not.toHaveBeenCalled()
     actor.stop()
   })
 

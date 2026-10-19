@@ -806,7 +806,10 @@ export type VerifyPollOptions = {
   isDefinitivelyDead?: () => Promise<boolean>
 }
 
-function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
+export function sleepUnlessAborted(
+  ms: number,
+  signal?: AbortSignal,
+): Promise<void> {
   return new Promise<void>((resolve) => {
     if (signal?.aborted) return resolve()
 

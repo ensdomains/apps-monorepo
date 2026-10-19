@@ -179,6 +179,8 @@ type Events =
       displayedWalletDebit?: bigint
       /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */
       l2FundingChainId?: number
+      /** What checkout showed that L2 being charged, fee included. */
+      displayedL2Charge?: bigint
     }
   | {
       /**
@@ -804,6 +806,7 @@ const startRegistrationAction = machineSetup.createAction(
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
         l2Funding,
+        displayedL2Charge: event.displayedL2Charge,
         // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.

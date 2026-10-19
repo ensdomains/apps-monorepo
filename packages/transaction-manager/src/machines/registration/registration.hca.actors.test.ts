@@ -29,6 +29,7 @@ import type {
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 import {
+  awaitL2BridgeActor,
   estimateHcaBudgetActor,
   readUsdcSpend,
   rejectPermitValue,
@@ -240,11 +241,13 @@ describe('submitL2BridgeActor', () => {
   const publicClient = { chain: sepolia } as unknown as PublicClient
 
   it('has the wallet deliver the shortfall to the HCA there, running nothing on Sepolia', async () => {
+    const onIntentSubmitted = vi.fn()
     const result = await submitL2BridgeActor({
       hca: HCA,
-      payment: { source, amount: 15_000_000n },
+      payment: { source, amount: 15_000_000n, displayedCharge: 15_050_000n },
       signer: hcaSigner,
       publicClient,
+      onIntentSubmitted,
     })
 
     expect(result.isOk()).toBe(true)
@@ -256,6 +259,8 @@ describe('submitL2BridgeActor', () => {
       { address: C.usdc, amount: 15_000_000n },
     ])
     expect(request.rhinestoneParams.sessionEnableData).toBeUndefined()
+    // Its id is what a retry or a resumed run settles before paying again.
+    expect(request.rhinestoneParams.onIntentSubmitted).toBe(onIntentSubmitted)
 
     const [, signer, options] = startTransaction.mock.calls[0] as unknown as [
       unknown,
@@ -268,6 +273,8 @@ describe('submitL2BridgeActor', () => {
       account: hcaSigner.account,
       config: hcaSigner.config,
       l2Funding: source,
+      // The transport holds the fresh quote's charge to this.
+      l2DisplayedCharge: 15_050_000n,
     })
     // A resend would ask the wallet to sign a second payment.
     expect(options.retryCount).toBe(0)
@@ -289,6 +296,47 @@ describe('submitL2BridgeActor', () => {
       /Refusing to request a signature/,
     )
     expect(startTransaction).not.toHaveBeenCalled()
+  })
+})
+
+describe('awaitL2BridgeActor', () => {
+  const run = (statuses: (string | null)[], timeoutMs = 1_000) => {
+    const fetchIntentStatus = vi.fn(async () => statuses.shift() ?? null)
+    return {
+      fetchIntentStatus,
+      result: awaitL2BridgeActor({
+        intentId: 9n,
+        fetchIntentStatus,
+        pollIntervalMs: 0,
+        timeoutMs,
+      }),
+    }
+  }
+
+  it('waits through pending until the bridge fills', async () => {
+    const { fetchIntentStatus, result } = run([null, 'PENDING', 'COMPLETED'])
+
+    expect((await result)._unsafeUnwrap()).toBe('landed')
+    expect(fetchIntentStatus).toHaveBeenCalledTimes(3)
+    expect(fetchIntentStatus).toHaveBeenCalledWith(9n, undefined)
+  })
+
+  it('reports a failed or expired bridge as dead', async () => {
+    expect((await run(['FAILED']).result)._unsafeUnwrap()).toBe('dead')
+    expect((await run(['EXPIRED']).result)._unsafeUnwrap()).toBe('dead')
+  })
+
+  // An unconfirmed payment must never be followed by a second one.
+  it('fails rather than settling when the status never resolves', async () => {
+    const { result } = run([], 20)
+
+    expect((await result).isErr()).toBe(true)
+  })
+
+  it('fails without a status lookup', async () => {
+    const result = await awaitL2BridgeActor({ intentId: 9n })
+
+    expect(result.isErr()).toBe(true)
   })
 })
 

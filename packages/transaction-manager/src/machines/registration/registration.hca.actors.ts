@@ -92,6 +92,7 @@ import {
   type DaiPermitSignature,
   type PermitSignature,
   pollUntilVerified,
+  sleepUnlessAborted,
   type VerifyPollOptions,
 } from './registration.actors'
 
@@ -996,6 +997,8 @@ export interface L2BridgePayment {
   readonly source: L2FundingSource
   readonly amount: bigint
   readonly bounds?: PermitValueBounds
+  /** What checkout showed the L2 being charged, fee included. */
+  readonly displayedCharge?: bigint
 }
 
 /**
@@ -1010,6 +1013,8 @@ export function submitL2BridgeActor(input: {
   signer: Signer
   publicClient: PublicClient
   id?: string
+  /** Receives the bridge intent's id once the orchestrator accepts it. */
+  onIntentSubmitted?: (intentId: bigint) => void
 }): ResultAsync<string, Error> {
   const { payment, signer } = input
   // Like the permit: a refusal must never reach the wallet.
@@ -1022,15 +1027,22 @@ export function submitL2BridgeActor(input: {
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
+      const request = buildUserPaidRequest({
+        from: input.hca,
+        chainId,
+        calls: [],
+        deliveredUsdc: payment.amount,
+      })
       return transactionManager.startTransaction(
         {
           type: 'custom',
-          request: buildUserPaidRequest({
-            from: input.hca,
-            chainId,
-            calls: [],
-            deliveredUsdc: payment.amount,
-          }),
+          request: {
+            ...request,
+            rhinestoneParams: {
+              ...request.rhinestoneParams,
+              onIntentSubmitted: input.onIntentSubmitted,
+            },
+          },
         },
         // The wallet signs this one itself, so no session goes with it.
         {
@@ -1038,6 +1050,7 @@ export function submitL2BridgeActor(input: {
           account: signer.account,
           config: signer.config,
           l2Funding: payment.source,
+          l2DisplayedCharge: payment.displayedCharge,
         },
         {
           id: input.id,
@@ -1047,6 +1060,52 @@ export function submitL2BridgeActor(input: {
           // A resend would ask the wallet to sign a second payment.
           retryCount: 0,
         },
+      )
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+const L2_BRIDGE_POLL_MS = 4_000
+const L2_BRIDGE_WAIT_MS = 10 * 60_000
+
+/**
+ * Settle a bridge an earlier attempt (or tab) already sent before paying
+ * again: `'landed'` once it filled, `'dead'` once the orchestrator gives up on
+ * it. Anything else keeps waiting, and running out of time is an error, so an
+ * unconfirmed payment is never followed by a second one.
+ */
+export function awaitL2BridgeActor(input: {
+  intentId: bigint
+  fetchIntentStatus?: (
+    intentId: bigint,
+    signal?: AbortSignal,
+  ) => Promise<string | null>
+  signal?: AbortSignal
+  pollIntervalMs?: number
+  timeoutMs?: number
+}): ResultAsync<'landed' | 'dead', Error> {
+  const { fetchIntentStatus, signal } = input
+  if (!fetchIntentStatus) {
+    return errAsync(
+      new Error('Cannot check the earlier L2 payment, so not paying again.'),
+    )
+  }
+  const deadline = Date.now() + (input.timeoutMs ?? L2_BRIDGE_WAIT_MS)
+  return fromPromise(
+    (async () => {
+      while (!signal?.aborted && Date.now() < deadline) {
+        const status = await fetchIntentStatus(input.intentId, signal)
+        if (status === 'FILLED' || status === 'COMPLETED') return 'landed'
+        if (status === 'FAILED' || status === 'EXPIRED') return 'dead'
+        await sleepUnlessAborted(
+          input.pollIntervalMs ?? L2_BRIDGE_POLL_MS,
+          signal,
+        )
+      }
+      throw new Error(
+        'The earlier L2 payment has not settled yet, so not paying again. ' +
+          'Try again in a few minutes.',
       )
     })(),
     (error) => (error instanceof Error ? error : new Error(String(error))),

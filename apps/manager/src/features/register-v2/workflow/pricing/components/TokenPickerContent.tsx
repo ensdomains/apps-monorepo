@@ -322,6 +322,7 @@ export const TokenPickerContent = () => {
   })
   const l2FundingChainId = l2Payment?.selectedChainId
   const isPaidFromL2 = l2FundingChainId !== undefined
+  const displayedL2Charge = getSelectedL2(l2Payment)?.amountInRaw
 
   // An explicit toggle choice always wins. Otherwise resolve the eligibility
   // lookups (already in flight for the toggle default — fetchQuery dedupes)
@@ -385,6 +386,8 @@ export const TokenPickerContent = () => {
         : {}),
       // Paid from an L2, the funding is bridged in from there, not permitted.
       ...(l2FundingChainId === undefined ? {} : { l2FundingChainId }),
+      // And that L2's charge, fee included, bounds the bridge the same way.
+      ...(displayedL2Charge === undefined ? {} : { displayedL2Charge }),
     })
   }
 

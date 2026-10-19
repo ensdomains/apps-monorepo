@@ -29,6 +29,7 @@ export const REGISTRATION_STAGE_PROGRESS = {
   // Paid from an L2, the shortfall is bridged in instead of permitted.
   bridgingFromL2: 28,
   waitingForL2Bridge: 29,
+  awaitingL2Bridge: 29,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,
   // A leg's quoted fee outgrew the session: one more wallet signature.

@@ -18,15 +18,17 @@ import {
   quoteL2Bridge,
   readQuotedGasRefunds,
   submitL2Bridge,
+  withBudgetDrift,
 } from '@ens-apps/smart-account'
 import { logger } from '@ens-apps/utils/logger'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import type {
   RhinestoneAccount,
   TokenRequest,
   Transaction,
 } from '@rhinestone/sdk'
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import { type Chain, type Hash, isAddress } from 'viem'
+import { err, errAsync, fromPromise, ok, type ResultAsync } from 'neverthrow'
+import { type Chain, formatUnits, type Hash, isAddress } from 'viem'
 import {
   ChainIdMismatchError,
   extractOrchestratorErrorContext,
@@ -123,14 +125,6 @@ function reportIntentSubmitted(
   }
 }
 
-const unwrap = <T, E>(result: ResultAsync<T, E>): Promise<T> =>
-  result.match(
-    (value) => value,
-    (error) => {
-      throw error
-    },
-  )
-
 /**
  * An intent the wallet pays from an L2. The quote must pass
  * `validateL2BridgeQuote` before the wallet is asked to sign, and the HCA runs
@@ -141,6 +135,7 @@ function submitL2FundedIntent(
   hca: RhinestoneAccount,
   chain: Chain,
   source: L2FundingSource,
+  displayedCharge: bigint | undefined,
 ): ResultAsync<Hash, TransactionSubmissionError> {
   const [payment, ...otherPayments] =
     request.rhinestoneParams.tokenRequests ?? []
@@ -159,62 +154,86 @@ function submitL2FundedIntent(
   }
   const targetToken = payment.address
   const amountOut = payment.amount
-  let isSubmitted = false
-  let step = 'approve USDC for Permit2'
 
-  return fromPromise(
-    (async () => {
-      // Approve first: an approval can outlast a two-minute quote.
-      await source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut))
-      step = 'reach the wallet'
-      const wallet = await source.getAccount()
-      step = 'quote the payment'
-      const quote = await unwrap(
-        quoteL2Bridge(wallet, {
-          owner: wallet.getAddress(),
-          sourceChain: source.chain,
-          sourceToken: source.token,
-          targetChain: chain,
-          targetToken,
-          amountOut,
-          recipient: { address: hca.getAddress(), config: hca.config },
-          calls: request.rhinestoneParams.calls,
-        }),
-      )
-      step = 'sign the payment'
-      const intent = await unwrap(submitL2Bridge(wallet, quote))
-      isSubmitted = true
-      reportIntentSubmitted(request, intent.id)
-      console.log('🧾 [WARP] L2-paid intent submitted:', {
-        intentId: intent.id.toString(),
-        sourceChainId: source.chain.id,
-        amountIn: quote.amountIn.toString(),
-      })
+  // Named, so the screen says which step failed even when a wallet rejects
+  // with a bare object rather than an Error.
+  const notSent = (step: string) => (error: unknown) => {
+    logger.error(`🛑 [WARP] L2 payment failed (${step}):`, error)
+    return new L2PaymentNotSentError(
+      request,
+      new Error(
+        `Could not ${step} on ${source.chain.name}: ${describeError(error)}`,
+        { cause: error },
+      ),
+    )
+  }
+  const afterSent = (error: unknown) => {
+    logger.error('🛑 [WARP] L2 payment failed (wait for the fill):', error)
+    return new TransactionSubmissionError(request, error)
+  }
 
-      const status = await wallet.waitForExecution(intent, false)
-      if (!status.fill.hash) {
-        throw new Error('No transaction hash returned from Warp execution')
-      }
-      console.log('🧾 [WARP] L2-paid intent filled:', {
-        intentId: intent.id.toString(),
-        fillHash: status.fill.hash,
-      })
-      return status.fill.hash
-    })(),
-    (error) => {
-      logger.error(`🛑 [WARP] L2 payment failed (${step}):`, error)
-      if (isSubmitted) return new TransactionSubmissionError(request, error)
-      // Named, so the screen says which step failed even when a wallet
-      // rejects with a bare object rather than an Error.
-      return new L2PaymentNotSentError(
-        request,
-        new Error(
-          `Could not ${step} on ${source.chain.name}: ${describeError(error)}`,
-          { cause: error },
+  return ResultFn(async function* () {
+    // Approve first: an approval can outlast a two-minute quote.
+    yield* fromPromise(
+      source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
+      notSent('approve USDC for Permit2'),
+    )
+    const wallet = yield* fromPromise(
+      source.getAccount(),
+      notSent('reach the wallet'),
+    )
+    const quote = yield* quoteL2Bridge(wallet, {
+      owner: wallet.getAddress(),
+      sourceChain: source.chain,
+      sourceToken: source.token,
+      targetChain: chain,
+      targetToken,
+      amountOut,
+      recipient: { address: hca.getAddress(), config: hca.config },
+      calls: request.rhinestoneParams.calls,
+    }).mapErr(notSent('quote the payment'))
+    // The fee cap bounds the quote alone; this holds it to what checkout showed.
+    if (
+      displayedCharge !== undefined &&
+      quote.amountIn > withBudgetDrift(displayedCharge)
+    ) {
+      return err(
+        notSent('quote the payment')(
+          new Error(
+            `the payment now costs ${formatUnits(quote.amountIn, 6)} USDC, ` +
+              `but ${formatUnits(displayedCharge, 6)} USDC was shown at ` +
+              'checkout. Please start the registration again.',
+          ),
         ),
       )
-    },
-  )
+    }
+    const intent = yield* submitL2Bridge(wallet, quote).mapErr(
+      notSent('sign the payment'),
+    )
+    reportIntentSubmitted(request, intent.id)
+    console.log('🧾 [WARP] L2-paid intent submitted:', {
+      intentId: intent.id.toString(),
+      sourceChainId: source.chain.id,
+      amountIn: quote.amountIn.toString(),
+    })
+
+    const status = yield* fromPromise(
+      wallet.waitForExecution(intent, false),
+      afterSent,
+    )
+    if (!status.fill.hash) {
+      return err(
+        afterSent(
+          new Error('No transaction hash returned from Warp execution'),
+        ),
+      )
+    }
+    console.log('🧾 [WARP] L2-paid intent filled:', {
+      intentId: intent.id.toString(),
+      fillHash: status.fill.hash,
+    })
+    return ok(status.fill.hash)
+  })()
 }
 
 // Every message down the cause chain: the outermost alone ("The payment was
@@ -337,7 +356,13 @@ export function submitWarpTransaction(
   }
 
   if (signer.l2Funding) {
-    return submitL2FundedIntent(request, account, chain, signer.l2Funding)
+    return submitL2FundedIntent(
+      request,
+      account,
+      chain,
+      signer.l2Funding,
+      signer.l2DisplayedCharge,
+    )
   }
 
   const nowMs = (): number =>

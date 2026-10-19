@@ -71,6 +71,11 @@ export type PersistedRegistrationContext = {
   primaryName?: string
   /** The L2 a run pays from, so a resumed one keeps paying from it. */
   l2FundingChainId?: number
+  /**
+   * The L2 bridge still settling, so a resumed run waits for it instead of
+   * paying again.
+   */
+  l2BridgeIntentId?: bigint
 
   // Flow state
   resolverAddress?: Address
@@ -231,6 +236,7 @@ export function serializeRegistrationContext(
     resolverOwnerAddress: context.resolverOwnerAddress,
     primaryName: context.primaryName,
     l2FundingChainId: context.l2Funding?.chain.id,
+    l2BridgeIntentId: context.l2BridgeIntentId,
     resolverAddress: context.resolverAddress,
     resolverTxId: context.resolverTxId,
     resolverSalt: context.resolverSalt,
@@ -317,6 +323,7 @@ const persistedContextSchema = v.object({
   resolverOwnerAddress: v.optional(addressSchema),
   primaryName: v.optional(v.string()),
   l2FundingChainId: v.optional(v.number()),
+  l2BridgeIntentId: v.optional(v.bigint()),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),
   resolverSalt: v.optional(v.bigint()),

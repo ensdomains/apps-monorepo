@@ -38,6 +38,11 @@ export const getRegistrationStageMessages = (
         stageDescription: msg`Approve USDC on ${l2ChainName} if your wallet asks, then sign the payment`,
       }),
     )
+    // An earlier payment may still arrive, so nothing is signed until it does.
+    .with({ stage: 'awaitingL2Bridge' }, () => ({
+      stageLabel: msg`Checking your earlier payment`,
+      stageDescription: msg`Waiting for the payment you already signed to arrive`,
+    }))
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
       stageDescription: msg`The registration flow is idle`,
