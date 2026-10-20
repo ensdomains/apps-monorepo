@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import type { ProtocolVersion } from '@/utils/types'
 import { isExtendable2LD } from '../utils/nameExtension'
 import { useV1Renewable } from './useIsRenewable'
@@ -44,7 +44,7 @@ export const useCanExtend = ({
     enabled: enabled && !isV2,
   })
   const v2DataQuery = useQuery({
-    ...getV2RegistrationDataQueryOptions({ name }),
+    ...getRegistrationDataQueryOptions({ name }),
     enabled: enabled && isV2,
   })
 
@@ -55,8 +55,15 @@ export const useCanExtend = ({
       : null
   const expiryDate =
     expirySeconds !== null ? new Date(expirySeconds * 1000) : undefined
+  const graceEndSeconds = isV2
+    ? (v2DataQuery.data?.graceEnd ?? null)
+    : v1ExpiryQuery.data?.expiry
+      ? Number(v1ExpiryQuery.data.expiry) + v1ExpiryQuery.data.gracePeriod
+      : null
+  const graceEndDate =
+    graceEndSeconds !== null ? new Date(graceEndSeconds * 1000) : null
 
-  const selectedName: SelectedName = { name, isV2, expiryDate }
+  const selectedName: SelectedName = { name, isV2, expiryDate, graceEndDate }
 
   // v2 renews throughout registered + grace, so the client-side window is
   // authoritative; v1 additionally requires the renewer's on-chain isRenewable.

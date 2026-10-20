@@ -31,6 +31,7 @@ export type V1WrappedSubject = {
     readonly cannotTransfer: boolean
     readonly cannotSetResolver: boolean
     readonly cannotUnwrap: boolean
+    readonly cannotCreateSubdomain: boolean
     readonly parentCannotControl: boolean
   }
   /** Wrapper expiry in seconds, or null when unset. */

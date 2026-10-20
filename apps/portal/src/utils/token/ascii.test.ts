@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { asciiEncode } from './ascii'
+import { asciiEncode, isAscii } from './ascii'
+
+describe('isAscii', () => {
+  it('should accept ASCII names, including punycode', () => {
+    expect(isAscii('nic.com')).toBe(true)
+    expect(isAscii('xn--bcher-kva.com')).toBe(true)
+  })
+
+  it('should reject names with non-ASCII characters', () => {
+    expect(isAscii('bücher.com')).toBe(false)
+    expect(isAscii('💩.com')).toBe(false)
+  })
+})
 
 describe('asciiEncode', () => {
   it('should return ASCII names unchanged', () => {

@@ -18,6 +18,7 @@ const meta = {
     message: 'Account not ready',
     onRetry: fn(),
     onCancel: fn(),
+    onFindAnotherName: fn(),
   },
 } satisfies Meta<typeof FailureStepView>
 

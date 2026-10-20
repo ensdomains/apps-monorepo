@@ -1,9 +1,13 @@
 import { useEffect } from 'react'
-import { setIntercomLauncherClearance } from '@/lib/intercom'
+import {
+  LAUNCHER_RIGHT_PADDING,
+  LAUNCHER_SIZE,
+  setIntercomLauncherClearance,
+} from '@/lib/intercom'
 
 const SETTLE_MS = 100
 
-/** Keeps the Intercom launcher above a bar fixed to the bottom of the viewport. */
+/** Lifts Intercom only when a fixed bottom bar overlaps its default position. */
 export const useIntercomClearance = (bar: HTMLElement | null) => {
   useEffect(() => {
     if (!bar) return
@@ -12,8 +16,14 @@ export const useIntercomClearance = (bar: HTMLElement | null) => {
     let timer: ReturnType<typeof setTimeout> | undefined
 
     const apply = () => {
-      const { height, top } = bar.getBoundingClientRect()
-      const clearance = height === 0 ? 0 : Math.round(window.innerHeight - top)
+      const { height, left, right, top } = bar.getBoundingClientRect()
+      const launcherRight = window.innerWidth - LAUNCHER_RIGHT_PADDING
+      const launcherLeft = launcherRight - LAUNCHER_SIZE
+      const isLauncherOverlapping = right > launcherLeft && left < launcherRight
+      const clearance =
+        height > 0 && isLauncherOverlapping
+          ? Math.round(window.innerHeight - top)
+          : 0
       if (clearance === lastClearance) return
       lastClearance = clearance
       setIntercomLauncherClearance(clearance)

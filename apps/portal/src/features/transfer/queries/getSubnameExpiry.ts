@@ -26,10 +26,8 @@ type GetSubnameExpiryParameters = {
 /**
  * A v2 subname's expiry, read from the registry that holds its token.
  *
- * Deliberately not `useGraceStatus`: its v2 path reads `expiryDate` from the
- * indexer and applies `V2_GRACE_PERIOD_DAYS`, which is `.eth` registrar
- * semantics. A parent-issued subname has no registrar and no grace period — it
- * simply stops being owned, at which point the parent can re-issue it to anyone.
+ * A parent-issued subname has no grace period: at expiry it stops being owned
+ * and the parent can re-issue it.
  */
 const getSubnameExpiry = ResultFn(async function* ({
   name,

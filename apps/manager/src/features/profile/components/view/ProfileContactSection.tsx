@@ -9,10 +9,14 @@ import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileTileClassName,
 } from './ProfileCard'
 import { getContactItems, type ProfileContactItem } from './ProfileView.helpers'
 
-const contactCardSurfaceClassName = 'transition hover:bg-ens-quartz-50'
+const contactCardSurfaceClassName = cn(
+  profileTileClassName,
+  'transition hover:bg-ens-quartz-50',
+)
 const contactLabelClassName =
   'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
 const contactValueClassName =

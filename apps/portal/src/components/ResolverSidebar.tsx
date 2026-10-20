@@ -47,7 +47,7 @@ type SidebarItemData = {
 
 const defineResolverSidebarItem = createDefineLinkItem<SidebarItemData>()
 
-const getItems = (address: string) => [
+const getItems = (address: Address) => [
   defineResolverSidebarItem({
     title: 'Nodes',
     icon: GridIcon,

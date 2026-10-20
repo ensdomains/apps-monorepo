@@ -8,7 +8,7 @@ import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { permissionedRegistryUnregisterSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
-import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { toEoaIntent } from '@/features/transaction-manager/helpers/intents'
 import {
   assertCalldataResourceId,
   type ResourceId,
@@ -40,10 +40,6 @@ export function prepareDeleteSubnameTransaction({
   chainId,
   subname,
 }: PrepareDeleteSubnameParams): CustomTransactionIntent {
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
-
   const data = encodeFunctionData({
     abi: permissionedRegistryUnregisterSnippet,
     functionName: 'unregister',
@@ -57,10 +53,5 @@ export function prepareDeleteSubnameTransaction({
     action: `Deleting ${subname ?? 'this subname'}`,
   })
 
-  return toEoaCustomIntent({
-    from: walletClient.account.address,
-    to: registryAddress,
-    data,
-    chainId,
-  })
+  return toEoaIntent(walletClient, { to: registryAddress, data, chainId })
 }

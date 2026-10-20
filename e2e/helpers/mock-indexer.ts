@@ -2,7 +2,7 @@
  * Mock Indexer — intercepts bigname REST requests in Playwright tests.
  *
  * The local chain is not indexed by any bigname deployment, so this helper
- * uses `page.route()` to answer the manager's bigname reads from names the
+ * uses `page.route()` to answer the apps' bigname reads from names the
  * test registers.
  *
  * Usage:
@@ -50,6 +50,22 @@ const DEFAULT_RELATIONS: readonly MockRelation[] = ['owner', 'manager']
 const AUTHORITIES = { v1: ['ens_v1', 'ens_v0'], v2: ['ens_v2'] } as const
 const SORT_KEYS = ['name', 'expires_at', 'created_at', 'registered_at'] as const
 type SortKey = (typeof SORT_KEYS)[number]
+// Past any local block, so a write's indexer-sync wait ends at once.
+const STATUS = {
+  status: 'ready',
+  chains: { [CHAIN_ID]: { indexed_block: Number.MAX_SAFE_INTEGER } },
+}
+const EMPTY_PAGE = {
+  data: [],
+  page: {
+    cursor: null,
+    next_cursor: null,
+    page_size: 0,
+    total_count: 0,
+    has_more: false,
+  },
+  meta: META,
+}
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
@@ -82,10 +98,13 @@ export function createIndexerMock() {
   const expiryOf = (d: MockDomain) =>
     d.expiryDate ?? nowSeconds() + 28 * 24 * 3600
   const createdOf = (d: MockDomain) => d.createdAt ?? nowSeconds() - 3600
+  const isPastExpiry = (d: MockDomain) => expiryOf(d) <= nowSeconds()
   // bigname drops an expired ENSv2 name from its holder's relations; the
   // holder is its former owner until the name is registered again.
-  const isLapsed = (d: MockDomain) =>
-    d.protocol !== 'v1' && expiryOf(d) <= nowSeconds()
+  const isLapsed = (d: MockDomain) => d.protocol !== 'v1' && isPastExpiry(d)
+  // ENSv2 grace is 28 days; an ENSv1 lease's is 90.
+  const graceEndOf = (d: MockDomain) =>
+    expiryOf(d) + (d.protocol === 'v1' ? 90 : 28) * 24 * 3600
 
   function nameFields(d: MockDomain) {
     const resolver = resolverOf(d)
@@ -99,12 +118,18 @@ export function createIndexerMock() {
       registered_at: String(createdOf(d)),
       created_at: String(createdOf(d)),
       expires_at: expiresAt,
+      grace_ends_at: String(graceEndOf(d)),
       ...(isLapsed(d)
         ? {
             status: 'expired',
             lapsed_registration: { owner, release_kind: 'expired' },
           }
-        : { owner, manager: owner, status: 'active' }),
+        : {
+            owner,
+            manager: owner,
+            // An ENSv1 name in grace keeps its owner but reads expired.
+            status: isPastExpiry(d) ? 'expired' : 'active',
+          }),
       ...(d.protocol === 'v1'
         ? {
             authority: 'ens_v1',
@@ -259,51 +284,92 @@ export function createIndexerMock() {
     json: { error: { code: 'not_found', message: 'not found', details: {} } },
   }
 
+  type Reply = { readonly status: number; readonly json: unknown }
+  type Request = {
+    readonly match: RegExpMatchArray
+    readonly params: URLSearchParams
+    readonly body: LookupBody | undefined
+  }
+
+  const ok = (json: unknown): Reply => ({ status: 200, json })
+  const withDomain =
+    (reply: (d: MockDomain) => unknown) =>
+    ({ match }: Request): Reply => {
+      const d = findDomain(decodeURIComponent(match[1] ?? ''))
+      return d ? ok(reply(d)) : notFound
+    }
+
+  const ROUTES: readonly {
+    readonly method: string
+    readonly path: RegExp
+    readonly reply: (request: Request) => Reply
+  }[] = [
+    {
+      method: 'GET',
+      path: /^\/v1\/addresses\/([^/]+)\/names$/,
+      reply: ({ match, params }) => ok(addressNames(match[1] ?? '', params)),
+    },
+    // Nothing the tests register has children or indexed events yet.
+    {
+      method: 'GET',
+      path: /^\/v1\/(names\/[^/]+\/(subnames|history)|events)$/,
+      reply: () => ok(EMPTY_PAGE),
+    },
+    {
+      method: 'GET',
+      path: /^\/v1\/names\/([^/]+)\/records$/,
+      reply: withDomain(nameRecords),
+    },
+    {
+      method: 'GET',
+      path: /^\/v1\/names\/([^/]+)$/,
+      reply: withDomain((d) => ({
+        data: { ...nameFields(d), read_status: 'ok' },
+        meta: META,
+      })),
+    },
+    // A name's records at the resolver it points at.
+    {
+      method: 'GET',
+      path: /^\/v1\/resolvers\/\d+\/([^/]+)\/records$/,
+      reply: ({ match, params }) => {
+        const d = findDomain(params.get('name') ?? '')
+        const resolver = d && resolverOf(d)
+        return d && resolver?.toLowerCase() === match[1]?.toLowerCase()
+          ? ok(nameRecords(d))
+          : notFound
+      },
+    },
+    // A registry or resolver nobody registered is one bigname has not indexed.
+    {
+      method: 'GET',
+      path: /^\/v1\/(registries|resolvers)\/[^/]+\/[^/]+$/,
+      reply: () => notFound,
+    },
+    {
+      method: 'GET',
+      path: /^\/v1\/status$/,
+      reply: () => ok({ data: STATUS, meta: META }),
+    },
+    {
+      method: 'POST',
+      path: /^\/v1\/lookup$/,
+      reply: ({ body }) => ok(lookup(body)),
+    },
+  ]
+
   function handle(
     method: string,
     path: string,
     params: URLSearchParams,
     body: LookupBody | undefined,
-  ): { readonly status: number; readonly json: unknown } {
-    const addressMatch = path.match(/^\/v1\/addresses\/([^/]+)\/names$/)
-    if (addressMatch?.[1]) {
-      return { status: 200, json: addressNames(addressMatch[1], params) }
-    }
-    const recordsMatch = path.match(/^\/v1\/names\/([^/]+)\/records$/)
-    if (recordsMatch?.[1]) {
-      const d = findDomain(decodeURIComponent(recordsMatch[1]))
-      return d ? { status: 200, json: nameRecords(d) } : notFound
-    }
-    // A name's records at the resolver it points at.
-    const resolverRecordsMatch = path.match(
-      /^\/v1\/resolvers\/\d+\/([^/]+)\/records$/,
-    )
-    if (resolverRecordsMatch?.[1]) {
-      const d = findDomain(params.get('name') ?? '')
-      const resolver = d && resolverOf(d)
-      return d &&
-        resolver?.toLowerCase() === resolverRecordsMatch[1].toLowerCase()
-        ? { status: 200, json: nameRecords(d) }
-        : notFound
-    }
-    const nameMatch = path.match(/^\/v1\/names\/([^/]+)$/)
-    if (nameMatch?.[1]) {
-      const d = findDomain(decodeURIComponent(nameMatch[1]))
-      return d
-        ? {
-            status: 200,
-            json: { data: { ...nameFields(d), read_status: 'ok' }, meta: META },
-          }
-        : notFound
-    }
-    if (method === 'POST' && path === '/v1/lookup') {
-      return {
-        status: 200,
-        json: lookup(body),
-      }
+  ): Reply {
+    for (const route of ROUTES) {
+      const match = method === route.method ? path.match(route.path) : null
+      if (match) return route.reply({ match, params, body })
     }
     console.log(`[mock-indexer] unhandled bigname route: ${method} ${path}`)
-    return { status: 200, json: { data: [], meta: META } }
+    return notFound
   }
 
   async function routeHandler(route: Route) {
@@ -328,8 +394,10 @@ export function createIndexerMock() {
     } catch (err) {
       console.error('[mock-indexer] error handling request:', err)
       await route.fulfill({
-        status: 200,
-        json: { data: [], meta: META },
+        status: 500,
+        json: {
+          error: { code: 'internal', message: String(err), details: {} },
+        },
         headers: CORS_HEADERS,
       })
     }

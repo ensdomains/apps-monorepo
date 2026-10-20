@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useNavigate } from '@tanstack/react-router'
 import { Clock, XCircle } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
@@ -7,6 +8,7 @@ import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
   const { uiActor, label, resume } = RegisterV2Context.use()
+  const navigate = useNavigate()
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
@@ -41,6 +43,10 @@ export const FailureStep = () => {
       message={message}
       nameUnavailable={nameUnavailable}
       onCancel={() => uiActor.send({ type: 'cancel' })}
+      onFindAnotherName={() => {
+        uiActor.send({ type: 'cancel' })
+        navigate({ to: '/', search: { landing: true } })
+      }}
       onRetry={onRetry}
     />
   )
@@ -54,6 +60,8 @@ interface FailureStepViewProps {
   readonly isWalletBusy?: boolean
   readonly onRetry: () => void
   readonly onCancel: () => void
+  /** The name is gone, so send them to search for another one. */
+  readonly onFindAnotherName: () => void
 }
 
 export const FailureStepView = ({
@@ -63,6 +71,7 @@ export const FailureStepView = ({
   isWalletBusy = false,
   onRetry,
   onCancel,
+  onFindAnotherName,
 }: FailureStepViewProps) => {
   const { t } = useLingui()
 
@@ -127,7 +136,7 @@ export const FailureStepView = ({
                 .with({ nameUnavailable: true }, () => (
                   <Trans>
                     Another address registered this name first, so it can no
-                    longer be registered here. Go back to pick a different name.
+                    longer be registered here. Look for a different name.
                   </Trans>
                 ))
                 .with({ isWalletBusy: true }, () => (
@@ -157,15 +166,27 @@ export const FailureStepView = ({
                 <Trans>Try Again</Trans>
               </Button>
             )}
-            <Button
-              className="flex-1"
-              onClick={onCancel}
-              size="xl"
-              type="button"
-              variant={nameUnavailable || isWalletBusy ? 'blue' : 'lightBlue'}
-            >
-              <Trans>Back to Quote</Trans>
-            </Button>
+            {nameUnavailable ? (
+              <Button
+                className="flex-1"
+                onClick={onFindAnotherName}
+                size="xl"
+                type="button"
+                variant="blue"
+              >
+                <Trans>Look for a different name</Trans>
+              </Button>
+            ) : (
+              <Button
+                className="flex-1"
+                onClick={onCancel}
+                size="xl"
+                type="button"
+                variant={isWalletBusy ? 'blue' : 'lightBlue'}
+              >
+                <Trans>Back to Quote</Trans>
+              </Button>
+            )}
           </div>
         </div>
       </div>

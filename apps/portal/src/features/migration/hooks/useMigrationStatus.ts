@@ -1,15 +1,24 @@
+import type {
+  BignameError,
+  LookupRecord,
+  LookupResult,
+} from '@ens-apps/indexer/bigname'
 import {
   type ClassifiedName,
   classifyName,
+  needsParentFuses,
+  parentNameOf,
   runEligibilityChecks,
-  type V1Domain,
+  toParentFuses,
+  toV1Domain,
 } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
-import { err, fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok, type Result } from 'neverthrow'
+import { match } from 'ts-pattern'
 import {
   type Address,
   isAddress,
@@ -18,8 +27,8 @@ import {
 } from 'viem'
 import { useConnection } from 'wagmi'
 import { envConfig } from '@/config'
+import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { gql } from '@/utils/subgraph/gql'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
@@ -34,10 +43,9 @@ export type MigrationStatus =
     }
   | { readonly migratable: false }
 
-type V1DomainResponse = { domains: V1Domain[] }
-
 class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
-  cause: unknown
+  /** A lookup result that is neither a record nor `not_found` rides as itself. */
+  cause: BignameError | LookupResult | Error | undefined
 }> {}
 
 type GetMigrationStatusParameters = {
@@ -54,38 +62,55 @@ type GetMigrationStatusParameters = {
   address?: Address
 }
 
+const NAME_WRAPPER = getChainContractAddress({
+  chain: envConfig.chain,
+  contract: 'ensNameWrapper',
+})
+
+const V1_AUTHORITIES: readonly (string | undefined)[] = ['ens_v1', 'ens_v0']
+
+const isMigratableRecord = (record: LookupRecord): boolean =>
+  V1_AUTHORITIES.includes(record.authority) && record.status !== 'released'
+
+// A name bigname has not indexed has no record; any other answer that is not
+// `ok` fails the read rather than reading as "cannot migrate".
+const recordOf = (
+  result: LookupResult | undefined,
+): Result<LookupRecord | null, GetMigrationStatusError> =>
+  match(result?.status)
+    .with('ok', () => ok(result?.record ?? null))
+    .with('not_found', undefined, () => ok(null))
+    .otherwise(() => err(new GetMigrationStatusError({ cause: result })))
+
+/**
+ * The name's ENSv1 domain, as the classifier reads it, in one lookup. The
+ * parent comes along unless it is `eth`: a wrapped subname needs its fuses.
+ */
+const getV1Domain = ResultFn(async function* (name: string) {
+  const parentName = parentNameOf(name)
+  const withParent = parentName !== null && parentName !== 'eth'
+  const { data } = yield* bigname
+    .lookup({
+      namespace: 'ens',
+      profile: 'detail',
+      inputs: [{ name }, ...(withParent ? [{ name: parentName }] : [])],
+    })
+    .mapErr((cause) => new GetMigrationStatusError({ cause }))
+  const record = yield* recordOf(data[0])
+  if (!record || !isMigratableRecord(record)) return ok(null)
+  const parent =
+    withParent && needsParentFuses(record) ? yield* recordOf(data[1]) : null
+  return ok(
+    toV1Domain(record, toParentFuses(parent ? [parent] : []), NAME_WRAPPER),
+  )
+})
+
 const getMigrationStatus = ResultFn(async function* ({
   name,
   address,
 }: GetMigrationStatusParameters) {
   const client = yield* safeGetClient()
-  const subgraphClient = createSubgraphClient(client)
-
-  const { domains } = yield* fromPromise(
-    subgraphClient.request<V1DomainResponse, { name: string }>(
-      gql`
-        query getV1DomainForMigration($name: String!) {
-          domains(where: { name: $name }) {
-            id
-            labelName
-            labelhash
-            name
-            resolver { address }
-            owner { id }
-            registrant { id }
-            wrappedOwner { id }
-            parent { name wrappedDomain { fuses } }
-            registration { expiryDate }
-            wrappedDomain { expiryDate fuses }
-          }
-        }
-      `,
-      { name },
-    ),
-    (e) => new GetMigrationStatusError({ cause: e }),
-  )
-
-  const domain = domains[0] ?? null
+  const domain = yield* getV1Domain(name)
   if (!domain) return ok<MigrationStatus>({ migratable: false })
 
   const holderCandidate =
@@ -107,7 +132,10 @@ const getMigrationStatus = ResultFn(async function* ({
       [classified.name],
       evaluationAddress,
     ),
-    (e) => new GetMigrationStatusError({ cause: e }),
+    (e) =>
+      new GetMigrationStatusError({
+        cause: e instanceof Error ? e : new Error(String(e)),
+      }),
   )
 
   if (failed.length > 0)
@@ -151,7 +179,7 @@ export const getMigrationStatusQueryOptions = (
  * cannot migrate, so nothing should offer them the action. `isWrapped` marks
  * an unlocked NameWrapper token, which is unwrapped as part of the upgrade.
  *
- * `enabled` exists because the read is not cheap: a subgraph request plus
+ * `enabled` exists because the read is not cheap: a bigname lookup plus
  * on-chain eligibility checks. Callers pass false for anything that is not a
  * v1 name.
  */

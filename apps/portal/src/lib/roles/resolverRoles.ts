@@ -221,7 +221,8 @@ export const describeResolverResource = (
 
 type RoleInput = {
   readonly account: string
-  readonly resource: string
+  /** Null when bigname does not identify the scope. */
+  readonly resource: string | null
   readonly roleBitmap: string
 }
 
@@ -251,8 +252,8 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
  * `ROOT_RESOURCE` would merge the row into the account's root grant, and
  * revoking from that row would then target root roles.
  */
-const normalizeResource = (resource: string): ResourceId | null =>
-  resourceIdFromChainValue(resource).unwrapOr(null)
+const normalizeResource = (resource: string | null): ResourceId | null =>
+  resource === null ? null : resourceIdFromChainValue(resource).unwrapOr(null)
 
 /**
  * Groups resolver roles by account and resource. One row per grant scope,
@@ -341,7 +342,7 @@ export type AccountRemovalPlan =
       readonly type: 'complete'
       readonly revocations: readonly ResolverRevocation[]
     }
-  | { readonly type: 'unreadable' }
+  | { readonly type: 'unreadable'; readonly reason?: 'incomplete' }
 
 export const planAccountRemoval = <T extends RoleInput>(
   roles: readonly T[],

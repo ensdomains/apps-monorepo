@@ -13,10 +13,6 @@ import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
-import {
-  ListLoader,
-  type ListLoaderProps,
-} from '@/components/ListLoader/ListLoader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
@@ -38,6 +34,22 @@ import {
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
+
+// A child bigname cannot label is shown as `[labelhash].parent`, never linked.
+const SubnameBadge = ({ name }: { readonly name: string }) => {
+  const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
+  return (
+    <EntityBadge
+      variant="name"
+      name={isLabelled ? name : undefined}
+      copyValue={name}
+      showAvatar
+    >
+      {name}
+    </EntityBadge>
+  )
+}
 
 export interface SubnameRow {
   readonly name: string
@@ -63,9 +75,13 @@ const OwnerCell = ({ owner }: { owner: Address }) => (
 interface SubnamesTableProps {
   /** The rows loaded so far, which for a V2 name can be fewer than it has. */
   readonly subnames: readonly SubnameRow[]
-  /** Every subname the name has; left off the heading while unknown. */
+  /** Every subname the name has; unknown when undefined and more can load. */
   readonly totalCount?: number
-  readonly loader?: ListLoaderProps
+  /** Loads the next page; absent once every subname is loaded. */
+  readonly onLoadMore?: () => void
+  readonly isLoadingMore?: boolean
+  /** The last Load more failed; the loaded rows stay. */
+  readonly isLoadMoreError?: boolean
   readonly name: string
   readonly canCreateSubname?: boolean
   /** Called when user confirms delete on a single subname. */
@@ -120,14 +136,7 @@ function buildColumns(
           Subname
         </SortButton>
       ),
-      cell: ({ row }) => {
-        const name = row.original.name
-        return (
-          <EntityBadge variant="name" name={name} showAvatar>
-            {name}
-          </EntityBadge>
-        )
-      },
+      cell: ({ row }) => <SubnameBadge name={row.original.name} />,
     },
     {
       accessorKey: 'owner',
@@ -164,8 +173,10 @@ function buildColumns(
 
 export const SubnamesTable = ({
   subnames,
-  loader,
-  totalCount = loader ? loader.total : subnames.length,
+  totalCount: servedTotal,
+  onLoadMore,
+  isLoadingMore,
+  isLoadMoreError = false,
   name,
   canCreateSubname,
   onDeleteSubname,
@@ -173,6 +184,8 @@ export const SubnamesTable = ({
   isDeleting,
   pendingNames,
 }: SubnamesTableProps) => {
+  // With nothing left to load, the rows given are the whole list.
+  const totalCount = servedTotal ?? (onLoadMore ? undefined : subnames.length)
   const pendingSet = pendingNames ?? EMPTY_PENDING_SET
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -282,9 +295,9 @@ export const SubnamesTable = ({
             </InputGroupAddon>
           </InputGroup>
         )}
-        {loader?.canShowMore && globalFilter && (
+        {onLoadMore && globalFilter && (
           <p className="text-p text-muted-foreground">
-            Searching the {subnames.length} subnames shown so far. Show more to
+            Searching the {subnames.length} subnames loaded so far. Load more to
             search the rest.
           </p>
         )}
@@ -326,13 +339,7 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <EntityBadge
-                      variant="name"
-                      name={row.original.name}
-                      showAvatar
-                    >
-                      {row.original.name}
-                    </EntityBadge>
+                    <SubnameBadge name={row.original.name} />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
@@ -486,7 +493,24 @@ export const SubnamesTable = ({
         </TableBody>
       </Table>
 
-      {loader && <ListLoader {...loader} className="px-6 py-4 md:px-0" />}
+      {onLoadMore && (
+        <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">
+          <span className="text-base text-muted-foreground">
+            Showing {subnames.length}
+            {totalCount === undefined ? null : ` of ${totalCount}`}
+            {isLoadMoreError && !isLoadingMore && (
+              <span role="alert"> · Couldn’t load more.</span>
+            )}
+          </span>
+          <Button
+            variant="outline"
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+          >
+            {isLoadingMore ? 'Loading…' : 'Load more subnames'}
+          </Button>
+        </div>
+      )}
     </>
   )
 }
