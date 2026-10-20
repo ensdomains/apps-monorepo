@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table'
 import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/table'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
-import { healName } from '@/utils/ens/localLabels'
+import { healSubname } from '@/utils/ens/localLabels'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
@@ -56,6 +56,8 @@ const SubnameBadge = ({ name }: { readonly name: string }) => {
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
+  /** The labelhash the indexer holds for the row; a `[…]` label heals only to it. */
+  readonly labelhash?: Hex
   /**
    * The subname's on-chain id, as the indexer reported it. Every write about
    * this row is addressed with this, never with `name` (WEB-1458). Undefined
@@ -131,7 +133,7 @@ function buildColumns(
     {
       id: 'name',
       // Display, sort and search only: row identity stays the served name.
-      accessorFn: (row) => healName(row.name),
+      accessorFn: (row) => healSubname(row.name, row.labelhash),
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}

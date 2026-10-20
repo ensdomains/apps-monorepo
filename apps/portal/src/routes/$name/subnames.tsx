@@ -223,6 +223,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         .map((subname) => ({
           name: subname.name || '',
           owner: subname.owner,
+          labelhash: subname.labelhash,
           resourceId: resourceIdFromChainValue(subname.labelhash).unwrapOr(
             null,
           ),
@@ -283,6 +284,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
       visibleSubnames.map((subname) => ({
         name: subname.name,
         owner: subname.owner,
+        labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
         canDelete:
           subname.resourceId !== null &&
@@ -558,6 +560,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     page.subnames.map((subname) => ({
       name: subname.name,
       owner: subname.owner,
+      labelhash: subname.labelhash,
     })),
   )
 
