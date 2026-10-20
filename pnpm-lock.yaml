@@ -415,8 +415,8 @@ importers:
         specifier: 2.21.8
         version: 2.21.8(@types/react@19.3.0)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@xstate/react':
-        specifier: ^6.1.0
-        version: 6.1.0(@types/react@19.3.0)(react@19.3.1)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))
+        specifier: 6.0.0
+        version: 6.0.0(@types/react@19.3.0)(react@19.3.1)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))
       '@xstate/store-react':
         specifier: ^1.0.1
         version: 1.0.1(react@19.3.1)
@@ -728,8 +728,8 @@ importers:
         specifier: 2.21.8
         version: 2.21.8(@types/react@19.3.0)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@xstate/react':
-        specifier: ^6.1.0
-        version: 6.1.0(@types/react@19.3.0)(react@19.3.1)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))
+        specifier: 6.0.0
+        version: 6.0.0(@types/react@19.3.0)(react@19.3.1)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))
       '@xstate/store-react':
         specifier: ^1.0.1
         version: 1.0.1(react@19.3.1)
@@ -6021,11 +6021,11 @@ packages:
     resolution: {integrity: sha512-/i9CS0Z96o+cPwaYoAyVxAThDiUX1wV3tDmNWPJbn+vtdR+JftuCDg1NGCXBrzIYVDGkJ8uT6ctwmrBOUzOpKQ==}
     engines: {node: '>=22.15.0'}
 
-  '@xstate/react@6.1.0':
-    resolution: {integrity: sha512-ep9F0jGTI63B/jE8GHdMpUqtuz7yRebNaKv8EMUaiSi29NOglywc2X2YSOV/ygbIK+LtmgZ0q9anoEA2iBSEOw==}
+  '@xstate/react@6.0.0':
+    resolution: {integrity: sha512-xXlLpFJxqLhhmecAXclBECgk+B4zYSrDTl8hTfPZBogkn82OHKbm9zJxox3Z/YXoOhAQhKFTRLMYGdlbhc6T9A==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      xstate: ^5.28.0
+      xstate: ^5.20.0
     peerDependenciesMeta:
       xstate:
         optional: true
@@ -14166,7 +14166,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@xstate/react@6.1.0(@types/react@19.3.0)(react@19.3.1)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))':
+  '@xstate/react@6.0.0(@types/react@19.3.0)(react@19.3.1)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))':
     dependencies:
       react: 19.3.1
       use-isomorphic-layout-effect: 1.2.1(@types/react@19.3.0)(react@19.3.1)
