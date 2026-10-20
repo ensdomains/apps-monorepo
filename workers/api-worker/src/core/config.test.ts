@@ -1,9 +1,8 @@
-import { NetworkConfigError } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
 import { getConfig } from './config'
 
 describe('getConfig network isolation', () => {
-  it('rejects incomplete mainnet without reading the Sepolia RPC binding', () => {
+  it('resolves mainnet without reading the Sepolia RPC binding', () => {
     const env = new Proxy(
       { CHAIN: 'mainnet' },
       {
@@ -14,7 +13,6 @@ describe('getConfig network isolation', () => {
       },
     ) as unknown as CloudflareBindings
 
-    expect(() => getConfig(env)).toThrow(NetworkConfigError)
-    expect(() => getConfig(env)).toThrow(/bignameApi/)
+    expect(getConfig(env).endpoints.bignameApi).toBe('https://api.bigname.sh')
   })
 })

@@ -53,8 +53,7 @@ export const NETWORKS = {
     appApiUrl: 'https://mainnet.app-api.ens.domains',
     rpcFallbacks: ['https://ethereum-rpc.publicnode.com'],
     endpoints: {
-      // No mainnet bigname deployment yet.
-      bignameApi: null,
+      bignameApi: 'https://api.bigname.sh',
     },
   },
   sepolia: {

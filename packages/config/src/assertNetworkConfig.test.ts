@@ -1,6 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { assertNetworkConfig } from './assertNetworkConfig'
 import { buildConfig, NetworkConfigError } from './buildConfig'
+
+// Every network has a bigname deployment, so mainnet stands in for one without.
+vi.mock('./networks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./networks')>()
+  return {
+    ...actual,
+    NETWORKS: {
+      ...actual.NETWORKS,
+      mainnet: { ...actual.NETWORKS.mainnet, endpoints: { bignameApi: null } },
+    },
+  }
+})
 
 describe('assertNetworkConfig', () => {
   it('returns the resolved config for a usable env', () => {

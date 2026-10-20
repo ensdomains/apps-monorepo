@@ -1,11 +1,23 @@
 import { zeroAddress } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   assertEnsV2Deployed,
   buildConfig,
   NetworkConfigError,
 } from './buildConfig'
 import { ENS_NETWORKS, NETWORKS } from './networks'
+
+// Every network has a bigname deployment, so mainnet stands in for one without.
+vi.mock('./networks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./networks')>()
+  return {
+    ...actual,
+    NETWORKS: {
+      ...actual.NETWORKS,
+      mainnet: { ...actual.NETWORKS.mainnet, endpoints: { bignameApi: null } },
+    },
+  }
+})
 
 const SEPOLIA_RPC = 'https://rpc.example/sepolia/key'
 
