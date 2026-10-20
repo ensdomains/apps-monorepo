@@ -11,6 +11,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { isRegistryRole } from '@/lib/roles/permissions'
 
 const ADMIN_SUFFIX = '_ADMIN'
 
@@ -27,7 +28,11 @@ const rolesForAccount = (
 ): readonly Role[] => {
   if (!rows || !account) return []
   const target = account.toLowerCase()
-  return rows.find((row) => row.account.toLowerCase() === target)?.roles ?? []
+  return (
+    rows
+      .find((row) => row.account.toLowerCase() === target)
+      ?.roles.filter(isRegistryRole) ?? []
+  )
 }
 
 /** The `_ADMIN` roles `account` holds — i.e. the roles it can grant/revoke. */

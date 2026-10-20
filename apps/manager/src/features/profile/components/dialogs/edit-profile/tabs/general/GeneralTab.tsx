@@ -1,3 +1,4 @@
+import { Combobox } from '@base-ui/react/combobox'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
@@ -123,18 +124,21 @@ const UrlField = ({
   )
 }
 
+type SelectOption = {
+  readonly label: string
+  readonly value: string
+}
+
 interface SelectFieldProps {
   readonly ariaLabel: string
   readonly disabled?: boolean
   readonly onChange: (value: string) => void
-  readonly options: readonly {
-    readonly label: string
-    readonly value: string
-  }[]
+  readonly options: readonly SelectOption[]
   readonly placeholder: string
   readonly value: string
 }
 
+/** Typeahead select: typing filters the options, the chevron lists them all. */
 const SelectField = ({
   ariaLabel,
   disabled,
@@ -145,30 +149,55 @@ const SelectField = ({
 }: SelectFieldProps) => {
   const hasCustomValue =
     value.trim() !== '' && !options.some((option) => option.value === value)
+  const items: readonly SelectOption[] = hasCustomValue
+    ? [{ label: value, value }, ...options]
+    : options
+  const selected = items.find((option) => option.value === value) ?? null
 
   return (
-    <div className="relative">
-      <select
-        aria-label={ariaLabel}
-        className={cn(
-          fieldClassName,
-          'appearance-none pr-12',
-          value ? 'text-ens-quartz-900' : 'text-ens-quartz-400',
-        )}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-      >
-        <option value="">{placeholder}</option>
-        {hasCustomValue && <option value={value}>{value}</option>}
-        {options.map(({ label, value: optionValue }) => (
-          <option key={optionValue} value={optionValue}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-ens-quartz-400" />
-    </div>
+    <Combobox.Root
+      disabled={disabled}
+      items={items}
+      itemToStringLabel={(option) => option.label}
+      itemToStringValue={(option) => option.value}
+      onInputValueChange={(text) => {
+        if (text === '') onChange('')
+      }}
+      onValueChange={(option) => onChange(option?.value ?? '')}
+      openOnInputClick
+      value={selected}
+    >
+      <div className="relative">
+        <Combobox.Input
+          aria-label={ariaLabel}
+          className={cn(fieldClassName, 'pr-12')}
+          placeholder={placeholder}
+        />
+        <Combobox.Trigger className="absolute top-1/2 right-4 flex size-5 -translate-y-1/2 items-center justify-center text-ens-quartz-400 disabled:pointer-events-none">
+          <ChevronDown className="size-5" />
+        </Combobox.Trigger>
+      </div>
+      <Combobox.Portal>
+        <Combobox.Positioner className="isolate z-50" sideOffset={4}>
+          <Combobox.Popup className="data-open:fade-in-0 data-closed:fade-out-0 w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-hidden rounded bg-white shadow-temp-card outline-hidden duration-100 data-closed:animate-out data-open:animate-in">
+            <Combobox.List className="max-h-[min(--spacing(72),var(--available-height))] scroll-py-1 overflow-y-auto p-1 data-empty:p-0">
+              {(option: SelectOption) => (
+                <Combobox.Item
+                  className="flex cursor-default select-none items-center rounded-sm px-3 py-2 text-ens-quartz-900 text-sm outline-hidden data-highlighted:bg-ens-quartz-50 data-selected:font-medium"
+                  key={option.value}
+                  value={option}
+                >
+                  {option.label}
+                </Combobox.Item>
+              )}
+            </Combobox.List>
+            <Combobox.Empty className="px-3 py-2 text-ens-quartz-400 text-sm empty:hidden">
+              <Trans>No matches</Trans>
+            </Combobox.Empty>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
   )
 }
 

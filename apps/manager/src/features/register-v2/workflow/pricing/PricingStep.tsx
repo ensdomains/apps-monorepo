@@ -12,12 +12,15 @@ import { PricingSummaryCard } from './components/PricingSummaryCard'
 import { ResumeConnectWalletBanner } from './components/ResumeConnectWalletBanner'
 import { TokenPickerDialog } from './components/TokenPickerDialog'
 
+const AVAILABILITY_REFETCH_INTERVAL_MS = 60_000
+
 const useAvailabilityGuard = () => {
   const navigate = useNavigate()
   const { label } = useRegistrationV2Context()
   const availabilityQuery = useQuery({
     ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
     refetchOnWindowFocus: true,
+    refetchInterval: AVAILABILITY_REFETCH_INTERVAL_MS,
   })
 
   useEffect(() => {

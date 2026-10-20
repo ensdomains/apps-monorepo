@@ -14,6 +14,7 @@ const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
   status: 'expired',
   authority: 'ens_v2',
   expires_at: String(NOW - 86_400n),
+  grace_ends_at: String(NOW - 86_400n + V2_GRACE_SECONDS),
   relations: ['former_owner'],
   is_primary: false,
   lapsed_registration: { owner: OWNER, release_kind: 'expired' },
@@ -26,19 +27,23 @@ describe('isInV2Grace', () => {
       isInV2Grace(lapsed(), `0x${OWNER.slice(2).toUpperCase()}`, NOW),
     ).toBe(true)
     expect(
-      isInV2Grace(
-        lapsed({ expires_at: String(NOW - V2_GRACE_SECONDS + 1n) }),
-        OWNER,
-        NOW,
-      ),
+      isInV2Grace(lapsed({ grace_ends_at: String(NOW + 1n) }), OWNER, NOW),
     ).toBe(true)
     expect(
-      isInV2Grace(
-        lapsed({ expires_at: String(NOW - V2_GRACE_SECONDS) }),
-        OWNER,
-        NOW,
-      ),
+      isInV2Grace(lapsed({ grace_ends_at: String(NOW) }), OWNER, NOW),
     ).toBe(false)
+  })
+
+  it('reads grace from the row, not a fixed 28 days', () => {
+    const graceEndsAt = String(NOW - 86_400n + 2n * V2_GRACE_SECONDS)
+    const longExpired = lapsed({
+      expires_at: String(NOW - V2_GRACE_SECONDS - 1n),
+      grace_ends_at: graceEndsAt,
+    })
+
+    expect(isInV2Grace(longExpired, OWNER, NOW)).toBe(true)
+    const { grace_ends_at: _, ...noGrace } = longExpired
+    expect(isInV2Grace(noGrace, OWNER, NOW)).toBe(false)
   })
 
   it('does not hold another holder’s, an ENSv1, a subname or an unexpired name', () => {

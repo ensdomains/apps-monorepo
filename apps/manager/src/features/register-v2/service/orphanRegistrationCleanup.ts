@@ -26,13 +26,13 @@ import type { StoredRegistration } from './registrationPersistence'
 // read off `getState`, keyed by the label hash (the same way ensjs
 // `getNameRolesAccounts` reads it). `latestOwner` is zero for a name that was
 // never registered, and the call returns zeros rather than reverting.
-const registryGetStateAbi = parseAbi([
+export const registryGetStateAbi = parseAbi([
   'struct NameState { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
   'function getState(uint256 anyId) view returns (NameState state)',
 ])
 
 /** The registry's own enum value; matches `verifyHcaRegistrationActor`. */
-const STATUS_REGISTERED = 2
+export const STATUS_REGISTERED = 2
 
 export type OrphanRegistrationOutcome =
   /** Nothing on-chain yet — the user may still come back to finish. */

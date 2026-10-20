@@ -90,6 +90,7 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   registrationStatus: row.status,
   expiresAt: toExpiresAt(row),
   servedExpiry: toExactSeconds(row.expires_at),
+  graceEndsAt: toDate(row.grace_ends_at),
   registeredAt: toDate(row.registered_at),
   createdAt: toDate(row.created_at),
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),

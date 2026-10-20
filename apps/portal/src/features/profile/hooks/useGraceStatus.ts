@@ -1,10 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { V2_GRACE_PERIOD_DAYS } from '@/features/renew/utils/nameExtension'
 import type { ProtocolVersion } from '@/utils/types'
+import { getRegistrationDataQueryOptions } from './useRegistrationData'
 import { getV1ExpiryQueryOptions } from './useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from './useV2RegistrationData'
-
-const V2_GRACE_DURATION_SECONDS = V2_GRACE_PERIOD_DAYS * 24 * 60 * 60
 
 export type UseGraceStatusParameters = {
   name: string
@@ -19,6 +16,22 @@ export type UseGraceStatusReturnType = {
   error: Error | null
 }
 
+/** Grace from bigname's `grace_ends_at`: 28 days for a `.eth` name, none for a subname. */
+export const v2GraceStatus = (
+  {
+    expiry,
+    graceEnd,
+  }: { readonly expiry: number; readonly graceEnd: number | null },
+  nowSeconds: number,
+) => {
+  const graceEndSeconds = graceEnd ?? expiry
+  return {
+    isInGrace: nowSeconds > expiry && nowSeconds < graceEndSeconds,
+    isExpired: nowSeconds > expiry,
+    graceEndDate: new Date(graceEndSeconds * 1000),
+  }
+}
+
 export function useGraceStatus({
   name,
   protocolVersion,
@@ -29,7 +42,7 @@ export function useGraceStatus({
   })
 
   const v2Query = useQuery({
-    ...getV2RegistrationDataQueryOptions({ name }),
+    ...getRegistrationDataQueryOptions({ name }),
     enabled: protocolVersion === 'ENSv2',
   })
 
@@ -101,12 +114,11 @@ export function useGraceStatus({
         error: null,
       }
     }
-    const nowSeconds = Math.floor(Date.now() / 1000)
-    const graceEndSeconds = data.expiry + V2_GRACE_DURATION_SECONDS
     return {
-      isInGrace: nowSeconds > data.expiry && nowSeconds < graceEndSeconds,
-      isExpired: nowSeconds > data.expiry,
-      graceEndDate: new Date(graceEndSeconds * 1000),
+      ...v2GraceStatus(
+        { expiry: data.expiry, graceEnd: data.graceEnd },
+        Math.floor(Date.now() / 1000),
+      ),
       isLoading: false,
       error: null,
     }

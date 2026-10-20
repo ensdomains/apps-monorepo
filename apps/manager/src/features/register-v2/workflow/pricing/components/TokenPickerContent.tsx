@@ -11,11 +11,12 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
+import { type SUPPORTED_TOKEN, type TOKEN_SYMBOL, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -104,20 +105,21 @@ const getDomainSizeClasses = (domainName: string): string => {
   return 'text-[40px]'
 }
 
-const PaymentMethods = ({
+const PaymentMethods = <T extends TOKEN_SYMBOL>({
   showNetworkFeeDetails,
   paymentMethodItems,
   stablecoinBalances,
   onSelectCoin,
   selectedToken,
-  requiredAmount,
+  walletShareOf,
 }: {
   readonly showNetworkFeeDetails: boolean
   readonly paymentMethodItems: readonly PaymentMethodListItem[]
   readonly stablecoinBalances: readonly StablecoinBalance[]
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
-  readonly selectedToken: SUPPORTED_TOKEN | undefined
-  readonly requiredAmount: number | undefined
+  readonly onSelectCoin: (coin: T) => void
+  readonly selectedToken: T | undefined
+  /** What the wallet must cover in a coin; `undefined` until it is priced. */
+  readonly walletShareOf: (symbol: string) => number | undefined
 }) => {
   if (showNetworkFeeDetails) {
     return <PaymentMethodList items={paymentMethodItems} />
@@ -129,7 +131,7 @@ const PaymentMethods = ({
         <TokenListItem
           key={stablecoin.address}
           onSelectCoin={onSelectCoin}
-          priceUSD={requiredAmount ?? 0}
+          priceUSD={walletShareOf(stablecoin.symbol) ?? 0}
           selectedCoin={selectedToken}
           stablecoin={stablecoin}
         />
@@ -542,7 +544,7 @@ const PickerMessage = ({
   return null
 }
 
-export const TokenPickerContentBase = ({
+export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
   pricingLoading,
   pricingData,
@@ -554,6 +556,9 @@ export const TokenPickerContentBase = ({
   onSelectCoin,
   onNext,
   stablecoinBalances,
+  accountCredit,
+  fundedAmount,
+  acceptedTokens = ['USDC'],
   isLoadingBalances,
   isConnected,
   nextMessage = <Trans>Register name</Trans>,
@@ -569,14 +574,26 @@ export const TokenPickerContentBase = ({
   readonly pricingLoading: boolean
   readonly pricingData: number | undefined
   readonly isInPriceCooldown?: boolean
-  readonly selectedToken: SUPPORTED_TOKEN | undefined
+  readonly selectedToken: T | undefined
   readonly globalErrorMessage?: string | null
   readonly methodErrorMessage?: string | null
   /** Reassurance shown only when there is no global error. */
   readonly infoMessage?: string | null
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly onSelectCoin: (coin: T) => void
   readonly onNext: () => void
-  readonly stablecoinBalances: StablecoinBalance[]
+  readonly stablecoinBalances: readonly StablecoinBalance[]
+  /**
+   * What the smart account already holds of each coin. It pays first, so the
+   * wallet only has to cover the rest.
+   */
+  readonly accountCredit?: Partial<Record<TOKEN_SYMBOL, number>>
+  /**
+   * What has to be funded before account credit, when that exceeds the price:
+   * a renewal intent funds its approval's headroom as well as the rent.
+   */
+  readonly fundedAmount?: number
+  /** The coins shown under "Stables accepted". */
+  readonly acceptedTokens?: readonly TOKEN_SYMBOL[]
   readonly isLoadingBalances: boolean
   readonly isConnected: boolean
   readonly nextMessage?: ReactNode
@@ -617,7 +634,15 @@ export const TokenPickerContentBase = ({
   // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
   // the remainder itself — gating on the budget would block a wallet that only
   // owes the shortfall.
-  const requiredAmount = funding?.walletDebit ?? pricingData
+  const requiredAmount = funding?.walletDebit ?? fundedAmount ?? pricingData
+  // The account's own balance of a coin pays first; the wallet covers the rest.
+  const walletShareOf = (symbol: string) =>
+    requiredAmount === undefined
+      ? undefined
+      : Math.max(
+          0,
+          requiredAmount - (accountCredit?.[symbol as TOKEN_SYMBOL] ?? 0),
+        )
 
   // What the registration costs before any standing credit is applied.
   const displayTotal = funding?.total ?? pricingData
@@ -640,13 +665,15 @@ export const TokenPickerContentBase = ({
   // registration that funded the commit but never revealed — owes the wallet
   // nothing, and a falsy 0 would block exactly the retry that should sail
   // through.
+  const selectedShare =
+    selectedCoinBalance && walletShareOf(selectedCoinBalance.symbol)
   const hasSufficientBalanceForSelectedCoin =
     selectedCoinBalance !== undefined &&
-    requiredAmount !== undefined &&
+    selectedShare !== undefined &&
     decimalBigintToNumber(
       BigInt(selectedCoinBalance.balance),
       selectedCoinBalance.decimals,
-    ) >= requiredAmount
+    ) >= selectedShare
 
   const canNext =
     isConnected &&
@@ -664,7 +691,8 @@ export const TokenPickerContentBase = ({
         BigInt(stablecoin.balance),
         stablecoin.decimals,
       )
-      const isFunded = requiredAmount !== undefined && balance >= requiredAmount
+      const share = walletShareOf(stablecoin.symbol)
+      const isFunded = share !== undefined && balance >= share
 
       return {
         id: stablecoin.address,
@@ -682,7 +710,7 @@ export const TokenPickerContentBase = ({
             isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
             networkFee={displayedNetworkFee}
             onSelectCoin={onSelectCoin}
-            priceUSD={requiredAmount ?? 0}
+            priceUSD={share ?? 0}
             selectedCoin={selectedToken}
             showNetworkFeeDetails={showNetworkFeeDetails}
             stablecoin={stablecoin}
@@ -777,10 +805,10 @@ export const TokenPickerContentBase = ({
               <PaymentMethods
                 onSelectCoin={onSelectCoin}
                 paymentMethodItems={paymentMethodItems}
-                requiredAmount={requiredAmount}
                 selectedToken={selectedToken}
                 showNetworkFeeDetails={showNetworkFeeDetails}
                 stablecoinBalances={stablecoinBalances}
+                walletShareOf={walletShareOf}
               />
             ))
             .otherwise(() => undefined)}
@@ -795,7 +823,10 @@ export const TokenPickerContentBase = ({
               <Trans>Stables accepted</Trans>
             </p>
             <div className="flex items-center gap-1">
-              <USDCIcon className="h-7 w-7" />
+              {acceptedTokens.map((symbol) => {
+                const Icon = STABLECOINS[symbol]?.icon ?? USDCIcon
+                return <Icon className="h-7 w-7" key={symbol} />
+              })}
             </div>
           </div>
 

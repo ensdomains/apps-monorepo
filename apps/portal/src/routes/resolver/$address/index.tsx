@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
-import type { Address } from 'viem'
+import { match } from 'ts-pattern'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
@@ -17,7 +17,11 @@ import { chain } from '@/config'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
-import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import {
+  getResolverOverviewQueryOptions,
+  type ResolverEvent,
+  resolverCollectionCount,
+} from '@/features/resolver/hooks/useResolverOverview'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
@@ -26,17 +30,39 @@ import type { HttpsUrl } from '@/utils/types'
 export const Route = createFileRoute('/resolver/$address/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  // Started, not awaited: a slow bigname read must not hold the page blank.
   loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getResolverOverviewQueryOptions({
-        address: params.address as Address,
-      }),
+    void queryClient.prefetchQuery(
+      getResolverOverviewQueryOptions({ address: params.address }),
     )
   },
 })
 
 const blockExplorerUrl = chain.blockExplorers.default.url
 const RECENT_EVENT_LIMIT = 5
+
+const RecentEvents = ({
+  events,
+}: {
+  readonly events: readonly ResolverEvent[] | null
+}) =>
+  match(events)
+    .with(null, () => (
+      <ErrorMessage
+        compact
+        description="Couldn't load this resolver's recent events. Full history may still load."
+      />
+    ))
+    .with([], () => (
+      <NoResultsMessage
+        title="No history yet"
+        description="Events for this resolver will appear here."
+        className="mx-0 my-0"
+      />
+    ))
+    .otherwise((rows) => (
+      <ResolverEventsTable events={rows} enableSidebar={false} />
+    ))
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -45,7 +71,7 @@ function RouteComponent() {
     data: resolver,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverOverviewQueryOptions({ address: address }))
 
   const recentEvents = (resolver?.events ?? [])
     .toSorted(
@@ -75,7 +101,12 @@ function RouteComponent() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
           <CounterCardRow icon={GridIcon}>
-            <span className="font-medium">{resolver?.nodeCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolver?.nodeCount === null
+                ? 'Unknown'
+                : (resolver?.nodeCount ?? 0)}
+              {resolver?.nodeCountIsLowerBound && '+'}
+            </span>{' '}
             nodes
           </CounterCardRow>
         </CounterCard>
@@ -83,7 +114,10 @@ function RouteComponent() {
         <CounterCard to="/resolver/$address/roles" params={{ address }}>
           <CounterCardRow icon={UserRoundCog}>
             <span className="font-medium">
-              {resolver?.roleHolderCount ?? 0}
+              {resolverCollectionCount(
+                resolver?.roleHolderCount,
+                resolver?.rolesStatus,
+              )}
             </span>{' '}
             roles
           </CounterCardRow>
@@ -91,15 +125,28 @@ function RouteComponent() {
 
         <CounterCard to="/resolver/$address/links" params={{ address }}>
           <CounterCardRow icon={SplitIcon}>
-            <span className="font-medium">{resolver?.linkCount ?? 0}</span>{' '}
+            <span className="font-medium">
+              {resolverCollectionCount(
+                resolver?.linkCount,
+                resolver?.linksStatus,
+              )}
+            </span>{' '}
             links
           </CounterCardRow>
         </CounterCard>
       </div>
 
+      {resolver?.mirrorRegistry && (
+        <p className="text-p text-muted-foreground">
+          This resolver mirrors the ENSv1 registry at{' '}
+          {truncateAddress(resolver.mirrorRegistry)}. The ENSv1 names it answers
+          for are counted under the resolvers set for them there, not here.
+        </p>
+      )}
+
       <ResolverDetails
-        resolverAddress={address as Address}
-        typeValue={<ResolverTypeValue resolverAddress={address as Address} />}
+        resolverAddress={address}
+        typeValue={<ResolverTypeValue resolverAddress={address} />}
         data={[
           {
             label: 'Contract',
@@ -125,15 +172,7 @@ function RouteComponent() {
             </Button>
           }
         />
-        {recentEvents.length === 0 ? (
-          <NoResultsMessage
-            title="No history yet"
-            description="Events for this resolver will appear here."
-            className="mx-0 my-0"
-          />
-        ) : (
-          <ResolverEventsTable events={recentEvents} enableSidebar={false} />
-        )}
+        <RecentEvents events={resolver?.events ? recentEvents : null} />
       </div>
     </div>
   )

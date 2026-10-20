@@ -59,31 +59,19 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
       ),
   }),
 }))
-const mockV1NamesSearch = vi.fn<
-  (
-    search: string | undefined,
-    address: string,
-  ) => { name: string }[] | Promise<{ name: string }[]>
->(() => [])
-vi.mock('../hooks/useV1NamesForAddress', () => ({
-  getV1NamesPagesForAddressQueryOptions: (params: {
-    address: string
-    search?: string
-  }) => ({
-    queryKey: ['get-v1-names-for-address', params],
-    queryFn: async () => ({
-      names: await mockV1NamesSearch(params.search, params.address),
-      hasNextPage: false,
-    }),
-    initialPageParam: undefined,
-    getNextPageParam: () => undefined,
-  }),
-}))
 let ownedNamesOverride: { name: string }[] | null = null
-vi.mock('../hooks/useV2NamesForAddress', () => ({
-  getV2NamesForAddressQueryOptions: (params: { address: string }) => ({
-    queryKey: ['get-v2-names-for-address', params],
-    queryFn: () => Promise.resolve(ownedNamesOverride ?? []),
+vi.mock('../hooks/useAddressNames', () => ({
+  getAddressNamesQueryOptions: (params: { address: string }) => ({
+    queryKey: ['get-address-names', params],
+    queryFn: () =>
+      Promise.resolve(
+        (ownedNamesOverride ?? []).map(({ name }) => ({
+          name,
+          expiryDate: null,
+          relations: ['owner'],
+          protocolVersion: 'ENSv2',
+        })),
+      ),
   }),
 }))
 vi.mock('@/hooks/useSupportsInterfaces', () => ({
@@ -116,8 +104,6 @@ describe('SearchModalContent', () => {
     mockOnSelectAvailableName.mockClear()
     connectedAddressOverride = undefined
     ownedNamesOverride = null
-    mockV1NamesSearch.mockReset()
-    mockV1NamesSearch.mockReturnValue([])
     mockBuildSearchSuggestions.mockImplementation(
       ({ value }: { value: string }) => {
         if (!value.trim()) return []
@@ -413,65 +399,5 @@ describe('SearchModalContent', () => {
       .getAllByRole('option')
       .find((el) => el.textContent?.includes('foobar.eth'))
     expect(ownedOption).toHaveAttribute('data-value', 'owned:foobar.eth')
-  })
-
-  it('asks the subgraph for ENSv1 names matching the search, so one past the first page is found', async () => {
-    connectedAddressOverride = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
-    mockV1NamesSearch.mockImplementation((search) =>
-      search === 'deep' ? [{ name: 'deepname.eth' }] : [],
-    )
-    mockBuildSearchSuggestions.mockReturnValue([])
-
-    render(
-      <SearchModalContent
-        searchValue="deep.eth"
-        onSelectSuggestion={mockOnSelectSuggestion}
-        onSelectOwnedName={mockOnSelectOwnedName}
-        navigateToName={mockNavigateToName}
-        navigateToAddress={mockNavigateToAddress}
-        navigateToResolver={mockNavigateToResolver}
-      />,
-      { wrapper: createWrapper() },
-    )
-
-    await vi.waitFor(() => {
-      expect(
-        screen.getByRole('group', { name: 'Names you own' }),
-      ).toHaveTextContent('deepname.eth')
-    })
-    expect(mockV1NamesSearch).toHaveBeenCalledWith(
-      'deep',
-      connectedAddressOverride,
-    )
-  })
-
-  it('drops the last wallet’s ENSv1 names while the next wallet’s search loads', async () => {
-    const firstWallet = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
-    connectedAddressOverride = firstWallet
-    mockV1NamesSearch.mockImplementation((_search, address) =>
-      address === firstWallet
-        ? [{ name: 'deepname.eth' }]
-        : new Promise(() => {}),
-    )
-    mockBuildSearchSuggestions.mockReturnValue([])
-    const modal = () => (
-      <SearchModalContent
-        searchValue="deep"
-        onSelectSuggestion={mockOnSelectSuggestion}
-        onSelectOwnedName={mockOnSelectOwnedName}
-        navigateToName={mockNavigateToName}
-        navigateToAddress={mockNavigateToAddress}
-        navigateToResolver={mockNavigateToResolver}
-      />
-    )
-    const { rerender } = render(modal(), { wrapper: createWrapper() })
-    await vi.waitFor(() => {
-      expect(screen.getAllByText('deepname.eth')).not.toHaveLength(0)
-    })
-
-    connectedAddressOverride = '0x1111111111111111111111111111111111111111'
-    rerender(modal())
-
-    expect(screen.queryAllByText('deepname.eth')).toHaveLength(0)
   })
 })

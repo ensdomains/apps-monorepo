@@ -1,12 +1,4 @@
-import type {
-  DomainEventKey,
-  RegistrationEventKey,
-  ResolverEventKey,
-} from '@ensdomains/ensjs/subgraph'
-
-type EventKey = DomainEventKey | RegistrationEventKey | ResolverEventKey
-
-// Event signatures mapping based on ENS subgraph types
+// Upstream ENSv1 event signatures, keyed by event name.
 const EVENT_SIGNATURES = {
   // Domain Events
   Transfer: 'Transfer (bytes32 indexed node, address owner)',
@@ -43,7 +35,9 @@ const EVENT_SIGNATURES = {
   AuthorisationChanged:
     'AuthorisationChanged (bytes32 indexed node, address indexed owner, address indexed target, bool isAuthorised)',
   VersionChanged: 'VersionChanged (bytes32 indexed node, uint64 newVersion)',
-} as const satisfies Record<EventKey, string>
+} as const
+
+type EventKey = keyof typeof EVENT_SIGNATURES
 
 // Resolver indexer event types (not part of the ensjs subgraph types)
 const RESOLVER_INDEXER_EVENT_SIGNATURES: Record<string, string> = {
@@ -75,7 +69,7 @@ const RESOLVER_INDEXER_EVENT_SIGNATURES: Record<string, string> = {
   ResolverUpdated: 'ResolverUpdated (uint256 tokenId, address resolver)',
 }
 
-// Type mapping for decoded data based on ENS subgraph types
+// Types of each ENSv1 event's decoded fields
 const TYPE_MAPPING = {
   Transfer: { owner: 'address' },
   NewOwner: { owner: 'address' },
@@ -182,6 +176,27 @@ const RESOLVER_INDEXER_TYPE_MAPPING: Record<string, Record<string, string>> = {
   ResolverUpdated: { tokenId: 'uint256', resolver: 'address' },
 }
 
+/**
+ * Field types of bigname's `include=data` history payload, which is keyed by
+ * bigname's own storage kinds rather than upstream event names, so looked up
+ * by field alone.
+ */
+const HISTORY_PAYLOAD_FIELD_TYPES: Record<string, string> = {
+  registrant: 'address',
+  owner: 'address',
+  from: 'address',
+  to: 'address',
+  address: 'address',
+  resolver: 'address',
+  subregistry: 'address',
+  expires_at: 'timestamp',
+  key: 'string',
+  value: 'string | bytes',
+  coin_type: 'uint256',
+  fuses: 'uint32',
+  powers: 'string[]',
+}
+
 type EventFieldTypes<T extends EventKey> = (typeof TYPE_MAPPING)[T]
 
 function isEventKey(k: string): k is EventKey {
@@ -222,5 +237,9 @@ export function getEventFieldType(
     return mapping[fieldKey] ?? 'unknown'
   }
   const resolverMapping = RESOLVER_INDEXER_TYPE_MAPPING[eventType]
-  return resolverMapping?.[fieldKey] ?? 'unknown'
+  return (
+    resolverMapping?.[fieldKey] ??
+    HISTORY_PAYLOAD_FIELD_TYPES[fieldKey] ??
+    'unknown'
+  )
 }

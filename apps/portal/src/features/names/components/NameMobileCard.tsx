@@ -1,19 +1,24 @@
+import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
-import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import type { V1Roles } from '@/utils/names/mergeNamesData'
+import type { AddressNameRelation } from '@/utils/names/addressNames'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
+import { RelationBadges } from './RelationBadges'
 
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
-  roleBitmap?: string | null
-  v1Roles?: V1Roles | null
+  graceEndDate: Date | null
+  status: NameRegistrationStatus
+  relations?: readonly AddressNameRelation[]
+  /** ENSv2 only: the roles the address holds on the name. */
+  roleCount?: RoleCount
   protocolVersion: ProtocolVersion
   recordCount?: number
   subdomainCount?: number
@@ -25,20 +30,17 @@ export interface NameMobileCardProps {
 export const NameMobileCard = ({
   name,
   expiryDate,
-  roleBitmap,
-  v1Roles,
-  protocolVersion,
+  graceEndDate,
+  status,
+  relations = [],
+  roleCount,
   recordCount,
   subdomainCount,
   isSelected = false,
   onSelectChange,
   showCheckbox = true,
 }: NameMobileCardProps) => {
-  const v2Roles = roleBitmap ? decodeRoleBitmap(roleBitmap) : []
-  const v1RoleLabels: string[] = []
-  if (v1Roles?.owner) v1RoleLabels.push('Owner')
-  if (v1Roles?.manager) v1RoleLabels.push('Manager')
-  const hasRoles = v2Roles.length > 0 || v1RoleLabels.length > 0
+  const hasRoles = relations.length > 0
   const showRecordsSubnames =
     recordCount !== undefined || subdomainCount !== undefined
 
@@ -66,7 +68,7 @@ export const NameMobileCard = ({
             <span className="text-base">
               {formatDateTime(dateToPlainDate(expiryDate))}
             </span>
-            {getNameStatus(expiryDate, protocolVersion === 'ENSv2') ===
+            {getNameStatus({ expiryDate, graceEndDate, status }) ===
               'grace' && <GraceBadge />}
           </>
         ) : (
@@ -96,19 +98,7 @@ export const NameMobileCard = ({
           <div className="text-base font-medium text-muted-foreground">
             Roles
           </div>
-          <div className="flex flex-row gap-1">
-            {v2Roles.length > 0 ? (
-              <Badge variant="secondary" className="text-small">
-                {v2Roles.length} {v2Roles.length === 1 ? 'Role' : 'Roles'}
-              </Badge>
-            ) : (
-              v1RoleLabels.map((label) => (
-                <Badge key={label} variant="secondary" className="text-small">
-                  {label}
-                </Badge>
-              ))
-            )}
-          </div>
+          <RelationBadges relations={relations} roleCount={roleCount} />
         </>
       )}
     </div>

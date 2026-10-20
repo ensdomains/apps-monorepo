@@ -1,9 +1,42 @@
+import {
+  getCoinTypeForReverseRegistrarChainId,
+  L2_REVERSE_REGISTRAR_CHAIN_IDS,
+} from '@ens-apps/l2-primary/v1'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import { envConfig } from '@/config'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import { names } from '@/lib/reverseRegistrarChainId'
+import { isOutOfRangeEvmCoinType } from '@/lib/utils'
 
 type Entries<T> = {
   [K in keyof T]-?: [K, T[K]]
 }[keyof T][]
+
+/**
+ * L2 coin types keyed on this network's testnet chain ids, which
+ * address-encoder names "Unknown Chain (<id>)", by the L2's name.
+ */
+const TESTNET_L2_NAMES = new Map<number, string>(
+  L2_REVERSE_REGISTRAR_CHAIN_IDS.flatMap((chainId) => {
+    const coinType = getCoinTypeForReverseRegistrarChainId(
+      chainId,
+      envConfig.network,
+    )
+    return coinType ===
+      getCoinTypeForReverseRegistrarChainId(chainId, 'mainnet')
+      ? []
+      : [[coinType, names[chainId]] as const]
+  }),
+)
+
+/**
+ * Display key for an address row. An out-of-range EVM type renders as the chain
+ * it aliases, so name the raw type instead (WEB-1447).
+ */
+const addressRecordKey = (coinType: number, symbol: string): string =>
+  isOutOfRangeEvmCoinType(coinType)
+    ? `Invalid coin type (${coinType})`
+    : (TESTNET_L2_NAMES.get(coinType) ?? symbol)
 
 export const recordsToTableData = (
   records: GetRecordsReturnType,
@@ -35,7 +68,12 @@ export const recordsToTableData = (
     }
     if (key === 'coins') {
       for (const { coinType, value: addr, symbol } of Object.values(value)) {
-        data.push({ key: symbol, value: addr, type: 'address', id: coinType })
+        data.push({
+          key: addressRecordKey(coinType, symbol),
+          value: addr,
+          type: 'address',
+          id: coinType,
+        })
       }
     }
   }

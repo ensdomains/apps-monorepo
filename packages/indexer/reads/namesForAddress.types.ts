@@ -53,6 +53,8 @@ export type NameSummary = Readonly<{
    * reserved ENSv1 name serves its ENSv2 reservation here; `expiresAt` keeps the lease.
    */
   servedExpiry: bigint | null
+  /** When grace ends; null when the name has none. */
+  graceEndsAt: Date | null
   registeredAt: Date | null
   createdAt: Date | null
   /** Only with `includeCounts`. */

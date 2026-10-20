@@ -1,25 +1,25 @@
 import { useEffect } from 'react'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { TOKEN_SYMBOL } from '@/lib/tokens'
 
 /**
  * Selects the sole payment option once balances have loaded. Leaves the choice
  * alone when the user has already picked one or several options exist.
  */
-export const useAutoSelectOnlyToken = ({
+export const useAutoSelectOnlyToken = <T extends TOKEN_SYMBOL>({
   selectedToken,
   stablecoinBalances,
   isLoadingBalances,
   onSelectCoin,
 }: {
-  readonly selectedToken: SUPPORTED_TOKEN | undefined
+  readonly selectedToken: T | undefined
   readonly stablecoinBalances: readonly StablecoinBalance[] | undefined
   readonly isLoadingBalances: boolean
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly onSelectCoin: (coin: T) => void
 }) => {
   useEffect(() => {
     const onlyCoin = stablecoinBalances?.length === 1 && stablecoinBalances[0]
     if (selectedToken || isLoadingBalances || !onlyCoin) return
-    onSelectCoin(onlyCoin.symbol as SUPPORTED_TOKEN)
+    onSelectCoin(onlyCoin.symbol as T)
   }, [selectedToken, isLoadingBalances, stablecoinBalances, onSelectCoin])
 }

@@ -21,3 +21,7 @@ export type {
   StablecoinBalance,
   WalletSource,
 } from './types'
+export {
+  type UseHcaFundingPromptResult,
+  useHcaFundingPrompt,
+} from './useHcaFundingPrompt'

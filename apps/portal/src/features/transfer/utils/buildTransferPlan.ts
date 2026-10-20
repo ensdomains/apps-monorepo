@@ -33,7 +33,8 @@ export type TransferStepKind =
   | 'transfer-token'
   /**
    * V2: `PermissionedRegistry.unsafeTransfer` — the move for a name other
-   * accounts will still hold roles on, which `safeTransferFrom` refuses.
+   * accounts will still hold roles on, or in a registry that isn't
+   * emancipated, both of which `safeTransferFrom` refuses.
    */
   | 'transfer-token-unsafe'
   /** V1 unwrapped 2LD: `BaseRegistrar.reclaim` — hands the recipient the controller slot. */
@@ -81,10 +82,11 @@ export const buildTransferPlan = (
   /** Third-party grants to revoke. Only ever non-empty for a V2 name. */
   roleGrants: readonly NameRoleGrant[] = [],
   /**
-   * Whether anyone but the sender still holds a role on the name once the
-   * revokes above have landed. Only ever true for a V2 name.
+   * Whether the registry would refuse `safeTransferFrom`: anyone but the sender
+   * still holds a role on the name once the revokes above have landed, or the
+   * registry isn't emancipated. Only ever true for a V2 name.
    */
-  hasRemainingRoleHolders = false,
+  isSafeTransferRefused = false,
 ): TransferStep[] => {
   // A parent holds neither the subname's registry slot nor its wrapper token,
   // so it can't write the subname's records; the form never offers the config
@@ -116,11 +118,12 @@ export const buildTransferPlan = (
       : []
 
   // `safeTransferFrom` reverts with `TransferUnsafeWithMultipleAssignees` while
-  // anyone but the sender holds a role on the name. `unsafeTransfer` is the
-  // registry's entrypoint for moving it with those grants left in place, so it
-  // is used only when the sender has chosen (or has no way not) to leave them.
+  // anyone but the sender holds a role on the name, and with
+  // `TransferUnsafeUntilRegistryIsEmancipated` while the registry's root roles
+  // can still reach it. `unsafeTransfer` is the registry's entrypoint for
+  // moving it anyway, so it is used only when one of those holds.
   const moveSteps: readonly TransferStep[] =
-    kind === 'v2' && hasRemainingRoleHolders
+    kind === 'v2' && isSafeTransferRefused
       ? [{ kind: 'transfer-token-unsafe' }]
       : MOVE_STEPS[kind]
 
