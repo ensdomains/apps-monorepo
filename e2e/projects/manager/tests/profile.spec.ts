@@ -121,7 +121,8 @@ test.describe('ENS profile', () => {
 
     // General tab: Custom link is visible by default — fill with an invalid URL.
     // Validation fires immediately on change.
-    await page.getByPlaceholder('https://yourwebsite.com').fill('not-a-url')
+    // Spaces keep it invalid even with the https:// prefilled on focus
+    await page.getByPlaceholder('https://yourwebsite.com').fill('not a url')
     await expect(
       page.getByText('Enter a valid URL (e.g. https://example.com)'),
     ).toBeVisible({ timeout: 10_000 })
@@ -149,7 +150,7 @@ test.describe('ENS profile', () => {
     // Use exact match to distinguish from the General-tab "Enter a valid URL
     // (e.g. https://example.com)" message which may still be in the DOM.
     await page.getByRole('tab', { name: 'Links' }).click()
-    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not-a-url')
+    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not a url')
     await expect(
       page.getByText('Enter a valid URL', { exact: true }),
     ).toBeVisible({ timeout: 10_000 })
@@ -166,7 +167,7 @@ test.describe('ENS profile', () => {
     makeV2Name,
   }) => {
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
+      process.env.E2E_MOCK_BIGNAME === 'true',
       'Requires real indexer (SSR bypasses Playwright mock)',
     )
     // Register with a record so the profile view page renders
@@ -265,7 +266,7 @@ test.describe('ENS profile', () => {
     // bypasses Playwright's route interceptor, causing the server to redirect to /.
     // The owned-name favourite test already covers the full favourite flow.
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
+      process.env.E2E_MOCK_BIGNAME === 'true',
       'Requires real indexer (SSR bypasses Playwright mock)',
     )
 

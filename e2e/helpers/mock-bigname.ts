@@ -1,15 +1,15 @@
 /**
- * Mock Indexer — intercepts bigname REST requests in Playwright tests.
+ * bigname mock: intercepts bigname REST requests in Playwright tests.
  *
  * The local chain is not indexed by any bigname deployment, so this helper
  * uses `page.route()` to answer the apps' bigname reads from names the
  * test registers.
  *
  * Usage:
- *   const indexerMock = createIndexerMock()
- *   await indexerMock.install(page)
+ *   const bignameMock = createBignameMock()
+ *   await bignameMock.install(page)
  *   // ... register a name on-chain ...
- *   indexerMock.addName({ name: 'foo.eth', owner: '0x...' })
+ *   bignameMock.addName({ name: 'foo.eth', owner: '0x...' })
  *   // the next names, detail, records and lookup reads include it
  */
 import type { Page, Route } from '@playwright/test'
@@ -76,7 +76,7 @@ const CORS_HEADERS = {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createIndexerMock() {
+export function createBignameMock() {
   const domains: MockDomain[] = []
 
   function addName(domain: MockDomain) {
@@ -368,7 +368,7 @@ export function createIndexerMock() {
       const match = method === route.method ? path.match(route.path) : null
       if (match) return route.reply({ match, params, body })
     }
-    console.log(`[mock-indexer] unhandled bigname route: ${method} ${path}`)
+    console.log(`[mock-bigname] unhandled bigname route: ${method} ${path}`)
     return notFound
   }
 
@@ -392,7 +392,7 @@ export function createIndexerMock() {
       )
       await route.fulfill({ status, json, headers: CORS_HEADERS })
     } catch (err) {
-      console.error('[mock-indexer] error handling request:', err)
+      console.error('[mock-bigname] error handling request:', err)
       await route.fulfill({
         status: 500,
         json: {
@@ -408,14 +408,14 @@ export function createIndexerMock() {
     await page.route(/bigname\.sh\/v1\//, routeHandler)
   }
 
-  /** Whether the mock should be active (set E2E_MOCK_INDEXER=true). */
-  const enabled = process.env.E2E_MOCK_INDEXER === 'true'
+  /** Whether the mock should be active (set E2E_MOCK_BIGNAME=true). */
+  const enabled = process.env.E2E_MOCK_BIGNAME === 'true'
 
   /** Install only when the flag is on; no-op otherwise. */
   async function installIfEnabled(page: Page) {
     if (!enabled) return
     console.log(
-      '[mock-indexer] E2E_MOCK_INDEXER=true — intercepting bigname requests',
+      '[mock-bigname] E2E_MOCK_BIGNAME=true — intercepting bigname requests',
     )
     await install(page)
   }

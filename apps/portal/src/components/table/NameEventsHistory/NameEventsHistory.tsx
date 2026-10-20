@@ -12,19 +12,19 @@ import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSe
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import {
   groupEventsByTransactionId,
-  type SubgraphEvent,
+  type HistoryTableEvent,
 } from '@/utils/history/groupEventsByTransactionId'
-import { historyEventsToSubgraphEvents } from '@/utils/history/historyEventsToSubgraphEvents'
+import { historyEventsToTableEvents } from '@/utils/history/historyEventsToTableEvents'
 
 type Category = 'domain' | 'registration' | 'resolver'
 
-interface NameSubgraphHistoryProps {
+interface NameEventsHistoryProps {
   name: string
   category?: Category
   /**
    * Optional pre-fetched events. When provided, the name's history is not read.
    */
-  v2Events?: SubgraphEvent[]
+  prefetchedEvents?: HistoryTableEvent[]
   enableHeader?: boolean
 }
 
@@ -41,13 +41,13 @@ const CATEGORY_FILTERS: Record<
   resolver: { type: ['record', 'resolver'] },
 }
 
-const NameSubgraphHistoryTable = ({
+const NameEventsHistoryTable = ({
   name,
   data: history,
   category,
 }: {
   name: string
-  data: SubgraphEvent[]
+  data: HistoryTableEvent[]
   category: Category
 }) => {
   // bigname dates every row, so each transaction carries its own timestamp.
@@ -74,13 +74,13 @@ const NameSubgraphHistoryTable = ({
   )
 }
 
-export const NameSubgraphHistory = ({
+export const NameEventsHistory = ({
   name,
   category = 'resolver',
-  v2Events,
+  prefetchedEvents,
   enableHeader = true,
-}: NameSubgraphHistoryProps) => {
-  const hasEvents = !!v2Events
+}: NameEventsHistoryProps) => {
+  const hasEvents = !!prefetchedEvents
 
   const {
     data: history,
@@ -99,11 +99,11 @@ export const NameSubgraphHistory = ({
   if (!hasEvents && error) return <div>Error: {extractErrorMessage(error)}</div>
 
   const data =
-    v2Events ??
-    (history ? historyEventsToSubgraphEvents(history.rows) : undefined)
+    prefetchedEvents ??
+    (history ? historyEventsToTableEvents(history.rows) : undefined)
   // Only the indexed read is one page of a longer history. bigname counts rows,
   // and the table merges some, so its total is only an upper bound.
-  const isCut = !v2Events && !!history?.hasMore
+  const isCut = !prefetchedEvents && !!history?.hasMore
   const totalCount = history?.totalCount
 
   if (!data || data.length === 0)
@@ -121,7 +121,7 @@ export const NameSubgraphHistory = ({
   return (
     <div className="flex flex-col gap-4 w-full">
       {enableHeader && <HistorySectionHeader />}
-      <NameSubgraphHistoryTable {...{ name, data, category }} />
+      <NameEventsHistoryTable {...{ name, data, category }} />
       {isCut && (
         <p className="text-p text-muted-foreground">
           Showing the latest {data.length}

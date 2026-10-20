@@ -44,11 +44,12 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import {
+  type PermitKind,
   type PermitPurpose,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   readUsdcSpend,
-  signFundingPermitActor,
+  signFundingPermitForTokenActor,
 } from '../machines/registration/registration.hca.actors'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
@@ -56,6 +57,15 @@ import type { Call } from '../types/transaction.types'
 const erc2612Abi = parseAbi([
   'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
   'function transferFrom(address from, address to, uint256 amount) returns (bool)',
+])
+
+/**
+ * DAI's pre-EIP-2612 `permit` (selector `0x8fcbaf0c`). Separate from the ABI
+ * above because both overloads are named `permit` and their argument tuples are
+ * different lengths — keeping them apart makes the encoded shape explicit.
+ */
+const daiPermitAbi = parseAbi([
+  'function permit(address holder, address spender, uint256 nonce, uint256 expiry, bool allowed, uint8 v, bytes32 r, bytes32 s)',
 ])
 
 /**
@@ -144,6 +154,12 @@ export interface HcaFundingTokenLeg {
   /** Moved from the wallet: what the HCA is short. Zero when it is covered. */
   readonly permitValue: bigint
   readonly requiresPermit: boolean
+  /**
+   * `true` when the permit cannot be scoped to {@link permitValue}: mainnet
+   * DAI's legacy permit only grants an unlimited, non-depleting allowance, so
+   * the prompt must say so instead of promising an exact amount.
+   */
+  readonly hasUnlimitedAllowance?: boolean
 }
 
 /** What an intent's calls spend in one token, on top of the USDC fee. */
@@ -152,6 +168,8 @@ export interface HcaTokenSpend {
   readonly symbol: string
   readonly decimals: number
   readonly amount: bigint
+  /** The permit the token implements. Defaults to EIP-2612. */
+  readonly permitKind?: PermitKind
 }
 
 /** The user saw the funding amount and declined it. Not an error condition. */
@@ -202,35 +220,53 @@ const firstPassBalanceUsdc = (requiredUsdc: bigint, gasLimit: bigint): bigint =>
  * A permit whose SHAPE matches the real one but whose values are dummies.
  *
  * Quoting is a chicken-and-egg problem: the permit's value is the fee, and the
- * fee comes from the quote. It resolves because every EIP-2612 `permit` argument
- * is fixed-width, so the calldata length — and therefore the quoted cost — is
+ * fee comes from the quote. It resolves because every `permit` argument is
+ * fixed-width, so the calldata length — and therefore the quoted cost — is
  * identical whatever value we eventually sign for. Quote with the placeholder,
- * then sign the real permit for the amount it reports.
+ * then sign the real permit for the amount it reports. DAI's legacy permit has
+ * one more argument, so its placeholder must be that shape too.
  */
 const placeholderPermitCalls = (
-  usdc: Address,
+  token: Address,
   owner: Address,
   hca: Address,
+  kind: PermitKind = 'eip2612',
 ): Call[] => [
   {
-    to: usdc,
+    to: token,
     value: 0n,
-    data: encodeFunctionData({
-      abi: erc2612Abi,
-      functionName: 'permit',
-      args: [
-        owner,
-        hca,
-        1_000_000n,
-        1_800_000_000n,
-        27,
-        `0x${'11'.repeat(32)}` as Hex,
-        `0x${'22'.repeat(32)}` as Hex,
-      ],
-    }),
+    data:
+      kind === 'dai-legacy'
+        ? encodeFunctionData({
+            abi: daiPermitAbi,
+            functionName: 'permit',
+            args: [
+              owner,
+              hca,
+              0n,
+              1_800_000_000n,
+              true,
+              27,
+              `0x${'11'.repeat(32)}` as Hex,
+              `0x${'22'.repeat(32)}` as Hex,
+            ],
+          })
+        : encodeFunctionData({
+            abi: erc2612Abi,
+            functionName: 'permit',
+            args: [
+              owner,
+              hca,
+              1_000_000n,
+              1_800_000_000n,
+              27,
+              `0x${'11'.repeat(32)}` as Hex,
+              `0x${'22'.repeat(32)}` as Hex,
+            ],
+          }),
   },
   {
-    to: usdc,
+    to: token,
     value: 0n,
     data: encodeFunctionData({
       abi: erc2612Abi,
@@ -378,7 +414,7 @@ export interface PlanHcaIntentFundingParams {
   readonly purpose?: PermitPurpose
 }
 
-export type { PermitPurpose }
+export type { PermitKind, PermitPurpose }
 
 /** How a permit's errors describe a standalone intent with no purpose of its own. */
 export const STANDALONE_INTENT_PERMIT_PURPOSE: PermitPurpose = {
@@ -398,6 +434,7 @@ type FundingLeg = {
   readonly shortfall: bigint
   /** `false` when a standing allowance on the wallet already covers the pull. */
   readonly requiresPermit: boolean
+  readonly permitKind: PermitKind
 }
 
 /**
@@ -457,14 +494,19 @@ async function legCalls(
   }
   if (!leg.requiresPermit) return [pull]
 
-  const permit = await signFundingPermitActor({
+  const permit = await signFundingPermitForTokenActor({
     wallet: input.ownerAddress,
     hca: input.hca,
     value: leg.shortfall,
     approvalSigner: input.approvalSigner,
     publicClient: input.publicClient,
     chainId: input.chainId,
-    token: { address: leg.token, symbol: leg.symbol, decimals: leg.decimals },
+    token: {
+      address: leg.token,
+      symbol: leg.symbol,
+      decimals: leg.decimals,
+      permitKind: leg.permitKind,
+    },
     bounds,
     purpose,
   }).match(
@@ -474,26 +516,37 @@ async function legCalls(
     },
   )
 
-  return [
-    {
-      to: leg.token,
-      value: 0n,
-      data: encodeFunctionData({
-        abi: erc2612Abi,
-        functionName: 'permit',
-        args: [
-          permit.owner,
-          permit.spender,
-          permit.value,
-          permit.deadline,
-          permit.v,
-          permit.r,
-          permit.s,
-        ],
-      }),
-    },
-    pull,
-  ]
+  const data =
+    permit.kind === 'dai-legacy'
+      ? encodeFunctionData({
+          abi: daiPermitAbi,
+          functionName: 'permit',
+          args: [
+            permit.holder,
+            permit.spender,
+            permit.nonce,
+            permit.expiry,
+            permit.allowed,
+            permit.v,
+            permit.r,
+            permit.s,
+          ],
+        })
+      : encodeFunctionData({
+          abi: erc2612Abi,
+          functionName: 'permit',
+          args: [
+            permit.owner,
+            permit.spender,
+            permit.value,
+            permit.deadline,
+            permit.v,
+            permit.r,
+            permit.s,
+          ],
+        })
+
+  return [{ to: leg.token, value: 0n, data }, pull]
 }
 
 /**
@@ -568,7 +621,12 @@ export async function planHcaIntentFunding(
   const fundedCalls: Call[] = [
     ...placeholderPermitCalls(usdc, ownerAddress, hca),
     ...(otherSpend
-      ? placeholderPermitCalls(otherSpend.token, ownerAddress, hca)
+      ? placeholderPermitCalls(
+          otherSpend.token,
+          ownerAddress,
+          hca,
+          otherSpend.permitKind,
+        )
       : []),
     ...calls,
   ]
@@ -659,6 +717,23 @@ type QuotedFunding = {
   readonly tokenShortfall: bigint
 }
 
+/** The non-USDC half of the prompt, flagging a permit that grants unlimited. */
+const tokenPromptLeg = (
+  spend: HcaTokenSpend,
+  quoted: QuotedFunding,
+  leg: FundingLeg | null,
+): HcaFundingTokenLeg => ({
+  symbol: spend.symbol,
+  decimals: spend.decimals,
+  required: spend.amount,
+  hcaBalance: quoted.tokenBalance,
+  permitValue: quoted.tokenShortfall,
+  requiresPermit: leg?.requiresPermit ?? false,
+  ...(leg?.requiresPermit && leg.permitKind === 'dai-legacy'
+    ? { hasUnlimitedAllowance: true }
+    : {}),
+})
+
 /**
  * Plan each leg, show the amounts, then sign — in that order, so nothing is
  * signed for a figure the user did not see or a wallet that cannot pay it.
@@ -678,6 +753,7 @@ async function fundShortfalls(
           symbol: 'USDC',
           decimals: 6,
           shortfall: usdcShortfall,
+          permitKind: 'eip2612',
         })
       : null
   const tokenLeg =
@@ -687,6 +763,7 @@ async function fundShortfalls(
           symbol: otherSpend.symbol,
           decimals: otherSpend.decimals,
           shortfall: quoted.tokenShortfall,
+          permitKind: otherSpend.permitKind ?? 'eip2612',
         })
       : null
 
@@ -699,16 +776,7 @@ async function fundShortfalls(
     hcaBalanceUsdc: balance,
     requiredUsdc,
     ...(otherSpend
-      ? {
-          token: {
-            symbol: otherSpend.symbol,
-            decimals: otherSpend.decimals,
-            required: otherSpend.amount,
-            hcaBalance: quoted.tokenBalance,
-            permitValue: quoted.tokenShortfall,
-            requiresPermit: tokenLeg?.requiresPermit ?? false,
-          },
-        }
+      ? { token: tokenPromptLeg(otherSpend, quoted, tokenLeg) }
       : {}),
   }) ?? true)
   if (!approved) throw new HcaFundingDeclinedError()

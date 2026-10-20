@@ -37,7 +37,7 @@ const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', async ({
     connectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
     wallet,
   }) => {
@@ -96,8 +96,8 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     registrationComplete = true
     await authorizeSetupTxs
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({
+    if (mockBigname.enabled) {
+      mockBigname.addName({
         name: DOMAIN_TO_REGISTER,
         owner: accounts.getAddress('user'),
       })

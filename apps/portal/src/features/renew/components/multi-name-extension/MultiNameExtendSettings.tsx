@@ -14,7 +14,7 @@ type MultiNameExtendSettingsProps = {
   readonly latestExpiry: Date | null
   readonly span: ExtensionSpan
   readonly setSpan: (span: ExtensionSpan) => void
-  readonly onBack: () => void
+  readonly onBack?: () => void
   readonly onNext: () => void
 }
 
@@ -54,9 +54,11 @@ export const MultiNameExtendSettings = ({
       </div>
 
       <div className="flex gap-2">
-        <Button variant="outline" size="icon" onClick={onBack}>
-          <ArrowLeft className="size-4" />
-        </Button>
+        {onBack ? (
+          <Button variant="outline" size="icon" onClick={onBack}>
+            <ArrowLeft className="size-4" />
+          </Button>
+        ) : null}
         <Button className="flex-1" variant="default" onClick={onNext}>
           Next
         </Button>

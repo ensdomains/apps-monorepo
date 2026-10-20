@@ -42,7 +42,7 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
 
   test('sets the newly registered name as primary after a successful registration', async ({
     connectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
     wallet,
   }) => {
@@ -106,8 +106,8 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
       page.getByRole('link', { name: /complete your profile/i }),
     ).toBeVisible({ timeout: 60_000 })
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({
+    if (mockBigname.enabled) {
+      mockBigname.addName({
         name: domainToRegister,
         owner: accounts.getAddress('user'),
       })

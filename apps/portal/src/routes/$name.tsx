@@ -14,6 +14,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { useRememberName } from '@/hooks/useRememberName'
 import { isRegistrable, isTLD } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
@@ -60,6 +61,7 @@ export const Route = createFileRoute('/$name')({
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
+  useRememberName(name)
   return (
     <SidebarProvider>
       <ProfileSidebar name={name} />

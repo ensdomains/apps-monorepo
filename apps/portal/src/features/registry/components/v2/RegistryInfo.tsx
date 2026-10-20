@@ -1,5 +1,5 @@
 import { PageHeading } from '@/components/PageHeading'
-import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
+import { NameEventsHistory } from '@/components/table/NameEventsHistory/NameEventsHistory'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistory } from './RegistryHistory'
 import { RegistryTree } from './RegistryTree'
@@ -14,10 +14,10 @@ export function V2RegistryInfo({ name, ownerData }: V2RegistryInfoProps) {
     <section className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Registry</PageHeading>
       <RegistryTree name={name} ownerData={ownerData} />
-      {/* V1 names have no registry of their own for the indexer history to
-          follow — show the name's registration history instead (WEB-693). */}
+      {/* V1 names have no registry of their own whose history bigname can
+          serve, so show the name's registration history instead. */}
       {ownerData.protocolVersion === 'ENSv1' ? (
-        <NameSubgraphHistory name={name} category="registration" />
+        <NameEventsHistory name={name} category="registration" />
       ) : (
         <RegistryHistory name={name} />
       )}

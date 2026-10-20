@@ -1,14 +1,32 @@
-import { chain, isTestnet } from '@/config'
+import type { PermitKind } from '@ens-apps/transaction-manager'
+import { chain, envConfig } from '@/config'
 
 const { usdc, dai } = chain.contracts
 
 /**
- * Addresses come from the chain. Decimals and symbols are the only things
- * ensjs does not carry, so they are the only things declared here.
+ * Mainnet DAI predates EIP-2612 and has only its own legacy `permit`. Sepolia's
+ * DAI is a mock that implements EIP-2612, so it takes the standard path.
+ */
+const daiPermitKind: PermitKind =
+  envConfig.network === 'mainnet' ? 'dai-legacy' : 'eip2612'
+
+/**
+ * Addresses come from the chain. Decimals, symbols and permit shapes are the
+ * only things ensjs does not carry, so they are the only things declared here.
  */
 export const TOKENS = {
-  USDC: { address: usdc.address, decimals: 6, symbol: 'USDC' },
-  DAI: { address: dai.address, decimals: 18, symbol: 'DAI' },
+  USDC: {
+    address: usdc.address,
+    decimals: 6,
+    symbol: 'USDC',
+    permitKind: 'eip2612' as PermitKind,
+  },
+  DAI: {
+    address: dai.address,
+    decimals: 18,
+    symbol: 'DAI',
+    permitKind: daiPermitKind,
+  },
 } as const
 
 /** Any stable the app can price in or show a balance for. */
@@ -35,10 +53,7 @@ export const RENEWAL_TOKENS = {
 export type RENEWAL_TOKEN = keyof typeof RENEWAL_TOKENS
 
 /**
- * The renewal tokens offered on this network. DAI is testnet-only: Sepolia's
- * DAI has an EIP-2612 permit, but mainnet DAI has only the legacy DAI permit,
- * so the intent route's DAI funding leg would revert there.
+ * The renewal tokens offered on this network. Mainnet DAI's funding leg signs
+ * its legacy permit (see `permitKind`), so DAI is offered everywhere.
  */
-export const RENEWAL_TOKEN_SYMBOLS: readonly RENEWAL_TOKEN[] = isTestnet
-  ? ['USDC', 'DAI']
-  : ['USDC']
+export const RENEWAL_TOKEN_SYMBOLS: readonly RENEWAL_TOKEN[] = ['USDC', 'DAI']
