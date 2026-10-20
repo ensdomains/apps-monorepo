@@ -11,6 +11,7 @@ import { bigname } from '@/lib/bigname'
 import {
   getIsSubnameTakenQueryOptions,
   getSubnamePagesQueryOptions,
+  getSubnamesCount,
   getSubnamesCountQueryOptions,
   getSubnamesQueryKey,
 } from './useSubnames'
@@ -140,6 +141,24 @@ describe('subname pages', () => {
       },
       { v1Wrapping: null, subnameCount: undefined },
     ])
+  })
+
+  it('counts expired children only when asked, as a row’s count does', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 7 }))
+
+    expect(
+      (
+        await getSubnamesCount({
+          name: 'test.eth',
+          protocolVersion: 'ENSv1',
+          includeExpired: true,
+        })
+      )._unsafeUnwrap(),
+    ).toBe(7)
+    expect(asked()[1]).toMatchObject({ include_expired: 'true' })
+
+    await getSubnamesCount({ name: 'test.eth', protocolVersion: 'ENSv1' })
+    expect(asked(1)[1]).toMatchObject({ include_expired: 'false' })
   })
 
   it('asks for counts only on V1 pages', async () => {

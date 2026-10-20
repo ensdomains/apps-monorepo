@@ -73,9 +73,11 @@ describe('prepareDeleteV1SubnamesSubmit', () => {
     await submit('registry')
 
     expect(mocks.getOwner).toHaveBeenCalledWith({}, { name: SUBNAME })
+    // Expired children count too, as on the row: they still resolve.
     expect(mocks.getSubnamesCount).toHaveBeenCalledWith({
       name: SUBNAME,
       protocolVersion: 'ENSv1',
+      includeExpired: true,
     })
   })
 

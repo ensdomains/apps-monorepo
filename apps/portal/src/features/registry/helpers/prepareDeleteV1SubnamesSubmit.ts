@@ -100,9 +100,11 @@ const checkSubname = ResultFn(async function* (
           (e) => e as ensjsv1_GetWrapperDataErrorType,
         ).mapErr(fail(`Could not check ${shown}`))
       : null
+  // An expired V1 subname still resolves, so it blocks the delete too.
   const subnameCount = yield* getSubnamesCount({
     name: subname,
     protocolVersion: 'ENSv1',
+    includeExpired: true,
   }).mapErr(fail(`Could not check ${shown}`))
 
   const gate = getV1SubnameDeleteGate(parent, {

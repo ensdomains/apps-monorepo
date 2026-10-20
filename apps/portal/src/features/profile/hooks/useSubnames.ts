@@ -132,6 +132,7 @@ const readSubnames = (
     readonly pageSize: number
     readonly cursor?: string
     readonly withCounts?: boolean
+    readonly includeExpired?: boolean
   },
   signal?: AbortSignal,
 ) =>
@@ -141,7 +142,7 @@ const readSubnames = (
         name,
         {
           namespace: 'ens',
-          include_expired: 'false',
+          include_expired: query.includeExpired ? 'true' : 'false',
           sort: 'name',
           page_size: query.pageSize,
           ...(query.cursor && { cursor: query.cursor }),
@@ -210,11 +211,17 @@ export const getSubnamePagesQueryOptions = ({
 
 // bigname totals the children it would list, in either era.
 export const getSubnamesCount = (
-  { name }: GetSubnamesParameters,
+  {
+    name,
+    includeExpired,
+  }: GetSubnamesParameters & {
+    /** Counts expired children too, as a row's `subname_count` does. */
+    readonly includeExpired?: boolean
+  },
   signal?: AbortSignal,
 ) =>
   // A query cannot resolve to undefined, so an uncounted list reads as null.
-  readSubnames(name, { pageSize: 1 }, signal).map(
+  readSubnames(name, { pageSize: 1, includeExpired }, signal).map(
     ({ totalCount }) => totalCount ?? null,
   )
 
