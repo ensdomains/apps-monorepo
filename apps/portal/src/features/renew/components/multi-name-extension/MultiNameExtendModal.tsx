@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import {
   Dialog,
@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useExtendModalStep } from '../../hooks/useExtendModalStep'
 import {
   getLatestRenewalExpiry,
   useMultiNamePricing,
@@ -41,11 +42,13 @@ export const MultiNameExtendModal = ({
   selectedNames,
   onExtend,
 }: MultiNameExtendModalProps) => {
-  const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
   const [span, setSpan] = useState<ExtensionSpan>({ type: 'years', years: 1 })
   const latestExpiry = getLatestRenewalExpiry(selectedNames)
-  // Same rule as the single-name modal: owners skip the ownership warning.
   const isOwner = useOwnsAllNames(selectedNames.map(({ name }) => name))
+  const [step, setStep] = useExtendModalStep<MultiNameExtendModalStep>({
+    open,
+    isOwner,
+  })
 
   const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
@@ -55,14 +58,6 @@ export const MultiNameExtendModal = ({
     selectedName: item.selectedName,
     duration: item.duration,
   }))
-
-  useEffect(() => {
-    if (!open) {
-      setStep(isOwner ? 'settings' : 'disclaimer')
-    } else if (isOwner) {
-      setStep((current) => (current === 'disclaimer' ? 'settings' : current))
-    }
-  }, [open, isOwner])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)

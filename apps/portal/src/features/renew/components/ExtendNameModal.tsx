@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import {
   Dialog,
@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { PriceErrorCard } from '@/features/register/components/PaymentTokenPicker'
 import { dateToPlainDate } from '@/utils/temporal'
+import { useExtendModalStep } from '../hooks/useExtendModalStep'
 import { useNamePricing } from '../hooks/useNamePricing'
 import { useOwnsAllNames } from '../hooks/useOwnsAllNames'
 import type {
@@ -34,7 +35,6 @@ export const ExtendNameModal = ({
   selectedName,
   onExtend,
 }: ExtendNameModalProps) => {
-  const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
   const [span, setSpan] = useState<ExtensionSpan>({ type: 'years', years: 1 })
   const baseDate = selectedName.expiryDate
     ? dateToPlainDate(selectedName.expiryDate)
@@ -51,14 +51,10 @@ export const ExtendNameModal = ({
 
   // Read eagerly, not gated on `open`, so owners never see the disclaimer flash.
   const isOwner = useOwnsAllNames([selectedName.name])
-
-  // Skip the disclaimer when the connected wallet owns the name —
-  // the warning ("Extending a name does not change the owner...") is noise for owners.
-  useEffect(() => {
-    if (open && isOwner) {
-      setStep((current) => (current === 'disclaimer' ? 'settings' : current))
-    }
-  }, [open, isOwner])
+  const [step, setStep] = useExtendModalStep<ExtendNameModalStep>({
+    open,
+    isOwner,
+  })
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -72,7 +68,6 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
-          setStep(isOwner ? 'settings' : 'disclaimer')
         }
       }}
     >
