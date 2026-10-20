@@ -8,6 +8,7 @@ import { CommemorativeNftProfileSection } from '@/features/migration/components/
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
+import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
   getProfileExpiryResultStatus,
@@ -137,6 +138,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileReverseNameQuery(owner),
   })
   const isOwner = useIsOwner({ owner })
+  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+  const canEditRecords = useCanEditRecords({
+    enabled: !expiry.isInGrace,
+    isOwner: resolvedIsOwner,
+    name,
+  })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
@@ -165,10 +172,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ? undefined
     : themeVars['--theme-color']
   const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
-  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
   const canEditProfile = canEditProfileHere({
     isInGrace: expiry.isInGrace || isExpiryError,
-    isOwner: resolvedIsOwner,
+    canEditRecords,
     isUpgradeRequired,
     name,
     protocol: ownerData?.protocol,

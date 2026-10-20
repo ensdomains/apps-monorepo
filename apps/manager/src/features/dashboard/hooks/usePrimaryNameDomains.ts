@@ -10,7 +10,7 @@ import {
 import { primaryNameDomainsQuery } from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 
-/** Search all owned canonical names, resolving only this page and the selection. */
+/** Search owned names and names resolving to the owner, resolving only this page and the selection. */
 export const usePrimaryNameDomains = ({
   address,
   ownerAddress,
@@ -38,7 +38,12 @@ export const usePrimaryNameDomains = ({
     data,
     isLoading,
     isError: hasDomainsError,
-  } = useQuery(primaryNameDomainsQuery(open ? address : undefined))
+  } = useQuery(
+    primaryNameDomainsQuery(
+      open ? address : undefined,
+      ownerAddress ?? undefined,
+    ),
+  )
   const allDomains = useMemo(() => getPrimaryNameCandidates(data ?? []), [data])
   const pagination = useMemo(
     () => getPrimaryNamePage(allDomains, { searchQuery, page, reverseName }),
