@@ -10,6 +10,7 @@ import {
   getLatestRenewalExpiry,
   useMultiNamePricing,
 } from '../../hooks/useMultiNamePricing'
+import { useOwnsAllNames } from '../../hooks/useOwnsAllNames'
 import type {
   MultiRenewalEntry,
   SelectedName,
@@ -43,6 +44,8 @@ export const MultiNameExtendModal = ({
   const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
   const [span, setSpan] = useState<ExtensionSpan>({ type: 'years', years: 1 })
   const latestExpiry = getLatestRenewalExpiry(selectedNames)
+  // Same rule as the single-name modal: owners skip the ownership warning.
+  const isOwner = useOwnsAllNames(selectedNames.map(({ name }) => name))
 
   const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
@@ -55,9 +58,11 @@ export const MultiNameExtendModal = ({
 
   useEffect(() => {
     if (!open) {
-      setStep('disclaimer')
+      setStep(isOwner ? 'settings' : 'disclaimer')
+    } else if (isOwner) {
+      setStep((current) => (current === 'disclaimer' ? 'settings' : current))
     }
-  }, [open])
+  }, [open, isOwner])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -91,7 +96,7 @@ export const MultiNameExtendModal = ({
               latestExpiry={latestExpiry}
               span={span}
               setSpan={setSpan}
-              onBack={() => setStep('disclaimer')}
+              onBack={isOwner ? undefined : () => setStep('disclaimer')}
               onNext={() => setStep('summary')}
             />
           ))

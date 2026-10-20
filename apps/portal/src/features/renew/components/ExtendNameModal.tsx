@@ -1,18 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { isAddressEqual } from 'viem'
-import { useAccount } from 'wagmi'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { PriceErrorCard } from '@/features/register/components/PaymentTokenPicker'
 import { dateToPlainDate } from '@/utils/temporal'
 import { useNamePricing } from '../hooks/useNamePricing'
+import { useOwnsAllNames } from '../hooks/useOwnsAllNames'
 import type {
   SelectedName,
   StartFlowConfig,
@@ -52,18 +49,8 @@ export const ExtendNameModal = ({
   // confirm step must never proceed on a price the latest read failed to back.
   const hasPrice = price !== null && !isError
 
-  const { address } = useAccount()
-  // Query runs eagerly (not gated on `open`) so ownership is known before
-  // the modal opens — otherwise owners see the disclaimer flash for the
-  // duration of the network round-trip before being skipped to settings.
-  const { data: ownerData } = useQuery(
-    getEnsOwnerQueryOptions({ name: selectedName.name }),
-  )
-  const isOwner = !!(
-    address &&
-    ownerData?.owner &&
-    isAddressEqual(address, ownerData.owner)
-  )
+  // Read eagerly, not gated on `open`, so owners never see the disclaimer flash.
+  const isOwner = useOwnsAllNames([selectedName.name])
 
   // Skip the disclaimer when the connected wallet owns the name —
   // the warning ("Extending a name does not change the owner...") is noise for owners.
