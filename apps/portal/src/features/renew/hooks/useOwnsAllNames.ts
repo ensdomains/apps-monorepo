@@ -1,6 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { type Address, isAddressEqual } from 'viem'
-import { useAccount } from 'wagmi'
+import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 
 export const ownsAllNames = (
@@ -13,7 +13,7 @@ export const ownsAllNames = (
 
 /** True once every name is known to be owned by the connected wallet; false while any owner is unknown. */
 export const useOwnsAllNames = (names: readonly string[]): boolean => {
-  const { address } = useAccount()
+  const { address } = useConnection()
 
   return useQueries({
     queries: names.map((name) => getEnsOwnerQueryOptions({ name })),
