@@ -86,6 +86,15 @@ describe('batchedMulticall', () => {
     })
   })
 
+  it('sends each chunk on its own, even from a batching client', async () => {
+    multicallMock.mockResolvedValueOnce([ok(0)])
+    await batchedMulticall<number>(
+      { ...publicClient, batch: { multicall: true } } as PublicClient,
+      fakeContracts(1),
+    )
+    expect(multicallMock.mock.calls[0]?.[0].batch).toBeUndefined()
+  })
+
   it('preserves failure entries in the flattened output', async () => {
     multicallMock.mockResolvedValueOnce([ok(0), fail(), ok(2)])
     const result = await batchedMulticall<number>(

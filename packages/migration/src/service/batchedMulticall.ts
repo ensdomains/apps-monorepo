@@ -22,10 +22,14 @@ export const batchedMulticall = async <T>(
     chunks.push(contracts.slice(i, i + MULTICALL_BATCH_SIZE))
   }
 
+  // On a `batch.multicall` client viem schedules every multicall into one
+  // shared aggregate3, which would merge the chunks back into a single call.
+  const unbatchedClient = { ...publicClient, batch: undefined }
+
   const settled = await Promise.allSettled(
     chunks.map((chunk) =>
       withTimeout(
-        multicall(publicClient, {
+        multicall(unbatchedClient, {
           contracts: chunk,
           allowFailure: true,
           batchSize: 0,
