@@ -47,7 +47,7 @@
 # Anvil and the mockestrator are therefore pinned to digests verified green.
 # Alto, the paymaster and Panoptes are deliberately left on moving tags for now:
 # the standalone-HCA path does not route through the bundler or paymaster, and
-# CI mocks the indexer (E2E_MOCK_INDEXER=true). Pin them too if they ever drift.
+# CI mocks the indexer (E2E_MOCK_BIGNAME=true). Pin them too if they ever drift.
 #
 # To bump a pin:
 #   1. docker pull <image>:<tag>
@@ -337,8 +337,8 @@ services:
     restart: on-failure
 
   # ── bigname: the indexer the manager reads ────────────────────────────────
-  # The manager reads every name from bigname (#1324); the portal still reads
-  # Panoptes above. bigname is hosted only, so this runs it against the fork:
+  # Both apps read every name from bigname (#1324, #1354). bigname is hosted
+  # only, so this runs it against the fork:
   # Postgres, a one-shot schema + read-only role init, the phase-runner that
   # follows Anvil, and the REST API on 127.0.0.1:5660.
   #
@@ -346,7 +346,7 @@ services:
   # bigname repo carrying a dev-only patch that lets a Sepolia source start
   # after block 0 (see e2e/infra/bigname/README.md). start-local-env.sh turns
   # the profile on when the image exists. CI does not run it and mocks the
-  # manager's bigname reads instead (E2E_MOCK_INDEXER=true).
+  # manager's bigname reads instead (E2E_MOCK_BIGNAME=true).
   bigname-postgres:
     image: postgres:16-alpine
     profiles: ["bigname"]

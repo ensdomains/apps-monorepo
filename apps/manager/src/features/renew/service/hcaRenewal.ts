@@ -257,6 +257,7 @@ export async function submitHcaRenewal(
       token: tokenAddress,
       symbol: TOKENS[token].symbol,
       decimals: TOKENS[token].decimals,
+      permitKind: TOKENS[token].permitKind,
       amount: rentTotal,
     },
     gasLimit,

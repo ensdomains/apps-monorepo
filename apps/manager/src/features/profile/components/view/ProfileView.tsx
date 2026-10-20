@@ -236,11 +236,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               </p>
             ) : null}
             <div className="space-y-0">
-              <ProfileCards
-                avatarUrl={avatarUrl}
-                name={name}
-                records={displayRecords}
-              />
+              <ProfileCards records={displayRecords} />
               <ProfileCommemorativeNftSection
                 enabled={commemorativeNftEnabled}
                 isOwner={resolvedIsOwner}

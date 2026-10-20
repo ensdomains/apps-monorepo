@@ -33,6 +33,7 @@ import {
   getResourceRolesQueryOptions,
   holdsRolesOn,
 } from '@/features/registry/hooks/useResourceRoles'
+import { getV1SubnameCreateGate } from '@/features/registry/utils/create-subname.helpers'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -41,6 +42,7 @@ import type {
   IntentContext,
   Transaction,
 } from '@/features/transaction-manager/types'
+import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import {
   resourceIdForName,
   resourceIdFromChainValue,
@@ -221,6 +223,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         .map((subname) => ({
           name: subname.name || '',
           owner: subname.owner,
+          labelhash: subname.labelhash,
           resourceId: resourceIdFromChainValue(subname.labelhash).unwrapOr(
             null,
           ),
@@ -281,6 +284,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
       visibleSubnames.map((subname) => ({
         name: subname.name,
         owner: subname.owner,
+        labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
         canDelete:
           subname.resourceId !== null &&
@@ -526,6 +530,8 @@ interface V1SubnamesContentProps {
 }
 
 const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
+  const { address: connectedAccount } = useAccount()
+  const stateQuery = useQuery(getV1NameStateQueryOptions({ name }))
   const {
     data,
     isLoading,
@@ -554,18 +560,34 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     page.subnames.map((subname) => ({
       name: subname.name,
       owner: subname.owner,
+      labelhash: subname.labelhash,
     })),
   )
 
+  // Hidden when disconnected, as for V2: creating needs the holder's wallet.
+  const canCreateSubname =
+    !!connectedAccount &&
+    !!stateQuery.data &&
+    getV1SubnameCreateGate(stateQuery.data, connectedAccount).reason === 'ok'
+
   return (
-    <SubnamesTable
-      subnames={subnameRows}
-      totalCount={data?.pages[0]?.totalCount}
-      onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
-      isLoadingMore={isFetchingNextPage}
-      isLoadMoreError={isFetchNextPageError}
-      name={name}
-    />
+    <>
+      <SubnamesTable
+        subnames={subnameRows}
+        totalCount={data?.pages[0]?.totalCount}
+        onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
+        isLoadingMore={isFetchingNextPage}
+        isLoadMoreError={isFetchNextPageError}
+        name={name}
+        canCreateSubname={canCreateSubname}
+      />
+      {stateQuery.isError && (
+        <ErrorMessage
+          compact
+          description="Couldn’t check whether you can create subnames here. Refresh to try again."
+        />
+      )}
+    </>
   )
 }
 

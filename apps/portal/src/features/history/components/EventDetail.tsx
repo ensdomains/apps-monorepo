@@ -90,14 +90,14 @@ export const DecodedParams = ({ event }: { event: TimelineEvent }) => {
   return (
     <div
       className={cn(
-        'w-full min-w-0 [contain:inline-size]',
+        'w-full min-w-0 contain-[inline-size]',
         entityBadgeLeadingPadScope,
       )}
     >
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-smallcaps text-muted-foreground">
-            <th className="w-28 py-1.5 pr-3 font-medium @2xl/timeline:w-34">
+            <th className="w-36 py-1.5 pr-3 font-medium @2xl/timeline:w-40">
               Parameter
             </th>
             <th className="w-22 py-1.5 pr-3 font-medium @2xl/timeline:w-30">
@@ -110,7 +110,13 @@ export const DecodedParams = ({ event }: { event: TimelineEvent }) => {
           {entries.map(([key, value]) => (
             <tr key={key}>
               <td className="py-1.5 pr-3 align-top">
-                <EntityBadge variant="default">{key}</EntityBadge>
+                <EntityBadge
+                  className="break-all"
+                  format="wrap"
+                  variant="default"
+                >
+                  {key}
+                </EntityBadge>
               </td>
               <td className="break-all py-1.5 pr-3 align-top font-mono text-muted-foreground">
                 {getTimelineFieldType(event.type, key)}

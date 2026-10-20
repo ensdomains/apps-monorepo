@@ -4,11 +4,11 @@
  * The manager finds migration candidates through bigname (#1324). How they
  * reach it depends on the run:
  *
- * - Local, real bigname (`E2E_MOCK_INDEXER` unset or false): bigname indexes
+ * - Local, real bigname (`E2E_MOCK_BIGNAME` unset or false): bigname indexes
  *   the fork itself, so this only waits until it serves every name in the
  *   input. The input's fuses, expiries and records are not injected; bigname
  *   reports what is on chain, which is the point.
- * - CI (`E2E_MOCK_INDEXER=true`): there is no indexer, so flat `.eth` 2LDs are
+ * - CI (`E2E_MOCK_BIGNAME=true`): there is no indexer, so flat `.eth` 2LDs are
  *   served by `mockV1Names`. A subname tree cannot be expressed there, and the
  *   test is skipped with that reason.
  *
@@ -22,7 +22,7 @@ import {
   waitForBignameNames,
   waitForBignameRecordKeys,
 } from './bigname-sync.js'
-import type { MockDomain } from './mock-indexer.js'
+import type { MockDomain } from './mock-bigname.js'
 import { type MockV1Name, mockV1Names } from './mock-v1-names.js'
 import type {
   MockV1Node,
@@ -121,7 +121,7 @@ export async function serveV1Names(
   input: V1NamesInput,
   options: {
     /**
-     * The fixture's `mockIndexer`, for tests that also read the dashboard. Its
+     * The fixture's `mockBigname`, for tests that also read the dashboard. Its
      * name list comes from the shared bigname mock, not from `mockV1Names`,
      * so in mock mode the names are registered there too, as ENSv1 rows.
      */

@@ -28,13 +28,5 @@ export default defineConfig({
   test: {
     testTimeout: isRealDbEnabled ? 30_000 : 5_000,
     globalSetup: isRealDbEnabled ? ['./test-db.setup.ts'] : [],
-    deps: {
-      optimizer: {
-        ssr: {
-          enabled: true,
-          include: ['@urql/core'],
-        },
-      },
-    },
   },
 })

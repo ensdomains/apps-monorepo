@@ -793,12 +793,12 @@ test.describe('Portal name transfer', () => {
    * These two rows attach an empty subregistry purely to exercise the detach
    * toggle — they don't care about real subname counts. Mock
    * `getRegistryOccupants` instead of waiting on Panoptes to discover the
-   * freshly-deployed subregistry (see the `mockIndexer` fixture and
-   * `mock-indexer.ts` — Panoptes' CREATE2-discovery for new subregistries is
+   * freshly-deployed subregistry (see the `mockBigname` fixture and
+   * `mock-bigname.ts` — Panoptes' CREATE2-discovery for new subregistries is
    * currently stuck, so the real query hangs indefinitely on a fresh one).
    */
   test.describe('registry-detach toggle rows (mocked occupant count)', () => {
-    test.use({ mockIndexerEnabled: true })
+    test.use({ mockBignameEnabled: true })
 
     test('detaches the registry alone when the resolver is explicitly kept', {
       tag: ['@scenario:F9'],
@@ -807,7 +807,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -826,7 +826,7 @@ test.describe('Portal name transfer', () => {
       )
       const [originalResolver] = await readResolverAndSubregistry(label)
       // Empty subregistry — no third parties, no consent tick required.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 0,
         thirdPartyCount: 0,
       })
@@ -881,7 +881,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -911,7 +911,7 @@ test.describe('Portal name transfer', () => {
         privateKeyToAccount(accounts.getPrivateKey('user')),
       )
       // Empty subregistry — no third parties, no consent tick required.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 0,
         thirdPartyCount: 0,
       })
@@ -1025,7 +1025,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test.describe('registry-detach consent flow (mocked occupant / history counts)', () => {
-    test.use({ mockIndexerEnabled: true })
+    test.use({ mockBignameEnabled: true })
 
     /**
      * F41 — the security fix itself (immunefi #93026 / WEB-1504 / #1170).
@@ -1042,7 +1042,7 @@ test.describe('Portal name transfer', () => {
      * This one test covers both the consent gate and its "stale tick" guard.
      * It only needs the indexer to *report* a third-party count, not for
      * real subnames to exist — `getRegistryOccupants` is mocked directly
-     * (`mockIndexer.setRegistryOccupants`), so this needs no on-chain
+     * (`mockBigname.setRegistryOccupants`), so this needs no on-chain
      * subname writes and no indexer backfill wait at all. The subregistry
      * itself is still deployed and attached for real, and the transfer's
      * `setSubregistry(0)` write at the end is still a real on-chain
@@ -1055,7 +1055,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -1078,7 +1078,7 @@ test.describe('Portal name transfer', () => {
       // blast radius the consent copy below asserts on. This mocks the
       // *count query response*, not on-chain state: no `createSubname`
       // writes or indexer backfill wait needed for this test's purpose.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 2,
         thirdPartyCount: 1,
       })
@@ -1177,7 +1177,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -1197,7 +1197,7 @@ test.describe('Portal name transfer', () => {
         ownerAccount,
       )
       // Empty subregistry — no third parties, no consent tick required.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 0,
         thirdPartyCount: 0,
       })
@@ -1233,7 +1233,7 @@ test.describe('Portal name transfer', () => {
       // Panoptes to index the `SubregistryUpdated` event it emitted, mock
       // `getSubregistryUpdateCount`'s response directly so the next page load
       // reads "detached" deterministically.
-      mockIndexer.setSubregistryHistory(namehash(name), 1)
+      mockBigname.setSubregistryHistory(namehash(name), 1)
 
       // Reconnect as the recipient — the new owner is exactly who a re-mint
       // attack would target, and exactly who must see the warning rather than
@@ -2539,7 +2539,7 @@ test.describe('Portal name transfer — subnames', () => {
       return { dialog, refusal }
     }
 
-    // Not `@smoke` yet: under E2E_MOCK_INDEXER=true (CI) the mock doesn't
+    // Not `@smoke` yet: under E2E_MOCK_BIGNAME=true (CI) the mock doesn't
     // serve the explorer's bigname root-role read, so the form stays disabled
     // ("Couldn't check who else holds permissions"), as F41 and F42 do here.
     test('moves a subname in a subregistry its parent owner still holds root roles on, with unsafeTransfer (ticket repro)', async ({

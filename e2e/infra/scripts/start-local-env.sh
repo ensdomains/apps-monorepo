@@ -195,7 +195,7 @@ if docker image inspect "$BIGNAME_IMAGE" >/dev/null 2>&1; then
 else
   echo ""
   echo "  ⚠️  $BIGNAME_IMAGE not built; skipping bigname (see e2e/infra/bigname/README.md)."
-  echo "     The manager then needs E2E_MOCK_INDEXER=true."
+  echo "     The manager then needs E2E_MOCK_BIGNAME=true."
 fi
 
 # ---------- print env ----------

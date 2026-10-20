@@ -1,26 +1,21 @@
 /**
- * Mock Indexer — intercepts indexer requests in Playwright tests.
+ * bigname mock: intercepts bigname REST requests in Playwright tests.
  *
  * The local chain is not indexed by any bigname deployment, so this helper
  * uses `page.route()` to answer the apps' bigname reads from names the
  * test registers.
  *
  * Usage:
- *   const indexerMock = createIndexerMock()
- *   await indexerMock.install(page)
+ *   const bignameMock = createBignameMock()
+ *   await bignameMock.install(page)
  *   // ... register a name on-chain ...
- *   indexerMock.addName({ name: 'foo.eth', owner: '0x...' })
- *   // the next bigname names, detail, records and lookup reads, and the
- *   // next Panoptes Domains/Domain queries, include it
+ *   bignameMock.addName({ name: 'foo.eth', owner: '0x...' })
+ *   // the next names, detail, records and lookup reads include it
  *
- * It also covers two portal-only, count-shaped Panoptes queries that back the
- * registry-detach feature (PR #1170) — useful when a test wants to control
- * exactly what those counts are instead of waiting for Panoptes to discover
- * a freshly deployed subregistry (a real, currently-flaky CREATE2-discovery
- * path — see e2e/projects/portal/tests/transfer.spec.ts's mocked-indexer
- * describe block):
- *   indexerMock.setRegistryOccupants(subregistryAddress, { count: 2, thirdPartyCount: 1 })
- *   indexerMock.setSubregistryHistory(namehash(name), 1)
+ * It also sets the two counts behind the portal's registry-detach check, for a
+ * subregistry bigname has not indexed:
+ *   bignameMock.setRegistryOccupants(subregistryAddress, { count: 2, thirdPartyCount: 1 })
+ *   bignameMock.setSubregistryHistory(namehash(name), 1)
  */
 import type { Page, Route } from '@playwright/test'
 import { type Address, namehash } from 'viem'
@@ -55,12 +50,6 @@ export type MockDomain = {
 export type MockRegistryOccupants = {
   count: number
   thirdPartyCount: number
-}
-
-type GraphQLBody = {
-  operationName?: string
-  query?: string
-  variables?: Record<string, unknown>
 }
 
 /**
@@ -103,7 +92,7 @@ const CORS_HEADERS = {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createIndexerMock() {
+export function createBignameMock() {
   const domains: MockDomain[] = []
 
   function addName(domain: MockDomain) {
@@ -116,15 +105,14 @@ export function createIndexerMock() {
   }
 
   // -------------------------------------------------------------------------
-  // getRegistryOccupants / getSubregistryUpdateCount control state
+  // Registry occupancy and subregistry history control state
   // -------------------------------------------------------------------------
   // Keyed case-insensitively (addresses and namehashes both arrive lowercased
   // from the app — see useRegistryOccupants.ts / useSubregistrySlot.ts — but
   // callers may pass either case, so normalise on write and read).
 
   /** `registryAddress.toLowerCase()` -> configured occupants, or `null` for
-   * "Panoptes hasn't discovered this registry yet" (the fail-closed default —
-   * see below). */
+   * "bigname has not indexed this registry yet" (the fail-closed default). */
   const registryOccupants = new Map<string, MockRegistryOccupants | null>()
 
   /** `namehash.toLowerCase()` -> configured `SubregistryUpdated` count, or
@@ -132,11 +120,11 @@ export function createIndexerMock() {
   const subregistryHistory = new Map<string, number | null>()
 
   /**
-   * Configure what `getRegistryOccupants` reports for `registryAddress`.
+   * Configure the label counts bigname reports for `registryAddress`.
    *
    * `null` (or never calling this for the address) reproduces exactly the
-   * real bug this mock exists to route around: a subregistry Panoptes hasn't
-   * indexed yet answers `registry(address:)` with `null`, and
+   * real bug this mock exists to route around: a subregistry bigname hasn't
+   * indexed yet answers 404, and
    * `useRegistryDetachImpact` fails closed — same as the unmocked default. A
    * test that wants the "empty subregistry" or "N subnames, M third-party"
    * cases must call this explicitly.
@@ -149,7 +137,7 @@ export function createIndexerMock() {
   }
 
   /**
-   * Configure what `getSubregistryUpdateCount` reports for `nameHash` (a
+   * Configure how many subregistry links the name's history holds for `nameHash` (a
    * `viem` `namehash()` value).
    *
    * Defaults to `0` ("never configured") for any namehash not explicitly set
@@ -159,195 +147,6 @@ export function createIndexerMock() {
    */
   function setSubregistryHistory(nameHash: string, totalCount: number | null) {
     subregistryHistory.set(nameHash.toLowerCase(), totalCount)
-  }
-
-  function buildDomainFragment(d: MockDomain) {
-    const id = namehash(d.name)
-    const now = Math.floor(Date.now() / 1000)
-    // Emit a resolver fragment when the fixture provides a resolver address OR
-    // when the name carries text records. The app only probes arbitrary text
-    // keys (e.g. `agent-registration[...]`) that the indexer reports under
-    // `resolver.texts`; static keys like `description` are always probed
-    // on-chain regardless. The record VALUES are still read on-chain via ensjs,
-    // so a placeholder resolver address is enough for mock-mode discovery.
-    const hasRecords = (d.records?.length ?? 0) > 0
-    const resolverAddress =
-      d.resolver ?? (hasRecords ? MOCK_RESOLVER_ADDRESS : undefined)
-    return {
-      __typename: 'Domain',
-      id,
-      name: d.name,
-      normalizedName: d.name,
-      tokenId: null,
-      createdAt: d.createdAt ?? now - 3600,
-      expiryDate: d.expiryDate ?? now + 28 * 24 * 3600,
-      resolver: resolverAddress
-        ? {
-            __typename: 'Resolver',
-            id: `${resolverAddress}-${id}`,
-            address: resolverAddress,
-            texts: d.records?.map((r) => r.key) ?? [],
-            contentHash: null,
-            addresses: [],
-          }
-        : null,
-      owner: { __typename: 'Account', id: d.owner.toLowerCase() },
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Panoptes GraphQL (portal)
-  // -------------------------------------------------------------------------
-
-  function handleGraphQL(body: GraphQLBody) {
-    const op = body.operationName ?? ''
-    const vars = body.variables ?? {}
-
-    switch (op) {
-      case 'Domains': {
-        const where = vars.where as Record<string, unknown> | undefined
-        let filtered = [...domains]
-        if (where?.owner) {
-          const ownerLower = (where.owner as string).toLowerCase()
-          filtered = filtered.filter(
-            (d) => d.owner.toLowerCase() === ownerLower,
-          )
-        }
-        if (where?.name) {
-          filtered = filtered.filter((d) => d.name === where.name)
-        }
-        if (where?.name_contains_nocase) {
-          const needle = (where.name_contains_nocase as string).toLowerCase()
-          filtered = filtered.filter((d) =>
-            d.name.toLowerCase().includes(needle),
-          )
-        }
-        const skip = (vars.skip as number) ?? 0
-        const first = (vars.first as number) ?? 100
-        return {
-          data: {
-            domains: filtered
-              .slice(skip, skip + first)
-              .map(buildDomainFragment),
-          },
-        }
-      }
-
-      case 'Domain': {
-        // The app queries `domain(id: $id)` with the plain ENS name as the id
-        // (see profileRecords.ts). Match by name first, falling back to
-        // namehash for any caller that passes one.
-        const id = vars.id as string | undefined
-        const match = domains.find(
-          (d) => d.name === id || namehash(d.name) === id,
-        )
-        return {
-          data: { domain: match ? buildDomainFragment(match) : null },
-        }
-      }
-
-      case 'OwnedNamesCount': {
-        const where = vars.where as Record<string, unknown> | undefined
-        let count = domains.length
-        if (where?.registrant) {
-          const reg = (where.registrant as string).toLowerCase()
-          count = domains.filter((d) => d.owner.toLowerCase() === reg).length
-        }
-        return {
-          data: {
-            registrationConnection: {
-              __typename: 'RegistrationConnection',
-              totalCount: count,
-            },
-          },
-        }
-      }
-
-      case 'MigratedNamesCount': {
-        return {
-          data: {
-            domainConnection: { __typename: 'DomainConnection', totalCount: 0 },
-          },
-        }
-      }
-
-      case 'getRegistryOccupants': {
-        // useRegistryOccupants.ts sends both variables pre-lowercased.
-        const registryAddress = (
-          vars.registry as string | undefined
-        )?.toLowerCase()
-        const occupants = registryAddress
-          ? registryOccupants.get(registryAddress)
-          : undefined
-        // Unset or explicitly `null` — "undiscovered", the fail-closed
-        // default (see setRegistryOccupants's doc comment).
-        if (!occupants) {
-          return {
-            data: {
-              registry: null,
-              domains: [],
-              total: { __typename: 'DomainConnection', totalCount: null },
-              own: { __typename: 'DomainConnection', totalCount: null },
-            },
-          }
-        }
-        const ownCount = occupants.count - occupants.thirdPartyCount
-        return {
-          data: {
-            registry: { __typename: 'Registry', labelCount: occupants.count },
-            // Since #1292 the app takes `count` from the name's own
-            // `subdomainsCount` (a registry can be shared by several parents),
-            // so the query also asks for `domains(where: { name })`. Without
-            // it `domains[0]` throws and the app reports "couldn't check".
-            domains: [
-              { __typename: 'Domain', subdomainsCount: occupants.count },
-            ],
-            total: {
-              __typename: 'DomainConnection',
-              totalCount: occupants.count,
-            },
-            own: { __typename: 'DomainConnection', totalCount: ownCount },
-          },
-        }
-      }
-
-      case 'getSubregistryUpdateCount': {
-        const key = (vars.namehash as string | undefined)?.toLowerCase()
-        // Unset -> 0 ("never configured"); explicitly configured (including
-        // `null`) -> whatever the test set (see setSubregistryHistory).
-        const configured = key ? subregistryHistory.get(key) : undefined
-        const totalCount = key && subregistryHistory.has(key) ? configured : 0
-        return {
-          data: {
-            eventConnection: {
-              __typename: 'EventConnection',
-              totalCount,
-            },
-          },
-        }
-      }
-
-      default:
-        // Unknown operation — return empty data so the app doesn't crash
-        console.log(`[mock-indexer] unhandled operation: ${op}`)
-        return { data: {} }
-    }
-  }
-
-  async function graphqlRouteHandler(route: Route) {
-    try {
-      const postData = route.request().postData()
-      if (!postData) {
-        await route.fulfill({ status: 200, json: { data: {} } })
-        return
-      }
-      const body: GraphQLBody = JSON.parse(postData)
-      const response = handleGraphQL(body)
-      await route.fulfill({ status: 200, json: response })
-    } catch (err) {
-      console.error('[mock-indexer] error handling request:', err)
-      await route.fulfill({ status: 200, json: { data: {} } })
-    }
   }
 
   // -------------------------------------------------------------------------
@@ -575,6 +374,49 @@ export function createIndexerMock() {
       path: /^\/v1\/addresses\/([^/]+)\/names$/,
       reply: ({ match, params }) => ok(addressNames(match[1] ?? '', params)),
     },
+    {
+      method: 'GET',
+      path: /^\/v1\/registries\/\d+\/([^/]+)\/labels$/,
+      reply: ({ match, params }) => {
+        const occupants = registryOccupants.get(match[1]?.toLowerCase() ?? '')
+        if (!occupants) return notFound
+        // has_more makes the portal ask for the third-party count separately.
+        const count = params.has('exclude_owner')
+          ? occupants.thirdPartyCount
+          : occupants.count
+        return ok({
+          ...EMPTY_PAGE,
+          page: { ...EMPTY_PAGE.page, has_more: true, total_count: count },
+        })
+      },
+    },
+    {
+      method: 'GET',
+      path: /^\/v1\/names\/([^/]+)\/history$/,
+      reply: ({ match, params }) => {
+        if (params.get('type') !== 'subregistry') return ok(EMPTY_PAGE)
+        const links = subregistryHistory.get(
+          namehash(decodeURIComponent(match[1] ?? '')).toLowerCase(),
+        )
+        // null is the indexer declining to answer: no rows, but more to read.
+        if (links === null)
+          return ok({
+            ...EMPTY_PAGE,
+            page: { ...EMPTY_PAGE.page, has_more: true },
+          })
+        return ok({
+          ...EMPTY_PAGE,
+          data: Array.from({ length: links ?? 0 }, (_, index) => ({
+            type: 'subregistry',
+            name: decodeURIComponent(match[1] ?? ''),
+            block_number: index + 1,
+            log_index: 0,
+            contract_address: null,
+            data: { action: 'subregistry_changed' },
+          })),
+        })
+      },
+    },
     // Nothing the tests register has children or indexed events yet.
     {
       method: 'GET',
@@ -634,7 +476,7 @@ export function createIndexerMock() {
       const match = method === route.method ? path.match(route.path) : null
       if (match) return route.reply({ match, params, body })
     }
-    console.log(`[mock-indexer] unhandled bigname route: ${method} ${path}`)
+    console.log(`[mock-bigname] unhandled bigname route: ${method} ${path}`)
     return notFound
   }
 
@@ -658,7 +500,7 @@ export function createIndexerMock() {
       )
       await route.fulfill({ status, json, headers: CORS_HEADERS })
     } catch (err) {
-      console.error('[mock-indexer] error handling request:', err)
+      console.error('[mock-bigname] error handling request:', err)
       await route.fulfill({
         status: 500,
         json: {
@@ -674,26 +516,16 @@ export function createIndexerMock() {
     // the local one (e2e/infra/bigname) for a CI-mode run against a dev server
     // that points at it.
     await page.route(/bigname\.sh\/v1\/|:5660\/v1\//, routeHandler)
-    // Intercept only the GraphQL API endpoints, not Vite module requests.
-    // The (?!\.) lookahead prevents matching file imports like
-    // packages/indexer/graphql.gen.ts (which contain "/indexer/graphql.").
-    // Matches:
-    //   http://127.0.0.1:5655/graphql  (direct)
-    //   http://localhost:3000/indexer/graphql  (Vite proxy)
-    //   https://staging-graphql.ens.dev/  (the sepolia profile default)
-    const pattern =
-      /:5655\/graphql(?!\.)|\/indexer\/graphql(?!\.)|staging-graphql\.ens\.dev/
-    await page.route(pattern, graphqlRouteHandler)
   }
 
-  /** Whether the mock should be active (set E2E_MOCK_INDEXER=true). */
-  const enabled = process.env.E2E_MOCK_INDEXER === 'true'
+  /** Whether the mock should be active (set E2E_MOCK_BIGNAME=true). */
+  const enabled = process.env.E2E_MOCK_BIGNAME === 'true'
 
   /** Install only when the flag is on; no-op otherwise. */
   async function installIfEnabled(page: Page) {
     if (!enabled) return
     console.log(
-      '[mock-indexer] E2E_MOCK_INDEXER=true — intercepting indexer requests',
+      '[mock-bigname] E2E_MOCK_BIGNAME=true — intercepting bigname requests',
     )
     await install(page)
   }

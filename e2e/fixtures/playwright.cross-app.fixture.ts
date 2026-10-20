@@ -12,7 +12,7 @@
  * Needs both apps against the same local stack, without the mock wallet
  * (the headless connect flow needs the Connect button):
  *   PORTAL_APP_URL (default http://localhost:3001), MANAGER_APP_URL
- *   (default http://localhost:3000), E2E_MOCK_INDEXER=false.
+ *   (default http://localhost:3000), E2E_MOCK_BIGNAME=false.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'

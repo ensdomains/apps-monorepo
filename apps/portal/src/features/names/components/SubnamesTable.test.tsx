@@ -1,6 +1,8 @@
+import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { Address } from 'viem'
+import { type Address, type Hex, keccak256, labelhash, toHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
+import { rememberName } from '@/utils/ens/localLabels'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -191,6 +193,39 @@ describe('SubnamesTable', () => {
     expect(screen.getAllByText(placeholder).length).toBeGreaterThan(0)
     expect(linkedNames).toContain('sub.test.eth')
     expect(linkedNames).not.toContain(placeholder)
+  })
+
+  describe('with a label this browser has opened', () => {
+    const encoded = encodeLabelhash(labelhash('🔥'))
+    const placeholder = `${encoded}.test.eth`
+
+    const renderRow = (rowLabelhash: Hex) => {
+      rememberName('🔥.test.eth')
+      render(
+        <SubnamesTable
+          subnames={[
+            { ...createMockSubname(placeholder), labelhash: rowLabelhash },
+          ]}
+          name="test.eth"
+        />,
+      )
+      localStorage.clear()
+      return screen
+        .getAllByTestId('entity-badge')
+        .map((badge) => badge.getAttribute('data-name'))
+    }
+
+    it('heals the row whose labelhash it is', () => {
+      expect(renderRow(labelhash('🔥'))).toContain('🔥.test.eth')
+      expect(screen.queryByText(placeholder)).not.toBeInTheDocument()
+    })
+
+    // WEB-1458: a label written literally as `[<hex>]` is served the same way.
+    it('keeps a literal-bracket label that spells that labelhash', () => {
+      const linkedNames = renderRow(keccak256(toHex(encoded)))
+      expect(linkedNames).not.toContain('🔥.test.eth')
+      expect(screen.getAllByText(placeholder).length).toBeGreaterThan(0)
+    })
   })
 
   it('renders create button when canCreateSubname is true', () => {

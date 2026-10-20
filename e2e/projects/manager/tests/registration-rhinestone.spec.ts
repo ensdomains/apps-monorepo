@@ -62,7 +62,7 @@ import {
   assertV2Registered,
   V2Status,
 } from '../../../helpers/migration-assertions.js'
-import { createIndexerMock } from '../../../helpers/mock-indexer.js'
+import { createBignameMock } from '../../../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../../../helpers/portal-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -71,7 +71,7 @@ const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', {
     tag: ['@scenario:A2'],
-  }, async ({ connectedPage: page, mockIndexer, accounts, wallet }) => {
+  }, async ({ connectedPage: page, mockBigname, accounts, wallet }) => {
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
     const searchInput = await findSearchInput(page)
     await searchInput.click()
@@ -129,8 +129,8 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // the registration on chain, not just that the UI believes it did.
     await assertV2Registered(nameOnly)
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({
+    if (mockBigname.enabled) {
+      mockBigname.addName({
         name: DOMAIN_TO_REGISTER,
         owner: accounts.getAddress('user'),
       })
@@ -801,7 +801,7 @@ async function openSecondTab(
   options: { duplicate: boolean },
 ) {
   const page = await original.context().newPage()
-  await createIndexerMock().installIfEnabled(page)
+  await createBignameMock().installIfEnabled(page)
   const wallet = await injectHeadlessWeb3Provider({
     page,
     privateKeys: accounts.getAllPrivateKeys(),

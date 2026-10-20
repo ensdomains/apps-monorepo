@@ -149,6 +149,10 @@ msgstr "{selectedNameCount, plural, one {Upgrading your name...} other {Upgradin
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
 msgstr "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{unlimitedSymbol} can't be approved for an exact amount, so your wallet will be asked to give your smart account an unlimited {unlimitedSymbol} allowance. It stays in place until you revoke it; only the amounts below move now."
+msgstr "{unlimitedSymbol} can't be approved for an exact amount, so your wallet will be asked to give your smart account an unlimited {unlimitedSymbol} allowance. It stays in place until you revoke it; only the amounts below move now."
+
 #: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
 msgid "{value, plural, one {# day} other {# days}}"
 msgstr "{value, plural, one {# day} other {# days}}"
@@ -489,10 +493,6 @@ msgstr "Carried over from your earlier attempt."
 msgid "Carving your name into the blockchain"
 msgstr "Carving your name into the blockchain"
 
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-msgid "Chain-specific addresses"
-msgstr "Chain-specific addresses"
-
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Check mint status"
 msgstr "Check mint status"
@@ -715,6 +715,17 @@ msgstr "Copied!"
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Copy"
 msgstr "Copy"
+
+#. placeholder {0}: address.label
+#. placeholder {1}: address.value
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
+msgid "Copy {0} address {1}"
+msgstr "Copy {0} address {1}"
+
+#. placeholder {0}: address.value
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
+msgid "Copy address {0}"
+msgstr "Copy address {0}"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Copy link"
@@ -1400,10 +1411,6 @@ msgstr "Look for a different name"
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"
 msgstr "Lowest upfront cost"
-
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-msgid "Main receiving address"
-msgstr "Main receiving address"
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx

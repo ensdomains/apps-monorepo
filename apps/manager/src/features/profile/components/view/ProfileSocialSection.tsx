@@ -13,6 +13,7 @@ import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileTileClassName,
 } from './ProfileCard'
 import { getSecondarySocialRecords } from './ProfileView.helpers'
 
@@ -43,7 +44,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `flex-row rounded-[14px] transition hover:bg-ens-quartz-50 xl:rounded-xl ${socialCardPaddingClassName} min-h-17 w-full items-center gap-1 font-sans text-left xl:min-h-22.75 xl:gap-2`
+  const className = `${profileTileClassName} flex-row transition hover:bg-ens-quartz-50 ${socialCardPaddingClassName} min-h-17 w-full items-center gap-1 font-sans text-left xl:min-h-22.75 xl:gap-2`
 
   if (href) {
     return (

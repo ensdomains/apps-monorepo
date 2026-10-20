@@ -287,11 +287,11 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
 
   test('a grace-period name is offered for renewal from the dashboard and listed on /upgrade', {
     tag: ['@smoke'],
-  }, async ({ migrationConnectedPage: page, accounts, mockIndexer }) => {
+  }, async ({ migrationConnectedPage: page, accounts, mockBigname }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const grace = await makeGraceV1Name({ label: 'mg-list', owner })
     await serveV1Names(page, [graceMock(grace, owner.address)], {
-      indexer: mockIndexer,
+      indexer: mockBigname,
     })
     await syncBrowserToChain(page)
 
@@ -419,7 +419,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     migrationConnectedPage: page,
     wallet,
     accounts,
-    mockIndexer,
+    mockBigname,
   }) => {
     await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
@@ -435,7 +435,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       await activeMock(active, owner.address),
       graceMock(grace, owner.address, 'wrapped'),
     ]
-    await serveV1Names(page, names, { indexer: mockIndexer })
+    await serveV1Names(page, names, { indexer: mockBigname })
     await syncBrowserToChain(page)
     const activeTokenId = BigInt(labelhash(active.replace(/\.eth$/, '')))
     const activeExpiry = await nameExpires(activeTokenId)
@@ -643,7 +643,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
   test('several grace-period names on their own: plural banner and one batched renewal', async ({
     migrationConnectedPage: page,
     accounts,
-    mockIndexer,
+    mockBigname,
   }) => {
     await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
@@ -659,7 +659,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
         graceMock(first, owner.address),
         graceMock(second, owner.address, 'wrapped'),
       ],
-      { indexer: mockIndexer },
+      { indexer: mockBigname },
     )
     await syncBrowserToChain(page)
 

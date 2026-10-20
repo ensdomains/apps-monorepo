@@ -117,6 +117,7 @@ const deriveSubject = (
             cannotTransfer: wrapped.fuses.child.CANNOT_TRANSFER,
             cannotSetResolver: wrapped.fuses.child.CANNOT_SET_RESOLVER,
             cannotUnwrap: wrapped.fuses.child.CANNOT_UNWRAP,
+            cannotCreateSubdomain: wrapped.fuses.child.CANNOT_CREATE_SUBDOMAIN,
             parentCannotControl: wrapped.fuses.parent.PARENT_CANNOT_CONTROL,
           },
           // ensjs returns milliseconds; the rest of the app works in seconds.

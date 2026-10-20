@@ -80,7 +80,7 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
     migrationConnectedPage: page,
     makeV2Name,
     accounts,
-    mockIndexer,
+    mockBigname,
   }) => {
     test.skip(
       !isRealBigname,
@@ -95,7 +95,7 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
     await serveV1Names(
       page,
       [{ name: v1, ownerAddress: owner.address, type: 'unwrapped' }],
-      { indexer: mockIndexer },
+      { indexer: mockBigname },
     )
     await waitForBignameBlock()
 

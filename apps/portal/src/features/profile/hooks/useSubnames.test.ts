@@ -4,7 +4,7 @@ import {
   type Subname,
 } from '@ens-apps/indexer/bigname'
 import { QueryClient } from '@tanstack/react-query'
-import { errAsync, okAsync } from 'neverthrow'
+import { errAsync, ok, okAsync } from 'neverthrow'
 import { labelhash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
@@ -17,6 +17,17 @@ import {
 
 vi.mock('@/lib/bigname', () => ({
   bigname: { subnames: vi.fn(), name: vi.fn() },
+}))
+
+const { mockClient, mockEnsjsGetOwner } = vi.hoisted(() => ({
+  mockClient: { chain: { id: 11155111 } },
+  mockEnsjsGetOwner: vi.fn(),
+}))
+vi.mock('@/lib/wagmi/helpers', () => ({
+  safeGetClient: () => ok(mockClient),
+}))
+vi.mock('@ensdomains/ensjs/public/v1', () => ({
+  getOwner: mockEnsjsGetOwner,
 }))
 
 const OWNER = '0x1234567890abcdef1234567890abcdef12345678'
@@ -240,7 +251,11 @@ describe('getIsSubnameTakenQueryOptions', () => {
     )
   const isTaken = () =>
     new QueryClient().fetchQuery(
-      getIsSubnameTakenQueryOptions({ name: 'test.eth', label: 'sub' }),
+      getIsSubnameTakenQueryOptions({
+        name: 'test.eth',
+        label: 'sub',
+        protocolVersion: 'ENSv2',
+      }),
     )
 
   it('asks bigname about the one subname', async () => {
@@ -260,5 +275,33 @@ describe('getIsSubnameTakenQueryOptions', () => {
       errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
     )
     expect(await isTaken()).toBe(false)
+  })
+
+  const isV1Taken = () =>
+    new QueryClient().fetchQuery(
+      getIsSubnameTakenQueryOptions({
+        name: 'test.eth',
+        label: 'sub',
+        protocolVersion: 'ENSv1',
+      }),
+    )
+
+  it('reads a V1 subname from the registry, not the indexer', async () => {
+    mockEnsjsGetOwner.mockResolvedValue({
+      owner: OWNER,
+      ownershipLevel: 'registry',
+    })
+
+    expect(await isV1Taken()).toBe(true)
+    expect(mockEnsjsGetOwner).toHaveBeenCalledWith(mockClient, {
+      name: 'sub.test.eth',
+    })
+    expect(bigname.name).not.toHaveBeenCalled()
+  })
+
+  it('is free when the V1 registry has no owner for the subname', async () => {
+    mockEnsjsGetOwner.mockResolvedValue(null)
+
+    expect(await isV1Taken()).toBe(false)
   })
 })
