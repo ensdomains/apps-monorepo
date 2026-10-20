@@ -118,7 +118,7 @@ describe('getPrimaryNamePreparation', () => {
     )
 
     await expect(
-      getPrimaryNamePreparation({} as never, name, owner),
+      getPrimaryNamePreparation(client, name, owner),
     ).resolves.toEqual({
       kind: 'setup-resolver',
       existingEthAddress: null,

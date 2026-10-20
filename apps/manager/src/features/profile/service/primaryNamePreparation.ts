@@ -48,6 +48,7 @@ export async function getPrimaryNamePreparation(
   return {
     kind: 'setup-resolver',
     existingEthAddress,
+    // A subname inheriting a wildcard parent's resolver counts as having one: ours would shadow it.
     hasResolver: writeState.value.resolverAddress !== undefined,
   }
 }

@@ -146,6 +146,7 @@ export const EditProfileDialog = ({
 
       <ResolverSetupConfirmDialog
         intent="edit-profile"
+        isReplacing
         onConfirm={confirmSetupSave}
         onOpenChange={handleSetupConfirmOpenChange}
         open={setupConfirmOpen}

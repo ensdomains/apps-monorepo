@@ -20,10 +20,11 @@ describe('ResolverSetupConfirmDialog', () => {
     expect(screen.queryByText(/keep only your wallet address/)).toBeNull()
   })
 
-  it('warns about replacing by default', () => {
+  it('warns about replacing when something is', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="primary-name"
+        isReplacing
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open

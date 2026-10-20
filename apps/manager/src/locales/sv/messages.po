@@ -2279,10 +2279,6 @@ msgstr ""
 msgid "Revoking…"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "Save"
-msgstr ""
-
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Save {0}"
@@ -2855,10 +2851,6 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "To save these changes, we’ll set a resolver your wallet controls."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx

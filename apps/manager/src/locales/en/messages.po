@@ -2274,10 +2274,6 @@ msgstr "Revoke smart sessions"
 msgid "Revoking…"
 msgstr "Revoking…"
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "Save"
-msgstr "Save"
-
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Save {0}"
@@ -2851,10 +2847,6 @@ msgstr "To finish connecting Telegram, you need to <0>start the ENS Notification
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
 msgstr "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "To save these changes, we’ll set a resolver your wallet controls."
-msgstr "To save these changes, we’ll set a resolver your wallet controls."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."

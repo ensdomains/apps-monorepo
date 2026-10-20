@@ -57,12 +57,7 @@ const canWriteEthAddressRecord = async (
   }
 }
 
-export type ResolverWriteState = {
-  /** Undefined when the name has no resolver set. */
-  readonly resolverAddress: Address | undefined
-  readonly canWrite: boolean
-}
-
+/** The name's resolver (undefined when none is set) and whether the owner wallet can write it. */
 export const getResolverWriteState = ResultFn(async function* (
   name?: string,
   ownerAddress?: Address,
@@ -82,19 +77,12 @@ export const getResolverWriteState = ResultFn(async function* (
   return ok({ resolverAddress, canWrite })
 })
 
-export const getResolverWriteAccess = ResultFn(async function* (
-  name?: string,
-  ownerAddress?: Address,
-) {
-  const state = yield* getResolverWriteState(name, ownerAddress)
-  return ok(state.canWrite)
-})
-
 export const resolverWriteAccessQuery = (
   name?: string,
   ownerAddress?: Address,
 ) =>
   resultQueryOptions({
     queryKey: qk('profile', 'resolver_write_access', { name, ownerAddress }),
-    queryFn: () => getResolverWriteAccess(name, ownerAddress),
+    queryFn: () =>
+      getResolverWriteState(name, ownerAddress).map(({ canWrite }) => canWrite),
   })

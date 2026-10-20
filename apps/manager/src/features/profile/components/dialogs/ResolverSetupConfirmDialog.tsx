@@ -16,7 +16,7 @@ export type ResolverSetupConfirmIntent = 'primary-name' | 'edit-profile'
 interface ResolverSetupConfirmDialogProps {
   readonly intent: ResolverSetupConfirmIntent
   /** False when the name has nothing to replace, so the action is a plain continue. */
-  readonly isReplacing?: boolean
+  readonly isReplacing: boolean
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onConfirm: () => void
@@ -48,7 +48,7 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Continue</Trans>,
     }))
-    .with({ intent: 'edit-profile', isReplacing: true }, () => ({
+    .with({ intent: 'edit-profile' }, () => ({
       title: <Trans>Set up this name’s resolver?</Trans>,
       description: (
         <Trans>
@@ -58,20 +58,11 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Replace & Save</Trans>,
     }))
-    .with({ intent: 'edit-profile', isReplacing: false }, () => ({
-      title: <Trans>Set up this name’s resolver?</Trans>,
-      description: (
-        <Trans>
-          To save these changes, we’ll set a resolver your wallet controls.
-        </Trans>
-      ),
-      confirmLabel: <Trans>Save</Trans>,
-    }))
     .exhaustive()
 
 export const ResolverSetupConfirmDialog = ({
   intent,
-  isReplacing = true,
+  isReplacing,
   open,
   onOpenChange,
   onConfirm,
