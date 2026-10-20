@@ -1,4 +1,6 @@
+import type { NameSummary } from '@ens-apps/indexer/reads'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toDashboardName } from './dashboardNames'
 import {
   type DashboardName,
   type MergedItem,
@@ -165,6 +167,34 @@ describe('mergedRowMetadata', () => {
     expect(meta.displayExpiryDate?.getTime()).toBeGreaterThan(
       meta.expiryDate?.getTime() ?? 0,
     )
+  })
+
+  it('shows the grace end bigname serves, read through toDashboardName', () => {
+    const expiresAt = new Date('2023-12-20T00:00:00Z')
+    // Not expiry + 28 days, so a computed grace end would not match.
+    const graceEndsAt = new Date('2024-01-05T00:00:00Z')
+    const summary: NameSummary = {
+      name: 'served.eth',
+      displayName: 'served.eth',
+      namehash: '0x01',
+      protocol: 'v2',
+      relations: ['owner'],
+      isPrimary: false,
+      isMigrated: false,
+      registrationStatus: 'expired',
+      expiresAt,
+      servedExpiry: null,
+      graceEndsAt,
+      registeredAt: null,
+      createdAt: null,
+    }
+    const [item] = toMergedItems([toDashboardName(summary)])
+    if (!item) throw new Error('expected one row')
+    const meta = mergedRowMetadata(item, null)
+    expect(meta.isInGrace).toBe(true)
+    expect(meta.graceEndDate).toEqual(graceEndsAt)
+    expect(meta.displayExpiryDate).toEqual(graceEndsAt)
+    expect(meta.expiryCta).toBe('renew')
   })
 
   it('gives an expired subname no grace, since bigname serves it none', () => {
