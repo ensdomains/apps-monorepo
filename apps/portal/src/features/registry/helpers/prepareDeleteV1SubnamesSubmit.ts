@@ -1,5 +1,6 @@
 import {
   type InferErrTypes,
+  type InferOkTypes,
   ResultFn,
   TaggedError,
 } from '@ens-apps/utils/neverthrow'
@@ -10,7 +11,7 @@ import {
   getWrapperData as ensjsv1_getWrapperData,
 } from '@ensdomains/ensjs/public/v1'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
-import { err, fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { getSubnamesCount } from '@/features/profile/hooks/useSubnames'
 import type { V1ParentState } from '@/features/transfer/types'
@@ -66,8 +67,11 @@ const fail = (message: string) => (cause: PrepareDeleteV1SubnameSubmitCause) =>
 const refuse = (message: string, cause: PrepareDeleteV1SubnameSubmitCause) =>
   err(fail(message)(cause))
 
+type Client = InferOkTypes<ReturnType<typeof safeGetClient>>
+
 /** One subname's re-check, under a parent the caller already holds. */
 const checkSubname = ResultFn(async function* (
+  client: Client,
   parentName: string,
   parent: V1ParentState,
   {
@@ -81,7 +85,6 @@ const checkSubname = ResultFn(async function* (
   const subname = `${encodeLabelhash(labelhash)}.${parentName}`
   const shown = labelName ? `${labelName}.${parentName}` : subname
 
-  const client = yield* safeGetClient().mapErr(fail('Failed to get client'))
   const owner = yield* fromPromise(
     ensjsv1_getOwner(client, { name: subname }),
     (e) => e as ensjsv1_GetOwnerErrorType,
@@ -150,8 +153,11 @@ export const prepareDeleteV1SubnamesSubmit = ResultFn(async function* ({
       reason: parentGate.reason,
     })
   }
-  for (const entry of deletes) {
-    yield* checkSubname(parentName, parentGate.parent, entry)
-  }
+  const client = yield* safeGetClient().mapErr(fail('Failed to get client'))
+  yield* ResultAsync.combine(
+    deletes.map((entry) =>
+      checkSubname(client, parentName, parentGate.parent, entry),
+    ),
+  )
   return ok(undefined)
 })
