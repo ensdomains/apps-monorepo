@@ -26,8 +26,10 @@ import {
   okAsync,
   type ResultAsync,
 } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import { type Address, checksumAddress, type Hex, labelhash } from 'viem'
 import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
+import type { V1SubnameWrapping } from '@/features/registry/utils/delete-v1-subname.helpers'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
@@ -48,6 +50,10 @@ type Subname = {
   readonly labelName: string | null
   readonly labelhash: Hex
   readonly owner: Address
+  /** ENSv1 only: null when bigname can't say how the subname is held. */
+  readonly v1Wrapping: V1SubnameWrapping | null
+  /** ENSv1 only: its own subnames; undefined when bigname did not count them. */
+  readonly subnameCount: number | undefined
 }
 
 type GetSubnamesParameters = {
@@ -82,6 +88,20 @@ const toLabelName = (row: BignameSubname, rowLabelhash: Hex) => {
     : null
 }
 
+const toV1Wrapping = ({ ens_v1 }: BignameSubname): V1SubnameWrapping | null =>
+  match(ens_v1?.wrapper_state)
+    .with('unwrapped', () => ({ isWrapped: false }) as const)
+    .with('wrapped', () => ({
+      isWrapped: true,
+      parentCannotControl:
+        ens_v1?.wrapper_fuses?.parent_cannot_control ?? false,
+    }))
+    .with(P.union('emancipated', 'locked'), () => ({
+      isWrapped: true,
+      parentCannotControl: true,
+    }))
+    .otherwise(() => null)
+
 // A row bigname serves with no holder or no labelhash cannot be listed,
 // linked or deleted. The name is rebuilt from the parent so a parent label
 // healed later still reaches its children.
@@ -96,13 +116,19 @@ const toSubname =
         labelName,
         labelhash: row.labelhash,
         owner: checksumAddress(row.owner),
+        v1Wrapping: toV1Wrapping(row),
+        subnameCount: row.subname_count,
       },
     ]
   }
 
 const readSubnames = (
   name: string,
-  query: { readonly pageSize: number; readonly cursor?: string },
+  query: {
+    readonly pageSize: number
+    readonly cursor?: string
+    readonly withCounts?: boolean
+  },
   signal?: AbortSignal,
 ) =>
   retryStale(
@@ -115,6 +141,7 @@ const readSubnames = (
           sort: 'name',
           page_size: query.pageSize,
           ...(query.cursor && { cursor: query.cursor }),
+          ...(query.withCounts && { include: ['counts'] }),
         },
         { signal: requestSignal },
       ),
@@ -165,7 +192,12 @@ export const getSubnamePagesQueryOptions = ({
     queryFn: ({ pageParam, signal }) =>
       readSubnames(
         name,
-        { pageSize: SUBNAMES_PAGE_SIZE, cursor: pageParam },
+        {
+          pageSize: SUBNAMES_PAGE_SIZE,
+          cursor: pageParam,
+          // V1 deletes are refused for a subname with subnames of its own.
+          withCounts: protocolVersion === 'ENSv1',
+        },
         signal,
       ),
     initialPageParam: undefined as string | undefined,
@@ -173,7 +205,7 @@ export const getSubnamePagesQueryOptions = ({
   })
 
 // bigname totals the children it would list, in either era.
-const getSubnamesCount = (
+export const getSubnamesCount = (
   { name }: GetSubnamesParameters,
   signal?: AbortSignal,
 ) =>

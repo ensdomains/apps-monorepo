@@ -206,14 +206,18 @@ const toV1ParentState = (subject: V1TransferSubject): V1ParentState =>
     }))
     .exhaustive()
 
-/**
- * Whether `account` can create a subname under a V1 name. With no account the
- * holder check is left to the form, which asks for a wallet first.
- */
-export const getV1SubnameCreateGate = (
-  { subject, registration }: V1NameState,
-  account: Address | undefined,
-): V1SubnameCreateGate =>
+/** A V1 name as the parent of its subnames, or why nobody can act as it. */
+export type V1SubnameParentGate =
+  | { readonly reason: 'ok'; readonly parent: V1ParentState }
+  | Extract<
+      V1SubnameCreateGate,
+      { reason: 'grace' } | { reason: 'unowned' } | { reason: 'not-holder' }
+    >
+
+const toHeldParent = ({
+  subject,
+  registration,
+}: V1NameState): Exclude<V1SubnameParentGate, { reason: 'not-holder' }> =>
   match({ subject, registration })
     .with({ registration: 'gracePeriod' }, () => ({ reason: 'grace' }) as const)
     .with(
@@ -221,17 +225,44 @@ export const getV1SubnameCreateGate = (
       { subject: null },
       () => ({ reason: 'unowned' }) as const,
     )
-    .with({ subject: P.nonNullable }, ({ subject }) => {
-      const parent = toV1ParentState(subject)
-      if (!canParentReissueV1Subname(parent)) {
-        return { reason: 'burned-fuse' } as const
-      }
-      if (account && !(parent.owner && isAddressEqual(parent.owner, account))) {
-        return { reason: 'not-holder' } as const
-      }
-      return {
-        reason: 'ok',
-        target: { protocol: 'ENSv1', isWrapped: parent.isWrapped },
-      } as const
-    })
+    .with(
+      { subject: P.nonNullable },
+      ({ subject }) =>
+        ({ reason: 'ok', parent: toV1ParentState(subject) }) as const,
+    )
     .exhaustive()
+
+const isParentHolder = (parent: V1ParentState, account: Address) =>
+  parent.owner !== null && isAddressEqual(parent.owner, account)
+
+/** Whether `account` holds a V1 name the way its subnames' writes need. */
+export const getV1SubnameParentGate = (
+  state: V1NameState,
+  account: Address,
+): V1SubnameParentGate => {
+  const held = toHeldParent(state)
+  if (held.reason !== 'ok' || isParentHolder(held.parent, account)) return held
+  return { reason: 'not-holder' }
+}
+
+/**
+ * Whether `account` can create a subname under a V1 name. With no account the
+ * holder check is left to the form, which asks for a wallet first.
+ */
+export const getV1SubnameCreateGate = (
+  state: V1NameState,
+  account: Address | undefined,
+): V1SubnameCreateGate => {
+  const held = toHeldParent(state)
+  if (held.reason !== 'ok') return held
+  if (!canParentReissueV1Subname(held.parent)) {
+    return { reason: 'burned-fuse' }
+  }
+  if (account && !isParentHolder(held.parent, account)) {
+    return { reason: 'not-holder' }
+  }
+  return {
+    reason: 'ok',
+    target: { protocol: 'ENSv1', isWrapped: held.parent.isWrapped },
+  }
+}
