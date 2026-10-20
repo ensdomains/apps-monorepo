@@ -79,7 +79,7 @@ type IndexedProfileAddressItem = ProfileAddressItem & {
 
 const CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH = 5
 
-export const formatChainSpecificAddress = (value: string): string => {
+export const formatProfileAddress = (value: string): string => {
   const trimmed = value.trim()
   const prefix = trimmed.startsWith('0x') ? '0x' : ''
   const body = trimmed.slice(prefix.length)

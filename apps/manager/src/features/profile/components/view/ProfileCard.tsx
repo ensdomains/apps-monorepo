@@ -5,9 +5,9 @@ export const profileCardCopyIconClassName =
 
 export const profileCardTrailingIconStrokeWidth = 1.33
 
-// Figma "Shadow/Card" chrome shared by every profile tile: 0.25px quartz-300 border, 12px radius.
+// Figma "Shadow/Card" chrome shared by every profile tile; the 0.25px hairline is the frame's value.
 export const profileTileClassName =
-  'rounded-xl border-[0.25px] border-ens-quartz-300 shadow-[0_2px_12px_rgba(0,0,0,0.06)]'
+  'rounded-xl border-[0.25px] border-ens-quartz-300 shadow-profile-tile'
 
 export const valueClassName =
   'font-mono text-sm text-ens-quartz-500 leading-normal'

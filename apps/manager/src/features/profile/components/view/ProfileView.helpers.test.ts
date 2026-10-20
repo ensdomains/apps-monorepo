@@ -3,7 +3,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
-  formatChainSpecificAddress,
+  formatProfileAddress,
   formatProfileDetailDate,
   getChainSpecificAddresses,
   getContactItems,
@@ -87,17 +87,17 @@ describe('ProfileView helpers', () => {
     ])
   })
 
-  it('formats chain-specific addresses with the first and last five characters', () => {
+  it('formats profile addresses with the first and last five characters', () => {
     expect(
-      formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
+      formatProfileAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
     ).toBe('bc1qx…x0wlh')
-    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe('DE5op…89xyz')
-    expect(formatChainSpecificAddress('abc123')).toBe('abc123')
+    expect(formatProfileAddress('DE5opa123456789xyz')).toBe('DE5op…89xyz')
+    expect(formatProfileAddress('abc123')).toBe('abc123')
   })
 
   it('keeps the 0x prefix in front of the first five hex characters', () => {
     expect(
-      formatChainSpecificAddress('0xCC6925b3a1d6e7f8091a2b3c4d5e6f708192a3b4'),
+      formatProfileAddress('0xCC6925b3a1d6e7f8091a2b3c4d5e6f708192a3b4'),
     ).toBe('0xCC692…2a3b4')
   })
 

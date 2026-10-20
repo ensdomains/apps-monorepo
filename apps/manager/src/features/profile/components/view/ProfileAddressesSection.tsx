@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
 import {
@@ -16,7 +16,7 @@ import {
   profileTileClassName,
 } from './ProfileCard'
 import {
-  formatChainSpecificAddress,
+  formatProfileAddress,
   getChainSpecificAddresses,
   getMainReceivingAddress,
   getReceivingAddressChains,
@@ -35,7 +35,7 @@ const addressCardClassName = cn(
 
 const AddressValue = ({ value }: { readonly value: string }) => (
   <span className="min-w-0 truncate font-mono text-[13px] text-ens-quartz-400 leading-[1.1] tracking-[-0.26px] xl:text-sm xl:tracking-[-0.28px]">
-    {formatChainSpecificAddress(value)}
+    {formatProfileAddress(value)}
   </span>
 )
 
@@ -85,41 +85,51 @@ const MainAddressCard = ({
 }: {
   readonly address: ProfileAddressItem
   readonly chains: readonly ProfileAddressItem[]
-}) => (
-  <Card asChild className={addressCardClassName}>
-    <CopyableButton
-      iconClassName={profileCardCopyIconClassName}
-      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-      value={address.value}
-      variant="ghost"
-    >
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-        <ReceivingChainIcons chains={chains} />
-        <AddressValue value={address.value} />
-      </div>
-    </CopyableButton>
-  </Card>
-)
+}) => {
+  const { t } = useLingui()
+
+  return (
+    <Card asChild className={addressCardClassName}>
+      <CopyableButton
+        aria-label={t`Copy address ${address.value}`}
+        iconClassName={profileCardCopyIconClassName}
+        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        value={address.value}
+        variant="ghost"
+      >
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          <ReceivingChainIcons chains={chains} />
+          <AddressValue value={address.value} />
+        </div>
+      </CopyableButton>
+    </Card>
+  )
+}
 
 const ChainAddressCard = ({
   address,
 }: {
   readonly address: ProfileAddressItem
-}) => (
-  <Card asChild className={addressCardClassName}>
-    <CopyableButton
-      iconClassName={profileCardCopyIconClassName}
-      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-      value={address.value}
-      variant="ghost"
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <ChainIconTooltip chain={address} />
-        <AddressValue value={address.value} />
-      </div>
-    </CopyableButton>
-  </Card>
-)
+}) => {
+  const { t } = useLingui()
+
+  return (
+    <Card asChild className={addressCardClassName}>
+      <CopyableButton
+        aria-label={t`Copy ${address.label} address ${address.value}`}
+        iconClassName={profileCardCopyIconClassName}
+        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        value={address.value}
+        variant="ghost"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <ChainIconTooltip chain={address} />
+          <AddressValue value={address.value} />
+        </div>
+      </CopyableButton>
+    </Card>
+  )
+}
 
 export const ProfileAddressesSection = ({
   records,
@@ -137,7 +147,7 @@ export const ProfileAddressesSection = ({
           <MainAddressCard address={mainAddress} chains={receivingChains} />
         ) : null}
         {chainAddresses.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-3 xl:gap-6">
             {chainAddresses.map((address) => (
               <ChainAddressCard
                 address={address}
