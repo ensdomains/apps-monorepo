@@ -2,7 +2,7 @@ import type { PublicClient } from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail, ok, publicClient } from './_fixtures'
-import { batchedMulticall } from './batchedMulticall'
+import { batchedMulticall, MULTICALL_BATCH_BYTES } from './batchedMulticall'
 
 vi.mock('viem/actions', () => ({ multicall: vi.fn() }))
 
@@ -77,22 +77,23 @@ describe('batchedMulticall', () => {
     ).toEqual(Array.from({ length: 5002 }, (_, i) => i))
   })
 
-  it('always invokes multicall with allowFailure: true and batchSize: 0', async () => {
+  it('always invokes multicall with allowFailure: true and a bounded batch', async () => {
     multicallMock.mockResolvedValueOnce([ok(0)])
     await batchedMulticall<number>(publicClient, fakeContracts(1))
     expect(multicallMock.mock.calls[0]?.[1]).toMatchObject({
       allowFailure: true,
-      batchSize: 0,
+      batchSize: MULTICALL_BATCH_BYTES,
     })
   })
 
-  it('sends each chunk on its own, even from a batching client', async () => {
+  it('keeps the client’s batching so concurrent checks share a call', async () => {
+    const batchingClient = {
+      ...publicClient,
+      batch: { multicall: true },
+    } as PublicClient
     multicallMock.mockResolvedValueOnce([ok(0)])
-    await batchedMulticall<number>(
-      { ...publicClient, batch: { multicall: true } } as PublicClient,
-      fakeContracts(1),
-    )
-    expect(multicallMock.mock.calls[0]?.[0].batch).toBeUndefined()
+    await batchedMulticall<number>(batchingClient, fakeContracts(1))
+    expect(multicallMock.mock.calls[0]?.[0]).toBe(batchingClient)
   })
 
   it('preserves failure entries in the flattened output', async () => {
