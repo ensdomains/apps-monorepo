@@ -5,6 +5,55 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 54 — 2026-10-20 · V1 4LD implementation and measured risks
+
+**Status:** implemented and verified in real mode; ready for review. Three migration defects remain recorded with expected-failure witnesses. V2 Q50+ is deferred.
+**In flight:** nothing in this V1 implementation pass.
+**Branch:** `test/v1-4ld-coverage`, based on `20647cc00`, in `.claude/worktrees/e2e-run`.
+The main checkout has unrelated local changes and was not edited.
+
+### Built
+
+- Registered Q1–Q24 in the catalogue and scenario ledger; Q50+ remains the later V2 pass.
+- `makeV1FourLD` reuses the matrix walker and reads back every level's owner, wrap class and fuses. It supports per-level owners, records, duration and child expiry/fuses. The walker now also wraps a child below a registry-only parent. Four harness shapes cover registry, mixed, registry-parent/wrapped-child, and locked/fused trees.
+- Filled VV40–45 and the missing slot-44 expectations; regenerated specs and matrix documentation. The new slot-44 resolver expectations reflect current V1 write support. The roles page has an explicit 2LD/3LD cap before its V1 guard — contrary to the prior plan's blanket statement that no app caps depth.
+- Added the migration, explorer, cross-app and time specs. Clock-moving Q20–23 are confined to `manager-migration-time`.
+- Q24 has a finite inventory in `coverage/invariants.ts`: copied mixed-tree membership/ownership/records, executable record save and transfer, and post-transfer refusals for the former holder. The catalogue spells out companion witnesses and limits.
+- Fixed two test helpers encountered by these cases: migration authorization always stops in `finally`; the primary picker uses the card's **Primary Name** button when a primary name already exists (the nameplate is display-only).
+
+### Findings and answers
+
+- **Q3 → E2E-040 (S2):** the independently emancipated 4LD is offered, but selecting it alone leaves **Upgrade 1 name** disabled with the generic preparation error. Reproduced twice before adding the late expected-failure marker. No migration is submitted.
+- **Q4 → E2E-031 (S2), extended to depth four:** an unlocked wrapped 4LD is omitted when its locked ancestors migrate. The original holder and V1 resolver text remain, but UniversalResolver returns empty afterwards. This is loss of resolution through the new registry path, not deletion of the stored V1 data.
+- **Q8 → E2E-041 (S2):** a remaining V1 registry 4LD is stranded after its ancestors upgraded. The measured witness (`l2.l1.v1m-4-1792499878.eth`) was moved back to the owner of both V2 ancestors before reopening upgrade. The fresh `q8-control-1792499890.eth` appeared; the leaf did not within 60 seconds. The owner and stored records were read back, and bigname reflected the holder. The test retains the original expectation that it can upgrade, with a late expected-failure marker.
+- **SUB-F3/Q13:** the explorer names only immediate-parent authority; two actual registry writes prove grandparent → 3LD → 4LD reclamation. Product-ruling row added.
+- **Q18:** the manager excludes the owned V1 leaf despite a valid forward record; an owned V2 positive control is offered. Product-ruling row added beside E2E-035.
+- **Q17/Q19:** setting the V1 4LD primary in the explorer succeeds, is shown in the manager, and both forward and reverse resolution survive migration.
+- The 4LD roles depth cap is explicitly refused. Revisit its V2 implications in Q50+, rather than counting native V2 coverage in this pass.
+
+### Verification and environment
+
+Every new scenario has two verified outcomes: **Q1–Q24 = 21 PASS + 3 DEFECT**, with 25 test cases (Q16 and Q24 each have two witnesses; Q17/Q19 share one). The four fixture witnesses passed twice. The 16 selected matrix cells passed twice, including the 14 newly filled cells and the two existing slot-44 checks. Q20–Q23 passed twice, including a real USDC renewal followed by migration. Q20 checks **parent reassignment** during grace; the wrapped holder's own transfer remains offered, as VT44 independently verifies. Q23 confirms an expired middle wrapper yields no active holder or transfer form despite an active 2LD.
+
+Reports are `/tmp/4ld-*.json`; use `fixture-verified`, `migration-verified`, `portal-verified`, `overview-verified`, `slot44-verified`, `cross-verified`, then the later `q18-verified` and `q16-verified`, plus `time-first`, `time-second`, `portal-smoke` and `manager-smoke`. The later Q18 report supersedes its two early selector failures in the cross-app report. Q16 now has literal titles so the textual coverage scanner recognizes both executed variants. The grace matrix resolver cell uses **Set resolver**, because that seed has no resolver.
+
+Coverage reconciliation includes the smoke failures and raises the baseline without lowering any tier: **514/728 terminal**, tiers HW 9, R0 182, R1 33, R2 110, R3 179, R4 1; **4/36 invariant sites** checked. This is evidence for the supplied runs; untouched scenarios retain static evidence, not a claim that the whole suite ran. The initial cross-app fixture needed both profile and migration flags, now set only for these tests. Recipient dashboards require dismissing the first-use welcome dialog. Preserving records during transfer requires explicitly unchecking resolver detach.
+
+The local Anvil had been OOM-killed before work started. The documented startup script restored the pinned fork and reset bigname; Panoptes still held old blocks and was reset using its documented data-volume procedure. Both harnesses then passed. No subsequent chain reset. Tests use Node 24.13.1, real bigname, manager :3012 and explorer :3013, as in iteration 53. Chain-writing suites ran sequentially, with time tests after the action suites. After the time phase, Q16 alone was repeated to verify its declaration-only refactor; it seeds fresh two-year names and does not move the clock.
+
+Smoke checks on this shared real stack: **portal 17/19**, **manager 7/9**.
+The failures are outside the changed tests:
+
+- F41/F42's opt-in indexer mock does not implement `GET /v1/permissions`; transfer correctly stays disabled before submission. No transfer was sent.
+- The manager grace-list smoke assumes an isolated, sole V1 name. In this populated real wallet it never finds the seeded name in the rendered dashboard page; its mock-shaped dataset assumption does not hold.
+- WEB-1483's payment-sheet smoke looks for a `Network fee`/`Network cost` row that is absent from the current layout (the fee is shown in the payment-method row). No 4LD helper is used by that assertion.
+
+Their assertions and mocks were not changed to manufacture a green smoke result. The generated ledger includes the reported F41/F42 failures, so they remain visible alongside the new coverage.
+
+Typecheck, generated-matrix/spec documentation checks, full-repository Biome CI and diff whitespace checks passed. Biome reports 177 existing warnings and 51 informational diagnostics. The address-literal gate has a pre-existing failure in unchanged files (20 unaccounted literals and three conflicting bindings); no new 4LD file adds an address literal. Do not lower the ratchet to hide it or the prior R3 count issue.
+
+---
+
 ## Iteration 53 — 2026-10-20 · 4LD coverage, V1 first: plan, not started
 
 **Status:** planned and handed over. Nothing below is built yet.

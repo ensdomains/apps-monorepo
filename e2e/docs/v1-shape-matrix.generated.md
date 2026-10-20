@@ -5,7 +5,7 @@
 
 Every way a V1 name can be held, against every portal surface that renders one.
 
-**33 shapes · 347 cells · 284 asserted.** Each cell is one
+**33 shapes · 347 cells · 298 asserted.** Each cell is one
 Playwright test in `e2e/projects/portal/matrix/*.generated.spec.ts`, tagged with the
 scenario id below, so a cell's state is visible in
 [`e2e-coverage.md`](./e2e-coverage.md) like any other row.
@@ -598,7 +598,7 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV40` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV40` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO40` | R2 | [ownership](/<name>/ownership) | names the holder of a locked name three levels down | asserted |
 | `VT40` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder the form at depth four | asserted |
 | `VF40` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
@@ -622,7 +622,7 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV41` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV41` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO41` | R2 | [ownership](/<name>/ownership) | offers the parent no transfer of an emancipated name at depth four | asserted |
 | `VT41` | R0 | [transfer](/<name>/ownership/transfer) | refuses a parent that is itself a subname, on the same grounds | asserted |
 | `VF41` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
@@ -646,7 +646,7 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV42` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV42` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO42` | R2 | [ownership](/<name>/ownership) | names the registry owner two levels below the 2LD | asserted |
 | `VT42` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder the form two levels below the 2LD | asserted |
 | `VF42` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
@@ -670,7 +670,7 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV43` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV43` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO43` | R2 | [ownership](/<name>/ownership) | offers the reassign to a parent two levels below the 2LD | asserted |
 | `VT43` | R0 | [transfer](/<name>/ownership/transfer) | lets a parent reassign a subname two levels below the 2LD | asserted |
 | `VF43` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
@@ -694,7 +694,7 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV45` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV45` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO45` | R2 | [ownership](/<name>/ownership) | offers no transfer across the wrapper line at depth four | asserted |
 | `VT45` | R0 | [transfer](/<name>/ownership/transfer) | refuses the mismatch when neither level is a 2LD | asserted |
 | `VF45` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
@@ -823,17 +823,17 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV44` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV44` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO44` | R2 | [ownership](/<name>/ownership) | still names the holder three levels under a lapsing 2LD | asserted |
 | `VT44` | R0 | [transfer](/<name>/ownership/transfer) | lets the holder move it while the .eth ancestor is in grace | asserted |
-| `VF44` | R0 | [fuses](/<name>/fuses) | _no expectation written_ | open |
-| `VE44` | R2 | [resolver](/<name>/resolver) | _no expectation written_ | open |
-| `VD44` | R3 | [records](/<name>/records) | _no expectation written_ | open |
-| `VS44` | R3 | [subnames](/<name>/subnames) | _no expectation written_ | open |
-| `VR44` | R3 | [registry](/<name>/registry) | _no expectation written_ | open |
-| `VK44` | R3 | [token](/<name>/token) | _no expectation written_ | open |
-| `VH44` | R3 | [history](/<name>/history) | _no expectation written_ | open |
-| `VA44` | R3 | [address](/<name>/address) | _no expectation written_ | open |
+| `VF44` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
+| `VE44` | R2 | [resolver](/<name>/resolver) | offers the live wrapped holder a resolver when none is set | asserted |
+| `VD44` | R3 | [records](/<name>/records) | renders the records tab under an ancestor in grace | asserted |
+| `VS44` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
+| `VR44` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
+| `VK44` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
+| `VH44` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
+| `VA44` | R3 | [address](/<name>/address) | renders address resolution under an ancestor in grace | asserted |
 
 ## Not constructible
 

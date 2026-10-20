@@ -33,14 +33,14 @@ export default defineConfig({
     {
       name: 'manager-migration',
       testMatch:
-        /migration(-(subname|grace|fuses|managers|approvals|records))?\.spec\.ts$/,
+        /migration(-(4ld|subname|grace|fuses|managers|approvals|records))?\.spec\.ts$/,
       dependencies: ['harness-manager'],
     },
     {
       // Moves the shared fork clock forward for good (91 days), so it runs
       // after everything else here and nothing depends on it.
       name: 'manager-migration-time',
-      testMatch: /migration-time\.spec\.ts$/,
+      testMatch: /migration-(4ld-)?time\.spec\.ts$/,
       dependencies: ['manager-migration'],
     },
   ],

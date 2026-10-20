@@ -727,6 +727,10 @@ export const EXPECTATIONS: Partial<
   // parent `getV1NameState` reads, the ancestor jump that skips levels, and the
   // expiry read that only ever looks at the .eth 2LD.
   '4ld-locked+locked-3ld+locked-2ld:owner': {
+    overview: {
+      title: 'names the on-chain holder at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
     ...subnameReadOnlyTabs({
       token: WRAPPED_TOKEN,
       fuses: fuseState(['Parent Cannot Control', 'Cannot Unwrap'], []),
@@ -743,6 +747,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '4ld-locked+locked-3ld:parent': {
+    overview: {
+      title: 'names the on-chain holder at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
     ...subnameReadOnlyTabs({
       token: WRAPPED_TOKEN,
       fuses: fuseState(['Parent Cannot Control', 'Cannot Unwrap'], []),
@@ -763,6 +771,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '4ld-registry+registry-3ld+unwrapped-2ld:owner': {
+    overview: {
+      title: 'names the on-chain holder at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'controller' }],
+    },
     ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
     ownership: {
       title: 'names the registry owner two levels below the 2LD',
@@ -776,6 +788,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '4ld-registry+registry-3ld:parent': {
+    overview: {
+      title: 'names the on-chain holder at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'controller' }],
+    },
     ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
     ownership: {
       title: 'offers the reassign to a parent two levels below the 2LD',
@@ -792,6 +808,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '4ld-registry+wrapped-3ld:parent': {
+    overview: {
+      title: 'names the on-chain holder at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'controller' }],
+    },
     ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
     ownership: {
       title: 'offers no transfer across the wrapper line at depth four',
@@ -877,6 +897,29 @@ export const EXPECTATIONS: Partial<
   },
 
   '4ld-wrapped+wrapped-3ld+emancipated-2ld:grace:owner': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState([], ['Parent Cannot Control', 'Cannot Unwrap']),
+    }),
+    // V1 resolver writes are now supported; an ancestor in grace does not
+    // remove the live wrapped child's own authority.
+    resolver: {
+      title: 'offers the live wrapped holder a resolver when none is set',
+      heading: 'Resolver',
+      ctas: [{ name: 'Set resolver', state: 'enabled' }],
+    },
+    records: {
+      title: 'renders the records tab under an ancestor in grace',
+      heading: 'Records',
+    },
+    address: {
+      title: 'renders address resolution under an ancestor in grace',
+      heading: 'Address Resolution',
+    },
+    overview: {
+      title: 'names the on-chain holder at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
     ownership: {
       title: 'still names the holder three levels under a lapsing 2LD',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],

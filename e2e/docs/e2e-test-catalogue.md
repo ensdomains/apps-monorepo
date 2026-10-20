@@ -564,6 +564,51 @@ Tester + Dev Tools drawer, no scripts).
 | MD5 | Cache invalidation via the webhook | `X-Cache-Status` miss→hit→miss plus changed response bytes, driven by a real HMAC-signed `POST /webhook` (not a real ~1h wait) |
 | MD6 | Dispatch, graceful degradation, webhook auth ⚠️ | 404/400/401/503 on every documented error path, never a 500; the v1 tokenId-keyed route (`/:network/:contractAddress/:tokenId`) cannot resolve without an indexer by design (hash reversal), so this only verifies it fails *cleanly* |
 
+### Q — 4LD names (V1 first)
+
+Source: coverage/handoff.md, Iteration 53. V2 is reserved for Q50 and up.
+Display and ownership use the generated V1 matrix; actions reuse its seeder.
+Measured outcomes are recorded in Iteration 54 and the defect ledger: Q4 loses
+resolution (E2E-031), Q8 is stranded (E2E-041), and SUB-F3 remains a product ruling.
+
+| ID | Case | On-chain oracle |
+|---|---|---|
+| Q1 | Orphan: the user holds only a registry 4LD under someone else's 3LD | Not offered, or ineligible `missing-parent`; nothing written |
+| Q2 | Registry 4LD → unlocked wrapped 3LD → unwrapped 2LD, all the user's | One UserRegistry per level; `getParent` links; 4LD registered to the source owner; records resolve |
+| Q3 | Emancipated 4LD under a locked 3LD the user doesn't own | `detached-child` route: migrates alone, or the UI says why not |
+| Q4 | Locked 2LD → locked 3LD → unlocked (non-PCC) wrapped 4LD | Not copied. **Does it still resolve after the parents migrate?** (E2E-031-like risk) |
+| Q5 | Locked chain with CANNOT_TRANSFER on the 4LD | 4LD ineligible; 2LD and 3LD still migrate |
+| Q6 | Selection tree | 4LD row at depth 2; can't be toggled alone; toggling the 2LD selects all three |
+| Q7 | After migration (GS14 chain) | Records resolve through UR; editable in the manager profile and the explorer editor; explorer registry tree shows 5 rows |
+| Q8 | Ancestors upgraded in an earlier session, the 4LD later | **Is it still offered?** The ancestor rule wants the ancestors in the set. Pin it, or DEFECT if stranded |
+| Q9 | The owner transfers a wrapped 4LD | NameWrapper `ownerOf` = recipient; records still resolve |
+| Q10 | The owner transfers a registry-only 4LD | Registry `owner(node)` = recipient |
+| Q11 | The 3LD owner reclaims an unemancipated wrapped 4LD | Owner changed; the old owner loses control |
+| Q12 | The 3LD owner faces an emancipated 4LD | No reassign offered; a direct `setSubnodeOwner` reverts |
+| Q13 | The 2LD owner (grandparent, unwrapped chain) | Can take back the 3LD, then the 4LD, on chain. The explorer names only the 3LD (SUB-F3): product-ruling row |
+| Q14 | The owner edits the 4LD's records in the explorer | Resolves through UR; the manager shows it read-only, "upgrade required" |
+| Q15 | The owner burns CANNOT_TRANSFER on a locked 4LD | `getData` fuses include it; the transfer form is gone |
+| Q16 | After Q9/Q10 | The recipient's manager dashboard lists the 4LD (and offers it for upgrade if eligible); the sender's no longer does |
+| Q17 | Set a V1 4LD (addr(60) = owner) as primary in the explorer | `readPrimaryName(owner)` = the 4LD; the manager shows it |
+| Q18 | The manager's primary picker | Excludes V1 names: pin, and add a product-gap row next to E2E-035 |
+| Q19 | Migrate the primary 4LD | Primary still resolves both ways |
+| Q20 | 2LD in grace | Wrapped 4LD expiry clamped; grace blocks parent reassignment while the holder retains transfer authority (VT44) |
+| Q21 | Renew the 2LD in grace, then upgrade | The 4LD is copied with its chain |
+| Q22 | 2LD past grace | The 4LD isn't listed and doesn't resolve |
+| Q23 | 3LD wrapper expired, 2LD active | The explorer reads only the 2LD's expiry: check its claim against chain |
+| Q24 | INV3/4/5 sweep on 4LD pages after Q2/Q9 | Every offered action executes or is refused with a reason |
+
+Q24's finite site inventory is registered in `coverage/invariants.ts`. After
+copying the mixed Q2 tree, check dashboard membership, the displayed owner and
+record values against chain reads, then execute record save and transfer with
+resolved-record and registry-owner readbacks. After the Q9 wrapped transfer,
+check the former holder's transfer, record editor, resolver change and fuse-burn
+routes, plus the V1-only subname/role limitations: every refusal must state its
+reason and leave the owner, fuses, resolver and records unchanged. Q7 supplies
+the manager editor witness; Q12/Q15 cover parent/fuse refusals; Q16 checks both
+owners' dashboards and eligible migration membership. This inventory does not
+claim to sweep new native V2 4LD behavior (reserved for Q50+).
+
 ### V — V1 name-shape matrix · R0/R2/R3 · generated
 
 Every way a V1 name can be held, crossed against every portal surface that

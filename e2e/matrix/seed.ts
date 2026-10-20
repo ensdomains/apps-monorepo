@@ -18,8 +18,12 @@ import type { Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../fixtures/makeV1Name.js'
 import { makeV1RegistrySubname } from '../fixtures/makeV1RegistrySubname.js'
-import { CHILD_FUSES, makeV1Subname } from '../fixtures/makeV1Subname.js'
-import { setV1RecordsOn } from '../fixtures/v1-records.js'
+import {
+  CHILD_FUSES,
+  makeV1Subname,
+  wrapV1SubnameOfUnwrapped,
+} from '../fixtures/makeV1Subname.js'
+import { setV1RecordsOn, type V1Records } from '../fixtures/v1-records.js'
 import {
   splitController,
   splitRegistrant,
@@ -30,7 +34,7 @@ import { testClient } from '../helpers/anvil-client.js'
 import { readChainTruth } from './chain.js'
 import { recordsFor, recordWriterFor } from './records.js'
 
-type Accounts = {
+export type SeedAccounts = {
   getAddress: (user: Actor) => Address
   getPrivateKey: (user: Actor) => `0x${string}`
 }
@@ -119,12 +123,13 @@ const ensurePlainEoas = async (
 /** What the per-level and per-tail steps need that the shape does not carry. */
 type SeedContext = {
   readonly shape: Shape
-  readonly accounts: Accounts
+  readonly accounts: SeedAccounts
   readonly signer: (actor?: Actor) => ReturnType<typeof privateKeyToAccount>
   /** The `.eth` 2LD, once registered. Every tail addresses it. */
   readonly rootName: string
   /** Whoever registered the 2LD, which is not always its declared holder. */
   readonly rootActor: Actor
+  readonly expiries?: readonly (bigint | undefined)[]
 }
 
 /** One level below the 2LD. Returns the full name it created. */
@@ -142,12 +147,31 @@ const seedChild = async (
   const ownerAddress = ctx.accounts.getAddress(node.holder ?? 'user')
 
   if (node.wrap !== 'unwrapped') {
+    const temporarilyWrappedRoot =
+      index === 0 && ctx.shape.tails?.includes('unwrap-parent-2ld')
+    if (parentNode.wrap === 'unwrapped' && !temporarilyWrappedRoot) {
+      if (
+        node.wrap !== 'wrapped' ||
+        node.extraFuses ||
+        ctx.expiries?.[index + 1] !== undefined
+      )
+        throw new Error(
+          'Wrapping below a registry parent creates an unlocked child with zero expiry',
+        )
+      return wrapV1SubnameOfUnwrapped({
+        parentLabel: parentName.replace(/\.eth$/, ''),
+        childLabel,
+        parentOwnerAccount: ctx.signer(parentActor),
+        ownerAccount: ctx.signer(node.holder ?? 'user'),
+      })
+    }
     return makeV1Subname({
       parentName,
       childLabel,
       ownerAddress,
       parentOwnerAccount: ctx.signer(parentActor),
-      fuses: childFusesFor(node.wrap),
+      fuses: childFusesFor(node.wrap) | (node.extraFuses ?? 0),
+      expiry: ctx.expiries?.[index + 1],
     })
   }
 
@@ -225,9 +249,17 @@ const applyTail = async (ctx: SeedContext, tail: SeedTail): Promise<void> => {
   }
 }
 
+export type SeedOptions = {
+  readonly duration?: number
+  readonly expiries?: readonly (bigint | undefined)[]
+  /** Undefined retains the matrix records; null leaves records unset. */
+  readonly records?: V1Records | null
+}
+
 export const seedShape = async (
   shape: Shape,
-  accounts: Accounts,
+  accounts: SeedAccounts,
+  options: SeedOptions = {},
 ): Promise<SeededShape> => {
   const signer = (actor: Actor = 'user') =>
     privateKeyToAccount(accounts.getPrivateKey(actor))
@@ -262,11 +294,20 @@ export const seedShape = async (
   const rootName = await makeV1Name({
     label: `v1m-${shape.n}`,
     type: rootTypeFor(seedRootWrap),
-    duration: shape.registration === 'active' ? TWO_YEARS : MIN_REGISTRATION,
+    duration:
+      options.duration ??
+      (shape.registration === 'active' ? TWO_YEARS : MIN_REGISTRATION),
     ...(root.extraFuses ? { fuses: root.extraFuses } : {}),
   })
 
-  const ctx: SeedContext = { shape, accounts, signer, rootName, rootActor }
+  const ctx: SeedContext = {
+    shape,
+    accounts,
+    signer,
+    rootName,
+    rootActor,
+    expiries: options.expiries,
+  }
 
   const levels: string[] = [rootName]
   for (const [index, node] of shape.path.slice(1).entries()) {
@@ -288,7 +329,10 @@ export const seedShape = async (
   // Records go on last, and only once the tree and its tails are final: the
   // wallet permitted to write them is decided by the *finished* shape, and a
   // split tail moves exactly that permission.
-  const records = recordsFor(shape, accounts.getAddress('user3'))
+  const records =
+    options.records === undefined
+      ? recordsFor(shape, accounts.getAddress('user3'))
+      : options.records
   if (records) {
     const truth = await readChainTruth(leaf)
     await setV1RecordsOn(

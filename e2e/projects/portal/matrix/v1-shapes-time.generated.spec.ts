@@ -160,6 +160,12 @@ test.describe('V1 shape · 4ld-wrapped+wrapped-3ld+emancipated-2ld:grace:owner',
     expect(seeded.name, 'seeding produced no name').toBeTruthy()
   })
 
+  test('overview · names the on-chain holder at depth four', {
+    tag: ['@scenario:VV44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'overview', time)
+  })
+
   test('ownership · still names the holder three levels under a lapsing 2LD', {
     tag: ['@scenario:VO44', '@v1matrix'],
   }, async ({ portalPage: page, wallet, time }) => {
@@ -170,5 +176,53 @@ test.describe('V1 shape · 4ld-wrapped+wrapped-3ld+emancipated-2ld:grace:owner',
     tag: ['@scenario:VT44', '@v1matrix'],
   }, async ({ portalPage: page, wallet, time }) => {
     await runCell(page, wallet, seeded, 'transfer', time)
+  })
+
+  test('fuses · shows a wrapped subname with no fuses burnt', {
+    tag: ['@scenario:VF44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'fuses', time)
+  })
+
+  test('resolver · offers the live wrapped holder a resolver when none is set', {
+    tag: ['@scenario:VE44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'resolver', time)
+  })
+
+  test('records · renders the records tab under an ancestor in grace', {
+    tag: ['@scenario:VD44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'records', time)
+  })
+
+  test('subnames · renders the subnames tab for a V1 subname', {
+    tag: ['@scenario:VS44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'subnames', time)
+  })
+
+  test('registry · renders the registry tab for a V1 subname', {
+    tag: ['@scenario:VR44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'registry', time)
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'token', time)
+  })
+
+  test('history · renders the history tab for a V1 subname', {
+    tag: ['@scenario:VH44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'history', time)
+  })
+
+  test('address · renders address resolution under an ancestor in grace', {
+    tag: ['@scenario:VA44', '@v1matrix'],
+  }, async ({ portalPage: page, wallet, time }) => {
+    await runCell(page, wallet, seeded, 'address', time)
   })
 })
