@@ -48,6 +48,7 @@ import {
 import {
   connectWithHeadlessWallet,
   expect,
+  portalBignameMock,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import {
@@ -2353,6 +2354,8 @@ async function extendFromNamesList(
   await serveV1Names(
     page,
     names.v1.map((name) => ({ name, ownerAddress: owner, type: 'unwrapped' })),
+    // The names list sends no authority filter, so the shared mock lists them.
+    { indexer: portalBignameMock },
   )
   await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
   await content(page).getByPlaceholder('Search names...').fill(search)
@@ -3331,6 +3334,7 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
           ownerAddress: owner,
           type: 'unwrapped' as const,
         })),
+      { indexer: portalBignameMock },
     )
     await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
     await content(page).getByPlaceholder('Search names...').fill(run)

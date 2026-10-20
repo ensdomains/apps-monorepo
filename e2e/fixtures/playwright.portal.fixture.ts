@@ -85,6 +85,11 @@ const ERC20_ABI = parseAbi([
 // `mockBignameEnabled` (see the `page` fixture override below).
 const bignameMock = createBignameMock()
 
+/** The shared mock, for helpers that register names outside a fixture. */
+export const portalBignameMock: {
+  readonly addName: typeof bignameMock.addName
+} = bignameMock
+
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
 
