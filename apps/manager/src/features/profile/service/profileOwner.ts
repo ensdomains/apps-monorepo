@@ -100,10 +100,11 @@ const getV1ProfileOwner = ResultFn(async function* (
     (e) => new GetOwnerError({ cause: e }),
   )
 
+  // ENSjs reports a 2LD whose registrar ownerOf reverted as registrar-level with no registrant.
   if (
     isEth2Ld &&
-    v1Owner?.ownershipLevel !== 'nameWrapper' &&
-    !v1Owner?.registrant
+    v1Owner?.ownershipLevel === 'registrar' &&
+    !v1Owner.registrant
   ) {
     const expiry = yield* fromPromise(
       ensjsv1_getExpiry(client, { name, contract: 'registrar' }),
