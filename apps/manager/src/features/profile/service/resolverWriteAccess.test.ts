@@ -92,29 +92,29 @@ describe('getResolverWriteState', () => {
 
     expect(result.isErr()).toBe(true)
   })
-})
-it('reports no resolver as not writable with no address', async () => {
-  vi.mocked(getProfileEthAddressSnapshot).mockReturnValueOnce(
-    okAsync({ resolverAddress: undefined, ethAddress: undefined }),
-  )
+  it('reports no resolver as not writable with no address', async () => {
+    vi.mocked(getProfileEthAddressSnapshot).mockReturnValueOnce(
+      okAsync({ resolverAddress: undefined, ethAddress: undefined }),
+    )
 
-  const result = await getResolverWriteState('pookie.eth', OWNER)
+    const result = await getResolverWriteState('pookie.eth', OWNER)
 
-  expect(result._unsafeUnwrap()).toEqual({
-    resolverAddress: undefined,
-    canWrite: false,
+    expect(result._unsafeUnwrap()).toEqual({
+      resolverAddress: undefined,
+      canWrite: false,
+    })
+    expect(client.call).not.toHaveBeenCalled()
   })
-  expect(client.call).not.toHaveBeenCalled()
-})
 
-it('reports the resolver address alongside a successful probe', async () => {
-  client.multicall.mockResolvedValue([{ status: 'success', result: false }])
-  client.call.mockResolvedValue({ data: '0x' })
+  it('reports the resolver address alongside a successful probe', async () => {
+    client.multicall.mockResolvedValue([{ status: 'success', result: false }])
+    client.call.mockResolvedValue({ data: '0x' })
 
-  const result = await getResolverWriteState('pookie.eth', OWNER)
+    const result = await getResolverWriteState('pookie.eth', OWNER)
 
-  expect(result._unsafeUnwrap()).toEqual({
-    resolverAddress: RESOLVER,
-    canWrite: true,
+    expect(result._unsafeUnwrap()).toEqual({
+      resolverAddress: RESOLVER,
+      canWrite: true,
+    })
   })
 })
