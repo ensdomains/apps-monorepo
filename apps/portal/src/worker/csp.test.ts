@@ -215,8 +215,8 @@ describe('csp', () => {
     })
 
     it('keeps a non-default port in the origin', () => {
-      expect(originFromEnvUrl('http://127.0.0.1:5655/graphql')).toBe(
-        'http://127.0.0.1:5655',
+      expect(originFromEnvUrl('http://127.0.0.1:4010/v1/status')).toBe(
+        'http://127.0.0.1:4010',
       )
     })
 
@@ -266,10 +266,9 @@ describe('indexers', () => {
     expect(header['connect-src']).toContain(origin)
   })
 
-  it('no longer allows the ENSv1 subgraph or a Panoptes origin', () => {
+  it('no longer allows the ENSv1 subgraph origin', () => {
     expect(header['connect-src']).not.toContain(
       new URL(envConfig.chain.subgraphs.ens.url).origin,
     )
-    expect(header['connect-src']).not.toContain('127.0.0.1:5655')
   })
 })

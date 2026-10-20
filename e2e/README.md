@@ -24,7 +24,7 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 
 `anvil` and `mockestrator` are pinned **by digest** in `e2e/infra/docker-compose.yml`. CI runs on throwaway runners and pulls fresh every job, so a service left on a moving tag ships a different build on every run and an upstream push can turn CI red with no change in this repo — an anvil nightly that silently dropped some of the mockestrator's impersonated transactions is what made the manager registration test flaky through August 2026.
 
-The header comment in `docker-compose.yml` records the resolved versions, the evidence, and the procedure for bumping a pin. Alto, the paymaster and Panoptes are intentionally still on moving tags.
+The header comment in `docker-compose.yml` records the resolved versions, the evidence, and the procedure for bumping a pin. Alto and the paymaster are intentionally still on moving tags.
 
 ---
 

@@ -1,6 +1,4 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { zeroAddress } from 'viem'
-import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   assertEnsV2Deployed,
@@ -90,23 +88,6 @@ describe('buildConfig', () => {
     })
   })
 
-  describe('v1 subgraph', () => {
-    it("keeps ensjs's subgraph when the profile has no override", () => {
-      expect(buildSepolia().chain.subgraphs.ens.url).toBe(
-        extendChainWithEns(sepolia).subgraphs.ens.url,
-      )
-    })
-
-    it('uses the profile override on mainnet', () => {
-      const { chain } = buildConfig({
-        network: 'mainnet',
-        allowMissingEndpoints: true,
-      })
-
-      expect(chain.subgraphs.ens.url).toBe(NETWORKS.mainnet.v1SubgraphUrl)
-    })
-  })
-
   describe('rpc urls', () => {
     it('keeps the app primary first and appends the shared fallbacks', () => {
       const { rpcUrls } = buildSepolia()
@@ -181,33 +162,15 @@ describe('buildConfig', () => {
       ).toThrow(/no endpoint configured for: bignameApi\./)
     })
 
-    it('falls back to the network profile when no override is given', () => {
-      expect(buildSepolia().endpoints.indexerGraphql).toBe(
-        NETWORKS.sepolia.endpoints.indexerGraphql,
-      )
-    })
-
-    it('prefers an override over the profile value', () => {
-      const config = buildSepolia({
-        network: 'sepolia',
-        rpcUrl: SEPOLIA_RPC,
-        overrides: { indexerGraphql: 'http://127.0.0.1:5655/graphql' },
-      })
-
-      expect(config.endpoints.indexerGraphql).toBe(
-        'http://127.0.0.1:5655/graphql',
-      )
-    })
-
     it('ignores an undefined override, which is how unset env vars arrive', () => {
       const config = buildSepolia({
         network: 'sepolia',
         rpcUrl: SEPOLIA_RPC,
-        overrides: { indexerGraphql: undefined },
+        overrides: { bignameApi: undefined },
       })
 
-      expect(config.endpoints.indexerGraphql).toBe(
-        NETWORKS.sepolia.endpoints.indexerGraphql,
+      expect(config.endpoints.bignameApi).toBe(
+        NETWORKS.sepolia.endpoints.bignameApi,
       )
     })
 
@@ -232,9 +195,9 @@ describe('buildConfig', () => {
         buildConfig({
           network: 'mainnet',
           allowMissingEndpoints: true,
-          overrides: { indexerGraphql: 'not-a-url' },
+          overrides: { bignameApi: 'not-a-url' },
         }),
-      ).toThrow(/Invalid endpoint indexerGraphql/)
+      ).toThrow(/Invalid endpoint bignameApi/)
     })
 
     it('resolves the bigname endpoint from the profile and from an override', () => {
@@ -249,22 +212,13 @@ describe('buildConfig', () => {
       ).toBe('http://127.0.0.1:4010')
     })
 
-    it('reports a malformed override even when another endpoint is missing', () => {
+    it('reports a malformed override on a network with no deployment', () => {
       expect(() =>
         buildConfig({
           network: 'mainnet',
-          overrides: { indexerGraphql: 'not-a-url' },
+          overrides: { bignameApi: 'not-a-url' },
         }),
-      ).toThrow(/Invalid endpoint indexerGraphql/)
-    })
-
-    it('names bigname when only the indexer is overridden on mainnet', () => {
-      expect(() =>
-        buildConfig({
-          network: 'mainnet',
-          overrides: { indexerGraphql: 'https://indexer.example/' },
-        }),
-      ).toThrow(/no endpoint configured for: bignameApi/)
+      ).toThrow(/Invalid endpoint bignameApi/)
     })
 
     it('rejects a malformed override instead of passing it to fetch', () => {
@@ -272,9 +226,9 @@ describe('buildConfig', () => {
         buildSepolia({
           network: 'sepolia',
           rpcUrl: SEPOLIA_RPC,
-          overrides: { indexerGraphql: 'javascript:alert(1)' },
+          overrides: { bignameApi: 'javascript:alert(1)' },
         }),
-      ).toThrow(/endpoint indexerGraphql/)
+      ).toThrow(/endpoint bignameApi/)
     })
   })
 
@@ -339,11 +293,11 @@ describe('empty-string environment values', () => {
   it('falls back to the profile endpoint on an empty override', () => {
     const config = buildConfig({
       network: 'sepolia',
-      overrides: { indexerGraphql: '' },
+      overrides: { bignameApi: '' },
     })
 
-    expect(config.endpoints.indexerGraphql).toBe(
-      NETWORKS.sepolia.endpoints.indexerGraphql,
+    expect(config.endpoints.bignameApi).toBe(
+      NETWORKS.sepolia.endpoints.bignameApi,
     )
   })
 

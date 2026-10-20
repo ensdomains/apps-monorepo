@@ -27,7 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
-import { createIndexerMock } from '../helpers/mock-indexer.js'
+import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
@@ -197,12 +197,12 @@ type PortalFixtures = {
   makeName: ReturnType<typeof createMakeName>
 }
 
-// Shared indexer mock, active only when E2E_MOCK_INDEXER=true.
-const indexerMock = createIndexerMock()
+// Shared bigname mock, active only when E2E_MOCK_BIGNAME=true.
+const bignameMock = createBignameMock()
 
 export const test = base.extend<PortalFixtures>({
   page: async ({ page }, use) => {
-    await indexerMock.installIfEnabled(page)
+    await bignameMock.installIfEnabled(page)
     await use(page)
   },
 
@@ -244,8 +244,8 @@ export const test = base.extend<PortalFixtures>({
     await use(async (config, options) => {
       const name = await inner(config, options)
       // Registered on the fork only, so the bigname mock has to be told.
-      if (indexerMock.enabled)
-        indexerMock.addName({
+      if (bignameMock.enabled)
+        bignameMock.addName({
           name,
           owner: accounts.getAddress(
             config.owner && isUser(config.owner) ? config.owner : 'user2',

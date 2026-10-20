@@ -166,7 +166,7 @@ test.describe('ENS profile', () => {
     makeV2Name,
   }) => {
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
+      process.env.E2E_MOCK_BIGNAME === 'true',
       'Requires real indexer (SSR bypasses Playwright mock)',
     )
     // Register with a record so the profile view page renders
@@ -265,7 +265,7 @@ test.describe('ENS profile', () => {
     // bypasses Playwright's route interceptor, causing the server to redirect to /.
     // The owned-name favourite test already covers the full favourite flow.
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
+      process.env.E2E_MOCK_BIGNAME === 'true',
       'Requires real indexer (SSR bypasses Playwright mock)',
     )
 

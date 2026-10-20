@@ -15,6 +15,6 @@ describe('getConfig network isolation', () => {
     ) as unknown as CloudflareBindings
 
     expect(() => getConfig(env)).toThrow(NetworkConfigError)
-    expect(() => getConfig(env)).toThrow(/indexerGraphql/)
+    expect(() => getConfig(env)).toThrow(/bignameApi/)
   })
 })

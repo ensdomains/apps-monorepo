@@ -8,7 +8,6 @@ import {
   isEnsNetwork,
   NETWORKS,
   type NetworkEndpoints,
-  type NetworkProfile,
 } from './networks'
 
 export { NetworkConfigError }
@@ -31,16 +30,12 @@ const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => {
     network === 'mainnet'
       ? extendChainWithEns(mainnet)
       : extendChainWithEns(sepolia)
-  const { v1SubgraphUrl }: NetworkProfile = NETWORKS[network]
   return {
     ...chain,
     rpcUrls: {
       default: { http: rpcUrls },
       public: { http: rpcUrls },
     },
-    subgraphs: v1SubgraphUrl
-      ? { ...chain.subgraphs, ens: { url: v1SubgraphUrl } }
-      : chain.subgraphs,
   }
 }
 
