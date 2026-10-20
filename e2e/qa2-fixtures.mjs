@@ -109,16 +109,11 @@ try {
       console.log(
         `     eth addr replayed   : ${t.includes('0x7099') || t.includes(RECORD_ADDR)}`,
       )
-      const q = await fetch('http://127.0.0.1:5655/graphql', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          query: `{ domains(where: {name: "${n}"}) { name owner { id } } }`,
-        }),
-      })
+      const q = await fetch(`http://127.0.0.1:5660/v1/names/${n}?namespace=ens`)
+      const indexed = q.ok ? (await q.json()).data : null
       console.log(
         '     indexer            :',
-        JSON.stringify((await q.json()).data?.domains),
+        JSON.stringify(indexed && { name: indexed.name, owner: indexed.owner }),
       )
     }
   }

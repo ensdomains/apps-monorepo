@@ -1,38 +1,26 @@
 /**
  * V1 name history — only the name's assigned resolver (WEB-1445, #1210)
  *
- * Bug: the Explorer read a name's V1 resolver events from
- * `resolvers(where: { domain })`. The V1 subgraph creates a `Resolver` row for
- * *any* contract that emits a resolver-shaped event carrying the node, without
- * asking the registry. So anyone could deploy a contract, emit
- * `AddrChanged(node, theirAddress)` or `TextChanged(node, "url", …)`, and have
- * it render as "set address to …" in the name's own history.
+ * Bug: the indexer attributes a record event to a name by node, whatever
+ * contract emitted it, without asking the registry. So anyone could deploy a
+ * contract, emit `AddrChanged(node, theirAddress)` or `TextChanged(node, "url",
+ * …)`, and have it render as "set address to …" in the name's own history.
  *
- * Fix: read the registry's `NewResolver` events first, fetch resolver rows only
- * for those ids, and keep a resolver event only if its resolver held the name
- * at the event's (block, logIndex).
+ * Fix: read the name's resolver assignments, and keep a record event only if
+ * its resolver held the name at the event's (block, logIndex).
  *
  * What these reach that the unit tests don't: real logs on the fork, indexed by
- * `packages/v1-subgraph-shim` — which, like the real subgraph, indexes every
- * contract — both GraphQL reads end to end, and what the History page and the
- * Resolver page's scoped history actually render. The interval test uses only
+ * bigname — which, like the subgraph before it, indexes every contract — and
+ * what the History page and the Resolver page's scoped history actually
+ * render. The interval test uses only
  * honest, owner-authorised PublicResolvers: the filter matters even with no
  * attacker in the picture.
  *
- * Every legitimate record here is written through `OTHER_PUBLIC_RESOLVER`,
- * which local Panoptes does not index. The timeline drops a v1 event whose
- * transaction the v2 feed already carries, so a record written through a
- * Panoptes-indexed resolver would render from Panoptes once it caught up, and
- * stop proving anything about the v1 read.
+ * Both pages read one stream, bigname's `/v1/names/{name}/history`. The
+ * oracle: a contract nobody assigned must not write the name's history.
  *
- * Needs the `v1-subgraph` service. The PR CI service set does not start it, so
- * the suite skips with a reason when the shim is absent or too old to serve the
- * upstream `newResolvers` / `resolverId` fields.
- *
- * With #1354 (`E2E_EXPLORER_INDEXER=bigname`) both pages read one stream,
- * bigname's `/v1/names/{name}/history`, and the shim is not involved. The
- * oracle is unchanged — a contract nobody assigned must not write the name's
- * history — but the waits and the non-vacuity guard follow bigname instead.
+ * Needs a real bigname following the fork (`e2e/infra/bigname`). The route
+ * mock (`E2E_MOCK_BIGNAME=true`, as in CI) serves no events, so the suite skips.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import type { Locator, Page } from '@playwright/test'
@@ -61,21 +49,18 @@ import {
 } from '../../../helpers/anvil-client.js'
 import {
   bignameNameHistory,
+  isRealBigname,
   waitForBignameBlock,
 } from '../../../helpers/bigname-sync.js'
-import { explorerReadsBigname } from '../../../helpers/indexer-sync.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
-const V1_SUBGRAPH_URL =
-  process.env.V1_SUBGRAPH_URL ?? 'http://127.0.0.1:5656/subgraph'
 
 const V1_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensLegacyRegistry
   .address as Address
 /**
  * A second PublicResolver bound to the canonical registry, so the name's owner
  * is authorised on it (see the resolver notes in `makeV1Name.ts`). It emits the
- * value-bearing `TextChanged(bytes32,string,string,string)`, and local Panoptes
- * does not index it — see the header.
+ * value-bearing `TextChanged(bytes32,string,string,string)`.
  */
 const OTHER_PUBLIC_RESOLVER =
   '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address
@@ -158,49 +143,6 @@ const ownerWrites = (owner: PrivateKeyAccount, node: Hex) => ({
     ),
 })
 
-const shim = async <T>(
-  query: string,
-  variables: Record<string, unknown> = {},
-): Promise<{ data?: T; errors?: { message: string }[] }> => {
-  const res = await fetch(V1_SUBGRAPH_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  })
-  return res.json()
-}
-
-/** `null` when the shim can serve the fixed read, else why not. */
-let shimUnavailable: string | null | undefined
-const checkShim = async (): Promise<string | null> => {
-  try {
-    const { errors } = await shim(
-      `query($id: String!) { newResolvers(where: { domain: $id }, first: 1) { id resolverId } }`,
-      { id: namehash('eth') },
-    )
-    return errors
-      ? `v1-subgraph shim at ${V1_SUBGRAPH_URL} predates newResolvers/resolverId: ${errors[0]?.message}`
-      : null
-  } catch (e) {
-    return `v1-subgraph shim not reachable at ${V1_SUBGRAPH_URL} (${(e as Error).message})`
-  }
-}
-
-/** Wait until the shim has indexed `block`, so the page reads what we wrote. */
-const waitForShim = async (block: bigint) => {
-  await expect
-    .poll(
-      async () =>
-        (
-          await shim<{ _meta: { block: { number: number } } }>(
-            '{ _meta { block { number } } }',
-          )
-        ).data?._meta.block.number ?? 0,
-      { timeout: 60_000, message: `v1-subgraph shim indexes block ${block}` },
-    )
-    .toBeGreaterThanOrEqual(Number(block))
-}
-
 /** Plant the emitters and forge `AddrChanged` + `TextChanged("url")` for `node`. */
 const forgeResolverEvents = async (
   attacker: PrivateKeyAccount,
@@ -233,56 +175,28 @@ const forgeResolverEvents = async (
   )
 }
 
-/** Wait until whatever the explorer reads has indexed `block`. */
-const waitForReader = (block: bigint) =>
-  explorerReadsBigname ? waitForBignameBlock(block) : waitForShim(block)
+/** Wait until bigname, which the explorer reads, has indexed `block`. */
+const waitForReader = (block: bigint) => waitForBignameBlock(block)
 
 /**
- * Non-vacuity guard: the forged rows really are in the subgraph under this
- * name, so any domain-keyed resolver read would return them. Without this, the
+ * Non-vacuity guard: the forged rows really are in bigname under this name,
+ * so any node-keyed read would return them. Without this, the
  * page's "not shown" assertions could pass because the forgery never landed.
  */
-const expectForgeryIndexed = async (node: Hex, name: string) => {
-  if (explorerReadsBigname) {
-    const rows = await bignameNameHistory(name)
-    const fromForger = (address: Address) =>
-      rows
-        .filter((r) => r.contract_address.toLowerCase() === address)
-        .map((r) => r.data?.key)
-    expect(
-      fromForger(FORGE_ADDR),
-      'precondition: bigname lists the forged AddrChanged under the name',
-    ).toEqual(['addr:60'])
-    expect(
-      fromForger(FORGE_TEXT),
-      'precondition: and the forged TextChanged',
-    ).toEqual(['text:url'])
-    return
-  }
-  const { data } = await shim<{
-    resolvers: { id: string; events: { __typename: string }[] }[]
-    newResolvers: { resolverId: string }[]
-  }>(
-    `query($id: String!) {
-      resolvers(where: { domain: $id }) { id events { __typename } }
-      newResolvers(where: { domain: $id }) { resolverId }
-    }`,
-    { id: node },
-  )
-  const byAddress = (address: Address) =>
-    data?.resolvers.find((r) => r.id.startsWith(address.toLowerCase()))
+const expectForgeryIndexed = async (name: string) => {
+  const rows = await bignameNameHistory(name)
+  const fromForger = (address: Address) =>
+    rows
+      .filter((r) => r.contract_address.toLowerCase() === address)
+      .map((r) => r.data?.key)
   expect(
-    byAddress(FORGE_ADDR)?.events.map((e) => e.__typename),
-    'precondition: the subgraph lists the forged AddrChanged under the name',
-  ).toEqual(['AddrChanged'])
+    fromForger(FORGE_ADDR),
+    'precondition: bigname lists the forged AddrChanged under the name',
+  ).toEqual(['addr:60'])
   expect(
-    byAddress(FORGE_TEXT)?.events.map((e) => e.__typename),
+    fromForger(FORGE_TEXT),
     'precondition: and the forged TextChanged',
-  ).toEqual(['TextChanged'])
-  expect(
-    data?.newResolvers.map((n) => n.resolverId.split('-')[0]),
-    'precondition: the registry only ever assigned OTHER_PUBLIC_RESOLVER',
-  ).toEqual([OTHER_PUBLIC_RESOLVER.toLowerCase()])
+  ).toEqual(['text:url'])
 }
 
 /**
@@ -324,10 +238,8 @@ const nameWithRecords = async (
 }
 
 test.describe('V1 name history shows only the assigned resolver (WEB-1445)', () => {
-  test.beforeEach(async () => {
-    if (explorerReadsBigname) return
-    shimUnavailable ??= await checkShim()
-    test.skip(!!shimUnavailable, shimUnavailable ?? '')
+  test.beforeEach(() => {
+    test.skip(!isRealBigname, 'the bigname route mock serves no history')
   })
 
   test("History: a contract nobody assigned can't write the name's history", async ({
@@ -348,7 +260,7 @@ test.describe('V1 name history shows only the assigned resolver (WEB-1445)', () 
     )
     await writes.setAddr(OTHER_PUBLIC_RESOLVER, owner.address)
     await waitForReader(await forgeResolverEvents(attacker, node, forgedUrl))
-    await expectForgeryIndexed(node, name)
+    await expectForgeryIndexed(name)
 
     await page.goto(`${PORTAL_APP_URL}/${name}/history`)
     const main = await expectTimelineLoaded(page, legitUrl)
@@ -388,7 +300,7 @@ test.describe('V1 name history shows only the assigned resolver (WEB-1445)', () 
       legitUrl,
     )
     await waitForReader(await forgeResolverEvents(attacker, node, forgedUrl))
-    await expectForgeryIndexed(node, name)
+    await expectForgeryIndexed(name)
 
     await page.goto(`${PORTAL_APP_URL}/${name}/resolver`)
     const main = await expectTimelineLoaded(page, legitUrl)

@@ -6,7 +6,7 @@
 The manager reads every name from [bigname](https://github.com/ensdomains/bigname)
 (#1324). bigname is hosted only, and the hosted Sepolia API cannot see anything
 the suite creates on the Anvil fork, so the stack runs its own bigname against
-the fork. The portal still reads Panoptes; both run side by side.
+the fork. Both apps read it.
 
 | Service            | What it does                                                      |
 | ------------------ | ----------------------------------------------------------------- |

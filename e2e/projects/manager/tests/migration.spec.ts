@@ -48,13 +48,13 @@ import {
   selectOnlyRoots,
   upgradeCountingPrompts,
 } from '../../../helpers/migration-flow.js'
-import type { MockV1Records } from '../../../helpers/mock-v1-subgraph.js'
 import {
   goToEditProfile,
   saveProfileChanges,
   waitForProfileUpdated,
 } from '../../../helpers/profile-helpers.js'
 import { expectRecordsResolve } from '../../../helpers/resolve-records.js'
+import type { MockV1Records } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'

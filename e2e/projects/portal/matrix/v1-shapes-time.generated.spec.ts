@@ -13,7 +13,7 @@
  *
  * This file moves the fork clock forward and can never be undone, so it runs
  * in its own project and sorts last. Nothing here may use `withChainSnapshot`:
- * an `evm_revert` rewinds the chain but not Panoptes, which then halts
+ * an `evm_revert` rewinds the chain but not the indexer, which then halts
  * permanently.
  */
 

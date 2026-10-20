@@ -215,11 +215,10 @@ export type PortalFixtures = {
   /**
    * Per-test/per-file opt-in for the mock indexer (an "option" fixture — set
    * with `test.use({ mockBignameEnabled: true })`, not overridden directly).
-   * Off by default: the portal suite exercises the real local Panoptes
-   * indexer end to end. A test opts in when it needs deterministic control
-   * over an indexer-backed count instead of waiting on real discovery/backfill
-   * — see transfer.spec.ts's registry-detach tests, blocked on a currently
-   * flaky Panoptes CREATE2-discovery path for freshly deployed subregistries.
+   * Off by default: the portal suite exercises the real local bigname end to
+   * end. A test opts in when it needs deterministic control over an
+   * indexer-backed count instead of waiting on real indexing — see
+   * transfer.spec.ts's registry-detach tests.
    */
   mockBignameEnabled: boolean
   /**

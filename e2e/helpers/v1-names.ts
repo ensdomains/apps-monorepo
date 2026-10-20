@@ -12,7 +12,7 @@
  *   served by `mockV1Names`. A subname tree cannot be expressed there, and the
  *   test is skipped with that reason.
  *
- * Takes the same input as the portal's `mockV1Subgraph`, so the migration
+ * Takes a flat list or a tree (`v1-name-tree.ts`), so the migration
  * specs keep their fixtures.
  */
 import { type Page, test } from '@playwright/test'
@@ -29,7 +29,7 @@ import type {
   MockV1Records,
   MockV1Name as MockV1SubgraphName,
   MockV1Tree,
-} from './mock-v1-subgraph.js'
+} from './v1-name-tree.js'
 
 type V1NamesInput = readonly MockV1SubgraphName[] | MockV1Tree
 

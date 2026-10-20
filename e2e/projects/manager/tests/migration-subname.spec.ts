@@ -87,12 +87,12 @@ import {
   runMigrationFlow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import type { MockV1Tree } from '../../../helpers/mock-v1-subgraph.js'
 import type { PortalAccounts } from '../../../helpers/portal-auth.js'
 import {
   expectRecordsResolve,
   resolverFor,
 } from '../../../helpers/resolve-records.js'
+import type { MockV1Tree } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 // Headless wallet user = Anvil account 0 (same private key as ANVIL_FUNDER)

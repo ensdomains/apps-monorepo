@@ -195,7 +195,7 @@ const applyTail = async (ctx: SeedContext, tail: SeedTail): Promise<void> => {
       )
       return
     // Forward only, and never inside a chain snapshot: `evm_revert` rewinds the
-    // chain but not Panoptes, which then halts permanently on a history that no
+    // chain but not the indexer, which then halts permanently on a history that no
     // longer exists. These shapes live in their own project and sort last
     // precisely so nothing downstream depends on the clock they move.
     case 'to-grace':

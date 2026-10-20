@@ -126,9 +126,8 @@ export const test = base.extend<CrossAppFixtures>({
     await use(async (config) => {
       const name = await make(config)
       await time.resume()
-      // Both indexes: the manager reads bigname; the explorer reads its role
-      // holders from Panoptes and refuses to transfer until they match the
-      // registry, so a name it has not indexed yet blocks the transfer page.
+      // Both apps read bigname; the explorer also refuses to transfer until its
+      // role holders match the registry, so an unindexed name blocks the page.
       await waitForBignameName(name)
       const owner = accounts.getAddress(
         config.owner === 'other' ? 'user2' : 'user',

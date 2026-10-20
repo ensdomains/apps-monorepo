@@ -791,11 +791,9 @@ test.describe('Portal name transfer', () => {
    */
   /**
    * These two rows attach an empty subregistry purely to exercise the detach
-   * toggle — they don't care about real subname counts. Mock
-   * `getRegistryOccupants` instead of waiting on Panoptes to discover the
-   * freshly-deployed subregistry (see the `mockBigname` fixture and
-   * `mock-bigname.ts` — Panoptes' CREATE2-discovery for new subregistries is
-   * currently stuck, so the real query hangs indefinitely on a fresh one).
+   * toggle — they don't care about real subname counts. Mock the occupant
+   * count instead of waiting for bigname to index the freshly deployed
+   * subregistry (see the `mockBigname` fixture and `mock-bigname.ts`).
    */
   test.describe('registry-detach toggle rows (mocked occupant count)', () => {
     test.use({ mockBignameEnabled: true })
@@ -983,7 +981,7 @@ test.describe('Portal name transfer', () => {
       privateKeyToAccount(accounts.getPrivateKey('user')),
     )
     // See waitForIndexedRegistry's header comment: a freshly attached
-    // subregistry answers null (fail closed) until Panoptes discovers it.
+    // subregistry answers null (fail closed) until bigname indexes it.
     await waitForIndexedRegistry(subregistryAddress)
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
@@ -1168,7 +1166,7 @@ test.describe('Portal name transfer', () => {
      * `useSubregistrySlot` in isolation; this proves the real thing end to
      * end — a real detach transfer (the actual `setSubregistry(0)` write),
      * then a real page load whose `getSubregistryUpdateCount` response is
-     * mocked instead of waiting for Panoptes to index the detach block.
+     * mocked instead of waiting for bigname to index the detach block.
      */
     test('shows "Registry detached" instead of "Configure registry" after a detach transfer', {
       tag: ['@scenario:F42', '@smoke'],
@@ -1230,7 +1228,7 @@ test.describe('Portal name transfer', () => {
       expect(subregistryAfter).toBe(zeroAddress)
 
       // The detach transaction landed for real above; rather than waiting for
-      // Panoptes to index the `SubregistryUpdated` event it emitted, mock
+      // bigname to index the `SubregistryUpdated` event it emitted, mock
       // `getSubregistryUpdateCount`'s response directly so the next page load
       // reads "detached" deterministically.
       mockBigname.setSubregistryHistory(namehash(name), 1)
@@ -4135,7 +4133,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   })
 
   // Last in the file on purpose: the time travel is contained by a chain
-  // snapshot, and reverting one leaves Panoptes unable to recover (see
+  // snapshot, and reverting one leaves the indexer unable to recover (see
   // fixtures/chain-snapshot.ts). Nothing after it may need the indexer.
 
   /**

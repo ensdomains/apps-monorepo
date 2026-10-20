@@ -12,8 +12,7 @@
  *    on the parent name's roles — see `routes/$name/subnames.tsx`. A name's
  *    owner is not automatically able to manage names inside its subregistry;
  *    they can because `makeSubname` deploys that registry with them as admin.
- * 2. The subnames list is indexer-backed (`useSubnames` queries Panoptes and
- *    only falls back to chain on error), so every assertion here waits for the
+ * 2. The subnames list is indexer-backed (`useSubnames` reads bigname), so every assertion here waits for the
  *    indexer first. See `helpers/indexer-sync.ts` for why that race is silent.
  */
 
