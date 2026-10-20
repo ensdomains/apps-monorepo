@@ -10,12 +10,21 @@ import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
  * `@/config`; this module only turns them into clients.
  */
 
+const readBatch = {
+  multicall: { batchSize: 8192, wait: 16 },
+} as const
+
 // Failover across the app's attributed primary and the network's shared
 // public endpoints. `rank: false` keeps the declared order (primary first)
 // instead of latency ranking, which would let a fast public node steal
 // traffic from our key.
 export const sepoliaFallbackTransport = fallback(
-  envConfig.rpcUrls.map((url) => http(url, { retryCount: 2 })),
+  envConfig.rpcUrls.map((url) =>
+    http(url, {
+      retryCount: 2,
+      batch: { batchSize: 20, wait: 16 },
+    }),
+  ),
   { rank: false, retryCount: 2 },
 )
 
@@ -24,12 +33,11 @@ export const sepoliaWithEns = envConfig.chain
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: sepoliaFallbackTransport,
-  batch: {
-    multicall: true,
-  },
+  batch: readBatch,
 })
 
 export const wagmiConfig = createConfig({
+  batch: readBatch,
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,

@@ -1,13 +1,20 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getRecords } from '@ensdomains/ensjs/public'
+import { resolveNameData } from '@ensdomains/ensjs/public'
 import {
+  decodeAbiResult,
+  decodeContentHashResult,
+  decodeTextResult,
   type GetContentHashReturnType,
+  getAbiParameters,
+  getAddressParameters,
   getCoderFromCoin,
+  getContentHashParameters,
+  getTextParameters,
 } from '@ensdomains/ensjs/utils'
 import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, encodeFunctionData, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
@@ -19,7 +26,7 @@ import {
   textRecords,
 } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
-import { getProfileCoinRecords } from './profileCoinRecords'
+import { decodeCoinResult } from './decodeCoinRecord'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -86,35 +93,57 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...recordKeys.coins,
   ]).filter(isSupportedCoinType)
 
-  const [records, coinRecords] = yield* fromPromise(
-    Promise.all([
-      getRecords(client, {
-        name,
-        texts,
-        contentHash: true,
-        abi: true,
-      }),
-      getProfileCoinRecords(client, name, coins),
-    ]),
+  const resolution = yield* fromPromise(
+    resolveNameData(client, {
+      name,
+      data: [
+        ...texts.map((key) =>
+          encodeFunctionData(getTextParameters({ name, key })),
+        ),
+        ...coins.map((coin) =>
+          encodeFunctionData(getAddressParameters({ name, coin })),
+        ),
+        encodeFunctionData(getContentHashParameters({ name })),
+        encodeFunctionData(getAbiParameters({ name })),
+      ],
+    }),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
 
+  const rawResult = (index: number) => {
+    const item = resolution?.resolvedData[index]
+    return item?.success ? item.returnData : undefined
+  }
   const result: ProfileRecordsResult = {
-    texts: records.texts,
-    coins: coinRecords,
-    resolverAddress: normalizeResolverAddress(records.resolverAddress),
+    texts: texts.flatMap((key, index) => {
+      const data = rawResult(index)
+      const value = data ? decodeTextResult(data, { strict: false }) : null
+      return value ? [{ key, value }] : []
+    }),
+    coins: coins.flatMap((coin, index) => {
+      const data = rawResult(texts.length + index)
+      const record = data ? decodeCoinResult(coin, data) : null
+      return record ? [record] : []
+    }),
+    resolverAddress: normalizeResolverAddress(
+      resolution?.resolverAddress ?? zeroAddress,
+    ),
   }
 
-  const contentHash = normalizeContentHash(records.contentHash)
+  const contentHashData = rawResult(texts.length + coins.length)
+  const contentHash = normalizeContentHash(
+    contentHashData
+      ? decodeContentHashResult(contentHashData, { strict: false })
+      : null,
+  )
   if (contentHash) {
     result.contentHash = contentHash
   }
 
-  if (records.abi) {
-    result.abi =
-      typeof records.abi.abi === 'string'
-        ? records.abi.abi
-        : JSON.stringify(records.abi.abi)
+  const abiData = rawResult(texts.length + coins.length + 1)
+  const abi = abiData ? await decodeAbiResult(abiData, { strict: false }) : null
+  if (abi) {
+    result.abi = typeof abi.abi === 'string' ? abi.abi : JSON.stringify(abi.abi)
   }
 
   return ok(result)
