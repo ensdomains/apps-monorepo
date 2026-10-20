@@ -39,7 +39,6 @@ export const assertNetworkConfig = (
       rpcUrl: env[rpcUrlVar],
       ...(endpoints && { endpoints }),
       overrides: {
-        indexerGraphql: env.VITE_INDEXER_GRAPHQL_URL,
         bignameApi: env.VITE_BIGNAME_API_URL,
       },
       allowMissingEndpoints,

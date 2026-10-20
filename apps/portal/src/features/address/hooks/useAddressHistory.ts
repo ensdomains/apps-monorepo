@@ -21,7 +21,7 @@ import { bigname } from '@/lib/bigname'
 import {
   flattenHistoryData,
   historyEventLogId,
-} from '@/utils/history/historyEventsToSubgraphEvents'
+} from '@/utils/history/historyEventsToTableEvents'
 import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 import type {
   AddressHistoryEvent,
