@@ -19,8 +19,7 @@ export type PrimaryNamePreparation =
   | {
       readonly kind: 'setup-resolver'
       readonly existingEthAddress: Address | null
-      /** False when the name has no resolver, so nothing is being replaced. */
-      readonly replacesResolver: boolean
+      readonly hasResolver: boolean
     }
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
@@ -42,13 +41,13 @@ export async function getPrimaryNamePreparation(
       ? forwardAddress
       : null
 
-  if (writeState.value.writable) {
+  if (writeState.value.canWrite) {
     return { kind: 'update-eth-address', existingEthAddress }
   }
 
   return {
     kind: 'setup-resolver',
     existingEthAddress,
-    replacesResolver: writeState.value.resolverAddress !== undefined,
+    hasResolver: writeState.value.resolverAddress !== undefined,
   }
 }

@@ -19,7 +19,7 @@ vi.mock('./resolverWriteAccess', () => ({
 const client = {} as PublicClient
 const owner = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
 const name = 'pookie.eth'
-const resolver = '0x1234567890123456789012345678901234567890' as const
+const RESOLVER = '0x1234567890123456789012345678901234567890' as const
 
 describe('getPrimaryNamePreparation', () => {
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: undefined, writable: false }),
+      ok({ resolverAddress: undefined, canWrite: false }),
     )
 
     await expect(
@@ -48,7 +48,7 @@ describe('getPrimaryNamePreparation', () => {
     ).resolves.toEqual({
       kind: 'setup-resolver',
       existingEthAddress: null,
-      replacesResolver: false,
+      hasResolver: false,
     })
     expect(getResolverWriteState).toHaveBeenCalledWith(name, owner)
   })
@@ -57,7 +57,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: resolver, writable: true }),
+      ok({ resolverAddress: RESOLVER, canWrite: true }),
     )
 
     await expect(
@@ -70,7 +70,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(otherAddress)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: resolver, writable: true }),
+      ok({ resolverAddress: RESOLVER, canWrite: true }),
     )
 
     await expect(
@@ -85,7 +85,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(zeroAddress)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: undefined, writable: false }),
+      ok({ resolverAddress: undefined, canWrite: false }),
     )
 
     await expect(
@@ -93,7 +93,7 @@ describe('getPrimaryNamePreparation', () => {
     ).resolves.toEqual({
       kind: 'setup-resolver',
       existingEthAddress: null,
-      replacesResolver: false,
+      hasResolver: false,
     })
   })
 
@@ -114,7 +114,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: resolver, writable: false }),
+      ok({ resolverAddress: RESOLVER, canWrite: false }),
     )
 
     await expect(
@@ -122,7 +122,7 @@ describe('getPrimaryNamePreparation', () => {
     ).resolves.toEqual({
       kind: 'setup-resolver',
       existingEthAddress: null,
-      replacesResolver: true,
+      hasResolver: true,
     })
   })
 })

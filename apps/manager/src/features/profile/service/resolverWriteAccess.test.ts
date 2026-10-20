@@ -106,7 +106,7 @@ describe('getResolverWriteState', () => {
 
     expect(result._unsafeUnwrap()).toEqual({
       resolverAddress: undefined,
-      writable: false,
+      canWrite: false,
     })
     expect(client.call).not.toHaveBeenCalled()
   })
@@ -119,7 +119,7 @@ describe('getResolverWriteState', () => {
 
     expect(result._unsafeUnwrap()).toEqual({
       resolverAddress: RESOLVER,
-      writable: true,
+      canWrite: true,
     })
   })
 })
