@@ -22,8 +22,15 @@ function RouteComponent() {
 
   return (
     <main className="min-h-screen flex flex-col items-center gap-18 px-6 pt-6 pb-18">
-      <SepoliaNoticeBanner />
-      <HomeHeader />
+      {/* Logo and the Sepolia notice share one row so the notice doesn't
+          push the page down; `items-start` keeps the logo pinned at the
+          same y as the sidebar's. */}
+      <div className="w-full flex items-start gap-6">
+        <HomeHeader />
+        <div className="flex-1 min-w-0">
+          <SepoliaNoticeBanner />
+        </div>
+      </div>
 
       <section className="flex flex-col gap-10 items-center w-full max-w-140">
         {/* Figma hero type (ABC Marist 36px / 350 / 1.35) has no matching text token. */}

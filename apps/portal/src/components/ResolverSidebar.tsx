@@ -9,8 +9,9 @@ import {
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
+import { EnsLogoMarkSVG } from '@/assets/ens-logo-mark'
+import { ExplorerLogoSVG } from '@/assets/explorer-logo'
 import { HistoryIcon, ResolverIcon, ShieldIcon } from '@/assets/icons'
-import { LogoSVG } from '@/assets/logo'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -104,7 +105,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
               className="flex items-center min-h-8"
               aria-label="ENS Home"
             >
-              <LogoSVG height={30} className="text-foreground" />
+              <EnsLogoMarkSVG />
             </Link>
             <HomeSearchInput iconOnly />
           </div>
@@ -112,7 +113,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
           <div className="px-6 pt-6 flex flex-col gap-6">
             <div className="flex items-center min-h-8">
               <Link to="/" className="flex items-center">
-                <LogoSVG height={30} className="text-foreground" />
+                <ExplorerLogoSVG />
               </Link>
             </div>
             <div className="flex items-center gap-2">

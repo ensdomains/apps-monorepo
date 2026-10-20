@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FlameIcon, LockKeyholeIcon, WalletIcon } from 'lucide-react'
+import { EnsLogoMarkSVG } from '@/assets/ens-logo-mark'
+import { ExplorerLogoSVG } from '@/assets/explorer-logo'
 import {
   CardsStackIcon,
   GraphIcon,
@@ -11,7 +13,6 @@ import {
   ShieldIcon,
   TollIcon,
 } from '@/assets/icons'
-import { LogoSVG } from '@/assets/logo'
 import { SoonBadge } from '@/components/ui/badge'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -175,7 +176,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
               className="flex items-center min-h-8"
               aria-label="ENS Home"
             >
-              <LogoSVG height={30} className="text-foreground" />
+              <EnsLogoMarkSVG />
             </Link>
             <HomeSearchInput iconOnly />
           </div>
@@ -183,7 +184,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
           <div className="px-6 pt-6 flex flex-col gap-6">
             <div className="flex items-center min-h-8">
               <Link to="/" className="flex items-center">
-                <LogoSVG height={30} className="text-foreground" />
+                <ExplorerLogoSVG />
               </Link>
             </div>
             <div className="flex items-center gap-2">
