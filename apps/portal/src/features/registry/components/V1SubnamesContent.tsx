@@ -9,11 +9,11 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getSubnamePagesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import type { IntentContext } from '@/features/transaction-manager/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { useDeleteV1Subname } from '../hooks/useDeleteV1Subname'
 import {
-  type SubnameDeleteStep,
   type SubnameDeleteStepSpec,
   useSubnameDeleteQueue,
 } from '../hooks/useSubnameDeleteQueue'
@@ -74,43 +74,37 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
 
   const stepsFor = useCallback(
     (row: SubnameRow): readonly SubnameDeleteStepSpec[] => {
+      // Captured now: a list refresh mid-flow must not change what is sent.
       const entry = deletes.get(row.name)
       if (!entry) return []
-      const prepareStep =
-        (index: number): SubnameDeleteStepSpec['prepare'] =>
-        ({ walletClient, chainId }) =>
+      const step = (index: number) => ({
+        prepare: ({ walletClient, chainId }: IntentContext) =>
           prepareDeleteV1SubnameTransactions({
             ...entry,
             parentName: name,
             walletClient,
             chainId,
-          })[index]
-      const deleteStep = {
+          })[index],
+        send: (id: string) =>
+          deleteStepAsync({ ...entry, stepIndex: index, id }),
+      })
+      const remove = {
         title: 'Delete subname',
         transactionName: `Delete ${row.name}`,
       }
-      // The delete can't be estimated until the wrap has landed.
       return entry.target === 'wrap-then-delete'
         ? [
             {
+              ...step(0),
               title: 'Wrap subname',
               transactionName: `Wrap ${row.name} to delete it`,
-              prepare: prepareStep(0),
             },
-            deleteStep,
+            // Estimated once it starts: it reverts until the wrap has landed.
+            { ...remove, send: step(1).send },
           ]
-        : [{ ...deleteStep, prepare: prepareStep(0) }]
+        : [{ ...step(0), ...remove }]
     },
-    [deletes, name],
-  )
-
-  const runStep = useCallback(
-    ({ row, index }: SubnameDeleteStep, id: string) => {
-      const entry = deletes.get(row.name)
-      if (!entry) return Promise.reject(new Error('Not deletable'))
-      return deleteStepAsync({ ...entry, stepIndex: index, id })
-    },
-    [deletes, deleteStepAsync],
+    [deletes, name, deleteStepAsync],
   )
 
   const { queue, transactions, pendingNames, optimisticallyDeleted } =
@@ -118,7 +112,6 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
       connectedAccount,
       servedNames,
       stepsFor,
-      runStep,
     })
 
   const visibleRows = useMemo(

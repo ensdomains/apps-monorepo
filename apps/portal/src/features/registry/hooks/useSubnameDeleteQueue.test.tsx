@@ -22,33 +22,28 @@ const ROW: SubnameRow = {
   owner: ACCOUNT,
   canDelete: true,
 }
-const STEP: SubnameDeleteStepSpec = {
+const step = (
+  send: (id: string) => Promise<unknown> = () => Promise.resolve(),
+): SubnameDeleteStepSpec => ({
   title: 'Delete subname',
   transactionName: 'Delete sub.test.eth',
-}
+  send,
+})
 
-const renderQueue = ({
-  specs,
-  runStep,
-}: {
-  readonly specs: readonly SubnameDeleteStepSpec[]
-  readonly runStep: () => Promise<unknown>
-}) =>
-  renderHook(() =>
-    useSubnameDeleteQueue({
-      connectedAccount: ACCOUNT,
-      servedNames: [ROW.name],
-      stepsFor: () => specs,
-      runStep,
-    }),
+const renderQueue = (initialSpecs: readonly SubnameDeleteStepSpec[]) =>
+  renderHook(
+    ({ specs }) =>
+      useSubnameDeleteQueue({
+        connectedAccount: ACCOUNT,
+        servedNames: [ROW.name],
+        stepsFor: () => specs,
+      }),
+    { initialProps: { specs: initialSpecs } },
   )
 
 describe('useSubnameDeleteQueue', () => {
   it('keeps V2’s transaction id for a one-step row', () => {
-    const { result } = renderQueue({
-      specs: [STEP],
-      runStep: () => Promise.resolve(),
-    })
+    const { result } = renderQueue([step()])
 
     act(() => result.current.queue([ROW]))
 
@@ -59,10 +54,7 @@ describe('useSubnameDeleteQueue', () => {
   })
 
   it('hides a row once its last step succeeds, while bigname still serves it', async () => {
-    const { result } = renderQueue({
-      specs: [STEP, STEP],
-      runStep: () => Promise.resolve(),
-    })
+    const { result } = renderQueue([step(), step()])
 
     act(() => result.current.queue([ROW]))
     const [wrap, remove] = result.current.transactions
@@ -79,10 +71,9 @@ describe('useSubnameDeleteQueue', () => {
   })
 
   it('keeps a row whose step fails, and undims it', async () => {
-    const { result } = renderQueue({
-      specs: [STEP],
-      runStep: () => Promise.reject(new Error('rejected')),
-    })
+    const { result } = renderQueue([
+      step(() => Promise.reject(new Error('rejected'))),
+    ])
 
     act(() => result.current.queue([ROW]))
     await act(async () => result.current.transactions[0]?.onStart())
@@ -92,13 +83,25 @@ describe('useSubnameDeleteQueue', () => {
   })
 
   it('queues nothing for a row with no steps', () => {
-    const { result } = renderQueue({
-      specs: [],
-      runStep: () => Promise.resolve(),
-    })
+    const { result } = renderQueue([])
 
     act(() => result.current.queue([ROW]))
 
     expect(result.current.transactions).toEqual([])
+  })
+
+  // A list refresh mid-flow can change what a row would need; the queued
+  // steps must still send what was checked when it was queued.
+  it('sends the steps built when the row was queued, not a later answer', async () => {
+    const queued = vi.fn(() => Promise.resolve())
+    const later = vi.fn(() => Promise.resolve())
+    const { result, rerender } = renderQueue([step(), step(queued)])
+
+    act(() => result.current.queue([ROW]))
+    rerender({ specs: [step(later)] })
+    await act(async () => result.current.transactions[1]?.onStart())
+
+    expect(queued).toHaveBeenCalledOnce()
+    expect(later).not.toHaveBeenCalled()
   })
 })

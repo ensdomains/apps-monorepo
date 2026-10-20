@@ -22,6 +22,8 @@ export type SubnameDeleteStepSpec = {
   readonly transactionName: string
   /** The call, for the modal's estimate; omitted when it can only be built once the step before has landed. */
   readonly prepare?: (ctx: IntentContext) => CustomTransactionIntent | undefined
+  /** Signs and waits for the step, as built when the row was queued. Rejects when it fails. */
+  readonly send: (id: string) => Promise<unknown>
 }
 
 export type SubnameDeleteStep = SubnameDeleteStepSpec & {
@@ -58,10 +60,8 @@ interface UseSubnameDeleteQueueParams {
   readonly connectedAccount: Address | undefined
   /** Every subname the indexer still serves, to drop rows hidden after their delete. */
   readonly servedNames: readonly string[] | undefined
-  /** A row's delete transactions; none when it cannot be deleted. */
+  /** A row's delete transactions, built once when it is queued; none when it cannot be deleted. */
   readonly stepsFor: (row: SubnameRow) => readonly SubnameDeleteStepSpec[]
-  /** Signs and waits for one step. Rejects when it fails or is refused. */
-  readonly runStep: (step: SubnameDeleteStep, id: string) => Promise<unknown>
 }
 
 /**
@@ -73,7 +73,6 @@ export const useSubnameDeleteQueue = ({
   connectedAccount,
   servedNames,
   stepsFor,
-  runStep,
 }: UseSubnameDeleteQueueParams) => {
   const {
     isOpen: isTransactionModalOpen,
@@ -103,25 +102,22 @@ export const useSubnameDeleteQueue = ({
   // "Open wallet" click can both start the same step; the second is a no-op.
   const inFlightRef = useRef<Set<string>>(new Set())
 
-  const run = useCallback(
-    async (step: SubnameDeleteStep, id: string) => {
-      if (inFlightRef.current.has(id)) return
-      inFlightRef.current.add(id)
-      const { name } = step.row
-      setPendingNames((prev) => withName(prev, name))
+  const run = useCallback(async (step: SubnameDeleteStep, id: string) => {
+    if (inFlightRef.current.has(id)) return
+    inFlightRef.current.add(id)
+    const { name } = step.row
+    setPendingNames((prev) => withName(prev, name))
 
-      const result = await fromPromise(runStep(step, id), (error) => error)
+    const result = await fromPromise(step.send(id), (error) => error)
 
-      if (result.isErr() || step.isLastForRow) {
-        setPendingNames((prev) => withoutNames(prev, [name]))
-      }
-      if (result.isOk() && step.isLastForRow) {
-        setOptimisticallyDeleted((prev) => withName(prev, name))
-      }
-      inFlightRef.current.delete(id)
-    },
-    [runStep],
-  )
+    if (result.isErr() || step.isLastForRow) {
+      setPendingNames((prev) => withoutNames(prev, [name]))
+    }
+    if (result.isOk() && step.isLastForRow) {
+      setOptimisticallyDeleted((prev) => withName(prev, name))
+    }
+    inFlightRef.current.delete(id)
+  }, [])
 
   const queue = useCallback(
     (rows: readonly SubnameRow[]) => {

@@ -30,7 +30,6 @@ import {
   holdsRolesOn,
 } from '@/features/registry/hooks/useResourceRoles'
 import {
-  type SubnameDeleteStep,
   type SubnameDeleteStepSpec,
   useSubnameDeleteQueue,
 } from '@/features/registry/hooks/useSubnameDeleteQueue'
@@ -203,22 +202,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
                     subname: row.name,
                   })
               : undefined,
+          send: (id) =>
+            deleteSubnameAsync({ subname: row.name, resourceId, id }),
         },
       ]
     },
-    [hasSubregistry, subregistryAddress],
-  )
-
-  const runStep = useCallback(
-    ({ row }: SubnameDeleteStep, id: string) => {
-      if (!row.resourceId) return Promise.reject(new Error('No id'))
-      return deleteSubnameAsync({
-        subname: row.name,
-        resourceId: row.resourceId,
-        id,
-      })
-    },
-    [deleteSubnameAsync],
+    [hasSubregistry, subregistryAddress, deleteSubnameAsync],
   )
 
   const {
@@ -230,7 +219,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     connectedAccount,
     servedNames,
     stepsFor,
-    runStep,
   })
 
   // Every row keeps the id the indexer holds for it. That id — not the label
