@@ -1,7 +1,6 @@
 # ENS V2 Snapshot overlay — no live Sepolia fork needed.
 # Usage:
-#   PANOPTES_CONTRACTS_FILE=./panoptes/contracts.snapshot.json \
-#     docker compose -f docker-compose.yml -f docker-compose.snapshot.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.snapshot.yml up -d
 #
 # Anvil loads from a pre-seeded state snapshot (ghcr.io/ensdomains/ens-v2-snapshot).
 # Starts in <5s. No SEPOLIA_FORK_URL required.

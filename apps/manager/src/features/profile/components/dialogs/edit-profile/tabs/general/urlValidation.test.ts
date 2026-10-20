@@ -12,4 +12,17 @@ describe('general URL validation', () => {
       'Enter a valid URL (e.g. https://example.com)',
     )
   })
+
+  it('rejects typed text containing spaces after the prefilled https://', () => {
+    expect(getGeneralUrlErrorMessage('https://my website')).toBe(
+      'Enter a valid URL (e.g. https://example.com)',
+    )
+    expect(getGeneralUrlErrorMessage('https://example.com/a b')).toBe(
+      'Enter a valid URL (e.g. https://example.com)',
+    )
+  })
+
+  it('does not flag the https:// prefilled on focus', () => {
+    expect(getGeneralUrlErrorMessage('https://')).toBeUndefined()
+  })
 })

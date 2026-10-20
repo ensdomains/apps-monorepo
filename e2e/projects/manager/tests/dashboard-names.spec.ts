@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
-import type { MockDomain } from '../../../helpers/mock-indexer.js'
+import type { MockDomain } from '../../../helpers/mock-bigname.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DAY = 24 * 60 * 60
@@ -11,12 +11,12 @@ const DAY = 24 * 60 * 60
 const uniquePrefix = (tag: string) => `${tag}${Date.now().toString(36)}`
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
-type MockIndexer = {
+type MockBigname = {
   readonly addName: (domain: MockDomain) => void
 }
 const added: string[] = []
-const addName = (mockIndexer: MockIndexer, domain: MockDomain) => {
-  mockIndexer.addName(domain)
+const addName = (mockBigname: MockBigname, domain: MockDomain) => {
+  mockBigname.addName(domain)
   added.push(domain.name)
 }
 
@@ -73,26 +73,26 @@ const expectListed = async (
 }
 
 test.describe('Names read from bigname', () => {
-  test.beforeEach(({ mockIndexer }) => {
-    test.skip(!mockIndexer.enabled, 'Names here exist only in the mock')
+  test.beforeEach(({ mockBigname }) => {
+    test.skip(!mockBigname.enabled, 'Names here exist only in the mock')
   })
 
   // The mock is shared by every test in a worker; later tests must not see
   // these names on their dashboard.
-  test.afterEach(({ mockIndexer }) => {
-    for (const name of added.splice(0)) mockIndexer.removeName(name)
+  test.afterEach(({ mockBigname }) => {
+    for (const name of added.splice(0)) mockBigname.removeName(name)
   })
 
   test('the dashboard pages and sorts the names bigname lists', async ({
     connectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
   }) => {
     const prefix = uniquePrefix('pg')
     const names = numberedNames(prefix)
     // The later the name, the sooner it expires.
     names.forEach((name, index) => {
-      addName(mockIndexer, {
+      addName(mockBigname, {
         name,
         owner: accounts.getAddress('user'),
         expiryDate: nowSeconds() + (600 - index * 5) * DAY,
@@ -112,15 +112,15 @@ test.describe('Names read from bigname', () => {
 
   test('the version chips list only ENSv1 or only ENSv2 names', async ({
     connectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
   }) => {
     const prefix = uniquePrefix('ver')
     const v1Name = `${prefix}one.eth`
     const v2Name = `${prefix}two.eth`
     const owner = accounts.getAddress('user')
-    addName(mockIndexer, { name: v1Name, owner, protocol: 'v1' })
-    addName(mockIndexer, { name: v2Name, owner })
+    addName(mockBigname, { name: v1Name, owner, protocol: 'v1' })
+    addName(mockBigname, { name: v2Name, owner })
 
     await openDashboard(page, prefix)
     await expectListed(page, [v1Name, v2Name])
@@ -138,19 +138,19 @@ test.describe('Names read from bigname', () => {
 
   test('the dashboard keeps an ENSv2 name in grace', async ({
     connectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
   }) => {
     const prefix = uniquePrefix('grace')
     const lapsed = `${prefix}lapsed.eth`
     const held = `${prefix}held.eth`
     const owner = accounts.getAddress('user')
-    addName(mockIndexer, {
+    addName(mockBigname, {
       name: lapsed,
       owner,
       expiryDate: nowSeconds() - 3 * DAY,
     })
-    addName(mockIndexer, { name: held, owner })
+    addName(mockBigname, { name: held, owner })
 
     await openDashboard(page, prefix)
     await expectListed(page, [held, lapsed])
@@ -158,15 +158,15 @@ test.describe('Names read from bigname', () => {
 
   test('your profile splits the names you own from the ones you manage', async ({
     profileConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
   }) => {
     const prefix = uniquePrefix('role')
     const owned = `${prefix}own.eth`
     const managed = `${prefix}mgd.eth`
     const address = accounts.getAddress('user')
-    addName(mockIndexer, { name: owned, owner: address })
-    addName(mockIndexer, {
+    addName(mockBigname, { name: owned, owner: address })
+    addName(mockBigname, {
       name: managed,
       owner: address,
       relations: ['manager'],
@@ -183,7 +183,7 @@ test.describe('Names read from bigname', () => {
 
   test("someone else's profile pages their names, newest first", async ({
     profileConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
   }) => {
     const prefix = uniquePrefix('prof')
@@ -191,7 +191,7 @@ test.describe('Names read from bigname', () => {
     const names = numberedNames(prefix)
     // The later the name, the newer it is.
     names.forEach((name, index) => {
-      addName(mockIndexer, {
+      addName(mockBigname, {
         name,
         owner: address,
         createdAt: nowSeconds() - (100 - index) * DAY,

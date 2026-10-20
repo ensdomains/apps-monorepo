@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import {
   Dialog,
@@ -6,10 +6,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useExtendModalStep } from '../../hooks/useExtendModalStep'
 import {
   getLatestRenewalExpiry,
   useMultiNamePricing,
 } from '../../hooks/useMultiNamePricing'
+import { useOwnsAllNames } from '../../hooks/useOwnsAllNames'
 import type {
   MultiRenewalEntry,
   SelectedName,
@@ -40,9 +42,13 @@ export const MultiNameExtendModal = ({
   selectedNames,
   onExtend,
 }: MultiNameExtendModalProps) => {
-  const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
   const [span, setSpan] = useState<ExtensionSpan>({ type: 'years', years: 1 })
   const latestExpiry = getLatestRenewalExpiry(selectedNames)
+  const isOwner = useOwnsAllNames(selectedNames.map(({ name }) => name))
+  const [step, setStep] = useExtendModalStep<MultiNameExtendModalStep>({
+    open,
+    isOwner,
+  })
 
   const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
@@ -52,12 +58,6 @@ export const MultiNameExtendModal = ({
     selectedName: item.selectedName,
     duration: item.duration,
   }))
-
-  useEffect(() => {
-    if (!open) {
-      setStep('disclaimer')
-    }
-  }, [open])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -91,7 +91,7 @@ export const MultiNameExtendModal = ({
               latestExpiry={latestExpiry}
               span={span}
               setSpan={setSpan}
-              onBack={() => setStep('disclaimer')}
+              onBack={isOwner ? undefined : () => setStep('disclaimer')}
               onNext={() => setStep('summary')}
             />
           ))

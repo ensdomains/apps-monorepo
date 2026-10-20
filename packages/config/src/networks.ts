@@ -10,10 +10,9 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
 /**
  * ENS-operated services that are NOT derivable from the chain.
  *
- * Contract addresses, the v1 subgraph URL and block explorer links all come
- * from the chain object (ensjs + viem) and deliberately do not live here —
- * duplicating them would let the two sources drift. The one exception is
- * `NetworkProfile.v1SubgraphUrl`, for a network whose ensjs default is broken.
+ * Contract addresses and block explorer links come from the chain object
+ * (ensjs + viem) and deliberately do not live here — duplicating them would
+ * let the two sources drift.
  *
  * `null` means "no deployment exists for this network yet". `buildConfig`
  * rejects a null that has not been overridden, unless the app allows missing
@@ -21,8 +20,7 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
  * than as a silent cross-network request.
  */
 export type NetworkEndpoints = {
-  /** ENSv2 indexer (Ponder) GraphQL endpoint. */
-  readonly indexerGraphql: string | null
+  /** bigname REST indexer. */
   readonly bignameApi: string | null
 }
 
@@ -40,8 +38,6 @@ export type NetworkProfile = {
    * browser.
    */
   readonly rpcFallbacks: readonly string[]
-  /** Replaces the v1 subgraph ensjs puts on the chain; absent keeps it. */
-  readonly v1SubgraphUrl?: string
   readonly endpoints: NetworkEndpoints
 }
 
@@ -56,12 +52,8 @@ export const NETWORKS = {
     isTestnet: false,
     appApiUrl: 'https://mainnet.app-api.ens.domains',
     rpcFallbacks: ['https://ethereum-rpc.publicnode.com'],
-    // ensjs points mainnet at api.alpha.blue.ensnode.io, which serves Railway's
-    // wildcard certificate, so browsers refuse it. This is ENSNode's Railway
-    // host; drop the override once that domain has its own certificate.
-    v1SubgraphUrl: 'https://ensnode-api-production.up.railway.app/subgraph',
     endpoints: {
-      indexerGraphql: 'https://mainnet-graphql.ens.dev/',
+      // No mainnet bigname deployment yet.
       bignameApi: null,
     },
   },
@@ -76,7 +68,6 @@ export const NETWORKS = {
       'https://sepolia.gateway.tenderly.co',
     ],
     endpoints: {
-      indexerGraphql: 'https://staging-graphql.ens.dev/',
       bignameApi: 'https://sepolia.api.bigname.sh',
     },
   },
