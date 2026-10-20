@@ -21,6 +21,7 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import { getGraceEndDate } from '@/features/grace/utils/gracePeriod'
+import { getNameDetail } from '@/features/shared/service/nameDetail'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
@@ -57,6 +58,38 @@ const isRegistrationInGrace = (
   return now >= expiryDate && now < getGraceEndDate(expiryDate, protocol)
 }
 
+const getV1GraceOwner = ResultFn(async function* (
+  client: Client<Transport, typeof sepoliaWithEns>,
+  name: string,
+  registryOwner: Address | null | undefined,
+) {
+  if (registryOwner && isAddressEqual(registryOwner, NAME_WRAPPER)) {
+    const [wrappedOwner] = yield* fromPromise(
+      readContract(client, {
+        address: NAME_WRAPPER,
+        abi: nameWrapperGetDataSnippet,
+        functionName: 'getData',
+        args: [BigInt(namehash(name))],
+      }),
+      (e) => new GetOwnerError({ cause: e }),
+    )
+
+    return ok(wrappedOwner === zeroAddress ? undefined : wrappedOwner)
+  }
+
+  const detail = yield* getNameDetail(name).mapErr(
+    (cause) => new GetOwnerError({ cause }),
+  )
+
+  return ok(
+    detail?.protocol === 'v1' &&
+      detail.isSupported &&
+      detail.owner !== zeroAddress
+      ? (detail.owner ?? undefined)
+      : undefined,
+  )
+})
+
 const getV1ProfileOwner = ResultFn(async function* (
   client: Client<Transport, typeof sepoliaWithEns>,
   name: string,
@@ -69,8 +102,8 @@ const getV1ProfileOwner = ResultFn(async function* (
 
   if (
     isEth2Ld &&
-    v1Owner?.owner &&
-    isAddressEqual(v1Owner.owner, NAME_WRAPPER)
+    v1Owner?.ownershipLevel !== 'nameWrapper' &&
+    !v1Owner?.registrant
   ) {
     const expiry = yield* fromPromise(
       ensjsv1_getExpiry(client, { name, contract: 'registrar' }),
@@ -78,20 +111,10 @@ const getV1ProfileOwner = ResultFn(async function* (
     )
 
     if (expiry && isRegistrationInGrace(expiry.expiry, 'v1')) {
-      // BaseRegistrar.ownerOf reverts in grace, so ENSjs falls back to the
-      // registry controller (NameWrapper). The wrapper retains the real owner.
-      const [wrappedOwner] = yield* fromPromise(
-        readContract(client, {
-          address: NAME_WRAPPER,
-          abi: nameWrapperGetDataSnippet,
-          functionName: 'getData',
-          args: [BigInt(namehash(name))],
-        }),
-        (e) => new GetOwnerError({ cause: e }),
-      )
-
+      // BaseRegistrar.ownerOf reverts in grace, so ENSjs returns the registry
+      // controller, which can differ from the holder of an unwrapped name.
       return ok({
-        owner: wrappedOwner === zeroAddress ? undefined : wrappedOwner,
+        owner: yield* getV1GraceOwner(client, name, v1Owner?.owner),
         protocol: 'v1',
       } satisfies ProfileOwnerResult)
     }
