@@ -16,6 +16,7 @@ type MigrationPreparationReason =
   | 'records-unavailable'
   | 'records-not-replayable'
   | 'recovery-changed'
+  | 'parent-not-upgraded'
   | 'rpc-unavailable'
   | 'fee-unavailable'
   | 'unknown'
@@ -102,6 +103,14 @@ const reasonFor = (
   if (
     chain.some(
       (error) =>
+        error.name === 'DirectMigrationRouteError' &&
+        error.reason === 'missing-wrapper',
+    )
+  )
+    return 'parent-not-upgraded'
+  if (
+    chain.some(
+      (error) =>
         [
           'HttpRequestError',
           'TimeoutError',
@@ -154,6 +163,7 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
+  'parent-not-upgraded': msg`Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.`,
   'rpc-unavailable': msg`Couldn't reach the network to prepare your upgrade. Please try again.`,
   'fee-unavailable': msg`Couldn't estimate the network fee`,
   unknown: msg`Couldn't prepare your upgrade. Please try again.`,

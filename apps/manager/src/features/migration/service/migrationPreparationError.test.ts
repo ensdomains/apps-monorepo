@@ -49,6 +49,12 @@ describe('migration preparation errors', () => {
     ['ProfileFetchError', {}, 'records-unavailable'],
     ['MigrationRecoveryPlanError', {}, 'recovery-changed'],
     ['MigrationBatchJournalCorruptError', {}, 'recovery-changed'],
+    [
+      'DirectMigrationRouteError',
+      { reason: 'missing-wrapper' },
+      'parent-not-upgraded',
+    ],
+    ['DirectMigrationRouteError', { reason: 'conflicting-wrapper' }, 'unknown'],
     ['HttpRequestError', {}, 'rpc-unavailable'],
     ['TimeoutError', {}, 'rpc-unavailable'],
     [
