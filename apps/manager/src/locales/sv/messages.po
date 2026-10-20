@@ -794,6 +794,10 @@ msgid "Couldn't revoke sessions. Please try again."
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify whether your locked names can keep record editing after upgrading. Please try again."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
 msgstr ""
 
@@ -2532,6 +2536,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Some locked names use an unsupported resolver. After upgrading, you could lose record editing and would be unable to change the resolver. Deselect those names to continue."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx

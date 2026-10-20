@@ -438,6 +438,11 @@ export const buildMigrationPlan = async (params: {
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
+  await assertLockedPublicResolverSetMembership({
+    publicClient,
+    names: classified,
+  })
+  signal?.throwIfAborted()
   await assertLockedResolverReplacementRecordSafety(
     classified,
     publicClient,
@@ -689,6 +694,11 @@ export const buildMigrationRecoveryPlan = async (params: {
     publicClient,
     names: classified,
   })
+  await assertLockedResolverReplacementRecordSafety(
+    classified,
+    publicClient,
+    signal,
+  )
   signal?.throwIfAborted()
   const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),

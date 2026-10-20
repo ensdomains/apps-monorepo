@@ -13,6 +13,8 @@ type MigrationPreparationReason =
   | 'account-mismatch'
   | 'contract-unavailable'
   | 'contract-incompatible'
+  | 'locked-resolver-unsupported'
+  | 'locked-resolver-unverified'
   | 'records-unavailable'
   | 'records-not-replayable'
   | 'recovery-changed'
@@ -74,6 +76,16 @@ const reasonFor = (
     )
   )
     return 'contract-unavailable'
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'MigrationContractInvariantError' &&
+        error.invariant === 'public-resolver-set-membership',
+    )
+  )
+    return chain.some((error) => error.actual === 'not-included')
+      ? 'locked-resolver-unsupported'
+      : 'locked-resolver-unverified'
   if (
     chain.some(
       (error) =>
@@ -151,6 +163,8 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'account-mismatch': msg`Your upgrade account doesn't match this wallet. Reconnect the owner wallet.`,
   'contract-unavailable': msg`A required upgrade contract is unavailable. Please try again later.`,
   'contract-incompatible': msg`The upgrade contracts don't match this account. Please contact support.`,
+  'locked-resolver-unsupported': msg`Some locked names use an unsupported resolver. After upgrading, you could lose record editing and would be unable to change the resolver. Deselect those names to continue.`,
+  'locked-resolver-unverified': msg`Couldn't verify whether your locked names can keep record editing after upgrading. Please try again.`,
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,

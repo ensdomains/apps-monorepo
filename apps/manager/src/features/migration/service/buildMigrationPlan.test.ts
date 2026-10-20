@@ -18,7 +18,10 @@ import {
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
-import { assertRequiredMigrationContractCode } from './migrationInvariants'
+import {
+  assertLockedPublicResolverSetMembership,
+  assertRequiredMigrationContractCode,
+} from './migrationInvariants'
 import { getV1ProfileKeys } from './v1ProfileKeys'
 
 vi.mock('./v1ProfileKeys', async (importActual) => ({
@@ -142,6 +145,10 @@ beforeEach(() => {
   })
   assertCopyMigrationReadinessMock.mockReset()
   assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
+  vi.mocked(assertLockedPublicResolverSetMembership).mockReset()
+  vi.mocked(assertLockedPublicResolverSetMembership).mockResolvedValue(
+    undefined,
+  )
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {
@@ -248,13 +255,13 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
     ).rejects.toMatchObject({ reason: 'inventory-unavailable', cause })
   })
 
-  it('does not inspect custom or atomically replayable resolver paths', async () => {
+  it('does not inspect changeable custom or atomically replayable resolver paths', async () => {
     await expect(
       assertLockedResolverReplacementRecordSafety(
         [
           makeClassified({
             tokenType: 'locked-2ld',
-            fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
+            fuses: FUSES.CANNOT_UNWRAP,
             resolverStrategy: 'keep-v1',
             v1ResolverAddress: CUSTOM_RESOLVER,
           }),
@@ -270,9 +277,50 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
     ).resolves.toBeUndefined()
     expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
   })
+
+  it('checks record safety for a certified locked resolver outside the static list', async () => {
+    getV1ProfileKeysMock.mockReturnValueOnce(ok([]) as never)
+    await expect(
+      assertLockedResolverReplacementRecordSafety(
+        [{ ...lockedKnownResolver(), v1ResolverAddress: CUSTOM_RESOLVER }],
+        publicClientWithProfileResults(),
+      ),
+    ).rejects.toMatchObject({ reason: 'inventory-missing' })
+  })
 })
 
 describe('buildMigrationPlan resolver preservation', () => {
+  it('blocks a locked custom resolver before building irreversible migration calls, even with a saved preflight', async () => {
+    const { assertLockedPublicResolverSetMembership: checkMembership } =
+      await vi.importActual<typeof import('./migrationInvariants')>(
+        './migrationInvariants',
+      )
+    vi.mocked(assertLockedPublicResolverSetMembership).mockImplementationOnce(
+      checkMembership,
+    )
+    await expect(
+      buildMigrationPlan({
+        domains: [
+          makeDomain({
+            isWrapped: true,
+            fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
+            resolverAddress: CUSTOM_RESOLVER,
+          }),
+        ],
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: publicClientWithProfileResults(),
+        preflight: { skipFetchProfilesPhase: true },
+      }),
+    ).rejects.toMatchObject({
+      invariant: 'public-resolver-set-membership',
+      address: CUSTOM_RESOLVER,
+      actual: 'not-included',
+    })
+    expect(buildAtomicMigrationBatchesMock).not.toHaveBeenCalled()
+    expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
+  })
+
   it('never routes a custom resolver to the HCA resolver from a partial inventory', async () => {
     const domain = makeDomain({ resolverAddress: CUSTOM_RESOLVER })
     const preflight: MigrationPreflight = {

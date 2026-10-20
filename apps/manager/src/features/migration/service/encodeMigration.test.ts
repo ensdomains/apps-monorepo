@@ -59,6 +59,21 @@ describe('resolverFor', () => {
     ).toBe(RESOLVER)
   })
 
+  it('expects a locked resolver certified on-chain to be replaced even outside the static list', () => {
+    expect(
+      resolverFor(
+        {
+          ...name,
+          tokenType: 'locked-2ld',
+          fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
+          v1ResolverAddress: RESOLVER,
+        },
+        DEFAULT_RESOLVER,
+        OWNER,
+      ),
+    ).toBe(DEFAULT_RESOLVER)
+  })
+
   it('preserves an empty resolver when a locked name cannot set one', () => {
     expect(
       resolverFor(

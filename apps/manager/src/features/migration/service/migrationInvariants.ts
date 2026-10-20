@@ -1,4 +1,3 @@
-import { isKnownPublicResolver } from '@ens-apps/migration'
 import {
   computeResolverAddress,
   ROLES_ALL,
@@ -13,7 +12,6 @@ import {
   parseAbi,
   zeroAddress,
 } from 'viem'
-import { envConfig } from '@/config'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
@@ -108,10 +106,9 @@ export const assertRequiredMigrationContractCode = async (params: {
 
 const requiresPinnedPublicResolverMembership = (
   name: ClassifiedName,
-): name is ClassifiedName & { readonly v1ResolverAddress: Address } =>
+): boolean =>
   (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
-  hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-  isKnownPublicResolver(name.v1ResolverAddress, envConfig.chain.id)
+  hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
 
 type RequiredMigrationContractsParams = {
   readonly remaining: readonly ClassifiedName[]
@@ -207,8 +204,9 @@ export const getRequiredMigrationContracts = (
 /**
  * Locked migration cannot apply the app's resolver choice when
  * CANNOT_SET_RESOLVER is burned. The controller replaces the old resolver only
- * when PublicResolverSet certifies it, so prove that membership before asking
- * the wallet to sign anything.
+ * when PublicResolverSet certifies it. Otherwise V1 ownership-based record
+ * writes can be lost permanently, so require membership for every resolver,
+ * including those outside the app's static list, before any wallet signature.
  */
 export const assertLockedPublicResolverSetMembership = async (params: {
   readonly publicClient: PublicClient
@@ -217,7 +215,8 @@ export const assertLockedPublicResolverSetMembership = async (params: {
   const resolvers = new Map<string, Address>()
   for (const name of params.names) {
     if (!requiresPinnedPublicResolverMembership(name)) continue
-    resolvers.set(name.v1ResolverAddress.toLowerCase(), name.v1ResolverAddress)
+    const resolver = (name.v1ResolverAddress ?? zeroAddress) as Address
+    resolvers.set(resolver.toLowerCase(), resolver)
   }
 
   await Promise.all(

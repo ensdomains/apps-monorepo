@@ -33,7 +33,11 @@ export const resolverFor = (
   const resolver: Address = (() => {
     switch (name.resolverStrategy) {
       case 'keep-v1':
+        // Locked names must pass the on-chain PublicResolverSet check before
+        // migration. The receiver replaces those resolvers even when they are
+        // absent from the app's static list; record safety must model that too.
         return (
+          (cannotSetResolverLocked && name.v1ResolverAddress) ||
           isKnownPublicResolver(name.v1ResolverAddress, envConfig.chain.id)
             ? defaultResolver
             : (name.v1ResolverAddress ??

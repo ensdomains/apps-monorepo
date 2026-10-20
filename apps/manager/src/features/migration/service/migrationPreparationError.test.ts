@@ -37,6 +37,16 @@ describe('migration preparation errors', () => {
       'contract-incompatible',
     ],
     [
+      'MigrationContractInvariantError',
+      { invariant: 'public-resolver-set-membership', actual: 'not-included' },
+      'locked-resolver-unsupported',
+    ],
+    [
+      'MigrationContractInvariantError',
+      { invariant: 'public-resolver-set-membership', actual: 'unverified' },
+      'locked-resolver-unverified',
+    ],
+    [
       'LockedResolverRecordSafetyError',
       { reason: 'inventory-missing' },
       'records-unavailable',
@@ -98,6 +108,19 @@ describe('migration preparation errors', () => {
     )
     expect(message(failure('MigrationRecoveryPlanError'), 'recovery')).toBe(
       "Couldn't restore your upgrade progress. Reload to check the latest state.",
+    )
+  })
+
+  it('explains why an unsupported locked resolver cannot be upgraded', () => {
+    expect(
+      message(
+        failure('MigrationContractInvariantError', {
+          invariant: 'public-resolver-set-membership',
+          actual: 'not-included',
+        }),
+      ),
+    ).toBe(
+      'Some locked names use an unsupported resolver. After upgrading, you could lose record editing and would be unable to change the resolver. Deselect those names to continue.',
     )
   })
 
