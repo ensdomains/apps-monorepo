@@ -12,11 +12,12 @@ const BLOCKED_REASONS: Record<
   string
 > = {
   'has-subnames': 'It has subnames of its own. Delete those first.',
-  emancipated:
-    'Its parent gave up control of it. Only its owner can delete it.',
-  'wrapper-mismatch': 'It is wrapped under an unwrapped name.',
-  'unknown-label': 'Its label is unknown, which the NameWrapper needs.',
-  'burned-fuse': 'This name burned CANNOT_CREATE_SUBDOMAIN.',
+  emancipated: 'Its owner has full control of it, so only they can delete it.',
+  'wrapper-mismatch':
+    'It’s wrapped but its parent isn’t. Wrap the parent to delete it here.',
+  'unknown-label': 'Its label isn’t known yet, so it can’t be deleted here.',
+  'burned-fuse':
+    'Deleting it re-issues it first, and its parent can no longer issue subnames.',
   unknown: 'Couldn’t check whether it can be deleted.',
 }
 

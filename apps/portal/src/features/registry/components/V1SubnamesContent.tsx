@@ -126,8 +126,11 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
       return entry ? [entry] : []
     })
     if (entries.length === 0) return
-    const checked = await checkAsync(entries).catch(() => null)
-    if (checked) queue(selected)
+    // A refusal shows through the hook's `error`.
+    await checkAsync(entries).then(
+      () => queue(selected),
+      () => undefined,
+    )
   }
 
   if (isLoading) return <LoadingMessage title="Loading subnames..." />

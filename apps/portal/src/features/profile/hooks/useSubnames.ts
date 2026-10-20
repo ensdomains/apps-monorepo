@@ -29,7 +29,6 @@ import {
 import { match, P } from 'ts-pattern'
 import { type Address, checksumAddress, type Hex, labelhash } from 'viem'
 import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
-import type { V1SubnameWrapping } from '@/features/registry/utils/delete-v1-subname.helpers'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
@@ -44,6 +43,11 @@ export class GetIsV1SubnameTakenError extends TaggedError(
 )<{
   cause: ensjsv1_GetOwnerErrorType
 }> {}
+
+/** How bigname says an ENSv1 subname is held. */
+export type V1SubnameWrapping =
+  | { readonly isWrapped: false }
+  | { readonly isWrapped: true; readonly parentCannotControl: boolean }
 
 type Subname = {
   readonly name: string

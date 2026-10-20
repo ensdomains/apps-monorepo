@@ -24,8 +24,8 @@ vi.mock('@/features/profile/hooks/useSubnames', () => ({
   getSubnamesCount: mocks.getSubnamesCount,
 }))
 
-const { prepareDeleteV1SubnameSubmit } = await import(
-  './prepareDeleteV1SubnameSubmit'
+const { prepareDeleteV1SubnamesSubmit } = await import(
+  './prepareDeleteV1SubnamesSubmit'
 )
 
 const LABELHASH = labelhash('sub')
@@ -54,12 +54,10 @@ const parentHeld = (isWrapped: boolean, owner: Address = ACCOUNT) =>
   })
 
 const submit = (target: 'registry' | 'wrapper' | 'wrap-then-delete') =>
-  prepareDeleteV1SubnameSubmit({
+  prepareDeleteV1SubnamesSubmit({
     parentName: 'parent.eth',
-    labelhash: LABELHASH,
-    labelName: 'sub',
     account: ACCOUNT,
-    target,
+    deletes: [{ labelhash: LABELHASH, labelName: 'sub', target }],
   })
 
 beforeEach(() => {
@@ -69,7 +67,7 @@ beforeEach(() => {
   mocks.getSubnamesCount.mockReturnValue(okAsync(0))
 })
 
-describe('prepareDeleteV1SubnameSubmit', () => {
+describe('prepareDeleteV1SubnamesSubmit', () => {
   // WEB-1458: a row served as a literal `[<hex>]` label must not be re-hashed.
   it('reads the subname by the row’s labelhash, not its served name', async () => {
     await submit('registry')
@@ -82,7 +80,7 @@ describe('prepareDeleteV1SubnameSubmit', () => {
   })
 
   it('confirms an unwrapped subname without reading the wrapper', async () => {
-    expect((await submit('registry'))._unsafeUnwrap()).toBe('registry')
+    expect((await submit('registry')).isOk()).toBe(true)
     expect(mocks.getWrapperData).not.toHaveBeenCalled()
   })
 
@@ -128,6 +126,31 @@ describe('prepareDeleteV1SubnameSubmit', () => {
     expect((await submit('registry'))._unsafeUnwrapErr().cause).toEqual({
       kind: 'changed',
       target: 'wrap-then-delete',
+    })
+  })
+
+  it('reads the parent once for a bulk delete, and every subname', async () => {
+    const result = await prepareDeleteV1SubnamesSubmit({
+      parentName: 'parent.eth',
+      account: ACCOUNT,
+      deletes: ['a', 'b', 'c'].map((label) => ({
+        labelhash: labelhash(label),
+        labelName: label,
+        target: 'registry' as const,
+      })),
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(mocks.getV1NameState).toHaveBeenCalledOnce()
+    expect(mocks.getOwner).toHaveBeenCalledTimes(3)
+  })
+
+  it('refuses an uncounted subname', async () => {
+    mocks.getSubnamesCount.mockReturnValue(okAsync(null))
+
+    expect((await submit('registry'))._unsafeUnwrapErr().cause).toEqual({
+      kind: 'refused',
+      reason: 'unknown',
     })
   })
 

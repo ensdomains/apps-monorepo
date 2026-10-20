@@ -2,17 +2,30 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ResultAsync } from 'neverthrow'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { ensChain } from '@/lib/wagmi'
-import { prepareDeleteV1SubnameSubmit } from '../helpers/prepareDeleteV1SubnameSubmit'
+import { prepareDeleteV1SubnamesSubmit } from '../helpers/prepareDeleteV1SubnamesSubmit'
 import {
   prepareDeleteV1SubnameTransactions,
   type V1SubnameDelete,
 } from '../utils/delete-v1-subname.helpers'
 import { refreshSubnameQueries } from '../utils/refreshSubnameQueries'
+
+export class DeleteV1SubnameError extends TaggedError('DeleteV1SubnameError')<{
+  message: string
+  cause:
+    | { readonly kind: 'wallet-not-connected' }
+    | { readonly kind: 'no-such-step' }
+}> {}
+
+const walletNotConnected = () =>
+  new DeleteV1SubnameError({
+    message: 'Wallet not connected',
+    cause: { kind: 'wallet-not-connected' },
+  })
 
 /**
  * V1 subname deletes: `check` re-reads every queued subname on-chain before the
@@ -28,20 +41,13 @@ export const useDeleteV1Subname = ({ name }: { readonly name: string }) => {
   const check = useMutation({
     mutationFn: async (deletes: readonly V1SubnameDelete[]) => {
       const account = walletClient?.account?.address
-      if (!account) throw new Error('Wallet not connected')
-      const checked = await ResultAsync.combine(
-        deletes.map(({ labelhash, labelName, target }) =>
-          prepareDeleteV1SubnameSubmit({
-            parentName: name,
-            labelhash,
-            labelName,
-            account,
-            target,
-          }),
-        ),
-      )
+      if (!account) throw walletNotConnected()
+      const checked = await prepareDeleteV1SubnamesSubmit({
+        parentName: name,
+        account,
+        deletes,
+      })
       if (checked.isErr()) throw checked.error
-      return deletes
     },
   })
 
@@ -55,9 +61,7 @@ export const useDeleteV1Subname = ({ name }: { readonly name: string }) => {
       readonly stepIndex: number
       readonly id: string
     }) => {
-      if (!walletClient?.account || !publicClient) {
-        throw new Error('Wallet not connected')
-      }
+      if (!walletClient?.account || !publicClient) throw walletNotConnected()
       const intents = prepareDeleteV1SubnameTransactions({
         ...entry,
         parentName: name,
@@ -65,7 +69,12 @@ export const useDeleteV1Subname = ({ name }: { readonly name: string }) => {
         chainId,
       })
       const intent = intents[stepIndex]
-      if (!intent) throw new Error('No such delete step')
+      if (!intent) {
+        throw new DeleteV1SubnameError({
+          message: 'No such delete step',
+          cause: { kind: 'no-such-step' },
+        })
+      }
 
       const txId = transactionManager.startTransaction(
         intent,

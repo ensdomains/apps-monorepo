@@ -11,13 +11,15 @@ import {
 } from '@ensdomains/ensjs/public/v1'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address, Hex } from 'viem'
+import type { Address } from 'viem'
 import { getSubnamesCount } from '@/features/profile/hooks/useSubnames'
+import type { V1ParentState } from '@/features/transfer/types'
 import { getV1NameState } from '@/features/transfer/v1/getV1NameState'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getV1SubnameParentGate } from '../utils/create-subname.helpers'
 import {
   getV1SubnameDeleteGate,
+  type V1SubnameDelete,
   type V1SubnameDeleteGate,
   type V1SubnameDeleteTarget,
 } from '../utils/delete-v1-subname.helpers'
@@ -49,49 +51,35 @@ export class PrepareDeleteV1SubnameSubmitError extends TaggedError(
   cause: PrepareDeleteV1SubnameSubmitCause
 }> {}
 
-export interface PrepareDeleteV1SubnameSubmitParams {
+export interface PrepareDeleteV1SubnamesSubmitParams {
   readonly parentName: string
-  readonly labelhash: Hex
-  readonly labelName: string | null
   readonly account: Address
-  /** The write the table queued, from the indexer's view of the subname. */
-  readonly target: V1SubnameDeleteTarget
+  /** The queued deletes, each with the write the table chose from the indexer's view. */
+  readonly deletes: readonly Pick<
+    V1SubnameDelete,
+    'labelhash' | 'labelName' | 'target'
+  >[]
 }
 
-/**
- * The checks run before a delete is signed. The table's rows come from the
- * indexer, so this re-reads the parent and the subname on-chain, and the
- * subname's own subnames, and refuses unless the queued write still applies.
- */
-export const prepareDeleteV1SubnameSubmit = ResultFn(async function* ({
-  parentName,
-  labelhash,
-  labelName,
-  account,
-  target,
-}: PrepareDeleteV1SubnameSubmitParams) {
+const fail = (message: string) => (cause: PrepareDeleteV1SubnameSubmitCause) =>
+  new PrepareDeleteV1SubnameSubmitError({ message, cause })
+const refuse = (message: string, cause: PrepareDeleteV1SubnameSubmitCause) =>
+  err(fail(message)(cause))
+
+/** One subname's re-check, under a parent the caller already holds. */
+const checkSubname = ResultFn(async function* (
+  parentName: string,
+  parent: V1ParentState,
+  {
+    labelhash,
+    labelName,
+    target,
+  }: PrepareDeleteV1SubnamesSubmitParams['deletes'][number],
+) {
   // Built from the row's labelhash, not its served name: a label written as
   // `[<hex>]` would otherwise hash to another node (WEB-1458).
   const subname = `${encodeLabelhash(labelhash)}.${parentName}`
   const shown = labelName ? `${labelName}.${parentName}` : subname
-  const fail =
-    (message: string) => (cause: PrepareDeleteV1SubnameSubmitCause) =>
-      new PrepareDeleteV1SubnameSubmitError({ message, cause })
-  const refuse = (message: string, cause: PrepareDeleteV1SubnameSubmitCause) =>
-    err(fail(message)(cause))
-
-  const state = yield* getV1NameState({ name: parentName }).mapErr(
-    fail(`Could not check ${parentName}`),
-  )
-  const parentGate = state
-    ? getV1SubnameParentGate(state, account)
-    : ({ reason: 'unowned' } as const)
-  if (parentGate.reason !== 'ok') {
-    return refuse(`You can’t delete subnames of ${parentName}.`, {
-      kind: 'refused',
-      reason: parentGate.reason,
-    })
-  }
 
   const client = yield* safeGetClient().mapErr(fail('Failed to get client'))
   const owner = yield* fromPromise(
@@ -109,12 +97,12 @@ export const prepareDeleteV1SubnameSubmit = ResultFn(async function* ({
           (e) => e as ensjsv1_GetWrapperDataErrorType,
         ).mapErr(fail(`Could not check ${shown}`))
       : null
-  const count = yield* getSubnamesCount({
+  const subnameCount = yield* getSubnamesCount({
     name: subname,
     protocolVersion: 'ENSv1',
   }).mapErr(fail(`Could not check ${shown}`))
 
-  const gate = getV1SubnameDeleteGate(parentGate.parent, {
+  const gate = getV1SubnameDeleteGate(parent, {
     labelName,
     wrapping:
       owner.ownershipLevel !== 'nameWrapper'
@@ -123,7 +111,7 @@ export const prepareDeleteV1SubnameSubmit = ResultFn(async function* ({
             isWrapped: true,
             parentCannotControl: wrapped.fuses.parent.PARENT_CANNOT_CONTROL,
           },
-    subnameCount: count ?? undefined,
+    subnameCount,
   })
   if (gate.reason !== 'ok') {
     return refuse(`${shown} can’t be deleted.`, {
@@ -137,5 +125,33 @@ export const prepareDeleteV1SubnameSubmit = ResultFn(async function* ({
       { kind: 'changed', target: gate.target },
     )
   }
-  return ok(gate.target)
+  return ok(undefined)
+})
+
+/**
+ * The checks run before the delete modal opens. The table's rows come from
+ * the indexer, so this re-reads the parent once and each subname on-chain, with
+ * its own subnames, and refuses unless every queued write still applies.
+ */
+export const prepareDeleteV1SubnamesSubmit = ResultFn(async function* ({
+  parentName,
+  account,
+  deletes,
+}: PrepareDeleteV1SubnamesSubmitParams) {
+  const state = yield* getV1NameState({ name: parentName }).mapErr(
+    fail(`Could not check ${parentName}`),
+  )
+  const parentGate = state
+    ? getV1SubnameParentGate(state, account)
+    : ({ reason: 'unowned' } as const)
+  if (parentGate.reason !== 'ok') {
+    return refuse(`You can’t delete subnames of ${parentName}.`, {
+      kind: 'refused',
+      reason: parentGate.reason,
+    })
+  }
+  for (const entry of deletes) {
+    yield* checkSubname(parentName, parentGate.parent, entry)
+  }
+  return ok(undefined)
 })

@@ -22,6 +22,7 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
+import type { V1SubnameWrapping } from '@/features/profile/hooks/useSubnames'
 import { toEoaIntent } from '@/features/transaction-manager/helpers/intents'
 import type { V1ParentState } from '@/features/transfer/types'
 import { canParentReissueV1Subname } from '@/features/transfer/v1/rules'
@@ -36,17 +37,12 @@ const NAME_WRAPPER = getChainContractAddress({
   contract: 'ensNameWrapper',
 })
 
-/** How a V1 subname is held; null when that can't be told. */
-export type V1SubnameWrapping =
-  | { readonly isWrapped: false }
-  | { readonly isWrapped: true; readonly parentCannotControl: boolean }
-
 export type V1SubnameDeleteChild = {
   /** The label, when known: the NameWrapper takes the label, not its hash. */
   readonly labelName: string | null
   readonly wrapping: V1SubnameWrapping | null
-  /** Undefined when the indexer did not count them. */
-  readonly subnameCount: number | undefined
+  /** Nullish when the indexer did not count them. */
+  readonly subnameCount: number | null | undefined
 }
 
 /**
