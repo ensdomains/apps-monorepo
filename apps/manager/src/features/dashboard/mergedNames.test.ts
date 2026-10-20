@@ -12,6 +12,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   protocol: 'v2',
   expiryDate: 100n,
   servedExpiry: null,
+  graceEndsAt: null,
   createdAt: 100n,
   nameRoles: ['owner'],
   isLapsed: false,
@@ -153,14 +154,32 @@ describe('mergedRowMetadata', () => {
     const item = makeMergedV2({
       sortName: 'grace.eth',
       sortExpiry: BigInt(expired),
+      name: makeName({ graceEndsAt: BigInt(expired + 28 * 86_400) }),
     })
     const meta = mergedRowMetadata(item, null)
     expect(meta.isInGrace).toBe(true)
+    expect(meta.graceEndDate?.getTime()).toBe((expired + 28 * 86_400) * 1000)
     expect(meta.useDefaultAvatar).toBe(true)
     expect(meta.showProminentRenew).toBe(true)
     expect(meta.expiryCta).toBe('renew')
     expect(meta.displayExpiryDate?.getTime()).toBeGreaterThan(
       meta.expiryDate?.getTime() ?? 0,
     )
+  })
+
+  it('gives an expired subname no grace, since bigname serves it none', () => {
+    const expired = Math.floor(
+      new Date('2023-12-20T00:00:00Z').getTime() / 1000,
+    )
+    const item = makeMergedV2({
+      sortName: 'sub.alice.eth',
+      sortExpiry: BigInt(expired),
+      name: makeName({ name: 'sub.alice.eth', graceEndsAt: null }),
+    })
+    const meta = mergedRowMetadata(item, null)
+    expect(meta.isInGrace).toBe(false)
+    expect(meta.graceEndDate).toBeNull()
+    expect(meta.expiryCta).toBeNull()
+    expect(meta.displayExpiryDate?.getTime()).toBe(expired * 1000)
   })
 })

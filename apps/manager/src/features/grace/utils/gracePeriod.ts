@@ -125,6 +125,26 @@ export const getSubnameExpiryStatus = (
   }
 }
 
+/** Grace as bigname serves it; a name with none, such as a subname, has a null end. */
+export const getServedExpiryStatus = (
+  expiryDate: Date | null | undefined,
+  graceEndDate: Date | null | undefined,
+  now: Date = new Date(),
+): NameExpiryStatus => {
+  const date = normalizeExpiryDate(expiryDate)
+  const graceEnd = normalizeExpiryDate(graceEndDate)
+  const isInGrace = !!date && !!graceEnd && now > date && now < graceEnd
+
+  return {
+    expiryDate: date,
+    isInGrace,
+    graceEndDate: isInGrace ? graceEnd : null,
+    daysSinceExpiry: date && isInGrace ? getDaysSinceExpiry(date, now) : null,
+    displayExpiryDate: isInGrace ? graceEnd : date,
+    isPastGrace: !!date && now >= (graceEnd ?? date),
+  }
+}
+
 export const getNameExpiryStatus = (
   expiryDate: Date | null | undefined,
   protocol: RenewalProtocol,
