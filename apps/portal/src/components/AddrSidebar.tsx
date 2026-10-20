@@ -23,7 +23,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from './ui/sidebar'
 
@@ -85,7 +84,6 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
-      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 border border-border rounded-r-md shadow-sm" />
       <SidebarBrandHeader />
 
       <SidebarSeparator className="my-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />

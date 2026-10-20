@@ -104,17 +104,13 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
-      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 border border-border rounded-r-md shadow-sm" />
       <SidebarHeader className="p-0 gap-0">
         {isIconMode ? (
-          <div className="flex flex-col items-center gap-4 pt-6 px-2">
-            <Link
-              to="/"
-              className="flex items-center min-h-8"
-              aria-label="ENS Home"
-            >
+          <div className="flex flex-col items-center gap-3 pt-6 px-2">
+            <Link to="/" className="flex items-center" aria-label="ENS Home">
               <EnsLogoMarkSVG />
             </Link>
+            <SidebarTrigger className="size-7" />
             <HomeSearchInput iconOnly />
           </div>
         ) : (

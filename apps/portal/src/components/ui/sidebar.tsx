@@ -4,7 +4,7 @@ import { Slot } from '@radix-ui/react-slot'
 import { useHotkey } from '@tanstack/react-hotkeys'
 import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
-import { LeftPanelCloseIcon } from '@/assets/icons'
+import { LeftPanelCloseIcon, LeftPanelOpenIcon } from '@/assets/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
@@ -243,7 +243,8 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state } = useSidebar()
+  const isCollapsed = state === 'collapsed'
 
   return (
     <Button
@@ -261,7 +262,11 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <LeftPanelCloseIcon className="size-4" />
+      {isCollapsed ? (
+        <LeftPanelOpenIcon className="size-4" />
+      ) : (
+        <LeftPanelCloseIcon className="size-4" />
+      )}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
