@@ -29,6 +29,14 @@ export const isConfirmationForSelection = (
   confirmation.name === name &&
   confirmation.ownerAddress.toLowerCase() === ownerAddress.toLowerCase()
 
+/** Resolver setup replaces something unless the name has neither a resolver nor an address. */
+export const isResolverSetupReplacing = (
+  confirmation: PrimaryNameConfirmation | null,
+): boolean =>
+  confirmation?.kind !== 'setup-resolver' ||
+  confirmation.replacesResolver ||
+  confirmation.existingEthAddress !== null
+
 export const needsPrimaryNameConfirmation = (
   preparation: PrimaryNamePreparation,
   confirmed?: PrimaryNameConfirmation,

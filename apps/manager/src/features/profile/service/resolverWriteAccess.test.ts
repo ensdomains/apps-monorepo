@@ -5,6 +5,7 @@ import {
   toFunctionSelector,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getProfileEthAddressSnapshot } from './profileEthAddress'
 
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
@@ -25,7 +26,9 @@ vi.mock('./profileEthAddress', async () => {
   }
 })
 
-const { getResolverWriteAccess } = await import('./resolverWriteAccess')
+const { getResolverWriteAccess, getResolverWriteState } = await import(
+  './resolverWriteAccess'
+)
 
 const supportsNameSetters = (supported: boolean) =>
   client.multicall.mockResolvedValue([{ status: 'success', result: supported }])
@@ -89,5 +92,34 @@ describe('getResolverWriteAccess', () => {
     const result = await getResolverWriteAccess('leon.eth', OWNER)
 
     expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('getResolverWriteState', () => {
+  it('reports no resolver as not writable with no address', async () => {
+    const { okAsync } = await import('neverthrow')
+    vi.mocked(getProfileEthAddressSnapshot).mockReturnValueOnce(
+      okAsync({ resolverAddress: undefined, ethAddress: undefined }),
+    )
+
+    const result = await getResolverWriteState('pookie.eth', OWNER)
+
+    expect(result._unsafeUnwrap()).toEqual({
+      resolverAddress: undefined,
+      writable: false,
+    })
+    expect(client.call).not.toHaveBeenCalled()
+  })
+
+  it('reports the resolver address alongside a successful probe', async () => {
+    client.multicall.mockResolvedValue([{ status: 'success', result: false }])
+    client.call.mockResolvedValue({ data: '0x' })
+
+    const result = await getResolverWriteState('pookie.eth', OWNER)
+
+    expect(result._unsafeUnwrap()).toEqual({
+      resolverAddress: RESOLVER,
+      writable: true,
+    })
   })
 })

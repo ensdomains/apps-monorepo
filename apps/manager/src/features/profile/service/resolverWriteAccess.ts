@@ -57,21 +57,37 @@ const canWriteEthAddressRecord = async (
   }
 }
 
-export const getResolverWriteAccess = ResultFn(async function* (
+export type ResolverWriteState = {
+  /** Undefined when the name has no resolver set. */
+  readonly resolverAddress: Address | undefined
+  readonly writable: boolean
+}
+
+export const getResolverWriteState = ResultFn(async function* (
   name?: string,
   ownerAddress?: Address,
 ) {
-  if (!name || !ownerAddress) return ok(true)
+  if (!name || !ownerAddress) {
+    return ok({ resolverAddress: undefined, writable: true })
+  }
 
   const { resolverAddress } = yield* getProfileEthAddressSnapshot(name)
-  if (!resolverAddress) return ok(false)
+  if (!resolverAddress) return ok({ resolverAddress, writable: false })
 
   const writable = yield* fromPromise(
     canWriteEthAddressRecord(resolverAddress, name, ownerAddress),
     (e) => new ResolverWriteAccessError({ cause: e }),
   )
 
-  return ok(writable)
+  return ok({ resolverAddress, writable })
+})
+
+export const getResolverWriteAccess = ResultFn(async function* (
+  name?: string,
+  ownerAddress?: Address,
+) {
+  const state = yield* getResolverWriteState(name, ownerAddress)
+  return ok(state.writable)
 })
 
 export const resolverWriteAccessQuery = (

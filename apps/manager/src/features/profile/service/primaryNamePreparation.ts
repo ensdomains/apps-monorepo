@@ -8,13 +8,19 @@ import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
-import { getResolverWriteAccess } from './resolverWriteAccess'
+import { getResolverWriteState } from './resolverWriteAccess'
 
 export type PrimaryNamePreparation =
   | { readonly kind: 'ready' }
   | {
-      readonly kind: 'update-eth-address' | 'setup-resolver'
+      readonly kind: 'update-eth-address'
       readonly existingEthAddress: Address | null
+    }
+  | {
+      readonly kind: 'setup-resolver'
+      readonly existingEthAddress: Address | null
+      /** False when the name has no resolver, so nothing is being replaced. */
+      readonly replacesResolver: boolean
     }
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
@@ -28,14 +34,21 @@ export async function getPrimaryNamePreparation(
     return { kind: 'ready' }
   }
 
-  const writeAccess = await getResolverWriteAccess(name, ownerAddress)
-  if (writeAccess.isErr()) throw writeAccess.error
+  const writeState = await getResolverWriteState(name, ownerAddress)
+  if (writeState.isErr()) throw writeState.error
+
+  const existingEthAddress =
+    forwardAddress && !isAddressEqual(forwardAddress, zeroAddress)
+      ? forwardAddress
+      : null
+
+  if (writeState.value.writable) {
+    return { kind: 'update-eth-address', existingEthAddress }
+  }
 
   return {
-    kind: writeAccess.value ? 'update-eth-address' : 'setup-resolver',
-    existingEthAddress:
-      forwardAddress && !isAddressEqual(forwardAddress, zeroAddress)
-        ? forwardAddress
-        : null,
+    kind: 'setup-resolver',
+    existingEthAddress,
+    replacesResolver: writeState.value.resolverAddress !== undefined,
   }
 }

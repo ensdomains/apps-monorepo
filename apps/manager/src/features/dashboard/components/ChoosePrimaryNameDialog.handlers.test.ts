@@ -4,6 +4,7 @@ import {
   getPrimaryNamePage,
   isConfirmationForSelection,
   isConfirmBlocked,
+  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
 } from './ChoosePrimaryNameDialog.handlers'
 
@@ -130,6 +131,7 @@ describe('primary-name confirmation', () => {
     expect(
       needsPrimaryNameConfirmation({
         kind: 'setup-resolver',
+        replacesResolver: false,
         existingEthAddress: null,
       }),
     ).toBe(true)
@@ -151,7 +153,11 @@ describe('primary-name confirmation', () => {
     ).toBe(true)
     expect(
       needsPrimaryNameConfirmation(
-        { kind: 'setup-resolver', existingEthAddress: null },
+        {
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          replacesResolver: false,
+        },
         confirmation,
       ),
     ).toBe(true)
@@ -194,5 +200,42 @@ describe('isConfirmBlocked', () => {
     ['the selected name is not canonical', { selectedName: 'ALICE.eth' }],
   ])('blocks confirm while %s', (_, override) => {
     expect(isConfirmBlocked({ ...ready, ...override })).toBe(true)
+  })
+
+  describe('isResolverSetupReplacing', () => {
+    const base = {
+      name: 'pookie.eth',
+      ownerAddress: '0x1111111111111111111111111111111111111111' as const,
+    }
+
+    it('is a plain continue when the name has no resolver and no address', () => {
+      expect(
+        isResolverSetupReplacing({
+          ...base,
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          replacesResolver: false,
+        }),
+      ).toBe(false)
+    })
+
+    it('replaces when a foreign resolver or an address exists', () => {
+      expect(
+        isResolverSetupReplacing({
+          ...base,
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          replacesResolver: true,
+        }),
+      ).toBe(true)
+      expect(
+        isResolverSetupReplacing({
+          ...base,
+          kind: 'setup-resolver',
+          existingEthAddress: '0x2222222222222222222222222222222222222222',
+          replacesResolver: false,
+        }),
+      ).toBe(true)
+    })
   })
 })
