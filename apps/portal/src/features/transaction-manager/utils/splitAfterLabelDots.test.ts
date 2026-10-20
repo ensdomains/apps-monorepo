@@ -21,6 +21,19 @@ describe('splitAfterLabelDots', () => {
     ])
   })
 
+  it('keeps decimals whole', () => {
+    expect(splitAfterLabelDots('Approve 1.5 USDC for registration')).toEqual([
+      'Approve 1.5 USDC for registration',
+    ])
+  })
+
+  it('still splits numeric labels', () => {
+    expect(splitAfterLabelDots('Set 184.eth as the primary name')).toEqual([
+      'Set 184.',
+      'eth as the primary name',
+    ])
+  })
+
   it('returns a single empty segment for empty text', () => {
     expect(splitAfterLabelDots('')).toEqual([''])
   })

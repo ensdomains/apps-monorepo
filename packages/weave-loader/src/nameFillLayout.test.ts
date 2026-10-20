@@ -1,7 +1,7 @@
-import { withLabelBreaks } from '@ens-apps/weave-loader/nameFillLayout'
 import { describe, expect, it } from 'vitest'
+import { withLabelBreaks } from './nameFillLayout'
 
-const ZWSP = '​'
+const ZWSP = '\u200b'
 
 describe('withLabelBreaks', () => {
   it('adds a break opportunity after each label dot', () => {

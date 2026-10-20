@@ -1,4 +1,5 @@
 import {
+  type ClipboardEvent,
   type CSSProperties,
   useEffect,
   useLayoutEffect,
@@ -49,6 +50,13 @@ function settleDelayMs(
     FILL_CLIP_TRANSITION_MS,
     FILL_CLIP_TRANSITION_MS - msSinceProgressChange,
   )
+}
+
+function copyPlainName(event: ClipboardEvent<HTMLElement>, name: string) {
+  if (!document.getSelection()?.toString()) return
+
+  event.preventDefault()
+  event.clipboardData.setData('text/plain', name)
 }
 
 function NameFillByClip({
@@ -236,6 +244,7 @@ export function NameFill({
         'relative inline-block w-full overflow-visible align-bottom',
         className,
       )}
+      onCopy={(event) => copyPlainName(event, name)}
       ref={containerRef}
       role="img"
       style={typography}
