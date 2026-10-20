@@ -11,6 +11,7 @@ import { bigname } from '@/lib/bigname'
 import {
   getIsSubnameTakenQueryOptions,
   getSubnamePagesQueryOptions,
+  getSubnamesCount,
   getSubnamesCountQueryOptions,
   getSubnamesQueryKey,
 } from './useSubnames'
@@ -89,6 +90,7 @@ describe('subname pages', () => {
         include_expired: 'false',
         sort: 'name',
         page_size: 100,
+        include: ['counts'],
       },
       { signal: expect.any(AbortSignal) },
     ])
@@ -98,8 +100,78 @@ describe('subname pages', () => {
         labelName: 'sub',
         labelhash: labelhash('sub'),
         owner: '0x1234567890AbcdEF1234567890aBcdef12345678',
+        v1Wrapping: null,
+        subnameCount: undefined,
       },
     ])
+  })
+
+  it('carries how bigname says each V1 subname is held, and its count', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(
+      page(
+        [
+          row('plain', {
+            ens_v1: { wrapper_state: 'unwrapped' },
+            subname_count: 0,
+          }),
+          row('wrapped', { ens_v1: { wrapper_state: 'wrapped' } }),
+          row('free', { ens_v1: { wrapper_state: 'emancipated' } }),
+          row('odd', { ens_v1: { wrapper_state: 'unknown' } }),
+        ],
+        { total: 4 },
+      ),
+    )
+
+    const subnames = await firstPage('test.eth')
+
+    expect(
+      subnames.map(({ v1Wrapping, subnameCount }) => ({
+        v1Wrapping,
+        subnameCount,
+      })),
+    ).toEqual([
+      { v1Wrapping: { isWrapped: false }, subnameCount: 0 },
+      {
+        v1Wrapping: { isWrapped: true, parentCannotControl: false },
+        subnameCount: undefined,
+      },
+      {
+        v1Wrapping: { isWrapped: true, parentCannotControl: true },
+        subnameCount: undefined,
+      },
+      { v1Wrapping: null, subnameCount: undefined },
+    ])
+  })
+
+  it('counts expired children only when asked, as a row’s count does', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 7 }))
+
+    expect(
+      (
+        await getSubnamesCount({
+          name: 'test.eth',
+          protocolVersion: 'ENSv1',
+          includeExpired: true,
+        })
+      )._unsafeUnwrap(),
+    ).toBe(7)
+    expect(asked()[1]).toMatchObject({ include_expired: 'true' })
+
+    await getSubnamesCount({ name: 'test.eth', protocolVersion: 'ENSv1' })
+    expect(asked(1)[1]).toMatchObject({ include_expired: 'false' })
+  })
+
+  it('asks for counts only on V1 pages', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 0 }))
+
+    await new QueryClient().fetchInfiniteQuery(
+      getSubnamePagesQueryOptions({
+        name: 'test.eth',
+        protocolVersion: 'ENSv2',
+      }),
+    )
+
+    expect(asked()[1]).not.toHaveProperty('include')
   })
 
   it('keeps a child bigname cannot label as its placeholder, and drops rows with no holder', async () => {

@@ -14,6 +14,8 @@ export type NamesForAddressQuery = Readonly<{
   address: Address
   /** Defaults to every relation. */
   relations?: readonly NameRelation[]
+  /** Names whose ETH address record is `address`, instead of `relations`. */
+  resolvesTo?: boolean
   protocol?: ProtocolVersion
   /** Only names with a proven move from v1 to v2. */
   migratedOnly?: boolean
