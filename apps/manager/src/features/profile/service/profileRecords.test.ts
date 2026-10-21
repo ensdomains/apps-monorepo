@@ -257,7 +257,8 @@ describe('profile records', () => {
   })
 
   it('retains the profile error path when resolution fails', async () => {
-    mocks.resolveNameData.mockRejectedValue(new Error('Resolution failed'))
+    mocks.resolveNameData.mockRejectedValue(new Error('RPC unavailable'))
     expect((await getProfileRecords('failed.eth')).isErr()).toBe(true)
+    expect(mocks.resolveNameData).toHaveBeenCalledTimes(2)
   })
 })

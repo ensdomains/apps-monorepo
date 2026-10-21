@@ -65,6 +65,8 @@ const safeGetCoderFromCoin = fromThrowable(getCoderFromCoin, () => undefined)
 const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
+const MAX_RESOLVER_SPLIT_DEPTH = 1
+
 export const getProfileRecords = ResultFn(async function* (name: string) {
   if (isDebugProfileName(name)) {
     return ok(DEBUG_PROFILE)
@@ -107,17 +109,20 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const resolveData = async (
     calls: Hex[],
+    splitDepth = 0,
   ): Promise<ResolveNameDataReturnType<Hex[]>> => {
     try {
       return await resolveNameData(client, { name, data: calls })
     } catch (error) {
-      if (calls.length === 1) throw error
+      if (calls.length === 1 || splitDepth >= MAX_RESOLVER_SPLIT_DEPTH) {
+        throw error
+      }
 
       // A large inner multicall can exceed resolver gas or provider body limits.
-      // Retry smaller groups while retaining the fast single call for normal profiles.
+      // Try one split, but bound retries when a transport or gateway is down.
       const midpoint = Math.floor(calls.length / 2)
-      const left = await resolveData(calls.slice(0, midpoint))
-      const right = await resolveData(calls.slice(midpoint))
+      const left = await resolveData(calls.slice(0, midpoint), splitDepth + 1)
+      const right = await resolveData(calls.slice(midpoint), splitDepth + 1)
       const resolverAddress = left?.resolverAddress ?? right?.resolverAddress
       if (!resolverAddress) return null
 
