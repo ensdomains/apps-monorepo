@@ -465,7 +465,7 @@ describe('subnames route role checks', () => {
     ).not.toBeInTheDocument()
     expect(
       within(table).getByLabelText(
-        new RegExp(`can’t delete cloud\\.${NAME}: it’s left over`, 'i'),
+        new RegExp(`can’t delete cloud\\.${NAME}: this is a v1 subname`, 'i'),
       ),
     ).toBeInTheDocument()
     // An unsaid era is not claimed to be V1, and still blocks the delete.

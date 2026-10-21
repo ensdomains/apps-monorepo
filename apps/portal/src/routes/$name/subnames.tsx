@@ -302,8 +302,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           .with('v2', () => undefined)
           .with(
             'v1',
-            () =>
-              'It’s left over from this name’s V1 registration and isn’t part of it on V2, so there’s nothing to delete here.',
+            () => 'This is a V1 subname, and it isn’t part of this name on V2.',
           )
           .with(
             null,
