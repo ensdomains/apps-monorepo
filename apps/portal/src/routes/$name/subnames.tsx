@@ -6,6 +6,7 @@ import {
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
+import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -43,8 +44,15 @@ import {
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
-const V1_CHILD_DELETE_REASON =
-  'It’s a V1 subname, which this name’s V2 subregistry doesn’t hold.'
+const deleteBlockedReasonFor = (protocol: 'v1' | 'v2' | null) =>
+  match(protocol)
+    .with('v2', () => undefined)
+    .with(
+      'v1',
+      () => 'It’s a V1 subname, which this name’s V2 subregistry doesn’t hold.',
+    )
+    .with(null, () => 'Couldn’t confirm this name’s V2 subregistry holds it.')
+    .exhaustive()
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -240,7 +248,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
             name: subname.name || '',
             owner: subname.owner,
             labelhash: subname.labelhash,
-            isInRegistry,
+            protocol: subname.protocol,
             resourceId: isInRegistry
               ? resourceIdFromChainValue(subname.labelhash).unwrapOr(null)
               : null,
@@ -304,9 +312,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         owner: subname.owner,
         labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
-        deleteBlockedReason: subname.isInRegistry
-          ? undefined
-          : V1_CHILD_DELETE_REASON,
+        deleteBlockedReason: deleteBlockedReasonFor(subname.protocol),
         canDelete:
           subname.resourceId !== null &&
           (hasRootUnregisterRole === true ||

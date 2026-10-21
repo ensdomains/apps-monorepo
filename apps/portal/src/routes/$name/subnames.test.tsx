@@ -446,6 +446,12 @@ describe('subnames route role checks', () => {
         owner: CONNECTED,
         protocol: 'v2',
       },
+      {
+        name: `unsaid.${NAME}`,
+        labelhash: labelhash('unsaid'),
+        owner: CONNECTED,
+        protocol: null,
+      },
     ]
 
     renderRoute()
@@ -459,7 +465,13 @@ describe('subnames route role checks', () => {
     ).not.toBeInTheDocument()
     expect(
       within(table).getByLabelText(
-        new RegExp(`can’t delete cloud\\.${NAME}`, 'i'),
+        new RegExp(`can’t delete cloud\\.${NAME}: it’s a v1 subname`, 'i'),
+      ),
+    ).toBeInTheDocument()
+    // An unsaid era is not claimed to be V1, and still blocks the delete.
+    expect(
+      within(table).getByLabelText(
+        new RegExp(`can’t delete unsaid\\.${NAME}: couldn’t confirm`, 'i'),
       ),
     ).toBeInTheDocument()
   })
