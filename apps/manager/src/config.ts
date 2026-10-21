@@ -35,11 +35,11 @@ const network = import.meta.env?.VITE_ENS_NETWORK
 // Relative URLs (like `/rpc`, used by the e2e stack) only resolve in the
 // browser, so SSR reads the server-specific override instead.
 const resolveRpcOverride = createIsomorphicFn()
-  .client(() => import.meta.env?.VITE_SEPOLIA_RPC_URL)
+  .client(() => import.meta.env?.VITE_RPC_URL)
   .server(() => {
-    const envUrl = import.meta.env?.VITE_SEPOLIA_RPC_URL
+    const envUrl = import.meta.env?.VITE_RPC_URL
     if (envUrl?.startsWith('/')) {
-      return import.meta.env?.VITE_SEPOLIA_RPC_URL_SERVER
+      return import.meta.env?.VITE_RPC_URL_SERVER
     }
     return envUrl
   })
