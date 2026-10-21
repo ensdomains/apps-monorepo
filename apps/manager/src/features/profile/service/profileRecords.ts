@@ -1,7 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { resolveNameData } from '@ensdomains/ensjs/public'
+import {
+  type ResolveNameDataReturnType,
+  resolveNameData,
+} from '@ensdomains/ensjs/public'
 import {
   decodeAbiResult,
   decodeContentHashResult,
@@ -14,7 +17,7 @@ import {
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
 import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import { type Address, encodeFunctionData, zeroAddress } from 'viem'
+import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
@@ -93,20 +96,49 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...recordKeys.coins,
   ]).filter(isSupportedCoinType)
 
+  const data = [
+    ...texts.map((key) => encodeFunctionData(getTextParameters({ name, key }))),
+    ...coins.map((coin) =>
+      encodeFunctionData(getAddressParameters({ name, coin })),
+    ),
+    encodeFunctionData(getContentHashParameters({ name })),
+    encodeFunctionData(getAbiParameters({ name })),
+  ]
+
+  const resolveData = async (
+    calls: Hex[],
+  ): Promise<ResolveNameDataReturnType<Hex[]>> => {
+    try {
+      return await resolveNameData(client, { name, data: calls })
+    } catch (error) {
+      if (calls.length === 1) throw error
+
+      // A large inner multicall can exceed resolver gas or provider body limits.
+      // Retry smaller groups while retaining the fast single call for normal profiles.
+      const midpoint = Math.floor(calls.length / 2)
+      const left = await resolveData(calls.slice(0, midpoint))
+      const right = await resolveData(calls.slice(midpoint))
+      const resolverAddress = left?.resolverAddress ?? right?.resolverAddress
+      if (!resolverAddress) return null
+
+      const failedResults = (length: number) =>
+        Array.from({ length }, () => ({
+          success: false,
+          returnData: '0x' as Hex,
+        }))
+
+      return {
+        resolverAddress,
+        resolvedData: [
+          ...(left?.resolvedData ?? failedResults(midpoint)),
+          ...(right?.resolvedData ?? failedResults(calls.length - midpoint)),
+        ],
+      }
+    }
+  }
+
   const resolution = yield* fromPromise(
-    resolveNameData(client, {
-      name,
-      data: [
-        ...texts.map((key) =>
-          encodeFunctionData(getTextParameters({ name, key })),
-        ),
-        ...coins.map((coin) =>
-          encodeFunctionData(getAddressParameters({ name, coin })),
-        ),
-        encodeFunctionData(getContentHashParameters({ name })),
-        encodeFunctionData(getAbiParameters({ name })),
-      ],
-    }),
+    resolveData(data),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
 
@@ -141,7 +173,12 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   }
 
   const abiData = rawResult(texts.length + coins.length + 1)
-  const abi = abiData ? await decodeAbiResult(abiData, { strict: false }) : null
+  const abi = abiData
+    ? yield* fromPromise(
+        decodeAbiResult(abiData, { strict: false }),
+        (error) => new GetProfileRecordsError({ cause: error }),
+      )
+    : null
   if (abi) {
     result.abi = typeof abi.abi === 'string' ? abi.abi : JSON.stringify(abi.abi)
   }

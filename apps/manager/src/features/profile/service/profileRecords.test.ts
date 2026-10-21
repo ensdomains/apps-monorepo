@@ -133,19 +133,29 @@ describe('profile records', () => {
   })
 
   it('omits an oversized ZEN record without losing other profile records', async () => {
-    mocks.resolveNameData.mockResolvedValue(
-      profileResolution([
-        {
-          success: true,
-          returnData: encodeAbiParameters([{ type: 'address' }], [ethAddress]),
-        },
-        {
-          success: true,
-          returnData: bytesResult(`0x2089${'11'.repeat(131_072 - 2)}`),
-        },
-        { success: false, returnData: '0x' },
-      ]),
-    )
+    const resolution = profileResolution([
+      {
+        success: true,
+        returnData: encodeAbiParameters([{ type: 'address' }], [ethAddress]),
+      },
+      {
+        success: true,
+        returnData: bytesResult(`0x2089${'11'.repeat(131_072 - 2)}`),
+      },
+      { success: false, returnData: '0x' },
+    ])
+    mocks.resolveNameData
+      .mockRejectedValueOnce(
+        new Error('Combined resolver call exceeded RPC limit'),
+      )
+      .mockResolvedValueOnce({
+        ...resolution,
+        resolvedData: resolution.resolvedData.slice(0, 4),
+      })
+      .mockResolvedValueOnce({
+        ...resolution,
+        resolvedData: resolution.resolvedData.slice(4),
+      })
 
     const result = (await getProfileRecords('gift.eth'))._unsafeUnwrap()
 
@@ -156,7 +166,10 @@ describe('profile records', () => {
       abi: '[]',
       resolverAddress,
     })
-    expect(mocks.resolveNameData).toHaveBeenCalledOnce()
+    expect(mocks.resolveNameData).toHaveBeenCalledTimes(3)
+    expect(
+      mocks.resolveNameData.mock.calls.map(([, { data }]) => data.length),
+    ).toEqual([8, 4, 4])
     expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
     const requestedCoins = requestedCalls().flatMap((call) =>
       call.functionName === 'addr'
