@@ -72,6 +72,18 @@ describe('migration preparation errors', () => {
     expect(message(cause)).not.toMatch(/secret|deadbeef|network fee/)
   })
 
+  it('names the parent prerequisite when a grace renewal is in the selection', () => {
+    const cause = failure('DirectMigrationRouteError', {
+      reason: 'missing-wrapper',
+    })
+    expect(migrationPreparationFailure(cause, 'fee').reason).toBe(
+      'parent-not-upgraded',
+    )
+    expect(
+      migrationPreparationFailure(failure('HttpRequestError'), 'fee').reason,
+    ).toBe('fee-unavailable')
+  })
+
   it.each([
     'account',
     'preflight',

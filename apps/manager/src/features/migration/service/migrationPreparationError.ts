@@ -55,8 +55,17 @@ const reasonFor = (
   stage: MigrationPreparationStage,
   cause: unknown,
 ): MigrationPreparationReason => {
-  if (stage === 'fee') return 'fee-unavailable'
   const chain = causeChain(cause)
+  // Before the fee fallback: the grace renewal estimate checks routes under the fee stage.
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'DirectMigrationRouteError' &&
+        error.reason === 'missing-wrapper',
+    )
+  )
+    return 'parent-not-upgraded'
+  if (stage === 'fee') return 'fee-unavailable'
   if (
     chain.some(
       (error) =>
@@ -100,14 +109,6 @@ const reasonFor = (
     )
   )
     return 'recovery-changed'
-  if (
-    chain.some(
-      (error) =>
-        error.name === 'DirectMigrationRouteError' &&
-        error.reason === 'missing-wrapper',
-    )
-  )
-    return 'parent-not-upgraded'
   if (
     chain.some(
       (error) =>
