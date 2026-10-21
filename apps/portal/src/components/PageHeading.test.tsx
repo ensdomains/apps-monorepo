@@ -81,12 +81,12 @@ describe('PageHeading', () => {
       {
         parent: { type: 'registry', address: ADDRESS } as const,
         href: '/registry/$address',
-        label: 'Registry Contract',
+        label: 'Registry contract',
       },
       {
         parent: { type: 'resolver', address: ADDRESS } as const,
         href: '/resolver/$address',
-        label: 'Resolver 0x7A82…81D9',
+        label: 'Resolver contract',
       },
     ]
 

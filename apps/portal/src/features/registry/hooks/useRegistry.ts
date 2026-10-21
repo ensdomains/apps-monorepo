@@ -31,9 +31,9 @@ export type RegistryInfo = {
   createdTransactionHash: Hash | null
   /** Undefined when bigname does not count them. */
   labelCount: number | undefined
-  /** Declared role assignments: one account on two resources counts twice. */
-  roleCount: number | undefined
   referencedBy: { name: string | null }[]
+  /** True when bigname has more referencing names than the first page lists. */
+  readonly referencedByHasMore: boolean
 }
 
 const getRegistryInfo = (
@@ -64,8 +64,8 @@ const getRegistryInfo = (
         createdAt: toUnixSeconds(registry.created_at) ?? 0,
         createdTransactionHash: registry.created_transaction_hash,
         labelCount: registry.counts.labels ?? undefined,
-        roleCount: registry.counts.roles ?? undefined,
         referencedBy: registry.referenced_by.data.map(({ name }) => ({ name })),
+        referencedByHasMore: registry.referenced_by.page.has_more,
       }
     })
 

@@ -123,6 +123,8 @@ export type ResolverOverview = {
    * when bigname could not serve them, which leaves the rest of the page up.
    */
   readonly events: readonly ResolverEvent[] | null
+  /** True when bigname holds older events than `events` lists. */
+  readonly eventsHasMore: boolean
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
@@ -439,6 +441,7 @@ const toOverview = (
       row.record_resource ? (toNamedResource(row.record_resource) ?? []) : [],
     ),
     events: events ? events.data.flatMap(toResolverEvent) : null,
+    eventsHasMore: events?.page?.has_more ?? false,
   }
 }
 
