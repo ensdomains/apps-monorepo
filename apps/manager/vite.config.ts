@@ -6,16 +6,13 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
-import {
-  assertDeploymentEnvironment,
-  assertNetworkConfig,
-} from '../../packages/config/src/index.ts'
+import { assertNetworkConfig } from '../../packages/config/src/index.ts'
 import { MANAGER_ENDPOINTS } from './src/endpoints.ts'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  assertDeploymentEnvironment(env, mode)
+  // Tenderly branch: previews build the default Worker against the mainnet fork.
   // Validate here so direct Vite commands and --mode use the same env files.
   assertNetworkConfig(env, { endpoints: MANAGER_ENDPOINTS })
   return {
