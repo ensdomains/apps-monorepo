@@ -59,9 +59,15 @@ vi.mock('@/features/roles/hooks/useCallerAdminRoles', () => ({
   useCallerAdminRoles: () => new Set(['ROLE_REGISTRAR_ADMIN']),
 }))
 
-vi.mock('@/features/resolver/hooks/useResolverCallerAdminRoles', () => ({
-  useResolverCallerAdminRoles: () => new Set(['ROLE_SET_ADDRESS_ADMIN']),
-}))
+vi.mock(
+  '@/features/resolver/hooks/useResolverCallerAdminRoles',
+  async (original) => ({
+    ...(await original<
+      typeof import('@/features/resolver/hooks/useResolverCallerAdminRoles')
+    >()),
+    useResolverCallerAdminRoles: () => new Set(['ROLE_SET_ADDRESS_ADMIN']),
+  }),
+)
 
 vi.mock('@/components/PageHeading', () => ({
   PageHeading: ({ children }: { children: React.ReactNode }) => (
