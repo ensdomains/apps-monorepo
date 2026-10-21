@@ -86,13 +86,13 @@ const getUploadEndpoint = ({
 
   if (type === 'avatar') {
     const baseURL =
-      chainName === 'mainnet' ? baseUrlRoot : `${baseUrlRoot}/${chainName}`
-    return `${baseURL}/${name}`
+      chainName === 'mainnet' ? baseUrlRoot : `${baseUrlRoot}${chainName}/`
+    return `${baseURL}${name}`
   }
 
   return chainName === 'mainnet'
-    ? `${baseUrlRoot}/${name}/h`
-    : `${baseUrlRoot}/${chainName}/${name}/h`
+    ? `${baseUrlRoot}${name}/h`
+    : `${baseUrlRoot}${chainName}/${name}/h`
 }
 
 const getUploadHash = (dataURL: string) => {
