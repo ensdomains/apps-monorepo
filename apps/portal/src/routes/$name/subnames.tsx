@@ -6,6 +6,7 @@ import {
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
+import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -233,9 +234,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           name: subname.name || '',
           owner: subname.owner,
           labelhash: subname.labelhash,
-          resourceId: resourceIdFromChainValue(subname.labelhash).unwrapOr(
-            null,
-          ),
+          protocol: subname.protocol,
+          resourceId:
+            subname.protocol === 'v2'
+              ? resourceIdFromChainValue(subname.labelhash).unwrapOr(null)
+              : null,
         }))
         .filter((subname) => !optimisticallyDeleted.has(subname.name)),
     [subnames, optimisticallyDeleted],
@@ -295,6 +298,17 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         owner: subname.owner,
         labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
+        deleteBlockedReason: match(subname.protocol)
+          .with('v2', () => undefined)
+          .with(
+            'v1',
+            () => 'This is a V1 subname, and it isn’t part of this name on V2.',
+          )
+          .with(
+            null,
+            () => 'Couldn’t confirm this subname is part of this name on V2.',
+          )
+          .exhaustive(),
         canDelete:
           subname.resourceId !== null &&
           (hasRootUnregisterRole === true ||

@@ -5,7 +5,7 @@
 # Stop:    docker compose -f e2e/infra/docker-compose.yml down
 #
 # Then set in the app (or .env):
-#   VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545   (manager; the explorer reads VITE_RPC_URL)
+#   VITE_RPC_URL=http://127.0.0.1:8545   (manager and explorer)
 #   VITE_PIMLICO_BUNDLER_URL=http://localhost:3000/alto  (proxy avoids CORS; see vite.config.ts)
 #
 # Optional: override fork URL (e.g. for CI)
