@@ -9,6 +9,7 @@ const name = (label: string): DashboardName => ({
   protocol: 'v2',
   expiryDate: 100n,
   servedExpiry: 100n,
+  graceEndsAt: null,
   createdAt: null,
   nameRoles: ['owner'],
   isLapsed: false,

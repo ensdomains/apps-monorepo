@@ -4,6 +4,7 @@ import {
   getPrimaryNamePage,
   isConfirmationForSelection,
   isConfirmBlocked,
+  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
 } from './ChoosePrimaryNameDialog.handlers'
 
@@ -130,6 +131,7 @@ describe('primary-name confirmation', () => {
     expect(
       needsPrimaryNameConfirmation({
         kind: 'setup-resolver',
+        hasResolver: false,
         existingEthAddress: null,
       }),
     ).toBe(true)
@@ -151,7 +153,11 @@ describe('primary-name confirmation', () => {
     ).toBe(true)
     expect(
       needsPrimaryNameConfirmation(
-        { kind: 'setup-resolver', existingEthAddress: null },
+        {
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          hasResolver: false,
+        },
         confirmation,
       ),
     ).toBe(true)
@@ -194,5 +200,69 @@ describe('isConfirmBlocked', () => {
     ['the selected name is not canonical', { selectedName: 'ALICE.eth' }],
   ])('blocks confirm while %s', (_, override) => {
     expect(isConfirmBlocked({ ...ready, ...override })).toBe(true)
+  })
+
+  it('asks again when a resolver appeared since the plain continue was confirmed', () => {
+    const confirmed = {
+      kind: 'setup-resolver' as const,
+      existingEthAddress: null,
+      hasResolver: false,
+      name: 'pookie.eth',
+      ownerAddress: '0x1111111111111111111111111111111111111111' as const,
+    }
+
+    expect(
+      needsPrimaryNameConfirmation(
+        { kind: 'setup-resolver', existingEthAddress: null, hasResolver: true },
+        confirmed,
+      ),
+    ).toBe(true)
+    expect(
+      needsPrimaryNameConfirmation(
+        {
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          hasResolver: false,
+        },
+        confirmed,
+      ),
+    ).toBe(false)
+  })
+
+  describe('isResolverSetupReplacing', () => {
+    const base = {
+      name: 'pookie.eth',
+      ownerAddress: '0x1111111111111111111111111111111111111111' as const,
+    }
+
+    it('is a plain continue when the name has no resolver and no address', () => {
+      expect(
+        isResolverSetupReplacing({
+          ...base,
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          hasResolver: false,
+        }),
+      ).toBe(false)
+    })
+
+    it('replaces when a foreign resolver or an address exists', () => {
+      expect(
+        isResolverSetupReplacing({
+          ...base,
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          hasResolver: true,
+        }),
+      ).toBe(true)
+      expect(
+        isResolverSetupReplacing({
+          ...base,
+          kind: 'setup-resolver',
+          existingEthAddress: '0x2222222222222222222222222222222222222222',
+          hasResolver: false,
+        }),
+      ).toBe(true)
+    })
   })
 })

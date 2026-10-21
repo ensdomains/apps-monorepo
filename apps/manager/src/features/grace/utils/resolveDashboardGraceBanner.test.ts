@@ -12,6 +12,10 @@ const dashboardName = (
   protocol,
   expiryDate: BigInt(expiryDate),
   servedExpiry: null,
+  // As bigname serves it: a .eth 2LD's grace, none for a subname.
+  graceEndsAt: /^[^.]+\.eth$/.test(name)
+    ? BigInt(expiryDate + (protocol === 'v2' ? 28 : 90) * 86_400)
+    : null,
   createdAt: null,
   nameRoles: ['owner'],
   isLapsed: false,

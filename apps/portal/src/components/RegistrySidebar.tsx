@@ -2,8 +2,9 @@ import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import { GitBranch, ShieldIcon } from 'lucide-react'
 import type { Address } from 'viem'
+import { EnsLogoMarkSVG } from '@/assets/ens-logo-mark'
+import { ExplorerLogoSVG } from '@/assets/explorer-logo'
 import { HistoryIcon, HubIcon } from '@/assets/icons'
-import { LogoSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { createDefineLinkItem } from '@/utils/tsr'
 import { SettingsMenu } from './SettingsMenu'
@@ -75,24 +76,20 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
-      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 border border-border rounded-r-md shadow-sm" />
       <SidebarHeader className="p-0 gap-0">
         {isIconMode ? (
-          <div className="flex flex-col items-center gap-4 pt-6 px-2">
-            <Link
-              to="/"
-              className="flex items-center min-h-8"
-              aria-label="ENS Home"
-            >
-              <LogoSVG height={30} className="text-foreground" />
+          <div className="flex flex-col items-center gap-3 pt-6 px-2">
+            <Link to="/" className="flex items-center" aria-label="ENS Home">
+              <EnsLogoMarkSVG />
             </Link>
+            <SidebarTrigger className="size-7" />
             <HomeSearchInput iconOnly />
           </div>
         ) : (
           <div className="px-6 pt-6 flex flex-col gap-6">
             <div className="flex items-center min-h-8">
               <Link to="/" className="flex items-center">
-                <LogoSVG height={30} className="text-foreground" />
+                <ExplorerLogoSVG />
               </Link>
             </div>
             <div className="flex items-center gap-2">
