@@ -43,6 +43,9 @@ import {
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
+const V1_CHILD_DELETE_REASON =
+  'It’s a V1 subname, which this name’s V2 subregistry doesn’t hold.'
+
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -229,14 +232,20 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const visibleSubnames = useMemo(
     () =>
       (subnames ?? [])
-        .map((subname) => ({
-          name: subname.name || '',
-          owner: subname.owner,
-          labelhash: subname.labelhash,
-          resourceId: resourceIdFromChainValue(subname.labelhash).unwrapOr(
-            null,
-          ),
-        }))
+        .map((subname) => {
+          // bigname still serves a V1 child under a name registered again on
+          // V2. This subregistry never registered it, so `unregister` reverts.
+          const isInRegistry = subname.protocol === 'v2'
+          return {
+            name: subname.name || '',
+            owner: subname.owner,
+            labelhash: subname.labelhash,
+            isInRegistry,
+            resourceId: isInRegistry
+              ? resourceIdFromChainValue(subname.labelhash).unwrapOr(null)
+              : null,
+          }
+        })
         .filter((subname) => !optimisticallyDeleted.has(subname.name)),
     [subnames, optimisticallyDeleted],
   )
@@ -295,6 +304,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         owner: subname.owner,
         labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
+        deleteBlockedReason: subname.isInRegistry
+          ? undefined
+          : V1_CHILD_DELETE_REASON,
         canDelete:
           subname.resourceId !== null &&
           (hasRootUnregisterRole === true ||

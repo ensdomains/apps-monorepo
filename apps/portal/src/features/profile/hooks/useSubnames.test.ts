@@ -100,6 +100,7 @@ describe('subname pages', () => {
         labelName: 'sub',
         labelhash: labelhash('sub'),
         owner: '0x1234567890AbcdEF1234567890aBcdef12345678',
+        protocol: null,
         v1Wrapping: null,
         subnameCount: undefined,
       },
@@ -159,6 +160,23 @@ describe('subname pages', () => {
 
     await getSubnamesCount({ name: 'test.eth', protocolVersion: 'ENSv1' })
     expect(asked(1)[1]).toMatchObject({ include_expired: 'false' })
+  })
+
+  it('carries the era bigname serves each subname from', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(
+      page(
+        [
+          row('old', { authority: 'ens_v1' }),
+          row('new', { authority: 'ens_v2' }),
+          row('unsaid'),
+        ],
+        { total: 3 },
+      ),
+    )
+
+    const subnames = await firstPage('test.eth')
+
+    expect(subnames.map(({ protocol }) => protocol)).toEqual(['v1', 'v2', null])
   })
 
   it('asks for counts only on V1 pages', async () => {

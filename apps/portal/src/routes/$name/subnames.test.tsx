@@ -369,6 +369,7 @@ describe('subnames route role checks', () => {
         name: ENCODED_SUBNAME,
         labelhash: ENCODED_SUBNAME_LABELHASH,
         owner: CONNECTED,
+        protocol: 'v2',
       },
     ]
 
@@ -409,6 +410,7 @@ describe('subnames route role checks', () => {
         name: ENCODED_SUBNAME,
         labelhash: ENCODED_SUBNAME_LABELHASH,
         owner: CONNECTED,
+        protocol: 'v2',
       },
     ]
 
@@ -425,6 +427,41 @@ describe('subnames route role checks', () => {
     )
 
     expect(resourceRolesFetched).not.toHaveBeenCalled()
+  })
+
+  // WEB-1887: bigname still serves a V1 child under a name registered again
+  // on V2, and `unregister` on the new subregistry reverts for it.
+  it('offers no delete for a V1 subname under a V2 name, and says why', async () => {
+    hasRootUnregister = true
+    subnames = [
+      {
+        name: `cloud.${NAME}`,
+        labelhash: labelhash('cloud'),
+        owner: CONNECTED,
+        protocol: 'v1',
+      },
+      {
+        name: `new.${NAME}`,
+        labelhash: labelhash('new'),
+        owner: CONNECTED,
+        protocol: 'v2',
+      },
+    ]
+
+    renderRoute()
+
+    const table = await screen.findByRole('table')
+    expect(
+      await within(table).findByRole('button', { name: `Delete new.${NAME}` }),
+    ).toBeInTheDocument()
+    expect(
+      within(table).queryByRole('button', { name: `Delete cloud.${NAME}` }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(table).getByLabelText(
+        new RegExp(`can’t delete cloud\\.${NAME}`, 'i'),
+      ),
+    ).toBeInTheDocument()
   })
 
   it('offers subname creation to a registry-wide role holder', async () => {
@@ -445,8 +482,14 @@ describe('subnames route role checks', () => {
         name: ENCODED_SUBNAME,
         labelhash: ENCODED_SUBNAME_LABELHASH,
         owner: CONNECTED,
+        protocol: 'v2',
       },
-      { name: `cold.${NAME}`, labelhash: otherLabelhash, owner: CONNECTED },
+      {
+        name: `cold.${NAME}`,
+        labelhash: otherLabelhash,
+        owner: CONNECTED,
+        protocol: 'v2',
+      },
     ]
     allowedResources = new Set([BigInt(otherLabelhash).toString()])
 
