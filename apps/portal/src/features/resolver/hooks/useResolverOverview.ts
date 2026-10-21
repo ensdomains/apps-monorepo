@@ -283,6 +283,9 @@ const toNamedResource = (
     .otherwise(() => undefined)
 }
 
+const namedResourceOf = (row: BignameResolverRole) =>
+  row.record_resource ? (toNamedResource(row.record_resource) ?? []) : []
+
 /**
  * The EAC resource a grant targets: bigname's `eac_resource` when it serves
  * one, else the hash of the record it is scoped to. Neither present does not
@@ -436,12 +439,43 @@ const toOverview = (
         ? null
         : new Set(resolverRoles.map(({ account }) => account.toLowerCase()))
             .size,
-    namedResources: roles.rows.flatMap((row) =>
-      row.record_resource ? (toNamedResource(row.record_resource) ?? []) : [],
-    ),
+    namedResources: roles.rows.flatMap(namedResourceOf),
     events: events ? events.data.flatMap(toResolverEvent) : null,
   }
 }
+
+const readResolverRoles = (
+  { chainId, address }: ResolverRef,
+  signal: AbortSignal | undefined,
+) =>
+  readResolverCollection<BignameResolverRole>(
+    (cursor, pageSignal) =>
+      bigname.resolverRoles(
+        chainId,
+        address,
+        { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
+        { signal: pageSignal },
+      ),
+    signal,
+  )
+
+/** `account`'s grants on the resolver, with the setter arguments bigname decoded for them. */
+export const getResolverRoleGrants = (
+  {
+    address,
+    account,
+  }: { readonly address: Address; readonly account: Address },
+  signal?: AbortSignal,
+) =>
+  readResolverRoles(resolverRefOf(address), signal).map(({ rows }) => {
+    const held = rows.filter(
+      (row) => row.address.toLowerCase() === account.toLowerCase(),
+    )
+    return {
+      roles: held.map(toResolverRole),
+      namedResources: held.flatMap(namedResourceOf),
+    }
+  })
 
 /**
  * The newest events, or null when bigname fails to serve them, so a failure
@@ -494,16 +528,7 @@ const getResolverOverview = (
         ),
       signal,
     ),
-    readResolverCollection<BignameResolverRole>(
-      (cursor, pageSignal) =>
-        bigname.resolverRoles(
-          chainId,
-          resolver.address,
-          { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
-          { signal: pageSignal },
-        ),
-      signal,
-    ),
+    readResolverRoles(resolver, signal),
     readRecentEvents(resolver, signal),
   ])
     .map(([overview, links, roles, events]): ResolverOverview | null =>
