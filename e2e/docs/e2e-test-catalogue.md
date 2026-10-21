@@ -566,7 +566,7 @@ Tester + Dev Tools drawer, no scripts).
 
 ### Q — 4LD names (V1 first)
 
-Source: coverage/handoff.md, Iteration 53. V2 is reserved for Q50 and up.
+Source: coverage/handoff.md, Iteration 53. The native V2 pass is Q50–Q59 below.
 Display and ownership use the generated V1 matrix; actions reuse its seeder.
 Measured outcomes are recorded in Iteration 54 and the defect ledger: Q4 loses
 resolution (E2E-031), Q8 is stranded (E2E-041), and SUB-F3 remains a product ruling.
@@ -607,7 +607,32 @@ routes, plus the V1-only subname/role limitations: every refusal must state its
 reason and leave the owner, fuses, resolver and records unchanged. Q7 supplies
 the manager editor witness; Q12/Q15 cover parent/fuse refusals; Q16 checks both
 owners' dashboards and eligible migration membership. This inventory does not
-claim to sweep new native V2 4LD behavior (reserved for Q50+).
+claim to sweep new native V2 4LD behavior (covered separately by Q50–Q59).
+
+### Q50–Q59 — native V2 4LD pass
+
+Uses the existing nested UserRegistry seeder, independently verified owners and UniversalResolver records. Real bigname only. Clock-moving Q59 runs separately after action cases.
+
+Sources: `contracts-v2/contracts/test/unit/registry/UserRegistry.t.sol`:
+`test_domain_registration`, `test_domain_management`, `test_role_management`,
+`test_Revert_unauthorized_registration`, `test_Revert_unauthorized_role_grant`,
+`test_domain_expiry`; existing UI witnesses D3/D5, F15, E1/E5, X8 and R8.
+These cases extend the same UI operations to a native fourth-level token in a
+nested UserRegistry. They do not claim complete coverage of all V2 role bitmaps,
+resolver inheritance, mixed-owner ancestors, or parent-registry replacement.
+
+| ID | Case | Oracle |
+|---|---|---|
+| Q50 | Create a native V2 4LD through the explorer | Registered in the 3LD registry; absent from the 2LD registry |
+| Q51 | Delete a native V2 4LD through its parent | Leaf unregistered; ancestor owners and registry pointers unchanged |
+| Q52 | Transfer a native V2 4LD while retaining records | Leaf owner changes; ancestors and resolution unchanged |
+| Q53 | Stranger attempts native V2 4LD transfer | No transfer form; owner unchanged |
+| Q54 | Edit native V2 4LD records | UniversalResolver returns the edit, ancestor records unchanged |
+| Q55 | Stranger attempts native V2 4LD record editing | Editor refused; stored resolution unchanged |
+| Q56 | Native V2 4LD name-role management | Name roles accessible at depth four with matching on-chain authority |
+| Q57 | Native V2 4LD primary name | Manager offers the leaf; primary and forward resolution agree |
+| Q58 | Native V2 4LD transfer observed in Manager | Recipient sees the leaf; sender no longer sees it |
+| Q59 | Native V2 4LD expires while ancestors remain active | Leaf unavailable to transfer; ancestors remain registered |
 
 ### V — V1 name-shape matrix · R0/R2/R3 · generated
 

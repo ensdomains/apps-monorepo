@@ -168,6 +168,12 @@ export const invariants: Invariant[] = [
     sites: [
       site(
         'INV3',
+        'native-4ld-lists',
+        'Native V2 4LD transfer dashboard membership',
+        'Q58: recipient lists the transferred leaf and sender excludes it, cross-checked against registry ownership',
+      ),
+      site(
+        'INV3',
         '4ld-state',
         'Mixed copied 4LD dashboard membership',
         'copied 4LD appears once in its owner dashboard after the Q2 migration',
@@ -273,6 +279,12 @@ export const invariants: Invariant[] = [
     rationale:
       'Offering an action the wallet cannot perform is how an irreversible plan step gets ordered ahead of an impossible one — INV5 failures become INV1 incidents.',
     sites: [
+      site(
+        'INV5',
+        'native-4ld-writes',
+        'Native V2 4LD creation, deletion, transfer and record save',
+        'Q50/Q51/Q52/Q54: each offered write executes and its intended registry or resolver change is read back; Q53/Q55 cover stranger refusals separately',
+      ),
       site(
         'INV5',
         '4ld-transfer-actions',
