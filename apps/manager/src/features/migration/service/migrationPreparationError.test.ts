@@ -49,6 +49,12 @@ describe('migration preparation errors', () => {
     ['ProfileFetchError', {}, 'records-unavailable'],
     ['MigrationRecoveryPlanError', {}, 'recovery-changed'],
     ['MigrationBatchJournalCorruptError', {}, 'recovery-changed'],
+    [
+      'DirectMigrationRouteError',
+      { reason: 'missing-wrapper' },
+      'parent-not-upgraded',
+    ],
+    ['DirectMigrationRouteError', { reason: 'conflicting-wrapper' }, 'unknown'],
     ['HttpRequestError', {}, 'rpc-unavailable'],
     ['TimeoutError', {}, 'rpc-unavailable'],
     [
@@ -64,6 +70,18 @@ describe('migration preparation errors', () => {
       cause,
     })
     expect(message(cause)).not.toMatch(/secret|deadbeef|network fee/)
+  })
+
+  it('names the parent prerequisite when a grace renewal is in the selection', () => {
+    const cause = failure('DirectMigrationRouteError', {
+      reason: 'missing-wrapper',
+    })
+    expect(migrationPreparationFailure(cause, 'fee').reason).toBe(
+      'parent-not-upgraded',
+    )
+    expect(
+      migrationPreparationFailure(failure('HttpRequestError'), 'fee').reason,
+    ).toBe('fee-unavailable')
   })
 
   it.each([

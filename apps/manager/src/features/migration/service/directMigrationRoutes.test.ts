@@ -1,4 +1,4 @@
-import { type Address, namehash, type PublicClient } from 'viem'
+import { type Address, namehash, type PublicClient, zeroAddress } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
@@ -216,5 +216,27 @@ describe('resolveDirectMigrationRoutes', () => {
         classified: [child],
       }),
     ).rejects.toMatchObject({ reason: 'uncertified-wrapper' })
+  })
+
+  it('blocks an emancipated subname whose unselected parent is not upgraded', async () => {
+    const child = makeClassified({
+      name: 'sub.locked.parent.eth',
+      label: 'sub',
+      tokenType: 'detached-child',
+      parentName: 'locked.parent.eth',
+    })
+
+    await expect(
+      resolveDirectMigrationRoutes({
+        publicClient: publicClientForWrapper({
+          name: 'parent.eth',
+          actualWrapper: zeroAddress,
+        }),
+        classified: [child],
+      }),
+    ).rejects.toMatchObject({
+      name: 'DirectMigrationRouteError',
+      reason: 'missing-wrapper',
+    })
   })
 })
