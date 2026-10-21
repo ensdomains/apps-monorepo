@@ -20,7 +20,7 @@ Q59 runs in `portal-v2-4ld-time`, excluded from `portal-e2e`, after action suite
 
 ### Findings
 
-- **Q56 → E2E-042:** the native V2 4LD owner has ROLE_SET_RESOLVER_ADMIN in its immediate parent UserRegistry, but the name Roles route explicitly rejects labels deeper than three. The existing navigation offers the dead-end Roles link. Retain the original supported-role-page assertion with a late expected-failure marker. No application fix or Linear write.
+- **Q56 → E2E-042:** the native V2 4LD owner has ROLE_SET_RESOLVER_ADMIN in its immediate parent UserRegistry, but the name Roles route explicitly rejects labels deeper than three. The existing navigation offers the dead-end Roles link. Retain the original supported-role-page assertion with a late expected-failure marker. No application fix. The user subsequently confirmed the bug was logged in Linear.
 - Q57 initially waited for an ETH-address confirmation after the primary name had already been set. The native fixture already resolves to the owner, so `ChoosePrimaryNameDialog.handlers.ts::needsPrimaryNameConfirmation` returns false for its `ready` preparation. The test now clicks Set as Primary and verifies reverse and forward resolution directly.
 - An initial Q53 failure was a test selector error: the stranger correctly sees **Not authorized**, not the role-holder refusal **Transfer not available**. The assertion now requires the observed non-owner refusal, no form, no transfer role, and unchanged owner.
 
@@ -44,7 +44,7 @@ Smoke remains **portal 17/19**, **manager 7/9**, with the same failures detailed
 
 ### Limits
 
-This is a bounded native V2 pass, not exhaustive coverage of all role bitmaps, inherited resolvers, mixed-owner ancestors, ancestor registry replacement or every expiry combination. Q56 blocks name-scoped role UI operations at depth four. Existing V1 Q3/Q4/Q8 defects remain open; this pass does not fix them. V1 manual follow-up confirmed E2E-041 and E2E-031 at 3LD depth too; the user considers Q18's exclusion of valid V1 primary names a bug. No Linear tickets have been created.
+This is a bounded native V2 pass, not exhaustive coverage of all role bitmaps, inherited resolvers, mixed-owner ancestors, ancestor registry replacement or every expiry combination. Q56 blocks name-scoped role UI operations at depth four. Existing V1 Q3/Q4/Q8 defects remain open; this pass does not fix them. V1 manual follow-up confirmed E2E-041 and E2E-031 at 3LD depth too; the user considers Q18's exclusion of valid V1 primary names a bug. The user confirmed on 2026-10-21 that all bugs reported in this session are logged in Linear: E2E-040/Q3, E2E-041/Q8, E2E-031/Q4, Q18, and E2E-042/Q56. Ticket links were not supplied; do not create duplicates. Fixes and verification remain outstanding.
 
 ---
 
