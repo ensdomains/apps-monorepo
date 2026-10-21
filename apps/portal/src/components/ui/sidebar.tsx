@@ -243,8 +243,9 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, state } = useSidebar()
-  const isCollapsed = state === 'collapsed'
+  const { toggleSidebar, state, isMobile, openMobile } = useSidebar()
+  // On mobile the sheet's own open state applies, not the desktop one.
+  const isCollapsed = isMobile ? !openMobile : state === 'collapsed'
 
   return (
     <Button
