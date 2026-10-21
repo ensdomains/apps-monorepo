@@ -17,7 +17,7 @@ catalog:
   happy-dom: ^20.13.2
   "@cloudflare/vite-plugin": ^1.63.2
   wrangler: ^4.150.0
-  posthog-js: ^1.398.3
+  posthog-js: 1.404.1
   "@posthog/react": ^1.10.3
   viem: ^2.52.2
   "@rhinestone/sdk": 1.8.0
@@ -97,6 +97,7 @@ patchedDependencies:
   xstate: patches/xstate.patch
   class-variance-authority: patches/class-variance-authority.patch
   "@rhinestone/sdk@1.8.0": patches/@rhinestone%2Fsdk@1.8.0.patch
+  posthog-js@1.404.1: patches/posthog-js@1.404.1.patch
 
 # pnpm >=11 fails the install on any dependency build script not listed here.
 # All denied: these ship prebuilt binaries via optionalDependencies.

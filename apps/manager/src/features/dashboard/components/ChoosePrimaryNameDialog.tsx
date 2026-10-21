@@ -62,6 +62,7 @@ import { resolveDomainLabel } from '../utils'
 import {
   isConfirmationForSelection,
   isConfirmBlocked,
+  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
   PRIMARY_NAME_PAGE_SIZE,
   type PrimaryNameConfirmation,
@@ -819,6 +820,7 @@ export const ChoosePrimaryNameDialog = ({
 
       <ResolverSetupConfirmDialog
         intent="primary-name"
+        isReplacing={isResolverSetupReplacing(confirmation)}
         onConfirm={() => {
           if (confirmation) void runConfirm(confirmation)
         }}

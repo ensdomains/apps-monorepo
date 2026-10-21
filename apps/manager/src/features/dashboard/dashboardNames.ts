@@ -17,6 +17,8 @@ export type DashboardName = {
   readonly expiryDate: bigint
   /** Exact served expiry bigname sorts by; a reserved ENSv1 name's reservation. */
   readonly servedExpiry: bigint | null
+  /** Unix seconds when grace ends, as bigname serves it; null when there is none. */
+  readonly graceEndsAt: bigint | null
   readonly createdAt: bigint | null
   readonly nameRoles: readonly DashboardNameRole[]
   /** An ENSv2 name the address held until it expired, still renewable in grace. */
@@ -59,6 +61,7 @@ export const toDashboardName = (name: NameSummary): DashboardName => ({
   protocol: name.protocol ?? 'v2',
   expiryDate: toSeconds(name.expiresAt) ?? 0n,
   servedExpiry: name.servedExpiry,
+  graceEndsAt: toSeconds(name.graceEndsAt),
   createdAt: toSeconds(name.createdAt),
   nameRoles: toNameRoles(name.relations),
   isLapsed: false,
@@ -81,6 +84,7 @@ export const toGraceName = (row: AddressName): DashboardName | null => {
     protocol: 'v2',
     expiryDate,
     servedExpiry: expiryDate,
+    graceEndsAt: toExactSeconds(row.grace_ends_at),
     createdAt: toExactSeconds(row.created_at),
     nameRoles: [],
     isLapsed: true,

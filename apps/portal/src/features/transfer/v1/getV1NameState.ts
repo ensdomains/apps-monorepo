@@ -217,7 +217,7 @@ type GetV1NameStateParameters = {
  * handed to `deriveV1NameState`. All reads are independent and fired together
  * so the client's batching coalesces them into one request.
  */
-const getV1NameState = ResultFn(async function* ({
+export const getV1NameState = ResultFn(async function* ({
   name: rawName,
 }: GetV1NameStateParameters) {
   // Route-supplied, so normalise once here: every hash and ensjs read below

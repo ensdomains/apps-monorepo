@@ -15,8 +15,8 @@ import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { CommemorativeNftDashboard } from '@/features/migration/components/success/CommemorativeNftDashboard'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
@@ -60,7 +60,7 @@ const PrimaryNameCardWithRecords = ({
 }: {
   readonly primaryName: string
 }) => {
-  const { data: records } = useQuery(profileRecordsQuery(primaryName))
+  const { data: records } = useQuery(profileAvatarRecordsQuery(primaryName))
   const themeColor = records?.texts.find((text) => text.key === 'theme')?.value
   const avatarRecord = records?.texts
     .find((text) => text.key === 'avatar')

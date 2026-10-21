@@ -86,7 +86,7 @@ export const FigmaLongName: Story = {
   args: {
     name: WEAVE_REGISTRATION_LONG_NAME,
     progress: 0.55,
-    className: 'w-full whitespace-normal break-all',
+    className: 'w-full whitespace-normal wrap-anywhere',
     ...WEAVE_REGISTRATION_NAME_FILL,
   },
   decorators: [

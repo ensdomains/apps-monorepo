@@ -1,9 +1,4 @@
-import {
-  getDaysSinceExpiry,
-  getDisplayExpiryDate,
-  getGraceEndDate,
-  isInGracePeriod,
-} from '@/features/grace/utils/gracePeriod'
+import { getServedExpiryStatus } from '@/features/grace/utils/gracePeriod'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import type { DashboardName } from './dashboardNames'
 import {
@@ -96,14 +91,15 @@ export const mergedRowMetadata = (
   const expiryDate = getMergedExpiryDate(item.sortExpiry)
   const isV1 = item.kind === 'v1'
   const protocol = item.kind
-  const isInGrace = isInGracePeriod(expiryDate, protocol, now)
-  const graceEndDate =
-    expiryDate && isInGrace ? getGraceEndDate(expiryDate, protocol) : null
-  const displayExpiryDate = getDisplayExpiryDate(expiryDate, protocol, now)
+  const { graceEndsAt } = item.name
+  const { isInGrace, graceEndDate, displayExpiryDate, daysSinceExpiry } =
+    getServedExpiryStatus(
+      expiryDate,
+      graceEndsAt === null ? null : toDateFromSeconds(Number(graceEndsAt)),
+      now,
+    )
   const { isMigrationEligible } = item
   const daysUntilExpiry = getDaysUntil(expiryDate)
-  const daysSinceExpiry =
-    expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
   const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
   const expiryCta =
     protocol === 'v2' && isInGrace

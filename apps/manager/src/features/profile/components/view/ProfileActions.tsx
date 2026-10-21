@@ -72,9 +72,9 @@ export const ProfileActions = ({
   if (hasFloatingBar) {
     return (
       <ProfileEditAction
+        canEdit={canEdit}
         className={profileButtonClassName}
         isInGrace={isInGrace}
-        isOwner={isOwner}
         leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
@@ -111,9 +111,9 @@ export const ProfileActions = ({
               {barActions}
             </div>
             <ProfileEditAction
+              canEdit={canEdit}
               className={editActionClassName}
               isInGrace={isInGrace}
-              isOwner={isOwner}
               isUpgradeRequired={isUpgradeRequired}
               name={name}
               onUpdated={onUpdated}

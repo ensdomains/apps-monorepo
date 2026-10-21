@@ -708,6 +708,10 @@ msgstr "Contact"
 msgid "Contact methods"
 msgstr "Contact methods"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Continue"
+msgstr "Continue"
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
 msgstr "Continue without signing in"
@@ -2871,6 +2875,10 @@ msgstr "To save these changes, we’ll set a resolver your wallet controls and k
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
 msgstr "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "To use this as your primary name, we’ll set a resolver your wallet controls."
+msgstr "To use this as your primary name, we’ll set a resolver your wallet controls."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx

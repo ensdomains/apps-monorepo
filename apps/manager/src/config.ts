@@ -24,6 +24,8 @@ import { MANAGER_ENDPOINTS } from './endpoints'
  * to the shared public endpoints in the network profile.
  */
 const MANAGER_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
+  mainnet:
+    'https://lb.drpc.live/ethereum/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
   sepolia:
     'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
 }

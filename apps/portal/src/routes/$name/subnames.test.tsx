@@ -163,6 +163,16 @@ vi.mock('@/features/registry/hooks/useDeleteSubname', () => ({
   useDeleteSubname: () => ({ deleteSubname: vi.fn(), isPending: false }),
 }))
 
+vi.mock('@/features/registry/hooks/useDeleteV1Subname', () => ({
+  useDeleteV1Subname: () => ({
+    checkAsync: vi.fn(),
+    isChecking: false,
+    deleteStepAsync: vi.fn(),
+    isDeleting: false,
+    error: null,
+  }),
+}))
+
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
   TransactionModal: () => null,
 }))
@@ -267,10 +277,61 @@ describe('V1 subname creation', () => {
 
     expect(
       await screen.findByText(
-        /couldn’t check whether you can create subnames/i,
+        /couldn’t check whether you can create or delete subnames/i,
       ),
     ).toBeInTheDocument()
     expect(createLink()).not.toBeInTheDocument()
+  })
+})
+
+describe('V1 subname deletion', () => {
+  const holdUnwrapped = (owner: string) => {
+    protocolVersion = 'ENSv1'
+    v1State = {
+      subject: { kind: 'v1-registry', owner },
+      registration: null,
+      resolverAddress: null,
+      parent: null,
+      ancestorRegistration: null,
+    }
+  }
+  const v1Row = (label: string, subnameCount: number) => ({
+    name: `${label}.${NAME}`,
+    labelName: label,
+    labelhash: labelhash(label),
+    owner: PARENT_REGISTRY,
+    v1Wrapping: { isWrapped: false },
+    subnameCount,
+  })
+
+  it('offers the holder a delete, and says why a subname with subnames has none', async () => {
+    holdUnwrapped(CONNECTED)
+    subnames = [v1Row('leaf', 0), v1Row('branch', 2)]
+    renderRoute()
+
+    expect(
+      (await screen.findAllByRole('button', { name: `Delete leaf.${NAME}` }))
+        .length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByRole('button', { name: `Delete branch.${NAME}` }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getAllByLabelText(/can’t delete branch\..*delete those first/i)
+        .length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('offers nothing to an account that does not hold the name', async () => {
+    holdUnwrapped(PARENT_REGISTRY)
+    subnames = [v1Row('leaf', 0)]
+    renderRoute()
+
+    await screen.findAllByText(`leaf.${NAME}`)
+    expect(
+      screen.queryByRole('button', { name: /delete/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/can’t delete/i)).not.toBeInTheDocument()
   })
 })
 
