@@ -450,8 +450,9 @@ test('transferred wrapped 4LD refuses the former owners write surfaces', {
     page.getByRole('button', { name: 'Save changes', exact: true }),
   ).toHaveCount(0)
   await page.goto(`${PORTAL_APP_URL}/${tree.name}/create-subname`)
+  // V1 names can create subnames since #1396, so this is now the holder gate.
   await expect(
-    page.getByText('This feature is only available for ENSv2 names.'),
+    page.getByText('Only its owner can create subnames', { exact: true }),
   ).toBeVisible()
   await page.goto(`${PORTAL_APP_URL}/${tree.name}/roles`)
   await expect(
