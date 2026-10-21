@@ -1,19 +1,16 @@
 import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import { EntityBadge } from '@/components/EntityBadge'
-import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
-import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { getNameStatus } from '@/features/renew/utils/nameExtension'
-import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { AddressNameRelation } from '@/utils/names/addressNames'
-import { dateToPlainDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
+import { NameExpiry } from './NameExpiry'
 import { RelationBadges } from './RelationBadges'
 
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
+  parentExpiryDate?: Date | null
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations?: readonly AddressNameRelation[]
@@ -30,6 +27,7 @@ export interface NameMobileCardProps {
 export const NameMobileCard = ({
   name,
   expiryDate,
+  parentExpiryDate,
   graceEndDate,
   status,
   relations = [],
@@ -62,20 +60,13 @@ export const NameMobileCard = ({
 
       {/* Expiry section */}
       <div className="text-base font-medium text-muted-foreground">Expiry</div>
-      <div className="flex items-center gap-2">
-        {expiryDate ? (
-          <>
-            <span className="text-base">
-              {formatDateTime(dateToPlainDate(expiryDate))}
-            </span>
-            {getNameStatus({ expiryDate, graceEndDate, status }) ===
-              'grace' && <GraceBadge />}
-          </>
-        ) : (
-          <Badge variant="secondary" className="text-small">
-            Does not expire
-          </Badge>
-        )}
+      <div className="text-base">
+        <NameExpiry
+          expiryDate={expiryDate}
+          parentExpiryDate={parentExpiryDate}
+          graceEndDate={graceEndDate}
+          status={status}
+        />
       </div>
 
       {/* Records and Subnames row (for overview page) */}

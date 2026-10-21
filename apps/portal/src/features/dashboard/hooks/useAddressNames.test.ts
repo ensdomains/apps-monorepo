@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import { getAddressNames } from './useAddressNames'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
+vi.mock('@/lib/bigname', () => ({
+  bigname: { addressNames: vi.fn(), lookup: vi.fn() },
+}))
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
 const NOW = Temporal.Instant.from('2026-10-08T00:00:00Z')
@@ -187,6 +189,89 @@ describe('getAddressNames', () => {
         name: 'cooling.eth',
         status: 'released',
         protocolVersion: 'ENSv1',
+      }),
+    ])
+  })
+
+  it('gives ENSv1 subnames the expiry of their .eth parent', async () => {
+    const LISTED_EXPIRY = NOW_SECONDS + 86_400n * 30n
+    const LOOKED_UP_EXPIRY = NOW_SECONDS + 86_400n * 60n
+    const v1Subname = (name: string) =>
+      row(name, {
+        authority: 'ens_v1',
+        expires_at: undefined,
+        ens_v1: { expires_at: null },
+      })
+    answer([
+      [
+        row('listed.eth', {
+          authority: 'ens_v1',
+          expires_at: String(LISTED_EXPIRY),
+          ens_v1: { expires_at: String(LISTED_EXPIRY) },
+        }),
+        v1Subname('sub.listed.eth'),
+        v1Subname('deep.sub.other.eth'),
+      ],
+    ])
+    vi.mocked(bigname.lookup).mockReturnValue(
+      okAsync({
+        data: [
+          {
+            input: { name: 'other.eth' },
+            kind: 'name',
+            status: 'ok',
+            record: {
+              name: 'other.eth',
+              display_name: 'other.eth',
+              namespace: 'ens',
+              namehash: '0x02',
+              ens_v1: { expires_at: String(LOOKED_UP_EXPIRY) },
+              read_status: 'ok',
+            },
+          },
+        ],
+        meta: { as_of: {} },
+      }),
+    )
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    expect(vi.mocked(bigname.lookup).mock.calls[0]?.[0].inputs).toEqual([
+      { name: 'other.eth' },
+    ])
+    expect(names).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'sub.listed.eth',
+          expiryDate: null,
+          parentExpiryDate: new Date(Number(LISTED_EXPIRY) * 1000),
+        }),
+        expect.objectContaining({
+          name: 'deep.sub.other.eth',
+          parentExpiryDate: new Date(Number(LOOKED_UP_EXPIRY) * 1000),
+        }),
+      ]),
+    )
+  })
+
+  it('lists subnames without a parent expiry when its read fails', async () => {
+    answer([
+      [row('sub.parent.eth', { authority: 'ens_v1', expires_at: undefined })],
+    ])
+    vi.mocked(bigname.lookup).mockReturnValue(
+      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
+    )
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    expect(names).toEqual([
+      expect.objectContaining({
+        name: 'sub.parent.eth',
+        parentExpiryDate: null,
       }),
     ])
   })

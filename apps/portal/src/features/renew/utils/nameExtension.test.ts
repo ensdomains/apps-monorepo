@@ -347,4 +347,15 @@ describe('getNameStatus', () => {
       getNameStatus({ expiryDate: null, graceEndDate: null, status: 'active' }),
     ).toBe('no-expiry')
   })
+
+  it('expires with its parent for a subname with a parent expiry', () => {
+    expect(
+      getNameStatus({
+        expiryDate: null,
+        parentExpiryDate: daysAgo(-30),
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe('expires-with-parent')
+  })
 })

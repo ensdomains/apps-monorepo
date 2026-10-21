@@ -2,20 +2,17 @@ import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import type { ColumnDef } from '@tanstack/react-table'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
-import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
-import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { getNameStatus } from '@/features/renew/utils/nameExtension'
-import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { AddressNameRelation } from '@/utils/names/addressNames'
-import { dateToPlainDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
+import { NameExpiry } from '../NameExpiry'
 import { RelationBadges } from '../RelationBadges'
 
 export type NameRow = {
   name: string | null
   expiryDate?: Date | null
+  parentExpiryDate?: Date | null
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]
@@ -73,7 +70,8 @@ export const columns: ColumnDef<NameRow>[] = [
   },
   {
     id: 'expiryDate',
-    accessorKey: 'expiryDate',
+    // A subname sorts by the parent expiry it shows.
+    accessorFn: (row) => row.expiryDate ?? row.parentExpiryDate,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -82,23 +80,7 @@ export const columns: ColumnDef<NameRow>[] = [
         Expiry
       </SortButton>
     ),
-    cell: ({ row }) => {
-      const expiryDate = row.original.expiryDate
-      if (!expiryDate) {
-        return (
-          <Badge variant="secondary" className="text-small">
-            Does not expire
-          </Badge>
-        )
-      }
-      const status = getNameStatus(row.original)
-      return (
-        <div className="flex items-center gap-2">
-          <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
-          {status === 'grace' && <GraceBadge />}
-        </div>
-      )
-    },
+    cell: ({ row }) => <NameExpiry {...row.original} />,
   },
   {
     id: 'relations',

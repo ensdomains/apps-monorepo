@@ -1,19 +1,22 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
-import { readNamesForAddress } from '@ens-apps/indexer/bigname'
+import { readNamesForAddress, toDate } from '@ens-apps/indexer/bigname'
 import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ResultAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import {
+  type AddressNameItem,
+  ethParentOf,
   mergeAddressNames,
   toAddressNameItem,
   toLapsedItem,
 } from '@/utils/names/addressNames'
 import { readLapsedNames } from '@/utils/names/lapsedNames'
+import { toValidDate } from '@/utils/temporal'
 
 class GetAddressNamesError extends TaggedError('GetAddressNamesError')<{
   cause: BignameError | IndexerReadError
@@ -27,6 +30,56 @@ const toError = (cause: BignameError | IndexerReadError) =>
   new GetAddressNamesError({ cause })
 
 const readNames = readNamesForAddress(bigname)
+
+/**
+ * Gives each ENSv1 subname its `.eth` parent's expiry. Parents already listed
+ * are reused; the rest are read in one lookup. A failed read leaves the date
+ * out rather than failing the list.
+ */
+const withParentExpiry = (
+  items: readonly AddressNameItem[],
+  signal?: AbortSignal,
+): ResultAsync<AddressNameItem[], never> => {
+  const listed = new Map(items.map((item) => [item.name, item.expiryDate]))
+  const missing = [
+    ...new Set(items.flatMap((item) => ethParentOf(item) ?? [])),
+  ].filter((parent) => !listed.get(parent))
+
+  const expiries =
+    missing.length === 0
+      ? okAsync(listed)
+      : bigname
+          .lookup(
+            {
+              namespace: 'ens',
+              profile: 'feed',
+              inputs: missing.map((name) => ({ name })),
+            },
+            { signal },
+          )
+          .map(
+            ({ data }) =>
+              new Map([
+                ...listed,
+                ...missing.map((name, index) => {
+                  const record = data[index]?.record
+                  const expiresAt =
+                    record?.ens_v1?.expires_at ?? record?.expires_at
+                  return [name, toValidDate(toDate(expiresAt))] as const
+                }),
+              ]),
+          )
+          .orElse(() => okAsync(listed))
+
+  return expiries.map((expiryOf) =>
+    items.map((item) => {
+      const parent = ethParentOf(item)
+      return parent
+        ? { ...item, parentExpiryDate: expiryOf.get(parent) ?? null }
+        : item
+    }),
+  )
+}
 
 /**
  * Every name the address owns, manages or holds a role on, in either era,
@@ -52,12 +105,14 @@ export const getAddressNames = (
       now.epochNanoseconds / NS_PER_SECOND,
       signal,
     ).mapErr(toError),
-  ]).map(([summaries, lapsedRows]) =>
-    mergeAddressNames(
-      summaries.flatMap((summary) => toAddressNameItem(summary) ?? []),
-      lapsedRows.map(toLapsedItem),
-    ),
-  )
+  ])
+    .map(([summaries, lapsedRows]) =>
+      mergeAddressNames(
+        summaries.flatMap((summary) => toAddressNameItem(summary) ?? []),
+        lapsedRows.map(toLapsedItem),
+      ),
+    )
+    .andThen((items) => withParentExpiry(items, signal))
 
 export const getAddressNamesQueryKey = createQueryKey<
   'get-address-names',
