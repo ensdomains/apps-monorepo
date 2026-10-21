@@ -10,7 +10,7 @@ import { RelationBadges } from './RelationBadges'
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
-  parentExpiryDate?: Date | null
+  readonly parentExpiryDate?: Date | null
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations?: readonly AddressNameRelation[]

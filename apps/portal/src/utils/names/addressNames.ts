@@ -4,6 +4,7 @@ import type {
   NameRelation,
   NameSummary,
 } from '@ens-apps/indexer/reads'
+import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -83,6 +84,29 @@ export const ethParentOf = ({
   const labels = name.split('.')
   if (labels.length < 3 || labels.at(-1) !== 'eth') return null
   return labels.slice(-2).join('.')
+}
+
+type ShownExpiryInput = {
+  readonly expiryDate?: Date | null
+  readonly parentExpiryDate?: Date | null
+}
+
+/** The date a row shows and sorts by: its own expiry, else its parent's. */
+export const getShownExpiry = ({
+  expiryDate,
+  parentExpiryDate,
+}: ShownExpiryInput): Date | null => expiryDate ?? parentExpiryDate ?? null
+
+/** Whether the shown expiry falls in the range; a row with none never does. */
+export const isShownExpiryInRange = (
+  row: ShownExpiryInput,
+  { from, to }: DateRange,
+): boolean => {
+  const expiryDate = getShownExpiry(row)
+  if (!expiryDate) return false
+  if (from && expiryDate < from) return false
+  if (to && expiryDate > to) return false
+  return true
 }
 
 const byExpiry = (a: AddressNameItem, b: AddressNameItem) => {

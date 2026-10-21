@@ -4,7 +4,10 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
-import type { AddressNameRelation } from '@/utils/names/addressNames'
+import {
+  type AddressNameRelation,
+  getShownExpiry,
+} from '@/utils/names/addressNames'
 import type { ProtocolVersion } from '@/utils/types'
 import { NameExpiry } from '../NameExpiry'
 import { RelationBadges } from '../RelationBadges'
@@ -12,7 +15,7 @@ import { RelationBadges } from '../RelationBadges'
 export type NameRow = {
   name: string | null
   expiryDate?: Date | null
-  parentExpiryDate?: Date | null
+  readonly parentExpiryDate?: Date | null
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]
@@ -70,8 +73,7 @@ export const columns: ColumnDef<NameRow>[] = [
   },
   {
     id: 'expiryDate',
-    // A subname sorts by the parent expiry it shows.
-    accessorFn: (row) => row.expiryDate ?? row.parentExpiryDate,
+    accessorFn: getShownExpiry,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}

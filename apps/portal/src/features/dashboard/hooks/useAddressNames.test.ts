@@ -256,6 +256,34 @@ describe('getAddressNames', () => {
     )
   })
 
+  it('looks parents up in batches of at most 1000', async () => {
+    const PARENT_COUNT = 1001
+    answer([
+      Array.from({ length: PARENT_COUNT }, (_, index) =>
+        row(`sub.parent${index}.eth`, {
+          authority: 'ens_v1',
+          expires_at: undefined,
+        }),
+      ),
+    ])
+    vi.mocked(bigname.lookup).mockImplementation(({ inputs }) =>
+      okAsync({
+        data: inputs.map((input) => ({
+          input,
+          kind: 'name' as const,
+          status: 'not_found' as const,
+        })),
+        meta: { as_of: {} },
+      }),
+    )
+
+    await getAddressNames({ address: ADDRESS }, { now: NOW })
+
+    expect(
+      vi.mocked(bigname.lookup).mock.calls.map(([body]) => body.inputs.length),
+    ).toEqual([1000, 1])
+  })
+
   it('lists subnames without a parent expiry when its read fails', async () => {
     answer([
       [row('sub.parent.eth', { authority: 'ens_v1', expires_at: undefined })],

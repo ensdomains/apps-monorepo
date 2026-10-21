@@ -31,10 +31,42 @@ const toError = (cause: BignameError | IndexerReadError) =>
 
 const readNames = readNamesForAddress(bigname)
 
+/** bigname's `POST /v1/lookup` batch limit. */
+const LOOKUP_BATCH_SIZE = 1000
+
+const toBatches = <T>(items: readonly T[]): readonly (readonly T[])[] =>
+  Array.from({ length: Math.ceil(items.length / LOOKUP_BATCH_SIZE) }, (_, i) =>
+    items.slice(i * LOOKUP_BATCH_SIZE, (i + 1) * LOOKUP_BATCH_SIZE),
+  )
+
+type ParentExpiry = readonly [name: string, expiry: Date | null]
+
+/** One lookup's parent expiries; a failed read leaves those dates out. */
+const readParentExpiries = (
+  names: readonly string[],
+  signal?: AbortSignal,
+): ResultAsync<readonly ParentExpiry[], never> =>
+  bigname
+    .lookup(
+      {
+        namespace: 'ens',
+        profile: 'feed',
+        inputs: names.map((name) => ({ name })),
+      },
+      { signal },
+    )
+    .map(({ data }) =>
+      names.map((name, index): ParentExpiry => {
+        const record = data[index]?.record
+        const expiresAt = record?.ens_v1?.expires_at ?? record?.expires_at
+        return [name, toValidDate(toDate(expiresAt))]
+      }),
+    )
+    .orElse(() => okAsync([]))
+
 /**
  * Gives each ENSv1 subname its `.eth` parent's expiry. Parents already listed
- * are reused; the rest are read in one lookup. A failed read leaves the date
- * out rather than failing the list.
+ * are reused; the rest are looked up in batches.
  */
 const withParentExpiry = (
   items: readonly AddressNameItem[],
@@ -45,40 +77,17 @@ const withParentExpiry = (
     ...new Set(items.flatMap((item) => ethParentOf(item) ?? [])),
   ].filter((parent) => !listed.get(parent))
 
-  const expiries =
-    missing.length === 0
-      ? okAsync(listed)
-      : bigname
-          .lookup(
-            {
-              namespace: 'ens',
-              profile: 'feed',
-              inputs: missing.map((name) => ({ name })),
-            },
-            { signal },
-          )
-          .map(
-            ({ data }) =>
-              new Map([
-                ...listed,
-                ...missing.map((name, index) => {
-                  const record = data[index]?.record
-                  const expiresAt =
-                    record?.ens_v1?.expires_at ?? record?.expires_at
-                  return [name, toValidDate(toDate(expiresAt))] as const
-                }),
-              ]),
-          )
-          .orElse(() => okAsync(listed))
-
-  return expiries.map((expiryOf) =>
-    items.map((item) => {
+  return ResultAsync.combine(
+    toBatches(missing).map((batch) => readParentExpiries(batch, signal)),
+  ).map((batches) => {
+    const expiryOf = new Map([...listed, ...batches.flat()])
+    return items.map((item) => {
       const parent = ethParentOf(item)
       return parent
         ? { ...item, parentExpiryDate: expiryOf.get(parent) ?? null }
         : item
-    }),
-  )
+    })
+  })
 }
 
 /**
