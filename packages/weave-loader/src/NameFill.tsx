@@ -17,6 +17,7 @@ import {
   measureGlyphMetrics,
   segmentGraphemes,
   withLabelBreaks,
+  withoutLabelBreaks,
 } from './nameFillLayout'
 
 export interface NameFillProps {
@@ -52,11 +53,13 @@ function settleDelayMs(
   )
 }
 
-function copyPlainName(event: ClipboardEvent<HTMLElement>, name: string) {
-  if (!document.getSelection()?.toString()) return
+function copyWithoutLabelBreaks(event: ClipboardEvent<HTMLElement>) {
+  const selected = document.getSelection()?.toString() ?? ''
+  const plain = withoutLabelBreaks(selected)
+  if (plain === selected) return
 
   event.preventDefault()
-  event.clipboardData.setData('text/plain', name)
+  event.clipboardData.setData('text/plain', plain)
 }
 
 function NameFillByClip({
@@ -244,7 +247,7 @@ export function NameFill({
         'relative inline-block w-full overflow-visible align-bottom',
         className,
       )}
-      onCopy={(event) => copyPlainName(event, name)}
+      onCopy={copyWithoutLabelBreaks}
       ref={containerRef}
       role="img"
       style={typography}
