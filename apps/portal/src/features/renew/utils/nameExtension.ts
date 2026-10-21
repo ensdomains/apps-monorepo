@@ -40,7 +40,8 @@ export const getNameStatus = (
   { expiryDate, parentExpiryDate, graceEndDate, status }: NameStatusInput,
   now = new Date(),
 ): string => {
-  if (!expiryDate) return parentExpiryDate ? 'expires-with-parent' : 'no-expiry'
+  if (!expiryDate)
+    return parentExpiryDate === undefined ? 'no-expiry' : 'expires-with-parent'
   if (status !== 'expired' && status !== 'released') return 'registered'
   if (!graceEndDate) return 'expired'
   if (now < graceEndDate) return 'grace'

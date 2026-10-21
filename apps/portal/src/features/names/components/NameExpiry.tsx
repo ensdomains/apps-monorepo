@@ -23,6 +23,7 @@ export const NameExpiry = (props: NameStatusInput) =>
         parent)
       </span>
     ))
+    .with({ parentExpiryDate: null }, () => <span>Expires with parent</span>)
     .otherwise(() => (
       <Badge variant="secondary" className="text-small">
         Does not expire

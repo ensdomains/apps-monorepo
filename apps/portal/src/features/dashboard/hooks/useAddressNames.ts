@@ -10,6 +10,7 @@ import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import {
   type AddressNameItem,
+  byShownExpiry,
   ethParentOf,
   mergeAddressNames,
   toAddressNameItem,
@@ -41,7 +42,7 @@ const toBatches = <T>(items: readonly T[]): readonly (readonly T[])[] =>
 
 type ParentExpiry = readonly [name: string, expiry: Date | null]
 
-/** One lookup's parent expiries; a failed read leaves those dates out. */
+/** One lookup's parent expiries; a failed read leaves those dates unknown. */
 const readParentExpiries = (
   names: readonly string[],
   signal?: AbortSignal,
@@ -122,6 +123,7 @@ export const getAddressNames = (
       ),
     )
     .andThen((items) => withParentExpiry(items, signal))
+    .map((items) => items.toSorted(byShownExpiry))
 
 export const getAddressNamesQueryKey = createQueryKey<
   'get-address-names',

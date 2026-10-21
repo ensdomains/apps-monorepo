@@ -86,6 +86,17 @@ describe('NamesTable expiry cell', () => {
     )
   })
 
+  it("says a subname expires with its parent when the parent's date is unknown", () => {
+    render(
+      <NamesTableHarness
+        data={[{ ...row('sub.parent.eth', null), parentExpiryDate: null }]}
+      />,
+    )
+
+    expect(desktopRowText('sub.parent.eth')).toContain('Expires with parent')
+    expect(desktopRowText('sub.parent.eth')).not.toContain('Does not expire')
+  })
+
   it('labels each relation the address holds', () => {
     render(
       <NamesTableHarness

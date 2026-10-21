@@ -16,7 +16,10 @@ export type AddressNameItem = {
   readonly name: string
   /** Null when the name does not expire. */
   readonly expiryDate: Date | null
-  /** An ENSv1 subname has no expiry of its own; it lapses with its `.eth` parent. */
+  /**
+   * Set on an ENSv1 subname, which lapses with its `.eth` parent. Null when the
+   * parent's expiry couldn't be read.
+   */
   readonly parentExpiryDate?: Date | null
   readonly graceEndDate: Date | null
   readonly status: NameRegistrationStatus
@@ -109,11 +112,17 @@ export const isShownExpiryInRange = (
   return true
 }
 
-const byExpiry = (a: AddressNameItem, b: AddressNameItem) => {
-  if (!a.expiryDate && !b.expiryDate) return 0
-  if (!a.expiryDate) return 1
-  if (!b.expiryDate) return -1
-  return a.expiryDate.getTime() - b.expiryDate.getTime()
+/** Soonest shown expiry first; rows with none go last. */
+export const byShownExpiry = (
+  a: ShownExpiryInput,
+  b: ShownExpiryInput,
+): number => {
+  const aExpiry = getShownExpiry(a)
+  const bExpiry = getShownExpiry(b)
+  if (!aExpiry && !bExpiry) return 0
+  if (!aExpiry) return 1
+  if (!bExpiry) return -1
+  return aExpiry.getTime() - bExpiry.getTime()
 }
 
 /** One row per name, a current relation winning over a lapsed one, soonest expiry first. */
@@ -125,5 +134,5 @@ export const mergeAddressNames = (
   return [
     ...current,
     ...inGrace.filter(({ name }) => !listed.has(name)),
-  ].toSorted(byExpiry)
+  ].toSorted(byShownExpiry)
 }

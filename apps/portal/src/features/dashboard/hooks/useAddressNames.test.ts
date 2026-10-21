@@ -256,6 +256,31 @@ describe('getAddressNames', () => {
     )
   })
 
+  it("orders subnames by their parent's expiry", async () => {
+    const PARENT_EXPIRY = NOW_SECONDS + 86_400n * 10n
+    answer([
+      [
+        row('later.eth'),
+        row('sub.soon.eth', { authority: 'ens_v1', expires_at: undefined }),
+        row('soon.eth', {
+          authority: 'ens_v1',
+          expires_at: String(PARENT_EXPIRY),
+          ens_v1: { expires_at: String(PARENT_EXPIRY) },
+        }),
+      ],
+    ])
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    expect(names.map(({ name }) => name)).toEqual([
+      'soon.eth',
+      'sub.soon.eth',
+      'later.eth',
+    ])
+  })
+
   it('looks parents up in batches of at most 1000', async () => {
     const PARENT_COUNT = 1001
     answer([
