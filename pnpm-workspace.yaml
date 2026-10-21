@@ -15,7 +15,7 @@ catalog:
   vitest: ^4.1.11
   "@vitest/coverage-v8": ^4.1.11
   happy-dom: ^20.13.2
-  "@cloudflare/vite-plugin": ^1.63.2
+  "@cloudflare/vite-plugin": ^1.64.0
   wrangler: ^4.151.3
   posthog-js: 1.404.1
   "@posthog/react": ^1.10.3
