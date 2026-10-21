@@ -11,7 +11,21 @@ describe('profile image upload helpers', () => {
     vi.unstubAllGlobals()
   })
 
-  it('prepares an upload draft without signing or sending it', async () => {
+  it.each([
+    {
+      type: 'avatar',
+      imageUrl:
+        'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/vitalik.eth',
+    },
+    {
+      type: 'header',
+      imageUrl:
+        'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/vitalik.eth/h',
+    },
+  ] as const)('prepares a $type upload draft without signing or sending it', async ({
+    type,
+    imageUrl,
+  }) => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
@@ -20,14 +34,14 @@ describe('profile image upload helpers', () => {
     })
 
     const upload = await prepareProfileImageUpload({
-      type: 'avatar',
+      type,
       name: 'vitalik.eth',
       file,
     })
 
     expect(upload).toMatchObject({
-      kind: 'avatar',
-      imageUrl: `${AVATAR_UPLOAD_BASE_URL}/sepolia/vitalik.eth`,
+      kind: type,
+      imageUrl,
       name: 'vitalik.eth',
     })
     expect(upload.dataURL).toMatch(/^data:image\/jpeg;base64,/)
@@ -55,7 +69,7 @@ describe('profile image upload helpers', () => {
         upload: {
           dataURL: 'data:image/jpeg;base64,AQID',
           hash: 'upload-hash',
-          imageUrl: `${AVATAR_UPLOAD_BASE_URL}/vitalik.eth`,
+          imageUrl: `${AVATAR_UPLOAD_BASE_URL}vitalik.eth`,
           kind: 'avatar',
           name: 'vitalik.eth',
         },
@@ -72,7 +86,7 @@ describe('profile image upload helpers', () => {
       }),
     )
     expect(fetchMock).toHaveBeenCalledWith(
-      `${AVATAR_UPLOAD_BASE_URL}/vitalik.eth`,
+      `${AVATAR_UPLOAD_BASE_URL}vitalik.eth`,
       expect.objectContaining({
         method: 'PUT',
       }),

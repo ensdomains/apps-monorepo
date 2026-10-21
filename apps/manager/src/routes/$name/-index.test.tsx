@@ -198,7 +198,7 @@ describe('/$name client-rendered profile route', () => {
     expect(profileOwnerQuery).toHaveBeenCalledWith('alice.eth')
     expect(profileExpiryQuery).toHaveBeenCalledWith('alice.eth', 'v2')
     expect(profileRegistrationQuery).toHaveBeenCalledWith('alice.eth', 'v2')
-    expect(profileReverseNameQuery).toHaveBeenCalledWith(PROFILE_OWNER)
+    expect(profileReverseNameQuery).not.toHaveBeenCalled()
   })
 })
 

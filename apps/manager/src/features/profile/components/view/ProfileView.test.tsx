@@ -2,7 +2,9 @@ import { skipToken } from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { Suspense } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
+import type { ProfileRecords } from '@/features/profile/types'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { render, stubImagePreload } from '@/utils/test-utils'
 import { ProfileView } from './ProfileView'
@@ -10,10 +12,12 @@ import { ProfileView } from './ProfileView'
 const mocks = vi.hoisted(() => ({
   getProfileRecords: vi.fn<() => Promise<ProfileRecordsResult>>(),
   expiryFails: false,
+  includeEditor: false,
 }))
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useBlocker: () => undefined,
   Link: ({ children }: { readonly children: React.ReactNode }) => (
     <a href="/">{children}</a>
   ),
@@ -87,10 +91,26 @@ vi.mock('./ProfileStatusBanners', () => ({
 }))
 vi.mock('./ProfileActions', () => ({
   // Simulate the editor's successful-save callback without a wallet transaction.
-  ProfileActions: ({ onUpdated }: { onUpdated: () => Promise<unknown> }) => (
-    <button onClick={() => void onUpdated()} type="button">
-      Save profile
-    </button>
+  ProfileActions: ({
+    onUpdated,
+    records,
+  }: {
+    onUpdated: () => Promise<unknown>
+    records: ProfileRecords
+  }) => (
+    <>
+      <button onClick={() => void onUpdated()} type="button">
+        Save profile
+      </button>
+      {mocks.includeEditor ? (
+        <EditProfileDialog
+          editButtonClassName=""
+          name="example.eth"
+          onUpdated={onUpdated}
+          records={records}
+        />
+      ) : null}
+    </>
   ),
 }))
 
@@ -221,6 +241,41 @@ describe('ProfileView images', () => {
 
     await waitFor(() => expectFallbacks(container))
     expect(mocks.getProfileRecords).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('ProfileView with a constructor text record', () => {
+  beforeEach(() => {
+    mocks.includeEditor = true
+    mocks.getProfileRecords.mockReset()
+    mocks.getProfileRecords.mockResolvedValue({
+      texts: [{ key: 'constructor', value: 'x' }],
+      coins: [],
+    })
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    )
+  })
+
+  afterEach(() => {
+    mocks.includeEditor = false
+    vi.unstubAllGlobals()
+  })
+
+  it('renders the profile and opens the Edit Profile dialog', async () => {
+    const { container } = renderProfile()
+
+    await screen.findByRole('heading', { name: 'example.eth' })
+    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }))
+
+    expect(
+      await screen.findByRole('button', { name: 'Cancel' }),
+    ).toBeInTheDocument()
+    expect(container.querySelector('[data-open="true"]')).not.toBeNull()
   })
 })
 

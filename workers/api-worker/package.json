@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",
-    "@cloudflare/vitest-pool-workers": "^0.16.18",
+    "@cloudflare/vitest-plugin": "^1.0.0",
     "@grammyjs/types": "^3.22.2",
     "@sendgrid/helpers": "^8.0.0",
     "@types/node": "^24.3.1",

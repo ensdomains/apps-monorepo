@@ -1,4 +1,3 @@
-import { AVATAR_UPLOAD_BASE_URL } from '../constants'
 import { allSections, getAddressRecordDef, getRecordDef } from '../data/records'
 import type { ProfileRecords } from '../types'
 
@@ -18,11 +17,6 @@ type Diff = Record<string, DiffEntry>
 
 const toNormalizedString = (value: unknown): string =>
   String(value ?? '').trim()
-
-const isGaslessUploadUrl = (value: unknown): boolean => {
-  const normalizedValue = toNormalizedString(value)
-  return normalizedValue.startsWith(AVATAR_UPLOAD_BASE_URL)
-}
 
 const getSectionDisplayName = (section: string): string => {
   const displayNames: Record<string, string> = {
@@ -108,29 +102,12 @@ const addKeyValueDiffs = (
   currentMap: Map<string, unknown>,
   section: string,
   getDisplayName: (key: string) => string = (key) => key,
-  shouldIgnoreChange?: (params: {
-    key: string
-    originalValue: unknown
-    currentValue: unknown
-    section: string
-  }) => boolean,
 ): void => {
   const allKeys = new Set([...originalMap.keys(), ...currentMap.keys()])
 
   for (const key of allKeys) {
     const originalValue = originalMap.get(key)
     const currentValue = currentMap.get(key)
-
-    if (
-      shouldIgnoreChange?.({
-        key,
-        originalValue,
-        currentValue,
-        section,
-      })
-    ) {
-      continue
-    }
 
     const diffEntry = createDiffEntry(originalValue, currentValue)
 
@@ -212,10 +189,6 @@ export const createDiff = (
     baseToMap(current.base || {}),
     'bio',
     getBioDisplayName,
-    ({ key, originalValue, currentValue }) =>
-      (key === 'avatar' || key === 'header') &&
-      isGaslessUploadUrl(originalValue) &&
-      isGaslessUploadUrl(currentValue),
   )
 
   // Process all sections

@@ -82,7 +82,9 @@ export const getRecordDisplayValue = (
 export const getRecordDef = (
   key: string,
 ): (typeof recordIndex)[keyof typeof recordIndex] | undefined =>
-  recordIndex[key as keyof typeof recordIndex]
+  Object.hasOwn(recordIndex, key)
+    ? recordIndex[key as keyof typeof recordIndex]
+    : undefined
 export const getAddressRecordDef = (
   coinType: number,
 ): (typeof addressRecordIndex)[number] | undefined =>

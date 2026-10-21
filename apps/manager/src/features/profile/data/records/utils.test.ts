@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { getRecordDef, getRecordDisplayValue, getRecordHref } from './utils'
 
 describe('profile record utils', () => {
+  it.each([
+    'constructor',
+    'toString',
+    'valueOf',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    '__proto__',
+  ])('does not treat inherited %s as a record definition', (key) => {
+    expect(getRecordDef(key)).toBeUndefined()
+  })
+
   describe('social URL normalization', () => {
     it('uses a pasted LinkedIn profile URL as the profile handle', () => {
       const record = getRecordDef('com.linkedin')

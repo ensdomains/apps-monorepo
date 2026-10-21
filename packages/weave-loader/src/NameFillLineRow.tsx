@@ -31,7 +31,7 @@ export function NameFillLineRow({
   const ratio = Math.max(0, Math.min(1, revealRatio))
   const insetRight = (1 - ratio) * 100
 
-  const textClassName = cn('max-w-full break-all', className)
+  const textClassName = cn('max-w-full wrap-anywhere', className)
   const lineStyle: CSSProperties = {
     ...typography,
     paddingBottom: NAME_FILL_DESCENDER_PADDING,
@@ -49,14 +49,14 @@ export function NameFillLineRow({
       >
         <span
           aria-hidden
-          className="block max-w-full break-all"
+          className="block max-w-full wrap-anywhere"
           style={{ color: baseColor }}
         >
           {text}
         </span>
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 block max-w-full break-all overflow-visible"
+          className="pointer-events-none absolute inset-0 block max-w-full wrap-anywhere overflow-visible"
           style={{
             color: fill,
             clipPath: `inset(0 ${insetRight}% 0 0)`,
