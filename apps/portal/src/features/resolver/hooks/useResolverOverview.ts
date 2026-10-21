@@ -38,6 +38,7 @@ import {
   type ResolverRole as ResolverRoleName,
 } from '@/lib/roles/resolverRoles'
 import { flattenHistoryData } from '@/utils/history/historyEventsToTableEvents'
+import { NODES_WITH_RECORDS } from './useNodesWithRecords'
 import { RESOLVER_ROLES_FOR_ACCOUNT } from './useResolverCallerAdminRoles'
 
 /**
@@ -640,6 +641,7 @@ const RESOLVER_QUERY_KEYS: ReadonlySet<unknown> = new Set([
   resolverNodesQueryKey.key,
   resolverHistoryTimelineQueryKey.key,
   RESOLVER_ROLES_FOR_ACCOUNT,
+  NODES_WITH_RECORDS,
 ])
 
 const isResolver = (value: unknown, address: Address): boolean =>
