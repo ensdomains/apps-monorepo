@@ -43,7 +43,7 @@ export function useCreateSubname() {
     onSuccess: (_data, variables) => {
       refreshSubnameQueries(queryClient, {
         name: variables.parentName,
-        protocolVersion: variables.protocolVersion,
+        protocolVersion: variables.write.protocol,
       })
     },
   })

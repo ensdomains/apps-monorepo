@@ -5,7 +5,7 @@ The API worker interacts with several infrastructure boundaries:
 * PostgreSQL through Drizzle and the Neon HTTP driver
 * Cloudflare Queues
 * scheduled Workers
-* external HTTP/GraphQL services such as the ENS indexer
+* external HTTP services such as the bigname indexer
 * delivery providers such as email, Web Push, and Telegram
 
 Our testing strategy is designed around those boundaries.
@@ -35,7 +35,7 @@ Application logic should not normally need to know how to mock:
 
 * Drizzle query builders
 * SQL conflict behavior
-* GraphQL client internals
+* HTTP client internals
 * `fetch` implementation details
 * Cloudflare Queue ACK/retry internals
 
@@ -52,7 +52,7 @@ application orchestration
     |
     +--> getExpiringNamesPage(...)
     |       |
-    |       +--> GraphQL / ENS indexer
+    |       +--> bigname REST API
     |
     +--> queue consumer
             |
@@ -499,8 +499,8 @@ getExpiringNamesPage(...)
 rather than knowing how to build/mock the underlying:
 
 ```text
-GraphQL request
-urql exchange
+REST request
+query serialization
 fetch response
 HTTP headers
 ```
@@ -523,7 +523,7 @@ A client contract test should exercise:
 
 ```text
 real request serialization
-real HTTP/GraphQL transport
+real HTTP transport
 real response parsing
 controlled fake remote service
 ```
@@ -538,7 +538,7 @@ The API worker does **not currently have a runnable fake-indexer contract harnes
 
 If such a harness is added later, the real indexer client should be tested against it while expiry-discovery orchestration tests continue to mock the owned client boundary.
 
-Do not mock GraphQL/client internals in every application test.
+Do not mock HTTP/client internals in every application test.
 
 ---
 
@@ -608,7 +608,7 @@ Avoid mocking internal APIs of dependencies:
 ```text
 Drizzle query chains
 PostgreSQL conflict behavior
-GraphQL exchange internals
+HTTP client internals
 Cloudflare Message ACK/retry methods
 ```
 
@@ -713,7 +713,7 @@ Use a real `*.db.test.ts`.
 
 Use Cloudflare's Workers Vitest queue APIs.
 
-## Am I testing our interpretation of an external HTTP/GraphQL protocol?
+## Am I testing our interpretation of an external HTTP protocol?
 
 Test the real client against a fake service.
 
@@ -818,7 +818,7 @@ real getExpiringNamesPage()
 → assert parsed domain response
 ```
 
-Today, expiry-discovery tests should mock the owned indexer-client function rather than GraphQL internals. Do not invent a fake service inside an unrelated feature PR solely to satisfy this example.
+Today, expiry-discovery tests should mock the owned indexer-client function rather than HTTP internals. Do not invent a fake service inside an unrelated feature PR solely to satisfy this example.
 
 ---
 

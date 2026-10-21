@@ -13,6 +13,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { NamePill } from '@/features/dashboard/components/NamePill'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
+import { profileTileClassName } from './ProfileCard'
 import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 
 const getContactRecordValue = (records: ProfileRecords | null, key: string) =>
@@ -143,6 +144,7 @@ export const ProfileAbout = ({
     <Card
       asChild
       className={cn(
+        profileTileClassName,
         'wrap-anywhere flex min-h-0 min-w-0 flex-1',
         primaryName
           ? 'min-h-47 p-6 xl:min-h-45 xl:max-w-158.75'

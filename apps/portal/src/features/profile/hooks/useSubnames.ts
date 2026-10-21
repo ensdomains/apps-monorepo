@@ -4,22 +4,43 @@ import type {
 } from '@ens-apps/indexer/bigname'
 import { isStale, retryStale } from '@ens-apps/indexer/bigname'
 import type { IndexerReadError } from '@ens-apps/indexer/reads'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import {
+  type InferErrTypes,
+  ResultFn,
+  TaggedError,
+} from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
   resultQueryOptions,
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  type GetOwnerErrorType as ensjsv1_GetOwnerErrorType,
+  getOwner as ensjsv1_getOwner,
+} from '@ensdomains/ensjs/public/v1'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
-import { errAsync, okAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromPromise,
+  ok,
+  okAsync,
+  type ResultAsync,
+} from 'neverthrow'
 import { type Address, checksumAddress, type Hex, labelhash } from 'viem'
 import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
 import { bigname } from '@/lib/bigname'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
   cause: BignameError | IndexerReadError
+}> {}
+
+export class GetIsV1SubnameTakenError extends TaggedError(
+  'GetIsV1SubnameTakenError',
+)<{
+  cause: ensjsv1_GetOwnerErrorType
 }> {}
 
 type Subname = {
@@ -171,12 +192,29 @@ type IsSubnameTakenParameters = {
   /** The parent name. */
   readonly name: string
   readonly label: string
+  readonly protocolVersion: ProtocolVersion
 }
+
+// V1 asks the registry rather than the indexer: `setSubnodeRecord` overwrites,
+// so a subname the parent just created must read as taken straight away.
+export const getIsV1SubnameTaken = ResultFn(async function* ({
+  name,
+  label,
+}: Omit<IsSubnameTakenParameters, 'protocolVersion'>) {
+  const client = yield* safeGetClient()
+  const owner = yield* fromPromise(
+    ensjsv1_getOwner(client, { name: `${label}.${name}` }),
+    (e) =>
+      new GetIsV1SubnameTakenError({ cause: e as ensjsv1_GetOwnerErrorType }),
+  )
+
+  return ok(Boolean(owner))
+})
 
 const FREE_STATUSES: readonly (string | null)[] = ['released', 'unregistered']
 
-const getIsSubnameTaken = (
-  { name, label }: IsSubnameTakenParameters,
+const getIsV2SubnameTaken = (
+  { name, label }: Omit<IsSubnameTakenParameters, 'protocolVersion'>,
   signal?: AbortSignal,
 ) =>
   readIndexedNameDetail({ name: `${label}.${name}` }, signal)
@@ -186,20 +224,28 @@ const getIsSubnameTaken = (
     )
     .mapErr((cause) => new GetSubnamesError({ cause }))
 
+type IsSubnameTakenError = InferErrTypes<
+  ReturnType<typeof getIsV1SubnameTaken | typeof getIsV2SubnameTaken>
+>
+
 /**
- * Whether a V2 name already has a subname with this label. Asked about the one
+ * Whether a name already has a subname with this label. Asked about the one
  * label, so the answer doesn't depend on how much of the list has been loaded.
  */
 export const getIsSubnameTakenQueryOptions = ({
   name,
   label,
+  protocolVersion,
 }: IsSubnameTakenParameters) =>
   resultQueryOptions({
     queryKey: getSubnamesQueryKey({
       name,
-      protocolVersion: 'ENSv2',
+      protocolVersion,
       only: 'label',
       label,
     }),
-    queryFn: ({ signal }) => getIsSubnameTaken({ name, label }, signal),
+    queryFn: ({ signal }): ResultAsync<boolean, IsSubnameTakenError> =>
+      protocolVersion === 'ENSv1'
+        ? getIsV1SubnameTaken({ name, label })
+        : getIsV2SubnameTaken({ name, label }, signal),
   })

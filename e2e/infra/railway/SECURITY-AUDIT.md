@@ -14,7 +14,7 @@ secrets (GitHub default), so they're out of scope.
 | 2 | High | Per-PR `dqa` built from PR branch with shared Linear/session secrets present → arbitrary PR code could exfiltrate them at runtime | **Fixed** |
 | 3 | High | `DQA_ALLOWED_ORIGINS` example used bare `*.pages.dev` / `*.up.railway.app`; this gates the OAuth return origin, so any Pages/Railway site could receive a session token | **Fixed (docs); action: narrow the live env var** |
 | 4 | Medium | `--copy` replicated the `dqa` service + its secrets into every PR env | **Fixed** (per-PR copy deleted post-create) |
-| 5 | Medium | `panoptes` entrypoint used non-POSIX `wait -n` (no-ops in dash → dead indexer stays "healthy") and a `sleep 5` that raced DB creation | **Fixed** |
+| 5 | Medium | `panoptes` entrypoint used non-POSIX `wait -n` (no-ops in dash → dead indexer stays "healthy") and a `sleep 5` that raced DB creation | **Fixed**; service since removed |
 | 6 | Medium | Linear `fetch` calls had no timeout → an upstream outage hangs `/api/comments`, pushes, auth callback | **Fixed** |
 | 7 | Low | WS `join` didn't leave the previous room on SPA nav → stale cursor delivery | **Fixed** |
 | 8 | Low | anvil exposes cheatcodes unauthenticated; in fork mode also proxies a keyed upstream RPC | **Documented / mitigated** |
@@ -56,7 +56,8 @@ warns if the CLI syntax differs).
 **5. panoptes entrypoint.** Rewritten in POSIX `sh`: polls for the DB file
 (bailing if the indexer dies, warning after 60s) instead of `sleep 5`, and
 supervises both children with a `kill -0` loop so a dead indexer exits the
-container rather than reporting healthy forever.
+container rather than reporting healthy forever. The panoptes
+service has since been removed; the apps' indexer reads are mocked in e2e.
 
 **6. fetch timeouts.** Per @mdtanrikulu, applied to **all** outbound calls, not
 just the flagged one — every Linear `fetch` site now uses `AbortSignal.timeout`:
@@ -109,7 +110,6 @@ dedicated CI/bot account with minimal Railway access.
 ## Residual risk (accepted)
 
 - Public **alto / paymaster / mockestrator** on the throwaway chain: anyone with
-  the URL can submit UserOps / query the indexer. Testnet-only, ephemeral;
-  acceptable. GraphQL depth/cost limits are set on panoptes.
+  the URL can submit UserOps. Testnet-only, ephemeral; acceptable.
 - anvil cheatcodes remain callable by anyone with the URL (see #8) — bounded to
   a disposable per-PR chain.

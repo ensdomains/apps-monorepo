@@ -24,7 +24,8 @@
     "lint": "biome check",
     "lint:fix": "biome check --fix",
     "dev:mainnet": "pnpm dev --mode mainnet",
-    "build:mainnet": "pnpm build --mode mainnet"
+    "build:mainnet": "pnpm build --mode mainnet",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@ens-apps/config": "workspace:^",

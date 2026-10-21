@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getTLD, isClaimable } from '@/utils/ens/tldHelpers'
+import { isAscii } from '@/utils/token/ascii'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import type { DnsImportStep, DnsImportType } from '../types'
 import { CustomTldMessage } from './CustomTldMessage'
@@ -49,6 +50,23 @@ export const DnsImportFlow = ({
             Only second-level DNS names (like{' '}
             <strong className="font-medium">example.com</strong>) can be
             imported to ENS.
+          </p>
+        }
+      />
+    )
+  }
+
+  // DNS only holds the punycode form of an internationalized name, so the
+  // import can't prove this one; block it up front as the v3 app does.
+  if (!isAscii(name)) {
+    return (
+      <MessageCard
+        variant="warning"
+        icon={<CircleAlert className="size-6" strokeWidth={1.5} />}
+        title="Not importable"
+        description={
+          <p>
+            Importing domain names with non-ASCII characters is not supported.
           </p>
         }
       />

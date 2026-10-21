@@ -57,7 +57,10 @@ describe('useNamePricing', () => {
 
     const { result, queryClient } = renderPricing()
 
-    await waitFor(() => expect(result.current.price).not.toBeNull())
+    // The first test pays the module load, which can pass 1s under coverage.
+    await waitFor(() => expect(result.current.price).not.toBeNull(), {
+      timeout: 5_000,
+    })
     expect(getRenewPrice).toHaveBeenCalledOnce()
     expect(getRenewPrice.mock.calls[0][1]).toMatchObject({
       paymentToken: SUPPORTED_TOKENS.USDC,

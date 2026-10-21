@@ -18,6 +18,8 @@
     "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/indexer": "workspace:*",
+    "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "viem": "catalog:"

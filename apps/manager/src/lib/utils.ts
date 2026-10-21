@@ -4,7 +4,9 @@ import { extendTailwindMerge } from 'tailwind-merge'
 // Custom shadows from theme.css, so `shadow-none` can override them like any other shadow.
 const twMerge = extendTailwindMerge({
   extend: {
-    classGroups: { shadow: ['shadow-temp-card', 'shadow-domain-card'] },
+    classGroups: {
+      shadow: ['shadow-temp-card', 'shadow-domain-card', 'shadow-profile-tile'],
+    },
   },
 })
 

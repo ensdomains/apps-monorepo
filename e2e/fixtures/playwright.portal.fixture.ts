@@ -27,7 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
-import { createIndexerMock } from '../helpers/mock-indexer.js'
+import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
@@ -81,9 +81,14 @@ const ERC20_ABI = parseAbi([
 ])
 
 // Shared indexer mock. Always constructed, but only installed on a page when
-// `E2E_MOCK_INDEXER=true` globally OR the test opts in via
-// `mockIndexerEnabled` (see the `page` fixture override below).
-const indexerMock = createIndexerMock()
+// `E2E_MOCK_BIGNAME=true` globally OR the test opts in via
+// `mockBignameEnabled` (see the `page` fixture override below).
+const bignameMock = createBignameMock()
+
+/** The shared mock, for helpers that register names outside a fixture. */
+export const portalBignameMock: {
+  readonly addName: typeof bignameMock.addName
+} = bignameMock
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
@@ -214,36 +219,35 @@ export type PortalFixtures = {
   makeSubname: MakeSubname
   /**
    * Per-test/per-file opt-in for the mock indexer (an "option" fixture — set
-   * with `test.use({ mockIndexerEnabled: true })`, not overridden directly).
-   * Off by default: the portal suite exercises the real local Panoptes
-   * indexer end to end. A test opts in when it needs deterministic control
-   * over an indexer-backed count instead of waiting on real discovery/backfill
-   * — see transfer.spec.ts's registry-detach tests, blocked on a currently
-   * flaky Panoptes CREATE2-discovery path for freshly deployed subregistries.
+   * with `test.use({ mockBignameEnabled: true })`, not overridden directly).
+   * Off by default: the portal suite exercises the real local bigname end to
+   * end. A test opts in when it needs deterministic control over an
+   * indexer-backed count instead of waiting on real indexing — see
+   * transfer.spec.ts's registry-detach tests.
    */
-  mockIndexerEnabled: boolean
+  mockBignameEnabled: boolean
   /**
-   * Mock indexer control, for tests running with `mockIndexerEnabled: true`.
+   * Mock indexer control, for tests running with `mockBignameEnabled: true`.
    * Configuring a response with these has no effect if the mock was never
    * installed on the page.
    */
-  mockIndexer: {
-    setRegistryOccupants: typeof indexerMock.setRegistryOccupants
-    setSubregistryHistory: typeof indexerMock.setSubregistryHistory
+  mockBigname: {
+    setRegistryOccupants: typeof bignameMock.setRegistryOccupants
+    setSubregistryHistory: typeof bignameMock.setSubregistryHistory
     enabled: boolean
   }
 }
 
 export const test = base.extend<PortalFixtures>({
-  mockIndexerEnabled: [false, { option: true }],
+  mockBignameEnabled: [false, { option: true }],
 
   // The portal reads bigname like the manager (#1354), so the shared bigname
-  // mock goes in whenever `E2E_MOCK_INDEXER=true` (CI). A test can still opt
-  // in on its own with `mockIndexerEnabled` while the rest of a run uses the
+  // mock goes in whenever `E2E_MOCK_BIGNAME=true` (CI). A test can still opt
+  // in on its own with `mockBignameEnabled` while the rest of a run uses the
   // local bigname.
-  page: async ({ page, mockIndexerEnabled }, use) => {
-    if (mockIndexerEnabled) await indexerMock.install(page)
-    else await indexerMock.installIfEnabled(page)
+  page: async ({ page, mockBignameEnabled }, use) => {
+    if (mockBignameEnabled) await bignameMock.install(page)
+    else await bignameMock.installIfEnabled(page)
     await use(page)
   },
 
@@ -285,8 +289,8 @@ export const test = base.extend<PortalFixtures>({
     await use(async (config, options) => {
       const name = await inner(config, options)
       // Registered on the fork only, so the bigname mock has to be told.
-      if (indexerMock.enabled)
-        indexerMock.addName({
+      if (bignameMock.enabled)
+        bignameMock.addName({
           name,
           owner: accounts.getAddress(
             config.owner && isUser(config.owner) ? config.owner : 'user2',
@@ -312,11 +316,11 @@ export const test = base.extend<PortalFixtures>({
     await use(createMakeSubname({ account: wallets.account('owner') }))
   },
 
-  mockIndexer: async ({ mockIndexerEnabled }, use) => {
+  mockBigname: async ({ mockBignameEnabled }, use) => {
     await use({
-      setRegistryOccupants: indexerMock.setRegistryOccupants,
-      setSubregistryHistory: indexerMock.setSubregistryHistory,
-      enabled: mockIndexerEnabled,
+      setRegistryOccupants: bignameMock.setRegistryOccupants,
+      setSubregistryHistory: bignameMock.setSubregistryHistory,
+      enabled: mockBignameEnabled,
     })
   },
 })

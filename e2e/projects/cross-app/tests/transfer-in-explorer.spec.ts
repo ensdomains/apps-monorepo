@@ -19,7 +19,6 @@ import {
   test,
 } from '../../../fixtures/playwright.cross-app.fixture.js'
 import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
-import { explorerCanReadRootHolders } from '../../../helpers/indexer-sync.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 import { readV2Holding } from '../../../helpers/v2-transfer.js'
 
@@ -69,18 +68,6 @@ async function myNamesRow(page: Page, name: string) {
 
 test.describe('A transfer in the explorer, seen in the manager', () => {
   test.describe.configure({ timeout: 300_000 })
-  test.beforeEach(async () => {
-    // Only while the explorer reads role holders from Panoptes: with #1354 it
-    // reads bigname (E2E_EXPLORER_INDEXER=bigname) and the guard is moot.
-    test.skip(
-      process.env.E2E_EXPLORER_INDEXER !== 'bigname' &&
-        !(await explorerCanReadRootHolders(
-          ensL1Contracts[supportedL1Chains.sepolia].ensRegistry.address,
-        )),
-      'the local Panoptes lists over 1000 root role holders, so the explorer refuses every transfer (e2e-defects.md, "Local Panoptes root role holders"); the on-chain twins in manager/tests/transfer-observers.spec.ts run instead',
-    )
-  })
-
   test('the name leaves the sender’s My Names and joins the recipient’s', {
     tag: ['@scenario:X4'],
   }, async ({ explorer, manager, accounts, makeV2Name }) => {

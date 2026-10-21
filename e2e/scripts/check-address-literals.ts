@@ -90,8 +90,21 @@ const ALLOWED: Record<string, Allowance> = {
   '0x0000000000000000000000000000000000000001': {
     reason: 'placeholder sentinel in the indexer mock',
   },
-  '0x1234567890abcdef1234567890abcdef12345678': {
-    reason: 'placeholder sentinel in the agent-name seed script',
+  '0x00000000000000000000000000000000000a77a2': {
+    reason:
+      'history.spec.ts (WEB-1445): an emitter planted with anvil_setCode at an address nobody assigned, so it can forge resolver events',
+  },
+  '0x00000000000000000000000000000000000a77a3': {
+    reason:
+      'history.spec.ts (WEB-1445): the second planted emitter, for the forged TextChanged',
+  },
+  '0xbad0000000000000000000000000000000000bad': {
+    reason:
+      'history.spec.ts (WEB-1445): the forged address value, chosen to be recognisable as `0xbad0…0bad` in the timeline. Never called',
+  },
+  '0x3d604d80600a3d3981f3363d3d373d3d3d363d73': {
+    reason:
+      'Not an address: the EIP-1167 minimal-proxy creation prefix migration-subname.spec.ts concatenates to predict a UserRegistry address',
   },
   '0x00000000000000000000000000000000deadbe11': {
     reason:
@@ -118,17 +131,38 @@ const ALLOWED: Record<string, Allowance> = {
   },
 
   // ── HCA account, derived outside the e2e dependency graph.
-  '0x48b9c6898bafc8a3d3a495bf7c44cf3351486628': {
+  '0xf1554d7361e0663896f57a121c83638856f0ed91': {
     reason:
-      'StandaloneHCA — derivation lives in @ens-apps/smart-account, which ships un-built .ts and is not an e2e dependency. infra/scripts/fund-rhinestone-account.sh funds this exact address; the two must stay in sync. See makeV2Name.ts.',
+      'StandaloneHCA (`STANDALONE_HCA` in makeV2Name.ts) — derivation lives in @ens-apps/smart-account, which ships un-built .ts and is not an e2e dependency. infra/scripts/fund-rhinestone-account.sh funds this exact address; the two must stay in sync.',
+  },
+  '0xc41576b4b809b99cf0ff2e5b41b4f147cd9b6bdd': {
+    reason:
+      '`verifiableFactoryProxyLogic` from @ens-apps/smart-account, not an e2e dependency and not in ensL1Contracts. migration-subname.spec.ts predicts UserRegistry addresses from it',
+  },
+  '0xdc4a563d00f5c3012b699794eb9e13a561be386f': {
+    reason:
+      'PublicResolverV2 on Sepolia (smart-account manifest), not in ensL1Contracts. migration-resolver.spec.ts names it as the ticket does',
   },
 
-  // ── ENSIP-25 agent-registration key. 20 bytes wide, but an identifier, not
-  // an address — it is never used as a call target. The agent *record payloads*
-  // that embed it are longer hex strings, so the `\b`-anchored regex correctly
-  // does not see them as addresses and they need no entry.
-  '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432': {
-    reason: 'ENSIP-25 agent identifier, not a contract address',
+  // ── The second V1 PublicResolver.
+  '0xe99638b40e4fff0129d56f03b55b6bbc4bbe49b5': {
+    reason:
+      '`CERTIFIED_V1_RESOLVER` in makeV1Name.ts: a Sepolia PublicResolver bound to the canonical registry and listed in migration KNOWN_PUBLIC_RESOLVERS, but absent from ensL1Contracts',
+  },
+
+  // ── DNS fixtures (dnsImport.spec.ts, dnsSyncBanners.spec.ts).
+  '0x0ef1af80c24b681991d675176d9c07d8c9236b9a': {
+    reason:
+      'The official Sepolia DNS offchain resolver the import flow expects, absent from ensL1Contracts',
+  },
+  '0x04eba57401184a97c919b0b6b4e8dde263bcb920': {
+    reason: 'An arbitrary TLD operator EOA for the custom-integration case',
+  },
+  '0x5eb3bc0a489c5a8288765d2336659ebca68fcd00': {
+    reason: 'An arbitrary DNS name manager EOA for the sync-banner cases',
+  },
+  '0x238a8f792dfa6033814b18618ad4100654aeef01': {
+    reason: 'An arbitrary DNS owner EOA that differs from the manager',
   },
 }
 

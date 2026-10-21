@@ -57,6 +57,7 @@ import {
   wrapAndEmancipateRegistryChild,
   wrapV1SubnameOfUnwrapped,
 } from '../../../fixtures/makeV1Subname.js'
+import { STANDALONE_HCA } from '../../../fixtures/makeV2Name.js'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import { setV1RecordsOn, type V1Records } from '../../../fixtures/v1-records.js'
 import { publicClient, testClient } from '../../../helpers/anvil-client.js'
@@ -87,12 +88,12 @@ import {
   runMigrationFlow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import type { MockV1Tree } from '../../../helpers/mock-v1-subgraph.js'
 import type { PortalAccounts } from '../../../helpers/portal-auth.js'
 import {
   expectRecordsResolve,
   resolverFor,
 } from '../../../helpers/resolve-records.js'
+import type { MockV1Tree } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 // Headless wallet user = Anvil account 0 (same private key as ANVIL_FUNDER)
@@ -789,7 +790,7 @@ test.describe('ENS V1 → V2 migration — wrapped children of a locked 2LD', ()
 })
 
 /** Account 0's standalone HCA — the deployer the app predicts UserRegistries for. */
-const HEADLESS_USER_HCA = '0xF1554d7361E0663896F57A121C83638856f0ED91' as const
+const HEADLESS_USER_HCA = STANDALONE_HCA
 /** `@ens-apps/smart-account` `verifiableFactoryProxyLogic` (Sepolia). */
 const VERIFIABLE_FACTORY_PROXY_LOGIC =
   '0xC41576B4B809B99CF0fF2e5B41b4F147cd9b6BDd' as const

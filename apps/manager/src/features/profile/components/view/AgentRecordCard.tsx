@@ -3,6 +3,7 @@ import { Bot } from 'lucide-react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
 import type { AgentRegistrationRecord } from '@/features/profile/types'
+import { profileTileClassName } from './ProfileCard'
 
 interface AgentRecordCardProps {
   readonly record: AgentRegistrationRecord
@@ -18,7 +19,7 @@ const fieldValueClassName = 'truncate font-medium text-foreground text-sm'
  */
 export const AgentRecordCard = ({ record }: AgentRecordCardProps) => (
   <Card
-    className="block p-4"
+    className={`${profileTileClassName} block p-4`}
     data-testid={`agent-record-card-${record.agentId}`}
   >
     <div className="flex items-start justify-between gap-3">

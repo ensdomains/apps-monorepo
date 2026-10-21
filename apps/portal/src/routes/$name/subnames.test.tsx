@@ -34,10 +34,22 @@ vi.mock('wagmi', async (importOriginal) => {
   return { ...actual, useAccount: () => ({ address: CONNECTED }) }
 })
 
+let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv2'
 vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
   getEnsOwnerQueryOptions: () => ({
-    queryKey: ['ensOwner', NAME],
-    queryFn: () => ({ protocolVersion: 'ENSv2', owner: CONNECTED }),
+    queryKey: ['ensOwner', NAME, protocolVersion],
+    queryFn: () => ({ protocolVersion, owner: CONNECTED }),
+  }),
+}))
+
+// Served as `initialData`, so the gate is settled on the first render and a
+// missing Create link can't just mean "not read yet". `null` fails the read.
+let v1State: Record<string, unknown> | null = null
+vi.mock('@/features/transfer/v1/getV1NameState', () => ({
+  getV1NameStateQueryOptions: () => ({
+    queryKey: ['v1NameState', NAME],
+    queryFn: () => Promise.reject(new Error('rpc down')),
+    ...(v1State ? { initialData: v1State } : {}),
   }),
 }))
 
@@ -63,6 +75,12 @@ vi.mock('@/features/profile/hooks/useSubnames', () => ({
     queryKey: ['subnames', NAME],
     queryFn: () => ({ subnames, totalCount: subnames.length }),
     initialPageParam: 0,
+    getNextPageParam: () => undefined,
+  }),
+  getV1SubnamesQueryOptions: () => ({
+    queryKey: ['v1Subnames', NAME],
+    queryFn: () => ({ subnames: [], hasNextPage: false }),
+    initialPageParam: undefined,
     getNextPageParam: () => undefined,
   }),
 }))
@@ -181,6 +199,79 @@ beforeEach(() => {
   subnames = []
   hasRootUnregister = false
   allowedResources = null
+  protocolVersion = 'ENSv2'
+  v1State = null
+})
+
+describe('V1 subname creation', () => {
+  const v1 = (subject: Record<string, unknown>) => {
+    protocolVersion = 'ENSv1'
+    v1State = {
+      subject,
+      registration: null,
+      resolverAddress: null,
+      parent: null,
+      ancestorRegistration: null,
+    }
+  }
+  const wrapped = (cannotCreateSubdomain: boolean) => ({
+    kind: 'v1-wrapped',
+    owner: CONNECTED,
+    fuses: {
+      cannotTransfer: false,
+      cannotSetResolver: false,
+      cannotUnwrap: cannotCreateSubdomain,
+      cannotCreateSubdomain,
+      parentCannotControl: cannotCreateSubdomain,
+    },
+    expiry: null,
+  })
+  const createLink = () =>
+    screen.queryByRole('link', { name: /create subname/i })
+
+  it('offers subname creation to the holder of an unwrapped name', async () => {
+    v1({ kind: 'v1-registry', owner: CONNECTED })
+    renderRoute()
+
+    await screen.findByText(/no subnames yet/i)
+    expect(createLink()).toBeInTheDocument()
+  })
+
+  it('offers subname creation to the owner of a wrapped name', async () => {
+    v1(wrapped(false))
+    renderRoute()
+
+    await screen.findByText(/no subnames yet/i)
+    expect(createLink()).toBeInTheDocument()
+  })
+
+  it('offers nothing when the wrapped name burned CANNOT_CREATE_SUBDOMAIN', async () => {
+    v1(wrapped(true))
+    renderRoute()
+
+    await screen.findByText(/no subnames yet/i)
+    expect(createLink()).not.toBeInTheDocument()
+  })
+
+  it('offers nothing to an account that does not hold the name', async () => {
+    v1({ kind: 'v1-registry', owner: PARENT_REGISTRY })
+    renderRoute()
+
+    await screen.findByText(/no subnames yet/i)
+    expect(createLink()).not.toBeInTheDocument()
+  })
+
+  it('says so when it could not check, rather than just hiding the link', async () => {
+    protocolVersion = 'ENSv1'
+    renderRoute()
+
+    expect(
+      await screen.findByText(
+        /couldn’t check whether you can create subnames/i,
+      ),
+    ).toBeInTheDocument()
+    expect(createLink()).not.toBeInTheDocument()
+  })
 })
 
 describe('subnames route role checks', () => {

@@ -1,14 +1,14 @@
 /**
- * Wait for the local bigname to catch up — the manager's counterpart of
- * `indexer-sync.ts` (which waits for Panoptes, still the portal's indexer).
+ * Wait for the local bigname to catch up. `indexer-sync.ts` wraps these for
+ * the portal specs.
  *
  * The manager reads every name list, name detail and V1 migration candidate
  * from bigname. Locally that is a bigname following the Anvil fork
  * (`e2e/infra/bigname`); in CI it is Playwright's route mock
- * (`E2E_MOCK_INDEXER=true`, `helpers/mock-indexer.ts`), and every function
+ * (`E2E_MOCK_BIGNAME=true`, `helpers/mock-bigname.ts`), and every function
  * here returns at once.
  *
- * Same failure mode as Panoptes: a page that reads before the index has the
+ * The failure mode: a page that reads before the index has the
  * write gets an empty answer, react-query caches it, and the page stays empty
  * for the rest of the test. Wait first, as for a transaction receipt.
  */
@@ -21,7 +21,7 @@ const DEFAULT_TIMEOUT_MS = 60_000
 const POLL_MS = 500
 
 /** Whether the manager reads a real bigname (false when the mock answers). */
-export const isRealBigname = process.env.E2E_MOCK_INDEXER !== 'true'
+export const isRealBigname = process.env.E2E_MOCK_BIGNAME !== 'true'
 
 /** The bigname name record fields the e2e suite waits on. */
 export type BignameName = {
@@ -158,6 +158,14 @@ async function lookupRecordKeys(name: string) {
 }
 
 type SeenKeys = NonNullable<Awaited<ReturnType<typeof lookupRecordKeys>>>
+
+/** The text keys bigname lists for `name`, or null when it cannot answer. */
+export async function bignameTextKeys(
+  name: string,
+): Promise<readonly string[] | null> {
+  const keys = await lookupRecordKeys(name)
+  return keys ? (keys.seen_texts ?? []) : null
+}
 
 /** The keys in `expected` that bigname does not list yet. */
 function missingKeys(

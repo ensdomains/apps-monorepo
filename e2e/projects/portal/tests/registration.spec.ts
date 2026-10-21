@@ -48,6 +48,7 @@ import {
 import {
   connectWithHeadlessWallet,
   expect,
+  portalBignameMock,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import {
@@ -60,13 +61,13 @@ import {
   waitForIndexedBlock,
   waitForIndexedName,
 } from '../../../helpers/indexer-sync.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
 import {
   authorizeTransaction,
   switchWalletToSepolia,
   switchWalletToUndeclaredChain,
 } from '../../../helpers/portal-auth.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
@@ -2340,9 +2341,8 @@ const renewerPrice = (
   })
 
 /**
- * Opens the names list with `names` selected and presses Extend. V1 names are
- * listed through the V1 subgraph, which can't see fork-seeded names (and the
- * local shim rejects the list's `wrappedOwner` filter), so they are injected;
+ * Opens the names list with `names` selected and presses Extend. The list reads
+ * bigname, so the V1 names are waited for (local) or served (route mock);
  * pricing, approval and renewal all still run against the fork.
  */
 async function extendFromNamesList(
@@ -2351,9 +2351,11 @@ async function extendFromNamesList(
   names: { readonly v2: readonly string[]; readonly v1: readonly string[] },
   search: string,
 ) {
-  await mockV1Subgraph(
+  await serveV1Names(
     page,
     names.v1.map((name) => ({ name, ownerAddress: owner, type: 'unwrapped' })),
+    // The names list sends no authority filter, so the shared mock lists them.
+    { indexer: portalBignameMock },
   )
   await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
   await content(page).getByPlaceholder('Search names...').fill(search)
@@ -3323,7 +3325,17 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     await connectWithHeadlessWallet(page, wallet)
 
     await waitForIndexedBlock()
-    await mockV1Subgraph(page, [])
+    await serveV1Names(
+      page,
+      legs
+        .filter((leg) => leg.v1)
+        .map((leg) => ({
+          name: leg.name,
+          ownerAddress: owner,
+          type: 'unwrapped' as const,
+        })),
+      { indexer: portalBignameMock },
+    )
     await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
     await content(page).getByPlaceholder('Search names...').fill(run)
     for (const name of legs.map((l) => l.name)) {

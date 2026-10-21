@@ -279,10 +279,9 @@ const harness: Scenario[] = [
     planId: 'H6',
     area: 'indexer',
     app: 'shared',
-    title:
-      'Panoptes seeding path — real indexer fixture for indexer-oracle tests',
-    oracle: 'fixtures/panoptes.ts',
-    modules: ['fixtures/panoptes.ts'],
+    title: 'bigname sync — real indexer waits for indexer-oracle tests',
+    oracle: 'helpers/bigname-sync.ts',
+    modules: ['helpers/bigname-sync.ts'],
   },
   {
     id: 'HW7',
@@ -2033,7 +2032,7 @@ const resilienceK: Scenario[] = suite('K', 'resilience', 'shared', 'P6', [
   ],
   [
     'K2',
-    'Indexer (Panoptes) down',
+    'Indexer (bigname) down',
     'degrades to on-chain reads and the degraded state is visible to the user',
   ],
   [

@@ -93,14 +93,3 @@ export const jsonResponse = <T>(body: T, status = 200): Response =>
     status,
     json: () => Promise.resolve(body),
   }) as unknown as Response
-
-type QueryMock = { mockReturnValueOnce: (v: never) => unknown }
-
-export const mockIndexerQuery = (
-  queryMock: QueryMock,
-  response: { data?: unknown; error?: unknown },
-): void => {
-  queryMock.mockReturnValueOnce({
-    toPromise: () => Promise.resolve(response),
-  } as never)
-}

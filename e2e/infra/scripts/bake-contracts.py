@@ -39,7 +39,6 @@ ERC4337_CONTRACTS = [
 ]
 
 # ── ENS contracts (code + storage) ────────────────────────────────────────
-# Addresses from contracts.snapshot.json / contracts.json
 ETH_REGISTRY    = "0x796fff2e907449be8d5921bcc215b1b76d89d080"
 ETH_REGISTRAR   = "0x68586418353b771cf2425ed14a07512aa880c532"
 FAST_TEST_REGISTRAR = "0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39"

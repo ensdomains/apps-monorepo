@@ -25,7 +25,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { type Address, getAddress, parseAbi } from 'viem'
+import { type Address, getAddress, parseAbi, zeroAddress } from 'viem'
 import { publicClient } from '../helpers/anvil-client.js'
 
 const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
@@ -34,8 +34,6 @@ const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
 const REGISTRY_ABI = parseAbi([
   'function getResolver(string label) view returns (address)',
 ])
-
-const ZERO = '0x0000000000000000000000000000000000000000'
 
 /**
  * Labels reserved on Sepolia long before any fork point, used only to read back
@@ -82,8 +80,8 @@ export const discoverV1CompatResolver = async (): Promise<Address> => {
         functionName: 'getResolver',
         args: [label],
       })
-      .catch(() => ZERO as Address)
-    if (resolver === ZERO) continue
+      .catch(() => zeroAddress as Address)
+    if (resolver === zeroAddress) continue
     const key = getAddress(resolver)
     seen.set(key, [...(seen.get(key) ?? []), label])
   }

@@ -5,6 +5,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import {
   ProfileCard,
   profileCardTrailingIconStrokeWidth,
+  profileTileClassName,
   valueClassName,
 } from './ProfileCard'
 import {
@@ -13,8 +14,7 @@ import {
 } from './ProfileView.helpers'
 import { useLinkPreviewPattern } from './useLinkPreviewPattern'
 
-const linkPreviewClassName =
-  'group h-51.25 min-w-0 gap-0 overflow-hidden rounded-[14px] p-0 text-left transition hover:bg-ens-quartz-50 xl:rounded-xl'
+const linkPreviewClassName = `${profileTileClassName} group h-51.25 min-w-0 gap-0 overflow-hidden p-0 text-left transition hover:bg-ens-quartz-50`
 const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
