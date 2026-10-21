@@ -9,7 +9,8 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 **Status:** implemented and verified in real mode; ready for review.
 **Branch:** `test/v2-4ld-coverage`, based on V1 head `966c30c87`.
-**In flight:** manual checker restoration and draft PR publication.
+**In flight:** nothing in this bounded native V2 pass.
+**Draft PR:** https://github.com/ensdomains/apps-monorepo/pull/1438 (stacked on #1425).
 
 ### Scope
 
@@ -28,6 +29,8 @@ Q59 runs in `portal-v2-4ld-time`, excluded from `portal-e2e`, after action suite
 Initial harness: 14 passed, stale legacy Panoptes history failed. The documented Panoptes-only recovery command's `compose up` recreated its Anvil dependency because it omitted the pinned fork environment. This reset the local chain. The agent disclosed the error immediately and restored the pinned stack using `start-local-env.sh`; all 15 harness checks subsequently passed. **For a service-only restart use `--no-deps`, and preserve the pinned fork environment. Do not copy the old recovery command blindly.** Bigname was reset for the new chain; no application code changed.
 
 The October 21 Q4/Q18 manual names in the preceding chat are historical evidence after that reset. Their original screenshots and JSON remain under `/Users/sg/Documents/Codex/2026-10-20/the-4ld-plan-is-in-the-2/outputs/`; stale Q4 checker processes were stopped. Fresh Q4 replacements were migrated and independently rechecked: 4LD `l2.l1.v1m-4-1792571525.eth` at http://127.0.0.1:8774/ and 3LD `l1.v1m-3-1792571550.eth` at http://127.0.0.1:8775/. Both reproduce empty UniversalResolver text with intact stored text and owner. Fresh evidence is in `outputs/restored-q4/`, separate from historical evidence. These checkers are read-only and show the post-upgrade state. One initial small headless viewport let the dev-tools button intercept Upgrade; the replacement uses 1440×1000 and normal UI clicks. No application change was needed.
+
+Q18 replacements also verified: `l1.v1m-4-1792571575.eth` and `l2.l1.v1m-4-1792571575.eth` remain absent from the primary picker despite valid ownership and forward resolution; V2 control `q18-manual-control-1792571576.eth` appears. The manual browser is left on the 3LD search. Evidence and metadata are in `outputs/restored-q4/`; no primary-name write was submitted.
 
 ### Verification
 
