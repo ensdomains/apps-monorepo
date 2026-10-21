@@ -167,6 +167,9 @@ catalogs:
     '@cloudflare/vite-plugin':
       specifier: ^1.64.0
       version: 1.64.0
+    '@ensdomains/address-encoder':
+      specifier: ^2.0.1
+      version: 2.0.1
     '@ensdomains/ensjs':
       specifier: ^5.2.9
       version: 5.2.9
@@ -323,8 +326,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/weave-loader
       '@ensdomains/address-encoder':
-        specifier: ^1.1.4
-        version: 1.1.4
+        specifier: 'catalog:'
+        version: 2.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: 5.2.9(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
@@ -633,8 +636,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/utils
       '@ensdomains/address-encoder':
-        specifier: ^1.1.4
-        version: 1.1.4
+        specifier: 'catalog:'
+        version: 2.0.1
       '@ensdomains/dnsprovejs':
         specifier: ^1.0.1
         version: 1.0.1
@@ -1164,8 +1167,8 @@ importers:
         specifier: workspace:*
         version: link:../utils
       '@ensdomains/address-encoder':
-        specifier: ^1.1.4
-        version: 1.1.4
+        specifier: 'catalog:'
+        version: 2.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: 5.2.9(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
@@ -1683,9 +1686,6 @@ packages:
 
   '@ensdomains/address-encoder@1.0.0-rc.3':
     resolution: {integrity: sha512-8o6zH69rObIqDY4PusEWuN9jvVOct+9jj9AOPO7ifc3ev8nmsly0e8TE1sHkhk0iKFbd3DlSsUnJ+yuRWmdLCQ==}
-
-  '@ensdomains/address-encoder@1.1.4':
-    resolution: {integrity: sha512-hBY6VxVw9A1cMPOKDIvPB2nlmgaw2dvrrj/p/9tkGWmD+qdfKYZTdZuSdFcUGxhhzEB4HeLG/a98ytlTq84KcA==}
 
   '@ensdomains/address-encoder@2.0.1':
     resolution: {integrity: sha512-7aXfYgUfc3odGY9N6A3wvVZhEtv3gAwNfLzUdXX2TSkkuXZyZnpzAjKSijStnt0yhjzKyVNL7guhUg1ZX54bQw==}
@@ -8557,12 +8557,6 @@ snapshots:
     optional: true
 
   '@ensdomains/address-encoder@1.0.0-rc.3':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.6
-
-  '@ensdomains/address-encoder@1.1.4':
     dependencies:
       '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
