@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FlameIcon, LockKeyholeIcon, WalletIcon } from 'lucide-react'
-import { EnsLogoMarkSVG } from '@/assets/ens-logo-mark'
-import { ExplorerLogoSVG } from '@/assets/explorer-logo'
 import {
   CardsStackIcon,
   GraphIcon,
@@ -14,7 +12,6 @@ import {
   TollIcon,
 } from '@/assets/icons'
 import { SoonBadge } from '@/components/ui/badge'
-import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -22,19 +19,18 @@ import { isClaimable, isRegistrable } from '@/utils/ens/tldHelpers'
 import { createDefineLinkItem } from '@/utils/tsr'
 import type { ProtocolVersion } from '@/utils/types'
 import { SettingsMenu } from './SettingsMenu'
+import { SidebarBrandHeader } from './SidebarBrandHeader'
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from './ui/sidebar'
 import { WalletMenu } from './WalletMenu'
@@ -161,37 +157,12 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   })
   const protocolVersion = ownerData?.protocolVersion
   const items = getItems(name, protocolVersion)
-  const { state, isMobile, setOpenMobile } = useSidebar()
-  const isIconMode = state === 'collapsed' && !isMobile
+  const { setOpenMobile } = useSidebar()
 
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
-      <SidebarHeader className="p-0 gap-0">
-        {isIconMode ? (
-          <div className="flex flex-col items-center gap-3 pt-6 px-2">
-            <Link to="/" className="flex items-center" aria-label="ENS Home">
-              <EnsLogoMarkSVG />
-            </Link>
-            <SidebarTrigger className="size-7" />
-            <HomeSearchInput iconOnly />
-          </div>
-        ) : (
-          <div className="px-6 pt-6 flex flex-col gap-6">
-            <div className="flex items-center min-h-8">
-              <Link to="/" className="flex items-center">
-                <ExplorerLogoSVG />
-              </Link>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <HomeSearchInput />
-              </div>
-              <SidebarTrigger className="shrink-0" />
-            </div>
-          </div>
-        )}
-      </SidebarHeader>
+      <SidebarBrandHeader />
 
       <SidebarSeparator className="mt-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
 

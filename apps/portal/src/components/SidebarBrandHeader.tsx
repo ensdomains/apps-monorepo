@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import { EnsLogoMarkSVG } from '@/assets/ens-logo-mark'
-import { ExplorerLogoSVG } from '@/assets/explorer-logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { SidebarHeader, SidebarTrigger, useSidebar } from './ui/sidebar'
 
@@ -25,8 +24,8 @@ export const SidebarBrandHeader = () => {
       ) : (
         <div className="px-6 pt-6 flex flex-col gap-6">
           <div className="flex items-center min-h-8">
-            <Link to="/" className="flex items-center">
-              <ExplorerLogoSVG />
+            <Link to="/" className="flex items-center" aria-label="ENS Home">
+              <EnsLogoMarkSVG />
             </Link>
           </div>
           <div className="flex items-center gap-2">

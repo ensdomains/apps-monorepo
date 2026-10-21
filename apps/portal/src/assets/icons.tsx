@@ -471,3 +471,47 @@ export const RemoveSelectionIcon = (props: Props) => (
     />
   </svg>
 )
+
+/** The Ethereum coin mark used beside contract addresses (Figma asset, 16px). */
+export const EthCoinIcon = (props: Props) => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    {...props}
+  >
+    <path
+      d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z"
+      fill="#5265DC"
+    />
+    <path
+      d="M7.99911 2.66667V6.6089L11.3311 8.09778L7.99911 2.66667Z"
+      fill="white"
+      fillOpacity="0.602"
+    />
+    <path
+      d="M7.9991 2.66667L4.66665 8.09778L7.9991 6.6089V2.66667Z"
+      fill="white"
+    />
+    <path
+      d="M7.99911 10.6524V13.3311L11.3333 8.71822L7.99911 10.6524Z"
+      fill="white"
+      fillOpacity="0.602"
+    />
+    <path
+      d="M7.9991 13.3311V10.652L4.66665 8.71822L7.9991 13.3311Z"
+      fill="white"
+    />
+    <path
+      d="M7.99911 10.0324L11.3311 8.09776L7.99911 6.60976V10.0324Z"
+      fill="white"
+      fillOpacity="0.2"
+    />
+    <path
+      d="M4.66665 8.09776L7.9991 10.0324V6.60976L4.66665 8.09776Z"
+      fill="white"
+      fillOpacity="0.602"
+    />
+  </svg>
+)

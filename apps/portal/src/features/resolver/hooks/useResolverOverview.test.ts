@@ -370,6 +370,22 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(events?.map(({ id }) => id)).toEqual(['emitted'])
   })
 
+  it('reports older events from the page flag, not the page length', async () => {
+    const event = (id: string) => ({
+      id,
+      type: 'resolver',
+      block_number: 1,
+      timestamp: '1790999568',
+      transaction_hash: '0xabc',
+      data: null,
+    })
+    bigname.events.mockReturnValue(page([event('a')], { next: 'more' }))
+    expect(await readOverview()).toMatchObject({ eventsHasMore: true })
+
+    bigname.events.mockReturnValue(page([event('a')]))
+    expect(await readOverview()).toMatchObject({ eventsHasMore: false })
+  })
+
   it('renders without recent events when bigname cannot serve them', async () => {
     bigname.events.mockReturnValue(
       errAsync(new BignameError({ code: 'internal_error', message: 'boom' })),
