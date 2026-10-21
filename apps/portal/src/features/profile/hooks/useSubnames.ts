@@ -3,7 +3,10 @@ import type {
   Subname as BignameSubname,
 } from '@ens-apps/indexer/bigname'
 import { isStale, retryStale, toProtocol } from '@ens-apps/indexer/bigname'
-import type { IndexerReadError } from '@ens-apps/indexer/reads'
+import type {
+  ProtocolVersion as IndexedProtocol,
+  IndexerReadError,
+} from '@ens-apps/indexer/reads'
 import {
   type InferErrTypes,
   ResultFn,
@@ -55,7 +58,7 @@ type Subname = {
   readonly labelhash: Hex
   readonly owner: Address
   /** The era bigname serves the subname from; null when it doesn't say. */
-  readonly protocol: ReturnType<typeof toProtocol>
+  readonly protocol: IndexedProtocol | null
   /** ENSv1 only: null when bigname can't say how the subname is held. */
   readonly v1Wrapping: V1SubnameWrapping | null
   /** ENSv1 only: its own subnames; undefined when bigname did not count them. */

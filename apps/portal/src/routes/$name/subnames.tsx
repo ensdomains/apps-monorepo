@@ -44,16 +44,6 @@ import {
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
-const deleteBlockedReasonFor = (protocol: 'v1' | 'v2' | null) =>
-  match(protocol)
-    .with('v2', () => undefined)
-    .with(
-      'v1',
-      () => 'It’s a V1 subname, which this name’s V2 subregistry doesn’t hold.',
-    )
-    .with(null, () => 'Couldn’t confirm this name’s V2 subregistry holds it.')
-    .exhaustive()
-
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -240,20 +230,16 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const visibleSubnames = useMemo(
     () =>
       (subnames ?? [])
-        .map((subname) => {
-          // bigname still serves a V1 child under a name registered again on
-          // V2. This subregistry never registered it, so `unregister` reverts.
-          const isInRegistry = subname.protocol === 'v2'
-          return {
-            name: subname.name || '',
-            owner: subname.owner,
-            labelhash: subname.labelhash,
-            protocol: subname.protocol,
-            resourceId: isInRegistry
+        .map((subname) => ({
+          name: subname.name || '',
+          owner: subname.owner,
+          labelhash: subname.labelhash,
+          protocol: subname.protocol,
+          resourceId:
+            subname.protocol === 'v2'
               ? resourceIdFromChainValue(subname.labelhash).unwrapOr(null)
               : null,
-          }
-        })
+        }))
         .filter((subname) => !optimisticallyDeleted.has(subname.name)),
     [subnames, optimisticallyDeleted],
   )
@@ -312,7 +298,19 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         owner: subname.owner,
         labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
-        deleteBlockedReason: deleteBlockedReasonFor(subname.protocol),
+        deleteBlockedReason: match(subname.protocol)
+          .with('v2', () => undefined)
+          .with(
+            'v1',
+            () =>
+              'It’s left over from this name’s V1 registration and isn’t part of it on V2, so there’s nothing to delete here.',
+          )
+          .with(
+            null,
+            () =>
+              'Couldn’t confirm this subname is part of this name on V2. Refresh to try again.',
+          )
+          .exhaustive(),
         canDelete:
           subname.resourceId !== null &&
           (hasRootUnregisterRole === true ||
