@@ -307,8 +307,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           )
           .with(
             null,
-            () =>
-              'Couldn’t confirm this subname is part of this name on V2. Refresh to try again.',
+            () => 'Couldn’t confirm this subname is part of this name on V2.',
           )
           .exhaustive(),
         canDelete:
