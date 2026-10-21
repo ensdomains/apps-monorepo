@@ -1,5 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
@@ -34,6 +34,7 @@ import {
 } from '@/features/resolver/hooks/useResolverNodesList'
 import {
   getResolverOverviewQueryOptions,
+  RESOLVER_NODES_PAGE_SIZE,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -179,15 +180,32 @@ function RouteComponent() {
 
   // `linkToNode` reverts `InvalidRecord` for a target with no record, and a
   // name can point at this resolver without one, so only recorded names are offered.
-  const recordsQuery = useQuery({
-    ...getNodesWithRecordsQueryOptions({
-      address,
-      nodes: nodes.flatMap((n) => (isHex(n.id) ? [n.id] : [])),
+  // One read per page of names, so loading more never re-checks the earlier ones.
+  const nodeIds = nodes.flatMap((n) => (isHex(n.id) ? [n.id] : []))
+  const recordsQuery = useQueries({
+    queries: Array.from(
+      { length: Math.ceil(nodeIds.length / RESOLVER_NODES_PAGE_SIZE) },
+      (_, page) =>
+        getNodesWithRecordsQueryOptions({
+          address,
+          nodes: nodeIds.slice(
+            page * RESOLVER_NODES_PAGE_SIZE,
+            (page + 1) * RESOLVER_NODES_PAGE_SIZE,
+          ),
+        }),
+    ),
+    combine: (results) => ({
+      nodesWithRecords: new Set<string>(
+        results.flatMap((result) => result.data ?? []),
+      ),
+      isLoading: results.some((result) => result.isLoading),
+      isError: results.some((result) => result.isError),
+      refetch: () => {
+        for (const result of results) if (result.isError) void result.refetch()
+      },
     }),
-    enabled: nodes.length > 0,
-    placeholderData: keepPreviousData,
   })
-  const nodesWithRecords = new Set<string>(recordsQuery.data)
+  const { nodesWithRecords } = recordsQuery
 
   const nameOptions = nodes.map((n) => n.name)
   const nodeOptions = nodes

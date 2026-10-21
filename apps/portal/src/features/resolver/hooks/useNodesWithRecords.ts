@@ -54,4 +54,6 @@ export const getNodesWithRecordsQueryOptions = (
   resultQueryOptions({
     queryKey: getNodesWithRecordsQueryKey(params),
     queryFn: () => getNodesWithRecords(params),
+    // Saving a name's first record doesn't invalidate this, so the picker reads afresh.
+    staleTime: 0,
   })
