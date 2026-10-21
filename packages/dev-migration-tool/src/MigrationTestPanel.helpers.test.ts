@@ -5,14 +5,14 @@
  * read it as a locked 2LD holding an ERC-1155 that did not exist and the name
  * silently vanished from the migration list.
  *
- * `walkPreset` is now the single source both the chain writes and the subgraph
+ * `walkPreset` is now the single source both the chain writes and the bigname
  * mock derive from, so these tests are the mechanical form of that guarantee.
  */
 import { namehash } from 'viem'
 import { describe, expect, it } from 'vitest'
 
+import { listedRows } from './bignameMock'
 import {
-  buildMockDomains,
   fullNamesFor,
   nodeForPath,
   ownershipTargetFor,
@@ -28,12 +28,20 @@ import {
 const ALL_TYPES: PresetType[] = Object.keys(PRESET_SHAPES) as PresetType[]
 const ROOT = 'dev0001'
 
+const NOW = Math.floor(Date.now() / 1000)
+
 const activeName = (type: PresetType) => ({
   label: ROOT,
   type,
   id: '1',
-  expiryDate: Math.floor(Date.now() / 1000) + 365 * 24 * 3600,
+  expiryDate: NOW + 365 * 24 * 3600,
 })
+
+/** The names the account's bigname name list gains for one preset. */
+const listedNames = (type: PresetType) =>
+  listedRows([activeName(type)], NOW).map((row) => row.name)
+
+const parentOf = (name: string) => name.slice(name.indexOf('.') + 1)
 
 describe('nodeForPath', () => {
   it('matches viem namehash for 2LDs, 3LDs and 4LDs', () => {
@@ -117,29 +125,23 @@ describe('walkPreset', () => {
     expect(nodes[0].offer).toBe(false)
     // The 2LD is created on chain (it is in the walk) but never injected, so
     // the child has no migrating ancestor -> ineligible `missing-parent`.
-    const injected = buildMockDomains(activeName('copy-orphan')) as {
-      name: string
-    }[]
-    expect(injected.map((d) => d.name)).toEqual([`sub-${ROOT}.${ROOT}.eth`])
+    expect(listedNames('copy-orphan')).toEqual([`sub-${ROOT}.${ROOT}.eth`])
   })
 })
 
-describe('buildMockDomains', () => {
+describe('listedRows', () => {
   it.each(
     ALL_TYPES,
-  )("%s: every injected domain's parent is either 'eth' or another injected domain", (type: PresetType) => {
-    const domains = buildMockDomains(activeName(type)) as {
-      name: string
-      parent: { name: string }
-    }[]
-    const names = new Set(domains.map((d) => d.name))
-    for (const domain of domains) {
-      if (domain.parent.name === 'eth') continue
-      // A domain whose parent is absent is exactly the orphan fixture, and
+  )("%s: every listed name's parent is either 'eth' or another listed name", (type: PresetType) => {
+    const names = new Set(listedNames(type))
+    for (const name of names) {
+      const parent = parentOf(name)
+      if (parent === 'eth') continue
+      // A name whose parent is absent is exactly the orphan fixture, and
       // only `copy-orphan` is allowed to be one.
       expect(
-        names.has(domain.parent.name),
-        `${domain.name} names parent ${domain.parent.name}, which is not injected`,
+        names.has(parent),
+        `${name} names parent ${parent}, which is not listed`,
       ).toBe(type !== 'copy-orphan')
     }
   })
@@ -147,17 +149,12 @@ describe('buildMockDomains', () => {
   it.each(
     ALL_TYPES,
   )('%s: only 2LDs carry a registration', (type: PresetType) => {
-    const domains = buildMockDomains(activeName(type)) as {
-      name: string
-      registration: unknown
-      registrant: unknown
-    }[]
-    for (const domain of domains) {
-      const is2LD = domain.name.split('.').length === 2
-      // `registration`/`registrant` are 2LD-only. On a child they make
-      // `hasExpiredDotEthRegistration` treat it as a .eth registration.
-      expect(Boolean(domain.registration), domain.name).toBe(is2LD)
-      expect(Boolean(domain.registrant), domain.name).toBe(is2LD)
+    for (const row of listedRows([activeName(type)], NOW)) {
+      const is2LD = parentOf(row.name) === 'eth'
+      // A registrant or lease on a child makes the classifier treat it as a
+      // .eth registration.
+      expect(Boolean(row.registrant), row.name).toBe(is2LD)
+      expect(Boolean(row.ens_v1?.expires_at), row.name).toBe(is2LD)
     }
   })
 })
@@ -205,8 +202,7 @@ describe('reassign presets (#1144)', () => {
   it.each(
     REASSIGN,
   )('%s keeps its subnames out of the migration mock', (type) => {
-    const injected = buildMockDomains(activeName(type)) as { name: string }[]
-    expect(injected.map((d) => d.name)).toEqual([`${ROOT}.eth`])
+    expect(listedNames(type)).toEqual([`${ROOT}.eth`])
   })
 
   it('issues the reassignable child to another account', () => {

@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table'
 import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -33,10 +33,12 @@ import {
 } from '@/components/ui/table'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
+import { healSubname } from '@/utils/ens/localLabels'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
-// A child bigname cannot label is shown as `[labelhash].parent`, never linked.
+// A child neither bigname nor this browser can label is shown as
+// `[labelhash].parent`, never linked.
 const SubnameBadge = ({ name }: { readonly name: string }) => {
   const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
   return (
@@ -54,6 +56,8 @@ const SubnameBadge = ({ name }: { readonly name: string }) => {
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
+  /** The labelhash the indexer holds for the row; a `[…]` label heals only to it. */
+  readonly labelhash?: Hex
   /**
    * The subname's on-chain id, as the indexer reported it. Every write about
    * this row is addressed with this, never with `name` (WEB-1458). Undefined
@@ -127,7 +131,9 @@ function buildColumns(
   return [
     ...(onDeleteClick ? [selectColumn] : []),
     {
-      accessorKey: 'name',
+      id: 'name',
+      // Display, sort and search only: row identity stays the served name.
+      accessorFn: (row) => healSubname(row.name, row.labelhash),
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -136,7 +142,7 @@ function buildColumns(
           Subname
         </SortButton>
       ),
-      cell: ({ row }) => <SubnameBadge name={row.original.name} />,
+      cell: ({ getValue }) => <SubnameBadge name={getValue<string>()} />,
     },
     {
       accessorKey: 'owner',
@@ -339,7 +345,7 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <SubnameBadge name={row.original.name} />
+                    <SubnameBadge name={row.getValue<string>('name')} />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
@@ -366,7 +372,7 @@ export const SubnamesTable = ({
                   <div className="border-b border-border bg-muted px-6 py-3">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">
-                        Remove {row.original.name}?
+                        Remove {row.getValue<string>('name')}?
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
@@ -453,7 +459,7 @@ export const SubnamesTable = ({
                       <TableCell colSpan={columns.length} className="px-6 py-3">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">
-                            Remove {row.original.name}?
+                            Remove {row.getValue<string>('name')}?
                           </span>
                           <div className="flex items-center gap-2">
                             <Button

@@ -154,6 +154,10 @@ msgstr ""
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
 msgstr ""
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{unlimitedSymbol} can't be approved for an exact amount, so your wallet will be asked to give your smart account an unlimited {unlimitedSymbol} allowance. It stays in place until you revoke it; only the amounts below move now."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
 msgid "{value, plural, one {# day} other {# days}}"
 msgstr ""
@@ -494,10 +498,6 @@ msgstr ""
 msgid "Carving your name into the blockchain"
 msgstr ""
 
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-msgid "Chain-specific addresses"
-msgstr ""
-
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Check mint status"
 msgstr ""
@@ -719,6 +719,17 @@ msgstr ""
 
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Copy"
+msgstr ""
+
+#. placeholder {0}: address.label
+#. placeholder {1}: address.value
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
+msgid "Copy {0} address {1}"
+msgstr ""
+
+#. placeholder {0}: address.value
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
+msgid "Copy address {0}"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -1404,10 +1415,6 @@ msgstr ""
 
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"
-msgstr ""
-
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-msgid "Main receiving address"
 msgstr ""
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)

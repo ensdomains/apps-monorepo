@@ -49,6 +49,7 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
+  CERTIFIED_V1_RESOLVER,
   createMakeV1Name,
   FUSES,
   V1_NAME_WRAPPER,
@@ -111,8 +112,6 @@ const LOCKED_MIGRATION_CONTROLLER = ensL1Contracts[supportedL1Chains.sepolia]
  * checked 2026-10-08). The fixture default, `V1_PUBLIC_RESOLVER`
  * (`0x8FADE66B…`), is NOT certified — see the uncertified-resolver test.
  */
-const CERTIFIED_V1_RESOLVER =
-  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address
 
 const hex = (bitmap: bigint) => `0x${bitmap.toString(16)}`
 

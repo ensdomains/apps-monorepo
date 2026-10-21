@@ -35,8 +35,8 @@ import {
   rootRow,
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
-import type { MockV1Records } from '../../../helpers/mock-v1-subgraph.js'
 import { expectRecordsResolve } from '../../../helpers/resolve-records.js'
+import type { MockV1Records } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry

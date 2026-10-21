@@ -46,7 +46,7 @@ export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
 // silently broke name creation once ownership moved — impersonating a non-owner
 // makes `addController` revert, so DEFAULT_ACCOUNT never becomes a controller
 // and every `register()` reverts, leaving phantom names that only exist in the
-// subgraph mock.
+// bigname mock.
 export const V1_BASE_REGISTRAR_OWNER =
   '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
 export const V1_PUBLIC_RESOLVER =
@@ -756,7 +756,7 @@ export interface ActiveName {
   label: string
   type: PresetType
   id: string
-  /** Unix seconds — V1 expiry, used for subgraph mock and V2 reservation */
+  /** Unix seconds: V1 expiry, used for the bigname mock and V2 reservation */
   expiryDate: number
 }
 
@@ -1288,22 +1288,6 @@ export async function reclaimV1Manager(
   )
 }
 
-/**
- * The `resolver` field for a mock domain. Record-bearing names must report the
- * exact resolver their records were actually written to — recognised or not;
- * other wrapped names keep reporting the resolver they are created with;
- * unwrapped ones have none.
- */
-const resolverRefFor = (
-  hasRecords: boolean,
-  isWrapped: boolean,
-  recordResolver: Address = V1_RECORD_RESOLVER,
-): { id: string; address: string } | null => {
-  if (hasRecords) return { id: recordResolver, address: recordResolver }
-  if (isWrapped) return { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
-  return null
-}
-
 /** namehash of `<label>.eth`. */
 export const nodeForLabel = (label: string): `0x${string}` =>
   namehashFromLabelAndParent(labelhash(label), ETH_NODE)
@@ -1772,7 +1756,7 @@ export async function isController(
  * transferred on Sepolia, and impersonating a stale owner makes `addController`
  * revert silently, so DEFAULT_ACCOUNT never becomes a controller and every
  * `register()` reverts — producing phantom names that exist only in the
- * subgraph mock. We verify the grant landed and throw loudly if it didn't.
+ * bigname mock. We verify the grant landed and throw loudly if it didn't.
  */
 export async function ensureFunded(endpoint: string): Promise<void> {
   const TARGET = '0x56BC75E2D63100000' // 100 ETH in wei
@@ -2416,168 +2400,6 @@ export async function resetCopyTarget(
   await rpcCall(endpoint, 'anvil_setCode', [registry, '0x'])
 }
 
-// --- Subgraph mock ----------------------------------------------------------
-
-/**
- * Build a minimal V1 subgraph domain object for a panel-created name.
- * Injected into getNamesForAddress responses so the migration UI finds the name.
- */
-export function buildMockDomain(name: ActiveName): unknown {
-  const lh = labelhash(name.label)
-  const node = namehashFromLabelAndParent(lh, ETH_NODE)
-  // Shape comes from PRESET_SHAPES so the mock cannot drift from what
-  // `createV1NameOnAnvil` actually writes on-chain.
-  const shape = PRESET_SHAPES[name.type]
-  const isWrapped = shape.parentWrapped
-  const fuses = shape.parentFuses
-  const owner = DEFAULT_ACCOUNT.toLowerCase()
-  // `owner` is the V1 registry owner == the manager. For `managed` it is
-  // deliberately not the registrant, which is what classifyNames keys on.
-  const registryOwner =
-    name.type === 'managed' ? V1_DISTINCT_MANAGER.toLowerCase() : owner
-  const now = Math.floor(Date.now() / 1000)
-
-  return {
-    id: node,
-    labelName: name.label,
-    labelhash: lh,
-    name: `${name.label}.eth`,
-    isMigrated: false,
-    createdAt: String(now - 3600),
-    resolvedAddress: null,
-    // A record-bearing preset must report a resolver even when unwrapped —
-    // `classifyNames` reads `resolver.address` as `v1ResolverAddress`, and the
-    // profile fetch multicalls that address for the record values. It must also
-    // be the SAME resolver the records were written to, and a recognised one, or
-    // the strategy degrades to `keep-v1` and nothing is replayed.
-    resolver: resolverRefFor(
-      presetHasParentRecords(name.type),
-      isWrapped,
-      recordResolverFor(name.type),
-    ),
-    owner: { id: isWrapped ? V1_NAME_WRAPPER.toLowerCase() : registryOwner },
-    registrant: { id: owner },
-    wrappedOwner: isWrapped ? { id: owner } : null,
-    parent: { name: 'eth', id: ETH_NODE, wrappedDomain: null },
-    registration: {
-      registrationDate: String(now - 3600),
-      expiryDate: String(name.expiryDate),
-    },
-    wrappedDomain: isWrapped
-      ? { expiryDate: String(name.expiryDate), fuses }
-      : null,
-  }
-}
-
-/**
- * One descendant of a preset, at any depth, shaped from its `walkPreset` entry.
- *
- * Every field here is what makes `classifyName` take one branch rather than
- * another, and each was previously derived from a depth-1-only assumption:
- *
- * - `owner.id` is the NameWrapper for a wrapped node and the EOA otherwise.
- *   `classifyWithoutActiveWrapper` reads it as the REGISTRY owner, which is the
- *   whole gate in front of the `registry-child` copy branch.
- * - `parent.wrappedDomain.fuses` carries the immediate parent's real fuses —
- *   the only way `classifyUnlockedWrapper` can tell `detached-child` (a token
- *   migration under a locked parent) from `unlocked-child` (a copy).
- * - `registration` and `registrant` are 2LD-only. Supplying them on a child
- *   makes `hasExpiredDotEthRegistration` treat it as a .eth registration.
- * - a null resolver is a real, ELIGIBLE state for a copy.
- */
-export function buildMockDescendantDomain(
-  name: ActiveName,
-  node: PresetNode,
-): unknown {
-  const now = Math.floor(Date.now() / 1000)
-  const owner = DEFAULT_ACCOUNT.toLowerCase()
-  const resolver =
-    node.resolver === 'none'
-      ? null
-      : node.resolver === 'custom'
-        ? V1_CUSTOM_RESOLVER
-        : V1_RECORD_RESOLVER
-
-  return {
-    id: node.node,
-    labelName: node.label,
-    labelhash: labelhash(node.label),
-    name: node.fullName,
-    isMigrated: false,
-    createdAt: String(now - 3600),
-    resolvedAddress: null,
-    resolver: resolver ? { id: resolver, address: resolver } : null,
-    owner: { id: node.wrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
-    registrant: null,
-    wrappedOwner: node.wrapped ? { id: owner } : null,
-    parent: {
-      name: node.parentFullName,
-      id: node.parentNode,
-      wrappedDomain: node.parentWrapped
-        ? {
-            expiryDate: String(name.expiryDate),
-            fuses: node.parentFuses,
-          }
-        : null,
-    },
-    registration: null,
-    wrappedDomain: node.wrapped
-      ? { expiryDate: String(name.expiryDate), fuses: node.fuses }
-      : null,
-  }
-}
-
-/** Every subgraph domain a single active name contributes (2LD, plus child). */
-export function buildMockDomains(name: ActiveName): unknown[] {
-  // `offer: false` nodes exist on chain but are deliberately withheld from the
-  // injection — that is how a name whose parent is missing from the selection
-  // is built, and it is the whole point of the `copy-orphan` preset.
-  return walkPreset(name.label, name.type)
-    .filter((node) => node.offer)
-    .map((node) =>
-      node.depth === 0
-        ? buildMockDomain(name)
-        : buildMockDescendantDomain(name, node),
-    )
-}
-
-/**
- * Profile-key rows for the `getProfilesForDomains` query, which the migration
- * flow uses to learn WHICH records a name has before multicalling the resolver
- * for their values. Without this the hosted subgraph is asked about Anvil-only
- * names, returns nothing, and record replay silently has nothing to replay.
- */
-type MockProfileRow = {
-  id: string
-  resolver: {
-    texts: string[]
-    coinTypes: number[]
-    /**
-     * contenthash and ABI content types were added to `getProfilesForDomains`
-     * when contenthash/ABI preservation landed. They are how the migration
-     * learns those records EXIST — omit them and both are silently skipped, so
-     * a stale mock here looks exactly like the preservation fix not working.
-     */
-    contentHash: string | null
-    abiChangeds: { contentType: number }[]
-  }
-}
-
-export function buildMockProfileRows(name: ActiveName): MockProfileRow[] {
-  const rows: MockProfileRow[] = []
-  const keys = () => ({
-    texts: [...QA_RECORD_TEXT_KEYS],
-    coinTypes: [...QA_RECORD_COIN_TYPES],
-    contentHash: QA_RECORD_CONTENTHASH,
-    abiChangeds: [{ contentType: Number(QA_RECORD_ABI.contentType) }],
-  })
-  for (const node of walkPreset(name.label, name.type)) {
-    if (node.records && node.offer)
-      rows.push({ id: node.node, resolver: keys() })
-  }
-  return rows
-}
-
 // --- Anvil on-chain sync helpers --------------------------------------------
 
 const V2_NAME_STATUS = {
@@ -2685,7 +2507,7 @@ export async function getNamesOnAnvil(
  * Live BaseRegistrar expiry (unix seconds) for a .eth label on the Anvil fork,
  * or null if unregistered/unreadable. The panel stores each name's expiryDate at
  * creation, which goes STALE after an in-app renewal (or time-travel) — and the
- * subgraph mock feeds `registration.expiryDate` into migration eligibility
+ * bigname mock feeds the expiry into migration eligibility
  * (`classifyName` → `hasExpiredDotEthRegistration`). Reading it live keeps the
  * mock in step with on-chain state so a renewed grace name correctly becomes
  * migratable instead of staying classified `expired-registration`.
@@ -2832,7 +2654,7 @@ export async function ensureNamesOnAnvil(
 // Panel-created names are persisted in a COOKIE rather than localStorage so the
 // list is shared across the portal (:3001) and manager (:3000) dev servers —
 // cookies are scoped by host, not port, whereas localStorage is per-origin.
-// This lets the subgraph mock in one app inject names created in the other,
+// This lets the bigname mock in one app inject names created in the other,
 // which is required for the manager migration list to see portal-created names.
 // Cookie-safe name (no colons — those are separators the cookie grammar
 // disallows in a name, even though some browsers tolerate them).

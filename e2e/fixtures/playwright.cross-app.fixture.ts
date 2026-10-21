@@ -12,7 +12,7 @@
  * Needs both apps against the same local stack, without the mock wallet
  * (the headless connect flow needs the Connect button):
  *   PORTAL_APP_URL (default http://localhost:3001), MANAGER_APP_URL
- *   (default http://localhost:3000), E2E_MOCK_INDEXER=false.
+ *   (default http://localhost:3000), E2E_MOCK_BIGNAME=false.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
@@ -126,9 +126,8 @@ export const test = base.extend<CrossAppFixtures>({
     await use(async (config) => {
       const name = await make(config)
       await time.resume()
-      // Both indexes: the manager reads bigname; the explorer reads its role
-      // holders from Panoptes and refuses to transfer until they match the
-      // registry, so a name it has not indexed yet blocks the transfer page.
+      // Both apps read bigname; the explorer also refuses to transfer until its
+      // role holders match the registry, so an unindexed name blocks the page.
       await waitForBignameName(name)
       const owner = accounts.getAddress(
         config.owner === 'other' ? 'user2' : 'user',

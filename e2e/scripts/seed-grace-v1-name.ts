@@ -29,13 +29,17 @@ import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { erc20Abi, labelhash, parseAbi } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { makeGraceV1Name } from '../fixtures/makeGraceV1Name.js'
-import { createMakeV1Name, V1_BASE_REGISTRAR } from '../fixtures/makeV1Name.js'
+import {
+  CERTIFIED_V1_RESOLVER,
+  createMakeV1Name,
+  V1_BASE_REGISTRAR,
+} from '../fixtures/makeV1Name.js'
 import { createAccounts } from '../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../helpers/anvil-client.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const COOKIE = 'ens_migration_tool_v1_names'
-const PANEL_WRAPPED_RESOLVER = '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5'
+const PANEL_WRAPPED_RESOLVER = CERTIFIED_V1_RESOLVER
 const USDC = ensL1Contracts[supportedL1Chains.sepolia].usdc.address
 
 type InjectedName = {

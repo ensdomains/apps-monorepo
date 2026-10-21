@@ -12,7 +12,7 @@
  *    already cached — a name it saw registered, a balance it read — survives
  *    the revert and is now wrong. Take the snapshot before the page has read
  *    any of the state the test mutates, or reload after reverting.
- * 2. `evm_revert` rewinds the chain but not **Panoptes**, and unlike the
+ * 2. `evm_revert` rewinds the chain but not **the indexer**, and unlike the
  *    browser the indexer never recovers. It keeps rows for blocks that no
  *    longer exist, its reorg check asks the chain for one of them, gets
  *    `BlockNotFound`, and halts permanently — leaving every indexer-backed

@@ -19,13 +19,17 @@ import {
 } from '@ensdomains/ensjs/public'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { encodeFunctionData, parseAbi } from 'viem'
-import { query as queryPanoptes } from '../../../fixtures/panoptes.js'
 import {
   connectWithHeadlessWallet,
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import {
+  bignameTextKeys,
+  isRealBigname,
+  waitForBignameRecordKeys,
+} from '../../../helpers/bigname-sync.js'
 import { ETH_REGISTRY } from '../../../helpers/role-assertions.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 
@@ -281,24 +285,15 @@ test.describe('Portal resolver records', () => {
     ).toBe(ipfs)
   })
 
-  test("a resolver contract shared by two names leaks one name's text-record keys onto the other, in the indexer (E2E-008)", {
+  test("a resolver contract shared by two names does not leak one name's text-record keys onto the other (E2E-008)", {
     tag: ['@scenario:E1'],
   }, async ({ portalPage: page, wallet, makeName, wallets }) => {
-    // Repro for a Slack report: the portal's Records page discovers which text
-    // *keys* a name has via the indexer's `domains(where:{name}).resolver.texts`
-    // field (`features/profile/hooks/useProfile.ts`), then reads their values
-    // from chain. That field appears to be keyed by resolver CONTRACT ADDRESS
-    // alone, not by (address, node) — so once two DIFFERENT names point their
-    // resolver slot at the SAME already-deployed resolver contract (exactly the
-    // "point at an existing contract" pattern behind E2E-007, but for resolvers
-    // instead of registries), each one's indexed key list bleeds into the
-    // other's, even though on-chain each node's records stay correctly scoped.
-    //
-    // Verified directly against the indexer before writing this test: pointing
-    // an unrelated, already-registered name at a resolver that already had
-    // text keys indexed showed those keys under the new name's
-    // `resolver.texts` immediately, with no record ever written for it.
-    test.fail()
+    // Regression guard for a Slack report: Panoptes listed text keys by
+    // resolver CONTRACT, so two names sharing one resolver leaked keys into
+    // each other's Records page. The portal now reads keys from bigname's
+    // per-name inventory, which must list only what was set on the name's own
+    // node. Needs a real bigname; the route mock lists no keys.
+    test.skip(!isRealBigname, 'the bigname route mock lists no record keys')
 
     await connectWithHeadlessWallet(page, wallet)
 
@@ -349,24 +344,16 @@ test.describe('Portal resolver records', () => {
     // (checked against nameA, which unambiguously owns it) before asserting
     // anything about nameB — otherwise a not-yet-caught-up indexer would make
     // the oracle below pass for the wrong reason (a race, not a fix).
-    const domainTextsQuery = `query($name: String!) { domains(where: {name: $name}) { resolver { address texts } } }`
-    await expect(async () => {
-      const a = await queryPanoptes<{
-        domains: { resolver: { texts: string[] } | null }[]
-      }>(domainTextsQuery, { name: nameA })
-      expect(a.domains[0]?.resolver?.texts ?? []).toContain(key)
-    }).toPass({ timeout: 60_000 })
-
-    const result = await queryPanoptes<{
-      domains: { resolver: { texts: string[] } | null }[]
-    }>(domainTextsQuery, { name: nameB })
+    await waitForBignameRecordKeys(nameA, { texts: [key] })
+    const keysOfB = await bignameTextKeys(nameB)
+    expect(keysOfB, `bigname should answer for ${nameB}`).not.toBeNull()
 
     // Oracle: the indexer's key list for nameB must reflect only what was
     // ever set on nameB's own node — not everything ever set on whatever
     // resolver CONTRACT it happens to currently point at.
     expect(
-      result.domains[0]?.resolver?.texts ?? [],
-      `the indexer's resolver.texts for ${nameB} must not include "${key}" — ` +
+      keysOfB ?? [],
+      `the text keys bigname lists for ${nameB} must not include "${key}" — ` +
         `that was set on ${nameA}'s node, and ${nameB} only shares the same ` +
         'resolver contract, never wrote this key itself',
     ).not.toContain(key)

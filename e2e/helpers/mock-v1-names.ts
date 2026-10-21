@@ -5,7 +5,7 @@
  * It serves the ENSv1 listing (`authority=ens_v1,ens_v0`) the migration reads, the detail
  * lookups for these names (fields and record keys) and their record inventory at
  * the resolver. Every other bigname request falls through to the next handler,
- * e.g. the shared indexer mock.
+ * e.g. the shared bigname mock.
  */
 import type { Page, Route } from '@playwright/test'
 import { namehash } from 'viem'
@@ -128,7 +128,7 @@ function v1Record(n: MockV1Name, now: number) {
     ens_v1: isWrapped(n)
       ? {
           expires_at: expiry,
-          wrapper_state: n.type === 'locked' ? 'locked' : 'wrapped',
+          wrapper_state: n.type === 'locked' ? 'locked' : 'emancipated',
           wrapper_fuses: fuseFlags(wrapperFuses(n)),
           wrapper_expires_at: expiry,
         }
@@ -219,14 +219,14 @@ function nameAtResolver(url: URL, byName: ReadonlyMap<string, MockV1Name>) {
  * Serve mock ENSv1 names from bigname. Call this BEFORE navigating to pages
  * that read the migration list.
  */
-type IndexerMock = {
+type BignameMock = {
   readonly addName: (domain: { name: string; owner: string }) => void
 }
 
 export async function mockV1Names(
   page: Page,
   mockNames: readonly MockV1Name[],
-): Promise<{ readonly markMigrated: (indexerMock: IndexerMock) => void }> {
+): Promise<{ readonly markMigrated: (bignameMock: BignameMock) => void }> {
   const byName = new Map(mockNames.map((n) => [n.name.toLowerCase(), n]))
   let isMigrated = false
   const chainNow = Number(
@@ -237,7 +237,7 @@ export async function mockV1Names(
     route.fulfill({ status: 200, json, headers: CORS_HEADERS })
 
   // Hosted bigname in CI, and the local one (:5660) when a dev server reads it
-  // — the same match as mock-indexer.ts. Missing :5660 sent mock-mode runs to
+  // — the same match as mock-bigname.ts. Missing :5660 sent mock-mode runs to
   // the real local index, which nothing had waited on.
   await page.route(/bigname\.sh\/v1\/|:5660\/v1\//, async (route) => {
     const request = route.request()
@@ -281,10 +281,10 @@ export async function mockV1Names(
 
   return {
     /** After a migration, the names are ENSv2 names served by the shared mock. */
-    markMigrated: (indexerMock) => {
+    markMigrated: (bignameMock) => {
       isMigrated = true
       for (const n of mockNames) {
-        indexerMock.addName({ name: n.name, owner: n.ownerAddress })
+        bignameMock.addName({ name: n.name, owner: n.ownerAddress })
       }
     },
   }

@@ -74,6 +74,19 @@ import {
 } from '../../../helpers/transaction-modal.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+
+/**
+ * How long the transfer button may take to enable. It waits on the role-holder
+ * check, which under the bigname route mock reads the name's role logs from
+ * the node: a scan the roles suite measured near 30s on this fork.
+ */
+const TRANSFER_READY_TIMEOUT = 60_000
+
+/**
+ * Multicall3: deployed on every chain, and not an ERC-1155 receiver, so
+ * `NameWrapper.safeTransferFrom` to it reverts.
+ */
+const NOT_A_RECEIVER: Address = '0xcA11bde05977b3631167028862bE2a173976CA11'
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
 
 // Same chain contracts `makeName` reads from — see e2e/fixtures/makeName.ts.
@@ -251,7 +264,9 @@ test.describe('Portal name transfer', () => {
     // ── 2. Fill the recipient and submit ──────────────────────────────
     await page.getByPlaceholder('ENS name or address').fill(recipient)
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     // ── 3. Authorize the on-chain transfer ────────────────────────────
@@ -302,7 +317,9 @@ test.describe('Portal name transfer', () => {
     ).toBeChecked({ timeout: 15_000 })
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     // Detaching the resolver adds a step that must run before the token
@@ -357,7 +374,9 @@ test.describe('Portal name transfer', () => {
     })
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     // See "transfers a name from wallet A to wallet B" — a fresh name always
@@ -465,7 +484,9 @@ test.describe('Portal name transfer', () => {
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await page.getByPlaceholder('ENS name or address').fill(newOwner)
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
     // A fresh name always has a resolver attached, so it's detached by
     // default as part of the transfer — the new owner starts with none.
@@ -600,7 +621,9 @@ test.describe('Portal name transfer', () => {
     await expect(detachRegistrySwitch).not.toBeChecked()
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     // With both detach options off, buildTransferPlan.ts collapses the plan
@@ -753,7 +776,9 @@ test.describe('Portal name transfer', () => {
     await expect(setEthAddressSwitch).toBeChecked()
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     await driveTransactionsToSuccess(page, wallet, [
@@ -791,14 +816,12 @@ test.describe('Portal name transfer', () => {
    */
   /**
    * These two rows attach an empty subregistry purely to exercise the detach
-   * toggle — they don't care about real subname counts. Mock
-   * `getRegistryOccupants` instead of waiting on Panoptes to discover the
-   * freshly-deployed subregistry (see the `mockIndexer` fixture and
-   * `mock-indexer.ts` — Panoptes' CREATE2-discovery for new subregistries is
-   * currently stuck, so the real query hangs indefinitely on a fresh one).
+   * toggle — they don't care about real subname counts. Mock the occupant
+   * count instead of waiting for bigname to index the freshly deployed
+   * subregistry (see the `mockBigname` fixture and `mock-bigname.ts`).
    */
   test.describe('registry-detach toggle rows (mocked occupant count)', () => {
-    test.use({ mockIndexerEnabled: true })
+    test.use({ mockBignameEnabled: true })
 
     test('detaches the registry alone when the resolver is explicitly kept', {
       tag: ['@scenario:F9'],
@@ -807,7 +830,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -826,7 +849,7 @@ test.describe('Portal name transfer', () => {
       )
       const [originalResolver] = await readResolverAndSubregistry(label)
       // Empty subregistry — no third parties, no consent tick required.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 0,
         thirdPartyCount: 0,
       })
@@ -855,7 +878,9 @@ test.describe('Portal name transfer', () => {
       const transferButton = page.getByRole('button', {
         name: 'Transfer name',
       })
-      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await expect(transferButton).toBeEnabled({
+        timeout: TRANSFER_READY_TIMEOUT,
+      })
       await transferButton.click()
 
       await driveTransactionsToSuccess(page, wallet, [
@@ -881,7 +906,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -911,7 +936,7 @@ test.describe('Portal name transfer', () => {
         privateKeyToAccount(accounts.getPrivateKey('user')),
       )
       // Empty subregistry — no third parties, no consent tick required.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 0,
         thirdPartyCount: 0,
       })
@@ -942,7 +967,9 @@ test.describe('Portal name transfer', () => {
       const transferButton = page.getByRole('button', {
         name: 'Transfer name',
       })
-      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await expect(transferButton).toBeEnabled({
+        timeout: TRANSFER_READY_TIMEOUT,
+      })
       await transferButton.click()
 
       await driveTransactionsToSuccess(page, wallet, [
@@ -983,7 +1010,7 @@ test.describe('Portal name transfer', () => {
       privateKeyToAccount(accounts.getPrivateKey('user')),
     )
     // See waitForIndexedRegistry's header comment: a freshly attached
-    // subregistry answers null (fail closed) until Panoptes discovers it.
+    // subregistry answers null (fail closed) until bigname indexes it.
     await waitForIndexedRegistry(subregistryAddress)
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
@@ -1005,7 +1032,9 @@ test.describe('Portal name transfer', () => {
     await expect(detachRegistrySwitch).toBeChecked()
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     await driveTransactionsToSuccess(page, wallet, [
@@ -1025,7 +1054,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test.describe('registry-detach consent flow (mocked occupant / history counts)', () => {
-    test.use({ mockIndexerEnabled: true })
+    test.use({ mockBignameEnabled: true })
 
     /**
      * F41 — the security fix itself (immunefi #93026 / WEB-1504 / #1170).
@@ -1042,7 +1071,7 @@ test.describe('Portal name transfer', () => {
      * This one test covers both the consent gate and its "stale tick" guard.
      * It only needs the indexer to *report* a third-party count, not for
      * real subnames to exist — `getRegistryOccupants` is mocked directly
-     * (`mockIndexer.setRegistryOccupants`), so this needs no on-chain
+     * (`mockBigname.setRegistryOccupants`), so this needs no on-chain
      * subname writes and no indexer backfill wait at all. The subregistry
      * itself is still deployed and attached for real, and the transfer's
      * `setSubregistry(0)` write at the end is still a real on-chain
@@ -1055,7 +1084,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -1078,7 +1107,7 @@ test.describe('Portal name transfer', () => {
       // blast radius the consent copy below asserts on. This mocks the
       // *count query response*, not on-chain state: no `createSubname`
       // writes or indexer backfill wait needed for this test's purpose.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 2,
         thirdPartyCount: 1,
       })
@@ -1095,7 +1124,9 @@ test.describe('Portal name transfer', () => {
       const transferButton = page.getByRole('button', {
         name: 'Transfer name',
       })
-      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await expect(transferButton).toBeEnabled({
+        timeout: TRANSFER_READY_TIMEOUT,
+      })
 
       // ── Turning the option on surfaces the real blast radius ──────────
       await detachRegistrySwitch.click()
@@ -1121,7 +1152,9 @@ test.describe('Portal name transfer', () => {
       // ── Ticking the box unblocks it ────────────────────────────────────
       await expect(consentCheckbox).toBeVisible()
       await consentCheckbox.click()
-      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await expect(transferButton).toBeEnabled({
+        timeout: TRANSFER_READY_TIMEOUT,
+      })
 
       // ── Resetting the toggle voids the tick (getDetachConsentKey) ──────
       await detachRegistrySwitch.click() // off
@@ -1137,7 +1170,9 @@ test.describe('Portal name transfer', () => {
 
       // ── Re-ticking lets the real, on-chain detach go through ───────────
       await consentCheckbox.click()
-      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await expect(transferButton).toBeEnabled({
+        timeout: TRANSFER_READY_TIMEOUT,
+      })
       await transferButton.click()
 
       await driveTransactionsToSuccess(page, wallet, [
@@ -1168,7 +1203,7 @@ test.describe('Portal name transfer', () => {
      * `useSubregistrySlot` in isolation; this proves the real thing end to
      * end — a real detach transfer (the actual `setSubregistry(0)` write),
      * then a real page load whose `getSubregistryUpdateCount` response is
-     * mocked instead of waiting for Panoptes to index the detach block.
+     * mocked instead of waiting for bigname to index the detach block.
      */
     test('shows "Registry detached" instead of "Configure registry" after a detach transfer', {
       tag: ['@scenario:F42', '@smoke'],
@@ -1177,7 +1212,7 @@ test.describe('Portal name transfer', () => {
       wallet,
       accounts,
       makeName,
-      mockIndexer,
+      mockBigname,
     }) => {
       test.setTimeout(180_000)
 
@@ -1197,7 +1232,7 @@ test.describe('Portal name transfer', () => {
         ownerAccount,
       )
       // Empty subregistry — no third parties, no consent tick required.
-      mockIndexer.setRegistryOccupants(subregistryAddress, {
+      mockBigname.setRegistryOccupants(subregistryAddress, {
         count: 0,
         thirdPartyCount: 0,
       })
@@ -1214,7 +1249,9 @@ test.describe('Portal name transfer', () => {
       const transferButton = page.getByRole('button', {
         name: 'Transfer name',
       })
-      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await expect(transferButton).toBeEnabled({
+        timeout: TRANSFER_READY_TIMEOUT,
+      })
       await transferButton.click()
 
       await driveTransactionsToSuccess(page, wallet, [
@@ -1230,10 +1267,10 @@ test.describe('Portal name transfer', () => {
       expect(subregistryAfter).toBe(zeroAddress)
 
       // The detach transaction landed for real above; rather than waiting for
-      // Panoptes to index the `SubregistryUpdated` event it emitted, mock
+      // bigname to index the `SubregistryUpdated` event it emitted, mock
       // `getSubregistryUpdateCount`'s response directly so the next page load
       // reads "detached" deterministically.
-      mockIndexer.setSubregistryHistory(namehash(name), 1)
+      mockBigname.setSubregistryHistory(namehash(name), 1)
 
       // Reconnect as the recipient — the new owner is exactly who a re-mint
       // attack would target, and exactly who must see the warning rather than
@@ -1291,7 +1328,9 @@ test.describe('Portal name transfer', () => {
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await page.getByPlaceholder('ENS name or address').fill(recipient)
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     await driveTransactionsToSuccess(page, wallet, [
@@ -1346,7 +1385,9 @@ test.describe('Portal name transfer', () => {
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await page.getByPlaceholder('ENS name or address').fill(recipient)
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     const dialog = page.locator('[data-slot="dialog-content"]')
@@ -1564,7 +1605,9 @@ test.describe('Portal name transfer — wallet on an undeclared chain (WEB-281)'
       .getByPlaceholder('ENS name or address')
       .fill(accounts.getAddress('user2'))
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     const dialog = await submitFirstStep(page, wallet)
@@ -1905,7 +1948,9 @@ test.describe('Portal name transfer — migrated V1 names', () => {
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await page.getByPlaceholder('ENS name or address').fill(recipient)
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     await driveTransactionsToSuccess(page, wallet, [
@@ -2003,17 +2048,16 @@ test.describe('Portal name transfer — migrated V1 names', () => {
     const name = await makeName({ label: 'transfer-f5', owner: 'user' })
     const label = name.replace(/\.eth$/, '')
     const owner = accounts.getAddress('user')
-    // Multicall3: definitely deployed, definitely not an ERC-1155 receiver, so
-    // safeTransferFrom to it reverts.
-    const notAReceiver = '0xcA11bde05977b3631167028862bE2a173976CA11'
 
     const [resolverBefore] = await readResolverAndSubregistry(label)
     expect(resolverBefore).not.toBe(zeroAddress)
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
-    await page.getByPlaceholder('ENS name or address').fill(notAReceiver)
+    await page.getByPlaceholder('ENS name or address').fill(NOT_A_RECEIVER)
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await expect(transferButton).toBeEnabled({
+      timeout: TRANSFER_READY_TIMEOUT,
+    })
     await transferButton.click()
 
     // Drive the modal as far as it will go, authorising whatever it asks for.
@@ -2460,8 +2504,6 @@ test.describe('Portal name transfer — subnames', () => {
         'unsafeTransfer(address,uint256,bytes)',
       ),
     }
-    // Multicall3: deployed, and not an ERC-1155 receiver.
-    const NOT_A_RECEIVER: Address = '0xcA11bde05977b3631167028862bE2a173976CA11'
     const REFUSAL = 'The transfer itself would fail, so nothing was sent.'
 
     const isEmancipated = (registry: Address) =>
@@ -2539,7 +2581,7 @@ test.describe('Portal name transfer — subnames', () => {
       return { dialog, refusal }
     }
 
-    // Not `@smoke` yet: under E2E_MOCK_INDEXER=true (CI) the mock doesn't
+    // Not `@smoke` yet: under E2E_MOCK_BIGNAME=true (CI) the mock doesn't
     // serve the explorer's bigname root-role read, so the form stays disabled
     // ("Couldn't check who else holds permissions"), as F41 and F42 do here.
     test('moves a subname in a subregistry its parent owner still holds root roles on, with unsafeTransfer (ticket repro)', async ({
@@ -4135,7 +4177,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   })
 
   // Last in the file on purpose: the time travel is contained by a chain
-  // snapshot, and reverting one leaves Panoptes unable to recover (see
+  // snapshot, and reverting one leaves the indexer unable to recover (see
   // fixtures/chain-snapshot.ts). Nothing after it may need the indexer.
 
   /**
@@ -4292,9 +4334,6 @@ test.describe('Portal name transfer — ETH address record ahead of the move (WE
     /Your wallet isn’t allowed to detach this name’s resolver, so it stays attached/
   const STRANDED_COPY =
     /The transfer didn’t go through, so you still own this name/
-  // Deployed on the fork, and not an ERC-1155 receiver: a recipient running
-  // this code makes `NameWrapper.safeTransferFrom` revert.
-  const NOT_A_RECEIVER = '0xcA11bde05977b3631167028862bE2a173976CA11'
   const V1_REGISTRY_RESOLVER_ABI = parseAbi([
     'function resolver(bytes32 node) view returns (address)',
   ])

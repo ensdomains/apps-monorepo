@@ -106,10 +106,6 @@ wait_for_service "alto"  90
 check_running "paymaster"
 # mockestrator /health returns 503 — just confirm the container is up
 check_running "mockestrator"
-# The local V1 subgraph stand-in. Without it the Subnames tab, record-key
-# discovery and name history render confident negatives for every fork-seeded
-# V1 name — see packages/v1-subgraph-shim.
-check_running "v1-subgraph"
 
 # DQA overlay service (design-review comments). See e2e/docs/dqa-overlay.md.
 wait_for_service "dqa" 60
@@ -195,7 +191,7 @@ if docker image inspect "$BIGNAME_IMAGE" >/dev/null 2>&1; then
 else
   echo ""
   echo "  ⚠️  $BIGNAME_IMAGE not built; skipping bigname (see e2e/infra/bigname/README.md)."
-  echo "     The manager then needs E2E_MOCK_INDEXER=true."
+  echo "     The manager then needs E2E_MOCK_BIGNAME=true."
 fi
 
 # ---------- print env ----------

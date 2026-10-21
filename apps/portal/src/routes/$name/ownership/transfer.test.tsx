@@ -240,6 +240,7 @@ describe('transfer route — v1 gate', () => {
           cannotTransfer: true,
           cannotSetResolver: false,
           cannotUnwrap: true,
+          cannotCreateSubdomain: false,
           parentCannotControl: true,
         },
         expiry: BigInt(NOW_SECONDS + 86_400),

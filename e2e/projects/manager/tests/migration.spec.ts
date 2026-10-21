@@ -26,7 +26,13 @@ import {
 } from '@ensdomains/ensjs/public'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import type { Page } from '@playwright/test'
-import { type Address, namehash, parseAbi, parseAbiItem } from 'viem'
+import {
+  type Address,
+  namehash,
+  parseAbi,
+  parseAbiItem,
+  zeroAddress,
+} from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
@@ -48,13 +54,13 @@ import {
   selectOnlyRoots,
   upgradeCountingPrompts,
 } from '../../../helpers/migration-flow.js'
-import type { MockV1Records } from '../../../helpers/mock-v1-subgraph.js'
 import {
   goToEditProfile,
   saveProfileChanges,
   waitForProfileUpdated,
 } from '../../../helpers/profile-helpers.js'
 import { expectRecordsResolve } from '../../../helpers/resolve-records.js'
+import type { MockV1Records } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -128,9 +134,7 @@ async function v2Resolver(label: string): Promise<Address> {
     functionName: 'getResolver',
     args: [label],
   })
-  expect(resolver, `${label}.eth has no V2 resolver`).not.toBe(
-    '0x0000000000000000000000000000000000000000',
-  )
+  expect(resolver, `${label}.eth has no V2 resolver`).not.toBe(zeroAddress)
   return resolver
 }
 

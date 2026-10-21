@@ -1,0 +1,198 @@
+name: Release Portal
+
+# Prod releases are rolling date tags on a main (or hf/ hardfork branch) commit:
+# portal-YYYY-MM-DD (UTC) for the day's first release, portal-YYYY-MM-DD.2, .3, ...
+# for later ones. No other tag (e.g. portal-v1.2.3) triggers a deploy.
+on:
+  push:
+    tags:
+      - "portal-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+      - "portal-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].*"
+
+permissions:
+  contents: read
+
+# One prod deploy at a time; never cancel one mid-way. GitHub keeps at most one
+# run waiting, so a tag pushed while another waits replaces it (latest wins).
+concurrency:
+  group: release-portal
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  # Gate the release and write its notes once; both deploys wait on this.
+  prepare:
+    name: Check tag and write release notes
+    runs-on: ubuntu-latest
+
+    steps:
+      # Full history and tags (without file contents until needed) for the
+      # branch check and the release notes.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: Check the tag format
+        run: |
+          if ! [[ "$TAG" =~ ^portal-[0-9]{4}-[0-9]{2}-[0-9]{2}(\.([2-9]|[1-9][0-9]+))?$ ]]; then
+            echo "::error::Tag '$TAG' is not portal-YYYY-MM-DD or portal-YYYY-MM-DD.COUNT (COUNT >= 2)."
+            exit 1
+          fi
+
+      # A hardfork branch (hf/...) can also reach prod.
+      - name: Check the tagged commit is on main or a hardfork branch
+        run: |
+          branches=$(git branch -r --contains "$GITHUB_SHA" --format='%(refname:short)' --list origin/main 'origin/hf/*')
+          if [ -z "$branches" ]; then
+            echo "::error::Tag '$TAG' points at $GITHUB_SHA, which is not on main or an hf/ branch. Only those reach prod."
+            exit 1
+          fi
+          echo "Tagged commit is on: $(echo $branches)"
+
+      # The changes since the previous released tag: the full list for the
+      # GitHub release, and the same list cut to 1000 bytes (Cloudflare's limit)
+      # for the Worker version message. gh lists the GitHub releases, which
+      # mark the tags that reached prod.
+      - name: Write the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/notes"
+          node scripts/release-notes.mjs "$TAG" "$RUNNER_TEMP/notes"
+          cat "$RUNNER_TEMP/notes/release-notes.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+  swarm:
+    name: Release to Swarm
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: swarm
+
+    # Anchored (&name) here and reused (*name) by the cloudflare job.
+    steps:
+      - &checkout
+        name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            apps/portal
+            packages
+            patches
+
+      - &setup-pnpm
+        name: Setup pnpm and Node.js
+        uses: pnpm/setup@v3
+        env:
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@lts
+          cache: true
+
+      # vars resolves per job, so each target builds with its environment's URL.
+      - &build
+        name: Build Portal app
+        run: pnpm build:portal:mainnet
+        env:
+          VITE_INDEXER_GRAPHQL_URL: ${{ vars.VITE_INDEXER_GRAPHQL_URL }}
+
+      - name: Pack static assets
+        working-directory: apps/portal
+        run: pnpm exec omnipin pack dist/client --tar --name portal --dist "$RUNNER_TEMP"
+
+      - name: Install hoverfly
+        working-directory: ${{ runner.temp }}
+        env:
+          HOVERFLY_VERSION: v0.2.0
+        run: |
+          curl -fsSL "https://github.com/omnipin/hoverfly/releases/download/$HOVERFLY_VERSION/hoverfly-$HOVERFLY_VERSION-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz --strip-components=1
+          # The release's bundled seed goes stale; main refreshes it hourly.
+          curl -fsSL -o peers.json https://raw.githubusercontent.com/omnipin/hoverfly/main/peers.seed.json
+
+      - name: Upload to Swarm
+        id: upload
+        working-directory: ${{ runner.temp }}
+        env:
+          SWARM_KEY: ${{ secrets.SWARM_KEY }}
+          SWARM_BATCH: ${{ secrets.SWARM_BATCH }}
+        run: |
+          set -o pipefail
+          ./hoverfly vanity-overlay --key "$SWARM_KEY" --max-attempts 100000
+          ./hoverfly upload --batch "$SWARM_BATCH" --key "$SWARM_KEY" --error-document index.html portal.tar | tee upload.log
+          root=$(grep -oP 'manifest root: \K[0-9a-f]{64}' upload.log)
+          echo "root=$root" >> "$GITHUB_OUTPUT"
+          echo "Swarm root: \`$root\` ($(grep -oP 'subdomain:\s+\K\S+' upload.log))" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Propose ens.eth contenthash update to the Safe
+        working-directory: apps/portal
+        env:
+          OMNIPIN_PK: ${{ secrets.OMNIPIN_PK }}
+          PORTAL_SAFE: ${{ vars.PORTAL_SAFE }}
+          ROOT: ${{ steps.upload.outputs.root }}
+        run: pnpm exec omnipin ens "$ROOT" ens.eth --safe "$PORTAL_SAFE"
+
+  cloudflare:
+    name: Release to Cloudflare Workers
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: cloudflare
+
+    steps:
+      - *checkout
+      - *setup-pnpm
+      - *build
+
+      - &download-notes
+        name: Download the release notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+      # The deploy script takes no --env: the build's generated config already
+      # targets mainnet. The release tag labels the Worker version in Cloudflare.
+      - name: Deploy to Cloudflare Workers
+        working-directory: apps/portal
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          pnpm run deploy --tag "$TAG" \
+            --message "$(cat "$RUNNER_TEMP/notes/release-message.txt")"
+
+  # Only after both deploys succeed, so a release on GitHub means it is live.
+  # A re-run of the workflow updates the existing release instead.
+  release:
+    name: Create the GitHub release
+    needs: [swarm, cloudflare]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - *download-notes
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          notes="$RUNNER_TEMP/notes/release-notes.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file "$notes"
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file "$notes" --verify-tag
+          fi

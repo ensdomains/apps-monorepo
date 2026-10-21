@@ -71,7 +71,6 @@ import {
   readGraveyard,
 } from '../../../helpers/migration-assertions.js'
 import { selectOnlyRoots } from '../../../helpers/migration-flow.js'
-import type { MockV1Name } from '../../../helpers/mock-v1-subgraph.js'
 import { renewFor28Days } from '../../../helpers/profile-helpers.js'
 import {
   dnsEncode,
@@ -79,6 +78,7 @@ import {
   resolveRecords,
   resolverFor,
 } from '../../../helpers/resolve-records.js'
+import type { MockV1Name } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'

@@ -115,6 +115,7 @@ describe('NameOwnerRow', () => {
         cannotTransfer: false,
         cannotSetResolver: false,
         cannotUnwrap: false,
+        cannotCreateSubdomain: false,
         parentCannotControl: false,
       },
       expiry: null,

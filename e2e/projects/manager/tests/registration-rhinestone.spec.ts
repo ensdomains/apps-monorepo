@@ -62,7 +62,7 @@ import {
   assertV2Registered,
   V2Status,
 } from '../../../helpers/migration-assertions.js'
-import { createIndexerMock } from '../../../helpers/mock-indexer.js'
+import { createBignameMock } from '../../../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../../../helpers/portal-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -71,7 +71,7 @@ const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', {
     tag: ['@scenario:A2'],
-  }, async ({ connectedPage: page, mockIndexer, accounts, wallet }) => {
+  }, async ({ connectedPage: page, mockBigname, accounts, wallet }) => {
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
     const searchInput = await findSearchInput(page)
     await searchInput.click()
@@ -129,8 +129,8 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // the registration on chain, not just that the UI believes it did.
     await assertV2Registered(nameOnly)
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({
+    if (mockBigname.enabled) {
+      mockBigname.addName({
         name: DOMAIN_TO_REGISTER,
         owner: accounts.getAddress('user'),
       })
@@ -801,7 +801,7 @@ async function openSecondTab(
   options: { duplicate: boolean },
 ) {
   const page = await original.context().newPage()
-  await createIndexerMock().installIfEnabled(page)
+  await createBignameMock().installIfEnabled(page)
   const wallet = await injectHeadlessWeb3Provider({
     page,
     privateKeys: accounts.getAllPrivateKeys(),
@@ -1205,18 +1205,18 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
  * row's balance was labelled "available", and the two messages that did explain
  * the subtraction called the HCA "your account", a word support has ruled out.
  *
- * The fix itemises the cost as "Registration fee" and "Network fee". When there
- * is one, it adds a muted "Left from your last attempt -$x" deduction and
- * relabels the headline "You pay now". It says "in your wallet" on the token
- * row and rewords both messages. Flipping the primary-name toggle now carries
+ * The fix, as redesigned in #1258: with a leftover, the sheet shows "Name
+ * price" and a muted "Left from your last attempt -$x" deduction and relabels
+ * the headline "You pay now"; the fee estimate sits in the token row. The token
+ * row's wallet figure is labelled "balance", and both messages are reworded. Flipping the primary-name toggle now carries
  * the last quote through (`placeholderData`) and holds checkout until the new
  * one lands.
  *
  * The PR's unit tests cover the rounding helper and the component with
  * hand-made numbers. These run the real quote against a real HCA balance on
  * the fork: the leftover is seeded with `setStorageAt` on the USDC balance slot
- * and read back as the oracle, and the lines on screen must subtract to the
- * headline to the cent. The HCA is counterfactual (undeployed) here, which the
+ * and read back as the oracle, and the figures on screen must subtract to the
+ * headline, within the cent the token row's unrounded fee can add. The HCA is counterfactual (undeployed) here, which the
  * app's balance read does not care about. The manager suite runs with
  * `workers: 1`, so nothing else sees the seeded balance, and every test puts
  * the original back in a `finally`.
@@ -1260,7 +1260,21 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     Math.round(Number(formatUnits(raw, USDC_DECIMALS)) * 100)
 
   const LEFTOVER_LABEL = 'Left from your last attempt'
-  const FEE_LABEL = /^Network (fee|cost)$/
+  const NAME_PRICE_LABEL = 'Name price'
+
+  /** The fee estimate, shown in the token row since the #1258 redesign. */
+  const feeText = (picker: ReturnType<Page['getByRole']>) =>
+    picker.getByText(/^Mainnet est\. fee: \$[\d,]+\.\d\d$/)
+
+  const feeCents = async (picker: ReturnType<Page['getByRole']>) =>
+    toCents((await feeText(picker).innerText()).replace(/^.*\$/, ''))
+
+  /**
+   * The token row shows the raw fee; the breakdown folds the rounding residual
+   * into the figures it sums. So a sum across the two can be a cent apart.
+   */
+  const expectCents = (actual: number, expected: number) =>
+    expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1)
 
   /**
    * The HCA the picker quotes for, from the account on its `/intents/route`
@@ -1297,12 +1311,9 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     if (selectUsdc)
       await page.getByRole('button', { name: 'Select USDC' }).click()
     const picker = page.getByRole('dialog')
-    // Positive sign the quote landed: the fee line shows a figure, not the
-    // pending em dash. Either label, so the pre-fix build ("Network cost")
-    // gets as far as the assertions that encode the bug.
-    await expect(rowAmount(picker, FEE_LABEL)).toHaveText(/^\$[\d,]+\.\d\d$/, {
-      timeout: 30_000,
-    })
+    // Positive sign the quote landed: the fee shows a figure, not the
+    // pending em dash.
+    await expect(feeText(picker)).toBeVisible({ timeout: 30_000 })
     return picker
   }
 
@@ -1356,7 +1367,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       let picker = await openPicker(page, label)
       await expect(headline(picker).label).toHaveText('Total')
       const total = toCents(await headline(picker).amount.innerText())
-      const fee = toCents(await rowAmount(picker, FEE_LABEL).innerText())
+      const fee = await feeCents(picker)
       expect(total, 'the name has a price').toBeGreaterThan(fee)
       await expect(
         picker.getByText(LEFTOVER_LABEL, { exact: true }),
@@ -1378,16 +1389,15 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       await expect(headline(picker).label).toHaveText('You pay now')
       // The lines on screen subtract to the headline, to the cent.
       const registration = toCents(
-        await rowAmount(picker, 'Registration fee').innerText(),
+        await rowAmount(picker, NAME_PRICE_LABEL).innerText(),
       )
-      expect(registration + fee).toBe(total)
-      expect(toCents(await headline(picker).amount.innerText())).toBe(
+      expectCents(registration + fee, total)
+      expectCents(
+        toCents(await headline(picker).amount.innerText()),
         registration + fee - rawToCents(leftoverRaw),
       )
       await expect(
-        picker.getByRole('button', {
-          name: 'Why is there money left from your last attempt?',
-        }),
+        picker.getByRole('button', { name: 'Where did this come from?' }),
       ).toBeVisible()
       await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
       await expect(
@@ -1396,11 +1406,12 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
 
       // The token row's balance is the wallet's, and says so, so it can't be
       // read as the leftover. Oracle: the wallet's USDC on chain.
-      const tokenRow = picker
-        .getByText('in your wallet', { exact: true })
+      const walletBalance = picker
+        .getByText('balance', { exact: true })
         .locator('xpath=..')
-      await expect(tokenRow).toBeVisible()
-      expect(toCents(await tokenRow.locator('p').first().innerText())).toBe(
+        .locator('.tabular-nums')
+      await expect(walletBalance).toBeVisible()
+      expect(toCents(await walletBalance.innerText())).toBe(
         rawToCents(await readUsdc(wallet)),
       )
       await expect(picker.getByText('available', { exact: true })).toHaveCount(
@@ -1429,13 +1440,14 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       // The figure it quotes is the two lines' total, and the HCA is credited
       // only that much, not its whole balance.
       const total =
-        toCents(await rowAmount(picker, 'Registration fee').innerText()) +
-        toCents(await rowAmount(picker, FEE_LABEL).innerText())
+        toCents(await rowAmount(picker, NAME_PRICE_LABEL).innerText()) +
+        (await feeCents(picker))
       const [, coveredUsdc] = (await covered.innerText()).match(
         /covers the ([\d.]+) USDC/,
       ) as RegExpMatchArray
-      expect(toCents(coveredUsdc as string)).toBe(total)
-      expect(toCents(await rowAmount(picker, LEFTOVER_LABEL).innerText())).toBe(
+      expectCents(toCents(coveredUsdc as string), total)
+      expectCents(
+        toCents(await rowAmount(picker, LEFTOVER_LABEL).innerText()),
         total,
       )
       await expect(headline(picker).label).toHaveText('You pay now')
@@ -1479,11 +1491,11 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
           /costs ([\d.]+) USDC and ([\d.]+) is left.*need ([\d.]+) more.*holds ([\d.]+) USDC/,
         ) as RegExpMatchArray
         const total =
-          toCents(await rowAmount(picker, 'Registration fee').innerText()) +
-          toCents(await rowAmount(picker, FEE_LABEL).innerText())
-        expect(toCents(costs as string)).toBe(total)
+          toCents(await rowAmount(picker, NAME_PRICE_LABEL).innerText()) +
+          (await feeCents(picker))
+        expectCents(toCents(costs as string), total)
         expect(toCents(left as string)).toBe(rawToCents(leftoverRaw))
-        expect(toCents(need as string)).toBe(total - rawToCents(leftoverRaw))
+        expectCents(toCents(need as string), total - rawToCents(leftoverRaw))
         expect(toCents(holds as string)).toBe(rawToCents(walletRaw))
         await expect(
           picker.getByRole('button', { name: /register name/i }),
@@ -1551,16 +1563,16 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       })
       await expect(toggle).toBeChecked({ checked: startsOn })
       await expect(registerButton).toBeEnabled()
-      const feeBefore = await rowAmount(picker, FEE_LABEL).innerText()
+      const feeBefore = await feeText(picker).innerText()
 
       await toggle.click()
       await expect(toggle).toBeChecked({ checked: !startsOn })
       await expect.poll(() => heldCount, { timeout: 15_000 }).toBeGreaterThan(0)
 
-      // The bug: the fee line emptied out while the new quote loaded, and
-      // Register stayed live on the rent alone.
+      // The bug: the fee emptied out while the new quote loaded, and Register
+      // stayed live on the rent alone.
       await expect(registerButton).toBeDisabled()
-      await expect(rowAmount(picker, FEE_LABEL)).toHaveText(feeBefore)
+      await expect(feeText(picker)).toHaveText(feeBefore)
       // Still disabled a beat later: the gate is the pending quote, not a
       // re-render in passing.
       await page.waitForTimeout(2_000)

@@ -135,7 +135,7 @@ Committed tests that no project config executes. Not counted as terminal.
 | HW3 <sub>(H3)</sub> | 2 | Multi-wallet fixture — owner/manager/stranger switchable without reload | PASS | fixtures/wallets.ts imported by a spec |
 | HW4 <sub>(H4)</sub> | 2 | Deterministic time presets — atExpiry/inGrace/atGraceEnd/inPremium/afterPremium | not-started | missing: fixtures/time-presets.ts |
 | HW5 <sub>(H5)</sub> | 2 | Snapshot/revert per test (evm_snapshot / evm_revert) | PASS | fixtures/chain-snapshot.ts imported by a spec |
-| HW6 <sub>(H6)</sub> | 2 | Panoptes seeding path — real indexer fixture for indexer-oracle tests | PASS | fixtures/panoptes.ts imported by a spec |
+| HW6 <sub>(H6)</sub> | 2 | bigname sync — real indexer waits for indexer-oracle tests | PASS | helpers/bigname-sync.ts imported by a spec |
 | HW7 <sub>(H7)</sub> | 2 | Cross-app fixture — one context, two base URLs, shared wallet and chain state | PASS | fixtures/playwright.cross-app.fixture.ts imported by a spec |
 | HW8 <sub>(H8)</sub> | 2 | ConsoleMonitor transaction-id catalogue | not-started | missing: helpers/transaction-ids.ts |
 | HW9 <sub>(H9)</sub> | 2 | Error-injection helpers — RPC/indexer/orchestrator failure, wallet rejection, revert | not-started | missing: helpers/fault-injection.ts |
@@ -862,7 +862,7 @@ Committed tests that no project config executes. Not counted as terminal.
 | J6 | J | HCA failures: insufficient funding, permit rejected, bundle reverts, orchestrator down | not-started | — |
 | J9 | J | Session across tabs — one wallet, two tabs | not-started | — |
 | K1 | K | RPC 500 / timeout mid-flow | not-started | — |
-| K2 | K | Indexer (Panoptes) down | not-started | — |
+| K2 | K | Indexer (bigname) down | not-started | — |
 | K3 | K | Indexer up but stale/misconfigured — returns success with zero rows | not-started | — |
 | K4 | K | Orchestrator (mockestrator) down on the HCA path | not-started | — |
 | K5 | K | Transaction reverts after submission | not-started | — |

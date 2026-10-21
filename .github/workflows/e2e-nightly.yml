@@ -97,11 +97,7 @@ jobs:
           COMPOSE_FILES="-f e2e/infra/docker-compose.yml"
           ANVIL_TIMEOUT=60
 
-          # Core services — Panoptes (indexer + API) is intentionally omitted.
-          # The manager's bigname reads and the portal's indexer GraphQL reads are
-          # intercepted by Playwright's route mock (E2E_MOCK_INDEXER=true in
-          # e2e/.env.ci), so no live indexer is needed.
-          # This saves ~1 GB RAM and prevents Anvil OOM in CI.
+          # The apps' bigname reads are mocked (E2E_MOCK_BIGNAME=true in e2e/.env.ci).
           SERVICES="anvil alto paymaster"
 
           # Manager jobs use Rhinestone and need the mockestrator

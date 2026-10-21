@@ -90,6 +90,12 @@ export const V1_BASE_REGISTRAR = APP_V1_BASE_REGISTRAR
 export const V1_NAME_WRAPPER = APP_V1_NAME_WRAPPER
 export const V1_PUBLIC_RESOLVER =
   '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
+/**
+ * The other Sepolia PublicResolver, bound to the canonical registry. It is in
+ * migration's KNOWN_PUBLIC_RESOLVERS (certified), unlike V1_PUBLIC_RESOLVER.
+ */
+export const CERTIFIED_V1_RESOLVER =
+  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address
 export const V1_ENS_REGISTRY = ensjsSepolia.ensLegacyRegistry.address
 
 // ---------------------------------------------------------------------------
