@@ -106,7 +106,7 @@
     ]
   },
   // Mainnet deployment smoke testing: /health works without infrastructure.
-  // Full API readiness still depends on mainnet RPC and indexer support.
+  // Provision MAINNET_RPC_URL independently before using ENS-backed routes.
   "env": {
     "mainnet": {
       "name": "app-api-worker-mainnet",
@@ -141,7 +141,8 @@
           "TELEGRAM_WEBHOOK_SECRET",
           "SENDGRID_API_KEY",
           "SENDGRID_WEBHOOK_VERIFICATION_KEY",
-          "VAPID_PRIVATE_KEY"
+          "VAPID_PRIVATE_KEY",
+          "MAINNET_RPC_URL"
         ]
       },
       // Create a separate mainnet namespace and add its real id here before deployment.
