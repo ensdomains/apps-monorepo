@@ -5,6 +5,46 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 55 — 2026-10-21 · Native V2 4LD pass
+
+**Status:** implemented and verified in real mode; ready for review.
+**Branch:** `test/v2-4ld-coverage`, based on V1 head `966c30c87`.
+**In flight:** manual checker restoration and draft PR publication.
+
+### Scope
+
+Q50–Q59 cover native V2 fourth-level creation/deletion, transfer with records retained, stranger transfer refusal, record editing and stranger refusal, name roles, Manager primary selection, transferred-name dashboards, and leaf expiry while ancestors stay active. `makeV2FourLD` composes the existing V2 registration and nested UserRegistry seeders, then verifies every owner's identity, nested traversal, indexer visibility and UniversalResolver text/address records. `makeSubname` now accepts an earlier per-level expiry and propagates it as the default for the next level.
+
+Q59 runs in `portal-v2-4ld-time`, excluded from `portal-e2e`, after action suites. It advances the clock only to a fresh leaf's ten-minute expiry and synchronizes the browser. New finite invariant sites cover the four native writes and recipient/sender dashboard membership.
+
+### Findings
+
+- **Q56 → E2E-042:** the native V2 4LD owner has ROLE_SET_RESOLVER_ADMIN in its immediate parent UserRegistry, but the name Roles route explicitly rejects labels deeper than three. The existing navigation offers the dead-end Roles link. Retain the original supported-role-page assertion with a late expected-failure marker. No application fix or Linear write.
+- Q57 initially waited for an ETH-address confirmation after the primary name had already been set. The native fixture already resolves to the owner, so `ChoosePrimaryNameDialog.handlers.ts::needsPrimaryNameConfirmation` returns false for its `ready` preparation. The test now clicks Set as Primary and verifies reverse and forward resolution directly.
+- An initial Q53 failure was a test selector error: the stranger correctly sees **Not authorized**, not the role-holder refusal **Transfer not available**. The assertion now requires the observed non-owner refusal, no form, no transfer role, and unchanged owner.
+
+### Environment incident and recovery
+
+Initial harness: 14 passed, stale legacy Panoptes history failed. The documented Panoptes-only recovery command's `compose up` recreated its Anvil dependency because it omitted the pinned fork environment. This reset the local chain. The agent disclosed the error immediately and restored the pinned stack using `start-local-env.sh`; all 15 harness checks subsequently passed. **For a service-only restart use `--no-deps`, and preserve the pinned fork environment. Do not copy the old recovery command blindly.** Bigname was reset for the new chain; no application code changed.
+
+The October 21 Q4/Q18 manual names in the preceding chat are historical evidence after that reset. Their original screenshots and JSON remain under `/Users/sg/Documents/Codex/2026-10-20/the-4ld-plan-is-in-the-2/outputs/`; stale Q4 checker processes were stopped. Fresh Q4 replacements were migrated and independently rechecked: 4LD `l2.l1.v1m-4-1792571525.eth` at http://127.0.0.1:8774/ and 3LD `l1.v1m-3-1792571550.eth` at http://127.0.0.1:8775/. Both reproduce empty UniversalResolver text with intact stored text and owner. Fresh evidence is in `outputs/restored-q4/`, separate from historical evidence. These checkers are read-only and show the post-upgrade state. One initial small headless viewport let the dev-tools button intercept Upgrade; the replacement uses 1440×1000 and normal UI clicks. No application change was needed.
+
+### Verification
+
+Q50–Q59 = **9 PASS + 1 DEFECT**, each verified twice. Final reports: `/tmp/v2-4ld-portal-final.json` (14 expected outcomes, including two Q56 expected failures), `/tmp/v2-4ld-cross-final.json` (4 passed), `/tmp/v2-4ld-time-verified.json` (2 passed). All 15 harness checks passed in `/tmp/v2-4ld-portal-verified.json`. Initial interrupted/selector-failure reports are diagnostic only.
+
+A follow-up Q52 run transiently refused transfer because permission reads were unavailable before submission. The indexer later returned its permission rows; the exact transient cause was not established. The fixture now waits for bigname to consume the final write block before UI navigation. Both complete final action runs passed with this precondition; no UI retry or weakened refusal assertion was added.
+
+Coverage reconciliation includes both smoke reports: **524/738 terminal**, tiers HW 9, R0 184, R1 33, R2 116, R3 181, R4 1; **6/38 invariant sites** checked. Untouched scenarios retain their existing evidence; this is not a full-suite execution claim.
+
+Smoke remains **portal 17/19**, **manager 7/9**, with the same failures detailed in Iteration 54: F41/F42 mock permissions endpoint, populated-wallet grace-list assumption, and WEB-1483 fee-row selector. Reports: `/tmp/v2-4ld-portal-smoke.json` and `/tmp/v2-4ld-manager-smoke.json`. Typecheck, matrix generation/documentation checks, full Biome CI and whitespace checks passed. Biome retains 177 warnings and 51 informational diagnostics. The address gate still fails on 20 pre-existing literals and three conflicting bindings in unchanged files; no new fixture literal is implicated.
+
+### Limits
+
+This is a bounded native V2 pass, not exhaustive coverage of all role bitmaps, inherited resolvers, mixed-owner ancestors, ancestor registry replacement or every expiry combination. Q56 blocks name-scoped role UI operations at depth four. Existing V1 Q3/Q4/Q8 defects remain open; this pass does not fix them. V1 manual follow-up confirmed E2E-041 and E2E-031 at 3LD depth too; the user considers Q18's exclusion of valid V1 primary names a bug. No Linear tickets have been created.
+
+---
+
 ## Iteration 54 — 2026-10-20 · V1 4LD implementation and measured risks
 
 **Status:** implemented and verified in real mode; ready for review. Three migration defects remain recorded with expected-failure witnesses. V2 Q50+ is deferred.

@@ -61,6 +61,8 @@ export interface SubnameLevel {
    * is what the portal's own create-subname flow grants.
    */
   roleBitmap?: bigint
+  /** Optional earlier expiry; otherwise inherits the immediate parent expiry. */
+  expires?: bigint
   /**
    * Give this level its own subregistry so names can be created beneath it.
    * Implied for every level except the last.
@@ -257,9 +259,8 @@ export function createMakeSubname({ account }: Dependencies) {
     }
 
     const parentLabel = parent.replace(/\.eth$/, '')
-    // Every level inherits the 2LD's expiry; a registry rejects a subname that
-    // would outlive its parent.
-    const parentTermExpiry = await parentExpiry(ETH_REGISTRY, parentLabel)
+    // Default to the immediate parent's term, including explicit shorter levels.
+    let parentTermExpiry = await parentExpiry(ETH_REGISTRY, parentLabel)
     // The parent is a 2LD in the .eth registry and needs a registry of its own
     // before anything can be registered beneath it.
     let registryAddress = await attachSubregistry(
@@ -284,7 +285,7 @@ export function createMakeSubname({ account }: Dependencies) {
           subregistryAddress: zeroAddress,
           resolverAddress: zeroAddress,
           roleBitmap: level.roleBitmap ?? FULL_ROLE_BITMAP,
-          expires: parentTermExpiry,
+          expires: level.expires ?? parentTermExpiry,
         } as never,
       )
       await publicClient.waitForTransactionReceipt({
@@ -307,6 +308,7 @@ export function createMakeSubname({ account }: Dependencies) {
         registryAddress = entry.subregistryAddress
       }
 
+      parentTermExpiry = level.expires ?? parentTermExpiry
       result.push(entry)
       console.log(`[makeSubname] created ${qualified} → ${owner}`)
     }

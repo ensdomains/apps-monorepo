@@ -2801,7 +2801,7 @@ const metadataMD: Scenario[] = suite('MD', 'metadata', 'metadata', 'P6', [
   ],
 ])
 
-// Iteration 53: V1 first; Q50+ is reserved for V2.
+// Iterations 53–54: V1 first; native V2 follows in Q50–Q59.
 const fourLdQ: Scenario[] = [
   s(
     'Q1',
@@ -3045,8 +3045,112 @@ const fourLdQ: Scenario[] = [
   ),
 ]
 
+const nativeFourLdQ: Scenario[] = [
+  s(
+    'Q50',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Create a native V2 4LD through the explorer',
+    'Registered in the 3LD registry; absent from the 2LD registry',
+    { tier: 'R2' },
+  ),
+  s(
+    'Q51',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Delete a native V2 4LD through its parent',
+    'Leaf unregistered; ancestor owners and registry pointers unchanged',
+    { tier: 'R0' },
+  ),
+  s(
+    'Q52',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Transfer a native V2 4LD while retaining records',
+    'Leaf owner changes; ancestors and resolution unchanged',
+    { tier: 'R0' },
+  ),
+  s(
+    'Q53',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Stranger attempts native V2 4LD transfer',
+    'No transfer form; owner unchanged',
+    { tier: 'R2' },
+  ),
+  s(
+    'Q54',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Edit native V2 4LD records',
+    'UniversalResolver returns the edit, ancestor records unchanged',
+    { tier: 'R2' },
+  ),
+  s(
+    'Q55',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Stranger attempts native V2 4LD record editing',
+    'Editor refused; stored resolution unchanged',
+    { tier: 'R2' },
+  ),
+  s(
+    'Q56',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Native V2 4LD name-role management',
+    'Name roles accessible at depth four with matching on-chain authority',
+    { tier: 'R2' },
+  ),
+  s(
+    'Q57',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'cross-app',
+    'Native V2 4LD primary name',
+    'Manager offers the leaf; primary and forward resolution agree',
+    { tier: 'R2' },
+  ),
+  s(
+    'Q58',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'cross-app',
+    'Native V2 4LD transfer observed in Manager',
+    'Recipient sees the leaf; sender no longer sees it',
+    { tier: 'R3' },
+  ),
+  s(
+    'Q59',
+    'P1',
+    '5.Q',
+    '4LD names',
+    'portal',
+    'Native V2 4LD expires while ancestors remain active',
+    'Leaf unavailable to transfer; ancestors remain registered',
+    { tier: 'R3' },
+  ),
+]
+
 export const scenarios: Scenario[] = [
   ...fourLdQ,
+  ...nativeFourLdQ,
   ...harness,
   ...registrationA,
   ...extraA,
