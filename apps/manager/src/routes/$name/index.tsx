@@ -5,7 +5,6 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
 import {
   NameFallbackCard,
   type NameFallbackReason,
@@ -20,7 +19,6 @@ import { normalizeProfileName } from '@/features/profile/service/profileName'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getReverseNameAddress } from '@/features/profile/service/reverseNameAddress'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
@@ -60,15 +58,6 @@ const requiresDnssecCheck = (
   parsed: ReturnType<typeof parseName>,
   name: string,
 ): boolean => !isEthName(parsed) && !isDebugProfileName(name)
-
-const prefetchOwnerReverseName = async (
-  queryClient: QueryClient,
-  owner?: Address,
-): Promise<void> => {
-  if (owner) {
-    await queryClient.prefetchQuery(profileReverseNameQuery(owner))
-  }
-}
 
 const getCanonicalProfileName = (name: string): string => {
   const normalizedName = normalizeProfileName(name)
@@ -181,8 +170,6 @@ export const Route = createFileRoute('/$name/')({
         replace: true,
       })
     }
-
-    await prefetchOwnerReverseName(queryClient, ownerData?.owner)
 
     const description = profileRecords.texts.find(
       (r) => r.key === 'description',

@@ -3,8 +3,8 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
+import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import { refreshProfileImageCaches } from '@/features/profile/service/profileImageCache'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { useConnectedAvatar } from './useConnectedAvatar'
 
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
@@ -26,10 +26,9 @@ const renderAvatar = (avatar: string) => {
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   })
   clients.push(queryClient)
-  const queryKey = profileRecordsQuery('test.eth').queryKey
+  const queryKey = profileAvatarRecordsQuery('test.eth').queryKey
   queryClient.setQueryData(queryKey, {
     texts: [{ key: 'avatar', value: avatar }],
-    coins: [],
   })
   const hook = renderHook(() => useConnectedAvatar(), {
     wrapper: ({ children }: { children: ReactNode }) =>
@@ -57,14 +56,13 @@ describe('connected avatar cache', () => {
     act(() =>
       queryClient.setQueryData(queryKey, {
         texts: [{ key: 'avatar', value: 'https://example.com/new.png' }],
-        coins: [],
       }),
     )
     await waitFor(() =>
       expect(result.current.url).toBe('https://example.com/new.png'),
     )
 
-    act(() => queryClient.setQueryData(queryKey, { texts: [], coins: [] }))
+    act(() => queryClient.setQueryData(queryKey, { texts: [] }))
     await waitFor(() => expect(result.current.url).toBeUndefined())
   })
 

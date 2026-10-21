@@ -1,15 +1,18 @@
 import { BignameError } from '@ens-apps/indexer/bigname'
+import { encodeContentHash } from '@ensdomains/ensjs/utils'
 import {
+  publicResolverAbiSnippet,
+  publicResolverContenthashSnippet,
   publicResolverMultiAddrSnippet,
   publicResolverSingleAddrSnippet,
+  publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { errAsync, okAsync } from 'neverthrow'
-import { decodeFunctionData, encodeAbiParameters, type Hex } from 'viem'
+import { decodeFunctionData, encodeAbiParameters, type Hex, toHex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   client: {},
-  getRecords: vi.fn(),
   resolveNameData: vi.fn(),
   nameRecords: vi.fn(),
 }))
@@ -18,7 +21,6 @@ vi.mock('@/lib/bigname', () => ({
   bigname: { nameRecords: mocks.nameRecords },
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
-  getRecords: mocks.getRecords,
   resolveNameData: mocks.resolveNameData,
 }))
 vi.mock('@/lib/wagmi/helpers', async () => {
@@ -42,17 +44,61 @@ const knownKeys = (keys: readonly string[]) =>
   okAsync({ data: { inventory: { known_keys: keys } } })
 const bytesResult = (value: Hex) =>
   encodeAbiParameters([{ type: 'bytes' }], [value])
+const contentHash =
+  'ipfs://bafybeibj6lixxzqtsb45ysdjnupvqkufgdvzqbnvmhw2kf7cfkesy7r7d4'
+const emptyResult = { success: false, returnData: '0x' as Hex }
+const profileResolution = (
+  coins: readonly { success: boolean; returnData: Hex }[] = [],
+  texts: Readonly<Record<string, string>> = { theme: '#123456' },
+) => ({
+  resolverAddress,
+  resolvedData: [
+    ...['avatar', 'theme', 'links'].map((key) =>
+      texts[key]
+        ? {
+            success: true,
+            returnData: encodeAbiParameters([{ type: 'string' }], [texts[key]]),
+          }
+        : emptyResult,
+    ),
+    ...[0, 1, 2].map((index) => coins[index] ?? emptyResult),
+    { success: true, returnData: bytesResult(encodeContentHash(contentHash)) },
+    {
+      success: true,
+      returnData: encodeAbiParameters(
+        [{ type: 'uint256' }, { type: 'bytes' }],
+        [1n, toHex('[]')],
+      ),
+    },
+  ],
+})
+
+const requestedCalls = () => {
+  const [, parameters] = mocks.resolveNameData.mock.calls[0] ?? []
+  return (parameters.data as Hex[]).map((data) =>
+    decodeFunctionData({
+      abi: [
+        ...publicResolverTextSnippet,
+        ...publicResolverSingleAddrSnippet,
+        ...publicResolverMultiAddrSnippet,
+        ...publicResolverContenthashSnippet,
+        ...publicResolverAbiSnippet,
+      ],
+      data,
+    }),
+  )
+}
+
+const requestedTextKeys = () =>
+  requestedCalls().flatMap((call) =>
+    call.functionName === 'text' ? [call.args[1]] : [],
+  )
 
 describe('profile records', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.nameRecords.mockReturnValue(knownKeys([]))
-    mocks.getRecords.mockResolvedValue({
-      texts: [{ key: 'theme', value: '#123456' }],
-      contentHash: { protocolType: 'ipfs', decoded: 'example' },
-      abi: { abi: [] },
-      resolverAddress,
-    })
+    mocks.resolveNameData.mockResolvedValue(profileResolution())
   })
 
   it.each([
@@ -72,76 +118,70 @@ describe('profile records', () => {
       ]),
     }
     mocks.nameRecords.mockReturnValue(knownKeys(indexedKeys))
-    mocks.getRecords.mockImplementationOnce(
-      async (_client, { texts }: { texts: string[] }) => ({
-        texts: texts.includes('links') ? [linksRecord] : [],
-        resolverAddress,
-      }),
+    mocks.resolveNameData.mockResolvedValue(
+      profileResolution([], { links: linksRecord.value }),
     )
-    mocks.resolveNameData.mockResolvedValue(null)
 
     const result = (await getProfileRecords('links.eth'))._unsafeUnwrap()
 
     expect(result.texts).toEqual([linksRecord])
-    expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(mocks.client, {
-      name: 'links.eth',
-      texts: ['avatar', 'theme', 'links'],
-      contentHash: true,
-      abi: true,
-    })
+    expect(mocks.resolveNameData).toHaveBeenCalledExactlyOnceWith(
+      mocks.client,
+      { name: 'links.eth', data: expect.any(Array) },
+    )
+    expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
   })
 
   it('omits an oversized ZEN record without losing other profile records', async () => {
-    mocks.resolveNameData.mockResolvedValue({
-      resolverAddress,
-      resolvedData: [
-        {
-          success: true,
-          returnData: encodeAbiParameters([{ type: 'address' }], [ethAddress]),
-        },
-        {
-          success: true,
-          returnData: bytesResult(`0x2089${'11'.repeat(131_072 - 2)}`),
-        },
-        { success: false, returnData: '0x' },
-      ],
-    })
+    const resolution = profileResolution([
+      {
+        success: true,
+        returnData: encodeAbiParameters([{ type: 'address' }], [ethAddress]),
+      },
+      {
+        success: true,
+        returnData: bytesResult(`0x2089${'11'.repeat(131_072 - 2)}`),
+      },
+      { success: false, returnData: '0x' },
+    ])
+    mocks.resolveNameData
+      .mockRejectedValueOnce(
+        new Error('Combined resolver call exceeded RPC limit'),
+      )
+      .mockResolvedValueOnce({
+        ...resolution,
+        resolvedData: resolution.resolvedData.slice(0, 4),
+      })
+      .mockResolvedValueOnce({
+        ...resolution,
+        resolvedData: resolution.resolvedData.slice(4),
+      })
 
     const result = (await getProfileRecords('gift.eth'))._unsafeUnwrap()
 
     expect(result).toMatchObject({
       texts: [{ key: 'theme', value: '#123456' }],
       coins: [{ coinType: 60, symbol: 'eth', value: ethAddress }],
-      contentHash: 'ipfs://example',
+      contentHash,
       abi: '[]',
       resolverAddress,
     })
-    // No untrusted coin may reach getRecords' internal, unbounded decoder.
-    expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(mocks.client, {
-      name: 'gift.eth',
-      texts: ['avatar', 'theme', 'links'],
-      contentHash: true,
-      abi: true,
-    })
-
-    const [, parameters] = mocks.resolveNameData.mock.calls[0] ?? []
-    const requestedCoins = (parameters.data as Hex[]).map((data) => {
-      const call = decodeFunctionData({
-        abi: [
-          ...publicResolverSingleAddrSnippet,
-          ...publicResolverMultiAddrSnippet,
-        ],
-        data,
-      })
-      return call.args.length === 1 ? 60n : call.args[1]
-    })
+    expect(mocks.resolveNameData).toHaveBeenCalledTimes(3)
+    expect(
+      mocks.resolveNameData.mock.calls.map(([, { data }]) => data.length),
+    ).toEqual([8, 4, 4])
+    expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
+    const requestedCoins = requestedCalls().flatMap((call) =>
+      call.functionName === 'addr'
+        ? [call.args.length === 1 ? 60n : call.args[1]]
+        : [],
+    )
     expect(requestedCoins).toEqual([60n, 121n, 501n])
   })
 
   it('preserves a valid ZEN address and skips a malformed sibling', async () => {
-    mocks.resolveNameData.mockResolvedValue({
-      resolverAddress,
-      resolvedData: [
+    mocks.resolveNameData.mockResolvedValue(
+      profileResolution([
         { success: true, returnData: '0x1234' },
         {
           success: true,
@@ -149,8 +189,8 @@ describe('profile records', () => {
             '0x20897843a3fcc6ab7d02d40946360c070b13cf7b9795',
           ),
         },
-      ],
-    })
+      ]),
+    )
 
     expect(
       (await getProfileRecords('valid.eth'))._unsafeUnwrap().coins,
@@ -180,14 +220,15 @@ describe('profile records', () => {
       namespace: 'ens',
       include: ['inventory'],
     })
-    expect(mocks.getRecords).toHaveBeenCalledWith(
-      mocks.client,
-      expect.objectContaining({
-        texts: ['avatar', 'theme', 'links', 'com.github'],
-      }),
-    )
-    const [, parameters] = mocks.resolveNameData.mock.calls[0] ?? []
-    expect(parameters.data).toHaveLength(4)
+    expect(requestedTextKeys()).toEqual([
+      'avatar',
+      'theme',
+      'links',
+      'com.github',
+    ])
+    expect(
+      requestedCalls().filter((call) => call.functionName === 'addr'),
+    ).toHaveLength(4)
   })
 
   it('reads the static keys for a name bigname has not indexed', async () => {
@@ -205,10 +246,7 @@ describe('profile records', () => {
     const result = await getProfileRecords('unregistered.eth')
 
     expect(result.isOk()).toBe(true)
-    expect(mocks.getRecords).toHaveBeenCalledWith(
-      mocks.client,
-      expect.objectContaining({ texts: ['avatar', 'theme', 'links'] }),
-    )
+    expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
   })
 
   it('returns no coins when the universal resolver has no result', async () => {
@@ -219,7 +257,8 @@ describe('profile records', () => {
   })
 
   it('retains the profile error path when resolution fails', async () => {
-    mocks.resolveNameData.mockRejectedValue(new Error('Resolution failed'))
+    mocks.resolveNameData.mockRejectedValue(new Error('RPC unavailable'))
     expect((await getProfileRecords('failed.eth')).isErr()).toBe(true)
+    expect(mocks.resolveNameData).toHaveBeenCalledTimes(2)
   })
 })
