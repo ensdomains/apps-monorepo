@@ -16,6 +16,7 @@ import {
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
+import { waitForBignameName } from '../helpers/bigname-sync.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
@@ -41,16 +42,16 @@ if (existsSync(envPath)) {
 // Override Sepolia chain to point at the local Anvil fork. The headless
 // provider's internal walletClient uses this RPC to sign/submit.
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
-const localSepolia = {
+export const localSepolia = {
   ...sepolia,
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
 
-const MIGRATION_FEATURE_FLAGS = { migration: true } as const
-const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
+export const MIGRATION_FEATURE_FLAGS = { migration: true } as const
+export const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
 const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
 
-async function overrideManagerFeatureFlags(
+export async function overrideManagerFeatureFlags(
   page: Page,
   featureFlags: Record<string, boolean>,
 ): Promise<void> {
@@ -88,7 +89,9 @@ async function overrideManagerFeatureFlags(
   }, featureFlags)
 }
 
-async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
+export async function waitForManagerFeatureFlagOverride(
+  page: Page,
+): Promise<void> {
   await page
     .waitForFunction(
       () =>
@@ -211,7 +214,7 @@ type ManagerFixtures = {
  * (SIWE) modal appears once connected, handled by the caller. In EOA mode the
  * gate is a no-op (the signer is an EOA), so no session modal appears at all.
  */
-async function connectHeadless(
+export async function connectHeadless(
   page: Page,
   wallet: Web3ProviderBackend,
 ): Promise<void> {
@@ -324,6 +327,10 @@ export const test = base.extend<ManagerFixtures>({
           owner: ownerAddress,
           records: config.records,
         })
+      } else {
+        // The real local bigname has to index the name before the dashboard,
+        // search or profile can list it.
+        await waitForBignameName(name)
       }
       return name
     })

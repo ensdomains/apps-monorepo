@@ -9,7 +9,13 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query'
-import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import {
+  type CSSProperties,
+  Fragment,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
 import { answerBignameRequest } from './bignameMock'
 import {
   BIGNAME_API_URL,
@@ -18,8 +24,12 @@ import {
 } from './config'
 import {
   type ActiveName,
+  type CopyTargetState,
   createV1NameOnAnvil,
   ensureNamesOnAnvil,
+  fullNamesFor,
+  ownershipTargetFor,
+  PRESET_FAMILY,
   PRESETS,
   type PresetType,
   readStoredNames,
@@ -27,6 +37,7 @@ import {
 } from './MigrationTestPanel.helpers'
 import {
   useAnvilStatus,
+  useCopyTargetState,
   useDraggablePanel,
   useInvalidateMigrationQueriesOnMount,
 } from './MigrationTestPanel.hooks'
@@ -103,6 +114,142 @@ function useSyncInjectedNames(activeNames: ActiveName[]): void {
   }, [activeNames])
 }
 
+/**
+ * The preset strip, grouped by which migration route each preset exercises.
+ *
+ * With 22 presets a flat row is unreadable, and the three families have
+ * genuinely different expected outcomes: `migrate` moves a token, `copy`
+ * re-creates the name inside a UserRegistry, and `ineligible` should produce
+ * nothing at all — which is only meaningful if you seed something alongside it.
+ */
+function PresetButtons({
+  busy,
+  busyPreset,
+  onCreate,
+}: {
+  readonly busy: boolean
+  readonly busyPreset: PresetType | null
+  readonly onCreate: (type: PresetType) => void
+}) {
+  return (
+    <div style={rowStyle}>
+      {(['migrate', 'copy', 'transfer', 'ineligible'] as const).map(
+        (family, index) => (
+          <Fragment key={family}>
+            {index > 0 && <span style={sepStyle} />}
+            <span style={familyLabelStyle}>{family}</span>
+            {PRESETS.filter((p) => PRESET_FAMILY[p.type] === family).map(
+              (preset) => {
+                const isThisBusy = busy && busyPreset === preset.type
+                return (
+                  <button
+                    key={preset.type}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onCreate(preset.type)}
+                    style={presetChipStyle(busy, isThisBusy)}
+                    title={preset.title}
+                  >
+                    {isThisBusy ? '…' : preset.label}
+                  </button>
+                )
+              },
+            )}
+          </Fragment>
+        ),
+      )}
+    </div>
+  )
+}
+
+/** The name picker plus its per-name actions and copy-target state. */
+function SelectedNameActions({
+  activeNames,
+  busy,
+  copyState,
+  isCopyPreset,
+  onMigrate,
+  onRemove,
+  onOpen,
+  onSelect,
+  selectedName,
+}: {
+  readonly activeNames: readonly ActiveName[]
+  readonly busy: boolean
+  readonly copyState: CopyTargetState
+  readonly isCopyPreset: boolean
+  readonly onMigrate: (name: ActiveName) => void
+  readonly onRemove: (id: string) => void
+  readonly onOpen: (name: ActiveName) => void
+  readonly onSelect: (id: string) => void
+  readonly selectedName: ActiveName | null
+}) {
+  return (
+    <>
+      <select
+        value={selectedName?.id ?? ''}
+        onChange={(e) => onSelect(e.target.value)}
+        style={selectStyle}
+        disabled={busy}
+      >
+        {activeNames.map((n) => (
+          <option key={n.id} value={n.id}>
+            {n.label}.eth ({n.type})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={busy || !selectedName}
+        onClick={() => selectedName && onMigrate(selectedName)}
+        style={smallChipStyle('#0080bc')}
+        title={selectedName ? `Upgrade ${selectedName.label}.eth` : ''}
+      >
+        Upgrade
+      </button>
+      <button
+        type="button"
+        disabled={busy || !selectedName}
+        onClick={() => selectedName && onOpen(selectedName)}
+        style={smallChipStyle('#7c6bd6')}
+        title={
+          selectedName
+            ? `Open ${selectedName.label}.eth's Ownership tab — then use the app's own Transfer link`
+            : ''
+        }
+      >
+        Open
+      </button>
+      {/* A copy lands in a UserRegistry whose address derives from
+          namehash(parentName), so re-migrating the same label hits the same slot
+          and `copyMigrationReadiness` refuses it. The app shows none of that —
+          just a disabled button under "Gas estimate unavailable". */}
+      {isCopyPreset && (
+        <span
+          style={copyStateChipStyle(copyState)}
+          title={
+            copyState === 'pristine'
+              ? 'No subregistry on the 2LD yet — a fresh copy plan will be accepted.'
+              : 'This 2LD already has a subregistry, so a fresh copy plan is refused (subregistry-conflict / v2-name-history). Seed the preset again for a new label.'
+          }
+        >
+          {copyState === 'pristine' ? 'pristine' : 'already migrated'}
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={!selectedName}
+        onClick={() => selectedName && onRemove(selectedName.id)}
+        style={smallChipStyle('#737373')}
+        title="Remove selected"
+      >
+        ×
+      </button>
+      <span style={sepStyle} />
+    </>
+  )
+}
+
 /** Inner UI — preset buttons, name list, migrate actions. No wrapper or positioning. */
 export function MigrationPanelContent() {
   const endpoint = MIGRATION_TOOL_RPC
@@ -161,7 +308,9 @@ export function MigrationPanelContent() {
         void queryClient.invalidateQueries({
           queryKey: [{ $scope: 'migration' }],
         })
-        const nameParam = refreshed.map((n) => `${n.label}.eth`).join(',')
+        // Include child names, so a `subname*` preset arrives with the whole
+        // hierarchy pre-selected instead of just its 2LD.
+        const nameParam = refreshed.flatMap((n) => fullNamesFor(n)).join(',')
         window.location.href = `/upgrade?names=${encodeURIComponent(nameParam)}`
       } catch (e) {
         setActionError(`Failed to sync names to Anvil: ${String(e)}`)
@@ -183,6 +332,30 @@ export function MigrationPanelContent() {
     [navigateToMigration],
   )
 
+  /**
+   * Open the selected name's **Ownership** tab — the app's own entry point,
+   * not the transfer route.
+   *
+   * Deliberately one step short of `/ownership/transfer`. Whether that tab
+   * offers a Transfer link at all is part of what manual QA is checking: a
+   * link that leads to a refusal, or a missing link on a transferable name,
+   * is the shape E2E-001 was about. A button that jumped straight to the
+   * route would walk the tester past the check.
+   *
+   * For the refusal shapes the link is *correctly* absent, so there is
+   * nothing to click — append `/transfer` to the URL by hand to read the
+   * card. The absence is itself the assertion; see manual-v1-transfer.md.
+   *
+   * Does NOT sync to the bigname mock the way `migrate` does: ownership is
+   * read from chain (BaseRegistrar / ENSRegistry / the V2 registry), not from
+   * the indexer, so the injection is irrelevant here.
+   */
+  const openOwnership = useCallback((name: ActiveName) => {
+    // A subname-centred transfer preset (#1144's reassign family) opens the
+    // subname, not the 2LD that exists only to be its parent.
+    window.location.href = `/${ownershipTargetFor(name)}/ownership`
+  }, [])
+
   const removeName = useCallback((id: string) => {
     setActiveNames((prev) => prev.filter((n) => n.id !== id))
   }, [])
@@ -191,63 +364,32 @@ export function MigrationPanelContent() {
   const selectedName =
     activeNames.find((n) => n.id === selectedId) ?? activeNames[0] ?? null
 
+  const isCopyPreset =
+    selectedName != null && PRESET_FAMILY[selectedName.type] === 'copy'
+  const copyState = useCopyTargetState(endpoint, selectedName, isCopyPreset)
+
   return (
     <div style={columnStyle}>
-      {/* Row 1: preset buttons */}
-      <div style={rowStyle}>
-        {PRESETS.map((preset) => {
-          const isThisBusy = busy && busyPreset === preset.type
-          return (
-            <button
-              key={preset.type}
-              type="button"
-              disabled={busy}
-              onClick={() => void createName(preset.type)}
-              style={presetChipStyle(busy, isThisBusy)}
-              title={preset.title}
-            >
-              {isThisBusy ? '…' : preset.label}
-            </button>
-          )
-        })}
-      </div>
+      <PresetButtons
+        busy={busy}
+        busyPreset={busyPreset}
+        onCreate={createName}
+      />
 
       {/* Row 2: name picker + migrate actions + anvil */}
       <div style={rowStyle}>
         {activeNames.length > 0 ? (
-          <>
-            <select
-              value={selectedName?.id ?? ''}
-              onChange={(e) => setSelectedId(e.target.value)}
-              style={selectStyle}
-              disabled={busy}
-            >
-              {activeNames.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.label}.eth ({n.type})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={busy || !selectedName}
-              onClick={() => selectedName && migrateSingle(selectedName)}
-              style={smallChipStyle('#0080bc')}
-              title={selectedName ? `Upgrade ${selectedName.label}.eth` : ''}
-            >
-              Upgrade
-            </button>
-            <button
-              type="button"
-              disabled={!selectedName}
-              onClick={() => selectedName && removeName(selectedName.id)}
-              style={smallChipStyle('#737373')}
-              title="Remove selected"
-            >
-              ×
-            </button>
-            <span style={sepStyle} />
-          </>
+          <SelectedNameActions
+            activeNames={activeNames}
+            busy={busy}
+            copyState={copyState}
+            isCopyPreset={isCopyPreset}
+            onMigrate={migrateSingle}
+            onOpen={openOwnership}
+            onRemove={removeName}
+            onSelect={setSelectedId}
+            selectedName={selectedName}
+          />
         ) : (
           <span style={emptyStyle}>no names</span>
         )}
@@ -416,6 +558,29 @@ const emptyStyle: CSSProperties = {
   color: '#737373',
   fontSize: 11,
   fontStyle: 'italic',
+}
+
+const familyLabelStyle: CSSProperties = {
+  color: '#737373',
+  fontSize: 9,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+  alignSelf: 'center',
+  flexShrink: 0,
+}
+
+function copyStateChipStyle(state: CopyTargetState): CSSProperties {
+  const pristine = state === 'pristine'
+  return {
+    padding: '2px 6px',
+    borderRadius: 4,
+    border: `1px solid ${pristine ? '#99f6e4' : '#fecdd3'}`,
+    background: pristine ? '#f0fdfa' : '#fff1f2',
+    color: pristine ? '#0f766e' : '#9f1239',
+    fontSize: 10,
+    flexShrink: 0,
+    alignSelf: 'center',
+  }
 }
 
 function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {

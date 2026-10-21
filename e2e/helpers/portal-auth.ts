@@ -4,6 +4,7 @@ import {
 } from '@ensdomains/headless-web3-provider'
 import { expect, type Page } from '@playwright/test'
 import type { Address, Hash } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -116,4 +117,62 @@ export async function authorizeTransactions(
   for (let i = 0; i < count; i++) {
     await authorizeTransaction(wallet)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Wallet network
+// ---------------------------------------------------------------------------
+
+const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
+
+/**
+ * Moves an already-connected headless wallet onto Ethereum mainnet (chain 1),
+ * a chain the portal's wagmi config does not declare — the state a user gets
+ * into by switching networks in their wallet after connecting. The portal
+ * never re-checks the chain after connect (`syncConnectedChain: false`,
+ * `ConnectWalletDialog` only forces Sepolia at connection time), so wagmi
+ * resolves `walletClient.chain` to `undefined` from here on (WEB-281).
+ *
+ * Reads are still routed to the local fork so the app keeps working; only the
+ * wallet's reported `eth_chainId` (and the chain it would sign for) changes.
+ * Resolves once the page's provider reports chain 1, so a caller never acts
+ * on a switch the page has not seen.
+ */
+export async function switchWalletToUndeclaredChain(
+  page: Page,
+  wallet: Web3ProviderBackend,
+): Promise<void> {
+  if (!wallet.getChainIds().includes(mainnet.id)) {
+    wallet.addChain({
+      ...mainnet,
+      rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
+    })
+  }
+  wallet.switchChain(mainnet.id)
+  await expect
+    .poll(() => readPageChainId(page), { timeout: 10_000 })
+    .toBe(mainnet.id)
+}
+
+/** Switches the headless wallet back to the portal's own chain (Sepolia). */
+export async function switchWalletToSepolia(
+  page: Page,
+  wallet: Web3ProviderBackend,
+): Promise<void> {
+  wallet.switchChain(sepolia.id)
+  await expect
+    .poll(() => readPageChainId(page), { timeout: 10_000 })
+    .toBe(sepolia.id)
+}
+
+/** The chain id the page's injected provider reports (`eth_chainId`). */
+async function readPageChainId(page: Page): Promise<number> {
+  const hex = await page.evaluate(() =>
+    (
+      window as unknown as {
+        ethereum: { request(args: { method: string }): Promise<string> }
+      }
+    ).ethereum.request({ method: 'eth_chainId' }),
+  )
+  return Number(hex)
 }
