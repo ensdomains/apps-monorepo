@@ -8,6 +8,31 @@ import {
 } from './transformRecords'
 
 describe('profile transformRecords utils', () => {
+  it.each([
+    'constructor',
+    'toString',
+    'valueOf',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    '__proto__',
+  ])('preserves a %s text record without losing the profile', (key) => {
+    const records = transformProfileRecords({
+      texts: [
+        { key, value: 'x' },
+        { key: 'description', value: 'Profile remains available' },
+      ],
+      coins: [],
+    })
+
+    expect(records.unknown).toEqual([{ key, value: 'x' }])
+    expect(records.base.description).toBe('Profile remains available')
+    expect(transformToServiceFormat(records).texts).toContainEqual({
+      key,
+      value: 'x',
+    })
+  })
+
   describe('primary contacts record limits', () => {
     const transformPrimaryContacts = (value: string) =>
       transformProfileRecords({
