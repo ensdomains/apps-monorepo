@@ -68,7 +68,7 @@ describe('connected avatar cache', () => {
 
   it('refreshes an overwritten upload without changing the avatar record', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/test.eth`
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}test.eth`
     const { result, queryClient } = renderAvatar(imageUrl)
     await waitFor(() => expect(result.current.url).toBe(imageUrl))
 
