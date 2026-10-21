@@ -1,10 +1,10 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, isHex } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -27,6 +27,7 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
 import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
+import { getNodesWithRecordsQueryOptions } from '@/features/resolver/hooks/useNodesWithRecords'
 import {
   prefetchResolverPage,
   useResolverNodesList,
@@ -176,13 +177,27 @@ function RouteComponent() {
     : null
   const existingLinks = resolver?.links ?? []
 
+  // `linkToNode` reverts `InvalidRecord` for a target with no record, and a
+  // name can point at this resolver without one, so only recorded names are offered.
+  const recordsQuery = useQuery({
+    ...getNodesWithRecordsQueryOptions({
+      address,
+      nodes: nodes.flatMap((n) => (isHex(n.id) ? [n.id] : [])),
+    }),
+    enabled: nodes.length > 0,
+    placeholderData: keepPreviousData,
+  })
+  const nodesWithRecords = new Set<string>(recordsQuery.data)
+
   const nameOptions = nodes.map((n) => n.name)
   const nodeOptions = nodes
-    .filter((n) => n.name !== fromName)
+    .filter((n) => n.name !== fromName && nodesWithRecords.has(n.id))
     .map((n) => n.name)
 
   const selectedFromNode = fromName ? (nodesByName.get(fromName) ?? null) : null
   const selectedToNode = toName ? (nodesByName.get(toName) ?? null) : null
+  const hasTargetRecord =
+    selectedToNode !== null && nodesWithRecords.has(selectedToNode.id)
 
   const linksState = toLinksState(overview)
   const isAlreadyLinked =
@@ -319,10 +334,29 @@ function RouteComponent() {
                     </ComboboxItem>
                   ) : null
                 })}
-                <ComboboxEmpty>No names available</ComboboxEmpty>
+                <ComboboxEmpty>
+                  {recordsQuery.isLoading
+                    ? 'Checking which names have a record…'
+                    : 'No names with a record'}
+                </ComboboxEmpty>
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
+          {recordsQuery.isError && (
+            <div className="flex items-center gap-2">
+              <p className="text-p text-danger">
+                Couldn’t check which names have a record on this resolver.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => recordsQuery.refetch()}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
           {selectedToNode && (
             <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
@@ -370,7 +404,7 @@ function RouteComponent() {
           type="submit"
           disabled={
             !fromName ||
-            !toName ||
+            !hasTargetRecord ||
             mutation.isPending ||
             !walletClient ||
             !isConnected ||

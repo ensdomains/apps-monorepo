@@ -3,7 +3,6 @@ import type {
   Subname as BignameSubname,
 } from '@ens-apps/indexer/bigname'
 import { isStale, retryStale } from '@ens-apps/indexer/bigname'
-import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import {
   type InferErrTypes,
   ResultFn,
@@ -19,7 +18,9 @@ import {
   getOwner as ensjsv1_getOwner,
 } from '@ensdomains/ensjs/public/v1'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
+import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
+  err,
   errAsync,
   fromPromise,
   ok,
@@ -27,15 +28,27 @@ import {
   type ResultAsync,
 } from 'neverthrow'
 import { match, P } from 'ts-pattern'
-import { type Address, checksumAddress, type Hex, labelhash } from 'viem'
-import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
+import {
+  type Address,
+  checksumAddress,
+  type Hex,
+  keccak256,
+  labelhash,
+  stringToBytes,
+} from 'viem'
+import { readContract } from 'viem/actions'
+import { getAction } from 'viem/utils'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
-  cause: BignameError | IndexerReadError
+  cause: BignameError
+}> {}
+
+class GetV2SubnameStatusError extends TaggedError('GetV2SubnameStatusError')<{
+  cause: unknown
 }> {}
 
 export class GetIsV1SubnameTakenError extends TaggedError(
@@ -181,6 +194,7 @@ export const getSubnamesQueryKey = createQueryKey<
   GetSubnamesParameters & {
     readonly only?: 'pages' | 'count' | 'label'
     readonly label?: string
+    readonly registryAddress?: Address
   }
 >('get-subnames')
 
@@ -231,19 +245,27 @@ export const getSubnamesCountQueryOptions = (params: GetSubnamesParameters) =>
     queryFn: ({ signal }) => getSubnamesCount(params, signal),
   })
 
-type IsSubnameTakenParameters = {
+/** What `register` would do with a label: create it, promote a reservation, or refuse. */
+export type SubnameLabelStatus = 'available' | 'reserved' | 'registered'
+
+type SubnameLabelParameters = {
   /** The parent name. */
   readonly name: string
   readonly label: string
-  readonly protocolVersion: ProtocolVersion
 }
+
+type SubnameLabelStatusParameters = SubnameLabelParameters &
+  (
+    | { readonly protocolVersion: 'ENSv1' }
+    | { readonly protocolVersion: 'ENSv2'; readonly registryAddress: Address }
+  )
 
 // V1 asks the registry rather than the indexer: `setSubnodeRecord` overwrites,
 // so a subname the parent just created must read as taken straight away.
 export const getIsV1SubnameTaken = ResultFn(async function* ({
   name,
   label,
-}: Omit<IsSubnameTakenParameters, 'protocolVersion'>) {
+}: SubnameLabelParameters) {
   const client = yield* safeGetClient()
   const owner = yield* fromPromise(
     ensjsv1_getOwner(client, { name: `${label}.${name}` }),
@@ -254,41 +276,61 @@ export const getIsV1SubnameTaken = ResultFn(async function* ({
   return ok(Boolean(owner))
 })
 
-const FREE_STATUSES: readonly (string | null)[] = ['released', 'unregistered']
+/** `IPermissionedRegistry.Status`, in declaration order. */
+const V2_LABEL_STATUSES: readonly SubnameLabelStatus[] = [
+  'available',
+  'reserved',
+  'registered',
+]
 
-const getIsV2SubnameTaken = (
-  { name, label }: Omit<IsSubnameTakenParameters, 'protocolVersion'>,
-  signal?: AbortSignal,
-) =>
-  readIndexedNameDetail({ name: `${label}.${name}` }, signal)
-    .map(
-      (detail) =>
-        detail !== null && !FREE_STATUSES.includes(detail.registrationStatus),
+// The subregistry, not bigname: bigname reports an expired label as taken and
+// has no reserved state, and `register` decides by the registry's own status.
+const getV2SubnameStatus = ResultFn(async function* ({
+  registryAddress,
+  label,
+}: {
+  readonly registryAddress: Address
+  readonly label: string
+}) {
+  const client = yield* safeGetClient()
+  const readContractAction = getAction(client, readContract, 'readContract')
+  const status = yield* fromPromise(
+    readContractAction({
+      address: registryAddress,
+      abi: permissionedRegistryGetStatusSnippet,
+      functionName: 'getStatus',
+      // `LibLabel.id`: the label's bytes, never `labelhash`'s encoded passthrough.
+      args: [BigInt(keccak256(stringToBytes(label)))],
+    }),
+    (cause) => new GetV2SubnameStatusError({ cause }),
+  )
+  const labelStatus = V2_LABEL_STATUSES[status]
+  if (!labelStatus)
+    return err(
+      new GetV2SubnameStatusError({
+        cause: new Error(`Unknown registry status ${status}`),
+      }),
     )
-    .mapErr((cause) => new GetSubnamesError({ cause }))
+  return ok(labelStatus)
+})
 
-type IsSubnameTakenError = InferErrTypes<
-  ReturnType<typeof getIsV1SubnameTaken | typeof getIsV2SubnameTaken>
+type SubnameLabelStatusError = InferErrTypes<
+  ReturnType<typeof getIsV1SubnameTaken | typeof getV2SubnameStatus>
 >
 
 /**
- * Whether a name already has a subname with this label. Asked about the one
- * label, so the answer doesn't depend on how much of the list has been loaded.
+ * Where a name's subname with this label stands. Asked about the one label,
+ * so the answer doesn't depend on how much of the list has been loaded.
  */
-export const getIsSubnameTakenQueryOptions = ({
-  name,
-  label,
-  protocolVersion,
-}: IsSubnameTakenParameters) =>
+export const getSubnameLabelStatusQueryOptions = (
+  params: SubnameLabelStatusParameters,
+) =>
   resultQueryOptions({
-    queryKey: getSubnamesQueryKey({
-      name,
-      protocolVersion,
-      only: 'label',
-      label,
-    }),
-    queryFn: ({ signal }): ResultAsync<boolean, IsSubnameTakenError> =>
-      protocolVersion === 'ENSv1'
-        ? getIsV1SubnameTaken({ name, label })
-        : getIsV2SubnameTaken({ name, label }, signal),
+    queryKey: getSubnamesQueryKey({ ...params, only: 'label' }),
+    queryFn: (): ResultAsync<SubnameLabelStatus, SubnameLabelStatusError> =>
+      params.protocolVersion === 'ENSv1'
+        ? getIsV1SubnameTaken(params).map((isTaken) =>
+            isTaken ? 'registered' : 'available',
+          )
+        : getV2SubnameStatus(params),
   })

@@ -120,6 +120,29 @@ vi.mock('@/features/registry/hooks/useHasRoles', () => ({
   },
 }))
 
+/** The connected account's roles on the subregistry ROOT, which gate creation. */
+let rootRoles: readonly string[] = ['ROLE_REGISTRAR']
+const rootRoleParams = vi.fn()
+vi.mock(
+  '@/features/roles/hooks/useNameRolesForAccount',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/roles/hooks/useNameRolesForAccount')
+    >()),
+    getNameRolesForAccountQueryOptions: (params: Record<string, unknown>) => {
+      rootRoleParams(params)
+      return {
+        queryKey: [
+          'nameRolesForAccount',
+          String(params.registryAddress),
+          String(params.resource),
+        ],
+        queryFn: () => ({ decoded: rootRoles, raw: 0n }),
+      }
+    },
+  }),
+)
+
 // Per-row ROLE_UNREGISTER. `resourceRolesParams` records what the options were
 // built for; `resourceRolesFetched` records the reads that actually ran, which
 // is what the root fast path is supposed to avoid.
@@ -204,6 +227,8 @@ const renderRoute = () => {
 
 beforeEach(() => {
   hasRolesParams.mockReset()
+  rootRoleParams.mockReset()
+  rootRoles = ['ROLE_REGISTRAR']
   resourceRolesParams.mockReset()
   resourceRolesFetched.mockReset()
   subnames = []
@@ -351,12 +376,15 @@ describe('subnames route role checks', () => {
 
     await waitFor(() => expect(subregistryCalls().length).toBeGreaterThan(0))
 
-    const registryRoleParams = subregistryCalls()
-    for (const params of registryRoleParams) {
+    for (const params of subregistryCalls()) {
       expect(params).not.toHaveProperty('label')
     }
-    expect(registryRoleParams.map((params) => params.roles)).toEqual(
-      expect.arrayContaining([['ROLE_REGISTRAR']]),
+
+    // The create gate reads the caller's roles on the subregistry's ROOT.
+    await waitFor(() =>
+      expect(rootRoleParams).toHaveBeenCalledWith(
+        expect.objectContaining({ registryAddress: SUBREGISTRY, resource: 0n }),
+      ),
     )
   })
 
@@ -433,6 +461,30 @@ describe('subnames route role checks', () => {
     expect(
       await screen.findByRole('link', { name: /create subname/i }),
     ).toBeInTheDocument()
+  })
+
+  // A reserved label is registered under ROLE_REGISTER_RESERVED alone.
+  it('offers subname creation to a reserved-registration holder', async () => {
+    rootRoles = ['ROLE_REGISTER_RESERVED']
+    renderRoute()
+
+    expect(
+      await screen.findByRole('link', { name: /create subname/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('offers no subname creation without either registrar role', async () => {
+    rootRoles = ['ROLE_UNREGISTER']
+    subnames = [
+      { name: `cold.${NAME}`, labelhash: labelhash('cold'), owner: CONNECTED },
+    ]
+    renderRoute()
+
+    await screen.findByRole('table')
+    await waitFor(() => expect(rootRoleParams).toHaveBeenCalled())
+    expect(
+      screen.queryByRole('link', { name: /create subname/i }),
+    ).not.toBeInTheDocument()
   })
 
   // WEB-1458 follow-up: with the delete gate now per row, selection has to
