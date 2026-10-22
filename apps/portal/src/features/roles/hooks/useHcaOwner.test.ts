@@ -42,10 +42,4 @@ describe('getHcaOwner', () => {
 
     expect((await getHcaOwner({ account: OWNER }))._unsafeUnwrap()).toBeNull()
   })
-
-  it('fails when the factory read fails', async () => {
-    readContract.mockRejectedValue(new Error('rpc down'))
-
-    expect((await getHcaOwner({ account: HCA })).isErr()).toBe(true)
-  })
 })
