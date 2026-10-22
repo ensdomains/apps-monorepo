@@ -28,9 +28,12 @@ vi.mock('@ens-apps/transaction-manager', async () => ({
   waitForTransaction: vi.fn(),
 }))
 
-vi.mock('@/components/EntityBadge', () => ({
-  EntityBadge: ({ children }: { children: React.ReactNode }) => (
-    <span>{children}</span>
+vi.mock('@/features/roles/components/roleTableColumns', async (original) => ({
+  ...(await original<
+    typeof import('@/features/roles/components/roleTableColumns')
+  >()),
+  UserCell: ({ account }: { account: Address }) => (
+    <span>{truncateAddress(account, 6, 4)}</span>
   ),
 }))
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))

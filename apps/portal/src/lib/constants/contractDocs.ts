@@ -2,6 +2,7 @@
 export const CONTRACT_DOCS = {
   registry: 'https://docs.ens.domains/contracts/ensv2/overview/',
   resolver: 'https://docs.ens.domains/resolvers/quickstart/',
+  hca: 'https://docs.ens.domains/ensv2/overview/',
 } as const
 
 /** The docs row shows the address without its scheme, as the design does. */
