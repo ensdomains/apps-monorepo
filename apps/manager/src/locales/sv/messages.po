@@ -1042,10 +1042,6 @@ msgstr ""
 msgid "Enable"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push.tsx
-msgid "Enable browser notifications again"
-msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enable Sessions"
 msgstr ""
@@ -1781,6 +1777,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push-error-copy.ts
 msgid "Notifications couldn't be set up"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -2618,10 +2618,6 @@ msgstr ""
 msgid "Social"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push.tsx
-msgid "Some browsers ask how long to allow notifications — choose the permanent option so you keep receiving them."
-msgstr ""
-
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
 msgstr ""
@@ -2977,6 +2973,10 @@ msgstr ""
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Tip: if your browser asks how long to allow notifications, pick the permanent option."
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
 msgstr ""
@@ -3046,6 +3046,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Turn notifications back on"
 msgstr ""
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -3530,10 +3534,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account could not be checked. Please try again."
-msgstr ""
-
-#: src/features/notifications/settings/contact-methods/push.tsx
-msgid "Your account has browser notifications set up, but this session hasn't granted permission. Some browsers ask how long to allow notifications — choose the permanent option (e.g. “Allow”, not “Allow this time”) when your browser asks."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push-error-copy.ts

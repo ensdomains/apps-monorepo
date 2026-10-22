@@ -47,7 +47,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
     onSuccess: () => {
       setLastEnableError(null)
       toast.success(t`Browser notifications enabled`, {
-        description: t`Some browsers ask how long to allow notifications — choose the permanent option so you keep receiving them.`,
+        description: t`Tip: if your browser asks how long to allow notifications, pick the permanent option.`,
       })
       browserState.refetch()
     },
@@ -177,14 +177,13 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
         <Alert>
           <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="info" />
           <AlertTitle>
-            <Trans>Enable browser notifications again</Trans>
+            <Trans>Turn notifications back on</Trans>
           </AlertTitle>
           <AlertDescription>
             <Trans>
-              Your account has browser notifications set up, but this session
-              hasn't granted permission. Some browsers ask how long to allow
-              notifications — choose the permanent option (e.g. “Allow”, not
-              “Allow this time”) when your browser asks.
+              Notifications worked here before, but the permission ended with
+              your last session. When you re-enable, picking the permanent
+              option keeps them working after you close the browser.
             </Trans>
           </AlertDescription>
         </Alert>
