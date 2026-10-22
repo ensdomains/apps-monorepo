@@ -33,8 +33,8 @@ describe('getPickerRecordGroups', () => {
 
     expect(popularRecords.map(({ name }) => name)).toEqual([
       'Zora',
-      'Scroll',
-      'Linea',
+      'Scroll Sepolia',
+      'Linea Sepolia',
       'Celo',
       'Gnosis',
     ])
@@ -53,8 +53,8 @@ describe('getPickerRecordGroups', () => {
 
     expect(popularRecords.map(({ name }) => name)).toEqual([
       'Zora',
-      'Scroll',
-      'Linea',
+      'Scroll Sepolia',
+      'Linea Sepolia',
       'Celo',
       'Gnosis',
     ])
@@ -149,7 +149,7 @@ describe('address row helpers', () => {
   it('reads configured and fallback address option labels', () => {
     expect(getAddressOption(baseCoinType)).toEqual({
       coinType: baseCoinType,
-      label: 'Base',
+      label: 'Base Sepolia',
     })
     expect(getAddressOption(123_456_789)).toEqual({
       coinType: 123_456_789,
@@ -216,7 +216,7 @@ describe('address row helpers', () => {
     })
 
     expect(state.customEvmOptions).toEqual([
-      { coinType: baseCoinType, label: 'Base' },
+      { coinType: baseCoinType, label: 'Base Sepolia' },
     ])
     expect(
       state.visibleEvmChipOptions.map(({ coinType }) => coinType),
@@ -277,7 +277,7 @@ describe('address row helpers', () => {
     })
 
     expect(state.customEvmOptions).toEqual([
-      { coinType: baseCoinType, label: 'Base' },
+      { coinType: baseCoinType, label: 'Base Sepolia' },
     ])
     expect(
       state.visibleEvmChipOptions.map(({ coinType }) => coinType),
@@ -301,7 +301,7 @@ describe('address row helpers', () => {
     ).toBe('Enter a valid Ethereum address')
     expect(
       getAddressValidationErrorMessage(baseCoinType, 'not-an-address'),
-    ).toBe('Enter a valid Base address')
+    ).toBe('Enter a valid Base Sepolia address')
   })
 
   it('validates non-EVM address values with their coin encoder', () => {
@@ -326,7 +326,7 @@ describe('address row helpers', () => {
       ]),
     ).toEqual([
       { coinType: ETH_COIN_TYPE, message: 'Enter a valid Ethereum address' },
-      { coinType: baseCoinType, message: 'Enter a valid Base address' },
+      { coinType: baseCoinType, message: 'Enter a valid Base Sepolia address' },
       { coinType: bitcoinCoinType, message: 'Enter a valid Bitcoin address' },
       {
         coinType: 123_456_789,
