@@ -262,6 +262,7 @@ export const renewalUiMachine = setup({
             },
           },
         },
+        // One confirmation: picking the coin and starting the renewal happen here.
         tokens: {
           on: {
             'pricing.step.previous': {
@@ -269,20 +270,6 @@ export const renewalUiMachine = setup({
             },
             'pricing.token.select': {
               actions: 'setToken',
-            },
-            'pricing.step.next': {
-              guard: ({ context }) => context.selectedToken !== undefined,
-              target: 'confirm',
-            },
-            'pricing.dialog.dismiss': {
-              target: 'duration',
-            },
-          },
-        },
-        confirm: {
-          on: {
-            'pricing.step.previous': {
-              target: 'tokens',
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
@@ -341,10 +328,10 @@ export const renewalUiMachine = setup({
           {
             // Declining the funding prompt is a cancel, not a failure: nothing
             // was signed and nothing was spent, so hand the user back to the
-            // confirm step instead of a failure screen (as the bulk route does).
+            // payment step instead of a failure screen (as the bulk route does).
             guard: ({ event }) =>
               event.error instanceof HcaFundingDeclinedError,
-            target: '#renewalUi.pricing.confirm',
+            target: '#renewalUi.pricing.tokens',
           },
           {
             target: 'failure',

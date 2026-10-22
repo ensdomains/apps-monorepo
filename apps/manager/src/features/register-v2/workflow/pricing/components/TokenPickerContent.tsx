@@ -648,6 +648,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
   isBusy = false,
+  canProceed = true,
+  networkFeeTooltip,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -695,6 +697,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   /** A required budget quote failed, so checkout must remain blocked. */
   readonly hasBudgetQuoteFailed?: boolean
   readonly isBusy?: boolean
+  /** False while the caller is missing something `onNext` needs, such as the signing wallet. */
+  readonly canProceed?: boolean
+  /** Replaces the fee tooltip's registration wording. */
+  readonly networkFeeTooltip?: ReactNode
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -757,8 +763,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
 
   const canNext =
     isConnected &&
+    canProceed &&
     !!selectedToken &&
     !pricingLoading &&
+    // The fee is part of the figure being confirmed, so wait for it.
+    !isQuotingFunding &&
     !isQuoteStale &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin &&
@@ -798,6 +807,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
                 ? methodErrorMessage
                 : undefined
             }
+            feeTooltip={networkFeeTooltip}
             isFeeTooltipOpen={isFeeTooltipOpen}
             isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
             networkFee={displayedNetworkFee}
