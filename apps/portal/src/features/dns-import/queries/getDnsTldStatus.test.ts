@@ -13,8 +13,9 @@ vi.mock('@ensdomains/ensjs/chain', () => ({
     return DNS_REGISTRAR
   },
 }))
+vi.mock('@/config', () => ({ isSepoliaBuild: true }))
 vi.mock('@/lib/wagmi', () => ({
-  ensChain: { id: 11155111, testnet: true },
+  ensChain: { id: 11155111 },
 }))
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
@@ -67,7 +68,7 @@ describe('getDnsTldStatus', () => {
     expect(result._unsafeUnwrap()).toEqual({ type: 'custom' })
   })
 
-  it('is custom on a testnet for a TLD on the docs list, without reading the node', async () => {
+  it('is custom on the Sepolia build for a TLD on the docs list, without reading the node', async () => {
     getOwnerMock.mockRejectedValue(new Error('rpc down'))
 
     const result = await getDnsTldStatus({ tld: 'hiphop' })

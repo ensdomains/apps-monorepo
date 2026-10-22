@@ -5,6 +5,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type GetOwnerErrorType, getOwner } from '@ensdomains/ensjs/public/v1'
 import { fromPromise, ok } from 'neverthrow'
 import { isAddressEqual, zeroAddress } from 'viem'
+import { isSepoliaBuild } from '@/config'
 import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -43,7 +44,7 @@ type GetDnsTldStatusParameters = {
 export const getDnsTldStatus = ResultFn(async function* ({
   tld,
 }: GetDnsTldStatusParameters) {
-  if (ensChain.testnet && CUSTOM_DNS_TLDS.has(tld.toLowerCase())) {
+  if (isSepoliaBuild && CUSTOM_DNS_TLDS.has(tld.toLowerCase())) {
     return ok<DnsTldStatus>({ type: 'custom' })
   }
 
