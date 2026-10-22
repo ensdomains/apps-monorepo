@@ -131,6 +131,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         onRemove={editor.handleRemoveClick}
         onUpload={editor.handleUploadClick}
         themeColor={themeColor}
+        uploadDisabled={!editor.canUpload}
       />
     )
   }
@@ -155,6 +156,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
       <input
         accept={IMAGE_UPLOAD_ACCEPT}
         className="hidden"
+        disabled={disabled || !editor.canUpload}
         onChange={editor.handleFileChange}
         ref={editor.fileInputRef}
         type="file"

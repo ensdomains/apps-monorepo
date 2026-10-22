@@ -32,6 +32,31 @@ const MANAGER_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
 
 const network = import.meta.env?.VITE_ENS_NETWORK
 
+const readProfileMediaOrigin = (): string | undefined => {
+  const value = import.meta.env?.VITE_PROFILE_MEDIA_URL?.trim()
+  if (!value) return undefined
+  const url = new URL(value)
+  if (
+    (url.protocol !== 'https:' &&
+      !(
+        url.protocol === 'http:' &&
+        ['localhost', '127.0.0.1'].includes(url.hostname)
+      )) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    url.pathname !== '/'
+  ) {
+    throw new Error(
+      'VITE_PROFILE_MEDIA_URL must be an HTTPS origin (HTTP localhost is allowed for development)',
+    )
+  }
+  return url.origin
+}
+
+export const profileMediaOrigin = readProfileMediaOrigin()
+
 // Relative URLs (like `/rpc`, used by the e2e stack) only resolve in the
 // browser, so SSR reads the server-specific override instead.
 const resolveRpcOverride = createIsomorphicFn()
@@ -44,18 +69,21 @@ const resolveRpcOverride = createIsomorphicFn()
     return envUrl
   })
 
-export const envConfig = buildConfig({
-  network,
-  // `createIsomorphicFn` is a no-op stub until the TanStack Start Vite plugin
-  // transforms it, so it returns `undefined` where that transform does not run
-  // (the vitest config, which omits the Start plugin).
-  rpcUrl:
-    resolveRpcOverride() ??
-    (isEnsNetwork(network) ? MANAGER_RPC_URLS[network] : undefined),
-  endpoints: MANAGER_ENDPOINTS,
-  overrides: {
-    bignameApi: import.meta.env?.VITE_BIGNAME_API_URL,
-  },
-})
+export const envConfig = {
+  ...buildConfig({
+    network,
+    // `createIsomorphicFn` is a no-op stub until the TanStack Start Vite plugin
+    // transforms it, so it returns `undefined` where that transform does not run
+    // (the vitest config, which omits the Start plugin).
+    rpcUrl:
+      resolveRpcOverride() ??
+      (isEnsNetwork(network) ? MANAGER_RPC_URLS[network] : undefined),
+    endpoints: MANAGER_ENDPOINTS,
+    overrides: {
+      bignameApi: import.meta.env?.VITE_BIGNAME_API_URL,
+    },
+  }),
+  profileMediaOrigin,
+}
 
 export const { chain, isTestnet, rpcUrls } = envConfig

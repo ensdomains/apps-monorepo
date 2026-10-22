@@ -1,9 +1,27 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
-import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
+import {
+  AVATAR_UPLOAD_BASE_URL,
+  LEGACY_AVATAR_UPLOAD_BASE_URL,
+} from '@/features/profile/constants'
 
-export const isUploadedProfileImageUrl = (imageUrl: string): boolean =>
-  imageUrl.trim().startsWith(AVATAR_UPLOAD_BASE_URL)
+export const isUploadedProfileImageUrl = (imageUrl: string): boolean => {
+  try {
+    const url = new URL(imageUrl.trim())
+    return [AVATAR_UPLOAD_BASE_URL, LEGACY_AVATAR_UPLOAD_BASE_URL].some(
+      (base) => {
+        const root = new URL(base)
+        return (
+          url.origin === root.origin &&
+          url.pathname.startsWith(root.pathname) &&
+          /^\/(?:sepolia\/)?[^/]+(?:\/h)?$/.test(url.pathname)
+        )
+      },
+    )
+  } catch {
+    return false
+  }
+}
 
 export const profileImageVersionQuery = (record: string) =>
   queryOptions<number>({

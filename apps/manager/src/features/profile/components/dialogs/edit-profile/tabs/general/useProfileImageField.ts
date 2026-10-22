@@ -1,8 +1,10 @@
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useAccount, useChainId } from 'wagmi'
+import { envConfig } from '@/config'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { prepareProfileImageUpload } from '@/features/profile/service/profileImageUpload'
@@ -63,6 +65,21 @@ export const useProfileImageField = ({
   })
   const [cropZoom, setCropZoom] = useState(1)
   const [isCropping, setIsCropping] = useState(false)
+  const { data: uploadOwner } = useQuery({
+    queryKey: qk('profile', 'owner', { name }),
+    queryFn: async () => {
+      const { getOwner } = await import(
+        '@/features/profile/service/profileOwner'
+      )
+      const result = await getOwner({ name })
+      if (result.isErr()) throw result.error
+      return result.value
+    },
+    enabled: Boolean(envConfig.profileMediaOrigin),
+  })
+  const canUpload =
+    !envConfig.profileMediaOrigin ||
+    (uploadOwner?.protocol === 'v2' && Boolean(uploadOwner.owner))
   const hasImage = Boolean(currentImage?.trim())
   const imageQuery = useQuery({
     ...imageRecordQuery(currentImage),
@@ -144,7 +161,7 @@ export const useProfileImageField = ({
   }, [uploadPreviewUrl])
 
   const processSelectedFile = (file: File) => {
-    if (disabled) return
+    if (disabled || !canUpload) return
 
     const error = getImageUploadError(file)
     if (error) {
@@ -186,6 +203,7 @@ export const useProfileImageField = ({
   }
 
   const handleUploadClick = () => {
+    if (!canUpload) return
     send({ type: 'CLEAR_ERROR' })
     fileInputRef.current?.click()
   }
@@ -292,6 +310,7 @@ export const useProfileImageField = ({
   })()
 
   return {
+    canUpload,
     cropImageSize,
     cropOffset,
     cropZoom,

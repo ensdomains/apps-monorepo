@@ -1,5 +1,12 @@
-export const AVATAR_UPLOAD_BASE_URL =
+import { envConfig } from '@/config'
+
+const { profileMediaOrigin } = envConfig
+
+export const LEGACY_AVATAR_UPLOAD_BASE_URL =
   'https://avatar-upload-staging.ens-cf.workers.dev/'
+export const AVATAR_UPLOAD_BASE_URL = profileMediaOrigin
+  ? `${profileMediaOrigin}/`
+  : LEGACY_AVATAR_UPLOAD_BASE_URL
 
 /**
  * Hardcoded reverse map from a known agent-registry contract (chain + address)

@@ -12,6 +12,7 @@ import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
+import { envConfig } from '@/config'
 import { NameRegistryNotFoundError } from '@/features/profile/service/changeResolver'
 import {
   refreshProfileImageCaches,
@@ -327,6 +328,10 @@ export const useEditProfileDialogSave = ({
       for (const upload of uploads) {
         await submitPreparedProfileImageUpload({
           address,
+          account:
+            owner?.toLowerCase() === account.accountAddress?.toLowerCase()
+              ? (account.accountAddress ?? undefined)
+              : undefined,
           signTypedDataAsync,
           upload,
         })
@@ -335,7 +340,14 @@ export const useEditProfileDialogSave = ({
         await refreshProfileImageCaches({ images: [upload], queryClient })
       }
     },
-    [address, isConnected, queryClient, signTypedDataAsync],
+    [
+      address,
+      isConnected,
+      queryClient,
+      signTypedDataAsync,
+      owner,
+      account.accountAddress,
+    ],
   )
 
   const finalizeImageOnlySave = useCallback(
@@ -416,7 +428,8 @@ export const useEditProfileDialogSave = ({
       try {
         await submitPreparedImageUploads(uploads)
         return true
-      } catch {
+      } catch (error) {
+        if (envConfig.profileMediaOrigin) toastSaveError(error)
         dialogActor.send({ type: 'RESET_SAVE_STATE' })
         return false
       } finally {
