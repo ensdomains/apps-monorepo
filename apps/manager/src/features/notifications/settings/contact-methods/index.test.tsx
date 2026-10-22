@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Channel } from '@/features/notifications/data/queries/channels'
 import { render } from '@/utils/test-utils'
@@ -19,10 +19,26 @@ vi.mock(
   }),
 )
 
-vi.mock('./telegram', () => ({ TelegramContactMethod: () => null }))
+vi.mock('./telegram', () => ({
+  TelegramContactMethod: ({ telegram }: { telegram?: Channel }) =>
+    telegram ? <span>{telegram.label}</span> : null,
+}))
 vi.mock('./push', () => ({ PushContactMethod: () => null }))
 
-describe('Notification Settings email contact method', () => {
+describe('Notification Settings contact methods', () => {
+  it('shows the usable Telegram channel when reconnecting with another account', async () => {
+    fixtures.channels = [
+      { id: 'old', channel: 'telegram', status: 'disabled', label: '@old' },
+      { id: 'new', channel: 'telegram', status: 'verified', label: '@new' },
+    ] as Channel[]
+    render(<ContactMethods />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add more contact methods' }),
+    )
+    expect(await screen.findByText('@new')).toBeVisible()
+    expect(screen.queryByText('@old')).toBeNull()
+  })
+
   it('offers Add Email when there is no email', async () => {
     fixtures.channels = []
     render(<ContactMethods />)

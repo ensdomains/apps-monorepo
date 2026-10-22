@@ -61,6 +61,7 @@ export const makeTelegramRequest = ResultFn(async function* <
   const response = yield* fromPromise(
     fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(10_000),
       headers: {
         'Content-Type': 'application/json',
       },

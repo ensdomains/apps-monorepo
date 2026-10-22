@@ -18,7 +18,9 @@ export const ContactMethods = () => {
       email:
         data.find((c) => c.channel === 'email' && c.status !== 'pending') ??
         data.find((c) => c.channel === 'email'),
-      telegram: data.find((c) => c.channel === 'telegram'),
+      telegram:
+        data.find((c) => c.channel === 'telegram' && c.status === 'verified') ??
+        data.find((c) => c.channel === 'telegram'),
       push: data.filter((c) => c.channel === 'push'),
     }),
   })
