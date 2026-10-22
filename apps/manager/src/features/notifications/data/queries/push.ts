@@ -17,6 +17,7 @@ import {
   getSubscriptionJsonResult,
   hashSubscriptionEndpointResult,
   isPushSupported,
+  PushSubscriptionError,
   registerServiceWorkerResult,
   requestNotificationPermissionResult,
   unsubscribeLocalPushSubscriptionResult,
@@ -71,6 +72,33 @@ const browserPushStateQuery = ResultFn(async function* () {
 
   const permission = yield* getPermissionStateResult()
   if (permission !== 'granted') {
+    // Notification permission does not gate reading a push subscription, so
+    // look for one that survived a previous session (the signature of a
+    // session-scoped grant that expired while the browser was closed — or of
+    // an existing install the user later revoked). Use getRegistration(),
+    // which resolves promptly even when no service worker exists, instead of
+    // register()/ready to avoid registering a worker for visitors who never
+    // enabled notifications (and waiting forever on those who have not).
+    const registration = yield* fromPromise(
+      navigator.serviceWorker.getRegistration(),
+      (cause) => new PushSubscriptionError({ cause }),
+    )
+    if (registration) {
+      const subscription = yield* fromPromise(
+        registration.pushManager.getSubscription(),
+        (cause) => new PushSubscriptionError({ cause }),
+      )
+      if (subscription?.endpoint) {
+        const endpointHash = yield* hashSubscriptionEndpointResult(
+          subscription.endpoint,
+        )
+        return ok({
+          isSupported: true,
+          permission,
+          endpointHash,
+        } satisfies BrowserPushState)
+      }
+    }
     return ok({
       isSupported: true,
       permission,

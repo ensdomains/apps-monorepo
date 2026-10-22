@@ -51,20 +51,21 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
       })
       browserState.refetch()
     },
-    onError: (error) => {
+    onError: async (error) => {
       console.error(error)
       const code = getPushErrorCode(error)
-      // Snapshot the browser state at failure time so the persistent alert
-      // can stop showing guidance that the user has already outrun (e.g.
-      // they changed the site permission in browser settings since then)
-      setLastEnableError({
-        code,
-        permission: browserState.data?.permission ?? 'default',
-        endpointHash: browserState.data?.endpointHash ?? null,
-      })
       const { title, description } = pushErrorCopy(code, 'enable')
       toast.error(title, { description })
-      browserState.refetch()
+      // Snapshot after the refetch: the failed attempt may itself have changed
+      // the browser state (the permission prompt has been answered during it),
+      // so anchoring the snapshot to the current state keeps the persistent
+      // alert's staleness gate meaningful
+      const refreshed = await browserState.refetch()
+      setLastEnableError({
+        code,
+        permission: refreshed.data?.permission ?? 'default',
+        endpointHash: refreshed.data?.endpointHash ?? null,
+      })
     },
   })
 

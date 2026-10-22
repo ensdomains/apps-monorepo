@@ -88,6 +88,7 @@ function stubPushEnvironment(options?: {
   requestPermission?: NotificationPermission
   subscription?: PushSubscription | null
   subscribeFn?: ReturnType<typeof vi.fn>
+  getRegistrationResolved?: unknown
 }) {
   const permission = options?.permission ?? 'granted'
   const requestResult = options?.requestPermission ?? permission
@@ -109,13 +110,20 @@ function stubPushEnvironment(options?: {
     },
   }
 
+  const registerFn = vi.fn().mockResolvedValue(registration)
+
   Object.defineProperty(navigator, 'serviceWorker', {
     value: {
-      register: vi.fn().mockResolvedValue(registration),
+      register: registerFn,
       ready: Promise.resolve(registration),
+      getRegistration: vi
+        .fn()
+        .mockResolvedValue(options?.getRegistrationResolved ?? undefined),
     },
     configurable: true,
   })
+
+  return { registerFn, registration }
 }
 
 describe('push query orchestration', () => {
@@ -147,6 +155,42 @@ describe('push query orchestration', () => {
     const result = await queryClient.fetchQuery(browserPushStateQueryOptions)
     expect(result).toEqual({
       isSupported: false,
+      permission: 'denied',
+      endpointHash: null,
+    })
+  })
+
+  it('browser state exposes a surviving subscription without granted permission', async () => {
+    // A subscription can outlive its (session-scoped) permission: reading it
+    // must not require re-registering a service worker
+    const { registerFn } = stubPushEnvironment({
+      permission: 'default',
+      subscription: createMockSubscription(),
+      getRegistrationResolved: {
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue(createMockSubscription()),
+        },
+      },
+    })
+
+    const queryClient = new QueryClient()
+    const result = await queryClient.fetchQuery(browserPushStateQueryOptions)
+    expect(result).toEqual({
+      isSupported: true,
+      permission: 'default',
+      endpointHash:
+        'c1858014ce0f52b202f1c8e38d6f0220c7de57d0ee157b8da1d9c08ca4a253a6',
+    })
+    expect(registerFn).not.toHaveBeenCalled()
+  })
+
+  it('browser state skips the subscription lookup when no worker exists', async () => {
+    stubPushEnvironment({ permission: 'denied' })
+
+    const queryClient = new QueryClient()
+    const result = await queryClient.fetchQuery(browserPushStateQueryOptions)
+    expect(result).toEqual({
+      isSupported: true,
       permission: 'denied',
       endpointHash: null,
     })
