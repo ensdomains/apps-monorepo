@@ -325,48 +325,48 @@ afterEach(() => {
 })
 
 describe('registrationV2UiMachine — committed approval retries', () => {
-  it.each([
-    true,
-    false,
-  ])('preserves the run after repeated approval rejection (transaction ID: %s)', (hasTransactionId) => {
-    const actor = startActorInTokens()
-    actor.send(
-      startEvent({
-        signer: { type: 'eoa' },
-        accountAddress: EOA_ADDRESS,
-        ownerAddress: EOA_ADDRESS,
-        walletClient: {},
-      } as unknown as SmartAccountContextValue),
-    )
-    const confirmedData = actor.getSnapshot().context.confirmedData
-    if (!hasTransactionId) {
-      sendToChild(actor, { type: 'FORCE_COMMITMENT_WITHOUT_TX_ID' })
-    }
-    sendToChild(actor, {
-      type: 'FORCE_ERROR',
-      error: new Error('approval rejected'),
-      retryTarget: 'approvingToken',
-    })
-    expect(actor.getSnapshot().matches('failure')).toBe(true)
+  it.each([true, false])(
+    'preserves the run after repeated approval rejection (transaction ID: %s)',
+    (hasTransactionId) => {
+      const actor = startActorInTokens()
+      actor.send(
+        startEvent({
+          signer: { type: 'eoa' },
+          accountAddress: EOA_ADDRESS,
+          ownerAddress: EOA_ADDRESS,
+          walletClient: {},
+        } as unknown as SmartAccountContextValue),
+      )
+      const confirmedData = actor.getSnapshot().context.confirmedData
+      if (!hasTransactionId) {
+        sendToChild(actor, { type: 'FORCE_COMMITMENT_WITHOUT_TX_ID' })
+      }
+      sendToChild(actor, {
+        type: 'FORCE_ERROR',
+        error: new Error('approval rejected'),
+        retryTarget: 'approvingToken',
+      })
+      expect(actor.getSnapshot().matches('failure')).toBe(true)
 
-    actor.send({ type: 'retry' })
-    expect(actor.getSnapshot().matches({ pricing: 'approving' })).toBe(true)
-    sendToChild(actor, {
-      type: 'FORCE_ERROR',
-      error: new Error('approval rejected again'),
-      retryTarget: 'approvingToken',
-    })
+      actor.send({ type: 'retry' })
+      expect(actor.getSnapshot().matches({ pricing: 'approving' })).toBe(true)
+      sendToChild(actor, {
+        type: 'FORCE_ERROR',
+        error: new Error('approval rejected again'),
+        retryTarget: 'approvingToken',
+      })
 
-    expect(actor.getSnapshot().matches('failure')).toBe(true)
-    expect(actor.getSnapshot().context.confirmedData).toEqual(confirmedData)
-    expect(getChild(actor).getSnapshot().context.commitmentTxId).toBe(
-      hasTransactionId ? 'tx-commit' : undefined,
-    )
-    actor.send({ type: 'retry' })
-    sendToChild(actor, { type: 'FORCE_APPROVAL_SUCCESS' })
-    expect(actor.getSnapshot().matches('registering')).toBe(true)
-    actor.stop()
-  })
+      expect(actor.getSnapshot().matches('failure')).toBe(true)
+      expect(actor.getSnapshot().context.confirmedData).toEqual(confirmedData)
+      expect(getChild(actor).getSnapshot().context.commitmentTxId).toBe(
+        hasTransactionId ? 'tx-commit' : undefined,
+      )
+      actor.send({ type: 'retry' })
+      sendToChild(actor, { type: 'FORCE_APPROVAL_SUCCESS' })
+      expect(actor.getSnapshot().matches('registering')).toBe(true)
+      actor.stop()
+    },
+  )
 })
 
 describe('registrationV2UiMachine — HCA approval-signer guard', () => {
