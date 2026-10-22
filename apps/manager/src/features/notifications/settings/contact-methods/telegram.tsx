@@ -5,7 +5,6 @@ import {
 } from '@radix-ui/react-alert-dialog'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { match, P } from 'ts-pattern'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -18,37 +17,62 @@ import {
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
-  addTelegramChannelMutationOptions,
   type Channel,
   deleteChannelMutationOptions,
-  telegramAuthMutationOptions,
 } from '@/features/notifications/data/queries/channels'
+import { useTelegramLogin } from '@/features/notifications/hooks/useTelegramLogin'
 import { ContactMethodCard } from './contact-method-card'
-
-const TELEGRAM_BOT_USERNAME = '@ens_earl_bot'
 
 export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
   const { t } = useLingui()
 
-  const addTelegramChannelMutation = useMutation({
-    ...addTelegramChannelMutationOptions,
-    onSuccess: () => {
-      toast.success(t`Telegram channel added`)
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t`Failed to add Telegram channel`)
-    },
-  })
-
-  const telegramAuthMutation = useMutation({
-    ...telegramAuthMutationOptions,
-    onSuccess: (authData) => {
-      addTelegramChannelMutation.mutate({ auth_data: authData })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t`Failed to authenticate with Telegram`)
-    },
-  })
+  const login = useTelegramLogin()
+  const loginStatus = (
+    <div aria-live="polite" className="space-y-2 text-sm">
+      {(login.starting || login.pending) && (
+        <p>
+          <Trans>
+            Finish connecting in the Telegram tab. You can keep using ENS
+            Manager.
+          </Trans>
+        </p>
+      )}
+      {login.authorizationUrl && (
+        <a
+          className="text-[#54A9EC] underline"
+          href={login.authorizationUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <Trans>Open Telegram</Trans>
+        </a>
+      )}
+      {login.pending && (
+        <Button
+          disabled={login.cancelling}
+          onClick={login.cancel}
+          size="sm"
+          variant="outline"
+        >
+          <Trans>Cancel connection</Trans>
+        </Button>
+      )}
+      {login.expired && (
+        <p>
+          <Trans>Telegram login expired. Please try again.</Trans>
+        </p>
+      )}
+      {login.attempt?.status === 'failed' && (
+        <p>
+          <Trans>
+            Could not connect Telegram. Please try again and allow the bot to
+            send messages.
+          </Trans>
+        </p>
+      )}
+      {login.error && <p className="text-destructive">{login.error.message}</p>}
+    </div>
+  )
 
   const deleteMutation = useMutation({
     ...deleteChannelMutationOptions,
@@ -62,9 +86,6 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       toast.success(t`Telegram channel removed`, {
         id: `remove-telegram-${id}`,
       })
-
-      telegramAuthMutation.reset()
-      addTelegramChannelMutation.reset()
     },
     onError: (error: Error, id) => {
       toast.error(error.message || t`Failed to remove Telegram channel`, {
@@ -74,38 +95,10 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
   })
 
   if (!telegram) {
-    const isPending =
-      telegramAuthMutation.isPending || addTelegramChannelMutation.isPending
-
-    const statusMessage = match({
-      authPending: telegramAuthMutation.isPending,
-      error: telegramAuthMutation.error ?? addTelegramChannelMutation.error,
-      addPending: addTelegramChannelMutation.isPending,
-    })
-      .with({ authPending: true }, () => (
-        <p className="text-[#45556C] text-sm leading-ens-normal">
-          <Trans>Please sign in to telegram in the popup window.</Trans>
-        </p>
-      ))
-      .with({ addPending: true }, () => (
-        <p className="text-[#45556C] text-sm leading-ens-normal">
-          <Trans>Adding telegram...</Trans>
-        </p>
-      ))
-      .with({ error: P.not(P.nullish) }, ({ error }) => (
-        <p className="text-destructive text-sm leading-ens-normal">
-          <span className="font-medium">
-            <Trans>Failed to add telegram: </Trans>
-          </span>
-          <span>{error.message}</span>
-        </p>
-      ))
-      .otherwise(() => null)
-
     return (
       <ContactMethodCard
         actionLabel={t`Telegram Notifications`}
-        actionLoading={isPending}
+        actionLoading={login.starting || login.pending}
         description={t`Get instant updates through Telegram for your domains.`}
         icon={
           <MSymbol
@@ -113,10 +106,10 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
             symbol="message"
           />
         }
-        onAction={() => telegramAuthMutation.mutate()}
+        onAction={login.connect}
         variant="tg"
       >
-        {statusMessage}
+        {loginStatus}
       </ContactMethodCard>
     )
   }
@@ -175,10 +168,10 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
         </AlertDialog>
       }
       description={
-        telegram.status === 'disabled' ? (
-          <Trans>Bot access needed</Trans>
-        ) : (
+        telegram.status === 'verified' ? (
           <Trans>Connected</Trans>
+        ) : (
+          <Trans>Bot access needed</Trans>
         )
       }
       icon={
@@ -189,22 +182,16 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       }
       title={<Trans>Telegram</Trans>}
     >
-      {telegram.status === 'disabled' && (
-        <p className="text-[#45556C] text-sm leading-ens-normal">
-          <Trans>
-            To finish connecting Telegram, you need to{' '}
-            <a
-              className="text-[#54A9EC] underline hover:text-[#357bb8]"
-              href={`https://t.me/${TELEGRAM_BOT_USERNAME.replace(/^@/, '')}?start`}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              start the ENS Notifications Bot
-            </a>{' '}
-            in Telegram.
-          </Trans>
-        </p>
+      {telegram.status !== 'verified' && (
+        <Button
+          disabled={login.starting || login.pending}
+          onClick={login.connect}
+          variant="outline"
+        >
+          <Trans>Reconnect Telegram</Trans>
+        </Button>
       )}
+      {loginStatus}
     </ContactMethodCard>
   )
 }

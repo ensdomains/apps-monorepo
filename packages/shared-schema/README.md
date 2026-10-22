@@ -5,13 +5,11 @@ Runtime shared schemas, constants, and derived types used by both manager and ap
 ## Modules
 
 - `@ens-apps/shared-schema/notifications`
-- `@ens-apps/shared-schema/telegram`
 
 ## Purpose
 
 - One canonical runtime source for notification kinds and payload schemas
 - Shared notification definitions for frontend/backend consumption
-- Shared telegram auth schema/type
 
 ## Notifications Glossary
 

@@ -9,6 +9,7 @@ import {
   toPublicChannel,
 } from '#services/notifications/helpers.js'
 import { deleteContact, searchContact } from '#services/sendgrid/contacts.js'
+import { removeTelegramChannel } from '#services/telegram/attempts.js'
 import { logger } from '#utils/logger.js'
 
 export default createApp()
@@ -67,9 +68,21 @@ export default createApp()
       return c.json({ error: 'Channel not found' }, 404)
     }
 
-    await c.var.db
+    const removeChannel = c.var.db
       .delete(TABLE.userChannels)
       .where(eq(TABLE.userChannels.id, channelId))
+    if (channel.channel === 'telegram') {
+      const removed = await removeTelegramChannel(c.var.db, userId, channelId)
+      if (removed.isErr()) {
+        logger.error('Telegram channel removal failed', {
+          channelId,
+          errorTag: removed.error._tag,
+        })
+        return c.json({ error: 'Failed to remove Telegram channel' }, 500)
+      }
+    } else {
+      await removeChannel
+    }
 
     // SendGrid marketing contacts are keyed by email, so another account may
     // still need this contact after this channel is removed.
