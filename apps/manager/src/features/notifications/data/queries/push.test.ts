@@ -22,11 +22,18 @@ vi.mock('@/utils/backend-client', () => ({
   },
 }))
 
+import {
+  PushSubscriptionError,
+  ServiceWorkerRegistrationError,
+} from '@/features/notifications/services/push'
 import { backendClient } from '@/utils/backend-client'
 import {
   browserPushStateQueryOptions,
   disableBrowserPushMutationOptions,
   enableBrowserPushMutationOptions,
+  getPushErrorCode,
+  PushChannelRequestError,
+  PushPermissionDeniedError,
 } from './push'
 
 const mockVapidGet = vi.mocked(
@@ -294,5 +301,119 @@ describe('push query orchestration', () => {
       _tag: 'PushChannelRequestError',
     })
     expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+  })
+})
+
+describe('getPushErrorCode', () => {
+  const makeCause = (name: string, message: string) => {
+    const cause = new Error(message)
+    cause.name = name
+    return cause
+  }
+
+  const withBrave = <T>(run: () => T): T => {
+    Object.defineProperty(navigator, 'brave', {
+      value: {},
+      configurable: true,
+    })
+    try {
+      return run()
+    } finally {
+      delete (navigator as { brave?: unknown }).brave
+    }
+  }
+
+  it('detects Brave with its push service disabled', () => {
+    // Brave rejects subscribe() with NotAllowedError when "Use Google
+    // services for push messaging" is turned off
+    const code = withBrave(() =>
+      getPushErrorCode(
+        new PushSubscriptionError({
+          cause: makeCause(
+            'NotAllowedError',
+            'Registration failed - push service error',
+          ),
+        }),
+      ),
+    )
+    expect(code).toBe('brave-push-disabled')
+  })
+
+  it('maps push service errors to unavailable when the browser is not Brave', () => {
+    const error = new PushSubscriptionError({
+      cause: makeCause(
+        'AbortError',
+        'Registration failed - no push service available',
+      ),
+    })
+    expect(getPushErrorCode(error)).toBe('push-service-unavailable')
+  })
+
+  it('maps an error caused by cancelled push service to unavailable', () => {
+    const error = new PushSubscriptionError({
+      cause: new DOMException(
+        'Registration failed - push service unavailable',
+        'AbortError',
+      ),
+    })
+    expect(getPushErrorCode(error)).toBe('push-service-unavailable')
+  })
+
+  it('maps blocked subscribe permission to browser-blocked', () => {
+    const error = new PushSubscriptionError({
+      cause: makeCause(
+        'NotAllowedError',
+        'Permission for notifications denied',
+      ),
+    })
+    expect(getPushErrorCode(error)).toBe('browser-blocked')
+  })
+
+  it('maps our subscribe timeout error to subscription-timeout', () => {
+    const error = new PushSubscriptionError({
+      cause: new Error(
+        'PushManager.subscribe did not return within timeout period',
+      ),
+    })
+    expect(getPushErrorCode(error)).toBe('subscription-timeout')
+  })
+
+  it('maps invalid application server keys to invalid-server-key', () => {
+    const error = new PushSubscriptionError({
+      cause: makeCause('TypeError', 'Invalid applicationServerKey'),
+    })
+    expect(getPushErrorCode(error)).toBe('invalid-server-key')
+  })
+
+  it('maps denied and unanswered permission outcomes differently', () => {
+    expect(
+      getPushErrorCode(new PushPermissionDeniedError({ permission: 'denied' })),
+    ).toBe('browser-blocked')
+    expect(
+      getPushErrorCode(
+        new PushPermissionDeniedError({ permission: 'default' }),
+      ),
+    ).toBe('permission-dismissed')
+  })
+
+  it('maps known tags to their codes without inspecting causes', () => {
+    expect(
+      getPushErrorCode(
+        new ServiceWorkerRegistrationError({ cause: undefined }),
+      ),
+    ).toBe('service-worker')
+    expect(
+      getPushErrorCode(
+        new PushChannelRequestError({ cause: new Error('500') }),
+      ),
+    ).toBe('server')
+    expect(getPushErrorCode({ _tag: 'PushNotSupportedError' })).toBe(
+      'not-supported',
+    )
+  })
+
+  it('returns unknown for unrecognised errors', () => {
+    expect(getPushErrorCode(null)).toBe('unknown')
+    expect(getPushErrorCode(new Error('regular error'))).toBe('unknown')
   })
 })

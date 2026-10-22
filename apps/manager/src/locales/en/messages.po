@@ -475,6 +475,14 @@ msgid "Bot access needed"
 msgstr "Bot access needed"
 
 #: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
+msgstr "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Brave's push service is turned off"
+msgstr "Brave's push service is turned off"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Browser Notifications"
 msgstr "Browser Notifications"
 
@@ -816,6 +824,14 @@ msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
 msgstr "Couldn’t check when this name expires, so editing is paused until it can be read."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Couldn't disable notifications"
+msgstr "Couldn't disable notifications"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Couldn't enable notifications"
+msgstr "Couldn't enable notifications"
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
@@ -1677,6 +1693,10 @@ msgstr "No names to display"
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "No push service is available in this browser"
+msgstr "No push service is available in this browser"
+
 #: src/features/navigation/Header/search/SearchSuggestions.tsx
 msgid "No recent searches"
 msgstr "No recent searches"
@@ -1733,13 +1753,29 @@ msgstr "Notification Settings"
 msgid "Notifications"
 msgstr "Notifications"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications are blocked for this site"
+msgstr "Notifications are blocked for this site"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications are misconfigured"
+msgstr "Notifications are misconfigured"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
 msgstr "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications aren't supported in this browser"
+msgstr "Notifications aren't supported in this browser"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications couldn't be set up"
+msgstr "Notifications couldn't be set up"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "One approval covers all the .eth names you selected."
@@ -2482,6 +2518,10 @@ msgstr "Setting the default wallet address on your name"
 msgid "Setting things up"
 msgstr "Setting things up"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Setting up notifications timed out"
+msgstr "Setting up notifications timed out"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting up registration"
 msgstr "Setting up registration"
@@ -2607,6 +2647,14 @@ msgstr "Something went wrong"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Something went wrong preparing the save. Please try again."
 msgstr "Something went wrong preparing the save. Please try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Something went wrong while setting up browser notifications. Please try again."
+msgstr "Something went wrong while setting up browser notifications. Please try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Something went wrong while turning off browser notifications. Please try again."
+msgstr "Something went wrong while turning off browser notifications. Please try again."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Refresh and try again."
@@ -2786,6 +2834,18 @@ msgstr "The mint transaction was cancelled. You can try minting again."
 msgid "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 msgstr "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "The notification prompt was blocked"
+msgstr "The notification prompt was blocked"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "The notification prompt was dismissed"
+msgstr "The notification prompt was dismissed"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "The notification service returned an invalid key. Please try again later."
+msgstr "The notification service returned an invalid key. Please try again later."
+
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr "The page you're looking for doesn't exist or may have been moved."
@@ -2831,13 +2891,25 @@ msgstr "The session wasn't enabled."
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "There was a problem reaching the notification service. Please try again in a moment."
+msgstr "There was a problem reaching the notification service. Please try again in a moment."
+
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "These names can't be upgraded"
 msgstr "These names can't be upgraded"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
+msgstr "This app needs its notification service worker to receive push messages. Reload the page and try again."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 msgstr "This browser cannot safely coordinate your mint. Try an up-to-date browser."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
+msgstr "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
@@ -2900,6 +2972,10 @@ msgid "To enable these features later, open your wallet menu and select Verify w
 msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
+msgid "To enable, go to your browser's site settings for this page and allow notifications, then try again."
+msgstr "To enable, go to your browser's site settings for this page and allow notifications, then try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
 
@@ -2956,6 +3032,10 @@ msgstr "Try again"
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Try Again"
 msgstr "Try Again"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Try again and allow notifications when your browser asks."
+msgstr "Try again and allow notifications when your browser asks."
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
@@ -3444,6 +3524,18 @@ msgstr "Your account"
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account could not be checked. Please try again."
 msgstr "Your account could not be checked. Please try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
+msgstr "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
+msgstr "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Your browser took too long to register for push messages. Check your connection, then try again."
+msgstr "Your browser took too long to register for push messages. Check your connection, then try again."
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."

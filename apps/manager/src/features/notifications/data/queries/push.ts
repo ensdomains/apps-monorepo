@@ -20,6 +20,7 @@ import {
   requestNotificationPermissionResult,
   unsubscribeLocalPushSubscriptionResult,
 } from '@/features/notifications/services/push'
+import type { PushErrorCode } from '@/features/notifications/types/push'
 import { backendClient } from '@/utils/backend-client'
 
 export type BrowserPushState = {
@@ -28,13 +29,18 @@ export type BrowserPushState = {
   endpointHash: string | null
 }
 
-class PushChannelRequestError extends TaggedError('PushChannelRequestError')<{
+export class PushChannelRequestError extends TaggedError(
+  'PushChannelRequestError',
+)<{
   cause: unknown
 }> {}
 
-class PushPermissionDeniedError extends TaggedError(
+export class PushPermissionDeniedError extends TaggedError(
   'PushPermissionDeniedError',
-) {}
+)<{
+  /** The resulting permission state that prevented enabling notifications. */
+  permission: NotificationPermission
+}> {}
 
 export class ChannelNotFoundForEndpointError extends TaggedError(
   'ChannelNotFoundForEndpointError',
@@ -175,9 +181,7 @@ const enableBrowserPushResult = ResultFn(async function* () {
 
   const permission = yield* requestNotificationPermissionResult()
   if (permission !== 'granted') {
-    return yield* new PushPermissionDeniedError({
-      message: 'Permission denied',
-    })
+    return yield* new PushPermissionDeniedError({ permission })
   }
 
   const vapidPublicKey = yield* getVapidPublicKeyResult()
@@ -246,3 +250,101 @@ export const disableBrowserPushMutationOptions = (queryClient: QueryClient) =>
       invalidates: [qk('channels', 'list'), qk('preferences', 'list')],
     },
   })
+
+const PUSH_SUBSCRIBE_TIMEOUT_PATTERN = /did not return within timeout period/i
+
+/**
+ * Brave ships with the "Use Google services for push messaging" option turned
+ * off, which makes `pushManager.subscribe()` reject with a push service error.
+ * The Brave runtime exposes `navigator.brand`-style internals only through
+ * `navigator.brave`, so its presence is the signal we use. Brave's user agent
+ * still looks exactly like Chrome's, so it cannot be detected from the UA.
+ */
+const isBraveBrowser = () =>
+  typeof navigator !== 'undefined' && 'brave' in navigator
+
+const causeToPushErrorCode = (cause: unknown): PushErrorCode => {
+  const name = cause instanceof Error ? cause.name : undefined
+  const message = cause instanceof Error ? cause.message : ''
+
+  // "PushManager.subscribe did not return within timeout period" (our own
+  // 15s watchdog in createPushSubscriptionResult)
+  if (PUSH_SUBSCRIBE_TIMEOUT_PATTERN.test(message)) {
+    return 'subscription-timeout'
+  }
+
+  // Chromium-based browsers reject subscription attempts with e.g.
+  // "Registration failed - push service error" (Brave) or
+  // "Registration failed - no push service available" (Chromium without a
+  // reachable push backend), regardless of the DOMException name.
+  if (/push service/i.test(message)) {
+    return isBraveBrowser() ? 'brave-push-disabled' : 'push-service-unavailable'
+  }
+
+  switch (name) {
+    case 'NotAllowedError':
+      return 'browser-blocked'
+    case 'NotSupportedError':
+    case 'SecurityError':
+      return 'not-supported'
+    case 'InvalidStateError':
+      return 'service-worker'
+    case 'InvalidAccessError':
+    case 'TypeError':
+      // e.g. "Invalid applicationServerKey" — the browser rejected the key
+      // the backend handed out
+      return 'invalid-server-key'
+    case 'AbortError':
+      return 'push-service-unavailable'
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Maps any error raised while enabling/disabling browser push to a
+ * machine-readable {@link PushErrorCode}, so the UI can show specific,
+ * actionable guidance (e.g. how to re-enable Brave's push service) instead of
+ * a generic failure message or a raw error tag.
+ */
+export const getPushErrorCode = (error: unknown): PushErrorCode => {
+  const taggedError = error as
+    | (Error & {
+        _tag?: string
+        cause?: unknown
+        permission?: NotificationPermission
+      })
+    | undefined
+    | null
+
+  if (!taggedError || typeof taggedError._tag !== 'string') {
+    return 'unknown'
+  }
+
+  switch (taggedError._tag) {
+    case 'PushNotSupportedError':
+      return 'not-supported'
+    case 'PushPermissionRequestError':
+      // e.g. some browsers throw NotAllowedError when the permission prompt
+      // cannot be shown (no user gesture, prompt blocked by the browser)
+      return 'request-blocked'
+    case 'PushPermissionDeniedError':
+      // Browsers report 'default' when the prompt goes unanswered
+      // (dismissed/ignored), and 'denied' after an explicit block
+      return taggedError.permission === 'denied'
+        ? 'browser-blocked'
+        : 'permission-dismissed'
+    case 'ServiceWorkerRegistrationError':
+      return 'service-worker'
+    case 'PushChannelRequestError':
+      return 'server'
+    case 'ChannelNotFoundForEndpointError':
+      // The backend no longer knows this subscription; treat it like any
+      // other backend inconsistency
+      return 'server'
+    default:
+      return taggedError.cause
+        ? causeToPushErrorCode(taggedError.cause)
+        : 'unknown'
+  }
+}
