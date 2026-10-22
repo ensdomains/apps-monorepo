@@ -15,7 +15,7 @@ describe('coins', () => {
       expect(coin).toMatchObject({
         name: 'default',
         coinType: DEFAULT_EVM_COIN_TYPE,
-        icon: '/icons/Link.svg',
+        icon: null,
       })
       // address-encoder calls it "Default", which would render as
       // "DEFAULT (Default)" in the picker.
@@ -52,13 +52,7 @@ describe('coins', () => {
       expect(coinsWithIcons.length).toBeGreaterThan(0)
 
       for (const coin of coinsWithIcons) {
-        // Coin art lives in /address; the ENSIP-19 default entry reuses the
-        // chain-link glyph the resolution tables give it.
-        expect(coin.icon).toMatch(
-          coin.name === 'default'
-            ? /^\/icons\/\w+\.svg$/
-            : /^\/address\/\w+Icon\.svg$/,
-        )
+        expect(coin.icon).toMatch(/^\/address\/\w+Icon\.svg$/)
       }
     })
 

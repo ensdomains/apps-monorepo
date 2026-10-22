@@ -201,15 +201,6 @@ function getLongName(coinName: string): string {
 }
 
 /**
- * Icons for picker entries that are not coin art in `/address`. The ENSIP-19
- * default record is not a chain, so it reuses the glyph the resolution tables
- * use for it.
- */
-const COIN_ICON_OVERRIDES: Partial<Record<string, string>> = {
-  default: '/icons/Link.svg',
-}
-
-/**
  * Build the full coin configuration for a coin name
  */
 function buildCoinConfig(coinName: string): CoinConfig | null {
@@ -220,7 +211,7 @@ function buildCoinConfig(coinName: string): CoinConfig | null {
     name: coinName,
     longName: getLongName(coinName),
     coinType,
-    icon: COIN_ICON_OVERRIDES[coinName] ?? getIconPath(coinName),
+    icon: getIconPath(coinName),
   }
 }
 
