@@ -23,7 +23,11 @@ import {
 import { useTelegramLogin } from '@/features/notifications/hooks/useTelegramLogin'
 import { ContactMethodCard } from './contact-method-card'
 
-export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
+export const TelegramContactMethod = ({
+  telegram,
+}: {
+  readonly telegram?: Channel
+}) => {
   const { t } = useLingui()
 
   const login = useTelegramLogin()
@@ -39,7 +43,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       )}
       {login.authorizationUrl && (
         <a
-          className="text-[#54A9EC] underline"
+          className="text-ens-lapis-core underline"
           href={login.authorizationUrl}
           rel="noopener noreferrer"
           target="_blank"
@@ -52,6 +56,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
           disabled={login.isCancelling}
           onClick={login.cancel}
           size="sm"
+          type="button"
           variant="outline"
         >
           <Trans>Cancel connection</Trans>
@@ -194,6 +199,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
         <Button
           disabled={login.isStarting || login.isPending}
           onClick={login.connect}
+          type="button"
           variant="outline"
         >
           <Trans>Reconnect Telegram</Trans>

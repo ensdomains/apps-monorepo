@@ -8,8 +8,11 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TelegramAttempt } from '@/features/notifications/utils/telegram/login'
-import { backendAuthStore } from '@/utils/backend-client'
-import { useTelegramLogin } from './useTelegramLogin'
+import { backendAuthStore, getBackendApiBaseUrl } from '@/utils/backend-client'
+import {
+  getTelegramLoginQueryOptions,
+  useTelegramLogin,
+} from './useTelegramLogin'
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), cancel: vi.fn() }))
 vi.mock('@/utils/backend-client', async (original) => ({
@@ -72,6 +75,23 @@ describe('shared Telegram login lifecycle', () => {
     focusManager.setFocused(undefined)
     vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  it('fetches status outside React and refreshes channels when complete', async () => {
+    attempt = attempt && { ...attempt, status: 'completed' }
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    const result = await client.fetchQuery(
+      getTelegramLoginQueryOptions({
+        address: '0x123',
+        baseUrl: getBackendApiBaseUrl(),
+        isAuthenticated: true,
+        queryClient: client,
+      }),
+    )
+    expect(result).toEqual({ attempt })
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: qk('channels', 'list'),
+    })
   })
 
   it('recovers pending status after remount without browser storage or an opener', async () => {

@@ -3,7 +3,12 @@ import {
   resultQueryOptions,
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useEffect, useState } from 'react'
 import {
@@ -16,35 +21,48 @@ import {
 } from '@/features/notifications/utils/telegram/login'
 import { backendAuthStore, getBackendApiBaseUrl } from '@/utils/backend-client'
 
+export const getTelegramLoginQueryOptions = ({
+  address,
+  baseUrl,
+  isAuthenticated,
+  queryClient,
+}: {
+  readonly address: string | undefined
+  readonly baseUrl: string
+  readonly isAuthenticated: boolean
+  readonly queryClient: QueryClient
+}) =>
+  resultQueryOptions({
+    queryKey: qk('telegram_login', 'current', { address, baseUrl }),
+    queryFn: ({ signal }) =>
+      getTelegramLoginStatus(signal).map((result) => {
+        if (result.attempt?.status === 'completed') {
+          void queryClient.invalidateQueries({
+            queryKey: qk('channels', 'list'),
+          })
+        }
+        return result
+      }),
+    enabled: isAuthenticated,
+    retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
+    refetchInterval: (query) => telegramPollInterval(query.state.data?.attempt),
+    meta: { dependsOn: ['backend'] },
+  })
+
 export const useTelegramLogin = () => {
   const auth = useSelector(backendAuthStore, (state) => state.context)
   const queryClient = useQueryClient()
-  const queryKey = qk('telegram_login', 'current', {
+  const queryOptions = getTelegramLoginQueryOptions({
     address: auth.address,
     baseUrl: getBackendApiBaseUrl(),
+    isAuthenticated: Boolean(auth.authKey),
+    queryClient,
   })
+  const { queryKey } = queryOptions
   const [, setNow] = useState(Date.now)
-  const status = useQuery(
-    resultQueryOptions({
-      queryKey,
-      queryFn: ({ signal }) =>
-        getTelegramLoginStatus(signal).map((result) => {
-          if (result.attempt?.status === 'completed') {
-            void queryClient.invalidateQueries({
-              queryKey: qk('channels', 'list'),
-            })
-          }
-          return result
-        }),
-      enabled: Boolean(auth.authKey),
-      retry: false,
-      staleTime: 0,
-      refetchOnWindowFocus: 'always',
-      refetchInterval: (query) =>
-        telegramPollInterval(query.state.data?.attempt),
-      meta: { dependsOn: ['backend'] },
-    }),
-  )
+  const status = useQuery(queryOptions)
   const attempt = status.data?.attempt
   const phase = getTelegramLoginPhase(attempt)
   const isPending = phase === 'pending'

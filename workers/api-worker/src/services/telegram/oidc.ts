@@ -111,11 +111,11 @@ export const verifyTelegramIdToken = (
   })
 
 export const exchangeTelegramCode = ResultFn(async function* (params: {
-  clientId: string
-  clientSecret: string
-  code: string
-  codeVerifier: string
-  redirectUri: string
+  readonly clientId: string
+  readonly clientSecret: string
+  readonly code: string
+  readonly codeVerifier: string
+  readonly redirectUri: string
 }) {
   const credentials = yield* fromSync(
     () => btoa(`${params.clientId}:${params.clientSecret}`),

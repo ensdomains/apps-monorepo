@@ -45,11 +45,11 @@ const logFailure = (
 }
 
 // Dynamic provider errors and tokens stay out of HTML, logs and responses.
-const callbackPage = (success: boolean) => html`<!doctype html>
+const callbackPage = (isSuccess: boolean) => html`<!doctype html>
   <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ENS Telegram notifications</title></head>
-  <body><main><h1>${success ? 'Telegram connected' : 'Telegram connection unsuccessful'}</h1>
-  <p>${success ? 'Your Telegram is ready to receive ENS notifications.' : 'The connection expired, was cancelled, or could not be completed. Please return to ENS Manager and try again, allowing the bot to send messages.'}</p>
+  <body><main><h1>${isSuccess ? 'Telegram connected' : 'Telegram connection unsuccessful'}</h1>
+  <p>${isSuccess ? 'Your Telegram is ready to receive ENS notifications.' : 'The connection expired, was cancelled, or could not be completed. Please return to ENS Manager and try again, allowing the bot to send messages.'}</p>
   <p>You can close this tab and return to your original ENS Manager tab.</p></main></body></html>`
 
 export default createApp()

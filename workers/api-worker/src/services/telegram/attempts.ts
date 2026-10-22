@@ -18,13 +18,17 @@ export const handleTelegramMessagingRefusal = (
   db: Database,
   attemptId: string,
   target: string,
-  error: { code: string; errorCode?: number; message?: string },
+  error: {
+    readonly code: string
+    readonly errorCode?: number
+    readonly message?: string
+  },
 ) => {
-  const forbidden = error.errorCode === 403
-  const permanent =
+  const isForbidden = error.errorCode === 403
+  const isPermanent =
     classifyDeliveryError('telegram', error.message ?? '').category ===
     'hard_bounce'
-  if (!forbidden && !permanent) return okAsync(undefined)
+  if (!isForbidden && !isPermanent) return okAsync(undefined)
   // Serialize with cancellation/replacement before updating the channel. If
   // either wins the attempt lock first, this refusal cannot affect its successor.
   const currentAttempt = db.$with('current_attempt').as(
@@ -46,7 +50,7 @@ export const handleTelegramMessagingRefusal = (
       .update(TABLE.userChannels)
       .set({
         status: 'disabled',
-        status_reason: forbidden
+        status_reason: isForbidden
           ? 'FORBIDDEN_BY_TELEGRAM'
           : 'TELEGRAM_DELIVERY_UNAVAILABLE',
       })
