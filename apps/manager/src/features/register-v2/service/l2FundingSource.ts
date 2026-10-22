@@ -63,11 +63,16 @@ export const getL2FundingSource = (
       })
       if (allowance >= amount) return
       const wallet = await sourceWalletClient(owner, source)
+      // Left to price it, a wallet caps the fee at the current base fee, which
+      // Arbitrum Sepolia's next block often tops. Only the base fee is charged.
+      const fees = await client.estimateFeesPerGas()
       const hash = await wallet.writeContract({
         address: source.usdc,
         abi: erc20Abi,
         functionName: 'approve',
         args: [PERMIT2_ADDRESS, maxUint256],
+        maxFeePerGas: fees.maxFeePerGas,
+        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
       })
       const receipt = await client.waitForTransactionReceipt({ hash })
       if (receipt.status !== 'success') {
