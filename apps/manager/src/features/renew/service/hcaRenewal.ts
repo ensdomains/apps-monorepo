@@ -10,7 +10,6 @@ import {
   type RhinestoneTransactionRequest,
   transactionManager,
   waitForTransaction,
-  waitForTransactionHash,
 } from '@ens-apps/transaction-manager'
 import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import {
@@ -103,8 +102,9 @@ export interface SubmitHcaRenewalParams {
   /** Called with the transaction-manager id as soon as the record exists, so the UI can track it. */
   readonly onTxId?: (txId: string) => void
   /**
-   * Called once the owner has signed and the intent is with the orchestrator:
-   * nothing is left to approve, so a payment dialog can hand over to progress.
+   * Called once the owner has signed and the orchestrator holds the intent,
+   * before the fill: nothing is left to approve, so a payment dialog can hand
+   * over to progress.
    */
   readonly onSubmitted?: (txId: string) => void
   /**
@@ -366,6 +366,9 @@ export async function submitHcaRenewal(
     purpose: RENEWAL_PERMIT_PURPOSE,
   })
 
+  // Assigned by `startTransaction` below; the transport reports the submitted
+  // intent only after that returns.
+  let txId: string | undefined
   const request: RhinestoneTransactionRequest = {
     type: 'rhinestone-intent',
     from: hca,
@@ -377,6 +380,11 @@ export async function submitHcaRenewal(
       ...(funding.auxiliaryFunds
         ? { auxiliaryFunds: funding.auxiliaryFunds }
         : {}),
+      // Fires once the owner has signed and the orchestrator holds the
+      // intent, before the fill: nothing is left to approve from here.
+      onIntentSubmitted: () => {
+        if (txId) onSubmitted?.(txId)
+      },
     },
   }
 
@@ -384,7 +392,7 @@ export async function submitHcaRenewal(
     ? `Renew ${single.label}.eth`
     : `Renew ${items.length} names`
 
-  const txId = transactionManager.startTransaction(
+  txId = transactionManager.startTransaction(
     { type: 'custom', request },
     ownerSigner,
     {
@@ -395,11 +403,6 @@ export async function submitHcaRenewal(
     },
   )
   onTxId?.(txId)
-
-  // The hash lands once the signed intent is submitted; the signature prompt
-  // sits between here and there.
-  await waitForTransactionHash(txId)
-  onSubmitted?.(txId)
 
   // The transport resolves the tx once the intent has FILLED, so awaiting here
   // means callers can treat a resolved promise as "renewed", not "submitted".

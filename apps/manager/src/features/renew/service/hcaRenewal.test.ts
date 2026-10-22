@@ -15,7 +15,6 @@ const mocks = vi.hoisted(() => ({
   planHcaIntentFunding: vi.fn(),
   startTransaction: vi.fn(),
   waitForTransaction: vi.fn(),
-  waitForTransactionHash: vi.fn(),
   getSmartAccountAddress: vi.fn(),
 }))
 
@@ -28,7 +27,6 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   planHcaIntentFunding: mocks.planHcaIntentFunding,
   transactionManager: { startTransaction: mocks.startTransaction },
   waitForTransaction: mocks.waitForTransaction,
-  waitForTransactionHash: mocks.waitForTransactionHash,
 }))
 
 vi.mock(
@@ -100,7 +98,6 @@ beforeEach(() => {
   mocks.getSmartAccountAddress.mockReturnValue(HCA)
   mocks.startTransaction.mockReturnValue('tx-1')
   mocks.waitForTransaction.mockResolvedValue(undefined)
-  mocks.waitForTransactionHash.mockResolvedValue('0xhash')
   mocks.planHcaIntentFunding.mockImplementation(async ({ calls }: any) => ({
     calls,
     quotedFeeUsdc: 900_000n,
@@ -304,17 +301,21 @@ describe('submitHcaRenewal', () => {
     })
   })
 
-  it('reports the tx id as soon as the record exists, and submission once the hash lands', async () => {
+  it('reports the tx id as soon as the record exists, and submission when the transport says so', async () => {
     const onTxId = vi.fn()
     const onSubmitted = vi.fn()
-    mocks.waitForTransactionHash.mockImplementation(async () => {
-      expect(onTxId).toHaveBeenCalledWith('tx-1')
+    mocks.waitForTransaction.mockImplementation(async () => {
+      // The transport fires this after the signature, before the fill.
       expect(onSubmitted).not.toHaveBeenCalled()
-      return '0xhash'
+      const [{ request }] = mocks.startTransaction.mock.calls[0] as [
+        { request: { rhinestoneParams: { onIntentSubmitted?: () => void } } },
+      ]
+      request.rhinestoneParams.onIntentSubmitted?.()
     })
 
     await submitHcaRenewal({ ...params, onTxId, onSubmitted })
 
+    expect(onTxId).toHaveBeenCalledWith('tx-1')
     expect(onSubmitted).toHaveBeenCalledWith('tx-1')
   })
 
