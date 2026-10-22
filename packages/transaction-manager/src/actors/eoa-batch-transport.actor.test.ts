@@ -98,7 +98,8 @@ describe('getAtomicBatchSupport', () => {
 
   it.each([
     ['supported', true],
-    ['ready', true],
+    // `ready` would make our send prompt an EIP-7702 upgrade of the EOA.
+    ['ready', false],
     ['unsupported', false],
   ])('reads atomic status %s as %s', async (status, expected) => {
     await expect(

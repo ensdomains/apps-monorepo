@@ -20,10 +20,10 @@ import { resolveEOAWalletChain } from './eoa-transport.actor'
 
 /**
  * Whether the connected wallet can execute a `wallet_sendCalls` bundle
- * atomically on `chainId` (EIP-5792 `atomic` capability). `ready` counts: the
- * wallet offers to upgrade the account (e.g. MetaMask's EIP-7702 prompt) as
- * part of the send. Any failure — no 5792 support at all, a rejected
- * capabilities request — means "no", so callers fall back to sequential txs.
+ * atomically on `chainId` (EIP-5792 `atomic` capability). Only `supported`
+ * counts: `ready` means our send would prompt an EIP-7702 upgrade of the EOA,
+ * which the app must never trigger. Any failure means "no", so callers fall
+ * back to sequential txs.
  */
 export async function getAtomicBatchSupport(params: {
   readonly walletClient: WalletClient
@@ -35,8 +35,7 @@ export async function getAtomicBatchSupport(params: {
       account: walletClient.account,
       chainId,
     })
-    const status = capabilities.atomic?.status
-    return status === 'supported' || status === 'ready'
+    return capabilities.atomic?.status === 'supported'
   } catch (error) {
     logger.debug('wallet_getCapabilities unavailable', error)
     return false
