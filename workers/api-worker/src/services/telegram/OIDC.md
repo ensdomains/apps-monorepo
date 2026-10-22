@@ -147,9 +147,10 @@ tags, stages and statuses. Manager uses the existing `resultQueryOptions` and
 Failure logs include bounded nested cause/recovery diagnostics: library and
 database error codes, failed claims, recognized OAuth error codes, and validation
 field/expected-type/received-type summaries. Raw error messages, JWT payloads,
-SQL parameters and validation inputs are excluded. Token requests use Workers'
-supported `manual` redirect mode and reject non-success statuses, preventing
-credentials from being forwarded to an unexpected redirect destination.
+SQL parameters and validation inputs are excluded. Token requests use `follow`
+redirect mode because Telegram's token endpoint requires redirects to complete
+the exchange. The initial endpoint is fixed to Telegram's issuer; non-success
+responses still produce typed exchange failures.
 
 Worker: `pnpm typecheck`, `pnpm test`, and `pnpm test:db`.
 The real-DB harness requires the dedicated local `api_worker_test` database and

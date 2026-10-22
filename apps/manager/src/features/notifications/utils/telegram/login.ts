@@ -43,8 +43,37 @@ export const openTelegramTab = (): Window | null =>
       if (tab) {
         tab.opener = null
         tab.document.title = 'Connecting Telegram…'
-        tab.document.body.textContent =
-          'Preparing Telegram login. Keep ENS Manager open in your original tab.'
+        // about:blank has its own document; copy only the Manager palette it needs.
+        const theme = window.getComputedStyle(document.documentElement)
+        for (const token of [
+          '--color-ens-lapis-core',
+          '--color-ens-lapis-dense',
+          '--color-ens-quartz-0',
+          '--color-ens-quartz-50',
+          '--color-ens-quartz-150',
+          '--color-ens-quartz-550',
+        ]) {
+          tab.document.documentElement.style.setProperty(
+            token,
+            theme.getPropertyValue(token),
+          )
+        }
+        // Static markup only: no credentials, external resources, or scripts.
+        tab.document.body.innerHTML = `
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 24px; background: var(--color-ens-quartz-50, #faf9f7); color: var(--color-ens-lapis-dense, #093c52); font-family: system-ui, sans-serif; }
+            main { width: 100%; max-width: 400px; padding: 32px; border: 1px solid var(--color-ens-quartz-150, #eae8e8); border-radius: 12px; background: var(--color-ens-quartz-0, #fff); }
+            .brand { margin: 0 0 24px; color: var(--color-ens-lapis-core, #0080bc); font-family: monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+            h1 { margin: 0 0 12px; font-size: 24px; font-weight: 500; line-height: 1.2; }
+            .description { margin: 0; color: var(--color-ens-quartz-550, #515151); font-size: 15px; line-height: 1.6; }
+          </style>
+          <main aria-live="polite">
+            <p class="brand">ENS Manager</p>
+            <h1>Connecting Telegram…</h1>
+            <p class="description">Preparing your secure sign-in. Keep ENS Manager open in your original tab.</p>
+          </main>
+        `
       }
       return tab
     },

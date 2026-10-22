@@ -188,7 +188,7 @@ describe('Telegram OIDC', () => {
     const request = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         // Exercise Workers' Request constructor: redirect: 'error' is unsupported.
-        expect(new Request(input, init).redirect).toBe('manual')
+        expect(new Request(input, init).redirect).toBe('follow')
         return Response.json({
           id_token: 'id-token',
           access_token: 'secret-access-token',
@@ -208,7 +208,7 @@ describe('Telegram OIDC', () => {
       `${TELEGRAM_ISSUER}/token`,
       expect.objectContaining({
         method: 'POST',
-        redirect: 'manual',
+        redirect: 'follow',
         headers: expect.objectContaining({
           Authorization: `Basic ${btoa(`${clientId}:secret`)}`,
         }),
@@ -262,34 +262,6 @@ describe('Telegram OIDC', () => {
       redirectUri: 'https://api.example/callback',
     })
     expect(result._unsafeUnwrapErr()).toMatchObject({ stage: 'request', cause })
-  })
-
-  it('rejects token endpoint redirects without forwarding credentials', async () => {
-    const request = vi.fn(
-      async () =>
-        new Response(null, {
-          status: 307,
-          headers: { Location: 'https://attacker.example/token' },
-        }),
-    )
-    vi.stubGlobal('fetch', request)
-    const result = await exchangeTelegramCode({
-      clientId,
-      clientSecret: 'secret',
-      code: 'code',
-      codeVerifier: 'verifier',
-      redirectUri: 'https://api.example/callback',
-    })
-    expect(result._unsafeUnwrapErr()).toMatchObject({
-      _tag: 'TELEGRAM_TOKEN_EXCHANGE_ERROR',
-      stage: 'provider',
-      status: 307,
-    })
-    expect(request).toHaveBeenCalledOnce()
-    expect(request).toHaveBeenCalledWith(
-      `${TELEGRAM_ISSUER}/token`,
-      expect.objectContaining({ redirect: 'manual' }),
-    )
   })
 
   it('retains a recognized OAuth error without echoing the provider response body', async () => {

@@ -37,13 +37,17 @@ describe('Telegram new-tab login', () => {
   it('opens an unsized tab synchronously and removes its opener', () => {
     const tab = {
       opener: window,
-      document: { title: '', body: { textContent: '' } },
+      document: document.implementation.createHTMLDocument(),
     } as unknown as Window
     const open = vi.spyOn(window, 'open').mockReturnValue(tab)
     expect(openTelegramTab()).toBe(tab)
     expect(open).toHaveBeenCalledWith('about:blank', '_blank')
     expect(tab.opener).toBeNull()
+    expect(tab.document.querySelector('h1')?.textContent).toBe(
+      'Connecting Telegram…',
+    )
     expect(tab.document.body.textContent).toContain('original tab')
+    expect(tab.document.querySelector('script, iframe, img, link')).toBeNull()
     expect(
       backendClient.notifications.channels.telegram.oauth.$post,
     ).not.toHaveBeenCalled()

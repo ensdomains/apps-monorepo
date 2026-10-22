@@ -133,9 +133,8 @@ export const exchangeTelegramCode = ResultFn(async function* (params: {
     Promise.resolve().then(() =>
       fetch(`${TELEGRAM_ISSUER}/token`, {
         method: 'POST',
-        // Workers supports manual/follow only. Never forward client credentials
-        // to an unexpected redirect destination.
-        redirect: 'manual',
+        // Telegram's token endpoint requires redirects to complete the exchange.
+        redirect: 'follow',
         signal: AbortSignal.timeout(10_000),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
