@@ -563,8 +563,10 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
   })
 
-  it('holds the total and the button while the fee is being quoted', () => {
+  it('holds the total, the breakdown and the button while the fee is being quoted', () => {
     renderPicker({ isQuotingFunding: true, selectedToken: 'USDC' })
+
+    expect(screen.getByLabelText('Calculating price breakdown')).toBeVisible()
 
     expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Calculating total')).toBeVisible()

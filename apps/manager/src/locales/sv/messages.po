@@ -1361,6 +1361,7 @@ msgid "Learn More<0> about NFT traits</0>"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
 msgid "Left from your last attempt"
 msgstr ""
 

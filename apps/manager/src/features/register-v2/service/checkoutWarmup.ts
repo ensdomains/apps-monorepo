@@ -90,14 +90,21 @@ export const warmRegistrationCheckout = async (
   )
 
   const budget = (async () => {
+    // The route decides whether there is a budget at all, so settle that
+    // before the primary-name lookups the quote's key depends on.
+    if (!isHcaBudgetQuoteRequired(buildCheckoutBudgetParams(params, false))) {
+      return
+    }
     const setAsPrimary = await readDefaultSetAsPrimary(
       queryClient,
       params.account.ownerAddress,
     )
-    const budgetParams = buildCheckoutBudgetParams(params, setAsPrimary)
-    if (!isHcaBudgetQuoteRequired(budgetParams)) return
     await settled(
-      queryClient.ensureQueryData(getHcaBudgetQueryOptions(budgetParams)),
+      queryClient.ensureQueryData(
+        getHcaBudgetQueryOptions(
+          buildCheckoutBudgetParams(params, setAsPrimary),
+        ),
+      ),
     )
   })()
 

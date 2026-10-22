@@ -857,7 +857,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               {domainName}
             </span>
 
-            <PaymentBreakdown funding={funding} />
+            <PaymentBreakdown funding={funding} isQuoting={isQuotingFunding} />
           </div>
 
           <div className="flex w-full flex-col gap-4">

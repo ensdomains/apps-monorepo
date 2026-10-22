@@ -18,10 +18,11 @@ vi.mock('../data/queries/pricing.query', () => ({
     queryFn: priceQueryFn,
   }),
 }))
+const reverseQueryFn = vi.fn(async () => null)
 vi.mock('@/features/profile/service/profileReverseName', () => ({
   profileReverseNameQuery: () => ({
     queryKey: ['reverse'],
-    queryFn: async () => null,
+    queryFn: reverseQueryFn,
   }),
 }))
 vi.mock('@/features/shared/service/ownedNamesCount', () => ({
@@ -57,10 +58,12 @@ describe('warmRegistrationCheckout', () => {
     expect(budgetQueryFn).toHaveBeenCalledOnce()
   })
 
-  it('leaves the budget alone on the EOA route', async () => {
+  it('leaves the budget and its primary-name lookups alone on the EOA route', async () => {
     budgetQueryFn.mockClear()
+    reverseQueryFn.mockClear()
     await warm({ type: 'eoa' })
 
     expect(budgetQueryFn).not.toHaveBeenCalled()
+    expect(reverseQueryFn).not.toHaveBeenCalled()
   })
 })
