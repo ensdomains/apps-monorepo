@@ -1,12 +1,15 @@
-import { errors } from 'jose'
 import { errAsync, okAsync } from 'neverthrow'
-import * as v from 'valibot'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import telegramRoutes from '#app/routes/notifications/channels/telegram.js'
 import { type Database, intoDbError } from '#core/database/index.js'
 import { makeMockEnv } from '#test-utils/env.js'
-import { logger } from '#utils/logger.js'
-import type { TelegramLoginAttempt } from './attempts.js'
+import {
+  claimTelegramAttempt,
+  completeTelegramAttempt,
+  failTelegramAttempt,
+  handleTelegramMessagingRefusal,
+  saveTelegramAttempt,
+  type TelegramLoginAttempt,
+} from './attempts.js'
 import {
   TelegramAttemptThrottledError,
   TelegramAttemptUnavailableError,
@@ -14,44 +17,37 @@ import {
   TelegramTokenExchangeError,
 } from './errors.js'
 import { finishTelegramLogin, startTelegramLogin } from './login.js'
+import { exchangeTelegramCode, verifyTelegramIdToken } from './oidc.js'
+import { makeTelegramRequest } from './utils.js'
 
-const persistence = vi.hoisted(() => ({
-  claim: vi.fn(),
-  save: vi.fn(),
-  complete: vi.fn(),
-  fail: vi.fn(),
-  refuse: vi.fn(),
-}))
-const provider = vi.hoisted(() => ({
-  exchange: vi.fn(),
-  verify: vi.fn(),
-  send: vi.fn(),
-}))
-vi.mock('#services/telegram/attempts.js', async (original) => ({
-  ...(await original<typeof import('./attempts.js')>()),
-  claimTelegramAttempt: persistence.claim,
-  saveTelegramAttempt: persistence.save,
-  completeTelegramAttempt: persistence.complete,
-  failTelegramAttempt: persistence.fail,
-  handleTelegramMessagingRefusal: persistence.refuse,
-}))
-vi.mock('#services/telegram/oidc.js', async (original) => ({
+vi.mock('./attempts.js')
+vi.mock('./oidc.js', async (original) => ({
   ...(await original<typeof import('./oidc.js')>()),
-  exchangeTelegramCode: provider.exchange,
-  verifyTelegramIdToken: provider.verify,
+  exchangeTelegramCode: vi.fn(),
+  verifyTelegramIdToken: vi.fn(),
 }))
-vi.mock('#services/telegram/utils.js', async (original) => ({
+vi.mock('./utils.js', async (original) => ({
   ...(await original<typeof import('./utils.js')>()),
-  makeTelegramRequest: provider.send,
+  makeTelegramRequest: vi.fn(),
 }))
+
+const persistence = {
+  claim: vi.mocked(claimTelegramAttempt),
+  save: vi.mocked(saveTelegramAttempt),
+  complete: vi.mocked(completeTelegramAttempt),
+  fail: vi.mocked(failTelegramAttempt),
+  refuse: vi.mocked(handleTelegramMessagingRefusal),
+}
+const provider = {
+  exchange: vi.mocked(exchangeTelegramCode),
+  verify: vi.mocked(verifyTelegramIdToken),
+  send: vi.mocked(makeTelegramRequest),
+}
 
 describe('Telegram login result handling', () => {
   const db = {} as Database
   const bindings = makeMockEnv({
     BASE_URL: 'https://sepolia.app-api.ens.domains',
-    MANAGER_APP_URL: 'https://sepolia.app.ens.domains',
-    DATABASE_URL:
-      'postgres://postgres:postgres@db.localtest.me:5432/api_worker_test',
     TELEGRAM_OIDC_CLIENT_ID: '123456',
     TELEGRAM_OIDC_CLIENT_SECRET: 'client-secret',
     TELEGRAM_BOT_TOKEN: '123456:bot-secret',
@@ -81,7 +77,13 @@ describe('Telegram login result handling', () => {
     persistence.refuse.mockReset().mockReturnValue(okAsync(undefined))
     provider.exchange.mockReset().mockReturnValue(okAsync('private-id-token'))
     provider.verify.mockReset().mockReturnValue(okAsync({ id: 987654321 }))
-    provider.send.mockReset().mockReturnValue(okAsync({ message_id: 1 }))
+    provider.send.mockReset().mockReturnValue(
+      okAsync({
+        message_id: 1,
+        date: 0,
+        chat: { id: 987654321, type: 'private' },
+      }),
+    )
   })
 
   it('returns configuration, throttling and database errors without collapsing them', async () => {
@@ -153,6 +155,20 @@ describe('Telegram login result handling', () => {
     expect(persistence.fail).not.toHaveBeenCalled()
   })
 
+  it('rejects denied authorization before contacting Telegram and records failure', async () => {
+    const denied = query()
+    denied.delete('code')
+    denied.set('error', 'access_denied')
+    denied.set('error_description', 'private-provider-description')
+    expect(
+      (await finishTelegramLogin(db, bindings, denied))._unsafeUnwrapErr(),
+    ).toMatchObject({ _tag: 'TELEGRAM_AUTHORIZATION_ERROR', reason: 'denied' })
+    expect(provider.exchange).not.toHaveBeenCalled()
+    expect(provider.send).not.toHaveBeenCalled()
+    expect(persistence.complete).not.toHaveBeenCalled()
+    expect(persistence.fail).toHaveBeenCalledWith(db, attempt.id)
+  })
+
   it('preserves token exchange failure and records the terminal failure', async () => {
     const failure = new TelegramTokenExchangeError({
       stage: 'provider',
@@ -179,9 +195,10 @@ describe('Telegram login result handling', () => {
 
   it('preserves messaging failures and applies guarded delivery availability handling', async () => {
     const cause = {
-      code: 'TELEGRAM_API_REQUEST_ERROR',
+      code: 'TELEGRAM_API_REQUEST_ERROR' as const,
       errorCode: 403,
       message: 'Forbidden',
+      parameters: undefined,
     }
     provider.send.mockReturnValueOnce(errAsync(cause))
     expect((await finish())._unsafeUnwrapErr()).toMatchObject({
@@ -225,9 +242,10 @@ describe('Telegram login result handling', () => {
 
   it('retains a messaging failure when recording delivery refusal fails', async () => {
     const delivery = {
-      code: 'TELEGRAM_API_REQUEST_ERROR',
+      code: 'TELEGRAM_API_REQUEST_ERROR' as const,
       errorCode: 403,
       message: 'Forbidden',
+      parameters: undefined,
     }
     const cause = intoDbError(new Error('availability write failed'))
     provider.send.mockReturnValueOnce(errAsync(delivery))
@@ -241,179 +259,13 @@ describe('Telegram login result handling', () => {
     expect(persistence.fail).toHaveBeenCalledWith(db, attempt.id)
   })
 
-  it.each([false, true])(
-    'keeps sensitive causes out of callback HTML and logs, including recovery failures: %s',
-    async (recoveryFails) => {
-      const secret =
-        'private-code private-id-token private-verifier client-secret bot-secret'
-      provider.exchange.mockReturnValueOnce(
-        errAsync(
-          new TelegramTokenExchangeError({
-            stage: 'request',
-            cause: new Error(secret),
-          }),
-        ),
-      )
-      if (recoveryFails)
-        persistence.fail.mockReturnValueOnce(
-          errAsync(intoDbError(new Error(secret))),
-        )
-      const log = vi
-        .spyOn(logger, recoveryFails ? 'error' : 'warn')
-        .mockImplementation(() => undefined)
-      const response = await telegramRoutes.request(
-        `/telegram/callback?${query()}`,
-        {},
-        bindings,
-      )
-      expect(await response.text()).not.toContain(secret)
-      expect(log).toHaveBeenCalledWith(
-        recoveryFails ? 'Telegram login failed' : 'Telegram login unsuccessful',
-        expect.objectContaining({
-          errorTag: recoveryFails
-            ? 'TELEGRAM_ATTEMPT_RECOVERY_ERROR'
-            : 'TELEGRAM_TOKEN_EXCHANGE_ERROR',
-          ...(recoveryFails
-            ? { failureTag: 'TELEGRAM_TOKEN_EXCHANGE_ERROR' }
-            : { stage: 'request' }),
-        }),
-      )
-      const logs = JSON.stringify(log.mock.calls)
-      for (const value of secret.split(' ')) expect(logs).not.toContain(value)
-      log.mockRestore()
-    },
-  )
-
-  it.each([true, false])(
-    'renders a safe callback page with clear return instructions (success: %s)',
-    async (isSuccess) => {
-      if (!isSuccess) {
-        provider.verify.mockReturnValueOnce(
-          errAsync(new TelegramIdentityError({ stage: 'profile' })),
-        )
-      }
-      const response = await telegramRoutes.request(
-        `/telegram/callback?${query()}&redirect_uri=https://untrusted.example`,
-        {},
-        bindings,
-      )
-      const page = await response.text()
-      const nonce = /<style nonce="([^"]+)">/.exec(page)?.[1]
-      expect(nonce).toBeTruthy()
-      expect(response.headers.get('Content-Security-Policy')).toBe(
-        `default-src 'none'; style-src 'nonce-${nonce}'; font-src https://fonts.ens.dev; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`,
-      )
-      expect(response.headers.get('Cache-Control')).toBe('no-store')
-      expect(response.headers.get('Referrer-Policy')).toBe('no-referrer')
-      expect(page).toContain(
-        isSuccess
-          ? '<h1>Telegram connected</h1>'
-          : '<h1>Connection not completed</h1>',
-      )
-      expect(page).toContain(
-        'return to your original tab to keep your progress',
-      )
-      expect(page).toContain(`href="${bindings.MANAGER_APP_URL}"`)
-      expect(page).not.toContain('<script')
-      for (const value of [
-        'private-code',
-        'private-id-token',
-        'private-verifier',
-        'untrusted.example',
-      ]) {
-        expect(page).not.toContain(value)
-      }
-    },
-  )
-
   it('returns an explicit successful link only after all stages succeed', async () => {
     expect((await finish())._unsafeUnwrap()).toEqual({ id: 'channel-id' })
     expect(persistence.fail).not.toHaveBeenCalled()
-  })
-
-  it('logs failed claim and nested cause diagnostics without JWT payloads', async () => {
-    const secret = 'private-id-token'
-    provider.verify.mockReturnValueOnce(
-      errAsync(
-        new TelegramIdentityError({
-          stage: 'verification',
-          cause: new errors.JWTClaimValidationFailed(
-            'unexpected issuer',
-            { iss: secret, nonce: secret },
-            'iss',
-            'check_failed',
-          ),
-        }),
-      ),
+    expect(provider.send).toHaveBeenCalledWith(
+      bindings.TELEGRAM_BOT_TOKEN,
+      'sendMessage',
+      expect.objectContaining({ chat_id: 987654321 }),
     )
-    const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
-    await telegramRoutes.request(`/telegram/callback?${query()}`, {}, bindings)
-    expect(log).toHaveBeenCalledWith(
-      'Telegram login unsuccessful',
-      expect.objectContaining({
-        stage: 'verification',
-        cause: expect.objectContaining({
-          errorCode: 'ERR_JWT_CLAIM_VALIDATION_FAILED',
-          claim: 'iss',
-          reason: 'check_failed',
-        }),
-      }),
-    )
-    expect(JSON.stringify(log.mock.calls)).not.toContain(secret)
-    log.mockRestore()
-  })
-
-  it('logs validation fields and types without the rejected input', async () => {
-    const secret = 'private-profile-input'
-    const parsed = v.safeParse(v.object({ id: v.number() }), { id: secret })
-    provider.verify.mockReturnValueOnce(
-      errAsync(
-        new TelegramIdentityError({
-          stage: 'profile',
-          cause: parsed.issues,
-        }),
-      ),
-    )
-    const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
-    await telegramRoutes.request(`/telegram/callback?${query()}`, {}, bindings)
-    expect(log).toHaveBeenCalledWith(
-      'Telegram login unsuccessful',
-      expect.objectContaining({
-        stage: 'profile',
-        cause: {
-          validationIssues: [
-            expect.objectContaining({
-              field: 'id',
-              expected: 'number',
-              receivedType: 'string',
-            }),
-          ],
-        },
-      }),
-    )
-    expect(JSON.stringify(log.mock.calls)).not.toContain(secret)
-    log.mockRestore()
-  })
-
-  it('logs database error codes without SQL or parameters', async () => {
-    const secret = 'private-database-parameter'
-    persistence.complete.mockReturnValueOnce(
-      errAsync(
-        intoDbError(Object.assign(new Error(secret), { code: '23505' })),
-      ),
-    )
-    const log = vi.spyOn(logger, 'error').mockImplementation(() => undefined)
-    await telegramRoutes.request(`/telegram/callback?${query()}`, {}, bindings)
-    expect(log).toHaveBeenCalledWith(
-      'Telegram login failed',
-      expect.objectContaining({
-        errorTag: 'DATABASE_ERROR',
-        cause: expect.objectContaining({
-          cause: expect.objectContaining({ errorCode: '23505' }),
-        }),
-      }),
-    )
-    expect(JSON.stringify(log.mock.calls)).not.toContain(secret)
-    log.mockRestore()
   })
 })

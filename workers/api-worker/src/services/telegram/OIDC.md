@@ -152,6 +152,14 @@ redirect mode because Telegram's token endpoint requires redirects to complete
 the exchange. The initial endpoint is fixed to Telegram's issuer; non-success
 responses still produce typed exchange failures.
 
+Testing follows `workers/api-worker/TESTING.md`: fast tests call the login
+functions directly and mock owned persistence/provider operations. Logging and
+page rendering are tested independently; route tests cover HTTP contracts.
+Database tests call the real persistence operations for state consumption,
+atomic linking, cancellation/replay races, reconnection, and failure cleanup,
+with one composed route flow. Provider adapters use controlled HTTP responses;
+automated tests never contact Telegram.
+
 Worker: `pnpm typecheck`, `pnpm test`, and `pnpm test:db`.
 The real-DB harness requires the dedicated local `api_worker_test` database and
 rejects nonlocal URLs. Manager: `pnpm typecheck` and notification feature tests.
