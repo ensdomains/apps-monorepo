@@ -136,30 +136,29 @@ describe('contact record helpers', () => {
       expect(elapsed).toBeLessThan(1000)
     })
 
-    it.each([
-      '[invalid]',
-      'not-json',
-      '',
-    ])('uses the single-contact fallback for malformed JSON', (value) => {
-      expect(
-        parsePrimaryContactKeys({
-          'domains.ens.primary-contacts': value,
-          'primary-contact': ' com.github ',
-        }),
-      ).toEqual(['com.github'])
-    })
+    it.each(['[invalid]', 'not-json', ''])(
+      'uses the single-contact fallback for malformed JSON',
+      (value) => {
+        expect(
+          parsePrimaryContactKeys({
+            'domains.ens.primary-contacts': value,
+            'primary-contact': ' com.github ',
+          }),
+        ).toEqual(['com.github'])
+      },
+    )
 
-    it.each([
-      '[]',
-      '[null,1,"unsupported"]',
-    ])('keeps a valid array authoritative over the single-contact fallback', (value) => {
-      expect(
-        parsePrimaryContactKeys({
-          'domains.ens.primary-contacts': value,
-          'primary-contact': 'com.github',
-        }),
-      ).toEqual([])
-    })
+    it.each(['[]', '[null,1,"unsupported"]'])(
+      'keeps a valid array authoritative over the single-contact fallback',
+      (value) => {
+        expect(
+          parsePrimaryContactKeys({
+            'domains.ens.primary-contacts': value,
+            'primary-contact': 'com.github',
+          }),
+        ).toEqual([])
+      },
+    )
   })
 
   describe('defaultEnabledContactMethodKeys', () => {

@@ -28,6 +28,7 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               key={row.id}
               name={row.original.name}
               expiryDate={row.original.expiryDate}
+              parentExpiryDate={row.original.parentExpiryDate}
               graceEndDate={row.original.graceEndDate}
               status={row.original.status}
               relations={row.original.relations}

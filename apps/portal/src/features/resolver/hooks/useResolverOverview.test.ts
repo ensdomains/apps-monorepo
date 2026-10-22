@@ -370,6 +370,22 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(events?.map(({ id }) => id)).toEqual(['emitted'])
   })
 
+  it('reports older events from the page flag, not the page length', async () => {
+    const event = (id: string) => ({
+      id,
+      type: 'resolver',
+      block_number: 1,
+      timestamp: '1790999568',
+      transaction_hash: '0xabc',
+      data: null,
+    })
+    bigname.events.mockReturnValue(page([event('a')], { next: 'more' }))
+    expect(await readOverview()).toMatchObject({ eventsHasMore: true })
+
+    bigname.events.mockReturnValue(page([event('a')]))
+    expect(await readOverview()).toMatchObject({ eventsHasMore: false })
+  })
+
   it('renders without recent events when bigname cannot serve them', async () => {
     bigname.events.mockReturnValue(
       errAsync(new BignameError({ code: 'internal_error', message: 'boom' })),
@@ -463,5 +479,41 @@ describe('invalidateResolverOverview', () => {
       true,
     )
     expect(queryClient.getQueryState(other.queryKey)?.isInvalidated).toBe(false)
+  })
+
+  it('marks this resolver’s role checks stale, so a revoked admin stops gating', async () => {
+    const queryClient = new QueryClient()
+    const OTHER = '0x1cf3000000000000000000000000000000001acf'
+    const rolesKey = [
+      'get-resolver-roles-for-account',
+      { address: ADDRESS, resource: '0', account: OTHER },
+    ]
+    const hasRolesKey = [
+      'hasRoles',
+      { resolverAddress: ADDRESS, roles: ['ROLE_SET_TEXT_ADMIN'] },
+    ]
+    const otherHasRolesKey = [
+      'hasRoles',
+      { resolverAddress: OTHER, roles: ['ROLE_SET_TEXT_ADMIN'] },
+    ]
+    const registryHasRolesKey = ['hasRoles', { registryAddress: ADDRESS }]
+    for (const key of [
+      rolesKey,
+      hasRolesKey,
+      otherHasRolesKey,
+      registryHasRolesKey,
+    ])
+      queryClient.setQueryData(key, true)
+
+    await invalidateResolverOverview(queryClient, ADDRESS)
+
+    expect(queryClient.getQueryState(rolesKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(hasRolesKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(otherHasRolesKey)?.isInvalidated).toBe(
+      false,
+    )
+    expect(queryClient.getQueryState(registryHasRolesKey)?.isInvalidated).toBe(
+      false,
+    )
   })
 })

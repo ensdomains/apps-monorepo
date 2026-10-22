@@ -6,6 +6,7 @@
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { createSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { registrySetSubnodeRecordSnippet } from '@ensdomains/ensjs-abi/registry'
 import { nameWrapperSetSubnodeRecordSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
@@ -19,6 +20,7 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
+import type { SubnameLabelStatus } from '@/features/profile/hooks/useSubnames'
 import { toEoaIntent } from '@/features/transaction-manager/helpers/intents'
 import type {
   V1ParentState,
@@ -206,14 +208,18 @@ const toV1ParentState = (subject: V1TransferSubject): V1ParentState =>
     }))
     .exhaustive()
 
-/**
- * Whether `account` can create a subname under a V1 name. With no account the
- * holder check is left to the form, which asks for a wallet first.
- */
-export const getV1SubnameCreateGate = (
-  { subject, registration }: V1NameState,
-  account: Address | undefined,
-): V1SubnameCreateGate =>
+/** A V1 name as the parent of its subnames, or why nobody can act as it. */
+export type V1SubnameParentGate =
+  | { readonly reason: 'ok'; readonly parent: V1ParentState }
+  | Extract<
+      V1SubnameCreateGate,
+      { reason: 'grace' } | { reason: 'unowned' } | { reason: 'not-holder' }
+    >
+
+const toHeldParent = ({
+  subject,
+  registration,
+}: V1NameState): Exclude<V1SubnameParentGate, { reason: 'not-holder' }> =>
   match({ subject, registration })
     .with({ registration: 'gracePeriod' }, () => ({ reason: 'grace' }) as const)
     .with(
@@ -221,17 +227,71 @@ export const getV1SubnameCreateGate = (
       { subject: null },
       () => ({ reason: 'unowned' }) as const,
     )
-    .with({ subject: P.nonNullable }, ({ subject }) => {
-      const parent = toV1ParentState(subject)
-      if (!canParentReissueV1Subname(parent)) {
-        return { reason: 'burned-fuse' } as const
-      }
-      if (account && !(parent.owner && isAddressEqual(parent.owner, account))) {
-        return { reason: 'not-holder' } as const
-      }
-      return {
-        reason: 'ok',
-        target: { protocol: 'ENSv1', isWrapped: parent.isWrapped },
-      } as const
-    })
+    .with(
+      { subject: P.nonNullable },
+      ({ subject }) =>
+        ({ reason: 'ok', parent: toV1ParentState(subject) }) as const,
+    )
+    .exhaustive()
+
+const isParentHolder = (parent: V1ParentState, account: Address) =>
+  parent.owner !== null && isAddressEqual(parent.owner, account)
+
+/** Whether `account` holds a V1 name the way its subnames' writes need. */
+export const getV1SubnameParentGate = (
+  state: V1NameState,
+  account: Address,
+): V1SubnameParentGate => {
+  const held = toHeldParent(state)
+  if (held.reason !== 'ok' || isParentHolder(held.parent, account)) return held
+  return { reason: 'not-holder' }
+}
+
+/**
+ * Whether `account` can create a subname under a V1 name. With no account the
+ * holder check is left to the form, which asks for a wallet first.
+ */
+export const getV1SubnameCreateGate = (
+  state: V1NameState,
+  account: Address | undefined,
+): V1SubnameCreateGate => {
+  const held = toHeldParent(state)
+  if (held.reason !== 'ok') return held
+  if (!canParentReissueV1Subname(held.parent)) {
+    return { reason: 'burned-fuse' }
+  }
+  if (account && !isParentHolder(held.parent, account)) {
+    return { reason: 'not-holder' }
+  }
+  return {
+    reason: 'ok',
+    target: { protocol: 'ENSv1', isWrapped: held.parent.isWrapped },
+  }
+}
+
+/** The root roles `register` checks on a V2 subregistry, one per label state. */
+export type RegistrarAccess = {
+  readonly canRegister: boolean
+  readonly canRegisterReserved: boolean
+}
+
+export const getRegistrarAccess = (
+  rootRoles: readonly Role[],
+): RegistrarAccess => ({
+  canRegister: rootRoles.includes('ROLE_REGISTRAR'),
+  canRegisterReserved: rootRoles.includes('ROLE_REGISTER_RESERVED'),
+})
+
+/** The root role `register` would demand for a label in `status` that `access` lacks, or null. */
+export const getMissingRegistrarRole = (
+  access: RegistrarAccess,
+  status: SubnameLabelStatus,
+): 'ROLE_REGISTRAR' | 'ROLE_REGISTER_RESERVED' | null =>
+  match(status)
+    .with('available', () => (access.canRegister ? null : 'ROLE_REGISTRAR'))
+    .with('reserved', () =>
+      access.canRegisterReserved ? null : 'ROLE_REGISTER_RESERVED',
+    )
+    // A taken label is refused before any role is asked about.
+    .with('registered', () => null)
     .exhaustive()

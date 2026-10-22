@@ -1,6 +1,6 @@
 import type { SupportedL1ChainId } from '@ensdomains/ensjs/chain'
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
-import { type Address, isAddress, zeroAddress } from 'viem'
+import { type Address, isAddress, maxUint64, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1Domain'
@@ -137,6 +137,12 @@ export const withManagerRestorationOptIn = <T extends ClassifiedName>(
 export const hasFuse = (fuses: bigint, fuse: bigint): boolean =>
   (fuses & fuse) !== 0n
 
+/** ENSv2 expiry for a wrapped copy; an unset zero expiry on a parent-controlled subname copies as non-expiring. */
+export const wrappedCopyExpiry = (expiry: bigint, fuses: bigint): bigint =>
+  expiry === 0n && !hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL)
+    ? maxUint64
+    : expiry
+
 const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
   fuses: bigint
@@ -170,7 +176,6 @@ type ClassifyResult =
   | null
 
 const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
-const MAX_UINT64 = (1n << 64n) - 1n
 
 /**
  * The ENSv1 registry controller of an unwrapped `.eth` name when it is someone
@@ -296,7 +301,7 @@ const classifyWithoutActiveWrapper = (
         domain,
         tokenType: 'registry-child',
         copySource: 'registry',
-        sourceExpiry: MAX_UINT64,
+        sourceExpiry: maxUint64,
         label,
         parentName,
         fuses: 0n,
@@ -415,12 +420,11 @@ const classifyUnlockedWrapper = (
   }
   if (!isDotEthSubname(domain, parentName)) return null
 
-  const sourceExpiry = BigInt(wrappedDomain.expiryDate)
-  // Parent-controlled NameWrapper subnames may retain an unset zero expiry.
-  // Once emancipated, the same value is already expired.
-  const hasNoIndependentExpiry =
-    sourceExpiry === 0n && !hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL)
-  if (!hasNoIndependentExpiry && sourceExpiry <= nowSeconds) {
+  const sourceExpiry = wrappedCopyExpiry(
+    BigInt(wrappedDomain.expiryDate),
+    fuses,
+  )
+  if (sourceExpiry <= nowSeconds) {
     return ineligible(domain, 'expired-registration')
   }
   if (!hasSupportedCopyResolver(v1ResolverAddress, chainId)) {

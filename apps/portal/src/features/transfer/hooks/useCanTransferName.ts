@@ -1,8 +1,7 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, zeroAddress } from 'viem'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getLabel } from '@/utils/token/getLabel'
 
 /**
@@ -18,11 +17,9 @@ import { getLabel } from '@/utils/token/getLabel'
  * mirrors the contract gate off-chain so the UI can refuse to start such a
  * transfer instead of walking the user into that trap.
  *
- * The check uses ensjs registry-mode `hasRoles`, which resolves the role against
- * `getResource(labelhash(label))`; that canonicalises to the same resource the
- * contract checks via `hasRoles(tokenId, …)`, so the two agree.
+ * `_update` reads the token resource alone (`ROLE_CAN_TRANSFER_ADMIN` is ignored
+ * on root), so this reads `roles()`, not `hasRoles`, which ORs in root roles.
  */
-const TRANSFER_ROLE: Role = 'ROLE_CAN_TRANSFER_ADMIN'
 
 type UseCanTransferNameParams = {
   readonly name: string
@@ -65,17 +62,16 @@ export function useCanTransferName({
   const isEnabled = enabled && !!label && !!registryAddress && !!account
 
   const query = useQuery({
-    ...getHasRolesQueryOptions({
+    ...getNameRolesForAccountQueryOptions({
       registryAddress: registryAddress ?? zeroAddress,
       label: label ?? '',
-      roles: [TRANSFER_ROLE],
       account: account ?? zeroAddress,
     }),
     enabled: isEnabled,
   })
 
   return {
-    canTransfer: query.data === true,
+    canTransfer: !!query.data?.decoded.includes('ROLE_CAN_TRANSFER_ADMIN'),
     isLoading: isEnabled && query.isLoading,
     isError: query.isError,
   }

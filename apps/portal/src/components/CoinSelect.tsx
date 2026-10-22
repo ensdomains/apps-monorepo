@@ -20,6 +20,8 @@ type CoinSelectProps = {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  /** Offer only these coin types; every supported coin when omitted. */
+  readonly coinTypes?: ReadonlySet<bigint>
 }
 
 export function CoinSelect({
@@ -27,6 +29,7 @@ export function CoinSelect({
   onChange,
   placeholder = 'Select coin...',
   className,
+  coinTypes,
 }: CoinSelectProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -34,15 +37,18 @@ export function CoinSelect({
   const selectedCoin = getCoinByName(value)
 
   const filteredCoins = useMemo(() => {
-    if (!search) return SUPPORTED_COINS
+    const coins = coinTypes
+      ? SUPPORTED_COINS.filter((coin) => coinTypes.has(BigInt(coin.coinType)))
+      : SUPPORTED_COINS
+    if (!search) return coins
 
     const searchLower = search.toLowerCase()
-    return SUPPORTED_COINS.filter(
+    return coins.filter(
       (coin) =>
         coin.name.toLowerCase().includes(searchLower) ||
         coin.longName.toLowerCase().includes(searchLower),
     )
-  }, [search])
+  }, [search, coinTypes])
 
   const handleSelect = (coin: CoinConfig) => {
     onChange(coin.name.toUpperCase())

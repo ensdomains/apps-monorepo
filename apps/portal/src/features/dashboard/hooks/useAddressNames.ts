@@ -1,19 +1,23 @@
 import type { BignameError } from '@ens-apps/indexer/bigname'
-import { readNamesForAddress } from '@ens-apps/indexer/bigname'
+import { readNamesForAddress, toDate } from '@ens-apps/indexer/bigname'
 import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ResultAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
 import {
+  type AddressNameItem,
+  byShownExpiry,
+  ethParentOf,
   mergeAddressNames,
   toAddressNameItem,
   toLapsedItem,
 } from '@/utils/names/addressNames'
 import { readLapsedNames } from '@/utils/names/lapsedNames'
+import { toValidDate } from '@/utils/temporal'
 
 class GetAddressNamesError extends TaggedError('GetAddressNamesError')<{
   cause: BignameError | IndexerReadError
@@ -27,6 +31,65 @@ const toError = (cause: BignameError | IndexerReadError) =>
   new GetAddressNamesError({ cause })
 
 const readNames = readNamesForAddress(bigname)
+
+/** bigname's `POST /v1/lookup` batch limit. */
+const LOOKUP_BATCH_SIZE = 1000
+
+const toBatches = <T>(items: readonly T[]): readonly (readonly T[])[] =>
+  Array.from({ length: Math.ceil(items.length / LOOKUP_BATCH_SIZE) }, (_, i) =>
+    items.slice(i * LOOKUP_BATCH_SIZE, (i + 1) * LOOKUP_BATCH_SIZE),
+  )
+
+type ParentExpiry = readonly [name: string, expiry: Date | null]
+
+/** One lookup's parent expiries; a failed read leaves those dates unknown. */
+const readParentExpiries = (
+  names: readonly string[],
+  signal?: AbortSignal,
+): ResultAsync<readonly ParentExpiry[], never> =>
+  bigname
+    .lookup(
+      {
+        namespace: 'ens',
+        profile: 'feed',
+        inputs: names.map((name) => ({ name })),
+      },
+      { signal },
+    )
+    .map(({ data }) =>
+      names.map((name, index): ParentExpiry => {
+        const record = data[index]?.record
+        const expiresAt = record?.ens_v1?.expires_at ?? record?.expires_at
+        return [name, toValidDate(toDate(expiresAt))]
+      }),
+    )
+    .orElse(() => okAsync([]))
+
+/**
+ * Gives each ENSv1 subname its `.eth` parent's expiry. Parents already listed
+ * are reused; the rest are looked up in batches.
+ */
+const withParentExpiry = (
+  items: readonly AddressNameItem[],
+  signal?: AbortSignal,
+): ResultAsync<AddressNameItem[], never> => {
+  const listed = new Map(items.map((item) => [item.name, item.expiryDate]))
+  const missing = [
+    ...new Set(items.flatMap((item) => ethParentOf(item) ?? [])),
+  ].filter((parent) => !listed.get(parent))
+
+  return ResultAsync.combine(
+    toBatches(missing).map((batch) => readParentExpiries(batch, signal)),
+  ).map((batches) => {
+    const expiryOf = new Map([...listed, ...batches.flat()])
+    return items.map((item) => {
+      const parent = ethParentOf(item)
+      return parent
+        ? { ...item, parentExpiryDate: expiryOf.get(parent) ?? null }
+        : item
+    })
+  })
+}
 
 /**
  * Every name the address owns, manages or holds a role on, in either era,
@@ -52,12 +115,15 @@ export const getAddressNames = (
       now.epochNanoseconds / NS_PER_SECOND,
       signal,
     ).mapErr(toError),
-  ]).map(([summaries, lapsedRows]) =>
-    mergeAddressNames(
-      summaries.flatMap((summary) => toAddressNameItem(summary) ?? []),
-      lapsedRows.map(toLapsedItem),
-    ),
-  )
+  ])
+    .map(([summaries, lapsedRows]) =>
+      mergeAddressNames(
+        summaries.flatMap((summary) => toAddressNameItem(summary) ?? []),
+        lapsedRows.map(toLapsedItem),
+      ),
+    )
+    .andThen((items) => withParentExpiry(items, signal))
+    .map((items) => items.toSorted(byShownExpiry))
 
 export const getAddressNamesQueryKey = createQueryKey<
   'get-address-names',

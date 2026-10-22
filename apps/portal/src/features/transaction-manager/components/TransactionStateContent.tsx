@@ -23,6 +23,7 @@ import { getButtonTargetTransaction } from '../utils/getButtonTargetTransaction'
 import { getStatus } from '../utils/getStatus'
 import { getTransactionById } from '../utils/getTransactionById'
 import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
+import { NameWrapText } from './NameWrapText'
 import { TransactionFlowProgressBar } from './TransactionFlowProgressBar'
 import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
@@ -128,7 +129,7 @@ export const TransactionStateContent = ({
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-p font-medium whitespace-normal leading-snug wrap-break-word min-w-0">
-                    {transaction.transactionName}
+                    <NameWrapText text={transaction.transactionName} />
                   </h3>
                   {blockExplorerTxUrl && (
                     <a

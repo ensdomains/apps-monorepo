@@ -1,8 +1,13 @@
-import { NetworkConfigError } from '@ens-apps/config'
+import { type EnsChain, NetworkConfigError } from '@ens-apps/config'
 import { fromSync } from '@ens-apps/utils/neverthrow'
 import { ok, type Result } from 'neverthrow'
-import { createPublicClient, http } from 'viem'
-import { error } from '../../utils/result'
+import {
+  createPublicClient,
+  type HttpTransport,
+  http,
+  type PublicClient,
+} from 'viem'
+import { error, type GenericError } from '../../utils/result'
 import { getConfig } from '../config'
 
 export type ViemClient =
@@ -10,20 +15,36 @@ export type ViemClient =
     ? T
     : never
 
-export const createEnsClient = (env: CloudflareBindings) => {
-  // This client only has a Sepolia RPC binding today. Fail closed until a
-  // network-specific production transport is implemented.
-  if (env.CHAIN !== 'sepolia') {
+export const createEnsClient = (
+  env: CloudflareBindings,
+): Result<PublicClient<HttpTransport, EnsChain>, GenericError> => {
+  if (env.CHAIN !== 'sepolia' && env.CHAIN !== 'mainnet') {
     return error({
       code: 'UNSUPPORTED_CHAIN',
-      message: 'ENS client is only configured for Sepolia',
+      message: 'ENS client supports only mainnet and Sepolia',
     })
   }
 
-  if (!env.SEPOLIA_RPC_URL) {
+  // Require the selected network's binding; never fall back to another
+  // network's RPC or the shared config's public fallback endpoints.
+  const binding =
+    env.CHAIN === 'mainnet' ? 'MAINNET_RPC_URL' : 'SEPOLIA_RPC_URL'
+  const rpcUrl = env[binding]?.trim()
+  if (!rpcUrl) {
     return error({
-      code: 'MISSING_SEPOLIA_RPC_URL',
-      message: 'SEPOLIA_RPC_URL is not configured',
+      code: `MISSING_${binding}` as const,
+      message: `${binding} is not configured`,
+    })
+  }
+
+  const validRpcUrl = fromSync(
+    () => ['http:', 'https:'].includes(new URL(rpcUrl).protocol),
+    () => false,
+  )
+  if (!validRpcUrl.unwrapOr(false)) {
+    return error({
+      code: 'INVALID_RPC_URL',
+      message: `${binding} must be an absolute http(s) URL`,
     })
   }
 
@@ -44,7 +65,7 @@ export const createEnsClient = (env: CloudflareBindings) => {
   return ok(
     createPublicClient({
       chain: chain.value,
-      transport: http(env.SEPOLIA_RPC_URL),
+      transport: http(rpcUrl),
     }),
   )
 }

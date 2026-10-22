@@ -117,7 +117,7 @@ jobs:
               'Point a local build at this environment:',
               '```bash',
               '# in apps/portal or apps/manager .env.local',
-              'VITE_SEPOLIA_RPC_URL=<anvil url>',
+              'VITE_RPC_URL=<anvil url>',
               'VITE_DQA=1',
               `VITE_DQA_URL=${DQA_SERVER_URL || '<shared DQA server URL>'}`,
               '```',

@@ -13,23 +13,20 @@ import {
 import { cn } from '@/lib/utils'
 
 type EnableSessionModalProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onEnableSession: () => Promise<void>
-  walletAddress?: string
-  smartAccountAddress?: string
+  readonly open: boolean
+  /** Close control, Escape or a click outside: the page stays usable without a session. */
+  readonly onDismiss: () => void
+  readonly onEnableSession: () => Promise<void>
   /** True while the ENABLE signature is in flight. */
-  isEnabling?: boolean
-  /** True when session enablement errored. */
-  hasError?: boolean
+  readonly isEnabling?: boolean
+  /** True when the last attempt in this dialog failed. */
+  readonly hasError?: boolean
 }
 
 export const EnableSessionModal = ({
   open,
-  onOpenChange: _onOpenChange,
+  onDismiss,
   onEnableSession,
-  walletAddress: _walletAddress,
-  smartAccountAddress,
   isEnabling = false,
   hasError = false,
 }: EnableSessionModalProps) => {
@@ -38,11 +35,6 @@ export const EnableSessionModal = ({
     if (hasError) return 'error'
     return 'idle'
   })()
-
-  const formatAddress = (address?: string) => {
-    if (!address) return ''
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
 
   const handleEnable = async () => {
     if (status === 'signing') return
@@ -53,17 +45,14 @@ export const EnableSessionModal = ({
     }
   }
 
-  const handleClose = () => {
-    // Session is required — modal cannot be dismissed.
-  }
-
   return (
-    <Dialog onOpenChange={handleClose} open={open}>
-      <DialogContent
-        className="max-w-md border-ens-gray-two p-6"
-        onInteractOutside={(e) => e.preventDefault()}
-        showCloseButton={false}
-      >
+    <Dialog
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onDismiss()
+      }}
+      open={open}
+    >
+      <DialogContent className="max-w-md border-ens-gray-two p-6">
         <DialogHeader>
           <DialogTitle asChild>
             <h2 className="font-medium text-ens-blue-midnight text-xl tracking-tight">
@@ -86,28 +75,16 @@ export const EnableSessionModal = ({
             )}
           </div>
 
-          {smartAccountAddress && (
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-ens-gray text-xs">
-                <Trans>Smart Account</Trans>
-              </p>
-              <p className="font-mono text-ens-blue-midnight text-sm">
-                {formatAddress(smartAccountAddress)}
-              </p>
-            </div>
-          )}
-
           <div className="text-center">
             {status === 'error' ? (
               <div className="flex flex-col gap-2">
                 <p className="font-medium text-ens-blue-midnight">
-                  <Trans>Smart sessions are required to use this app.</Trans>
+                  <Trans>The session wasn&apos;t enabled.</Trans>
                 </p>
                 <p className="text-ens-gray text-sm">
                   <Trans>
-                    It looks like the session setup didn&apos;t complete. Please
-                    try again — without it, you won&apos;t be able to register
-                    or manage names.
+                    You can keep browsing, but registering or managing names
+                    needs a session. Try again when you&apos;re ready.
                   </Trans>
                 </p>
               </div>

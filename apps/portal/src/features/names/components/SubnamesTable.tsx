@@ -31,6 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { healSubname } from '@/utils/ens/localLabels'
@@ -66,9 +71,29 @@ export interface SubnameRow {
   readonly resourceId?: ResourceId
   /** Whether the connected user has ROLE_UNREGISTER on this subname's resource. */
   readonly canDelete?: boolean
+  /** Why the parent's holder can't delete this subname, shown on a disabled control. */
+  readonly deleteBlockedReason?: string
 }
 
 const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
+
+const BlockedDeleteHint = ({
+  name,
+  reason,
+}: {
+  readonly name: string
+  readonly reason: string
+}) => (
+  <Tooltip>
+    <TooltipTrigger
+      className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground/50 cursor-not-allowed"
+      aria-label={`Can’t delete ${name}: ${reason}`}
+    >
+      <Trash2 className="size-4" />
+    </TooltipTrigger>
+    <TooltipContent className="max-w-xs">{reason}</TooltipContent>
+  </Tooltip>
+)
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
   <EntityBadge variant="address" address={owner}>
@@ -160,19 +185,28 @@ function buildColumns(
       enableSorting: false,
       id: 'actions',
       header: () => null,
-      cell: ({ row }) =>
-        row.original.canDelete && onDeleteClick ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
-            aria-label={`Delete ${row.original.name}`}
-            disabled={isDeleting}
-            onClick={() => onDeleteClick(row.original.name)}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        ) : null,
+      cell: ({ row }) => {
+        if (!onDeleteClick) return null
+        if (row.original.canDelete)
+          return (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-destructive"
+              aria-label={`Delete ${row.original.name}`}
+              disabled={isDeleting}
+              onClick={() => onDeleteClick(row.original.name)}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          )
+        return row.original.deleteBlockedReason ? (
+          <BlockedDeleteHint
+            name={row.original.name}
+            reason={row.original.deleteBlockedReason}
+          />
+        ) : null
+      },
     },
   ]
 }
@@ -358,6 +392,16 @@ export const SubnamesTable = ({
                         <Trash2 className="size-4" />
                       </Button>
                     )}
+                    {!row.original.canDelete &&
+                      onDeleteSubname &&
+                      row.original.deleteBlockedReason && (
+                        <span className="ml-auto">
+                          <BlockedDeleteHint
+                            name={row.original.name}
+                            reason={row.original.deleteBlockedReason}
+                          />
+                        </span>
+                      )}
                   </div>
                   <div className="flex flex-row gap-2 items-center">
                     <span className="text-base text-muted-foreground">
@@ -456,7 +500,10 @@ export const SubnamesTable = ({
                   </TableRow>
                   {isPendingDelete && (
                     <TableRow className="bg-muted">
-                      <TableCell colSpan={columns.length} className="px-6 py-3">
+                      <TableCell
+                        colSpan={columns.length}
+                        className="px-6 py-3 first:pl-6 last:pr-6"
+                      >
                         <div className="flex items-center justify-between">
                           <span className="font-medium">
                             Remove {row.getValue<string>('name')}?

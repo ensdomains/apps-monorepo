@@ -1,11 +1,15 @@
 import { Link } from '@tanstack/react-router'
-import { LogoSVG } from '@/assets/logo'
+import { ExplorerLogoSVG } from '@/assets/explorer-logo'
 
+/**
+ * Homepage lockup. Sits at the top left so it lands in the same screen position
+ * the logo occupies in the open sidebar: 24px from the top and left, matching
+ * the sidebar header's `px-6 pt-6`.
+ */
 export const HomeHeader = () => (
-  <header>
-    <Link to="/" className="flex items-center gap-2.25 text-foreground">
-      <LogoSVG width={26} height={29} />
-      <span className="text-h2 leading-8 font-medium">ENS Explorer</span>
+  <header className="shrink-0">
+    <Link to="/" className="flex items-center">
+      <ExplorerLogoSVG />
     </Link>
   </header>
 )

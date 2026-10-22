@@ -54,7 +54,6 @@ const startRenewal = (
 
   actor.send({ type: 'pricing.step.next' })
   actor.send({ type: 'pricing.token.select', token: 'USDC' })
-  actor.send({ type: 'pricing.step.next' })
   actor.send({
     type: 'renewal.start',
     label: 'alice',
@@ -281,15 +280,36 @@ describe('smart-account renewal state machine', () => {
     actor.stop()
   })
 
-  it('returns to the confirm step when the funding prompt is declined', async () => {
+  it('records the submitted intent before the fill, so the dialog can hand over', async () => {
+    mocks.submitHcaRenewal.mockImplementation(async (input) => {
+      input.onSubmitted?.('0xsubmitted')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      return { txId: '0xsubmitted', quotedFeeUsdc: 1n }
+    })
+
+    const actor = startRenewal('v2', 'smart-account')
+    const submitted = await waitFor(
+      actor,
+      (state) => state.context.renewalTxId === '0xsubmitted',
+      { timeout: 1_000 },
+    )
+
+    expect(submitted.matches('submittingHcaRenewal')).toBe(true)
+    await waitFor(actor, (state) => state.matches('success'), {
+      timeout: 1_000,
+    })
+    actor.stop()
+  })
+
+  it('returns to the payment step when the funding prompt is declined', async () => {
     // A decline is a cancel: nothing was signed and nothing was spent, so the
-    // user goes back to confirm rather than to a failure screen.
+    // user goes back to the payment step rather than to a failure screen.
     mocks.submitHcaRenewal.mockRejectedValue(new HcaFundingDeclinedError())
 
     const actor = startRenewal('v2', 'smart-account')
     const snapshot = await waitFor(
       actor,
-      (state) => state.matches({ pricing: 'confirm' }),
+      (state) => state.matches({ pricing: 'tokens' }),
       { timeout: 1_000 },
     )
 

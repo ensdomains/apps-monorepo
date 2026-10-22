@@ -8,15 +8,11 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
-import { Badge } from '@/components/ui/badge'
 import { partitionOwnedNames } from '@/features/address/nameAttribution'
+import { NameExpiry } from '@/features/names/components/NameExpiry'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
 import { RelationBadges } from '@/features/names/components/RelationBadges'
-import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { getNameStatus } from '@/features/renew/utils/nameExtension'
-import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { AddressNameItem } from '@/utils/names/addressNames'
-import { dateToPlainDate } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 import {
   getAddressRoleCountsQueryOptions,
@@ -50,23 +46,7 @@ const columns: ColumnDef<column>[] = [
   {
     id: 'expiryDate',
     header: 'Expiry',
-    cell: ({ row }) => {
-      const expiryDate = row.original.expiryDate
-      if (!expiryDate) {
-        return (
-          <Badge variant="secondary" className="text-small">
-            Does not expire
-          </Badge>
-        )
-      }
-      const status = getNameStatus(row.original)
-      return (
-        <div className="flex items-center gap-2">
-          <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
-          {status === 'grace' && <GraceBadge />}
-        </div>
-      )
-    },
+    cell: ({ row }) => <NameExpiry {...row.original} />,
   },
   {
     id: 'relations',
@@ -124,6 +104,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             key={name.name}
             name={name.name}
             expiryDate={name.expiryDate}
+            parentExpiryDate={name.parentExpiryDate}
             graceEndDate={name.graceEndDate}
             status={name.status}
             relations={name.relations}
@@ -158,6 +139,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 key={name.name}
                 name={name.name}
                 expiryDate={name.expiryDate}
+                parentExpiryDate={name.parentExpiryDate}
                 graceEndDate={name.graceEndDate}
                 status={name.status}
                 relations={name.relations}

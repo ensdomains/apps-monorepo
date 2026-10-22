@@ -90,18 +90,18 @@ describe('useGraceRenewalQuote background refresh', () => {
     expect(result.current).toEqual({ status: 'ready', quote })
   })
 
-  it.each([
-    { expiresAt: BigInt(NOW / 1000) },
-    { quotedAtMs: NOW - 300_000 },
-  ])('hides an expired quote while its replacement loads: %s', (expiry) => {
-    cacheQuote({ ...quote, ...expiry })
-    const { result } = renderHook(() => useGraceRenewalQuote(params), {
-      wrapper,
-    })
+  it.each([{ expiresAt: BigInt(NOW / 1000) }, { quotedAtMs: NOW - 300_000 }])(
+    'hides an expired quote while its replacement loads: %s',
+    (expiry) => {
+      cacheQuote({ ...quote, ...expiry })
+      const { result } = renderHook(() => useGraceRenewalQuote(params), {
+        wrapper,
+      })
 
-    expect(queryClient.isFetching()).toBe(1)
-    expect(result.current).toEqual({ status: 'loading' })
-  })
+      expect(queryClient.isFetching()).toBe(1)
+      expect(result.current).toEqual({ status: 'loading' })
+    },
+  )
 
   it('shows refresh errors instead of keeping the old quote actionable', async () => {
     cacheQuote()
@@ -148,25 +148,25 @@ describe('useGraceRenewalQuote background refresh', () => {
     expect(mocks.quote).not.toHaveBeenCalled()
   })
 
-  it.each([
-    { ownerAddress: OTHER_OWNER },
-    { domains: [otherDomain] },
-  ])('does not retain the prior quote after its identity changes: %s', (change) => {
-    cacheQuote()
-    const { result, rerender } = renderHook(
-      (input: typeof params) => useGraceRenewalQuote(input),
-      { wrapper, initialProps: params },
-    )
-    expect(result.current).toEqual({ status: 'ready', quote })
+  it.each([{ ownerAddress: OTHER_OWNER }, { domains: [otherDomain] }])(
+    'does not retain the prior quote after its identity changes: %s',
+    (change) => {
+      cacheQuote()
+      const { result, rerender } = renderHook(
+        (input: typeof params) => useGraceRenewalQuote(input),
+        { wrapper, initialProps: params },
+      )
+      expect(result.current).toEqual({ status: 'ready', quote })
 
-    rerender({ ...params, ...change })
+      rerender({ ...params, ...change })
 
-    expect(result.current).toEqual({ status: 'loading' })
-    expect(mocks.quote).toHaveBeenLastCalledWith({
-      domains: params.domains,
-      ownerAddress: OWNER,
-      publicClient: params.publicClient,
-      ...change,
-    })
-  })
+      expect(result.current).toEqual({ status: 'loading' })
+      expect(mocks.quote).toHaveBeenLastCalledWith({
+        domains: params.domains,
+        ownerAddress: OWNER,
+        publicClient: params.publicClient,
+        ...change,
+      })
+    },
+  )
 })

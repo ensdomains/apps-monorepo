@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import {
   createNewRecord,
   type EditableRecord,
+  type EditableTypes,
   getRecordId,
+  hasDisallowedChanges,
   mergeRecordsWithChanges,
+  NO_EDITABLE_TYPES,
 } from './editRecordUtils'
 
 describe('getRecordId', () => {
@@ -270,6 +274,18 @@ describe('createNewRecord', () => {
     expect(record._uid).toBeDefined()
   })
 
+  it('creates the ENSIP-19 default address record with coin type 0x80000000', () => {
+    const record = createNewRecord('address', 'DEFAULT', '0x123')
+
+    expect(record).toMatchObject({
+      type: 'address',
+      key: 'DEFAULT',
+      value: '0x123',
+      id: DEFAULT_EVM_COIN_TYPE,
+    })
+    expect(record._uid).toBeDefined()
+  })
+
   it('defaults to ETH coin type (60) for unknown coin names', () => {
     const record = createNewRecord('address', 'UNKNOWN', 'someaddress')
 
@@ -300,5 +316,45 @@ describe('createNewRecord', () => {
       value: '[{"type":"function"}]',
     })
     expect(record._uid).toBeDefined()
+  })
+})
+
+describe('hasDisallowedChanges', () => {
+  const textOnly: EditableTypes = { ...NO_EDITABLE_TYPES, text: 'all' }
+  const address = { type: 'address' as const, key: 'ETH', value: '0x1', id: 60 }
+
+  it('allows changes to types the wallet can still write', () => {
+    expect(
+      hasDisallowedChanges(
+        [{ type: 'text', key: 'name', value: 'Jane', isEdited: true }],
+        textOnly,
+      ),
+    ).toBe(false)
+  })
+
+  it('ignores untouched records of other types', () => {
+    expect(hasDisallowedChanges([address], textOnly)).toBe(false)
+  })
+
+  it.each([{ isNew: true }, { isEdited: true }, { isDeleted: true }])(
+    'flags a pending change of a type the wallet lost (%o)',
+    (flag) => {
+      expect(hasDisallowedChanges([{ ...address, ...flag }], textOnly)).toBe(
+        true,
+      )
+    },
+  )
+
+  it('checks the key, not just the type, when a type is scoped', () => {
+    const avatarOnly: EditableTypes = {
+      ...NO_EDITABLE_TYPES,
+      text: new Set(['avatar']),
+    }
+    const edit = (key: string) => [
+      { type: 'text' as const, key, value: 'x', isEdited: true },
+    ]
+
+    expect(hasDisallowedChanges(edit('avatar'), avatarOnly)).toBe(false)
+    expect(hasDisallowedChanges(edit('name'), avatarOnly)).toBe(true)
   })
 })

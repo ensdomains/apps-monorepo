@@ -1,4 +1,4 @@
-import { zeroAddress } from 'viem'
+import { ContractFunctionRevertedError, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetOwnerV1 = vi.fn()
@@ -182,5 +182,35 @@ describe('resolveEnsOwner', () => {
       registryAddress: V1_ETH_REGISTRY,
       protocolVersion: 'ENSv1',
     })
+  })
+
+  // WEB-1885: a parent whose subregistry has no registry behind it makes the
+  // UniversalHelper walk revert; the subname is unreachable in V2, not an error.
+  it('falls back to V1 when the V2 walk reverts on a registry along the path', async () => {
+    const revert = new ContractFunctionRevertedError({
+      abi: [],
+      functionName: 'findExactOwner',
+    })
+    mockGetOwnerV2.mockRejectedValueOnce(revert)
+    mockGetNameRegistries.mockRejectedValueOnce(revert)
+    mockGetOwnerV1.mockResolvedValueOnce({ owner: OWNER })
+
+    const result = await resolveEnsOwner(client, 'etest.sephy.eth')
+
+    expect(result).toEqual({
+      owner: OWNER,
+      registryAddress: V1_ETH_REGISTRY,
+      protocolVersion: 'ENSv1',
+    })
+  })
+
+  it('rethrows a V2 read that never reached the contract', async () => {
+    const transport = new Error('fetch failed')
+    mockGetOwnerV2.mockRejectedValueOnce(transport)
+
+    await expect(resolveEnsOwner(client, 'etest.sephy.eth')).rejects.toBe(
+      transport,
+    )
+    expect(mockGetOwnerV1).not.toHaveBeenCalled()
   })
 })

@@ -182,7 +182,7 @@ export const SelectNamesStepFooter = ({
   return (
     <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-24 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-4 lg:px-37.5">
       <GrainOverlay />
-      <div className="relative flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
+      <div className="relative flex min-w-0 max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
         {renewal.status === 'idle' ? (
           <GasEstimateMessage
             gasAffordability={gasAffordability}
@@ -205,7 +205,7 @@ export const SelectNamesStepFooter = ({
       </div>
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">
         <MigrationUpgradeButton
-          className="w-full sm:w-[320px]"
+          className="w-full pt-0 sm:w-80"
           disabled={isUpgradeDisabled || hasInsufficientUsdc}
           onClick={onUpgrade}
           showNftPlaceholder={

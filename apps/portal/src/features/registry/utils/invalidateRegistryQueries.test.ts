@@ -1,7 +1,9 @@
 import { QueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { getRegistryHistoryQueryOptions } from '../components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '../hooks/useRegistry'
 import { getRegistryLabelsQueryOptions } from '../hooks/useRegistryLabels'
@@ -21,6 +23,12 @@ const ROLE_KEYS = [
     .queryKey,
   getRegistryRoleHistoryForAccountQueryOptions({
     registryAddress: REGISTRY,
+    account: ACCOUNT,
+  }).queryKey,
+  // The caller's own root roles: a self-revoke must close the sheets.
+  getNameRolesForAccountQueryOptions({
+    registryAddress: REGISTRY,
+    resource: ROOT_RESOURCE_ID,
     account: ACCOUNT,
   }).queryKey,
 ]

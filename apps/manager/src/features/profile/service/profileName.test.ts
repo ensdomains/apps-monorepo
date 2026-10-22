@@ -8,17 +8,14 @@ import {
 } from './profileName'
 
 describe('canonical primary names', () => {
-  it.each([
-    'alice',
-    'alice.eth',
-    'sub.alice.eth',
-    'café.eth',
-    'example.com',
-  ])('preserves the identity of %s', (name) => {
-    const expected = name === 'alice' ? 'alice.eth' : name
-    expect(getCanonicalPrimaryName(name)).toBe(expected)
-    expect(requireCanonicalPrimaryName(name)).toBe(expected)
-  })
+  it.each(['alice', 'alice.eth', 'sub.alice.eth', 'café.eth', 'example.com'])(
+    'preserves the identity of %s',
+    (name) => {
+      const expected = name === 'alice' ? 'alice.eth' : name
+      expect(getCanonicalPrimaryName(name)).toBe(expected)
+      expect(requireCanonicalPrimaryName(name)).toBe(expected)
+    },
+  )
 
   it.each([
     'ALICE.eth',

@@ -39,15 +39,12 @@ describe('resolveThemeColor', () => {
     expect(resolveThemeColor(record)).toBe(color)
   })
 
-  it.each([
-    null,
-    '',
-    '#123456',
-    'red',
-    'url(x)',
-  ])('falls back to the default for %s', (record) => {
-    expect(resolveThemeColor(record)).toBe(DEFAULT_THEME_COLOR)
-  })
+  it.each([null, '', '#123456', 'red', 'url(x)'])(
+    'falls back to the default for %s',
+    (record) => {
+      expect(resolveThemeColor(record)).toBe(DEFAULT_THEME_COLOR)
+    },
+  )
 })
 
 describe('readThemeRecord', () => {

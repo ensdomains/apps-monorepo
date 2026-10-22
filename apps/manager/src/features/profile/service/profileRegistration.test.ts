@@ -52,18 +52,20 @@ describe('getRegistration', () => {
     mocks.getNameDetail.mockReturnValue(okAsync(null))
   })
 
-  it.each([
-    'v1',
-    'v2',
-  ] as const)('reads a %s registration date from the index', async (protocol) => {
-    mocks.getNameDetail.mockReturnValue(registeredAt(1_789_640_616))
+  it.each(['v1', 'v2'] as const)(
+    'reads a %s registration date from the index',
+    async (protocol) => {
+      mocks.getNameDetail.mockReturnValue(registeredAt(1_789_640_616))
 
-    const result = await getRegistration('rabbit.eth', protocol)
+      const result = await getRegistration('rabbit.eth', protocol)
 
-    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_789_640_616 })
-    expect(mocks.getNameDetail).toHaveBeenCalledWith('rabbit.eth')
-    expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
-  })
+      expect(result._unsafeUnwrap()).toEqual({
+        registrationDate: 1_789_640_616,
+      })
+      expect(mocks.getNameDetail).toHaveBeenCalledWith('rabbit.eth')
+      expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
+    },
+  )
 
   it('falls back on chain for a V2 name the index has not seen yet', async () => {
     mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)

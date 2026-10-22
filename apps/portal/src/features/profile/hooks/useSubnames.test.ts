@@ -1,16 +1,13 @@
-import {
-  BignameError,
-  type NameRecord,
-  type Subname,
-} from '@ens-apps/indexer/bigname'
+import { BignameError, type Subname } from '@ens-apps/indexer/bigname'
 import { QueryClient } from '@tanstack/react-query'
 import { errAsync, ok, okAsync } from 'neverthrow'
-import { labelhash } from 'viem'
+import { keccak256, labelhash, stringToBytes } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import {
-  getIsSubnameTakenQueryOptions,
+  getSubnameLabelStatusQueryOptions,
   getSubnamePagesQueryOptions,
+  getSubnamesCount,
   getSubnamesCountQueryOptions,
   getSubnamesQueryKey,
 } from './useSubnames'
@@ -19,10 +16,14 @@ vi.mock('@/lib/bigname', () => ({
   bigname: { subnames: vi.fn(), name: vi.fn() },
 }))
 
-const { mockClient, mockEnsjsGetOwner } = vi.hoisted(() => ({
-  mockClient: { chain: { id: 11155111 } },
-  mockEnsjsGetOwner: vi.fn(),
-}))
+const { mockClient, mockEnsjsGetOwner, mockReadContract } = vi.hoisted(() => {
+  const mockReadContract = vi.fn()
+  return {
+    mockClient: { chain: { id: 11155111 }, readContract: mockReadContract },
+    mockEnsjsGetOwner: vi.fn(),
+    mockReadContract,
+  }
+})
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok(mockClient),
 }))
@@ -89,6 +90,7 @@ describe('subname pages', () => {
         include_expired: 'false',
         sort: 'name',
         page_size: 100,
+        include: ['counts'],
       },
       { signal: expect.any(AbortSignal) },
     ])
@@ -98,8 +100,124 @@ describe('subname pages', () => {
         labelName: 'sub',
         labelhash: labelhash('sub'),
         owner: '0x1234567890AbcdEF1234567890aBcdef12345678',
+        protocol: null,
+        v1Wrapping: null,
+        subnameCount: undefined,
       },
     ])
+  })
+
+  it('carries how bigname says each V1 subname is held, and its count', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(
+      page(
+        [
+          row('plain', {
+            ens_v1: { wrapper_state: 'unwrapped' },
+            subname_count: 0,
+          }),
+          row('wrapped', { ens_v1: { wrapper_state: 'wrapped' } }),
+          row('free', { ens_v1: { wrapper_state: 'emancipated' } }),
+          row('odd', { ens_v1: { wrapper_state: 'unknown' } }),
+        ],
+        { total: 4 },
+      ),
+    )
+
+    const subnames = await firstPage('test.eth')
+
+    expect(
+      subnames.map(({ v1Wrapping, subnameCount }) => ({
+        v1Wrapping,
+        subnameCount,
+      })),
+    ).toEqual([
+      { v1Wrapping: { isWrapped: false }, subnameCount: 0 },
+      {
+        v1Wrapping: {
+          isWrapped: true,
+          parentCannotControl: false,
+          isLocked: false,
+        },
+        subnameCount: undefined,
+      },
+      {
+        v1Wrapping: {
+          isWrapped: true,
+          parentCannotControl: true,
+          isLocked: false,
+        },
+        subnameCount: undefined,
+      },
+      { v1Wrapping: null, subnameCount: undefined },
+    ])
+  })
+
+  it('marks a locked V1 subname, which its owner cannot unwrap to zero', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(
+      page(
+        [
+          row('locked', { ens_v1: { wrapper_state: 'locked' } }),
+          row('free', { ens_v1: { wrapper_state: 'emancipated' } }),
+        ],
+        { total: 2 },
+      ),
+    )
+
+    const subnames = await firstPage('test.eth')
+
+    expect(
+      subnames.map(({ v1Wrapping }) =>
+        v1Wrapping?.isWrapped ? v1Wrapping.isLocked : null,
+      ),
+    ).toEqual([true, false])
+  })
+
+  it('counts expired children only when asked, as a row’s count does', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 7 }))
+
+    expect(
+      (
+        await getSubnamesCount({
+          name: 'test.eth',
+          protocolVersion: 'ENSv1',
+          includeExpired: true,
+        })
+      )._unsafeUnwrap(),
+    ).toBe(7)
+    expect(asked()[1]).toMatchObject({ include_expired: 'true' })
+
+    await getSubnamesCount({ name: 'test.eth', protocolVersion: 'ENSv1' })
+    expect(asked(1)[1]).toMatchObject({ include_expired: 'false' })
+  })
+
+  it('carries the era bigname serves each subname from', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(
+      page(
+        [
+          row('old', { authority: 'ens_v1' }),
+          row('new', { authority: 'ens_v2' }),
+          row('unsaid'),
+        ],
+        { total: 3 },
+      ),
+    )
+
+    const subnames = await firstPage('test.eth')
+
+    expect(subnames.map(({ protocol }) => protocol)).toEqual(['v1', 'v2', null])
+  })
+
+  it('asks for counts only on V1 pages', async () => {
+    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 0 }))
+
+    await new QueryClient().fetchInfiniteQuery(
+      getSubnamePagesQueryOptions({
+        name: 'test.eth',
+        protocolVersion: 'ENSv2',
+      }),
+    )
+
+    expect(asked()[1]).not.toHaveProperty('include')
   })
 
   it('keeps a child bigname cannot label as its placeholder, and drops rows with no holder', async () => {
@@ -219,67 +337,66 @@ describe('getSubnamePagesQueryOptions', () => {
 })
 
 describe('getSubnamesCountQueryOptions', () => {
-  it.each([
-    'ENSv1',
-    'ENSv2',
-  ] as const)('reads the %s count as bigname’s total, without listing the subnames', async (protocolVersion) => {
-    vi.mocked(bigname.subnames).mockReturnValue(page([row('a')], { total: 7 }))
+  it.each(['ENSv1', 'ENSv2'] as const)(
+    'reads the %s count as bigname’s total, without listing the subnames',
+    async (protocolVersion) => {
+      vi.mocked(bigname.subnames).mockReturnValue(
+        page([row('a')], { total: 7 }),
+      )
 
-    const count = await new QueryClient().fetchQuery(
-      getSubnamesCountQueryOptions({ name: 'test.eth', protocolVersion }),
-    )
+      const count = await new QueryClient().fetchQuery(
+        getSubnamesCountQueryOptions({ name: 'test.eth', protocolVersion }),
+      )
 
-    expect(count).toBe(7)
-    expect(asked()?.[1]).toMatchObject({ page_size: 1 })
-  })
+      expect(count).toBe(7)
+      expect(asked()?.[1]).toMatchObject({ page_size: 1 })
+    },
+  )
 })
 
-describe('getIsSubnameTakenQueryOptions', () => {
-  const detail = (overrides: Partial<NameRecord>) =>
-    vi.mocked(bigname.name).mockReturnValue(
-      okAsync({
-        data: {
-          name: 'sub.test.eth',
-          display_name: 'sub.test.eth',
-          namespace: 'ens',
-          namehash: '0x01',
-          read_status: 'ok',
-          ...overrides,
-        },
-        meta: { as_of: {} },
-      }),
-    )
-  const isTaken = () =>
+describe('getSubnameLabelStatusQueryOptions', () => {
+  const REGISTRY = '0x1111111111111111111111111111111111111111'
+  const v2Status = () =>
     new QueryClient().fetchQuery(
-      getIsSubnameTakenQueryOptions({
+      getSubnameLabelStatusQueryOptions({
         name: 'test.eth',
         label: 'sub',
         protocolVersion: 'ENSv2',
+        registryAddress: REGISTRY,
       }),
     )
 
-  it('asks bigname about the one subname', async () => {
-    detail({ status: 'active' })
+  it('asks the subregistry about the label, not bigname', async () => {
+    mockReadContract.mockResolvedValue(2)
 
-    expect(await isTaken()).toBe(true)
-    expect(bigname.name).toHaveBeenCalledWith('sub.test.eth', undefined, {
-      signal: expect.any(AbortSignal),
-    })
-  })
-
-  it('is free when the subname was released or never registered', async () => {
-    detail({ status: 'released' })
-    expect(await isTaken()).toBe(false)
-
-    vi.mocked(bigname.name).mockReturnValue(
-      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
+    expect(await v2Status()).toBe('registered')
+    expect(mockReadContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: REGISTRY,
+        functionName: 'getStatus',
+        args: [BigInt(keccak256(stringToBytes('sub')))],
+      }),
     )
-    expect(await isTaken()).toBe(false)
+    expect(bigname.name).not.toHaveBeenCalled()
   })
 
-  const isV1Taken = () =>
+  it('is available once a label has expired, and tells a reservation apart', async () => {
+    mockReadContract.mockResolvedValue(0)
+    expect(await v2Status()).toBe('available')
+
+    mockReadContract.mockResolvedValue(1)
+    expect(await v2Status()).toBe('reserved')
+  })
+
+  it('fails on a status the registry does not define', async () => {
+    mockReadContract.mockResolvedValue(3)
+
+    await expect(v2Status()).rejects.toThrow()
+  })
+
+  const v1Status = () =>
     new QueryClient().fetchQuery(
-      getIsSubnameTakenQueryOptions({
+      getSubnameLabelStatusQueryOptions({
         name: 'test.eth',
         label: 'sub',
         protocolVersion: 'ENSv1',
@@ -292,16 +409,16 @@ describe('getIsSubnameTakenQueryOptions', () => {
       ownershipLevel: 'registry',
     })
 
-    expect(await isV1Taken()).toBe(true)
+    expect(await v1Status()).toBe('registered')
     expect(mockEnsjsGetOwner).toHaveBeenCalledWith(mockClient, {
       name: 'sub.test.eth',
     })
     expect(bigname.name).not.toHaveBeenCalled()
   })
 
-  it('is free when the V1 registry has no owner for the subname', async () => {
+  it('is available when the V1 registry has no owner for the subname', async () => {
     mockEnsjsGetOwner.mockResolvedValue(null)
 
-    expect(await isV1Taken()).toBe(false)
+    expect(await v1Status()).toBe('available')
   })
 })

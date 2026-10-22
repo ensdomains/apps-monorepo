@@ -143,19 +143,19 @@ describe('readNamesForAddress', () => {
     expect(bob).not.toHaveProperty('heldPowers')
   })
 
-  it.each([
-    undefined,
-    [],
-  ])('reads every relation when %s is asked for, and sends nothing else', async (relations) => {
-    const { client, fetch } = clientWith(envelope([], page))
+  it.each([undefined, []])(
+    'reads every relation when %s is asked for, and sends nothing else',
+    async (relations) => {
+      const { client, fetch } = clientWith(envelope([], page))
 
-    await readNamesForAddress(client)({
-      address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
-      relations,
-    })
+      await readNamesForAddress(client)({
+        address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+        relations,
+      })
 
-    expect(requestOf(fetch).url).toMatch(/names\?namespace=ens&relation=any$/)
-  })
+      expect(requestOf(fetch).url).toMatch(/names\?namespace=ens&relation=any$/)
+    },
+  )
 
   it('renders the wire rows the way the dashboards need them, with the page', async () => {
     const { client } = clientWith(envelope([row], page))

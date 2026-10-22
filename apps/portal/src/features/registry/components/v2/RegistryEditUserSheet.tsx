@@ -27,6 +27,7 @@ import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helper
 import { prepareRevokeRegistryRolesTransaction } from '@/features/registry/helpers/revokeRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
+import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -35,10 +36,10 @@ import type {
   IntentContext,
   Transaction,
 } from '@/features/transaction-manager/types'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   computeRoleDiff,
-  getAccountAdminRoles,
   getRemovableRoles,
   getSoleAdminRoles,
 } from '../../utils/registryRoleAccess'
@@ -80,7 +81,11 @@ export const RegistryEditUserSheet = ({
     enabled: Boolean(callerAddress),
   })
 
-  const callerAdminRoles = getAccountAdminRoles(rolesData, callerAddress)
+  const callerAdminRoles = useCallerAdminRoles({
+    registryAddress,
+    resource: ROOT_RESOURCE_ID,
+    account: callerAddress,
+  })
 
   const initialRoles = new Set<Role>(currentRoles)
 

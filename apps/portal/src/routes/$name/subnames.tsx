@@ -1,16 +1,12 @@
 import {
-  type FlowScope,
-  scopeTransactionId,
-} from '@ens-apps/transaction-manager'
-import {
   keepPreviousData,
   useInfiniteQuery,
   useQuery,
 } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
-import { fromPromise } from 'neverthrow'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo } from 'react'
+import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -25,34 +21,33 @@ import {
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getSubnamePagesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { V1SubnamesContent } from '@/features/registry/components/V1SubnamesContent'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { getIsRegistryQueryOptions } from '@/features/registry/hooks/useIsRegistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import {
   getResourceRolesQueryOptions,
   holdsRolesOn,
 } from '@/features/registry/hooks/useResourceRoles'
-import { getV1SubnameCreateGate } from '@/features/registry/utils/create-subname.helpers'
-import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
-import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
-import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import type {
-  IntentContext,
-  Transaction,
-} from '@/features/transaction-manager/types'
-import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import {
+  type SubnameDeleteStepSpec,
+  useSubnameDeleteQueue,
+} from '@/features/registry/hooks/useSubnameDeleteQueue'
+import { getRegistrarAccess } from '@/features/registry/utils/create-subname.helpers'
+import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import type { IntentContext } from '@/features/transaction-manager/types'
+import {
+  ROOT_RESOURCE_ID,
   resourceIdForName,
   resourceIdFromChainValue,
 } from '@/lib/resource/resourceId'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-
-const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
-const deleteTxId = (subnameName: string, scope: FlowScope | null): string =>
-  scopeTransactionId(`${DELETE_SUBNAME_TX_ID_PREFIX}-${subnameName}`, scope)
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -96,43 +91,54 @@ const NoSubregistryMessage = ({
   />
 )
 
-interface V2SubnamesContentProps {
-  readonly name: string
+interface InvalidSubregistryMessageProps extends NoSubregistryMessageProps {
+  readonly subregistry: Address
 }
 
-const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
+const InvalidSubregistryMessage = ({
+  name,
+  canDeploy,
+  subregistry,
+}: InvalidSubregistryMessageProps) => (
+  <MessageCard
+    variant="warning"
+    icon={<AlertCircle className="size-6" strokeWidth={1.5} />}
+    title="Invalid subregistry"
+    description={
+      <p>
+        This name's subregistry ({truncateAddress(subregistry)}) isn't an ENS
+        registry, so it has no subnames to show.
+        <br />
+        {canDeploy
+          ? 'Deploy or set a valid one to manage subnames.'
+          : 'You do not have permission to change it.'}
+      </p>
+    }
+    actionButton={
+      canDeploy
+        ? {
+            label: 'Change subregistry',
+            href: `/${encodeURIComponent(name)}/registry`,
+          }
+        : undefined
+    }
+  />
+)
+
+interface SubregistryMessageProps {
+  readonly name: string
+  readonly parentRegistryAddress: Address | undefined
+  /** Set when the name points at a subregistry that isn't an ENS registry. */
+  readonly invalidSubregistry?: Address
+}
+
+const SubregistryMessage = ({
+  name,
+  parentRegistryAddress,
+  invalidSubregistry,
+}: SubregistryMessageProps) => {
   const { address: connectedAccount } = useAccount()
 
-  const {
-    data: registriesData,
-    isLoading: registriesLoading,
-    error: registriesError,
-  } = useQuery(getNameRegistriesQueryOptions({ name }))
-
-  // The subregistry is always the first element (index 0) in the registries array
-  // For 2LD "foo.eth": [subregistry, ethRegistry, root]
-  // For 3LD "sub.foo.eth": [subregistry, fooRegistry, ethRegistry, root]
-  // For 4LD "x.sub.foo.eth": [subregistry, subRegistry, fooRegistry, ethRegistry, root]
-  const subregistryAddress = registriesData?.[0]
-  const hasSubregistry =
-    subregistryAddress && subregistryAddress !== zeroAddress
-
-  // ROLE_REGISTRAR on the subregistry's ROOT resource, which is what `register`
-  // checks and where a registry-wide grant lands. Omitting `label` is what
-  // selects that: a label of any kind — `''` included — asks about
-  // `labelhash(label)` instead, a resource nobody is ever granted roles on, so
-  // the answer was always false however the account was granted the role.
-  const { data: hasRegistrarRole } = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress: subregistryAddress as Address,
-      roles: ['ROLE_REGISTRAR'],
-      account: connectedAccount as Address,
-    }),
-    enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
-  })
-
-  // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
-  const parentRegistryAddress = registriesData?.[1]
   // The name's own id, not its displayed label: a label rendered `[<64 hex>]`
   // does not say which name it is, so the id is resolved once and the gate
   // asks about that (WEB-1458). No id means no permission, never root.
@@ -140,7 +146,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const { data: readNameResourceId } = useQuery({
     ...getNameResourceIdQueryOptions({
       name,
-      registryAddress: parentRegistryAddress ?? undefined,
+      registryAddress: parentRegistryAddress,
     }),
     enabled: idFromName === null && Boolean(parentRegistryAddress),
   })
@@ -155,8 +161,44 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled:
       Boolean(parentRegistryAddress) &&
       Boolean(connectedAccount) &&
-      Boolean(nameResourceId) &&
-      !hasSubregistry,
+      Boolean(nameResourceId),
+  })
+
+  return invalidSubregistry ? (
+    <InvalidSubregistryMessage
+      name={name}
+      canDeploy={Boolean(hasSetSubregistryRole)}
+      subregistry={invalidSubregistry}
+    />
+  ) : (
+    <NoSubregistryMessage
+      name={name}
+      canDeploy={Boolean(hasSetSubregistryRole)}
+    />
+  )
+}
+
+interface SubregistrySubnamesProps {
+  readonly name: string
+  readonly subregistryAddress: Address
+}
+
+const SubregistrySubnames = ({
+  name,
+  subregistryAddress,
+}: SubregistrySubnamesProps) => {
+  const { address: connectedAccount } = useAccount()
+
+  // `register` checks the subregistry's root roles: ROLE_REGISTRAR for a free
+  // label, ROLE_REGISTER_RESERVED for a reserved one. The create page asks the same.
+  const { data: registrarAccess } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress: subregistryAddress,
+      resource: ROOT_RESOURCE_ID,
+      account: connectedAccount as Address,
+    }),
+    select: ({ decoded }) => getRegistrarAccess(decoded),
+    enabled: Boolean(connectedAccount),
   })
 
   const {
@@ -169,7 +211,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     fetchNextPage,
   } = useInfiniteQuery({
     ...getSubnamePagesQueryOptions({ name, protocolVersion: 'ENSv2' }),
-    enabled: Boolean(hasSubregistry),
   })
   const subnames = useMemo(
     () => subnamePages?.pages.flatMap((page) => page.subnames),
@@ -182,35 +223,52 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     error: deleteError,
   } = useDeleteSubname({
     name,
-    registryAddress: (subregistryAddress as Address) ?? zeroAddress,
+    registryAddress: subregistryAddress,
   })
 
-  const {
-    isOpen: isTransactionModalOpen,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
-
-  // Names the attempt the modal is showing. A bulk delete queues several steps
-  // under one attempt, so an abandoned run cannot hand its finished actors to
-  // the next one and skip straight to the last subname.
-  const attempt = useFlowAttempt()
-
-  // Subnames queued for the current modal session. Length 1 for single delete
-  // (inline confirm), N for bulk Clear. The modal walks through them in order.
-  const [queuedDeletes, setQueuedDeletes] = useState<readonly SubnameRow[]>([])
-  // Names whose delete tx is in flight — used to dim the row in the table.
-  // A Set keeps adds idempotent (bulk Clear pre-marks every selected name
-  // before runDelete fires, and runDelete also self-marks).
-  const [pendingNames, setPendingNames] = useState<ReadonlySet<string>>(
-    () => new Set(),
+  const servedNames = useMemo(
+    () => subnames?.map((subname) => subname.name || ''),
+    [subnames],
   )
-  // Names whose delete tx already succeeded — hidden from the UI immediately
-  // so the user sees the result before the indexer catches up. Cleared
-  // automatically once the refreshed query no longer returns them.
-  const [optimisticallyDeleted, setOptimisticallyDeleted] = useState<
-    ReadonlySet<string>
-  >(() => new Set())
+
+  // Nothing is signed for a row whose on-chain id the indexer did not give
+  // us: the label on screen is not a substitute for it (WEB-1458).
+  const stepsFor = useCallback(
+    (row: SubnameRow): readonly SubnameDeleteStepSpec[] => {
+      const resourceId = row.resourceId
+      if (!resourceId) return []
+      return [
+        {
+          title: 'Delete subname',
+          transactionName: `Delete ${row.name}`,
+          // Matches the call deleteSubnameAsync submits (same registry, id and
+          // chainId), so the modal's estimate stays byte-identical.
+          prepare: ({ walletClient, chainId }: IntentContext) =>
+            prepareDeleteSubnameTransaction({
+              registryAddress: subregistryAddress,
+              resourceId,
+              walletClient,
+              chainId,
+              subname: row.name,
+            }),
+          send: (id) =>
+            deleteSubnameAsync({ subname: row.name, resourceId, id }),
+        },
+      ]
+    },
+    [subregistryAddress, deleteSubnameAsync],
+  )
+
+  const {
+    queue: queueForDeletion,
+    transactions: deleteTransactions,
+    pendingNames,
+    optimisticallyDeleted,
+  } = useSubnameDeleteQueue({
+    connectedAccount,
+    servedNames,
+    stepsFor,
+  })
 
   // Every row keeps the id the indexer holds for it. That id — not the label
   // rendered in the cell — is what the delete call and the permission check
@@ -224,9 +282,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           name: subname.name || '',
           owner: subname.owner,
           labelhash: subname.labelhash,
-          resourceId: resourceIdFromChainValue(subname.labelhash).unwrapOr(
-            null,
-          ),
+          protocol: subname.protocol,
+          resourceId:
+            subname.protocol === 'v2'
+              ? resourceIdFromChainValue(subname.labelhash).unwrapOr(null)
+              : null,
         }))
         .filter((subname) => !optimisticallyDeleted.has(subname.name)),
     [subnames, optimisticallyDeleted],
@@ -242,11 +302,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const { data: hasRootUnregisterRole, isPending: isRootUnregisterPending } =
     useQuery({
       ...getHasRolesQueryOptions({
-        registryAddress: subregistryAddress as Address,
+        registryAddress: subregistryAddress,
         roles: ['ROLE_UNREGISTER'],
         account: connectedAccount as Address,
       }),
-      enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+      enabled: Boolean(connectedAccount),
     })
 
   const unregisterResources = useMemo(
@@ -259,13 +319,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const { data: perRowUnregisterRoles } = useQuery({
     ...getResourceRolesQueryOptions({
-      registryAddress: (subregistryAddress as Address) ?? zeroAddress,
+      registryAddress: subregistryAddress,
       account: connectedAccount as Address,
       roles: ['ROLE_UNREGISTER'],
       resources: unregisterResources,
     }),
     enabled:
-      Boolean(hasSubregistry) &&
       Boolean(connectedAccount) &&
       !isRootUnregisterPending &&
       hasRootUnregisterRole === false &&
@@ -286,6 +345,17 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         owner: subname.owner,
         labelhash: subname.labelhash,
         resourceId: subname.resourceId ?? undefined,
+        deleteBlockedReason: match(subname.protocol)
+          .with('v2', () => undefined)
+          .with(
+            'v1',
+            () => 'This is a V1 subname, and it isn’t part of this name on V2.',
+          )
+          .with(
+            null,
+            () => 'Couldn’t confirm this subname is part of this name on V2.',
+          )
+          .exhaustive(),
         canDelete:
           subname.resourceId !== null &&
           (hasRootUnregisterRole === true ||
@@ -294,183 +364,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     [visibleSubnames, hasRootUnregisterRole, perRowUnregisterRoles],
   )
 
-  // Tracks names whose deleteSubnameAsync mutation is currently in flight.
-  // Prevents double-submission when both the modal's auto-advance onDone
-  // and the user's "Open wallet" click attempt to fire the same tx for the
-  // same subname — the second runDelete call is a no-op until the first
-  // settles.
-  const inFlightRef = useRef<Set<string>>(new Set())
-
-  const runDelete = useCallback(
-    async (subname: SubnameRow, id: string) => {
-      if (inFlightRef.current.has(subname.name)) return
-      // Nothing is signed for a row whose on-chain id the indexer did not give
-      // us: the label on screen is not a substitute for it (WEB-1458).
-      if (!subname.resourceId) return
-      inFlightRef.current.add(subname.name)
-
-      setPendingNames((prev) => {
-        if (prev.has(subname.name)) return prev
-        const next = new Set(prev)
-        next.add(subname.name)
-        return next
-      })
-
-      const result = await fromPromise(
-        deleteSubnameAsync({
-          subname: subname.name,
-          resourceId: subname.resourceId,
-          id,
-        }),
-        (error) => error as Error,
-      )
-
-      setPendingNames((prev) => {
-        if (!prev.has(subname.name)) return prev
-        const next = new Set(prev)
-        next.delete(subname.name)
-        return next
-      })
-      if (result.isOk()) {
-        setOptimisticallyDeleted((prev) => {
-          const next = new Set(prev)
-          next.add(subname.name)
-          return next
-        })
-      }
-      inFlightRef.current.delete(subname.name)
-    },
-    [deleteSubnameAsync],
-  )
-
-  const queueForDeletion = useCallback(
-    (rows: readonly SubnameRow[]) => {
-      // Rows without an id are never signed for, so they are never queued
-      // either — queuing them would only show a step that cannot run.
-      const deletable = rows.filter((row) => Boolean(row.resourceId))
-      if (deletable.length === 0) return
-      setQueuedDeletes(deletable)
-      // Pre-mark every queued name as pending so all rows dim immediately,
-      // not just the one currently being signed. runDelete pops each name
-      // off as its tx settles; the close-cleanup effect handles abandons.
-      setPendingNames((prev) => {
-        const next = new Set(prev)
-        for (const r of deletable) next.add(r.name)
-        return next
-      })
-      if (connectedAccount) attempt.start(connectedAccount)
-    },
-    [attempt, connectedAccount],
-  )
-
   const handleDeleteSubname = (subname: SubnameRow) =>
     queueForDeletion([subname])
 
   const handleClearSelected = (selected: SubnameRow[]) =>
     queueForDeletion(selected)
-
-  // The prepared delete transaction for a queued subname — deterministic given
-  // the registry and the row's id, so the modal can estimate gas the moment it
-  // opens. Matches the call submitted by runDelete → useDeleteSubname (same
-  // registry, id and chainId) so the estimate stays byte-identical. Yields a
-  // lazy thunk (or undefined when there's no subregistry, or no id for the row)
-  // the modal calls with the ready wallet context.
-  const getDeleteIntent = (subname: SubnameRow) => {
-    const resourceId = subname.resourceId
-    if (!hasSubregistry || !subregistryAddress || !resourceId) return undefined
-    return ({ walletClient, chainId }: IntentContext) =>
-      prepareDeleteSubnameTransaction({
-        registryAddress: subregistryAddress,
-        resourceId,
-        walletClient,
-        chainId,
-        subname: subname.name,
-      })
-  }
-
-  // One Transaction entry per queued subname. The modal walks through them
-  // top-to-bottom; intermediate onDone fires the next one's onStart so the
-  // user gets sequential wallet popups without having to click "Next" between
-  // each. Last onDone wraps up the modal session.
-  const deleteTransactions: readonly Transaction[] = queuedDeletes.map(
-    (subname, i) => {
-      const id = deleteTxId(subname.name, attempt.scope)
-      const isLast = i === queuedDeletes.length - 1
-      const next = queuedDeletes[i + 1]
-      return {
-        id,
-        title: 'Delete subname',
-        transactionName: `Delete ${subname.name}`,
-        intent: { prepare: getDeleteIntent(subname) },
-        onStart: () => {
-          void runDelete(subname, id)
-        },
-        onDone: isLast
-          ? () => {
-              closeTransactionModal()
-              clearTransaction()
-              attempt.end()
-              setQueuedDeletes([])
-            }
-          : () => {
-              void runDelete(next, deleteTxId(next.name, attempt.scope))
-            },
-      }
-    },
-  )
-
-  // When the modal closes (success path or user dismissal), reset the queue
-  // and drop any pre-marked names that haven't actually started — runDelete
-  // is the source of truth for in-flight names, and it manages its own entry.
-  useEffect(() => {
-    if (isTransactionModalOpen) return
-    if (queuedDeletes.length === 0) return
-    const queuedNames = new Set(queuedDeletes.map((r) => r.name))
-    setQueuedDeletes([])
-    setPendingNames((prev) => {
-      let changed = false
-      const next = new Set(prev)
-      for (const n of queuedNames) {
-        if (next.delete(n)) changed = true
-      }
-      return changed ? next : prev
-    })
-  }, [isTransactionModalOpen, queuedDeletes])
-
-  // Once the indexer has caught up and stopped returning a name we
-  // optimistically deleted, drop it from the set — the row is naturally
-  // absent from the query data, so the local override is no longer needed.
-  useEffect(() => {
-    if (!subnames) return
-    const present = new Set(subnames.map((s) => s.name || ''))
-    setOptimisticallyDeleted((prev) => {
-      const next = new Set<string>()
-      for (const n of prev) if (present.has(n)) next.add(n)
-      return next.size === prev.size ? prev : next
-    })
-  }, [subnames])
-
-  if (registriesLoading) {
-    return <LoadingMessage title="Checking registry..." />
-  }
-
-  if (registriesError) {
-    return (
-      <ErrorMessage
-        title="Failed to load registry"
-        description={registriesError.cause?.message || registriesError.message}
-      />
-    )
-  }
-
-  if (!hasSubregistry) {
-    return (
-      <NoSubregistryMessage
-        name={name}
-        canDeploy={Boolean(hasSetSubregistryRole)}
-      />
-    )
-  }
 
   if (subnamesLoading) {
     return <LoadingMessage title="Loading subnames..." />
@@ -492,7 +390,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const canDeleteSubname =
     hasRootUnregisterRole === true || subnameRows.some((row) => row.canDelete)
 
-  const canCreateSubname = Boolean(hasRegistrarRole)
+  const canCreateSubname = Boolean(
+    registrarAccess?.canRegister || registrarAccess?.canRegisterReserved,
+  )
 
   return (
     <>
@@ -525,69 +425,100 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   )
 }
 
-interface V1SubnamesContentProps {
+interface SubregistryCheckProps {
   readonly name: string
+  readonly subregistryAddress: Address
+  readonly parentRegistryAddress: Address | undefined
 }
 
-const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
-  const { address: connectedAccount } = useAccount()
-  const stateQuery = useQuery(getV1NameStateQueryOptions({ name }))
+// bigname serves subnames whatever the subregistry is now (WEB-1885).
+const SubregistryCheck = ({
+  name,
+  subregistryAddress,
+  parentRegistryAddress,
+}: SubregistryCheckProps) => {
   const {
-    data,
+    data: isRegistry,
     isLoading,
     error,
-    hasNextPage,
-    isFetchingNextPage,
-    isFetchNextPageError,
-    fetchNextPage,
-  } = useInfiniteQuery(
-    getSubnamePagesQueryOptions({ name, protocolVersion: 'ENSv1' }),
-  )
+  } = useQuery(getIsRegistryQueryOptions({ address: subregistryAddress }))
 
-  if (isLoading) return <LoadingMessage title="Loading subnames..." />
+  if (isLoading) {
+    return <LoadingMessage title="Checking subregistry..." />
+  }
 
-  // A failed Load more keeps the subnames already shown.
-  if (error && !isFetchNextPageError) {
+  if (error && isRegistry === undefined) {
     return (
       <ErrorMessage
-        title="Failed to load subnames"
-        description={extractErrorMessage(error, '')}
+        title="Failed to check subregistry"
+        description={error.message}
       />
     )
   }
 
-  const subnameRows: SubnameRow[] = (data?.pages ?? []).flatMap((page) =>
-    page.subnames.map((subname) => ({
-      name: subname.name,
-      owner: subname.owner,
-      labelhash: subname.labelhash,
-    })),
-  )
-
-  // Hidden when disconnected, as for V2: creating needs the holder's wallet.
-  const canCreateSubname =
-    !!connectedAccount &&
-    !!stateQuery.data &&
-    getV1SubnameCreateGate(stateQuery.data, connectedAccount).reason === 'ok'
+  if (!isRegistry) {
+    return (
+      <SubregistryMessage
+        name={name}
+        parentRegistryAddress={parentRegistryAddress}
+        invalidSubregistry={subregistryAddress}
+      />
+    )
+  }
 
   return (
-    <>
-      <SubnamesTable
-        subnames={subnameRows}
-        totalCount={data?.pages[0]?.totalCount}
-        onLoadMore={hasNextPage ? () => void fetchNextPage() : undefined}
-        isLoadingMore={isFetchingNextPage}
-        isLoadMoreError={isFetchNextPageError}
-        name={name}
-        canCreateSubname={canCreateSubname}
+    <SubregistrySubnames name={name} subregistryAddress={subregistryAddress} />
+  )
+}
+
+interface V2SubnamesContentProps {
+  readonly name: string
+}
+
+const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
+  const {
+    data: registriesData,
+    isLoading: registriesLoading,
+    error: registriesError,
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
+
+  if (registriesLoading) {
+    return <LoadingMessage title="Checking registry..." />
+  }
+
+  // A failed refresh keeps the last answer, so the listing (and any delete in
+  // flight) stays mounted.
+  if (registriesError && !registriesData) {
+    return (
+      <ErrorMessage
+        title="Failed to load registry"
+        description={registriesError.cause?.message || registriesError.message}
       />
-      {stateQuery.isError && (
-        <ErrorMessage
-          compact
-          description="Couldn’t check whether you can create subnames here. Refresh to try again."
-        />
-      )}
-    </>
+    )
+  }
+
+  // The subregistry is always the first element (index 0) in the registries array
+  // For 2LD "foo.eth": [subregistry, ethRegistry, root]
+  // For 3LD "sub.foo.eth": [subregistry, fooRegistry, ethRegistry, root]
+  // For 4LD "x.sub.foo.eth": [subregistry, subRegistry, fooRegistry, ethRegistry, root]
+  const subregistryAddress = registriesData?.[0]
+  const parentRegistryAddress = registriesData?.[1] ?? undefined
+
+  if (!subregistryAddress || subregistryAddress === zeroAddress) {
+    return (
+      <SubregistryMessage
+        name={name}
+        parentRegistryAddress={parentRegistryAddress}
+      />
+    )
+  }
+
+  return (
+    <SubregistryCheck
+      name={name}
+      subregistryAddress={subregistryAddress}
+      parentRegistryAddress={parentRegistryAddress}
+    />
   )
 }
 

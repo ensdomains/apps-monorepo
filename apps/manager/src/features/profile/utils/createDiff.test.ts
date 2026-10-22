@@ -64,6 +64,58 @@ describe('profile createDiff utils', () => {
       expect(descDiff?.current).toBe('New description')
     })
 
+    describe.each(['avatar', 'header'] as const)('%s uploads', (key) => {
+      const base = 'https://avatar-upload-staging.ens-cf.workers.dev/'
+      const suffix = key === 'header' ? '/h' : ''
+
+      it.each([
+        ['name', `sepolia/other.eth${suffix}`, `sepolia/own.eth${suffix}`],
+        ['network', `own.eth${suffix}`, `sepolia/own.eth${suffix}`],
+        [
+          'image kind',
+          `sepolia/own.eth${key === 'header' ? '' : '/h'}`,
+          `sepolia/own.eth${suffix}`,
+        ],
+      ])(
+        'detects a different %s on the same upload worker',
+        (_, oldPath, newPath) => {
+          const original = {
+            ...newEmptyProfileRecords(),
+            base: { [key]: `${base}${oldPath}` },
+          }
+          const current = {
+            ...newEmptyProfileRecords(),
+            base: { [key]: `${base}${newPath}` },
+          }
+
+          const diff = createDiff(original, current)
+
+          expect(Object.values(diff)).toEqual([
+            expect.objectContaining({
+              original: `${base}${oldPath}`,
+              current: `${base}${newPath}`,
+              type: 'modified',
+              fieldKey: key,
+            }),
+          ])
+        },
+      )
+
+      it('does not rewrite an unchanged upload URL', () => {
+        const imageUrl = `${base}sepolia/own.eth${suffix}`
+        const original = {
+          ...newEmptyProfileRecords(),
+          base: { [key]: imageUrl },
+        }
+        const current = {
+          ...newEmptyProfileRecords(),
+          base: { [key]: imageUrl },
+        }
+
+        expect(createDiff(original, current)).toEqual({})
+      })
+    })
+
     it('should detect primary contact changes as base text records', () => {
       const original = newEmptyProfileRecords()
       const current = {

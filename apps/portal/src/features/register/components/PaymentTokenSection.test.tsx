@@ -139,7 +139,6 @@ describe('PaymentTokenSection — price reads', () => {
 
   it('recovers once a retry succeeds', async () => {
     getRegisterPrice.mockRejectedValueOnce(new Error('HTTP 500 from dRPC'))
-    getRegisterPrice.mockRejectedValueOnce(new Error('HTTP 500 from dRPC'))
     getRegisterPrice.mockResolvedValue(USDC_PRICE)
     balance = 10_000_000n
 

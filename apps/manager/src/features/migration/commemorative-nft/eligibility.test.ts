@@ -71,24 +71,22 @@ describe('commemorative NFT eligibility', () => {
     expect(result.assets.imageUrl).toBe(imageUrl)
   })
 
-  it.each([
-    publishedRendererUrl,
-    'https://other.example/artwork',
-    null,
-    42,
-  ])('ignores unused published animation URLs when deriving assets: %j', (animationUrl) => {
-    const result = parseCommemorativeNftEligibility({
-      ownerAddress,
-      assetOrigin: 'https://assets.example',
-      payload: { ...publishedMetadata, animation_url: animationUrl },
-    })
+  it.each([publishedRendererUrl, 'https://other.example/artwork', null, 42])(
+    'ignores unused published animation URLs when deriving assets: %j',
+    (animationUrl) => {
+      const result = parseCommemorativeNftEligibility({
+        ownerAddress,
+        assetOrigin: 'https://assets.example',
+        payload: { ...publishedMetadata, animation_url: animationUrl },
+      })
 
-    expect(result.assets).toEqual({
-      metadataUrl,
-      imageUrl,
-      externalUrl: undefined,
-    })
-  })
+      expect(result.assets).toEqual({
+        metadataUrl,
+        imageUrl,
+        externalUrl: undefined,
+      })
+    },
+  )
 
   it('maps renderer metadata attributes', () => {
     const result = parseCommemorativeNftEligibility({
@@ -125,22 +123,23 @@ describe('commemorative NFT eligibility', () => {
     ).toThrow(CommemorativeNftEligibilityError)
   })
 
-  it.each([
-    404, 410,
-  ])('treats missing published JSON with HTTP %s as ineligible', async (status) => {
-    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status }))
-    await expect(
-      fetchCommemorativeNftEligibility({
-        ownerAddress,
-        assetOrigin: 'https://assets.example/',
-        fetcher,
-      }),
-    ).resolves.toEqual({ status: 'ineligible' })
-    expect(fetcher).toHaveBeenCalledWith(metadataUrl, {
-      signal: expect.any(AbortSignal),
-    })
-    expect(fetcher).toHaveBeenCalledTimes(1)
-  })
+  it.each([404, 410])(
+    'treats missing published JSON with HTTP %s as ineligible',
+    async (status) => {
+      const fetcher = vi.fn().mockResolvedValue(new Response(null, { status }))
+      await expect(
+        fetchCommemorativeNftEligibility({
+          ownerAddress,
+          assetOrigin: 'https://assets.example/',
+          fetcher,
+        }),
+      ).resolves.toEqual({ status: 'ineligible' })
+      expect(fetcher).toHaveBeenCalledWith(metadataUrl, {
+        signal: expect.any(AbortSignal),
+      })
+      expect(fetcher).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('uses one JSON request without an image probe and preserves published metadata inputs', async () => {
     const fetcher = vi
@@ -237,25 +236,25 @@ describe('commemorative NFT eligibility', () => {
     })
   })
 
-  it.each([
-    '{}',
-    'invalid JSON',
-  ])('rejects malformed published JSON: %s', async (body) => {
-    const fetcher = vi.fn().mockResolvedValueOnce(
-      new Response(body, {
-        headers: { 'content-type': 'application/json' },
-      }),
-    )
+  it.each(['{}', 'invalid JSON'])(
+    'rejects malformed published JSON: %s',
+    async (body) => {
+      const fetcher = vi.fn().mockResolvedValueOnce(
+        new Response(body, {
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
 
-    await expect(
-      fetchCommemorativeNftEligibility({
-        ownerAddress,
-        assetOrigin: 'https://assets.example',
-        fetcher,
-      }),
-    ).rejects.toThrow()
-    expect(fetcher).toHaveBeenCalledTimes(1)
-  })
+      await expect(
+        fetchCommemorativeNftEligibility({
+          ownerAddress,
+          assetOrigin: 'https://assets.example',
+          fetcher,
+        }),
+      ).rejects.toThrow()
+      expect(fetcher).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('rejects malformed proofs and renderer traits', () => {
     expect(() =>

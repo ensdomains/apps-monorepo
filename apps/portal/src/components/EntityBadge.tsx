@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { CircleHelp } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
@@ -16,9 +17,11 @@ import {
 } from '@/components/EntityAction'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
+import { CONTRACT_DOCS } from '@/lib/constants/contractDocs'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx' | 'default'
 
@@ -106,6 +109,8 @@ interface EntityBadgeProps {
   readonly ownerAddress?: Address
   /** Address — enables Address chip (→ /addr/$address); on a name, the account it stands for */
   readonly address?: Address
+  /** The HCA acting for this entity: adds chips to the HCA's address page and the HCA docs. */
+  readonly hcaAddress?: Address
   /** Mark a contract `address` as a registry — enables Registry chip + primary action (→ /registry/$address) */
   readonly isRegistry?: boolean
   /** TLD label (e.g. "eth") — for a contract, enables a TLD chip + primary action (→ /tld/$tld) */
@@ -155,6 +160,7 @@ export const EntityBadge = ({
   ownerName,
   ownerAddress,
   address,
+  hcaAddress,
   isRegistry = false,
   tld,
   etherscanHref,
@@ -207,6 +213,7 @@ export const EntityBadge = ({
     ownerName ||
     ownerAddress ||
     address ||
+    hcaAddress ||
     tld ||
     etherscanHref ||
     derivedCopyValue
@@ -389,8 +396,8 @@ export const EntityBadge = ({
           className,
         )}
       >
-        {resolvedAvatar && <span className="shrink-0">{resolvedAvatar}</span>}
         {labelContent}
+        {resolvedAvatar && <span className="shrink-0">{resolvedAvatar}</span>}
         {content}
       </span>
     </span>
@@ -424,6 +431,31 @@ export const EntityBadge = ({
           'group-has-[:focus-visible]/entity:opacity-100 group-has-[:focus-visible]/entity:pointer-events-auto',
         )}
       >
+        {hcaAddress && (
+          <>
+            <Link
+              to="/addr/$addr"
+              params={{ addr: hcaAddress }}
+              className={chipClass}
+            >
+              <ChipWalletIcon className="size-3.25" />
+              HCA{' '}
+              <span className="font-mono">
+                {truncateAddress(hcaAddress, 5, 3)}
+              </span>
+            </Link>
+            <a
+              href={CONTRACT_DOCS.hca}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={chipClass}
+            >
+              <CircleHelp className="size-3.25" />
+              About HCA
+            </a>
+          </>
+        )}
+
         {variant === 'name' && name && (
           <Link to="/$name" params={{ name }} className={chipClass}>
             <ChipNameIcon className="size-3.25" />

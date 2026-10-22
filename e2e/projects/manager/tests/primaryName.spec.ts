@@ -64,7 +64,10 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // EOA mode. See registration-rhinestone.spec.ts.
     await clickThroughEnableSessions(page)
     await page.getByRole('button', { name: 'Select USDC' }).click()
-    await page.getByRole('button', { name: /register name/i }).click()
+    await page
+      .getByRole('dialog', { name: 'Approve and register name' })
+      .getByRole('button', { name: /^(approve and register|register name)$/i })
+      .click()
 
     // RegisteringStep renders NotificationSettings for as long as the
     // parallel `notifications` region sits in its initial `settings` state —

@@ -38,6 +38,8 @@ import {
   type ResolverRole as ResolverRoleName,
 } from '@/lib/roles/resolverRoles'
 import { flattenHistoryData } from '@/utils/history/historyEventsToTableEvents'
+import { NODES_WITH_RECORDS } from './useNodesWithRecords'
+import { RESOLVER_ROLES_FOR_ACCOUNT } from './useResolverCallerAdminRoles'
 
 /**
  * A name that shares its record with at least one other name on this resolver.
@@ -123,6 +125,8 @@ export type ResolverOverview = {
    * when bigname could not serve them, which leaves the rest of the page up.
    */
   readonly events: readonly ResolverEvent[] | null
+  /** True when bigname holds older events than `events` lists. */
+  readonly eventsHasMore: boolean
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
@@ -282,6 +286,9 @@ const toNamedResource = (
     .otherwise(() => undefined)
 }
 
+const namedResourceOf = (row: BignameResolverRole) =>
+  row.record_resource ? (toNamedResource(row.record_resource) ?? []) : []
+
 /**
  * The EAC resource a grant targets: bigname's `eac_resource` when it serves
  * one, else the hash of the record it is scoped to. Neither present does not
@@ -435,12 +442,44 @@ const toOverview = (
         ? null
         : new Set(resolverRoles.map(({ account }) => account.toLowerCase()))
             .size,
-    namedResources: roles.rows.flatMap((row) =>
-      row.record_resource ? (toNamedResource(row.record_resource) ?? []) : [],
-    ),
+    namedResources: roles.rows.flatMap(namedResourceOf),
     events: events ? events.data.flatMap(toResolverEvent) : null,
+    eventsHasMore: events?.page?.has_more ?? false,
   }
 }
+
+const readResolverRoles = (
+  { chainId, address }: ResolverRef,
+  signal: AbortSignal | undefined,
+) =>
+  readResolverCollection<BignameResolverRole>(
+    (cursor, pageSignal) =>
+      bigname.resolverRoles(
+        chainId,
+        address,
+        { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
+        { signal: pageSignal },
+      ),
+    signal,
+  )
+
+/** `account`'s grants on the resolver, with the setter arguments bigname decoded for them. */
+export const getResolverRoleGrants = (
+  {
+    address,
+    account,
+  }: { readonly address: Address; readonly account: Address },
+  signal?: AbortSignal,
+) =>
+  readResolverRoles(resolverRefOf(address), signal).map(({ rows }) => {
+    const held = rows.filter(
+      (row) => row.address.toLowerCase() === account.toLowerCase(),
+    )
+    return {
+      roles: held.map(toResolverRole),
+      namedResources: held.flatMap(namedResourceOf),
+    }
+  })
 
 /**
  * The newest events, or null when bigname fails to serve them, so a failure
@@ -493,16 +532,7 @@ const getResolverOverview = (
         ),
       signal,
     ),
-    readResolverCollection<BignameResolverRole>(
-      (cursor, pageSignal) =>
-        bigname.resolverRoles(
-          chainId,
-          resolver.address,
-          { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
-          { signal: pageSignal },
-        ),
-      signal,
-    ),
+    readResolverRoles(resolver, signal),
     readRecentEvents(resolver, signal),
   ])
     .map(([overview, links, roles, events]): ResolverOverview | null =>
@@ -610,20 +640,29 @@ const RESOLVER_QUERY_KEYS: ReadonlySet<unknown> = new Set([
   resolverOverviewQueryKey.key,
   resolverNodesQueryKey.key,
   resolverHistoryTimelineQueryKey.key,
+  RESOLVER_ROLES_FOR_ACCOUNT,
+  NODES_WITH_RECORDS,
 ])
 
-/** Refreshes what a write to the resolver's links or roles changes. */
+const isResolver = (value: unknown, address: Address): boolean =>
+  String(value).toLowerCase() === address.toLowerCase()
+
+/** Refreshes what a write to the resolver's links or roles changes, the caller's role reads included. */
 export const invalidateResolverOverview = (
   queryClient: QueryClient,
   address: Address,
 ) =>
   queryClient.invalidateQueries({
-    predicate: ({ queryKey: [key, params] }) =>
-      RESOLVER_QUERY_KEYS.has(key) &&
-      typeof params === 'object' &&
-      params !== null &&
-      'address' in params &&
-      String(params.address).toLowerCase() === address.toLowerCase(),
+    predicate: ({ queryKey: [key, params] }) => {
+      if (typeof params !== 'object' || params === null) return false
+      if (RESOLVER_QUERY_KEYS.has(key))
+        return 'address' in params && isResolver(params.address, address)
+      return (
+        key === 'hasRoles' &&
+        'resolverAddress' in params &&
+        isResolver(params.resolverAddress, address)
+      )
+    },
   })
 
 export const getResolverOverviewQueryOptions = (

@@ -17,8 +17,11 @@
   "dependencies": {
     "@ens-apps/config": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
+    "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
+    "neverthrow": "^8.2.0",
+    "ts-pattern": "^5.8.0",
     "viem": "catalog:"
   },
   "devDependencies": {

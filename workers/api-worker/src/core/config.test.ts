@@ -8,6 +8,7 @@ describe('getConfig network isolation', () => {
       {
         get(target, property) {
           if (property === 'CHAIN') return target.CHAIN
+          if (property === 'MAINNET_RPC_URL') return undefined
           throw new Error(`Unexpected binding access: ${String(property)}`)
         },
       },

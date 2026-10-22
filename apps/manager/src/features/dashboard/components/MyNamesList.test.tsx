@@ -78,6 +78,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   protocol: 'v2',
   expiryDate: 1811808000n,
   servedExpiry: null,
+  graceEndsAt: null,
   createdAt: 0n,
   nameRoles: ['owner'],
   isLapsed: false,

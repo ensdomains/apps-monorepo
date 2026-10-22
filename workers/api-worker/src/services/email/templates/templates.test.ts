@@ -182,18 +182,21 @@ describe('name expiry email', () => {
       'You no longer own alice.eth',
       'How to register it',
     ],
-  ] as const)('renders the %s notice for owners', async (stage, now, subject, steps) => {
-    const email = await renderNameExpiryEmail(
-      mainnet,
-      expiryPayload({ stage }),
-      { managerAppUrl, now },
-    )
-    expect(email.subject).toBe(subject)
-    for (const part of [email.html, email.text]) {
-      expect(part).toContain('alice.eth')
-      expect(part).toContain(steps)
-    }
-  })
+  ] as const)(
+    'renders the %s notice for owners',
+    async (stage, now, subject, steps) => {
+      const email = await renderNameExpiryEmail(
+        mainnet,
+        expiryPayload({ stage }),
+        { managerAppUrl, now },
+      )
+      expect(email.subject).toBe(subject)
+      for (const part of [email.html, email.text]) {
+        expect(part).toContain('alice.eth')
+        expect(part).toContain(steps)
+      }
+    },
+  )
 
   it('says today when a reminder is only sent at expiry', async () => {
     const email = await renderNameExpiryEmail(
@@ -252,18 +255,21 @@ describe('name expiry email', () => {
     ['grace-start', 'A name you watch has expired'],
     ['grace-1d', 'A name you watch may become available'],
     ['premium-start', 'A name you watch is available'],
-  ] as const)('never calls a watched name yours at %s', async (stage, heading) => {
-    const email = await renderNameExpiryEmail(
-      mainnet,
-      expiryPayload({ stage, isOwner: false, watchReason: 'favourited' }),
-      { managerAppUrl, now: expiry },
-    )
-    expect(email.text).toContain(heading)
-    for (const part of [email.subject, email.html, email.text]) {
-      expect(part).not.toMatch(/\byour name\b/i)
-      expect(part).not.toMatch(/\byou no longer own\b/i)
-    }
-  })
+  ] as const)(
+    'never calls a watched name yours at %s',
+    async (stage, heading) => {
+      const email = await renderNameExpiryEmail(
+        mainnet,
+        expiryPayload({ stage, isOwner: false, watchReason: 'favourited' }),
+        { managerAppUrl, now: expiry },
+      )
+      expect(email.text).toContain(heading)
+      for (const part of [email.subject, email.html, email.text]) {
+        expect(part).not.toMatch(/\byour name\b/i)
+        expect(part).not.toMatch(/\byou no longer own\b/i)
+      }
+    },
+  )
 
   it('lets long names wrap instead of widening the email', async () => {
     const email = await renderNameExpiryEmail(

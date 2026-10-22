@@ -561,9 +561,34 @@ async function legCalls(
  * unknown, and a wrong permit either under-funds (the fill reverts) or moves
  * more of the user's USDC into the HCA than the action needed.
  */
-export async function planHcaIntentFunding(
-  params: PlanHcaIntentFundingParams,
-): Promise<HcaIntentFunding> {
+/** What the quote step resolves before any permit is planned. */
+type QuotedIntent = {
+  readonly hca: Address
+  readonly usdc: Address
+  readonly otherSpend: HcaTokenSpend | undefined
+  readonly requiredUsdc: bigint
+  /** The HCA's USDC balance. */
+  readonly balance: bigint
+  readonly tokenBalance: bigint
+  readonly quotedFeeUsdc: bigint | null
+}
+
+export type QuoteHcaIntentParams = Pick<
+  PlanHcaIntentFundingParams,
+  | 'signer'
+  | 'ownerAddress'
+  | 'publicClient'
+  | 'chainId'
+  | 'calls'
+  | 'requiredUsdc'
+  | 'tokenSpend'
+  | 'gasLimit'
+>
+
+/** Read the balances and quote the fee for `calls` as the funded batch; nothing is signed. */
+async function quoteIntent(
+  params: QuoteHcaIntentParams,
+): Promise<QuotedIntent> {
   const {
     signer,
     ownerAddress,
@@ -573,7 +598,6 @@ export async function planHcaIntentFunding(
     requiredUsdc: usdcSpend = 0n,
     tokenSpend,
     gasLimit = HCA_STANDALONE_INTENT_GAS_LIMIT,
-    maxFeeUsdc = HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   } = params
 
   const chain = publicClient.chain
@@ -656,6 +680,43 @@ export async function planHcaIntentFunding(
     declaredInflow,
     gasLimit,
   })
+
+  return {
+    hca,
+    usdc,
+    otherSpend,
+    requiredUsdc,
+    balance,
+    tokenBalance,
+    quotedFeeUsdc,
+  }
+}
+
+/**
+ * The USDC (6dp) fee the orchestrator quotes for `calls`, taken over the same
+ * funded batch {@link planHcaIntentFunding} submits. For showing a cost before
+ * the user commits; `null` when the rail cannot price it.
+ */
+export async function quoteHcaIntentFeeUsdc(
+  params: QuoteHcaIntentParams,
+): Promise<bigint | null> {
+  return (await quoteIntent(params)).quotedFeeUsdc
+}
+
+export async function planHcaIntentFunding(
+  params: PlanHcaIntentFundingParams,
+): Promise<HcaIntentFunding> {
+  const { calls, maxFeeUsdc = HCA_MAX_STANDALONE_INTENT_FEE_USDC } = params
+
+  const {
+    hca,
+    usdc,
+    otherSpend,
+    requiredUsdc,
+    balance,
+    tokenBalance,
+    quotedFeeUsdc,
+  } = await quoteIntent(params)
 
   if (quotedFeeUsdc === null) {
     throw new Error(

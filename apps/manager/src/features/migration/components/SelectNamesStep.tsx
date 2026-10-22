@@ -2,6 +2,7 @@ import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefaultMigrationSelection'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
@@ -21,6 +22,7 @@ import {
 import { UnavailableMigrationNames } from './UnavailableMigrationNames'
 
 type SelectNamesStepProps = {
+  readonly ownerAddress?: string | null
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
@@ -53,6 +55,7 @@ const SelectionTitle = ({
 }
 
 export const SelectNamesStep = ({
+  ownerAddress,
   gasEstimate,
   gasAffordability,
   gasFundingStatus,
@@ -66,11 +69,19 @@ export const SelectNamesStep = ({
     eligible,
     gracePeriodNames,
     unavailableNames,
-    isPending,
+    isPending: isEligibilityPending,
     recoveryState,
   } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
+  const isRecovery = recoveryState.status === 'recovering'
+  const { isPending, excludedNames } = useDefaultMigrationSelection({
+    eligible,
+    gracePeriodNames,
+    ownerAddress,
+    isPending: isEligibilityPending,
+    shouldSkip: recoveryState.status !== 'none',
+  })
 
   const {
     search,
@@ -92,8 +103,9 @@ export const SelectNamesStep = ({
   } = useNameSelection({
     eligible,
     gracePeriodNames,
+    defaultExcludedNames: excludedNames,
     isPending,
-    isRecovery: recoveryState.status === 'recovering',
+    isRecovery,
     // A resumed run rebuilds its batch from the durable snapshot, which already
     // records what was opted in, so the choice cannot be changed mid-run.
     isManagerRestorationLocked: recoveryState.status === 'recovering',

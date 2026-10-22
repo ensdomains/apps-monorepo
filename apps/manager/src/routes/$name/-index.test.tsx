@@ -159,21 +159,24 @@ describe('/$name client-rendered profile route', () => {
   it.each([
     ['ALICE.eth', 'alice.eth'],
     ['ＡＬＩＣＥ.eth', 'alice.eth'],
-  ])('redirects %s to the canonical profile URL', async (name, canonicalName) => {
-    const { ensureQueryData, fetchQuery, outcome, prefetchQuery } =
-      await runLoader(name)
+  ])(
+    'redirects %s to the canonical profile URL',
+    async (name, canonicalName) => {
+      const { ensureQueryData, fetchQuery, outcome, prefetchQuery } =
+        await runLoader(name)
 
-    expect(outcome).toEqual({
-      options: {
-        params: { name: canonicalName },
-        to: '/$name',
-        replace: true,
-      },
-    })
-    expect(ensureQueryData).not.toHaveBeenCalled()
-    expect(fetchQuery).not.toHaveBeenCalled()
-    expect(prefetchQuery).not.toHaveBeenCalled()
-  })
+      expect(outcome).toEqual({
+        options: {
+          params: { name: canonicalName },
+          to: '/$name',
+          replace: true,
+        },
+      })
+      expect(ensureQueryData).not.toHaveBeenCalled()
+      expect(fetchQuery).not.toHaveBeenCalled()
+      expect(prefetchQuery).not.toHaveBeenCalled()
+    },
+  )
 
   it('rejects a name that cannot be normalized before loading profile data', async () => {
     const { ensureQueryData, fetchQuery, outcome, prefetchQuery } =
@@ -198,7 +201,7 @@ describe('/$name client-rendered profile route', () => {
     expect(profileOwnerQuery).toHaveBeenCalledWith('alice.eth')
     expect(profileExpiryQuery).toHaveBeenCalledWith('alice.eth', 'v2')
     expect(profileRegistrationQuery).toHaveBeenCalledWith('alice.eth', 'v2')
-    expect(profileReverseNameQuery).toHaveBeenCalledWith(PROFILE_OWNER)
+    expect(profileReverseNameQuery).not.toHaveBeenCalled()
   })
 })
 

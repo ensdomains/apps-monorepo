@@ -122,6 +122,7 @@ export {
   buildRevokeSessionsCall,
   type RevokeSessionsParams,
   type RevokeSessionsResult,
+  readHcaSessionNonce,
   revokeSessionsOnChain,
 } from './revoke-sessions'
 export {

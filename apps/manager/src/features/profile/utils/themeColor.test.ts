@@ -59,31 +59,22 @@ const expectedButtonThemes = {
 } as const
 
 describe('getThemeVars', () => {
-  it.each([
-    '#FFFFFF',
-    '#ffffff',
-    '#112233',
-    '#FF0000',
-    ' #FFFFFF ',
-  ])('uses the unthemed default for unsupported custom color %s', (hex) => {
-    expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
-    expect(getThemeVars(hex)).toEqual(getThemeVars())
-    expect(getProfileTheme(hex)).toBe(getProfileTheme())
-  })
+  it.each(['#FFFFFF', '#ffffff', '#112233', '#FF0000', ' #FFFFFF '])(
+    'uses the unthemed default for unsupported custom color %s',
+    (hex) => {
+      expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
+      expect(getThemeVars(hex)).toEqual(getThemeVars())
+      expect(getProfileTheme(hex)).toBe(getProfileTheme())
+    },
+  )
 
-  it.each([
-    undefined,
-    null,
-    '',
-    'red',
-    '#FF',
-    '#FFF',
-    '#FFFFFFFF',
-    '#GGGGGG',
-  ])('uses the unthemed default for missing or malformed color %s', (hex) => {
-    expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
-    expect(getThemeVars(hex)).toEqual(getThemeVars())
-  })
+  it.each([undefined, null, '', 'red', '#FF', '#FFF', '#FFFFFFFF', '#GGGGGG'])(
+    'uses the unthemed default for missing or malformed color %s',
+    (hex) => {
+      expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
+      expect(getThemeVars(hex)).toEqual(getThemeVars())
+    },
+  )
 
   it('normalizes supported presets and saved aliases before applying them', () => {
     for (const theme of PROFILE_THEMES) {

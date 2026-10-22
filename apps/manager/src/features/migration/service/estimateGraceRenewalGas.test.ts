@@ -131,23 +131,24 @@ describe('estimateGraceRenewalGas', () => {
     expect(simulateCalls).not.toHaveBeenCalled()
   })
 
-  it.each([
-    0, 1,
-  ])('rejects a failed simulation at call %s', async (failedIndex) => {
-    const { publicClient, simulateCalls } = setup()
-    const error = new Error('execution reverted')
-    simulateCalls.mockResolvedValue({
-      results: [0, 1].map((index) =>
-        index === failedIndex
-          ? { status: 'failure', error, gasUsed: 30_000n }
-          : { status: 'success', gasUsed: 100_000n },
-      ),
-    })
+  it.each([0, 1])(
+    'rejects a failed simulation at call %s',
+    async (failedIndex) => {
+      const { publicClient, simulateCalls } = setup()
+      const error = new Error('execution reverted')
+      simulateCalls.mockResolvedValue({
+        results: [0, 1].map((index) =>
+          index === failedIndex
+            ? { status: 'failure', error, gasUsed: 30_000n }
+            : { status: 'success', gasUsed: 100_000n },
+        ),
+      })
 
-    await expect(
-      estimateGraceRenewalGas({ quote: makeQuote(), publicClient }),
-    ).rejects.toBe(error)
-  })
+      await expect(
+        estimateGraceRenewalGas({ quote: makeQuote(), publicClient }),
+      ).rejects.toBe(error)
+    },
+  )
 
   it('rejects an incomplete simulation instead of showing a partial total', async () => {
     const { publicClient, simulateCalls } = setup()

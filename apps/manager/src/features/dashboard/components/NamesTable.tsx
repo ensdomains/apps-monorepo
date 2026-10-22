@@ -78,14 +78,11 @@ export const NamesTable = ({
   const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
     delay: 300,
   })
-  const {
-    total: ownedTotal,
-    isError: isNamesError,
-    isPending: isNamesPending,
-  } = useDashboardNames({
+  const ownedNames = useDashboardNames({
     sortField: ownedSortState.field,
     sortDir: ownedSortState.dir,
   })
+  const { total: ownedTotal } = ownedNames
   // The chip counts do not depend on the sort, so they keep one read each.
   const v1Names = useDashboardNames({ version: 'v1' })
   const v2Names = useDashboardNames({ version: 'v2' })
@@ -95,17 +92,21 @@ export const NamesTable = ({
   })
 
   const favoritesCount = favorites.length
-  // A count is shown only once its list has been read.
-  const countOf = (names: {
-    readonly total: number
-    readonly isPending: boolean
-    readonly isError: boolean
-  }) => (names.isPending || names.isError ? undefined : names.total)
-  const ownedCount = countOf({
-    total: ownedTotal,
-    isPending: isNamesPending,
-    isError: isNamesError,
-  })
+  // V1 does not filter registry-only names, so keep its bigname total while
+  // paging. V2 and mixed totals require all permission checks to finish.
+  const countOf = (
+    names: {
+      readonly total: number
+      readonly isPending: boolean
+      readonly isError: boolean
+      readonly isComplete: boolean
+    },
+    requiresComplete = true,
+  ) =>
+    names.isPending || names.isError || (requiresComplete && !names.isComplete)
+      ? undefined
+      : names.total
+  const ownedCount = countOf(ownedNames)
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
@@ -209,7 +210,7 @@ export const NamesTable = ({
     {
       value: 'v1',
       label: t`V1`,
-      count: countOf(v1Names),
+      count: countOf(v1Names, false),
     },
     {
       value: 'v2',

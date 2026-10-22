@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import {
   ConnectWalletMessage,
   EnsV2InfoMessage,
@@ -22,10 +21,14 @@ function RouteComponent() {
 
   return (
     <main className="min-h-screen flex flex-col items-center gap-18 px-6 pt-6 pb-18">
-      <SepoliaNoticeBanner />
-      <HomeHeader />
+      {/* `sm:items-start` pins the logo at the sidebar's y; below `sm` it centres. */}
+      <div className="w-full flex flex-col items-center sm:flex-row sm:items-start">
+        <HomeHeader />
+      </div>
 
-      <section className="flex flex-col gap-10 items-center w-full max-w-140">
+      {/* -mt-6 trims this one gap from the grid's 72px to 48px; the page's
+          other gaps keep the 72px rhythm. */}
+      <section className="flex flex-col gap-10 items-center w-full max-w-140 -mt-6">
         {/* Figma hero type (ABC Marist 36px / 350 / 1.35) has no matching text token. */}
         <h1 className="font-serif text-h1 font-[350] text-center leading-[1.35] text-foreground">
           Explore the source of truth <br className="hidden sm:inline" />

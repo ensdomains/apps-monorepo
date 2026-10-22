@@ -47,6 +47,7 @@ export const ProfileEditAction = ({
   return (
     <EditProfileDialog
       editButtonClassName={className}
+      key={name}
       leftActions={leftActions}
       name={name}
       onUpdated={onUpdated}

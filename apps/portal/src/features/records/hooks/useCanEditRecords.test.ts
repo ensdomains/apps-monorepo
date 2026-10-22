@@ -4,6 +4,7 @@ import { ok } from 'neverthrow'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ResolverSetterScope } from '@/lib/roles/resolverRoles'
 
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const STRANGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
@@ -16,11 +17,20 @@ const OWN_RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd' as Address
 const INHERITED_RESOLVER =
   '0x0ef1af80c24b681991d675176d9c07d8c9236b9a' as Address
 
-type QueryStub = { readonly data: unknown; readonly isLoading: boolean }
+type QueryStub = {
+  readonly data: unknown
+  readonly isLoading: boolean
+  readonly isError?: boolean
+}
 
 const idle = (): QueryStub => ({ data: undefined, isLoading: false })
 const settled = (data: unknown): QueryStub => ({ data, isLoading: false })
 const loading = (): QueryStub => ({ data: undefined, isLoading: true })
+const failed = (): QueryStub => ({
+  data: undefined,
+  isLoading: false,
+  isError: true,
+})
 
 let connectedAddress: Address | undefined = OWNER
 let ownerQuery: QueryStub = idle()
@@ -28,6 +38,8 @@ let resolverQuery: QueryStub = idle()
 let ownResolverQuery: QueryStub = idle()
 let isPermissionedQuery: QueryStub = idle()
 let roleQueries: QueryStub[] = []
+let publicResolverV2Query: QueryStub = idle()
+let grantsQuery: QueryStub = idle()
 /** What the own-resolver check was asked, captured off its query key. */
 let ownResolverParams: unknown
 
@@ -50,10 +62,23 @@ vi.mock('@tanstack/react-query', async () => {
     useQuery: ({
       queryKey,
       enabled,
+      select,
     }: {
       queryKey: readonly unknown[]
       enabled?: boolean
+      select?: (data: never) => unknown
     }) => {
+      if (queryKey[0] === 'get-resolver-setter-grants') {
+        // A disabled query still serves whatever is cached for its key.
+        return {
+          ...grantsQuery,
+          data:
+            select && grantsQuery.data !== undefined
+              ? select(grantsQuery.data as never)
+              : grantsQuery.data,
+        }
+      }
+
       const stub = match(queryKey[0])
         .with('get-ens-owner', () => ownerQuery)
         .with('get-name-resolver-address', () => resolverQuery)
@@ -62,19 +87,37 @@ vi.mock('@tanstack/react-query', async () => {
           return ownResolverQuery
         })
         .with('is-permissioned-resolver', () => isPermissionedQuery)
+        .with('can-modify-on-public-resolver-v2', () => publicResolverV2Query)
         .otherwise(idle)
 
       return enabled === false ? { ...stub, isLoading: false } : stub
     },
-    useQueries: ({ queries }: { queries: readonly unknown[] }) =>
-      queries.map((_, index) => roleQueries[index] ?? idle()),
+    useQueries: ({
+      queries,
+      combine,
+    }: {
+      queries: readonly unknown[]
+      combine?: (results: QueryStub[]) => unknown
+    }) => {
+      const results = queries.map((_, index) => roleQueries[index] ?? idle())
+      return combine ? combine(results) : results
+    },
   }
 })
 
-const { useCanEditRecords } = await import('./useCanEditRecords')
+const { RECORD_EDIT_ROLES, useCanEditRecords } = await import(
+  './useCanEditRecords'
+)
+const { ALL_EDITABLE_TYPES, NO_EDITABLE_TYPES } = await import(
+  '@/utils/records/editRecordUtils'
+)
 
-const render = () =>
-  renderHook(() => useCanEditRecords({ name: 'jobintime.xyz' })).result.current
+const render = (scope?: ResolverSetterScope) =>
+  renderHook(() => useCanEditRecords({ name: 'jobintime.xyz', scope })).result
+    .current
+
+/** Root checks for every record role, all refused, then one per scope. */
+const rootRefused = () => RECORD_EDIT_ROLES.map(() => settled(false))
 
 describe('useCanEditRecords', () => {
   beforeEach(() => {
@@ -84,6 +127,8 @@ describe('useCanEditRecords', () => {
     ownResolverQuery = settled(true)
     isPermissionedQuery = settled(false)
     roleQueries = []
+    publicResolverV2Query = idle()
+    grantsQuery = idle()
     ownResolverParams = undefined
   })
 
@@ -161,6 +206,129 @@ describe('useCanEditRecords', () => {
   it('still refuses a stranger on a name that owns its resolver', () => {
     connectedAddress = STRANGER
 
-    expect(render().canEdit).toBe(false)
+    const result = render()
+
+    expect(result.canEdit).toBe(false)
+    expect(result.editableTypes).toEqual(NO_EDITABLE_TYPES)
+  })
+
+  it('lets the owner edit every record type on a non-permissioned resolver', () => {
+    expect(render().editableTypes).toEqual(ALL_EDITABLE_TYPES)
+  })
+
+  it('limits a permissioned resolver to the types whose setter role is held', () => {
+    connectedAddress = STRANGER
+    isPermissionedQuery = settled(true)
+    roleQueries = RECORD_EDIT_ROLES.map((role) =>
+      settled(role === 'ROLE_SET_TEXT'),
+    )
+
+    const result = render()
+
+    expect(result.canEdit).toBe(true)
+    expect(result.editableTypes).toEqual({ ...NO_EDITABLE_TYPES, text: 'all' })
+  })
+
+  describe('argument-scoped grants', () => {
+    beforeEach(() => {
+      connectedAddress = STRANGER
+      isPermissionedQuery = settled(true)
+    })
+
+    it('lets in a wallet whose only grant is one text key', () => {
+      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+      roleQueries = [...rootRefused(), settled(true)]
+
+      const result = render()
+
+      expect(result.canEdit).toBe(true)
+      expect(result.editableTypes).toEqual({
+        ...NO_EDITABLE_TYPES,
+        text: new Set(['avatar']),
+      })
+    })
+
+    it('adds a coin-type grant alongside a root text role', () => {
+      grantsQuery = settled([{ kind: 'address', coinType: 60n }])
+      roleQueries = [
+        ...RECORD_EDIT_ROLES.map((role) => settled(role === 'ROLE_SET_TEXT')),
+        settled(true),
+      ]
+
+      expect(render().editableTypes).toEqual({
+        ...NO_EDITABLE_TYPES,
+        text: 'all',
+        address: new Set([60n]),
+      })
+    })
+
+    it('opens nothing for a grant the chain does not confirm', () => {
+      grantsQuery = settled([{ kind: 'text', key: 'avatar' }])
+      roleQueries = [...rootRefused(), settled(false)]
+
+      const result = render()
+
+      expect(result.canEdit).toBe(false)
+      expect(result.editableTypes).toEqual(NO_EDITABLE_TYPES)
+    })
+
+    it('ignores cached grants for a caller asking about one argument', () => {
+      grantsQuery = {
+        data: [{ kind: 'text', key: 'avatar' }],
+        isLoading: false,
+        isError: true,
+      }
+      roleQueries = [...rootRefused(), settled(true)]
+
+      const result = render({ kind: 'address', coinType: 60n })
+
+      expect(result.canEdit).toBe(false)
+      expect(result.isError).toBe(false)
+    })
+  })
+
+  it('reports a failed role read as an error, not as no permission', () => {
+    isPermissionedQuery = settled(true)
+    roleQueries = [failed()]
+
+    const result = render()
+    expect(result.canEdit).toBe(false)
+    expect(result.isError).toBe(true)
+  })
+
+  // A v2 owner gets nothing on a resolver that authorises by something else,
+  // e.g. PublicResolverV2 for a name the NameWrapper never knew.
+  it('refuses a v2 owner on a non-permissioned resolver that refuses them', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    publicResolverV2Query = settled(false)
+
+    const result = render()
+    expect(result.isOwner).toBe(true)
+    expect(result.canEdit).toBe(false)
+  })
+
+  it('lets a v2 name edit on PublicResolverV2 when canModifyName allows it', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    publicResolverV2Query = settled(true)
+
+    expect(render().canEdit).toBe(true)
+  })
+
+  it('stays loading while the PublicResolverV2 check is in flight', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    publicResolverV2Query = loading()
+
+    const result = render()
+    expect(result.isLoading).toBe(true)
+    expect(result.canEdit).toBe(false)
+  })
+
+  it('reports a failed PublicResolverV2 read as an error', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    publicResolverV2Query = failed()
+
+    const result = render()
+    expect(result.isError).toBe(true)
+    expect(result.canEdit).toBe(false)
   })
 })

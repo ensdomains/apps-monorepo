@@ -27,6 +27,7 @@ export const getSelectedNames = (
 
 export type NameStatusInput = {
   readonly expiryDate?: Date | null
+  readonly parentExpiryDate?: Date | null
   readonly graceEndDate: Date | null
   readonly status: NameRegistrationStatus
 }
@@ -36,10 +37,11 @@ export type NameStatusInput = {
  * it still serves as active is not shown past its wrapper expiry.
  */
 export const getNameStatus = (
-  { expiryDate, graceEndDate, status }: NameStatusInput,
+  { expiryDate, parentExpiryDate, graceEndDate, status }: NameStatusInput,
   now = new Date(),
 ): string => {
-  if (!expiryDate) return 'no-expiry'
+  if (!expiryDate)
+    return parentExpiryDate === undefined ? 'no-expiry' : 'expires-with-parent'
   if (status !== 'expired' && status !== 'released') return 'registered'
   if (!graceEndDate) return 'expired'
   if (now < graceEndDate) return 'grace'

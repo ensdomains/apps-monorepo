@@ -14,7 +14,7 @@ import {
   getOwner as getOwnerV2,
 } from '@ensdomains/ensjs/public/v2'
 import { type Address, type Client, type Transport, zeroAddress } from 'viem'
-
+import { isContractRevert } from '@/utils/errors/isContractRevert'
 import type { ProtocolVersion } from '@/utils/types'
 
 export type ResolvedEnsOwner = {
@@ -40,16 +40,21 @@ type EnsResolveClient = Client<Transport, EnsChain>
  *
  * Both reads are independent and fired together so the client's batching
  * coalesces them into a single request. Returns `null` if the name is unowned
- * or any ancestor registry along the path is missing.
+ * or any ancestor registry along the path is missing or reverts (WEB-1885).
  */
 async function resolveV2EthOwner(
   client: EnsResolveClient,
   name: string,
 ): Promise<{ owner: Address; registryAddress: Address } | null> {
-  const [v2Owner, registries] = await Promise.all([
+  const reads = await Promise.all([
     getOwnerV2(client, { name }),
     getNameRegistries(client, { name }),
-  ])
+  ]).catch((error: unknown) => {
+    if (isContractRevert(error)) return null
+    throw error
+  })
+  if (!reads) return null
+  const [v2Owner, registries] = reads
 
   if (!v2Owner || v2Owner === zeroAddress) return null
 

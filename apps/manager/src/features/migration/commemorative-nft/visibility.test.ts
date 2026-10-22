@@ -20,18 +20,18 @@ const defaults = {
 } as const
 
 describe('commemorative NFT visibility', () => {
-  it.each([
-    false,
-    true,
-  ])('hides cached eligibility when the feature is disabled (minted: %s)', (minted) => {
-    expect(
-      getVisibleCommemorativeNftEligibility({
-        ...defaults,
-        featureEnabled: false,
-        minted,
-      }),
-    ).toBeUndefined()
-  })
+  it.each([false, true])(
+    'hides cached eligibility when the feature is disabled (minted: %s)',
+    (minted) => {
+      expect(
+        getVisibleCommemorativeNftEligibility({
+          ...defaults,
+          featureEnabled: false,
+          minted,
+        }),
+      ).toBeUndefined()
+    },
+  )
 
   it('shows published eligibility only after validating the current owner', () => {
     expect(getVisibleCommemorativeNftEligibility(defaults)).toBe(eligibility)
@@ -47,13 +47,20 @@ describe('commemorative NFT visibility', () => {
     undefined,
     { status: 'ineligible' },
     { status: 'unavailable' },
-  ] as const)('hides non-eligible results even for a previously minted token: %j', (result) => {
-    for (const minted of [false, true]) {
-      expect(
-        getVisibleCommemorativeNftEligibility({ ...defaults, result, minted }),
-      ).toBeUndefined()
-    }
-  })
+  ] as const)(
+    'hides non-eligible results even for a previously minted token: %j',
+    (result) => {
+      for (const minted of [false, true]) {
+        expect(
+          getVisibleCommemorativeNftEligibility({
+            ...defaults,
+            result,
+            minted,
+          }),
+        ).toBeUndefined()
+      }
+    },
+  )
 
   it('hides unminted offers during initial loading or metadata revalidation', () => {
     expect(
@@ -84,19 +91,18 @@ describe('commemorative NFT visibility', () => {
     ).toBeUndefined()
   })
 
-  it.each([
-    { source: 'preview' as const },
-    { proof: [] },
-    { assets: {} },
-  ])('hides unpublished eligibility: %j', (overrides) => {
-    expect(
-      getVisibleCommemorativeNftEligibility({
-        ...defaults,
-        result: {
-          status: 'eligible',
-          eligibility: { ...eligibility, ...overrides },
-        },
-      }),
-    ).toBeUndefined()
-  })
+  it.each([{ source: 'preview' as const }, { proof: [] }, { assets: {} }])(
+    'hides unpublished eligibility: %j',
+    (overrides) => {
+      expect(
+        getVisibleCommemorativeNftEligibility({
+          ...defaults,
+          result: {
+            status: 'eligible',
+            eligibility: { ...eligibility, ...overrides },
+          },
+        }),
+      ).toBeUndefined()
+    },
+  )
 })

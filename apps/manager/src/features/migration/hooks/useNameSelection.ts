@@ -21,6 +21,8 @@ type Params = {
   readonly gracePeriodNames?: readonly IneligibleName[]
   readonly isPending: boolean
   readonly isRecovery?: boolean
+  /** Initial opt-out only; explicit choices and durable recovery are preserved. */
+  readonly defaultExcludedNames?: readonly string[]
   /**
    * A resumed run replays the opt-in from its durable snapshot, so the choice
    * is fixed for the rest of that run and the checkboxes are read-only.
@@ -31,12 +33,14 @@ type Params = {
 }
 
 const EMPTY_GRACE_PERIOD_NAMES: readonly IneligibleName[] = []
+const EMPTY_EXCLUDED_NAMES: readonly string[] = []
 
 export const useNameSelection = ({
   eligible,
   gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
   isPending,
   isRecovery = false,
+  defaultExcludedNames = EMPTY_EXCLUDED_NAMES,
   isManagerRestorationLocked = false,
   onNamesChange,
   onManagerRestorationChange,
@@ -89,13 +93,23 @@ export const useNameSelection = ({
         )
         .map(({ domain }) => domain.name),
     ])
+    const excluded = new Set(defaultExcludedNames)
+    // A root checkbox includes its migration subtree. Keep the entire group
+    // opt-in when any operation in that group would delete subnames.
+    for (const subtree of rootSubtrees.values()) {
+      if ([...subtree].some((name) => excluded.has(name))) {
+        for (const name of subtree) excluded.add(name)
+      }
+    }
     return new Set(
       [...allSelectable].filter(
-        (name) => !namesNeedingManagerRestoration.has(name),
+        (name) =>
+          !namesNeedingManagerRestoration.has(name) && !excluded.has(name),
       ),
     )
   }, [
     allSelectable,
+    defaultExcludedNames,
     eligible,
     eligibleSelectable,
     gracePeriodNames,

@@ -69,6 +69,7 @@ import {
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
+import { isShownExpiryInRange } from '@/utils/names/addressNames'
 import { queryClient } from '@/utils/queryClient'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
@@ -196,14 +197,9 @@ const NamesList = ({
 
     // Filter by expiry date range
     if (expiryDateRange.from || expiryDateRange.to) {
-      filtered = filtered.filter((row) => {
-        if (!row.expiryDate) return false
-        if (expiryDateRange.from && row.expiryDate < expiryDateRange.from)
-          return false
-        if (expiryDateRange.to && row.expiryDate > expiryDateRange.to)
-          return false
-        return true
-      })
+      filtered = filtered.filter((row) =>
+        isShownExpiryInRange(row, expiryDateRange),
+      )
     }
 
     // Filter by status
