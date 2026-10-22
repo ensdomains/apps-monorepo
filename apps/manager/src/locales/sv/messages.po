@@ -355,6 +355,7 @@ msgid "Approve and renew name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Approve in wallet"
 msgstr ""
 
