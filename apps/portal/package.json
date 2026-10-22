@@ -38,7 +38,7 @@
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/address-encoder": "^1.1.4",
+    "@ensdomains/address-encoder": "catalog:",
     "@ensdomains/dnsprovejs": "^1.0.0",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",

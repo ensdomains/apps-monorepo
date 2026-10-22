@@ -20,7 +20,7 @@
     "@ens-apps/config": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/address-encoder": "^1.1.2",
+    "@ensdomains/address-encoder": "catalog:",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",

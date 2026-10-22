@@ -1,0 +1,118 @@
+diff --git a/dist/utils/resolver/encodeAbi.js b/dist/utils/resolver/encodeAbi.js
+index e78e2212ee45e2be9713c8dd3a788419775f67c6..56ffff6ae7790cf5f098a492aba75406822f9f46 100644
+--- a/dist/utils/resolver/encodeAbi.js
++++ b/dist/utils/resolver/encodeAbi.js
+@@ -54,9 +54,9 @@ export const encodeAbi = async ({ encodeAs, data, }) => {
+         case 'cbor': {
+             contentType = 4;
+             if (data) {
+-                const { cborEncode } = await import('@ensdomains/address-encoder/utils');
++                const { encode } = await import('cborg');
+                 // may throw BytesToHexErrorType
+-                encodedData = bytesToHex(new Uint8Array(cborEncode(data)));
++                encodedData = bytesToHex(encode(data));
+             }
+             break;
+         }
+diff --git a/dist/utils/resolver/getAbi.js b/dist/utils/resolver/getAbi.js
+index 2812f6d0169c2982ca3eae78c3d9aca171bcf1ad..7ec2b4e8ec34f60f43a23c74de75d174ff8a4ad5 100644
+--- a/dist/utils/resolver/getAbi.js
++++ b/dist/utils/resolver/getAbi.js
+@@ -44,9 +44,9 @@ export async function decodeAbiResultFromPrimitiveTypes({ decodedData: [bigintCo
+         case 4: {
+             const bytes = hexToBytes(encodedAbiData);
+             validateAbiCbor(bytes);
+-            const { cborDecode } = await import('@ensdomains/address-encoder/utils');
++            const { decode } = await import('cborg');
+             // may throw Error
+-            abiData = cborDecode(bytes.buffer);
++            abiData = decode(bytes);
+             decoded = true;
+             break;
+         }
+diff --git a/dist/utils/resolver/validateAbiCbor.js b/dist/utils/resolver/validateAbiCbor.js
+index 95352d621fa72ef88c8a7ed76496d42819f23351..2176bf5e3f5b660cff35bb24ef835b8249476b4a 100644
+--- a/dist/utils/resolver/validateAbiCbor.js
++++ b/dist/utils/resolver/validateAbiCbor.js
+@@ -2,10 +2,8 @@ export const MAX_ABI_CBOR_BYTES = 1024 * 1024;
+ const MAX_DEPTH = 64;
+ const MAX_ITEMS = 100000;
+ /**
+- * Validate untrusted CBOR before calling address-encoder's synchronous decoder.
+- * Its current release can loop at EOF or inside indefinite strings. A promise
+- * timeout cannot interrupt that loop, so bound the input and validate every
+- * container and string before handing it to the decoder.
++ * Bound untrusted CBOR before calling the synchronous decoder. A promise timeout
++ * cannot interrupt decoding, so validate byte, nesting, and item limits first.
+  */
+ export function validateAbiCbor(data) {
+     if (data.length > MAX_ABI_CBOR_BYTES)
+@@ -56,8 +54,7 @@ export function validateAbiCbor(data) {
+         switch (major) {
+             case 2:
+             case 3:
+-                // These forms do not terminate in address-encoder 1.1.4, even when the
+-                // CBOR is valid. Keep rejecting them until the upstream fix is released.
++                // cborg does not support indefinite byte or text strings.
+                 if (argument < 0)
+                     throw new Error('Unsupported indefinite CBOR string');
+                 requireBytes(argument);
+diff --git a/src/utils/resolver/encodeAbi.ts b/src/utils/resolver/encodeAbi.ts
+index b7a90b45e8a6f72209a564cdbf5cfd7f156785e7..e709086699babee3df503171af337f81e42c2b63 100644
+--- a/src/utils/resolver/encodeAbi.ts
++++ b/src/utils/resolver/encodeAbi.ts
+@@ -124,9 +124,9 @@ export const encodeAbi = async <
+     case 'cbor': {
+       contentType = 4
+       if (data) {
+-        const { cborEncode } = await import('@ensdomains/address-encoder/utils')
++        const { encode } = await import('cborg')
+         // may throw BytesToHexErrorType
+-        encodedData = bytesToHex(new Uint8Array(cborEncode(data)))
++        encodedData = bytesToHex(encode(data))
+       }
+       break
+     }
+diff --git a/src/utils/resolver/getAbi.ts b/src/utils/resolver/getAbi.ts
+index ee401ca03244a206d7c7182419ae1322946ae299..f63c3521317b7c90e0e5cda260ff9ec90faa2a4a 100644
+--- a/src/utils/resolver/getAbi.ts
++++ b/src/utils/resolver/getAbi.ts
+@@ -136,9 +136,9 @@ export async function decodeAbiResultFromPrimitiveTypes({
+     case 4: {
+       const bytes = hexToBytes(encodedAbiData)
+       validateAbiCbor(bytes)
+-      const { cborDecode } = await import('@ensdomains/address-encoder/utils')
++      const { decode } = await import('cborg')
+       // may throw Error
+-      abiData = cborDecode(bytes.buffer)
++      abiData = decode(bytes)
+       decoded = true
+       break
+     }
+diff --git a/src/utils/resolver/validateAbiCbor.ts b/src/utils/resolver/validateAbiCbor.ts
+index 364727d23c7827d1a4bec9e37497d9aefcc4d788..2fd053f2f85df7b0901acab5ab7a56b9cb99d6eb 100644
+--- a/src/utils/resolver/validateAbiCbor.ts
++++ b/src/utils/resolver/validateAbiCbor.ts
+@@ -3,10 +3,8 @@ const MAX_DEPTH = 64
+ const MAX_ITEMS = 100000
+ 
+ /**
+- * Validate untrusted CBOR before calling address-encoder's synchronous decoder.
+- * Its current release can loop at EOF or inside indefinite strings. A promise
+- * timeout cannot interrupt that loop, so bound the input and validate every
+- * container and string before handing it to the decoder.
++ * Bound untrusted CBOR before calling the synchronous decoder. A promise timeout
++ * cannot interrupt decoding, so validate byte, nesting, and item limits first.
+  */
+ export function validateAbiCbor(data: Uint8Array): void {
+   if (data.length > MAX_ABI_CBOR_BYTES) throw new Error('CBOR ABI is too large')
+@@ -59,8 +57,7 @@ export function validateAbiCbor(data: Uint8Array): void {
+     switch (major) {
+       case 2:
+       case 3:
+-        // These forms do not terminate in address-encoder 1.1.4, even when the
+-        // CBOR is valid. Keep rejecting them until the upstream fix is released.
++        // cborg does not support indefinite byte or text strings.
+         if (argument < 0) throw new Error('Unsupported indefinite CBOR string')
+         requireBytes(argument)
+         if (major === 3)

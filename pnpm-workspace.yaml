@@ -7,8 +7,10 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": ^5.2.1
-  "@ensdomains/ensjs-abi": ^5.0.2
+  "@ensdomains/address-encoder": ^2.0.1
+  # Pinned while the version-specific CBOR compatibility patch is required.
+  "@ensdomains/ensjs": 5.2.4
+  "@ensdomains/ensjs-abi": ^5.0.3
   xstate: ^5.24.0
   typescript: ^7.0.2
   vite: ^8.0.10
@@ -61,6 +63,7 @@ trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 10080 # 1 week
 
 overrides:
+  "@ensdomains/ensjs@5.2.4>@ensdomains/address-encoder": "2.0.1"
   available-typed-arrays: "npm:@socketregistry/available-typed-arrays@^1"
   es-define-property: "npm:@socketregistry/es-define-property@^1"
   for-each: "npm:@socketregistry/for-each@^1"
@@ -93,11 +96,19 @@ overrides:
   # devDependency of @ens-apps/transaction-manager.
   "@walletconnect/ethereum-provider": "2.21.8"
 
+# Temporary compatibility bridge for https://github.com/ensdomains/ensjs/pull/426.
+# Remove the patch, extension, override, and exact pin together after its release.
+packageExtensions:
+  "@ensdomains/ensjs@5.2.4":
+    dependencies:
+      cborg: ^6.1.3
+
 patchedDependencies:
   xstate: patches/xstate.patch
   class-variance-authority: patches/class-variance-authority.patch
   "@rhinestone/sdk@1.8.0": patches/@rhinestone%2Fsdk@1.8.0.patch
   posthog-js@1.404.1: patches/posthog-js@1.404.1.patch
+  '@ensdomains/ensjs@5.2.4': patches/@ensdomains__ensjs@5.2.4.patch
 
 # pnpm >=11 fails the install on any dependency build script not listed here.
 # All denied: these ship prebuilt binaries via optionalDependencies.
