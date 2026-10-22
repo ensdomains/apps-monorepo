@@ -24,6 +24,7 @@ import type {
   RhinestoneSigner,
   Signer,
 } from '@ens-apps/transaction-manager'
+import { isWalletDeclineError } from '@ens-apps/transaction-manager/helpers/wallet-errors.helpers'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
