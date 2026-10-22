@@ -187,7 +187,9 @@ export const TokenPickerContent = () => {
     registrationActor,
     (state) =>
       state?.matches('signingFundingPermit') ||
-      state?.matches('approvingToken'),
+      state?.matches('approvingToken') ||
+      // Paid from an L2, the wallet signs that payment instead.
+      state?.matches('bridgingFromL2'),
   )
   useRegistrationLockHeartbeat(
     approvalState.isApproving ? approvalState.ownerAddress : undefined,
@@ -508,6 +510,7 @@ export const TokenPickerContent = () => {
 
   const globalErrorMessage = match({
     approvalState,
+    isPaidFromL2,
     hasBudgetQuoteFailed,
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
@@ -516,6 +519,14 @@ export const TokenPickerContent = () => {
       { approvalState: { approvalOutcome: 'rejected' } },
       () =>
         t`Payment approval was cancelled. Approve the payment in your wallet to start registration.`,
+    )
+    // An L2 payment fails for reasons worth reading, such as one still settling.
+    .with(
+      {
+        isPaidFromL2: true,
+        approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
+      },
+      ({ approvalState }) => approvalState.errorMessage,
     )
     .with(
       { approvalState: { approvalOutcome: 'failed' } },
@@ -549,16 +560,35 @@ export const TokenPickerContent = () => {
   // belongs in the breakdown rather than in a sentence repeating it.
   const isBusy = availabilityMutation.isPending || approvalState.isApproving
   const isPaymentApprovalRequired = !funding || funding.walletDebitRaw > 0n
-  const infoMessage = match(funding)
+  const infoMessage = match({
+    funding,
+    l2Chain: getSelectedL2(l2Payment)?.option.source.chain.name,
+    signerType: account.signer?.type,
+  })
     .with(
-      { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
-      (f) =>
+      {
+        funding: {
+          isUnderfunded: false,
+          hcaCredit: P.number.gt(0),
+          walletDebit: 0,
+        },
+      },
+      ({ funding: f }) =>
         t`What was left from your last attempt covers the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
     )
-    .otherwise(() =>
-      account.signer?.type === 'rhinestone'
-        ? t`Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve.`
-        : t`Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes.`,
+    .with(
+      { l2Chain: P.string },
+      ({ l2Chain }) =>
+        t`Your wallet will ask you to sign a payment of the amount shown on ${l2Chain}. Registration starts once it arrives.`,
+    )
+    .with(
+      { signerType: 'rhinestone' },
+      () =>
+        t`Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve.`,
+    )
+    .otherwise(
+      () =>
+        t`Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes.`,
     )
 
   const nextMessage = match({

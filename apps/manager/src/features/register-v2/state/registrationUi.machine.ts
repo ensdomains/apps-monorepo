@@ -146,6 +146,11 @@ type Context = {
   postRegistrationSetupFailed: boolean
   ethRecordSyncTxId?: string
   primaryNameTxId?: string
+  /**
+   * The primary name the HCA reveal batch claims, when the user opted in;
+   * the EOA path leaves it undefined and handles its own reverse leg.
+   */
+  hcaPrimaryName?: string
   maxProgressReached?: MaxProgressReached
 }
 
@@ -401,6 +406,7 @@ const machineSetup = setup({
         confirmedData: event.confirmedData,
         postRegistrationSetup: event.postRegistrationSetup,
         hcaPrimaryName: event.record.context.primaryName,
+        fundingSourceChainId: event.record.context.l2FundingChainId,
       }
     }),
     setFundingSource: assign({
@@ -511,6 +517,7 @@ const machineSetup = setup({
       postRegistrationSetupFailed: () => false,
       ethRecordSyncTxId: () => undefined,
       primaryNameTxId: () => undefined,
+      hcaPrimaryName: () => undefined,
     }),
     invalidateNameQueries: ({ context }) => {
       const label = context.confirmedData?.label
@@ -764,6 +771,7 @@ const startRegistrationAction = machineSetup.createAction(
       postRegistrationSetupFailed: false,
       ethRecordSyncTxId: undefined,
       primaryNameTxId: undefined,
+      hcaPrimaryName: bundlePrimaryName,
     })
 
     // One registration at a time per wallet, across tabs. The commit batch
@@ -894,6 +902,10 @@ const resumeRegistrationAction = machineSetup.createAction(
       postRegistrationSetupFailed: false,
       ethRecordSyncTxId: undefined,
       primaryNameTxId: undefined,
+      // The reveal batch bundles the primary name, so this is whatever the
+      // ORIGINAL run committed to — re-deriving it from current UI state could
+      // disagree with the batch that is already in flight.
+      hcaPrimaryName: event.record.context.primaryName,
     })
 
     // A resumed run has no claim on the wallet yet (a reload dropped this

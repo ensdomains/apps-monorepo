@@ -37,6 +37,8 @@ const containerMocks = vi.hoisted(() => ({
   getSessionEnablePayload: vi.fn<() => Promise<undefined>>(),
   getSnapshot: vi.fn<() => object>(),
   isApproving: false,
+  approvalOutcome: 'none' as 'none' | 'failed' | 'rejected',
+  lastErrorMessage: undefined as string | undefined,
   l2Balances: undefined as Record<number, bigint | null> | undefined,
   ownerAddress: null as string | null,
   fundingSourceChainId: undefined as number | undefined,
@@ -54,6 +56,8 @@ vi.mock('@xstate/react', () => ({
             duration: 31_536_000,
             selectedToken: 'USDC',
             fundingSourceChainId: containerMocks.fundingSourceChainId,
+            approvalOutcome: containerMocks.approvalOutcome,
+            lastErrorMessage: containerMocks.lastErrorMessage,
             confirmedData: containerMocks.isApproving
               ? { ownerAddress: '0x1111111111111111111111111111111111111111' }
               : undefined,
@@ -244,6 +248,8 @@ describe('TokenPickerContent', () => {
     containerMocks.availabilityError = null
     containerMocks.fetchCalls = 0
     containerMocks.isApproving = false
+    containerMocks.approvalOutcome = 'none'
+    containerMocks.lastErrorMessage = undefined
     containerMocks.send.mockClear()
     containerMocks.getSnapshot.mockReset().mockReturnValue({})
     containerMocks.getSessionEnablePayload
@@ -394,7 +400,9 @@ describe('TokenPickerContent', () => {
     containerMocks.fundingSourceChainId = baseSepolia.id
     renderContainer()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
 
     await waitFor(() =>
       expect(containerMocks.send).toHaveBeenCalledWith(
@@ -403,6 +411,32 @@ describe('TokenPickerContent', () => {
           l2FundingChainId: baseSepolia.id,
         }),
       ),
+    )
+  })
+
+  // An L2 payment can fail for a reason the user acts on, like one still settling.
+  it('shows why a payment from the L2 failed rather than a generic approval error', () => {
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    containerMocks.l2AmountIn = 5_012_000n
+    containerMocks.fundingSourceChainId = baseSepolia.id
+    containerMocks.approvalOutcome = 'failed'
+    containerMocks.lastErrorMessage =
+      'The earlier L2 payment has not settled yet, so not paying again.'
+    renderContainer()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The earlier L2 payment has not settled yet, so not paying again.',
+    )
+  })
+
+  it('keeps the generic approval error for a payment from the wallet', () => {
+    containerMocks.approvalOutcome = 'failed'
+    containerMocks.lastErrorMessage = 'User denied transaction signature.'
+    renderContainer()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We couldn't approve your payment.",
     )
   })
 
