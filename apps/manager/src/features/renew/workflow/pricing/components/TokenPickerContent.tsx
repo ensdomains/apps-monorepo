@@ -9,6 +9,7 @@ import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalance
 import { getRenewalFeeQueryOptions } from '@/features/renew/data/queries/renewalFee.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { computeRenewalFunding } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, RENEWAL_TOKEN_SYMBOLS, TOKENS } from '@/lib/tokens'
@@ -70,19 +71,22 @@ export const TokenPickerContent = () => {
       ? undefined
       : decimalBigintToNumber(feeQuery.data, USDC_DECIMALS)
 
-  // Shown as "up to": the rent carries its approval headroom and the fee is
-  // an estimate. The account's own balance is deducted by the base.
-  const funding =
+  // The rent is owed in the chosen coin and the fee in USDC, each net of what
+  // the account already holds. Shown as "up to": the rent carries its approval
+  // headroom and the fee is an estimate.
+  const renewalFunding =
     isIntentRoute && pricingQuery.data && networkFee !== undefined
-      ? {
-          registration: pricingQuery.data.price,
+      ? computeRenewalFunding({
+          price: pricingQuery.data.price,
+          funded: pricingQuery.data.funded,
           networkFee,
-          total: pricingQuery.data.funded + networkFee,
-          walletDebit: pricingQuery.data.funded + networkFee,
-          hcaCredit: 0,
-          isLoading: feeQuery.isFetching,
-        }
+          selectedToken: token,
+          accountCredit: balances.accountCredit,
+        })
       : undefined
+  const funding = renewalFunding
+    ? { ...renewalFunding.summary, isLoading: feeQuery.isFetching }
+    : undefined
 
   // The owner wallet signs the intent and any funding permit, so the renewal
   // cannot start until the account context has both.
@@ -121,7 +125,8 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       acceptedTokens={RENEWAL_TOKEN_SYMBOLS}
-      accountCredit={balances.accountCredit}
+      // With a funding summary the credit is already inside it.
+      accountCredit={renewalFunding ? undefined : balances.accountCredit}
       canProceed={canStart}
       {...(isIntentRoute && pricingQuery.data
         ? { fundedAmount: pricingQuery.data.funded }
@@ -145,6 +150,7 @@ export const TokenPickerContent = () => {
       selectedToken={selectedToken}
       showNetworkFeeDetails={isIntentRoute}
       stablecoinBalances={balances.wallet}
+      walletDebitFor={renewalFunding?.walletDebitFor}
     />
   )
 }

@@ -650,6 +650,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isBusy = false,
   canProceed = true,
   networkFeeTooltip,
+  walletDebitFor,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -701,6 +702,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly canProceed?: boolean
   /** Replaces the fee tooltip's registration wording. */
   readonly networkFeeTooltip?: ReactNode
+  /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
+  readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -722,13 +725,15 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   // owes the shortfall.
   const requiredAmount = funding?.walletDebit ?? fundedAmount ?? pricingData
   // The account's own balance of a coin pays first; the wallet covers the rest.
-  const walletShareOf = (symbol: string) =>
-    requiredAmount === undefined
+  const walletShareOf = (symbol: string) => {
+    if (walletDebitFor) return walletDebitFor(symbol as TOKEN_SYMBOL)
+    return requiredAmount === undefined
       ? undefined
       : Math.max(
           0,
           requiredAmount - (accountCredit?.[symbol as TOKEN_SYMBOL] ?? 0),
         )
+  }
 
   // What the registration costs before any standing credit is applied.
   const displayTotal = funding?.total ?? pricingData
