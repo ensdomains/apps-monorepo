@@ -54,7 +54,7 @@ export const PreferenceCard = ({
         aria-describedby={descriptionId}
         aria-labelledby={labelId}
         aria-pressed={checked}
-        className="absolute inset-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ens-lapis-500 disabled:cursor-not-allowed"
+        className="absolute inset-0 rounded-lg outline-none focus-visible:inset-ring-2 focus-visible:inset-ring-ens-lapis-500 disabled:cursor-not-allowed"
         disabled={isInactive}
         onClick={() => onChange(!checked)}
         type="button"
