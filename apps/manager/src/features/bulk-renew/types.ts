@@ -43,6 +43,7 @@ export type PresetSummary = {
 export type RenewItem = {
   readonly label: string
   readonly duration: bigint
+  readonly referrer?: `0x${string}`
   /** On-chain expiry (seconds) the renewal starts from; a later one means it landed. */
   readonly currentExpiry: bigint
 }

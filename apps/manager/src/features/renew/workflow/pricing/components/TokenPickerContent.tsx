@@ -1,6 +1,8 @@
 import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import type { WalletClient } from 'viem'
 import { useConnection } from 'wagmi'
@@ -69,6 +71,7 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
+  const { referrer } = useSearch({ strict: false })
   const startRenewal = () => {
     if (
       !pricingQuery.data ||
@@ -81,6 +84,7 @@ export const TokenPickerContent = () => {
     }
     uiActor.send({
       type: 'renewal.start',
+      referrer: normalizeReferrer(referrer),
       label,
       signer,
       ownerAddress,

@@ -64,6 +64,7 @@ const resumeAtCommitPrompt = (
     {
       chainId: 11155111,
       name: 'leon.eth',
+      referrer: `0x${'ab'.repeat(32)}`,
       duration: 31_536_000n,
       selectedToken: 'USDC',
       tokenPrice: 5_000_000n,
@@ -282,4 +283,16 @@ describe('useRegistrationTransactions before a run', () => {
       REGISTRATION_TX_IDS.register,
     ])
   })
+})
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useSearch: () => ({ referrer: '0x1234' }),
+}))
+
+it('resumes with the committed referrer even if the URL supplies a different one', () => {
+  const result = resumeAtCommitPrompt(true)
+  expect(result.current.actor.getSnapshot().context.referrer).toBe(
+    `0x${'ab'.repeat(32)}`,
+  )
 })

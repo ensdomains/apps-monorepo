@@ -338,7 +338,10 @@ const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
               closeTransactionModal()
               clearTransaction()
               attempt.end()
-              navigate({ to: '/$name/subnames', params: { name } })
+              navigate({
+                to: '/$name',
+                params: { name: `${trimmedLabel}.${name}` },
+              })
             },
           },
         ]}

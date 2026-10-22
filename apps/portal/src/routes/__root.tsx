@@ -3,8 +3,14 @@ import {
   TransactionManagerProvider,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import { referrerSearch } from '@ens-apps/utils/referrer'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { createRootRoute, HeadContent, Outlet } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  retainSearchParams,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
@@ -52,6 +58,8 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
 }
 
 export const Route = createRootRoute({
+  validateSearch: referrerSearch,
+  search: { middlewares: [retainSearchParams(['referrer'])] },
   staticData: { hideSidebar: true },
   // The router re-runs this on every navigation, so the title tracks the route
   // without each route having to restate it.

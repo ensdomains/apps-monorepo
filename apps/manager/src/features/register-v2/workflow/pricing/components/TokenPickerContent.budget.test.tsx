@@ -38,6 +38,7 @@ vi.mock('@xstate/react', () => ({
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
+  useSearch: () => ({ referrer: '0x1234' }),
 }))
 
 vi.mock('../../../data/queries/pricing.query', () => ({

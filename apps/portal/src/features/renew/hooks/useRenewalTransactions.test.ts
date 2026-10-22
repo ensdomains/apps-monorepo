@@ -169,3 +169,8 @@ describe('buildRenewIntent', () => {
     expect(intent).toBeDefined()
   })
 })
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useSearch: () => ({ referrer: '0x1234' }),
+}))

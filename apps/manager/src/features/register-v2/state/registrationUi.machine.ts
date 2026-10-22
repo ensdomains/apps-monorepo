@@ -99,6 +99,7 @@ type PostRegistrationProgress = {
 export type RegistrationConfirmedData = {
   label: string
   duration: bigint
+  referrer?: `0x${string}`
   ownerAddress: Address
   token: SUPPORTED_TOKEN
   totalPrice: bigint
@@ -170,6 +171,7 @@ type Events =
       type: 'registration.start'
       label: string
       duration: bigint
+      referrer?: `0x${string}`
       token: SUPPORTED_TOKEN
       totalPrice: bigint
       account: SmartAccountContextValue
@@ -774,6 +776,7 @@ const startRegistrationAction = machineSetup.createAction(
       confirmedData: {
         label: event.label,
         duration: event.duration,
+        referrer: event.referrer,
         ownerAddress,
         token: event.token,
         totalPrice: event.totalPrice,
@@ -827,6 +830,7 @@ const startRegistrationAction = machineSetup.createAction(
         approveBeforeCommit: true,
         name: asEthName(event.label),
         duration: event.duration,
+        referrer: event.referrer,
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,

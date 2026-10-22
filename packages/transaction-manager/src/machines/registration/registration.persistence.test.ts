@@ -193,6 +193,7 @@ describe('registration record serialization', () => {
   it('round-trips bigints and the commitment secret', () => {
     const context = baseContext({
       duration: 63_072_000n,
+      referrer: `0x${'12'.repeat(32)}`,
       tokenPrice: 12_345_678n,
       resolverSalt: 2n ** 200n,
       commitment: { commitment: COMMITMENT, secret: SECRET },

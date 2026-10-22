@@ -1,7 +1,8 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { LoaderCircle } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
@@ -315,6 +316,8 @@ export const TokenPickerContent = () => {
     }
   }
 
+  const { referrer } = useSearch({ strict: false })
+
   // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
@@ -331,6 +334,7 @@ export const TokenPickerContent = () => {
     if (uiActor.getSnapshot() !== pricingSnapshot) return
     uiActor.send({
       type: 'registration.start',
+      referrer: normalizeReferrer(referrer),
       label,
       duration: BigInt(Math.ceil(duration)),
       token: selectedToken,

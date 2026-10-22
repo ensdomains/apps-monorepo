@@ -526,3 +526,8 @@ describe('useBulkRenewSubmit (EOA only)', () => {
     expect(result.current.statuses).toEqual({})
   })
 })
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useSearch: () => ({ referrer: '0x1234' }),
+}))

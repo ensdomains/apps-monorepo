@@ -388,6 +388,7 @@ async function readDeploymentState(params: {
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
+  referrer?: Hex
   publicClient: PublicClient
   chainId: number
   signer?: Signer
@@ -480,6 +481,7 @@ export function estimateHcaBudgetActor(input: {
             secret: `0x${'22'.repeat(32)}` as Hex,
             price,
             duration: input.duration,
+            referrer: input.referrer,
             // Quote the SAME batch `submitRevealBatchActor` submits.
             //
             // This is for fidelity, NOT for pricing. Measured against the live
@@ -1143,6 +1145,7 @@ export function submitFundingAndCommitActor(input: {
   wallet: Address
   hca: Address
   duration: bigint
+  referrer?: Hex
   permit?: PermitSignature
   sessionEnable?: HcaSessionEnableParams
   signer: Signer
@@ -1176,6 +1179,7 @@ export function submitFundingAndCommitActor(input: {
         secret,
         resolver: resolverAddress,
         duration: input.duration,
+        referrer: input.referrer,
       })
 
       const calls: Call[] = []
@@ -1424,6 +1428,7 @@ export function submitRevealBatchActor(input: {
   wallet: Address
   hca: Address
   duration: bigint
+  referrer?: Hex
   secret: Hex
   sessionEnable?: HcaSessionEnableParams
   signer: Signer
@@ -1467,6 +1472,7 @@ export function submitRevealBatchActor(input: {
         secret: input.secret,
         price,
         duration: input.duration,
+        referrer: input.referrer,
         ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
       })
 

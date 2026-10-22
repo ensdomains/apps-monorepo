@@ -36,6 +36,7 @@ import { getQueryClient } from '@/utils/router/root-context'
 type SubmissionData = {
   label: string
   duration: bigint
+  referrer?: `0x${string}`
   token: RENEWAL_TOKEN
   /** Price in token units */
   priceRaw: bigint
@@ -110,6 +111,7 @@ export const renewalUiMachine = setup({
           type: 'renewal.start'
           label: string
           duration: bigint
+          referrer?: `0x${string}`
           token: RENEWAL_TOKEN
           /** Price in token units */
           priceRaw: bigint
@@ -199,6 +201,7 @@ export const renewalUiMachine = setup({
           ? {
               label: event.label,
               duration: event.duration,
+              referrer: event.referrer,
               signer: event.signer,
               token: event.token,
               priceRaw: event.priceRaw,
@@ -303,7 +306,13 @@ export const renewalUiMachine = setup({
         input: ({ context }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
-            items: [{ label: submission.label, duration: submission.duration }],
+            items: [
+              {
+                label: submission.label,
+                referrer: submission.referrer,
+                duration: submission.duration,
+              },
+            ],
             renewerAddress: context.renewerAddress,
             protocol: context.protocol,
             token: submission.token,
@@ -448,6 +457,7 @@ export const renewalUiMachine = setup({
           const submission = requireSubmissionData(context.submissionData)
           return {
             label: submission.label,
+            referrer: submission.referrer,
             duration: submission.duration,
             selectedToken: submission.token,
             signer: submission.signer,

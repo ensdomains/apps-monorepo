@@ -11,7 +11,9 @@ import {
   submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useSearch } from '@tanstack/react-router'
 import { ok, okAsync, ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
@@ -99,6 +101,7 @@ const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
   submitRenewActor({
     label: item.label,
     duration: item.duration,
+    referrer: item.referrer,
     selectedToken: ctx.token,
     signer: ctx.signer,
     publicClient,
@@ -317,6 +320,7 @@ export type UseBulkRenewSubmit = {
  * already renewed are remembered so a retry resumes rather than re-paying.
  */
 export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
+  const { referrer } = useSearch({ strict: false })
   const account = useSmartAccountContext()
   const {
     prompt: fundingPrompt,
@@ -468,7 +472,15 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     await finishSuccess(isCurrent)
   }
 
-  const submit = async ({ items, token, sumPriceRaw }: SubmitArgs) => {
+  const submit = async ({
+    items: inputItems,
+    token,
+    sumPriceRaw,
+  }: SubmitArgs) => {
+    const items = inputItems.map((item) => ({
+      ...item,
+      referrer: normalizeReferrer(referrer),
+    }))
     // Claim this run; if `reset` (or another submit) bumps the id while we await,
     // `isCurrent()` turns false and we stop touching the now-stale UI state.
     runIdRef.current += 1
