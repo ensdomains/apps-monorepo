@@ -1,4 +1,4 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
+import type { NameWithRelation } from '@storywithoutend/effect-ens/subgraph'
 import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'

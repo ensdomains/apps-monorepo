@@ -1,4 +1,4 @@
-import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
+import type { GetRecordHistoryParameters } from '@storywithoutend/effect-ens/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Hash } from 'viem'

@@ -1,4 +1,4 @@
-import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
+import type { ReturnResolverEvent } from '@storywithoutend/effect-ens/subgraph'
 import { match } from 'ts-pattern'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 

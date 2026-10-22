@@ -5,12 +5,12 @@ import {
   resultQueryOptions,
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import {
   getSubnames as ensjs_getSubnames,
   type GetSubnamesErrorType,
   type GetSubnamesReturnType,
-} from '@ensdomains/ensjs/subgraph'
-import { encodeLabelhash } from '@ensdomains/ensjs/utils'
+} from '@storywithoutend/effect-ens/subgraph'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, checksumAddress, type Hex } from 'viem'

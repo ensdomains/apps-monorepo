@@ -8,7 +8,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
 }))
 
 const mockEnsjsGetSubnames = vi.fn()
-vi.mock('@ensdomains/ensjs/subgraph', () => ({
+vi.mock('@storywithoutend/effect-ens/subgraph', () => ({
   getSubnames: mockEnsjsGetSubnames,
 }))
 

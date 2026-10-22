@@ -1,4 +1,4 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
+import type { NameWithRelation } from '@storywithoutend/effect-ens/subgraph'
 import {
   GRACE_PERIOD_DAYS,
   MS_PER_DAY,

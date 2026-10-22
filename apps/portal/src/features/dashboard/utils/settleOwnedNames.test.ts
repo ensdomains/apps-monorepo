@@ -1,4 +1,4 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
+import type { NameWithRelation } from '@storywithoutend/effect-ens/subgraph'
 import { describe, expect, it } from 'vitest'
 import type { V2NameWithRoles } from '@/utils/names/mergeNamesData'
 import { settleOwnedNames } from './settleOwnedNames'

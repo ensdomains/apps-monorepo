@@ -1,4 +1,4 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
+import type { NameWithRelation } from '@storywithoutend/effect-ens/subgraph'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address } from 'viem'

@@ -1,4 +1,4 @@
-import type { GetNameHistoryReturnType } from '@ensdomains/ensjs/subgraph'
+import type { GetNameHistoryReturnType } from '@storywithoutend/effect-ens/subgraph'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { transformHistoryToEvents } from './transformHistoryToEvents'

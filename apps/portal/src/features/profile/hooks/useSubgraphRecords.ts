@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   getSubgraphRecords as ensjs_getSubgraphRecords,
   type GetSubgraphRecordsErrorType,
-} from '@ensdomains/ensjs/subgraph'
+} from '@storywithoutend/effect-ens/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

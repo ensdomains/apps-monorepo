@@ -2,7 +2,7 @@ import type {
   DomainEventKey,
   RegistrationEventKey,
   ResolverEventKey,
-} from '@ensdomains/ensjs/subgraph'
+} from '@storywithoutend/effect-ens/subgraph'
 
 type EventKey = DomainEventKey | RegistrationEventKey | ResolverEventKey
 

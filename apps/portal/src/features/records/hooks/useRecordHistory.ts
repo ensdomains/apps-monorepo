@@ -5,8 +5,8 @@ import type { GetSupportedInterfacesErrorType } from '@ensdomains/ensjs/public'
 import type {
   GetRecordHistoryErrorType,
   GetRecordHistoryParameters,
-} from '@ensdomains/ensjs/subgraph'
-import { getRecordHistory as ensjs_getRecordHistory } from '@ensdomains/ensjs/subgraph'
+} from '@storywithoutend/effect-ens/subgraph'
+import { getRecordHistory as ensjs_getRecordHistory } from '@storywithoutend/effect-ens/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

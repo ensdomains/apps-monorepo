@@ -5,8 +5,8 @@ import type {
   GetNamesForAddressParameters,
   GetNamesForAddressReturnType,
   NameWithRelation,
-} from '@ensdomains/ensjs/subgraph'
-import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensjs/subgraph'
+} from '@storywithoutend/effect-ens/subgraph'
+import { getNamesForAddress as ensjs_getNamesForAddress } from '@storywithoutend/effect-ens/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { escapeSearchWildcards } from '../utils/escapeSearchWildcards'
