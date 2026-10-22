@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readNoticeBanner } from './notice-banner'
+import { readNoticeBanner } from './noticeBanner'
 
 const MAINNET = { app: 'manager', chainId: 1 } as const
 const SEPOLIA = { app: 'manager', chainId: 11155111 } as const
