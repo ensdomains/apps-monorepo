@@ -526,11 +526,13 @@ export const TokenPickerContent = () => {
     isBusy,
     isAwaitingPaymentApproval,
     isPaymentApprovalRequired,
+    isQuoting: isBudgetRequired && budgetQuery.isLoading,
   })
     .with({ isBusy: true, isAwaitingPaymentApproval: true }, () => (
       <Trans>Approve in wallet</Trans>
     ))
     .with({ isBusy: true }, () => <Trans>Preparing registration...</Trans>)
+    .with({ isQuoting: true }, () => <Trans>Calculating cost...</Trans>)
     .with({ isPaymentApprovalRequired: true }, () => (
       <Trans>Approve and register</Trans>
     ))
@@ -621,6 +623,10 @@ const PickerMessage = ({
   }
   return null
 }
+
+/** The button holds with a spinner while a click is in flight or the fee is being quoted. */
+const isCheckoutSettling = (isBusy: boolean, isQuotingFunding: boolean) =>
+  isBusy || isQuotingFunding
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
@@ -759,11 +765,15 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
+    // The fee is part of the figure being confirmed, so wait for it.
+    !isQuotingFunding &&
     !isQuoteStale &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin &&
     // Refuse rather than proceed on a figure that cannot fund the batch.
     !hasBudgetQuoteFailed
+
+  const isSettling = isCheckoutSettling(isBusy, isQuotingFunding)
 
   const actionClasses = match({ canNext, isBusy })
     .with(
@@ -931,11 +941,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         <PaymentTotalRow
           hasAccountCredit={hasAccountCredit}
           isEstimate={!!funding || hasBudgetQuoteFailed}
+          isLoading={isQuotingFunding}
           total={headlineAmount}
         />
 
         <Button
-          aria-busy={isBusy}
+          aria-busy={isSettling}
           className={cn(
             'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
             'hover:bg-ens-gray-two',
@@ -945,7 +956,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           disabled={isBusy || !canNext}
           onClick={onNext}
         >
-          {isBusy && (
+          {isSettling && (
             <LoaderCircle aria-hidden="true" className="animate-spin" />
           )}
           {nextMessage}

@@ -1,0 +1,108 @@
+import type { QueryClient } from '@tanstack/react-query'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import {
+  getHcaBudgetQueryOptions,
+  type HcaBudgetQueryParams,
+  isHcaBudgetQuoteRequired,
+} from '../data/queries/hcaBudget.query'
+import { getRegisterPriceQueryOptions } from '../data/queries/pricing.query'
+import { getManagerRegistrationPostRegistrationSetup } from '../state/registrationAutoSetup'
+
+export type CheckoutAccount = Pick<
+  SmartAccountContextValue,
+  'accountAddress' | 'signer' | 'ownerAddress' | 'getSessionEnablePayload'
+>
+
+export interface CheckoutWarmupParams {
+  readonly label: string
+  readonly durationInSeconds: number
+  readonly token: SUPPORTED_TOKEN
+  readonly account: CheckoutAccount
+}
+
+/** Room for the two orchestrator round trips; past it the dialog opens and loads in place. */
+export const CHECKOUT_WARMUP_TIMEOUT_MS = 15_000
+
+/**
+ * Whether the primary-name toggle defaults on, which the budget quote depends
+ * on. The same lookups seed the toggle inside the dialog, so both read the one
+ * cache entry. A failed lookup defaults the toggle off there too.
+ */
+const readDefaultSetAsPrimary = async (
+  queryClient: QueryClient,
+  ownerAddress: CheckoutAccount['ownerAddress'],
+): Promise<boolean> => {
+  if (!ownerAddress) return false
+  try {
+    const [existingPrimaryName, ownedNamesCount] = await Promise.all([
+      queryClient.ensureQueryData(profileReverseNameQuery(ownerAddress)),
+      queryClient.ensureQueryData(ownedNamesCountQueryOptions(ownerAddress)),
+    ])
+    return !!getManagerRegistrationPostRegistrationSetup({
+      ownerAddress,
+      existingPrimaryName,
+      ownedNamesCount,
+    })
+  } catch {
+    return false
+  }
+}
+
+/** The budget the dialog will quote first, keyed the way the dialog keys it. */
+export const buildCheckoutBudgetParams = (
+  params: CheckoutWarmupParams,
+  setAsPrimary: boolean,
+): HcaBudgetQueryParams => ({
+  label: params.label,
+  durationInSeconds: params.durationInSeconds,
+  hca: params.account.accountAddress,
+  signer: params.account.signer,
+  primaryName: setAsPrimary ? `${params.label}.eth` : undefined,
+  getSessionEnablePayload: params.account.getSessionEnablePayload,
+})
+
+const settled = (promise: Promise<unknown>) => promise.catch(() => undefined)
+
+/**
+ * Fill the cache the payment dialog reads from, so it opens with its final
+ * figures: the price, and on the smart-account route the funding budget. A
+ * failed read is left to the dialog to report; a slow one stops holding the
+ * dialog back after {@link CHECKOUT_WARMUP_TIMEOUT_MS}.
+ */
+export const warmRegistrationCheckout = async (
+  queryClient: QueryClient,
+  params: CheckoutWarmupParams,
+  timeoutMs = CHECKOUT_WARMUP_TIMEOUT_MS,
+): Promise<void> => {
+  // `ensureQueryData` reuses what the pricing page already read; a stale entry
+  // refreshes in the background once the dialog mounts, keeping its figures.
+  const price = settled(
+    queryClient.ensureQueryData(
+      getRegisterPriceQueryOptions(
+        params.label,
+        params.durationInSeconds,
+        params.token,
+      ),
+    ),
+  )
+
+  const budget = (async () => {
+    const setAsPrimary = await readDefaultSetAsPrimary(
+      queryClient,
+      params.account.ownerAddress,
+    )
+    const budgetParams = buildCheckoutBudgetParams(params, setAsPrimary)
+    if (!isHcaBudgetQuoteRequired(budgetParams)) return
+    await settled(
+      queryClient.ensureQueryData(getHcaBudgetQueryOptions(budgetParams)),
+    )
+  })()
+
+  await Promise.race([
+    Promise.all([price, budget]),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ])
+}
