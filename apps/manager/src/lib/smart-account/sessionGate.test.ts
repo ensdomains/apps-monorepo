@@ -2,6 +2,7 @@ import { SESSION_REGISTRATION_HEADROOM_SECONDS } from '@ens-apps/smart-account'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
+  isSessionRevokedOnChain,
   needsSessionBeforeRegistration,
   resolveVerifiedOwner,
   sessionHydrationKey,
@@ -157,5 +158,20 @@ describe('resolveVerifiedOwner', () => {
     const garbage = '0xnotanaddress' as Address
     expect(resolveVerifiedOwner(garbage, A)).toBeNull()
     expect(resolveVerifiedOwner(A, garbage)).toBeNull()
+  })
+})
+
+describe('isSessionRevokedOnChain', () => {
+  it('is revoked once the chain nonce has passed the one the session was signed against', () => {
+    expect(isSessionRevokedOnChain({ hcaSessionNonce: '0' }, 1n)).toBe(true)
+    expect(isSessionRevokedOnChain({ hcaSessionNonce: '1' }, 1n)).toBe(false)
+  })
+
+  it('is not revoked while the nonce is unknown or the account is undeployed', () => {
+    expect(isSessionRevokedOnChain({ hcaSessionNonce: '0' }, undefined)).toBe(
+      false,
+    )
+    expect(isSessionRevokedOnChain({ hcaSessionNonce: '0' }, null)).toBe(false)
+    expect(isSessionRevokedOnChain(null, 5n)).toBe(false)
   })
 })

@@ -25,6 +25,8 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     ownerAddress,
     isLoading,
     hasActiveSession,
+    isEnablingSession,
+    enableSession,
     isRevokingSession,
     revokeError,
     revokeErrorReason,
@@ -45,6 +47,12 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const handleDisconnect = async () => {
     await disconnect()
     onAction()
+  }
+
+  // The one ENABLE signature; a declined or failed prompt leaves the row as is.
+  const handleEnableSessions = async () => {
+    const enabled = await enableSession()
+    if (enabled) onAction()
   }
 
   return (
@@ -118,9 +126,38 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           and unlike the rest of the HCA flow it is a gas-paying owner
           transaction, hence the confirm step. EOA mode has no HCA. */}
       {accountAddress && !isFeatureEnabled('USE_EOA') && (
-        <AccountMenuItemButton onClick={() => setIsRevokeOpen(true)}>
-          <Trans>Revoke smart sessions</Trans>
-        </AccountMenuItemButton>
+        <>
+          <AccountMenuItemStatus
+            className="text-ens-quartz-400"
+            prefix={
+              <MSymbol
+                className="ms-opsz-20"
+                symbol={hasActiveSession ? 'fingerprint' : 'flash_off'}
+              />
+            }
+          >
+            {hasActiveSession ? (
+              <Trans>Smart sessions on</Trans>
+            ) : (
+              <Trans>Smart sessions off</Trans>
+            )}
+          </AccountMenuItemStatus>
+          {!hasActiveSession && (
+            <AccountMenuItemButton
+              disabled={isEnablingSession}
+              onClick={() => void handleEnableSessions()}
+            >
+              {isEnablingSession ? (
+                <Trans>Enabling smart sessions…</Trans>
+              ) : (
+                <Trans>Enable smart sessions</Trans>
+              )}
+            </AccountMenuItemButton>
+          )}
+          <AccountMenuItemButton onClick={() => setIsRevokeOpen(true)}>
+            <Trans>Revoke smart sessions</Trans>
+          </AccountMenuItemButton>
+        </>
       )}
 
       <RevokeSessionsModal

@@ -1034,12 +1034,20 @@ msgstr ""
 msgid "Enable Sessions"
 msgstr ""
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Enable smart sessions"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enable Smart Sessions"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enabling sessions…"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Enabling smart sessions…"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -2580,6 +2588,14 @@ msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart sessions off"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart sessions on"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileSocialSection.tsx
