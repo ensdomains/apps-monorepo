@@ -24,6 +24,8 @@ import { MANAGER_ENDPOINTS } from './endpoints'
  * to the shared public endpoints in the network profile.
  */
 const MANAGER_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
+  mainnet:
+    'https://lb.drpc.live/ethereum/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
   sepolia:
     'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
 }
@@ -33,11 +35,11 @@ const network = import.meta.env?.VITE_ENS_NETWORK
 // Relative URLs (like `/rpc`, used by the e2e stack) only resolve in the
 // browser, so SSR reads the server-specific override instead.
 const resolveRpcOverride = createIsomorphicFn()
-  .client(() => import.meta.env?.VITE_SEPOLIA_RPC_URL)
+  .client(() => import.meta.env?.VITE_RPC_URL)
   .server(() => {
-    const envUrl = import.meta.env?.VITE_SEPOLIA_RPC_URL
+    const envUrl = import.meta.env?.VITE_RPC_URL
     if (envUrl?.startsWith('/')) {
-      return import.meta.env?.VITE_SEPOLIA_RPC_URL_SERVER
+      return import.meta.env?.VITE_RPC_URL_SERVER
     }
     return envUrl
   })

@@ -206,65 +206,66 @@ describe('commemorative NFT contract', () => {
     ).resolves.toEqual({ status: 'reverted', hash })
     expect(readContractMock).not.toHaveBeenCalled()
   })
-  it.each([
-    'cancelled',
-    'replaced',
-    'repriced',
-  ] as const)('handles a %s same-nonce transaction', async (reason) => {
-    const onReplaced = vi.fn()
-    waitForTransactionReceiptMock.mockImplementation(
-      async (_config, params) => {
-        params.onReplaced?.({
-          reason,
-          replacedTransaction: transaction(),
-          transaction: transaction({ hash: replacementHash }),
-          transactionReceipt: receipt(replacementHash),
-        })
-        return receipt(replacementHash)
-      },
-    )
-    await expect(
-      waitForCommemorativeNftClaimReceipt({
-        wagmiConfig,
-        pendingClaim,
-        onReplaced,
-      }),
-    ).resolves.toEqual({
-      status: reason === 'repriced' ? 'confirmed' : reason,
-      hash: replacementHash,
-    })
-    expect(onReplaced).toHaveBeenCalledWith(replacementHash)
-    expect(readContractMock).toHaveBeenCalledTimes(
-      reason === 'repriced' ? 1 : 0,
-    )
-  })
+  it.each(['cancelled', 'replaced', 'repriced'] as const)(
+    'handles a %s same-nonce transaction',
+    async (reason) => {
+      const onReplaced = vi.fn()
+      waitForTransactionReceiptMock.mockImplementation(
+        async (_config, params) => {
+          params.onReplaced?.({
+            reason,
+            replacedTransaction: transaction(),
+            transaction: transaction({ hash: replacementHash }),
+            transactionReceipt: receipt(replacementHash),
+          })
+          return receipt(replacementHash)
+        },
+      )
+      await expect(
+        waitForCommemorativeNftClaimReceipt({
+          wagmiConfig,
+          pendingClaim,
+          onReplaced,
+        }),
+      ).resolves.toEqual({
+        status: reason === 'repriced' ? 'confirmed' : reason,
+        hash: replacementHash,
+      })
+      expect(onReplaced).toHaveBeenCalledWith(replacementHash)
+      expect(readContractMock).toHaveBeenCalledTimes(
+        reason === 'repriced' ? 1 : 0,
+      )
+    },
+  )
   it.each([
     { from: '0x1111111111111111111111111111111111111111' as const },
     { to: ownerAddress },
     { value: 1n },
     { input: '0x' as const },
-  ])('rejects unrelated restored transaction identity %s', async (overrides) => {
-    getTransactionMock.mockResolvedValue(transaction(overrides))
-    await expect(
-      waitForCommemorativeNftClaimReceipt({ wagmiConfig, pendingClaim }),
-    ).resolves.toEqual({ status: 'replaced', hash })
-    expect(readContractMock).not.toHaveBeenCalled()
-  })
-  it.each([
-    'receipt',
-    'transaction',
-    'claimed',
-  ] as const)('keeps the hash on an unavailable %s read', async (stage) => {
-    if (stage === 'receipt')
-      waitForTransactionReceiptMock.mockRejectedValue(new Error('Timed out'))
-    if (stage === 'transaction')
-      getTransactionMock.mockRejectedValue(new Error('RPC unavailable'))
-    if (stage === 'claimed')
-      readContractMock.mockRejectedValue(new Error('RPC unavailable'))
-    await expect(
-      waitForCommemorativeNftClaimReceipt({ wagmiConfig, pendingClaim }),
-    ).resolves.toEqual({ status: 'pending', hash })
-  })
+  ])(
+    'rejects unrelated restored transaction identity %s',
+    async (overrides) => {
+      getTransactionMock.mockResolvedValue(transaction(overrides))
+      await expect(
+        waitForCommemorativeNftClaimReceipt({ wagmiConfig, pendingClaim }),
+      ).resolves.toEqual({ status: 'replaced', hash })
+      expect(readContractMock).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['receipt', 'transaction', 'claimed'] as const)(
+    'keeps the hash on an unavailable %s read',
+    async (stage) => {
+      if (stage === 'receipt')
+        waitForTransactionReceiptMock.mockRejectedValue(new Error('Timed out'))
+      if (stage === 'transaction')
+        getTransactionMock.mockRejectedValue(new Error('RPC unavailable'))
+      if (stage === 'claimed')
+        readContractMock.mockRejectedValue(new Error('RPC unavailable'))
+      await expect(
+        waitForCommemorativeNftClaimReceipt({ wagmiConfig, pendingClaim }),
+      ).resolves.toEqual({ status: 'pending', hash })
+    },
+  )
   it('rejects persisted scope from another configured contract', async () => {
     await expect(
       waitForCommemorativeNftClaimReceipt({

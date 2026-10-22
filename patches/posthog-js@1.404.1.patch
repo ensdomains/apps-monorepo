@@ -1,0 +1,62 @@
+diff --git a/dist/extension-bundles.js b/dist/extension-bundles.js
+index f2a07521409ebc2b4a298e2c9d82ae5e2546ff50..ef1d555a66633e5165e0d8995aa26f7b5cc681b2 100644
+--- a/dist/extension-bundles.js
++++ b/dist/extension-bundles.js
+@@ -2 +2,2 @@
+ //# sourceMappingURL=extension-bundles.js.map
++Hr.toolbar.prototype.maybeLoadToolbar=Hr.toolbar.prototype.loadToolbar=function(){return!1};
+diff --git a/dist/main.js b/dist/main.js
+index 9f6b721f687ab67f0617dc35cec96cdb22506b78..7f47e78890dd9f246183d41ef9053c5c5be07cb8 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -2 +2,2 @@
+ //# sourceMappingURL=main.js.map
++El.toolbar.prototype.maybeLoadToolbar=El.toolbar.prototype.loadToolbar=function(){return!1};
+diff --git a/dist/module.full.js b/dist/module.full.js
+index 6ad5c823840513b275ac4de65019f86438a6540f..fedf0474d9d043c43e952378a788a355f5ecd27f 100644
+--- a/dist/module.full.js
++++ b/dist/module.full.js
+@@ -2 +2,2 @@
+ //# sourceMappingURL=module.full.js.map
++vg.toolbar.prototype.maybeLoadToolbar=vg.toolbar.prototype.loadToolbar=function(){return!1};
+diff --git a/dist/module.full.no-external.js b/dist/module.full.no-external.js
+index 12ce79cc468a6b8e3935854de22dff9d935ee13c..e0bf7e9e2e84f93b6fcc02dc2d93cece66c28f22 100644
+--- a/dist/module.full.no-external.js
++++ b/dist/module.full.no-external.js
+@@ -2 +2,2 @@
+ //# sourceMappingURL=module.full.no-external.js.map
++sm.toolbar.prototype.maybeLoadToolbar=sm.toolbar.prototype.loadToolbar=function(){return!1};
+diff --git a/dist/module.js b/dist/module.js
+index 6904e309cc18b4aa9ce611e673dd8e06524efc77..21957a6515c215d6fd23cd7ad82a76494b9882fb 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -2 +2,2 @@
+ //# sourceMappingURL=module.js.map
++Ml.toolbar.prototype.maybeLoadToolbar=Ml.toolbar.prototype.loadToolbar=function(){return!1};
+diff --git a/dist/module.no-external.js b/dist/module.no-external.js
+index cef58eb7da0e536c009570f6c596863503cf7e59..e84d0804dbb26e9996b131041969e133569286af 100644
+--- a/dist/module.no-external.js
++++ b/dist/module.no-external.js
+@@ -2 +2,2 @@
+ //# sourceMappingURL=module.no-external.js.map
++Rl.toolbar.prototype.maybeLoadToolbar=Rl.toolbar.prototype.loadToolbar=function(){return!1};
+diff --git a/lib/src/extensions/toolbar.js b/lib/src/extensions/toolbar.js
+index b5354a68d6ab1b0a163131db463630ffd50e90c7..922ec1c7105d5680899ae598cca5f145b036f0d9 100644
+--- a/lib/src/extensions/toolbar.js
++++ b/lib/src/extensions/toolbar.js
+@@ -47,6 +47,7 @@ var Toolbar = /** @class */ (function () {
+      * 2. From session storage under the key `toolbarParams` if the toolbar was initialized on a previous page
+      */
+     Toolbar.prototype.maybeLoadToolbar = function (location, localStorage, history) {
++        return false;
+         if (location === void 0) { location = undefined; }
+         if (localStorage === void 0) { localStorage = undefined; }
+         if (history === void 0) { history = undefined; }
+@@ -133,6 +134,7 @@ var Toolbar = /** @class */ (function () {
+         loadFn(params, this.instance);
+     };
+     Toolbar.prototype.loadToolbar = function (params) {
++        return false;
+         var _this = this;
+         var _a, _b;
+         var toolbarRunning = !!(globals_1.document === null || globals_1.document === void 0 ? void 0 : globals_1.document.getElementById(constants_1.TOOLBAR_ID));

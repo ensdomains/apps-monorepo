@@ -110,18 +110,18 @@ afterEach(() => {
 })
 
 describe('commemorative NFT migration completion', () => {
-  it.each([
-    'ownerAddress',
-    'hcaAddress',
-  ] as const)('rejects a missing %s even when manually refetched', async (addressKey) => {
-    await expect(
-      fetchCommemorativeNftMigrationCompletion({
-        ...params,
-        [addressKey]: zeroAddress,
-      }),
-    ).rejects.toThrow('The migration account could not be checked.')
-    expect(mocks.getV1NamesForAddress).not.toHaveBeenCalled()
-  })
+  it.each(['ownerAddress', 'hcaAddress'] as const)(
+    'rejects a missing %s even when manually refetched',
+    async (addressKey) => {
+      await expect(
+        fetchCommemorativeNftMigrationCompletion({
+          ...params,
+          [addressKey]: zeroAddress,
+        }),
+      ).rejects.toThrow('The migration account could not be checked.')
+      expect(mocks.getV1NamesForAddress).not.toHaveBeenCalled()
+    },
+  )
 
   it('keeps a wallet locked while an eligible V1 name remains', async () => {
     mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
@@ -252,33 +252,36 @@ describe('commemorative NFT migration completion', () => {
     { ownerAddress: '0x0000000000000000000000000000000000000003' as Address },
     { hcaAddress: '0x0000000000000000000000000000000000000004' as Address },
     { chainId: 1 },
-  ])('does not accept verified success from a different scope: %j', async (otherScope) => {
-    mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
+  ])(
+    'does not accept verified success from a different scope: %j',
+    async (otherScope) => {
+      mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
 
-    await expect(
-      fetchCommemorativeNftMigrationCompletion({
-        ...params,
-        verifiedMigration: { ...verifiedMigration, ...otherScope },
-      }),
-    ).resolves.toMatchObject({ isComplete: false, migratedNameCount: 0 })
-    expect(mocks.getMigratedNamesCount).toHaveBeenCalledWith(ownerAddress)
-  })
+      await expect(
+        fetchCommemorativeNftMigrationCompletion({
+          ...params,
+          verifiedMigration: { ...verifiedMigration, ...otherScope },
+        }),
+      ).resolves.toMatchObject({ isComplete: false, migratedNameCount: 0 })
+      expect(mocks.getMigratedNamesCount).toHaveBeenCalledWith(ownerAddress)
+    },
+  )
 
-  it.each([
-    'names',
-    'migrated',
-  ] as const)('fails closed when the %s request fails', async (request) => {
-    const failedRequest =
-      request === 'names'
-        ? mocks.getV1NamesForAddress
-        : mocks.getMigratedNamesCount
-    failedRequest.mockResolvedValue(err(new Error('request failed')))
+  it.each(['names', 'migrated'] as const)(
+    'fails closed when the %s request fails',
+    async (request) => {
+      const failedRequest =
+        request === 'names'
+          ? mocks.getV1NamesForAddress
+          : mocks.getMigratedNamesCount
+      failedRequest.mockResolvedValue(err(new Error('request failed')))
 
-    await expect(
-      fetchCommemorativeNftMigrationCompletion(params),
-    ).rejects.toThrow('could not be checked')
-    expect(mocks.runEligibilityChecks).not.toHaveBeenCalled()
-  })
+      await expect(
+        fetchCommemorativeNftMigrationCompletion(params),
+      ).rejects.toThrow('could not be checked')
+      expect(mocks.runEligibilityChecks).not.toHaveBeenCalled()
+    },
+  )
 
   it('does not mistake failed RPC reads for already migrated names', async () => {
     mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
@@ -300,16 +303,15 @@ describe('commemorative NFT migration completion', () => {
     ).rejects.toThrow('RPC unavailable')
   })
 
-  it.each([
-    -1,
-    Number.NaN,
-    1.5,
-  ])('rejects an invalid migrated count: %s', async (count) => {
-    mocks.getMigratedNamesCount.mockResolvedValue(ok(count))
-    await expect(
-      fetchCommemorativeNftMigrationCompletion(params),
-    ).rejects.toThrow('name count is invalid')
-  })
+  it.each([-1, Number.NaN, 1.5])(
+    'rejects an invalid migrated count: %s',
+    async (count) => {
+      mocks.getMigratedNamesCount.mockResolvedValue(ok(count))
+      await expect(
+        fetchCommemorativeNftMigrationCompletion(params),
+      ).rejects.toThrow('name count is invalid')
+    },
+  )
 
   it('blocks unfinished child copies even after their parent leaves the V1 results', async () => {
     const child = makeDomain({
@@ -343,28 +345,28 @@ describe('commemorative NFT migration completion', () => {
     })
   })
 
-  it.each([
-    'pending',
-    'submitted',
-  ] as const)('blocks %s journal work and deduplicates the live remaining name', async (state) => {
-    if (state === 'pending')
-      persistPendingAtomicMigrationIntent(scope, pendingIntent)
-    else persistSubmittedAtomicMigrationBatch(scope, submittedBatch)
-    mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
-    mocks.runEligibilityChecks.mockResolvedValue({
-      ...emptyEligibility(),
-      eligible: classified,
-    })
+  it.each(['pending', 'submitted'] as const)(
+    'blocks %s journal work and deduplicates the live remaining name',
+    async (state) => {
+      if (state === 'pending')
+        persistPendingAtomicMigrationIntent(scope, pendingIntent)
+      else persistSubmittedAtomicMigrationBatch(scope, submittedBatch)
+      mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
+      mocks.runEligibilityChecks.mockResolvedValue({
+        ...emptyEligibility(),
+        eligible: classified,
+      })
 
-    await expect(
-      fetchCommemorativeNftMigrationCompletion(params),
-    ).resolves.toEqual({
-      status: 'incomplete',
-      isComplete: false,
-      remainingNameCount: 1,
-      migratedNameCount: 1,
-    })
-  })
+      await expect(
+        fetchCommemorativeNftMigrationCompletion(params),
+      ).resolves.toEqual({
+        status: 'incomplete',
+        isComplete: false,
+        remainingNameCount: 1,
+        migratedNameCount: 1,
+      })
+    },
+  )
 
   it('rechecks journal work created while preflight is running', async () => {
     mocks.runEligibilityChecks.mockImplementation(async () => {
@@ -586,21 +588,22 @@ describe('completion restoration and bounded reconciliation', () => {
   })
 })
 
-it.each([
-  0, 1, 1000, 2000,
-])('checks %i names in one scan with two journal boundary reads', async (count) => {
-  const domains = Array.from({ length: count }, (_, i) =>
-    makeDomain({
-      name: `name${i}.eth`,
-      labelName: `name${i}`,
-      id: namehash(`name${i}.eth`),
-    }),
-  )
-  mocks.getV1NamesForAddress.mockResolvedValue(ok(domains))
-  const getItem = vi.spyOn(localStorage, 'getItem')
-  await fetchCommemorativeNftMigrationCompletion(params)
-  expect(mocks.getV1NamesForAddress).toHaveBeenCalledOnce()
-  expect(mocks.runEligibilityChecks).toHaveBeenCalledOnce()
-  expect(mocks.runEligibilityChecks.mock.calls[0]?.[1]).toHaveLength(count)
-  expect(getItem).toHaveBeenCalledTimes(2)
-})
+it.each([0, 1, 1000, 2000])(
+  'checks %i names in one scan with two journal boundary reads',
+  async (count) => {
+    const domains = Array.from({ length: count }, (_, i) =>
+      makeDomain({
+        name: `name${i}.eth`,
+        labelName: `name${i}`,
+        id: namehash(`name${i}.eth`),
+      }),
+    )
+    mocks.getV1NamesForAddress.mockResolvedValue(ok(domains))
+    const getItem = vi.spyOn(localStorage, 'getItem')
+    await fetchCommemorativeNftMigrationCompletion(params)
+    expect(mocks.getV1NamesForAddress).toHaveBeenCalledOnce()
+    expect(mocks.runEligibilityChecks).toHaveBeenCalledOnce()
+    expect(mocks.runEligibilityChecks.mock.calls[0]?.[1]).toHaveLength(count)
+    expect(getItem).toHaveBeenCalledTimes(2)
+  },
+)

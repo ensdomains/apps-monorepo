@@ -30,16 +30,9 @@ const ParentCrumbLabel = ({
     case 'addr':
       return truncateAddress(parent.addr)
     case 'registry':
-      return 'Registry Contract'
+      return 'Registry contract'
     case 'resolver':
-      return (
-        <>
-          Resolver{' '}
-          <span className={inlineAddressHeadingClassName}>
-            {truncateAddress(parent.address)}
-          </span>
-        </>
-      )
+      return 'Resolver contract'
   }
 }
 
@@ -49,8 +42,9 @@ const crumbClassName = (parent: PageHeadingParent) => {
       return nameHeadingClassName
     case 'addr':
       return addressHeadingClassName
-    default:
-      return undefined
+    case 'registry':
+    case 'resolver':
+      return 'font-serif'
   }
 }
 
@@ -110,7 +104,11 @@ export const PageHeading = ({
 }) => (
   <h1
     className={cn(
-      'font-sans text-h1 font-normal',
+      'text-h1 font-normal',
+      // Contract pages set the whole heading in serif, crumb and title alike.
+      parent?.type === 'registry' || parent?.type === 'resolver'
+        ? 'font-serif'
+        : 'font-sans',
       'flex flex-wrap items-center gap-x-2 min-w-0 break-words',
       className,
     )}

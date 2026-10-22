@@ -787,25 +787,27 @@ describe('executeMigration HCA orchestration', () => {
   it.each([
     [500_001n, 550_002n],
     [15_000_000n, 16_500_000n],
-  ])('submits the live estimate %s with bounded gas headroom', async (estimate, gas) => {
-    estimateGasMock.mockResolvedValueOnce(estimate)
-    await runExecute()
-    expect(mocks.startTransaction.mock.calls[0]?.[0].request.gas).toBe(gas)
-    expect(gas).toBeLessThan(16_777_216n)
-    expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
-      expect.objectContaining({ maxOuterGas: 15_000_000n }),
-    )
-  })
+  ])(
+    'submits the live estimate %s with bounded gas headroom',
+    async (estimate, gas) => {
+      estimateGasMock.mockResolvedValueOnce(estimate)
+      await runExecute()
+      expect(mocks.startTransaction.mock.calls[0]?.[0].request.gas).toBe(gas)
+      expect(gas).toBeLessThan(16_777_216n)
+      expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
+        expect.objectContaining({ maxOuterGas: 15_000_000n }),
+      )
+    },
+  )
 
-  it.each([
-    0n,
-    15_000_001n,
-    21_354_459n,
-  ])('blocks an invalid batch gas estimate %s before opening the wallet', async (estimate) => {
-    estimateGasMock.mockResolvedValueOnce(estimate)
-    await expect(runExecute()).rejects.toThrow('supported gas budget')
-    expect(mocks.startTransaction).not.toHaveBeenCalled()
-  })
+  it.each([0n, 15_000_001n, 21_354_459n])(
+    'blocks an invalid batch gas estimate %s before opening the wallet',
+    async (estimate) => {
+      estimateGasMock.mockResolvedValueOnce(estimate)
+      await expect(runExecute()).rejects.toThrow('supported gas budget')
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+    },
+  )
 
   it('surfaces a submission gas-cap rejection without automatic wallet retries', async () => {
     mocks.waitForTransactionHash.mockRejectedValueOnce(
@@ -2135,76 +2137,78 @@ describe('durable migration completion handoff', () => {
   })
 })
 
-it.each([
-  false,
-  true,
-])('verifies older completed receipt journals before deleting them (forged=%s)', async (forged) => {
-  const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
-  const completed = { name: 'alice.eth', action: 'migrate' as const }
-  const hash = hashFor(9)
-  persistSubmittedAtomicMigrationBatch(scope, {
-    intentId: 'older-completed',
-    hash,
-    names: ['alice.eth'],
-    operations: [completed],
-  })
-  const contracts = getDestinationContracts(11155111)
-  const blockHash = hashFor(99)
-  const input = buildHcaOwnerExecutionCall({
-    hca: HCA,
-    calls: [
-      buildMigrationHelperCall([
-        {
-          name: 'alice.eth',
-          tokenType: 'unwrapped',
-          parentName: 'eth',
-          data: createMigrationData({
-            label: 'alice',
-            owner: OWNER,
-            resolver: RESOLVER,
-          }),
-        },
-      ]),
-    ],
-  }).data
-  getTransactionReceiptMock.mockResolvedValue({
-    status: 'success',
-    blockNumber: 123n,
-    blockHash,
-    transactionHash: hash,
-    from: OWNER,
-    to: HCA,
-  })
-  getTransactionMock.mockResolvedValue({
-    hash,
-    blockNumber: 123n,
-    blockHash,
-    from: forged ? RESOLVER : OWNER,
-    to: HCA,
-    input,
-  })
-  readContractMock.mockImplementation(({ functionName }) =>
-    Promise.resolve(
-      functionName === 'verifyContract'
-        ? contracts.standaloneHcaImplementation
-        : OWNER,
-    ),
-  )
-  const plan = {
-    ...planFor([]),
-    registryContext: [classifiedFor('alice')],
-    priorCompletedOperations: [completed],
-  }
-  const pending = runExecute({ plan, reconcileBeforeSubmit: true })
-  if (forged) {
-    await expect(pending).rejects.toMatchObject({
-      cause: { message: expect.stringContaining('transaction does not match') },
+it.each([false, true])(
+  'verifies older completed receipt journals before deleting them (forged=%s)',
+  async (forged) => {
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const completed = { name: 'alice.eth', action: 'migrate' as const }
+    const hash = hashFor(9)
+    persistSubmittedAtomicMigrationBatch(scope, {
+      intentId: 'older-completed',
+      hash,
+      names: ['alice.eth'],
+      operations: [completed],
     })
-    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
-  } else {
-    await expect(pending).resolves.toBeDefined()
-    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(0)
-    expect(getTransactionMock).toHaveBeenCalledOnce()
-  }
-  expect(mocks.startTransaction).not.toHaveBeenCalled()
-})
+    const contracts = getDestinationContracts(11155111)
+    const blockHash = hashFor(99)
+    const input = buildHcaOwnerExecutionCall({
+      hca: HCA,
+      calls: [
+        buildMigrationHelperCall([
+          {
+            name: 'alice.eth',
+            tokenType: 'unwrapped',
+            parentName: 'eth',
+            data: createMigrationData({
+              label: 'alice',
+              owner: OWNER,
+              resolver: RESOLVER,
+            }),
+          },
+        ]),
+      ],
+    }).data
+    getTransactionReceiptMock.mockResolvedValue({
+      status: 'success',
+      blockNumber: 123n,
+      blockHash,
+      transactionHash: hash,
+      from: OWNER,
+      to: HCA,
+    })
+    getTransactionMock.mockResolvedValue({
+      hash,
+      blockNumber: 123n,
+      blockHash,
+      from: forged ? RESOLVER : OWNER,
+      to: HCA,
+      input,
+    })
+    readContractMock.mockImplementation(({ functionName }) =>
+      Promise.resolve(
+        functionName === 'verifyContract'
+          ? contracts.standaloneHcaImplementation
+          : OWNER,
+      ),
+    )
+    const plan = {
+      ...planFor([]),
+      registryContext: [classifiedFor('alice')],
+      priorCompletedOperations: [completed],
+    }
+    const pending = runExecute({ plan, reconcileBeforeSubmit: true })
+    if (forged) {
+      await expect(pending).rejects.toMatchObject({
+        cause: {
+          message: expect.stringContaining('transaction does not match'),
+        },
+      })
+      expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
+    } else {
+      await expect(pending).resolves.toBeDefined()
+      expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(0)
+      expect(getTransactionMock).toHaveBeenCalledOnce()
+    }
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  },
+)

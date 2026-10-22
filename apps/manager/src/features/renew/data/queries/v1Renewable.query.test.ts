@@ -24,20 +24,20 @@ beforeEach(() => {
 })
 
 describe('V1 renewability', () => {
-  it.each([
-    true,
-    false,
-  ])('returns the on-chain eligibility result %s', async (value) => {
-    mocks.isRenewable.mockResolvedValue(value)
+  it.each([true, false])(
+    'returns the on-chain eligibility result %s',
+    async (value) => {
+      mocks.isRenewable.mockResolvedValue(value)
 
-    const result = await getIsV1Renewable('alice.eth')
+      const result = await getIsV1Renewable('alice.eth')
 
-    expect(result._unsafeUnwrap()).toBe(value)
-    expect(mocks.isRenewable).toHaveBeenCalledWith(
-      mocks.client,
-      expect.objectContaining({ label: 'alice' }),
-    )
-  })
+      expect(result._unsafeUnwrap()).toBe(value)
+      expect(mocks.isRenewable).toHaveBeenCalledWith(
+        mocks.client,
+        expect.objectContaining({ label: 'alice' }),
+      )
+    },
+  )
 
   it('rejects subnames before querying the renewer', async () => {
     const result = await getIsV1Renewable('sub.alice.eth')

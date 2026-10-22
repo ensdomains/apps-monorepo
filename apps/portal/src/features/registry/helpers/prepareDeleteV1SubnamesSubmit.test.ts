@@ -2,6 +2,7 @@ import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { ok, okAsync } from 'neverthrow'
 import { type Address, labelhash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { V1SubnameDeleteTarget } from '../utils/delete-v1-subname.helpers'
 
 const ACCOUNT: Address = '0x0000000000000000000000000000000000000011'
 const OTHER: Address = '0x0000000000000000000000000000000000000022'
@@ -53,7 +54,25 @@ const parentHeld = (isWrapped: boolean, owner: Address = ACCOUNT) =>
     ancestorRegistration: null,
   })
 
-const submit = (target: 'registry' | 'wrapper' | 'wrap-then-delete') =>
+const wrapperData = ({
+  isEmancipated = false,
+  isLocked = false,
+}: {
+  readonly isEmancipated?: boolean
+  readonly isLocked?: boolean
+}) => ({
+  fuses: {
+    parent: { PARENT_CANNOT_CONTROL: isEmancipated },
+    child: {
+      CANNOT_UNWRAP: isLocked,
+      CANNOT_TRANSFER: false,
+      CANNOT_SET_RESOLVER: false,
+      CANNOT_SET_TTL: false,
+    },
+  },
+})
+
+const submit = (target: V1SubnameDeleteTarget) =>
   prepareDeleteV1SubnamesSubmit({
     parentName: 'parent.eth',
     account: ACCOUNT,
@@ -92,9 +111,7 @@ describe('prepareDeleteV1SubnamesSubmit', () => {
       owner: OTHER,
       ownershipLevel: 'nameWrapper',
     })
-    mocks.getWrapperData.mockResolvedValue({
-      fuses: { parent: { PARENT_CANNOT_CONTROL: true } },
-    })
+    mocks.getWrapperData.mockResolvedValue(wrapperData({ isEmancipated: true }))
 
     const result = await submit('wrapper')
 
@@ -156,13 +173,38 @@ describe('prepareDeleteV1SubnamesSubmit', () => {
     })
   })
 
-  it('refuses an account that no longer holds the parent', async () => {
+  it('refuses an account that holds neither the parent nor the subname', async () => {
     mocks.getV1NameState.mockReturnValue(parentHeld(false, OTHER))
 
     expect((await submit('registry'))._unsafeUnwrapErr().cause).toEqual({
       kind: 'refused',
       reason: 'not-holder',
     })
-    expect(mocks.getOwner).not.toHaveBeenCalled()
+  })
+
+  // WEB-1909: the subname's own holder deletes it on its own node.
+  it('confirms the holder of an unwrapped subname without the parent', async () => {
+    mocks.getV1NameState.mockReturnValue(parentHeld(false, OTHER))
+    mocks.getOwner.mockResolvedValue({
+      owner: ACCOUNT,
+      ownershipLevel: 'registry',
+    })
+
+    expect((await submit('registry-as-holder')).isOk()).toBe(true)
+  })
+
+  it('refuses the holder of a locked subname', async () => {
+    mocks.getV1NameState.mockReturnValue(parentHeld(false, OTHER))
+    mocks.getOwner.mockResolvedValue({
+      owner: ACCOUNT,
+      ownershipLevel: 'nameWrapper',
+    })
+    mocks.getWrapperData.mockResolvedValue(
+      wrapperData({ isEmancipated: true, isLocked: true }),
+    )
+
+    expect(
+      (await submit('wrapper-as-holder'))._unsafeUnwrapErr().cause,
+    ).toEqual({ kind: 'refused', reason: 'locked' })
   })
 })

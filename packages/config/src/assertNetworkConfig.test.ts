@@ -24,21 +24,12 @@ describe('assertNetworkConfig', () => {
   it('applies the rpc and bigname overrides from env', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
-      VITE_SEPOLIA_RPC_URL: '/rpc',
+      VITE_RPC_URL: '/rpc',
       VITE_BIGNAME_API_URL: 'http://127.0.0.1:4010',
     })
 
     expect(config.rpcUrls[0]).toBe('/rpc')
     expect(config.endpoints.bignameApi).toBe('http://127.0.0.1:4010')
-  })
-
-  it('reads the rpc override from the variable the app names', () => {
-    const config = assertNetworkConfig(
-      { VITE_ENS_NETWORK: 'sepolia', VITE_RPC_URL: '/rpc' },
-      { rpcUrlVar: 'VITE_RPC_URL' },
-    )
-
-    expect(config.rpcUrls[0]).toBe('/rpc')
   })
 
   it('treats an empty string like an unset variable', () => {

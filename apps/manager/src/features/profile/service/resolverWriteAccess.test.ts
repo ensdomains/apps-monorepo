@@ -32,8 +32,11 @@ const { getResolverWriteState } = await import('./resolverWriteAccess')
 const supportsNameSetters = (supported: boolean) =>
   client.multicall.mockResolvedValue([{ status: 'success', result: supported }])
 
-const probedSelector = () =>
-  (client.call.mock.calls[0]?.[0] as { data: string }).data.slice(0, 10)
+const probedSelector = () => {
+  const call = client.call.mock.calls[0]
+  if (!call) throw new Error('expected the resolver to be probed via call')
+  return (call[0] as { data: string }).data.slice(0, 10)
+}
 
 beforeEach(() => {
   client.multicall.mockReset()

@@ -2,7 +2,6 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadge } from '@/components/EntityBadge'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
 import type {
   ResolverNamedResource,
@@ -15,6 +14,7 @@ import {
   ROLE_COLUMN_WIDTH,
   type RoleRowEntry,
   rolesTableClassName,
+  UserCell,
 } from '@/features/roles/components/roleTableColumns'
 import {
   type AccountRoleGroup,
@@ -27,7 +27,6 @@ import {
 } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
@@ -59,16 +58,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
     accessorKey: 'account',
     meta: { width: ROLE_COLUMN_WIDTH.account },
     header: () => <span className="text-muted-foreground">Account</span>,
-    cell: ({ row }) => (
-      <div className="w-32">
-        <EntityBadge
-          variant="address"
-          address={row.original.account as Address}
-        >
-          {truncateAddress(row.original.account as Address, 6, 4)}
-        </EntityBadge>
-      </div>
-    ),
+    cell: ({ row }) => <UserCell account={row.original.account as Address} />,
   },
   {
     id: 'scope',

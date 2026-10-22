@@ -69,20 +69,22 @@ describe('getNextNameExpiryBoundary', () => {
 })
 
 describe('getGracePeriodNames', () => {
-  it.each([
-    false,
-    true,
-  ])('uses the registration expiry for the grace window (wrapped: %s)', (isWrapped) => {
-    const name = expiredName({ isWrapped })
+  it.each([false, true])(
+    'uses the registration expiry for the grace window (wrapped: %s)',
+    (isWrapped) => {
+      const name = expiredName({ isWrapped })
 
-    expect(getGracePeriodNames([name], EXPIRY - 1n)).toEqual([])
-    expect(getGracePeriodNames([name], EXPIRY)).toEqual([name])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS - 1n)).toEqual([
-      name,
-    ])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS)).toEqual([])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS + 1n)).toEqual([])
-  })
+      expect(getGracePeriodNames([name], EXPIRY - 1n)).toEqual([])
+      expect(getGracePeriodNames([name], EXPIRY)).toEqual([name])
+      expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS - 1n)).toEqual([
+        name,
+      ])
+      expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS)).toEqual([])
+      expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS + 1n)).toEqual(
+        [],
+      )
+    },
+  )
 
   it('falls back to the wrapper grace window when the registration expiry is absent', () => {
     const name = expiredName({

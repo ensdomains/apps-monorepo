@@ -10,17 +10,23 @@ import {
   type Page,
   type ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
+import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
+import { bigname } from '@/lib/bigname'
+import { mergeDashboardChunks } from '../../dashboardNames'
+import { getDashboardNameVisibility } from '../../dashboardNameVisibility'
 import {
   DASHBOARD_CHUNK_SIZE,
   type DashboardNamesQuery,
   getDashboardGraceNames,
+  getDashboardNamesInfiniteQueryOptions,
   getRenewableDashboardNames,
   readDashboardChunks,
 } from './getDashboardNames'
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
 
 const EOA = '0x0000000000000000000000000000000000000abc'
 const SMART_ACCOUNT = '0x0000000000000000000000000000000000000def'
@@ -173,6 +179,80 @@ describe('readDashboardChunks', () => {
     expect(readNames.mock.calls[0]?.[0]).not.toHaveProperty('includeTotal')
   })
 
+  it('reads past a hidden-only page and excludes hidden names from the complete total', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) =>
+      okAsync(
+        cursor === undefined
+          ? page(
+              [
+                summary('registry-only.eth', '0x01', {
+                  relations: ['role_holder'],
+                }),
+              ],
+              'next',
+              3,
+            )
+          : page([
+              summary('owner.eth', '0x02'),
+              summary('writer.eth', '0x03', { relations: ['manager'] }),
+            ]),
+      ),
+    )
+    const chunks = (
+      await readDashboardChunks(
+        readNames,
+        { ...QUERY, addresses: [EOA] },
+        {},
+        getDashboardNameVisibility(async (name) => name === 'writer.eth'),
+      )
+    )._unsafeUnwrap()
+
+    expect(readNames).toHaveBeenCalledTimes(2)
+    expect(chunks[0]).toMatchObject({ hiddenCount: 1, nextCursor: null })
+    const merged = mergeDashboardChunks({
+      chunks,
+      graceNames: [],
+      field: 'name',
+      dir: 'asc',
+    })
+    expect(merged.names.map(({ name }) => name)).toEqual([
+      'owner.eth',
+      'writer.eth',
+    ])
+    expect(merged).toMatchObject({ total: 2, isComplete: true })
+  })
+
+  it('reports an empty list and zero count for a registry-only wallet', async () => {
+    const chunks = (
+      await readDashboardChunks(
+        () =>
+          okAsync(
+            page(
+              [
+                summary('registry-only.eth', '0x01', {
+                  relations: ['role_holder'],
+                }),
+              ],
+              null,
+              1,
+            ),
+          ),
+        { ...QUERY, addresses: [EOA] },
+        {},
+        getDashboardNameVisibility(async () => false),
+      )
+    )._unsafeUnwrap()
+
+    expect(
+      mergeDashboardChunks({
+        chunks,
+        graceNames: [],
+        field: 'name',
+        dir: 'asc',
+      }),
+    ).toMatchObject({ names: [], total: 0, isComplete: true })
+  })
+
   it('searches by fragment, and a fragment bigname rejects matches nothing', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(() =>
       errAsync(new IndexerReadError({ kind: 'rejected', cause: null })),
@@ -218,6 +298,65 @@ describe('readDashboardChunks', () => {
     )
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetDashboardNamesError')
+  })
+})
+
+describe('getDashboardNamesInfiniteQueryOptions', () => {
+  it("does not reuse another editor wallet's cached visibility result", async () => {
+    vi.mocked(bigname.addressNames).mockReturnValue(
+      okAsync(
+        graceResponse([
+          {
+            name: 'managed.eth',
+            display_name: 'managed.eth',
+            namespace: 'ens',
+            namehash: '0x01',
+            status: 'active',
+            authority: 'ens_v2',
+            expires_at: '1800000000',
+            relations: ['role_holder'],
+            is_primary: false,
+          },
+        ]),
+      ),
+    )
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+    })
+    client.setQueryData(
+      resolverWriteAccessQuery('managed.eth', EOA).queryKey,
+      false,
+    )
+    client.setQueryData(
+      resolverWriteAccessQuery('managed.eth', SMART_ACCOUNT).queryKey,
+      true,
+    )
+    const query: DashboardNamesQuery = {
+      ...QUERY,
+      addresses: [SMART_ACCOUNT],
+    }
+
+    try {
+      const denied = await client.fetchInfiniteQuery(
+        getDashboardNamesInfiniteQueryOptions(
+          { ...query, recordEditorAddress: EOA },
+          client,
+        ),
+      )
+      const allowed = await client.fetchInfiniteQuery(
+        getDashboardNamesInfiniteQueryOptions(
+          { ...query, recordEditorAddress: SMART_ACCOUNT },
+          client,
+        ),
+      )
+
+      expect(denied.pages[0]?.[0]?.names).toEqual([])
+      expect(allowed.pages[0]?.[0]?.names.map(({ name }) => name)).toEqual([
+        'managed.eth',
+      ])
+    } finally {
+      client.clear()
+    }
   })
 })
 

@@ -19,7 +19,7 @@ import { getV1NameState } from '@/features/transfer/v1/getV1NameState'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getV1SubnameParentGate } from '../utils/create-subname.helpers'
 import {
-  getV1SubnameDeleteGate,
+  getV1SubnameDeleteAccess,
   type V1SubnameDelete,
   type V1SubnameDeleteGate,
   type V1SubnameDeleteTarget,
@@ -31,8 +31,6 @@ export type PrepareDeleteV1SubnameSubmitCause =
       readonly kind: 'refused'
       readonly reason:
         | Exclude<V1SubnameDeleteGate['reason'], 'ok'>
-        | 'grace'
-        | 'unowned'
         | 'not-holder'
     }
   /** The subname changed since the table loaded: a different write is needed now. */
@@ -69,11 +67,15 @@ const refuse = (message: string, cause: PrepareDeleteV1SubnameSubmitCause) =>
 
 type Client = InferOkTypes<ReturnType<typeof safeGetClient>>
 
-/** One subname's re-check, under a parent the caller already holds. */
+/**
+ * One subname's re-check. `parent` is the parent as `account` holds it, null
+ * when it doesn't: the subname's own holder can still delete it.
+ */
 const checkSubname = ResultFn(async function* (
   client: Client,
   parentName: string,
-  parent: V1ParentState,
+  parent: V1ParentState | null,
+  account: Address,
   {
     labelhash,
     labelName,
@@ -107,17 +109,29 @@ const checkSubname = ResultFn(async function* (
     includeExpired: true,
   }).mapErr(fail(`Could not check ${shown}`))
 
-  const gate = getV1SubnameDeleteGate(parent, {
-    labelName,
-    wrapping:
-      owner.ownershipLevel !== 'nameWrapper'
-        ? { isWrapped: false }
-        : wrapped && {
-            isWrapped: true,
-            parentCannotControl: wrapped.fuses.parent.PARENT_CANNOT_CONTROL,
-          },
-    subnameCount,
-  })
+  const gate = getV1SubnameDeleteAccess(
+    parent,
+    {
+      labelName,
+      wrapping:
+        owner.ownershipLevel !== 'nameWrapper'
+          ? { isWrapped: false }
+          : wrapped && {
+              isWrapped: true,
+              parentCannotControl: wrapped.fuses.parent.PARENT_CANNOT_CONTROL,
+              isLocked: wrapped.fuses.child.CANNOT_UNWRAP,
+            },
+      subnameCount,
+      holder: owner.owner ?? null,
+    },
+    account,
+  )
+  if (!gate) {
+    return refuse(`You can’t delete ${shown}.`, {
+      kind: 'refused',
+      reason: 'not-holder',
+    })
+  }
   if (gate.reason !== 'ok') {
     return refuse(`${shown} can’t be deleted.`, {
       kind: 'refused',
@@ -136,7 +150,8 @@ const checkSubname = ResultFn(async function* (
 /**
  * The checks run before the delete modal opens. The table's rows come from
  * the indexer, so this re-reads the parent once and each subname on-chain, with
- * its own subnames, and refuses unless every queued write still applies.
+ * its own subnames, and refuses unless every queued write still applies: as the
+ * parent's holder, or as the subname's own holder.
  */
 export const prepareDeleteV1SubnamesSubmit = ResultFn(async function* ({
   parentName,
@@ -146,19 +161,12 @@ export const prepareDeleteV1SubnamesSubmit = ResultFn(async function* ({
   const state = yield* getV1NameState({ name: parentName }).mapErr(
     fail(`Could not check ${parentName}`),
   )
-  const parentGate = state
-    ? getV1SubnameParentGate(state, account)
-    : ({ reason: 'unowned' } as const)
-  if (parentGate.reason !== 'ok') {
-    return refuse(`You can’t delete subnames of ${parentName}.`, {
-      kind: 'refused',
-      reason: parentGate.reason,
-    })
-  }
+  const parentGate = state ? getV1SubnameParentGate(state, account) : null
+  const parent = parentGate?.reason === 'ok' ? parentGate.parent : null
   const client = yield* safeGetClient().mapErr(fail('Failed to get client'))
   yield* ResultAsync.combine(
     deletes.map((entry) =>
-      checkSubname(client, parentName, parentGate.parent, entry),
+      checkSubname(client, parentName, parent, account, entry),
     ),
   )
   return ok(undefined)

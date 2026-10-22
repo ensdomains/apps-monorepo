@@ -19,6 +19,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type QueryClient, skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
+import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
 import { bigname } from '@/lib/bigname'
 import { toBulkRenewName, toSelectableDomain } from '../../bulkRenewSelection'
 import {
@@ -32,10 +33,16 @@ import {
   toDashboardName,
   toGraceName,
 } from '../../dashboardNames'
+import {
+  getDashboardNameVisibility,
+  type ReadDashboardNameVisibility,
+} from '../../dashboardNameVisibility'
 
 const NAMES_ACTION = 'names'
 const GRACE_NAMES_ACTION = 'grace_names'
 const RENEWABLE_NAMES_ACTION = 'renewable_names'
+// Reuse permission probes across list variants and the 3s migration poll.
+const RECORD_WRITE_ACCESS_STALE_MS = 30_000
 
 /** The dashboard queries that list the connected accounts' names. */
 export const DASHBOARD_NAME_ACTIONS = [
@@ -98,6 +105,8 @@ export type DashboardNamesQuery = {
   readonly search: string
   /** Only ENSv1 or only ENSv2 names; `null` lists both. */
   readonly version: NameVersion | null
+  /** The wallet that signs profile record writes, not the smart account. */
+  readonly recordEditorAddress?: Address
 }
 
 /** Each address's cursor; an address not yet read has none, an exhausted one `null`. */
@@ -108,6 +117,7 @@ const readChunk = (
   query: DashboardNamesQuery,
   address: Address,
   cursor: string | undefined,
+  isVisible: ReadDashboardNameVisibility,
 ): ResultAsync<AddressNamesChunk, GetDashboardNamesError> =>
   readNamesPage(readNames, {
     address,
@@ -118,17 +128,20 @@ const readChunk = (
     ...(query.version && { protocol: query.version }),
     ...(cursor === undefined ? { includeTotal: true } : { cursor }),
   })
-    .map((page): AddressNamesChunk => {
+    .andThen((page) => {
       const listed = page.items.filter(isListedName)
       const last = page.items.at(-1)
-      return {
-        address,
-        names: listed.map(toDashboardName),
-        hiddenCount: page.items.length - listed.length,
-        lastRead: last ? toDashboardName(last) : null,
-        nextCursor: page.nextCursor,
-        totalCount: page.totalCount,
-      }
+      return ResultAsync.combine(listed.map(isVisible)).map((visibility) => {
+        const visible = listed.filter((_, index) => visibility[index])
+        return {
+          address,
+          names: visible.map(toDashboardName),
+          hiddenCount: page.items.length - visible.length,
+          lastRead: last ? toDashboardName(last) : null,
+          nextCursor: page.nextCursor,
+          totalCount: page.totalCount,
+        } satisfies AddressNamesChunk
+      })
     })
     .orElse((error) =>
       // A search that is not a valid name fragment matches nothing.
@@ -151,8 +164,9 @@ const readListedChunk = ResultFn(async function* (
   query: DashboardNamesQuery,
   address: Address,
   cursor: string | undefined,
+  isVisible: ReadDashboardNameVisibility,
 ) {
-  let chunk = yield* readChunk(readNames, query, address, cursor)
+  let chunk = yield* readChunk(readNames, query, address, cursor, isVisible)
   while (
     chunk.names.length < DASHBOARD_PAGE_SIZE &&
     chunk.nextCursor !== null
@@ -162,6 +176,7 @@ const readListedChunk = ResultFn(async function* (
       query,
       address,
       chunk.nextCursor,
+      isVisible,
     )
     chunk = {
       ...next,
@@ -179,13 +194,14 @@ export const readDashboardChunks = (
   readNames: ReadNamesForAddress,
   query: DashboardNamesQuery,
   cursors: DashboardCursors,
+  isVisible: ReadDashboardNameVisibility = () => okAsync(true),
 ) =>
   ResultAsync.combine(
     query.addresses.flatMap((address) => {
       const cursor = cursors[address]
       return cursor === null
         ? []
-        : [readListedChunk(readNames, query, address, cursor)]
+        : [readListedChunk(readNames, query, address, cursor, isVisible)]
     }),
   )
 
@@ -208,6 +224,7 @@ const START: DashboardCursors = {}
 
 export const getDashboardNamesInfiniteQueryOptions = (
   query: DashboardNamesQuery,
+  queryClient: QueryClient,
 ) =>
   resultInfiniteQueryOptions({
     queryKey: qk('dashboard', NAMES_ACTION, {
@@ -216,10 +233,23 @@ export const getDashboardNamesInfiniteQueryOptions = (
       sortDir: query.sortDir,
       search: query.search,
       version: query.version,
+      recordEditorAddress: query.recordEditorAddress?.toLowerCase() ?? null,
     }),
     initialPageParam: START,
     queryFn: ({ pageParam }) =>
-      readDashboardChunks(readNamesForAddress(bigname), query, pageParam),
+      readDashboardChunks(
+        readNamesForAddress(bigname),
+        query,
+        pageParam,
+        getDashboardNameVisibility((name) =>
+          query.recordEditorAddress
+            ? queryClient.fetchQuery({
+                ...resolverWriteAccessQuery(name, query.recordEditorAddress),
+                staleTime: RECORD_WRITE_ACCESS_STALE_MS,
+              })
+            : Promise.resolve(true),
+        ),
+      ),
     getNextPageParam: (lastPage, _pages, lastPageParam) =>
       nextCursors(lastPageParam, lastPage),
     enabled: query.addresses.length > 0,

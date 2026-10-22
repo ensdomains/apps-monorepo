@@ -303,22 +303,22 @@ describe('runExpiryDiscoveryCron', () => {
       readiness: () => errAsync(failure()),
       failedStages: STAGES.length,
     },
-  ])('sends nothing and holds every cursor when the index $case', async ({
-    readiness,
-    failedStages,
-  }) => {
-    vi.mocked(fetchIndexReadiness).mockReturnValue(readiness())
-    const kv = new MockKV()
-    const cursors = caughtUpCursors()
-    cursors['expiry-7d'] = { expiry_timestamp: NOW + 2 * 86_400 }
-    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+  ])(
+    'sends nothing and holds every cursor when the index $case',
+    async ({ readiness, failedStages }) => {
+      vi.mocked(fetchIndexReadiness).mockReturnValue(readiness())
+      const kv = new MockKV()
+      const cursors = caughtUpCursors()
+      cursors['expiry-7d'] = { expiry_timestamp: NOW + 2 * 86_400 }
+      kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
 
-    const result = await runExpiryDiscoveryCron(makeEnv(kv))
+      const result = await runExpiryDiscoveryCron(makeEnv(kv))
 
-    expect(result._unsafeUnwrap()).toEqual({ totalEnqueued: 0, failedStages })
-    expect(fetchSweep).not.toHaveBeenCalled()
-    expect(await readCursors(kv)).toEqual(cursors)
-  })
+      expect(result._unsafeUnwrap()).toEqual({ totalEnqueued: 0, failedStages })
+      expect(fetchSweep).not.toHaveBeenCalled()
+      expect(await readCursors(kv)).toEqual(cursors)
+    },
+  )
 
   it('holds every cursor when the index position cannot be read', async () => {
     vi.mocked(fetchIndexedAtSec).mockReturnValue(errAsync(failure()))

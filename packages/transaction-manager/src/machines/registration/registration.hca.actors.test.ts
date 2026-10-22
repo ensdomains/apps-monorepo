@@ -202,17 +202,20 @@ describe('submitFundingAndCommitActor', () => {
     ],
     ['an upper-case label', 'MYNAME.eth', /Refusing to register/],
     ['an xn-- extension', 'xn--ls8h.eth', /invalid label extension/],
-  ])('refuses to commit to %s rather than sign a different name', async (_case, name, message) => {
-    // The commitment binds `keccak256(label)`, so a label that is not already
-    // canonical buys a name no ENSIP-15 client can resolve — and one the app's
-    // own read path cannot address. The flow canonicalises at its entry; this
-    // is the last check before the wallet.
-    const result = await submitFundingAndCommitActor({ ...input, name })
+  ])(
+    'refuses to commit to %s rather than sign a different name',
+    async (_case, name, message) => {
+      // The commitment binds `keccak256(label)`, so a label that is not already
+      // canonical buys a name no ENSIP-15 client can resolve — and one the app's
+      // own read path cannot address. The flow canonicalises at its entry; this
+      // is the last check before the wallet.
+      const result = await submitFundingAndCommitActor({ ...input, name })
 
-    expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toMatch(message)
-    expect(startTransaction).not.toHaveBeenCalled()
-  })
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().message).toMatch(message)
+      expect(startTransaction).not.toHaveBeenCalled()
+    },
+  )
 })
 
 describe('submitRevealBatchActor', () => {

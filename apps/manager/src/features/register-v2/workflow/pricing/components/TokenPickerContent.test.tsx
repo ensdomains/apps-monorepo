@@ -5,6 +5,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
+  acquireRegistrationLock,
+  getBlockingRegistration,
+  releaseRegistrationLock,
+} from '../../../service/registrationLock'
+import {
   TokenPickerContent,
   TokenPickerContentBase,
 } from './TokenPickerContent'
@@ -23,16 +28,35 @@ const containerMocks = vi.hoisted(() => ({
   walletBalance: '100000000',
   availabilityError: null as Error | null,
   fetchCalls: 0,
+  send: vi.fn(),
+  getSessionEnablePayload: vi.fn<() => Promise<undefined>>(),
+  getSnapshot: vi.fn<() => object>(),
+  isApproving: false,
 }))
 
 vi.mock('@xstate/react', () => ({
-  useSelector: () => [31_536_000, 'USDC'] as const,
+  useSelector: (actor: unknown, select: (state: unknown) => unknown) =>
+    actor
+      ? select({
+          matches: () => containerMocks.isApproving,
+          context: {
+            duration: 31_536_000,
+            selectedToken: 'USDC',
+            confirmedData: containerMocks.isApproving
+              ? { ownerAddress: '0x1111111111111111111111111111111111111111' }
+              : undefined,
+          },
+        })
+      : select(undefined),
 }))
 
 vi.mock('../../../state/registrationUi.context', () => ({
   useRegistrationV2Context: () => ({
     label: 'jeff',
-    uiActor: { send: vi.fn() },
+    uiActor: {
+      send: containerMocks.send,
+      getSnapshot: containerMocks.getSnapshot,
+    },
   }),
 }))
 
@@ -55,7 +79,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
     ],
     isLoadingBalances: false,
     isConnected: true,
-    getSessionEnablePayload: vi.fn().mockResolvedValue(undefined),
+    getSessionEnablePayload: containerMocks.getSessionEnablePayload,
   }),
 }))
 
@@ -103,12 +127,16 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
         return { isAvailable: true }
       },
     }),
-    useMutation: (options: { mutationFn: () => Promise<unknown> }) => {
+    useMutation: (options: {
+      mutationFn: () => Promise<unknown>
+      onSuccess?: (data: unknown) => Promise<void>
+    }) => {
       const [error, setError] = React.useState<Error | null>(null)
       return {
         error,
         isError: error !== null,
-        mutate: () => void options.mutationFn().catch(setError),
+        mutate: () =>
+          void options.mutationFn().then(options.onSuccess).catch(setError),
       }
     },
   }
@@ -178,6 +206,78 @@ describe('TokenPickerContent', () => {
     containerMocks.walletBalance = '100000000'
     containerMocks.availabilityError = null
     containerMocks.fetchCalls = 0
+    containerMocks.isApproving = false
+    containerMocks.send.mockClear()
+    containerMocks.getSnapshot.mockReset().mockReturnValue({})
+    containerMocks.getSessionEnablePayload
+      .mockReset()
+      .mockResolvedValue(undefined)
+  })
+
+  it('keeps the wallet locked while payment approval takes longer than a minute', () => {
+    const owner = '0x1111111111111111111111111111111111111111'
+    vi.useFakeTimers()
+    containerMocks.isApproving = true
+    acquireRegistrationLock(owner, 'jeff.eth')
+    const view = renderContainer()
+
+    try {
+      expect(
+        screen.getByRole('button', { name: 'Preparing registration...' }),
+      ).toBeDisabled()
+      expect(
+        screen.getByRole('switch', {
+          name: 'Set jeff.eth as your primary name',
+        }),
+      ).toBeDisabled()
+      vi.advanceTimersByTime(75_000)
+      expect(getBlockingRegistration(owner, 'other.eth')).toBe('jeff.eth')
+    } finally {
+      view.unmount()
+      releaseRegistrationLock(owner)
+      vi.useRealTimers()
+    }
+  })
+
+  it('starts registration after checking availability and preparing the session', async () => {
+    renderContainer()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'registration.start', label: 'jeff' }),
+      ),
+    )
+  })
+
+  it('ignores a click when the pricing snapshot changes while preparation is pending', async () => {
+    let finishPreparation: () => void = () => {
+      throw new Error('Session preparation has not started')
+    }
+    containerMocks.getSessionEnablePayload.mockReturnValue(
+      new Promise((resolve) => {
+        finishPreparation = () => resolve(undefined)
+      }),
+    )
+    renderContainer()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
+
+    await waitFor(() =>
+      expect(containerMocks.getSessionEnablePayload).toHaveBeenCalledOnce(),
+    )
+    containerMocks.getSnapshot.mockReturnValue({})
+    finishPreparation()
+
+    await waitFor(() =>
+      expect(containerMocks.getSnapshot).toHaveBeenCalledTimes(2),
+    )
+    expect(containerMocks.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'registration.start' }),
+    )
   })
 
   const captureRevalidatedNamePriceError = async () => {
@@ -187,7 +287,9 @@ describe('TokenPickerContent', () => {
       hcaBalance: 0n,
     }
     const view = renderContainer()
-    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
     await screen.findByText('$999.00 needed to register name')
     return view
   }
@@ -246,7 +348,9 @@ describe('TokenPickerContent', () => {
   it('keeps a non-funding mutation failure global only', async () => {
     containerMocks.availabilityError = new Error('availability failed')
     renderContainer()
-    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
 
     const error = await screen.findByText(
       "We couldn't confirm that jeff.eth is still available. Please try again.",
@@ -459,6 +563,16 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
   })
 
+  it('holds the total, the breakdown and the button while the fee is being quoted', () => {
+    renderPicker({ isQuotingFunding: true, selectedToken: 'USDC' })
+
+    expect(screen.getByLabelText('Calculating price breakdown')).toBeVisible()
+
+    expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Calculating total')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
   it('leaves the EOA route alone when there is no budget to quote', () => {
     renderPicker({ selectedToken: 'USDC' })
 
@@ -489,7 +603,10 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    const button = screen.getByRole('button', { name: 'Register name' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByLabelText('Calculating total')).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
   })
 

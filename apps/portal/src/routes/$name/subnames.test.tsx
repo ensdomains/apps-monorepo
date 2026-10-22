@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { type Address, keccak256, labelhash, toHex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -85,11 +85,31 @@ vi.mock('@/features/profile/hooks/useSubnames', () => ({
   }),
 }))
 
+let registriesFail = false
 vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
   getNameRegistriesQueryOptions: () => ({
     queryKey: ['nameRegistries', NAME],
-    queryFn: () => [SUBREGISTRY, PARENT_REGISTRY, PARENT_REGISTRY],
+    queryFn: () =>
+      registriesFail
+        ? Promise.reject(new Error('rpc down'))
+        : [SUBREGISTRY, PARENT_REGISTRY, PARENT_REGISTRY],
   }),
+}))
+
+/** Whether the subregistry reports `IRegistry`; `null` fails the read. */
+let subregistryIsRegistry: boolean | null = true
+const isRegistryParams = vi.fn()
+vi.mock('@/features/registry/hooks/useIsRegistry', () => ({
+  getIsRegistryQueryOptions: (params: Record<string, unknown>) => {
+    isRegistryParams(params)
+    return {
+      queryKey: ['isRegistry', String(params.address)],
+      queryFn: () =>
+        subregistryIsRegistry === null
+          ? Promise.reject(new Error('rpc down'))
+          : subregistryIsRegistry,
+    }
+  },
 }))
 
 /**
@@ -193,10 +213,10 @@ const SubnamesRoute = (
   Route as unknown as { component: () => React.ReactElement }
 ).component
 
-const renderRoute = () => {
+const renderRoute = (queryClient = createTestQueryClient()) => {
   const Component = SubnamesRoute
   return render(
-    <QueryClientProvider client={createTestQueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <Component />
     </QueryClientProvider>,
   )
@@ -211,6 +231,84 @@ beforeEach(() => {
   allowedResources = null
   protocolVersion = 'ENSv2'
   v1State = null
+  subregistryIsRegistry = true
+  isRegistryParams.mockReset()
+  registriesFail = false
+})
+
+// WEB-1885: bigname keeps serving a name's subnames after its subregistry is
+// pointed at an address with no registry behind it, and every row then fails
+// to open.
+describe('subnames route with a subregistry that is not a registry', () => {
+  beforeEach(() => {
+    subnames = [
+      {
+        name: `cold.${NAME}`,
+        labelhash: labelhash('cold'),
+        owner: CONNECTED,
+        protocol: 'v2',
+      },
+    ]
+  })
+
+  it('asks the subregistry whether it is an IRegistry', async () => {
+    renderRoute()
+
+    await waitFor(() =>
+      expect(isRegistryParams).toHaveBeenCalledWith({ address: SUBREGISTRY }),
+    )
+  })
+
+  it('says the subregistry is invalid instead of listing its subnames', async () => {
+    subregistryIsRegistry = false
+    renderRoute()
+
+    expect(await screen.findByText('Invalid subregistry')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByText(`cold.${NAME}`)).not.toBeInTheDocument()
+  })
+
+  it('says it could not check, rather than listing the subnames anyway', async () => {
+    subregistryIsRegistry = null
+    renderRoute()
+
+    expect(
+      await screen.findByText('Failed to check subregistry'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  // The listing owns the delete queue, so a failed refresh above it must not
+  // unmount it mid bulk-delete.
+  it.each([
+    [
+      'registry discovery',
+      () => {
+        registriesFail = true
+      },
+      ['nameRegistries', NAME],
+    ],
+    [
+      'the subregistry check',
+      () => {
+        subregistryIsRegistry = null
+      },
+      ['isRegistry', SUBREGISTRY],
+    ],
+  ])(
+    'keeps the subnames on screen when a refresh of %s fails',
+    async (_, fail, queryKey) => {
+      const queryClient = createTestQueryClient()
+      renderRoute(queryClient)
+      expect(await screen.findByRole('table')).toBeInTheDocument()
+
+      fail()
+      await act(() => queryClient.refetchQueries({ queryKey }))
+
+      expect(queryClient.getQueryState(queryKey)?.status).toBe('error')
+      expect(screen.getByRole('table')).toBeInTheDocument()
+    },
+  )
 })
 
 describe('V1 subname creation', () => {
@@ -295,11 +393,15 @@ describe('V1 subname deletion', () => {
       ancestorRegistration: null,
     }
   }
-  const v1Row = (label: string, subnameCount: number) => ({
+  const v1Row = (
+    label: string,
+    subnameCount: number,
+    owner = PARENT_REGISTRY,
+  ) => ({
     name: `${label}.${NAME}`,
     labelName: label,
     labelhash: labelhash(label),
-    owner: PARENT_REGISTRY,
+    owner,
     v1Wrapping: { isWrapped: false },
     subnameCount,
   })
@@ -320,6 +422,21 @@ describe('V1 subname deletion', () => {
       screen.getAllByLabelText(/can’t delete branch\..*delete those first/i)
         .length,
     ).toBeGreaterThan(0)
+  })
+
+  // WEB-1909: the subname's own holder deletes it without holding the parent.
+  it('offers the subname’s own holder a delete for it, and nothing else', async () => {
+    holdUnwrapped(PARENT_REGISTRY)
+    subnames = [v1Row('mine', 0, CONNECTED), v1Row('theirs', 0)]
+    renderRoute()
+
+    expect(
+      (await screen.findAllByRole('button', { name: `Delete mine.${NAME}` }))
+        .length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByRole('button', { name: `Delete theirs.${NAME}` }),
+    ).not.toBeInTheDocument()
   })
 
   it('offers nothing to an account that does not hold the name', async () => {
@@ -369,6 +486,7 @@ describe('subnames route role checks', () => {
         name: ENCODED_SUBNAME,
         labelhash: ENCODED_SUBNAME_LABELHASH,
         owner: CONNECTED,
+        protocol: 'v2',
       },
     ]
 
@@ -409,6 +527,7 @@ describe('subnames route role checks', () => {
         name: ENCODED_SUBNAME,
         labelhash: ENCODED_SUBNAME_LABELHASH,
         owner: CONNECTED,
+        protocol: 'v2',
       },
     ]
 
@@ -425,6 +544,53 @@ describe('subnames route role checks', () => {
     )
 
     expect(resourceRolesFetched).not.toHaveBeenCalled()
+  })
+
+  // WEB-1887: bigname still serves a V1 child under a name registered again
+  // on V2, and `unregister` on the new subregistry reverts for it.
+  it('offers no delete for a V1 subname under a V2 name, and says why', async () => {
+    hasRootUnregister = true
+    subnames = [
+      {
+        name: `cloud.${NAME}`,
+        labelhash: labelhash('cloud'),
+        owner: CONNECTED,
+        protocol: 'v1',
+      },
+      {
+        name: `new.${NAME}`,
+        labelhash: labelhash('new'),
+        owner: CONNECTED,
+        protocol: 'v2',
+      },
+      {
+        name: `unsaid.${NAME}`,
+        labelhash: labelhash('unsaid'),
+        owner: CONNECTED,
+        protocol: null,
+      },
+    ]
+
+    renderRoute()
+
+    const table = await screen.findByRole('table')
+    expect(
+      await within(table).findByRole('button', { name: `Delete new.${NAME}` }),
+    ).toBeInTheDocument()
+    expect(
+      within(table).queryByRole('button', { name: `Delete cloud.${NAME}` }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(table).getByLabelText(
+        new RegExp(`can’t delete cloud\\.${NAME}: this is a v1 subname`, 'i'),
+      ),
+    ).toBeInTheDocument()
+    // An unsaid era is not claimed to be V1, and still blocks the delete.
+    expect(
+      within(table).getByLabelText(
+        new RegExp(`can’t delete unsaid\\.${NAME}: couldn’t confirm`, 'i'),
+      ),
+    ).toBeInTheDocument()
   })
 
   it('offers subname creation to a registry-wide role holder', async () => {
@@ -445,8 +611,14 @@ describe('subnames route role checks', () => {
         name: ENCODED_SUBNAME,
         labelhash: ENCODED_SUBNAME_LABELHASH,
         owner: CONNECTED,
+        protocol: 'v2',
       },
-      { name: `cold.${NAME}`, labelhash: otherLabelhash, owner: CONNECTED },
+      {
+        name: `cold.${NAME}`,
+        labelhash: otherLabelhash,
+        owner: CONNECTED,
+        protocol: 'v2',
+      },
     ]
     allowedResources = new Set([BigInt(otherLabelhash).toString()])
 

@@ -1,8 +1,9 @@
+import type { Address } from 'viem'
 import type { SubnameRow } from '@/features/names/components/SubnamesTable'
 import type { SubnamesPage } from '@/features/profile/hooks/useSubnames'
-import type { V1SubnameParentGate } from './create-subname.helpers'
+import type { V1ParentState } from '@/features/transfer/types'
 import {
-  getV1SubnameDeleteGate,
+  getV1SubnameDeleteAccess,
   type V1SubnameDelete,
   type V1SubnameDeleteGate,
 } from './delete-v1-subname.helpers'
@@ -18,6 +19,7 @@ const BLOCKED_REASONS: Record<
   'unknown-label': 'Its label isn’t known yet, so it can’t be deleted here.',
   'burned-fuse':
     'Deleting it re-issues it first, and its parent can no longer issue subnames.',
+  locked: 'It’s locked, so it can’t be deleted.',
   unknown: 'Couldn’t check whether it can be deleted.',
 }
 
@@ -28,23 +30,29 @@ export type V1SubnameRows = {
 }
 
 /**
- * The V1 table rows, each gated for delete by the parent's holder. With no
- * holder connected, no row offers a delete.
+ * The V1 table rows, each gated for delete by the connected wallet: as the
+ * parent's holder (`parent`, null when it isn't), or as the subname's own
+ * holder. A row the wallet holds neither way offers no delete.
  */
 export const toV1SubnameRows = (
   subnames: SubnamesPage['subnames'],
-  parentGate: V1SubnameParentGate | null,
+  parent: V1ParentState | null,
+  account: Address | undefined,
 ): V1SubnameRows => {
   const gated = subnames.map((subname) => ({
     subname,
-    gate:
-      parentGate?.reason === 'ok'
-        ? getV1SubnameDeleteGate(parentGate.parent, {
+    gate: account
+      ? getV1SubnameDeleteAccess(
+          parent,
+          {
             labelName: subname.labelName,
             wrapping: subname.v1Wrapping,
             subnameCount: subname.subnameCount,
-          })
-        : null,
+            holder: subname.owner,
+          },
+          account,
+        )
+      : null,
   }))
   return {
     rows: gated.map(({ subname, gate }) => ({

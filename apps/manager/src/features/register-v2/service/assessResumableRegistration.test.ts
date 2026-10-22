@@ -341,17 +341,17 @@ describe('assessResumableRegistration', () => {
     expect(result.status).toBe('resumable')
   })
 
-  it.each([
-    'success',
-    'idle',
-  ])('discards a record left at the %s stage', async (stage) => {
-    const result = await assess({ stored: storedRegistration({ stage }) })
+  it.each(['success', 'idle'])(
+    'discards a record left at the %s stage',
+    async (stage) => {
+      const result = await assess({ stored: storedRegistration({ stage }) })
 
-    expect(result).toMatchObject({
-      status: 'stale',
-      reason: 'already-finished',
-    })
-  })
+      expect(result).toMatchObject({
+        status: 'stale',
+        reason: 'already-finished',
+      })
+    },
+  )
 
   describe('a failed run', () => {
     /** A run whose register failed after its commitment landed. */

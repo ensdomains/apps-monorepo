@@ -3,6 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
+import { LoaderCircle } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
@@ -28,6 +29,7 @@ import {
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
@@ -162,7 +164,27 @@ const getPaymentHeadline = (
 
 export const TokenPickerContent = () => {
   const { t } = useLingui()
-  const { label, uiActor } = useRegistrationV2Context()
+  const { label, uiActor, registrationActor } = useRegistrationV2Context()
+  const approvalState = useSelector(uiActor, (state) => ({
+    isApproving: state.matches({ pricing: 'approving' }),
+    approvalOutcome: state.context.approvalOutcome,
+    errorMessage: state.context.lastErrorMessage,
+    ownerAddress: state.context.confirmedData?.ownerAddress,
+    hasConfirmedData: !!state.context.confirmedData,
+    setAsPrimary:
+      !!state.context.hcaPrimaryName ||
+      state.context.postRegistrationSetup?.primaryName?.enabled === true,
+  }))
+  const isAwaitingPaymentApproval = useSelector(
+    registrationActor,
+    (state) =>
+      state?.matches('signingFundingPermit') ||
+      state?.matches('approvingToken'),
+  )
+  useRegistrationLockHeartbeat(
+    approvalState.isApproving ? approvalState.ownerAddress : undefined,
+    `${label}.eth`,
+  )
   const account = useSmartAccountContext()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -230,8 +252,12 @@ export const TokenPickerContent = () => {
     existingPrimaryName: existingPrimaryNameQuery.data,
     ownedNamesCount: ownedNamesCountQuery.data,
   })
-  const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(null)
-  const setAsPrimary = setPrimaryChoice ?? defaultSetAsPrimary
+  const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(
+    () => (approvalState.hasConfirmedData ? approvalState.setAsPrimary : null),
+  )
+  const setAsPrimary = approvalState.isApproving
+    ? approvalState.setAsPrimary
+    : (setPrimaryChoice ?? defaultSetAsPrimary)
 
   // Quoted AFTER the toggle resolves, because the opt-in is priced in: it adds
   // a call to the reveal leg and widens that leg's gas limit, and the rail
@@ -293,10 +319,16 @@ export const TokenPickerContent = () => {
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  const startRegistration = async (resolvedSetAsPrimary: boolean) => {
+  const startRegistration = async (
+    resolvedSetAsPrimary: boolean,
+    pricingSnapshot: ReturnType<typeof uiActor.getSnapshot>,
+  ) => {
     if (!pricingQuery.data || !selectedToken) return
     // Resolve the session-enable payload up front; both legs are signed with it.
     const hcaSessionEnable = await account.getSessionEnablePayload()
+    // The availability check can finish after the user closes this dialog.
+    // Reopening or changing the chooser also invalidates the old click.
+    if (uiActor.getSnapshot() !== pricingSnapshot) return
     uiActor.send({
       type: 'registration.start',
       label,
@@ -324,6 +356,7 @@ export const TokenPickerContent = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async () => {
+      const pricingSnapshot = uiActor.getSnapshot()
       // Re-check funding on the click path, not just on render: the quote may
       // still have been in flight when the screen painted, and a stale budget
       // would let through exactly the registration this gate exists to stop.
@@ -373,9 +406,13 @@ export const TokenPickerContent = () => {
         }),
         resolveSetAsPrimary(),
       ])
-      return { availability, resolvedSetAsPrimary }
+      return { availability, resolvedSetAsPrimary, pricingSnapshot }
     },
-    onSuccess: async ({ availability, resolvedSetAsPrimary }) => {
+    onSuccess: async ({
+      availability,
+      resolvedSetAsPrimary,
+      pricingSnapshot,
+    }) => {
       if (!pricingQuery.data || !selectedToken) return
 
       if (!availability.isAvailable) {
@@ -387,7 +424,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      await startRegistration(resolvedSetAsPrimary)
+      await startRegistration(resolvedSetAsPrimary, pricingSnapshot)
     },
   })
 
@@ -431,10 +468,25 @@ export const TokenPickerContent = () => {
     .otherwise(() => null)
 
   const globalErrorMessage = match({
+    approvalState,
     hasBudgetQuoteFailed,
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
   })
+    .with(
+      { approvalState: { approvalOutcome: 'rejected' } },
+      () =>
+        t`Payment approval was cancelled. Approve the payment in your wallet to start registration.`,
+    )
+    .with(
+      { approvalState: { approvalOutcome: 'failed' } },
+      () =>
+        t`We couldn't approve your payment. Please try again and approve the payment in your wallet.`,
+    )
+    .with(
+      { approvalState: { errorMessage: P.string } },
+      () => t`We couldn't start your registration. Please try again.`,
+    )
     .with(
       P.union(
         { hasBudgetQuoteFailed: true },
@@ -456,13 +508,35 @@ export const TokenPickerContent = () => {
   // not appear; saying so up front is the difference between "it skipped a
   // step" and "something went wrong". A partial credit is only an amount, and
   // belongs in the breakdown rather than in a sentence repeating it.
+  const isBusy = availabilityMutation.isPending || approvalState.isApproving
+  const isPaymentApprovalRequired = !funding || funding.walletDebitRaw > 0n
   const infoMessage = match(funding)
     .with(
       { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
       (f) =>
         t`What was left from your last attempt covers the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
     )
-    .otherwise(() => null)
+    .otherwise(() =>
+      account.signer?.type === 'rhinestone'
+        ? t`Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve.`
+        : t`Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes.`,
+    )
+
+  const nextMessage = match({
+    isBusy,
+    isAwaitingPaymentApproval,
+    isPaymentApprovalRequired,
+    isQuoting: isBudgetQuoting(isBudgetRequired, budgetQuery),
+  })
+    .with({ isBusy: true, isAwaitingPaymentApproval: true }, () => (
+      <Trans>Approve in wallet</Trans>
+    ))
+    .with({ isBusy: true }, () => <Trans>Preparing registration...</Trans>)
+    .with({ isQuoting: true }, () => <Trans>Calculating cost...</Trans>)
+    .with({ isPaymentApprovalRequired: true }, () => (
+      <Trans>Approve and register</Trans>
+    ))
+    .otherwise(() => <Trans>Register name</Trans>)
 
   return (
     <TokenPickerContentBase
@@ -503,13 +577,15 @@ export const TokenPickerContent = () => {
       globalErrorMessage={globalErrorMessage}
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
       infoMessage={infoMessage}
+      isBusy={isBusy}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuoteStale={budgetQuery.isPlaceholderData}
-      isQuotingFunding={budgetQuery.isLoading}
+      isQuotingFunding={isBudgetRequired && budgetQuery.isFetching}
       label={label}
       methodErrorMessage={methodErrorMessage}
+      nextMessage={nextMessage}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
@@ -534,7 +610,11 @@ const PickerMessage = ({
   infoMessage?: string | null
 }) => {
   if (errorMessage) {
-    return <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+    return (
+      <p className="text-center text-ens-error text-sm" role="alert">
+        {errorMessage}
+      </p>
+    )
   }
   if (infoMessage) {
     return (
@@ -543,6 +623,24 @@ const PickerMessage = ({
   }
   return null
 }
+
+/** A quote is pending, or a stale one (the toggle re-keyed it) is being replaced. */
+const isRequotingFunding = (isQuotingFunding: boolean, isQuoteStale: boolean) =>
+  isQuotingFunding || isQuoteStale
+
+/** The button holds with a spinner while a click is in flight or the fee is being quoted. */
+const isCheckoutSettling = (isBusy: boolean, isRequoting: boolean) =>
+  isBusy || isRequoting
+
+/** Whether the dialog is waiting on the budget: the first quote, a refresh, or a re-key after the toggle. */
+const isBudgetQuoting = (
+  isBudgetRequired: boolean,
+  budgetQuery: {
+    readonly isFetching: boolean
+    readonly isPlaceholderData: boolean
+  },
+) =>
+  isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPlaceholderData)
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
@@ -569,6 +667,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isFeeTooltipOpen,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
+  isBusy = false,
+  canProceed = true,
+  networkFeeTooltip,
+  walletDebitFor,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -615,6 +717,13 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isQuoteStale?: boolean
   /** A required budget quote failed, so checkout must remain blocked. */
   readonly hasBudgetQuoteFailed?: boolean
+  readonly isBusy?: boolean
+  /** False while the caller is missing something `onNext` needs, such as the signing wallet. */
+  readonly canProceed?: boolean
+  /** Replaces the fee tooltip's registration wording. */
+  readonly networkFeeTooltip?: ReactNode
+  /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
+  readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -636,13 +745,15 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   // owes the shortfall.
   const requiredAmount = funding?.walletDebit ?? fundedAmount ?? pricingData
   // The account's own balance of a coin pays first; the wallet covers the rest.
-  const walletShareOf = (symbol: string) =>
-    requiredAmount === undefined
+  const walletShareOf = (symbol: string) => {
+    if (walletDebitFor) return walletDebitFor(symbol as TOKEN_SYMBOL)
+    return requiredAmount === undefined
       ? undefined
       : Math.max(
           0,
           requiredAmount - (accountCredit?.[symbol as TOKEN_SYMBOL] ?? 0),
         )
+  }
 
   // What the registration costs before any standing credit is applied.
   const displayTotal = funding?.total ?? pricingData
@@ -677,13 +788,31 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
 
   const canNext =
     isConnected &&
+    canProceed &&
     !!selectedToken &&
     !pricingLoading &&
+    // The fee is part of the figure being confirmed, so wait for it.
+    !isQuotingFunding &&
     !isQuoteStale &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin &&
     // Refuse rather than proceed on a figure that cannot fund the batch.
     !hasBudgetQuoteFailed
+
+  const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
+  const isSettling = isCheckoutSettling(isBusy, isRequoting)
+
+  const actionClasses = match({ canNext, isBusy })
+    .with(
+      { isBusy: true },
+      () =>
+        'bg-ens-blue text-white hover:bg-ens-blue-hover disabled:opacity-100',
+    )
+    .with(
+      { canNext: true },
+      () => 'bg-ens-blue text-white hover:bg-ens-blue-hover',
+    )
+    .otherwise(() => undefined)
 
   const paymentMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
     (stablecoin) => {
@@ -706,6 +835,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
                 ? methodErrorMessage
                 : undefined
             }
+            feeTooltip={networkFeeTooltip}
             isFeeTooltipOpen={isFeeTooltipOpen}
             isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
             networkFee={displayedNetworkFee}
@@ -721,137 +851,145 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   )
 
   return (
-    // `min-h-0` lets the registration sheet scroll within its viewport rather
-    // than clipping the total and action button on short screens.
-    <div
-      className={cn(
-        'flex h-full min-h-0 flex-1 flex-col gap-6 pt-2 pb-6',
-        showNetworkFeeDetails ? undefined : 'px-4',
-      )}
-    >
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
-          {(premiumLabel || isInPriceCooldown) && (
-            <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-              {premiumLabel && (
-                <DomainAttributePill
-                  label={t(premiumLabel.label)}
-                  variant={premiumLabel.variant}
-                />
-              )}
-              {isInPriceCooldown && <PriceCooldownPill />}
-            </div>
-          )}
-          <span
-            className={cn(
-              'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
-              'whitespace-normal leading-ens-none tracking-[-0.8px]',
-              'text-ens-gray',
-              getDomainSizeClasses(domainName),
+    // A fieldset's anonymous content box prevents its flex children shrinking
+    // in Chromium. Keep disabling controls here and let a div own the layout.
+    <fieldset className="contents" disabled={isBusy}>
+      <div
+        className={cn(
+          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 pt-2 pb-6',
+          showNetworkFeeDetails ? undefined : 'px-4',
+        )}
+      >
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
+          <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
+            {(premiumLabel || isInPriceCooldown) && (
+              <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                {premiumLabel && (
+                  <DomainAttributePill
+                    label={t(premiumLabel.label)}
+                    variant={premiumLabel.variant}
+                  />
+                )}
+                {isInPriceCooldown && <PriceCooldownPill />}
+              </div>
             )}
-            title={domainName}
-          >
-            {domainName}
-          </span>
+            <span
+              className={cn(
+                'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
+                'whitespace-normal leading-ens-none tracking-[-0.8px]',
+                'text-ens-gray',
+                getDomainSizeClasses(domainName),
+              )}
+              title={domainName}
+            >
+              {domainName}
+            </span>
 
-          <PaymentBreakdown funding={funding} />
-        </div>
-
-        <div className="flex w-full flex-col gap-4">
-          <h2 className="text-center font-medium text-[18px] leading-ens-none">
-            <Trans>Select payment</Trans>
-          </h2>
-          {match({
-            isLoadingBalances,
-            hasBalances,
-            stablecoinsCount: stablecoinBalances?.length ?? 0,
-            isConnected,
-            pricingLoading,
-          })
-            .with({ isConnected: false }, () => (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="mb-2 text-ens-gray text-sm">
-                  <Trans>Please connect your wallet first</Trans>
-                </div>
-                <div className="text-ens-gray-three text-xs">
-                  <Trans>
-                    You need to connect a wallet to see your stablecoin balances
-                  </Trans>
-                </div>
-              </div>
-            ))
-            .with({ isLoadingBalances: true }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>Loading your stablecoin balances...</Trans>
-                </div>
-              </div>
-            ))
-            .with({ pricingLoading: true }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>Loading pricing...</Trans>
-                </div>
-              </div>
-            ))
-            .with({ stablecoinsCount: 0 }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>No stablecoins available</Trans>
-                </div>
-              </div>
-            ))
-            .with({ stablecoinsCount: P.number.gt(0) }, () => (
-              <PaymentMethods
-                onSelectCoin={onSelectCoin}
-                paymentMethodItems={paymentMethodItems}
-                selectedToken={selectedToken}
-                showNetworkFeeDetails={showNetworkFeeDetails}
-                stablecoinBalances={stablecoinBalances}
-                walletShareOf={walletShareOf}
-              />
-            ))
-            .otherwise(() => undefined)}
-
-          <PickerMessage
-            errorMessage={globalErrorMessage}
-            infoMessage={infoMessage}
-          />
-
-          <div className="flex flex-col items-center gap-1.5">
-            <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-              <Trans>Stables accepted</Trans>
-            </p>
-            <div className="flex items-center gap-1">
-              {acceptedTokens.map((symbol) => {
-                const Icon = STABLECOINS[symbol]?.icon ?? USDCIcon
-                return <Icon className="h-7 w-7" key={symbol} />
-              })}
-            </div>
+            <PaymentBreakdown funding={funding} isQuoting={isQuotingFunding} />
           </div>
 
-          {footer}
+          <div className="flex w-full flex-col gap-4">
+            <h2 className="text-center font-medium text-[18px] leading-ens-none">
+              <Trans>Select payment</Trans>
+            </h2>
+            {match({
+              isLoadingBalances,
+              hasBalances,
+              stablecoinsCount: stablecoinBalances?.length ?? 0,
+              isConnected,
+              pricingLoading,
+            })
+              .with({ isConnected: false }, () => (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-2 text-ens-gray text-sm">
+                    <Trans>Please connect your wallet first</Trans>
+                  </div>
+                  <div className="text-ens-gray-three text-xs">
+                    <Trans>
+                      You need to connect a wallet to see your stablecoin
+                      balances
+                    </Trans>
+                  </div>
+                </div>
+              ))
+              .with({ isLoadingBalances: true }, () => (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-ens-gray-two text-sm">
+                    <Trans>Loading your stablecoin balances...</Trans>
+                  </div>
+                </div>
+              ))
+              .with({ pricingLoading: true }, () => (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-ens-gray-two text-sm">
+                    <Trans>Loading pricing...</Trans>
+                  </div>
+                </div>
+              ))
+              .with({ stablecoinsCount: 0 }, () => (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-ens-gray-two text-sm">
+                    <Trans>No stablecoins available</Trans>
+                  </div>
+                </div>
+              ))
+              .with({ stablecoinsCount: P.number.gt(0) }, () => (
+                <PaymentMethods
+                  onSelectCoin={onSelectCoin}
+                  paymentMethodItems={paymentMethodItems}
+                  selectedToken={selectedToken}
+                  showNetworkFeeDetails={showNetworkFeeDetails}
+                  stablecoinBalances={stablecoinBalances}
+                  walletShareOf={walletShareOf}
+                />
+              ))
+              .otherwise(() => undefined)}
+
+            <PickerMessage
+              errorMessage={globalErrorMessage}
+              infoMessage={infoMessage}
+            />
+
+            <div className="flex flex-col items-center gap-1.5">
+              <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
+                <Trans>Stables accepted</Trans>
+              </p>
+              <div className="flex items-center gap-1">
+                {acceptedTokens.map((symbol) => {
+                  const Icon = STABLECOINS[symbol]?.icon ?? USDCIcon
+                  return <Icon className="h-7 w-7" key={symbol} />
+                })}
+              </div>
+            </div>
+
+            {footer}
+          </div>
         </div>
+
+        <PaymentTotalRow
+          hasAccountCredit={hasAccountCredit}
+          isEstimate={!!funding || hasBudgetQuoteFailed}
+          isLoading={isRequoting}
+          total={headlineAmount}
+        />
+
+        <Button
+          aria-busy={isSettling}
+          className={cn(
+            'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
+            'hover:bg-ens-gray-two',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            actionClasses,
+          )}
+          disabled={isBusy || !canNext}
+          onClick={onNext}
+        >
+          {isSettling && (
+            <LoaderCircle aria-hidden="true" className="animate-spin" />
+          )}
+          {nextMessage}
+        </Button>
       </div>
-
-      <PaymentTotalRow
-        hasAccountCredit={hasAccountCredit}
-        isEstimate={!!funding || hasBudgetQuoteFailed}
-        total={headlineAmount}
-      />
-
-      <Button
-        className={cn(
-          'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
-          'hover:bg-ens-gray-two',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          canNext && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
-        )}
-        disabled={!canNext}
-        onClick={onNext}
-      >
-        {nextMessage}
-      </Button>
-    </div>
+    </fieldset>
   )
 }

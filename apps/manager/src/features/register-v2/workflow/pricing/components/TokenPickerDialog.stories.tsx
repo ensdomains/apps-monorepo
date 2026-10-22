@@ -1,8 +1,9 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,8 @@ interface TokenPickerDialogShellProps {
   readonly isLoadingBalances?: boolean
   readonly stablecoinBalances?: StablecoinBalance[]
   readonly globalErrorMessage?: string | null
+  readonly infoMessage?: string
+  readonly footer?: ReactNode
   readonly methodErrorMessage?: string | null
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
@@ -60,6 +63,8 @@ export const TokenPickerDialogShell = ({
   isLoadingBalances = false,
   stablecoinBalances = [FUNDED_USDC],
   globalErrorMessage = null,
+  infoMessage,
+  footer,
   methodErrorMessage = null,
   initialSelectedToken,
   funding,
@@ -79,8 +84,10 @@ export const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
+        infoMessage={infoMessage}
         isConnected={isConnected}
         isFeeTooltipOpen={isFeeTooltipOpen}
         isInPriceCooldown={isInPriceCooldown}
@@ -411,6 +418,45 @@ export const FeeTooltipOpen: Story = {
     ...FundedUSDC.args,
     isFeeTooltipOpen: true,
   },
+}
+
+export const LongNameWithApprovalDetails: Story = {
+  args: {
+    initialSelectedToken: 'USDC',
+    pricingData: 160,
+    funding: {
+      registration: 160,
+      networkFee: 0,
+      total: 160,
+      walletDebit: 0,
+      hcaCredit: 160,
+      isLoading: false,
+    },
+    label: 'rh-resume-c-mvfdmryi7p3',
+    infoMessage:
+      "What was left from your last attempt covers the 160.00 USDC this registration needs, so you won't be asked to approve a payment.",
+  },
+  render: (args) => (
+    <TokenPickerDialogShell
+      {...args}
+      footer={
+        <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-ens-gray text-sm">
+              Set as primary name
+            </span>
+            <span className="text-ens-gray text-xs">
+              Your wallet address can only have one primary name, which will
+              display instead of your wallet address across apps. You'll be
+              prompted to confirm this additional transaction after
+              registration.
+            </span>
+          </div>
+          <Switch aria-label="Set as primary name" />
+        </div>
+      }
+    />
+  ),
 }
 
 export const FixtureMultipleMethodsCollapsed: Story = {

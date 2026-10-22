@@ -1,4 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, getAddress } from 'viem'
 import { useConnection } from 'wagmi'
@@ -75,15 +79,23 @@ export const useDashboardNames = ({
   page = 1,
 }: Options = {}) => {
   const addresses = useDashboardAddresses()
+  const { address } = useConnection()
+  const smartAccount = useSmartAccountContextSafe()
+  const recordEditorAddress = smartAccount?.ownerAddress ?? address
+  const queryClient = useQueryClient()
   const hasAddresses = addresses.length > 0
   const query = useInfiniteQuery({
-    ...getDashboardNamesInfiniteQueryOptions({
-      addresses,
-      sortField,
-      sortDir,
-      search: search.trim(),
-      version,
-    }),
+    ...getDashboardNamesInfiniteQueryOptions(
+      {
+        addresses,
+        sortField,
+        sortDir,
+        search: search.trim(),
+        version,
+        recordEditorAddress,
+      },
+      queryClient,
+    ),
     refetchInterval: ({ state }) =>
       isAwaitingMigratedNames(
         state.data?.pages.flat() ?? [],
@@ -145,6 +157,7 @@ export const useDashboardNames = ({
     hasAddresses,
     pageNames,
     total: merged.total,
+    isComplete: merged.isComplete,
     isPending: hasAddresses && query.isPending,
     isPagePending: needsMore,
     loadPage,

@@ -240,7 +240,7 @@ const ShareActionButton = ({
     className={cn(
       'flex h-12.5 min-w-0 appearance-none items-center justify-center gap-2 rounded border-0 px-4 shadow-none',
       // tracking-[0.12em]: design-specified exact value, no token equivalent
-      'font-medium font-mono text-xs uppercase leading-none tracking-[0.12em] transition-colors',
+      'font-medium font-mono text-xs uppercase leading-none tracking-[0.12em] transition-colors md:text-sm',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       className,
     )}
@@ -361,7 +361,7 @@ export const ShareProfileDialog = ({
         >
           {/* tracking-[0.12em]: design-specified exact value, no token equivalent */}
           <MSymbol
-            className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em]"
+            className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em] md:text-base"
             symbol={copied ? 'check' : 'link'}
           />
           {copied ? <Trans>Copied</Trans> : <Trans>Copy Link</Trans>}
@@ -377,7 +377,7 @@ export const ShareProfileDialog = ({
         >
           {/* tracking-[0.12em]: design-specified exact value, no token equivalent */}
           <MSymbol
-            className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em]"
+            className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em] md:text-base"
             symbol="share"
           />
           <Trans>Share</Trans>
@@ -392,7 +392,7 @@ export const ShareProfileDialog = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent
           aria-describedby={undefined}
-          className="w-[320px] max-w-[320px] gap-0 overflow-y-auto rounded-3xl border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)]"
+          className="w-90 max-w-90 gap-0 overflow-y-auto rounded-3xl border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)]"
           showCloseButton={false}
           style={shareDialogStyle}
         >

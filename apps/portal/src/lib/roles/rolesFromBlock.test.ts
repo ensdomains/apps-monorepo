@@ -22,18 +22,18 @@ const NETWORKS = {
   },
 } as const
 
-describe.each([
-  'mainnet',
-  'sepolia',
-] as const)('ROLES_FROM_BLOCK on %s', (network) => {
-  // Raising this past a live registry's deployment silently empties its role
-  // table: its root grants all sit in its deployment block, so a later start
-  // returns zero logs and the page reads as "nobody holds these roles". On
-  // Sepolia this also rules out anchoring on the .eth registry, 108 blocks on.
-  it('starts no later than the earliest live v2 registry', () => {
-    const { fromBlock, rootRegistry, ethRegistry } = NETWORKS[network]
-    const earliest = rootRegistry < ethRegistry ? rootRegistry : ethRegistry
+describe.each(['mainnet', 'sepolia'] as const)(
+  'ROLES_FROM_BLOCK on %s',
+  (network) => {
+    // Raising this past a live registry's deployment silently empties its role
+    // table: its root grants all sit in its deployment block, so a later start
+    // returns zero logs and the page reads as "nobody holds these roles". On
+    // Sepolia this also rules out anchoring on the .eth registry, 108 blocks on.
+    it('starts no later than the earliest live v2 registry', () => {
+      const { fromBlock, rootRegistry, ethRegistry } = NETWORKS[network]
+      const earliest = rootRegistry < ethRegistry ? rootRegistry : ethRegistry
 
-    expect(fromBlock).toBeLessThanOrEqual(earliest)
-  })
-})
+      expect(fromBlock).toBeLessThanOrEqual(earliest)
+    })
+  },
+)

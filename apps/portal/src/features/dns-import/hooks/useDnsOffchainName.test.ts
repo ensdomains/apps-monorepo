@@ -51,13 +51,12 @@ describe('useDnsOffchainName', () => {
   })
 
   // `.eth` names are never gasless, and only 2LDs go through DNS import.
-  it.each([
-    'alice.eth',
-    'sub.jobintime.xyz',
-    'xyz',
-  ])('never checks %s', (name) => {
-    expect(enabledFor(name, null)).toBe(false)
-  })
+  it.each(['alice.eth', 'sub.jobintime.xyz', 'xyz'])(
+    'never checks %s',
+    (name) => {
+      expect(enabledFor(name, null)).toBe(false)
+    },
+  )
 
   it('reports the address a live name resolves to', () => {
     queryResult = {

@@ -33,6 +33,7 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   showNetworkFeeDetails = false,
   errorMessage,
   isFeeTooltipOpen,
+  feeTooltip,
 }: {
   readonly stablecoin: StablecoinBalance
   readonly selectedCoin: T | undefined
@@ -43,6 +44,8 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   readonly showNetworkFeeDetails?: boolean
   readonly errorMessage?: React.ReactNode
   readonly isFeeTooltipOpen?: boolean
+  /** What the fee pays for; defaults to the registration wording. */
+  readonly feeTooltip?: React.ReactNode
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
@@ -118,11 +121,13 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
         <Trans>Mainnet est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>
       }
       feeTooltip={
-        <Trans>
-          An estimate of what the two on-chain transactions that register your
-          name will cost. It is collected together with the name price, in the
-          same approval.
-        </Trans>
+        feeTooltip ?? (
+          <Trans>
+            An estimate of what the two on-chain transactions that register your
+            name will cost. It is collected together with the name price, in the
+            same approval.
+          </Trans>
+        )
       }
       feeTooltipLabel={t`What is the network fee?`}
       icon={

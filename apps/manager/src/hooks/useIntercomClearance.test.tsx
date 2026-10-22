@@ -72,16 +72,16 @@ describe('useIntercomClearance', () => {
   it.each([
     { side: 'left', left: 100, right: 1120 },
     { side: 'right', left: 1180, right: 1200 },
-  ])('keeps the default padding for a bar to the $side of the launcher', ({
-    left,
-    right,
-  }) => {
-    mockBar(BAR_HEIGHT, { left, right })
+  ])(
+    'keeps the default padding for a bar to the $side of the launcher',
+    ({ left, right }) => {
+      mockBar(BAR_HEIGHT, { left, right })
 
-    render(<Bar />)
+      render(<Bar />)
 
-    expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
-  })
+      expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+    },
+  )
 
   it('updates padding as resizing moves the launcher into and out of overlap', () => {
     mockBar(BAR_HEIGHT, { left: 100, right: 1000 })

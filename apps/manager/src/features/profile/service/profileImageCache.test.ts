@@ -16,8 +16,8 @@ describe('profile image cache helpers', () => {
   })
 
   it('returns only signed uploads still used by the submitted profile records', () => {
-    const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}/vitalik.eth`
-    const headerUrl = `${AVATAR_UPLOAD_BASE_URL}/vitalik.eth/h`
+    const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}vitalik.eth`
+    const headerUrl = `${AVATAR_UPLOAD_BASE_URL}vitalik.eth/h`
     const records = {
       ...newEmptyProfileRecords(),
       base: {
@@ -42,7 +42,7 @@ describe('profile image cache helpers', () => {
 
     const queryClient = new QueryClient()
     const name = 'vitalik.eth'
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/${name}`
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}${name}`
     const cacheBustedImageUrl = `${imageUrl}?v=1234`
 
     queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
@@ -60,7 +60,7 @@ describe('profile image cache helpers', () => {
   it('refreshes both images and retains their versions when records refetch', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
     const queryClient = new QueryClient()
-    const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}/sepolia/test.eth`
+    const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}sepolia/test.eth`
     const headerUrl = `${avatarUrl}/h`
     const gatewayQuery = imageRecordQuery(avatarUrl, {
       ipfs: 'https://example.com/ipfs',
@@ -90,7 +90,7 @@ describe('profile image cache helpers', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1234)
     const queryClient = new QueryClient()
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/test.eth`
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}test.eth`
     const options = imageRecordQuery(imageUrl)
 
     await refreshProfileImageCaches({
@@ -107,7 +107,7 @@ describe('profile image cache helpers', () => {
   it('uses a new version for repeated uploads to the same URL', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
     const queryClient = new QueryClient()
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/test.eth/h`
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}test.eth/h`
     const images = [{ kind: 'header' as const, imageUrl }]
 
     await refreshProfileImageCaches({ images, queryClient })
@@ -121,8 +121,8 @@ describe('profile image cache helpers', () => {
   it('does not change unrelated images or another QueryClient', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
     const queryClient = new QueryClient()
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/test.eth`
-    const otherImageUrl = `${AVATAR_UPLOAD_BASE_URL}/other.eth`
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}test.eth`
+    const otherImageUrl = `${AVATAR_UPLOAD_BASE_URL}other.eth`
     const externalImageUrl = 'https://example.com/avatar.png'
     queryClient.setQueryData(
       imageRecordQuery(otherImageUrl).queryKey,
@@ -151,7 +151,8 @@ describe('profile image cache helpers', () => {
 
   it('does not add upload versions to external URLs', async () => {
     const queryClient = new QueryClient()
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}.example.com/test.eth`
+    const imageUrl =
+      'https://avatar-upload-staging.ens-cf.workers.dev.example.com/test.eth'
 
     await refreshProfileImageCaches({
       images: [{ kind: 'avatar', imageUrl }],
@@ -169,7 +170,7 @@ describe('profile image cache helpers', () => {
   it('prevents an in-flight image lookup from restoring the previous image', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
     const queryClient = new QueryClient()
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/test.eth`
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}test.eth`
     const options = imageRecordQuery(imageUrl)
     let resolveLookup: ((url: string) => void) | undefined
     const pendingLookup = queryClient

@@ -3,7 +3,7 @@ import { queryOptions, skipToken } from '@tanstack/react-query'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 
 export const isUploadedProfileImageUrl = (imageUrl: string): boolean =>
-  imageUrl.trim().startsWith(`${AVATAR_UPLOAD_BASE_URL}/`)
+  imageUrl.trim().startsWith(AVATAR_UPLOAD_BASE_URL)
 
 export const profileImageVersionQuery = (record: string) =>
   queryOptions<number>({

@@ -48,13 +48,16 @@ afterEach(() => {
 
 describe('invalidateMigrationQueries', () => {
   it('reads a migrated name again in the inactive dashboard cache', async () => {
-    const options = getDashboardNamesInfiniteQueryOptions({
-      addresses: [owner],
-      sortField: 'name',
-      sortDir: 'asc',
-      search: '',
-      version: null,
-    })
+    const options = getDashboardNamesInfiniteQueryOptions(
+      {
+        addresses: [owner],
+        sortField: 'name',
+        sortDir: 'asc',
+        search: '',
+        version: null,
+      },
+      queryClient,
+    )
     await queryClient.fetchInfiniteQuery(options)
     isMigrated = true
 

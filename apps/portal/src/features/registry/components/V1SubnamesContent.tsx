@@ -60,8 +60,13 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   )
   // Stable rows: `useReactTable` re-runs its row models whenever `data` changes identity.
   const { rows, deletes } = useMemo(
-    () => toV1SubnameRows(subnames, parentGate),
-    [subnames, parentGate],
+    () =>
+      toV1SubnameRows(
+        subnames,
+        parentGate?.reason === 'ok' ? parentGate.parent : null,
+        connectedAccount,
+      ),
+    [subnames, parentGate, connectedAccount],
   )
 
   const {
@@ -145,7 +150,9 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     )
   }
 
-  const canDeleteSubname = parentGate?.reason === 'ok'
+  const canDeleteSubname = rows.some(
+    (row) => row.canDelete || row.deleteBlockedReason !== undefined,
+  )
 
   // Hidden when disconnected, as for V2: creating needs the holder's wallet.
   const canCreateSubname =

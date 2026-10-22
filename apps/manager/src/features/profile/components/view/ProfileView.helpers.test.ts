@@ -378,16 +378,19 @@ describe('ProfileView helpers', () => {
     [291, 501, 'ExampleAddress', 'ExampleAddress'],
     [501, 501, 'ExampleAddress', 'exampleAddress'],
     [999, 1000, 'ExampleAddress', 'ExampleAddress'],
-  ])('keeps independent case-sensitive records separate (%i, %i, %s, %s)', (mainCoinType, otherCoinType, mainValue, otherValue) => {
-    // Synthetic strings test grouping without requiring valid network keys.
-    const mainRecord = { coinType: mainCoinType, value: mainValue }
-    const otherRecord = { coinType: otherCoinType, value: otherValue }
-    const records = makeRecords({ addresses: [mainRecord, otherRecord] })
+  ])(
+    'keeps independent case-sensitive records separate (%i, %i, %s, %s)',
+    (mainCoinType, otherCoinType, mainValue, otherValue) => {
+      // Synthetic strings test grouping without requiring valid network keys.
+      const mainRecord = { coinType: mainCoinType, value: mainValue }
+      const otherRecord = { coinType: otherCoinType, value: otherValue }
+      const records = makeRecords({ addresses: [mainRecord, otherRecord] })
 
-    expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
-    expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
-    expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
-  })
+      expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
+      expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
+      expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
+    },
+  )
 
   it('does not group a non-EVM record with a matching EVM value', () => {
     const value = '0x1234567890abcdef1234567890abcdef12345678'

@@ -1,4 +1,5 @@
 import {
+  type ClipboardEvent,
   type CSSProperties,
   useEffect,
   useLayoutEffect,
@@ -15,6 +16,8 @@ import {
   lineRevealRatio,
   measureGlyphMetrics,
   segmentGraphemes,
+  withLabelBreaks,
+  withoutLabelBreaks,
 } from './nameFillLayout'
 
 export interface NameFillProps {
@@ -48,6 +51,15 @@ function settleDelayMs(
     FILL_CLIP_TRANSITION_MS,
     FILL_CLIP_TRANSITION_MS - msSinceProgressChange,
   )
+}
+
+function copyWithoutLabelBreaks(event: ClipboardEvent<HTMLElement>) {
+  const selected = document.getSelection()?.toString() ?? ''
+  const plain = withoutLabelBreaks(selected)
+  if (plain === selected) return
+
+  event.preventDefault()
+  event.clipboardData.setData('text/plain', plain)
 }
 
 function NameFillByClip({
@@ -112,10 +124,11 @@ export function NameFill({
   const rawP = Math.max(0, Math.min(1, progress))
   const fillComplete = rawP >= 1 - 1e-6
   const p = fillComplete ? 1 : rawP
-  const chars = useMemo(() => segmentGraphemes(name), [name])
+  const text = useMemo(() => withLabelBreaks(name), [name])
+  const chars = useMemo(() => segmentGraphemes(text), [text])
   const fillPosition = fillComplete ? chars.length : p * chars.length
-  const gradient = isGradientFill(fill)
-  const wraps = className?.includes('break-all') ?? false
+  const isGradient = isGradientFill(fill)
+  const isWrapping = /\b(break-all|wrap-anywhere)\b/.test(className ?? '')
   const fillSettledRef = useRef(false)
   const onFillSettledRef = useRef(onFillSettled)
   onFillSettledRef.current = onFillSettled
@@ -141,7 +154,7 @@ export function NameFill({
     if (!probe) return
 
     const textNode = probe.firstChild
-    if (!(textNode instanceof Text) || textNode.data !== name) return
+    if (!(textNode instanceof Text) || textNode.data !== text) return
 
     const next = measureGlyphMetrics(probe, textNode, chars)
     setMetrics(next)
@@ -187,7 +200,7 @@ export function NameFill({
   }, [p])
 
   useEffect(() => {
-    if (gradient && !wraps) return undefined
+    if (isGradient && !isWrapping) return undefined
     if (!layoutReady || p < 1) {
       if (p < 1) fillSettledRef.current = false
       return undefined
@@ -211,9 +224,9 @@ export function NameFill({
 
     const id = window.setTimeout(settle, delay)
     return () => window.clearTimeout(id)
-  }, [animate, gradient, layoutReady, p, wraps])
+  }, [animate, isGradient, layoutReady, p, isWrapping])
 
-  if (gradient && !wraps) {
+  if (isGradient && !isWrapping) {
     return (
       <NameFillByClip
         animate={animate}
@@ -234,6 +247,7 @@ export function NameFill({
         'relative inline-block w-full overflow-visible align-bottom',
         className,
       )}
+      onCopy={copyWithoutLabelBreaks}
       ref={containerRef}
       role="img"
       style={typography}
@@ -241,13 +255,13 @@ export function NameFill({
       <span
         aria-hidden
         className={cn(
-          'pointer-events-none absolute top-0 left-0 w-full whitespace-normal break-all opacity-0',
+          'pointer-events-none absolute top-0 left-0 w-full whitespace-normal wrap-anywhere opacity-0',
           className,
         )}
         ref={probeRef}
         style={typography}
       >
-        {name}
+        {text}
       </span>
 
       {layoutReady ? (

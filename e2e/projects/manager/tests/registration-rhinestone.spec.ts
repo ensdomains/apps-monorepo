@@ -65,7 +65,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       },
     })
 
-    await page.getByRole('button', { name: /register name/i }).click()
+    await page
+      .getByRole('dialog', { name: 'Approve and register name' })
+      .getByRole('button', { name: /^(approve and register|register name)$/i })
+      .click()
 
     // RegistrationDetails (including the completion banner) stays hidden while
     // the parallel notification-settings region is waiting for a choice.

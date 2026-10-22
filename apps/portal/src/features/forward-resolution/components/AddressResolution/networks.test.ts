@@ -24,17 +24,18 @@ const optimism = networkFor(
 describe('FORWARD_RESOLUTION_NETWORKS', () => {
   // Regression guard: the explorer must read L2 records back on the coin type
   // the manager writes them on.
-  it.each(
-    L2_REVERSE_REGISTRAR_CHAIN_IDS,
-  )('keys chain %i on this deployment’s coin type', (chainId) => {
-    const network = FORWARD_RESOLUTION_NETWORKS.find(
-      (candidate) => candidate.l2ChainId === chainId,
-    )
+  it.each(L2_REVERSE_REGISTRAR_CHAIN_IDS)(
+    'keys chain %i on this deployment’s coin type',
+    (chainId) => {
+      const network = FORWARD_RESOLUTION_NETWORKS.find(
+        (candidate) => candidate.l2ChainId === chainId,
+      )
 
-    expect(network?.coinType).toBe(
-      getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
-    )
-  })
+      expect(network?.coinType).toBe(
+        getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
+      )
+    },
+  )
 })
 
 describe('forwardAddress', () => {

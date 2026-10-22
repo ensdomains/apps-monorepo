@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { createTestWrapper } from '@/test-utils/providers'
 import { MigrateForRolesMessage } from './MigrateForRolesMessage'
 
 // Asserted as literal paths rather than against the exported constants: the
@@ -7,14 +8,18 @@ import { MigrateForRolesMessage } from './MigrateForRolesMessage'
 // move the assertion with it.
 describe('MigrateForRolesMessage', () => {
   it('asks the holder to upgrade, alongside the buttons that do it', () => {
-    render(<MigrateForRolesMessage name="jooooe.eth" canMigrate />)
+    render(<MigrateForRolesMessage name="jooooe.eth" canMigrate />, {
+      wrapper: createTestWrapper(),
+    })
 
     expect(screen.getByText('Fuses not available')).toBeInTheDocument()
     expect(screen.getByText(/Upgrade this name to v2/)).toBeInTheDocument()
   })
 
   it('sends the upgrade CTA to the manager upgrade flow', () => {
-    render(<MigrateForRolesMessage name="jooooe.eth" canMigrate />)
+    render(<MigrateForRolesMessage name="jooooe.eth" canMigrate />, {
+      wrapper: createTestWrapper(),
+    })
 
     const upgrade = screen.getByRole('link', { name: /Upgrade to v2/ })
 
@@ -22,7 +27,9 @@ describe('MigrateForRolesMessage', () => {
   })
 
   it('labels the learn-more link with the name it is about', () => {
-    render(<MigrateForRolesMessage name="jooooe.eth" canMigrate />)
+    render(<MigrateForRolesMessage name="jooooe.eth" canMigrate />, {
+      wrapper: createTestWrapper(),
+    })
 
     const learnMore = screen.getByRole('link', {
       name: 'Learn more about upgrading jooooe.eth to ENS v2',

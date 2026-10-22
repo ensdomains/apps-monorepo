@@ -189,6 +189,11 @@ const SelectorsHarness = ({
   )
 }
 
+// Base UI's Combobox opens only on an `InputEvent` with an `inputType`; a bare
+// change event reads as autofill and leaves the list closed.
+const typeInto = (input: HTMLElement, value: string) =>
+  fireEvent.input(input, { target: { value }, inputType: 'insertText' })
+
 describe('GeneralTab language and timezone selectors', () => {
   beforeEach(() => {
     visibleFieldsMock.fields = ['timezone', 'language']
@@ -198,7 +203,7 @@ describe('GeneralTab language and timezone selectors', () => {
     render(<SelectorsHarness />)
 
     const language = screen.getByRole('combobox', { name: 'Language' })
-    fireEvent.change(language, { target: { value: 'fren' } })
+    typeInto(language, 'fren')
 
     const option = await screen.findByRole('option', { name: 'French' })
     expect(screen.queryByRole('option', { name: 'German' })).toBeNull()
@@ -236,7 +241,7 @@ describe('GeneralTab language and timezone selectors', () => {
     render(<SelectorsHarness />)
 
     const language = screen.getByRole('combobox', { name: 'Language' })
-    fireEvent.change(language, { target: { value: 'germ' } })
+    typeInto(language, 'germ')
     await screen.findByRole('option', { name: 'German' })
 
     fireEvent.keyDown(language, { key: 'ArrowDown' })
@@ -264,9 +269,7 @@ describe('GeneralTab language and timezone selectors', () => {
   it('tells the user when nothing matches', async () => {
     render(<SelectorsHarness />)
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {
-      target: { value: 'zzz' },
-    })
+    typeInto(screen.getByRole('combobox', { name: 'Language' }), 'zzz')
 
     expect(await screen.findByText('No matches')).toBeInTheDocument()
     expect(screen.queryByRole('option')).toBeNull()
@@ -276,7 +279,7 @@ describe('GeneralTab language and timezone selectors', () => {
     render(<SelectorsHarness />)
 
     const timezone = screen.getByRole('combobox', { name: 'Timezone' })
-    fireEvent.change(timezone, { target: { value: '+5:4' } })
+    typeInto(timezone, '+5:4')
 
     fireEvent.click(await screen.findByRole('option', { name: 'UTC+5:45' }))
 

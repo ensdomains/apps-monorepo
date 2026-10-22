@@ -28,6 +28,8 @@ export {
   type PermitPurpose,
   type PlanHcaIntentFundingParams,
   planHcaIntentFunding,
+  type QuoteHcaIntentParams,
+  quoteHcaIntentFeeUsdc,
 } from './helpers/hca-intent-funding'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 // Persistence

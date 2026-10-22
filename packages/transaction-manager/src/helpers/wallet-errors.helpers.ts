@@ -1,34 +1,52 @@
 import { UnauthorizedProviderError, UserRejectedRequestError } from 'viem'
 
 /** 4001: the user declined. 4100: the wallet refused to ask (spam filter). */
-const TERMINAL_CODES: ReadonlySet<number> = new Set([4001, 4100])
+const DECLINED_CODE = 4001
+const UNAUTHORIZED_CODE = 4100
 
-const TERMINAL_NAMES: ReadonlySet<string> = new Set([
-  'UserRejectedRequestError',
-  'UnauthorizedProviderError',
-])
+type WalletErrorMatcher = {
+  readonly classes: readonly (new (...args: never[]) => Error)[]
+  readonly names: ReadonlySet<string>
+  readonly codes: ReadonlySet<number>
+}
+
+const DECLINED: WalletErrorMatcher = {
+  classes: [UserRejectedRequestError],
+  names: new Set(['UserRejectedRequestError']),
+  codes: new Set([DECLINED_CODE]),
+}
+
+const TERMINAL: WalletErrorMatcher = {
+  classes: [UserRejectedRequestError, UnauthorizedProviderError],
+  names: new Set(['UserRejectedRequestError', 'UnauthorizedProviderError']),
+  codes: new Set([DECLINED_CODE, UNAUTHORIZED_CODE]),
+}
 
 /**
- * Whether the wallet refused in a way retrying cannot fix.
- *
  * Matched by name and code as well as class: the transports wrap the viem error
  * so the chain has to be walked, and class identity does not survive the
  * production build.
  */
-export const isTerminalWalletError = (error: unknown): boolean => {
+const matchesWalletError = (
+  error: unknown,
+  matcher: WalletErrorMatcher,
+): boolean => {
   let current: unknown = error
   // Bounded so a cyclic `cause` cannot spin.
   for (let depth = 0; depth < 10 && current != null; depth += 1) {
-    if (
-      current instanceof UserRejectedRequestError ||
-      current instanceof UnauthorizedProviderError
-    ) {
-      return true
-    }
+    if (matcher.classes.some((cls) => current instanceof cls)) return true
     const { name, code } = current as { name?: unknown; code?: unknown }
-    if (typeof name === 'string' && TERMINAL_NAMES.has(name)) return true
-    if (typeof code === 'number' && TERMINAL_CODES.has(code)) return true
+    if (typeof name === 'string' && matcher.names.has(name)) return true
+    if (typeof code === 'number' && matcher.codes.has(code)) return true
     current = (current as { cause?: unknown }).cause
   }
   return false
 }
+
+/** Whether the user declined the wallet prompt: a decision, not a failure. */
+export const isWalletDeclineError = (error: unknown): boolean =>
+  matchesWalletError(error, DECLINED)
+
+/** Whether the wallet refused in a way retrying cannot fix: a decline, or a 4100 refusal to ask. */
+export const isTerminalWalletError = (error: unknown): boolean =>
+  matchesWalletError(error, TERMINAL)

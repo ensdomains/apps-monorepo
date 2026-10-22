@@ -104,7 +104,6 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await clickThroughEnableSessions(page)
   await page.getByRole('button', { name: 'Select USDC' }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
-  await page.getByRole('button', { name: /renew name/i }).click()
 
   await expectFlowSuccess(page, {
     success: page.getByText('Renewal Complete!'),

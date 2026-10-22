@@ -38,17 +38,15 @@ describe('push registration provenance', () => {
     expect(changed.vapidKeyId).not.toBe(original.vapidKeyId)
   })
 
-  it.each([
-    undefined,
-    'null',
-    'invalid',
-    'file:///tmp/example',
-  ])('does not invent an origin for %s', async (origin) => {
-    expect(await getPushRegistrationMetadata(origin, undefined)).toEqual({
-      origin: null,
-      vapidKeyId: null,
-    })
-  })
+  it.each([undefined, 'null', 'invalid', 'file:///tmp/example'])(
+    'does not invent an origin for %s',
+    async (origin) => {
+      expect(await getPushRegistrationMetadata(origin, undefined)).toEqual({
+        origin: null,
+        vapidKeyId: null,
+      })
+    },
+  )
 
   it('preserves compatibility with subscriptions registered before metadata existed', () => {
     expect(

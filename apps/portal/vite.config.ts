@@ -26,7 +26,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
   assertNetworkConfig(env, {
     endpoints: PORTAL_ENDPOINTS,
     allowMissingEndpoints: true,
-    rpcUrlVar: 'VITE_RPC_URL',
   })
   return {
     server: {

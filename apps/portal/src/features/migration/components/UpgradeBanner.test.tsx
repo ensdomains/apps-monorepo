@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { createTestWrapper } from '@/test-utils/providers'
 import { UpgradeBanner } from './UpgradeBanner'
 
 describe('UpgradeBanner', () => {
   it('offers a plain upgrade for a name that is not wrapped', () => {
-    render(<UpgradeBanner name="jooooe.eth" />)
+    render(<UpgradeBanner name="jooooe.eth" />, {
+      wrapper: createTestWrapper(),
+    })
 
     expect(
       screen.getByText(/reserved on ENS v2 until it is upgraded/),
@@ -18,7 +21,9 @@ describe('UpgradeBanner', () => {
   // An unlocked wrapped name leaves the NameWrapper as part of the upgrade, so
   // the banner says so and the CTA names both steps.
   it('tells the holder of a wrapped name it is unwrapped on the way', () => {
-    render(<UpgradeBanner name="jooooe.eth" isWrapped />)
+    render(<UpgradeBanner name="jooooe.eth" isWrapped />, {
+      wrapper: createTestWrapper(),
+    })
 
     expect(
       screen.getByText(

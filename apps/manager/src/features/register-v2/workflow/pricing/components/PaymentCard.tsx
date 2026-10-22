@@ -1,5 +1,10 @@
 import { Trans } from '@lingui/react/macro'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useConnection } from 'wagmi'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
@@ -14,7 +19,9 @@ import { useConnectModal } from '@/lib/wallet'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
+import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { useCheckoutWarmup } from '../useCheckoutWarmup'
 import { AnimatedPrice } from './AnimatedPrice'
 import {
   PaymentCardBaseLine,
@@ -54,7 +61,21 @@ export const PaymentCard = () => {
     BigInt(duration),
   )
 
-  const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
+  // The chooser opens once its figures are cached, so it does not open on the
+  // rent alone and then reflow when the funding budget lands.
+  const queryClient = useQueryClient()
+  const account = useSmartAccountContext()
+  const checkout = {
+    label,
+    durationInSeconds: BigInt(duration),
+    token: TOKENS.USDC.symbol,
+    account,
+  }
+  useCheckoutWarmup(checkout)
+  const openTokenPicker = useMutation({
+    mutationFn: () => warmRegistrationCheckout(queryClient, checkout),
+    onSettled: () => uiActor.send({ type: 'pricing.step.next' }),
+  })
 
   return (
     <>
@@ -64,7 +85,8 @@ export const PaymentCard = () => {
         canNext={canNext}
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-        onNext={() => gate(openTokenPicker)}
+        isPreparing={openTokenPicker.isPending}
+        onNext={() => gate(() => openTokenPicker.mutate())}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
       />
@@ -83,9 +105,12 @@ export const PaymentCardBase = ({
   basePrice,
   type,
   connectionSource = 'smart-account',
+  isPreparing = false,
 }: {
   canNext: boolean
   onNext: () => void
+  /** The chooser's figures are being fetched; the button shows it and waits. */
+  readonly isPreparing?: boolean
   amount: number | undefined
   discountAmount?: number
   premiumAmount?: number
@@ -166,11 +191,16 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={!canNext}
+            disabled={!canNext || isPreparing}
+            loading={isPreparing}
             onClick={onNext}
             size="lg"
           >
-            <Trans>Pay with stablecoins</Trans>
+            {isPreparing ? (
+              <Trans>Preparing checkout...</Trans>
+            ) : (
+              <Trans>Pay with stablecoins</Trans>
+            )}
           </Button>
         ) : (
           <Button

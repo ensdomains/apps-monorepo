@@ -4,6 +4,10 @@ import { withTimeout } from './withTimeout'
 
 const PREFLIGHT_TIMEOUT_MS = 15000
 const MULTICALL_BATCH_SIZE = 5000
+// A `batch.multicall` client merges concurrent multicalls (all three preflight
+// checks) into one aggregate3, split once its calldata passes this many bytes:
+// a chunk's worth of single-uint256 calls (4-byte selector + 32-byte word).
+export const MULTICALL_BATCH_BYTES = MULTICALL_BATCH_SIZE * 36
 
 type MulticallFailure = {
   status: 'failure'
@@ -28,7 +32,7 @@ export const batchedMulticall = async <T>(
         multicall(publicClient, {
           contracts: chunk,
           allowFailure: true,
-          batchSize: 0,
+          batchSize: MULTICALL_BATCH_BYTES,
         }),
         PREFLIGHT_TIMEOUT_MS,
       ),

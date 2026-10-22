@@ -46,12 +46,14 @@ describe('getRendererSandbox', () => {
     )
   })
 
-  it.each([
-    trustedRendererOrigin,
-    'https://RENDERER.example:443/',
-  ])('keeps a renderer on the app origin isolated: %s', (appOrigin) => {
-    expect(getRendererSandbox({ ...defaults, appOrigin })).toBe('allow-scripts')
-  })
+  it.each([trustedRendererOrigin, 'https://RENDERER.example:443/'])(
+    'keeps a renderer on the app origin isolated: %s',
+    (appOrigin) => {
+      expect(getRendererSandbox({ ...defaults, appOrigin })).toBe(
+        'allow-scripts',
+      )
+    },
+  )
 
   it.each([
     {
@@ -62,9 +64,12 @@ describe('getRendererSandbox', () => {
     { rendererUrl: 'blob:https://renderer.example/preview' },
     { trustedRendererOrigin: 'blob:https://renderer.example/preview' },
     { appOrigin: 'file:///preview.html' },
-  ])('keeps non-HTTPS renderers and opaque app origins isolated: %j', (overrides) => {
-    expect(getRendererSandbox({ ...defaults, ...overrides })).toBe(
-      'allow-scripts',
-    )
-  })
+  ])(
+    'keeps non-HTTPS renderers and opaque app origins isolated: %j',
+    (overrides) => {
+      expect(getRendererSandbox({ ...defaults, ...overrides })).toBe(
+        'allow-scripts',
+      )
+    },
+  )
 })

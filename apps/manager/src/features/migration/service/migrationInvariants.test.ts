@@ -66,20 +66,23 @@ describe('assertRequiredMigrationContractCode', () => {
     'UserRegistryImpl',
     'WrapperRegistryImpl',
     'MigrationHelper',
-  ] as const)('blocks when required %s code is missing', async (contractName) => {
-    const publicClient = makePublicClient()
-    vi.mocked(publicClient.getCode).mockResolvedValue(undefined)
-    await expect(
-      assertRequiredMigrationContractCode({
-        publicClient,
-        contracts: [contractName],
-      }),
-    ).rejects.toMatchObject({
-      invariant: 'missing-code',
-      contractName,
-      address: V2_CONTRACTS[contractName],
-    })
-  })
+  ] as const)(
+    'blocks when required %s code is missing',
+    async (contractName) => {
+      const publicClient = makePublicClient()
+      vi.mocked(publicClient.getCode).mockResolvedValue(undefined)
+      await expect(
+        assertRequiredMigrationContractCode({
+          publicClient,
+          contracts: [contractName],
+        }),
+      ).rejects.toMatchObject({
+        invariant: 'missing-code',
+        contractName,
+        address: V2_CONTRACTS[contractName],
+      })
+    },
+  )
 
   it('does not read code for an empty dependency set', async () => {
     const publicClient = makePublicClient()

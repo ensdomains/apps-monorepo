@@ -69,18 +69,21 @@ describe('getResumeTarget', () => {
     'submittingRhinestoneBundle',
     'waitingForRhinestoneBundle',
     'verifyingRegistration',
-  ])('routes stage %s to verification even without a registrationTxId', (stage) => {
-    // The tab can close between the submit request going out and the txId
-    // landing in context; the intent still fills server-side.
-    expect(
-      getResumeTarget({
-        stage,
-        context: persisted({
-          commitment: { commitment: COMMITMENT, secret: SECRET },
+  ])(
+    'routes stage %s to verification even without a registrationTxId',
+    (stage) => {
+      // The tab can close between the submit request going out and the txId
+      // landing in context; the intent still fills server-side.
+      expect(
+        getResumeTarget({
+          stage,
+          context: persisted({
+            commitment: { commitment: COMMITMENT, secret: SECRET },
+          }),
         }),
-      }),
-    ).toBe('verifyingRegistration')
-  })
+      ).toBe('verifyingRegistration')
+    },
+  )
 
   it('routes a stored commitment to on-chain validation', () => {
     expect(
