@@ -1,83 +1,110 @@
 /** @jsxImportSource react */
 import {
   Body,
+  Column,
   Container,
   Head,
   Heading,
   Html,
   Img,
   Preview,
+  Row,
   Section,
   Text,
 } from '@react-email/components'
 import type { CSSProperties, ReactNode } from 'react'
 import { type EmailContext, isTestnet, networkLabel } from '../context.js'
 
-// Interim house style, pending the design team's pass. Brand values come from
-// the manager theme; fonts fall back to web-safe faces because mail clients
-// do not load ENS's own.
+// Values from the manager app's theme (quartz greys, signal danger). Only what
+// every mail client renders is relied on: table layout, background colours,
+// borders and two font weights. Rounded corners and the shadow are extras that
+// Outlook and Gmail drop, so the border is what separates the card.
 const COLOR = {
-  ink: '#02293b',
-  body: '#5a6670',
-  muted: '#7a858c',
-  rule: '#e6eaec',
-  lapis: '#0080bc',
-  testnetName: '#674d49',
-  testnetBanner: '#f8f6d6',
+  ink: '#191919',
+  body: '#515151',
+  muted: '#7d7d7d',
+  rule: '#ebeae8',
+  canvas: '#faf9f7',
+  cardBorder: '#e3e2df',
+  danger: '#c82e1f',
+  testnetText: '#674d49',
+  testnetBackground: '#f8f6d6',
 } as const
+// Mail clients do not load ENS's own fonts reliably, so the layout is designed
+// for the web-safe faces it falls back to. Bold is 700: a 500 weight renders
+// as regular in Arial.
 const SANS = 'Helvetica, Arial, sans-serif'
-const SERIF = "Georgia, 'Times New Roman', serif"
 const MONO = "Menlo, Consolas, 'Courier New', monospace"
-const GUTTER = '48px'
+const CARD_WIDTH = 552
+const GUTTER = '32px'
 
 const bodyStyle: CSSProperties = {
-  backgroundColor: '#ffffff',
-  color: COLOR.ink,
-  fontFamily: SANS,
   margin: 0,
+  backgroundColor: COLOR.canvas,
+  fontFamily: SANS,
+  color: COLOR.ink,
 }
 const containerStyle: CSSProperties = {
-  maxWidth: '600px',
+  maxWidth: `${CARD_WIDTH}px`,
   margin: '0 auto',
-  padding: '44px 0 36px',
+  padding: '28px 12px 32px',
 }
-const columnStyle: CSSProperties = { padding: `0 ${GUTTER}` }
-// Spacing lives on block elements: Gmail and Outlook drop negative margins
-// and vertical margins on inline ones.
-const logoStyle: CSSProperties = { margin: '0 auto 34px' }
-const testnetLogoStyle: CSSProperties = { margin: '0 auto 20px' }
-const bannerRowStyle: CSSProperties = {
-  margin: '0 0 22px',
-  textAlign: 'center',
+const cardStyle: CSSProperties = {
+  backgroundColor: '#ffffff',
+  border: `1px solid ${COLOR.cardBorder}`,
+  borderRadius: '12px',
+  borderCollapse: 'separate',
+  boxShadow: '0 4px 24px rgba(7, 28, 47, 0.07)',
 }
-const bannerStyle: CSSProperties = {
+// The app's testnet notice colours, which read on every theme's header.
+// Outlook drops the rounding and padding and shows a highlighted label instead.
+const testnetPillStyle: CSSProperties = {
   display: 'inline-block',
-  padding: '4px 12px',
+  padding: '3px 10px',
   borderRadius: '999px',
-  backgroundColor: COLOR.testnetBanner,
-  color: COLOR.testnetName,
-  fontSize: '13px',
-  lineHeight: '20px',
+  backgroundColor: COLOR.testnetBackground,
+  color: COLOR.testnetText,
+  fontSize: '11px',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  lineHeight: '16px',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
 }
-const headingStyle: CSSProperties = {
-  margin: '0 0 20px',
-  color: COLOR.ink,
-  fontFamily: SERIF,
-  fontSize: '34px',
-  fontWeight: 400,
-  lineHeight: '38px',
-  textAlign: 'center',
+const logoStyle: CSSProperties = { display: 'block', border: 0 }
+// Fluid so the header scales down on phones; the width attribute keeps
+// Outlook, which ignores max-width, at the card's width.
+const patternStyle: CSSProperties = {
+  display: 'block',
+  width: '100%',
+  maxWidth: '550px',
+  height: 'auto',
+  border: 0,
 }
 const nameStyle: CSSProperties = {
-  display: 'inline-block',
-  padding: '9px 16px',
-  borderRadius: '6px',
+  margin: 0,
+  padding: `0 ${GUTTER} 24px`,
   color: '#ffffff',
   fontFamily: MONO,
-  fontSize: '21px',
-  fontWeight: 700,
-  lineHeight: '26px',
+  fontSize: '26px',
+  lineHeight: '32px',
   wordBreak: 'break-all',
+}
+const contentStyle: CSSProperties = { padding: `28px ${GUTTER} 30px` }
+const headingStyle: CSSProperties = {
+  margin: '0 0 12px',
+  color: COLOR.ink,
+  fontFamily: SANS,
+  fontSize: '26px',
+  fontWeight: 400,
+  lineHeight: '32px',
+}
+const subheadingStyle: CSSProperties = {
+  margin: '0 0 8px',
+  color: COLOR.ink,
+  fontSize: '16px',
+  fontWeight: 700,
+  lineHeight: '24px',
 }
 // Long ENS names repeat inside sentences; break them only where they would
 // overflow, so ordinary words still wrap whole.
@@ -87,109 +114,228 @@ const wrapLongWords: CSSProperties = {
 }
 const paragraphStyle: CSSProperties = {
   ...wrapLongWords,
-  margin: '0 0 20px',
+  margin: '0 0 14px',
   color: COLOR.body,
   fontSize: '16px',
   lineHeight: '24px',
 }
-const detailStyle: CSSProperties = { ...paragraphStyle, margin: '0 0 6px' }
-const detailValueStyle: CSSProperties = { color: COLOR.ink }
-const actionStyle: CSSProperties = {
-  ...columnStyle,
-  marginTop: '30px',
-  paddingTop: '26px',
-  paddingBottom: '26px',
-  borderTop: `1px solid ${COLOR.rule}`,
+const factsStyle: CSSProperties = {
+  margin: '22px 0 26px',
   borderBottom: `1px solid ${COLOR.rule}`,
-  textAlign: 'center',
 }
-const actionTitleStyle: CSSProperties = {
-  margin: '0 0 6px',
-  color: COLOR.ink,
-  fontSize: '16px',
-  lineHeight: '24px',
-}
-const actionBodyStyle: CSSProperties = {
-  ...wrapLongWords,
-  margin: 0,
-  color: COLOR.body,
+const factCellStyle: CSSProperties = {
+  padding: '11px 0',
+  borderTop: `1px solid ${COLOR.rule}`,
   fontSize: '15px',
   lineHeight: '22px',
+  verticalAlign: 'top',
+}
+const factLabelStyle: CSSProperties = { ...factCellStyle, color: COLOR.muted }
+const monoValueStyle: CSSProperties = {
+  fontFamily: MONO,
+  fontSize: '14px',
+  wordBreak: 'break-all',
+}
+const stepNumberStyle: CSSProperties = {
+  width: '22px',
+  padding: '0 0 8px',
+  color: COLOR.muted,
+  fontSize: '16px',
+  lineHeight: '24px',
+  verticalAlign: 'top',
+}
+const stepTextStyle: CSSProperties = {
+  ...wrapLongWords,
+  padding: '0 0 8px',
+  color: COLOR.body,
+  fontSize: '16px',
+  lineHeight: '24px',
 }
 const appHostStyle: CSSProperties = {
   color: COLOR.ink,
   fontFamily: MONO,
-  fontSize: '14px',
+  fontSize: '15px',
 }
-const footerStyle: CSSProperties = {
-  ...columnStyle,
-  paddingTop: '26px',
-  textAlign: 'center',
+const codeStyle: CSSProperties = {
+  margin: '4px 0 16px',
+  color: COLOR.ink,
+  fontFamily: MONO,
+  fontSize: '44px',
+  letterSpacing: '6px',
+  lineHeight: '52px',
 }
+const footerStyle: CSSProperties = { padding: '20px 4px 0' }
 const footerTextStyle: CSSProperties = {
-  margin: '0 0 10px',
+  ...wrapLongWords,
+  margin: '0 0 8px',
   color: COLOR.muted,
   fontSize: '13px',
   lineHeight: '20px',
 }
-const noLinksStyle: CSSProperties = { ...footerTextStyle, color: COLOR.ink }
+const trustStyle: CSSProperties = { ...footerTextStyle, color: COLOR.ink }
+
+/**
+ * Marks a row whose cells read side by side, so the plain-text part keeps a
+ * gap between them instead of running "Expires" into its date.
+ */
+export const TEXT_COLUMNS_CLASS = 'text-columns'
 
 // Mail clients turn anything shaped like a domain into a link. An invisible
 // non-joiner after each dot defeats that, so the host stays something to
 // type. (A zero-width space would become a visible space in the text part.)
-export const ZERO_WIDTH_NON_JOINER = '\u200C'
+export const ZERO_WIDTH_NON_JOINER = '‌'
 const unlinkable = (value: string): string =>
   value.replaceAll('.', `.${ZERO_WIDTH_NON_JOINER}`)
 
+/** The manager app's host, rendered so mail clients cannot link it. */
+export const AppHost = ({
+  context,
+  quiet = false,
+}: {
+  readonly context: EmailContext
+  /** In running small print, without the monospaced emphasis. */
+  readonly quiet?: boolean
+}) => (
+  <span style={quiet ? undefined : appHostStyle}>
+    {unlinkable(context.appHost)}
+  </span>
+)
+
 export const EmailParagraph = ({
   children,
-  centered = false,
 }: {
   readonly children: ReactNode
-  readonly centered?: boolean
-}) => (
-  <Text
-    style={
-      centered ? { ...paragraphStyle, textAlign: 'center' } : paragraphStyle
-    }
-  >
-    {children}
-  </Text>
-)
+}) => <Text style={paragraphStyle}>{children}</Text>
 
-/** A labelled fact such as "Expiry date: 22 Oct 2026". */
-export const EmailDetail = ({
-  label,
-  value,
+export const EmailSubheading = ({
+  children,
+  color = COLOR.ink,
 }: {
+  readonly children: ReactNode
+  readonly color?: string
+}) => <Text style={{ ...subheadingStyle, color }}>{children}</Text>
+
+/** A labelled fact such as "Expires: 22 Oct 2026, 18:00 UTC". */
+export interface EmailFact {
   readonly label: string
   readonly value: string
-}) => (
-  <Text style={detailStyle}>
-    {label}: <span style={detailValueStyle}>{value}</span>
-  </Text>
-)
-
-/** The manager app's host, rendered so mail clients cannot link it. */
-export const AppHost = ({ context }: { readonly context: EmailContext }) => (
-  <span style={appHostStyle}>{unlinkable(context.appHost)}</span>
-)
-
-export interface EmailAction {
-  readonly title: string
-  readonly body: ReactNode
+  /** Bold, for the date the reader has to act by. */
+  readonly emphasis?: boolean
+  /** Monospaced, for addresses and hashes. */
+  readonly mono?: boolean
 }
+
+const factValueStyle = (fact: EmailFact): CSSProperties => ({
+  color: COLOR.ink,
+  fontWeight: fact.emphasis ? 700 : 400,
+  ...(fact.mono ? monoValueStyle : {}),
+})
+
+/**
+ * Facts as ruled rows. Short values sit beside their label; long ones (`stacked`)
+ * go underneath so addresses get the full width.
+ */
+export const EmailFacts = ({
+  facts,
+  stacked = false,
+}: {
+  readonly facts: readonly EmailFact[]
+  readonly stacked?: boolean
+}) => (
+  <Section style={factsStyle}>
+    {facts.map((fact) =>
+      stacked ? (
+        <Row key={fact.label}>
+          <Column style={factLabelStyle}>
+            {fact.label}
+            <br />
+            <span style={factValueStyle(fact)}>{fact.value}</span>
+          </Column>
+        </Row>
+      ) : (
+        <Row key={fact.label} className={TEXT_COLUMNS_CLASS}>
+          <Column style={factLabelStyle}>{fact.label}</Column>
+          <Column
+            align="right"
+            style={{ ...factCellStyle, ...factValueStyle(fact) }}
+          >
+            {fact.value}
+          </Column>
+        </Row>
+      ),
+    )}
+  </Section>
+)
+
+/**
+ * Directions to the app, written to be typed rather than clicked: the first
+ * step is always the address, the last is what to do once there.
+ */
+export const EmailAppSteps = ({
+  context,
+  title,
+  lastStep,
+}: {
+  readonly context: EmailContext
+  readonly title: string
+  readonly lastStep: ReactNode
+}) => {
+  const steps = [
+    <>
+      Type <AppHost context={context} /> into your browser’s address bar. Don’t
+      search for it, as search ads can impersonate ENS.
+    </>,
+    lastStep,
+  ]
+  return (
+    <>
+      <EmailSubheading>{title}</EmailSubheading>
+      <Section>
+        {steps.map((step, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the steps are a fixed, ordered list
+          <Row key={index} className={TEXT_COLUMNS_CLASS}>
+            <Column style={stepNumberStyle}>{index + 1}.</Column>
+            <Column style={stepTextStyle}>{step}</Column>
+          </Row>
+        ))}
+      </Section>
+    </>
+  )
+}
+
+export const EmailWarning = ({
+  title,
+  children,
+}: {
+  readonly title: string
+  readonly children: ReactNode
+}) => (
+  <>
+    <EmailSubheading color={COLOR.danger}>{title}</EmailSubheading>
+    <Text style={{ ...paragraphStyle, margin: 0 }}>{children}</Text>
+  </>
+)
+
+export const EmailCode = ({ code }: { readonly code: string }) => (
+  <Text style={codeStyle}>{code}</Text>
+)
+
+export const emphasis = (value: string): ReactNode => (
+  <b style={{ color: COLOR.ink }}>{value}</b>
+)
 
 interface EmailLayoutProps {
   readonly context: EmailContext
   readonly preview: string
   readonly heading: string
-  /** The ENS name the email is about, shown as a chip under the heading. */
+  /** Header colour: the name's profile theme, or grace. */
+  readonly themeColor: string
+  /** The ENS name the email is about, set in the header. */
   readonly name?: string
-  /** What to do next, written as directions rather than a link. */
-  readonly action?: EmailAction
-  /** Completes "You received this because …". */
+  /** Completes "You got this because …". */
   readonly reason: string
+  /** False for one-off emails, which have no setting to turn off. */
+  readonly canOptOut?: boolean
   readonly children: ReactNode
 }
 
@@ -197,9 +343,10 @@ export const EmailLayout = ({
   context,
   preview,
   heading,
+  themeColor,
   name,
-  action,
   reason,
+  canOptOut = true,
   children,
 }: EmailLayoutProps) => {
   const testnet = isTestnet(context)
@@ -214,62 +361,94 @@ export const EmailLayout = ({
       <Preview>{preview}</Preview>
       <Body style={bodyStyle}>
         <Container style={containerStyle}>
-          <Section style={columnStyle}>
-            <Img
-              src={context.logoUrl}
-              alt="ENS"
-              // Stops React hoisting a <link rel="preload" href> into <head>,
-              // which would put a URL in the HTML besides the image itself.
-              fetchPriority="low"
-              width="96"
-              height="30"
-              style={testnet ? testnetLogoStyle : logoStyle}
-            />
-            {testnet && (
-              <Text style={bannerRowStyle}>
-                <span style={bannerStyle}>
-                  {networkLabel(context)} testnet. These names have no real
-                  value.
-                </span>
-              </Text>
-            )}
-            <Heading as="h1" style={headingStyle}>
-              {heading}
-            </Heading>
-            {name && (
-              <Text style={{ margin: '0 0 26px', textAlign: 'center' }}>
-                <span
-                  style={{
-                    ...nameStyle,
-                    backgroundColor: testnet ? COLOR.testnetName : COLOR.lapis,
-                  }}
-                >
-                  {name}
-                </span>
-              </Text>
-            )}
-            {children}
+          <Section style={cardStyle}>
+            <Row>
+              {/* The colour is a cell background, not part of an image, so the
+                  header keeps its theme when images are blocked. */}
+              <Column
+                style={{
+                  backgroundColor: themeColor,
+                  borderRadius: '11px 11px 0 0',
+                }}
+              >
+                <Section>
+                  <Row className={TEXT_COLUMNS_CLASS}>
+                    <Column style={{ padding: `22px 0 0 ${GUTTER}` }}>
+                      <Img
+                        src={context.logoUrl}
+                        alt="ENS"
+                        // Stops React hoisting a <link rel="preload" href>
+                        // into <head>, which would put a URL in the HTML
+                        // besides the image itself.
+                        fetchPriority="low"
+                        width="72"
+                        height="22"
+                        style={logoStyle}
+                      />
+                    </Column>
+                    {testnet && (
+                      <Column
+                        align="right"
+                        style={{ padding: `22px ${GUTTER} 0 0` }}
+                      >
+                        <span style={testnetPillStyle}>
+                          {networkLabel(context)} testnet
+                        </span>
+                      </Column>
+                    )}
+                  </Row>
+                  <Row>
+                    <Column style={{ padding: '6px 0 0' }}>
+                      <Img
+                        src={context.patternUrl}
+                        alt=""
+                        fetchPriority="low"
+                        width="550"
+                        height="66"
+                        style={patternStyle}
+                      />
+                    </Column>
+                  </Row>
+                  <Row>
+                    {name ? (
+                      <Column style={nameStyle}>{name}</Column>
+                    ) : (
+                      <Column style={{ height: '20px' }} />
+                    )}
+                  </Row>
+                </Section>
+              </Column>
+            </Row>
+            <Row>
+              <Column style={contentStyle}>
+                <Heading as="h1" style={headingStyle}>
+                  {heading}
+                </Heading>
+                {children}
+              </Column>
+            </Row>
           </Section>
-          {action ? (
-            <Section style={actionStyle}>
-              <Text style={actionTitleStyle}>{action.title}</Text>
-              <Text style={actionBodyStyle}>{action.body}</Text>
-            </Section>
-          ) : (
-            <Section
-              style={{
-                marginTop: '30px',
-                borderTop: `1px solid ${COLOR.rule}`,
-              }}
-            />
-          )}
           <Section style={footerStyle}>
-            <Text style={footerTextStyle}>
-              You received this because {reason}. Manage notifications in the
-              ENS app.
+            <Text style={trustStyle}>
+              ENS emails never contain links or buttons. If an email that looks
+              like ours asks you to click something, it’s a scam.
             </Text>
-            <Text style={noLinksStyle}>
-              ENS emails never contain links. If one does, it isn’t from us.
+            {testnet && (
+              <Text style={footerTextStyle}>
+                Sent from the {networkLabel(context)} testnet. Names there have
+                no real value, and testnet data can be reset at any time.
+              </Text>
+            )}
+            <Text style={footerTextStyle}>
+              You got this because {reason}.
+              {canOptOut && (
+                <>
+                  {' '}
+                  To stop these emails, go to{' '}
+                  <AppHost context={context} quiet /> and open Notification
+                  Settings.
+                </>
+              )}
             </Text>
           </Section>
         </Container>

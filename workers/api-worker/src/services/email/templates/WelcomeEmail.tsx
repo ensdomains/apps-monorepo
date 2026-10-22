@@ -1,28 +1,40 @@
 /** @jsxImportSource react */
+import { V2_GRACE_PERIOD_DAYS } from '@ens-apps/utils/gracePeriod'
 import type { EmailContext } from '../context.js'
 import { type RenderedEmail, renderEmail } from '../render.js'
-import { AppHost, EmailLayout, EmailParagraph } from './EmailLayout.js'
+import { DEFAULT_THEME_COLOR } from '../theme.js'
+import {
+  EmailAppSteps,
+  EmailLayout,
+  EmailParagraph,
+  EmailSubheading,
+  emphasis,
+} from './EmailLayout.js'
 
+// The first email people read closely, so it teaches how to tell a real ENS
+// email from a fake one; later emails only repeat the rule in the footer.
 const WelcomeEmail = ({ context }: { readonly context: EmailContext }) => (
   <EmailLayout
     context={context}
     preview="Your email is verified for ENS notifications"
     heading="You’re all set"
-    action={{
-      title: 'Choose what you hear about',
-      body: (
-        <>
-          Go to <AppHost context={context} /> in your browser and open
-          Notification Settings.
-        </>
-      ),
-    }}
+    themeColor={DEFAULT_THEME_COLOR}
     reason="you verified this address in the ENS app"
   >
-    <EmailParagraph centered>
+    <EmailParagraph>
       Your email is verified. We’ll let you know before your names expire and
-      when one is transferred.
+      while they’re in their {V2_GRACE_PERIOD_DAYS}-day grace period.
     </EmailParagraph>
+    <EmailSubheading>How to tell an email is from us</EmailSubheading>
+    <EmailParagraph>
+      Our emails never contain links or buttons. We’ll never ask you to sign
+      anything, connect your wallet or share your recovery phrase from an email.
+    </EmailParagraph>
+    <EmailAppSteps
+      context={context}
+      title="To choose what you hear about"
+      lastStep={<>Open {emphasis('Notification Settings')}.</>}
+    />
   </EmailLayout>
 )
 
