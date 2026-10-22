@@ -665,12 +665,13 @@ export const SmartAccountContextProvider = ({
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
 
-  const dropRevokedSession = useCallback(() => setActiveSession(null), [])
   const isActiveSessionRevoked = useSessionRevocationWatch({
     activeSession,
     accountAddress,
+    ownerAddress: sessionOwnerAddress,
+    chainId: appChain.id,
     publicClient: wagmiPublicClient as PublicClient | undefined,
-    onRevoked: dropRevokedSession,
+    onRevoked: setActiveSession,
   })
 
   // Authorize (or reuse) a session and return a signer carrying it. With

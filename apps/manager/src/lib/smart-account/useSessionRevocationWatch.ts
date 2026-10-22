@@ -1,52 +1,66 @@
 import {
+  getValidSessionForAccount,
   type RhinestoneStoredSession,
-  readHcaSessionNonce,
   removeSession,
 } from '@ens-apps/smart-account'
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { isSessionRevokedOnChain } from './sessionGate'
-
-// A revoke elsewhere shows up on the next read; the gate re-checks before any signature anyway.
-const SESSION_NONCE_STALE_TIME_MS = 30_000
+import {
+  isSessionRevokedOnChain,
+  resolveSessionAfterRevocation,
+} from './sessionGate'
+import { getSessionNonceQueryOptions } from './sessionNonce.query'
 
 /**
  * A stored session may have been revoked from another browser or device: the
- * chain's nonce is the only record. Reads it while a session is held, and
- * forgets the session once its nonce falls behind so the gate re-prompts.
+ * chain's nonce is the only record. Reads it while a session is held, and once
+ * the held session's nonce falls behind hands back what to hold instead: a
+ * newer session another tab has stored since, or nothing.
  */
 export const useSessionRevocationWatch = (params: {
   readonly activeSession: RhinestoneStoredSession | null
   readonly accountAddress: Address | null
+  readonly ownerAddress: Address | null
+  readonly chainId: number
   readonly publicClient: PublicClient | undefined
-  readonly onRevoked: () => void
+  readonly onRevoked: (next: RhinestoneStoredSession | null) => void
 }): boolean => {
-  const { activeSession, accountAddress, publicClient, onRevoked } = params
-  const isWatching = !!activeSession && !!accountAddress && !!publicClient
+  const {
+    activeSession,
+    accountAddress,
+    ownerAddress,
+    chainId,
+    publicClient,
+    onRevoked,
+  } = params
 
   const nonceQuery = useQuery({
-    queryKey: $qk({
-      $scope: 'smart-account',
-      $action: 'session-nonce',
-      hca: accountAddress,
-    }),
-    queryFn: () =>
-      accountAddress && publicClient
-        ? readHcaSessionNonce(publicClient, accountAddress)
-        : null,
-    enabled: isWatching,
-    staleTime: SESSION_NONCE_STALE_TIME_MS,
+    ...getSessionNonceQueryOptions({ accountAddress, publicClient }),
+    enabled: !!activeSession && !!accountAddress && !!publicClient,
   })
+  const onChainNonce = nonceQuery.data
 
-  const isRevoked = isSessionRevokedOnChain(activeSession, nonceQuery.data)
+  const isRevoked = isSessionRevokedOnChain(activeSession, onChainNonce)
 
   useEffect(() => {
-    if (!isRevoked || !accountAddress) return
-    removeSession(accountAddress)
-    onRevoked()
-  }, [isRevoked, accountAddress, onRevoked])
+    if (!isRevoked || !accountAddress || !ownerAddress) return
+    // Storage is shared across tabs: another tab may have enabled a newer
+    // session since, which must be adopted rather than deleted.
+    const next = resolveSessionAfterRevocation(
+      getValidSessionForAccount({ accountAddress, ownerAddress, chainId }),
+      onChainNonce,
+    )
+    if (!next) removeSession(accountAddress)
+    onRevoked(next)
+  }, [
+    isRevoked,
+    accountAddress,
+    ownerAddress,
+    chainId,
+    onChainNonce,
+    onRevoked,
+  ])
 
   return isRevoked
 }

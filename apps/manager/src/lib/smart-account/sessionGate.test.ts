@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isSessionRevokedOnChain,
   needsSessionBeforeRegistration,
+  resolveSessionAfterRevocation,
   resolveVerifiedOwner,
   sessionHydrationKey,
 } from './sessionGate'
@@ -173,5 +174,16 @@ describe('isSessionRevokedOnChain', () => {
     )
     expect(isSessionRevokedOnChain({ hcaSessionNonce: '0' }, null)).toBe(false)
     expect(isSessionRevokedOnChain(null, 5n)).toBe(false)
+  })
+})
+
+describe('resolveSessionAfterRevocation', () => {
+  it('keeps a newer session another tab stored, drops a revoked or missing one', () => {
+    const newer = { hcaSessionNonce: '1' }
+    expect(resolveSessionAfterRevocation(newer, 1n)).toBe(newer)
+    expect(
+      resolveSessionAfterRevocation({ hcaSessionNonce: '0' }, 1n),
+    ).toBeNull()
+    expect(resolveSessionAfterRevocation(null, 1n)).toBeNull()
   })
 })

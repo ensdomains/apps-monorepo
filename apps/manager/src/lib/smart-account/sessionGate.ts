@@ -112,3 +112,14 @@ export function isSessionRevokedOnChain(
   }
   return BigInt(session.hcaSessionNonce) < onChainNonce
 }
+
+/**
+ * What to hold once the held session proves revoked: the stored session if it
+ * is a newer one (another tab enabled it after the revoke), else nothing.
+ */
+export function resolveSessionAfterRevocation<
+  T extends { readonly hcaSessionNonce: string },
+>(stored: T | null, onChainNonce: bigint | null | undefined): T | null {
+  if (!stored || isSessionRevokedOnChain(stored, onChainNonce)) return null
+  return stored
+}

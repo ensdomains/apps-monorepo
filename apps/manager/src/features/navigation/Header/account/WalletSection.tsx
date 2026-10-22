@@ -2,6 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -49,10 +50,11 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     onAction()
   }
 
-  // The one ENABLE signature; a declined or failed prompt leaves the row as is.
+  // The one ENABLE signature. A decline leaves the row as is; a failure says why.
   const handleEnableSessions = async () => {
-    const enabled = await enableSession()
-    if (enabled) onAction()
+    const outcome = await enableSession()
+    if (outcome.status === 'enabled') onAction()
+    if (outcome.status === 'failed') toast.error(outcome.message)
   }
 
   return (
