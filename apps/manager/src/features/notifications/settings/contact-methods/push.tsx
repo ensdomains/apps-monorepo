@@ -2,7 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
@@ -15,14 +15,10 @@ import {
 } from '@/features/notifications/data/queries/push'
 import type { PushErrorCode } from '@/features/notifications/types/push'
 import { ContactMethodCard } from './contact-method-card'
+import { pushErrorCopy } from './push-error-copy'
 
 type PushContactMethodProps = {
   pushChannels: Channel[]
-}
-
-type PushErrorCopy = {
-  readonly title: string
-  readonly description: string
 }
 
 const isPushChannelWithEndpointHash = (
@@ -38,80 +34,32 @@ const isPushChannelWithEndpointHash = (
 export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
   const { t } = useLingui()
   const queryClient = useQueryClient()
-  const [lastEnableErrorCode, setLastEnableErrorCode] =
-    useState<PushErrorCode | null>(null)
+  const [lastEnableError, setLastEnableError] = useState<{
+    readonly code: PushErrorCode
+    readonly permission: NotificationPermission
+    readonly endpointHash: string | null
+  } | null>(null)
 
   const browserState = useQuery(browserPushStateQueryOptions)
-
-  // Translates a machine-readable PushErrorCode into concrete, actionable
-  // guidance (e.g. step-by-step instructions to re-enable Brave's push
-  // service) instead of a generic failure message or a raw error tag.
-  const pushErrorCopy = (
-    code: PushErrorCode,
-    action: 'enable' | 'disable',
-  ): PushErrorCopy =>
-    match(code)
-      .returnType<PushErrorCopy>()
-      .with('not-supported', () => ({
-        title: t`Notifications aren't supported in this browser`,
-        description: t`This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead.`,
-      }))
-      .with('brave-push-disabled', () => ({
-        title: t`Brave's push service is turned off`,
-        description: t`Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again.`,
-      }))
-      .with('push-service-unavailable', () => ({
-        title: t`No push service is available in this browser`,
-        description: t`Your browser can't reach a push delivery service. Check your browser's push settings, then try again.`,
-      }))
-      .with('browser-blocked', () => ({
-        title: t`Notifications are blocked for this site`,
-        description: t`To enable, go to your browser's site settings for this page and allow notifications, then try again.`,
-      }))
-      .with('request-blocked', () => ({
-        title: t`The notification prompt was blocked`,
-        description: t`Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again.`,
-      }))
-      .with('permission-dismissed', () => ({
-        title: t`The notification prompt was dismissed`,
-        description: t`Try again and allow notifications when your browser asks.`,
-      }))
-      .with('service-worker', () => ({
-        title: t`Notifications couldn't be set up`,
-        description: t`This app needs its notification service worker to receive push messages. Reload the page and try again.`,
-      }))
-      .with('subscription-timeout', () => ({
-        title: t`Setting up notifications timed out`,
-        description: t`Your browser took too long to register for push messages. Check your connection, then try again.`,
-      }))
-      .with('invalid-server-key', () => ({
-        title: t`Notifications are misconfigured`,
-        description: t`The notification service returned an invalid key. Please try again later.`,
-      }))
-      .with(P.union('server', 'unknown'), () =>
-        action === 'enable'
-          ? {
-              title: t`Couldn't enable notifications`,
-              description: t`Something went wrong while setting up browser notifications. Please try again.`,
-            }
-          : {
-              title: t`Couldn't disable notifications`,
-              description: t`Something went wrong while turning off browser notifications. Please try again.`,
-            },
-      )
-      .exhaustive()
 
   const enableMutation = useMutation({
     ...enableBrowserPushMutationOptions,
     onSuccess: () => {
-      setLastEnableErrorCode(null)
+      setLastEnableError(null)
       toast.success(t`Browser notifications enabled`)
       browserState.refetch()
     },
     onError: (error) => {
       console.error(error)
       const code = getPushErrorCode(error)
-      setLastEnableErrorCode(code)
+      // Snapshot the browser state at failure time so the persistent alert
+      // can stop showing guidance that the user has already outrun (e.g.
+      // they changed the site permission in browser settings since then)
+      setLastEnableError({
+        code,
+        permission: browserState.data?.permission ?? 'default',
+        endpointHash: browserState.data?.endpointHash ?? null,
+      })
       const { title, description } = pushErrorCopy(code, 'enable')
       toast.error(title, { description })
       browserState.refetch()
@@ -121,6 +69,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
   const disableMutation = useMutation({
     ...disableBrowserPushMutationOptions(queryClient),
     onSuccess: () => {
+      setLastEnableError(null)
       toast.success(t`Browser notifications disabled`)
       browserState.refetch()
     },
@@ -172,11 +121,20 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
   const showEnableButton = isSupported && permission === 'default'
 
   // Persistent guidance for the last failed enable, complementing the toast
-  // (which disappears). Skip codes that the "Notifications blocked" alert
-  // already covers once the state refetch lands.
+  // (which disappears). It hides again when the user has outrun the guidance:
+  // either the failure-time snapshot no longer matches the current browser
+  // state (e.g. they changed the site permission in browser settings), or the
+  // state-driven "Notifications blocked" banner is already on screen with the
+  // same instructions. The suppression is keyed on the rendered condition,
+  // not on the error code, so a blocked subscription attempt while the
+  // permission is still 'default' (api-level block, permissions policy, ...)
+  // keeps its alert instead of losing all guidance.
   const lastEnableErrorCopy =
-    lastEnableErrorCode && lastEnableErrorCode !== 'browser-blocked'
-      ? pushErrorCopy(lastEnableErrorCode, 'enable')
+    lastEnableError &&
+    browserState.data?.permission === lastEnableError.permission &&
+    browserState.data?.endpointHash === lastEnableError.endpointHash &&
+    !(isSupported && permission === 'denied')
+      ? pushErrorCopy(lastEnableError.code, 'enable')
       : undefined
 
   return (

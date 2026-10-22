@@ -197,6 +197,53 @@ describe('push notification service', () => {
       expect(subscribeFn).toHaveBeenCalledOnce()
     })
 
+    it('replaces a stale subscription created with a different server key', async () => {
+      // 'dGVzdA' decodes to [0x74, 0x65, 0x73, 0x74]
+      let unsubscribeCalled = false
+      const unsubscribeFn = vi.fn(() => {
+        unsubscribeCalled = true
+        return Promise.resolve(true)
+      })
+      const subscription = {
+        ...createMockSubscription(),
+        options: {
+          applicationServerKey: new Uint8Array([1, 2, 3]),
+        },
+        unsubscribe: unsubscribeFn,
+      } as unknown as PushSubscription
+      const subscribeFn = vi.fn(() => {
+        if (unsubscribeCalled) {
+          return Promise.resolve(subscription)
+        }
+        return Promise.reject(new Error('should have replaced first'))
+      })
+
+      stubPushEnvironment({ subscription, subscribeFn })
+
+      const result = await createPushSubscriptionResult('dGVzdA')
+      expect(result.isOk()).toBe(true)
+      expect(unsubscribeFn).toHaveBeenCalledOnce()
+      expect(subscribeFn).toHaveBeenCalledOnce()
+    })
+
+    it('keeps a subscription whose server key matches the request', async () => {
+      const subscription = {
+        ...createMockSubscription(),
+        options: {
+          applicationServerKey: new Uint8Array([116, 101, 115, 116]),
+        },
+        unsubscribe: vi.fn(),
+      } as unknown as PushSubscription
+      const subscribeFn = vi.fn().mockResolvedValue(subscription)
+
+      stubPushEnvironment({ subscription, subscribeFn })
+
+      const result = await createPushSubscriptionResult('dGVzdA')
+      expect(result.isOk()).toBe(true)
+      expect(subscription.unsubscribe).not.toHaveBeenCalled()
+      expect(subscribeFn).toHaveBeenCalledOnce()
+    })
+
     it('returns error when subscribe throws', async () => {
       stubPushEnvironment({
         subscribeFn: vi.fn().mockRejectedValue(new Error('subscribe failed')),

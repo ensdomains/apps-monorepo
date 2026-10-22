@@ -264,9 +264,28 @@ const PUSH_SUBSCRIBE_TIMEOUT_PATTERN = /did not return within timeout period/i
 const isBraveBrowser = () =>
   typeof navigator !== 'undefined' && 'brave' in navigator
 
+const causeNameOf = (cause: unknown): string | undefined => {
+  if (typeof cause !== 'object' || cause === null) {
+    return undefined
+  }
+  const name = (cause as { name?: unknown }).name
+  return typeof name === 'string' ? name : undefined
+}
+
+const causeMessageOf = (cause: unknown): string => {
+  if (typeof cause !== 'object' || cause === null) {
+    return ''
+  }
+  const message = (cause as { message?: unknown }).message
+  return typeof message === 'string' ? message : ''
+}
+
 const causeToPushErrorCode = (cause: unknown): PushErrorCode => {
-  const name = cause instanceof Error ? cause.name : undefined
-  const message = cause instanceof Error ? cause.message : ''
+  // Duck-type instead of `instanceof Error`: rejections may be non-Error
+  // values ({ name, message } objects) or Errors from another realm (e.g.
+  // iframes), where `instanceof` is realm-local and fails
+  const name = causeNameOf(cause)
+  const message = causeMessageOf(cause)
 
   // "PushManager.subscribe did not return within timeout period" (our own
   // 15s watchdog in createPushSubscriptionResult)

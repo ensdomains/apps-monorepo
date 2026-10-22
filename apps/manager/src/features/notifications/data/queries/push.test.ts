@@ -300,7 +300,10 @@ describe('push query orchestration', () => {
     await expect(mutationFn(undefined, mutationContext)).rejects.toMatchObject({
       _tag: 'PushChannelRequestError',
     })
-    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    // Two unsubscribes: one replacing the stale pre-existing subscription
+    // (created without our server key) and the rollback after the failed
+    // channel creation
+    expect(subscription.unsubscribe).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -415,5 +418,32 @@ describe('getPushErrorCode', () => {
   it('returns unknown for unrecognised errors', () => {
     expect(getPushErrorCode(null)).toBe('unknown')
     expect(getPushErrorCode(new Error('regular error'))).toBe('unknown')
+  })
+
+  it('duck-types non-Error causes so name/message heuristics survive', () => {
+    const error = {
+      _tag: 'PushSubscriptionError',
+      cause: { name: 'NotAllowedError', message: 'Registration failed' },
+    }
+    expect(getPushErrorCode(error)).toBe('browser-blocked')
+
+    const braveError = {
+      _tag: 'PushSubscriptionError',
+      cause: { name: 'AbortError', message: 'no push service available' },
+    }
+    expect(getPushErrorCode(braveError)).toBe('push-service-unavailable')
+  })
+
+  it('maps tags with no cause to unknown', () => {
+    expect(getPushErrorCode({ _tag: 'PushSubscriptionInvalidError' })).toBe(
+      'unknown',
+    )
+    expect(getPushErrorCode({ _tag: 'PushHashEndpointError' })).toBe('unknown')
+  })
+
+  it('returns server for backend channel errors', () => {
+    expect(getPushErrorCode({ _tag: 'ChannelNotFoundForEndpointError' })).toBe(
+      'server',
+    )
   })
 })
