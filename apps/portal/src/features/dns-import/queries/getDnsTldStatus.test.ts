@@ -56,13 +56,13 @@ describe('getDnsTldStatus', () => {
     expect(result._unsafeUnwrap()).toEqual({ type: 'standard' })
   })
 
-  it('is custom when the TLD operator claimed the node (.hiphop)', async () => {
+  it('is custom when the TLD operator claimed the node', async () => {
     getOwnerMock.mockResolvedValue({
       owner: CUSTOM_REGISTRAR,
       ownershipLevel: 'registry',
     })
 
-    const result = await getDnsTldStatus({ tld: 'hiphop' })
+    const result = await getDnsTldStatus({ tld: 'xyz' })
 
     expect(result._unsafeUnwrap()).toEqual({
       type: 'custom',
@@ -70,15 +70,13 @@ describe('getDnsTldStatus', () => {
     })
   })
 
-  it('is custom for a TLD on the docs list even where the node is still the DNSRegistrar', async () => {
-    getOwnerMock.mockResolvedValue({
-      owner: DNS_REGISTRAR,
-      ownershipLevel: 'registry',
-    })
+  it('is custom for a TLD on the docs list without reading the node', async () => {
+    getOwnerMock.mockRejectedValue(new Error('rpc down'))
 
     const result = await getDnsTldStatus({ tld: 'hiphop' })
 
     expect(result._unsafeUnwrap()).toEqual({ type: 'custom', registrar: null })
+    expect(getOwnerMock).not.toHaveBeenCalled()
   })
 
   it('propagates read failures as GetDnsTldStatusError', async () => {

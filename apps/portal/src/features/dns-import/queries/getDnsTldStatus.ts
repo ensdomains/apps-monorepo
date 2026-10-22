@@ -23,7 +23,7 @@ export class GetDnsTldStatusError extends TaggedError('GetDnsTldStatusError')<{
  */
 export type DnsTldStatus =
   | { readonly type: 'standard' }
-  /** `registrar` is null on a chain where the operator has not claimed the node (testnets). */
+  /** `registrar` is null for a listed TLD, which is blocked without reading the node. */
   | { readonly type: 'custom'; readonly registrar: Address | null }
 
 /** TLDs the docs list as custom integrations; blocked on every chain, as the current App does. */
@@ -44,6 +44,10 @@ type GetDnsTldStatusParameters = {
 export const getDnsTldStatus = ResultFn(async function* ({
   tld,
 }: GetDnsTldStatusParameters) {
+  if (CUSTOM_DNS_TLDS.has(tld.toLowerCase())) {
+    return ok<DnsTldStatus>({ type: 'custom', registrar: null })
+  }
+
   const client = yield* safeGetClient()
 
   const ownerData = yield* fromPromise(
@@ -59,18 +63,13 @@ export const getDnsTldStatus = ResultFn(async function* ({
 
   // An unset TLD node is standard too: proveAndClaim enables it on first
   // claim, as long as the PublicSuffixList accepts the suffix.
-  const isStandardOwner =
+  if (
     !owner ||
     isAddressEqual(owner, zeroAddress) ||
     isAddressEqual(owner, dnsRegistrar)
-
-  if (CUSTOM_DNS_TLDS.has(tld.toLowerCase())) {
-    return ok<DnsTldStatus>({
-      type: 'custom',
-      registrar: isStandardOwner ? null : owner,
-    })
+  ) {
+    return ok<DnsTldStatus>({ type: 'standard' })
   }
-  if (isStandardOwner) return ok<DnsTldStatus>({ type: 'standard' })
 
   return ok<DnsTldStatus>({ type: 'custom', registrar: owner })
 })
