@@ -16,27 +16,51 @@ describe('validateRpcUrl', () => {
     ['ftp://rpc.example.com', false],
     ['javascript:alert(1)', false],
     ['https://user:pass@rpc.example.com', false],
+    // CSP host-sources can't express these, so the worker couldn't allow them.
+    ['http://[::1]:8545', false],
+    ['https://my_node.example.com', false],
   ])('%j -> ok=%s', (input, ok) => {
     expect(validateRpcUrl(input).isOk()).toBe(ok)
   })
 })
 
 describe('getCustomRpcUrl', () => {
-  afterEach(() => localStorage.clear())
+  const COOKIE = '__Host-custom-rpc-origin'
+  const setOriginCookie = (origin: string) =>
+    cookieStore.set({
+      name: COOKIE,
+      value: encodeURIComponent(origin),
+      path: '/',
+    })
+
+  afterEach(async () => {
+    localStorage.clear()
+    await cookieStore.delete({ name: COOKIE, path: '/' })
+  })
 
   it('returns null when nothing is stored', () => {
     expect(getCustomRpcUrl()).toBeNull()
   })
 
-  it('returns a valid stored url', () => {
+  it('returns a stored url whose origin cookie matches', async () => {
     localStorage.setItem('custom-rpc-url', JSON.stringify('https://a.io/'))
+    await setOriginCookie('https://a.io')
     expect(getCustomRpcUrl()).toBe('https://a.io/')
+  })
+
+  it('ignores a stored url the page CSP would not allow', async () => {
+    // No cookie (or another origin's) means the worker didn't allow this URL.
+    localStorage.setItem('custom-rpc-url', JSON.stringify('https://a.io/'))
+    expect(getCustomRpcUrl()).toBeNull()
+    await setOriginCookie('https://b.io')
+    expect(getCustomRpcUrl()).toBeNull()
   })
 
   it.each(['{broken', JSON.stringify('ftp://a.io'), JSON.stringify(5)])(
     'ignores corrupted value %s',
-    (value) => {
+    async (value) => {
       localStorage.setItem('custom-rpc-url', value)
+      await setOriginCookie('https://a.io')
       expect(getCustomRpcUrl()).toBeNull()
     },
   )

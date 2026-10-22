@@ -1,4 +1,4 @@
-import { ok, type Result, ResultAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import {
   checkRpcEndpoint,
@@ -19,6 +19,7 @@ const INVALID_MESSAGES: Record<InvalidRpcUrlError['reason'], string> = {
   malformed: 'That is not a valid URL.',
   protocol: 'Use an http(s):// or ws(s):// URL.',
   credentials: 'Remove the username and password from the URL.',
+  host: 'Use a domain name or an IPv4 address.',
 }
 
 // Plaintext to anything but this machine is blocked as mixed content.
@@ -43,8 +44,8 @@ export const applyCustomRpc = (
       ),
     )
     .andThen(
-      (url): Result<void, RpcStorageError> =>
-        isCurrent() ? saveCustomRpcUrl(url) : ok(),
+      (url): ResultAsync<void, RpcStorageError> =>
+        isCurrent() ? saveCustomRpcUrl(url) : okAsync(),
     )
 
 export const describeRpcError = (

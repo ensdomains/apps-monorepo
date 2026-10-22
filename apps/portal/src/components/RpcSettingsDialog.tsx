@@ -75,8 +75,8 @@ export const RpcSettingsDialog = ({
     if (result.isErr()) setError(describeRpcError(result.error, value))
   }
 
-  const reset = (): void => {
-    const result = resetCustomRpcUrl()
+  const reset = async (): Promise<void> => {
+    const result = await resetCustomRpcUrl()
     if (result.isErr()) setError(describeRpcError(result.error, value))
   }
 
@@ -111,7 +111,11 @@ export const RpcSettingsDialog = ({
           )}
           <DialogFooter>
             {current && (
-              <Button variant="ghost" type="button" onClick={reset}>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => void reset()}
+              >
                 Reset to default
               </Button>
             )}

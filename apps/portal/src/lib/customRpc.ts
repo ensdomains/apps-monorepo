@@ -1,14 +1,17 @@
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result, ResultAsync } from 'neverthrow'
 import { envConfig } from '@/config'
+import { CUSTOM_RPC_COOKIE, readCookie, toCspOrigin } from './customRpcOrigin'
 
 const STORAGE_KEY = 'custom-rpc-url'
 const CHECK_TIMEOUT_MS = 10_000
+// Chrome's cap on cookie lifetime: 400 days.
+const COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60
 const PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:'])
 export const WEBSOCKET_URL = /^wss?:/
 
 export class InvalidRpcUrlError extends TaggedError('CustomRpc/InvalidUrl')<{
-  readonly reason: 'empty' | 'malformed' | 'protocol' | 'credentials'
+  readonly reason: 'empty' | 'malformed' | 'protocol' | 'credentials' | 'host'
   readonly cause: unknown
 }> {}
 
@@ -41,12 +44,18 @@ export const validateRpcUrl = (
       return err(
         new InvalidRpcUrlError({ reason: 'credentials', cause: url.origin }),
       )
+    // The worker can only allow what a CSP source expresses (worker/csp.ts).
+    if (toCspOrigin(url.href) === null)
+      return err(
+        new InvalidRpcUrlError({ reason: 'host', cause: url.hostname }),
+      )
     return ok(url.toString())
   })
 }
 
 // Read once at startup (wagmi clients are built once). Anything unreadable or
-// invalid falls back to the default RPC.
+// invalid falls back to the default RPC, and so does a URL whose origin cookie
+// is gone: the page's CSP only allows the origin that cookie carried.
 export const getCustomRpcUrl = (): string | null => {
   const result = fromSync(
     (): string | null => {
@@ -55,26 +64,65 @@ export const getCustomRpcUrl = (): string | null => {
       const parsed: unknown = JSON.parse(stored)
       if (typeof parsed !== 'string') return null
       const validated = validateRpcUrl(parsed)
-      return validated.isOk() ? validated.value : null
+      if (validated.isErr()) return null
+      const allowed = readCookie(document.cookie, CUSTOM_RPC_COOKIE)
+      return allowed === toCspOrigin(validated.value) ? validated.value : null
     },
     () => null,
   )
   return result.isOk() ? result.value : null
 }
 
-// wagmi builds its clients once, so a reload is what applies the change.
-// Blocked or full storage throws; report it rather than reload unchanged.
-export const saveCustomRpcUrl = (url: string): Result<void, RpcStorageError> =>
-  fromSync(
-    () => localStorage.setItem(STORAGE_KEY, JSON.stringify(url)),
-    (cause) => new RpcStorageError({ cause }),
-  ).map(() => window.location.reload())
+// Async so a missing Cookie Store API rejects instead of throwing past
+// fromPromise. Cookie Store cookies are always Secure, as `__Host-` requires.
+const writeOriginCookie = async (origin: string | null): Promise<void> =>
+  origin === null
+    ? cookieStore.delete({ name: CUSTOM_RPC_COOKIE, path: '/' })
+    : cookieStore.set({
+        name: CUSTOM_RPC_COOKIE,
+        value: encodeURIComponent(origin),
+        path: '/',
+        sameSite: 'lax',
+        expires: Date.now() + COOKIE_MAX_AGE_SECONDS * 1000,
+      })
 
-export const resetCustomRpcUrl = (): Result<void, RpcStorageError> =>
-  fromSync(
-    () => localStorage.removeItem(STORAGE_KEY),
+const storeOrigin = (
+  origin: string | null,
+): ResultAsync<void, RpcStorageError> =>
+  ResultAsync.fromPromise(
+    writeOriginCookie(origin),
     (cause) => new RpcStorageError({ cause }),
-  ).map(() => window.location.reload())
+  )
+
+const storeUrl = (url: string | null): Result<void, RpcStorageError> =>
+  fromSync(
+    () =>
+      url === null
+        ? localStorage.removeItem(STORAGE_KEY)
+        : localStorage.setItem(STORAGE_KEY, JSON.stringify(url)),
+    (cause) => new RpcStorageError({ cause }),
+  )
+
+// wagmi builds its clients once, so a reload is what applies the change. The
+// setting is read back so blocked or full storage reports an error rather
+// than reloading unchanged.
+export const saveCustomRpcUrl = (
+  url: string,
+): ResultAsync<void, RpcStorageError> =>
+  storeUrl(url)
+    .asyncAndThen(() => storeOrigin(toCspOrigin(url)))
+    .andThen(
+      (): Result<void, RpcStorageError> =>
+        getCustomRpcUrl() === url
+          ? ok()
+          : err(new RpcStorageError({ cause: 'setting did not persist' })),
+    )
+    .map(() => window.location.reload())
+
+export const resetCustomRpcUrl = (): ResultAsync<void, RpcStorageError> =>
+  storeUrl(null)
+    .asyncAndThen(() => storeOrigin(null))
+    .map(() => window.location.reload())
 
 const isWebSocketUrl = (url: string): boolean => WEBSOCKET_URL.test(url)
 
