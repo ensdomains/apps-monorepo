@@ -7,7 +7,6 @@ import {
 } from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -67,7 +66,6 @@ function RouteComponent() {
       <ProfileSidebar name={name} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <NoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

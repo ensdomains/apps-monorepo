@@ -16,6 +16,8 @@ const DEFAULT_VARIANT: NoticeBannerVariant = 'warning'
 export type NoticeBanner = {
   readonly message: string
   readonly variant: NoticeBannerVariant
+  /** Changes with any part of the entry, so a dismissal only covers this exact notice. */
+  readonly id: string
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -36,8 +38,10 @@ export const readNoticeBanner = (
   if (!isRecord(entry)) return null
   const { message, variant } = entry
   if (typeof message !== 'string' || message.trim() === '') return null
+  const resolvedVariant = isVariant(variant) ? variant : DEFAULT_VARIANT
   return {
     message: message.trim(),
-    variant: isVariant(variant) ? variant : DEFAULT_VARIANT,
+    variant: resolvedVariant,
+    id: `${target.app}/${target.chainId}/${resolvedVariant}/${message.trim()}`,
   }
 }

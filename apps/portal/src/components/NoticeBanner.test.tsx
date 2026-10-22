@@ -23,20 +23,33 @@ describe('NoticeBanner', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows the explorer text and stays dismissed until the text changes', () => {
+  it('shows the explorer text and stays dismissed until the notice changes', () => {
     payload.value = { explorer: { '11155111': { message: 'First notice' } } }
     const first = render(<NoticeBanner />)
     expect(screen.getByText('First notice')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }))
     expect(screen.queryByText('First notice')).not.toBeInTheDocument()
 
     first.unmount()
     const second = render(<NoticeBanner />)
     expect(screen.queryByText('First notice')).not.toBeInTheDocument()
 
-    payload.value = { explorer: { '11155111': { message: 'Second notice' } } }
+    payload.value = {
+      explorer: { '11155111': { message: 'First notice', variant: 'info' } },
+    }
     second.rerender(<NoticeBanner />)
-    expect(screen.getByText('Second notice')).toBeInTheDocument()
+    expect(screen.getByText('First notice')).toBeInTheDocument()
+  })
+
+  it('gives a danger notice no dismiss control', () => {
+    payload.value = {
+      explorer: {
+        '11155111': { message: 'Writes are paused', variant: 'danger' },
+      },
+    }
+    render(<NoticeBanner />)
+    expect(screen.getByText('Writes are paused')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

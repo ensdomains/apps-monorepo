@@ -2,7 +2,6 @@ import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
 import { type Address, checksumAddress, isAddress } from 'viem'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { RegistrySidebar } from '@/components/RegistrySidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -24,7 +23,6 @@ function RouteComponent() {
       <RegistrySidebar address={checksumAddress(address as Address)} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <NoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

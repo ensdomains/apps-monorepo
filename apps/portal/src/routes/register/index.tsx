@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { LanguagesIcon } from 'lucide-react'
 import { MobileHeader } from '@/components/MobileHeader'
-import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { RegisterSidebar } from '@/components/RegisterSidebar'
 import { MessageCard } from '@/components/ui/message-card'
@@ -20,7 +19,6 @@ const RegisterPage = () => {
       <RegisterSidebar />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <NoticeBanner />
         <PageContainer className="min-h-screen flex flex-col pt-4">
           {!name ? (
             <MessageCard

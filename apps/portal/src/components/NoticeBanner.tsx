@@ -3,21 +3,24 @@ import {
   type NoticeBannerVariant,
   readNoticeBanner,
 } from '@ens-apps/utils/posthog/noticeBanner'
+import { useCssHeightVariable } from '@ens-apps/utils/useCssHeightVariable'
 import { useFeatureFlagEnabled, useFeatureFlagPayload } from '@posthog/react'
-import { useState } from 'react'
-import { Alert, AlertClose, AlertDescription } from '@/components/ui/alert'
+import { XIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { envConfig } from '@/config'
+import { cn } from '@/lib/utils'
 
-// Stores the dismissed text, so a changed notice shows again.
+// Stores the dismissed notice id, so any change to it shows the notice again.
 const NOTICE_DISMISSED_KEY = 'notice-dismissed'
 
-const ALERT_VARIANTS = {
-  info: 'default',
-  warning: 'warning',
-  danger: 'destructive',
-  success: 'success',
-} as const satisfies Record<NoticeBannerVariant, string>
+const VARIANT_CLASSES: Record<NoticeBannerVariant, string> = {
+  info: 'bg-type-entity-fill text-type-entity-text',
+  warning: 'bg-message-warning-fill text-message-warning-text',
+  danger: 'bg-message-danger-fill text-message-danger-text',
+  success: 'bg-message-success-fill text-message-success-text',
+}
 
+/** Full-width strip at the top of the viewport; the sidebar and mobile header sit below it. */
 export const NoticeBanner = () => {
   const isEnabled = useFeatureFlagEnabled(NOTICE_BANNER_FLAG)
   const payload = useFeatureFlagPayload(NOTICE_BANNER_FLAG)
@@ -28,26 +31,42 @@ export const NoticeBanner = () => {
           chainId: envConfig.chain.id,
         })
       : null
-  const [dismissedMessage, setDismissedMessage] = useState(() =>
+  const [dismissedId, setDismissedId] = useState(() =>
     window.localStorage.getItem(NOTICE_DISMISSED_KEY),
   )
+  const isDismissible = notice?.variant !== 'danger'
+  const isShown =
+    notice !== null && !(isDismissible && dismissedId === notice.id)
+  const ref = useRef<HTMLDivElement>(null)
+  useCssHeightVariable(ref, '--notice-bar-h')
 
-  if (notice === null || dismissedMessage === notice.message) return null
+  if (!isShown) return null
 
-  const dismissBanner = () => {
-    window.localStorage.setItem(NOTICE_DISMISSED_KEY, notice.message)
-    setDismissedMessage(notice.message)
+  const dismiss = () => {
+    window.localStorage.setItem(NOTICE_DISMISSED_KEY, notice.id)
+    setDismissedId(notice.id)
   }
 
   return (
-    <div className="w-full px-4 py-3 sm:px-6">
-      <Alert
-        className="mx-auto max-w-7xl"
-        variant={ALERT_VARIANTS[notice.variant]}
-      >
-        <AlertDescription className="pr-10">{notice.message}</AlertDescription>
-        <AlertClose onClick={dismissBanner} />
-      </Alert>
+    <div
+      className={cn(
+        'sticky top-0 z-30 flex w-full items-center gap-3 px-4 py-2 text-small',
+        VARIANT_CLASSES[notice.variant],
+      )}
+      ref={ref}
+      role="status"
+    >
+      <p className="min-w-0 flex-1 text-center">{notice.message}</p>
+      {isDismissible && (
+        <button
+          aria-label="Dismiss notice"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-xs opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          onClick={dismiss}
+          type="button"
+        >
+          <XIcon className="size-4" />
+        </button>
+      )}
     </div>
   )
 }

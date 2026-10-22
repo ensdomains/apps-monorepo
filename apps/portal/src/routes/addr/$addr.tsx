@@ -3,7 +3,6 @@ import { type Address, checksumAddress, isAddress } from 'viem'
 import { AddrSidebar } from '@/components/AddrSidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
@@ -24,7 +23,6 @@ function RouteComponent() {
       <AddrSidebar addr={checksumAddress(addr as Address)} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <NoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NoticeBanner } from '@/components/NoticeBanner'
 import {
   ConnectWalletMessage,
   EnsV2InfoMessage,
@@ -27,9 +26,7 @@ function RouteComponent() {
           same y as the sidebar's. Below `sm` they stack and the logo centres. */}
       <div className="w-full flex flex-col items-center gap-6 sm:flex-row sm:items-start">
         <HomeHeader />
-        <div className="flex-1 min-w-0">
-          <NoticeBanner />
-        </div>
+        <div className="flex-1 min-w-0"></div>
       </div>
 
       {/* -mt-6 trims this one gap from the grid's 72px to 48px; the page's

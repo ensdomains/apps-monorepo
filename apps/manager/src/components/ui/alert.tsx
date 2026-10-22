@@ -19,11 +19,6 @@ const alertVariants = cva(
           'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg,&>.material-symbol]:text-current',
         warning:
           'border-amber-200 bg-amber-50 text-amber-900 *:data-[slot=alert-description]:text-amber-900/90 [&>svg,&>.material-symbol]:text-current',
-        info: 'border-ens-lapis-100 bg-ens-lapis-bg text-ens-lapis-dense *:data-[slot=alert-description]:text-ens-lapis-dense/90 [&>svg,&>.material-symbol]:text-current',
-        danger:
-          'border-ens-signal-danger-200 bg-ens-signal-danger-100 text-ens-signal-danger-700 *:data-[slot=alert-description]:text-ens-signal-danger-700/90 [&>svg,&>.material-symbol]:text-current',
-        success:
-          'border-ens-signal-success-200 bg-ens-signal-success-100 text-ens-signal-success-700 *:data-[slot=alert-description]:text-ens-signal-success-700/90 [&>svg,&>.material-symbol]:text-current',
       },
     },
     defaultVariants: {

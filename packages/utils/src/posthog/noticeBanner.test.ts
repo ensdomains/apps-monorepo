@@ -15,10 +15,12 @@ describe('readNoticeBanner', () => {
     expect(readNoticeBanner(payload, MAINNET)).toEqual({
       message: 'Mainnet notice',
       variant: 'danger',
+      id: 'manager/1/danger/Mainnet notice',
     })
     expect(readNoticeBanner(payload, SEPOLIA)).toEqual({
       message: 'Sepolia notice',
       variant: 'warning',
+      id: 'manager/11155111/warning/Sepolia notice',
     })
   })
 

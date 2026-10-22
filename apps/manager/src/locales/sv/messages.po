@@ -945,6 +945,10 @@ msgstr ""
 msgid "Disconnecting..."
 msgstr ""
 
+#: src/components/NoticeBanner.tsx
+msgid "Dismiss notice"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr ""

@@ -66,16 +66,18 @@ export const UpgradeBanner = ({
   return (
     <Alert
       variant="default"
-      className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-5"
+      className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:gap-10"
     >
-      <div className="flex items-start gap-4 flex-col sm:flex-row sm:items-center">
+      <div className="flex shrink-0 items-start gap-4 flex-col sm:flex-row sm:items-center">
         <CircleAlert className="size-6 shrink-0" />
-        <p className="text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
+        <p className="whitespace-nowrap text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
           Upgrade to ENSv2
         </p>
       </div>
-      <div className="flex items-start lg:items-center gap-4 flex-col lg:flex-row">
-        <p className="text-p">{describeUpgrade({ isWrapped, impact })}</p>
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-4 lg:flex-row lg:items-center lg:gap-10">
+        <p className="min-w-0 text-p">
+          {describeUpgrade({ isWrapped, impact })}
+        </p>
         <UpgradeActions name={name} isWrapped={isWrapped} />
       </div>
     </Alert>

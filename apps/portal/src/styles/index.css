@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --notice-bar-h: 0px;
   /* WalletConnect (reown) modal reads `z-index: var(--w3m-z-index)`; when we use
      the bare wagmi walletConnect connector nothing defines it, so it collapses
      to auto and the app's own z-indexed elements (sidebar, headers, badges)

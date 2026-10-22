@@ -3,6 +3,7 @@ import { useMatches } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
 import { LayoutBackAndNoticeRow } from '@/components/LayoutBackAndNoticeRow'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { Header } from '@/features/navigation/Header/Header'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -29,7 +30,6 @@ export const Layout = ({ children }: LayoutProps) => {
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = profileRouteMatch !== undefined
   const isProfilePage = isEnsNameProfilePage || isAddressProfilePage
-  const isNoticeBannerVisible = !isMigrationPage && !isProfilePage
   const profileName = profileRouteMatch?.params.name ?? ''
   const profileRecords = useQuery({
     ...profileRecordsQuery(profileName),
@@ -48,7 +48,8 @@ export const Layout = ({ children }: LayoutProps) => {
           : 'min-h-screen',
       )}
     >
-      <div className="sticky inset-x-0 top-0 z-30 shrink-0">
+      <NoticeBanner />
+      <div className="sticky inset-x-0 top-(--notice-bar-h) z-30 shrink-0">
         <Header
           desktopBreakpoint={isProfilePage ? 'xl' : 'md'}
           hasMobileBlurredBackground={isProfilePage}
@@ -66,10 +67,7 @@ export const Layout = ({ children }: LayoutProps) => {
             isMigrationPage && 'min-h-0',
           )}
         >
-          <LayoutBackAndNoticeRow
-            isHidden={isProfilePage}
-            isNoticeBannerVisible={isNoticeBannerVisible}
-          />
+          <LayoutBackAndNoticeRow isHidden={isProfilePage} />
           {children}
         </main>
       </GlobalBackButtonProvider>
