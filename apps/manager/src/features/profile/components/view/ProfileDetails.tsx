@@ -88,7 +88,9 @@ const ProfileDetail = ({
       <span>{label}</span>
     </div>
     <div className="flex min-w-0 items-center gap-1 pl-6 xl:pl-0">
-      <span className={`${detailValueClassName} truncate`}>{value}</span>
+      <span className={`${detailValueClassName} min-w-0 truncate`}>
+        {value}
+      </span>
       {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
     </div>
   </div>
@@ -109,7 +111,7 @@ export const ProfileDetails = ({
   const formattedExpiryDate = formatProfileDetailDate(displayExpiryDate)
 
   return (
-    <div className="grid w-full grid-cols-3 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3">
+    <div className="grid w-full grid-cols-1 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3 min-[375px]:grid-cols-3">
       {owner ? (
         <ProfileDetail
           copyValue={owner}

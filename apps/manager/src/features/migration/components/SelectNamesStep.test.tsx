@@ -1,6 +1,6 @@
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { fireEvent, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
@@ -72,6 +72,21 @@ vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
   useConnectedReverseName: () => ({ data: 'sub1234.eth' }),
 }))
 
+const impactState = vi.hoisted(() => ({
+  selectionKey: 'fixture-selection',
+  status: 'ready',
+  impact: { parents: [] as { name: string; affectedCount: number }[] },
+}))
+
+vi.mock('@/features/migration/hooks/useSubnameMigrationImpact', () => ({
+  useSubnameMigrationImpact: () => impactState,
+}))
+
+beforeEach(() => {
+  impactState.status = 'ready'
+  impactState.impact.parents = []
+})
+
 // eslint-disable-next-line import/first
 import { SelectNamesStep } from './SelectNamesStep'
 
@@ -113,6 +128,27 @@ const renderStep = ({
 }
 
 describe('SelectNamesStep', () => {
+  it('waits for the default impact check before selecting names', () => {
+    impactState.status = 'loading'
+    const { onNamesChange } = renderStep()
+    expect(onNamesChange).not.toHaveBeenCalled()
+  })
+
+  it('does not default-select a group with affected subnames', () => {
+    impactState.impact.parents = [{ name: 'sub1234.eth', affectedCount: 1 }]
+    const { onNamesChange } = renderStep()
+    const selected = onNamesChange.mock.calls.at(-1)?.[0] ?? []
+    expect(selected).not.toContain('sub1234.eth')
+    expect(selected).not.toContain('gm.sub1234.eth')
+    expect(selected).toContain('one.eth')
+  })
+
+  it('does not default-select names when impact cannot be checked', () => {
+    impactState.status = 'error'
+    const { onNamesChange } = renderStep()
+    expect(onNamesChange).toHaveBeenLastCalledWith([])
+  })
+
   it('seeds all visible names (parent + subnames + orphans) as selected', () => {
     const { onNamesChange, getByText } = renderStep()
     expect(getByText('sub1234.eth')).toBeInTheDocument()

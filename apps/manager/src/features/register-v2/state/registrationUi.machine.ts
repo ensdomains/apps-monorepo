@@ -6,8 +6,10 @@ import {
   type Signer,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/transaction.errors'
+import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import {
   type Address,
   isAddressEqual,
@@ -39,6 +41,11 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import {
+  getRegistrationFailureMessage,
+  isNameNotAvailableError,
+  isNameTakenByOther,
+} from '../service/registrationFailure'
+import {
   acquireRegistrationLock,
   getBlockingRegistration,
   releaseRegistrationLock,
@@ -60,6 +67,7 @@ import type { RegistrationPostRegistrationSetup } from './registrationAutoSetup'
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
 type RegistrationSnapshot = SnapshotFrom<typeof registrationMachine>
+type ApprovalOutcome = 'none' | 'failed' | 'rejected'
 
 type PostRegistrationData = {
   label: string
@@ -103,6 +111,7 @@ type Context = {
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
+  approvalOutcome: ApprovalOutcome
   /**
    * The registration failed because another address registered the name first.
    * Nothing to retry — the failure screen offers only a way back.
@@ -217,9 +226,16 @@ type Events =
       type: 'registration.suspend'
     }
   | { type: 'registration.completed' }
+  | { type: 'registration.approved' }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
-  | { type: 'transaction.failed'; message?: string; nameUnavailable?: boolean }
+  | {
+      type: 'transaction.failed'
+      message?: string
+      nameUnavailable?: boolean
+      approvalOutcome?: ApprovalOutcome
+      hasCommitment?: boolean
+    }
   | { type: 'retry' }
   | { type: 'cancel' }
   | { type: 'label.changed' }
@@ -307,6 +323,13 @@ const machineSetup = setup({
   },
   actors: {
     registrationFlow: registrationMachine,
+    checkNameTakenByOther: fromPromise(
+      ({
+        input,
+      }: {
+        input: Parameters<typeof isNameTakenByOther>[0] | undefined
+      }) => (input ? isNameTakenByOther(input) : Promise.resolve(false)),
+    ),
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
@@ -424,8 +447,19 @@ const machineSetup = setup({
           ? event.token
           : context.selectedToken,
     }),
+    restorePricing: assign(({ event }) => {
+      if (event.type !== 'registration.resume') return {}
+      return {
+        duration: Number(event.confirmedData.duration),
+        selectedToken: event.confirmedData.token,
+        confirmedData: event.confirmedData,
+        postRegistrationSetup: event.postRegistrationSetup,
+        hcaPrimaryName: event.record.context.primaryName,
+      }
+    }),
     clearError: assign({
       lastErrorMessage: () => undefined,
+      approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
       isWalletBusy: () => false,
     }),
@@ -433,10 +467,16 @@ const machineSetup = setup({
       maxProgressReached: () => undefined,
     }),
     setError: assign({
+      approvalOutcome: ({ event }) =>
+        event.type === 'transaction.failed'
+          ? (event.approvalOutcome ?? 'none')
+          : 'none',
       lastErrorMessage: ({ event }) =>
         match(event)
           .with({ type: 'transaction.failed' }, ({ message }) => message)
-          .with({ type: '$error' }, ({ error }) => error.message)
+          .with({ type: '$error' }, ({ error }) =>
+            getRegistrationFailureMessage(error),
+          )
           .otherwise(() => undefined),
       nameUnavailable: ({ event }) =>
         match(event)
@@ -784,6 +824,7 @@ const startRegistrationAction = machineSetup.createAction(
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
+        approveBeforeCommit: true,
         name: asEthName(event.label),
         duration: event.duration,
         token: event.token,
@@ -859,6 +900,8 @@ const resumeRegistrationAction = machineSetup.createAction(
 
     enqueue.assign({
       confirmedData: event.confirmedData,
+      duration: Number(event.confirmedData.duration),
+      selectedToken: event.confirmedData.token,
       postRegistrationSetup: isHcaRegistration
         ? undefined
         : event.postRegistrationSetup,
@@ -915,6 +958,7 @@ const resumeRegistrationAction = machineSetup.createAction(
         },
         deps: {
           signer: event.account.signer,
+          approveBeforeCommit: true,
           approvalSigner,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
@@ -947,11 +991,46 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         actions: [
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
-            message: snapshot.context.error?.message,
+            message: getRegistrationFailureMessage(snapshot.context.error),
+            hasCommitment:
+              !!snapshot.context.commitment ||
+              !!snapshot.context.commitmentTxId,
+            approvalOutcome: match(snapshot.context.retryTarget)
+              .returnType<ApprovalOutcome>()
+              .with(P.union('signingFundingPermit', 'approvingToken'), () =>
+                isUserRejectionError(snapshot.context.error)
+                  ? 'rejected'
+                  : 'failed',
+              )
+              .otherwise(() => 'none'),
             // Lost a same-name race: the child refuses RETRY, so the failure
-            // screen must not offer one either.
-            nameUnavailable: snapshot.context.nameUnavailable === true,
+            // screen must not offer one either. A race lost before the reveal
+            // (price read, budget quote) only shows up as the registrar's
+            // revert, so read it off the error too.
+            nameUnavailable:
+              snapshot.context.nameUnavailable === true ||
+              isNameNotAvailableError(snapshot.context.error),
           })),
+        ],
+      },
+      {
+        // New runs reach this point once the commitment is submitted. A
+        // resumed run can have a validated commitment and cooldown timestamp
+        // without a local transaction ID. Both have completed upfront approval.
+        guard: ({ event: { snapshot } }) =>
+          (!!snapshot.context.commitmentTxId ||
+            (!!snapshot.context.commitment &&
+              snapshot.context.registerReadyTimestamp != null)) &&
+          !snapshot.matches('idle') &&
+          !snapshot.matches('computingHcaBudget') &&
+          !snapshot.matches('checkingHcaFunding') &&
+          !snapshot.matches('signingFundingPermit') &&
+          !snapshot.matches('checkingAllowance') &&
+          !snapshot.matches('approvingToken') &&
+          !snapshot.matches('waitingForApproval'),
+        actions: [
+          raise({ type: 'registration.approved' }),
+          'updateRegistrationStageFromChild',
         ],
       },
       {
@@ -967,6 +1046,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    approvalOutcome: 'none',
     nameUnavailable: false,
     isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
@@ -985,10 +1065,24 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       // parallel regions and clobbering the live run's confirmedData. The
       // child ignores RESUME outside idle for the same reason.
       on: {
-        'registration.resume': {
-          target: '#registrationV2Ui.registering',
-          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
-        },
+        'registration.resume': [
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event.record) === 'settingUpRegistration',
+            // No commitment was submitted. Reconfirm the live quote before
+            // requesting a fresh approval instead of prompting on reconnect.
+            target: '.tokens',
+            actions: ['clearError', 'clearMaxProgress', 'restorePricing'],
+          },
+          {
+            target: '#registrationV2Ui.registering',
+            actions: [
+              'clearError',
+              'clearMaxProgress',
+              resumeRegistrationAction,
+            ],
+          },
+        ],
         // Scoped to `pricing` for the same reason as the resume above.
         'registration.failure.restore': {
           target: '#registrationV2Ui.failure',
@@ -1011,21 +1105,64 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           on: {
             'pricing.step.previous': {
               target: 'duration',
+              actions: 'clearError',
             },
             'pricing.token.select': {
-              actions: 'setToken',
+              actions: ['setToken', 'clearError'],
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
+              actions: 'clearError',
             },
             'registration.start': {
-              target: '#registrationV2Ui.registering',
+              target: 'approving',
               guard: ({ event }) =>
                 event.duration >= MIN_REGISTER_DURATION_SECONDS,
               actions: [
                 'clearError',
                 'clearMaxProgress',
                 startRegistrationAction,
+              ],
+            },
+          },
+        },
+        approving: {
+          on: {
+            // Ignore an assessment that resolves after a fresh run starts.
+            'registration.resume': {},
+            'registration.approved': {
+              target: '#registrationV2Ui.registering',
+            },
+            'transaction.failed': [
+              {
+                guard: ({ event }) =>
+                  !event.hasCommitment &&
+                  (event.approvalOutcome === 'failed' ||
+                    event.approvalOutcome === 'rejected'),
+                target: 'tokens',
+                actions: [
+                  'setError',
+                  'releaseRegistrationLock',
+                  'clearRegistrationData',
+                  'forwardCancel',
+                ],
+              },
+              {
+                target: '#registrationV2Ui.failure',
+                actions: 'setError',
+              },
+            ],
+            $error: {
+              target: '#registrationV2Ui.failure',
+              actions: 'setError',
+            },
+            'registration.suspend': {
+              target: 'duration',
+              actions: [
+                'clearRegistrationData',
+                'clearError',
+                'clearMaxProgress',
+                'forwardSuspend',
               ],
             },
           },
@@ -1348,6 +1485,24 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     success: {},
     failure: {
+      // A reverted register says nothing about why, so ask the registry
+      // whether someone else got the name first
+      invoke: {
+        src: 'checkNameTakenByOther',
+        input: ({ context }) =>
+          context.nameUnavailable || !context.confirmedData
+            ? undefined
+            : {
+                label: context.confirmedData.label,
+                owner: context.confirmedData.ownerAddress,
+                chainId: context.chainId,
+                publicClient: defaultPublicClient,
+              },
+        onDone: {
+          guard: ({ event }) => event.output,
+          actions: assign({ nameUnavailable: () => true }),
+        },
+      },
       on: {
         retry: [
           {
@@ -1369,19 +1524,37 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             // Retrying a name someone else now owns would park the UI back on
             // the pending screen while the child refuses the RETRY it forwards.
             guard: ({ context }) => !context.nameUnavailable,
-            target: 'registering',
+            target: 'pricing.approving',
             actions: ['clearError', 'acquireRegistrationLock', 'forwardRetry'],
           },
         ],
         'registration.start': {
-          target: 'registering',
+          target: 'pricing.approving',
           guard: ({ event }) => event.duration >= MIN_REGISTER_DURATION_SECONDS,
           actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
         },
-        'registration.resume': {
-          target: 'registering',
-          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
-        },
+        'registration.resume': [
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event.record) === 'settingUpRegistration',
+            target: 'pricing.tokens',
+            actions: [
+              'releaseRegistrationLock',
+              'clearError',
+              'clearMaxProgress',
+              'restorePricing',
+              'forwardCancel',
+            ],
+          },
+          {
+            target: 'registering',
+            actions: [
+              'clearError',
+              'clearMaxProgress',
+              resumeRegistrationAction,
+            ],
+          },
+        ],
         cancel: [
           {
             // Back to Quote abandons the stored run, commitment included: the
@@ -1398,6 +1571,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             target: 'pricing',
             actions: [
               'releaseRegistrationLock',
+              // A name lost to someone else is still cached as available, so
+              // the quote would offer it again. Must run before the label is
+              // cleared.
+              'invalidateNameQueries',
               'clearRegistrationData',
               'clearError',
               'forwardCancel',
@@ -1444,6 +1621,7 @@ export const getSuspendableRunOwner = (
   snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
 ): Address | undefined => {
   const suspendable =
+    snapshot.matches({ pricing: 'approving' }) ||
     (snapshot.matches('registering') &&
       !snapshot.context.registrationCompleted) ||
     snapshot.matches('failure')

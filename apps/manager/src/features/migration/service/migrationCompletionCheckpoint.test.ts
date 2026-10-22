@@ -129,21 +129,20 @@ describe('receipt-backed migration completion checkpoint', () => {
     expect(getReceipt).not.toHaveBeenCalled()
   })
 
-  it.each([
-    { owner: other },
-    { hca: other },
-    { chainId: 1 },
-  ])('keeps durable evidence scoped to %o', async (differentScope) => {
-    persist()
-    const nextScope = { ...scope, ...differentScope }
-    await expect(
-      restore({
-        scope: nextScope,
-        publicClient: { ...publicClient, chain: { id: nextScope.chainId } },
-      }),
-    ).resolves.toBeNull()
-    expect(getReceipt).not.toHaveBeenCalled()
-  })
+  it.each([{ owner: other }, { hca: other }, { chainId: 1 }])(
+    'keeps durable evidence scoped to %o',
+    async (differentScope) => {
+      persist()
+      const nextScope = { ...scope, ...differentScope }
+      await expect(
+        restore({
+          scope: nextScope,
+          publicClient: { ...publicClient, chain: { id: nextScope.chainId } },
+        }),
+      ).resolves.toBeNull()
+      expect(getReceipt).not.toHaveBeenCalled()
+    },
+  )
 
   it.each([
     { version: 2 },
@@ -151,21 +150,24 @@ describe('receipt-backed migration completion checkpoint', () => {
     { transactionHash: 'not a hash' },
     { operation: { name: 'alice.eth', action: 'register' } },
     { operation: { name: '', action: 'migrate' } },
-  ])('rejects malformed or another-deployment stored evidence %o', async (change) => {
-    persist()
-    const key = storage.key(0) ?? ''
-    storage.setItem(
-      key,
-      JSON.stringify({
-        ...JSON.parse(storage.getItem(key) ?? '{}'),
-        ...change,
-      }),
-    )
-    await expect(restore()).rejects.toThrow(
-      'Invalid migration completion checkpoint',
-    )
-    expect(getReceipt).not.toHaveBeenCalled()
-  })
+  ])(
+    'rejects malformed or another-deployment stored evidence %o',
+    async (change) => {
+      persist()
+      const key = storage.key(0) ?? ''
+      storage.setItem(
+        key,
+        JSON.stringify({
+          ...JSON.parse(storage.getItem(key) ?? '{}'),
+          ...change,
+        }),
+      )
+      await expect(restore()).rejects.toThrow(
+        'Invalid migration completion checkpoint',
+      )
+      expect(getReceipt).not.toHaveBeenCalled()
+    },
+  )
 
   it.each([
     { status: 'reverted' },
@@ -190,20 +192,19 @@ describe('receipt-backed migration completion checkpoint', () => {
     await expect(restore()).rejects.toThrow('transaction does not match')
   })
 
-  it.each([
-    'owner',
-    'authorizedOwnerOf',
-    'verifyContract',
-  ])('rejects an untrusted HCA %s', async (functionName) => {
-    persist()
-    const original = readContract.getMockImplementation()
-    readContract.mockImplementation((args) =>
-      args.functionName === functionName
-        ? Promise.resolve(other)
-        : original?.(args),
-    )
-    await expect(restore()).rejects.toThrow('HCA is invalid')
-  })
+  it.each(['owner', 'authorizedOwnerOf', 'verifyContract'])(
+    'rejects an untrusted HCA %s',
+    async (functionName) => {
+      persist()
+      const original = readContract.getMockImplementation()
+      readContract.mockImplementation((args) =>
+        args.functionName === functionName
+          ? Promise.resolve(other)
+          : original?.(args),
+      )
+      await expect(restore()).rejects.toThrow('HCA is invalid')
+    },
+  )
 
   it('rejects an approval transaction even if the name is currently owned', async () => {
     persist()

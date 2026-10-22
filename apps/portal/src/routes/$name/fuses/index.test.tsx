@@ -78,6 +78,8 @@ vi.mock('@tanstack/react-query', async () => {
   }
 })
 
+// The provider import reaches the query mock, so resultFor must be initialized.
+const { createTestWrapper } = await import('@/test-utils/providers')
 // See the note in ./burn.test.tsx — `Route` is the mocked options object.
 const { Route } = await import('./index')
 const FusesRoute = (Route as unknown as { component: () => React.ReactElement })
@@ -208,14 +210,14 @@ describe('fuses index route', () => {
   })
 
   it('offers the migrate banner only to the holder of a wrapped v1 name', () => {
-    render(<FusesRoute />)
+    render(<FusesRoute />, { wrapper: createTestWrapper() })
     expect(screen.queryByText('Upgrade to v2')).not.toBeInTheDocument()
 
     migrationResult = {
       ...SETTLED_EMPTY,
       data: { migratable: true, tokenHolder: OWNER, tokenType: 'locked-2ld' },
     }
-    render(<FusesRoute />)
+    render(<FusesRoute />, { wrapper: createTestWrapper() })
 
     expect(screen.getByText('Upgrade to v2')).toBeVisible()
   })
@@ -226,7 +228,7 @@ describe('fuses index route', () => {
       ...SETTLED_EMPTY,
       data: { migratable: true, tokenHolder: OWNER, tokenType: 'unlocked' },
     }
-    render(<FusesRoute />)
+    render(<FusesRoute />, { wrapper: createTestWrapper() })
 
     expect(screen.getByText('Unwrap and upgrade')).toBeVisible()
     expect(screen.queryByText('Upgrade to v2')).not.toBeInTheDocument()

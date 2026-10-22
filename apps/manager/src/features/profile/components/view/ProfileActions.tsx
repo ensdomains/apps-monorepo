@@ -1,8 +1,9 @@
 import { useLingui } from '@lingui/react/macro'
+import { useState } from 'react'
 import type { Address } from 'viem'
-import { normalizeEthName } from '@/features/profile/service/profileName'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
+import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
   desktopActionContainerClassName,
@@ -23,6 +24,7 @@ import { ProfileShareAction } from './ProfileShareAction'
 
 type ProfileActionsProps = {
   readonly avatarUrl?: string
+  readonly canEdit: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
   readonly isUpgradeRequired: boolean
@@ -36,6 +38,7 @@ type ProfileActionsProps = {
 
 export const ProfileActions = ({
   avatarUrl,
+  canEdit,
   isInGrace,
   isOwner,
   isUpgradeRequired,
@@ -47,9 +50,9 @@ export const ProfileActions = ({
   url,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
-  const canEditProfile =
-    isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
-  const hasFloatingBar = canEditProfile && !isUpgradeRequired && !isInGrace
+  const [bar, setBar] = useState<HTMLElement | null>(null)
+  useIntercomClearance(bar)
+  const hasFloatingBar = canEdit
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
   const barActions = (
@@ -69,9 +72,9 @@ export const ProfileActions = ({
   if (hasFloatingBar) {
     return (
       <ProfileEditAction
+        canEdit={canEdit}
         className={profileButtonClassName}
         isInGrace={isInGrace}
-        isOwner={isOwner}
         leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
@@ -98,15 +101,19 @@ export const ProfileActions = ({
       </div>
 
       {hasBottomNav ? (
-        <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
+        <nav
+          aria-label={t`Profile actions`}
+          className={editBottomNavClassName}
+          ref={setBar}
+        >
           <div className={editBottomNavContentClassName}>
             <div className={cn(profileBarActionsClassName, 'w-full xl:hidden')}>
               {barActions}
             </div>
             <ProfileEditAction
+              canEdit={canEdit}
               className={editActionClassName}
               isInGrace={isInGrace}
-              isOwner={isOwner}
               isUpgradeRequired={isUpgradeRequired}
               name={name}
               onUpdated={onUpdated}
@@ -120,6 +127,7 @@ export const ProfileActions = ({
         <nav
           aria-label={t`Profile actions`}
           className={profileStickyBarClassName}
+          ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-start')}>
             <div className={profileBarActionsClassName}>{barActions}</div>

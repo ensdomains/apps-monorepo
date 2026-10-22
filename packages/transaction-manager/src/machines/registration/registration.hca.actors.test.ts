@@ -6,8 +6,18 @@ import {
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, isAddressEqual, parseAbi, zeroAddress } from 'viem'
-import { sepolia } from 'viem/chains'
+import {
+  decodeFunctionData,
+  encodeAbiParameters,
+  encodePacked,
+  hashTypedData,
+  isAddressEqual,
+  keccak256,
+  parseAbi,
+  parseAbiParameters,
+  zeroAddress,
+} from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EOASigner, Signer } from '../../types/signer.types'
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
@@ -16,6 +26,7 @@ import {
   estimateHcaBudgetActor,
   readUsdcSpend,
   rejectPermitValue,
+  signDaiFundingPermitActor,
   signFundingPermitActor,
   submitFundingAndCommitActor,
   submitRevealBatchActor,
@@ -191,17 +202,20 @@ describe('submitFundingAndCommitActor', () => {
     ],
     ['an upper-case label', 'MYNAME.eth', /Refusing to register/],
     ['an xn-- extension', 'xn--ls8h.eth', /invalid label extension/],
-  ])('refuses to commit to %s rather than sign a different name', async (_case, name, message) => {
-    // The commitment binds `keccak256(label)`, so a label that is not already
-    // canonical buys a name no ENSIP-15 client can resolve — and one the app's
-    // own read path cannot address. The flow canonicalises at its entry; this
-    // is the last check before the wallet.
-    const result = await submitFundingAndCommitActor({ ...input, name })
+  ])(
+    'refuses to commit to %s rather than sign a different name',
+    async (_case, name, message) => {
+      // The commitment binds `keccak256(label)`, so a label that is not already
+      // canonical buys a name no ENSIP-15 client can resolve — and one the app's
+      // own read path cannot address. The flow canonicalises at its entry; this
+      // is the last check before the wallet.
+      const result = await submitFundingAndCommitActor({ ...input, name })
 
-    expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toMatch(message)
-    expect(startTransaction).not.toHaveBeenCalled()
-  })
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().message).toMatch(message)
+      expect(startTransaction).not.toHaveBeenCalled()
+    },
+  )
 })
 
 describe('submitRevealBatchActor', () => {
@@ -534,12 +548,112 @@ describe('signFundingPermitActor', () => {
     expect(result.isOk()).toBe(true)
   })
 
+  it('words a refusal in the permitted token and the caller’s purpose', () => {
+    // Renewals and other standalone intents reach this too, some in DAI, so
+    // neither the units nor "the registration" can be assumed.
+    const refusal = rejectPermitValue(
+      3n * 10n ** 18n,
+      { displayedValue: 2n * 10n ** 18n },
+      { symbol: 'DAI', decimals: 18 },
+      { subject: 'the renewal', shownAt: 'in the prompt', costNote: '' },
+    )
+
+    expect(refusal).toMatch(
+      /authorize 3 DAI, but 2 DAI was shown in the prompt/,
+    )
+    expect(refusal).toMatch(/start the renewal again/)
+    expect(refusal).not.toMatch(/registration|USDC/)
+  })
+
   it('never refuses a value BELOW what was displayed', async () => {
     // Being asked to approve less than was quoted has not misled anyone — and
     // a cheaper re-quote is the common case when gas falls.
     expect(
       rejectPermitValue(4_000_000n, { displayedValue: 10_000_000n }),
     ).toBeNull()
+  })
+})
+
+describe('signDaiFundingPermitActor', () => {
+  // Mainnet DAI, with the domain separator and typehash read from the chain.
+  const DAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F' as Address
+  const DAI_DOMAIN_SEPARATOR =
+    '0xdbb8cf42e1ecb028be3f3dbc922e1d878b963f411dc388ced501601c60f7c6f7'
+  const DAI_PERMIT_TYPEHASH =
+    '0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb'
+  const publicClient = { chain: mainnet } as unknown as PublicClient
+  const approvalSigner = {
+    type: 'eoa',
+    walletClient: { account: { address: WALLET } },
+  } as unknown as EOASigner
+
+  const sign = () => {
+    getEip712Domain.mockRejectedValue(new Error('execution reverted'))
+    readContract
+      .mockResolvedValueOnce(3n) // nonces(wallet)
+      .mockResolvedValueOnce(5n * 10n ** 18n) // balanceOf(wallet)
+      .mockResolvedValueOnce('Dai Stablecoin') // name()
+      .mockResolvedValueOnce('1') // version()
+    signTypedData.mockResolvedValue(`0x${'11'.repeat(32)}${'22'.repeat(32)}1b`)
+    return signDaiFundingPermitActor({
+      wallet: WALLET,
+      hca: HCA,
+      value: 2n * 10n ** 18n,
+      approvalSigner,
+      publicClient,
+      chainId: mainnet.id,
+      token: {
+        address: DAI,
+        symbol: 'DAI',
+        decimals: 18,
+        permitKind: 'dai-legacy',
+      },
+    })
+  }
+
+  it('signs the digest DAI’s own permit recomputes', async () => {
+    const signed = (await sign())._unsafeUnwrap()
+
+    const [, typedData] = signTypedData.mock.calls[0] as unknown as [
+      unknown,
+      Parameters<typeof hashTypedData>[0],
+    ]
+    // `Dai.permit`: keccak256("\x19\x01" ‖ DOMAIN_SEPARATOR ‖ keccak256(
+    //   abi.encode(PERMIT_TYPEHASH, holder, spender, nonce, expiry, allowed)))
+    const onChainDigest = keccak256(
+      encodePacked(
+        ['bytes2', 'bytes32', 'bytes32'],
+        [
+          '0x1901',
+          DAI_DOMAIN_SEPARATOR,
+          keccak256(
+            encodeAbiParameters(
+              parseAbiParameters(
+                'bytes32, address, address, uint256, uint256, bool',
+              ),
+              [DAI_PERMIT_TYPEHASH, WALLET, HCA, 3n, signed.expiry, true],
+            ),
+          ),
+        ],
+      ),
+    )
+    expect(hashTypedData(typedData)).toBe(onChainDigest)
+    expect(signed).toMatchObject({
+      holder: WALLET,
+      spender: HCA,
+      nonce: 3n,
+      allowed: true,
+      v: 27,
+    })
+  })
+
+  it('signs an absolute expiry, never zero', async () => {
+    // DAI reads `expiry == 0` as "never expires".
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    const { expiry } = (await sign())._unsafeUnwrap()
+
+    expect(expiry).toBeGreaterThan(now)
+    expect(expiry).toBeLessThanOrEqual(now + 3600n)
   })
 })
 

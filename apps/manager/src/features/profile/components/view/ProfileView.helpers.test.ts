@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileRecords } from '@/features/profile/types'
 import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
+import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
-  formatChainSpecificAddress,
+  formatProfileAddress,
   formatProfileDetailDate,
   getChainSpecificAddresses,
   getContactItems,
@@ -27,14 +28,77 @@ const makeRecords = (
 })
 
 describe('ProfileView helpers', () => {
-  it('formats chain-specific addresses with the first and last five characters', () => {
+  it('prepares three contact cards promptly despite a grouped 270,000-key primary-contact record', () => {
+    const value = JSON.stringify([
+      ...Array(90_000).fill('email'),
+      ...Array(90_000).fill('mail'),
+      ...Array(90_000).fill('phone'),
+    ])
+    const start = performance.now()
+    const records = transformProfileRecords({
+      texts: [
+        { key: 'domains.ens.primary-contacts', value },
+        { key: 'email', value: 'person@example.com' },
+        { key: 'mail', value: 'Canada' },
+        { key: 'phone', value: '+1 555 0100' },
+        { key: 'com.twitter', value: 'ensdomains' },
+      ],
+      coins: [],
+    })
+    const contacts = getContactItems(records)
+    const featured = getFeaturedSocialItems(records)
+    const secondary = getSecondarySocialRecords(records)
+    const elapsed = performance.now() - start
+
+    expect(contacts.map(({ key }) => key)).toEqual(['email', 'mail', 'phone'])
+    expect(featured).toEqual([])
+    expect(secondary).toEqual([{ key: 'com.twitter', value: 'ensdomains' }])
+    expect(elapsed).toBeLessThan(1000)
+  })
+
+  it('prepares only three featured cards from duplicated and excess primary keys', () => {
+    const records = transformProfileRecords({
+      texts: [
+        {
+          key: 'domains.ens.primary-contacts',
+          value: JSON.stringify([
+            'com.twitter',
+            'com.twitter',
+            'org.telegram',
+            'com.github',
+            'com.discord',
+          ]),
+        },
+        { key: 'com.twitter', value: 'ensdomains' },
+        { key: 'org.telegram', value: 'ensdomains' },
+        { key: 'com.github', value: 'ensdomains' },
+        { key: 'com.discord', value: 'ensdomains' },
+      ],
+      coins: [],
+    })
+
+    expect(getFeaturedSocialItems(records).map(({ key }) => key)).toEqual([
+      'com.twitter',
+      'org.telegram',
+      'com.github',
+    ])
+    expect(getSecondarySocialRecords(records)).toEqual([
+      { key: 'com.discord', value: 'ensdomains' },
+    ])
+  })
+
+  it('formats profile addresses with the first and last five characters', () => {
     expect(
-      formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
-    ).toBe('bc1qx...x0wlh')
-    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe(
-      'DE5op...89xyz',
-    )
-    expect(formatChainSpecificAddress('abc123')).toBe('abc123')
+      formatProfileAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
+    ).toBe('bc1qx…x0wlh')
+    expect(formatProfileAddress('DE5opa123456789xyz')).toBe('DE5op…89xyz')
+    expect(formatProfileAddress('abc123')).toBe('abc123')
+  })
+
+  it('keeps the 0x prefix in front of the first five hex characters', () => {
+    expect(
+      formatProfileAddress('0xCC6925b3a1d6e7f8091a2b3c4d5e6f708192a3b4'),
+    ).toBe('0xCC692…2a3b4')
   })
 
   it('formats dates as compact uppercase labels for mobile', () => {
@@ -314,16 +378,19 @@ describe('ProfileView helpers', () => {
     [291, 501, 'ExampleAddress', 'ExampleAddress'],
     [501, 501, 'ExampleAddress', 'exampleAddress'],
     [999, 1000, 'ExampleAddress', 'ExampleAddress'],
-  ])('keeps independent case-sensitive records separate (%i, %i, %s, %s)', (mainCoinType, otherCoinType, mainValue, otherValue) => {
-    // Synthetic strings test grouping without requiring valid network keys.
-    const mainRecord = { coinType: mainCoinType, value: mainValue }
-    const otherRecord = { coinType: otherCoinType, value: otherValue }
-    const records = makeRecords({ addresses: [mainRecord, otherRecord] })
+  ])(
+    'keeps independent case-sensitive records separate (%i, %i, %s, %s)',
+    (mainCoinType, otherCoinType, mainValue, otherValue) => {
+      // Synthetic strings test grouping without requiring valid network keys.
+      const mainRecord = { coinType: mainCoinType, value: mainValue }
+      const otherRecord = { coinType: otherCoinType, value: otherValue }
+      const records = makeRecords({ addresses: [mainRecord, otherRecord] })
 
-    expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
-    expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
-    expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
-  })
+      expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
+      expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
+      expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
+    },
+  )
 
   it('does not group a non-EVM record with a matching EVM value', () => {
     const value = '0x1234567890abcdef1234567890abcdef12345678'

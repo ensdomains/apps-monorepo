@@ -419,25 +419,24 @@ describe('direct owner execution readiness', () => {
       },
       expectedHca: OTHER,
     },
-  ])('rejects a mismatched $field before returning a wallet call', ({
-    client,
-    expectedHca,
-    field,
-  }) => {
-    expect(() =>
-      buildHcaDeploymentCall({
-        client,
-        chainId: sepolia.id,
-        expectedHca,
-        expectedOwner: OWNER,
-      }),
-    ).toThrowError(
-      expect.objectContaining({
-        name: 'HcaDeploymentCallValidationError',
-        field,
-      }),
-    )
-  })
+  ])(
+    'rejects a mismatched $field before returning a wallet call',
+    ({ client, expectedHca, field }) => {
+      expect(() =>
+        buildHcaDeploymentCall({
+          client,
+          chainId: sepolia.id,
+          expectedHca,
+          expectedOwner: OWNER,
+        }),
+      ).toThrowError(
+        expect.objectContaining({
+          name: 'HcaDeploymentCallValidationError',
+          field,
+        }),
+      )
+    },
+  )
 
   it('refreshes after direct deployment and returns an initData-bound client', async () => {
     const publicClient = makePublicClient({

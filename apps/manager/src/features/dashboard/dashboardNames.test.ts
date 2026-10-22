@@ -30,6 +30,7 @@ const summary = (overrides: Partial<NameSummary> = {}): NameSummary => ({
   registrationStatus: 'active',
   expiresAt: new Date('2027-01-01T00:00:00Z'),
   servedExpiry: null,
+  graceEndsAt: null,
   registeredAt: null,
   createdAt: new Date('2025-01-01T00:00:00Z'),
   ...overrides,
@@ -43,6 +44,7 @@ const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
   status: 'expired',
   authority: 'ens_v2',
   expires_at: String(nowSeconds - 86_400 * 3),
+  grace_ends_at: String(nowSeconds + 86_400 * 25),
   relations: ['former_owner'],
   is_primary: false,
   lapsed_registration: { owner: OWNER, release_kind: 'expired' },
@@ -56,6 +58,7 @@ const dashboardName = (
   name: 'alice.eth',
   protocol: 'v2',
   servedExpiry: null,
+  graceEndsAt: null,
   expiryDate: 100n,
   createdAt: null,
   nameRoles: ['owner'],
@@ -100,13 +103,12 @@ describe('isListedName', () => {
       registrationStatus: 'active',
       listed: true,
     },
-  ] as const)('$name $registrationStatus listed: $listed', ({
-    name,
-    registrationStatus,
-    listed,
-  }) => {
-    expect(isListedName(summary({ name, registrationStatus }))).toBe(listed)
-  })
+  ] as const)(
+    '$name $registrationStatus listed: $listed',
+    ({ name, registrationStatus, listed }) => {
+      expect(isListedName(summary({ name, registrationStatus }))).toBe(listed)
+    },
+  )
 })
 
 describe('toGraceName', () => {
@@ -117,6 +119,7 @@ describe('toGraceName', () => {
       protocol: 'v2',
       expiryDate: BigInt(nowSeconds - 86_400 * 3),
       servedExpiry: BigInt(nowSeconds - 86_400 * 3),
+      graceEndsAt: BigInt(nowSeconds + 86_400 * 25),
       createdAt: null,
       nameRoles: [],
       isLapsed: true,

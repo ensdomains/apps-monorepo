@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { ResultAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import { type Address, decodeFunctionData, erc1155Abi, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
@@ -57,6 +57,10 @@ vi.mock('../queries/getOwnResolver', () => ({
     queryKey: ['transfer-own-resolver-test'],
     queryFn: async () => null,
   }),
+}))
+
+vi.mock('../queries/getIsRegistryEmancipated', () => ({
+  getIsRegistryEmancipated: () => okAsync(true),
 }))
 
 /**

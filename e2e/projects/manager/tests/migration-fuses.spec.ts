@@ -81,7 +81,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
   test('locked + CANNOT_SET_RESOLVER migrates and preserves V1 resolver', async ({
     migrationConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     wallet,
     accounts,
   }) => {
@@ -109,7 +109,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
 
-    v1Names.markMigrated(mockIndexer)
+    v1Names.markMigrated(mockBigname)
     await assertLockedMigration(label)
 
     // CANNOT_SET_RESOLVER means the V1 resolver cannot be changed by the owner.
@@ -123,7 +123,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
   test('locked + all child fuses migrates and produces locked V2 state', async ({
     migrationConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     wallet,
     accounts,
   }) => {
@@ -160,7 +160,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
 
-    v1Names.markMigrated(mockIndexer)
+    v1Names.markMigrated(mockBigname)
     await assertLockedMigration(label)
     await assertV2Resolver(label, V1_PUBLIC_RESOLVER)
     console.log(

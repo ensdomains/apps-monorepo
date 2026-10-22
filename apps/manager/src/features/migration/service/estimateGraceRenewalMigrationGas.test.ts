@@ -125,35 +125,35 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('estimateGraceRenewalMigrationGas', () => {
-  it.each([
-    false,
-    true,
-  ])('estimates migration after restoring a late-grace reservation (wrapped: %s)', async (isWrapped) => {
-    const lateGrace = {
-      ...makeName('late.eth', isWrapped),
-      registration: { expiryDate: (NOW - 70n * DAY).toString() },
-      isUnreserved: true as const,
-    }
-    const input = params()
-    input.domains = [lateGrace]
-    input.quote = {
-      ...input.quote,
-      items: [
-        {
-          ...makeItem(lateGrace),
-          registrationExpiry: NOW - 70n * DAY,
-          duration: 77n * DAY,
-        },
-      ],
-    }
+  it.each([false, true])(
+    'estimates migration after restoring a late-grace reservation (wrapped: %s)',
+    async (isWrapped) => {
+      const lateGrace = {
+        ...makeName('late.eth', isWrapped),
+        registration: { expiryDate: (NOW - 70n * DAY).toString() },
+        isUnreserved: true as const,
+      }
+      const input = params()
+      input.domains = [lateGrace]
+      input.quote = {
+        ...input.quote,
+        items: [
+          {
+            ...makeItem(lateGrace),
+            registrationExpiry: NOW - 70n * DAY,
+            duration: 77n * DAY,
+          },
+        ],
+      }
 
-    await expect(
-      estimateGraceRenewalMigrationGas(input),
-    ).resolves.toMatchObject({
-      gasUnits: 1_200n,
-    })
-    expect(lateGrace.isUnreserved).toBe(true)
-  })
+      await expect(
+        estimateGraceRenewalMigrationGas(input),
+      ).resolves.toMatchObject({
+        gasUnits: 1_200n,
+      })
+      expect(lateGrace.isUnreserved).toBe(true)
+    },
+  )
 
   it('does not clear an unreserved name when the quote will not renew it', async () => {
     const unreserved = { ...active, isUnreserved: true as const }
@@ -180,22 +180,22 @@ describe('estimateGraceRenewalMigrationGas', () => {
   it.each([
     { optedIn: ['grace.eth'], requiresManagerRestoration: true },
     { optedIn: [], requiresManagerRestoration: false },
-  ])("estimates with the owner's manager restoration choice: $optedIn", async ({
-    optedIn,
-    requiresManagerRestoration,
-  }) => {
-    await estimateGraceRenewalMigrationGas({
-      ...params(),
-      managerRestorationNames: optedIn,
-    })
+  ])(
+    "estimates with the owner's manager restoration choice: $optedIn",
+    async ({ optedIn, requiresManagerRestoration }) => {
+      await estimateGraceRenewalMigrationGas({
+        ...params(),
+        managerRestorationNames: optedIn,
+      })
 
-    expect(computeMigrationPreflight).toHaveBeenCalledWith(
-      expect.objectContaining({ requiresManagerRestoration }),
-    )
-    expect(buildMigrationPlan).toHaveBeenCalledWith(
-      expect.objectContaining({ managerRestorationNames: optedIn }),
-    )
-  })
+      expect(computeMigrationPreflight).toHaveBeenCalledWith(
+        expect.objectContaining({ requiresManagerRestoration }),
+      )
+      expect(buildMigrationPlan).toHaveBeenCalledWith(
+        expect.objectContaining({ managerRestorationNames: optedIn }),
+      )
+    },
+  )
 
   it('includes the entire selection and renewal with one fee rate, without exposing a plan', async () => {
     const input = params()

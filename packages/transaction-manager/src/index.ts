@@ -19,10 +19,17 @@ export {
   HCA_STANDALONE_INTENT_GAS_LIMIT,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
+  type HcaFundingTokenLeg,
   HcaIntentFeeExceedsMaximumError,
   type HcaIntentFunding,
+  type HcaTokenSpend,
+  hcaMaxIntentFeeUsdcFor,
+  type PermitKind,
+  type PermitPurpose,
   type PlanHcaIntentFundingParams,
   planHcaIntentFunding,
+  type QuoteHcaIntentParams,
+  quoteHcaIntentFeeUsdc,
 } from './helpers/hca-intent-funding'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 // Persistence

@@ -137,7 +137,7 @@ describe('readV1NamesForAddress', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('does not use retained fuses from an unwrapped parent to detach its child', async () => {
+  it('detaches a PARENT_CANNOT_CONTROL child on its own fuses, not its parent’s', async () => {
     const parent = unwrapped2ld('alice.eth', {
       ens_v1: {
         expires_at: FUTURE,
@@ -165,7 +165,7 @@ describe('readV1NamesForAddress', () => {
       classified.map(({ action, tokenType }) => [action, tokenType]),
     ).toEqual([
       ['migrate', 'unwrapped'],
-      ['copy', 'unlocked-child'],
+      ['migrate', 'detached-child'],
     ])
   })
 

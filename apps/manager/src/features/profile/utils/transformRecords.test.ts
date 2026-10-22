@@ -8,6 +8,84 @@ import {
 } from './transformRecords'
 
 describe('profile transformRecords utils', () => {
+  it.each([
+    'constructor',
+    'toString',
+    'valueOf',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    '__proto__',
+  ])('preserves a %s text record without losing the profile', (key) => {
+    const records = transformProfileRecords({
+      texts: [
+        { key, value: 'x' },
+        { key: 'description', value: 'Profile remains available' },
+      ],
+      coins: [],
+    })
+
+    expect(records.unknown).toEqual([{ key, value: 'x' }])
+    expect(records.base.description).toBe('Profile remains available')
+    expect(transformToServiceFormat(records).texts).toContainEqual({
+      key,
+      value: 'x',
+    })
+  })
+
+  describe('primary contacts record limits', () => {
+    const transformPrimaryContacts = (value: string) =>
+      transformProfileRecords({
+        texts: [
+          { key: 'domains.ens.primary-contacts', value },
+          { key: 'primary-contact', value: 'phone' },
+          { key: 'description', value: 'Profile remains available' },
+        ],
+        coins: [],
+      })
+
+    it('drops a grouped 270,000-key record before it reaches any consumer', () => {
+      const value = JSON.stringify([
+        ...Array(90_000).fill('email'),
+        ...Array(90_000).fill('mail'),
+        ...Array(90_000).fill('phone'),
+      ])
+      const result = transformPrimaryContacts(value)
+
+      expect('domains.ens.primary-contacts' in result.base).toBe(false)
+      expect(result.unknown).toEqual([])
+      expect(result.base['primary-contact']).toBe('phone')
+      expect(result.base.description).toBe('Profile remains available')
+    })
+
+    it('preserves a record at 4 KiB and drops one byte over it', () => {
+      const value = '["email"]'.padEnd(4 * 1024, ' ')
+
+      expect(
+        transformPrimaryContacts(value).base['domains.ens.primary-contacts'],
+      ).toBe(value)
+      expect(
+        transformPrimaryContacts(`${value} `).base[
+          'domains.ens.primary-contacts'
+        ],
+      ).toBeUndefined()
+    })
+
+    it('enforces the raw UTF-8 byte limit', () => {
+      const value = JSON.stringify(['email', 'é'.repeat(2042)])
+
+      expect(new TextEncoder().encode(value)).toHaveLength(4 * 1024)
+      expect(
+        transformPrimaryContacts(value).base['domains.ens.primary-contacts'],
+      ).toBe(value)
+      expect(
+        transformPrimaryContacts(`${value} `).base[
+          'domains.ens.primary-contacts'
+        ],
+      ).toBeUndefined()
+    })
+  })
+
   describe('links record limits', () => {
     const link = { name: 'Website', url: 'https://example.com' }
     const transformLinks = (value: string) =>
@@ -54,36 +132,37 @@ describe('profile transformRecords utils', () => {
       expect(transformLinks(`${value} `).links).toHaveLength(0)
     })
 
-    it.each([
-      4, 51, 75,
-    ])('preserves all %i links when editing a visible link', (count) => {
-      const links = Array.from({ length: count }, (_, i) => ({
-        name: `Link ${i}`,
-        url: `https://example.com/${i}`,
-      }))
-      const records = transformLinks(JSON.stringify(links))
-      const updatedLink = {
-        name: 'Updated website',
-        url: 'https://updated.example.com',
-      }
+    it.each([4, 51, 75])(
+      'preserves all %i links when editing a visible link',
+      (count) => {
+        const links = Array.from({ length: count }, (_, i) => ({
+          name: `Link ${i}`,
+          url: `https://example.com/${i}`,
+        }))
+        const records = transformLinks(JSON.stringify(links))
+        const updatedLink = {
+          name: 'Updated website',
+          url: 'https://updated.example.com',
+        }
 
-      expect(records.links).toEqual(links)
+        expect(records.links).toEqual(links)
 
-      const editedRecords = normalizeProfileRecords({
-        ...records,
-        links: records.links.map((item, index) =>
-          index === 0 ? updatedLink : item,
-        ),
-      })
-      const savedLinks = transformToServiceFormat(editedRecords).texts.find(
-        ({ key }) => key === 'links',
-      )
+        const editedRecords = normalizeProfileRecords({
+          ...records,
+          links: records.links.map((item, index) =>
+            index === 0 ? updatedLink : item,
+          ),
+        })
+        const savedLinks = transformToServiceFormat(editedRecords).texts.find(
+          ({ key }) => key === 'links',
+        )
 
-      expect(savedLinks?.value).toBe(
-        JSON.stringify([updatedLink, ...links.slice(1)]),
-      )
-      expect(records.links).toEqual(links)
-    })
+        expect(savedLinks?.value).toBe(
+          JSON.stringify([updatedLink, ...links.slice(1)]),
+        )
+        expect(records.links).toEqual(links)
+      },
+    )
 
     it('preserves valid links after invalid entries beyond the preview limit', () => {
       const lastLink = {
@@ -210,30 +289,30 @@ describe('profile transformRecords utils', () => {
       expect(result.unknown).toEqual([])
     })
 
-    it.each([
-      'ipfs://QmBad',
-      'javascript:alert(1)',
-    ])('should safely parse links JSON and drop an unsafe %s entry from the chain', (unsafeUrl) => {
-      const result = transformProfileRecords({
-        texts: [
-          {
-            key: 'links',
-            value: JSON.stringify([
-              { name: 'ok', url: 'https://good.com' },
-              { name: 'unsafe', url: unsafeUrl },
-              { name: 'also ok', url: 'https://also.good.com' },
-            ]),
-          },
-        ],
-        coins: [],
-      })
+    it.each(['ipfs://QmBad', 'javascript:alert(1)'])(
+      'should safely parse links JSON and drop an unsafe %s entry from the chain',
+      (unsafeUrl) => {
+        const result = transformProfileRecords({
+          texts: [
+            {
+              key: 'links',
+              value: JSON.stringify([
+                { name: 'ok', url: 'https://good.com' },
+                { name: 'unsafe', url: unsafeUrl },
+                { name: 'also ok', url: 'https://also.good.com' },
+              ]),
+            },
+          ],
+          coins: [],
+        })
 
-      expect(result.links).toEqual([
-        { name: 'ok', url: 'https://good.com' },
-        { name: 'also ok', url: 'https://also.good.com' },
-      ])
-      expect(result.unknown).toEqual([])
-    })
+        expect(result.links).toEqual([
+          { name: 'ok', url: 'https://good.com' },
+          { name: 'also ok', url: 'https://also.good.com' },
+        ])
+        expect(result.unknown).toEqual([])
+      },
+    )
 
     it('should not throw and should drop all when links JSON is malformed', () => {
       const result = transformProfileRecords({
@@ -465,7 +544,7 @@ describe('profile transformRecords utils', () => {
       ])
     })
 
-    it('should normalize social profile URLs before saving records', () => {
+    it('preserves resolver-valued social records while preparing a save', () => {
       const records = {
         ...newEmptyProfileRecords(),
         social: [
@@ -478,9 +557,9 @@ describe('profile transformRecords utils', () => {
       const normalized = normalizeProfileRecords(records)
 
       expect(normalized.social).toEqual([
-        { key: 'com.linkedin', value: 'ebeau' },
-        { key: 'com.twitter', value: 'ensdomains' },
-        { key: 'org.telegram', value: 'ensdomains' },
+        { key: 'com.linkedin', value: 'https://www.linkedin.com/in/ebeau/' },
+        { key: 'com.twitter', value: '@ensdomains' },
+        { key: 'org.telegram', value: 'https://t.me/ensdomains' },
       ])
     })
   })

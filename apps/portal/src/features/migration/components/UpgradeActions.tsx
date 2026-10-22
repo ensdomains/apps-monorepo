@@ -4,6 +4,7 @@ import {
   ENSV2_LEARN_MORE_URL,
   MANAGER_UPGRADE_URL,
 } from '@/lib/constants/domain'
+import { SubnameUpgradeNotice } from './SubnameUpgradeNotice'
 
 /**
  * Learn more plus Upgrade to v2, the pair every migration prompt offers.
@@ -20,27 +21,39 @@ export const UpgradeActions = ({
   readonly learnMore?: boolean
   readonly isWrapped?: boolean
 }) => (
-  <div className="flex shrink-0 items-center gap-4">
-    {learnMore && (
-      <Button className="rounded-xs" asChild variant="entity-outline" size="xs">
-        {/** biome-ignore lint/a11y/noAmbiguousAnchorText: aria-label is used */}
-        <a
-          href={ENSV2_LEARN_MORE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Learn more about upgrading ${name} to ENS v2`}
+  <div className="flex min-w-0 shrink-0 flex-col items-start gap-3">
+    <div className="flex items-center gap-4">
+      {learnMore && (
+        <Button
+          className="rounded-xs"
+          asChild
+          variant="entity-outline"
+          size="xs"
         >
-          Learn more
-        </a>
-      </Button>
-    )}
-    {MANAGER_UPGRADE_URL && (
-      <Button className="rounded-xs" asChild variant="entity" size="xs">
-        <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
-          <ArrowUpCircle className="size-4 shrink-0" />
-          {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
-        </a>
-      </Button>
-    )}
+          {/** biome-ignore lint/a11y/noAmbiguousAnchorText: aria-label is used */}
+          <a
+            href={ENSV2_LEARN_MORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Learn more about upgrading ${name} to ENS v2`}
+          >
+            Learn more
+          </a>
+        </Button>
+      )}
+      {MANAGER_UPGRADE_URL && (
+        <Button className="rounded-xs" asChild variant="entity" size="xs">
+          <a
+            href={MANAGER_UPGRADE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ArrowUpCircle className="size-4 shrink-0" />
+            {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
+          </a>
+        </Button>
+      )}
+    </div>
+    {MANAGER_UPGRADE_URL && <SubnameUpgradeNotice name={name} />}
   </div>
 )

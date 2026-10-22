@@ -58,6 +58,7 @@ describe('deriveV1NameState — the subject', () => {
         cannotTransfer: false,
         cannotSetResolver: false,
         cannotUnwrap: true,
+        cannotCreateSubdomain: false,
         parentCannotControl: true,
       },
       expiry: 1_821_784_092n,

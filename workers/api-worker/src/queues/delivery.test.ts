@@ -95,88 +95,89 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-describe.each([
-  'email',
-  'push',
-  'telegram',
-] as const)('%s queue contract', (channel) => {
-  it("sends to the source channel's target, records delivery, and ACKs", async () => {
-    const { set } = deliveryDb(channel)
-    const result = await runQueue(
-      `app-api-worker-${channel}-delivery`,
-      [job],
-      settings(),
-    )
-    expect(result.explicitAcks).toEqual(['message-0'])
-    expect(result.retryMessages).toEqual([])
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'delivered',
-        provider_msg_id: expect.any(String),
-      }),
-    )
-    expect(providers[channel]).toHaveBeenCalledOnce()
-    if (channel === 'email') {
-      expect(providers.email).toHaveBeenCalledWith(
-        'test',
+describe.each(['email', 'push', 'telegram'] as const)(
+  '%s queue contract',
+  (channel) => {
+    it("sends to the source channel's target, records delivery, and ACKs", async () => {
+      const { set } = deliveryDb(channel)
+      const result = await runQueue(
+        `app-api-worker-${channel}-delivery`,
+        [job],
+        settings(),
+      )
+      expect(result.explicitAcks).toEqual(['message-0'])
+      expect(result.retryMessages).toEqual([])
+      expect(set).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Domain grace period ended',
-          personalizations: [{ to: [{ email: targets.email }] }],
-          content: [
-            {
-              type: 'text/plain',
-              value: expect.stringContaining('alpha.eth'),
-            },
-            {
-              type: 'text/html',
-              value: expect.stringContaining('alpha.eth'),
-            },
-          ],
+          status: 'delivered',
+          provider_msg_id: expect.any(String),
         }),
       )
-      expect(providers.email.mock.calls[0]?.[1]).not.toHaveProperty(
-        'template_id',
-      )
-    }
-    if (channel === 'push')
-      expect(providers.push).toHaveBeenCalledWith(targets.push, {
-        method: 'POST',
-      })
-    if (channel === 'telegram')
-      expect(providers.telegram).toHaveBeenCalledWith(
-        'test',
-        'sendMessage',
-        expect.objectContaining({
-          chat_id: targets.telegram,
-          text: expect.stringContaining('alpha.eth'),
-        }),
-      )
-  })
+      expect(providers[channel]).toHaveBeenCalledOnce()
+      if (channel === 'email') {
+        expect(providers.email).toHaveBeenCalledWith(
+          'test',
+          expect.objectContaining({
+            subject: '[Sepolia] Your name’s grace period has ended',
+            personalizations: [{ to: [{ email: targets.email }] }],
+            content: [
+              {
+                type: 'text/plain',
+                value: expect.stringContaining('alpha.eth'),
+              },
+              {
+                type: 'text/html',
+                value: expect.stringContaining('alpha.eth'),
+              },
+            ],
+          }),
+        )
+        expect(providers.email.mock.calls[0]?.[1]).not.toHaveProperty(
+          'template_id',
+        )
+      }
+      if (channel === 'push')
+        expect(providers.push).toHaveBeenCalledWith(targets.push, {
+          method: 'POST',
+        })
+      if (channel === 'telegram')
+        expect(providers.telegram).toHaveBeenCalledWith(
+          'test',
+          'sendMessage',
+          expect.objectContaining({
+            chat_id: targets.telegram,
+            text: expect.stringContaining('alpha.eth'),
+          }),
+        )
+    })
 
-  it('records a provider failure and retries the message', async () => {
-    const { set } = deliveryDb(channel)
-    if (channel === 'push')
-      providers.push.mockResolvedValue(
-        new Response('unavailable', { status: 503 }),
+    it('records a provider failure and retries the message', async () => {
+      const { set } = deliveryDb(channel)
+      if (channel === 'push')
+        providers.push.mockResolvedValue(
+          new Response('unavailable', { status: 503 }),
+        )
+      else
+        providers[channel].mockReturnValue(
+          err(new Error('provider unavailable')),
+        )
+      const result = await runQueue(
+        `app-api-worker-${channel}-delivery`,
+        [job],
+        settings(),
       )
-    else
-      providers[channel].mockReturnValue(err(new Error('provider unavailable')))
-    const result = await runQueue(
-      `app-api-worker-${channel}-delivery`,
-      [job],
-      settings(),
-    )
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'failed',
-        error: expect.stringContaining('unavailable'),
-        attempts: 2,
-      }),
-    )
-    expect(result.explicitAcks).toEqual([])
-    expect(result.retryMessages).toEqual([{ msgId: 'message-0' }])
-  })
-})
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'failed',
+          error: expect.stringContaining('unavailable'),
+          attempts: 2,
+        }),
+      )
+      expect(result.explicitAcks).toEqual([])
+      expect(result.retryMessages).toEqual([{ msgId: 'message-0' }])
+    })
+  },
+)
 
 it('ACKs an already-delivered email job without contacting the provider', async () => {
   const { set } = deliveryDb('email', 'delivered')

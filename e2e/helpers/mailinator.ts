@@ -105,9 +105,15 @@ export async function expectMessageWithSubject(
 ): Promise<MailinatorMessage> {
   const msg = await waitForMessage(
     inbox,
-    (m) => (m.subject || '').toLowerCase() === expectedSubject.toLowerCase(),
+    (m) =>
+      withoutNetworkPrefix(m.subject ?? '').toLowerCase() ===
+      expectedSubject.toLowerCase(),
     timeoutMs,
   )
-  expect(msg.subject).toBe(expectedSubject)
+  expect(withoutNetworkPrefix(msg.subject ?? '')).toBe(expectedSubject)
   return msg
 }
+
+// Testnet emails carry a "[Sepolia] " subject prefix; specs run on any network.
+export const withoutNetworkPrefix = (subject: string): string =>
+  subject.replace(/^\[\w+\] /, '')

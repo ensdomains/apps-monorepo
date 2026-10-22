@@ -73,22 +73,20 @@ beforeEach(() => {
 })
 
 describe('POST /sendgrid/events', () => {
-  it.each([
-    undefined,
-    '',
-    '   ',
-    '\t\n',
-  ])('fails closed without a verification key (%s)', async (verificationKey) => {
-    const env = {
-      SENDGRID_WEBHOOK_VERIFICATION_KEY: verificationKey,
-    } as CloudflareBindings
+  it.each([undefined, '', '   ', '\t\n'])(
+    'fails closed without a verification key (%s)',
+    async (verificationKey) => {
+      const env = {
+        SENDGRID_WEBHOOK_VERIFICATION_KEY: verificationKey,
+      } as CloudflareBindings
 
-    const response = await requestWebhook(env, 'not-json')
+      const response = await requestWebhook(env, 'not-json')
 
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: 'Internal server error' })
-    expect(mocks.getDatabase).not.toHaveBeenCalled()
-  })
+      expect(response.status).toBe(500)
+      expect(await response.json()).toEqual({ error: 'Internal server error' })
+      expect(mocks.getDatabase).not.toHaveBeenCalled()
+    },
+  )
 
   it('rejects a malformed configured key as a server error without database work', async () => {
     const env = {

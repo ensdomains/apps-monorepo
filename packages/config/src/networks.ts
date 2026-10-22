@@ -10,10 +10,9 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
 /**
  * ENS-operated services that are NOT derivable from the chain.
  *
- * Contract addresses, the v1 subgraph URL and block explorer links all come
- * from the chain object (ensjs + viem) and deliberately do not live here —
- * duplicating them would let the two sources drift. The one exception is
- * `NetworkProfile.v1SubgraphUrl`, for a network whose ensjs default is broken.
+ * Contract addresses and block explorer links come from the chain object
+ * (ensjs + viem) and deliberately do not live here — duplicating them would
+ * let the two sources drift.
  *
  * `null` means "no deployment exists for this network yet". `buildConfig`
  * rejects a null that has not been overridden, unless the app allows missing
@@ -21,14 +20,15 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
  * than as a silent cross-network request.
  */
 export type NetworkEndpoints = {
-  /** ENSv2 indexer (Ponder) GraphQL endpoint. */
-  readonly indexerGraphql: string | null
+  /** bigname REST indexer. */
   readonly bignameApi: string | null
 }
 
 export type NetworkProfile = {
   readonly chainId: SupportedL1ChainId
   readonly isTestnet: boolean
+  /** App backend API; local/E2E builds can override it with VITE_API_URL. */
+  readonly appApiUrl: string
   /**
    * Public failover RPC endpoints. Each app supplies its own attributed
    * primary; these are the shared, uncorrelated backups behind it.
@@ -38,8 +38,6 @@ export type NetworkProfile = {
    * browser.
    */
   readonly rpcFallbacks: readonly string[]
-  /** Replaces the v1 subgraph ensjs puts on the chain; absent keeps it. */
-  readonly v1SubgraphUrl?: string
   readonly endpoints: NetworkEndpoints
 }
 
@@ -52,19 +50,16 @@ export const NETWORKS = {
   mainnet: {
     chainId: supportedL1Chains.mainnet,
     isTestnet: false,
+    appApiUrl: 'https://mainnet.app-api.ens.domains',
     rpcFallbacks: ['https://ethereum-rpc.publicnode.com'],
-    // ensjs points mainnet at api.alpha.blue.ensnode.io, which serves Railway's
-    // wildcard certificate, so browsers refuse it. This is ENSNode's Railway
-    // host; drop the override once that domain has its own certificate.
-    v1SubgraphUrl: 'https://ensnode-api-production.up.railway.app/subgraph',
     endpoints: {
-      indexerGraphql: 'https://mainnet-graphql.ens.dev/',
-      bignameApi: null,
+      bignameApi: 'https://api.bigname.sh',
     },
   },
   sepolia: {
     chainId: supportedL1Chains.sepolia,
     isTestnet: true,
+    appApiUrl: 'https://sepolia.app-api.ens.domains',
     rpcFallbacks: [
       'https://ethereum-sepolia-rpc.publicnode.com',
       // Tenderly over 1rpc.io: 1rpc's free tier rate-limits quickly, which
@@ -72,7 +67,6 @@ export const NETWORKS = {
       'https://sepolia.gateway.tenderly.co',
     ],
     endpoints: {
-      indexerGraphql: 'https://staging-graphql.ens.dev/',
       bignameApi: 'https://sepolia.api.bigname.sh',
     },
   },

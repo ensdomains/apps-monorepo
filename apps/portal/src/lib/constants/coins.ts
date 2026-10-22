@@ -9,7 +9,7 @@ export type CoinConfig = {
   name: string
   /** Long name (e.g., "Ethereum", "Bitcoin") */
   longName: string
-  /** SLIP-44 coin type */
+  /** SLIP-44 coin type, or the ENSIP-19 default EVM type (`0x80000000`) */
   coinType: number
   /** Icon path, or null if no icon exists */
   icon: string | null
@@ -122,9 +122,17 @@ const COINS_WITH_ICONS = [
   'zil',
 ] as const
 
-/** Priority coins shown at the top of the list */
+/**
+ * Priority coins shown at the top of the list.
+ *
+ * `default` is not a SLIP-44 coin: it is the ENSIP-19 default EVM address
+ * record (`0x80000000`), the address every EVM chain without a record of its
+ * own falls back to. The picker has to offer it because that record cannot be
+ * set any other way (WEB-1511).
+ */
 const PRIORITY_COINS = [
   'eth',
+  'default',
   'btc',
   'sol',
   'matic',
@@ -166,9 +174,21 @@ function getIconPath(coinName: string): string | null {
 }
 
 /**
+ * Long names that address-encoder cannot supply. The ENSIP-19 default coin is
+ * named "Default" there, which just repeats the symbol, so say what the record
+ * actually does instead.
+ */
+const COIN_LONG_NAME_OVERRIDES: Record<string, string> = {
+  default: 'Any EVM chain',
+}
+
+/**
  * Get the long name for a coin (e.g., "eth" -> "Ethereum")
  */
 function getLongName(coinName: string): string {
+  const override = COIN_LONG_NAME_OVERRIDES[coinName]
+  if (override) return override
+
   const coinType = coinNameToTypeMap[coinName as CoinName]
   if (coinType === undefined) return coinName.toUpperCase()
 

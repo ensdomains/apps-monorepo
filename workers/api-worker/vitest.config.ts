@@ -1,4 +1,4 @@
-import { cloudflareTest } from '@cloudflare/vitest-pool-workers'
+import { cloudflareTest } from '@cloudflare/vitest-plugin'
 import { defineConfig } from 'vitest/config'
 import {
   LOCAL_TEST_DATABASE_URL,
@@ -19,6 +19,8 @@ export default defineConfig({
       wrangler: { configPath: './wrangler.jsonc' },
       miniflare: {
         bindings: {
+          // Keep Vite's BASE_URL (/) from overriding the Wrangler variable.
+          BASE_URL: 'https://sepolia.app-api.ens.domains',
           RUN_REAL_DB_TESTS: isRealDbEnabled ? '1' : '',
           REAL_DB_DATABASE_URL: realDbUrl,
         },
@@ -28,13 +30,5 @@ export default defineConfig({
   test: {
     testTimeout: isRealDbEnabled ? 30_000 : 5_000,
     globalSetup: isRealDbEnabled ? ['./test-db.setup.ts'] : [],
-    deps: {
-      optimizer: {
-        ssr: {
-          enabled: true,
-          include: ['@urql/core'],
-        },
-      },
-    },
   },
 })

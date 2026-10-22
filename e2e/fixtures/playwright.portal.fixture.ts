@@ -27,6 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
@@ -78,6 +79,9 @@ const ERC20_ABI = parseAbi([
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
+
+const isUser = (value: string): value is User =>
+  (users as readonly string[]).includes(value)
 
 export function createAccounts(): PortalAccounts {
   const mnemonic = DEFAULT_MNEMONIC
@@ -193,7 +197,15 @@ type PortalFixtures = {
   makeName: ReturnType<typeof createMakeName>
 }
 
+// Shared bigname mock, active only when E2E_MOCK_BIGNAME=true.
+const bignameMock = createBignameMock()
+
 export const test = base.extend<PortalFixtures>({
+  page: async ({ page }, use) => {
+    await bignameMock.installIfEnabled(page)
+    await use(page)
+  },
+
   accounts: async ({}, use) => {
     await use(createAccounts())
   },
@@ -228,7 +240,23 @@ export const test = base.extend<PortalFixtures>({
   },
 
   makeName: async ({ accounts, time }, use) => {
-    await use(createMakeName({ accounts, time }))
+    const inner = createMakeName({ accounts, time })
+    await use(async (config, options) => {
+      const name = await inner(config, options)
+      // Registered on the fork only, so the bigname mock has to be told.
+      if (bignameMock.enabled)
+        bignameMock.addName({
+          name,
+          owner: accounts.getAddress(
+            config.owner && isUser(config.owner) ? config.owner : 'user2',
+          ),
+          records: config.records,
+          ...(config.duration !== undefined && {
+            expiryDate: Math.floor(Date.now() / 1000) + config.duration,
+          }),
+        })
+      return name
+    })
   },
 })
 

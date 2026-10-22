@@ -59,18 +59,18 @@ describe('commemorative NFT flow state', () => {
     ).toBe(true)
   })
 
-  it.each([
-    'fetching',
-    'paused',
-  ] as const)('does not accept a result while its claim query is %s', (fetchStatus) => {
-    expect(
-      isCommemorativeNftClaimResultFresh({
-        isFetchedAfterMount: true,
-        isSuccess: true,
-        fetchStatus,
-      }),
-    ).toBe(false)
-  })
+  it.each(['fetching', 'paused'] as const)(
+    'does not accept a result while its claim query is %s',
+    (fetchStatus) => {
+      expect(
+        isCommemorativeNftClaimResultFresh({
+          isFetchedAfterMount: true,
+          isSuccess: true,
+          fetchStatus,
+        }),
+      ).toBe(false)
+    },
+  )
 
   it('does not accept a failed read even after the observer mounted', () => {
     expect(

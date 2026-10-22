@@ -67,22 +67,25 @@ describe('/register/$name loader', () => {
     ['a zero-width space', 'vitalik​.eth', 'vitalik.eth'],
     ['a stray variation selector', 'thumbs\u{1f44d}️.eth', 'thumbs👍.eth'],
     ['an NFD accent', 'cafés.eth', 'cafés.eth'],
-  ])('redirects %s to its canonical spelling before anything is priced', async (_case, name, canonical) => {
-    // The registrar hashes the label bytes it is handed. Checking
-    // availability for the raw spelling answers truthfully about a label no
-    // ENSIP-15 client will ever look up, so the buyer would pay for a name
-    // that reads as `canonical` but is not it.
-    const { outcome, ensureQueryData } = await runLoader(name)
+  ])(
+    'redirects %s to its canonical spelling before anything is priced',
+    async (_case, name, canonical) => {
+      // The registrar hashes the label bytes it is handed. Checking
+      // availability for the raw spelling answers truthfully about a label no
+      // ENSIP-15 client will ever look up, so the buyer would pay for a name
+      // that reads as `canonical` but is not it.
+      const { outcome, ensureQueryData } = await runLoader(name)
 
-    expect(ensureQueryData).not.toHaveBeenCalled()
-    expect(outcome).toEqual({
-      redirect: {
-        params: { name: canonical },
-        to: '/register/$name',
-        replace: true,
-      },
-    })
-  })
+      expect(ensureQueryData).not.toHaveBeenCalled()
+      expect(outcome).toEqual({
+        redirect: {
+          params: { name: canonical },
+          to: '/register/$name',
+          replace: true,
+        },
+      })
+    },
+  )
 
   it('refuses an xn-- label, which has no canonical form to redirect to', async () => {
     const { outcome, ensureQueryData } = await runLoader('xn--ls8h.eth')

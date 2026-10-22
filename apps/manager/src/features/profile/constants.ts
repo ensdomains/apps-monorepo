@@ -1,5 +1,5 @@
 export const AVATAR_UPLOAD_BASE_URL =
-  'https://avatar-upload-staging.ens-cf.workers.dev'
+  'https://avatar-upload-staging.ens-cf.workers.dev/'
 
 /**
  * Hardcoded reverse map from a known agent-registry contract (chain + address)

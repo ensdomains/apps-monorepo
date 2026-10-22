@@ -1,6 +1,8 @@
+import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { Address } from 'viem'
+import { type Address, type Hex, keccak256, labelhash, toHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
+import { rememberName } from '@/utils/ens/localLabels'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -59,7 +61,7 @@ vi.mock('@/components/EntityBadge', () => ({
     variant?: string
     showAvatar?: boolean
   }) => (
-    <span data-testid="entity-badge">
+    <span data-testid="entity-badge" data-name={name}>
       {showAvatar && variant === 'name' && name ? (
         <span data-testid="name-avatar">{name}</span>
       ) : null}
@@ -173,6 +175,59 @@ describe('SubnamesTable', () => {
     expect(avatars.length).toBeGreaterThan(0)
   })
 
+  it('shows a child with an unknown label without linking to it', () => {
+    const placeholder = `[${'ab'.repeat(32)}].test.eth`
+    render(
+      <SubnamesTable
+        subnames={[
+          createMockSubname(placeholder),
+          createMockSubname('sub.test.eth'),
+        ]}
+        name="test.eth"
+      />,
+    )
+
+    const linkedNames = screen
+      .getAllByTestId('entity-badge')
+      .map((badge) => badge.getAttribute('data-name'))
+    expect(screen.getAllByText(placeholder).length).toBeGreaterThan(0)
+    expect(linkedNames).toContain('sub.test.eth')
+    expect(linkedNames).not.toContain(placeholder)
+  })
+
+  describe('with a label this browser has opened', () => {
+    const encoded = encodeLabelhash(labelhash('🔥'))
+    const placeholder = `${encoded}.test.eth`
+
+    const renderRow = (rowLabelhash: Hex) => {
+      rememberName('🔥.test.eth')
+      render(
+        <SubnamesTable
+          subnames={[
+            { ...createMockSubname(placeholder), labelhash: rowLabelhash },
+          ]}
+          name="test.eth"
+        />,
+      )
+      localStorage.clear()
+      return screen
+        .getAllByTestId('entity-badge')
+        .map((badge) => badge.getAttribute('data-name'))
+    }
+
+    it('heals the row whose labelhash it is', () => {
+      expect(renderRow(labelhash('🔥'))).toContain('🔥.test.eth')
+      expect(screen.queryByText(placeholder)).not.toBeInTheDocument()
+    })
+
+    // WEB-1458: a label written literally as `[<hex>]` is served the same way.
+    it('keeps a literal-bracket label that spells that labelhash', () => {
+      const linkedNames = renderRow(keccak256(toHex(encoded)))
+      expect(linkedNames).not.toContain('🔥.test.eth')
+      expect(screen.getAllByText(placeholder).length).toBeGreaterThan(0)
+    })
+  })
+
   it('renders create button when canCreateSubname is true', () => {
     render(<SubnamesTable subnames={[]} name="test.eth" canCreateSubname />)
 
@@ -187,28 +242,20 @@ describe('SubnamesTable', () => {
     expect(screen.queryByText('Create subname')).not.toBeInTheDocument()
   })
 
-  describe('with more subnames than are shown', () => {
-    const shown = [
+  // A V2 name can hold thousands of subnames, so the table is handed a page at
+  // a time; the heading still reports how many the name has.
+  describe('with more subnames than are loaded', () => {
+    const loaded = [
       createMockSubname('sub1.test.eth'),
       createMockSubname('sub2.test.eth'),
     ]
-    const loader = {
-      shown: 2,
-      moreCount: 4,
-      total: 10181,
-      canShowMore: true,
-      canShowAll: false,
-      status: 'idle',
-      onMore: vi.fn(),
-      onAll: vi.fn(),
-    } as const
 
-    it('heads the page with the name’s total and ends with the loader', () => {
+    it('heads the page with the name’s total, not the loaded rows', () => {
       render(
         <SubnamesTable
-          subnames={shown}
+          subnames={loaded}
           totalCount={10181}
-          loader={loader}
+          onLoadMore={vi.fn()}
           name="test.eth"
         />,
       )
@@ -217,28 +264,46 @@ describe('SubnamesTable', () => {
       expect(screen.getByText('Showing 2 of 10181')).toBeInTheDocument()
     })
 
-    it('shows more on request', () => {
-      const onMore = vi.fn()
+    it('loads the next page on request', () => {
+      const onLoadMore = vi.fn()
       render(
         <SubnamesTable
-          subnames={shown}
+          subnames={loaded}
           totalCount={10181}
-          loader={{ ...loader, onMore }}
+          onLoadMore={onLoadMore}
           name="test.eth"
         />,
       )
 
-      fireEvent.click(screen.getByRole('button', { name: 'More' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Load more subnames' }),
+      )
 
-      expect(onMore).toHaveBeenCalledOnce()
+      expect(onLoadMore).toHaveBeenCalledOnce()
     })
 
-    it('says a search covers only the rows shown', () => {
+    it('holds the button while a page is loading', () => {
       render(
         <SubnamesTable
-          subnames={shown}
+          subnames={loaded}
           totalCount={10181}
-          loader={loader}
+          onLoadMore={vi.fn()}
+          isLoadingMore
+          name="test.eth"
+        />,
+      )
+
+      expect(screen.getByRole('button', { name: 'Loading…' })).toBeDisabled()
+    })
+
+    // The filter only sees loaded rows, so an empty result is not "no such
+    // subname" while there are more to load.
+    it('says a search covers only the loaded rows', () => {
+      render(
+        <SubnamesTable
+          subnames={loaded}
+          totalCount={10181}
+          onLoadMore={vi.fn()}
           name="test.eth"
         />,
       )
@@ -248,28 +313,17 @@ describe('SubnamesTable', () => {
       })
 
       expect(
-        screen.getByText(/Searching the 2 subnames shown so far/),
+        screen.getByText(/Searching the 2 subnames loaded so far/),
       ).toBeInTheDocument()
     })
 
-    it('leaves the count off the heading while the total is unknown', () => {
-      render(
-        <SubnamesTable
-          subnames={shown}
-          loader={{ ...loader, total: undefined }}
-          name="test.eth"
-        />,
-      )
-
-      expect(screen.getByRole('heading')).toHaveTextContent(/Subnames$/)
-      expect(screen.getByText('Showing 2')).toBeInTheDocument()
-    })
-
-    it('offers nothing more once every subname is shown', () => {
-      render(<SubnamesTable subnames={shown} name="test.eth" />)
+    it('offers nothing more once every subname is loaded', () => {
+      render(<SubnamesTable subnames={loaded} name="test.eth" />)
 
       expect(screen.getByText('Subnames (2)')).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
+      expect(
+        screen.queryByRole('button', { name: 'Load more subnames' }),
+      ).not.toBeInTheDocument()
     })
   })
 })

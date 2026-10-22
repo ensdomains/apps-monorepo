@@ -237,37 +237,36 @@ describe('commemorative NFT flow session', () => {
     { migration: true, nft: false, network: 'mainnet' },
     { migration: undefined, nft: true, network: 'mainnet' },
     { migration: true, nft: undefined, network: 'mainnet' },
-  ] as const)('keeps cached NFTs and callbacks disabled with flags $migration/$nft on $network', async ({
-    migration,
-    nft,
-    network,
-  }) => {
-    mockEnvConfig.network = network
-    featureFlag.mockImplementation(
-      (flag, defaultValue) =>
-        (flag === 'migration' ? migration : nft) ?? defaultValue,
-    )
-    const client = createClient()
-    client.setQueryData(
-      commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
-      eligible,
-    )
-    client.setQueryData(claimQueryKey, false)
-    const { result } = mountFlow(client)
+  ] as const)(
+    'keeps cached NFTs and callbacks disabled with flags $migration/$nft on $network',
+    async ({ migration, nft, network }) => {
+      mockEnvConfig.network = network
+      featureFlag.mockImplementation(
+        (flag, defaultValue) =>
+          (flag === 'migration' ? migration : nft) ?? defaultValue,
+      )
+      const client = createClient()
+      client.setQueryData(
+        commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
+        eligible,
+      )
+      client.setQueryData(claimQueryKey, false)
+      const { result } = mountFlow(client)
 
-    expect(result.current.admission.status).toBe('fallback')
-    expect(result.current.eligibility).toBeUndefined()
-    expect(result.current.state).not.toHaveProperty('card')
-    expect(result.current.canMint).toBe(false)
-    await act(async () => {
-      result.current.mint()
-      result.current.retry()
-    })
+      expect(result.current.admission.status).toBe('fallback')
+      expect(result.current.eligibility).toBeUndefined()
+      expect(result.current.state).not.toHaveProperty('card')
+      expect(result.current.canMint).toBe(false)
+      await act(async () => {
+        result.current.mint()
+        result.current.retry()
+      })
 
-    expect(fetchEligibility).not.toHaveBeenCalled()
-    expect(readClaimed).not.toHaveBeenCalled()
-    expect(claim).not.toHaveBeenCalled()
-  })
+      expect(fetchEligibility).not.toHaveBeenCalled()
+      expect(readClaimed).not.toHaveBeenCalled()
+      expect(claim).not.toHaveBeenCalled()
+    },
+  )
 
   it('admits only after both initially unknown flags become enabled', async () => {
     featureFlag.mockImplementation((_flag, defaultValue) => defaultValue)
@@ -729,23 +728,23 @@ describe('commemorative NFT flow session', () => {
     expect(claim).not.toHaveBeenCalled()
   })
 
-  it.each([
-    'ineligible',
-    'unavailable',
-  ] as const)('does not substitute sample artwork when published metadata is %s', async (status) => {
-    fetchEligibility.mockResolvedValueOnce({ status })
-    const { result } = mountFlow(createClient())
+  it.each(['ineligible', 'unavailable'] as const)(
+    'does not substitute sample artwork when published metadata is %s',
+    async (status) => {
+      fetchEligibility.mockResolvedValueOnce({ status })
+      const { result } = mountFlow(createClient())
 
-    await waitFor(() =>
-      expect(result.current.state.status).toBe(
-        status === 'ineligible' ? 'ineligible' : 'error',
-      ),
-    )
+      await waitFor(() =>
+        expect(result.current.state.status).toBe(
+          status === 'ineligible' ? 'ineligible' : 'error',
+        ),
+      )
 
-    expect(result.current.eligibility).toBeUndefined()
-    expect(result.current.state).not.toHaveProperty('card')
-    expect(result.current.canMint).toBe(false)
-  })
+      expect(result.current.eligibility).toBeUndefined()
+      expect(result.current.state).not.toHaveProperty('card')
+      expect(result.current.canMint).toBe(false)
+    },
+  )
 
   it('shows a safe metadata error without substituting sample artwork', async () => {
     fetchEligibility.mockRejectedValueOnce(
@@ -894,42 +893,42 @@ describe('commemorative NFT flow session', () => {
     expect(waitForReceipt).toHaveBeenCalledTimes(2)
   })
 
-  it.each([
-    true,
-    false,
-  ])('restores a submitted claim with a fresh query cache when migration indexing is unavailable and browser coordination is %s', async (canCoordinateClaim) => {
-    if (!canCoordinateClaim) vi.stubGlobal('navigator', {})
-    const contractAddress = getCommemorativeNftContractAddress()
-    if (!contractAddress) throw new Error('Missing test contract')
-    const saved = {
-      version: 1 as const,
-      chainId: 1,
-      ownerAddress,
-      contractAddress,
-      hash: transactionHash,
-      expectedClaimData: encodeCommemorativeNftClaim(eligibility.proof),
-      submittedAt: Date.now(),
-    }
-    savePendingNftClaim(saved)
-    fetchCompletion.mockRejectedValue(new Error('Indexer unavailable'))
-    waitForReceipt.mockResolvedValue({
-      status: 'pending',
-      hash: transactionHash,
-    })
-    const { result, unmount } = mountFlow(createClient())
-    await waitFor(() => expect(result.current.canCheckStatus).toBe(true))
-    expect(result.current.admission.status).toBe('admitted')
-    expect(result.current.state.status).toBe('claimPending')
-    expect(result.current.canMint).toBe(false)
-    act(() => result.current.mint())
-    expect(claim).not.toHaveBeenCalled()
-    expect(fetchCompletion).not.toHaveBeenCalled()
-    expect(readPendingNftClaim(saved).claim).toEqual(saved)
-    unmount()
-    const reopened = mountFlow(createClient())
-    await waitFor(() => expect(waitForReceipt).toHaveBeenCalledTimes(2))
-    expect(reopened.result.current.canMint).toBe(false)
-  })
+  it.each([true, false])(
+    'restores a submitted claim with a fresh query cache when migration indexing is unavailable and browser coordination is %s',
+    async (canCoordinateClaim) => {
+      if (!canCoordinateClaim) vi.stubGlobal('navigator', {})
+      const contractAddress = getCommemorativeNftContractAddress()
+      if (!contractAddress) throw new Error('Missing test contract')
+      const saved = {
+        version: 1 as const,
+        chainId: 1,
+        ownerAddress,
+        contractAddress,
+        hash: transactionHash,
+        expectedClaimData: encodeCommemorativeNftClaim(eligibility.proof),
+        submittedAt: Date.now(),
+      }
+      savePendingNftClaim(saved)
+      fetchCompletion.mockRejectedValue(new Error('Indexer unavailable'))
+      waitForReceipt.mockResolvedValue({
+        status: 'pending',
+        hash: transactionHash,
+      })
+      const { result, unmount } = mountFlow(createClient())
+      await waitFor(() => expect(result.current.canCheckStatus).toBe(true))
+      expect(result.current.admission.status).toBe('admitted')
+      expect(result.current.state.status).toBe('claimPending')
+      expect(result.current.canMint).toBe(false)
+      act(() => result.current.mint())
+      expect(claim).not.toHaveBeenCalled()
+      expect(fetchCompletion).not.toHaveBeenCalled()
+      expect(readPendingNftClaim(saved).claim).toEqual(saved)
+      unmount()
+      const reopened = mountFlow(createClient())
+      await waitFor(() => expect(waitForReceipt).toHaveBeenCalledTimes(2))
+      expect(reopened.result.current.canMint).toBe(false)
+    },
+  )
 
   it('saves replacement hashes and checks them without submitting another mint', async () => {
     const replacementHash = `0x${'b'.repeat(64)}` as const
@@ -959,22 +958,21 @@ describe('commemorative NFT flow session', () => {
     expect(claim).toHaveBeenCalledTimes(1)
   })
 
-  it.each([
-    'cancelled',
-    'replaced',
-    'reverted',
-  ] as const)('clears a proven %s outcome and permits a fresh attempt only after retry', async (status) => {
-    waitForReceipt.mockResolvedValueOnce({ status, hash: transactionHash })
-    const { result } = mountFlow(createClient())
-    await waitFor(() => expect(result.current.canMint).toBe(true))
-    act(() => result.current.mint())
-    await waitFor(() => expect(result.current.state.status).toBe('error'))
-    expect(result.current.canMint).toBe(false)
-    expect(result.current.canCheckStatus).toBe(false)
-    act(() => result.current.retry())
-    await waitFor(() => expect(result.current.canMint).toBe(true))
-    expect(claim).toHaveBeenCalledTimes(1)
-  })
+  it.each(['cancelled', 'replaced', 'reverted'] as const)(
+    'clears a proven %s outcome and permits a fresh attempt only after retry',
+    async (status) => {
+      waitForReceipt.mockResolvedValueOnce({ status, hash: transactionHash })
+      const { result } = mountFlow(createClient())
+      await waitFor(() => expect(result.current.canMint).toBe(true))
+      act(() => result.current.mint())
+      await waitFor(() => expect(result.current.state.status).toBe('error'))
+      expect(result.current.canMint).toBe(false)
+      expect(result.current.canCheckStatus).toBe(false)
+      act(() => result.current.retry())
+      await waitFor(() => expect(result.current.canMint).toBe(true))
+      expect(claim).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('does not open the wallet if a pending hash cannot be saved durably', async () => {
     const { result } = mountFlow(createClient())
@@ -1101,17 +1099,17 @@ describe('commemorative NFT flow session', () => {
     expect(result.current.canMint).toBe(false)
   })
 
-  it.each([
-    undefined,
-    '0x538cDec1cb3e7A874D473E36558F535Ba2343B83',
-  ] as const)('prevents minting with a disconnected or different wallet: %s', async (walletAddress) => {
-    const { result } = mountFlow(createClient(), { walletAddress })
-    await waitFor(() =>
-      expect(result.current.admission.status).toBe('admitted'),
-    )
-    act(() => result.current.mint())
+  it.each([undefined, '0x538cDec1cb3e7A874D473E36558F535Ba2343B83'] as const)(
+    'prevents minting with a disconnected or different wallet: %s',
+    async (walletAddress) => {
+      const { result } = mountFlow(createClient(), { walletAddress })
+      await waitFor(() =>
+        expect(result.current.admission.status).toBe('admitted'),
+      )
+      act(() => result.current.mint())
 
-    expect(result.current.canMint).toBe(false)
-    expect(claim).not.toHaveBeenCalled()
-  })
+      expect(result.current.canMint).toBe(false)
+      expect(claim).not.toHaveBeenCalled()
+    },
+  )
 })

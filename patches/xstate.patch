@@ -1,5 +1,5 @@
 diff --git a/dist/declarations/src/actors/promise.d.ts b/dist/declarations/src/actors/promise.d.ts
-index 350bb3373e502d6f54aa1fb2dafcaaf208d57a8c..706823d8676823106d24ae2cff51b4784e8e5077 100644
+index 350bb33..706823d 100644
 --- a/dist/declarations/src/actors/promise.d.ts
 +++ b/dist/declarations/src/actors/promise.d.ts
 @@ -1,9 +1,9 @@
@@ -41,7 +41,7 @@ index 350bb3373e502d6f54aa1fb2dafcaaf208d57a8c..706823d8676823106d24ae2cff51b478
 -}) => PromiseLike<TOutput>): PromiseActorLogic<TOutput, TInput, TEmitted>;
 +}) => PromiseLike<TOutput>): PromiseActorLogic<TOutput, TInput, TEmitted, TError>;
 diff --git a/dist/declarations/src/types.d.ts b/dist/declarations/src/types.d.ts
-index a9b962a21b0b3deacd9ff70c4e1e05906edf2794..4080fd36567471801d804802fe96810a33cb31f8 100644
+index 9175ac3..b0dc618 100644
 --- a/dist/declarations/src/types.d.ts
 +++ b/dist/declarations/src/types.d.ts
 @@ -96,6 +96,11 @@ export type OutputFrom<T> = T extends ActorLogic<infer TSnapshot, infer _TEvent,
@@ -56,16 +56,16 @@ index a9b962a21b0b3deacd9ff70c4e1e05906edf2794..4080fd36567471801d804802fe96810a
  export type ActionFunction<TContext extends MachineContext, TExpressionEvent extends EventObject, TEvent extends EventObject, TParams extends ParameterizedObject['params'] | undefined, TActor extends ProvidedActor, TAction extends ParameterizedObject, TGuard extends ParameterizedObject, TDelay extends string, TEmitted extends EventObject> = {
      (args: ActionArgs<TContext, TExpressionEvent, TEvent>, params: TParams): void;
      _out_TEvent?: TEvent;
-@@ -218,7 +223,7 @@ type DistributeActors<TContext extends MachineContext, TEvent extends EventObjec
+@@ -216,7 +221,7 @@ type DistributeActors<TContext extends MachineContext, TEvent extends EventObjec
       * The transition to take upon the invoked child machine sending an
       * error event.
       */
--    onError?: string | SingleOrArray<TransitionConfigOrTarget<TContext, ErrorActorEvent, TEvent, TActor, TAction, TGuard, TDelay, TEmitted, TMeta>>;
-+    onError?: string | SingleOrArray<TransitionConfigOrTarget<TContext, ErrorActorEvent<ErrorFrom<TSpecificActor['logic']>>, TEvent, TActor, TAction, TGuard, TDelay, TEmitted, TMeta>>;
-     onSnapshot?: string | SingleOrArray<TransitionConfigOrTarget<TContext, SnapshotEvent<SnapshotFrom<TSpecificActor['logic']>>, TEvent, TActor, TAction, TGuard, TDelay, TEmitted, TMeta>>;
+-    onError?: string | SingleOrArray<TransitionConfigOrTarget<TContext, ErrorActorEvent, TEvent, TActor, TAction, TGuard, TDelay, TEmitted, TTransitionMeta>>;
++    onError?: string | SingleOrArray<TransitionConfigOrTarget<TContext, ErrorActorEvent<ErrorFrom<TSpecificActor['logic']>>, TEvent, TActor, TAction, TGuard, TDelay, TEmitted, TTransitionMeta>>;
+     onSnapshot?: string | SingleOrArray<TransitionConfigOrTarget<TContext, SnapshotEvent<SnapshotFrom<TSpecificActor['logic']>>, TEvent, TActor, TAction, TGuard, TDelay, TEmitted, TTransitionMeta>>;
  } & {
      [K in RequiredActorOptions<TSpecificActor>]: unknown;
-@@ -788,7 +793,7 @@ export type AnyActorScope = ActorScope<any, // TSnapshot
+@@ -841,7 +846,7 @@ export type AnyActorScope = ActorScope<any, // TSnapshot
  any, // TEvent
  AnyActorSystem, any>;
  export type SnapshotStatus = 'active' | 'done' | 'error' | 'stopped';
@@ -74,7 +74,7 @@ index a9b962a21b0b3deacd9ff70c4e1e05906edf2794..4080fd36567471801d804802fe96810a
      status: 'active';
      output: undefined;
      error: undefined;
-@@ -799,7 +804,7 @@ export type Snapshot<TOutput> = {
+@@ -852,7 +857,7 @@ export type Snapshot<TOutput> = {
  } | {
      status: 'error';
      output: undefined;

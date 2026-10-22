@@ -2,11 +2,10 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "app-api-worker",
   "main": "src/worker.ts",
-  "compatibility_date": "2025-08-14",
+  "compatibility_date": "2026-10-14",
   "compatibility_flags": ["nodejs_compat"],
-
   "observability": {
-    "enabled": false,
+    "enabled": true,
     "head_sampling_rate": 1,
     "logs": {
       "enabled": true,
@@ -18,16 +17,17 @@
       "enabled": true,
       "persist": true,
       "head_sampling_rate": 1
+    },
+    "issues": {
+      "enabled": true
     }
   },
-
   "kv_namespaces": [
     {
       "binding": "KV",
       "id": "85a14d25fa4a41a3a7123bcd5093c09a"
     }
   ],
-
   "queues": {
     "producers": [
       {
@@ -87,25 +87,203 @@
       }
     ]
   },
-
   "triggers": {
     "crons": ["0 */1 * * *", "17 */3 * * *"]
   },
-
+  // Secret names only. Values are provisioned separately on each Worker.
+  "secrets": {
+    "required": [
+      "DATABASE_URL",
+      "JWT_SECRET",
+      "POSTHOG_PERSONAL_API_KEY",
+      "TELEGRAM_BOT_TOKEN",
+      "TELEGRAM_WEBHOOK_SECRET",
+      "SENDGRID_API_KEY",
+      "SENDGRID_WEBHOOK_VERIFICATION_KEY",
+      "VAPID_PRIVATE_KEY",
+      "SEPOLIA_RPC_URL",
+      "ETH_PRIVATE_KEY"
+    ]
+  },
+  // Mainnet deployment smoke testing: /health works without infrastructure.
+  // Provision MAINNET_RPC_URL independently before using ENS-backed routes.
+  "env": {
+    "mainnet": {
+      "name": "app-api-worker-mainnet",
+      "workers_dev": true,
+      "preview_urls": false,
+      // Non-inheritable bindings must be provisioned independently. Never use
+      // the default environment's KV, queues, provider settings or secrets.
+      "vars": {
+        "CHAIN": "mainnet",
+        "BASE_URL": "https://mainnet.app-api.ens.domains",
+        "EMAIL_FROM_ADDRESS": "noreply@notifications.ens.domains",
+        "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
+        "VAPID_PUBLIC_KEY": "BP9pVofGPBglBRVCoxJ9_XU6ABerkWXE2jHeODVvW-byCav9WJxPZxV_r_eqnW-CboMKBj8uyFZqBI-YZIA3gNs",
+        "MANAGER_APP_URL": "https://app.ens.domains",
+        "POSTHOG": {
+          "host": "https://eu.posthog.com",
+          "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
+        },
+        "TELEGRAM": {
+          "ALERT_CHAT_ID": "-5381499765"
+        },
+        "SENDGRID_BROADCAST_LIST_ID": ""
+      },
+      // Non-inheritable: declare the shared requirements again, without the
+      // Sepolia RPC or faucet key. This does not provision production values.
+      "secrets": {
+        "required": [
+          "DATABASE_URL",
+          "JWT_SECRET",
+          "POSTHOG_PERSONAL_API_KEY",
+          "TELEGRAM_BOT_TOKEN",
+          "TELEGRAM_WEBHOOK_SECRET",
+          "SENDGRID_API_KEY",
+          "SENDGRID_WEBHOOK_VERIFICATION_KEY",
+          "VAPID_PRIVATE_KEY",
+          "MAINNET_RPC_URL"
+        ]
+      },
+      // Create a separate mainnet namespace and add its real id here before deployment.
+      // Without an id, Wrangler can auto-provision it during a future deployment.
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "29f56dd00cb94d6eb0c2177777fa504f"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "EVENT_INGESTION_QUEUE",
+            "queue": "app-api-worker-mainnet-event-ingestion"
+          },
+          {
+            "binding": "TELEGRAM_QUEUE",
+            "queue": "app-api-worker-mainnet-telegram-delivery"
+          },
+          {
+            "binding": "EMAIL_QUEUE",
+            "queue": "app-api-worker-mainnet-email-delivery"
+          },
+          {
+            "binding": "PUSH_QUEUE",
+            "queue": "app-api-worker-mainnet-push-delivery"
+          },
+          {
+            "binding": "DLQ",
+            "queue": "app-api-worker-mainnet-dlq"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "app-api-worker-mainnet-telegram-delivery",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 3,
+            "dead_letter_queue": "app-api-worker-mainnet-dlq"
+          },
+          {
+            "queue": "app-api-worker-mainnet-email-delivery",
+            "max_batch_size": 50,
+            "max_batch_timeout": 3,
+            "max_retries": 3,
+            "dead_letter_queue": "app-api-worker-mainnet-dlq"
+          },
+          {
+            "queue": "app-api-worker-mainnet-push-delivery",
+            "max_batch_size": 50,
+            "max_batch_timeout": 3,
+            "max_retries": 3,
+            "dead_letter_queue": "app-api-worker-mainnet-dlq"
+          },
+          {
+            "queue": "app-api-worker-mainnet-event-ingestion",
+            "max_batch_size": 50,
+            "max_batch_timeout": 3,
+            "max_retries": 3
+          },
+          {
+            "queue": "app-api-worker-mainnet-dlq",
+            "max_batch_size": 10,
+            "max_batch_timeout": 30,
+            "max_retries": 0
+          }
+        ]
+      },
+      "triggers": {
+        "crons": ["0 */1 * * *", "17 */3 * * *"]
+      }
+    }
+  },
   "vars": {
     "CHAIN": "sepolia",
     "BASE_URL": "https://sepolia.app-api.ens.domains",
-    "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
+    "EMAIL_FROM_ADDRESS": "noreply@notifications.ens.domains",
     "MANAGER_APP_URL": "https://sepolia.app.ens.domains",
     "POSTHOG": {
       "host": "https://eu.posthog.com",
       "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
     },
-    "VAPID_SUBJECT": "mailto:notifications@ens.domains",
-    "VAPID_PUBLIC_KEY": "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs",
+    "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
+    "VAPID_PUBLIC_KEY": "BP9cg1ylzlAXChsGDzKjabPbolsnarzfNsbJvj7bSFhUWUPwcQrpirJLwV30shFa_eDufbKrWy46FGkAjv46Uqk",
     "TELEGRAM": {
       "ALERT_CHAT_ID": "-5381499765"
     },
     "SENDGRID_BROADCAST_LIST_ID": ""
+  },
+  // PR previews intentionally share Sepolia's settings and resources.
+  // Set the secrets named in top-level secrets.required in Previews Base;
+  // deployed Worker secrets are not automatically inherited by previews.
+  "previews": {
+    "vars": {
+      "CHAIN": "sepolia",
+      "BASE_URL": "https://sepolia.app-api.ens.domains",
+      "EMAIL_FROM_ADDRESS": "noreply@notifications.ens.domains",
+      "MANAGER_APP_URL": "https://sepolia.app.ens.domains",
+      "POSTHOG": {
+        "host": "https://eu.posthog.com",
+        "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
+      },
+      "VAPID_SUBJECT": "mailto:noreply@notifications.ens.domains",
+      "VAPID_PUBLIC_KEY": "BP9cg1ylzlAXChsGDzKjabPbolsnarzfNsbJvj7bSFhUWUPwcQrpirJLwV30shFa_eDufbKrWy46FGkAjv46Uqk",
+      "TELEGRAM": {
+        "ALERT_CHAT_ID": "-5381499765"
+      },
+      "SENDGRID_BROADCAST_LIST_ID": ""
+    },
+    "kv_namespaces": [
+      {
+        "binding": "KV",
+        "id": "85a14d25fa4a41a3a7123bcd5093c09a"
+      }
+    ],
+    // Messages go to the deployed Sepolia consumer. Previews cannot have
+    // queue consumers or cron triggers of their own.
+    "queues": {
+      "producers": [
+        {
+          "binding": "EVENT_INGESTION_QUEUE",
+          "queue": "app-api-worker-event-ingestion"
+        },
+        {
+          "binding": "TELEGRAM_QUEUE",
+          "queue": "app-api-worker-telegram-delivery"
+        },
+        {
+          "binding": "EMAIL_QUEUE",
+          "queue": "app-api-worker-email-delivery"
+        },
+        {
+          "binding": "PUSH_QUEUE",
+          "queue": "app-api-worker-push-delivery"
+        },
+        {
+          "binding": "DLQ",
+          "queue": "app-api-worker-dlq"
+        }
+      ]
+    }
   }
 }

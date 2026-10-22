@@ -6,25 +6,22 @@ import {
   KeyIcon,
   TollIcon,
 } from '@/assets/icons'
-import { LogoSVG } from '@/assets/logo'
 import { SoonBadge } from '@/components/ui/badge'
-import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { createDefineLinkItem } from '@/utils/tsr'
 import { SettingsMenu } from './SettingsMenu'
+import { SidebarBrandHeader } from './SidebarBrandHeader'
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from './ui/sidebar'
 import { WalletMenu } from './WalletMenu'
@@ -97,41 +94,12 @@ interface TldSidebarProps {
 
 export const TldSidebar = ({ tld }: TldSidebarProps) => {
   const items = getItems(tld)
-  const { state, isMobile, setOpenMobile } = useSidebar()
-  const isIconMode = state === 'collapsed' && !isMobile
+  const { setOpenMobile } = useSidebar()
 
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
-      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 border border-border rounded-r-md shadow-sm" />
-      <SidebarHeader className="p-0 gap-0">
-        {isIconMode ? (
-          <div className="flex flex-col items-center gap-4 pt-6 px-2">
-            <Link
-              to="/"
-              className="flex items-center min-h-8"
-              aria-label="ENS Home"
-            >
-              <LogoSVG height={30} className="text-foreground" />
-            </Link>
-            <HomeSearchInput iconOnly />
-          </div>
-        ) : (
-          <div className="px-6 pt-6 flex flex-col gap-6">
-            <div className="flex items-center min-h-8">
-              <Link to="/" className="flex items-center">
-                <LogoSVG height={30} className="text-foreground" />
-              </Link>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <HomeSearchInput />
-              </div>
-              <SidebarTrigger className="shrink-0" />
-            </div>
-          </div>
-        )}
-      </SidebarHeader>
+      <SidebarBrandHeader />
 
       <SidebarSeparator className="my-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
 

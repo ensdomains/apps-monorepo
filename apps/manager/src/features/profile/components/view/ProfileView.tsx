@@ -8,6 +8,8 @@ import { CommemorativeNftProfileSection } from '@/features/migration/components/
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
+import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
@@ -136,6 +138,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileReverseNameQuery(owner),
   })
   const isOwner = useIsOwner({ owner })
+  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+  const canEditRecords = useCanEditRecords({
+    enabled: !expiry.isInGrace,
+    isOwner: resolvedIsOwner,
+    name,
+  })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
@@ -164,7 +172,13 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ? undefined
     : themeVars['--theme-color']
   const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
-  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+  const canEditProfile = canEditProfileHere({
+    isInGrace: expiry.isInGrace || isExpiryError,
+    canEditRecords,
+    isUpgradeRequired,
+    name,
+    protocol: ownerData?.protocol,
+  })
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
   // have no matching tokens
@@ -210,6 +224,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
             <ProfileHeader
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
+              canEdit={canEditProfile}
               displayExpiryDate={expiry.displayExpiryDate}
               hasMobileStatusBanner={hasMobileStatusBanner}
               name={name}
@@ -227,11 +242,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               </p>
             ) : null}
             <div className="space-y-0">
-              <ProfileCards
-                avatarUrl={avatarUrl}
-                name={name}
-                records={displayRecords}
-              />
+              <ProfileCards records={displayRecords} />
               <ProfileCommemorativeNftSection
                 enabled={commemorativeNftEnabled}
                 isOwner={resolvedIsOwner}
@@ -243,6 +254,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         <ProfileDraftProvider value={setDraft}>
           <ProfileActions
             avatarUrl={avatarUrl}
+            canEdit={canEditProfile}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}

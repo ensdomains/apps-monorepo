@@ -1,3 +1,4 @@
+import { Combobox } from '@base-ui/react/combobox'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
@@ -5,6 +6,11 @@ import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
+import {
+  getUrlInputBlurValue,
+  getUrlInputChangeValue,
+  getUrlInputFocusValue,
+} from '@/features/profile/utils/urlInputPrefix'
 import { cn } from '@/lib/utils'
 import {
   useEditProfileDialogActions,
@@ -77,49 +83,62 @@ const UrlField = ({
   errorMessage,
   onChange,
   value,
-}: UrlFieldProps) => (
-  <div className="flex w-full flex-col gap-1.5">
-    <input
-      aria-describedby={errorMessage ? urlErrorMessageId : undefined}
-      aria-invalid={Boolean(errorMessage)}
-      className={cn(
-        fieldClassName,
-        errorMessage && 'border-destructive focus-visible:border-destructive',
-      )}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder="https://yourwebsite.com"
-      value={value}
-    />
-    {errorMessage ? (
-      <p
-        className="flex items-start gap-1 text-ens-signal-danger-600 text-xs leading-[1.2]"
-        id={urlErrorMessageId}
-        role="alert"
-      >
-        <MSymbol
-          aria-hidden="true"
-          className="ms-opsz-12 ms-wght-400 mt-px shrink-0"
-          symbol="warning"
-        />
-        <span>{errorMessage}</span>
-      </p>
-    ) : null}
-  </div>
-)
+}: UrlFieldProps) => {
+  const updateValue = (nextValue: string) => {
+    if (nextValue !== value) onChange(nextValue)
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-1.5">
+      <input
+        aria-describedby={errorMessage ? urlErrorMessageId : undefined}
+        aria-invalid={Boolean(errorMessage)}
+        className={cn(
+          fieldClassName,
+          errorMessage && 'border-destructive focus-visible:border-destructive',
+        )}
+        disabled={disabled}
+        onBlur={() => updateValue(getUrlInputBlurValue(value))}
+        onChange={(event) =>
+          onChange(getUrlInputChangeValue(event.target.value))
+        }
+        onFocus={() => updateValue(getUrlInputFocusValue(value))}
+        placeholder="https://yourwebsite.com"
+        value={value}
+      />
+      {errorMessage ? (
+        <p
+          className="flex items-start gap-1 text-ens-signal-danger-600 text-xs leading-[1.2]"
+          id={urlErrorMessageId}
+          role="alert"
+        >
+          <MSymbol
+            aria-hidden="true"
+            className="ms-opsz-12 ms-wght-400 mt-px shrink-0"
+            symbol="warning"
+          />
+          <span>{errorMessage}</span>
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+type SelectOption = {
+  readonly label: string
+  readonly value: string
+}
 
 interface SelectFieldProps {
   readonly ariaLabel: string
   readonly disabled?: boolean
   readonly onChange: (value: string) => void
-  readonly options: readonly {
-    readonly label: string
-    readonly value: string
-  }[]
+  readonly options: readonly SelectOption[]
   readonly placeholder: string
   readonly value: string
 }
 
+/** Typeahead select: typing filters the options, the chevron lists them all. */
 const SelectField = ({
   ariaLabel,
   disabled,
@@ -130,30 +149,55 @@ const SelectField = ({
 }: SelectFieldProps) => {
   const hasCustomValue =
     value.trim() !== '' && !options.some((option) => option.value === value)
+  const items: readonly SelectOption[] = hasCustomValue
+    ? [{ label: value, value }, ...options]
+    : options
+  const selected = items.find((option) => option.value === value) ?? null
 
   return (
-    <div className="relative">
-      <select
-        aria-label={ariaLabel}
-        className={cn(
-          fieldClassName,
-          'appearance-none pr-12',
-          value ? 'text-ens-quartz-900' : 'text-ens-quartz-400',
-        )}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-      >
-        <option value="">{placeholder}</option>
-        {hasCustomValue && <option value={value}>{value}</option>}
-        {options.map(({ label, value: optionValue }) => (
-          <option key={optionValue} value={optionValue}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-ens-quartz-400" />
-    </div>
+    <Combobox.Root
+      disabled={disabled}
+      items={items}
+      itemToStringLabel={(option) => option.label}
+      itemToStringValue={(option) => option.value}
+      onInputValueChange={(text) => {
+        if (text === '') onChange('')
+      }}
+      onValueChange={(option) => onChange(option?.value ?? '')}
+      openOnInputClick
+      value={selected}
+    >
+      <div className="relative">
+        <Combobox.Input
+          aria-label={ariaLabel}
+          className={cn(fieldClassName, 'pr-12')}
+          placeholder={placeholder}
+        />
+        <Combobox.Trigger className="absolute top-1/2 right-4 flex size-5 -translate-y-1/2 items-center justify-center text-ens-quartz-400 disabled:pointer-events-none">
+          <ChevronDown className="size-5" />
+        </Combobox.Trigger>
+      </div>
+      <Combobox.Portal>
+        <Combobox.Positioner className="isolate z-50" sideOffset={4}>
+          <Combobox.Popup className="data-open:fade-in-0 data-closed:fade-out-0 w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-hidden rounded bg-white shadow-temp-card outline-hidden duration-100 data-closed:animate-out data-open:animate-in">
+            <Combobox.List className="max-h-[min(--spacing(72),var(--available-height))] scroll-py-1 overflow-y-auto p-1 data-empty:p-0">
+              {(option: SelectOption) => (
+                <Combobox.Item
+                  className="flex cursor-default select-none items-center rounded-sm px-3 py-2 text-ens-quartz-900 text-sm outline-hidden data-highlighted:bg-ens-quartz-50 data-selected:font-medium"
+                  key={option.value}
+                  value={option}
+                >
+                  {option.label}
+                </Combobox.Item>
+              )}
+            </Combobox.List>
+            <Combobox.Empty className="px-3 py-2 text-ens-quartz-400 text-sm empty:hidden">
+              <Trans>No matches</Trans>
+            </Combobox.Empty>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
   )
 }
 
@@ -181,7 +225,7 @@ const DescriptionField = ({
       <textarea
         aria-describedby={`${descriptionCharacterCountId}${hasDescriptionError ? ` ${descriptionErrorMessageId}` : ''}`}
         aria-invalid={hasDescriptionError}
-        aria-label={t`Description`}
+        aria-label={t`Profile Description`}
         className={cn(
           fieldClassName,
           'min-h-[101px] resize-none',
@@ -191,7 +235,7 @@ const DescriptionField = ({
         disabled={disabled}
         maxLength={DESCRIPTION_MAX_LENGTH}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={t`Description`}
+        placeholder={t`Profile Description`}
         value={description}
       />
       <p

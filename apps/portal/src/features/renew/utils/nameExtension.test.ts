@@ -2,23 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { getNameRowId } from '@/features/names/components/NamesTable/columns'
 import type { ProtocolVersion } from '@/utils/types'
 import {
-  GRACE_PERIOD_DAYS,
   getNameStatus,
   getSelectedNames,
   isExtendable2LD,
   isNonCanonicalEthName,
   MS_PER_DAY,
-  V2_GRACE_PERIOD_DAYS,
 } from './nameExtension'
 
 const future = new Date(Date.now() + 30 * MS_PER_DAY)
-const withinGrace = new Date(Date.now() - 10 * MS_PER_DAY)
-const beyondV1Grace = new Date(
-  Date.now() - (GRACE_PERIOD_DAYS + 1) * MS_PER_DAY,
-)
-const beyondV2Grace = new Date(
-  Date.now() - (V2_GRACE_PERIOD_DAYS + 1) * MS_PER_DAY,
-)
+// Grace end, as bigname serves it: still ahead, or already past.
+const graceAhead = new Date(Date.now() + 18 * MS_PER_DAY)
+const graceOver = new Date(Date.now() - MS_PER_DAY)
 
 describe('isNonCanonicalEthName', () => {
   it('is false for a canonical .eth 2LD', () => {
@@ -58,17 +52,21 @@ describe('isExtendable2LD', () => {
       ['an uppercase TLD', 'alice.ETH'],
       ['an encoded labelhash label', `[${'a'.repeat(64)}].eth`],
     ])('rejects %s', (_case, name) => {
-      expect(isExtendable2LD({ name, isV2: true, expiryDate: future })).toBe(
+      expect(isExtendable2LD({ name, isV2: true, graceEndDate: future })).toBe(
         false,
       )
-      expect(isExtendable2LD({ name, isV2: false, expiryDate: future })).toBe(
+      expect(isExtendable2LD({ name, isV2: false, graceEndDate: future })).toBe(
         false,
       )
     })
 
     it('still accepts the canonical spelling', () => {
       expect(
-        isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: future }),
+        isExtendable2LD({
+          name: 'alice.eth',
+          isV2: true,
+          graceEndDate: future,
+        }),
       ).toBe(true)
     })
   })
@@ -77,11 +75,11 @@ describe('isExtendable2LD', () => {
     it('rejects a 2LD whose stored label is not its normalised form', () => {
       for (const name of ['ALICE.eth', 'ｆｏｏ.eth', 'foo\u200bbar.eth']) {
         expect(
-          isExtendable2LD({ name, isV2: true, expiryDate: future }),
+          isExtendable2LD({ name, isV2: true, graceEndDate: future }),
           name,
         ).toBe(false)
         expect(
-          isExtendable2LD({ name, isV2: false, expiryDate: future }),
+          isExtendable2LD({ name, isV2: false, graceEndDate: future }),
           name,
         ).toBe(false)
       }
@@ -94,7 +92,7 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'sub.alice.eth',
           isV2: true,
-          expiryDate: future,
+          graceEndDate: future,
         }),
       ).toBe(false)
     })
@@ -104,22 +102,30 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'a.b.alice.eth',
           isV2: true,
-          expiryDate: future,
+          graceEndDate: future,
         }),
       ).toBe(false)
     })
 
     it('rejects a non-.eth name', () => {
       expect(
-        isExtendable2LD({ name: 'alice.com', isV2: true, expiryDate: future }),
+        isExtendable2LD({
+          name: 'alice.com',
+          isV2: true,
+          graceEndDate: future,
+        }),
       ).toBe(false)
     })
   })
 
-  describe('v2 names (28-day grace period)', () => {
-    it('accepts a v2 name with future expiry', () => {
+  describe('v2 names', () => {
+    it('accepts a v2 name before expiry', () => {
       expect(
-        isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: future }),
+        isExtendable2LD({
+          name: 'alice.eth',
+          isV2: true,
+          graceEndDate: future,
+        }),
       ).toBe(true)
     })
 
@@ -128,7 +134,7 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'alice.eth',
           isV2: true,
-          expiryDate: withinGrace,
+          graceEndDate: graceAhead,
         }),
       ).toBe(true)
     })
@@ -138,22 +144,26 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'alice.eth',
           isV2: true,
-          expiryDate: beyondV2Grace,
+          graceEndDate: graceOver,
         }),
       ).toBe(false)
     })
 
-    it('rejects a v2 name with no expiry (indexer loading/error)', () => {
+    it('rejects a v2 name with no grace end (indexer loading/error)', () => {
       expect(
-        isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: null }),
+        isExtendable2LD({ name: 'alice.eth', isV2: true, graceEndDate: null }),
       ).toBe(false)
     })
   })
 
-  describe('v1 names (90-day grace period)', () => {
-    it('accepts a v1 name with future expiry', () => {
+  describe('v1 names', () => {
+    it('accepts a v1 name before expiry', () => {
       expect(
-        isExtendable2LD({ name: 'alice.eth', isV2: false, expiryDate: future }),
+        isExtendable2LD({
+          name: 'alice.eth',
+          isV2: false,
+          graceEndDate: future,
+        }),
       ).toBe(true)
     })
 
@@ -162,7 +172,7 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'alice.eth',
           isV2: false,
-          expiryDate: withinGrace,
+          graceEndDate: graceAhead,
         }),
       ).toBe(true)
     })
@@ -172,14 +182,14 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'alice.eth',
           isV2: false,
-          expiryDate: beyondV1Grace,
+          graceEndDate: graceOver,
         }),
       ).toBe(false)
     })
 
-    it('accepts a v1 name with no expiry (permissive; useCanExtend gates it on-chain)', () => {
+    it('accepts a v1 name with no grace end (permissive; useCanExtend gates it on-chain)', () => {
       expect(
-        isExtendable2LD({ name: 'alice.eth', isV2: false, expiryDate: null }),
+        isExtendable2LD({ name: 'alice.eth', isV2: false, graceEndDate: null }),
       ).toBe(true)
     })
   })
@@ -193,8 +203,9 @@ describe('getSelectedNames', () => {
   ) => ({
     name,
     expiryDate,
-    roleBitmap: null,
-    v1Roles: isV2 ? null : { owner: true, manager: true },
+    graceEndDate: future,
+    status: 'active' as const,
+    relations: ['owner', 'manager'] as const,
     protocolVersion: (isV2 ? 'ENSv2' : 'ENSv1') as ProtocolVersion,
   })
 
@@ -207,8 +218,13 @@ describe('getSelectedNames', () => {
     const rows = [makeRow('alice.eth'), makeRow('bob.eth')]
     const result = getSelectedNames(select(...rows), rows)
     expect(result).toEqual([
-      { name: 'alice.eth', isV2: true, expiryDate: future },
-      { name: 'bob.eth', isV2: true, expiryDate: future },
+      {
+        name: 'alice.eth',
+        isV2: true,
+        expiryDate: future,
+        graceEndDate: future,
+      },
+      { name: 'bob.eth', isV2: true, expiryDate: future, graceEndDate: future },
     ])
   })
 
@@ -245,7 +261,12 @@ describe('getSelectedNames', () => {
     const result = getSelectedNames(select(v1), [v2, v1])
 
     expect(result).toEqual([
-      { name: 'alice.eth', isV2: false, expiryDate: future },
+      {
+        name: 'alice.eth',
+        isV2: false,
+        expiryDate: future,
+        graceEndDate: future,
+      },
     ])
   })
 
@@ -282,24 +303,70 @@ describe('getSelectedNames', () => {
 
 describe('getNameStatus', () => {
   const daysAgo = (days: number) => new Date(Date.now() - days * MS_PER_DAY)
+  const expired = (graceEndDate: Date | null) =>
+    getNameStatus({ expiryDate: daysAgo(40), graceEndDate, status: 'expired' })
+
+  it('is registered while bigname serves the name active, even past its expiry', () => {
+    // A wrapped ENSv1 subname past its wrapper expiry is still active.
+    expect(
+      getNameStatus({
+        expiryDate: daysAgo(5),
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe('registered')
+  })
 
   it.each([
-    { isV2: true, days: -1, status: 'registered' },
-    { isV2: true, days: 1, status: 'grace' },
-    { isV2: true, days: 35, status: 'premium' },
-    { isV2: true, days: 50, status: 'expired' },
-    { isV2: false, days: 1, status: 'grace' },
-    { isV2: false, days: 100, status: 'premium' },
-    { isV2: false, days: 112, status: 'expired' },
-  ])('is $status $days days past expiry (v2: $isV2)', ({
-    isV2,
-    days,
-    status,
-  }) => {
-    expect(getNameStatus(daysAgo(days), isV2)).toBe(status)
+    { graceEnded: -3, status: 'grace' },
+    { graceEnded: 10, status: 'premium' },
+    { graceEnded: 30, status: 'expired' },
+  ])(
+    'is $status for an expired name whose grace ended $graceEnded days ago',
+    ({ graceEnded, status }) => {
+      expect(expired(daysAgo(graceEnded))).toBe(status)
+    },
+  )
+
+  it('is in price cooldown for a name bigname released when its grace ended', () => {
+    expect(
+      getNameStatus({
+        expiryDate: daysAgo(100),
+        graceEndDate: daysAgo(10),
+        status: 'released',
+      }),
+    ).toBe('premium')
+  })
+
+  it('is expired for an expired name with no grace', () => {
+    expect(expired(null)).toBe('expired')
   })
 
   it('is no-expiry without an expiry', () => {
-    expect(getNameStatus(null, true)).toBe('no-expiry')
+    expect(
+      getNameStatus({ expiryDate: null, graceEndDate: null, status: 'active' }),
+    ).toBe('no-expiry')
+  })
+
+  it('expires with its parent for a subname with a parent expiry', () => {
+    expect(
+      getNameStatus({
+        expiryDate: null,
+        parentExpiryDate: daysAgo(-30),
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe('expires-with-parent')
+  })
+
+  it("expires with its parent when the parent's date is unknown", () => {
+    expect(
+      getNameStatus({
+        expiryDate: null,
+        parentExpiryDate: null,
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe('expires-with-parent')
   })
 })

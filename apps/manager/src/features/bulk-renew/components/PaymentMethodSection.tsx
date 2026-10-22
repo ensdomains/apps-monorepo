@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { TokenListItem } from '@/features/register-v2/workflow/pricing/components/TokenListItem'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { RENEWAL_TOKEN } from '@/lib/tokens'
 
 const Message = ({ children }: { readonly children: ReactNode }) => (
   <p className="py-4 text-center font-sans text-ens-quartz-400 text-sm">
@@ -15,6 +15,7 @@ export const PaymentMethodSection = ({
   isConnected,
   isLoadingBalances,
   stablecoinBalances,
+  accountCredit,
   selectedToken,
   onSelectCoin,
   priceUSD,
@@ -22,8 +23,10 @@ export const PaymentMethodSection = ({
   readonly isConnected: boolean
   readonly isLoadingBalances: boolean
   readonly stablecoinBalances: readonly StablecoinBalance[]
-  readonly selectedToken: SUPPORTED_TOKEN
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  /** What the smart account already holds of each coin; it pays first. */
+  readonly accountCredit?: Partial<Record<RENEWAL_TOKEN, number>>
+  readonly selectedToken: RENEWAL_TOKEN
+  readonly onSelectCoin: (coin: RENEWAL_TOKEN) => void
   readonly priceUSD: number
 }) => {
   const renderBody = (): ReactNode => {
@@ -54,7 +57,11 @@ export const PaymentMethodSection = ({
           <TokenListItem
             key={stablecoin.symbol}
             onSelectCoin={onSelectCoin}
-            priceUSD={priceUSD}
+            priceUSD={Math.max(
+              0,
+              priceUSD -
+                (accountCredit?.[stablecoin.symbol as RENEWAL_TOKEN] ?? 0),
+            )}
             selectedCoin={selectedToken}
             stablecoin={stablecoin}
           />

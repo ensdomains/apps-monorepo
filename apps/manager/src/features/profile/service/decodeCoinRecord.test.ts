@@ -43,16 +43,17 @@ describe('coin record decoding', () => {
     ).not.toHaveBeenCalled()
   })
 
-  it.each([
-    0, 60, 121, 501, 1815, 0x80000001,
-  ])('bounds raw data for coin %i before invoking its coder', (coinType) => {
-    const oversized: viem.Hex = `0x${'11'.repeat(MAX_COIN_RECORD_BYTES + 1)}`
+  it.each([0, 60, 121, 501, 1815, 0x80000001])(
+    'bounds raw data for coin %i before invoking its coder',
+    (coinType) => {
+      const oversized: viem.Hex = `0x${'11'.repeat(MAX_COIN_RECORD_BYTES + 1)}`
 
-    expect(decodeCoinRecord(coinType, oversized)).toBeNull()
-    expect(
-      ensUtils.decodeAddressResultFromPrimitiveTypes,
-    ).not.toHaveBeenCalled()
-  })
+      expect(decodeCoinRecord(coinType, oversized)).toBeNull()
+      expect(
+        ensUtils.decodeAddressResultFromPrimitiveTypes,
+      ).not.toHaveBeenCalled()
+    },
+  )
 
   it('preserves the upstream ZEN address fixture', () => {
     expect(decodeCoinResult(121, bytesResult(ZEN_HEX))).toEqual({
@@ -62,19 +63,16 @@ describe('coin record decoding', () => {
     })
   })
 
-  it.each([
-    '2089',
-    '1cb8',
-    '2096',
-    '1cbd',
-    '1CBD',
-  ])('accepts 22-byte ZEN transparent addresses with prefix %s', (prefix) => {
-    const value: viem.Hex = `0x${prefix}${'11'.repeat(20)}`
-    const record = decodeCoinRecord(121, value)
-    expect(record?.value).toBe(
-      getCoderByCoinType(121).encode(viem.hexToBytes(value)),
-    )
-  })
+  it.each(['2089', '1cb8', '2096', '1cbd', '1CBD'])(
+    'accepts 22-byte ZEN transparent addresses with prefix %s',
+    (prefix) => {
+      const value: viem.Hex = `0x${prefix}${'11'.repeat(20)}`
+      const record = decodeCoinRecord(121, value)
+      expect(record?.value).toBe(
+        getCoderByCoinType(121).encode(viem.hexToBytes(value)),
+      )
+    },
+  )
 
   it('preserves 66-byte ZEN shielded addresses', () => {
     const value: viem.Hex = `0x169a${'11'.repeat(64)}`
@@ -96,14 +94,17 @@ describe('coin record decoding', () => {
     [0x80000001, '1111', 21],
     [501, '1111', 31],
     [501, '1111', 33],
-  ])('rejects noncanonical coin %i prefix %s length %i before conversion', (coin, prefix, length) => {
-    expect(
-      decodeCoinRecord(coin, `0x${prefix}${'11'.repeat(length - 2)}`),
-    ).toBeNull()
-    expect(
-      ensUtils.decodeAddressResultFromPrimitiveTypes,
-    ).not.toHaveBeenCalled()
-  })
+  ])(
+    'rejects noncanonical coin %i prefix %s length %i before conversion',
+    (coin, prefix, length) => {
+      expect(
+        decodeCoinRecord(coin, `0x${prefix}${'11'.repeat(length - 2)}`),
+      ).toBeNull()
+      expect(
+        ensUtils.decodeAddressResultFromPrimitiveTypes,
+      ).not.toHaveBeenCalled()
+    },
+  )
 
   it('preserves ETH, EVM, SOL, and variable-length BTC records', () => {
     const eth = '0x1111111111111111111111111111111111111111'

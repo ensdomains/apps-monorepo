@@ -68,8 +68,11 @@ vi.mock('sonner', () => ({ toast: (...a: unknown[]) => toast(...a) }))
 
 /** What a session enabled mid-resume hands back, to use before any re-render. */
 const enabledSession = () => ({
-  signer: { type: 'rhinestone', session: 'fresh' },
-  hcaSessionEnable: { stub: 'fresh-enable' },
+  status: 'enabled' as const,
+  session: {
+    signer: { type: 'rhinestone', session: 'fresh' },
+    hcaSessionEnable: { stub: 'fresh-enable' },
+  },
 })
 const enableSession = vi.fn(async () => enabledSession())
 const getSessionEnablePayload = vi.fn(async () => ({ stub: 'enable' }))
@@ -347,8 +350,10 @@ describe('useRegistrationResume', () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'registration.resume',
-        account: expect.objectContaining({ signer: enabledSession().signer }),
-        hcaSessionEnable: enabledSession().hcaSessionEnable,
+        account: expect.objectContaining({
+          signer: enabledSession().session.signer,
+        }),
+        hcaSessionEnable: enabledSession().session.hcaSessionEnable,
       }),
     )
     expect(getSessionEnablePayload).not.toHaveBeenCalled()
@@ -387,7 +392,7 @@ describe('useRegistrationResume', () => {
 
   it('keeps the record when the session enable is rejected', async () => {
     needsSessionBeforeRegistration.mockReturnValue(true)
-    enableSession.mockResolvedValue(null as never)
+    enableSession.mockResolvedValue({ status: 'declined' } as never)
 
     const { result } = render()
 
@@ -487,8 +492,10 @@ describe('useRegistrationResume', () => {
         expect.objectContaining({
           type: 'registration.resume',
           label: 'leon',
-          account: expect.objectContaining({ signer: enabledSession().signer }),
-          hcaSessionEnable: enabledSession().hcaSessionEnable,
+          account: expect.objectContaining({
+            signer: enabledSession().session.signer,
+          }),
+          hcaSessionEnable: enabledSession().session.hcaSessionEnable,
         }),
       )
     })
@@ -516,7 +523,7 @@ describe('useRegistrationResume', () => {
     })
 
     it('keeps Try Again available when the session is declined', async () => {
-      enableSession.mockResolvedValueOnce(null as never)
+      enableSession.mockResolvedValueOnce({ status: 'declined' } as never)
       const { result } = render()
       await waitFor(() => expect(result.current.status).toBe('failed'))
 

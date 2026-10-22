@@ -32,6 +32,64 @@ const makeManagedName = (name: string) =>
   makeName(name, { registryController: CONTROLLER } as Partial<ClassifiedName>)
 
 describe('useNameSelection', () => {
+  it('leaves an affected migration group unchecked until explicitly selected', () => {
+    const eligible = [
+      makeName('safe.eth'),
+      makeName('affected.eth'),
+      makeName('child.affected.eth', { parentName: 'affected.eth' }),
+    ]
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible,
+        defaultExcludedNames: ['child.affected.eth'],
+        isPending: false,
+        onNamesChange: vi.fn(),
+        onManagerRestorationChange: vi.fn(),
+      }),
+    )
+
+    expect(result.current.selected).toEqual(new Set(['safe.eth']))
+    act(() => result.current.toggleName('affected.eth'))
+    expect(result.current.selected).toEqual(
+      new Set(['safe.eth', 'affected.eth', 'child.affected.eth']),
+    )
+  })
+
+  it('preserves manual selection after the default exclusion changes', () => {
+    const eligible = [makeName('safe.eth'), makeName('affected.eth')]
+    const { result, rerender } = renderHook(
+      ({ excluded }: { excluded: string[] }) =>
+        useNameSelection({
+          eligible,
+          defaultExcludedNames: excluded,
+          isPending: false,
+          onNamesChange: vi.fn(),
+          onManagerRestorationChange: vi.fn(),
+        }),
+      { initialProps: { excluded: ['affected.eth'] } },
+    )
+
+    act(() => result.current.toggleName('affected.eth'))
+    rerender({ excluded: ['safe.eth', 'affected.eth'] })
+    expect(result.current.selected).toEqual(
+      new Set(['safe.eth', 'affected.eth']),
+    )
+  })
+
+  it('replays a recovery selection without applying default exclusions', () => {
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible: [makeName('affected.eth')],
+        defaultExcludedNames: ['affected.eth'],
+        isPending: false,
+        isRecovery: true,
+        onNamesChange: vi.fn(),
+        onManagerRestorationChange: vi.fn(),
+      }),
+    )
+    expect(result.current.selected).toEqual(new Set(['affected.eth']))
+  })
+
   it('selects eligible and grace-period names by default and allows deselection', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const eligible = [makeName('active.eth')]
@@ -498,32 +556,32 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
       domain: { ownerId: CONTROLLER, isWrapped: true },
       candidate: undefined,
     },
-  ])('offers the manager choice on a grace name with $case', ({
-    domain,
-    candidate,
-  }) => {
-    const { result } = renderHook(() =>
-      useNameSelection({
-        eligible: [],
-        gracePeriodNames: [
-          {
-            domain: makeDomain({
-              id: 'grace.eth',
-              name: 'grace.eth',
-              labelName: 'grace',
-              ...domain,
-            }),
-            reason: 'expired-registration',
-          },
-        ],
-        isPending: false,
-        onNamesChange: vi.fn(),
-        onManagerRestorationChange: vi.fn(),
-      }),
-    )
+  ])(
+    'offers the manager choice on a grace name with $case',
+    ({ domain, candidate }) => {
+      const { result } = renderHook(() =>
+        useNameSelection({
+          eligible: [],
+          gracePeriodNames: [
+            {
+              domain: makeDomain({
+                id: 'grace.eth',
+                name: 'grace.eth',
+                labelName: 'grace',
+                ...domain,
+              }),
+              reason: 'expired-registration',
+            },
+          ],
+          isPending: false,
+          onNamesChange: vi.fn(),
+          onManagerRestorationChange: vi.fn(),
+        }),
+      )
 
-    expect(result.current.managerCandidates.get('grace.eth')).toBe(candidate)
-  })
+      expect(result.current.managerCandidates.get('grace.eth')).toBe(candidate)
+    },
+  )
 
   it('ignores toggles on a resumed run, whose choice is fixed by its snapshot', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()

@@ -61,17 +61,19 @@ export type PendingSave = PendingUpdateSave | PendingSetupSave
 interface EditProfileDialogContext {
   readonly ethAddressChanged: boolean
   readonly isPreviewing: boolean
+  readonly name: string
   readonly pendingSave?: PendingSave
   readonly savedRecords: ProfileRecords
   readonly visibleFields: ReadonlySet<GeneralField>
 }
 
 interface EditProfileDialogInput {
+  readonly name: string
   readonly records: ProfileRecords
 }
 
 type EditProfileDialogEvent =
-  | { type: 'OPEN'; records: ProfileRecords }
+  | { type: 'OPEN'; name: string; records: ProfileRecords }
   | { type: 'CLOSE' }
   | { type: 'PREVIEW' }
   | { type: 'RESUME_EDIT' }
@@ -151,6 +153,11 @@ const getPendingSave = (
 
 const saveRequestedTransitions = [
   {
+    guard: 'nameChanged',
+    target: 'idle',
+    actions: 'clearSaveState',
+  },
+  {
     guard: 'missingOwner',
     target: 'idle',
     actions: 'clearSaveState',
@@ -173,6 +180,8 @@ export const editProfileDialogMachine = setup({
     input: {} as EditProfileDialogInput,
   },
   guards: {
+    nameChanged: ({ context, event }) =>
+      event.type === 'SAVE_REQUESTED' && context.name !== event.deps.name,
     missingOwner: ({ event }) =>
       event.type === 'SAVE_REQUESTED' && !event.deps.owner,
     missingAccount: ({ event }) =>
@@ -183,6 +192,8 @@ export const editProfileDialogMachine = setup({
     openDialog: assign({
       ethAddressChanged: () => false,
       isPreviewing: () => false,
+      name: ({ event, context }) =>
+        event.type === 'OPEN' ? event.name : context.name,
       pendingSave: () => undefined,
       savedRecords: ({ event, context }) =>
         event.type === 'OPEN' ? event.records : context.savedRecords,
@@ -248,6 +259,7 @@ export const editProfileDialogMachine = setup({
   context: ({ input }) => ({
     ethAddressChanged: false,
     isPreviewing: false,
+    name: input.name,
     savedRecords: input.records,
     visibleFields: getDefaultVisibleFields(input.records),
   }),

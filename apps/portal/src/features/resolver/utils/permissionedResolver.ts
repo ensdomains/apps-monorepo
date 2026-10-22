@@ -6,7 +6,6 @@ import {
   bytesToHex,
   type Chain,
   type Client,
-  ContractFunctionRevertedError,
   decodeEventLog,
   encodeFunctionData,
   getAddress,
@@ -17,6 +16,7 @@ import {
   type Transport,
 } from 'viem'
 import { getStorageAt, readContract } from 'viem/actions'
+import { isContractRevert } from '@/utils/errors/isContractRevert'
 
 const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
@@ -127,31 +127,6 @@ export const filterPermissionedResolverAddresses = (
 const EIP1967_IMPLEMENTATION_SLOT: Hex =
   '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
 
-/**
- * Whether the call came back FROM the contract rather than failing to reach it.
- *
- * Matched on viem's revert error names as well as the class, since class
- * identity does not survive the production build. Deliberately not on a numeric
- * `code`: that would read any unrelated `code: 3` in the chain as a revert, and
- * this fails closed, so a transport failure would cost a genuine proxy its
- * badge.
- */
-const REVERT_ERROR_NAMES: ReadonlySet<string> = new Set([
-  'ContractFunctionRevertedError',
-  'ExecutionRevertedError',
-])
-
-const isRevert = (error: unknown): boolean => {
-  let current: unknown = error
-  for (let depth = 0; depth < 10 && current != null; depth += 1) {
-    if (current instanceof ContractFunctionRevertedError) return true
-    const { name } = current as { name?: unknown }
-    if (typeof name === 'string' && REVERT_ERROR_NAMES.has(name)) return true
-    current = (current as { cause?: unknown }).cause
-  }
-  return false
-}
-
 export interface GetVerifiedProxyImplementationParams {
   readonly client: Client
   readonly factoryAddress: Address
@@ -178,7 +153,7 @@ export const getVerifiedProxyImplementation = async ({
     // A revert IS the answer: the factory refuses to vouch for this proxy.
     // A transport failure is not, and must not quietly cost a genuine proxy
     // its badge, so it propagates to the caller's error handling.
-    if (isRevert(error)) return null
+    if (isContractRevert(error)) return null
     throw error
   })
 

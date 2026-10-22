@@ -90,15 +90,15 @@ describe('MigrationSuccessDialog error actions', () => {
     expect(callbacks.onClose).toHaveBeenCalledTimes(1)
     expect(callbacks.onRetry).not.toHaveBeenCalled()
   })
-  it.each([
-    'mint-later',
-    'migration',
-  ] as const)('routes the configuration fallback to the dashboard in %s', (context) => {
-    const callbacks = showError({ stage: 'configuration', context })
-    fireEvent.click(screen.getByRole('button', { name: 'Go to dashboard' }))
-    expect(callbacks.onOpenDashboard).toHaveBeenCalledTimes(1)
-    expect(callbacks.onClose).not.toHaveBeenCalled()
-    expect(callbacks.onRetry).not.toHaveBeenCalled()
-    expect(callbacks.onMint).not.toHaveBeenCalled()
-  })
+  it.each(['mint-later', 'migration'] as const)(
+    'routes the configuration fallback to the dashboard in %s',
+    (context) => {
+      const callbacks = showError({ stage: 'configuration', context })
+      fireEvent.click(screen.getByRole('button', { name: 'Go to dashboard' }))
+      expect(callbacks.onOpenDashboard).toHaveBeenCalledTimes(1)
+      expect(callbacks.onClose).not.toHaveBeenCalled()
+      expect(callbacks.onRetry).not.toHaveBeenCalled()
+      expect(callbacks.onMint).not.toHaveBeenCalled()
+    },
+  )
 })

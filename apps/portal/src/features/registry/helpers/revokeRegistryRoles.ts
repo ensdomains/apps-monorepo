@@ -22,7 +22,7 @@ import {
 } from 'viem'
 import { assertRoleContractKind } from '@/features/roles/helpers/assertRoleContractKind'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import { ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
+import { ROOT_RESOURCE } from '@/lib/roles/roleHistory'
 
 export type RevokeRegistryRolesTransactionParameters = {
   readonly registryAddress: Address

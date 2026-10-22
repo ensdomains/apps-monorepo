@@ -14,6 +14,7 @@ const row = {
   registered_at: '1790594976',
   created_at: '1790594976',
   expires_at: '1885289376',
+  grace_ends_at: '1887708576',
   authority: 'ens_v2',
   migrated_at: '1790640000',
   relations: ['owner', 'role_holder', 'resolves_to'],
@@ -48,6 +49,20 @@ describe('readNamesForAddress', () => {
 
     expect(requestOf(fetch).url).toBe(
       'https://bigname.example/v1/addresses/0xb15c4ca5ec894369dec40f6298e63eae60db2756/names?namespace=ens&relation=owner%2Cmanager&authority=ens_v1%2Cens_v0&is_migrated=true&q=ali&sort=expires_at&order=desc&include=counts&page_size=25&cursor=c1',
+    )
+  })
+
+  it('asks for names whose ETH record resolves to the address', async () => {
+    const { client, fetch } = clientWith(envelope([], page))
+
+    await readNamesForAddress(client)({
+      address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+      relations: ['owner'],
+      resolvesTo: true,
+    })
+
+    expect(new URL(requestOf(fetch).url).searchParams.get('relation')).toBe(
+      'resolves_to',
     )
   })
 
@@ -128,19 +143,19 @@ describe('readNamesForAddress', () => {
     expect(bob).not.toHaveProperty('heldPowers')
   })
 
-  it.each([
-    undefined,
-    [],
-  ])('reads every relation when %s is asked for, and sends nothing else', async (relations) => {
-    const { client, fetch } = clientWith(envelope([], page))
+  it.each([undefined, []])(
+    'reads every relation when %s is asked for, and sends nothing else',
+    async (relations) => {
+      const { client, fetch } = clientWith(envelope([], page))
 
-    await readNamesForAddress(client)({
-      address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
-      relations,
-    })
+      await readNamesForAddress(client)({
+        address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+        relations,
+      })
 
-    expect(requestOf(fetch).url).toMatch(/names\?namespace=ens&relation=any$/)
-  })
+      expect(requestOf(fetch).url).toMatch(/names\?namespace=ens&relation=any$/)
+    },
+  )
 
   it('renders the wire rows the way the dashboards need them, with the page', async () => {
     const { client } = clientWith(envelope([row], page))
@@ -162,6 +177,7 @@ describe('readNamesForAddress', () => {
           registrationStatus: 'active',
           expiresAt: new Date('2029-09-28T11:29:36Z'),
           servedExpiry: 1_885_289_376n,
+          graceEndsAt: new Date(1_887_708_576_000),
           registeredAt: new Date('2026-09-28T11:29:36Z'),
           createdAt: new Date('2026-09-28T11:29:36Z'),
           subnameCount: 2,

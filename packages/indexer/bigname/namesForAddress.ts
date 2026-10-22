@@ -46,7 +46,11 @@ const toInclude = (
 const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   // Unscoped, bigname also lists other namespaces such as Basenames.
   namespace: 'ens',
-  relation: query.relations?.length ? query.relations : 'any',
+  relation: query.resolvesTo
+    ? 'resolves_to'
+    : query.relations?.length
+      ? query.relations
+      : 'any',
   authority: query.protocol && AUTHORITIES[query.protocol],
   is_migrated: query.migratedOnly ? 'true' : undefined,
   parent: query.parent,
@@ -90,6 +94,7 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   registrationStatus: row.status,
   expiresAt: toExpiresAt(row),
   servedExpiry: toExactSeconds(row.expires_at),
+  graceEndsAt: toDate(row.grace_ends_at),
   registeredAt: toDate(row.registered_at),
   createdAt: toDate(row.created_at),
   ...(row.subname_count !== undefined && { subnameCount: row.subname_count }),

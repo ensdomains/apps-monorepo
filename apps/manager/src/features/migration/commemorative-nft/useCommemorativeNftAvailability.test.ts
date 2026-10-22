@@ -146,20 +146,25 @@ describe('commemorative NFT availability observer', () => {
     [false, false],
     [undefined, true],
     [true, undefined],
-  ] as const)('does not fetch NFT metadata or claim status with migration=%s and migration-nft=%s', (migration, migrationNft) => {
-    vi.mocked(useFeatureFlagEnabled).mockImplementation(
-      (flag) => (flag === 'migration' ? migration : migrationNft) ?? false,
-    )
-    const { result } = mountAvailability(createClient(), { pollClaimed: true })
+  ] as const)(
+    'does not fetch NFT metadata or claim status with migration=%s and migration-nft=%s',
+    (migration, migrationNft) => {
+      vi.mocked(useFeatureFlagEnabled).mockImplementation(
+        (flag) => (flag === 'migration' ? migration : migrationNft) ?? false,
+      )
+      const { result } = mountAvailability(createClient(), {
+        pollClaimed: true,
+      })
 
-    expect(result.current.featureEnabled).toBe(false)
-    expect(result.current.eligibility.fetchStatus).toBe('idle')
-    expect(result.current.claimed.fetchStatus).toBe('idle')
-    expect(result.current.hasFreshEligibilityResult).toBe(false)
-    expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(fetchEligibility).not.toHaveBeenCalled()
-    expect(readClaimed).not.toHaveBeenCalled()
-  })
+      expect(result.current.featureEnabled).toBe(false)
+      expect(result.current.eligibility.fetchStatus).toBe('idle')
+      expect(result.current.claimed.fetchStatus).toBe('idle')
+      expect(result.current.hasFreshEligibilityResult).toBe(false)
+      expect(result.current.isConfirmedUnclaimed).toBe(false)
+      expect(fetchEligibility).not.toHaveBeenCalled()
+      expect(readClaimed).not.toHaveBeenCalled()
+    },
+  )
 
   it('starts reads when both flags become enabled and stops background reads when disabled', async () => {
     vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
@@ -219,42 +224,44 @@ describe('commemorative NFT availability observer', () => {
     expect(readClaimed).toHaveBeenCalledTimes(1)
   })
 
-  it.each([
-    undefined,
-    false,
-  ])('does not confirm unclaimed status after a failed read with cached value %s', async (cachedClaimed) => {
-    readClaimed.mockRejectedValueOnce(new Error('RPC unavailable'))
-    const client = createClient()
-    if (cachedClaimed !== undefined)
-      client.setQueryData(claimQueryKey(), cachedClaimed)
-    const { result } = mountAvailability(client)
+  it.each([undefined, false])(
+    'does not confirm unclaimed status after a failed read with cached value %s',
+    async (cachedClaimed) => {
+      readClaimed.mockRejectedValueOnce(new Error('RPC unavailable'))
+      const client = createClient()
+      if (cachedClaimed !== undefined)
+        client.setQueryData(claimQueryKey(), cachedClaimed)
+      const { result } = mountAvailability(client)
 
-    await waitFor(() => expect(result.current.claimed.isError).toBe(true))
+      await waitFor(() => expect(result.current.claimed.isError).toBe(true))
 
-    expect(result.current.claimed.data).toBe(cachedClaimed)
-    expect(result.current.hasFreshClaimedResult).toBe(false)
-    expect(result.current.isConfirmedUnclaimed).toBe(false)
-  })
+      expect(result.current.claimed.data).toBe(cachedClaimed)
+      expect(result.current.hasFreshClaimedResult).toBe(false)
+      expect(result.current.isConfirmedUnclaimed).toBe(false)
+    },
+  )
 
-  it.each([
-    undefined,
-    false,
-  ])('waits for an online read before confirming cached value %s', async (cachedClaimed) => {
-    onlineManager.setOnline(false)
-    const client = createClient()
-    if (cachedClaimed !== undefined)
-      client.setQueryData(claimQueryKey(), cachedClaimed)
-    const { result } = mountAvailability(client)
+  it.each([undefined, false])(
+    'waits for an online read before confirming cached value %s',
+    async (cachedClaimed) => {
+      onlineManager.setOnline(false)
+      const client = createClient()
+      if (cachedClaimed !== undefined)
+        client.setQueryData(claimQueryKey(), cachedClaimed)
+      const { result } = mountAvailability(client)
 
-    expect(result.current.claimed.fetchStatus).toBe('paused')
-    expect(result.current.hasFreshClaimedResult).toBe(false)
-    expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(readClaimed).not.toHaveBeenCalled()
+      expect(result.current.claimed.fetchStatus).toBe('paused')
+      expect(result.current.hasFreshClaimedResult).toBe(false)
+      expect(result.current.isConfirmedUnclaimed).toBe(false)
+      expect(readClaimed).not.toHaveBeenCalled()
 
-    act(() => onlineManager.setOnline(true))
-    await waitFor(() => expect(result.current.isConfirmedUnclaimed).toBe(true))
-    expect(readClaimed).toHaveBeenCalledTimes(1)
-  })
+      act(() => onlineManager.setOnline(true))
+      await waitFor(() =>
+        expect(result.current.isConfirmedUnclaimed).toBe(true),
+      )
+      expect(readClaimed).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it.each([
     {
@@ -275,30 +282,33 @@ describe('commemorative NFT availability observer', () => {
       ownerAddress: undefined,
       enabled: true,
     },
-  ] as const)('keeps $name gated even with cached unclaimed status', (params) => {
-    if (params.name === 'undeployed contract')
-      vi.mocked(getCommemorativeNftContractAddress).mockReturnValue(undefined)
-    vi.mocked(useChainId).mockReturnValue(params.chainId)
-    const client = createClient()
-    client.setQueryData(
-      claimQueryKey({
-        ownerAddress: params.ownerAddress ?? zeroAddress,
-        chainId: params.chainId,
-      }),
-      false,
-    )
-    const { result } = mountAvailability(client, {
-      ownerAddress: params.ownerAddress,
-      enabled: params.enabled,
-    })
+  ] as const)(
+    'keeps $name gated even with cached unclaimed status',
+    (params) => {
+      if (params.name === 'undeployed contract')
+        vi.mocked(getCommemorativeNftContractAddress).mockReturnValue(undefined)
+      vi.mocked(useChainId).mockReturnValue(params.chainId)
+      const client = createClient()
+      client.setQueryData(
+        claimQueryKey({
+          ownerAddress: params.ownerAddress ?? zeroAddress,
+          chainId: params.chainId,
+        }),
+        false,
+      )
+      const { result } = mountAvailability(client, {
+        ownerAddress: params.ownerAddress,
+        enabled: params.enabled,
+      })
 
-    expect(result.current.claimed.data).toBe(false)
-    expect(result.current.claimed.fetchStatus).toBe('idle')
-    expect(result.current.hasFreshClaimedResult).toBe(false)
-    expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(readClaimed).not.toHaveBeenCalled()
-    expect(fetchEligibility).not.toHaveBeenCalled()
-  })
+      expect(result.current.claimed.data).toBe(false)
+      expect(result.current.claimed.fetchStatus).toBe('idle')
+      expect(result.current.hasFreshClaimedResult).toBe(false)
+      expect(result.current.isConfirmedUnclaimed).toBe(false)
+      expect(readClaimed).not.toHaveBeenCalled()
+      expect(fetchEligibility).not.toHaveBeenCalled()
+    },
+  )
 
   it('revokes confirmed availability when the connected wallet is disabled', async () => {
     const { result, rerender } = mountAvailability(createClient())

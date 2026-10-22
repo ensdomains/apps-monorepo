@@ -95,13 +95,16 @@ describe('readNameDetail', () => {
       'a 200 with read_status not_found',
       () => envelope({ ...record, read_status: 'not_found' }),
     ],
-  ])('answers null for a name bigname has not indexed, on %s', async (_, response) => {
-    const { client } = clientWith(response())
+  ])(
+    'answers null for a name bigname has not indexed, on %s',
+    async (_, response) => {
+      const { client } = clientWith(response())
 
-    expect(
-      (await readNameDetail(client)({ name: 'nope.eth' }))._unsafeUnwrap(),
-    ).toBeNull()
-  })
+      expect(
+        (await readNameDetail(client)({ name: 'nope.eth' }))._unsafeUnwrap(),
+      ).toBeNull()
+    },
+  )
 
   it('maps any other failure to a read error', async () => {
     const { client } = clientWith(apiError('overloaded', 503))

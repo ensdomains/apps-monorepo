@@ -14,7 +14,7 @@ export const MigrationUpgradeButton = ({
   showNftPlaceholder = false,
   ...props
 }: MigrationUpgradeButtonProps) => (
-  <div className={cn('relative pt-6', className)}>
+  <div className={cn('relative', showNftPlaceholder && 'pt-6', className)}>
     <MigrationPrimaryButton {...props} className="w-full px-14">
       {children}
     </MigrationPrimaryButton>

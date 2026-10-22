@@ -11,12 +11,8 @@ import {
 } from '@tanstack/react-table'
 import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
-import {
-  ListLoader,
-  type ListLoaderProps,
-} from '@/components/ListLoader/ListLoader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
@@ -35,13 +31,38 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
+import { healSubname } from '@/utils/ens/localLabels'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
+
+// A child neither bigname nor this browser can label is shown as
+// `[labelhash].parent`, never linked.
+const SubnameBadge = ({ name }: { readonly name: string }) => {
+  const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
+  return (
+    <EntityBadge
+      variant="name"
+      name={isLabelled ? name : undefined}
+      copyValue={name}
+      showAvatar
+    >
+      {name}
+    </EntityBadge>
+  )
+}
 
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
+  /** The labelhash the indexer holds for the row; a `[…]` label heals only to it. */
+  readonly labelhash?: Hex
   /**
    * The subname's on-chain id, as the indexer reported it. Every write about
    * this row is addressed with this, never with `name` (WEB-1458). Undefined
@@ -50,9 +71,29 @@ export interface SubnameRow {
   readonly resourceId?: ResourceId
   /** Whether the connected user has ROLE_UNREGISTER on this subname's resource. */
   readonly canDelete?: boolean
+  /** Why the parent's holder can't delete this subname, shown on a disabled control. */
+  readonly deleteBlockedReason?: string
 }
 
 const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
+
+const BlockedDeleteHint = ({
+  name,
+  reason,
+}: {
+  readonly name: string
+  readonly reason: string
+}) => (
+  <Tooltip>
+    <TooltipTrigger
+      className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground/50 cursor-not-allowed"
+      aria-label={`Can’t delete ${name}: ${reason}`}
+    >
+      <Trash2 className="size-4" />
+    </TooltipTrigger>
+    <TooltipContent className="max-w-xs">{reason}</TooltipContent>
+  </Tooltip>
+)
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
   <EntityBadge variant="address" address={owner}>
@@ -63,9 +104,13 @@ const OwnerCell = ({ owner }: { owner: Address }) => (
 interface SubnamesTableProps {
   /** The rows loaded so far, which for a V2 name can be fewer than it has. */
   readonly subnames: readonly SubnameRow[]
-  /** Every subname the name has; left off the heading while unknown. */
+  /** Every subname the name has; unknown when undefined and more can load. */
   readonly totalCount?: number
-  readonly loader?: ListLoaderProps
+  /** Loads the next page; absent once every subname is loaded. */
+  readonly onLoadMore?: () => void
+  readonly isLoadingMore?: boolean
+  /** The last Load more failed; the loaded rows stay. */
+  readonly isLoadMoreError?: boolean
   readonly name: string
   readonly canCreateSubname?: boolean
   /** Called when user confirms delete on a single subname. */
@@ -111,7 +156,9 @@ function buildColumns(
   return [
     ...(onDeleteClick ? [selectColumn] : []),
     {
-      accessorKey: 'name',
+      id: 'name',
+      // Display, sort and search only: row identity stays the served name.
+      accessorFn: (row) => healSubname(row.name, row.labelhash),
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -120,14 +167,7 @@ function buildColumns(
           Subname
         </SortButton>
       ),
-      cell: ({ row }) => {
-        const name = row.original.name
-        return (
-          <EntityBadge variant="name" name={name} showAvatar>
-            {name}
-          </EntityBadge>
-        )
-      },
+      cell: ({ getValue }) => <SubnameBadge name={getValue<string>()} />,
     },
     {
       accessorKey: 'owner',
@@ -145,27 +185,38 @@ function buildColumns(
       enableSorting: false,
       id: 'actions',
       header: () => null,
-      cell: ({ row }) =>
-        row.original.canDelete && onDeleteClick ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
-            aria-label={`Delete ${row.original.name}`}
-            disabled={isDeleting}
-            onClick={() => onDeleteClick(row.original.name)}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        ) : null,
+      cell: ({ row }) => {
+        if (!onDeleteClick) return null
+        if (row.original.canDelete)
+          return (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-destructive"
+              aria-label={`Delete ${row.original.name}`}
+              disabled={isDeleting}
+              onClick={() => onDeleteClick(row.original.name)}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          )
+        return row.original.deleteBlockedReason ? (
+          <BlockedDeleteHint
+            name={row.original.name}
+            reason={row.original.deleteBlockedReason}
+          />
+        ) : null
+      },
     },
   ]
 }
 
 export const SubnamesTable = ({
   subnames,
-  loader,
-  totalCount = loader ? loader.total : subnames.length,
+  totalCount: servedTotal,
+  onLoadMore,
+  isLoadingMore,
+  isLoadMoreError = false,
   name,
   canCreateSubname,
   onDeleteSubname,
@@ -173,6 +224,8 @@ export const SubnamesTable = ({
   isDeleting,
   pendingNames,
 }: SubnamesTableProps) => {
+  // With nothing left to load, the rows given are the whole list.
+  const totalCount = servedTotal ?? (onLoadMore ? undefined : subnames.length)
   const pendingSet = pendingNames ?? EMPTY_PENDING_SET
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -282,9 +335,9 @@ export const SubnamesTable = ({
             </InputGroupAddon>
           </InputGroup>
         )}
-        {loader?.canShowMore && globalFilter && (
+        {onLoadMore && globalFilter && (
           <p className="text-p text-muted-foreground">
-            Searching the {subnames.length} subnames shown so far. Show more to
+            Searching the {subnames.length} subnames loaded so far. Load more to
             search the rest.
           </p>
         )}
@@ -326,13 +379,7 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <EntityBadge
-                      variant="name"
-                      name={row.original.name}
-                      showAvatar
-                    >
-                      {row.original.name}
-                    </EntityBadge>
+                    <SubnameBadge name={row.getValue<string>('name')} />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
@@ -345,6 +392,16 @@ export const SubnamesTable = ({
                         <Trash2 className="size-4" />
                       </Button>
                     )}
+                    {!row.original.canDelete &&
+                      onDeleteSubname &&
+                      row.original.deleteBlockedReason && (
+                        <span className="ml-auto">
+                          <BlockedDeleteHint
+                            name={row.original.name}
+                            reason={row.original.deleteBlockedReason}
+                          />
+                        </span>
+                      )}
                   </div>
                   <div className="flex flex-row gap-2 items-center">
                     <span className="text-base text-muted-foreground">
@@ -359,7 +416,7 @@ export const SubnamesTable = ({
                   <div className="border-b border-border bg-muted px-6 py-3">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">
-                        Remove {row.original.name}?
+                        Remove {row.getValue<string>('name')}?
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
@@ -443,10 +500,13 @@ export const SubnamesTable = ({
                   </TableRow>
                   {isPendingDelete && (
                     <TableRow className="bg-muted">
-                      <TableCell colSpan={columns.length} className="px-6 py-3">
+                      <TableCell
+                        colSpan={columns.length}
+                        className="px-6 py-3 first:pl-6 last:pr-6"
+                      >
                         <div className="flex items-center justify-between">
                           <span className="font-medium">
-                            Remove {row.original.name}?
+                            Remove {row.getValue<string>('name')}?
                           </span>
                           <div className="flex items-center gap-2">
                             <Button
@@ -486,7 +546,24 @@ export const SubnamesTable = ({
         </TableBody>
       </Table>
 
-      {loader && <ListLoader {...loader} className="px-6 py-4 md:px-0" />}
+      {onLoadMore && (
+        <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">
+          <span className="text-base text-muted-foreground">
+            Showing {subnames.length}
+            {totalCount === undefined ? null : ` of ${totalCount}`}
+            {isLoadMoreError && !isLoadingMore && (
+              <span role="alert"> · Couldn’t load more.</span>
+            )}
+          </span>
+          <Button
+            variant="outline"
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+          >
+            {isLoadingMore ? 'Loading…' : 'Load more subnames'}
+          </Button>
+        </div>
+      )}
     </>
   )
 }

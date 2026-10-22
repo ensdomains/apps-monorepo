@@ -1,0 +1,147 @@
+name: Release API Worker
+
+# Prod releases are rolling date tags on a main (or hf/ hardfork branch) commit:
+# api-worker-YYYY-MM-DD (UTC) for the day's first release, api-worker-YYYY-MM-DD.2,
+# .3, ... for later ones. No other tag (e.g. api-worker-v1.2.3) triggers a deploy.
+on:
+  push:
+    tags:
+      - "api-worker-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+      - "api-worker-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].*"
+
+permissions:
+  contents: read
+
+# One prod deploy at a time; never cancel one mid-way. GitHub keeps at most one
+# run waiting, so a tag pushed while another waits replaces it (latest wins).
+concurrency:
+  group: release-api-worker
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  # Gate the release and write its notes; the deploy waits on this.
+  prepare:
+    name: Check tag and write release notes
+    runs-on: ubuntu-latest
+
+    steps:
+      # Full history and tags (without file contents until needed) for the
+      # branch check and the release notes.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: Check the tag format
+        run: |
+          if ! [[ "$TAG" =~ ^api-worker-[0-9]{4}-[0-9]{2}-[0-9]{2}(\.([2-9]|[1-9][0-9]+))?$ ]]; then
+            echo "::error::Tag '$TAG' is not api-worker-YYYY-MM-DD or api-worker-YYYY-MM-DD.COUNT (COUNT >= 2)."
+            exit 1
+          fi
+
+      # A hardfork branch (hf/...) can also reach prod.
+      - name: Check the tagged commit is on main or a hardfork branch
+        run: |
+          branches=$(git branch -r --contains "$GITHUB_SHA" --format='%(refname:short)' --list origin/main 'origin/hf/*')
+          if [ -z "$branches" ]; then
+            echo "::error::Tag '$TAG' points at $GITHUB_SHA, which is not on main or an hf/ branch. Only those reach prod."
+            exit 1
+          fi
+          echo "Tagged commit is on: $(echo $branches)"
+
+      # The changes since the previous released tag: the full list for the
+      # GitHub release, and the same list cut to 1000 bytes (Cloudflare's limit)
+      # for the Worker version message. gh lists the GitHub releases, which
+      # mark the tags that reached prod.
+      - name: Write the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/notes"
+          node scripts/release-notes.mjs "$TAG" "$RUNNER_TEMP/notes"
+          cat "$RUNNER_TEMP/notes/release-notes.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+  cloudflare:
+    name: Release to Cloudflare Workers
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: cloudflare
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages
+            patches
+            workers/api-worker
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v3
+        env:
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@lts
+          cache: true
+
+      - name: Download the release notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+      # The deploy script builds, then deploys the build's generated config.
+      # The worker has no .env.mainnet, so CLOUDFLARE_ENV picks the mainnet
+      # Cloudflare env at build time; without it this deploys Sepolia's config.
+      # The release tag labels the Worker version in Cloudflare.
+      - name: Build and deploy to Cloudflare Workers
+        working-directory: workers/api-worker
+        env:
+          CLOUDFLARE_ENV: mainnet
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          pnpm run deploy --tag "$TAG" \
+            --message "$(cat "$RUNNER_TEMP/notes/release-message.txt")"
+
+  # Only after the deploy succeeds, so a release on GitHub means it is live.
+  # A re-run of the workflow updates the existing release instead.
+  release:
+    name: Create the GitHub release
+    needs: cloudflare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the release notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          notes="$RUNNER_TEMP/notes/release-notes.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file "$notes"
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file "$notes" --verify-tag
+          fi

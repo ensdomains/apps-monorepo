@@ -27,7 +27,7 @@ interface UseUserPermissionedResolversParams {
   readonly senderAddress?: Address
 }
 
-const userPermissionedResolversQueryKey = createQueryKey<
+export const userPermissionedResolversQueryKey = createQueryKey<
   'user-permissioned-resolvers',
   { senderAddress?: Address }
 >('user-permissioned-resolvers')

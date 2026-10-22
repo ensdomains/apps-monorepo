@@ -55,6 +55,12 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
+// `renewBatch` is on both renewers (the shared AbstractETHRegistrar) but has no
+// ensjs-abi snippet either.
+const renewBatchAbi = parseAbi([
+  'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+])
+
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import {
   awaitTransactionOutcome,
@@ -80,9 +86,12 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
  * `price`. Deliberately NOT unlimited: the registrar pulls the live rent price
  * (no max-price arg), which can drift slightly between quote and execution; we
  * add 10% headroom to absorb that while keeping the allowance tightly scoped.
- * (Used only on the pure-EOA `approve` path — the HCA path funds via permit.)
+ *
+ * (Used on the pure-EOA `approve` path — the HCA path funds via permit. Also
+ * used to size the HCA's own `approve`, and therefore the funding that has to
+ * cover it, on the renewal intent route.)
  */
-function authorizedPaymentAmount(price: bigint): bigint {
+export function authorizedPaymentAmount(price: bigint): bigint {
   return price + price / 10n
 }
 
@@ -224,6 +233,31 @@ export type PermitSignature = {
   v: number
   r: Hex
   s: Hex
+}
+
+/**
+ * A signed legacy DAI permit.
+ *
+ * DAI predates EIP-2612 and implements its own `permit`, signing a different
+ * struct (`holder` / `nonce` / `expiry` / `allowed` with no `value`). The
+ * allowance is all-or-nothing: `allowed = true` sets it to `type(uint256).max`.
+ *
+ * Kept separate from {@link PermitSignature} so a signature of one shape can
+ * never be encoded as the other — the two are not interchangeable.
+ */
+export type DaiPermitSignature = {
+  /** DAI's name for the signer; EIP-2612 calls it `owner`. */
+  readonly holder: Address
+  readonly spender: Address
+  /** Read from `nonces(holder)` before signing. */
+  readonly nonce: bigint
+  /** Absolute Unix timestamp. DAI treats `0` as "never expires". */
+  readonly expiry: bigint
+  /** `true` grants an unlimited allowance; DAI has no per-value approval. */
+  readonly allowed: boolean
+  readonly v: number
+  readonly r: Hex
+  readonly s: Hex
 }
 
 /** Shared `ETHRegistrar.register` call for submit + gas estimate. */
@@ -1305,22 +1339,24 @@ export function pollTransactionStatusActor(input: {
 // ============================================================================
 //
 // `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the rent
-// from `_msgSender()` (see AbstractETHRegistrar.renew). Crucially, the registrar
-// uses HCA-aware sender resolution: when an HCA calls `renew`, `_msgSender()`
-// unwraps to the HCA's owner EOA (HCAEquivalence). So the registrar always pulls
-// payment from the EOA — never the HCA, which holds no tokens.
+// from `msg.sender` (see AbstractETHRegistrar.renew) — raw `msg.sender`, with no
+// HCA unwrap. So the payer is whoever executes the call: the connected EOA on
+// the direct-wallet route, or the user's own HCA when the renewal runs as an
+// intent. (This is why a session-signed renewal reverts `ActionNotAllowed`: the
+// session's allowlist covers only `commit`/`register`, and the owner-signed HCA
+// route has to fund the account, since `renew` spends ITS balance.)
 //
-// This is the same payer the `register` flow authorizes, so renewal reuses the
-// exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
-// (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
-// intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+// Both routes authorize the payment the same way: read
+// `allowance[payer][renewer]`, and either skip (already enough), sign a gasless
+// EIP-2612 permit batched with `renew` in one intent (HCA), or do a plain
+// on-chain `approve` (EOA).
 
 /**
  * Encode `renew(RenewData, paymentToken)` calldata, where
  * `RenewData = (label, duration, referrer)`. Both renewers dropped the flat
  * `renew(string,uint64,address,bytes32)`; that selector now reverts empty.
  */
-function encodeRenewData(
+export function encodeRenewData(
   label: string,
   duration: bigint,
   paymentToken: Address,
@@ -1330,6 +1366,40 @@ function encodeRenewData(
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
     args: [{ label: cleanLabel, duration, referrer: zeroHash }, paymentToken],
+  })
+}
+
+/**
+ * One `RenewData` entry, as the batch call takes it.
+ */
+export interface RenewDataEntry {
+  readonly label: string
+  /** Duration in SECONDS, as `renew` takes it. */
+  readonly duration: bigint
+}
+
+/**
+ * Encode `renewBatch(RenewData[], paymentToken)` calldata.
+ *
+ * `renewBatch` renews every entry and pulls the SUMMED rent once from
+ * `msg.sender`, which is what makes a whole selection payable in one intent —
+ * one permit, one approval, one fee. `ensjs-abi` has no snippet for it yet.
+ */
+export function encodeRenewBatchData(
+  entries: readonly RenewDataEntry[],
+  paymentToken: Address,
+): Hash {
+  return encodeFunctionData({
+    abi: renewBatchAbi,
+    functionName: 'renewBatch',
+    args: [
+      entries.map((entry) => ({
+        label: entry.label.replace('.eth', ''),
+        duration: entry.duration,
+        referrer: zeroHash,
+      })),
+      paymentToken,
+    ],
   })
 }
 

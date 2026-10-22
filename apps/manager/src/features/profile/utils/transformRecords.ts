@@ -1,22 +1,19 @@
 import * as v from 'valibot'
-import {
-  allSections,
-  getRecordDef,
-  getRecordDisplayValue,
-  staticTextRecords,
-} from '../data/records'
+import { primaryContactsRecordKey } from '../components/dialogs/edit-profile/tabs/contact/constants'
+import { allSections, getRecordDef, staticTextRecords } from '../data/records'
 import type {
   Section,
   SpecialSection,
   StaticRecordKey,
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
-import type { LinkItem, ProfileRecords, TextRecordValue } from '../types'
+import type { LinkItem, ProfileRecords } from '../types'
 import {
   isAgentRegistrationKey,
   transformAgentRegistrationRecord,
 } from './agentRegistration'
 import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
+import { isWithinPrimaryContactsRecordSize } from './primaryContactLimits'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
 
 const emptyProfileRecords = (): ProfileRecords => ({
@@ -82,21 +79,12 @@ const normalizeProfileAddresses = (
 ): ProfileRecords['addresses'] =>
   addresses.filter(({ value }) => value && value.trim() !== '')
 
-const normalizeProfileTextRecords = (
-  records: readonly TextRecordValue[],
-): TextRecordValue[] =>
-  records.map(({ key, value }) => ({
-    key,
-    value: getRecordDisplayValue(getRecordDef(key), value),
-  }))
-
 export const normalizeProfileRecords = (
   records: ProfileRecords,
 ): ProfileRecords => ({
   ...records,
   addresses: normalizeProfileAddresses(records.addresses),
   links: normalizeProfileLinks(records.links),
-  social: normalizeProfileTextRecords(records.social),
 })
 
 interface TextRecordInput {
@@ -131,6 +119,13 @@ export const transformProfileRecords = (
     acc: ProfileRecords,
     { key, value }: TextRecordInput,
   ): ProfileRecords => {
+    if (
+      key === primaryContactsRecordKey &&
+      !isWithinPrimaryContactsRecordSize(value)
+    ) {
+      return acc
+    }
+
     // Agent-registration records (ENSIP-25) are matched by the fixed
     // `agent-registration` key prefix and routed to the agent transform.
     // Records that fail to parse fall through to the standard handling below.

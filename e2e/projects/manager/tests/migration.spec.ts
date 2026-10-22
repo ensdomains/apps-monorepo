@@ -135,7 +135,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('migrate an unwrapped V1 name and view profile', async ({
     migrationConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     wallet,
     accounts,
   }) => {
@@ -151,7 +151,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
     await runMigrationFlow(page, wallet)
 
-    v1Names.markMigrated(mockIndexer)
+    v1Names.markMigrated(mockBigname)
 
     // ── Post-migration: search for the name and go to profile ────
     await searchAndNavigateToProfile(page, v1Name)
@@ -165,7 +165,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('batch migrate multiple V1 names to V2', async ({
     migrationConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     wallet,
     accounts,
   }) => {
@@ -196,7 +196,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
     await runMigrationFlow(page, wallet)
 
-    v1Names.markMigrated(mockIndexer)
+    v1Names.markMigrated(mockBigname)
     await assertUnlockedMigration(unwrappedName.replace('.eth', ''))
     await assertUnlockedMigration(wrappedName.replace('.eth', ''))
     await assertLockedMigration(lockedName.replace('.eth', ''))
@@ -207,7 +207,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('V1 records are preserved after migration', async ({
     migrationConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     wallet,
     accounts,
   }) => {
@@ -238,7 +238,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
     await runMigrationFlow(page, wallet)
 
-    v1Names.markMigrated(mockIndexer)
+    v1Names.markMigrated(mockBigname)
 
     // ── Navigate to the migrated name's profile and verify records ───
     await goToProfile(page, v1Name)
@@ -260,7 +260,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
   test('can edit profile after migration', async ({
     migrationConnectedPage: page,
-    mockIndexer,
+    mockBigname,
     wallet,
     accounts,
   }) => {
@@ -276,7 +276,7 @@ test.describe('ENS V1 → V2 Migration', () => {
 
     await runMigrationFlow(page, wallet)
 
-    v1Names.markMigrated(mockIndexer)
+    v1Names.markMigrated(mockBigname)
 
     // ── Navigate to the edit profile page ───────────────────────────
     await page.goto(`${MANAGER_APP_URL}/p/${v1Name}/edit`)

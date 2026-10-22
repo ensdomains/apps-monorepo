@@ -178,19 +178,20 @@ describe('useGraceRenewalGasEstimate', () => {
         renewal: { status: 'error' as const, message: 'Quote unavailable' },
       },
     },
-  ])('stays idle with $label even if an old estimate is cached', ({
-    overrides,
-  }) => {
-    mocks.query.mockReturnValue({ data: estimate })
-    const { result, unmount } = renderHook(() =>
-      useGraceRenewalGasEstimate({ ...params, ...overrides }),
-    )
+  ])(
+    'stays idle with $label even if an old estimate is cached',
+    ({ overrides }) => {
+      mocks.query.mockReturnValue({ data: estimate })
+      const { result, unmount } = renderHook(() =>
+        useGraceRenewalGasEstimate({ ...params, ...overrides }),
+      )
 
-    expect(queryOptions().enabled).toBe(false)
-    expect(result.current).toEqual({ status: 'idle' })
-    expect(mocks.estimate).not.toHaveBeenCalled()
-    unmount()
-  })
+      expect(queryOptions().enabled).toBe(false)
+      expect(result.current).toEqual({ status: 'idle' })
+      expect(mocks.estimate).not.toHaveBeenCalled()
+      unmount()
+    },
+  )
 
   it('shows loading before the first estimate is available', () => {
     mocks.query.mockReturnValue({ isPending: true })

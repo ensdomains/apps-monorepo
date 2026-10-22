@@ -127,19 +127,13 @@ Default columns:
 - ENS components: `AddressDisplay`, `EventsSidebar`
 - Table components: `TableDateRangeFilter`, `TableMultiSelectFilter`, `CollapseAllButton`
 
-## Migration from HistoryList
+## Building the rows
 
-The old `HistoryList` component has been replaced with this generic implementation:
+Group a name's history by transaction before handing it over:
 
-**Before:**
 ```typescript
-<HistoryList name={name} history={ensHistory} />
-```
-
-**After:**
-```typescript
-const eventsData = transformHistoryToEvents(ensHistory)
-<EventsDataTable data={eventsData} name={name} />
+const data = groupEventsByTransactionId(history, 'resolver')
+<EventsDataTable data={data} name={name} />
 ```
 
 ## Type Definitions

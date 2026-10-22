@@ -19,10 +19,15 @@ import {
   type RegistryLabelRow,
 } from '../../hooks/useRegistryLabels'
 
+// Figma: three narrow columns, the labelhash takes the rest and wraps.
+const LABEL_COLUMN_WIDTH = 140
+const EXPIRY_COLUMN_WIDTH = 170
+
 const columns: ColumnDef<RegistryLabelRow>[] = [
   {
     id: 'label',
-    accessorFn: (row) => row.labelName ?? row.name ?? row.labelhash,
+    meta: { width: LABEL_COLUMN_WIDTH },
+    accessorFn: (row) => row.labelName ?? row.name ?? row.labelhash ?? '',
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -34,55 +39,60 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     cell: ({ row }) => {
       const { name, labelName, labelhash } = row.original
       return (
-        <span className="bg-foreground font-medium text-background py-1 px-1.5 rounded-sm">
-          {labelName ?? name ?? labelhash}
+        <span
+          className="inline-block max-w-full truncate rounded-sm bg-foreground px-1.5 py-1 align-middle font-medium text-background"
+          title={labelhash ?? undefined}
+        >
+          {labelName ?? name ?? 'label unknown'}
         </span>
       )
     },
   },
   {
     accessorKey: 'expiryDate',
+    meta: { width: EXPIRY_COLUMN_WIDTH },
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
       >
-        Expires
+        Expires in
       </SortButton>
     ),
     cell: ({ row }) => {
       const { expiryDate } = row.original
       if (!expiryDate) {
-        return <span className="text-muted-foreground">Does not expire</span>
+        return <span className="text-muted-foreground">Never</span>
       }
       return (
         <span className="text-muted-foreground">
-          {formatExpiryDuration(unixSecondsToPlainDateUtc(expiryDate))}
+          {formatExpiryDuration(unixSecondsToPlainDateUtc(Number(expiryDate)))}
         </span>
       )
     },
   },
   {
     accessorKey: 'roleHoldersCount',
+    meta: { width: LABEL_COLUMN_WIDTH },
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
       >
-        Role holders
+        Roles holders
       </SortButton>
     ),
     cell: ({ row }) => {
       const count = row.original.roleHoldersCount
-      return <span className="text-muted-foreground">{count}</span>
+      return <span className="text-muted-foreground">{count ?? '—'}</span>
     },
   },
   {
     accessorKey: 'labelhash',
     enableSorting: false,
-    header: 'Label hash',
+    header: 'Labelhash',
     cell: ({ row }) => (
-      <span className="font-mono text-muted-foreground">
+      <span className="break-all font-mono text-muted-foreground">
         {row.original.labelhash}
       </span>
     ),

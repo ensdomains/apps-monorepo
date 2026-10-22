@@ -46,6 +46,28 @@ describe('NameRow', () => {
     expect(getByText('Manager')).toBeInTheDocument()
   })
 
+  it('places the primary badge before status and role pills', () => {
+    const { getByText } = render(
+      <NameRow
+        label="wrapped.eth"
+        nameRoles={['owner', 'manager']}
+        status="eligibleUpgrade"
+        verified
+      />,
+    )
+
+    const primaryBadge = getByText('Primary Name').parentElement
+    const leftTags = primaryBadge?.parentElement
+
+    expect(leftTags?.firstElementChild).toBe(primaryBadge)
+    expect(Array.from(leftTags?.children ?? [])).toEqual([
+      primaryBadge,
+      getByText('Eligible for upgrade').closest('span'),
+      getByText('Owner').closest('span'),
+      getByText('Manager').closest('span'),
+    ])
+  })
+
   it('uses the same visual tone for owner and manager roles', () => {
     const { getByText } = render(
       <NameRow label="wrapped.eth" nameRoles={['owner', 'manager']} />,

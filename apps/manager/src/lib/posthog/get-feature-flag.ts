@@ -31,7 +31,7 @@ const validateFeatureFlagInput = (input: unknown): FeatureFlagInput => {
 }
 
 export const getFeatureFlag = createServerFn({ method: 'GET' })
-  .inputValidator(validateFeatureFlagInput)
+  .validator(validateFeatureFlagInput)
   .handler(async ({ data }): Promise<boolean | null> => {
     const walletAddress = getConnectionCookie()
 

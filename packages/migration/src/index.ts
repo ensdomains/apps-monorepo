@@ -24,6 +24,12 @@ export {
   type EligibilityResult,
   runEligibilityChecks,
 } from './service/preflightChecks'
+export {
+  getSubnameMigrationImpact,
+  readSubnameMigrationImpact,
+  type SubnameMigrationImpact,
+  SubnameMigrationImpactError,
+} from './service/subnameMigrationImpact'
 export type { V1Domain } from './service/v1Domain'
 export {
   needsParentFuses,

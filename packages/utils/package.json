@@ -16,8 +16,8 @@
     "lint": "biome check"
   },
   "devDependencies": {
-    "@types/react": "^19.1.12",
-    "react": "^19.2.5",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
@@ -32,7 +32,7 @@
   "keywords": [],
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
-    "@tanstack/react-query": "^5.104.0",
+    "@tanstack/react-query": "^5.104.4",
     "neverthrow": "^8.2.0",
     "viem": "catalog:",
     "xstate": "catalog:"

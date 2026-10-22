@@ -20,21 +20,26 @@ export const handleQueue = async (
     messageCount: batch.messages.length,
   })
 
-  // Route to appropriate queue handler based on queue name
+  const workerName =
+    String(env.CHAIN) === 'mainnet'
+      ? 'app-api-worker-mainnet'
+      : 'app-api-worker'
+
+  // Each environment consumes its own queues using the same handlers.
   switch (batch.queue) {
-    case 'app-api-worker-telegram-delivery':
+    case `${workerName}-telegram-delivery`:
       await handleTelegramQueue(batch as MessageBatch<TelegramDeliveryJob>, env)
       break
-    case 'app-api-worker-email-delivery':
+    case `${workerName}-email-delivery`:
       await handleEmailQueue(batch as MessageBatch<EmailDeliveryJob>, env)
       break
-    case 'app-api-worker-push-delivery':
+    case `${workerName}-push-delivery`:
       await handlePushQueue(batch as MessageBatch<PushDeliveryJob>, env)
       break
-    case 'app-api-worker-event-ingestion':
+    case `${workerName}-event-ingestion`:
       await handleEventIngestionQueue(batch, env)
       break
-    case 'app-api-worker-dlq':
+    case `${workerName}-dlq`:
       await handleDlqQueue(batch as MessageBatch<BaseDeliveryJob>, env)
       break
     default:

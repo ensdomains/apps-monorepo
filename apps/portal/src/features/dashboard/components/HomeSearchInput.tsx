@@ -10,7 +10,9 @@ import {
   useRef,
   useState,
 } from 'react'
+import { isAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { Button } from '@/components/ui/button'
 import { CommandDialog, CommandInput } from '@/components/ui/command'
 import {
   InputGroup,
@@ -75,6 +77,7 @@ export const HomeSearchInput = ({
   )
   const navigateToResolver = useCallback(
     (address: string) => {
+      if (!isAddress(address, { strict: false })) return
       navigate({ to: '/resolver/$address', params: { address } })
     },
     [navigate],
@@ -200,14 +203,16 @@ export const HomeSearchInput = ({
   if (iconOnly) {
     return (
       <>
-        <button
+        <Button
           type="button"
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          variant="secondary"
+          size="icon"
+          className="size-7 text-muted-foreground hover:text-foreground"
           onClick={() => setModalOpen(true)}
         >
           <Search className="size-3.5" />
           <span className="sr-only">Search</span>
-        </button>
+        </Button>
         <CommandDialog
           open={modalOpen}
           onOpenChange={setModalOpen}
