@@ -112,8 +112,8 @@ vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
 
 vi.mock('@/components/RegisterSidebar', () => ({ RegisterSidebar: () => null }))
 vi.mock('@/components/MobileHeader', () => ({ MobileHeader: () => null }))
-vi.mock('@/components/SepoliaNoticeBanner', () => ({
-  SepoliaNoticeBanner: () => null,
+vi.mock('@/components/NoticeBanner', () => ({
+  NoticeBanner: () => null,
 }))
 vi.mock('@/components/ui/sidebar', () => ({
   SidebarProvider: ({ children }: { children: React.ReactNode }) => children,

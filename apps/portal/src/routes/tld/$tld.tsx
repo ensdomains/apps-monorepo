@@ -1,8 +1,8 @@
 import { createFileRoute, Outlet, useParams } from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { TldSidebar } from '@/components/TldSidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
@@ -18,7 +18,7 @@ function RouteComponent() {
       <TldSidebar tld={tld} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <SepoliaNoticeBanner />
+        <NoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

@@ -2,9 +2,9 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { type Address, checksumAddress, isAddress } from 'viem'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { ResolverSidebar } from '@/components/ResolverSidebar'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 export const Route = createFileRoute('/resolver/$address')({
@@ -30,7 +30,7 @@ function RouteComponent() {
       <ResolverSidebar address={checksumAddress(address)} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <SepoliaNoticeBanner />
+        <NoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

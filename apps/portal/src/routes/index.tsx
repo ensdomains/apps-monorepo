@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import {
   ConnectWalletMessage,
   EnsV2InfoMessage,
@@ -28,7 +28,7 @@ function RouteComponent() {
       <div className="w-full flex flex-col items-center gap-6 sm:flex-row sm:items-start">
         <HomeHeader />
         <div className="flex-1 min-w-0">
-          <SepoliaNoticeBanner />
+          <NoticeBanner />
         </div>
       </div>
 

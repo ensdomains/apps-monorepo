@@ -7,9 +7,9 @@ import {
 } from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -67,7 +67,7 @@ function RouteComponent() {
       <ProfileSidebar name={name} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <SepoliaNoticeBanner />
+        <NoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

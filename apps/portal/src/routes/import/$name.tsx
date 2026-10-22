@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { PageContainer } from '@/components/PageContainer'
 import { RegisterSidebar } from '@/components/RegisterSidebar'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
   DnsImportFlow,
@@ -19,7 +19,7 @@ const DnsImportPage = () => {
       <RegisterSidebar />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <SepoliaNoticeBanner />
+        <NoticeBanner />
         <PageContainer className="min-h-screen flex flex-col pt-4">
           <DnsImportFlow
             name={name}
