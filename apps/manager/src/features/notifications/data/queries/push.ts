@@ -7,6 +7,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ClientResponse } from 'hono/client'
 import { fromPromise, ok } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import type { Channel } from '@/features/notifications/data/queries/channels'
 import { channelsQueryOptions } from '@/features/notifications/data/queries/channels'
 import {
@@ -39,7 +40,7 @@ export class PushPermissionDeniedError extends TaggedError(
   'PushPermissionDeniedError',
 )<{
   /** The resulting permission state that prevented enabling notifications. */
-  permission: NotificationPermission
+  readonly permission: NotificationPermission
 }> {}
 
 export class ChannelNotFoundForEndpointError extends TaggedError(
@@ -281,24 +282,19 @@ const causeToPushErrorCode = (cause: unknown): PushErrorCode => {
     return isBraveBrowser() ? 'brave-push-disabled' : 'push-service-unavailable'
   }
 
-  switch (name) {
-    case 'NotAllowedError':
-      return 'browser-blocked'
-    case 'NotSupportedError':
-    case 'SecurityError':
-      return 'not-supported'
-    case 'InvalidStateError':
-      return 'service-worker'
-    case 'InvalidAccessError':
-    case 'TypeError':
+  return match(name)
+    .returnType<PushErrorCode>()
+    .with('NotAllowedError', () => 'browser-blocked')
+    .with(P.union('NotSupportedError', 'SecurityError'), () => 'not-supported')
+    .with('InvalidStateError', () => 'service-worker')
+    .with(
+      P.union('InvalidAccessError', 'TypeError'),
       // e.g. "Invalid applicationServerKey" — the browser rejected the key
       // the backend handed out
-      return 'invalid-server-key'
-    case 'AbortError':
-      return 'push-service-unavailable'
-    default:
-      return 'unknown'
-  }
+      () => 'invalid-server-key',
+    )
+    .with('AbortError', () => 'push-service-unavailable')
+    .otherwise(() => 'unknown')
 }
 
 /**
@@ -321,30 +317,28 @@ export const getPushErrorCode = (error: unknown): PushErrorCode => {
     return 'unknown'
   }
 
-  switch (taggedError._tag) {
-    case 'PushNotSupportedError':
-      return 'not-supported'
-    case 'PushPermissionRequestError':
+  return match(taggedError._tag)
+    .returnType<PushErrorCode>()
+    .with('PushNotSupportedError', () => 'not-supported')
+    .with(
+      'PushPermissionRequestError',
       // e.g. some browsers throw NotAllowedError when the permission prompt
       // cannot be shown (no user gesture, prompt blocked by the browser)
-      return 'request-blocked'
-    case 'PushPermissionDeniedError':
+      () => 'request-blocked',
+    )
+    .with('PushPermissionDeniedError', () =>
       // Browsers report 'default' when the prompt goes unanswered
       // (dismissed/ignored), and 'denied' after an explicit block
-      return taggedError.permission === 'denied'
+      taggedError.permission === 'denied'
         ? 'browser-blocked'
-        : 'permission-dismissed'
-    case 'ServiceWorkerRegistrationError':
-      return 'service-worker'
-    case 'PushChannelRequestError':
-      return 'server'
-    case 'ChannelNotFoundForEndpointError':
-      // The backend no longer knows this subscription; treat it like any
-      // other backend inconsistency
-      return 'server'
-    default:
-      return taggedError.cause
-        ? causeToPushErrorCode(taggedError.cause)
-        : 'unknown'
-  }
+        : 'permission-dismissed',
+    )
+    .with('ServiceWorkerRegistrationError', () => 'service-worker')
+    .with(
+      P.union('PushChannelRequestError', 'ChannelNotFoundForEndpointError'),
+      () => 'server',
+    )
+    .otherwise(() =>
+      taggedError.cause ? causeToPushErrorCode(taggedError.cause) : 'unknown',
+    )
 }

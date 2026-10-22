@@ -2896,10 +2896,6 @@ msgstr ""
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push.tsx
-msgid "There was a problem reaching the notification service. Please try again in a moment."
-msgstr ""
-
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "These names can't be upgraded"
 msgstr ""

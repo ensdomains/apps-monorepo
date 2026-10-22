@@ -2891,10 +2891,6 @@ msgstr "The session wasn't enabled."
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
 
-#: src/features/notifications/settings/contact-methods/push.tsx
-msgid "There was a problem reaching the notification service. Please try again in a moment."
-msgstr "There was a problem reaching the notification service. Please try again in a moment."
-
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "These names can't be upgraded"
 msgstr "These names can't be upgraded"

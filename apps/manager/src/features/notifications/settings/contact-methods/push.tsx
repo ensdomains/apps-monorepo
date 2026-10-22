@@ -2,7 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
@@ -21,8 +21,8 @@ type PushContactMethodProps = {
 }
 
 type PushErrorCopy = {
-  title: string
-  description: string
+  readonly title: string
+  readonly description: string
 }
 
 const isPushChannelWithEndpointHash = (
@@ -49,65 +49,47 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
   const pushErrorCopy = (
     code: PushErrorCode,
     action: 'enable' | 'disable',
-  ): PushErrorCopy => {
-    switch (code) {
-      case 'not-supported':
-        return {
-          title: t`Notifications aren't supported in this browser`,
-          description: t`This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead.`,
-        }
-      case 'brave-push-disabled':
-        return {
-          title: t`Brave's push service is turned off`,
-          description: t`Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again.`,
-        }
-      case 'push-service-unavailable':
-        return {
-          title: t`No push service is available in this browser`,
-          description: t`Your browser can't reach a push delivery service. Check your browser's push settings, then try again.`,
-        }
-      case 'browser-blocked':
-        return {
-          title: t`Notifications are blocked for this site`,
-          description: t`To enable, go to your browser's site settings for this page and allow notifications, then try again.`,
-        }
-      case 'request-blocked':
-        return {
-          title: t`The notification prompt was blocked`,
-          description: t`Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again.`,
-        }
-      case 'permission-dismissed':
-        return {
-          title: t`The notification prompt was dismissed`,
-          description: t`Try again and allow notifications when your browser asks.`,
-        }
-      case 'service-worker':
-        return {
-          title: t`Notifications couldn't be set up`,
-          description: t`This app needs its notification service worker to receive push messages. Reload the page and try again.`,
-        }
-      case 'subscription-timeout':
-        return {
-          title: t`Setting up notifications timed out`,
-          description: t`Your browser took too long to register for push messages. Check your connection, then try again.`,
-        }
-      case 'invalid-server-key':
-        return {
-          title: t`Notifications are misconfigured`,
-          description: t`The notification service returned an invalid key. Please try again later.`,
-        }
-      case 'server':
-        return action === 'enable'
-          ? {
-              title: t`Couldn't enable notifications`,
-              description: t`There was a problem reaching the notification service. Please try again in a moment.`,
-            }
-          : {
-              title: t`Couldn't disable notifications`,
-              description: t`There was a problem reaching the notification service. Please try again in a moment.`,
-            }
-      case 'unknown':
-        return action === 'enable'
+  ): PushErrorCopy =>
+    match(code)
+      .returnType<PushErrorCopy>()
+      .with('not-supported', () => ({
+        title: t`Notifications aren't supported in this browser`,
+        description: t`This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead.`,
+      }))
+      .with('brave-push-disabled', () => ({
+        title: t`Brave's push service is turned off`,
+        description: t`Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again.`,
+      }))
+      .with('push-service-unavailable', () => ({
+        title: t`No push service is available in this browser`,
+        description: t`Your browser can't reach a push delivery service. Check your browser's push settings, then try again.`,
+      }))
+      .with('browser-blocked', () => ({
+        title: t`Notifications are blocked for this site`,
+        description: t`To enable, go to your browser's site settings for this page and allow notifications, then try again.`,
+      }))
+      .with('request-blocked', () => ({
+        title: t`The notification prompt was blocked`,
+        description: t`Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again.`,
+      }))
+      .with('permission-dismissed', () => ({
+        title: t`The notification prompt was dismissed`,
+        description: t`Try again and allow notifications when your browser asks.`,
+      }))
+      .with('service-worker', () => ({
+        title: t`Notifications couldn't be set up`,
+        description: t`This app needs its notification service worker to receive push messages. Reload the page and try again.`,
+      }))
+      .with('subscription-timeout', () => ({
+        title: t`Setting up notifications timed out`,
+        description: t`Your browser took too long to register for push messages. Check your connection, then try again.`,
+      }))
+      .with('invalid-server-key', () => ({
+        title: t`Notifications are misconfigured`,
+        description: t`The notification service returned an invalid key. Please try again later.`,
+      }))
+      .with(P.union('server', 'unknown'), () =>
+        action === 'enable'
           ? {
               title: t`Couldn't enable notifications`,
               description: t`Something went wrong while setting up browser notifications. Please try again.`,
@@ -115,9 +97,9 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
           : {
               title: t`Couldn't disable notifications`,
               description: t`Something went wrong while turning off browser notifications. Please try again.`,
-            }
-    }
-  }
+            },
+      )
+      .exhaustive()
 
   const enableMutation = useMutation({
     ...enableBrowserPushMutationOptions,
@@ -227,7 +209,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
           </AlertDescription>
         </Alert>
       )}
-      {isSupported && lastEnableErrorCopy && (
+      {lastEnableErrorCopy && (
         <Alert variant="destructive">
           <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="warning" />
           <AlertTitle>{lastEnableErrorCopy.title}</AlertTitle>
