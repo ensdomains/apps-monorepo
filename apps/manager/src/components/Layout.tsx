@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMatches } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
-import { LayoutBackAndNoticeRow } from '@/components/LayoutBackAndNoticeRow'
+import { LayoutBackRow } from '@/components/LayoutBackRow'
 import { NoticeBanner } from '@/components/NoticeBanner'
 import { Header } from '@/features/navigation/Header/Header'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -67,7 +67,7 @@ export const Layout = ({ children }: LayoutProps) => {
             isMigrationPage && 'min-h-0',
           )}
         >
-          <LayoutBackAndNoticeRow isHidden={isProfilePage} />
+          <LayoutBackRow isHidden={isProfilePage} />
           {children}
         </main>
       </GlobalBackButtonProvider>
