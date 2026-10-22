@@ -1,13 +1,14 @@
 import type { NoticeBannerVariant } from '@ens-apps/utils/posthog/noticeBanner'
+import {
+  readDismissedNoticeId,
+  storeDismissedNoticeId,
+} from '@ens-apps/utils/posthog/noticeDismissal'
 import { useCssHeightVariable } from '@ens-apps/utils/useCssHeightVariable'
 import { useLingui } from '@lingui/react/macro'
 import { XIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNoticeBanner } from '@/lib/posthog/useNoticeBanner'
 import { tw } from '@/utils/tailwind'
-
-// Stores the dismissed notice id, so any change to it shows the notice again.
-const NOTICE_DISMISSED_KEY = 'notice-dismissed'
 
 const VARIANT_CLASSES: Record<NoticeBannerVariant, string> = {
   info: 'bg-ens-lapis-bg text-ens-lapis-dense',
@@ -20,12 +21,8 @@ const VARIANT_CLASSES: Record<NoticeBannerVariant, string> = {
 export const NoticeBanner = () => {
   const { t } = useLingui()
   const notice = useNoticeBanner()
-  // Server render has no storage; flags are client-only too, so nothing shows there.
-  const [dismissedId, setDismissedId] = useState(() =>
-    typeof window === 'undefined'
-      ? null
-      : window.localStorage.getItem(NOTICE_DISMISSED_KEY),
-  )
+  // Any change to the notice in PostHog gives it a new id, so it shows again.
+  const [dismissedId, setDismissedId] = useState(readDismissedNoticeId)
   const isDismissible = notice?.variant !== 'danger'
   const isShown =
     notice !== null && !(isDismissible && dismissedId === notice.id)
@@ -35,7 +32,7 @@ export const NoticeBanner = () => {
   if (!isShown) return null
 
   const dismiss = () => {
-    window.localStorage.setItem(NOTICE_DISMISSED_KEY, notice.id)
+    storeDismissedNoticeId(notice.id)
     setDismissedId(notice.id)
   }
 

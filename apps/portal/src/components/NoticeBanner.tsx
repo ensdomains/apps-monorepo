@@ -3,15 +3,16 @@ import {
   type NoticeBannerVariant,
   readNoticeBanner,
 } from '@ens-apps/utils/posthog/noticeBanner'
+import {
+  readDismissedNoticeId,
+  storeDismissedNoticeId,
+} from '@ens-apps/utils/posthog/noticeDismissal'
 import { useCssHeightVariable } from '@ens-apps/utils/useCssHeightVariable'
 import { useFeatureFlagEnabled, useFeatureFlagPayload } from '@posthog/react'
 import { XIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { envConfig } from '@/config'
 import { cn } from '@/lib/utils'
-
-// Stores the dismissed notice id, so any change to it shows the notice again.
-const NOTICE_DISMISSED_KEY = 'notice-dismissed'
 
 const VARIANT_CLASSES: Record<NoticeBannerVariant, string> = {
   info: 'bg-type-entity-fill text-type-entity-text',
@@ -31,9 +32,8 @@ export const NoticeBanner = () => {
           chainId: envConfig.chain.id,
         })
       : null
-  const [dismissedId, setDismissedId] = useState(() =>
-    window.localStorage.getItem(NOTICE_DISMISSED_KEY),
-  )
+  // Any change to the notice in PostHog gives it a new id, so it shows again.
+  const [dismissedId, setDismissedId] = useState(readDismissedNoticeId)
   const isDismissible = notice?.variant !== 'danger'
   const isShown =
     notice !== null && !(isDismissible && dismissedId === notice.id)
@@ -43,7 +43,7 @@ export const NoticeBanner = () => {
   if (!isShown) return null
 
   const dismiss = () => {
-    window.localStorage.setItem(NOTICE_DISMISSED_KEY, notice.id)
+    storeDismissedNoticeId(notice.id)
     setDismissedId(notice.id)
   }
 
@@ -60,7 +60,7 @@ export const NoticeBanner = () => {
       {isDismissible && (
         <button
           aria-label="Dismiss notice"
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-xs opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-xs opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
           onClick={dismiss}
           type="button"
         >
