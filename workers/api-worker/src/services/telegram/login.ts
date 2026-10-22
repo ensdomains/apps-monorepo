@@ -39,7 +39,11 @@ const getConfiguration = ResultFn(function* (env: CloudflareBindings) {
     return yield* new TelegramConfigurationError({})
   }
   const redirectUri = yield* fromSync(
-    () => new URL(TELEGRAM_CALLBACK_PATH, env.BASE_URL).toString(),
+    () => {
+      const baseUrl = new URL(env.BASE_URL)
+      baseUrl.pathname = `${baseUrl.pathname.replace(/\/+$/, '')}/`
+      return new URL(TELEGRAM_CALLBACK_PATH, baseUrl).toString()
+    },
     (cause) => new TelegramConfigurationError({ cause }),
   )
   return ok({

@@ -712,6 +712,10 @@ msgstr ""
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Connect Telegram"
+msgstr ""
+
 #: src/features/profile/components/common/favoriteAction.helpers.ts
 msgid "Connect to favorite name"
 msgstr ""
@@ -743,6 +747,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Connected"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Connecting…"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -1236,10 +1244,6 @@ msgstr ""
 msgid "Get instant push notifications in your browser"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Get instant updates through Telegram for your domains."
-msgstr ""
-
 #: src/features/notifications/settings/preferences.tsx
 msgid "Get notified as favourited names approach expiry and move through their grace period."
 msgstr ""
@@ -1250,6 +1254,10 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Get updated on the latest releases and features."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Get updates about your names in Telegram."
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
@@ -1994,6 +2002,10 @@ msgid "Recommended"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Reconnect and allow the bot to send you messages to receive notifications."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Reconnect Telegram"
 msgstr ""
 
@@ -2119,6 +2131,10 @@ msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Remove saved session"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Remove Telegram"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
@@ -2705,10 +2721,6 @@ msgid "Switch your wallet to {0} to revoke sessions."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Telegram"
-msgstr ""
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram channel removed"
 msgstr ""
 
@@ -2717,7 +2729,7 @@ msgid "Telegram login expired. Please try again."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Telegram Notifications"
+msgid "Telegram notifications"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -3211,6 +3223,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for resolver submission"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Waiting for Telegram"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts

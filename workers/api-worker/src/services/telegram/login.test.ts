@@ -1,4 +1,6 @@
+import { errors } from 'jose'
 import { errAsync, okAsync } from 'neverthrow'
+import * as v from 'valibot'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import telegramRoutes from '#app/routes/notifications/channels/telegram.js'
 import { type Database, intoDbError } from '#core/database/index.js'
@@ -47,6 +49,7 @@ describe('Telegram login result handling', () => {
   const db = {} as Database
   const bindings = makeMockEnv({
     BASE_URL: 'https://sepolia.app-api.ens.domains',
+    MANAGER_APP_URL: 'https://sepolia.app.ens.domains',
     DATABASE_URL:
       'postgres://postgres:postgres@db.localtest.me:5432/api_worker_test',
     TELEGRAM_OIDC_CLIENT_ID: '123456',
@@ -106,6 +109,32 @@ describe('Telegram login result handling', () => {
       )._unsafeUnwrapErr(),
     ).toBe(database)
   })
+
+  it.each(['', '/', '/api', '/api/'])(
+    'preserves the configured public API path when constructing the callback: %s',
+    async (basePath) => {
+      const response = (
+        await startTelegramLogin(
+          db,
+          {
+            ...bindings,
+            // Generated bindings list deployed origins; local proxies override it.
+            BASE_URL:
+              `https://api.example${basePath}` as CloudflareBindings['BASE_URL'],
+          },
+          attempt.user_id,
+        )
+      )._unsafeUnwrap()
+      const expected = `https://api.example${basePath.startsWith('/api') ? '/api' : ''}/notifications/channels/telegram/callback`
+      expect(
+        new URL(response.authorizationUrl).searchParams.get('redirect_uri'),
+      ).toBe(expected)
+      expect(persistence.save).toHaveBeenCalledWith(
+        db,
+        expect.objectContaining({ redirect_uri: expected }),
+      )
+    },
+  )
 
   it('rejects invalid or consumed state without exchanging or modifying an unclaimed attempt', async () => {
     expect(
@@ -255,8 +284,136 @@ describe('Telegram login result handling', () => {
     },
   )
 
+  it.each([true, false])(
+    'renders a safe callback page with clear return instructions (success: %s)',
+    async (isSuccess) => {
+      if (!isSuccess) {
+        provider.verify.mockReturnValueOnce(
+          errAsync(new TelegramIdentityError({ stage: 'profile' })),
+        )
+      }
+      const response = await telegramRoutes.request(
+        `/telegram/callback?${query()}&redirect_uri=https://untrusted.example`,
+        {},
+        bindings,
+      )
+      const page = await response.text()
+      const nonce = /<style nonce="([^"]+)">/.exec(page)?.[1]
+      expect(nonce).toBeTruthy()
+      expect(response.headers.get('Content-Security-Policy')).toBe(
+        `default-src 'none'; style-src 'nonce-${nonce}'; font-src https://fonts.ens.dev; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`,
+      )
+      expect(response.headers.get('Cache-Control')).toBe('no-store')
+      expect(response.headers.get('Referrer-Policy')).toBe('no-referrer')
+      expect(page).toContain(
+        isSuccess
+          ? '<h1>Telegram connected</h1>'
+          : '<h1>Connection not completed</h1>',
+      )
+      expect(page).toContain(
+        'return to your original tab to keep your progress',
+      )
+      expect(page).toContain(`href="${bindings.MANAGER_APP_URL}"`)
+      expect(page).not.toContain('<script')
+      for (const value of [
+        'private-code',
+        'private-id-token',
+        'private-verifier',
+        'untrusted.example',
+      ]) {
+        expect(page).not.toContain(value)
+      }
+    },
+  )
+
   it('returns an explicit successful link only after all stages succeed', async () => {
     expect((await finish())._unsafeUnwrap()).toEqual({ id: 'channel-id' })
     expect(persistence.fail).not.toHaveBeenCalled()
+  })
+
+  it('logs failed claim and nested cause diagnostics without JWT payloads', async () => {
+    const secret = 'private-id-token'
+    provider.verify.mockReturnValueOnce(
+      errAsync(
+        new TelegramIdentityError({
+          stage: 'verification',
+          cause: new errors.JWTClaimValidationFailed(
+            'unexpected issuer',
+            { iss: secret, nonce: secret },
+            'iss',
+            'check_failed',
+          ),
+        }),
+      ),
+    )
+    const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
+    await telegramRoutes.request(`/telegram/callback?${query()}`, {}, bindings)
+    expect(log).toHaveBeenCalledWith(
+      'Telegram login unsuccessful',
+      expect.objectContaining({
+        stage: 'verification',
+        cause: expect.objectContaining({
+          errorCode: 'ERR_JWT_CLAIM_VALIDATION_FAILED',
+          claim: 'iss',
+          reason: 'check_failed',
+        }),
+      }),
+    )
+    expect(JSON.stringify(log.mock.calls)).not.toContain(secret)
+    log.mockRestore()
+  })
+
+  it('logs validation fields and types without the rejected input', async () => {
+    const secret = 'private-profile-input'
+    const parsed = v.safeParse(v.object({ id: v.number() }), { id: secret })
+    provider.verify.mockReturnValueOnce(
+      errAsync(
+        new TelegramIdentityError({
+          stage: 'profile',
+          cause: parsed.issues,
+        }),
+      ),
+    )
+    const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
+    await telegramRoutes.request(`/telegram/callback?${query()}`, {}, bindings)
+    expect(log).toHaveBeenCalledWith(
+      'Telegram login unsuccessful',
+      expect.objectContaining({
+        stage: 'profile',
+        cause: {
+          validationIssues: [
+            expect.objectContaining({
+              field: 'id',
+              expected: 'number',
+              receivedType: 'string',
+            }),
+          ],
+        },
+      }),
+    )
+    expect(JSON.stringify(log.mock.calls)).not.toContain(secret)
+    log.mockRestore()
+  })
+
+  it('logs database error codes without SQL or parameters', async () => {
+    const secret = 'private-database-parameter'
+    persistence.complete.mockReturnValueOnce(
+      errAsync(
+        intoDbError(Object.assign(new Error(secret), { code: '23505' })),
+      ),
+    )
+    const log = vi.spyOn(logger, 'error').mockImplementation(() => undefined)
+    await telegramRoutes.request(`/telegram/callback?${query()}`, {}, bindings)
+    expect(log).toHaveBeenCalledWith(
+      'Telegram login failed',
+      expect.objectContaining({
+        errorTag: 'DATABASE_ERROR',
+        cause: expect.objectContaining({
+          cause: expect.objectContaining({ errorCode: '23505' }),
+        }),
+      }),
+    )
+    expect(JSON.stringify(log.mock.calls)).not.toContain(secret)
+    log.mockRestore()
   })
 })

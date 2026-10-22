@@ -18,7 +18,9 @@ JavaScript SDK. Reference: https://core.telegram.org/bots/telegram-login
 4. The Worker exchanges the code using HTTP Basic client authentication and the
    stored PKCE verifier/redirect URI. `jose` verifies the ID token against the
    fixed Telegram JWKS endpoint, requiring RS256, issuer, audience, subject,
-   issued-at, expiry, nonce and the numeric profile `id`. The OIDC `sub` is not
+   issued-at, expiry, nonce and the profile `id`. The ID accepts a positive safe
+   integer or a decimal digit string, normalized to the existing numeric Bot API
+   ID. The OIDC `sub` is not
    the Telegram Bot API chat ID. Telegram has no UserInfo endpoint.
 5. Requested scopes are `openid profile telegram:bot_access`; no phone scope.
    Bot access has no documented ID-token claim. A successful bot message is
@@ -62,8 +64,10 @@ Configure **each environment's own bot** in BotFather → Login Widget:
 - Obtain its Client ID and Client Secret. The Client ID must match the bot ID in
   that environment's existing `TELEGRAM_BOT_TOKEN`.
 - Keep ID-token signing set to **RS256**. Other algorithms fail closed.
-- Register the exact redirect URI `${BASE_URL}/notifications/channels/telegram/callback`.
-  Do not register a Manager page as the callback.
+- Register the exact redirect URI formed by appending
+  `notifications/channels/telegram/callback` to `BASE_URL`.
+  The URL must reach the Worker's callback handler; an app-domain `/api` proxy
+  is fine, but a Manager page must not process the authorization code.
 - Provision `TELEGRAM_OIDC_CLIENT_ID` and `TELEGRAM_OIDC_CLIENT_SECRET` through the
   existing Wrangler secret workflow, separately for default/Sepolia and
   `--env mainnet`. Keep `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` as before.
@@ -73,6 +77,16 @@ Current checked-in callback URLs:
 
 - Sepolia/staging: `https://sepolia.app-api.ens.domains/notifications/channels/telegram/callback`
 - Mainnet/production: `https://mainnet.app-api.ens.domains/notifications/channels/telegram/callback`
+
+`BASE_URL` is the externally reachable API base. A configured path prefix is
+preserved: both `https://example.com/api` and `https://example.com/api/` produce
+`https://example.com/api/notifications/channels/telegram/callback`. Configure the
+proxy and register this exact external URL, including its path.
+
+BotFather's trusted origins concern browser cross-origin requests. This flow
+exchanges tokens in the Worker, without a browser request to Telegram's token
+endpoint. Manager preview origins are therefore not token-request origins;
+do not add per-preview callbacks or use the preview Host header to derive one.
 
 PR previews currently share Sepolia resources and its canonical `BASE_URL`.
 Set both OIDC secrets in **Previews Base**, with the same Sepolia bot as the
@@ -99,7 +113,11 @@ enter Cloudflare request logs/traces. Keep OAuth URLs, codes, token responses,
 PKCE verifiers, client secrets, and bearer tokens out of access logs, analytics,
 error reporting, reverse proxies and any external telemetry sinks as well.
 Callback responses use `no-store`, `no-referrer` and a restrictive CSP with no
-scripts or external resources. Avoid collecting full callback URLs in analytics.
+scripts. The only external resources are Manager’s fonts from `fonts.ens.dev`;
+font requests carry no referrer. Styles use a per-response CSP nonce. The page
+uses Manager’s theme tokens and offers a link to the configured `MANAGER_APP_URL`,
+while directing users back to their original tab to preserve registration progress.
+Avoid collecting full callback URLs in analytics.
 **Rollout prerequisite: redact Telegram Bot API URL paths in telemetry.**
 Automatic traces remain enabled by choice. Outbound Bot API URLs contain the
 bot token in the path (`/bot<token>/...`); query-string redaction does not mask it.
@@ -125,6 +143,13 @@ retains both the original typed failure and the database error. Internal causes
 are retained for handling; HTTP responses and logs expose only safe messages,
 tags, stages and statuses. Manager uses the existing `resultQueryOptions` and
 `resultMutationOptions` adapters and validates JSON responses before using them.
+
+Failure logs include bounded nested cause/recovery diagnostics: library and
+database error codes, failed claims, recognized OAuth error codes, and validation
+field/expected-type/received-type summaries. Raw error messages, JWT payloads,
+SQL parameters and validation inputs are excluded. Token requests use Workers'
+supported `manual` redirect mode and reject non-success statuses, preventing
+credentials from being forwarded to an unexpected redirect destination.
 
 Worker: `pnpm typecheck`, `pnpm test`, and `pnpm test:db`.
 The real-DB harness requires the dedicated local `api_worker_test` database and

@@ -10,7 +10,7 @@ import {
 
 export const TELEGRAM_ISSUER = 'https://oauth.telegram.org'
 export const TELEGRAM_CALLBACK_PATH =
-  '/notifications/channels/telegram/callback'
+  './notifications/channels/telegram/callback'
 export const TELEGRAM_LOGIN_TTL_MS = 10 * 60 * 1000
 
 const telegramKeys = createRemoteJWKSet(
@@ -68,7 +68,14 @@ export const createTelegramAuthorization = ResultFn(async function* (
 
 const telegramIdentitySchema = v.object({
   // The OIDC subject is distinct from the Bot API user/chat ID.
-  id: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+  id: v.pipe(
+    v.union([
+      v.number(),
+      v.pipe(v.string(), v.regex(/^[1-9]\d*$/), v.transform(Number)),
+    ]),
+    v.safeInteger(),
+    v.minValue(1),
+  ),
   name: v.optional(v.pipe(v.string(), v.maxLength(256))),
   preferred_username: v.optional(v.pipe(v.string(), v.maxLength(64))),
 })
@@ -91,16 +98,17 @@ export const verifyTelegramIdToken = (
     }),
     (cause) => new TelegramIdentityError({ stage: 'verification', cause }),
   ).andThen(({ payload }) => {
+    if (typeof payload.sub !== 'string' || !payload.sub)
+      return err(new TelegramIdentityError({ stage: 'claims', claim: 'sub' }))
+    if (payload.nonce !== nonce)
+      return err(new TelegramIdentityError({ stage: 'claims', claim: 'nonce' }))
     if (
-      typeof payload.sub !== 'string' ||
-      !payload.sub ||
-      payload.nonce !== nonce ||
       (payload.azp !== undefined && payload.azp !== clientId) ||
       (Array.isArray(payload.aud) &&
         payload.aud.length > 1 &&
         payload.azp !== clientId)
     ) {
-      return err(new TelegramIdentityError({ stage: 'claims' }))
+      return err(new TelegramIdentityError({ stage: 'claims', claim: 'azp' }))
     }
     const parsed = v.safeParse(telegramIdentitySchema, payload)
     return parsed.success
@@ -122,29 +130,57 @@ export const exchangeTelegramCode = ResultFn(async function* (params: {
     (cause) => new TelegramTokenExchangeError({ stage: 'credentials', cause }),
   )
   const response = yield* fromPromise(
-    fetch(`${TELEGRAM_ISSUER}/token`, {
-      method: 'POST',
-      redirect: 'error',
-      signal: AbortSignal.timeout(10_000),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${credentials}`,
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: params.code,
-        client_id: params.clientId,
-        redirect_uri: params.redirectUri,
-        code_verifier: params.codeVerifier,
+    Promise.resolve().then(() =>
+      fetch(`${TELEGRAM_ISSUER}/token`, {
+        method: 'POST',
+        // Workers supports manual/follow only. Never forward client credentials
+        // to an unexpected redirect destination.
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${credentials}`,
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: params.code,
+          client_id: params.clientId,
+          redirect_uri: params.redirectUri,
+          code_verifier: params.codeVerifier,
+        }),
       }),
-    }),
+    ),
     (cause) => new TelegramTokenExchangeError({ stage: 'request', cause }),
   )
-  if (!response.ok)
+  if (!response.ok) {
+    const body = await fromPromise<unknown, unknown>(
+      response.json(),
+      (cause) => cause,
+    )
+    // Keep the OAuth error code for diagnosis, but never log arbitrary response
+    // bodies/descriptions, which can echo codes or credentials.
+    const parsedError = v.safeParse(
+      v.object({
+        error: v.picklist([
+          'invalid_request',
+          'invalid_client',
+          'invalid_grant',
+          'unauthorized_client',
+          'unsupported_grant_type',
+          'invalid_scope',
+          'invalid_redirect_uri',
+          'server_error',
+          'temporarily_unavailable',
+        ]),
+      }),
+      body.unwrapOr(null),
+    )
     return yield* new TelegramTokenExchangeError({
       stage: 'provider',
       status: response.status,
+      providerError: parsedError.success ? parsedError.output.error : undefined,
     })
+  }
   const json = yield* fromPromise(
     response.json(),
     (cause) => new TelegramTokenExchangeError({ stage: 'decode', cause }),

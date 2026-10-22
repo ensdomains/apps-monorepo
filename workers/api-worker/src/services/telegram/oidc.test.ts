@@ -111,6 +111,16 @@ describe('Telegram OIDC', () => {
     expect(result._unsafeUnwrap()).toEqual({ id: 987654321 })
   })
 
+  it('normalizes a signed decimal string Bot API ID', async () => {
+    const result = await verifyTelegramIdToken(
+      await sign({ ...claims(), id: '987654321' }),
+      clientId,
+      nonce,
+      keys,
+    )
+    expect(result._unsafeUnwrap()).toEqual({ id: 987654321 })
+  })
+
   it.each([
     ['issuer', { iss: 'https://attacker.example' }],
     ['audience', { aud: 'other-bot' }],
@@ -122,6 +132,13 @@ describe('Telegram OIDC', () => {
     ['missing Bot API ID', { id: undefined }],
     ['unsafe Bot API ID', { id: Number.MAX_SAFE_INTEGER + 1 }],
     ['invalid Bot API ID', { id: -1 }],
+    ['empty Bot API ID', { id: '' }],
+    ['whitespace Bot API ID', { id: ' 987654321 ' }],
+    ['fractional Bot API ID', { id: '987.5' }],
+    ['exponent Bot API ID', { id: '1e9' }],
+    ['zero Bot API ID', { id: '0' }],
+    ['negative string Bot API ID', { id: '-1' }],
+    ['unsafe string Bot API ID', { id: '9007199254740993' }],
     ['authorized party', { azp: 'other-client' }],
     ['multiple audiences without azp', { aud: [clientId, 'other-client'] }],
     ['missing expiry', { exp: undefined }],
@@ -168,11 +185,15 @@ describe('Telegram OIDC', () => {
   })
 
   it('exchanges with Basic auth and the exact redirect URI and verifier, returning only the ID token', async () => {
-    const request = vi.fn(async () =>
-      Response.json({
-        id_token: 'id-token',
-        access_token: 'secret-access-token',
-      }),
+    const request = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        // Exercise Workers' Request constructor: redirect: 'error' is unsupported.
+        expect(new Request(input, init).redirect).toBe('manual')
+        return Response.json({
+          id_token: 'id-token',
+          access_token: 'secret-access-token',
+        })
+      },
     )
     vi.stubGlobal('fetch', request)
     const result = await exchangeTelegramCode({
@@ -187,7 +208,7 @@ describe('Telegram OIDC', () => {
       `${TELEGRAM_ISSUER}/token`,
       expect.objectContaining({
         method: 'POST',
-        redirect: 'error',
+        redirect: 'manual',
         headers: expect.objectContaining({
           Authorization: `Basic ${btoa(`${clientId}:secret`)}`,
         }),
@@ -223,6 +244,80 @@ describe('Telegram OIDC', () => {
       stage: 'request',
     })
     expect(result._unsafeUnwrapErr().cause).toBeInstanceOf(Error)
+  })
+
+  it('returns a typed failure when the runtime throws before returning a fetch promise', async () => {
+    const cause = new TypeError('unsupported request option')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        throw cause
+      }),
+    )
+    const result = await exchangeTelegramCode({
+      clientId,
+      clientSecret: 'secret',
+      code: 'code',
+      codeVerifier: 'verifier',
+      redirectUri: 'https://api.example/callback',
+    })
+    expect(result._unsafeUnwrapErr()).toMatchObject({ stage: 'request', cause })
+  })
+
+  it('rejects token endpoint redirects without forwarding credentials', async () => {
+    const request = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 307,
+          headers: { Location: 'https://attacker.example/token' },
+        }),
+    )
+    vi.stubGlobal('fetch', request)
+    const result = await exchangeTelegramCode({
+      clientId,
+      clientSecret: 'secret',
+      code: 'code',
+      codeVerifier: 'verifier',
+      redirectUri: 'https://api.example/callback',
+    })
+    expect(result._unsafeUnwrapErr()).toMatchObject({
+      _tag: 'TELEGRAM_TOKEN_EXCHANGE_ERROR',
+      stage: 'provider',
+      status: 307,
+    })
+    expect(request).toHaveBeenCalledOnce()
+    expect(request).toHaveBeenCalledWith(
+      `${TELEGRAM_ISSUER}/token`,
+      expect.objectContaining({ redirect: 'manual' }),
+    )
+  })
+
+  it('retains a recognized OAuth error without echoing the provider response body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: 'invalid_grant',
+            error_description: 'private-code private-verifier',
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    const result = await exchangeTelegramCode({
+      clientId,
+      clientSecret: 'secret',
+      code: 'private-code',
+      codeVerifier: 'private-verifier',
+      redirectUri: 'https://api.example/callback',
+    })
+    expect(result._unsafeUnwrapErr()).toMatchObject({
+      stage: 'provider',
+      status: 400,
+      providerError: 'invalid_grant',
+    })
+    expect(result._unsafeUnwrapErr().message).not.toContain('private')
   })
 
   it.each([

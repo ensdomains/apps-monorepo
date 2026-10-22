@@ -36,6 +36,7 @@ export class TelegramTokenExchangeError extends TaggedError(
 )<{
   readonly stage: 'credentials' | 'request' | 'provider' | 'decode' | 'response'
   readonly status?: number
+  readonly providerError?: string
   readonly cause?: unknown
 }> {
   override get message() {
@@ -47,6 +48,7 @@ export class TelegramIdentityError extends TaggedError(
   'TELEGRAM_IDENTITY_ERROR',
 )<{
   readonly stage: 'verification' | 'claims' | 'profile'
+  readonly claim?: 'sub' | 'nonce' | 'azp'
   readonly cause?: unknown
 }> {}
 

@@ -1,5 +1,5 @@
 import { vValidator } from '@hono/valibot-validator'
-import { html } from 'hono/html'
+import type { GenericIssue } from 'valibot'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -13,11 +13,61 @@ import {
   startTelegramLogin,
 } from '#services/telegram/login.js'
 import { logger } from '#utils/logger.js'
+import { telegramCallbackPage } from './telegram-callback.js'
 
 const idParam = v.object({ id: v.pipe(v.string(), v.uuid()) })
 
-// Error causes can contain SQL parameters, provider responses or credentials.
-// Preserve them in Results; log only this explicit safe projection.
+// Preserve the causal chain without serializing JWT payloads, SQL parameters,
+// validation inputs, or arbitrary error messages (which can contain credentials).
+const getErrorDiagnostics = (
+  value: unknown,
+  depth = 0,
+): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== 'object' || depth >= 5) return undefined
+  if (Array.isArray(value)) {
+    return {
+      validationIssues: value.slice(0, 10).map((value: unknown) => {
+        if (!value || typeof value !== 'object') return undefined
+        const issue = value as Partial<GenericIssue>
+        return {
+          field: Array.isArray(issue.path)
+            ? issue.path.map((item) => String(item.key)).join('.')
+            : undefined,
+          type: issue.type,
+          expected: issue.expected,
+          receivedType: issue.input === null ? 'null' : typeof issue.input,
+        }
+      }),
+    }
+  }
+  const error = value as Record<string, unknown>
+  return {
+    errorTag: typeof error._tag === 'string' ? error._tag : undefined,
+    errorName: value instanceof Error ? value.name : undefined,
+    errorCode:
+      typeof error.code === 'string' &&
+      /^(?:(?:UND_)?ERR_[A-Z0-9_]+|TELEGRAM_[A-Z0-9_]+|[0-9A-Z]{5})$/.test(
+        error.code,
+      )
+        ? error.code
+        : undefined,
+    stage: typeof error.stage === 'string' ? error.stage : undefined,
+    reason: typeof error.reason === 'string' ? error.reason : undefined,
+    claim: typeof error.claim === 'string' ? error.claim : undefined,
+    status: typeof error.status === 'number' ? error.status : undefined,
+    telegramErrorCode:
+      typeof error.errorCode === 'number' ? error.errorCode : undefined,
+    providerError:
+      typeof error.providerError === 'string' ? error.providerError : undefined,
+    recoveryOperation:
+      typeof error.operation === 'string' ? error.operation : undefined,
+    attemptId:
+      typeof error.attemptId === 'string' ? error.attemptId : undefined,
+    cause: getErrorDiagnostics(error.cause, depth + 1),
+    failure: getErrorDiagnostics(error.failure, depth + 1),
+  }
+}
+
 const logFailure = (
   operation: string,
   error: {
@@ -27,12 +77,8 @@ const logFailure = (
 ) => {
   const metadata = {
     operation,
-    errorTag: error._tag,
+    ...getErrorDiagnostics(error),
     failureTag: error.failure?._tag,
-    stage: 'stage' in error ? error.stage : undefined,
-    reason: 'reason' in error ? error.reason : undefined,
-    status: 'status' in error ? error.status : undefined,
-    recoveryOperation: 'operation' in error ? error.operation : undefined,
   }
   if (
     error._tag === 'DATABASE_ERROR' ||
@@ -43,14 +89,6 @@ const logFailure = (
     logger.warn('Telegram login unsuccessful', metadata)
   }
 }
-
-// Dynamic provider errors and tokens stay out of HTML, logs and responses.
-const callbackPage = (isSuccess: boolean) => html`<!doctype html>
-  <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ENS Telegram notifications</title></head>
-  <body><main><h1>${isSuccess ? 'Telegram connected' : 'Telegram connection unsuccessful'}</h1>
-  <p>${isSuccess ? 'Your Telegram is ready to receive ENS notifications.' : 'The connection expired, was cancelled, or could not be completed. Please return to ENS Manager and try again, allowing the bot to send messages.'}</p>
-  <p>You can close this tab and return to your original ENS Manager tab.</p></main></body></html>`
 
 export default createApp()
   .basePath('/telegram')
@@ -102,9 +140,10 @@ export default createApp()
     },
   )
   .get('/callback', injectDb, async (c) => {
+    const nonce = crypto.randomUUID()
     c.header(
       'Content-Security-Policy',
-      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+      `default-src 'none'; style-src 'nonce-${nonce}'; font-src https://fonts.ens.dev; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`,
     )
     c.header('X-Content-Type-Options', 'nosniff')
     const result = await finishTelegramLogin(
@@ -113,5 +152,11 @@ export default createApp()
       new URL(c.req.url).searchParams,
     )
     if (result.isErr()) logFailure('callback', result.error)
-    return c.html(callbackPage(result.isOk()))
+    return c.html(
+      telegramCallbackPage({
+        isSuccess: result.isOk(),
+        nonce,
+        managerUrl: c.env.MANAGER_APP_URL,
+      }),
+    )
   })
