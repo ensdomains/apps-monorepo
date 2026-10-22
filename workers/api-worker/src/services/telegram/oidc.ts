@@ -1,4 +1,4 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn } from '@ens-apps/utils/neverthrow'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { err, fromPromise, fromThrowable, ok } from 'neverthrow'
 import * as v from 'valibot'
@@ -117,10 +117,10 @@ export const exchangeTelegramCode = ResultFn(async function* (params: {
   codeVerifier: string
   redirectUri: string
 }) {
-  const credentials = yield* fromThrowable(
+  const credentials = yield* fromSync(
     () => btoa(`${params.clientId}:${params.clientSecret}`),
     (cause) => new TelegramTokenExchangeError({ stage: 'credentials', cause }),
-  )()
+  )
   const response = yield* fromPromise(
     fetch(`${TELEGRAM_ISSUER}/token`, {
       method: 'POST',

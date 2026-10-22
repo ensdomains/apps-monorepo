@@ -29,7 +29,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
   const login = useTelegramLogin()
   const loginStatus = (
     <div aria-live="polite" className="space-y-2 text-sm">
-      {(login.starting || login.pending) && (
+      {(login.isStarting || login.isPending) && (
         <p>
           <Trans>
             Finish connecting in the Telegram tab. You can keep using ENS
@@ -47,9 +47,9 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
           <Trans>Open Telegram</Trans>
         </a>
       )}
-      {login.pending && (
+      {login.isPending && (
         <Button
-          disabled={login.cancelling}
+          disabled={login.isCancelling}
           onClick={login.cancel}
           size="sm"
           variant="outline"
@@ -57,7 +57,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
           <Trans>Cancel connection</Trans>
         </Button>
       )}
-      {login.expired && (
+      {login.isExpired && (
         <p>
           <Trans>Telegram login expired. Please try again.</Trans>
         </p>
@@ -70,7 +70,15 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
           </Trans>
         </p>
       )}
-      {login.error && <p className="text-destructive">{login.error.message}</p>}
+      {login.startError && (
+        <p className="text-destructive">{login.startError.message}</p>
+      )}
+      {login.cancelError && (
+        <p className="text-destructive">{login.cancelError.message}</p>
+      )}
+      {login.statusError && (
+        <p className="text-destructive">{login.statusError.message}</p>
+      )}
     </div>
   )
 
@@ -98,7 +106,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
     return (
       <ContactMethodCard
         actionLabel={t`Telegram Notifications`}
-        actionLoading={login.starting || login.pending}
+        actionLoading={login.isStarting || login.isPending}
         description={t`Get instant updates through Telegram for your domains.`}
         icon={
           <MSymbol
@@ -184,7 +192,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
     >
       {telegram.status !== 'verified' && (
         <Button
-          disabled={login.starting || login.pending}
+          disabled={login.isStarting || login.isPending}
           onClick={login.connect}
           variant="outline"
         >

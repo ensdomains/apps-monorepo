@@ -9,8 +9,9 @@ JavaScript SDK. Reference: https://core.telegram.org/bots/telegram-login
    authenticated `POST /notifications/channels/telegram/oauth`.
 2. The Worker stores one current attempt per ENS user in PostgreSQL and returns
    the authorization URL. The attempt lasts ten minutes. Its random state is
-   stored as a SHA-256 digest, separately from the status ID. PKCE credentials
-   and nonce stay server-side. Initiation has a ten-second per-user cooldown.
+   stored as a SHA-256 digest, separately from the status ID. The PKCE verifier
+   stays server-side; the nonce is stored and sent in the authorization request.
+   Initiation has a ten-second per-user cooldown.
 3. Telegram redirects to public `GET /notifications/channels/telegram/callback`.
    An atomic update claims the unexpired state exactly once before any token
    exchange. No cookies, wallet token or original browser session are needed.

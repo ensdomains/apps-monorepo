@@ -18,10 +18,17 @@ const idParam = v.object({ id: v.pipe(v.string(), v.uuid()) })
 
 // Error causes can contain SQL parameters, provider responses or credentials.
 // Preserve them in Results; log only this explicit safe projection.
-const logFailure = (operation: string, error: { _tag: string }) => {
+const logFailure = (
+  operation: string,
+  error: {
+    readonly _tag: string
+    readonly failure?: { readonly _tag: string }
+  },
+) => {
   const metadata = {
     operation,
     errorTag: error._tag,
+    failureTag: error.failure?._tag,
     stage: 'stage' in error ? error.stage : undefined,
     reason: 'reason' in error ? error.reason : undefined,
     status: 'status' in error ? error.status : undefined,

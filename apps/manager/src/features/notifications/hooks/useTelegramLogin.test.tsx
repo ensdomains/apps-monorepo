@@ -76,10 +76,10 @@ describe('shared Telegram login lifecycle', () => {
 
   it('recovers pending status after remount without browser storage or an opener', async () => {
     const first = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(first.result.current.pending).toBe(true))
+    await waitFor(() => expect(first.result.current.isPending).toBe(true))
     first.unmount()
     const second = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(second.result.current.pending).toBe(true))
+    await waitFor(() => expect(second.result.current.isPending).toBe(true))
     expect(second.result.current.authorizationUrl).toBeUndefined()
     second.unmount()
   })
@@ -87,7 +87,7 @@ describe('shared Telegram login lifecycle', () => {
   it('refetches on focus and refreshes channels after the server completes authentication', async () => {
     const invalidate = vi.spyOn(client, 'invalidateQueries')
     const hook = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(hook.result.current.pending).toBe(true))
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
     attempt = attempt && { ...attempt, status: 'completed' }
     act(() => {
       focusManager.setFocused(false)
@@ -96,7 +96,7 @@ describe('shared Telegram login lifecycle', () => {
     await waitFor(() =>
       expect(hook.result.current.attempt?.status).toBe('completed'),
     )
-    expect(hook.result.current.pending).toBe(false)
+    expect(hook.result.current.isPending).toBe(false)
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: qk('channels', 'list'),
     })
@@ -105,7 +105,7 @@ describe('shared Telegram login lifecycle', () => {
 
   it('cancels through the authenticated endpoint and releases pending UI', async () => {
     const hook = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(hook.result.current.pending).toBe(true))
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
     act(() => hook.result.current.cancel())
     await waitFor(() =>
       expect(hook.result.current.attempt?.status).toBe('cancelled'),
@@ -114,7 +114,7 @@ describe('shared Telegram login lifecycle', () => {
       { param: { id: 'attempt' } },
       expect.objectContaining({ init: expect.any(Object) }),
     )
-    expect(hook.result.current.pending).toBe(false)
+    expect(hook.result.current.isPending).toBe(false)
     hook.unmount()
   })
 
@@ -137,7 +137,7 @@ describe('shared Telegram login lifecycle', () => {
         'oauth.telegram.org',
       ),
     )
-    expect(hook.result.current.pending).toBe(true)
+    expect(hook.result.current.isPending).toBe(true)
     hook.unmount()
   })
 
@@ -148,11 +148,11 @@ describe('shared Telegram login lifecycle', () => {
       expires_at: new Date(Date.now() + 200).toISOString(),
     }
     const hook = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(hook.result.current.pending).toBe(true))
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
     api.get.mockRejectedValue(new Error('offline'))
     await act(() => vi.advanceTimersByTimeAsync(300))
-    expect(hook.result.current.pending).toBe(false)
-    expect(hook.result.current.expired).toBe(true)
+    expect(hook.result.current.isPending).toBe(false)
+    expect(hook.result.current.isExpired).toBe(true)
     hook.unmount()
     const calls = api.get.mock.calls.length
     await act(() => vi.advanceTimersByTimeAsync(15_000))
@@ -161,7 +161,7 @@ describe('shared Telegram login lifecycle', () => {
 
   it('isolates pending status when the authenticated wallet changes', async () => {
     const hook = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(hook.result.current.pending).toBe(true))
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
     attempt = null
     act(() =>
       backendAuthStore.trigger.signIn({
@@ -170,7 +170,7 @@ describe('shared Telegram login lifecycle', () => {
       }),
     )
     await waitFor(() => expect(hook.result.current.attempt).toBeNull())
-    expect(hook.result.current.pending).toBe(false)
+    expect(hook.result.current.isPending).toBe(false)
     expect(hook.result.current.authorizationUrl).toBeUndefined()
     hook.unmount()
   })
@@ -187,11 +187,63 @@ describe('shared Telegram login lifecycle', () => {
     const hook = renderHook(useTelegramLogin, { wrapper })
     await waitFor(() => expect(finishStatus).toBeDefined())
     act(() => hook.result.current.connect())
-    await waitFor(() => expect(hook.result.current.pending).toBe(true))
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
     await act(async () => {
       finishStatus?.(Response.json({ attempt: null }))
     })
-    expect(hook.result.current.pending).toBe(true)
+    expect(hook.result.current.isPending).toBe(true)
+    hook.unmount()
+  })
+
+  it('shows cancellation and status errors independently and clears cancellation errors after completion', async () => {
+    api.cancel.mockRejectedValueOnce(new Error('cancel failed'))
+    const hook = renderHook(useTelegramLogin, { wrapper })
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
+    act(() => hook.result.current.cancel())
+    await waitFor(() => expect(hook.result.current.cancelError).toBeTruthy())
+
+    api.get.mockRejectedValueOnce(new Error('status failed'))
+    await act(() =>
+      client.invalidateQueries({ queryKey: qk('telegram_login', 'current') }),
+    )
+    await waitFor(() => expect(hook.result.current.statusError).toBeTruthy())
+    expect(hook.result.current.cancelError).toBeTruthy()
+
+    attempt = attempt && { ...attempt, status: 'completed' }
+    await act(() =>
+      client.invalidateQueries({ queryKey: qk('telegram_login', 'current') }),
+    )
+    await waitFor(() =>
+      expect(hook.result.current.attempt?.status).toBe('completed'),
+    )
+    expect(hook.result.current.cancelError).toBeNull()
+    expect(hook.result.current.statusError).toBeNull()
+    hook.unmount()
+  })
+
+  it('does not carry a local expiry into a new attempt', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    attempt = attempt && {
+      ...attempt,
+      expires_at: new Date(Date.now() + 200).toISOString(),
+    }
+    vi.spyOn(window, 'open').mockReturnValue(null)
+    const hook = renderHook(useTelegramLogin, { wrapper })
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
+    await act(() => vi.advanceTimersByTimeAsync(300))
+    expect(hook.result.current.isExpired).toBe(true)
+
+    attempt = {
+      id: 'replacement',
+      status: 'pending',
+      expires_at: new Date(Date.now() + 600_000).toISOString(),
+    }
+    act(() => hook.result.current.connect())
+    await waitFor(() =>
+      expect(hook.result.current.attempt?.id).toBe('replacement'),
+    )
+    expect(hook.result.current.isPending).toBe(true)
+    expect(hook.result.current.isExpired).toBe(false)
     hook.unmount()
   })
 })

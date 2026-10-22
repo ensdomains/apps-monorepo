@@ -8,8 +8,8 @@ import { useSelector } from '@xstate/store-react'
 import { useEffect, useState } from 'react'
 import {
   cancelTelegramLogin,
+  getTelegramLoginPhase,
   getTelegramLoginStatus,
-  isTelegramPending,
   openTelegramTab,
   startTelegramLogin,
   telegramPollInterval,
@@ -23,7 +23,7 @@ export const useTelegramLogin = () => {
     address: auth.address,
     baseUrl: getBackendApiBaseUrl(),
   })
-  const [expiredId, setExpiredId] = useState<string>()
+  const [, setNow] = useState(Date.now)
   const status = useQuery(
     resultQueryOptions({
       queryKey,
@@ -46,16 +46,18 @@ export const useTelegramLogin = () => {
     }),
   )
   const attempt = status.data?.attempt
+  const phase = getTelegramLoginPhase(attempt)
+  const isPending = phase === 'pending'
 
-  // This deadline also releases the UI if the network stays unavailable.
+  // Render once at the deadline even offline; expiry is derived from server data.
   useEffect(() => {
-    if (!attempt || !isTelegramPending(attempt)) return
+    if (!attempt || !isPending) return
     const timeout = window.setTimeout(
-      () => setExpiredId(attempt.id),
+      () => setNow(Date.now()),
       Math.max(0, new Date(attempt.expires_at).getTime() - Date.now()),
     )
     return () => window.clearTimeout(timeout)
-  }, [attempt])
+  }, [attempt, isPending])
 
   const start = useMutation(
     resultMutationOptions({
@@ -79,25 +81,24 @@ export const useTelegramLogin = () => {
       onSuccess: () => queryClient.invalidateQueries({ queryKey }),
     }),
   )
-  const pending = isTelegramPending(attempt) && expiredId !== attempt?.id
-  const expired =
-    attempt?.status === 'expired' ||
-    (attempt &&
-      (attempt.status === 'pending' || attempt.status === 'processing') &&
-      (!isTelegramPending(attempt) || expiredId === attempt.id))
   return {
     attempt,
-    pending,
-    expired,
-    starting: start.isPending,
-    cancelling: cancel.isPending,
-    error: start.error ?? cancel.error ?? status.error,
+    isPending,
+    isExpired: phase === 'expired',
+    isStarting: start.isPending,
+    isCancelling: cancel.isPending,
+    startError: phase === 'completed' ? null : start.error,
+    cancelError: isPending ? cancel.error : null,
+    statusError: status.error,
     // Keep an explicit user-activated link available for mobile/popup blockers.
     authorizationUrl:
-      pending && start.data && start.data.id === attempt?.id
+      isPending && start.data && start.data.id === attempt?.id
         ? start.data.authorizationUrl
         : undefined,
-    connect: () => start.mutate(openTelegramTab()),
+    connect: () => {
+      cancel.reset()
+      start.mutate(openTelegramTab())
+    },
     cancel: () => {
       if (attempt) cancel.mutate(attempt.id)
     },

@@ -1,5 +1,9 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { fromThrowable, ok } from 'neverthrow'
+import {
+  fromSync,
+  type InferOkTypes,
+  ResultFn,
+} from '@ens-apps/utils/neverthrow'
+import { ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import {
   claimTelegramAttempt,
@@ -34,10 +38,10 @@ const getConfiguration = ResultFn(function* (env: CloudflareBindings) {
   ) {
     return yield* new TelegramConfigurationError({})
   }
-  const redirectUri = yield* fromThrowable(
+  const redirectUri = yield* fromSync(
     () => new URL(TELEGRAM_CALLBACK_PATH, env.BASE_URL).toString(),
     (cause) => new TelegramConfigurationError({ cause }),
-  )()
+  )
   return ok({
     clientId: env.TELEGRAM_OIDC_CLIENT_ID,
     clientSecret: env.TELEGRAM_OIDC_CLIENT_SECRET,
@@ -56,10 +60,10 @@ export const startTelegramLogin = ResultFn(async function* (
     config.clientId,
     config.redirectUri,
   )
-  const id = yield* fromThrowable(
+  const id = yield* fromSync(
     () => crypto.randomUUID(),
     (cause) => new TelegramCryptoError({ cause }),
-  )()
+  )
   const expiresAt = new Date(Date.now() + TELEGRAM_LOGIN_TTL_MS)
   const attempt = yield* saveTelegramAttempt(db, {
     id,
@@ -79,12 +83,7 @@ export const startTelegramLogin = ResultFn(async function* (
   })
 })
 
-type Configuration = {
-  clientId: string
-  clientSecret: string
-  botToken: string
-  redirectUri: string
-}
+type Configuration = InferOkTypes<ReturnType<typeof getConfiguration>>
 
 const authenticateClaimedAttempt = ResultFn(async function* (
   db: Database,

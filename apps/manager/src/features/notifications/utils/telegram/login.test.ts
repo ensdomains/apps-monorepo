@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { backendClient } from '@/utils/backend-client'
 import {
-  isTelegramPending,
+  cancelTelegramLogin,
+  getTelegramLoginPhase,
+  getTelegramLoginStatus,
   openTelegramTab,
   startTelegramLogin,
   telegramPollInterval,
@@ -9,7 +11,13 @@ import {
 
 vi.mock('@/utils/backend-client', () => ({
   backendClient: {
-    notifications: { channels: { telegram: { oauth: { $post: vi.fn() } } } },
+    notifications: {
+      channels: {
+        telegram: {
+          oauth: { $post: vi.fn(), $get: vi.fn(), ':id': { $delete: vi.fn() } },
+        },
+      },
+    },
   },
 }))
 
@@ -102,7 +110,6 @@ describe('Telegram new-tab login', () => {
     const tab = { close: vi.fn() } as unknown as Window
     expect((await startTelegramLogin(tab))._unsafeUnwrapErr()).toMatchObject({
       _tag: 'TelegramLoginRequestError',
-      phase: 'response',
       message: 'Please wait',
       status: 429,
     })
@@ -118,10 +125,43 @@ describe('Telegram new-tab login', () => {
     expect((await startTelegramLogin(tab))._unsafeUnwrapErr()).toMatchObject({
       _tag: 'TelegramLoginRequestError',
       operation: 'initiate',
-      phase: 'request',
       cause,
     })
     expect(tab.close).toHaveBeenCalledOnce()
+  })
+
+  it('preserves the HTTP status when an error response is not JSON', async () => {
+    vi.mocked(
+      backendClient.notifications.channels.telegram.oauth.$post,
+    ).mockResolvedValueOnce(
+      new Response('Bad Gateway', { status: 502 }) as never,
+    )
+    expect((await startTelegramLogin(null))._unsafeUnwrapErr()).toMatchObject({
+      _tag: 'TelegramLoginRequestError',
+      operation: 'initiate',
+      status: 502,
+      message: 'Could not start Telegram login. Please try again.',
+    })
+  })
+
+  it('validates status responses and accepts cancellation without a response body', async () => {
+    const oauth = backendClient.notifications.channels.telegram.oauth
+    vi.mocked(oauth.$get).mockResolvedValueOnce(Response.json(null) as never)
+    expect(
+      (
+        await getTelegramLoginStatus(new AbortController().signal)
+      )._unsafeUnwrapErr(),
+    ).toMatchObject({
+      _tag: 'TelegramLoginRequestError',
+      operation: 'status',
+      status: 200,
+    })
+    vi.mocked(oauth[':id'].$delete).mockResolvedValueOnce(
+      new Response(null, { status: 204 }) as never,
+    )
+    expect(
+      (await cancelTelegramLogin('attempt-id'))._unsafeUnwrap(),
+    ).toBeUndefined()
   })
 
   it.each([
@@ -138,14 +178,13 @@ describe('Telegram new-tab login', () => {
         {
           _tag: 'TelegramLoginRequestError',
           operation: 'initiate',
-          phase: 'decode',
         },
       )
     },
   )
 
   it('bounds polling to the server deadline and stops for every terminal status', () => {
-    expect(isTelegramPending(attempt())).toBe(true)
+    expect(getTelegramLoginPhase(attempt())).toBe('pending')
     expect(telegramPollInterval(attempt())).toBe(5_000)
     for (const status of [
       'completed',

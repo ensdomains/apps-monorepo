@@ -212,35 +212,48 @@ describe('Telegram login result handling', () => {
     expect(persistence.fail).toHaveBeenCalledWith(db, attempt.id)
   })
 
-  it('keeps sensitive causes out of callback HTML and logs', async () => {
-    const secret =
-      'private-code private-id-token private-verifier client-secret bot-secret'
-    provider.exchange.mockReturnValueOnce(
-      errAsync(
-        new TelegramTokenExchangeError({
-          stage: 'request',
-          cause: new Error(secret),
+  it.each([false, true])(
+    'keeps sensitive causes out of callback HTML and logs, including recovery failures: %s',
+    async (recoveryFails) => {
+      const secret =
+        'private-code private-id-token private-verifier client-secret bot-secret'
+      provider.exchange.mockReturnValueOnce(
+        errAsync(
+          new TelegramTokenExchangeError({
+            stage: 'request',
+            cause: new Error(secret),
+          }),
+        ),
+      )
+      if (recoveryFails)
+        persistence.fail.mockReturnValueOnce(
+          errAsync(intoDbError(new Error(secret))),
+        )
+      const log = vi
+        .spyOn(logger, recoveryFails ? 'error' : 'warn')
+        .mockImplementation(() => undefined)
+      const response = await telegramRoutes.request(
+        `/telegram/callback?${query()}`,
+        {},
+        bindings,
+      )
+      expect(await response.text()).not.toContain(secret)
+      expect(log).toHaveBeenCalledWith(
+        recoveryFails ? 'Telegram login failed' : 'Telegram login unsuccessful',
+        expect.objectContaining({
+          errorTag: recoveryFails
+            ? 'TELEGRAM_ATTEMPT_RECOVERY_ERROR'
+            : 'TELEGRAM_TOKEN_EXCHANGE_ERROR',
+          ...(recoveryFails
+            ? { failureTag: 'TELEGRAM_TOKEN_EXCHANGE_ERROR' }
+            : { stage: 'request' }),
         }),
-      ),
-    )
-    const warning = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
-    const response = await telegramRoutes.request(
-      `/telegram/callback?${query()}`,
-      {},
-      bindings,
-    )
-    expect(await response.text()).not.toContain(secret)
-    expect(warning).toHaveBeenCalledWith(
-      'Telegram login unsuccessful',
-      expect.objectContaining({
-        errorTag: 'TELEGRAM_TOKEN_EXCHANGE_ERROR',
-        stage: 'request',
-      }),
-    )
-    const logs = JSON.stringify(warning.mock.calls)
-    for (const value of secret.split(' ')) expect(logs).not.toContain(value)
-    warning.mockRestore()
-  })
+      )
+      const logs = JSON.stringify(log.mock.calls)
+      for (const value of secret.split(' ')) expect(logs).not.toContain(value)
+      log.mockRestore()
+    },
+  )
 
   it('returns an explicit successful link only after all stages succeed', async () => {
     expect((await finish())._unsafeUnwrap()).toEqual({ id: 'channel-id' })

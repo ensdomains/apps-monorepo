@@ -25,8 +25,8 @@ export const handleTelegramMessagingRefusal = (
     classifyDeliveryError('telegram', error.message ?? '').category ===
     'hard_bounce'
   if (!forbidden && !permanent) return okAsync(undefined)
-  // Lock the attempt before updating its channel, using Drizzle's CTE builder.
-  // Cancellation/replacement makes this CTE empty, so stale errors do nothing.
+  // Serialize with cancellation/replacement before updating the channel. If
+  // either wins the attempt lock first, this refusal cannot affect its successor.
   const currentAttempt = db.$with('current_attempt').as(
     db
       .select({ user_id: attempts.user_id })
