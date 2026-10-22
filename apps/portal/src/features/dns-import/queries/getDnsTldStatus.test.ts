@@ -14,7 +14,7 @@ vi.mock('@ensdomains/ensjs/chain', () => ({
   },
 }))
 vi.mock('@/lib/wagmi', () => ({
-  ensChain: { id: 11155111 },
+  ensChain: { id: 11155111, testnet: true },
 }))
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
@@ -64,18 +64,15 @@ describe('getDnsTldStatus', () => {
 
     const result = await getDnsTldStatus({ tld: 'xyz' })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      type: 'custom',
-      registrar: CUSTOM_REGISTRAR,
-    })
+    expect(result._unsafeUnwrap()).toEqual({ type: 'custom' })
   })
 
-  it('is custom for a TLD on the docs list without reading the node', async () => {
+  it('is custom on a testnet for a TLD on the docs list, without reading the node', async () => {
     getOwnerMock.mockRejectedValue(new Error('rpc down'))
 
     const result = await getDnsTldStatus({ tld: 'hiphop' })
 
-    expect(result._unsafeUnwrap()).toEqual({ type: 'custom', registrar: null })
+    expect(result._unsafeUnwrap()).toEqual({ type: 'custom' })
     expect(getOwnerMock).not.toHaveBeenCalled()
   })
 
