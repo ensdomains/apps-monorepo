@@ -31,15 +31,15 @@ const LandingPage = () => {
       <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-11">
         <h1 className="text-center text-temp-64px">
           <span className="font-normal text-ens-lapis-core">
-            <Trans>Claim your</Trans>
+            <Trans>Find your</Trans>
           </span>
           <br />
           <span className="font-serif text-ens-lapis-dense italic">
-            <Trans>web3 username</Trans>
+            <Trans>name</Trans>
           </span>
         </h1>
         <p className="mt-6 text-center font-normal text-ens-lapis-core text-temp-32px">
-          <Trans>A simple, portable identity that you control</Trans>
+          <Trans>A name you own that goes wherever you do</Trans>
         </p>
         <div className="mt-11 w-full max-w-3xl">
           <CheckAvailability

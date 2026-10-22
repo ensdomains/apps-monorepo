@@ -224,6 +224,10 @@ msgstr ""
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr ""
 
+#: src/routes/index.tsx
+msgid "A name you own that goes wherever you do"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "A permission is missing. Try again."
 msgstr ""
@@ -231,10 +235,6 @@ msgstr ""
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "A required upgrade contract is unavailable. Please try again later."
 msgstr ""
-
-#: src/routes/index.tsx
-msgid "A simple, portable identity that you control"
-msgstr "En enkel, portabel identitet som du kontrollerar"
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
@@ -629,10 +629,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
-
-#: src/routes/index.tsx
-msgid "Claim your"
-msgstr ""
 
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
@@ -1217,6 +1213,10 @@ msgstr ""
 msgid "Fee at this moment"
 msgstr ""
 
+#: src/routes/index.tsx
+msgid "Find your"
+msgstr ""
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
 msgstr ""
@@ -1570,6 +1570,10 @@ msgstr ""
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "My Names"
 msgstr "Mina namn"
+
+#: src/routes/index.tsx
+msgid "name"
+msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -3316,10 +3320,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
-msgstr ""
-
-#: src/routes/index.tsx
-msgid "web3 username"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
