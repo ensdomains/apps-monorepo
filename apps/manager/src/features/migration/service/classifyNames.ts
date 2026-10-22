@@ -14,6 +14,7 @@ export {
   managerRestorationCandidates,
   registryControllerOf,
   withManagerRestorationOptIn,
+  wrappedCopyExpiry,
 } from '@ens-apps/migration'
 
 export const is2LD = (name: ClassifiedName): boolean =>

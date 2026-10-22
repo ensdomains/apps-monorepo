@@ -15,6 +15,7 @@ export const PendingChangesBar = ({
   isConnected = true,
   errorMessage,
   hasValidationErrors = false,
+  hasDisallowedChanges = false,
 }: {
   updatesCount: number
   changesCount: number
@@ -28,8 +29,10 @@ export const PendingChangesBar = ({
   isConnected?: boolean
   errorMessage?: string
   hasValidationErrors?: boolean
+  hasDisallowedChanges?: boolean
 }) => {
-  const canSave = changesCount > 0 && !hasValidationErrors && !isSaving
+  const isBlocked = hasValidationErrors || hasDisallowedChanges
+  const canSave = changesCount > 0 && !isBlocked && !isSaving
   useHotkey('Mod+S', onSave, { enabled: canSave })
 
   const saveButtonLabel = (() => {
@@ -94,6 +97,12 @@ export const PendingChangesBar = ({
             Fix validation errors to save
           </span>
         )}
+        {hasDisallowedChanges && (
+          <span className="text-p text-danger-text flex items-center gap-1">
+            <AlertCircle className="size-3" />
+            Your wallet can no longer save some of these changes
+          </span>
+        )}
         <Button
           variant="outline"
           onClick={onDiscard}
@@ -103,11 +112,7 @@ export const PendingChangesBar = ({
           Discard
           <X className="size-4 ml-1" />
         </Button>
-        <Button
-          disabled={hasValidationErrors}
-          onClick={onSave}
-          className="rounded-sm"
-        >
+        <Button disabled={isBlocked} onClick={onSave} className="rounded-sm">
           {isSaving ? (
             <>
               {saveButtonLabel}

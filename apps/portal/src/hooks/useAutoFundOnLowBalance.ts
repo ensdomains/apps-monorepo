@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { erc20Abi } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { ensChain } from '@/lib/wagmi'
 import { useFundWallet } from './useFundWallet'
 
@@ -71,8 +72,9 @@ export function useAutoFundOnLowBalance() {
       id: `anvil-setup-${address}`,
     })
     anvilSetupOwner(address, ensChain, {
-      USDC: PAYMENT_TOKENS[0].address,
-      DAI: PAYMENT_TOKENS[1].address,
+      // Both mock tokens are minted, whatever the pickers currently offer.
+      USDC: SUPPORTED_TOKENS.USDC,
+      DAI: SUPPORTED_TOKENS.DAI,
     })
       .then(() => {
         toast.success('Dev wallet ready', {

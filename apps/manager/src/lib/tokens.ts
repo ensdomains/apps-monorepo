@@ -53,7 +53,10 @@ export const RENEWAL_TOKENS = {
 export type RENEWAL_TOKEN = keyof typeof RENEWAL_TOKENS
 
 /**
- * The renewal tokens offered on this network. Mainnet DAI's funding leg signs
- * its legacy permit (see `permitKind`), so DAI is offered everywhere.
+ * The renewal tokens offered: the same set registration offers. DAI stays in
+ * `RENEWAL_TOKENS` because the renewers settle it, but it does not work with
+ * the HCA, so it is not shown.
  */
-export const RENEWAL_TOKEN_SYMBOLS: readonly RENEWAL_TOKEN[] = ['USDC', 'DAI']
+export const RENEWAL_TOKEN_SYMBOLS: readonly RENEWAL_TOKEN[] = Object.keys(
+  SUPPORTED_TOKENS,
+) as SUPPORTED_TOKEN[]

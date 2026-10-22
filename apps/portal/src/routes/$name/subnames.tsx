@@ -35,10 +35,13 @@ import {
   type SubnameDeleteStepSpec,
   useSubnameDeleteQueue,
 } from '@/features/registry/hooks/useSubnameDeleteQueue'
+import { getRegistrarAccess } from '@/features/registry/utils/create-subname.helpers'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import {
+  ROOT_RESOURCE_ID,
   resourceIdForName,
   resourceIdFromChainValue,
 } from '@/lib/resource/resourceId'
@@ -186,17 +189,15 @@ const SubregistrySubnames = ({
 }: SubregistrySubnamesProps) => {
   const { address: connectedAccount } = useAccount()
 
-  // ROLE_REGISTRAR on the subregistry's ROOT resource, which is what `register`
-  // checks and where a registry-wide grant lands. Omitting `label` is what
-  // selects that: a label of any kind — `''` included — asks about
-  // `labelhash(label)` instead, a resource nobody is ever granted roles on, so
-  // the answer was always false however the account was granted the role.
-  const { data: hasRegistrarRole } = useQuery({
-    ...getHasRolesQueryOptions({
+  // `register` checks the subregistry's root roles: ROLE_REGISTRAR for a free
+  // label, ROLE_REGISTER_RESERVED for a reserved one. The create page asks the same.
+  const { data: registrarAccess } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
       registryAddress: subregistryAddress,
-      roles: ['ROLE_REGISTRAR'],
+      resource: ROOT_RESOURCE_ID,
       account: connectedAccount as Address,
     }),
+    select: ({ decoded }) => getRegistrarAccess(decoded),
     enabled: Boolean(connectedAccount),
   })
 
@@ -389,7 +390,9 @@ const SubregistrySubnames = ({
   const canDeleteSubname =
     hasRootUnregisterRole === true || subnameRows.some((row) => row.canDelete)
 
-  const canCreateSubname = Boolean(hasRegistrarRole)
+  const canCreateSubname = Boolean(
+    registrarAccess?.canRegister || registrarAccess?.canRegisterReserved,
+  )
 
   return (
     <>

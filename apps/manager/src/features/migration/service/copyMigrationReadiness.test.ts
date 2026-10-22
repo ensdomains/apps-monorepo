@@ -295,7 +295,7 @@ describe('assertCopySourcesFresh', () => {
   })
 
   it('accepts an unset zero expiry for a parent-controlled wrapped source', async () => {
-    const copy = wrappedCopy(null, 0n)
+    const copy = wrappedCopy(null, MAX_UINT64)
 
     await expect(
       assertCopySourcesFresh({

@@ -21,7 +21,7 @@ export const EditProfileDialog = ({
   leftActions,
 }: EditProfileDialogProps) => {
   const dialogActor = useActorRef(editProfileDialogMachine, {
-    input: { records },
+    input: { name, records },
   })
   const isActive = useSelector(dialogActor, (state) => !state.matches('closed'))
   const isPreviewing = useSelector(
@@ -85,7 +85,7 @@ export const EditProfileDialog = ({
   const handleOpen = () => {
     resetPreparedImageSaveState()
     form.reset(records)
-    dialogActor.send({ type: 'OPEN', records })
+    dialogActor.send({ type: 'OPEN', name, records })
   }
 
   const handleClose = () => {

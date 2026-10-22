@@ -134,6 +134,7 @@ describe('revokeSessionsOnChain', () => {
       to: HCA,
       data: REVOKE_SELECTOR,
       value: 0n,
+      gas: 150_000n,
     })
     expect(getSession(HCA)).toBeNull()
   })

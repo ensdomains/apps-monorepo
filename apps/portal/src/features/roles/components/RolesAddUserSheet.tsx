@@ -3,7 +3,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,16 +20,11 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRoles'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
-import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { resourceIdForName } from '@/lib/resource/resourceId'
-import {
-  isAdminRole,
-  isManagerRoleSettable,
-  permissions,
-} from '@/lib/roles/permissions'
+import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -40,6 +35,8 @@ type RolesAddUserSheetProps = {
   readonly onOpenChange: (open: boolean) => void
   readonly name: string
   readonly registryAddress: Address
+  /** The connected wallet's `_ADMIN` roles on the name, root roles included. */
+  readonly callerAdminRoles: ReadonlySet<Role>
 }
 
 export const RolesAddUserSheet = ({
@@ -47,9 +44,9 @@ export const RolesAddUserSheet = ({
   onOpenChange,
   name,
   registryAddress,
+  callerAdminRoles,
 }: RolesAddUserSheetProps) => {
   const { data: walletClient } = useWalletClient()
-  const callerAddress = walletClient?.account?.address
 
   const labels = name.split('.')
   const is2LD = labels.length === 2
@@ -62,23 +59,6 @@ export const RolesAddUserSheet = ({
   })
   const resourceId = idFromName ?? readId ?? null
   const isResourceIdLoading = isReadingId
-
-  // Asked about the id the grant will be addressed with, not the label: the
-  // two disagree for an encoded (`[<64 hex>]`) label, which would either hide
-  // the form from an admin or offer it to someone whose authority is on
-  // another name (WEB-1458).
-  const { data: callerRolesData } = useQuery({
-    ...getNameRolesForAccountQueryOptions({
-      registryAddress,
-      resource: resourceId,
-      account: callerAddress ?? zeroAddress,
-    }),
-    enabled: Boolean(callerAddress) && Boolean(resourceId),
-  })
-
-  const callerAdminRoles = new Set<Role>(
-    (callerRolesData?.decoded ?? []).filter((r): r is Role => isAdminRole(r)),
-  )
 
   const [userInput, setUserInput] = useState('')
   const [selectedRoles, setSelectedRoles] = useState<Set<Role>>(new Set())
@@ -195,9 +175,11 @@ export const RolesAddUserSheet = ({
                     const managerRole = permission.key as Role
                     const adminRole = `${permission.key}_ADMIN` as Role
                     const callerHasAdminRole = callerAdminRoles.has(adminRole)
-                    const isManagerRoleDisabled =
-                      !isManagerRoleSettable(permission.key, { is2LD }) ||
-                      !callerHasAdminRole
+                    const isManagerRoleDisabled = !canCallerSetManagerRole(
+                      permission.key,
+                      callerAdminRoles,
+                      { is2LD },
+                    )
 
                     return (
                       <div

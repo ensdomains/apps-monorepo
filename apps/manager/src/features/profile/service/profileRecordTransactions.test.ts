@@ -1,6 +1,11 @@
 import type { Address, PublicClient } from 'viem'
 import { decodeFunctionData, parseAbi, toFunctionSelector } from 'viem'
 import { describe, expect, it } from 'vitest'
+import {
+  normalizeProfileRecords,
+  transformProfileRecords,
+  transformToServiceFormat,
+} from '@/features/profile/utils/transformRecords'
 import { buildRecordsUpdateCalls } from './profileRecordTransactions'
 
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
@@ -16,6 +21,46 @@ const clientFor = (supportsNameSetters: boolean) =>
 const publicClient = clientFor(true)
 
 describe('buildRecordsUpdateCalls', () => {
+  it('does not republish inherited social records when a different social record is edited', async () => {
+    const saved = transformProfileRecords({
+      texts: [
+        { key: 'com.twitter', value: 'https://x.com/previousowner' },
+        { key: 'com.discord', value: 'old-discord' },
+      ],
+      coins: [],
+      resolverAddress: RESOLVER,
+    })
+    const submitted = normalizeProfileRecords({
+      ...saved,
+      social: saved.social.map((record) =>
+        record.key === 'com.discord'
+          ? { ...record, value: 'new-discord' }
+          : record,
+      ),
+    })
+
+    const { calls } = await buildRecordsUpdateCalls({
+      name: 'transferred.eth',
+      before: transformToServiceFormat(saved),
+      after: transformToServiceFormat(submitted),
+      shouldClearRecords: true,
+      publicClient,
+      resolverAddress: RESOLVER,
+    })
+    const decoded = decodeFunctionData({
+      abi: multicallAbi,
+      data: calls[0]?.data ?? '0x',
+    })
+    const setTextAbi = parseAbi(['function setText(bytes,string,string)'])
+
+    expect(
+      decoded.args[0].slice(1).map((data) => {
+        const call = decodeFunctionData({ abi: setTextAbi, data })
+        return call.args.slice(1)
+      }),
+    ).toEqual([['com.discord', 'new-discord']])
+  })
+
   it('unlinks the name before applying the current record diff', async () => {
     const ethAddress = '0x1111111111111111111111111111111111111111'
     const { calls } = await buildRecordsUpdateCalls({

@@ -1,4 +1,5 @@
 import type { V1Domain } from '@ens-apps/migration'
+import { maxUint64 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
@@ -472,12 +473,49 @@ describe('classifyNames', () => {
       expect(names[1]).toMatchObject({
         action: 'copy',
         copySource: 'name-wrapper',
-        sourceExpiry: 0n,
+        sourceExpiry: maxUint64,
       })
       expect(ineligible).toEqual([])
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('copies a zero-expiry wrapped child of an unwrapped .eth parent as non-expiring', () => {
+    const domains: V1Domain[] = [
+      makeDomain({ id: '0x1', name: 'parent.eth', labelName: 'parent' }),
+      makeDomain({
+        id: '0x2',
+        name: 'wrapped.parent.eth',
+        labelName: 'wrapped',
+        parentName: 'parent.eth',
+        registrantId: null,
+        ownerId: OTHER,
+        isWrapped: true,
+        fuses: 0n,
+        wrappedExpiry: '0',
+        resolverAddress: null,
+      }),
+    ]
+
+    const { classified: names, ineligible } = classifyNames(
+      domains,
+      OWNER,
+      envConfig.chain.id,
+    )
+
+    expect(
+      names.map(({ domain, action, tokenType }) => [
+        domain.name,
+        action,
+        tokenType,
+      ]),
+    ).toEqual([
+      ['parent.eth', 'migrate', 'unwrapped'],
+      ['wrapped.parent.eth', 'copy', 'unlocked-child'],
+    ])
+    expect(names[1]).toMatchObject({ sourceExpiry: maxUint64 })
+    expect(ineligible).toEqual([])
   })
 
   it('rejects zero expiry after a wrapped child is emancipated', () => {

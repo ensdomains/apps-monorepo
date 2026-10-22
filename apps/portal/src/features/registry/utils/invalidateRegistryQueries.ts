@@ -1,5 +1,6 @@
 /** Registry role reads refresh on confirmation and again after indexing. */
 import type { QueryClient } from '@tanstack/react-query'
+import { getNameRolesForAccountQueryKey } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryKey } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { registryHistoryTimelineQueryKey } from '../components/v2/RegistryHistory'
 import { getRegistryInfoQueryKey } from '../hooks/useRegistry'
@@ -7,12 +8,14 @@ import { getRegistryLabelsQueryKey } from '../hooks/useRegistryLabels'
 import { getRegistryOccupantsQueryKey } from '../hooks/useRegistryOccupants'
 import { getRegistryRoleHistoryForAccountQueryKey } from '../hooks/useRegistryRoleHistoryForAccount'
 
-/** Root role reads from BigName. */
+/** Root role reads, from BigName and on-chain. */
 const ROOT_ROLE_KEYS: ReadonlySet<unknown> = new Set([
   // Holders table on /registry/$address/roles.
   getRegistryRootRoleHoldersQueryKey.key,
   // Per-user role-change history embedded in the edit sheet.
   getRegistryRoleHistoryForAccountQueryKey.key,
+  // The caller's own root roles, which gate the add/edit sheets (on-chain).
+  getNameRolesForAccountQueryKey.key,
 ])
 
 /** Read from bigname: needs polling until it has indexed the transaction. */
