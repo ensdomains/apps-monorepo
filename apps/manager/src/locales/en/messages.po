@@ -1051,16 +1051,16 @@ msgid "ENS"
 msgstr "ENS"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS app landing page"
-msgstr "ENS app landing page"
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS Explorer"
 msgstr "ENS Explorer"
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Manager"
+msgstr "ENS Manager"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
@@ -1787,6 +1787,7 @@ msgstr "One username everywhere"
 msgid "Only ENSv2 Names Supported"
 msgstr "Only ENSv2 Names Supported"
 
+#: src/features/navigation/Header/navigation/DesktopNavigation.tsx
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr "Open navigation"
