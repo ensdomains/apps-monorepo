@@ -1,21 +1,28 @@
 import type { ProfileImageMime } from './index'
 
-type ImageInfo = { mimeType: ProfileImageMime; animated: false }
-type Reader = { bytes: Uint8Array; length: number; view: DataView }
+type ImageInfo = {
+  readonly mimeType: ProfileImageMime
+  readonly animated: false
+}
+type Reader = {
+  readonly bytes: Uint8Array
+  readonly length: number
+  readonly view: DataView
+}
 
 const inspectJpeg = (reader: Reader): ImageInfo | null => {
   const { bytes, length, view } = reader
   if (length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     let cursor = 2
-    let frame = false
-    let scan = false
+    let hasFrame = false
+    let hasScan = false
     let componentCount = 0
     while (cursor < length) {
       if (bytes[cursor++] !== 0xff) return null
       while (bytes[cursor] === 0xff) cursor++
       const marker = bytes[cursor++] ?? 0
       if (marker === 0xd9)
-        return cursor === length && frame && scan
+        return cursor === length && hasFrame && hasScan
           ? { mimeType: 'image/jpeg', animated: false }
           : null
       if (marker === 0 || marker === 0xd8 || cursor + 2 > length) return null
@@ -32,7 +39,7 @@ const inspectJpeg = (reader: Reader): ImageInfo | null => {
           !view.getUint16(cursor + 5)
         )
           return null
-        frame = true
+        hasFrame = true
       }
       if (
         marker === 0xda &&
@@ -44,8 +51,8 @@ const inspectJpeg = (reader: Reader): ImageInfo | null => {
         return null
       cursor += size
       if (marker === 0xda) {
-        if (!frame) return null
-        scan = true
+        if (!hasFrame) return null
+        hasScan = true
         const scanStart = cursor
         while (cursor < length) {
           if (bytes[cursor] !== 0xff) {

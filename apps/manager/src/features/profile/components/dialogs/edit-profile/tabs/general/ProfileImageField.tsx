@@ -121,6 +121,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         displayImage={editor.displayImage}
         error={editor.state.context.error}
         hasImage={editor.hasImage}
+        isUploadDisabled={!editor.canUpload}
         kind={kind}
         name={name}
         onCancel={editor.handleCancel}
@@ -131,7 +132,6 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         onRemove={editor.handleRemoveClick}
         onUpload={editor.handleUploadClick}
         themeColor={themeColor}
-        uploadDisabled={!editor.canUpload}
       />
     )
   }

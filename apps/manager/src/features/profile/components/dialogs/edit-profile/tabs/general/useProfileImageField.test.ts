@@ -42,6 +42,12 @@ vi.mock('@/features/profile/service/profileNfts', () => ({
   profileNftsQuery: () => ({ queryKey: ['profile', 'nfts'] }),
 }))
 
+vi.mock('@/features/profile/service/profileOwner', () => ({
+  profileOwnerQuery: (name: string) => ({
+    queryKey: ['profile', 'owner', { name }],
+  }),
+}))
+
 vi.mock('./ProfileImageField.crop', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('./ProfileImageField.crop')>()

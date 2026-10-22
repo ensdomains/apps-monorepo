@@ -1,4 +1,3 @@
-import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import type React from 'react'
@@ -9,6 +8,7 @@ import { imageSelectionMachine } from '@/features/profile/machines/imageSelectio
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { prepareProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import { profileNftsQuery } from '@/features/profile/service/profileNfts'
+import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { inspect } from '@/utils/xstate'
 import {
   cropImageFile,
@@ -66,15 +66,7 @@ export const useProfileImageField = ({
   const [cropZoom, setCropZoom] = useState(1)
   const [isCropping, setIsCropping] = useState(false)
   const { data: uploadOwner } = useQuery({
-    queryKey: qk('profile', 'owner', { name }),
-    queryFn: async () => {
-      const { getOwner } = await import(
-        '@/features/profile/service/profileOwner'
-      )
-      const result = await getOwner({ name })
-      if (result.isErr()) throw result.error
-      return result.value
-    },
+    ...profileOwnerQuery(name),
     enabled: Boolean(envConfig.profileMediaOrigin),
   })
   const canUpload =

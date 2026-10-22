@@ -16,6 +16,7 @@
     "@ens-apps/config": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
+    "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "hono": "^4.13.13",
     "valibot": "^1.5.0",
